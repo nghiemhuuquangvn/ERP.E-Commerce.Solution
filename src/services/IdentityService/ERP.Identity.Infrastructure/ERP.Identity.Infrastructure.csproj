@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\ERP.Identity.Domain\ERP.Identity.Domain.csproj" />
+    <ProjectReference Include="..\ERP.Identity.Application\ERP.Identity.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Identity\" />
+    <Folder Include="ExternalLogin\" />
+    <Folder Include="MessageBus\" />
+    <Folder Include="Persistence\Migrations\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.12" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
