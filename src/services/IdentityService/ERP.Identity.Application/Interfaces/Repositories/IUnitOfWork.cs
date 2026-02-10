@@ -11,7 +11,9 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         IUserRepository Users { get; }
         IRoleRepository Roles { get; }
         IPermissionRepository Permissions { get; }
-
-        Task SaveChangesAsync(CancellationToken ct);
+        IRefreshTokenRepository RefreshTokens { get; }
+        ITenantRepository Tenants { get; }
+        Task<int> SaveChangesAsync(CancellationToken ct);
+         void Dispose();
     }
 }

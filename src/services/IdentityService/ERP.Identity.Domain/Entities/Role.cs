@@ -12,6 +12,41 @@ namespace ERP.Identity.Domain.Entities
         public string RoleCode { get; set; } = default!;
         public string RoleName { get; set; } = default!;
         public Guid TenantId { get; set; }
+        public bool IsActive { get; private set; }
+        public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+        public ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
+        protected Role() { }
+        private Role(Guid id, string roleCode, string roleName, Guid tenantId)
+        {
+            Id = id;
+            RoleCode = roleCode;
+            RoleName = roleName;
+            TenantId = tenantId;
+            IsActive = true;
+        }
+        private Role(Guid id, string roleCode)
+        {
+            Id = id;
+            RoleCode = roleCode;
+        }
+        private Role(Guid id, string roleCode, Guid tenantId)
+        {
+            Id = id;
+            RoleCode = roleCode;
+            TenantId = tenantId;
+        }
+        public static Role Create(string roleCode, string roleName, Guid tenantId)
+        {
+            return new Role(Guid.NewGuid(), roleCode, roleName, tenantId);
+        }
+        public static Role CreateReference(string code)
+        {
+            return new Role(RoleIds.FromCode(code), code);
+        }
+        public static Role CreateReference(string code, Guid tenantId)
+        {
+            return new Role(RoleIds.FromCode(code), code, tenantId);
+        }
     }
 
 }

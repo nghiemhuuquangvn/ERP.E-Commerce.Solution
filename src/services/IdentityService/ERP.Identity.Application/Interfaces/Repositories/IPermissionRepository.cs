@@ -3,11 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ERP.Entity.Application.Interfaces.Repositories;
+using ERP.Identity.Domain.Entities;
 
 namespace ERP.Identity.Application.Interfaces.Repositories
 {
-    public interface IPermissionRepository
+    public interface IPermissionRepository : IGenericRepository<Permission>
     {
-        Task<IReadOnlyList<string>> GetByRoleIdsAsync(IEnumerable<Guid> roleIds, CancellationToken ct);
+        Task<bool> ExistsAsync(string permissionCode, CancellationToken ct);
+        Task<IReadOnlyList<string>> GetPermissionAsync(Guid UserId, Guid TenantId, CancellationToken ct);
     }
 }

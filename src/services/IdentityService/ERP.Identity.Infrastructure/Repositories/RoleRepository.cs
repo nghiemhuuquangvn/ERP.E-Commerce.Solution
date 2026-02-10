@@ -10,16 +10,27 @@ using System.Threading.Tasks;
 
 namespace ERP.Identity.Infrastructure.Repositories
 {
-    public class RoleRepository : IRoleRepository
+    public class RoleRepository : GenericRepository<Role>, IRoleRepository
     {
-        private readonly AuthDbContext _db;
-        public RoleRepository(AuthDbContext db) { _db = db; }
-        public async Task<IReadOnlyList<Role>> GetByUserIdAsync(Guid userId, CancellationToken ct)
+        private readonly AuthDbContext _dbContext;
+        public RoleRepository(AuthDbContext dbContext) : base(dbContext) { _dbContext = dbContext; }
+        
+        public async Task<IReadOnlyList<string>> GetRolesAsync(Guid userId, Guid tenantId, CancellationToken ct)
         {
-            return await _db.UserRoles
-            .Where(x => x.UserId == userId)
-            .Join(_db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r)
+            var roles = await (
+                from ur in _dbContext.UserRoles.AsNoTracking()
+                join r in _dbContext.Roles.AsNoTracking()
+                    on ur.RoleId equals r.Id
+                where ur.UserId == userId
+                    && ur.TenantId == tenantId
+                    && ur.IsActive
+                    && r.IsActive
+                select r.RoleCode
+            )
+            .Distinct()
             .ToListAsync(ct);
+
+            return roles;
         }
     }
 }

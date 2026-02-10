@@ -13,7 +13,7 @@ namespace ERP.Identity.Domain.Entities
         public string UserName { get; private set; } = default!;
         public string FullName { get; private set; } = default!;
         public string PasswordHash { get; private set; } = default!;
-        public string PasswordSalt { get; set; }
+        public string PasswordSalt { get; set; } = default!;
         public bool IsEmailConfirmed { get; private set; }
         public bool IsPhoneConfirmed { get; private set; }
         public bool IsActive { get; private set; } = true;
@@ -21,21 +21,34 @@ namespace ERP.Identity.Domain.Entities
         public int AccessFailedCount { get; private set; }
         public DateTime? LastLoginAt { get; private set; }
 
-        public ICollection<AuthUserTenant> UserTenants { get; set; } = new List<AuthUserTenant>();
-        public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+        public Guid TenantId { get; private set; } = default!;
+
+        private readonly List<AuthUserTenant> _authTenants = new();
+        public IReadOnlyCollection<AuthUserTenant> UserTenants => _authTenants;
+        private readonly List<UserRole> _userRoles = new();
+        public IReadOnlyCollection<UserRole> UserRoles => _userRoles.AsReadOnly();
+        public ICollection<Role> Roles { get; set; } = new List<Role>();
         public ICollection<UserPermission> UserPermissions { get; set; } = new List<UserPermission>();
         public ICollection<ExternalLogin> ExternalLogins { get; set; } = new List<ExternalLogin>();
 
         public User() { }
 
-        public User(string email, string userName, string fullName, string passwordHash)
+        public static User Create(string email, string passwordHash)
         {
-            Email = email;
-            UserName = userName;
-            FullName = fullName;
-            PasswordHash = passwordHash;
-            IsEmailConfirmed = false;
-            IsActive = true;
+            if (string.IsNullOrWhiteSpace(email))
+                throw new ArgumentException("Email is required");
+
+            if (string.IsNullOrWhiteSpace(passwordHash))
+                throw new ArgumentException("PasswordHash is required");
+
+            return new User
+            {
+                Id = Guid.NewGuid(),
+                Email = email.Trim().ToLowerInvariant(),
+                PasswordHash = passwordHash,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
         }
 
         public void RecordLoginSuccess()
@@ -50,6 +63,27 @@ namespace ERP.Identity.Domain.Entities
             AccessFailedCount++;
             if (AccessFailedCount >= 5)
                 IsLocked = true;
+        }
+        public void AssignToTenant(Guid tenantId)
+        {
+            if (_authTenants.Any(at => at.TenantId == tenantId))
+                return;
+
+            var authUserTenant = new AuthUserTenant(this.Id, tenantId);
+            _authTenants.Add(authUserTenant);
+        }
+        public void AssignRole(string roleCode, Guid tenantId)
+        {
+            if(!_authTenants.Any(at => at.TenantId == tenantId && at.IsActive))
+                throw new InvalidOperationException("User is not assigned to the tenant");
+
+            var role = Role.CreateReference(roleCode, tenantId);
+
+            if (_userRoles.Any(r => r.RoleId == role.Id && r.TenantId == tenantId && r.IsActive))
+                return;
+
+            var userRole = new UserRole(this.Id, role.Id, tenantId);
+            _userRoles.Add(userRole);
         }
     }
 

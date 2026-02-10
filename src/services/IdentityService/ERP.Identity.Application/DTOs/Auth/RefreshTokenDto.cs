@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 
 namespace ERP.Identity.Application.DTOs.Auth
 {
-    internal class RefreshTokenDto
+    public class RefreshTokenDto
     {
+        public record RefreshTokenRequest(string RefreshToken, Guid TenantId, string IpAddress);
+        public record RefreshTokenResponse(string AccessToken, string RefreshToken, bool Succeeded = true, IEnumerable<string>? Errors = null);
     }
 }
