@@ -1,5 +1,8 @@
 ﻿using ERP.Identity.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using ERP.Identity.Application.Interfaces;
+using ERP.Identity.Domain.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,8 +19,33 @@ namespace ERP.Identity.Infrastructure.Persistence
         public DbSet<UserRole> UserRoles => Set<UserRole>();
         public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+        public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
+        private readonly IDomainEventDispatcher _domainEventDispatcher;
 
-        public AuthDbContext(DbContextOptions<AuthDbContext> options) : base(options) { }
+        public AuthDbContext(DbContextOptions<AuthDbContext> options, IDomainEventDispatcher domainEventDispatcher) : base(options)
+        {
+            _domainEventDispatcher = domainEventDispatcher;
+        }
+
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            // Dispatch Domain Events collection
+            var domainEvents = ChangeTracker.Entries<BaseEntity>()
+                .SelectMany(e => e.Entity.DomainEvents)
+                .ToList();
+
+            // save changes in the database
+            var result = await base.SaveChangesAsync(cancellationToken);
+
+            // dispatch events only if save was successful
+            foreach (var domainEvent in domainEvents)
+                await _domainEventDispatcher.DispatchAsync(domainEvent, cancellationToken);
+            // clear domain events
+            foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+                entry.Entity.ClearDomainEvents();
+
+            return result;
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

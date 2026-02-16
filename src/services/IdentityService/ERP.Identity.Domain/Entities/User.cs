@@ -1,4 +1,5 @@
 ﻿using ERP.Identity.Domain.Common;
+using ERP.Identity.Domain.Events;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,7 +30,9 @@ namespace ERP.Identity.Domain.Entities
         public IReadOnlyCollection<UserRole> UserRoles => _userRoles.AsReadOnly();
         public ICollection<Role> Roles { get; set; } = new List<Role>();
         public ICollection<UserPermission> UserPermissions { get; set; } = new List<UserPermission>();
-        public ICollection<ExternalLogin> ExternalLogins { get; set; } = new List<ExternalLogin>();
+
+        private readonly List<ExternalLogin> _externalLogins = new();
+        public IReadOnlyCollection<ExternalLogin> ExternalLogins => _externalLogins.AsReadOnly();
 
         public User() { }
 
@@ -49,6 +52,28 @@ namespace ERP.Identity.Domain.Entities
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
+        }
+        public static User Register(string email, string passwordHash, Guid tenantId)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                throw new ArgumentException("Email is required");
+
+            if (string.IsNullOrWhiteSpace(passwordHash))
+                throw new ArgumentException("PasswordHash is required");
+
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Email = email.Trim().ToLowerInvariant(),
+                PasswordHash = passwordHash,
+                TenantId = tenantId,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            user.AddDomainEvent(new UserRegisteredDomainEvent(user.Id, tenantId, email));
+
+            return user;
         }
 
         public void RecordLoginSuccess()
@@ -84,6 +109,15 @@ namespace ERP.Identity.Domain.Entities
 
             var userRole = new UserRole(this.Id, role.Id, tenantId);
             _userRoles.Add(userRole);
+        }
+
+        public void AddExternalLogin(string provider, string providerKey, string email)
+        {
+            if (_externalLogins.Any(el => el.Provider == provider && el.ProviderKey == providerKey && el.IsActive))
+                return;
+
+            var externalLogin = ExternalLogin.Create(this.Id, provider, providerKey, email);
+            _externalLogins.Add(externalLogin);
         }
     }
 

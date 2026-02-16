@@ -72,5 +72,18 @@ namespace ERP.Identity.Infrastructure.Repositories
             _dbContext.Users.Update(user);
             return Task.CompletedTask;
         }
+
+        public async Task<User> GetByExternalProviderAsync(string provider, string providerKey,
+             Guid tenantId, CancellationToken ct)
+        {
+            var logins = await _dbContext.ExternalLogins
+                .Where(x => x.Provider == provider && x.ProviderKey == providerKey && x.TenantId == tenantId)
+                .ToListAsync(ct);
+
+            var userIds = logins.Select(x => x.UserId);
+
+            return await _dbContext.Users.FirstOrDefaultAsync(x => userIds.Contains(x.Id), ct)
+                ?? throw new InvalidOperationException("User not found for the given external provider.");
+        }
     }
 }

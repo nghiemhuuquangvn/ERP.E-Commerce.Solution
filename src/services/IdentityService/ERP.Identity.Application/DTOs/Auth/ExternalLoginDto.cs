@@ -8,7 +8,7 @@ namespace ERP.Identity.Application.DTOs.Auth
 {
     public class ExternalLoginDto
     {
-        public record ExternalLoginRequest(string Provider, string IdToken, Guid TenantId);
-        public record ExternalLoginResponse(string AccessToken, string RefreshToken, bool Succeeded = true, IEnumerable<string>? Errors = null);
+        public sealed record ExternalLoginRequest(string Provider, string ProviderKey, string IdToken, Guid TenantId);
+        public sealed record ExternalLoginResponse(string Provider, string ProviderKey, string Email, bool EmailVerified, string? FullName);
     }
 }

@@ -15,9 +15,7 @@ namespace ERP.Identity.Application.Interfaces.Services
         Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken ct);
         Task<RegisterResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default);
 
-        Task<LoginResponse> LoginWithGoogleAsync(ExternalLoginRequest request, CancellationToken ct = default);
-
-        Task<LoginResponse> LoginWithMicrosoftAsync(ExternalLoginRequest request, CancellationToken ct = default);
+        Task<LoginResponse> ExternalLoginAsync(ExternalLoginRequest request, CancellationToken ct = default);
 
         Task<RefreshTokenResponse> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default);
 

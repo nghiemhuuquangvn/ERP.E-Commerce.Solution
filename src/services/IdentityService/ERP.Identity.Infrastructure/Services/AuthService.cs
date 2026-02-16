@@ -11,6 +11,8 @@ using ERP.Identity.Infrastructure.Repositories;
 using static ERP.Identity.Application.DTOs.Auth.LoginDto;
 using static ERP.Identity.Application.DTOs.Auth.RefreshTokenDto;
 using static ERP.Identity.Application.DTOs.Auth.RegisterDto;
+using ERP.Identity.Application.Interfaces.External;
+using ERP.Identity.Infrastructure.ExternalAuthLogin;
 
 namespace ERP.Identity.Infrastructure.Services
 {
@@ -20,15 +22,28 @@ namespace ERP.Identity.Infrastructure.Services
         private readonly ITokenService _jwtService;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
         private readonly IUserRepository _userRepository;
+        private readonly IRoleRepository _roleRepository;
+        private readonly IPermissionRepository _permissionRepository;
+        private readonly ITenantRepository _tendantRepository;
+        private readonly IExternalLoginRepository _externalLoginRepository;
         private readonly IPasswordHasher _passwordHasher;
+        private readonly IEnumerable<IExternalAuthProvider> _externalAuthProviders;
 
-        public AuthService(IUnitOfWork unitOfWork, ITokenService jwtService, IRefreshTokenRepository refreshTokenRepository, IUserRepository userRepository, IPasswordHasher passwordHasher)
+        public AuthService(IUnitOfWork unitOfWork, ITokenService jwtService, IRefreshTokenRepository refreshTokenRepository, IUserRepository userRepository,
+         IPasswordHasher passwordHasher, IRoleRepository roleRepository, IPermissionRepository permissionRepository, ITenantRepository tenantRepository,
+          IEnumerable<IExternalAuthProvider> externalAuthProviders, IExternalLoginRepository externalLoginRepository)
         {
             _unitOfWork = unitOfWork;
             _jwtService = jwtService;
             _refreshTokenRepository = refreshTokenRepository;
+            _externalLoginRepository = externalLoginRepository;
             _userRepository = userRepository;
+            _roleRepository = roleRepository;
+            _permissionRepository = permissionRepository;
+            _externalAuthProviders = externalAuthProviders;
             _passwordHasher = passwordHasher;
+            _tendantRepository = tenantRepository;
+
         }
 
         public async Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken ct)
@@ -67,14 +82,59 @@ namespace ERP.Identity.Infrastructure.Services
             return new LoginResponse(accessToken, refreshToken);
         }
 
-        public Task<LoginResponse> LoginWithGoogleAsync(ExternalLoginDto.ExternalLoginRequest request, CancellationToken ct = default)
+        public async Task<LoginResponse> ExternalLoginAsync(ExternalLoginDto.ExternalLoginRequest request, CancellationToken ct = default)
         {
-            throw new NotImplementedException();
-        }
+           var provider = _externalAuthProviders.FirstOrDefault(p => p.Provider.Equals(request.Provider, StringComparison.OrdinalIgnoreCase))
+                ?? throw new InvalidOperationException("Unsupported external provider");
 
-        public Task<LoginResponse> LoginWithMicrosoftAsync(ExternalLoginDto.ExternalLoginRequest request, CancellationToken ct = default)
-        {
-            throw new NotImplementedException();
+            var externalUser = await provider.VerifyAsync(request, ct);
+
+            var tenant = await _tendantRepository.GetByIdAsync(request.TenantId, ct)
+                ?? throw new UnauthorizedAccessException("Tenant not found");
+
+            var user = await _userRepository.GetByExternalProviderAsync(request.Provider, request.ProviderKey, request.TenantId, ct);
+
+            string accessToken;
+            string refreshToken;
+
+            if(user is null)
+            {
+                // Auto-register user
+                user = User.Create(
+                    email: externalUser.Email,
+                    passwordHash: string.Empty
+                );
+                user.AddExternalLogin(request.Provider, externalUser.ProviderKey, externalUser.Email);
+
+                user.AssignToTenant(request.TenantId);
+                user.AssignRole(SystemRoles.User, request.TenantId);
+
+                await _userRepository.AddAsync(user, ct);
+
+                await _externalLoginRepository.AddAsync(ExternalLogin.Create(
+                    userId: user.Id,
+                    provider: request.Provider,
+                    providerKey: externalUser.ProviderKey,
+                    email: externalUser.Email
+                ), ct);
+
+                var roles = await _roleRepository.GetRolesAsync(user.Id, request.TenantId, ct);
+                var permissions = await _permissionRepository.GetPermissionAsync(user.Id, request.TenantId, ct);
+
+                accessToken = await _jwtService.GenerateAccessToken(user, tenant, roles, permissions);
+                refreshToken = await _jwtService.GenerateRefreshToken(user.Id, request.TenantId);
+
+                await _unitOfWork.SaveChangesAsync(ct);
+            }
+            else
+            {
+                var roles = await _roleRepository.GetRolesAsync(user.Id, request.TenantId, ct);
+                var permissions = await _permissionRepository.GetPermissionAsync(user.Id, request.TenantId, ct);
+
+                accessToken = await _jwtService.GenerateAccessToken(user, tenant, roles, permissions);
+                refreshToken = await _jwtService.GenerateRefreshToken(user.Id, request.TenantId);
+            }
+            return new LoginResponse(accessToken, refreshToken);
         }
 
         public Task LogoutAsync(Guid userId, string refreshToken, CancellationToken ct = default)
