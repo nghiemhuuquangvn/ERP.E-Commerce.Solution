@@ -13,6 +13,8 @@ using static ERP.Identity.Application.DTOs.Auth.RefreshTokenDto;
 using static ERP.Identity.Application.DTOs.Auth.RegisterDto;
 using ERP.Identity.Application.Interfaces.External;
 using ERP.Identity.Infrastructure.ExternalAuthLogin;
+using ERP.Identity.Domain.Constants;
+using ERP.Identity.Application.Interfaces.Mapping;
 
 namespace ERP.Identity.Infrastructure.Services
 {
@@ -28,15 +30,17 @@ namespace ERP.Identity.Infrastructure.Services
         private readonly IExternalLoginRepository _externalLoginRepository;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IEnumerable<IExternalAuthProvider> _externalAuthProviders;
+        private readonly IUserRoleResolver _userRoleResolver;
 
         public AuthService(IUnitOfWork unitOfWork, ITokenService jwtService, IRefreshTokenRepository refreshTokenRepository, IUserRepository userRepository,
          IPasswordHasher passwordHasher, IRoleRepository roleRepository, IPermissionRepository permissionRepository, ITenantRepository tenantRepository,
-          IEnumerable<IExternalAuthProvider> externalAuthProviders, IExternalLoginRepository externalLoginRepository)
+          IEnumerable<IExternalAuthProvider> externalAuthProviders, IExternalLoginRepository externalLoginRepository, IUserRoleResolver userRoleResolver)
         {
             _unitOfWork = unitOfWork;
             _jwtService = jwtService;
             _refreshTokenRepository = refreshTokenRepository;
             _externalLoginRepository = externalLoginRepository;
+            _userRoleResolver = userRoleResolver;
             _userRepository = userRepository;
             _roleRepository = roleRepository;
             _permissionRepository = permissionRepository;
@@ -48,19 +52,19 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken ct)
         {
-            var tenant = await _unitOfWork.Tenants.GetByIdAsync(request.TenantId, ct)
+            var tenant = await _tendantRepository.GetByIdAsync(request.TenantId, ct)
                 ?? throw new UnauthorizedAccessException("Tenant not found");
 
-            var user = await _unitOfWork.Users.GetByEmailAsync(request.Email, tenant.Id, ct);
+            var user = await _userRepository.GetByEmailAsync(request.Email, tenant.Id, ct);
             if (user == null)
                 throw new UnauthorizedAccessException("User not found");
 
             if (!_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
                 throw new UnauthorizedAccessException("Invalid credentials");
 
-            var roles = await _unitOfWork.Roles.GetRolesAsync(user.Id, request.TenantId, ct);
+            var roles = await _roleRepository.GetRolesAsync(user.Id, request.TenantId, ct);
 
-            var permissions = await _unitOfWork.Permissions.GetPermissionAsync(user.Id, request.TenantId, ct);
+            var permissions = await _permissionRepository.GetPermissionAsync(user.Id, request.TenantId, ct);
 
             var accessToken = await _jwtService.GenerateAccessToken(user, tenant, roles, permissions);
 
@@ -213,11 +217,12 @@ namespace ERP.Identity.Infrastructure.Services
             // 5️⃣ Add user vào tenant (UserTenant / UserRole mặc định)
             user.AssignToTenant(tenant.Id);
 
-            // (optional) gán role mặc định
-            user.AssignRole(
-                roleCode: SystemRoles.User,
-                tenantId: tenant.Id
-            );
+            var roles = _userRoleResolver.GetRolesForUser(request.UserType);
+
+            foreach(var role in roles)
+            {
+                user.AssignRole(role, tenant.Id);
+            }
 
             // 6️⃣ Persist
             await _userRepository.AddAsync(user, ct);

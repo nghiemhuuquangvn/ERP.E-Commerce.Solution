@@ -59,4 +59,25 @@ public class LoginAsyncTests
             service.LoginAsync(new LoginRequest(user.Email, "wrong", Guid.NewGuid()))
         );
     }
+    [Fact]
+    public async Task LoginAsync_ShouldThrow_WhenPasswordInvalid()
+    {
+        // Arrange
+        var fixture = new AuthServiceFixture();
+        var request = new LoginRequest("test@mail.com", "wrong", tenantId);
+
+        fixture.UserRepository
+            .Setup(x => x.GetByEmailAsync(request.Email, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(UserBuilder.ActiveUser().WithPassword("hashed"));
+
+        fixture.PasswordHasher
+            .Setup(x => x.Verify("wrong", It.IsAny<string>()))
+            .Returns(false);
+
+        // Act
+        Func<Task> act = () => fixture.AuthService.LoginAsync(request);
+
+        // Assert
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+    }
 }
