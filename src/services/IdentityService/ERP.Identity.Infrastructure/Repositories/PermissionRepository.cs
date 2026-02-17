@@ -1,4 +1,5 @@
-﻿using ERP.Identity.Application.Interfaces.Repositories;
+﻿using ERP.Identity.Application.Authorization;
+using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Domain.Entities;
 using ERP.Identity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -54,6 +55,15 @@ namespace ERP.Identity.Infrastructure.Repositories
         public Task RemovePermissionFromRoleAsync(Guid roleId, string permissionCode, CancellationToken ct)
         {
             throw new NotImplementedException();
+        }
+
+        public async Task<bool> HasPermissionAsync(Guid userId, Guid tenantId, IEnumerable<string> permissionCodes)
+        {
+            return await _dbContext.UserRoles.AsNoTracking()
+                            .Where(ur => ur.UserId == userId && ur.TenantId == tenantId)
+                            .SelectMany(ur => _dbContext.RolePermissions.AsNoTracking()
+                                .Where(rp => rp.RoleId == ur.RoleId && rp.TenantId == tenantId))
+                            .AnyAsync(p => permissionCodes.Contains(p.PermissionId.ToString()));
         }
     }
 }

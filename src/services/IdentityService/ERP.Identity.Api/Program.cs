@@ -1,3 +1,4 @@
+using ERP.Identity.Application.Authorization;
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Infrastructure.Persistence;
@@ -46,6 +47,13 @@ builder.Services.AddAuthentication("Bearer")
         };
     });
 
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("Permission", policy =>
+    {
+        policy.Requirements.Add(new PermissionRequirement());
+    });
+});
 
 
 var app = builder.Build();
@@ -58,6 +66,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

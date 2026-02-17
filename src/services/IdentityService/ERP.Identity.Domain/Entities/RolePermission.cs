@@ -11,7 +11,7 @@ namespace ERP.Identity.Domain.Entities
         public Guid RoleId { get; set; }
         public Guid PermissionId { get; set; }
         public Guid TenantId { get; set; }
-        public Permission Permission { get; set; } = default!;
+        public List<Permission> Permissions { get; set; } = default!;
         public Role Role { get; set; } = default!;
     }
 }

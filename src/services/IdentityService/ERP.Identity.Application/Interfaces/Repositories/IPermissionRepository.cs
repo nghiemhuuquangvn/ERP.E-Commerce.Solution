@@ -12,5 +12,6 @@ namespace ERP.Identity.Application.Interfaces.Repositories
     {
         Task<bool> ExistsAsync(string permissionCode, CancellationToken ct);
         Task<IReadOnlyList<string>> GetPermissionAsync(Guid UserId, Guid TenantId, CancellationToken ct);
+        Task<bool> HasPermissionAsync(Guid userId, Guid tenantId, IEnumerable<string> permissionCodes);
     }
 }

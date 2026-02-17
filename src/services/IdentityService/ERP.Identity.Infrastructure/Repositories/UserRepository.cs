@@ -50,7 +50,7 @@ namespace ERP.Identity.Infrastructure.Repositories
             .Include(x => x.UserRoles)
                 .ThenInclude(x => x.Role)
                     .ThenInclude(x => x.RolePermissions)
-                        .ThenInclude(x => x.Permission)
+                        .ThenInclude(x => x.Permissions)
             .FirstOrDefaultAsync(x => x.Email == email && x.TenantId.Equals(tenantId), ct);
             return user;
         }
@@ -61,7 +61,7 @@ namespace ERP.Identity.Infrastructure.Repositories
             .Include(x => x.UserRoles)
                 .ThenInclude(x => x.Role)
                     .ThenInclude(x => x.RolePermissions)
-                        .ThenInclude(x => x.Permission)
+                        .ThenInclude(x => x.Permissions)
             .FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw new InvalidOperationException($"User with id '{id}' was not found.");
             return user;
         }
