@@ -11,6 +11,19 @@ public class PasswordHasher : IPasswordHasher
 
     public bool VerifyPassword(string hashedPassword, string providedPassword)
     {
-        return _passwordHasher.VerifyHashedPassword(null!, hashedPassword, providedPassword) == PasswordVerificationResult.Success;
+        if (string.IsNullOrWhiteSpace(hashedPassword) || string.IsNullOrWhiteSpace(providedPassword))
+            return false;
+        try
+        {
+            // Loại bỏ khoảng trắng thừa (nếu có do kiểu dữ liệu CHAR)
+            var cleanedHash = hashedPassword.Trim();
+            
+            var result = _passwordHasher.VerifyHashedPassword(null!, cleanedHash, providedPassword);
+            return result == PasswordVerificationResult.Success;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
     }
 }

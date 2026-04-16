@@ -1,5 +1,6 @@
 ﻿using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,13 +12,16 @@ namespace ERP.Identity.Infrastructure.Persistence
     public class UnitOfWork : IUnitOfWork, IDisposable
     {
         private readonly AuthDbContext _dbContext;
+        private IDbContextTransaction? _currentTrans;
 
-        public UnitOfWork(AuthDbContext dbContext,
+        public UnitOfWork(AuthDbContext dbContext, 
             IUserRepository userRepository,
             IRoleRepository roleRepository,
             IPermissionRepository permissionRepository,
             IRefreshTokenRepository refreshTokenRepository,
-            ITenantRepository tenantRepository)
+            ITenantRepository tenantRepository,
+            IExternalLoginRepository externalLoginRepository,
+            IOutboxMessageRepository outboxMessageRepository)
         {
             _dbContext = dbContext;
             Users = userRepository;
@@ -25,6 +29,8 @@ namespace ERP.Identity.Infrastructure.Persistence
             Permissions = permissionRepository;
             RefreshTokens = refreshTokenRepository;
             Tenants = tenantRepository;
+            ExternalLogins = externalLoginRepository;
+            OutboxMessages = outboxMessageRepository;
         }
         public IUserRepository Users { get; }
 
@@ -34,8 +40,51 @@ namespace ERP.Identity.Infrastructure.Persistence
 
         public IRefreshTokenRepository RefreshTokens { get; }
         public ITenantRepository Tenants { get; }
+        public IExternalLoginRepository ExternalLogins { get; }
+        public IOutboxMessageRepository OutboxMessages { get; }
 
         public async Task<int> SaveChangesAsync(CancellationToken ct) => await _dbContext.SaveChangesAsync(ct);
+        public async Task BeginTransactionAsync(CancellationToken ct)
+        {
+            _currentTrans = await _dbContext.Database.BeginTransactionAsync(ct);
+        }
+
+        public async Task CommitTransactionAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                await _dbContext.SaveChangesAsync(ct);
+                if (_currentTrans != null) await _currentTrans.CommitAsync(ct);
+            }
+            catch
+            {
+                await RollbackTransactionAsync(ct);
+                throw;
+            }
+            finally
+            {
+                if (_currentTrans != null)
+                {
+                    _currentTrans.Dispose();
+                    _currentTrans = null;
+                }
+            }
+        }
+
+        public async Task RollbackTransactionAsync(CancellationToken ct)
+        {
+            if (_currentTrans != null)
+            {
+                await _currentTrans.RollbackAsync(ct);
+                _currentTrans.Dispose();
+                _currentTrans = null;
+            }
+        }
+
+        public void Attach<TEntity>(TEntity entity) where TEntity : class
+        {
+            _dbContext.Attach(entity);
+        }
 
         public void Dispose()
         {
@@ -47,7 +96,10 @@ namespace ERP.Identity.Infrastructure.Persistence
             if (disposing)
             {
                 _dbContext.Dispose();
+                _currentTrans?.Dispose();
             }
         }
+
+        
     }
 }

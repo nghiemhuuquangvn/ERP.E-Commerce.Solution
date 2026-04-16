@@ -13,7 +13,12 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         IPermissionRepository Permissions { get; }
         IRefreshTokenRepository RefreshTokens { get; }
         ITenantRepository Tenants { get; }
+        IExternalLoginRepository ExternalLogins { get; }
+        IOutboxMessageRepository OutboxMessages { get; }
         Task<int> SaveChangesAsync(CancellationToken ct);
+        Task BeginTransactionAsync(CancellationToken ct);
+        Task CommitTransactionAsync(CancellationToken ct);
+        Task RollbackTransactionAsync(CancellationToken ct);
          void Dispose();
     }
 }

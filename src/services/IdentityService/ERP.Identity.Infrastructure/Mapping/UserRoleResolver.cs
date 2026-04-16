@@ -4,7 +4,7 @@ using ERP.Identity.Application.Interfaces.Mapping;
 namespace ERP.Identity.Infrastructure.Mapping;
 public sealed class UserRoleResolver : IUserRoleResolver
 {
-    public IReadOnlyCollection<string> GetRolesForUser(UserType userType)
+    public IReadOnlyList<string> GetRolesForUser(UserType userType)
     {
         return userType switch
         {

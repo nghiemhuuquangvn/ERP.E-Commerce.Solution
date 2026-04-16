@@ -13,11 +13,7 @@ namespace ERP.Identity.Infrastructure.Repositories
 {
     public class PermissionRepository : GenericRepository<Permission>, IPermissionRepository
     {
-        private readonly AuthDbContext _dbContext;
-        public PermissionRepository(AuthDbContext dbContext) : base(dbContext) 
-        { 
-            _dbContext = dbContext;
-        }
+        public PermissionRepository(AuthDbContext dbContext) : base(dbContext) { }
         public async Task<IReadOnlyList<string>> GetPermissionAsync(Guid userId, Guid tenantId, CancellationToken ct)
         {
             var permissions = await (
@@ -33,9 +29,6 @@ namespace ERP.Identity.Infrastructure.Repositories
                 .Distinct()
                 .ToListAsync(ct);
 
-            if (permissions.Count == 0)
-                throw new InvalidOperationException(
-                    $"No permissions found for UserId '{userId}' in TenantId '{tenantId}'.");
             return permissions;
         }
         public Task AssignPermissionToRoleAsync(Guid roleId, string permissionCode, CancellationToken ct)

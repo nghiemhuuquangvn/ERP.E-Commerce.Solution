@@ -39,13 +39,13 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         // USER ROLES (FIELD MAPPING)
         // =========================
         builder
-            .HasMany<UserRole>("_userRoles")
+            .HasMany<UserRole>("UserRoles")
             .WithOne()
             .HasForeignKey(ur => ur.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder
-            .Navigation("_userRoles")
+            .Navigation("UserRoles")
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
         // =========================

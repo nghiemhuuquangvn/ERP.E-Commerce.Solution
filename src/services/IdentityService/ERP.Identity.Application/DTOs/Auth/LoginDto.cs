@@ -8,7 +8,7 @@ namespace ERP.Identity.Application.DTOs.Auth
 {
     public class LoginDto
     {
-        public record LoginRequest(string Email, string Password, Guid TenantId);
+        public record LoginRequest(string Email, string Password, string TenantCode, UserType UserType);
         public record LoginResponse(string AccessToken, string RefreshToken, bool Succeeded = true, IEnumerable<string>? Errors = null);
     }
 }

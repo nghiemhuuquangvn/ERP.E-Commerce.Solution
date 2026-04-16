@@ -15,13 +15,34 @@ namespace ERP.Identity.Domain.Entities
         public DateTime ExpiredAt { get; set; }
         public DateTime? RevokedAt { get; set; }
         public string? CreatedByIp { get; set; }
+        public bool IsActive { get; set; }
+
+        public RefreshToken()
+        {
+            IsActive = true;
+        }
+
+        public static RefreshToken Create(Guid userId, Guid tenantId, string token, DateTime expiredAt, string? createdByIp = null)
+        {
+            var refreshToken = new RefreshToken
+            {
+                UserId = userId,
+                TenantId = tenantId,
+                Token = token,
+                ExpiredAt = expiredAt,
+                CreatedByIp = createdByIp,
+                IsActive = true
+            };
+            return refreshToken;
+        }
 
         public void Revoke()
         {
             RevokedAt = DateTime.UtcNow;
+            IsActive = false;
         }
 
-        public bool IsActive => RevokedAt == null && DateTime.UtcNow < ExpiredAt;
+        public bool IsTokenValid => RevokedAt == null && DateTime.UtcNow < ExpiredAt;
             
     }
 }

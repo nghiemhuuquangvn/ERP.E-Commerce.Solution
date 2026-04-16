@@ -12,9 +12,8 @@ namespace ERP.Identity.Infrastructure.Repositories
 {
     public class RoleRepository : GenericRepository<Role>, IRoleRepository
     {
-        private readonly AuthDbContext _dbContext;
-        public RoleRepository(AuthDbContext dbContext) : base(dbContext) { _dbContext = dbContext; }
-        
+        public RoleRepository(AuthDbContext dbContext) : base(dbContext) { }
+
         public async Task<IReadOnlyList<string>> GetRolesAsync(Guid userId, Guid tenantId, CancellationToken ct)
         {
             var roles = await (
@@ -23,7 +22,6 @@ namespace ERP.Identity.Infrastructure.Repositories
                     on ur.RoleId equals r.Id
                 where ur.UserId == userId
                     && ur.TenantId == tenantId
-                    && ur.IsActive
                     && r.IsActive
                 select r.RoleCode
             )
@@ -31,6 +29,13 @@ namespace ERP.Identity.Infrastructure.Repositories
             .ToListAsync(ct);
 
             return roles;
+        }
+
+        public async Task<List<Role>> GetRolesByCodeAsync(IEnumerable<string> codes, Guid tenantId, CancellationToken ct)
+        {
+            return await _dbContext.Roles
+                                .Where(r => r.TenantId == tenantId && codes.Contains(r.RoleCode))
+                                .ToListAsync(ct);
         }
     }
 }

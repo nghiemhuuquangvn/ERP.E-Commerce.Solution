@@ -10,17 +10,19 @@ namespace ERP.Identity.Domain.Events
 {
     public class UserRegisteredDomainEvent : IDomainEvent
     {
-
         public Guid UserId { get; }
         public Guid TenantId { get; }
         public string Email { get; }
-        public DateTime OccurredOn { get; } = DateTime.UtcNow;
+        public string UserType { get; } = "Customer";
+        public DateTime OccurredOn { get; }
 
-        public UserRegisteredDomainEvent(Guid userId, Guid tenantId, string email)
+        public UserRegisteredDomainEvent(Guid userId, Guid tenantId, string email, string userType = "Customer")
         {
             UserId = userId;
             TenantId = tenantId;
             Email = email;
+            UserType = userType;
+            OccurredOn = DateTime.UtcNow;
         }
     }
 }

@@ -11,6 +11,10 @@ namespace ERP.Identity.Domain.Entities
     {
         public string PermissionCode { get; set; } = default!;
         public string? PermissionName { get; set; }
+        public string? Module { get; set; }
+
+        public virtual ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
+        
     }
 
 }

@@ -40,7 +40,7 @@ namespace ERP.Identity.Infrastructure.Services
             var keyString = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key configuration is missing.");
             var issuer = _configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer configuration is missing.");
             var audience = _configuration["Jwt:Audience"] ?? throw new InvalidOperationException("Jwt:Audience configuration is missing.");
-            var expirationString = _configuration["Jwt:AccessTokenExpirationMinutes"] ?? throw new InvalidOperationException("Jwt:AccessTokenExpirationMinutes configuration is missing.");
+            var expirationString = _configuration["Jwt:Expired"] ?? throw new InvalidOperationException("Jwt:AccessTokenExpirationMinutes configuration is missing.");
 
             var key = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(keyString)

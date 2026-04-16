@@ -7,13 +7,11 @@ using ERP.Identity.Infrastructure.Persistence;
 
 namespace ERP.Identity.Infrastructure.Repositories
 {
-    public class RefreshRepository : GenericRepository<RefreshToken>, IRefreshTokenRepository
+    public class RefreshTokenRepository : GenericRepository<RefreshToken>, IRefreshTokenRepository
     {
-        private readonly AuthDbContext _dbContext;
 
-        public RefreshRepository(AuthDbContext dbContext) : base(dbContext)
+        public RefreshTokenRepository(AuthDbContext dbContext) : base(dbContext)
         {
-            _dbContext = dbContext;
         }
 
         public Task<RefreshToken?> GetByTokenAsync(string token, CancellationToken cancellationToken = default)

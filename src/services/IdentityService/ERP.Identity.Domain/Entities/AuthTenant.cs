@@ -9,9 +9,10 @@ namespace ERP.Identity.Domain.Entities
 {
     public class AuthTenant : BaseEntity
     {
-        public string Code { get; set; } = default!;
-        public string Name { get; set; } = default!;
-        public bool IsActive { get; set; } = true;
+        public string TenantCode { get; set; } = default!;
+        public string TenantName { get; set; } = default!;
+        public byte Status { get; set; } = 1; // 1: Active, 0: Inactive
+        public virtual ICollection<AuthUserTenant> UserTenants { get; set; } = default!;
     }
 
 }

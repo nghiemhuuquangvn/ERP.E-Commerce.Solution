@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  kafka:
+    # Sử dụng image chính chủ từ Apache, hỗ trợ KRaft cực tốt
+    image: apache/kafka:latest
+    container_name: erp-kafka-kraft
+    ports:
+      - "9092:9092"
+    environment:
+      # --- Cấu hình KRaft cơ bản ---
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=controller,broker
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
+      
+      # --- Listeners (Giữ nguyên để kết nối từ Host) ---
+      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+
+      # Cluster ID cố định để tránh lỗi định dạng ổ đĩa mỗi lần restart
+      - KAFKA_CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+      
+      # --- TỐI ƯU HIỆU SUẤT CHO MÁY DEV ---
+      - KAFKA_HEAP_OPTS=-Xmx512M -Xms512M # Giới hạn RAM của Kafka ở mức 512MB thay vì mặc định 1GB+
+      - KAFKA_NUM_PARTITIONS=3         # Mặc định tạo 3 partition để tăng tính song song
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    
+    volumes:
+      - kafka_data:/bitnami/kafka
+    # Giới hạn tài nguyên ở mức Docker để máy không bị treo
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    # Đảm bảo container tự khởi động lại nếu lỗi
+    restart: unless-stopped
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: erp-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+      - DYNAMIC_CONFIG_ENABLED=true # Cho phép chỉnh sửa topic trực tiếp trên UI
+
+volumes:
+  kafka_data:
+    driver: local

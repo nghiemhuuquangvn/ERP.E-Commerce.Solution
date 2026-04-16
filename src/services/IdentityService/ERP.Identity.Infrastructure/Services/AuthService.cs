@@ -22,65 +22,50 @@ namespace ERP.Identity.Infrastructure.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ITokenService _jwtService;
-        private readonly IRefreshTokenRepository _refreshTokenRepository;
-        private readonly IUserRepository _userRepository;
-        private readonly IRoleRepository _roleRepository;
-        private readonly IPermissionRepository _permissionRepository;
-        private readonly ITenantRepository _tendantRepository;
-        private readonly IExternalLoginRepository _externalLoginRepository;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IEnumerable<IExternalAuthProvider> _externalAuthProviders;
         private readonly IUserRoleResolver _userRoleResolver;
 
-        public AuthService(IUnitOfWork unitOfWork, ITokenService jwtService, IRefreshTokenRepository refreshTokenRepository, IUserRepository userRepository,
-         IPasswordHasher passwordHasher, IRoleRepository roleRepository, IPermissionRepository permissionRepository, ITenantRepository tenantRepository,
-          IEnumerable<IExternalAuthProvider> externalAuthProviders, IExternalLoginRepository externalLoginRepository, IUserRoleResolver userRoleResolver)
+        public AuthService(IUnitOfWork unitOfWork, ITokenService jwtService, IPasswordHasher passwordHasher,    
+          IEnumerable<IExternalAuthProvider> externalAuthProviders, IUserRoleResolver userRoleResolver)
         {
             _unitOfWork = unitOfWork;
             _jwtService = jwtService;
-            _refreshTokenRepository = refreshTokenRepository;
-            _externalLoginRepository = externalLoginRepository;
             _userRoleResolver = userRoleResolver;
-            _userRepository = userRepository;
-            _roleRepository = roleRepository;
-            _permissionRepository = permissionRepository;
             _externalAuthProviders = externalAuthProviders;
             _passwordHasher = passwordHasher;
-            _tendantRepository = tenantRepository;
 
         }
 
         public async Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken ct)
         {
-            var tenant = await _tendantRepository.GetByIdAsync(request.TenantId, ct)
+            var tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(request.TenantCode, ct)
                 ?? throw new UnauthorizedAccessException("Tenant not found");
 
-            var user = await _userRepository.GetByEmailAsync(request.Email, tenant.Id, ct);
+            var user = await _unitOfWork.Users.GetByEmailAsync(request.Email, tenant.Id, ct);
             if (user == null)
                 throw new UnauthorizedAccessException("User not found");
 
-            if (!_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
+            if (!_passwordHasher.VerifyPassword(user.PasswordHash, request.Password))
                 throw new UnauthorizedAccessException("Invalid credentials");
 
-            var roles = await _roleRepository.GetRolesAsync(user.Id, request.TenantId, ct);
+            var roles = await _unitOfWork.Roles.GetRolesAsync(user.Id, tenant.Id, ct);
 
-            var permissions = await _permissionRepository.GetPermissionAsync(user.Id, request.TenantId, ct);
+            var permissions = await _unitOfWork.Permissions.GetPermissionAsync(user.Id, tenant.Id, ct);
 
             var accessToken = await _jwtService.GenerateAccessToken(user, tenant, roles, permissions);
 
-            var refreshToken = await _jwtService.GenerateRefreshToken(user.Id, request.TenantId);
+            var refreshToken = await _jwtService.GenerateRefreshToken(user.Id, tenant.Id);
 
-            var refreshTokenEntity = new RefreshToken
-            {
-                UserId = user.Id,
-                Token = refreshToken,
-                ExpiredAt = DateTime.UtcNow.AddDays(30),
-                CreatedByIp = null
+            var refreshTokenEntity = RefreshToken.Create(
+                userId: user.Id,
+                tenantId: tenant.Id,
+                token: refreshToken,
+                expiredAt: DateTime.UtcNow.AddDays(30),
+                createdByIp: null
+            );
 
-            };
-
-            await _refreshTokenRepository.AddAsync(refreshTokenEntity, ct);
-
+            await _unitOfWork.RefreshTokens.AddAsync(refreshTokenEntity, ct);
             await _unitOfWork.SaveChangesAsync(ct);
 
             return new LoginResponse(accessToken, refreshToken);
@@ -93,10 +78,10 @@ namespace ERP.Identity.Infrastructure.Services
 
             var externalUser = await provider.VerifyAsync(request, ct);
 
-            var tenant = await _tendantRepository.GetByIdAsync(request.TenantId, ct)
+            var tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(request.TenantCode, ct)
                 ?? throw new UnauthorizedAccessException("Tenant not found");
 
-            var user = await _userRepository.GetByExternalProviderAsync(request.Provider, request.ProviderKey, request.TenantId, ct);
+            var user = await _unitOfWork.Users.GetByExternalProviderAsync(request.Provider, request.ProviderKey, tenant.Id, ct);
 
             string accessToken;
             string refreshToken;
@@ -106,37 +91,50 @@ namespace ERP.Identity.Infrastructure.Services
                 // Auto-register user
                 user = User.Create(
                     email: externalUser.Email,
-                    passwordHash: string.Empty
+                    username: externalUser.Email,
+                    passwordHash: string.Empty,
+                    tenantId: tenant.Id,
+                    userType: request.UserType
+                    
                 );
                 user.AddExternalLogin(request.Provider, externalUser.ProviderKey, externalUser.Email);
 
-                user.AssignToTenant(request.TenantId);
-                user.AssignRole(SystemRoles.User, request.TenantId);
+                user.AssignToTenant(tenant);
 
-                await _userRepository.AddAsync(user, ct);
+                var urole = _userRoleResolver.GetRolesForUser(request.UserType);
+                var tempRoles = await _unitOfWork.Roles.GetRolesByCodeAsync(urole, tenant.Id, ct);
+                if(tempRoles == null)
+                    throw new InvalidOperationException("Role not found");
+                foreach(var role in tempRoles)
+                {
+                    user.AssignRole(role, tenant.Id);
+                }
+                
 
-                await _externalLoginRepository.AddAsync(ExternalLogin.Create(
+                await _unitOfWork.Users.AddAsync(user, ct);
+
+                await _unitOfWork.ExternalLogins.AddAsync(ExternalLogin.Create(
                     userId: user.Id,
                     provider: request.Provider,
                     providerKey: externalUser.ProviderKey,
                     email: externalUser.Email
                 ), ct);
 
-                var roles = await _roleRepository.GetRolesAsync(user.Id, request.TenantId, ct);
-                var permissions = await _permissionRepository.GetPermissionAsync(user.Id, request.TenantId, ct);
+                var roles = await _unitOfWork.Roles.GetRolesAsync(user.Id, tenant.Id, ct);
+                var permissions = await _unitOfWork.Permissions.GetPermissionAsync(user.Id, tenant.Id, ct);
 
                 accessToken = await _jwtService.GenerateAccessToken(user, tenant, roles, permissions);
-                refreshToken = await _jwtService.GenerateRefreshToken(user.Id, request.TenantId);
+                refreshToken = await _jwtService.GenerateRefreshToken(user.Id, tenant.Id);
 
                 await _unitOfWork.SaveChangesAsync(ct);
             }
             else
             {
-                var roles = await _roleRepository.GetRolesAsync(user.Id, request.TenantId, ct);
-                var permissions = await _permissionRepository.GetPermissionAsync(user.Id, request.TenantId, ct);
+                var roles = await _unitOfWork.Roles.GetRolesAsync(user.Id, tenant.Id, ct);
+                var permissions = await _unitOfWork.Permissions.GetPermissionAsync(user.Id, tenant.Id, ct);
 
                 accessToken = await _jwtService.GenerateAccessToken(user, tenant, roles, permissions);
-                refreshToken = await _jwtService.GenerateRefreshToken(user.Id, request.TenantId);
+                refreshToken = await _jwtService.GenerateRefreshToken(user.Id, tenant.Id);
             }
             return new LoginResponse(accessToken, refreshToken);
         }
@@ -149,9 +147,9 @@ namespace ERP.Identity.Infrastructure.Services
         public  async Task<RefreshTokenResponse> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default)
         {
             // 1) Hash token & lookup
-            var session = await _refreshTokenRepository.GetByTokenAsync(request.RefreshToken);
+            var session = await _unitOfWork.RefreshTokens.GetByTokenAsync(request.RefreshToken);
 
-            if (session is null || !session.IsActive)
+            if (session is null || !session.IsTokenValid)
                 throw new UnauthorizedAccessException("Invalid refresh token");
 
             // 2) Load context
@@ -171,14 +169,13 @@ namespace ERP.Identity.Infrastructure.Services
             var newRefreshToken = await _jwtService.GenerateRefreshToken(user.Id, tenant.Id);
 
             await _unitOfWork.RefreshTokens.AddAsync(
-                new RefreshToken
-                {
-                    UserId = user.Id,
-                    TenantId = tenant.Id,
-                    Token = newRefreshToken,
-                    ExpiredAt = DateTime.UtcNow.AddDays(30),
-                    CreatedByIp = request.IpAddress
-                }, ct
+                RefreshToken.Create(
+                    userId: user.Id,
+                    tenantId: tenant.Id,
+                    token: newRefreshToken,
+                    expiredAt: DateTime.UtcNow.AddDays(30),
+                    createdByIp: request.IpAddress
+                ), ct
             );
 
             // 4) New access token
@@ -192,47 +189,62 @@ namespace ERP.Identity.Infrastructure.Services
 
         public  async Task<RegisterResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
         {
-            // 1️⃣ Validate tenant
-            var tenant = await _unitOfWork.Tenants.GetByIdAsync(request.TenantId, ct)
-                ?? throw new InvalidOperationException("Tenant not found");
-
-            if (!tenant.IsActive)
-                throw new InvalidOperationException("Tenant is inactive");
-
-            // 2️⃣ Check email duplicate trong tenant
-            var existedUser = await _unitOfWork.Users.GetByEmailAsync(request.Email, request.TenantId, ct);
-
-            if (existedUser != null)
-                throw new InvalidOperationException("Email already exists");
-
-            // 3️⃣ Hash password
-            var passwordHash = _passwordHasher.HashPassword(request.Password);
-
-            // 4️⃣ Create user (DOMAIN)
-            var user = User.Create(
-                email: request.Email,
-                passwordHash: passwordHash
-            );
-
-            // 5️⃣ Add user vào tenant (UserTenant / UserRole mặc định)
-            user.AssignToTenant(tenant.Id);
-
-            var roles = _userRoleResolver.GetRolesForUser(request.UserType);
-
-            foreach(var role in roles)
+            try
             {
-                user.AssignRole(role, tenant.Id);
+                await _unitOfWork.BeginTransactionAsync(ct);
+                // 1️⃣ Validate tenant
+                var tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(request.TenantCode, ct)
+                    ?? throw new InvalidOperationException("Tenant not found");
+
+                // 2️⃣ Check email duplicate trong tenant
+                var existedUser = await _unitOfWork.Users.GetByEmailAsync(request.Email, tenant.Id, ct);
+
+                if (existedUser != null)
+                    throw new InvalidOperationException("Email already exists");
+
+                // 3️⃣ Hash password
+                var passwordHash = _passwordHasher.HashPassword(request.Password.Trim());
+
+                // 4️⃣ Create user (DOMAIN)
+                var user = User.Create(
+                    email: request.Email,
+                    username: request.UserName ?? request.Email,
+                    passwordHash: passwordHash,
+                    tenantId: tenant.Id,
+                    userType: request.UserType
+                );
+
+                await _unitOfWork.Users.AddAsync(user, ct);
+                
+                // 5️⃣ Add user vào tenant (UserTenant / UserRole mặc định)
+                user.AssignToTenant(tenant);
+
+                var roleMap = _userRoleResolver.GetRolesForUser(request.UserType);
+
+                var roles = await _unitOfWork.Roles.GetRolesByCodeAsync(roleMap, tenant.Id,ct);
+                if(roles == null)
+                    throw new InvalidOperationException("Role not found");
+                foreach (var role in roles)
+                {
+                    user.AssignRole(role, tenant.Id);
+                }
+
+                // 6️⃣ Persist
+                
+                await _unitOfWork.CommitTransactionAsync(ct);
+
+                // 7️⃣ Response
+                return new RegisterResponse(
+                    Succeeded: true,
+                    Errors: []
+                );
             }
-
-            // 6️⃣ Persist
-            await _userRepository.AddAsync(user, ct);
-            await _unitOfWork.SaveChangesAsync(ct);
-
-            // 7️⃣ Response
-            return new RegisterResponse(
-                Succeeded: true,
-                Errors: []
-            );
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync(ct);
+                throw;
+            }
+            
         }
     }
 

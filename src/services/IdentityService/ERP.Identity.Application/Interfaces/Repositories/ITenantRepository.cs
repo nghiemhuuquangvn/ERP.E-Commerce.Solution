@@ -8,5 +8,6 @@ namespace ERP.Identity.Application.Interfaces.Repositories
 {
     public interface ITenantRepository : IGenericRepository<AuthTenant>
     {
+        Task<AuthTenant> GetTenantByCodeAsync(string tenantCode, CancellationToken cancellationToken);
     }
 }

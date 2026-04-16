@@ -27,11 +27,10 @@ namespace ERP.Identity.Infrastructure.Repositories
             await _dbContext.Users.AddAsync(user, ct);
         }
 
-        public Task DeleteAsync(User user, CancellationToken ct)
+        public async Task DeleteAsync(User user, CancellationToken ct)
         {
             if (user == null) throw new ArgumentNullException(nameof(user));
             _dbContext.Users.Remove(user);
-            return Task.CompletedTask;
         }
 
         public Task<IQueryable<User>> GetAllAsync(Expression<Func<User, bool>>? filter = null, Func<IQueryable<User>, IQueryable<User>>? orderBy = null, string? includeProperties = null, CancellationToken ct = default)
@@ -39,19 +38,10 @@ namespace ERP.Identity.Infrastructure.Repositories
             throw new NotImplementedException();
         }
 
-        public Task<IQueryable<User>> GetAllUsersAsync(CancellationToken ct)
-        {
-            throw new NotImplementedException();
-        }
-
         public async Task<User?> GetByEmailAsync(string email, Guid tenantId, CancellationToken ct)
         {
-            var user = await _dbContext.Users
-            .Include(x => x.UserRoles)
-                .ThenInclude(x => x.Role)
-                    .ThenInclude(x => x.RolePermissions)
-                        .ThenInclude(x => x.Permissions)
-            .FirstOrDefaultAsync(x => x.Email == email && x.TenantId.Equals(tenantId), ct);
+            var user = await _dbContext.Users.AsNoTracking()
+                                            .FirstOrDefaultAsync(x => x.Email == email && x.TenantId.Equals(tenantId), ct);
             return user;
         }
 
@@ -61,16 +51,15 @@ namespace ERP.Identity.Infrastructure.Repositories
             .Include(x => x.UserRoles)
                 .ThenInclude(x => x.Role)
                     .ThenInclude(x => x.RolePermissions)
-                        .ThenInclude(x => x.Permissions)
+                        .ThenInclude(x => x.Permission)
             .FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw new InvalidOperationException($"User with id '{id}' was not found.");
             return user;
         }
 
-        public Task UpdateAsync(User user, CancellationToken ct)
+        public async Task UpdateAsync(User user, CancellationToken ct)
         {
             if (user == null) throw new ArgumentNullException(nameof(user));
             _dbContext.Users.Update(user);
-            return Task.CompletedTask;
         }
 
         public async Task<User> GetByExternalProviderAsync(string provider, string providerKey,
@@ -84,6 +73,24 @@ namespace ERP.Identity.Infrastructure.Repositories
 
             return await _dbContext.Users.FirstOrDefaultAsync(x => userIds.Contains(x.Id), ct)
                 ?? throw new InvalidOperationException("User not found for the given external provider.");
+        }
+
+        public async Task<IEnumerable<UserDto>> GetAllUsersAsync(CancellationToken ct)
+        {
+            return await _dbContext.Users
+                        .AsNoTracking()
+                        .Select(u => new UserDto
+                        {
+                            Id = u.Id,
+                            Email = u.Email,
+                            Roles = u.UserRoles.Select(ur => ur.Role.RoleName).ToList(),
+                            Permissions = u.UserRoles
+                                .SelectMany(ur => ur.Role.RolePermissions)
+                                .Select(rp => rp.Permission.PermissionCode)
+                                .Distinct()
+                                .ToList()
+                        })
+                        .ToListAsync(ct);
         }
     }
 }

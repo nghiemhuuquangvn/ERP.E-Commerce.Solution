@@ -4,18 +4,20 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using ERP.Identity.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 
 namespace ERP.Identity.Infrastructure.Repositories
 {
     public class TenantRepository : GenericRepository<AuthTenant>, ITenantRepository
     {
-        private readonly AuthDbContext _dbContext;
         public TenantRepository(AuthDbContext dbContext) : base(dbContext)
         {
-            _dbContext = dbContext;
         }
-        
 
+        public async Task<AuthTenant> GetTenantByCodeAsync(string tenantCode, CancellationToken cancellationToken)
+        {
+            return await _dbContext.Tenants.FirstOrDefaultAsync(m => m.TenantCode == tenantCode, cancellationToken) ?? throw new InvalidOperationException("Not found the tenant");
+        }
     }
 }

@@ -14,9 +14,10 @@ namespace ERP.Identity.Domain.Entities
         public string RoleName { get; set; } = default!;
         public Guid TenantId { get; set; }
         public bool IsActive { get; private set; }
-        public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
-        public ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
-        protected Role() { }
+        public virtual ICollection<UserRole> UserRoles { get; set; } = default!;
+        public virtual ICollection<RolePermission> RolePermissions { get; set; } = default!;
+        public Role() { }
+
         private Role(Guid id, string roleCode, string roleName, Guid tenantId)
         {
             Id = id;

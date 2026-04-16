@@ -11,6 +11,7 @@ namespace ERP.Identity.Application.Interfaces.Repositories
     public interface IRoleRepository : IGenericRepository<Role>
     {
         Task<IReadOnlyList<string>> GetRolesAsync(Guid userId, Guid tenantId, CancellationToken ct);
+        Task<List<Role>> GetRolesByCodeAsync(IEnumerable<string> codes, Guid tenantId, CancellationToken ct);
         
     }
 }
