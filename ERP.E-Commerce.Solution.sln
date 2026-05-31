@@ -19,8 +19,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ERP.Identity.Infrastructure
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ERP.Identity.Application.Tests", "ERP.Identity.Application.Tests\ERP.Identity.Application.Tests.csproj", "{FB712DAD-E881-475B-A254-3E7025EDC914}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PurchaseOrderService", "PurchaseOrderService", "{EFD3FE21-31B6-E49D-BAF7-D3207150E13D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{AC82BEC1-C364-7931-037E-F59216AF761E}"

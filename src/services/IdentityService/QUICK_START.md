@@ -20,6 +20,27 @@ cd src/services/IdentityService
 
 ---
 
+## Run with Docker (Port 8081)
+
+### Build image
+```bash
+docker build --pull --rm -f "src/services/IdentityService/Dockerfile.yml" -t "erpecommerce:latest" "src/services/IdentityService"
+```
+
+### Run container and connect to host SQL Server
+```bash
+docker run --name identity-api -p 8081:8081 \
+  -e "ConnectionStrings__AuthDB=Server=localhost;Database=AuthDB;user id=sa;password=!Edw@rd!123456!;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=True" \
+  erpecommerce:latest
+```
+
+### Notes
+- `Server=.` and `Server=localhost` inside container point to the container itself, not your host.
+- Use SQL Server authentication (username/password). Windows Integrated Authentication is not supported in this Linux container flow.
+- Ensure SQL Server accepts TCP/IP on port `1433` and allows remote connections.
+
+---
+
 ## For Linux/Mac (Quick Setup)
 
 ### First Time Setup

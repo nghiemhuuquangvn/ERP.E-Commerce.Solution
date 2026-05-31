@@ -1,0 +1,28 @@
+# Build stage
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+# Copy only project files first to leverage Docker layer caching
+COPY ERP.Identity.Api/ERP.Identity.API.csproj ERP.Identity.Api/
+COPY ERP.Identity.Application/ERP.Identity.Application.csproj ERP.Identity.Application/
+COPY ERP.Identity.Domain/ERP.Identity.Domain.csproj ERP.Identity.Domain/
+COPY ERP.Identity.Infrastructure/ERP.Identity.Infrastructure.csproj ERP.Identity.Infrastructure/
+
+RUN dotnet restore ERP.Identity.Api/ERP.Identity.API.csproj
+
+# Copy the full source and publish the API
+COPY . .
+WORKDIR /src/ERP.Identity.Api
+RUN dotnet publish ERP.Identity.API.csproj -c Release -o /app/publish /p:UseAppHost=false
+
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+
+ENV ASPNETCORE_ENVIRONMENT=Docker
+ENV ASPNETCORE_URLS=http://+:8081
+EXPOSE 8081
+
+COPY --from=build /app/publish .
+
+ENTRYPOINT ["dotnet", "ERP.Identity.API.dll"]

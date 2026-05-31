@@ -1,0 +1,12 @@
+{
+    "permission": {
+        "allow": [
+            "read",
+            "write",
+            "execute", "Bash"
+        ],
+        "deny": [
+            "DeleteProduction"
+        ]
+    }
+}
