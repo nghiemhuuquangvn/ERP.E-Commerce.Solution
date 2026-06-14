@@ -1,6 +1,6 @@
-using ERP.PO.Domain.Common;
 using ERP.PO.Domain.Enums;
 using ERP.PO.Domain.ValueObjects;
+using ERP.Shared.Core.Domain;
 
 namespace ERP.PO.Domain.Entities;
 

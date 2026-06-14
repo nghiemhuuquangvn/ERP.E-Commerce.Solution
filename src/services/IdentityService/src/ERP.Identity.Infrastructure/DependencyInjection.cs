@@ -58,11 +58,16 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<IPasswordHasher, PasswordHasher>();
             services.AddScoped<IPermissionService, PermissionService>();
             services.AddScoped<IExternalLoginRepository, ExternalLoginRepository>();
-            services.AddScoped<ITenantRepository, TenantRepository>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+            services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
             services.AddScoped<IUserRoleResolver, UserRoleResolver>();
             services.AddScoped<IRolePermissionResolver, RolePermissionResolver>();
             services.AddScoped<IOutboxMessageRepository, OutboxMessageRepository>();
+
+            // New services
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IRoleService, RoleService>();
+            services.AddScoped<ITenantService, TenantService>();
 
             services.AddHostedService<OutboxProcessor>();
 

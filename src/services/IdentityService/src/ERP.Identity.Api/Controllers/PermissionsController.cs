@@ -1,0 +1,54 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using ERP.Identity.Application.DTOs.Permission;
+using ERP.Identity.Application.Interfaces.Services;
+using ERP.Identity.Application.Authorization;
+using ERP.Identity.Api.Authorization;
+
+namespace ERP.Identity.Api.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize]
+    public class PermissionsController : ControllerBase
+    {
+        private readonly IPermissionService _permissionService;
+
+        public PermissionsController(IPermissionService permissionService)
+        {
+            _permissionService = permissionService;
+        }
+
+        [HttpGet]
+        [RequirePermission(Permissions.ViewPermissions)]
+        public async Task<IActionResult> List(CancellationToken ct = default)
+        {
+            var permissions = await _permissionService.ListAllAsync(ct);
+            return Ok(permissions);
+        }
+
+        [HttpPost]
+        [RequirePermission(Permissions.ManagePermissions)]
+        public async Task<IActionResult> Create([FromBody] CreatePermissionRequest request, CancellationToken ct = default)
+        {
+            var permission = await _permissionService.CreateAsync(request, ct);
+            return CreatedAtAction(nameof(List), permission);
+        }
+
+        [HttpPut("{id}")]
+        [RequirePermission(Permissions.ManagePermissions)]
+        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdatePermissionRequest request, CancellationToken ct = default)
+        {
+            await _permissionService.UpdateAsync(id, request, ct);
+            return Ok(new { message = "Permission updated successfully" });
+        }
+
+        [HttpDelete("{id}")]
+        [RequirePermission(Permissions.ManagePermissions)]
+        public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken ct = default)
+        {
+            await _permissionService.DeleteAsync(id, ct);
+            return Ok(new { message = "Permission deleted successfully" });
+        }
+    }
+}

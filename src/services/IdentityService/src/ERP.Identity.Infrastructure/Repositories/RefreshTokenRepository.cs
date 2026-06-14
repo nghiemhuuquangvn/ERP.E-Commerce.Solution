@@ -14,24 +14,43 @@ namespace ERP.Identity.Infrastructure.Repositories
         {
         }
 
-        public Task<RefreshToken?> GetByTokenAsync(string token, CancellationToken cancellationToken = default)
+        public async Task<RefreshToken?> GetByTokenAsync(string token, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            return await _dbContext.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == token, cancellationToken);
         }
 
-        public Task<IEnumerable<RefreshToken>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+        public async Task<IEnumerable<RefreshToken>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            return await _dbContext.RefreshTokens.AsNoTracking()
+                .Where(rt => rt.UserId == userId)
+                .ToListAsync(cancellationToken);
         }
 
-        public Task RevokeAsync(string token, CancellationToken cancellationToken = default)
+        public async Task RevokeAsync(string token, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            var refreshToken = await GetByTokenAsync(token, cancellationToken);
+            if (refreshToken != null)
+            {
+                refreshToken.Revoke();
+            }
         }
 
-        public Task<bool> ExistsAsync(string token, CancellationToken cancellationToken = default)
+        public async Task<bool> ExistsAsync(string token, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            return await _dbContext.RefreshTokens.AsNoTracking()
+                .AnyAsync(rt => rt.Token == token, cancellationToken);
+        }
+
+        public async Task RevokeAllByUserIdAsync(Guid userId, CancellationToken ct)
+        {
+            var tokens = await _dbContext.RefreshTokens
+                .Where(rt => rt.UserId == userId && !rt.RevokedAt.HasValue)
+                .ToListAsync(ct);
+
+            foreach (var token in tokens)
+            {
+                token.Revoke();
+            }
         }
     }
 }

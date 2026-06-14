@@ -31,32 +31,62 @@ namespace ERP.Identity.Infrastructure.Repositories
 
             return permissions;
         }
-        public Task AssignPermissionToRoleAsync(Guid roleId, string permissionCode, CancellationToken ct)
+        public async Task<bool> ExistsAsync(string permissionCode, CancellationToken ct)
         {
-            throw new NotImplementedException();
-        }
-        public Task<bool> ExistsAsync(string permissionCode, CancellationToken ct)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<IReadOnlyList<string>> GetAllAsync(CancellationToken ct)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task RemovePermissionFromRoleAsync(Guid roleId, string permissionCode, CancellationToken ct)
-        {
-            throw new NotImplementedException();
+            return await _dbContext.Permissions.AsNoTracking()
+                .AnyAsync(p => p.PermissionCode == permissionCode, ct);
         }
 
         public async Task<bool> HasPermissionAsync(Guid userId, Guid tenantId, IEnumerable<string> permissionCodes)
         {
-            return await _dbContext.UserRoles.AsNoTracking()
+            var userPermissions = await _dbContext.UserRoles.AsNoTracking()
                             .Where(ur => ur.UserId == userId && ur.TenantId == tenantId)
                             .SelectMany(ur => _dbContext.RolePermissions.AsNoTracking()
                                 .Where(rp => rp.RoleId == ur.RoleId && rp.TenantId == tenantId))
-                            .AnyAsync(p => permissionCodes.Contains(p.PermissionId.ToString()));
+                            .Select(rp => rp.Permission.PermissionCode)
+                            .ToListAsync();
+
+            return permissionCodes.Any(code => userPermissions.Contains(code));
+        }
+
+        public async Task<IReadOnlyList<Permission>> ListAllAsync(CancellationToken ct)
+        {
+            return await _dbContext.Permissions.AsNoTracking().ToListAsync(ct);
+        }
+
+        public async Task<IReadOnlyList<string>> GetPermissionsForRoleAsync(Guid roleId, CancellationToken ct)
+        {
+            return await _dbContext.RolePermissions.AsNoTracking()
+                .Where(rp => rp.RoleId == roleId)
+                .Select(rp => rp.Permission.PermissionCode)
+                .ToListAsync(ct);
+        }
+
+        public async Task AssignToRoleAsync(Guid roleId, Guid permissionId, Guid tenantId, CancellationToken ct)
+        {
+            var existing = await _dbContext.RolePermissions.FirstOrDefaultAsync(
+                rp => rp.RoleId == roleId && rp.PermissionId == permissionId, ct);
+
+            if (existing != null)
+                return;
+
+            var rolePermission = new RolePermission
+            {
+                RoleId = roleId,
+                PermissionId = permissionId,
+                TenantId = tenantId
+            };
+
+            await _dbContext.RolePermissions.AddAsync(rolePermission, ct);
+        }
+
+        public async Task RemoveFromRoleAsync(Guid roleId, Guid permissionId, Guid tenantId, CancellationToken ct)
+        {
+            var rolePermission = await _dbContext.RolePermissions
+                .FirstOrDefaultAsync(rp => rp.RoleId == roleId && rp.PermissionId == permissionId, ct);
+
+            if (rolePermission != null)
+                _dbContext.RolePermissions.Remove(rolePermission);
         }
     }
 }

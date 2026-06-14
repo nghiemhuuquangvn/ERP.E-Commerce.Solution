@@ -4,11 +4,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.Auth;
 using ERP.Identity.Application.Interfaces.Services;
-using Microsoft.AspNetCore.Identity.Data;
 using LoginRequest = ERP.Identity.Application.DTOs.Auth.LoginDto.LoginRequest;
 using RegisterRequest = ERP.Identity.Application.DTOs.Auth.RegisterDto.RegisterRequest;
 using RefreshTokenRequest = ERP.Identity.Application.DTOs.Auth.RefreshTokenDto.RefreshTokenRequest;
-using static ERP.Identity.Application.DTOs.Auth.RevokeDto;
+using ForgotPasswordRequestDto = ERP.Identity.Application.DTOs.Auth.ForgotPasswordRequest;
+using ResetPasswordRequestDto = ERP.Identity.Application.DTOs.Auth.ResetPasswordRequest;
 
 namespace ERP.Identity.Api.Controllers
 {
@@ -48,11 +48,47 @@ namespace ERP.Identity.Api.Controllers
             string IpAddress = Request.Headers.ContainsKey("X-Forwarded-For")
                 ? Request.Headers["X-Forwarded-For"].ToString()
                 : HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-            
+
             var refreshTokenRequest = new RefreshTokenRequest(request.RefreshToken, request.TenantId, IpAddress);
 
             var result = await _authService.RefreshTokenAsync(refreshTokenRequest, cancellationToken);
             if (!result.Succeeded) return BadRequest(result.Errors);
+            return Ok(result);
+        }
+
+        [HttpPost("logout")]
+        [Authorize]
+        public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken = default)
+        {
+            var userId = User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var parsedUserId))
+                return Unauthorized();
+
+            await _authService.LogoutAsync(parsedUserId, request.RefreshToken, cancellationToken);
+            return Ok(new { message = "Logged out successfully" });
+        }
+
+        [HttpPost("forgot-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto request, CancellationToken cancellationToken = default)
+        {
+            var result = await _authService.ForgotPasswordAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("reset-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDto request, CancellationToken cancellationToken = default)
+        {
+            var result = await _authService.ResetPasswordAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("confirm-email")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailRequest request, CancellationToken cancellationToken = default)
+        {
+            var result = await _authService.ConfirmEmailAsync(request, cancellationToken);
             return Ok(result);
         }
     }

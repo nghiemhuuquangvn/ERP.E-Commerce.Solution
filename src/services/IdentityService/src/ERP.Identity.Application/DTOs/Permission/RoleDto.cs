@@ -1,12 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace ERP.Identity.Application.DTOs.Permission;
 
-namespace ERP.Identity.Application.DTOs.Permission
-{
-    internal class RoleDto
-    {
-    }
-}
+public record RoleDto(Guid Id, string RoleCode, string RoleName, bool IsActive);
+
+public record CreateRoleRequest(string RoleCode, string RoleName);
+
+public record UpdateRoleRequest(string RoleName);
+
+public record AssignRoleRequest(Guid UserId, string RoleCode);
+
+public record AssignPermissionToRoleRequest(string PermissionCode);

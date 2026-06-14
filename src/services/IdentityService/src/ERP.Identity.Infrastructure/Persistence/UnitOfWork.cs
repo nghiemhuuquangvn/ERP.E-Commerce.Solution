@@ -14,14 +14,15 @@ namespace ERP.Identity.Infrastructure.Persistence
         private readonly AuthDbContext _dbContext;
         private IDbContextTransaction? _currentTrans;
 
-        public UnitOfWork(AuthDbContext dbContext, 
+        public UnitOfWork(AuthDbContext dbContext,
             IUserRepository userRepository,
             IRoleRepository roleRepository,
             IPermissionRepository permissionRepository,
             IRefreshTokenRepository refreshTokenRepository,
             ITenantRepository tenantRepository,
             IExternalLoginRepository externalLoginRepository,
-            IOutboxMessageRepository outboxMessageRepository)
+            IOutboxMessageRepository outboxMessageRepository,
+            IPasswordResetTokenRepository passwordResetTokenRepository)
         {
             _dbContext = dbContext;
             Users = userRepository;
@@ -31,6 +32,7 @@ namespace ERP.Identity.Infrastructure.Persistence
             Tenants = tenantRepository;
             ExternalLogins = externalLoginRepository;
             OutboxMessages = outboxMessageRepository;
+            PasswordResetTokens = passwordResetTokenRepository;
         }
         public IUserRepository Users { get; }
 
@@ -42,6 +44,7 @@ namespace ERP.Identity.Infrastructure.Persistence
         public ITenantRepository Tenants { get; }
         public IExternalLoginRepository ExternalLogins { get; }
         public IOutboxMessageRepository OutboxMessages { get; }
+        public IPasswordResetTokenRepository PasswordResetTokens { get; }
 
         public async Task<int> SaveChangesAsync(CancellationToken ct) => await _dbContext.SaveChangesAsync(ct);
         public async Task BeginTransactionAsync(CancellationToken ct)

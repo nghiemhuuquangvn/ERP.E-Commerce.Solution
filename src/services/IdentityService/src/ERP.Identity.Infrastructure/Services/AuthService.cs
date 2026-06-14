@@ -113,13 +113,6 @@ namespace ERP.Identity.Infrastructure.Services
 
                 await _unitOfWork.Users.AddAsync(user, ct);
 
-                await _unitOfWork.ExternalLogins.AddAsync(ExternalLogin.Create(
-                    userId: user.Id,
-                    provider: request.Provider,
-                    providerKey: externalUser.ProviderKey,
-                    email: externalUser.Email
-                ), ct);
-
                 var roles = await _unitOfWork.Roles.GetRolesAsync(user.Id, tenant.Id, ct);
                 var permissions = await _unitOfWork.Permissions.GetPermissionAsync(user.Id, tenant.Id, ct);
 
@@ -139,9 +132,10 @@ namespace ERP.Identity.Infrastructure.Services
             return new LoginResponse(accessToken, refreshToken);
         }
 
-        public Task LogoutAsync(Guid userId, string refreshToken, CancellationToken ct = default)
+        public async Task LogoutAsync(Guid userId, string refreshToken, CancellationToken ct = default)
         {
-            throw new NotImplementedException();
+            await _unitOfWork.RefreshTokens.RevokeAsync(refreshToken, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
         }
 
         public  async Task<RefreshTokenResponse> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default)
@@ -244,7 +238,69 @@ namespace ERP.Identity.Infrastructure.Services
                 await _unitOfWork.RollbackTransactionAsync(ct);
                 throw;
             }
-            
+
+        }
+
+        public async Task<ForgotPasswordResponse> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct)
+        {
+            var tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(request.TenantCode, ct)
+                ?? throw new InvalidOperationException("Tenant not found");
+
+            var user = await _unitOfWork.Users.GetByEmailAsync(request.Email, tenant.Id, ct);
+            if (user == null)
+                throw new InvalidOperationException("User not found");
+
+            // Generate password reset token
+            var resetToken = Guid.NewGuid().ToString();
+            var passwordResetToken = PasswordResetToken.Create(user.Id, resetToken, DateTime.UtcNow.AddHours(24));
+            await _unitOfWork.PasswordResetTokens.AddAsync(passwordResetToken, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+
+            // In production, send email with reset link
+            // For now, return the token for testing
+            return new ForgotPasswordResponse(
+                Succeeded: true,
+                ResetToken: resetToken
+            );
+        }
+
+        public async Task<ResetPasswordResponse> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken ct)
+        {
+            var resetToken = await _unitOfWork.PasswordResetTokens.GetByTokenAsync(request.Token, ct);
+            if (resetToken == null || !resetToken.IsValid)
+                throw new InvalidOperationException("Invalid or expired reset token");
+
+            var user = await _unitOfWork.Users.GetByIdAsync(resetToken.UserId, ct);
+            if (user == null)
+                throw new InvalidOperationException("User not found");
+
+            var newPasswordHash = _passwordHasher.HashPassword(request.NewPassword);
+            user.ChangePassword(newPasswordHash);
+            resetToken.MarkUsed();
+
+            await _unitOfWork.Users.UpdateAsync(user, ct);
+            await _unitOfWork.PasswordResetTokens.UpdateAsync(resetToken, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+
+            return new ResetPasswordResponse(Succeeded: true);
+        }
+
+        public async Task<ConfirmEmailResponse> ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken ct)
+        {
+            if (!Guid.TryParse(request.UserId, out var userId))
+                throw new InvalidOperationException("Invalid user ID");
+
+            var user = await _unitOfWork.Users.GetByIdAsync(userId, ct);
+            if (user == null)
+                throw new InvalidOperationException("User not found");
+
+            // TODO: Implement proper email confirmation token validation
+            // For now, just confirm the email
+            user.ConfirmEmail();
+            await _unitOfWork.Users.UpdateAsync(user, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+
+            return new ConfirmEmailResponse(Succeeded: true);
         }
     }
 

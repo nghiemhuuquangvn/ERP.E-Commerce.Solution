@@ -12,6 +12,8 @@ namespace ERP.Identity.Application.Interfaces.Repositories
     {
         Task<IReadOnlyList<string>> GetRolesAsync(Guid userId, Guid tenantId, CancellationToken ct);
         Task<List<Role>> GetRolesByCodeAsync(IEnumerable<string> codes, Guid tenantId, CancellationToken ct);
-        
+        Task<Role?> GetByCodeAsync(string code, Guid tenantId, CancellationToken ct);
+        Task<IReadOnlyList<Role>> ListByTenantAsync(Guid tenantId, CancellationToken ct);
+        Task<bool> ExistsAsync(string code, Guid tenantId, CancellationToken ct);
     }
 }

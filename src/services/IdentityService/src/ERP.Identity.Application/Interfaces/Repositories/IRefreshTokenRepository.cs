@@ -13,5 +13,6 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         Task<IEnumerable<RefreshToken>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
         Task RevokeAsync(string token, CancellationToken cancellationToken = default);
         Task<bool> ExistsAsync(string token, CancellationToken cancellationToken = default);
+        Task RevokeAllByUserIdAsync(Guid userId, CancellationToken ct);
     }
 }

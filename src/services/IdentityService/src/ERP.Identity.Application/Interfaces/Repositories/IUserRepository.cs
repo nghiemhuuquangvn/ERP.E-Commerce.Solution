@@ -12,5 +12,9 @@ namespace ERP.Identity.Application.Interfaces.Repositories
     {
         Task<User?> GetByEmailAsync(string email, Guid tenantId, CancellationToken ct);
         Task<User> GetByExternalProviderAsync(string provider, string providerKey, Guid tenantId, CancellationToken ct);
+        Task<User?> GetByIdWithDetailsAsync(Guid id, CancellationToken ct);
+        Task<IReadOnlyList<User>> ListByTenantAsync(Guid tenantId, int page, int pageSize, CancellationToken ct);
+        Task<bool> ExistsAsync(string email, Guid tenantId, CancellationToken ct);
+        Task<int> CountByTenantAsync(Guid tenantId, CancellationToken ct);
     }
 }

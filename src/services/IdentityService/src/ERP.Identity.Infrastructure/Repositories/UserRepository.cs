@@ -1,4 +1,5 @@
 ﻿using ERP.Entity.Application.Interfaces.Repositories;
+using ERP.Identity.Application.DTOs.Auth;
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Domain.Entities;
 using ERP.Identity.Infrastructure.Persistence;
@@ -33,9 +34,23 @@ namespace ERP.Identity.Infrastructure.Repositories
             _dbContext.Users.Remove(user);
         }
 
-        public Task<IQueryable<User>> GetAllAsync(Expression<Func<User, bool>>? filter = null, Func<IQueryable<User>, IQueryable<User>>? orderBy = null, string? includeProperties = null, CancellationToken ct = default)
+        public async Task<IQueryable<User>> GetAllAsync(Expression<Func<User, bool>>? filter = null, Func<IQueryable<User>, IQueryable<User>>? orderBy = null, string? includeProperties = null, CancellationToken ct = default)
         {
-            throw new NotImplementedException();
+            IQueryable<User> query = _dbContext.Users;
+
+            if (filter != null)
+                query = query.Where(filter);
+
+            if (!string.IsNullOrEmpty(includeProperties))
+            {
+                foreach (var property in includeProperties.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    query = query.Include(property);
+            }
+
+            if (orderBy != null)
+                query = orderBy(query);
+
+            return await Task.FromResult(query);
         }
 
         public async Task<User?> GetByEmailAsync(string email, Guid tenantId, CancellationToken ct)
@@ -79,18 +94,50 @@ namespace ERP.Identity.Infrastructure.Repositories
         {
             return await _dbContext.Users
                         .AsNoTracking()
-                        .Select(u => new UserDto
-                        {
-                            Id = u.Id,
-                            Email = u.Email,
-                            Roles = u.UserRoles.Select(ur => ur.Role.RoleName).ToList(),
-                            Permissions = u.UserRoles
+                        .Select(u => new UserDto(
+                            u.Id,
+                            u.Email,
+                            u.UserRoles.Select(ur => ur.Role.RoleName).ToList(),
+                            u.UserRoles
                                 .SelectMany(ur => ur.Role.RolePermissions)
                                 .Select(rp => rp.Permission.PermissionCode)
                                 .Distinct()
                                 .ToList()
-                        })
+                        ))
                         .ToListAsync(ct);
+        }
+
+        public async Task<User?> GetByIdWithDetailsAsync(Guid id, CancellationToken ct)
+        {
+            return await _dbContext.Users
+                .Include(x => x.UserRoles)
+                .ThenInclude(x => x.Role)
+                .ThenInclude(x => x.RolePermissions)
+                .ThenInclude(x => x.Permission)
+                .FirstOrDefaultAsync(x => x.Id == id, ct);
+        }
+
+        public async Task<IReadOnlyList<User>> ListByTenantAsync(Guid tenantId, int page, int pageSize, CancellationToken ct)
+        {
+            return await _dbContext.Users
+                .AsNoTracking()
+                .Where(x => x.TenantId == tenantId)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(ct);
+        }
+
+        public async Task<bool> ExistsAsync(string email, Guid tenantId, CancellationToken ct)
+        {
+            return await _dbContext.Users.AsNoTracking()
+                .AnyAsync(x => x.Email == email && x.TenantId == tenantId, ct);
+        }
+
+        public async Task<int> CountByTenantAsync(Guid tenantId, CancellationToken ct)
+        {
+            return await _dbContext.Users.AsNoTracking()
+                .Where(x => x.TenantId == tenantId)
+                .CountAsync(ct);
         }
     }
 }

@@ -37,5 +37,24 @@ namespace ERP.Identity.Infrastructure.Repositories
                                 .Where(r => r.TenantId == tenantId && codes.Contains(r.RoleCode))
                                 .ToListAsync(ct);
         }
+
+        public async Task<Role?> GetByCodeAsync(string code, Guid tenantId, CancellationToken ct)
+        {
+            return await _dbContext.Roles.AsNoTracking()
+                .FirstOrDefaultAsync(r => r.RoleCode == code && r.TenantId == tenantId, ct);
+        }
+
+        public async Task<IReadOnlyList<Role>> ListByTenantAsync(Guid tenantId, CancellationToken ct)
+        {
+            return await _dbContext.Roles.AsNoTracking()
+                .Where(r => r.TenantId == tenantId)
+                .ToListAsync(ct);
+        }
+
+        public async Task<bool> ExistsAsync(string code, Guid tenantId, CancellationToken ct)
+        {
+            return await _dbContext.Roles.AsNoTracking()
+                .AnyAsync(r => r.RoleCode == code && r.TenantId == tenantId, ct);
+        }
     }
 }

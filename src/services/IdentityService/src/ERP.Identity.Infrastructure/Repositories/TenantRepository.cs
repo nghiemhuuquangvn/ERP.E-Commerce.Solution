@@ -19,5 +19,16 @@ namespace ERP.Identity.Infrastructure.Repositories
         {
             return await _dbContext.Tenants.FirstOrDefaultAsync(m => m.TenantCode == tenantCode, cancellationToken) ?? throw new InvalidOperationException("Not found the tenant");
         }
+
+        public async Task<IReadOnlyList<AuthTenant>> ListAllAsync(CancellationToken ct)
+        {
+            return await _dbContext.Tenants.AsNoTracking().ToListAsync(ct);
+        }
+
+        public async Task<bool> ExistsByCodeAsync(string code, CancellationToken ct)
+        {
+            return await _dbContext.Tenants.AsNoTracking()
+                .AnyAsync(t => t.TenantCode == code, ct);
+        }
     }
 }

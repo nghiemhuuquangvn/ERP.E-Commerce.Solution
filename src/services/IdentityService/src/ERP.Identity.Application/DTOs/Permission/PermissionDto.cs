@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace ERP.Identity.Application.DTOs.Permission;
 
-namespace ERP.Identity.Application.DTOs.Permission
-{
-    internal class PermissionDto
-    {
-    }
-}
+public record PermissionDto(Guid Id, string PermissionCode, string? PermissionName, string? Module);
+
+public record CreatePermissionRequest(string PermissionCode, string PermissionName, string? Module = null);
+
+public record UpdatePermissionRequest(string? PermissionName = null, string? Module = null);

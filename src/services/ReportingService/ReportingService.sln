@@ -1,0 +1,36 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ERP.RPT.API", "src\ERP.RPT.API\ERP.RPT.API.csproj", "{AAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ERP.RPT.Application", "src\ERP.RPT.Application\ERP.RPT.Application.csproj", "{BAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ERP.RPT.Domain", "src\ERP.RPT.Domain\ERP.RPT.Domain.csproj", "{CAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ERP.RPT.Infrastructure", "src\ERP.RPT.Infrastructure\ERP.RPT.Infrastructure.csproj", "{DAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DAEAEAEA-AEAE-AEAE-AEAE-AEAEAEAEAEAE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

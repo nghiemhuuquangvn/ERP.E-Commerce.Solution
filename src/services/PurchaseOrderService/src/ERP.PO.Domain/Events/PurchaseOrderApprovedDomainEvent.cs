@@ -1,4 +1,4 @@
-using ERP.PO.Domain.Common;
+using ERP.Shared.Core.Domain;
 
 namespace ERP.PO.Domain.Events;
 

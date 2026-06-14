@@ -1,7 +1,7 @@
-using ERP.PO.Domain.Common;
 using ERP.PO.Domain.Enums;
 using ERP.PO.Domain.Events;
 using ERP.PO.Domain.ValueObjects;
+using ERP.Shared.Core.Domain;
 
 namespace ERP.PO.Domain.Entities;
 
@@ -21,15 +21,36 @@ public class PurchaseOrder : BaseEntity
 
     private PurchaseOrder() { }
 
-    public static PurchaseOrder Create(string poNumber, Guid supplierId, DateTime? expectedDeliveryDate = null, string? notes = null)
+    public static PurchaseOrder Create(
+        string poNumber,
+        Guid supplierId,
+        Guid tenantId,
+        DateTime? expectedDeliveryDate = null,
+        string? notes = null)
     {
+        if (string.IsNullOrWhiteSpace(poNumber))
+            throw new ArgumentException("PO Number is required", nameof(poNumber));
+
+        if (supplierId == Guid.Empty)
+            throw new ArgumentException("Supplier ID is required", nameof(supplierId));
+
+        if (tenantId == Guid.Empty)
+            throw new ArgumentException("Tenant ID is required", nameof(tenantId));
+
+        if (expectedDeliveryDate.HasValue && expectedDeliveryDate < DateTime.UtcNow)
+            throw new ArgumentException(
+                "Expected delivery date must be in the future",
+                nameof(expectedDeliveryDate));
+
         var order = new PurchaseOrder
         {
             PONumber = poNumber,
             SupplierId = supplierId,
+            TenantId = tenantId,
             ExpectedDeliveryDate = expectedDeliveryDate,
             Notes = notes,
-            Status = PurchaseOrderStatus.Draft
+            Status = PurchaseOrderStatus.Draft,
+            CreatedAt = DateTime.UtcNow
         };
 
         order.AddDomainEvent(new PurchaseOrderCreatedDomainEvent(order.Id, poNumber, supplierId));
@@ -57,6 +78,10 @@ public class PurchaseOrder : BaseEntity
         if (Status != PurchaseOrderStatus.Draft)
             throw new InvalidOperationException("Only Draft orders can be submitted.");
 
+        if (!Items.Any())
+            throw new InvalidOperationException("Cannot submit a purchase order with no items.");
+
+        RecalculateTotal();
         Status = PurchaseOrderStatus.Submitted;
     }
 

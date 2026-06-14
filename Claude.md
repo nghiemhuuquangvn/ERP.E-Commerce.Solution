@@ -26,106 +26,424 @@ Technology:
 
 src/
     services/
-        IdentityService/
-        PurchaseOrderService/
-        SaleOrderService/
-        WareHouseService/
+        IdentityService/               (5001)
+        SaleOrderService/              (5002)
+        PurchaseOrderService/          (5003)
+        WareHouseService/              (5004)
+        AccountingService/             (5005, Code: ACC)
+        CRMService/                    (5006, Code: CRM)
+        HRMService/                    (5007, Code: HRM)
+        ProductService/                (5008, Code: PRD)
+        PaymentService/                (5009, Code: PAY)
+        ShippingService/               (5010, Code: SHP)
+        POSService/                    (5011, Code: POS)
+        PromotionService/              (5012, Code: PRM)
+        NotificationService/           (5013, Code: NTF)
+        ReportingService/              (5014, Code: RPT)
 
     Shared/
-        Contracts/
-        Core/
-        Infrastructure/
-        Messaging/
+        Core/                          (Domain base classes: BaseEntity, AggregateRoot, ValueObject, IDomainEvent)
+        Contracts/                     (Integration event contracts: IntegrationEventBase)
+        Infrastructure/                (Shared implementations: OutboxMessage)
+        Messaging/                     (Message bus: IMessageBus, IEventHandler, OutboxMessage)
 
     Database/
-        Identity/
-        Purchasing/
-        Sales/
+        (Database migration scripts per service)
+
+    Gateway/
+        Ocelot.API/                    (API Gateway on port 5000)
 
 docs/
     architecture/
+        domain-map.md                  (Domain groupings: ERP Core, Supply Chain, E-Commerce, Retail, Cross-Cutting)
+        port-map.md                    (Network topology & port assignments)
+        service-map.md                 (Service dependency graph)
+        event-catalog.md               (All 39+ integration events & their publishers/consumers)
+        database-map.md                (14 database schemas & ERDs)
+        dependency-map.md              (Service-to-service dependencies)
+        integration-map.md             (Event flow matrix across all services)
+
     business/
+        Identity/
+        Sales/
+        Purchasing/
+        Warehouse/
+        Accounting/
+        CRM/
+        HRM/
+        Product/
+        Payment/
+        Shipping/
+        POS/
+        Promotion/
+        Notification/
+        Reporting/
+
     Events/
+        EventCatalog.md
 
 deployment/
     docker/
+        docker-compose.yml             (All 14 services + infrastructure)
+        Dockerfile                     (Per service)
+
     k8s/
+        configmap.yaml
+        secrets.yaml
+        deployments/                   (Deployment manifests for all 14 services)
+        services/                      (Kubernetes service definitions)
+        statefulsets/                  (For stateful services)
 
 tests/
-    unit/
-    integration/
-    performance/
+    unit/                              (Unit tests per service)
+    integration/                       (Integration tests per service)
+    performance/                       (Load testing, stress testing)
 
 ## Service Boundaries
 
-### Identity Service
+**Reference:** See `docs/architecture/domain-map.md` for complete domain groupings, `docs/architecture/port-map.md` for network topology, and `docs/architecture/service-map.md` for service dependency graph.
+
+### ERP Core (Enterprise Back-Office)
+
+#### Identity Service (Port 5001)
 
 Responsibilities:
-- Authentication
-- Authorization
-- User Management
-- Role Management
-- Permission Management
+- Authentication (JWT-based)
+- Authorization & access control
+- User management & lifecycle
+- Role-based access control (RBAC)
+- Permission management
+- Multi-tenant support
 
-Owner Database:
-- AuthDB Database
+Database: AuthDB
 
 Published Events:
 - UserCreated
 - UserUpdated
+- RoleAssigned
+- PermissionGranted
 
-Consumed Events:
-- None
+Consumed Events: None
 
-### Sale Order Service
+#### Accounting Service (Port 5005, Code: ACC)
 
 Responsibilities:
-- Sales Orders
-- Customer Orders
-- Sales Workflow
+- General ledger (GL) accounting
+- Accounts receivable (AR)
+- Accounts payable (AP)
+- Journal entries & posting
+- Fiscal periods & closing
+- Financial reporting foundations
 
-Database:
-- Sales Database
+Database: AccountingDB
+
+Published Events:
+- InvoiceCreated
+- BillApproved
+- JournalEntryPosted
+- FiscalPeriodClosed
+
+Consumed Events:
+- SalesOrderCreated
+- PurchaseOrderCreated
+- PaymentReceived
+- WarehouseMovement
+
+#### Human Resources Service (Port 5007, Code: HRM)
+
+Responsibilities:
+- Employee records & management
+- Department organization
+- Attendance tracking
+- Leave request management
+- Payroll processing
+- Pay slip generation
+
+Database: HrmDB
+
+Published Events:
+- EmployeeHired
+- EmployeeTerminated
+- PaySlipGenerated
+- LeaveApproved
+
+Consumed Events:
+- UserCreated
+
+#### Purchase Order Service (Port 5003, Code: PO)
+
+Responsibilities:
+- Purchase order creation & management
+- Supplier management
+- Purchasing workflows
+- PO approvals
+- Receipt scheduling
+
+Database: PurchasingDB
+
+Published Events:
+- PurchaseOrderCreated
+- PurchaseOrderApproved
+- ReceiptScheduled
+
+Consumed Events:
+- UserCreated
+
+---
+
+### Supply Chain & Product Management
+
+#### Product Service (Port 5008, Code: PRD)
+
+Responsibilities:
+- Product catalog management
+- Product variants (SKUs, colors, sizes)
+- Product categories & hierarchy
+- Product images & media
+- Price lists & pricing strategies
+- Product lifecycle (active, discontinued)
+
+Database: ProductDB
+
+Published Events:
+- ProductCreated
+- ProductUpdated
+- ProductPriceChanged
+- ProductDiscontinued
+
+Consumed Events: None (upstream source)
+
+#### Warehouse Service (Port 5004, Code: WH)
+
+Responsibilities:
+- Inventory management
+- Stock movement tracking
+- Inventory reservations
+- Warehouse locations
+- Stock adjustments
+- Receiving & put-away
+
+Database: WarehouseDB
+
+Published Events:
+- InventoryReserved
+- StockMoved
+- InventoryAdjusted
+- ReceiptCompleted
+
+Consumed Events:
+- SalesOrderCreated
+- PurchaseOrderCreated
+
+#### Shipping Service (Port 5010, Code: SHP)
+
+Responsibilities:
+- Shipment creation & tracking
+- Carrier integration & management
+- Shipping rate calculation
+- Tracking events & updates
+- Manifest generation
+- Delivery confirmation
+
+Database: ShippingDB
+
+Published Events:
+- ShipmentCreated
+- TrackingUpdated
+- DeliveryConfirmed
+
+Consumed Events:
+- SalesOrderApproved
+- InventoryReserved
+
+---
+
+### E-Commerce & Sales
+
+#### Sales Order Service (Port 5002, Code: SO)
+
+Responsibilities:
+- Sales order creation & management
+- Customer order processing
+- Sales order workflows
+- Order approvals
+- Order status tracking
+- Line item management
+
+Database: SalesDB
 
 Published Events:
 - SalesOrderCreated
 - SalesOrderApproved
+- SalesOrderShipped
 
 Consumed Events:
 - UserCreated
+- ProductCreated
+- PromotionCreated
 
-### Purchase Order Service
+#### CRM Service (Port 5006, Code: CRM)
 
 Responsibilities:
-- Purchase Orders
-- Supplier Orders
-- Purchasing Workflow
+- Contact & customer management
+- Lead tracking & qualification
+- Sales opportunity management
+- Customer support cases
+- Activity logging
+- Customer interaction history
 
-Database:
-- Purchasing Database
+Database: CrmDB
 
 Published Events:
-- PurchaseOrderCreated
+- LeadCreated
+- LeadQualified
+- OpportunityWon
+- CaseOpened
+- CaseResolved
 
 Consumed Events:
 - UserCreated
+- SalesOrderCreated
+- PaymentReceived
 
-### Warehouse Service
+#### Payment Service (Port 5009, Code: PAY)
 
 Responsibilities:
-- Inventory
-- Stock Movement
-- Reservation
+- Payment transaction processing
+- Payment method management
+- Payment gateway integration
+- Refund processing & management
+- Settlement reconciliation
+- Payment authorization & capture
 
-Database:
-- Warehouse Database
+Database: PaymentDB
 
 Published Events:
-- InventoryReserved
+- PaymentProcessed
+- PaymentRefunded
+- SettlementCreated
+- PaymentFailed
 
 Consumed Events:
 - SalesOrderCreated
-- PurchaseOrderCreated
+- InvoiceCreated
+
+#### Promotion Service (Port 5012, Code: PRM)
+
+Responsibilities:
+- Promotion & campaign management
+- Coupon creation & redemption
+- Flash sale management
+- Loyalty program management
+- Discount rules & calculations
+- Promotion eligibility
+
+Database: PromotionDB
+
+Published Events:
+- PromotionCreated
+- CouponRedeemed
+- LoyaltyPointsEarned
+- FlashSaleStarted
+
+Consumed Events:
+- ProductCreated
+- SalesOrderCreated
+
+---
+
+### Retail (Point-of-Sale)
+
+#### POS Service (Port 5011, Code: POS)
+
+Responsibilities:
+- POS terminal management
+- Retail transaction processing
+- Line item management (cart)
+- Cash shift management
+- Register reconciliation
+- Local inventory sync
+
+Database: PosDB
+
+Published Events:
+- TransactionCreated
+- CashShiftClosed
+- RegisterBalanced
+
+Consumed Events:
+- ProductCreated
+- PromotionCreated
+- PaymentProcessed
+
+---
+
+### Cross-Cutting Concerns
+
+#### Notification Service (Port 5013, Code: NTF)
+
+Responsibilities:
+- Multi-channel notification delivery (email, SMS, push)
+- Notification template management
+- Notification preference management
+- Notification history tracking
+- Channel coordination
+
+Database: NotificationDB
+
+Published Events: None (consumer-only service)
+
+Consumed Events:
+- UserCreated
+- SalesOrderCreated
+- PaymentProcessed
+- EmployeeHired
+- LeadQualified
+- (and all other significant domain events)
+
+**Pattern:** Consumes from all 13 other service topics for event-driven notifications.
+
+#### Reporting Service (Port 5014, Code: RPT)
+
+Responsibilities:
+- Analytics & business intelligence
+- Dashboard data population
+- KPI calculations
+- Data warehouse management
+- Report generation foundations
+- BI tool integration (Tableau, Power BI)
+
+Database: ReportingDB (read-only data warehouse)
+
+Published Events: None (consumer-only, analytics-only)
+
+Consumed Events:
+- All events from all services (denormalized into fact & dimension tables)
+
+**Pattern:** Read-only Kafka consumer populating OLAP fact/dimension tables for BI queries.
+
+---
+
+## Database Ownership
+
+Each service owns its database exclusively. No cross-database queries allowed.
+
+| Service | Database | Rule |
+|---------|----------|------|
+| IdentityService | AuthDB | Owned by Identity; others access via API only |
+| SaleOrderService | SalesDB | Owned by Sales; others access via API only |
+| PurchaseOrderService | PurchasingDB | Owned by Purchasing; others access via API only |
+| WareHouseService | WarehouseDB | Owned by Warehouse; others access via API only |
+| AccountingService | AccountingDB | Owned by Accounting; others access via API only |
+| CRMService | CrmDB | Owned by CRM; others access via API only |
+| HRMService | HrmDB | Owned by HRM; others access via API only |
+| ProductService | ProductDB | Owned by Product; others access via API only |
+| PaymentService | PaymentDB | Owned by Payment; others access via API only |
+| ShippingService | ShippingDB | Owned by Shipping; others access via API only |
+| POSService | PosDB | Owned by POS; others access via API only |
+| PromotionService | PromotionDB | Owned by Promotion; others access via API only |
+| NotificationService | NotificationDB | Owned by Notification; others access via API only |
+| ReportingService | ReportingDB | Owned by Reporting; read-only via direct BI tool queries |
 
 ## Database Ownership
 
@@ -227,10 +545,14 @@ When reviewing code:
 
 ## Priority Reading Order
 
-1. CLAUDE.md
-2. docs/architecture/service-map.md
-3. docs/Events/EventCatalog.md
-4. Service README.md
-5. docs/business/*
-6. Source Code
+1. **CLAUDE.md** (This file — service boundaries, database ownership, coding standards)
+2. **docs/architecture/domain-map.md** (Domain groupings, service clusters, event flows by domain)
+3. **docs/architecture/port-map.md** (Port assignments, network topology, service discovery)
+4. **docs/architecture/service-map.md** (Visual service dependency graph, communication patterns)
+5. **docs/architecture/event-catalog.md** (All 39+ integration events, publishers, consumers, C# definitions)
+6. **docs/architecture/database-map.md** (14 database schemas, entities per database)
+7. **docs/architecture/dependency-map.md** (Complete service-to-service dependency matrix)
+8. **Service README.md** (e.g., ProductService/README.md — business logic, entities, events, endpoints)
+9. **docs/business/{Domain}/*.md** (Domain business documentation — workflows, rules, examples)
+10. **Source Code** (After understanding architecture and business domain)
 

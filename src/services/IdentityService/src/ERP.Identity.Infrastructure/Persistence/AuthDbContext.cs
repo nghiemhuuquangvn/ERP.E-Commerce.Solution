@@ -24,6 +24,7 @@ namespace ERP.Identity.Infrastructure.Persistence
         public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
         public DbSet<AuthTenant> Tenants => Set<AuthTenant>();
         public DbSet<EmailConfirmToken> EmailConfirmTokens => Set<EmailConfirmToken>();
+        public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
         private readonly IDomainEventDispatcher _domainEventDispatcher;
 
         public AuthDbContext(DbContextOptions<AuthDbContext> options, IDomainEventDispatcher domainEventDispatcher) : base(options)
@@ -166,6 +167,7 @@ namespace ERP.Identity.Infrastructure.Persistence
             modelBuilder.Entity<RefreshToken>().Ignore(rt => rt.Description);
             modelBuilder.Entity<ExternalLogin>().Ignore(el => el.Description);
             modelBuilder.Entity<EmailConfirmToken>().Ignore(et => et.Description);
+            modelBuilder.Entity<PasswordResetToken>().Ignore(prt => prt.Description);
 
             // 1. User Configuration
             modelBuilder.Entity<User>(entity =>
@@ -303,6 +305,16 @@ namespace ERP.Identity.Infrastructure.Persistence
                 entity.Property(et => et.Token).IsRequired().HasMaxLength(500);
                 entity.Property(et => et.ExpiredAt).IsRequired();
                 entity.Property(et => et.ConfirmedAt).IsRequired(false);
+            });
+
+            modelBuilder.Entity<PasswordResetToken>(entity =>
+            {
+                entity.ToTable("PasswordResetTokens");
+                entity.HasKey(prt => prt.Id);
+                entity.Property(prt => prt.UserId).IsRequired();
+                entity.Property(prt => prt.Token).IsRequired().HasMaxLength(500);
+                entity.Property(prt => prt.ExpiredAt).IsRequired();
+                entity.Property(prt => prt.UsedAt).IsRequired(false);
             });
 
             modelBuilder.Entity<OutboxMessage>(entity =>

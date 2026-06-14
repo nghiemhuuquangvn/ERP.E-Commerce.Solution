@@ -110,6 +110,47 @@ namespace ERP.Identity.Domain.Entities
             var externalLogin = ExternalLogin.Create(this.Id, provider, providerKey, email);
             _externalLogins.Add(externalLogin);
         }
+
+        public void UpdateProfile(string? fullName, string? userName)
+        {
+            if (!string.IsNullOrWhiteSpace(fullName))
+                FullName = fullName;
+            if (!string.IsNullOrWhiteSpace(userName))
+                UserName = userName.ToLowerInvariant();
+        }
+
+        public void ChangePassword(string newPasswordHash)
+        {
+            if (string.IsNullOrWhiteSpace(newPasswordHash))
+                throw new ArgumentException("Password hash is required");
+            PasswordHash = newPasswordHash;
+        }
+
+        public void ConfirmEmail()
+        {
+            IsEmailConfirmed = true;
+        }
+
+        public void Deactivate()
+        {
+            IsActive = false;
+        }
+
+        public void Activate()
+        {
+            IsActive = true;
+        }
+
+        public void Lock()
+        {
+            IsLocked = true;
+        }
+
+        public void Unlock()
+        {
+            IsLocked = false;
+            AccessFailedCount = 0;
+        }
     }
 
 }

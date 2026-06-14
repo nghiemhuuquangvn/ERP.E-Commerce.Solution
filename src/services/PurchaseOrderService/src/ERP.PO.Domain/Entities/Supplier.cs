@@ -1,5 +1,5 @@
-using ERP.PO.Domain.Common;
 using ERP.PO.Domain.ValueObjects;
+using ERP.Shared.Core.Domain;
 
 namespace ERP.PO.Domain.Entities;
 
@@ -18,20 +18,32 @@ public class Supplier : BaseEntity
     public static Supplier Create(
         string code,
         string name,
+        Guid tenantId,
         string? contactPerson = null,
         string? email = null,
         string? phone = null,
         Address? address = null)
     {
+        if (string.IsNullOrWhiteSpace(code))
+            throw new ArgumentException("Supplier Code is required", nameof(code));
+
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Supplier Name is required", nameof(name));
+
+        if (tenantId == Guid.Empty)
+            throw new ArgumentException("Tenant ID is required", nameof(tenantId));
+
         return new Supplier
         {
             Code = code,
             Name = name,
+            TenantId = tenantId,
             ContactPerson = contactPerson,
             Email = email,
             Phone = phone,
             Address = address,
-            IsActive = true
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
         };
     }
 
