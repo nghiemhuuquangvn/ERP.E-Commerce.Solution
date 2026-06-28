@@ -52,4 +52,15 @@ namespace ERP.SO.Application.Commands
     {
         public Guid OrderId { get; set; }
     }
+
+    public class RejectOrderCommand : IRequest<SalesOrderDto>
+    {
+        public Guid OrderId { get; set; }
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    public class MarkAsPickedCommand : IRequest<SalesOrderDto>
+    {
+        public Guid OrderId { get; set; }
+    }
 }

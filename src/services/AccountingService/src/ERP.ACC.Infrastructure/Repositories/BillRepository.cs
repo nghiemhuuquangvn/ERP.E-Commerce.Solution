@@ -1,0 +1,41 @@
+using ERP.ACC.Application.Interfaces;
+using ERP.ACC.Domain.Entities;
+using ERP.ACC.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace ERP.ACC.Infrastructure.Repositories
+{
+    public class BillRepository : IBillRepository
+    {
+        private readonly AccountingDbContext _db;
+
+        public BillRepository(AccountingDbContext db) => _db = db;
+
+        public async Task<Bill?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+            await _db.Bills.FirstOrDefaultAsync(b => b.Id == id, ct);
+
+        public async Task<List<Bill>> GetAllAsync(CancellationToken ct = default) =>
+            await _db.Bills.OrderByDescending(b => b.CreatedAt).AsNoTracking().ToListAsync(ct);
+
+        public async Task<List<Bill>> GetBySupplierIdAsync(Guid supplierId, CancellationToken ct = default) =>
+            await _db.Bills.Where(b => b.SupplierId == supplierId).OrderByDescending(b => b.CreatedAt).AsNoTracking().ToListAsync(ct);
+
+        public async Task<List<Bill>> GetByStatusAsync(int status, CancellationToken ct = default) =>
+            await _db.Bills.Where(b => b.Status == status).OrderByDescending(b => b.CreatedAt).AsNoTracking().ToListAsync(ct);
+
+        public async Task<List<Bill>> GetUnpaidBillsAsync(CancellationToken ct = default) =>
+            await _db.Bills.Where(b => b.Status == 0 || b.Status == 1).AsNoTracking().ToListAsync(ct);
+
+        public async Task AddAsync(Bill bill, CancellationToken ct = default)
+        {
+            await _db.Bills.AddAsync(bill, ct);
+            await _db.SaveChangesAsync(ct);
+        }
+
+        public async Task UpdateAsync(Bill bill, CancellationToken ct = default)
+        {
+            _db.Bills.Update(bill);
+            await _db.SaveChangesAsync(ct);
+        }
+    }
+}

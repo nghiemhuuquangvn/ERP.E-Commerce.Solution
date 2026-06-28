@@ -312,6 +312,38 @@ namespace ERP.SO.Api.Controllers
         }
     }
 
+        [HttpPost("{id:guid}/reject")]
+        public async Task<IActionResult> RejectOrder(
+            [FromRoute] Guid id,
+            [FromBody] RejectOrderRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (!_userContext.HasPermission("sales_order:approve"))
+                return Forbid();
+            try
+            {
+                var result = await _mediator.Send(new RejectOrderCommand { OrderId = id, Reason = request.Reason }, cancellationToken);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+        }
+
+        [HttpPost("{id:guid}/pick")]
+        public async Task<IActionResult> MarkAsPicked([FromRoute] Guid id, CancellationToken cancellationToken)
+        {
+            if (!_userContext.HasPermission("sales_order:update"))
+                return Forbid();
+            try
+            {
+                var result = await _mediator.Send(new MarkAsPickedCommand { OrderId = id }, cancellationToken);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+        }
+    }
+
+    public class RejectOrderRequest { public string Reason { get; set; } = string.Empty; }
+
     public class ShipOrderRequest
     {
         public string TrackingNumber { get; set; } = string.Empty;

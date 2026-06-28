@@ -1,6 +1,8 @@
 using Confluent.Kafka;
+using ERP.CRM.Application.Interfaces;
 using ERP.CRM.Infrastructure.MessageBus;
 using ERP.CRM.Infrastructure.Persistence;
+using ERP.CRM.Infrastructure.Repositories;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -29,7 +31,13 @@ namespace ERP.CRM.Infrastructure
             services.AddSingleton(new ProducerBuilder<string, string>(producerConfig).Build());
             services.AddScoped<IMessageBus, KafkaMessageBus>();
 
-            services.AddHostedService<OutboxProcessor>();
+            services.AddHostedService<BackgroundJobs.OutboxProcessor>();
+
+            // Repositories
+            services.AddScoped<IContactRepository, ContactRepository>();
+            services.AddScoped<ILeadRepository, LeadRepository>();
+            services.AddScoped<IOpportunityRepository, OpportunityRepository>();
+            services.AddScoped<ICaseRepository, CaseRepository>();
 
             return services;
         }

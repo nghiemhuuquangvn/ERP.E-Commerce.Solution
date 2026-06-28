@@ -1,6 +1,7 @@
+using ERP.HRM.Application.EventHandlers;
+using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
-using FluentValidation;
 using System.Reflection;
 
 namespace ERP.HRM.Application
@@ -13,6 +14,8 @@ namespace ERP.HRM.Application
                 config.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
 
             services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
+            services.AddScoped<UserCreatedEventHandler>();
 
             return services;
         }

@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "ERP Staff",
+    "slug": "erp-staff",
+    "version": "1.0.0",
+    "scheme": "erp-staff",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0284c7"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

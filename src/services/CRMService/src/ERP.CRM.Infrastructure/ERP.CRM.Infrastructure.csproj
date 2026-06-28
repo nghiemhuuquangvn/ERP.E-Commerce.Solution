@@ -8,11 +8,14 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
     <PackageReference Include="Confluent.Kafka" Version="2.3.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\Shared\Core\ERP.Shared.Core.csproj" />
     <ProjectReference Include="..\..\..\..\Shared\Messaging\ERP.Shared.Messaging.csproj" />
     <ProjectReference Include="..\..\..\..\Shared\Contracts\ERP.Shared.Contracts.csproj" />
     <ProjectReference Include="..\ERP.CRM.Domain\ERP.CRM.Domain.csproj" />
+    <ProjectReference Include="..\ERP.CRM.Application\ERP.CRM.Application.csproj" />
   </ItemGroup>
 </Project>

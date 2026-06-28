@@ -1,3 +1,4 @@
+using ERP.ACC.Domain.Events;
 using ERP.Shared.Core.Domain;
 
 namespace ERP.ACC.Domain.Entities
@@ -25,7 +26,31 @@ namespace ERP.ACC.Domain.Entities
                 CreatedAt = DateTime.UtcNow
             };
 
+            invoice.AddDomainEvent(new InvoiceCreatedEvent(
+                invoice.Id,
+                invoice.InvoiceNumber,
+                invoice.CustomerId,
+                invoice.OrderId,
+                invoice.Amount,
+                invoice.DueDate));
+
             return invoice;
+        }
+
+        public void MarkPaid()
+        {
+            if (Status == 1)
+                throw new InvalidOperationException($"Invoice {InvoiceNumber} is already paid.");
+
+            Status = 1;
+            UpdatedAt = DateTime.UtcNow;
+
+            AddDomainEvent(new InvoicePaidEvent(
+                Id,
+                InvoiceNumber,
+                CustomerId,
+                Amount,
+                DateTime.UtcNow));
         }
     }
 }

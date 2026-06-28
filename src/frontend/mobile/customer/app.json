@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "ERP Shop",
+    "slug": "erp-customer",
+    "version": "1.0.0",
+    "scheme": "erp-customer",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#e11d48"
+    },
+    "plugins": ["expo-router", "expo-notifications"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

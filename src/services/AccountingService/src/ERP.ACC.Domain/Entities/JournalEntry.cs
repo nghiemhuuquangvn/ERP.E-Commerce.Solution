@@ -1,3 +1,4 @@
+using ERP.ACC.Domain.Events;
 using ERP.Shared.Core.Domain;
 
 namespace ERP.ACC.Domain.Entities
@@ -22,6 +23,24 @@ namespace ERP.ACC.Domain.Entities
             };
 
             return entry;
+        }
+
+        public void Post(decimal totalDebit, decimal totalCredit)
+        {
+            if (totalDebit != totalCredit)
+                throw new InvalidOperationException($"Journal entry {EntryNumber} is not balanced.");
+
+            TotalDebit = totalDebit;
+            TotalCredit = totalCredit;
+            UpdatedAt = DateTime.UtcNow;
+
+            AddDomainEvent(new JournalEntryPostedEvent(
+                Id,
+                EntryNumber,
+                FiscalPeriodId,
+                Description,
+                TotalDebit,
+                TotalCredit));
         }
     }
 }

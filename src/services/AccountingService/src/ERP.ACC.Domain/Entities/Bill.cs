@@ -1,3 +1,4 @@
+using ERP.ACC.Domain.Events;
 using ERP.Shared.Core.Domain;
 
 namespace ERP.ACC.Domain.Entities
@@ -26,6 +27,28 @@ namespace ERP.ACC.Domain.Entities
             };
 
             return bill;
+        }
+
+        public void Approve()
+        {
+            if (Status != 0)
+                throw new InvalidOperationException($"Bill {BillNumber} is not in Pending status.");
+
+            Status = 1;
+            UpdatedAt = DateTime.UtcNow;
+
+            AddDomainEvent(new BillApprovedEvent(Id, BillNumber, SupplierId, POId, Amount));
+        }
+
+        public void MarkPaid()
+        {
+            if (Status != 1)
+                throw new InvalidOperationException($"Bill {BillNumber} must be Approved before it can be marked as Paid.");
+
+            Status = 2;
+            UpdatedAt = DateTime.UtcNow;
+
+            AddDomainEvent(new BillPaidEvent(Id, BillNumber, SupplierId, Amount, DateTime.UtcNow));
         }
     }
 }

@@ -1,0 +1,67 @@
+using ERP.ACC.Application.DTOs;
+using MediatR;
+
+namespace ERP.ACC.Application.Queries
+{
+    public class GetAccountQuery : IRequest<AccountDto?>
+    {
+        public Guid AccountId { get; set; }
+    }
+
+    public class ListAccountsQuery : IRequest<List<AccountDto>> { }
+
+    public class GetInvoiceQuery : IRequest<InvoiceDto?>
+    {
+        public Guid InvoiceId { get; set; }
+    }
+
+    public class ListInvoicesQuery : IRequest<List<InvoiceDto>>
+    {
+        public Guid? CustomerId { get; set; }
+        public int? Status { get; set; }
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+    }
+
+    public class GetBillQuery : IRequest<BillDto?>
+    {
+        public Guid BillId { get; set; }
+    }
+
+    public class ListBillsQuery : IRequest<List<BillDto>>
+    {
+        public Guid? SupplierId { get; set; }
+        public int? Status { get; set; }
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+    }
+
+    public class GetJournalEntryQuery : IRequest<JournalEntryDto?>
+    {
+        public Guid JournalEntryId { get; set; }
+    }
+
+    public class ListJournalEntriesQuery : IRequest<List<JournalEntryDto>>
+    {
+        public Guid? FiscalPeriodId { get; set; }
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+    }
+
+    public class GetFiscalPeriodQuery : IRequest<FiscalPeriodDto?>
+    {
+        public Guid FiscalPeriodId { get; set; }
+    }
+
+    public class ListFiscalPeriodsQuery : IRequest<List<FiscalPeriodDto>> { }
+
+    public class GetARAgingQuery : IRequest<List<ARAgingDto>>
+    {
+        public DateTime? AsOfDate { get; set; }
+    }
+
+    public class GetAPAgingQuery : IRequest<List<APAgingDto>>
+    {
+        public DateTime? AsOfDate { get; set; }
+    }
+}

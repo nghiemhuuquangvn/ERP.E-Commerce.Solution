@@ -1,3 +1,4 @@
+using ERP.CRM.Domain.Events;
 using ERP.Shared.Core.Domain;
 
 namespace ERP.CRM.Domain.Entities
@@ -8,6 +9,7 @@ namespace ERP.CRM.Domain.Entities
         public int LeadStatus { get; set; }
         public int LeadSource { get; set; }
         public decimal? EstimatedValue { get; set; }
+        public Guid? ContactId { get; set; }
 
         public static Lead Create(string leadName, int leadSource)
         {
@@ -20,7 +22,35 @@ namespace ERP.CRM.Domain.Entities
                 CreatedAt = DateTime.UtcNow
             };
 
+            lead.AddDomainEvent(new LeadCreatedEvent(lead.Id, leadName));
+
             return lead;
+        }
+
+        public void Contact()
+        {
+            if (LeadStatus == (int)Enums.LeadStatus.New)
+            {
+                LeadStatus = (int)Enums.LeadStatus.Contacted;
+                UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        public void Qualify(Guid opportunityId)
+        {
+            if (LeadStatus != (int)Enums.LeadStatus.New && LeadStatus != (int)Enums.LeadStatus.Contacted)
+                throw new InvalidOperationException("Lead must be in New or Contacted status to qualify.");
+
+            LeadStatus = (int)Enums.LeadStatus.Qualified;
+            UpdatedAt = DateTime.UtcNow;
+            AddDomainEvent(new LeadQualifiedEvent(Id, opportunityId));
+        }
+
+        public void MarkLost(string reason)
+        {
+            LeadStatus = (int)Enums.LeadStatus.Lost;
+            UpdatedAt = DateTime.UtcNow;
+            AddDomainEvent(new LeadLostEvent(Id, reason));
         }
     }
 }

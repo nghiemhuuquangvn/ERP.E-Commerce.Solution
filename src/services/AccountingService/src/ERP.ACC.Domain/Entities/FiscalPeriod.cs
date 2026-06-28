@@ -1,3 +1,4 @@
+using ERP.ACC.Domain.Events;
 using ERP.Shared.Core.Domain;
 
 namespace ERP.ACC.Domain.Entities
@@ -22,6 +23,22 @@ namespace ERP.ACC.Domain.Entities
             };
 
             return period;
+        }
+
+        public void Close()
+        {
+            if (Status == 1)
+                throw new InvalidOperationException($"Fiscal period {PeriodName} is already closed.");
+
+            Status = 1;
+            UpdatedAt = DateTime.UtcNow;
+
+            AddDomainEvent(new FiscalPeriodClosedEvent(
+                Id,
+                PeriodName,
+                StartDate,
+                EndDate,
+                DateTime.UtcNow));
         }
     }
 }

@@ -1,0 +1,135 @@
+import { useState, useCallback } from 'react'
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  Alert,
+  ListRenderItem,
+} from 'react-native'
+import { useRouter } from 'expo-router'
+import { useCartStore } from '@/stores/cart.store'
+import type { CartItem } from '@/stores/cart.store'
+import { useAuthStore } from '@/stores/auth.store'
+import { apiClient } from '@/api/client'
+
+// Module-level formatter — created once per app lifecycle
+const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
+
+export default function CartScreen() {
+  const router = useRouter()
+  const cartStore = useCartStore()
+  const authStore = useAuthStore()
+  const [placing, setPlacing] = useState(false)
+
+  const items = cartStore.items
+
+  const checkout = useCallback(async () => {
+    if (!authStore.isAuthenticated) {
+      Alert.alert('Sign In Required', 'Please sign in to place an order.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign In', onPress: () => router.push('/(auth)/login') },
+      ])
+      return
+    }
+
+    setPlacing(true)
+    try {
+      const { data: order } = await apiClient.post('/v1/orders', {
+        customerId: authStore.user!.id,
+        lines: cartStore.items.map((i) => ({
+          productId: i.productId,
+          productName: i.productName,
+          unitPrice: i.unitPrice,
+          quantity: i.quantity,
+        })),
+      })
+      cartStore.clear()
+      router.push(`/order/${order.id}`)
+    } catch {
+      Alert.alert('Error', 'Failed to place order. Please try again.')
+    } finally {
+      setPlacing(false)
+    }
+  }, [authStore, cartStore, router])
+
+  // Stable renderItem — FlatList re-renders only changed rows
+  const renderItem = useCallback<ListRenderItem<CartItem>>(
+    ({ item }) => (
+      <View className="flex-row items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50">
+        <View className="w-14 h-14 rounded-lg bg-gray-200 items-center justify-center">
+          <Text className="text-2xl">📦</Text>
+        </View>
+        <View className="flex-1">
+          <Text className="font-medium text-gray-800 text-sm">{item.productName}</Text>
+          <Text className="text-gray-500 text-xs">{fmt.format(item.unitPrice)} each</Text>
+        </View>
+        <View className="flex-row items-center gap-2">
+          <TouchableOpacity
+            onPress={() => cartStore.updateQty(item.productId, item.quantity - 1)}
+            className="w-7 h-7 rounded-full bg-gray-200 items-center justify-center"
+          >
+            <Text className="text-gray-700">−</Text>
+          </TouchableOpacity>
+          <Text className="w-5 text-center text-sm font-medium">{item.quantity}</Text>
+          <TouchableOpacity
+            onPress={() => cartStore.updateQty(item.productId, item.quantity + 1)}
+            className="w-7 h-7 rounded-full bg-gray-200 items-center justify-center"
+          >
+            <Text className="text-gray-700">+</Text>
+          </TouchableOpacity>
+        </View>
+        <Text className="w-16 text-right font-semibold text-sm">
+          {fmt.format(item.unitPrice * item.quantity)}
+        </Text>
+      </View>
+    ),
+    [cartStore],
+  )
+
+  if (items.length === 0) {
+    return (
+      <View className="flex-1 bg-white items-center justify-center px-6">
+        <Text className="text-4xl mb-4">🛒</Text>
+        <Text className="text-lg font-semibold text-gray-700 mb-2">Your cart is empty</Text>
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/search')}
+          className="bg-brand-500 rounded-xl px-6 py-3"
+        >
+          <Text className="text-white font-semibold">Browse Products</Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
+
+  return (
+    <View className="flex-1 bg-white">
+      <FlatList
+        data={items}
+        keyExtractor={(i) => i.productId}
+        contentContainerClassName="p-4 gap-3"
+        renderItem={renderItem}
+      />
+
+      <View className="border-t border-gray-100 p-4">
+        <View className="flex-row justify-between mb-1">
+          <Text className="text-gray-500">Subtotal</Text>
+          <Text>{fmt.format(cartStore.subtotal())}</Text>
+        </View>
+        <View className="flex-row justify-between mb-4">
+          <Text className="font-bold text-gray-900 text-lg">Total</Text>
+          <Text className="font-bold text-brand-500 text-lg">{fmt.format(cartStore.total())}</Text>
+        </View>
+        <TouchableOpacity
+          onPress={checkout}
+          disabled={placing}
+          className="bg-brand-500 rounded-xl py-4 items-center"
+        >
+          <Text className="text-white font-bold text-base">
+            {placing ? 'Placing Order…' : 'Place Order'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  )
+}

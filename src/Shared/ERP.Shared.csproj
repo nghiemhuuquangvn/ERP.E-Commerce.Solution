@@ -6,14 +6,36 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- Exclude sub-project source trees to avoid duplicate symbol errors -->
+  <ItemGroup>
+    <Compile Remove="Core\**\*.cs" />
+    <Compile Remove="Messaging\**\*.cs" />
+    <Compile Remove="Contracts\**\*.cs" />
+    <Compile Remove="Extensions\**\*.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
+    <PackageReference Include="Serilog.Enrichers.Thread" Version="4.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0" />
+    <PackageReference Include="StackExchange.Redis" Version="2.8.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="Core\ERP.Shared.Core.csproj" />
+    <ProjectReference Include="Messaging\ERP.Shared.Messaging.csproj" />
+    <ProjectReference Include="Contracts\ERP.Shared.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

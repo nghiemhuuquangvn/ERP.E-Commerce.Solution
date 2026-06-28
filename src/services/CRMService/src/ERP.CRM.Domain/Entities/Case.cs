@@ -1,3 +1,4 @@
+using ERP.CRM.Domain.Events;
 using ERP.Shared.Core.Domain;
 
 namespace ERP.CRM.Domain.Entities
@@ -7,25 +8,62 @@ namespace ERP.CRM.Domain.Entities
         public string CaseNumber { get; set; } = string.Empty;
         public Guid CustomerId { get; set; }
         public string CaseSubject { get; set; } = string.Empty;
-        public string? Description { get; set; }
+        public string? CaseDescription { get; set; }
         public int CasePriority { get; set; }
         public int CaseStatus { get; set; }
         public string? ResolutionNote { get; set; }
+        public Guid? AssignedToUserId { get; set; }
 
-        public static Case Create(string caseNumber, Guid customerId, string subject, int priority)
+        /// <summary>
+        /// Primary factory — generates a CaseNumber automatically and raises CaseOpenedEvent.
+        /// </summary>
+        public static Case Create(string title, Guid contactId, string description, int priority)
         {
+            var caseNumber = $"CASE-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..8].ToUpper()}";
+
             var caseEntity = new Case
             {
                 Id = Guid.NewGuid(),
                 CaseNumber = caseNumber,
-                CustomerId = customerId,
-                CaseSubject = subject,
+                CustomerId = contactId,
+                CaseSubject = title,
+                CaseDescription = description,
                 CasePriority = priority,
-                CaseStatus = 0,
+                CaseStatus = (int)Enums.CaseStatus.Open,
                 CreatedAt = DateTime.UtcNow
             };
 
+            caseEntity.AddDomainEvent(new CaseOpenedEvent(caseEntity.Id, contactId, title));
+
             return caseEntity;
+        }
+
+        public void Assign(Guid userId)
+        {
+            AssignedToUserId = userId;
+            if (CaseStatus == (int)Enums.CaseStatus.Open)
+                CaseStatus = (int)Enums.CaseStatus.InProgress;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void Resolve(string resolution)
+        {
+            if (CaseStatus == (int)Enums.CaseStatus.Resolved || CaseStatus == (int)Enums.CaseStatus.Closed)
+                throw new InvalidOperationException("Case is already resolved or closed.");
+
+            CaseStatus = (int)Enums.CaseStatus.Resolved;
+            ResolutionNote = resolution;
+            UpdatedAt = DateTime.UtcNow;
+            AddDomainEvent(new CaseResolvedEvent(Id));
+        }
+
+        public void Close()
+        {
+            if (CaseStatus == (int)Enums.CaseStatus.Closed)
+                throw new InvalidOperationException("Case is already closed.");
+
+            CaseStatus = (int)Enums.CaseStatus.Closed;
+            UpdatedAt = DateTime.UtcNow;
         }
     }
 }

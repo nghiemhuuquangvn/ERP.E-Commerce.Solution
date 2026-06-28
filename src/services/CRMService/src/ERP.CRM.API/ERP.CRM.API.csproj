@@ -7,11 +7,17 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.6" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\Shared\Core\ERP.Shared.Core.csproj" />
     <ProjectReference Include="..\..\..\..\Shared\Messaging\ERP.Shared.Messaging.csproj" />
     <ProjectReference Include="..\..\..\..\Shared\Contracts\ERP.Shared.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\ERP.Shared.csproj" />
     <ProjectReference Include="..\ERP.CRM.Application\ERP.CRM.Application.csproj" />
     <ProjectReference Include="..\ERP.CRM.Infrastructure\ERP.CRM.Infrastructure.csproj" />
   </ItemGroup>

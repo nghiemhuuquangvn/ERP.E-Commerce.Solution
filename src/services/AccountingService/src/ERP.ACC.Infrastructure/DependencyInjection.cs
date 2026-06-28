@@ -1,6 +1,9 @@
 using Confluent.Kafka;
+using ERP.ACC.Application.Interfaces;
+using ERP.ACC.Infrastructure.BackgroundJobs;
 using ERP.ACC.Infrastructure.MessageBus;
 using ERP.ACC.Infrastructure.Persistence;
+using ERP.ACC.Infrastructure.Repositories;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -30,6 +33,12 @@ namespace ERP.ACC.Infrastructure
             services.AddScoped<IMessageBus, KafkaMessageBus>();
 
             services.AddHostedService<OutboxProcessor>();
+
+            services.AddScoped<IAccountRepository, AccountRepository>();
+            services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+            services.AddScoped<IBillRepository, BillRepository>();
+            services.AddScoped<IJournalEntryRepository, JournalEntryRepository>();
+            services.AddScoped<IFiscalPeriodRepository, FiscalPeriodRepository>();
 
             return services;
         }
