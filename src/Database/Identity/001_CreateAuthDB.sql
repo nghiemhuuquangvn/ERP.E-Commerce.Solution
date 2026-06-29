@@ -372,6 +372,11 @@ GO
 -- Seed: System roles & permissions
 -- ============================================================
 DECLARE @SystemTenantId UNIQUEIDENTIFIER = '00000000-0000-0000-0000-000000000001';
+DECLARE @SuperAdminRoleId UNIQUEIDENTIFIER = '10000000-0000-0000-0000-000000000001';
+DECLARE @AdminRoleId UNIQUEIDENTIFIER = '10000000-0000-0000-0000-000000000002';
+DECLARE @OperatorRoleId UNIQUEIDENTIFIER = '10000000-0000-0000-0000-000000000003';
+DECLARE @ViewerRoleId UNIQUEIDENTIFIER = '10000000-0000-0000-0000-000000000004';
+DECLARE @SuperAdminUserId UNIQUEIDENTIFIER = '20000000-0000-0000-0000-000000000001';
 
 IF NOT EXISTS (SELECT 1 FROM Tenants WHERE Id = @SystemTenantId)
     INSERT INTO Tenants (Id, TenantCode, TenantName, IsActive)
@@ -380,30 +385,84 @@ IF NOT EXISTS (SELECT 1 FROM Tenants WHERE Id = @SystemTenantId)
 -- System roles
 IF NOT EXISTS (SELECT 1 FROM Roles WHERE RoleCode = 'SuperAdmin')
     INSERT INTO Roles (Id, TenantId, RoleCode, RoleName, IsSystem, IsActive)
-    VALUES (NEWID(), @SystemTenantId, 'SuperAdmin', 'Super Administrator', 1, 1);
+    VALUES (@SuperAdminRoleId, @SystemTenantId, 'SuperAdmin', 'Super Administrator', 1, 1);
 
 IF NOT EXISTS (SELECT 1 FROM Roles WHERE RoleCode = 'Admin')
     INSERT INTO Roles (Id, TenantId, RoleCode, RoleName, IsSystem, IsActive)
-    VALUES (NEWID(), @SystemTenantId, 'Admin', 'Administrator', 1, 1);
+    VALUES (@AdminRoleId, @SystemTenantId, 'Admin', 'Administrator', 1, 1);
 
 IF NOT EXISTS (SELECT 1 FROM Roles WHERE RoleCode = 'Operator')
     INSERT INTO Roles (Id, TenantId, RoleCode, RoleName, IsSystem, IsActive)
-    VALUES (NEWID(), @SystemTenantId, 'Operator', 'Operator', 1, 1);
+    VALUES (@OperatorRoleId, @SystemTenantId, 'Operator', 'Operator', 1, 1);
 
 IF NOT EXISTS (SELECT 1 FROM Roles WHERE RoleCode = 'Viewer')
     INSERT INTO Roles (Id, TenantId, RoleCode, RoleName, IsSystem, IsActive)
-    VALUES (NEWID(), @SystemTenantId, 'Viewer', 'Read-Only Viewer', 1, 1);
+    VALUES (@ViewerRoleId, @SystemTenantId, 'Viewer', 'Read-Only Viewer', 1, 1);
 
 -- Core permissions
+DECLARE @PermMonitoringId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000001';
+DECLARE @PermUsersManageId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000002';
+DECLARE @PermRolesManageId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000003';
+DECLARE @PermAllId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000004';
+
 IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionCode = 'monitoring:view')
     INSERT INTO Permissions (Id, PermissionCode, PermissionName, Module)
-    VALUES (NEWID(), 'monitoring:view', 'View System Monitoring', 'System');
+    VALUES (@PermMonitoringId, 'monitoring:view', 'View System Monitoring', 'System');
 
 IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionCode = 'users:manage')
     INSERT INTO Permissions (Id, PermissionCode, PermissionName, Module)
-    VALUES (NEWID(), 'users:manage', 'Manage Users', 'Identity');
+    VALUES (@PermUsersManageId, 'users:manage', 'Manage Users', 'Identity');
 
 IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionCode = 'roles:manage')
     INSERT INTO Permissions (Id, PermissionCode, PermissionName, Module)
-    VALUES (NEWID(), 'roles:manage', 'Manage Roles', 'Identity');
+    VALUES (@PermRolesManageId, 'roles:manage', 'Manage Roles', 'Identity');
+
+IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionCode = 'system:admin')
+    INSERT INTO Permissions (Id, PermissionCode, PermissionName, Module)
+    VALUES (@PermAllId, 'system:admin', 'Full System Administrator Access', 'System');
+
+-- Assign all permissions to SuperAdmin role
+IF NOT EXISTS (SELECT 1 FROM RolePermissions WHERE RoleId = @SuperAdminRoleId AND PermissionId = @PermMonitoringId)
+    INSERT INTO RolePermissions (RoleId, PermissionId) VALUES (@SuperAdminRoleId, @PermMonitoringId);
+
+IF NOT EXISTS (SELECT 1 FROM RolePermissions WHERE RoleId = @SuperAdminRoleId AND PermissionId = @PermUsersManageId)
+    INSERT INTO RolePermissions (RoleId, PermissionId) VALUES (@SuperAdminRoleId, @PermUsersManageId);
+
+IF NOT EXISTS (SELECT 1 FROM RolePermissions WHERE RoleId = @SuperAdminRoleId AND PermissionId = @PermRolesManageId)
+    INSERT INTO RolePermissions (RoleId, PermissionId) VALUES (@SuperAdminRoleId, @PermRolesManageId);
+
+IF NOT EXISTS (SELECT 1 FROM RolePermissions WHERE RoleId = @SuperAdminRoleId AND PermissionId = @PermAllId)
+    INSERT INTO RolePermissions (RoleId, PermissionId) VALUES (@SuperAdminRoleId, @PermAllId);
+
+-- Create SuperAdmin user
+-- Default password: SuperAdmin@123 (bcrypt hash - change in production!)
+-- Password hash generated with: bcrypt.hashSync('SuperAdmin@123', 10)
+IF NOT EXISTS (SELECT 1 FROM Users WHERE Email = 'superadmin@system.local')
+    INSERT INTO Users (
+        Id, TenantId, Email, UserName, FullName, PasswordHash, PasswordSalt,
+        IsEmailConfirmed, IsActive, UserTypeCode
+    )
+    VALUES (
+        @SuperAdminUserId,
+        @SystemTenantId,
+        'superadmin@system.local',
+        'superadmin',
+        'System Super Administrator',
+        -- Bcrypt hash of 'SuperAdmin@123'
+        '$2a$10$8qVkWDVVWWgf0N.jPcUVfOm/c4VKXmk0q9FKp8KiGZPj.DLq3P0Ly',
+        NULL,
+        1, -- IsEmailConfirmed
+        1, -- IsActive
+        'SuperAdmin'
+    );
+
+-- Assign SuperAdmin role to SuperAdmin user
+IF NOT EXISTS (SELECT 1 FROM UserRoles WHERE UserId = @SuperAdminUserId AND RoleId = @SuperAdminRoleId)
+    INSERT INTO UserRoles (UserId, RoleId, TenantId)
+    VALUES (@SuperAdminUserId, @SuperAdminRoleId, @SystemTenantId);
+
+-- Add SuperAdmin to UserTenants
+IF NOT EXISTS (SELECT 1 FROM UserTenants WHERE UserId = @SuperAdminUserId AND TenantId = @SystemTenantId)
+    INSERT INTO UserTenants (UserId, TenantId, IsDefault)
+    VALUES (@SuperAdminUserId, @SystemTenantId, 1);
 GO
