@@ -1,4 +1,7 @@
+using ERP.Shared.Messaging;
 using ERP.SO.Application.Handlers;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using System.Text.Json;
 

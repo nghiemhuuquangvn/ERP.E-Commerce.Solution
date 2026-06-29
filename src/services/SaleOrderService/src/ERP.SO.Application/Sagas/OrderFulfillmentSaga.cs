@@ -1,3 +1,4 @@
+using ERP.Shared.Messaging;
 using ERP.SO.Domain.Sagas;
 using Microsoft.Extensions.Logging;
 

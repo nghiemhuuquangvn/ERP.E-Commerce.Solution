@@ -310,7 +310,6 @@ namespace ERP.SO.Api.Controllers
                 return Conflict(new { message = ex.Message });
             }
         }
-    }
 
         [HttpPost("{id:guid}/reject")]
         public async Task<IActionResult> RejectOrder(

@@ -1,9 +1,10 @@
 using MediatR;
 using ERP.WH.Application.Commands.Inventory;
+using ERP.WH.Domain.Aggregates.Inventory;
 
 namespace ERP.WH.Application.EventHandlers;
 
-public class SalesOrderShippedEvent
+public class SalesOrderShippedEvent : INotification
 {
     public Guid OrderId { get; set; }
     public Guid CustomerId { get; set; }
@@ -27,7 +28,7 @@ public class SalesOrderShippedEventHandler : INotificationHandler<SalesOrderShip
 
         foreach (var reservation in reservations)
         {
-            if (reservation.Status.ToString() == "Reserved")
+            if (reservation.Status == ReservationStatus.Reserved)
             {
                 reservation.Fulfill();
                 await _reservationRepository.UpdateAsync(reservation, cancellationToken);

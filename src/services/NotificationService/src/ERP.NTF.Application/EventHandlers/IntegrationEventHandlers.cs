@@ -6,16 +6,16 @@ namespace ERP.NTF.Application.EventHandlers;
 
 // Integration events consumed from other services
 
-public class UserCreatedIntegrationEvent
-{
+public class UserCreatedIntegrationEvent : INotification
+    {
     public Guid UserId { get; set; }
     public string Email { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
 }
 
-public class SalesOrderCreatedIntegrationEvent
-{
+public class SalesOrderCreatedIntegrationEvent : INotification
+    {
     public Guid OrderId { get; set; }
     public Guid CustomerId { get; set; }
     public string CustomerEmail { get; set; } = string.Empty;
@@ -24,8 +24,8 @@ public class SalesOrderCreatedIntegrationEvent
     public DateTime OrderDate { get; set; }
 }
 
-public class SalesOrderApprovedIntegrationEvent
-{
+public class SalesOrderApprovedIntegrationEvent : INotification
+    {
     public Guid OrderId { get; set; }
     public Guid CustomerId { get; set; }
     public string CustomerEmail { get; set; } = string.Empty;
@@ -33,8 +33,8 @@ public class SalesOrderApprovedIntegrationEvent
     public DateTime ApprovedAt { get; set; }
 }
 
-public class PaymentProcessedIntegrationEvent
-{
+public class PaymentProcessedIntegrationEvent : INotification
+    {
     public Guid PaymentId { get; set; }
     public Guid OrderId { get; set; }
     public string RecipientEmail { get; set; } = string.Empty;
@@ -43,8 +43,8 @@ public class PaymentProcessedIntegrationEvent
     public string Currency { get; set; } = string.Empty;
 }
 
-public class ShipmentCreatedIntegrationEvent
-{
+public class ShipmentCreatedIntegrationEvent : INotification
+    {
     public Guid ShipmentId { get; set; }
     public Guid OrderId { get; set; }
     public string CustomerEmail { get; set; } = string.Empty;
@@ -53,8 +53,8 @@ public class ShipmentCreatedIntegrationEvent
     public string CarrierName { get; set; } = string.Empty;
 }
 
-public class EmployeeHiredIntegrationEvent
-{
+public class EmployeeHiredIntegrationEvent : INotification
+    {
     public Guid EmployeeId { get; set; }
     public string Email { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
@@ -180,3 +180,4 @@ public class EmployeeHiredIntegrationEventHandler : INotificationHandler<Employe
         }, cancellationToken);
     }
 }
+

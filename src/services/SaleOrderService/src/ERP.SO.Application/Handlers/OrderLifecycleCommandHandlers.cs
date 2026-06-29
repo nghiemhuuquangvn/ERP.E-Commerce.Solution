@@ -1,3 +1,4 @@
+using ERP.Shared.Messaging;
 using ERP.SO.Application.Commands;
 using ERP.SO.Application.DTOs;
 using MediatR;
@@ -77,7 +78,7 @@ public class MarkAsDeliveredCommandHandler : IRequestHandler<MarkAsDeliveredComm
         order.MarkAsDelivered();
         await _repository.UpdateAsync(order, cancellationToken);
 
-        foreach (var domainEvent in order.GetDomainEvents())
+        foreach (var domainEvent in order.DomainEvents)
             await _messageBus.PublishAsync(domainEvent, cancellationToken);
 
         return MapToDto(order);

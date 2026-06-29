@@ -3,7 +3,7 @@ using ERP.WH.Application.Commands.Inventory;
 
 namespace ERP.WH.Application.EventHandlers;
 
-public class SalesOrderCreatedEvent
+public class SalesOrderCreatedEvent : INotification
 {
     public Guid OrderId { get; set; }
     public Guid CustomerId { get; set; }

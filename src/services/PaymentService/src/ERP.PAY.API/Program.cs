@@ -31,6 +31,8 @@ if (vnpayConfigured)
 else
     builder.Services.AddScoped<IPaymentGateway, NullPaymentGateway>();
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUserContextService, HeaderUserContextService>();
 builder.Services.AddScoped<UserContext>();
 
 builder.Services.AddControllers();
@@ -49,7 +51,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseUserContextHeaderMiddleware();
+app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
 app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();

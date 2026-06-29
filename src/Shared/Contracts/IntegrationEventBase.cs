@@ -1,3 +1,5 @@
+using ERP.Shared.Core.Domain;
+
 namespace ERP.Shared.Contracts
 {
     /// <summary>
@@ -5,7 +7,7 @@ namespace ERP.Shared.Contracts
     /// Integration events are published by one service and consumed by others.
     /// Each event has a unique EventId and timestamp for tracking and deduplication.
     /// </summary>
-    public abstract class IntegrationEventBase
+    public abstract class IntegrationEventBase : IDomainEvent
     {
         /// <summary>
         /// Unique identifier for this event instance (for deduplication)
@@ -16,6 +18,9 @@ namespace ERP.Shared.Contracts
         /// When the event occurred
         /// </summary>
         public DateTime OccurredAt { get; } = DateTime.UtcNow;
+
+        /// <inheritdoc/>
+        public DateTime OccurredOn => OccurredAt;
 
         protected IntegrationEventBase()
         {

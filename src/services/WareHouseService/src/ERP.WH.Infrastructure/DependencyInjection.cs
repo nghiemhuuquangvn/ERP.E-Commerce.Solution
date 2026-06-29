@@ -2,7 +2,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using ERP.WH.Infrastructure.Persistence;
+using ERP.WH.Infrastructure.EventBus;
 using ERP.WH.Application.Commands.Inventory;
+using ERP.WH.Application.EventHandlers;
 
 namespace ERP.WH.Infrastructure;
 

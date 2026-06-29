@@ -3,8 +3,8 @@ using MediatR;
 
 namespace ERP.SHP.Application.EventHandlers;
 
-public class SalesOrderApprovedIntegrationEvent
-{
+public class SalesOrderApprovedIntegrationEvent : INotification
+    {
     public Guid OrderId { get; set; }
     public string ShippingAddress { get; set; } = string.Empty;
     public List<OrderLineItem> LineItems { get; set; } = new();
@@ -43,3 +43,4 @@ public class SalesOrderApprovedIntegrationEventHandler : INotificationHandler<Sa
         }, cancellationToken);
     }
 }
+

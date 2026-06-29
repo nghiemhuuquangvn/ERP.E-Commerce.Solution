@@ -1,4 +1,5 @@
 using MediatR;
+using ERP.WH.Application.Commands.Inventory;
 
 namespace ERP.WH.Application.Queries.Inventory;
 

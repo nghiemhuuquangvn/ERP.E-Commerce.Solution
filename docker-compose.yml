@@ -1,60 +1,499 @@
-version: '3.8'
+version: '3.9'
+
+# ════════════════════════════════════════════════════════════════════════════════
+# ERP E-Commerce Platform — Full Docker Compose
+# SQL Server: host machine (host.docker.internal:1433)  sa / !Edw@rd!123456!
+# Domains  : erp.local | shop.erp.local | api.erp.local | rabbit.erp.local | kafka.erp.local
+# Run      : docker compose up --build -d
+# ════════════════════════════════════════════════════════════════════════════════
+
+x-sql-base: &sql-base "Server=host.docker.internal,1433;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=True"
 
 services:
+
+  # ── Infrastructure ─────────────────────────────────────────────────────────
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: erp-rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: Admin123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+    networks:
+      - erp-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
   kafka:
-    # Sử dụng image chính chủ từ Apache, hỗ trợ KRaft cực tốt
-    image: apache/kafka:latest
-    container_name: erp-kafka-kraft
+    image: apache/kafka:3.9.0
+    container_name: erp-kafka
+    hostname: kafka
     ports:
       - "9092:9092"
+      - "9094:9094"
     environment:
-      # --- Cấu hình KRaft cơ bản ---
-      - KAFKA_NODE_ID=1
-      - KAFKA_PROCESS_ROLES=controller,broker
-      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
-      - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
-      
-      # --- Listeners (Giữ nguyên để kết nối từ Host) ---
-      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
-      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093
-      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
-
-      # Cluster ID cố định để tránh lỗi định dạng ổ đĩa mỗi lần restart
-      - KAFKA_CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
-      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
-      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
-      
-      # --- TỐI ƯU HIỆU SUẤT CHO MÁY DEV ---
-      - KAFKA_HEAP_OPTS=-Xmx512M -Xms512M # Giới hạn RAM của Kafka ở mức 512MB thay vì mặc định 1GB+
-      - KAFKA_NUM_PARTITIONS=3         # Mặc định tạo 3 partition để tăng tính song song
-      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
-      - ALLOW_PLAINTEXT_LISTENER=yes
-    
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: controller,broker
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_LISTENERS: "INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9094,CONTROLLER://0.0.0.0:9093"
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka:9092,EXTERNAL://localhost:9094"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_HEAP_OPTS: "-Xmx512M -Xms256M"
     volumes:
-      - kafka_data:/bitnami/kafka
-    # Giới hạn tài nguyên ở mức Docker để máy không bị treo
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-    # Đảm bảo container tự khởi động lại nếu lỗi
+      - kafka_data:/var/lib/kafka/data
     restart: unless-stopped
+    networks:
+      - erp-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions.sh", "--bootstrap-server", "kafka:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: erp-kafka-ui
-    depends_on:
-      - kafka
     ports:
       - "8080:8080"
     environment:
-      - KAFKA_CLUSTERS_0_NAME=local
-      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
-      - DYNAMIC_CONFIG_ENABLED=true # Cho phép chỉnh sửa topic trực tiếp trên UI
+      KAFKA_CLUSTERS_0_NAME: erp-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      DYNAMIC_CONFIG_ENABLED: "true"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  # ── API Gateway ─────────────────────────────────────────────────────────────
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/Gateway/Ocelot.API
+        PROJECT_FILE: Ocelot.API.csproj
+        ASSEMBLY_NAME: Ocelot.API
+    container_name: erp-gateway
+    ports:
+      - "5000:5000"
+    environment:
+      ASPNETCORE_URLS: "http://+:5000"
+      ASPNETCORE_ENVIRONMENT: Production
+    depends_on:
+      - rabbitmq
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  # ── Backend Services ────────────────────────────────────────────────────────
+
+  identityservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/IdentityService/src/ERP.Identity.Api
+        PROJECT_FILE: ERP.Identity.API.csproj
+        ASSEMBLY_NAME: ERP.Identity.API
+    container_name: erp-identity-service
+    ports:
+      - "5001:5001"
+    environment:
+      ASPNETCORE_URLS: "http://+:5001"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__AuthDB: "Server=host.docker.internal,1433;Database=AuthDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  salesorderservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/SaleOrderService/src/ERP.SO.Api
+        PROJECT_FILE: ERP.SO.Api.csproj
+        ASSEMBLY_NAME: ERP.SO.Api
+    container_name: erp-salesorder-service
+    ports:
+      - "5002:5002"
+    environment:
+      ASPNETCORE_URLS: "http://+:5002"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__SalesDb: "Server=host.docker.internal,1433;Database=SalesDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: Admin123
+      KafkaSettings__BootstrapServers: kafka:9092
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  purchaseorderservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/PurchaseOrderService/src/ERP.PO.Api
+        PROJECT_FILE: ERP.PO.Api.csproj
+        ASSEMBLY_NAME: ERP.PO.Api
+    container_name: erp-purchaseorder-service
+    ports:
+      - "5003:5003"
+    environment:
+      ASPNETCORE_URLS: "http://+:5003"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__PurchasingDb: "Server=host.docker.internal,1433;Database=PurchasingDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: Admin123
+      KafkaSettings__BootstrapServers: kafka:9092
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  warehouseservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/WareHouseService/src/ERP.WH.API
+        PROJECT_FILE: ERP.WH.API.csproj
+        ASSEMBLY_NAME: ERP.WH.API
+    container_name: erp-warehouse-service
+    ports:
+      - "5004:5004"
+    environment:
+      ASPNETCORE_URLS: "http://+:5004"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__WarehouseDB: "Server=host.docker.internal,1433;Database=WarehouseDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      RabbitMQSettings__HostName: rabbitmq
+      RabbitMQSettings__Port: "5672"
+      RabbitMQSettings__UserName: admin
+      RabbitMQSettings__Password: Admin123
+      KafkaSettings__BootstrapServers: kafka:9092
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  accountingservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/AccountingService/src/ERP.ACC.API
+        PROJECT_FILE: ERP.ACC.API.csproj
+        ASSEMBLY_NAME: ERP.ACC.API
+    container_name: erp-accounting-service
+    ports:
+      - "5005:5005"
+    environment:
+      ASPNETCORE_URLS: "http://+:5005"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__AccountingDB: "Server=host.docker.internal,1433;Database=AccountingDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      KafkaSettings__BootstrapServers: kafka:9092
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  crmservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/CRMService/src/ERP.CRM.API
+        PROJECT_FILE: ERP.CRM.API.csproj
+        ASSEMBLY_NAME: ERP.CRM.API
+    container_name: erp-crm-service
+    ports:
+      - "5006:5006"
+    environment:
+      ASPNETCORE_URLS: "http://+:5006"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__CrmDB: "Server=host.docker.internal,1433;Database=CrmDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      KafkaSettings__BootstrapServers: kafka:9092
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  hrmservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/HRMService/src/ERP.HRM.API
+        PROJECT_FILE: ERP.HRM.API.csproj
+        ASSEMBLY_NAME: ERP.HRM.API
+    container_name: erp-hrm-service
+    ports:
+      - "5007:5007"
+    environment:
+      ASPNETCORE_URLS: "http://+:5007"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__HrmDB: "Server=host.docker.internal,1433;Database=HrmDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      KafkaSettings__BootstrapServers: kafka:9092
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  productservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/ProductService/src/ERP.PRD.API
+        PROJECT_FILE: ERP.PRD.API.csproj
+        ASSEMBLY_NAME: ERP.PRD.API
+    container_name: erp-product-service
+    ports:
+      - "5008:5008"
+    environment:
+      ASPNETCORE_URLS: "http://+:5008"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__ProductDB: "Server=host.docker.internal,1433;Database=ProductDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      KafkaSettings__BootstrapServers: kafka:9092
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  paymentservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/PaymentService/src/ERP.PAY.API
+        PROJECT_FILE: ERP.PAY.API.csproj
+        ASSEMBLY_NAME: ERP.PAY.API
+    container_name: erp-payment-service
+    ports:
+      - "5009:5009"
+    environment:
+      ASPNETCORE_URLS: "http://+:5009"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__PaymentDb: "Server=host.docker.internal,1433;Database=PaymentDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      KafkaSettings__BootstrapServers: kafka:9092
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  shippingservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/ShippingService/src/ERP.SHP.API
+        PROJECT_FILE: ERP.SHP.API.csproj
+        ASSEMBLY_NAME: ERP.SHP.API
+    container_name: erp-shipping-service
+    ports:
+      - "5010:5010"
+    environment:
+      ASPNETCORE_URLS: "http://+:5010"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__ShippingDb: "Server=host.docker.internal,1433;Database=ShippingDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      KafkaSettings__BootstrapServers: kafka:9092
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  posservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/POSService/src/ERP.POS.API
+        PROJECT_FILE: ERP.POS.API.csproj
+        ASSEMBLY_NAME: ERP.POS.API
+    container_name: erp-pos-service
+    ports:
+      - "5011:5011"
+    environment:
+      ASPNETCORE_URLS: "http://+:5011"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__PosDb: "Server=host.docker.internal,1433;Database=PosDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      KafkaSettings__BootstrapServers: kafka:9092
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  promotionservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/PromotionService/src/ERP.PRM.API
+        PROJECT_FILE: ERP.PRM.API.csproj
+        ASSEMBLY_NAME: ERP.PRM.API
+    container_name: erp-promotion-service
+    ports:
+      - "5012:5012"
+    environment:
+      ASPNETCORE_URLS: "http://+:5012"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__PromotionDb: "Server=host.docker.internal,1433;Database=PromotionDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      KafkaSettings__BootstrapServers: kafka:9092
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  notificationservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/NotificationService/src/ERP.NTF.API
+        PROJECT_FILE: ERP.NTF.API.csproj
+        ASSEMBLY_NAME: ERP.NTF.API
+    container_name: erp-notification-service
+    ports:
+      - "5013:5013"
+    environment:
+      ASPNETCORE_URLS: "http://+:5013"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__NotificationDb: "Server=host.docker.internal,1433;Database=NotificationDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      KafkaSettings__BootstrapServers: kafka:9092
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  reportingservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/ReportingService/src/ERP.RPT.API
+        PROJECT_FILE: ERP.RPT.API.csproj
+        ASSEMBLY_NAME: ERP.RPT.API
+    container_name: erp-reporting-service
+    ports:
+      - "5014:5014"
+    environment:
+      ASPNETCORE_URLS: "http://+:5014"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__ReportingDb: "Server=host.docker.internal,1433;Database=ReportingDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      KafkaSettings__BootstrapServers: kafka:9092
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  # ── Frontend ────────────────────────────────────────────────────────────────
+
+  admin:
+    build:
+      context: src/frontend/admin
+      dockerfile: Dockerfile
+    container_name: erp-admin
+    ports:
+      - "3000:80"
+    depends_on:
+      - gateway
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  storefront:
+    build:
+      context: src/frontend/storefront
+      dockerfile: Dockerfile
+    container_name: erp-storefront
+    ports:
+      - "3001:80"
+    depends_on:
+      - gateway
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  # ── Domain Reverse Proxy ────────────────────────────────────────────────────
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: erp-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./deployment/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - admin
+      - storefront
+      - gateway
+      - rabbitmq
+      - kafka-ui
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+# ── Volumes & Networks ────────────────────────────────────────────────────────
 
 volumes:
+  rabbitmq_data:
+    driver: local
   kafka_data:
     driver: local
+
+networks:
+  erp-network:
+    driver: bridge
+    name: erp-network

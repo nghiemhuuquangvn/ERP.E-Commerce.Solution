@@ -30,12 +30,10 @@ public class ReservationRepository : IReservationRepository
         await _context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<List<IReservation>> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken)
+    public async Task<List<Reservation>> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken)
     {
-        var reservations = await _context.Reservations
+        return await _context.Reservations
             .Where(r => r.OrderId == orderId)
             .ToListAsync(cancellationToken);
-
-        return reservations.Cast<IReservation>().ToList();
     }
 }

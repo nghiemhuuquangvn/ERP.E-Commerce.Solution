@@ -1,6 +1,7 @@
 using MediatR;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
+using InventoryEntity = ERP.WH.Domain.Aggregates.Inventory.Inventory;
 
 namespace ERP.WH.Application.Commands.Inventory;
 
@@ -22,7 +23,7 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
 
     public async Task<ReserveInventoryResponse> Handle(ReserveInventoryCommand request, CancellationToken cancellationToken)
     {
-        var reservedItems = new List<ReservedItemDto>();
+        var reservedItems = new List<ReservedItem>();
         var reservedItemResponses = new List<ReservedItemResponse>();
 
         foreach (var item in request.Items)
@@ -38,7 +39,7 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
             inventory.ReserveStock(item.Quantity);
             await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
 
-            reservedItems.Add(new ReservedItemDto
+            reservedItems.Add(new ReservedItem
             {
                 ProductId = item.ProductId,
                 Quantity = item.Quantity,
@@ -53,9 +54,14 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
             });
         }
 
-        var reservation = new Reservation(request.OrderId,
-            reservedItems.Cast<dynamic>().ToList(),
-            request.HoldUntil);
+        var reservation = new Reservation(request.OrderId, reservedItems, request.HoldUntil);
+
+        var eventItems = reservedItems.Select(i => new ReservedItemDto
+        {
+            ProductId = i.ProductId,
+            Quantity = i.Quantity,
+            WarehouseLocation = i.WarehouseLocation
+        }).ToList();
 
         await _reservationRepository.AddAsync(reservation, cancellationToken);
 
@@ -63,7 +69,7 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
         {
             ReservationId = reservation.ReservationId,
             OrderId = request.OrderId,
-            ReservedItems = reservedItems,
+            ReservedItems = eventItems,
             ReservedAt = DateTime.UtcNow,
             CorrelationId = request.CorrelationId,
             EventCreatedAt = DateTime.UtcNow
@@ -84,15 +90,16 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
 
 public interface IInventoryRepository
 {
-    Task<Inventory> GetByProductIdAsync(Guid productId, CancellationToken cancellationToken);
-    Task UpdateAsync(Inventory inventory, CancellationToken cancellationToken);
-    Task AddAsync(Inventory inventory, CancellationToken cancellationToken);
-    Task<List<Inventory>> GetAllAsync(CancellationToken cancellationToken);
+    Task<InventoryEntity> GetByProductIdAsync(Guid productId, CancellationToken cancellationToken);
+    Task UpdateAsync(InventoryEntity inventory, CancellationToken cancellationToken);
+    Task AddAsync(InventoryEntity inventory, CancellationToken cancellationToken);
+    Task<List<InventoryEntity>> GetAllAsync(CancellationToken cancellationToken);
 }
 
 public interface IReservationRepository
 {
     Task<Reservation> GetByIdAsync(Guid reservationId, CancellationToken cancellationToken);
+    Task<List<Reservation>> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken);
     Task AddAsync(Reservation reservation, CancellationToken cancellationToken);
     Task UpdateAsync(Reservation reservation, CancellationToken cancellationToken);
 }

@@ -1,4 +1,5 @@
 using ERP.Shared.Contracts;
+using ERP.SO.Domain.Entities;
 
 namespace ERP.SO.Domain.Events
 {

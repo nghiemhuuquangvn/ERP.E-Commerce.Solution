@@ -3,7 +3,7 @@ using MediatR;
 
 namespace ERP.ACC.Application.EventHandlers
 {
-    public class PurchaseOrderCreatedIntegrationEvent
+    public class PurchaseOrderCreatedIntegrationEvent : INotification
     {
         public Guid POId { get; set; }
         public Guid SupplierId { get; set; }
@@ -31,3 +31,4 @@ namespace ERP.ACC.Application.EventHandlers
         }
     }
 }
+

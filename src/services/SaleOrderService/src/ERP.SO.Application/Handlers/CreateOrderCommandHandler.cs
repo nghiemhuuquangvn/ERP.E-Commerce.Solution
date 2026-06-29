@@ -1,3 +1,4 @@
+using ERP.Shared.Messaging;
 using ERP.SO.Application.Commands;
 using ERP.SO.Application.DTOs;
 using ERP.SO.Domain.Entities;
@@ -15,11 +16,6 @@ namespace ERP.SO.Application.Handlers
         Task<List<SalesOrder>> GetAllAsync(int skip = 0, int take = 20, CancellationToken ct = default);
         Task<int> GetTotalCountAsync(Guid? customerId = null, OrderStatus? status = null, CancellationToken ct = default);
         Task<List<SalesOrder>> GetByStatusAsync(OrderStatus status, CancellationToken ct = default);
-    }
-
-    public interface IMessageBus
-    {
-        Task PublishAsync<T>(T message, CancellationToken ct = default) where T : class;
     }
 
     public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, SalesOrderDto>
@@ -57,7 +53,7 @@ namespace ERP.SO.Application.Handlers
             await _repository.AddAsync(salesOrder, cancellationToken);
 
             // Publish domain events
-            foreach (var domainEvent in salesOrder.GetDomainEvents())
+            foreach (var domainEvent in salesOrder.DomainEvents)
             {
                 await _messageBus.PublishAsync(domainEvent, cancellationToken);
             }
@@ -121,7 +117,7 @@ namespace ERP.SO.Application.Handlers
             order.Approve();
             await _repository.UpdateAsync(order, cancellationToken);
 
-            foreach (var domainEvent in order.GetDomainEvents())
+            foreach (var domainEvent in order.DomainEvents)
             {
                 await _messageBus.PublishAsync(domainEvent, cancellationToken);
             }
@@ -185,7 +181,7 @@ namespace ERP.SO.Application.Handlers
             order.Ship(request.TrackingNumber, request.Carrier);
             await _repository.UpdateAsync(order, cancellationToken);
 
-            foreach (var domainEvent in order.GetDomainEvents())
+            foreach (var domainEvent in order.DomainEvents)
             {
                 await _messageBus.PublishAsync(domainEvent, cancellationToken);
             }
@@ -249,7 +245,7 @@ namespace ERP.SO.Application.Handlers
             order.Cancel(request.Reason);
             await _repository.UpdateAsync(order, cancellationToken);
 
-            foreach (var domainEvent in order.GetDomainEvents())
+            foreach (var domainEvent in order.DomainEvents)
             {
                 await _messageBus.PublishAsync(domainEvent, cancellationToken);
             }

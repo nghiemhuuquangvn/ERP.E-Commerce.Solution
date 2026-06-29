@@ -1,9 +1,10 @@
 using MediatR;
 using ERP.WH.Application.Commands.Inventory;
+using ERP.WH.Domain.Aggregates.Inventory;
 
 namespace ERP.WH.Application.EventHandlers;
 
-public class SalesOrderCancelledEvent
+public class SalesOrderCancelledEvent : INotification
 {
     public Guid OrderId { get; set; }
     public Guid CustomerId { get; set; }
@@ -31,7 +32,7 @@ public class SalesOrderCancelledEventHandler : INotificationHandler<SalesOrderCa
 
         foreach (var reservation in reservations)
         {
-            if (reservation.Status.ToString() == "Reserved")
+            if (reservation.Status == ReservationStatus.Reserved)
             {
                 var command = new ReleaseReservationCommand
                 {
@@ -43,21 +44,4 @@ public class SalesOrderCancelledEventHandler : INotificationHandler<SalesOrderCa
             }
         }
     }
-}
-
-public static class ReservationRepositoryExtensions
-{
-    public static async Task<List<IReservation>> GetByOrderIdAsync(
-        this IReservationRepository repository,
-        Guid orderId,
-        CancellationToken cancellationToken)
-    {
-        return await repository.GetByOrderIdAsync(orderId, cancellationToken);
-    }
-}
-
-public interface IReservation
-{
-    Guid ReservationId { get; }
-    string Status { get; }
 }

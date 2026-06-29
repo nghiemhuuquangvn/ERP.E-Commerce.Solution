@@ -4,7 +4,7 @@ using MediatR;
 
 namespace ERP.ACC.Application.EventHandlers
 {
-    public class PaymentProcessedIntegrationEvent
+    public class PaymentProcessedIntegrationEvent : INotification
     {
         public Guid PaymentId { get; set; }
         public Guid OrderId { get; set; }
@@ -37,3 +37,4 @@ namespace ERP.ACC.Application.EventHandlers
         }
     }
 }
+

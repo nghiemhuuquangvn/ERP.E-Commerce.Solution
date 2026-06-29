@@ -4,7 +4,7 @@ using MediatR;
 
 namespace ERP.PAY.Application.EventHandlers;
 
-public class SalesOrderCreatedIntegrationEvent
+public class SalesOrderCreatedIntegrationEvent : INotification
 {
     public Guid OrderId { get; set; }
     public decimal TotalAmount { get; set; }

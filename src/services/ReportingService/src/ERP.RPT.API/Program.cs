@@ -23,8 +23,7 @@ builder.Services.AddReportingKafkaConsumers();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-    c.SwaggerDoc("v1", new() { Title = "Reporting Service API", Version = "v1" }));
+builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options =>
     options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 

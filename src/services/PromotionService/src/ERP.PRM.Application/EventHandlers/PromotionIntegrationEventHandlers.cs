@@ -34,9 +34,8 @@ public class SalesOrderCreatedForPromotionHandler
         await _mediator.Send(new EarnLoyaltyPointsCommand
         {
             UserId = @event.CustomerId,
-            OrderId = @event.OrderId,
-            OrderAmount = @event.TotalAmount,
-            Source = "SalesOrder"
+            Points = (int)Math.Floor(@event.TotalAmount),
+            Reason = $"SalesOrder:{@event.OrderId}"
         }, ct);
     }
 }
@@ -63,9 +62,8 @@ public class TransactionCreatedForPromotionHandler
         await _mediator.Send(new EarnLoyaltyPointsCommand
         {
             UserId = @event.CashierId,
-            OrderId = @event.TransactionId,
-            OrderAmount = @event.TotalAmount,
-            Source = "POSTransaction"
+            Points = (int)Math.Floor(@event.TotalAmount),
+            Reason = $"POSTransaction:{@event.TransactionId}"
         }, ct);
     }
 }

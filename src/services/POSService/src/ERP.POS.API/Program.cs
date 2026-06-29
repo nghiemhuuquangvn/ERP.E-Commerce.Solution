@@ -21,6 +21,8 @@ builder.Services.AddScoped<ICashShiftRepository, CashShiftRepository>();
 builder.Services.AddScoped<IPosProductCacheRepository, PosProductCacheRepository>();
 builder.Services.AddScoped<IPosPromotionCacheRepository, PosPromotionCacheRepository>();
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUserContextService, HeaderUserContextService>();
 builder.Services.AddScoped<UserContext>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -34,7 +36,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
 
 app.UseHttpsRedirection();
-app.UseUserContextHeaderMiddleware();
+app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
 app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();

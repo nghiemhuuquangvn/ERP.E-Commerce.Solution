@@ -6,115 +6,74 @@ using ERP.Identity.Infrastructure;
 using ERP.Identity.Infrastructure.Persistence;
 using ERP.Identity.Infrastructure.Repositories;
 using ERP.Identity.Infrastructure.Services;
-using ERP.Shared.Extensions;
-using ERP.Shared.Infrastructure.Caching;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Serilog;
-using Serilog.Events;
 using System.Text;
 
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-    .WriteTo.Console()
-    .CreateBootstrapLogger();
+var builder = WebApplication.CreateBuilder(args);
 
+// Database
+builder.Services.AddDbContext<AuthDbContext>(opt =>
+    opt.UseSqlServer(builder.Configuration.GetConnectionString("AuthDB")));
+
+// DI
 try
 {
-    Log.Information("Starting IdentityService");
-    var builder = WebApplication.CreateBuilder(args);
+    builder.Services.AddInfrastructure();
+}
+catch (System.Reflection.ReflectionTypeLoadException ex)
+{
+    foreach (var loaderException in ex.LoaderExceptions ?? [])
+        Console.WriteLine($"Type load error: {loaderException?.Message}");
+}
 
-    builder.AddSerilogLogging("IdentityService");
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-    // Database
-    builder.Services.AddDbContext<AuthDbContext>(opt =>
-        opt.UseSqlServer(builder.Configuration.GetConnectionString("AuthDB")));
+// JWT Authentication
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("Configuration value 'Jwt:Key' is missing.");
 
-    // Cache (Redis or Memory)
-    builder.Services.AddCacheService(builder.Configuration, "identity");
-
-    // DI
-    try
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer(options =>
     {
-        builder.Services.AddInfrastructure();
-    }
-    catch (System.Reflection.ReflectionTypeLoadException ex)
-    {
-        foreach (var loaderException in ex.LoaderExceptions)
-            Log.Error(loaderException, "Type load error");
-    }
-
-    builder.Services.AddControllers();
-    builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen();
-
-    // JWT Authentication
-    var jwtKey = builder.Configuration["Jwt:Key"]
-        ?? throw new InvalidOperationException("Configuration value 'Jwt:Key' is missing.");
-
-    builder.Services.AddAuthentication("Bearer")
-        .AddJwtBearer(options =>
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                ValidIssuer = builder.Configuration["Jwt:Issuer"],
-                ValidAudience = builder.Configuration["Jwt:Audience"],
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
-            };
-            options.Events = new JwtBearerEvents
-            {
-                OnAuthenticationFailed = context =>
-                {
-                    Log.Warning("JWT authentication failed: {Error}", context.Exception.Message);
-                    return Task.CompletedTask;
-                }
-            };
-        });
-
-    builder.Services.AddAuthorization(options =>
-    {
-        options.AddPolicy("Permission", policy =>
-            policy.Requirements.Add(new PermissionRequirement()));
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
     });
 
-    var app = builder.Build();
-
-    app.UseSerilogRequestLogging(opts =>
-    {
-        opts.GetLevel = (ctx, elapsed, ex) =>
-            ex != null ? LogEventLevel.Error
-            : ctx.Response.StatusCode >= 500 ? LogEventLevel.Error
-            : ctx.Response.StatusCode >= 400 ? LogEventLevel.Warning
-            : LogEventLevel.Information;
-    });
-
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseSwagger();
-        app.UseSwaggerUI();
-    }
-
-    if (!app.Environment.IsEnvironment("Docker"))
-        app.UseHttpsRedirection();
-
-    app.UseRouting();
-    app.UseAuthentication();
-    app.UseAuthorization();
-    app.MapControllers();
-    app.MapHealthChecks("/health");
-
-    app.Run();
-}
-catch (Exception ex)
+builder.Services.AddAuthorization(options =>
 {
-    Log.Fatal(ex, "IdentityService terminated unexpectedly");
-}
-finally
+    options.AddPolicy("Permission", policy =>
+        policy.Requirements.Add(new PermissionRequirement()));
+});
+
+builder.Services.AddHealthChecks();
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
 {
-    Log.CloseAndFlush();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
+
+if (!app.Environment.IsEnvironment("Docker"))
+    app.UseHttpsRedirection();
+
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+app.MapHealthChecks("/health");
+
+app.Run();

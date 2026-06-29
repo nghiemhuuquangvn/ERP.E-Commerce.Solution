@@ -1,8 +1,9 @@
 using MediatR;
+using ERP.WH.Application.Commands.Inventory;
 
 namespace ERP.WH.Application.EventHandlers;
 
-public class PurchaseOrderCreatedEvent
+public class PurchaseOrderCreatedEvent : INotification
 {
     public Guid PurchaseOrderId { get; set; }
     public Guid SupplierId { get; set; }

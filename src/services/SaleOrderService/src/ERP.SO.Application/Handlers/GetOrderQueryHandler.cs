@@ -70,7 +70,7 @@ namespace ERP.SO.Application.Handlers
 
         public async Task<ListOrdersResponse> Handle(ListOrdersQuery request, CancellationToken cancellationToken)
         {
-            var status = string.IsNullOrEmpty(request.Status) ? null : Enum.Parse<OrderStatus>(request.Status);
+            var status = string.IsNullOrEmpty(request.Status) ? (OrderStatus?)null : Enum.Parse<OrderStatus>(request.Status);
             var total = await _repository.GetTotalCountAsync(request.CustomerId, status, cancellationToken);
 
             var orders = await _repository.GetAllAsync(request.Skip, request.Take, cancellationToken);

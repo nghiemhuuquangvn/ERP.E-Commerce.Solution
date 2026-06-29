@@ -64,7 +64,7 @@ namespace ERP.PRD.Infrastructure.Persistence
             {
                 var outboxMessage = new OutboxMessage(
                     type: domainEvent.GetType().FullName!,
-                    content: JsonConvert.Serialize(domainEvent, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All })
+                    content: JsonConvert.SerializeObject(domainEvent, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All })
                 );
 
                 await OutboxMessages.AddAsync(outboxMessage, cancellationToken);
