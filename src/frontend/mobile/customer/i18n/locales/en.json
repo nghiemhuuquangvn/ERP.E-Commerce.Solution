@@ -1,0 +1,64 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "loading": "Loading…",
+    "error": "Error",
+    "language": "Language",
+    "english": "English",
+    "vietnamese": "Tiếng Việt"
+  },
+  "home": {
+    "welcome": "Welcome to ERP Shop",
+    "discover": "Discover amazing products",
+    "shopNow": "Shop Now →",
+    "featuredProducts": "Featured Products"
+  },
+  "search": {
+    "placeholder": "Search products…",
+    "outOfStock": "Out of stock",
+    "noProducts": "No products found."
+  },
+  "cart": {
+    "signInRequiredTitle": "Sign In Required",
+    "signInRequiredMessage": "Please sign in to place an order.",
+    "errorPlacingOrder": "Failed to place order. Please try again.",
+    "each": "each",
+    "emptyTitle": "Your cart is empty",
+    "browseProducts": "Browse Products",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "placingOrder": "Placing Order…",
+    "placeOrder": "Place Order"
+  },
+  "orders": {
+    "loading": "Loading orders…",
+    "empty": "No orders yet."
+  },
+  "profile": {
+    "notSignedIn": "Not signed in",
+    "myOrders": "My Orders",
+    "settings": "Settings",
+    "helpAndSupport": "Help & Support",
+    "signOutConfirmTitle": "Sign Out",
+    "signOutConfirmMessage": "Are you sure you want to sign out?"
+  },
+  "auth": {
+    "appName": "ERP Shop",
+    "signInSubtitle": "Sign in to your account",
+    "emailPlaceholder": "Email",
+    "passwordPlaceholder": "Password",
+    "signingIn": "Signing in…",
+    "signInError": "Invalid email or password.",
+    "noAccount": "Don't have an account? Register →",
+    "createAccount": "Create Account",
+    "createAccountSubtitle": "Join ERP Shop today",
+    "firstNamePlaceholder": "First Name",
+    "lastNamePlaceholder": "Last Name",
+    "passwordHintPlaceholder": "Password (min 8 chars)",
+    "creating": "Creating…",
+    "registerError": "Registration failed. Please try again.",
+    "haveAccount": "Already have an account? Sign in →"
+  }
+}

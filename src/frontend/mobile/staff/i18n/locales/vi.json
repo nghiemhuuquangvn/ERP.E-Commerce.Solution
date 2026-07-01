@@ -1,0 +1,66 @@
+{
+  "common": {
+    "cancel": "Hủy",
+    "ok": "Đồng ý",
+    "signIn": "Đăng nhập",
+    "loading": "Đang tải…",
+    "error": "Lỗi",
+    "language": "Ngôn ngữ",
+    "english": "English",
+    "vietnamese": "Tiếng Việt"
+  },
+  "dashboard": {
+    "goodMorning": "Chào buổi sáng, {{name}} 👋",
+    "todaysSales": "Doanh thu hôm nay",
+    "orders": "Đơn hàng",
+    "lowStock": "Sắp hết hàng",
+    "pendingShipments": "Chờ giao hàng",
+    "quickActions": "Thao tác nhanh",
+    "quickActionsHint": "Sử dụng các tab bên dưới để truy cập POS, Kho hàng và Giao hàng."
+  },
+  "deliveries": {
+    "loading": "Đang tải…",
+    "order": "Đơn hàng",
+    "markInTransit": "Đánh dấu đang vận chuyển",
+    "empty": "Không có lô hàng nào đang hoạt động.",
+    "errorUpdatingTracking": "Cập nhật vận chuyển thất bại."
+  },
+  "inventory": {
+    "searchPlaceholder": "Tìm kiếm sản phẩm…",
+    "loading": "Đang tải…",
+    "adjust": "Điều chỉnh",
+    "adjustStockTitle": "Điều chỉnh tồn kho",
+    "adjustStockMessage": "Hiện tại: {{quantity}}. Nhập số lượng mới:",
+    "errorAdjustingStock": "Điều chỉnh tồn kho thất bại."
+  },
+  "pos": {
+    "addProduct": "Thêm sản phẩm",
+    "productIdPlaceholder": "Mã sản phẩm",
+    "namePlaceholder": "Tên",
+    "unitPricePlaceholder": "Đơn giá",
+    "add": "+ Thêm",
+    "noItems": "Chưa có sản phẩm nào được thêm.",
+    "subtotal": "Tạm tính",
+    "tax": "Thuế",
+    "total": "Tổng cộng",
+    "processing": "Đang xử lý…",
+    "completeTransaction": "Hoàn tất giao dịch",
+    "successTitle": "Thành công",
+    "successMessage": "Giao dịch hoàn tất. Tổng cộng: {{total}}",
+    "errorCompletingTransaction": "Hoàn tất giao dịch thất bại.",
+    "paymentMethods": {
+      "Cash": "Tiền mặt",
+      "CreditCard": "Thẻ tín dụng",
+      "EWallet": "Ví điện tử"
+    }
+  },
+  "auth": {
+    "appName": "ERP Staff",
+    "signInSubtitle": "Đăng nhập để tiếp tục",
+    "emailPlaceholder": "Email",
+    "passwordPlaceholder": "Mật khẩu",
+    "signingIn": "Đang đăng nhập…",
+    "signInFailedTitle": "Đăng nhập thất bại",
+    "signInError": "Email hoặc mật khẩu không đúng."
+  }
+}

@@ -4,14 +4,14 @@
       <input
         v-model="search"
         class="input max-w-xs"
-        placeholder="Search products…"
+        :placeholder="t('product.searchPlaceholder')"
         @input="page = 1"
       />
       <select v-model="sortBy" class="input w-auto">
-        <option value="newest">Newest</option>
-        <option value="price_asc">Price: Low to High</option>
-        <option value="price_desc">Price: High to Low</option>
-        <option value="name">Name A–Z</option>
+        <option value="newest">{{ t('product.sortNewest') }}</option>
+        <option value="price_asc">{{ t('product.sortPriceAsc') }}</option>
+        <option value="price_desc">{{ t('product.sortPriceDesc') }}</option>
+        <option value="name">{{ t('product.sortName') }}</option>
       </select>
     </div>
 
@@ -20,7 +20,7 @@
     </div>
 
     <div v-else-if="data?.items.length === 0" class="py-20 text-center text-gray-400">
-      No products found.
+      {{ t('product.noProductsFound') }}
     </div>
 
     <div v-else class="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -33,15 +33,15 @@
         :disabled="page === 1"
         @click="page--"
         class="btn-outline disabled:opacity-40"
-      >‹ Prev</button>
+      >{{ t('product.prev') }}</button>
       <span class="flex items-center px-3 text-sm text-gray-500">
-        Page {{ page }} of {{ totalPages }}
+        {{ t('product.pageOf', { page, totalPages }) }}
       </span>
       <button
         :disabled="page >= totalPages"
         @click="page++"
         class="btn-outline disabled:opacity-40"
-      >Next ›</button>
+      >{{ t('product.next') }}</button>
     </div>
   </div>
 </template>
@@ -49,9 +49,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
+import { useI18n } from 'vue-i18n'
 import { productsApi } from '@/api/products.api'
 import ProductCard from '@/components/product/ProductCard.vue'
 
+const { t } = useI18n()
 const search = ref('')
 const page = ref(1)
 const pageSize = 20

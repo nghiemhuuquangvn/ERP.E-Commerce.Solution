@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { View, Text, TextInput, FlatList, TouchableOpacity, Image, ActivityIndicator } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { apiClient } from '@/api/client'
 
 interface Product {
@@ -15,6 +16,7 @@ interface Product {
 
 export default function SearchScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
   const [search, setSearch] = useState('')
 
   const { data, isLoading } = useQuery({
@@ -36,7 +38,7 @@ export default function SearchScreen() {
       <View className="px-4 py-3 border-b border-gray-100">
         <TextInput
           className="bg-gray-100 rounded-xl px-4 py-2.5 text-sm"
-          placeholder="Search products…"
+          placeholder={t('search.placeholder')}
           value={search}
           onChangeText={setSearch}
           returnKeyType="search"
@@ -68,13 +70,13 @@ export default function SearchScreen() {
               <Text className="text-sm font-medium text-gray-800 line-clamp-2">{item.name}</Text>
               <Text className="text-brand-500 font-semibold text-sm">{fmt(item.price)}</Text>
               {item.stockQuantity === 0 && (
-                <Text className="text-xs text-red-500">Out of stock</Text>
+                <Text className="text-xs text-red-500">{t('search.outOfStock')}</Text>
               )}
             </TouchableOpacity>
           )}
           ListEmptyComponent={
             <View className="py-16 items-center">
-              <Text className="text-gray-400">No products found.</Text>
+              <Text className="text-gray-400">{t('search.noProducts')}</Text>
             </View>
           }
         />

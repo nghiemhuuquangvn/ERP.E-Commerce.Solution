@@ -1,0 +1,66 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "ok": "OK",
+    "signIn": "Sign In",
+    "loading": "Loading…",
+    "error": "Error",
+    "language": "Language",
+    "english": "English",
+    "vietnamese": "Tiếng Việt"
+  },
+  "dashboard": {
+    "goodMorning": "Good morning, {{name}} 👋",
+    "todaysSales": "Today's Sales",
+    "orders": "Orders",
+    "lowStock": "Low Stock",
+    "pendingShipments": "Pending Shipments",
+    "quickActions": "Quick Actions",
+    "quickActionsHint": "Use the tabs below to access POS, Inventory, and Deliveries."
+  },
+  "deliveries": {
+    "loading": "Loading…",
+    "order": "Order",
+    "markInTransit": "Mark In Transit",
+    "empty": "No active shipments.",
+    "errorUpdatingTracking": "Failed to update tracking."
+  },
+  "inventory": {
+    "searchPlaceholder": "Search products…",
+    "loading": "Loading…",
+    "adjust": "Adjust",
+    "adjustStockTitle": "Adjust Stock",
+    "adjustStockMessage": "Current: {{quantity}}. Enter new quantity:",
+    "errorAdjustingStock": "Failed to adjust stock."
+  },
+  "pos": {
+    "addProduct": "Add Product",
+    "productIdPlaceholder": "Product ID",
+    "namePlaceholder": "Name",
+    "unitPricePlaceholder": "Unit Price",
+    "add": "+ Add",
+    "noItems": "No items added yet.",
+    "subtotal": "Subtotal",
+    "tax": "Tax",
+    "total": "Total",
+    "processing": "Processing…",
+    "completeTransaction": "Complete Transaction",
+    "successTitle": "Success",
+    "successMessage": "Transaction complete. Total: {{total}}",
+    "errorCompletingTransaction": "Failed to complete transaction.",
+    "paymentMethods": {
+      "Cash": "Cash",
+      "CreditCard": "Credit Card",
+      "EWallet": "E-Wallet"
+    }
+  },
+  "auth": {
+    "appName": "ERP Staff",
+    "signInSubtitle": "Sign in to continue",
+    "emailPlaceholder": "Email",
+    "passwordPlaceholder": "Password",
+    "signingIn": "Signing in…",
+    "signInFailedTitle": "Login Failed",
+    "signInError": "Invalid email or password."
+  }
+}

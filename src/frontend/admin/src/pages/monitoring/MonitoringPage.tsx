@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { format, formatDistanceToNow } from 'date-fns'
 import {
   BarChart,
@@ -21,6 +22,7 @@ import { usePermission } from '@/hooks/usePermission'
 import { Navigate } from 'react-router-dom'
 
 export function MonitoringPage() {
+  const { t } = useTranslation()
   const { hasPermission } = usePermission()
 
   if (!hasPermission('monitoring:view')) {
@@ -39,10 +41,8 @@ export function MonitoringPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">System Monitoring</h1>
-          <p className="text-sm text-gray-500">
-            Real-time gateway metrics, service health, and exception tracking
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('monitoring.title')}</h1>
+          <p className="text-sm text-gray-500">{t('monitoring.subtitle')}</p>
         </div>
       </div>
 
@@ -69,6 +69,7 @@ function ProcessMetricsCard({
   process: MonitoringDashboard['process'] | undefined
   isLoading: boolean
 }) {
+  const { t } = useTranslation()
   const formatUptime = (seconds: number) => {
     const h = Math.floor(seconds / 3600)
     const m = Math.floor((seconds % 3600) / 60)
@@ -77,7 +78,7 @@ function ProcessMetricsCard({
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Gateway Process</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('monitoring.gatewayProcess')}</h2>
       {isLoading ? (
         <div className="animate-pulse space-y-3">
           {[...Array(6)].map((_, i) => (
@@ -110,7 +111,7 @@ function ProcessMetricsCard({
           </div>
         </dl>
       ) : (
-        <p className="text-sm text-gray-500">No data</p>
+        <p className="text-sm text-gray-500">{t('monitoring.noData')}</p>
       )}
     </div>
   )
@@ -118,6 +119,7 @@ function ProcessMetricsCard({
 
 // ── Service Health ─────────────────────────────────────────────────────────
 function ServicesHealthCard() {
+  const { t } = useTranslation()
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['monitoring', 'services'],
     queryFn: monitoringApi.getServicesHealth,
@@ -140,9 +142,9 @@ function ServicesHealthCard() {
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Services Health</h2>
+        <h2 className="text-lg font-semibold text-gray-900">{t('monitoring.servicesHealth')}</h2>
         <button onClick={() => refetch()} className="text-xs text-blue-600 hover:underline">
-          Refresh
+          {t('monitoring.refresh')}
         </button>
       </div>
       {isLoading ? (
@@ -185,12 +187,13 @@ function ApiStatsCard({
   api: MonitoringDashboard['api'] | undefined
   isLoading: boolean
 }) {
+  const { t } = useTranslation()
   const topRoutes: RouteStats[] = api?.topRoutes?.slice(0, 8) ?? []
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">API Traffic</h2>
+        <h2 className="text-lg font-semibold text-gray-900">{t('monitoring.apiTraffic')}</h2>
         {api && !isLoading && (
           <div className="flex gap-6 text-sm">
             <span className="text-gray-600">
@@ -230,6 +233,7 @@ function ApiStatsCard({
 
 // ── Recent Requests ────────────────────────────────────────────────────────
 function RecentRequestsCard() {
+  const { t } = useTranslation()
   const { data, isLoading } = useQuery({
     queryKey: ['monitoring', 'requests'],
     queryFn: monitoringApi.getRecentRequests,
@@ -246,7 +250,7 @@ function RecentRequestsCard() {
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Requests</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('monitoring.recentRequests')}</h2>
       {isLoading ? (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
@@ -294,6 +298,7 @@ function RecentRequestsCard() {
 
 // ── Exceptions ─────────────────────────────────────────────────────────────
 function ExceptionsCard() {
+  const { t } = useTranslation()
   const { data, isLoading } = useQuery({
     queryKey: ['monitoring', 'exceptions'],
     queryFn: monitoringApi.getExceptions,
@@ -304,7 +309,7 @@ function ExceptionsCard() {
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Recent Exceptions</h2>
+        <h2 className="text-lg font-semibold text-gray-900">{t('monitoring.recentExceptions')}</h2>
         {data && data.length > 0 && (
           <span className="bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded-full">
             {data.length}
@@ -320,7 +325,7 @@ function ExceptionsCard() {
       ) : !data || data.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-32 text-gray-400">
           <span className="text-3xl">✓</span>
-          <span className="text-sm mt-1">No exceptions recorded</span>
+          <span className="text-sm mt-1">{t('monitoring.noExceptions')}</span>
         </div>
       ) : (
         <div className="space-y-3 overflow-auto max-h-72">

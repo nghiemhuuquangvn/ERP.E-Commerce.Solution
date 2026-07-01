@@ -1,10 +1,10 @@
 <template>
   <div class="mx-auto max-w-4xl px-4 py-10">
-    <h1 class="mb-6 text-2xl font-bold text-gray-900">Your Cart</h1>
+    <h1 class="mb-6 text-2xl font-bold text-gray-900">{{ t('cart.title') }}</h1>
 
     <div v-if="items.length === 0" class="py-20 text-center text-gray-400">
-      Your cart is empty.
-      <RouterLink to="/products" class="block mt-3 text-brand-500 hover:underline">Browse products →</RouterLink>
+      {{ t('cart.empty') }}
+      <RouterLink to="/products" class="block mt-3 text-brand-500 hover:underline">{{ t('cart.browseProducts') }}</RouterLink>
     </div>
 
     <div v-else class="grid grid-cols-1 gap-8 md:grid-cols-3">
@@ -17,14 +17,14 @@
           </div>
           <div class="flex flex-1 flex-col">
             <p class="font-medium text-gray-800">{{ item.productName }}</p>
-            <p class="text-sm text-gray-500">{{ fmt(item.unitPrice) }} each</p>
+            <p class="text-sm text-gray-500">{{ fmt(item.unitPrice) }} {{ t('cart.each') }}</p>
             <div class="mt-2 flex items-center gap-3">
               <div class="flex items-center border border-gray-200 rounded">
                 <button @click="updateQty(item.productId, item.quantity - 1)" class="px-2 py-0.5 text-gray-500">−</button>
                 <span class="px-3 text-sm">{{ item.quantity }}</span>
                 <button @click="updateQty(item.productId, item.quantity + 1)" class="px-2 py-0.5 text-gray-500">+</button>
               </div>
-              <button @click="cartStore.removeItem(item.productId)" class="text-xs text-red-500 hover:underline">Remove</button>
+              <button @click="cartStore.removeItem(item.productId)" class="text-xs text-red-500 hover:underline">{{ t('cart.remove') }}</button>
             </div>
           </div>
           <span class="font-semibold text-gray-900">{{ fmt(item.unitPrice * item.quantity) }}</span>
@@ -33,21 +33,21 @@
 
       <!-- Summary -->
       <div class="rounded-lg border border-gray-200 p-5 h-fit space-y-3">
-        <h2 class="font-semibold text-gray-900">Order Summary</h2>
+        <h2 class="font-semibold text-gray-900">{{ t('cart.orderSummary') }}</h2>
         <div class="flex justify-between text-sm text-gray-600">
-          <span>Subtotal</span>
+          <span>{{ t('cart.subtotal') }}</span>
           <span>{{ fmt(subtotal) }}</span>
         </div>
         <div v-if="couponDiscount > 0" class="flex justify-between text-sm text-green-600">
-          <span>Coupon discount</span>
+          <span>{{ t('cart.couponDiscount') }}</span>
           <span>−{{ fmt(couponDiscount) }}</span>
         </div>
         <div class="border-t border-gray-100 pt-3 flex justify-between font-semibold text-gray-900">
-          <span>Total</span>
+          <span>{{ t('common.total') }}</span>
           <span>{{ fmt(total) }}</span>
         </div>
         <RouterLink to="/checkout" class="block w-full btn-brand text-center mt-2">
-          Proceed to Checkout
+          {{ t('cart.proceedToCheckout') }}
         </RouterLink>
       </div>
     </div>
@@ -57,8 +57,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useCartStore } from '@/stores/cart.store'
 
+const { t } = useI18n()
 const cartStore = useCartStore()
 const items = computed(() => cartStore.items)
 const subtotal = computed(() => cartStore.subtotal)

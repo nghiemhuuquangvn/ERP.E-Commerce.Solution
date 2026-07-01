@@ -1,0 +1,64 @@
+{
+  "common": {
+    "cancel": "Hủy",
+    "signIn": "Đăng nhập",
+    "signOut": "Đăng xuất",
+    "loading": "Đang tải…",
+    "error": "Lỗi",
+    "language": "Ngôn ngữ",
+    "english": "English",
+    "vietnamese": "Tiếng Việt"
+  },
+  "home": {
+    "welcome": "Chào mừng đến với ERP Shop",
+    "discover": "Khám phá các sản phẩm tuyệt vời",
+    "shopNow": "Mua ngay →",
+    "featuredProducts": "Sản phẩm nổi bật"
+  },
+  "search": {
+    "placeholder": "Tìm kiếm sản phẩm…",
+    "outOfStock": "Hết hàng",
+    "noProducts": "Không tìm thấy sản phẩm nào."
+  },
+  "cart": {
+    "signInRequiredTitle": "Yêu cầu đăng nhập",
+    "signInRequiredMessage": "Vui lòng đăng nhập để đặt hàng.",
+    "errorPlacingOrder": "Đặt hàng thất bại. Vui lòng thử lại.",
+    "each": "mỗi sản phẩm",
+    "emptyTitle": "Giỏ hàng của bạn đang trống",
+    "browseProducts": "Xem sản phẩm",
+    "subtotal": "Tạm tính",
+    "total": "Tổng cộng",
+    "placingOrder": "Đang đặt hàng…",
+    "placeOrder": "Đặt hàng"
+  },
+  "orders": {
+    "loading": "Đang tải đơn hàng…",
+    "empty": "Chưa có đơn hàng nào."
+  },
+  "profile": {
+    "notSignedIn": "Chưa đăng nhập",
+    "myOrders": "Đơn hàng của tôi",
+    "settings": "Cài đặt",
+    "helpAndSupport": "Trợ giúp & Hỗ trợ",
+    "signOutConfirmTitle": "Đăng xuất",
+    "signOutConfirmMessage": "Bạn có chắc chắn muốn đăng xuất không?"
+  },
+  "auth": {
+    "appName": "ERP Shop",
+    "signInSubtitle": "Đăng nhập vào tài khoản của bạn",
+    "emailPlaceholder": "Email",
+    "passwordPlaceholder": "Mật khẩu",
+    "signingIn": "Đang đăng nhập…",
+    "signInError": "Email hoặc mật khẩu không đúng.",
+    "noAccount": "Chưa có tài khoản? Đăng ký →",
+    "createAccount": "Tạo tài khoản",
+    "createAccountSubtitle": "Tham gia ERP Shop ngay hôm nay",
+    "firstNamePlaceholder": "Tên",
+    "lastNamePlaceholder": "Họ",
+    "passwordHintPlaceholder": "Mật khẩu (tối thiểu 8 ký tự)",
+    "creating": "Đang tạo…",
+    "registerError": "Đăng ký thất bại. Vui lòng thử lại.",
+    "haveAccount": "Đã có tài khoản? Đăng nhập →"
+  }
+}

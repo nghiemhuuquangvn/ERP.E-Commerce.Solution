@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native'
 import { Link } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 
 export default function LoginScreen() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -17,7 +19,7 @@ export default function LoginScreen() {
       const { data } = await apiClient.post('/v1/auth/login', { email, password })
       setAuth(data.user, data.accessToken)
     } catch {
-      Alert.alert('Error', 'Invalid email or password.')
+      Alert.alert(t('common.error'), t('auth.signInError'))
     } finally {
       setLoading(false)
     }
@@ -29,12 +31,12 @@ export default function LoginScreen() {
       className="flex-1 bg-white items-center justify-center px-6"
     >
       <View className="w-full max-w-sm">
-        <Text className="text-4xl font-bold text-brand-500 mb-1">ERP Shop</Text>
-        <Text className="text-gray-500 mb-8">Sign in to your account</Text>
+        <Text className="text-4xl font-bold text-brand-500 mb-1">{t('auth.appName')}</Text>
+        <Text className="text-gray-500 mb-8">{t('auth.signInSubtitle')}</Text>
 
         <TextInput
           className="border border-gray-200 rounded-xl px-4 py-3 mb-3 bg-gray-50"
-          placeholder="Email"
+          placeholder={t('auth.emailPlaceholder')}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -42,7 +44,7 @@ export default function LoginScreen() {
         />
         <TextInput
           className="border border-gray-200 rounded-xl px-4 py-3 mb-6 bg-gray-50"
-          placeholder="Password"
+          placeholder={t('auth.passwordPlaceholder')}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -53,11 +55,11 @@ export default function LoginScreen() {
           className="bg-brand-500 rounded-xl py-4 items-center mb-4"
         >
           <Text className="text-white font-semibold text-base">
-            {loading ? 'Signing in…' : 'Sign In'}
+            {loading ? t('auth.signingIn') : t('common.signIn')}
           </Text>
         </TouchableOpacity>
         <Link href="/(auth)/register" className="text-center text-sm text-brand-500">
-          Don't have an account? Register →
+          {t('auth.noAccount')}
         </Link>
       </View>
     </KeyboardAvoidingView>

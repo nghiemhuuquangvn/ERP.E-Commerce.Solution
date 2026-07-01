@@ -17,7 +17,7 @@
       </h3>
       <div class="mt-1 flex items-center justify-between">
         <span class="text-base font-semibold text-gray-900">{{ fmt(product.price) }}</span>
-        <span v-if="product.stockQuantity === 0" class="text-xs text-red-500">Out of stock</span>
+        <span v-if="product.stockQuantity === 0" class="text-xs text-red-500">{{ t('product.outOfStock') }}</span>
       </div>
     </div>
   </RouterLink>
@@ -25,8 +25,10 @@
 
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import type { Product } from '@/api/products.api'
 
+const { t } = useI18n()
 defineProps<{ product: Product }>()
 
 const fmt = (n: number) =>

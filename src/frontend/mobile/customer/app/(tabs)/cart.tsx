@@ -8,6 +8,7 @@ import {
   ListRenderItem,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { useCartStore } from '@/stores/cart.store'
 import type { CartItem } from '@/stores/cart.store'
 import { useAuthStore } from '@/stores/auth.store'
@@ -18,6 +19,7 @@ const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' 
 
 export default function CartScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
   const cartStore = useCartStore()
   const authStore = useAuthStore()
   const [placing, setPlacing] = useState(false)
@@ -26,9 +28,9 @@ export default function CartScreen() {
 
   const checkout = useCallback(async () => {
     if (!authStore.isAuthenticated) {
-      Alert.alert('Sign In Required', 'Please sign in to place an order.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign In', onPress: () => router.push('/(auth)/login') },
+      Alert.alert(t('cart.signInRequiredTitle'), t('cart.signInRequiredMessage'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.signIn'), onPress: () => router.push('/(auth)/login') },
       ])
       return
     }
@@ -47,11 +49,11 @@ export default function CartScreen() {
       cartStore.clear()
       router.push(`/order/${order.id}`)
     } catch {
-      Alert.alert('Error', 'Failed to place order. Please try again.')
+      Alert.alert(t('common.error'), t('cart.errorPlacingOrder'))
     } finally {
       setPlacing(false)
     }
-  }, [authStore, cartStore, router])
+  }, [authStore, cartStore, router, t])
 
   // Stable renderItem — FlatList re-renders only changed rows
   const renderItem = useCallback<ListRenderItem<CartItem>>(
@@ -62,7 +64,7 @@ export default function CartScreen() {
         </View>
         <View className="flex-1">
           <Text className="font-medium text-gray-800 text-sm">{item.productName}</Text>
-          <Text className="text-gray-500 text-xs">{fmt.format(item.unitPrice)} each</Text>
+          <Text className="text-gray-500 text-xs">{fmt.format(item.unitPrice)} {t('cart.each')}</Text>
         </View>
         <View className="flex-row items-center gap-2">
           <TouchableOpacity
@@ -84,19 +86,19 @@ export default function CartScreen() {
         </Text>
       </View>
     ),
-    [cartStore],
+    [cartStore, t],
   )
 
   if (items.length === 0) {
     return (
       <View className="flex-1 bg-white items-center justify-center px-6">
         <Text className="text-4xl mb-4">🛒</Text>
-        <Text className="text-lg font-semibold text-gray-700 mb-2">Your cart is empty</Text>
+        <Text className="text-lg font-semibold text-gray-700 mb-2">{t('cart.emptyTitle')}</Text>
         <TouchableOpacity
           onPress={() => router.push('/(tabs)/search')}
           className="bg-brand-500 rounded-xl px-6 py-3"
         >
-          <Text className="text-white font-semibold">Browse Products</Text>
+          <Text className="text-white font-semibold">{t('cart.browseProducts')}</Text>
         </TouchableOpacity>
       </View>
     )
@@ -113,11 +115,11 @@ export default function CartScreen() {
 
       <View className="border-t border-gray-100 p-4">
         <View className="flex-row justify-between mb-1">
-          <Text className="text-gray-500">Subtotal</Text>
+          <Text className="text-gray-500">{t('cart.subtotal')}</Text>
           <Text>{fmt.format(cartStore.subtotal())}</Text>
         </View>
         <View className="flex-row justify-between mb-4">
-          <Text className="font-bold text-gray-900 text-lg">Total</Text>
+          <Text className="font-bold text-gray-900 text-lg">{t('cart.total')}</Text>
           <Text className="font-bold text-brand-500 text-lg">{fmt.format(cartStore.total())}</Text>
         </View>
         <TouchableOpacity
@@ -126,7 +128,7 @@ export default function CartScreen() {
           className="bg-brand-500 rounded-xl py-4 items-center"
         >
           <Text className="text-white font-bold text-base">
-            {placing ? 'Placing Order…' : 'Place Order'}
+            {placing ? t('cart.placingOrder') : t('cart.placeOrder')}
           </Text>
         </TouchableOpacity>
       </View>

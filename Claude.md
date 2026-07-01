@@ -54,7 +54,15 @@ src/
     Gateway/
         Ocelot.API/                    (API Gateway on port 5000)
 
+    frontend/
+        admin/                         (React 18 + TS admin back-office SPA)
+        storefront/                    (Vue 3.5 + TS customer-facing web storefront)
+        mobile/
+            customer/                  (Expo/React Native customer app)
+            staff/                     (Expo/React Native field/retail staff app)
+
 docs/
+    frontend/                          (Frontend app guides: stacks, i18n, Master Data CRUD pattern)
     architecture/
         domain-map.md                  (Domain groupings: ERP Core, Supply Chain, E-Commerce, Retail, Cross-Cutting)
         port-map.md                    (Network topology & port assignments)
@@ -552,6 +560,11 @@ docs/Events
 Conventions:
 docs/conventions
 
+Frontend:
+docs/frontend (app stacks, i18n pattern, Admin Master Data CRUD pattern — read
+before adding a new frontend page/entity so existing conventions are reused, not
+re-derived)
+
 ## Claude Working Rules
 
 When reviewing code:
@@ -572,6 +585,10 @@ When reviewing code:
 
 8. Review EventCatalog before modifying messaging flows.
 
+9. Before adding a new frontend page, entity, or translation, review
+   `docs/frontend/` — reuse the existing i18n/Master Data CRUD patterns instead of
+   creating a parallel mechanism.
+
 ## Priority Reading Order
 
 1. **CLAUDE.md** (This file — service boundaries, database ownership, coding standards)
@@ -583,5 +600,6 @@ When reviewing code:
 7. **docs/architecture/dependency-map.md** (Complete service-to-service dependency matrix)
 8. **Service README.md** (e.g., ProductService/README.md — business logic, entities, events, endpoints)
 9. **docs/business/{Domain}/*.md** (Domain business documentation — workflows, rules, examples)
-10. **Source Code** (After understanding architecture and business domain)
+10. **docs/frontend/*.md** (Frontend app stacks, i18n pattern, Admin Master Data CRUD pattern — read before touching `src/frontend/`)
+11. **Source Code** (After understanding architecture and business domain)
 

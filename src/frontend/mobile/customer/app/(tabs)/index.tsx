@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, TouchableOpacity, Image, FlatList } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { apiClient } from '@/api/client'
 
 interface Product {
@@ -13,6 +14,7 @@ interface Product {
 
 export default function HomeScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
   const { data: featured } = useQuery({
     queryKey: ['products', 'featured'],
     queryFn: async () => {
@@ -28,19 +30,19 @@ export default function HomeScreen() {
     <ScrollView className="flex-1 bg-white">
       {/* Hero Banner */}
       <View className="bg-brand-500 px-6 py-10">
-        <Text className="text-white text-2xl font-bold mb-1">Welcome to ERP Shop</Text>
-        <Text className="text-rose-200 text-sm mb-4">Discover amazing products</Text>
+        <Text className="text-white text-2xl font-bold mb-1">{t('home.welcome')}</Text>
+        <Text className="text-rose-200 text-sm mb-4">{t('home.discover')}</Text>
         <TouchableOpacity
           onPress={() => router.push('/(tabs)/search')}
           className="bg-white rounded-lg px-5 py-2.5 self-start"
         >
-          <Text className="text-brand-500 font-semibold text-sm">Shop Now →</Text>
+          <Text className="text-brand-500 font-semibold text-sm">{t('home.shopNow')}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Featured Products */}
       <View className="px-4 pt-6">
-        <Text className="text-lg font-bold text-gray-900 mb-4">Featured Products</Text>
+        <Text className="text-lg font-bold text-gray-900 mb-4">{t('home.featuredProducts')}</Text>
         <FlatList
           data={featured ?? []}
           keyExtractor={(p) => p.id}

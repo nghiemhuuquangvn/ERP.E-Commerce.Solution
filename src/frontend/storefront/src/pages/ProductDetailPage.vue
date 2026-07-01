@@ -1,6 +1,6 @@
 <template>
   <div class="mx-auto max-w-5xl px-4 py-10">
-    <div v-if="isLoading" class="text-gray-400">Loading...</div>
+    <div v-if="isLoading" class="text-gray-400">{{ t('product.loadingProduct') }}</div>
     <div v-else-if="product" class="grid grid-cols-1 gap-10 md:grid-cols-2">
       <!-- Image -->
       <div class="aspect-square overflow-hidden rounded-xl bg-gray-100">
@@ -26,11 +26,11 @@
             :disabled="product.stockQuantity === 0"
             class="flex-1 btn-brand disabled:opacity-40"
           >
-            {{ product.stockQuantity === 0 ? 'Out of Stock' : 'Add to Cart' }}
+            {{ product.stockQuantity === 0 ? t('product.outOfStock') : t('product.addToCart') }}
           </button>
         </div>
 
-        <p v-if="added" class="mt-3 text-sm text-green-600">✓ Added to cart!</p>
+        <p v-if="added" class="mt-3 text-sm text-green-600">{{ t('product.addedToCart') }}</p>
       </div>
     </div>
   </div>
@@ -40,9 +40,11 @@
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
+import { useI18n } from 'vue-i18n'
 import { productsApi } from '@/api/products.api'
 import { useCartStore } from '@/stores/cart.store'
 
+const { t } = useI18n()
 const route = useRoute()
 const cartStore = useCartStore()
 const qty = ref(1)

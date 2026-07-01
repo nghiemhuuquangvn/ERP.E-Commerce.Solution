@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { paymentsApi, PaymentStatus } from '@/api/payments.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -8,15 +9,16 @@ import { usePagination } from '@/hooks/usePagination'
 import { format } from 'date-fns'
 import type { Payment } from '@/api/payments.api'
 
-const STATUS_FILTERS: { label: string; value: PaymentStatus | '' }[] = [
-  { label: 'All', value: '' },
-  { label: 'Pending', value: 'Pending' },
-  { label: 'Captured', value: 'Captured' },
-  { label: 'Failed', value: 'Failed' },
-  { label: 'Refunded', value: 'Refunded' },
+const STATUS_FILTERS: { labelKey: string; value: PaymentStatus | '' }[] = [
+  { labelKey: 'common.all', value: '' },
+  { labelKey: 'payments.statusFilters.pending', value: 'Pending' },
+  { labelKey: 'payments.statusFilters.captured', value: 'Captured' },
+  { labelKey: 'payments.statusFilters.failed', value: 'Failed' },
+  { labelKey: 'payments.statusFilters.refunded', value: 'Refunded' },
 ]
 
 export function PaymentsPage() {
+  const { t } = useTranslation()
   const { page, pageSize, setPage } = usePagination()
   const [status, setStatus] = useState<PaymentStatus | ''>('')
 
@@ -30,29 +32,29 @@ export function PaymentsPage() {
 
   const columns = [
     { key: 'id', label: 'ID', className: 'font-mono text-xs', render: (p: Payment) => p.id.slice(0, 8) },
-    { key: 'orderId', label: 'Order', className: 'font-mono text-xs', render: (p: Payment) => p.orderId.slice(0, 8) },
-    { key: 'method', label: 'Method' },
+    { key: 'orderId', label: t('payments.order'), className: 'font-mono text-xs', render: (p: Payment) => p.orderId.slice(0, 8) },
+    { key: 'method', label: t('payments.method') },
     {
       key: 'amount',
-      label: 'Amount',
+      label: t('payments.amount'),
       render: (p: Payment) => fmt(p.amount),
       className: 'text-right',
     },
     {
       key: 'status',
-      label: 'Status',
+      label: t('common.status'),
       render: (p: Payment) => <StatusBadge status={p.status} />,
     },
     {
       key: 'createdAt',
-      label: 'Date',
+      label: t('common.date'),
       render: (p: Payment) => format(new Date(p.createdAt), 'dd MMM yyyy'),
     },
   ]
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Payments</h1>
+      <h1 className="text-xl font-semibold">{t('payments.title')}</h1>
 
       <div className="flex gap-1">
         {STATUS_FILTERS.map((f) => (
@@ -63,7 +65,7 @@ export function PaymentsPage() {
               status === f.value ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
             }`}
           >
-            {f.label}
+            {t(f.labelKey)}
           </button>
         ))}
       </div>

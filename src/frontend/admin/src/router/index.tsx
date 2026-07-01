@@ -10,6 +10,12 @@ import { InventoryListPage } from '@/pages/inventory/InventoryListPage'
 import { PaymentsPage } from '@/pages/payments/PaymentsPage'
 import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { MonitoringPage } from '@/pages/monitoring/MonitoringPage'
+import { DepartmentsPage } from '@/pages/masterdata/DepartmentsPage'
+import { PositionsPage } from '@/pages/masterdata/PositionsPage'
+import { EmployeesPage } from '@/pages/masterdata/EmployeesPage'
+import { UnitsOfMeasurePage } from '@/pages/masterdata/UnitsOfMeasurePage'
+import { GeographyPage } from '@/pages/masterdata/GeographyPage'
+import { LanguagesPage } from '@/pages/masterdata/LanguagesPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -39,9 +45,17 @@ export const router = createBrowserRouter([
       { path: 'payments', element: <PaymentsPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'customers', element: <PlaceholderPage title="Customers (CRM)" /> },
-      { path: 'employees', element: <PlaceholderPage title="Employees (HRM)" /> },
       { path: 'settings', element: <PlaceholderPage title="Settings" /> },
       { path: 'monitoring', element: <MonitoringPage /> },
+      { path: 'masterdata/departments', element: <DepartmentsPage /> },
+      { path: 'masterdata/positions', element: <PositionsPage /> },
+      { path: 'masterdata/employees', element: <EmployeesPage /> },
+      { path: 'masterdata/units-of-measure', element: <UnitsOfMeasurePage /> },
+      { path: 'masterdata/geography', element: <GeographyPage /> },
+      { path: 'masterdata/languages', element: <LanguagesPage /> },
+      // Kept for anyone with the old bookmark/link — SharedMasterDataService now
+      // owns Employee data, not HRM.
+      { path: 'employees', element: <Navigate to="/masterdata/employees" replace /> },
     ],
   },
 ])

@@ -18,7 +18,9 @@
     "zustand": "^5.0.0",
     "recharts": "^2.12.7",
     "react-hook-form": "^7.53.0",
-    "date-fns": "^4.1.0"
+    "date-fns": "^4.1.0",
+    "i18next": "^23.15.1",
+    "react-i18next": "^15.0.2"
   },
   "devDependencies": {
     "@types/react": "^18.3.5",

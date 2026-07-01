@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { productsApi } from '@/api/products.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -11,6 +12,7 @@ import type { Product } from '@/api/products.api'
 const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 
 export function ProductListPage() {
+  const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const { page, pageSize, setPage } = usePagination()
   const [search, setSearch] = useState('')
@@ -31,18 +33,18 @@ export function ProductListPage() {
 
   const columns = useMemo(
     () => [
-      { key: 'sku', label: 'SKU', className: 'font-mono text-xs' },
-      { key: 'name', label: 'Name' },
-      { key: 'categoryName', label: 'Category' },
+      { key: 'sku', label: t('products.sku'), className: 'font-mono text-xs' },
+      { key: 'name', label: t('common.name') },
+      { key: 'categoryName', label: t('products.category') },
       {
         key: 'price',
-        label: 'Price',
+        label: t('products.price'),
         render: (p: Product) => fmt.format(p.price),
         className: 'text-right',
       },
       {
         key: 'stockQuantity',
-        label: 'Stock',
+        label: t('products.stock'),
         render: (p: Product) => (
           <span
             className={
@@ -60,7 +62,7 @@ export function ProductListPage() {
       },
       {
         key: 'status',
-        label: 'Status',
+        label: t('common.status'),
         render: (p: Product) => <StatusBadge status={p.status} />,
       },
       {
@@ -69,26 +71,26 @@ export function ProductListPage() {
         render: (p: Product) =>
           hasPermission('products:edit') ? (
             <a href={`/products/${p.id}`} className="text-xs text-primary-600 hover:underline">
-              Edit
+              {t('common.edit')}
             </a>
           ) : null,
       },
     ],
-    [hasPermission],
+    [hasPermission, t],
   )
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Products</h1>
+        <h1 className="text-xl font-semibold">{t('products.title')}</h1>
         {hasPermission('products:create') && (
-          <button className="btn-primary">+ Add Product</button>
+          <button className="btn-primary">{t('products.addProduct')}</button>
         )}
       </div>
 
       <input
         className="input max-w-xs"
-        placeholder="Search by name or SKU…"
+        placeholder={t('products.searchPlaceholder')}
         value={search}
         onChange={handleSearchChange}
       />

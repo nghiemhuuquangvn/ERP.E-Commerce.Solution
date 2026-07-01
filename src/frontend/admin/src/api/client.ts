@@ -1,7 +1,12 @@
 import axios, { AxiosError } from 'axios'
 import { useAuthStore } from '@/stores/auth.store'
+import { useUiStore } from '@/stores/ui.store'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
+
+// Maps this app's short locale codes to the backend's actual supported culture
+// codes (see e.g. ProductService/appsettings.json's Localization:SupportedCultures).
+const ACCEPT_LANGUAGE_MAP: Record<string, string> = { en: 'en-US', vi: 'vi-VN' }
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -11,6 +16,8 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken
   if (token) config.headers.Authorization = `Bearer ${token}`
+  const locale = useUiStore.getState().locale
+  config.headers['Accept-Language'] = ACCEPT_LANGUAGE_MAP[locale] ?? 'en-US'
   return config
 })
 

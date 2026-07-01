@@ -1,22 +1,59 @@
 import { useMemo } from 'react'
 import { NavLink } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useUiStore } from '@/stores/ui.store'
 import { usePermission } from '@/hooks/usePermission'
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', path: '/dashboard', permission: null, icon: '⊞' },
-  { label: 'Orders', path: '/orders', permission: 'orders:view', icon: '📦' },
-  { label: 'Products', path: '/products', permission: 'products:view', icon: '🏷️' },
-  { label: 'Inventory', path: '/inventory', permission: 'inventory:view', icon: '🏭' },
-  { label: 'Customers', path: '/customers', permission: 'crm:view', icon: '👥' },
-  { label: 'Payments', path: '/payments', permission: 'payments:view', icon: '💳' },
-  { label: 'Employees', path: '/employees', permission: 'hrm:view', icon: '👤' },
-  { label: 'Reports', path: '/reports', permission: 'reports:view', icon: '📊' },
-  { label: 'Settings', path: '/settings', permission: 'settings:view', icon: '⚙️' },
-  { label: 'Monitoring', path: '/monitoring', permission: 'monitoring:view', icon: '🖥' },
+  { labelKey: 'nav.dashboard', path: '/dashboard', permission: null, icon: '⊞' },
+  { labelKey: 'nav.orders', path: '/orders', permission: 'orders:view', icon: '📦' },
+  { labelKey: 'nav.products', path: '/products', permission: 'products:view', icon: '🏷️' },
+  { labelKey: 'nav.inventory', path: '/inventory', permission: 'inventory:view', icon: '🏭' },
+  { labelKey: 'nav.customers', path: '/customers', permission: 'crm:view', icon: '👥' },
+  { labelKey: 'nav.payments', path: '/payments', permission: 'payments:view', icon: '💳' },
+  {
+    labelKey: 'nav.departments',
+    path: '/masterdata/departments',
+    permission: 'masterdata:departments:view',
+    icon: '🏢',
+  },
+  {
+    labelKey: 'nav.positions',
+    path: '/masterdata/positions',
+    permission: 'masterdata:positions:view',
+    icon: '📋',
+  },
+  {
+    labelKey: 'nav.employees',
+    path: '/masterdata/employees',
+    permission: 'masterdata:employees:view',
+    icon: '👤',
+  },
+  {
+    labelKey: 'nav.unitsOfMeasure',
+    path: '/masterdata/units-of-measure',
+    permission: 'masterdata:units-of-measure:view',
+    icon: '📏',
+  },
+  {
+    labelKey: 'nav.geography',
+    path: '/masterdata/geography',
+    permission: 'masterdata:geography:view',
+    icon: '🗺️',
+  },
+  {
+    labelKey: 'nav.languages',
+    path: '/masterdata/languages',
+    permission: 'masterdata:languages:view',
+    icon: '🌐',
+  },
+  { labelKey: 'nav.reports', path: '/reports', permission: 'reports:view', icon: '📊' },
+  { labelKey: 'nav.settings', path: '/settings', permission: 'settings:view', icon: '⚙️' },
+  { labelKey: 'nav.monitoring', path: '/monitoring', permission: 'monitoring:view', icon: '🖥' },
 ]
 
 export function Sidebar() {
+  const { t } = useTranslation()
   const { sidebarCollapsed } = useUiStore()
   const { hasPermission } = usePermission()
 
@@ -52,7 +89,7 @@ export function Sidebar() {
             }
           >
             <span className="text-base">{item.icon}</span>
-            {!sidebarCollapsed && <span>{item.label}</span>}
+            {!sidebarCollapsed && <span>{t(item.labelKey)}</span>}
           </NavLink>
         ))}
       </nav>

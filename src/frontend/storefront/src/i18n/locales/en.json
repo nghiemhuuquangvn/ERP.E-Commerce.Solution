@@ -1,0 +1,107 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "search": "Search",
+    "cancel": "Cancel",
+    "continue": "Continue",
+    "back": "Back",
+    "total": "Total",
+    "language": "Language",
+    "footer": "© {year} ERP Shop. All rights reserved."
+  },
+  "nav": {
+    "brand": "ERP Shop",
+    "products": "Products",
+    "cart": "Cart",
+    "signIn": "Sign in",
+    "signOut": "Sign Out"
+  },
+  "home": {
+    "heroTitle": "Shop the Latest Collection",
+    "heroSubtitle": "Discover thousands of products at great prices.",
+    "shopNow": "Shop Now →",
+    "featuredProducts": "Featured Products"
+  },
+  "product": {
+    "searchPlaceholder": "Search products…",
+    "sortNewest": "Newest",
+    "sortPriceAsc": "Price: Low to High",
+    "sortPriceDesc": "Price: High to Low",
+    "sortName": "Name A–Z",
+    "noProductsFound": "No products found.",
+    "prev": "‹ Prev",
+    "next": "Next ›",
+    "pageOf": "Page {page} of {totalPages}",
+    "outOfStock": "Out of stock",
+    "addToCart": "Add to Cart",
+    "addedToCart": "✓ Added to cart!",
+    "loadingProduct": "Loading..."
+  },
+  "cart": {
+    "title": "Your Cart",
+    "empty": "Your cart is empty.",
+    "browseProducts": "Browse products →",
+    "each": "each",
+    "remove": "Remove",
+    "orderSummary": "Order Summary",
+    "subtotal": "Subtotal",
+    "couponDiscount": "Coupon discount",
+    "proceedToCheckout": "Proceed to Checkout"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "stepShipping": "Shipping",
+    "stepPayment": "Payment",
+    "stepReview": "Review",
+    "shippingAddress": "Shipping Address",
+    "streetAddress": "Street address",
+    "city": "City",
+    "state": "State",
+    "postalCode": "Postal code",
+    "country": "Country",
+    "continueArrow": "Continue →",
+    "paymentMethod": "Payment Method",
+    "creditCard": "Credit Card",
+    "bankTransfer": "Bank Transfer",
+    "eWallet": "E-Wallet",
+    "backArrow": "← Back",
+    "reviewOrderArrow": "Review Order →",
+    "reviewYourOrder": "Review Your Order",
+    "shipTo": "Ship to:",
+    "payment": "Payment:",
+    "placingOrder": "Placing Order…",
+    "placeOrder": "Place Order",
+    "placeOrderError": "Failed to place order. Please try again."
+  },
+  "orders": {
+    "orderPlaced": "Order Placed!",
+    "orderReceived": "Your order {orderNumber} has been received. We'll notify you when it ships.",
+    "viewMyOrders": "View My Orders",
+    "continueShopping": "Continue Shopping",
+    "myOrders": "My Orders",
+    "noOrdersYet": "You haven't placed any orders yet.",
+    "itemsCount": "{count} item(s) ·"
+  },
+  "account": {
+    "myProfile": "My Profile",
+    "fullName": "Full Name",
+    "email": "Email",
+    "signOut": "Sign Out"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signingIn": "Signing in…",
+    "email": "Email",
+    "password": "Password",
+    "noAccount": "Don't have an account?",
+    "register": "Register",
+    "invalidCredentials": "Invalid email or password.",
+    "createAccount": "Create Account",
+    "creatingAccount": "Creating account…",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "alreadyHaveAccount": "Already have an account?",
+    "signInLink": "Sign in",
+    "registrationFailed": "Registration failed. Please try again."
+  }
+}

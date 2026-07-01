@@ -1,0 +1,107 @@
+{
+  "common": {
+    "loading": "Đang tải...",
+    "search": "Tìm kiếm",
+    "cancel": "Hủy",
+    "continue": "Tiếp tục",
+    "back": "Quay lại",
+    "total": "Tổng cộng",
+    "language": "Ngôn ngữ",
+    "footer": "© {year} ERP Shop. Đã đăng ký bản quyền."
+  },
+  "nav": {
+    "brand": "ERP Shop",
+    "products": "Sản phẩm",
+    "cart": "Giỏ hàng",
+    "signIn": "Đăng nhập",
+    "signOut": "Đăng xuất"
+  },
+  "home": {
+    "heroTitle": "Mua sắm bộ sưu tập mới nhất",
+    "heroSubtitle": "Khám phá hàng ngàn sản phẩm với giá tốt.",
+    "shopNow": "Mua ngay →",
+    "featuredProducts": "Sản phẩm nổi bật"
+  },
+  "product": {
+    "searchPlaceholder": "Tìm kiếm sản phẩm…",
+    "sortNewest": "Mới nhất",
+    "sortPriceAsc": "Giá: Thấp đến Cao",
+    "sortPriceDesc": "Giá: Cao đến Thấp",
+    "sortName": "Tên A–Z",
+    "noProductsFound": "Không tìm thấy sản phẩm nào.",
+    "prev": "‹ Trước",
+    "next": "Sau ›",
+    "pageOf": "Trang {page} / {totalPages}",
+    "outOfStock": "Hết hàng",
+    "addToCart": "Thêm vào giỏ",
+    "addedToCart": "✓ Đã thêm vào giỏ hàng!",
+    "loadingProduct": "Đang tải..."
+  },
+  "cart": {
+    "title": "Giỏ hàng của bạn",
+    "empty": "Giỏ hàng của bạn đang trống.",
+    "browseProducts": "Xem sản phẩm →",
+    "each": "mỗi sản phẩm",
+    "remove": "Xóa",
+    "orderSummary": "Tóm tắt đơn hàng",
+    "subtotal": "Tạm tính",
+    "couponDiscount": "Giảm giá phiếu mua hàng",
+    "proceedToCheckout": "Tiến hành thanh toán"
+  },
+  "checkout": {
+    "title": "Thanh toán",
+    "stepShipping": "Giao hàng",
+    "stepPayment": "Thanh toán",
+    "stepReview": "Xem lại",
+    "shippingAddress": "Địa chỉ giao hàng",
+    "streetAddress": "Địa chỉ",
+    "city": "Thành phố",
+    "state": "Tỉnh/Bang",
+    "postalCode": "Mã bưu điện",
+    "country": "Quốc gia",
+    "continueArrow": "Tiếp tục →",
+    "paymentMethod": "Phương thức thanh toán",
+    "creditCard": "Thẻ tín dụng",
+    "bankTransfer": "Chuyển khoản ngân hàng",
+    "eWallet": "Ví điện tử",
+    "backArrow": "← Quay lại",
+    "reviewOrderArrow": "Xem lại đơn hàng →",
+    "reviewYourOrder": "Xem lại đơn hàng của bạn",
+    "shipTo": "Giao đến:",
+    "payment": "Thanh toán:",
+    "placingOrder": "Đang đặt hàng…",
+    "placeOrder": "Đặt hàng",
+    "placeOrderError": "Đặt hàng không thành công. Vui lòng thử lại."
+  },
+  "orders": {
+    "orderPlaced": "Đặt hàng thành công!",
+    "orderReceived": "Đơn hàng {orderNumber} của bạn đã được tiếp nhận. Chúng tôi sẽ thông báo khi đơn hàng được giao.",
+    "viewMyOrders": "Xem đơn hàng của tôi",
+    "continueShopping": "Tiếp tục mua sắm",
+    "myOrders": "Đơn hàng của tôi",
+    "noOrdersYet": "Bạn chưa đặt đơn hàng nào.",
+    "itemsCount": "{count} sản phẩm ·"
+  },
+  "account": {
+    "myProfile": "Hồ sơ của tôi",
+    "fullName": "Họ và tên",
+    "email": "Email",
+    "signOut": "Đăng xuất"
+  },
+  "auth": {
+    "signIn": "Đăng nhập",
+    "signingIn": "Đang đăng nhập…",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "noAccount": "Chưa có tài khoản?",
+    "register": "Đăng ký",
+    "invalidCredentials": "Email hoặc mật khẩu không đúng.",
+    "createAccount": "Tạo tài khoản",
+    "creatingAccount": "Đang tạo tài khoản…",
+    "firstName": "Tên",
+    "lastName": "Họ",
+    "alreadyHaveAccount": "Đã có tài khoản?",
+    "signInLink": "Đăng nhập",
+    "registrationFailed": "Đăng ký không thành công. Vui lòng thử lại."
+  }
+}

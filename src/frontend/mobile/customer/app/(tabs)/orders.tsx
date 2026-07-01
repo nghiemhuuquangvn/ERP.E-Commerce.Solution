@@ -1,6 +1,7 @@
 import { View, Text, FlatList, TouchableOpacity } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { apiClient } from '@/api/client'
 import { format } from 'date-fns'
 
@@ -24,6 +25,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function OrdersScreen() {
   const router = useRouter()
+  const { t } = useTranslation()
 
   const { data, isLoading } = useQuery({
     queryKey: ['my-orders'],
@@ -40,7 +42,7 @@ export default function OrdersScreen() {
     <View className="flex-1 bg-white">
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <Text className="text-gray-400">Loading orders…</Text>
+          <Text className="text-gray-400">{t('orders.loading')}</Text>
         </View>
       ) : (
         <FlatList
@@ -72,7 +74,7 @@ export default function OrdersScreen() {
           }}
           ListEmptyComponent={
             <View className="py-16 items-center">
-              <Text className="text-gray-400">No orders yet.</Text>
+              <Text className="text-gray-400">{t('orders.empty')}</Text>
             </View>
           }
         />

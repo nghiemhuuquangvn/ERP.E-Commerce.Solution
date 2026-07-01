@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { reportsApi } from '@/api/reports.api'
 import {
   LineChart,
@@ -37,6 +38,7 @@ function KpiCard({ label, value, sub }: { label: string; value: string; sub?: st
 }
 
 export function DashboardPage() {
+  const { t } = useTranslation()
   const { data, isLoading } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: () => reportsApi.sales(QUERY_PARAMS),
@@ -45,28 +47,28 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
+      <h1 className="text-xl font-semibold text-gray-900">{t('dashboard.title')}</h1>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <KpiCard
-          label="Revenue (30d)"
+          label={t('dashboard.revenue30d')}
           value={isLoading ? '—' : fmt.format(data?.totalRevenue ?? 0)}
         />
         <KpiCard
-          label="Orders (30d)"
+          label={t('dashboard.orders30d')}
           value={isLoading ? '—' : String(data?.totalOrders ?? 0)}
         />
         <KpiCard
-          label="Avg Order Value"
+          label={t('dashboard.avgOrderValue')}
           value={isLoading ? '—' : fmt.format(data?.averageOrderValue ?? 0)}
         />
       </div>
 
       <div className="card p-5">
-        <h2 className="mb-4 text-sm font-semibold text-gray-700">Revenue Last 30 Days</h2>
+        <h2 className="mb-4 text-sm font-semibold text-gray-700">{t('dashboard.revenueLast30Days')}</h2>
         {isLoading ? (
           <div className="flex h-48 items-center justify-center text-gray-400">
-            Loading chart...
+            {t('dashboard.loadingChart')}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={220}>

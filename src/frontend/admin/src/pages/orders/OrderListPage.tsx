@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { ordersApi, OrderStatus } from '@/api/orders.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -11,17 +12,18 @@ import { usePermission } from '@/hooks/usePermission'
 import { format } from 'date-fns'
 import type { Order } from '@/api/orders.api'
 
-const STATUS_FILTERS: { label: string; value: OrderStatus | '' }[] = [
-  { label: 'All', value: '' },
-  { label: 'Draft', value: 'Draft' },
-  { label: 'Confirmed', value: 'Confirmed' },
-  { label: 'Processing', value: 'Processing' },
-  { label: 'Shipped', value: 'Shipped' },
-  { label: 'Delivered', value: 'Delivered' },
-  { label: 'Cancelled', value: 'Cancelled' },
+const STATUS_FILTERS: { labelKey: string; value: OrderStatus | '' }[] = [
+  { labelKey: 'common.all', value: '' },
+  { labelKey: 'orders.statusFilters.draft', value: 'Draft' },
+  { labelKey: 'orders.statusFilters.confirmed', value: 'Confirmed' },
+  { labelKey: 'orders.statusFilters.processing', value: 'Processing' },
+  { labelKey: 'orders.statusFilters.shipped', value: 'Shipped' },
+  { labelKey: 'orders.statusFilters.delivered', value: 'Delivered' },
+  { labelKey: 'orders.statusFilters.cancelled', value: 'Cancelled' },
 ]
 
 export function OrderListPage() {
+  const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const { page, pageSize, setPage } = usePagination()
   const [search, setSearch] = useState('')
@@ -76,17 +78,17 @@ export function OrderListPage() {
     () => [
       {
         key: 'orderNumber',
-        label: 'Order #',
+        label: t('orders.orderNumber'),
         render: (o: Order) => (
           <Link to={`/orders/${o.id}`} className="text-primary-600 hover:underline">
             {o.orderNumber}
           </Link>
         ),
       },
-      { key: 'customerName', label: 'Customer' },
+      { key: 'customerName', label: t('orders.customer') },
       {
         key: 'totalAmount',
-        label: 'Total',
+        label: t('orders.total'),
         render: (o: Order) =>
           new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
             o.totalAmount,
@@ -94,12 +96,12 @@ export function OrderListPage() {
       },
       {
         key: 'status',
-        label: 'Status',
+        label: t('common.status'),
         render: (o: Order) => <StatusBadge status={o.status} />,
       },
       {
         key: 'orderDate',
-        label: 'Date',
+        label: t('common.date'),
         render: (o: Order) => format(new Date(o.orderDate), 'dd MMM yyyy'),
       },
       {
@@ -112,7 +114,7 @@ export function OrderListPage() {
                 onClick={() => approveOrder(o.id)}
                 className="text-xs text-primary-600 hover:underline"
               >
-                Approve
+                {t('orders.approve')}
               </button>
             )}
             {hasPermission('orders:cancel') && !['Cancelled', 'Delivered'].includes(o.status) && (
@@ -120,23 +122,23 @@ export function OrderListPage() {
                 onClick={() => setCancelId(o.id)}
                 className="text-xs text-red-600 hover:underline"
               >
-                Cancel
+                {t('orders.cancel')}
               </button>
             )}
           </div>
         ),
       },
     ],
-    [hasPermission, approveOrder],
+    [hasPermission, approveOrder, t],
   )
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Orders</h1>
+        <h1 className="text-xl font-semibold">{t('orders.title')}</h1>
         {hasPermission('orders:create') && (
           <Link to="/orders/new" className="btn-primary">
-            + New Order
+            {t('orders.newOrder')}
           </Link>
         )}
       </div>
@@ -144,7 +146,7 @@ export function OrderListPage() {
       <div className="flex gap-3">
         <input
           className="input max-w-xs"
-          placeholder="Search by order # or customer…"
+          placeholder={t('orders.searchPlaceholder')}
           value={search}
           onChange={handleSearchChange}
         />
@@ -159,7 +161,7 @@ export function OrderListPage() {
                   : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
               }`}
             >
-              {f.label}
+              {t(f.labelKey)}
             </button>
           ))}
         </div>
@@ -175,9 +177,9 @@ export function OrderListPage() {
 
       <ConfirmDialog
         open={cancelId !== null}
-        title="Cancel Order"
-        message="Are you sure you want to cancel this order? This action cannot be undone."
-        confirmLabel="Cancel Order"
+        title={t('orders.cancelOrderTitle')}
+        message={t('orders.cancelOrderMessage')}
+        confirmLabel={t('orders.cancelOrderConfirm')}
         danger
         onConfirm={handleCancelConfirm}
         onCancel={() => setCancelId(null)}

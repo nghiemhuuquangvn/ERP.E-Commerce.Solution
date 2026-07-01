@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { reportsApi } from '@/api/reports.api'
 import { format, subDays } from 'date-fns'
 import {
@@ -17,6 +18,7 @@ import {
 const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 
 export function ReportsPage() {
+  const { t } = useTranslation()
   const [from, setFrom] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'))
   const [to, setTo] = useState(format(new Date(), 'yyyy-MM-dd'))
 
@@ -35,16 +37,16 @@ export function ReportsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <h1 className="text-xl font-semibold">Reports</h1>
+        <h1 className="text-xl font-semibold">{t('reports.title')}</h1>
         <div className="ml-auto flex items-center gap-2">
-          <label className="text-sm text-gray-500">From</label>
+          <label className="text-sm text-gray-500">{t('reports.from')}</label>
           <input
             type="date"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
             className="input w-auto"
           />
-          <label className="text-sm text-gray-500">To</label>
+          <label className="text-sm text-gray-500">{t('reports.to')}</label>
           <input
             type="date"
             value={to}
@@ -56,9 +58,9 @@ export function ReportsPage() {
 
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Total Revenue', value: fmt.format(salesQuery.data?.totalRevenue ?? 0) },
-          { label: 'Orders', value: String(salesQuery.data?.totalOrders ?? 0) },
-          { label: 'Avg Order Value', value: fmt.format(salesQuery.data?.averageOrderValue ?? 0) },
+          { label: t('reports.totalRevenue'), value: fmt.format(salesQuery.data?.totalRevenue ?? 0) },
+          { label: t('reports.orders'), value: String(salesQuery.data?.totalOrders ?? 0) },
+          { label: t('reports.avgOrderValue'), value: fmt.format(salesQuery.data?.averageOrderValue ?? 0) },
         ].map((kpi) => (
           <div key={kpi.label} className="card p-5">
             <p className="text-sm text-gray-500">{kpi.label}</p>
@@ -70,7 +72,7 @@ export function ReportsPage() {
       </div>
 
       <div className="card p-5">
-        <h2 className="mb-4 text-sm font-semibold text-gray-600">Revenue by Day</h2>
+        <h2 className="mb-4 text-sm font-semibold text-gray-600">{t('reports.revenueByDay')}</h2>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={salesQuery.data?.byDate ?? []}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -91,9 +93,9 @@ export function ReportsPage() {
       </div>
 
       <div className="card p-5">
-        <h2 className="mb-4 text-sm font-semibold text-gray-600">Revenue by Payment Method</h2>
+        <h2 className="mb-4 text-sm font-semibold text-gray-600">{t('reports.revenueByPaymentMethod')}</h2>
         {payQuery.isLoading ? (
-          <div className="text-gray-400">Loading...</div>
+          <div className="text-gray-400">{t('common.loading')}</div>
         ) : (
           <div className="space-y-2">
             {(payQuery.data?.byMethod ?? []).map((m) => (

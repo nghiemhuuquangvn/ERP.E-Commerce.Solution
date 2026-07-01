@@ -1,0 +1,1 @@
+import{x as r}from"./index-DqPF921y.js";const o={create:e=>r.post("/v1/orders",e).then(t=>t.data),myOrders:()=>r.get("/v1/orders/my").then(e=>e.data),get:e=>r.get(`/v1/orders/${e}`).then(t=>t.data)};export{o};

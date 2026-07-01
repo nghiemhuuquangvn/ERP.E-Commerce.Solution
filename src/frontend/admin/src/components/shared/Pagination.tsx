@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface PaginationProps {
   page: number
@@ -8,8 +9,8 @@ interface PaginationProps {
 }
 
 function PaginationInner({ page, pageSize, totalCount, onPageChange }: PaginationProps) {
+  const { t } = useTranslation()
   const totalPages = Math.ceil(totalCount / pageSize)
-  if (totalPages <= 1) return null
 
   const pages = useMemo(() => {
     const start = Math.max(1, page - 2)
@@ -18,11 +19,16 @@ function PaginationInner({ page, pageSize, totalCount, onPageChange }: Paginatio
     )
   }, [page, totalPages])
 
+  if (totalPages <= 1) return null
+
   return (
     <div className="flex items-center justify-between py-3 text-sm text-gray-600">
       <span>
-        Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, totalCount)} of{' '}
-        {totalCount}
+        {t('common.showingRange', {
+          from: (page - 1) * pageSize + 1,
+          to: Math.min(page * pageSize, totalCount),
+          total: totalCount,
+        })}
       </span>
       <div className="flex gap-1">
         <button
@@ -30,7 +36,7 @@ function PaginationInner({ page, pageSize, totalCount, onPageChange }: Paginatio
           onClick={() => onPageChange(page - 1)}
           className="rounded px-3 py-1 hover:bg-gray-100 disabled:opacity-40"
         >
-          ‹ Prev
+          {t('common.prev')}
         </button>
         {pages.map((p) => (
           <button
@@ -48,7 +54,7 @@ function PaginationInner({ page, pageSize, totalCount, onPageChange }: Paginatio
           onClick={() => onPageChange(page + 1)}
           className="rounded px-3 py-1 hover:bg-gray-100 disabled:opacity-40"
         >
-          Next ›
+          {t('common.next')}
         </button>
       </div>
     </div>

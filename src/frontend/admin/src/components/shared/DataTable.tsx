@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface Column<T> {
   key: keyof T | string
@@ -18,12 +19,14 @@ function DataTableInner<T extends { id: string }>({
   columns,
   data,
   isLoading,
-  emptyMessage = 'No records found.',
+  emptyMessage,
 }: DataTableProps<T>) {
+  const { t } = useTranslation()
+
   if (isLoading) {
     return (
       <div className="flex h-40 items-center justify-center text-gray-400">
-        Loading...
+        {t('common.loading')}
       </div>
     )
   }
@@ -47,7 +50,7 @@ function DataTableInner<T extends { id: string }>({
           {data.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className="py-8 text-center text-gray-400">
-                {emptyMessage}
+                {emptyMessage ?? t('common.noRecordsFound')}
               </td>
             </tr>
           ) : (
