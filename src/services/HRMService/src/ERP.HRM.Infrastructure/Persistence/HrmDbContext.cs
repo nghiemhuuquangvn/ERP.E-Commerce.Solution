@@ -9,8 +9,7 @@ namespace ERP.HRM.Infrastructure.Persistence
 {
     public class HrmDbContext : DbContext
     {
-        public DbSet<Employee> Employees { get; set; }
-        public DbSet<Department> Departments { get; set; }
+        public DbSet<EmployeeSnapshot> EmployeeSnapshots { get; set; }
         public DbSet<LeaveRequest> LeaveRequests { get; set; }
         public DbSet<PaySlip> PaySlips { get; set; }
         public DbSet<OutboxMessage> OutboxMessages { get; set; }

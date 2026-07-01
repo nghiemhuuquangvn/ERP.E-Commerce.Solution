@@ -1,6 +1,7 @@
 using ERP.CRM.Application;
 using ERP.CRM.Infrastructure;
 using ERP.Shared.Authorization;
+using ERP.Shared.Localization;
 using Serilog;
 using Serilog.Events;
 
@@ -30,6 +31,7 @@ try
 
     builder.Services.AddHealthChecks();
     builder.Services.AddControllers();
+    builder.Services.AddSharedLocalization(builder.Configuration);
 
     builder.Services
         .AddApplication()
@@ -54,6 +56,7 @@ try
     }
 
     app.UseHttpsRedirection();
+    app.UseSharedLocalization();
     app.UseCors("AllowAll");
     app.UseAuthorization();
     app.MapHealthChecks("/health");

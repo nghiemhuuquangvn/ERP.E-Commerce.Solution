@@ -1,5 +1,6 @@
 using ERP.Shared.Authorization;
 using ERP.Shared.Infrastructure.Caching;
+using ERP.Shared.Localization;
 using ERP.Shared.Messaging;
 using ERP.SO.Api.Extensions;
 using ERP.SO.Api.Middleware;
@@ -35,6 +36,7 @@ builder.Services.AddMiddleware();
 
 // API
 builder.Services.AddControllers();
+builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
@@ -50,6 +52,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseUserContextHeaderMiddleware();
+app.UseSharedLocalization();
 app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();

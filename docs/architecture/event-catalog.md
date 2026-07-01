@@ -447,6 +447,51 @@ public class PaymentReceivedEvent : IntegrationEvent
 
 ---
 
+## Shared Master Data Service Events
+
+### EmployeeHiredEvent
+
+**Description:** Published when a new employee is hired (master record, owned by SharedMasterDataService).
+
+**Publisher:** SharedMasterDataService
+**Subscribers:** HRMService (syncs a local, read-only EmployeeSnapshot projection)
+
+**Event Structure:**
+```csharp
+public record EmployeeHiredEvent(
+    Guid EmployeeId,
+    string EmployeeNumber,
+    string FullName,
+    string? Email,
+    Guid DepartmentId) : IDomainEvent;
+```
+
+**Routing:** Kafka (`mst-topic`)
+**Delivery:** Guaranteed (Outbox Pattern)
+
+**Handling:**
+- HRMService: Upsert local EmployeeSnapshot (used by leave/payroll handlers instead of a synchronous cross-service call)
+
+---
+
+### EmployeeTerminatedEvent / EmployeeTransferredEvent
+
+Same publisher/topic/delivery as EmployeeHiredEvent. HRMService consumes both to keep its
+EmployeeSnapshot projection's `EmploymentStatus`/`DepartmentId` current. See
+`src/services/SharedMasterDataService/src/ERP.MST.Domain/Events/MasterDataEvents.cs` for
+full definitions, and `src/services/HRMService/src/ERP.HRM.Infrastructure/BackgroundJobs/MasterDataEventConsumer.cs`
+for the consumer.
+
+### DepartmentCreatedEvent / DepartmentUpdatedEvent / PositionCreatedEvent / UnitOfMeasureCreatedEvent / CountryCreatedEvent
+
+**Publisher:** SharedMasterDataService
+**Subscribers:** None yet (published for future consumers; reference/lookup data is
+otherwise fetched via `GET /api/v1/masterdata/...` REST calls, not events)
+
+**Routing:** Kafka (`mst-topic`)
+
+---
+
 ## Event Processing Guarantees
 
 ### Delivery Semantics

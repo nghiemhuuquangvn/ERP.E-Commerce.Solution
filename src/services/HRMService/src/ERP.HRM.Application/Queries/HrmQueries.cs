@@ -3,25 +3,7 @@ using MediatR;
 
 namespace ERP.HRM.Application.Queries;
 
-// ─── Department Queries ────────────────────────────────────────────────────
-
-public record GetDepartmentQuery(Guid DepartmentId) : IRequest<DepartmentDto?>;
-
-public record ListDepartmentsQuery(
-    int Page = 1,
-    int PageSize = 20) : IRequest<PagedResult<DepartmentDto>>;
-
-// ─── Employee Queries ──────────────────────────────────────────────────────
-
-public record GetEmployeeQuery(Guid EmployeeId) : IRequest<EmployeeDto?>;
-
-public record ListEmployeesQuery(
-    Guid? DepartmentId = null,
-    int? Status = null,
-    int Page = 1,
-    int PageSize = 20) : IRequest<PagedResult<EmployeeDto>>;
-
-public record GetHeadcountReportQuery() : IRequest<List<DepartmentHeadcountDto>>;
+// Department/Employee queries moved to SharedMasterDataService.
 
 // ─── Leave Request Queries ─────────────────────────────────────────────────
 

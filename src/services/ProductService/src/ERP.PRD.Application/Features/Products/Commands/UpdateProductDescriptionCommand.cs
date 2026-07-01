@@ -1,4 +1,7 @@
+using ERP.PRD.Infrastructure.Persistence;
+using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Products.Commands
 {
@@ -8,7 +11,7 @@ namespace ERP.PRD.Application.Features.Products.Commands
         public string Description { get; set; } = string.Empty;
     }
 
-    public class UpdateProductDescriptionValidator : FluentValidation.AbstractValidator<UpdateProductDescriptionCommand>
+    public class UpdateProductDescriptionValidator : AbstractValidator<UpdateProductDescriptionCommand>
     {
         public UpdateProductDescriptionValidator()
         {
@@ -23,18 +26,16 @@ namespace ERP.PRD.Application.Features.Products.Commands
 
     public class UpdateProductDescriptionHandler : IRequestHandler<UpdateProductDescriptionCommand, Unit>
     {
-        private readonly IRepository<Domain.Entities.Product> _repository;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly ProductDbContext _context;
 
-        public UpdateProductDescriptionHandler(IRepository<Domain.Entities.Product> repository, IUnitOfWork unitOfWork)
+        public UpdateProductDescriptionHandler(ProductDbContext context)
         {
-            _repository = repository;
-            _unitOfWork = unitOfWork;
+            _context = context;
         }
 
         public async Task<Unit> Handle(UpdateProductDescriptionCommand request, CancellationToken cancellationToken)
         {
-            var product = await _repository.GetAsync(
+            var product = await _context.Products.FirstOrDefaultAsync(
                 x => x.Id == request.ProductId && !x.IsDeleted,
                 cancellationToken
             );
@@ -44,8 +45,7 @@ namespace ERP.PRD.Application.Features.Products.Commands
 
             product.UpdateDescription(request.Description);
 
-            await _repository.UpdateAsync(product, cancellationToken);
-            await _unitOfWork.CommitAsync(cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
 
             return Unit.Value;
         }

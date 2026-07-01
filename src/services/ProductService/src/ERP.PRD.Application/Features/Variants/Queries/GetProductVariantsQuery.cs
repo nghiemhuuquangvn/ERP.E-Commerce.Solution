@@ -1,4 +1,6 @@
+using ERP.PRD.Infrastructure.Persistence;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Variants.Queries
 {
@@ -22,19 +24,18 @@ namespace ERP.PRD.Application.Features.Variants.Queries
 
     public class GetProductVariantsHandler : IRequestHandler<GetProductVariantsQuery, List<ProductVariantDto>>
     {
-        private readonly IRepository<Domain.Entities.Product> _productRepository;
+        private readonly ProductDbContext _context;
 
-        public GetProductVariantsHandler(IRepository<Domain.Entities.Product> productRepository)
+        public GetProductVariantsHandler(ProductDbContext context)
         {
-            _productRepository = productRepository;
+            _context = context;
         }
 
         public async Task<List<ProductVariantDto>> Handle(GetProductVariantsQuery request, CancellationToken cancellationToken)
         {
-            var product = await _productRepository.GetAsync(
-                x => x.Id == request.ProductId && !x.IsDeleted,
-                cancellationToken
-            );
+            var product = await _context.Products
+                .Include(p => p.Variants)
+                .FirstOrDefaultAsync(x => x.Id == request.ProductId && !x.IsDeleted, cancellationToken);
 
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");

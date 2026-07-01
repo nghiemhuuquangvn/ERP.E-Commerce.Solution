@@ -1,8 +1,9 @@
 using ERP.PRD.Application;
 using ERP.PRD.Infrastructure;
 using ERP.Shared.Core.Domain;
+using ERP.Shared.Localization;
 using ERP.Shared.Messaging;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +30,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 builder.Services.AddControllers();
+builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -54,6 +56,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseSharedLocalization();
 app.UseCors();
 app.UseAuthorization();
 app.MapControllers();

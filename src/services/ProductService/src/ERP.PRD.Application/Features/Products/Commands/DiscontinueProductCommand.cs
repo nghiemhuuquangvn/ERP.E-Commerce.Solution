@@ -1,4 +1,6 @@
+using ERP.PRD.Infrastructure.Persistence;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Products.Commands
 {
@@ -9,18 +11,16 @@ namespace ERP.PRD.Application.Features.Products.Commands
 
     public class DiscontinueProductHandler : IRequestHandler<DiscontinueProductCommand, Unit>
     {
-        private readonly IRepository<Domain.Entities.Product> _repository;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly ProductDbContext _context;
 
-        public DiscontinueProductHandler(IRepository<Domain.Entities.Product> repository, IUnitOfWork unitOfWork)
+        public DiscontinueProductHandler(ProductDbContext context)
         {
-            _repository = repository;
-            _unitOfWork = unitOfWork;
+            _context = context;
         }
 
         public async Task<Unit> Handle(DiscontinueProductCommand request, CancellationToken cancellationToken)
         {
-            var product = await _repository.GetAsync(
+            var product = await _context.Products.FirstOrDefaultAsync(
                 x => x.Id == request.ProductId && !x.IsDeleted,
                 cancellationToken
             );
@@ -30,8 +30,7 @@ namespace ERP.PRD.Application.Features.Products.Commands
 
             product.Discontinue();
 
-            await _repository.UpdateAsync(product, cancellationToken);
-            await _unitOfWork.CommitAsync(cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
 
             return Unit.Value;
         }

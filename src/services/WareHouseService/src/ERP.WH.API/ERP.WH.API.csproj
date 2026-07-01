@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Shared\ERP.Shared.csproj" />
     <ProjectReference Include="../ERP.WH.Application/ERP.WH.Application.csproj" />
     <ProjectReference Include="../ERP.WH.Infrastructure/ERP.WH.Infrastructure.csproj" />
   </ItemGroup>

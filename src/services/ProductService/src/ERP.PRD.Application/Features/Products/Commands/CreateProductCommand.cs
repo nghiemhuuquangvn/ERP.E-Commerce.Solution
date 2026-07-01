@@ -1,4 +1,4 @@
-using ERP.Shared.Messaging;
+using ERP.PRD.Infrastructure.Persistence;
 using MediatR;
 
 namespace ERP.PRD.Application.Features.Products.Commands
@@ -22,13 +22,11 @@ namespace ERP.PRD.Application.Features.Products.Commands
 
     public class CreateProductHandler : IRequestHandler<CreateProductCommand, CreateProductResponse>
     {
-        private readonly IRepository<Domain.Entities.Product> _repository;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly ProductDbContext _context;
 
-        public CreateProductHandler(IRepository<Domain.Entities.Product> repository, IUnitOfWork unitOfWork)
+        public CreateProductHandler(ProductDbContext context)
         {
-            _repository = repository;
-            _unitOfWork = unitOfWork;
+            _context = context;
         }
 
         public async Task<CreateProductResponse> Handle(CreateProductCommand request, CancellationToken cancellationToken)
@@ -43,8 +41,8 @@ namespace ERP.PRD.Application.Features.Products.Commands
             if (!string.IsNullOrWhiteSpace(request.Description))
                 product.UpdateDescription(request.Description);
 
-            await _repository.AddAsync(product, cancellationToken);
-            await _unitOfWork.CommitAsync(cancellationToken);
+            _context.Products.Add(product);
+            await _context.SaveChangesAsync(cancellationToken);
 
             return new CreateProductResponse
             {

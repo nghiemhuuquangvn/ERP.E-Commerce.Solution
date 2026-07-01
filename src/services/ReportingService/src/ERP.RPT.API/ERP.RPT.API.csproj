@@ -12,6 +12,7 @@
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.0" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Shared\ERP.Shared.csproj" />
     <ProjectReference Include="..\ERP.RPT.Application\ERP.RPT.Application.csproj" />
     <ProjectReference Include="..\ERP.RPT.Infrastructure\ERP.RPT.Infrastructure.csproj" />
     <ProjectReference Include="..\ERP.RPT.Domain\ERP.RPT.Domain.csproj" />

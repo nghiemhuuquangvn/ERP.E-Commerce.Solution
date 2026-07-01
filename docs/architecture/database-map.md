@@ -14,7 +14,7 @@
 | 4 | WareHouseService | WarehouseDB | 1433 | Inventory & stock movements | 10M-100M transactions |
 | 5 | AccountingService | AccountingDB | 1433 | GL, AR, AP, invoices, bills | 100M-1B transactions |
 | 6 | CRMService | CrmDb | 1433 | Contacts, leads, opportunities, cases | 100K-10M records |
-| 7 | HRMService | HrmDb | 1433 | Employees, departments, payroll | 10K-100K records |
+| 7 | HRMService | HrmDb | 1433 | Attendance, leave, payroll, EmployeeSnapshots (read-only) | 10K-100K records |
 | 8 | ProductService | ProductDB | 1433 | Products, variants, categories, pricing | 10K-1M products |
 | 9 | PaymentService | PaymentDB | 1433 | Transactions, methods, refunds, settlements | 10M-100M transactions |
 | 10 | ShippingService | ShippingDB | 1433 | Shipments, carriers, tracking, manifests | 1M-10M shipments |
@@ -22,6 +22,7 @@
 | 12 | PromotionService | PromotionDB | 1433 | Promotions, coupons, loyalty, flash sales | 10K-100K records |
 | 13 | NotificationService | NotificationDB | 1433 | Templates, notifications, preferences, history | 100M-1B records |
 | 14 | ReportingService | ReportingDB | 1433 | Fact tables, dimension tables (data warehouse) | 1B+ denormalized records |
+| 15 | SharedMasterDataService | MasterDataDB | 1433 | Departments, positions, employees, UoM, geography, languages | 10K-100K records |
 
 **Total Storage (estimated):** 500GB-5TB across all services (varies by transaction volume)
 

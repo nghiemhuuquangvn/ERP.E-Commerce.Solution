@@ -2,30 +2,8 @@ using ERP.Shared.Core.Domain;
 
 namespace ERP.HRM.Domain.Events;
 
-public record EmployeeHiredEvent(
-    Guid EmployeeId,
-    string EmployeeNumber,
-    string FullName,
-    string? Email,
-    Guid DepartmentId) : IDomainEvent
-{
-    public DateTime OccurredOn { get; } = DateTime.UtcNow;
-}
-
-public record EmployeeTerminatedEvent(
-    Guid EmployeeId,
-    string Reason) : IDomainEvent
-{
-    public DateTime OccurredOn { get; } = DateTime.UtcNow;
-}
-
-public record EmployeeTransferredEvent(
-    Guid EmployeeId,
-    Guid OldDepartmentId,
-    Guid NewDepartmentId) : IDomainEvent
-{
-    public DateTime OccurredOn { get; } = DateTime.UtcNow;
-}
+// Employee/Department lifecycle events moved to SharedMasterDataService
+// (ERP.MST.Domain.Events.MasterDataEvents) — HRM no longer owns those aggregates.
 
 public record LeaveApprovedEvent(
     Guid LeaveRequestId,

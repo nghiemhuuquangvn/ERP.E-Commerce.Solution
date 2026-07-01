@@ -3,43 +3,24 @@ using MediatR;
 
 namespace ERP.HRM.Application.Commands;
 
-// ─── Department Commands ───────────────────────────────────────────────────
+// Department/Employee commands moved to SharedMasterDataService.
+// HRM keeps a local, read-only EmployeeSnapshot projection instead — see
+// EmployeeMasterDataEventHandlers and the commands below that keep it in sync.
 
-public record CreateDepartmentCommand(
-    string Name,
-    string Code,
-    Guid? ManagerId,
-    Guid? ParentDepartmentId = null) : IRequest<DepartmentDto>;
+// ─── Employee Snapshot Sync Commands (driven by mst-topic consumer) ───────
 
-public record UpdateDepartmentCommand(
-    Guid DepartmentId,
-    string Name,
-    string Code,
-    Guid? ManagerId) : IRequest<DepartmentDto>;
-
-// ─── Employee Commands ─────────────────────────────────────────────────────
-
-public record HireEmployeeCommand(
-    string FirstName,
-    string LastName,
-    string? Email,
-    string? Phone,
-    Guid DepartmentId,
-    DateTime DateOfHire,
-    int EmploymentType) : IRequest<EmployeeDto>;
-
-public record TerminateEmployeeCommand(
+public record UpsertEmployeeSnapshotCommand(
     Guid EmployeeId,
-    string Reason) : IRequest<EmployeeDto>;
+    string FullName,
+    int EmploymentStatus,
+    Guid DepartmentId) : IRequest<Unit>;
 
-public record UpdateEmployeeProfileCommand(
-    Guid EmployeeId,
-    string? Email,
-    string? Phone) : IRequest<EmployeeDto>;
+public record MarkEmployeeSnapshotTerminatedCommand(
+    Guid EmployeeId) : IRequest<Unit>;
 
-public record TransferEmployeeCommand(
+public record UpdateEmployeeSnapshotDepartmentCommand(
     Guid EmployeeId,
-    Guid NewDepartmentId) : IRequest<EmployeeDto>;
+    Guid NewDepartmentId) : IRequest<Unit>;
 
 // ─── Leave Request Commands ────────────────────────────────────────────────
 

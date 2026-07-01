@@ -281,6 +281,31 @@ services:
     networks:
       - erp-network
 
+  masterdataservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/SharedMasterDataService/src/ERP.MST.API
+        PROJECT_FILE: ERP.MST.API.csproj
+        ASSEMBLY_NAME: ERP.MST.API
+    container_name: erp-masterdata-service
+    ports:
+      - "5015:5015"
+    environment:
+      ASPNETCORE_URLS: "http://+:5015"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__MasterDataDb: "Server=host.docker.internal,1433;Database=MasterDataDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      KafkaSettings__BootstrapServers: kafka:9092
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - erp-network
+
   productservice:
     build:
       context: .

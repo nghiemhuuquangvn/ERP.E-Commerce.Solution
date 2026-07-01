@@ -12,6 +12,9 @@ namespace ERP.PRD.Domain.Entities
         public Guid? ParentCategoryId { get; set; }
         public int SortOrder { get; set; }
 
+        private readonly List<CategoryTranslation> _translations = new();
+        public IReadOnlyList<CategoryTranslation> Translations => _translations.AsReadOnly();
+
         public static Category Create(string name, Guid? parentCategoryId = null)
         {
             var category = new Category
@@ -24,6 +27,30 @@ namespace ERP.PRD.Domain.Entities
             };
 
             return category;
+        }
+
+        /// <summary>
+        /// Adds or updates the translation for the given language code.
+        /// Translations are an additive overlay; Name remains the default-language fallback.
+        /// </summary>
+        public void SetTranslation(string languageCode, string name)
+        {
+            if (string.IsNullOrWhiteSpace(languageCode))
+                throw new ArgumentException("Language code is required");
+
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("Name cannot be empty");
+
+            var existing = _translations.FirstOrDefault(t => t.LanguageCode == languageCode);
+            if (existing != null)
+            {
+                existing.Name = name;
+                existing.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                _translations.Add(CategoryTranslation.Create(Id, languageCode, name));
+            }
         }
     }
 }

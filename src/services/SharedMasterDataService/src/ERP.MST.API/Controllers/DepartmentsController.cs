@@ -1,14 +1,14 @@
-using ERP.HRM.Application.Commands;
-using ERP.HRM.Application.DTOs;
-using ERP.HRM.Application.Queries;
+using ERP.MST.Application.Commands;
+using ERP.MST.Application.DTOs;
+using ERP.MST.Application.Queries;
 using ERP.Shared.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ERP.HRM.API.Controllers;
+namespace ERP.MST.API.Controllers;
 
 [ApiController]
-[Route("api/v1/hrm/departments")]
+[Route("api/v1/masterdata/departments")]
 public class DepartmentsController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -22,16 +22,17 @@ public class DepartmentsController : ControllerBase
     /// List all departments (paginated).
     /// </summary>
     [HttpGet]
-    [AuthorizePermission("hrm:employees:view")]
+    [AuthorizePermission("masterdata:departments:view")]
     [ProducesResponseType(typeof(PagedResult<DepartmentDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> List(
+        [FromQuery] string? languageCode = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var result = await _mediator.Send(new ListDepartmentsQuery(page, pageSize), cancellationToken);
+        var result = await _mediator.Send(new ListDepartmentsQuery(languageCode, page, pageSize), cancellationToken);
         return Ok(result);
     }
 
@@ -39,7 +40,7 @@ public class DepartmentsController : ControllerBase
     /// Create a new department.
     /// </summary>
     [HttpPost]
-    [AuthorizePermission("hrm:employees:manage")]
+    [AuthorizePermission("masterdata:departments:manage")]
     [ProducesResponseType(typeof(DepartmentDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -56,16 +57,17 @@ public class DepartmentsController : ControllerBase
     /// Get a department by ID.
     /// </summary>
     [HttpGet("{id:guid}")]
-    [AuthorizePermission("hrm:employees:view")]
+    [AuthorizePermission("masterdata:departments:view")]
     [ProducesResponseType(typeof(DepartmentDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetById(
         [FromRoute] Guid id,
+        [FromQuery] string? languageCode = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await _mediator.Send(new GetDepartmentQuery(id), cancellationToken);
+        var result = await _mediator.Send(new GetDepartmentQuery(id, languageCode), cancellationToken);
         if (result is null)
             return NotFound(new { message = $"Department {id} not found." });
 
@@ -76,7 +78,7 @@ public class DepartmentsController : ControllerBase
     /// Update an existing department.
     /// </summary>
     [HttpPut("{id:guid}")]
-    [AuthorizePermission("hrm:employees:manage")]
+    [AuthorizePermission("masterdata:departments:manage")]
     [ProducesResponseType(typeof(DepartmentDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

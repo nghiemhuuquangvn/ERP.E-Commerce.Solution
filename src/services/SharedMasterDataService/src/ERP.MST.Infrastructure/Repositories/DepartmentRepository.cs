@@ -1,15 +1,15 @@
-using ERP.HRM.Application.Interfaces;
-using ERP.HRM.Domain.Entities;
-using ERP.HRM.Infrastructure.Persistence;
+using ERP.MST.Application.Interfaces;
+using ERP.MST.Domain.Entities;
+using ERP.MST.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace ERP.HRM.Infrastructure.Repositories;
+namespace ERP.MST.Infrastructure.Repositories;
 
 public class DepartmentRepository : IDepartmentRepository
 {
-    private readonly HrmDbContext _context;
+    private readonly MasterDataDbContext _context;
 
-    public DepartmentRepository(HrmDbContext context)
+    public DepartmentRepository(MasterDataDbContext context)
     {
         _context = context;
     }
@@ -52,6 +52,12 @@ public class DepartmentRepository : IDepartmentRepository
     {
         return await _context.Departments
             .AnyAsync(d => !d.IsDeleted && d.Code == code, cancellationToken);
+    }
+
+    public async Task<DepartmentTranslation?> GetTranslationAsync(Guid ownerId, string languageCode, CancellationToken cancellationToken = default)
+    {
+        return await _context.DepartmentTranslations
+            .FirstOrDefaultAsync(t => t.OwnerId == ownerId && t.LanguageCode == languageCode && !t.IsDeleted, cancellationToken);
     }
 
     public void Add(Department department)

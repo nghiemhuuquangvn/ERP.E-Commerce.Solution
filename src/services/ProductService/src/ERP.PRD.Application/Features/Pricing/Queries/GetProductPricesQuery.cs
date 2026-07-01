@@ -42,7 +42,7 @@ namespace ERP.PRD.Application.Features.Pricing.Queries
                     VariantId = v.Id,
                     Sku = v.Sku,
                     Cost = v.Cost,
-                    UpdatedAt = v.UpdatedAt ?? v.CreatedAt
+                    UpdatedAt = v.UpdatedAt
                 })
                 .ToListAsync(cancellationToken);
 

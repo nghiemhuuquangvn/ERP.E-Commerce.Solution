@@ -3,6 +3,7 @@ using ERP.PRD.Application.Features.Products.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
 
 namespace ERP.PRD.API.Controllers
 {
@@ -18,6 +19,19 @@ namespace ERP.PRD.API.Controllers
         {
             _mediator = mediator;
             _logger = logger;
+        }
+
+        /// <summary>
+        /// Resolves the effective language code for a request: the explicit query-string
+        /// value when provided, otherwise the culture negotiated by UseSharedLocalization()
+        /// from the Accept-Language header/query-string culture providers.
+        /// </summary>
+        private static string? ResolveLanguageCode(string? explicitLanguageCode)
+        {
+            if (!string.IsNullOrWhiteSpace(explicitLanguageCode))
+                return explicitLanguageCode;
+
+            return CultureInfo.CurrentUICulture.Name;
         }
 
         /// <summary>
@@ -45,14 +59,34 @@ namespace ERP.PRD.API.Controllers
         [HttpGet("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetProduct(Guid id)
+        public async Task<IActionResult> GetProduct(Guid id, [FromQuery] string? languageCode = null)
         {
             _logger.LogInformation("Fetching product: {ProductId}", id);
 
-            var query = new GetProductQuery { ProductId = id };
+            var query = new GetProductQuery { ProductId = id, LanguageCode = ResolveLanguageCode(languageCode) };
             var result = await _mediator.Send(query);
 
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Set or update the translation (Name/Description) for a product in a given language
+        /// </summary>
+        /// <param name="id">Product ID</param>
+        /// <param name="command">Translation details</param>
+        /// <returns>No content</returns>
+        [HttpPut("{id}/translations")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> SetProductTranslation(Guid id, [FromBody] SetProductTranslationCommand command)
+        {
+            command.ProductId = id;
+            _logger.LogInformation("Setting translation for product: {ProductId}, Language: {LanguageCode}", id, command.LanguageCode);
+
+            await _mediator.Send(command);
+
+            return NoContent();
         }
 
         /// <summary>
@@ -126,7 +160,8 @@ namespace ERP.PRD.API.Controllers
             [FromQuery] int skip = 0,
             [FromQuery] int take = 20,
             [FromQuery] Guid? categoryId = null,
-            [FromQuery] int? status = null)
+            [FromQuery] int? status = null,
+            [FromQuery] string? languageCode = null)
         {
             _logger.LogInformation("Listing products - Skip: {Skip}, Take: {Take}", skip, take);
 
@@ -135,7 +170,8 @@ namespace ERP.PRD.API.Controllers
                 Skip = Math.Max(0, skip),
                 Take = Math.Min(100, Math.Max(1, take)),
                 CategoryId = categoryId,
-                Status = status
+                Status = status,
+                LanguageCode = ResolveLanguageCode(languageCode)
             };
 
             var result = await _mediator.Send(query);
@@ -150,11 +186,11 @@ namespace ERP.PRD.API.Controllers
         /// <returns>Matching products</returns>
         [HttpGet("search")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> SearchProducts([FromQuery] string searchTerm)
+        public async Task<IActionResult> SearchProducts([FromQuery] string searchTerm, [FromQuery] string? languageCode = null)
         {
             _logger.LogInformation("Searching products: {SearchTerm}", searchTerm);
 
-            var query = new SearchProductsQuery { SearchTerm = searchTerm };
+            var query = new SearchProductsQuery { SearchTerm = searchTerm, LanguageCode = ResolveLanguageCode(languageCode) };
             var result = await _mediator.Send(query);
 
             return Ok(result);
@@ -169,11 +205,11 @@ namespace ERP.PRD.API.Controllers
         [AllowAnonymous]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetProductBySku(string sku)
+        public async Task<IActionResult> GetProductBySku(string sku, [FromQuery] string? languageCode = null)
         {
             _logger.LogInformation("Fetching product by SKU: {Sku}", sku);
 
-            var query = new GetProductBySkuQuery { Sku = sku };
+            var query = new GetProductBySkuQuery { Sku = sku, LanguageCode = ResolveLanguageCode(languageCode) };
             var result = await _mediator.Send(query);
 
             return Ok(result);

@@ -33,10 +33,10 @@ namespace ERP.HRM.Infrastructure
             services.AddScoped<IMessageBus, KafkaMessageBus>();
 
             services.AddHostedService<OutboxProcessor>();
+            services.AddHostedService<MasterDataEventConsumer>();
 
             // Repositories
-            services.AddScoped<IEmployeeRepository, EmployeeRepository>();
-            services.AddScoped<IDepartmentRepository, DepartmentRepository>();
+            services.AddScoped<IEmployeeSnapshotRepository, EmployeeSnapshotRepository>();
             services.AddScoped<ILeaveRequestRepository, LeaveRequestRepository>();
             services.AddScoped<IPaySlipRepository, PaySlipRepository>();
 

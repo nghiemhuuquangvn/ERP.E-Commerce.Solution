@@ -6,6 +6,7 @@ using ERP.Identity.Infrastructure;
 using ERP.Identity.Infrastructure.Persistence;
 using ERP.Identity.Infrastructure.Repositories;
 using ERP.Identity.Infrastructure.Services;
+using ERP.Shared.Localization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -29,6 +30,7 @@ catch (System.Reflection.ReflectionTypeLoadException ex)
 }
 
 builder.Services.AddControllers();
+builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -69,6 +71,8 @@ if (app.Environment.IsDevelopment())
 
 if (!app.Environment.IsEnvironment("Docker"))
     app.UseHttpsRedirection();
+
+app.UseSharedLocalization();
 
 app.UseRouting();
 app.UseAuthentication();

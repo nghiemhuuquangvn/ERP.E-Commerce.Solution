@@ -1,14 +1,14 @@
-using ERP.HRM.Application.Commands;
-using ERP.HRM.Application.DTOs;
-using ERP.HRM.Application.Queries;
+using ERP.MST.Application.Commands;
+using ERP.MST.Application.DTOs;
+using ERP.MST.Application.Queries;
 using ERP.Shared.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ERP.HRM.API.Controllers;
+namespace ERP.MST.API.Controllers;
 
 [ApiController]
-[Route("api/v1/hrm/employees")]
+[Route("api/v1/masterdata/employees")]
 public class EmployeesController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -22,7 +22,7 @@ public class EmployeesController : ControllerBase
     /// List employees with optional filtering by department and status.
     /// </summary>
     [HttpGet]
-    [AuthorizePermission("hrm:employees:view")]
+    [AuthorizePermission("masterdata:employees:view")]
     [ProducesResponseType(typeof(PagedResult<EmployeeDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -43,7 +43,7 @@ public class EmployeesController : ControllerBase
     /// Hire a new employee.
     /// </summary>
     [HttpPost]
-    [AuthorizePermission("hrm:employees:manage")]
+    [AuthorizePermission("masterdata:employees:manage")]
     [ProducesResponseType(typeof(EmployeeDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -60,7 +60,7 @@ public class EmployeesController : ControllerBase
     /// Get an employee by ID.
     /// </summary>
     [HttpGet("{id:guid}")]
-    [AuthorizePermission("hrm:employees:view")]
+    [AuthorizePermission("masterdata:employees:view")]
     [ProducesResponseType(typeof(EmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -80,7 +80,7 @@ public class EmployeesController : ControllerBase
     /// Terminate an employee.
     /// </summary>
     [HttpPost("{id:guid}/terminate")]
-    [AuthorizePermission("hrm:employees:manage")]
+    [AuthorizePermission("masterdata:employees:manage")]
     [ProducesResponseType(typeof(EmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -99,7 +99,7 @@ public class EmployeesController : ControllerBase
     /// Transfer an employee to a new department.
     /// </summary>
     [HttpPost("{id:guid}/transfer")]
-    [AuthorizePermission("hrm:employees:manage")]
+    [AuthorizePermission("masterdata:employees:manage")]
     [ProducesResponseType(typeof(EmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -118,7 +118,7 @@ public class EmployeesController : ControllerBase
     /// Update an employee's profile (email, phone).
     /// </summary>
     [HttpPut("{id:guid}/profile")]
-    [AuthorizePermission("hrm:employees:manage")]
+    [AuthorizePermission("masterdata:employees:manage")]
     [ProducesResponseType(typeof(EmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -132,20 +132,6 @@ public class EmployeesController : ControllerBase
         var result = await _mediator.Send(
             new UpdateEmployeeProfileCommand(id, request.Email, request.Phone),
             cancellationToken);
-        return Ok(result);
-    }
-
-    /// <summary>
-    /// Get headcount report grouped by department.
-    /// </summary>
-    [HttpGet("headcount")]
-    [AuthorizePermission("hrm:employees:view")]
-    [ProducesResponseType(typeof(List<DepartmentHeadcountDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> Headcount(CancellationToken cancellationToken = default)
-    {
-        var result = await _mediator.Send(new GetHeadcountReportQuery(), cancellationToken);
         return Ok(result);
     }
 }

@@ -1,10 +1,13 @@
+using ERP.PRD.Infrastructure.Persistence;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Products.Queries
 {
     public class GetProductQuery : IRequest<ProductDto>
     {
         public Guid ProductId { get; set; }
+        public string? LanguageCode { get; set; }
     }
 
     public class ProductDto
@@ -18,43 +21,31 @@ namespace ERP.PRD.Application.Features.Products.Queries
         public Guid? CategoryId { get; set; }
         public bool HasImage { get; set; }
         public int VariantCount { get; set; }
+        public string LanguageCode { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }
 
     public class GetProductHandler : IRequestHandler<GetProductQuery, ProductDto>
     {
-        private readonly IRepository<Domain.Entities.Product> _repository;
+        private readonly ProductDbContext _context;
 
-        public GetProductHandler(IRepository<Domain.Entities.Product> repository)
+        public GetProductHandler(ProductDbContext context)
         {
-            _repository = repository;
+            _context = context;
         }
 
         public async Task<ProductDto> Handle(GetProductQuery request, CancellationToken cancellationToken)
         {
-            var product = await _repository.GetAsync(
-                x => x.Id == request.ProductId && !x.IsDeleted,
-                cancellationToken
-            );
+            var product = await _context.Products
+                .Include(p => p.Variants)
+                .Include(p => p.Translations)
+                .FirstOrDefaultAsync(x => x.Id == request.ProductId && !x.IsDeleted, cancellationToken);
 
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
 
-            return new ProductDto
-            {
-                Id = product.Id,
-                Name = product.Name,
-                Sku = product.Sku,
-                Description = product.Description,
-                ProductType = (int)product.ProductType,
-                Status = (int)product.Status,
-                CategoryId = product.CategoryId,
-                HasImage = product.HasImage,
-                VariantCount = product.Variants.Count,
-                CreatedAt = product.CreatedAt,
-                UpdatedAt = product.UpdatedAt
-            };
+            return ProductTranslationMapper.MapToDto(product, request.LanguageCode);
         }
     }
 }

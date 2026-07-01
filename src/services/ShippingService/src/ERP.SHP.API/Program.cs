@@ -4,6 +4,7 @@ using ERP.SHP.Infrastructure.Carriers;
 using ERP.SHP.Infrastructure.Persistence;
 using ERP.SHP.Infrastructure.Repositories;
 using ERP.Shared.Authorization;
+using ERP.Shared.Localization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,6 +32,7 @@ builder.Services.AddScoped<IUserContextService, HeaderUserContextService>();
 builder.Services.AddScoped<UserContext>();
 
 builder.Services.AddControllers();
+builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "Shipping Service API", Version = "v1" }));
@@ -46,6 +48,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseSharedLocalization();
 app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
 app.UseCors("AllowAll");
 app.UseAuthorization();

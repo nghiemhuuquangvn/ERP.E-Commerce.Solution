@@ -151,6 +151,15 @@
     {
       "DownstreamPathTemplate": "/api/{everything}",
       "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "masterdataservice", "Port": 5015 }],
+      "UpstreamPathTemplate": "/mst/api/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
+      "RouteClaimsRequirement": { "tenant_id": ".*" }
+    },
+    {
+      "DownstreamPathTemplate": "/api/{everything}",
+      "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [{ "Host": "productservice", "Port": 5008 }],
       "UpstreamPathTemplate": "/prd/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],

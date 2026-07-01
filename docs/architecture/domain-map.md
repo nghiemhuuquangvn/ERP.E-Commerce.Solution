@@ -14,7 +14,7 @@ These services handle core enterprise resource planning functions.
 |---------|------|------|----------|-----------------|
 | **IdentityService** | Identity | 5001 | AuthDB | Authentication, authorization, user management, role/permission management |
 | **AccountingService** | ACC | 5005 | AccountingDB | General ledger, accounts receivable, accounts payable, fiscal periods, journal entries |
-| **HRMService** | HRM | 5007 | HrmDB | Employee management, departments, attendance, leave requests, payroll/pay slips |
+| **HRMService** | HRM | 5007 | HrmDB | Attendance, leave requests, payroll/pay slips (Employee/Department master data now in SharedMasterDataService) |
 | **PurchaseOrderService** | PO | 5003 | PurchasingDB | Purchase order management, supplier orders, purchasing workflows |
 
 **Key Events:** UserCreated → AccountingService, HRMService, CRMService; InvoiceCreated, JournalEntryPosted; EmployeeHired, LeaveApproved; PurchaseOrderCreated
@@ -80,10 +80,11 @@ Services providing platform-wide capabilities (pure consumers or broadcast-only)
 |---------|------|------|----------|-----------------|
 | **NotificationService** | NTF | 5013 | NotificationDB | Multi-channel notifications (email, SMS, push), templates, preferences, notification history |
 | **ReportingService** | RPT | 5014 | ReportingDB | Analytics, business intelligence, dashboards, KPI reports (read-only data warehouse) |
+| **SharedMasterDataService** | MST | 5015 | MasterDataDB | Department, position, employee, unit of measure, geography (Country→Province→District→Ward), supported-language reference data used by other services |
 
-**Event Consumption:** Both consume from ALL 13 other services (UserCreated, SalesOrderCreated, PaymentReceived, EmployeeHired, etc.)
+**Event Consumption:** Notification/Reporting consume from ALL 14 other services (UserCreated, SalesOrderCreated, PaymentReceived, EmployeeHired, etc.); SharedMasterDataService additionally consumes UserCreated (to auto-create Employee records) and HRM's LeaveApproved (to set Employee OnLeave status)
 
-**Pattern:** Event fanout — NotificationService sends emails/SMS/push for all business events; ReportingService populates data warehouse for BI queries
+**Pattern:** Event fanout — NotificationService sends emails/SMS/push for all business events; ReportingService populates data warehouse for BI queries; SharedMasterDataService is the reference-data source other services increasingly depend on (e.g. HRMService's EmployeeSnapshot projection)
 
 ---
 
@@ -194,7 +195,9 @@ ReportingService (RPT) ← Populate GL fact table
 IdentityService (Identity)
   ↓ UserCreated
 AccountingService (ACC) ← Create GL user
-HRMService (HRM) ← Create employee record
+SharedMasterDataService (MST) ← Create employee record
+  ↓ EmployeeHired
+HRMService (HRM) ← Sync local EmployeeSnapshot projection
 CRMService (CRM) ← Create contact record
 SaleOrderService (SO) ← Register salesperson
 NotificationService (NTF) ← Send welcome email
@@ -256,7 +259,7 @@ Each service owns its database. No other service may access it directly.
 | WareHouseService | WarehouseDB | Inventory, StockMovements, Reservations, Locations | REST API + Kafka events |
 | AccountingService | AccountingDB | GLAccounts, JournalEntries, Invoices, Bills, APVouchers | REST API + Kafka events |
 | CRMService | CrmDB | Contacts, Leads, Opportunities, Cases, Activities | REST API + Kafka events |
-| HRMService | HrmDB | Employees, Departments, LeaveRequests, PaySlips, Attendance | REST API + Kafka events |
+| HRMService | HrmDB | LeaveRequests, PaySlips, Attendance, EmployeeSnapshots (read-only projection) | REST API + Kafka events |
 | ProductService | ProductDB | Products, Variants, Categories, Images, PriceLists | REST API + Kafka events |
 | PaymentService | PaymentDB | Transactions, Methods, Refunds, Settlements, Reconciliation | REST API + Kafka events |
 | ShippingService | ShippingDB | Shipments, Carriers, Rates, TrackingEvents, Manifests | REST API + Kafka events |
@@ -264,6 +267,7 @@ Each service owns its database. No other service may access it directly.
 | PromotionService | PromotionDB | Promotions, Coupons, FlashSales, LoyaltyAccounts, Rules | REST API + Kafka events |
 | NotificationService | NotificationDB | Templates, Notifications, Preferences, Channels, History | REST API + Kafka events |
 | ReportingService | ReportingDB | FactSalesOrders, FactPayments, DimProducts, DimCustomers, DimDates | REST API (read-only) |
+| SharedMasterDataService | MasterDataDB | Departments, Positions, Employees, UnitsOfMeasure, Countries/Provinces/Districts/Wards, SupportedLanguages, {Entity}Translations | REST API + Kafka events |
 
 ---
 

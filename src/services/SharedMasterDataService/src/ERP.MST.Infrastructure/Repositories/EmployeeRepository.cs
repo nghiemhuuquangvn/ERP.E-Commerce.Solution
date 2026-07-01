@@ -1,15 +1,15 @@
-using ERP.HRM.Application.Interfaces;
-using ERP.HRM.Domain.Entities;
-using ERP.HRM.Infrastructure.Persistence;
+using ERP.MST.Application.Interfaces;
+using ERP.MST.Domain.Entities;
+using ERP.MST.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace ERP.HRM.Infrastructure.Repositories;
+namespace ERP.MST.Infrastructure.Repositories;
 
 public class EmployeeRepository : IEmployeeRepository
 {
-    private readonly HrmDbContext _context;
+    private readonly MasterDataDbContext _context;
 
-    public EmployeeRepository(HrmDbContext context)
+    public EmployeeRepository(MasterDataDbContext context)
     {
         _context = context;
     }

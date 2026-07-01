@@ -1,7 +1,7 @@
-using ERP.HRM.Domain.Events;
+using ERP.MST.Domain.Events;
 using ERP.Shared.Core.Domain;
 
-namespace ERP.HRM.Domain.Entities
+namespace ERP.MST.Domain.Entities
 {
     public class Employee : AggregateRoot
     {
@@ -12,6 +12,7 @@ namespace ERP.HRM.Domain.Entities
         public string? Phone { get; set; }
         public DateTime DateOfHire { get; set; }
         public Guid DepartmentId { get; set; }
+        public Guid? PositionId { get; set; }
         public int EmploymentStatus { get; set; }
         public int EmploymentType { get; set; }
 
@@ -23,7 +24,8 @@ namespace ERP.HRM.Domain.Entities
             string lastName,
             Guid departmentId,
             DateTime dateOfHire,
-            int employmentType = 0)
+            int employmentType = 0,
+            Guid? positionId = null)
         {
             var employee = new Employee
             {
@@ -32,6 +34,7 @@ namespace ERP.HRM.Domain.Entities
                 FirstName = firstName,
                 LastName = lastName,
                 DepartmentId = departmentId,
+                PositionId = positionId,
                 DateOfHire = dateOfHire,
                 EmploymentStatus = 0,
                 EmploymentType = employmentType,

@@ -24,6 +24,9 @@ namespace ERP.PRD.Domain.Entities
         private readonly List<ProductImage> _images = new();
         public IReadOnlyList<ProductImage> Images => _images.AsReadOnly();
 
+        private readonly List<ProductTranslation> _translations = new();
+        public IReadOnlyList<ProductTranslation> Translations => _translations.AsReadOnly();
+
         public static Product Create(string name, string sku, ProductType productType, Guid? categoryId = null)
         {
             var product = new Product
@@ -119,6 +122,31 @@ namespace ERP.PRD.Domain.Entities
         public ProductVariant? GetVariantBySku(string sku)
         {
             return _variants.FirstOrDefault(v => v.Sku == sku);
+        }
+
+        /// <summary>
+        /// Adds or updates the translation for the given language code.
+        /// Translations are an additive overlay; Name/Description remain the default-language fallback.
+        /// </summary>
+        public void SetTranslation(string languageCode, string name, string? description)
+        {
+            if (string.IsNullOrWhiteSpace(languageCode))
+                throw new ArgumentException("Language code is required");
+
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("Name cannot be empty");
+
+            var existing = _translations.FirstOrDefault(t => t.LanguageCode == languageCode);
+            if (existing != null)
+            {
+                existing.Name = name;
+                existing.Description = description;
+                existing.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                _translations.Add(ProductTranslation.Create(Id, languageCode, name, description));
+            }
         }
     }
 }

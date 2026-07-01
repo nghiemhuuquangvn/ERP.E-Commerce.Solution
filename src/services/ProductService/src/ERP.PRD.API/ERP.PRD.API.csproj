@@ -17,6 +17,7 @@
     <ProjectReference Include="../../../../Shared/Core/ERP.Shared.Core.csproj" />
     <ProjectReference Include="../../../../Shared/Messaging/ERP.Shared.Messaging.csproj" />
     <ProjectReference Include="../../../../Shared/Contracts/ERP.Shared.Contracts.csproj" />
+    <ProjectReference Include="../../../../Shared/ERP.Shared.csproj" />
     <ProjectReference Include="../ERP.PRD.Application/ERP.PRD.Application.csproj" />
     <ProjectReference Include="../ERP.PRD.Infrastructure/ERP.PRD.Infrastructure.csproj" />
   </ItemGroup>

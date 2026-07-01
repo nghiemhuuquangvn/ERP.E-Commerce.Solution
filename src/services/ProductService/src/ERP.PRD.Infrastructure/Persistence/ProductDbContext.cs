@@ -16,8 +16,11 @@ namespace ERP.PRD.Infrastructure.Persistence
 
         public DbSet<Product> Products => Set<Product>();
         public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
+        public DbSet<ProductImage> ProductImages => Set<ProductImage>();
         public DbSet<Category> Categories => Set<Category>();
         public DbSet<PriceList> PriceLists => Set<PriceList>();
+        public DbSet<ProductTranslation> ProductTranslations => Set<ProductTranslation>();
+        public DbSet<CategoryTranslation> CategoryTranslations => Set<CategoryTranslation>();
         public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -1,4 +1,6 @@
+using ERP.PRD.Infrastructure.Persistence;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Variants.Queries
 {
@@ -9,11 +11,11 @@ namespace ERP.PRD.Application.Features.Variants.Queries
 
     public class GetVariantBySkuHandler : IRequestHandler<GetVariantBySkuQuery, ProductVariantDto>
     {
-        private readonly IRepository<Domain.Entities.Product> _productRepository;
+        private readonly ProductDbContext _context;
 
-        public GetVariantBySkuHandler(IRepository<Domain.Entities.Product> productRepository)
+        public GetVariantBySkuHandler(ProductDbContext context)
         {
-            _productRepository = productRepository;
+            _context = context;
         }
 
         public async Task<ProductVariantDto> Handle(GetVariantBySkuQuery request, CancellationToken cancellationToken)
@@ -24,10 +26,10 @@ namespace ERP.PRD.Application.Features.Variants.Queries
             var sku = request.Sku.ToUpper().Trim();
 
             // Search all products for variant with matching SKU
-            var allProducts = await _productRepository.GetAllAsync(
-                x => !x.IsDeleted,
-                cancellationToken
-            );
+            var allProducts = await _context.Products
+                .Include(p => p.Variants)
+                .Where(x => !x.IsDeleted)
+                .ToListAsync(cancellationToken);
 
             var product = allProducts.FirstOrDefault(p => p.Variants.Any(v => v.Sku == sku));
 

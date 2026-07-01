@@ -6,6 +6,7 @@ using ERP.NTF.Infrastructure.Persistence;
 using ERP.NTF.Infrastructure.Repositories;
 using ERP.NTF.Infrastructure.Services;
 using ERP.Shared.Authorization;
+using ERP.Shared.Localization;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -52,6 +53,7 @@ builder.Services.AddScoped<IUserContextService, HeaderUserContextService>();
 builder.Services.AddScoped<UserContext>();
 
 builder.Services.AddControllers();
+builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -73,6 +75,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseSharedLocalization();
 app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
 app.UseCors("AllowAll");
 app.UseAuthorization();

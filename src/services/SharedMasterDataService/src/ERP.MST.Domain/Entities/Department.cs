@@ -1,6 +1,7 @@
+using ERP.MST.Domain.Events;
 using ERP.Shared.Core.Domain;
 
-namespace ERP.HRM.Domain.Entities
+namespace ERP.MST.Domain.Entities
 {
     public class Department : AggregateRoot
     {
@@ -26,6 +27,8 @@ namespace ERP.HRM.Domain.Entities
                 UpdatedAt = DateTime.UtcNow
             };
 
+            department.AddDomainEvent(new DepartmentCreatedEvent(department.Id, department.DepartmentName, department.Code));
+
             return department;
         }
 
@@ -35,6 +38,8 @@ namespace ERP.HRM.Domain.Entities
             Code = code;
             ManagerId = managerId;
             UpdatedAt = DateTime.UtcNow;
+
+            AddDomainEvent(new DepartmentUpdatedEvent(Id, DepartmentName, Code));
         }
     }
 }

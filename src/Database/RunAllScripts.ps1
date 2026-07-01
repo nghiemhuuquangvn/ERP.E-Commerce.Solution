@@ -21,11 +21,17 @@ $DatabaseScripts = @(
     # Core Identity first
     "Identity\001_CreateAuthDB.sql",
 
+    # Cross-cutting master data (Department/Position/Employee/UoM/Geography/Language —
+    # seed before HRM, which now references Employees/Departments here instead of owning them)
+    "MasterData\001_CreateMasterDataDB.sql",
+
     # Core business services
     "Sales\001_CreateSalesDB.sql",
     "Purchasing\001_CreatePurchasingDB.sql",
     "Warehouse\001_CreateWarehouseDB.sql",
     "Accounting\001_CreateAccountingDB.sql",
+    "Product\001_CreateProductDB.sql",
+    "Product\002_AddProductTranslations.sql",
 
     # Customer-facing services
     "CRM\001_CreateCrmDB.sql",
@@ -34,6 +40,7 @@ $DatabaseScripts = @(
 
     # HR & Retail
     "HRM\001_CreateHrmDB.sql",
+    "HRM\002_RemoveEmployeeDepartmentOwnership.sql",
     "POS\001_CreatePosDB.sql",
 
     # Cross-cutting
@@ -41,8 +48,6 @@ $DatabaseScripts = @(
     "Notification\001_CreateNotificationDB.sql",
     "Reporting\001_CreateReportingDB.sql"
 )
-
-# NOTE: Product database not yet created - add 001_CreateProductDB.sql when available
 
 # ============================================================
 # Helper function to run SQL script

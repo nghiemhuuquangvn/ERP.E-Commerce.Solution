@@ -3,6 +3,7 @@ using ERP.PRD.Application.Features.Categories.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
 
 namespace ERP.PRD.API.Controllers
 {
@@ -18,6 +19,19 @@ namespace ERP.PRD.API.Controllers
         {
             _mediator = mediator;
             _logger = logger;
+        }
+
+        /// <summary>
+        /// Resolves the effective language code for a request: the explicit query-string
+        /// value when provided, otherwise the culture negotiated by UseSharedLocalization()
+        /// from the Accept-Language header/query-string culture providers.
+        /// </summary>
+        private static string? ResolveLanguageCode(string? explicitLanguageCode)
+        {
+            if (!string.IsNullOrWhiteSpace(explicitLanguageCode))
+                return explicitLanguageCode;
+
+            return CultureInfo.CurrentUICulture.Name;
         }
 
         /// <summary>
@@ -46,14 +60,34 @@ namespace ERP.PRD.API.Controllers
         [HttpGet]
         [AllowAnonymous]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetCategories([FromQuery] Guid? parentId)
+        public async Task<IActionResult> GetCategories([FromQuery] Guid? parentId, [FromQuery] string? languageCode = null)
         {
             _logger.LogInformation("Fetching categories with parent: {ParentId}", parentId ?? Guid.Empty);
 
-            var query = new GetCategoriesQuery { ParentCategoryId = parentId };
+            var query = new GetCategoriesQuery { ParentCategoryId = parentId, LanguageCode = ResolveLanguageCode(languageCode) };
             var result = await _mediator.Send(query);
 
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Set or update the translation (Name) for a category in a given language
+        /// </summary>
+        /// <param name="categoryId">Category ID</param>
+        /// <param name="command">Translation details</param>
+        /// <returns>No content</returns>
+        [HttpPut("{categoryId}/translations")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> SetCategoryTranslation(Guid categoryId, [FromBody] SetCategoryTranslationCommand command)
+        {
+            command.CategoryId = categoryId;
+            _logger.LogInformation("Setting translation for category: {CategoryId}, Language: {LanguageCode}", categoryId, command.LanguageCode);
+
+            await _mediator.Send(command);
+
+            return NoContent();
         }
 
         /// <summary>

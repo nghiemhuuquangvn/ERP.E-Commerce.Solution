@@ -1,5 +1,7 @@
+using ERP.PRD.Infrastructure.Persistence;
 using MediatR;
 using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Variants.Commands
 {
@@ -34,21 +36,18 @@ namespace ERP.PRD.Application.Features.Variants.Commands
 
     public class UpdateProductVariantHandler : IRequestHandler<UpdateProductVariantCommand, Unit>
     {
-        private readonly IRepository<Domain.Entities.Product> _productRepository;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly ProductDbContext _context;
 
-        public UpdateProductVariantHandler(IRepository<Domain.Entities.Product> productRepository, IUnitOfWork unitOfWork)
+        public UpdateProductVariantHandler(ProductDbContext context)
         {
-            _productRepository = productRepository;
-            _unitOfWork = unitOfWork;
+            _context = context;
         }
 
         public async Task<Unit> Handle(UpdateProductVariantCommand request, CancellationToken cancellationToken)
         {
-            var product = await _productRepository.GetAsync(
-                x => x.Id == request.ProductId && !x.IsDeleted,
-                cancellationToken
-            );
+            var product = await _context.Products
+                .Include(p => p.Variants)
+                .FirstOrDefaultAsync(x => x.Id == request.ProductId && !x.IsDeleted, cancellationToken);
 
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
@@ -72,8 +71,7 @@ namespace ERP.PRD.Application.Features.Variants.Commands
 
             variant.UpdatedAt = DateTime.UtcNow;
 
-            await _productRepository.UpdateAsync(product, cancellationToken);
-            await _unitOfWork.CommitAsync(cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
 
             return Unit.Value;
         }

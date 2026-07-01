@@ -40,6 +40,7 @@ src/
         PromotionService/              (5012, Code: PRM)
         NotificationService/           (5013, Code: NTF)
         ReportingService/              (5014, Code: RPT)
+        SharedMasterDataService/       (5015, Code: MST)
 
     Shared/
         Core/                          (Domain base classes: BaseEntity, AggregateRoot, ValueObject, IDomainEvent)
@@ -152,23 +153,50 @@ Consumed Events:
 #### Human Resources Service (Port 5007, Code: HRM)
 
 Responsibilities:
-- Employee records & management
-- Department organization
 - Attendance tracking
 - Leave request management
 - Payroll processing
 - Pay slip generation
 
+Note: Employee and Department master data moved to SharedMasterDataService (Port 5015,
+Code: MST) — HRM keeps a local, read-only EmployeeSnapshot projection (synced from MST's
+Kafka events) so leave/payroll handlers can check employee status without a synchronous
+cross-service call. Do not re-add Employee/Department entities here.
+
 Database: HrmDB
 
 Published Events:
-- EmployeeHired
-- EmployeeTerminated
 - PaySlipGenerated
 - LeaveApproved
+- LeaveRejected
 
 Consumed Events:
-- UserCreated
+- EmployeeHired, EmployeeTerminated, EmployeeTransferred (from SharedMasterDataService)
+
+#### Shared Master Data Service (Port 5015, Code: MST)
+
+Responsibilities:
+- Department & position (job title) master data
+- Employee master data (hire/terminate/transfer/profile — HR transactional records
+  like leave/payroll stay in HRMService, referencing Employee only by Id)
+- Unit of measure (UoM) reference data
+- Geographic hierarchy: Country → Province → District → Ward
+- Supported language reference list (admin-managed; each service's own
+  Localization:SupportedCultures config is the runtime source of truth)
+- Per-language translation rows (Name/Description) for its own reference entities
+
+Database: MasterDataDB
+
+Published Events:
+- DepartmentCreated, DepartmentUpdated
+- PositionCreated
+- EmployeeHired, EmployeeTerminated, EmployeeTransferred
+- UnitOfMeasureCreated
+- CountryCreated
+
+Consumed Events:
+- UserCreated (from IdentityService — auto-creates an Employee record)
+- LeaveApproved (from HRMService — sets the canonical Employee to OnLeave)
 
 #### Purchase Order Service (Port 5003, Code: PO)
 
@@ -444,6 +472,7 @@ Each service owns its database exclusively. No cross-database queries allowed.
 | PromotionService | PromotionDB | Owned by Promotion; others access via API only |
 | NotificationService | NotificationDB | Owned by Notification; others access via API only |
 | ReportingService | ReportingDB | Owned by Reporting; read-only via direct BI tool queries |
+| SharedMasterDataService | MasterDataDB | Owned by MasterData; others access via API/events only |
 
 ## Database Ownership
 

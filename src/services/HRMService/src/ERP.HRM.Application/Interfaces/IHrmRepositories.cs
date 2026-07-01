@@ -2,33 +2,16 @@ using ERP.HRM.Domain.Entities;
 
 namespace ERP.HRM.Application.Interfaces;
 
-public interface IEmployeeRepository
+/// <summary>
+/// Read/write access to the local EmployeeSnapshot projection (see
+/// EmployeeSnapshot.cs) — not a real Employee repository; HRM no longer owns
+/// that aggregate.
+/// </summary>
+public interface IEmployeeSnapshotRepository
 {
-    Task<Employee?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<(IReadOnlyList<Employee> Items, int TotalCount)> ListAsync(
-        Guid? departmentId,
-        int? status,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<Employee>> GetActiveEmployeesAsync(CancellationToken cancellationToken = default);
-    Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default);
-    void Add(Employee employee);
-    void Update(Employee employee);
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
-}
-
-public interface IDepartmentRepository
-{
-    Task<Department?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<(IReadOnlyList<Department> Items, int TotalCount)> ListAsync(
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<Department>> GetAllAsync(CancellationToken cancellationToken = default);
-    Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
-    void Add(Department department);
-    void Update(Department department);
+    Task<EmployeeSnapshot?> GetByIdAsync(Guid employeeId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<EmployeeSnapshot>> GetActiveAsync(CancellationToken cancellationToken = default);
+    void Upsert(EmployeeSnapshot snapshot);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 

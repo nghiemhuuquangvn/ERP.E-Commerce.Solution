@@ -1,28 +1,6 @@
 namespace ERP.HRM.Application.DTOs;
 
-public record DepartmentDto(
-    Guid Id,
-    string DepartmentName,
-    string Code,
-    Guid? ManagerId,
-    Guid? ParentDepartmentId,
-    DateTime CreatedAt,
-    DateTime UpdatedAt);
-
-public record EmployeeDto(
-    Guid Id,
-    string EmployeeNumber,
-    string FirstName,
-    string LastName,
-    string FullName,
-    string? Email,
-    string? Phone,
-    DateTime DateOfHire,
-    Guid DepartmentId,
-    string EmploymentStatus,
-    string EmploymentType,
-    DateTime CreatedAt,
-    DateTime UpdatedAt);
+// Department/Employee/Headcount DTOs moved to SharedMasterDataService.
 
 public record LeaveRequestDto(
     Guid Id,
@@ -50,15 +28,6 @@ public record PaySlipDto(
     DateTime PaymentDate,
     string PaymentStatus,
     DateTime CreatedAt);
-
-public record DepartmentHeadcountDto(
-    Guid DepartmentId,
-    string DepartmentName,
-    string Code,
-    int ActiveCount,
-    int OnLeaveCount,
-    int TerminatedCount,
-    int TotalCount);
 
 public record PagedResult<T>(
     IReadOnlyList<T> Items,

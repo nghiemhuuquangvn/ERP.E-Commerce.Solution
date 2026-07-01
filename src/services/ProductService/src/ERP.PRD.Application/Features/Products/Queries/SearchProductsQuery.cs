@@ -1,19 +1,22 @@
+using ERP.PRD.Infrastructure.Persistence;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Products.Queries
 {
     public class SearchProductsQuery : IRequest<List<ProductDto>>
     {
         public string SearchTerm { get; set; } = string.Empty;
+        public string? LanguageCode { get; set; }
     }
 
     public class SearchProductsHandler : IRequestHandler<SearchProductsQuery, List<ProductDto>>
     {
-        private readonly IRepository<Domain.Entities.Product> _repository;
+        private readonly ProductDbContext _context;
 
-        public SearchProductsHandler(IRepository<Domain.Entities.Product> repository)
+        public SearchProductsHandler(ProductDbContext context)
         {
-            _repository = repository;
+            _context = context;
         }
 
         public async Task<List<ProductDto>> Handle(SearchProductsQuery request, CancellationToken cancellationToken)
@@ -23,32 +26,20 @@ namespace ERP.PRD.Application.Features.Products.Queries
 
             var searchLower = request.SearchTerm.ToLower();
 
-            var products = await _repository.GetAllAsync(
-                x => !x.IsDeleted
+            var products = await _context.Products
+                .Include(p => p.Variants)
+                .Include(p => p.Translations)
+                .Where(x => !x.IsDeleted
                     && (x.Name.ToLower().Contains(searchLower)
                         || x.Sku.ToLower().Contains(searchLower)
-                        || (x.Description != null && x.Description.ToLower().Contains(searchLower))),
-                cancellationToken
-            );
+                        || (x.Description != null && x.Description.ToLower().Contains(searchLower))))
+                .ToListAsync(cancellationToken);
 
             return products
                 .OrderByDescending(p => p.Name.StartsWith(request.SearchTerm, StringComparison.OrdinalIgnoreCase))
                 .ThenByDescending(p => p.CreatedAt)
                 .Take(50)
-                .Select(p => new ProductDto
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Sku = p.Sku,
-                    Description = p.Description,
-                    ProductType = (int)p.ProductType,
-                    Status = (int)p.Status,
-                    CategoryId = p.CategoryId,
-                    HasImage = p.HasImage,
-                    VariantCount = p.Variants.Count,
-                    CreatedAt = p.CreatedAt,
-                    UpdatedAt = p.UpdatedAt
-                })
+                .Select(p => ProductTranslationMapper.MapToDto(p, request.LanguageCode))
                 .ToList();
         }
     }

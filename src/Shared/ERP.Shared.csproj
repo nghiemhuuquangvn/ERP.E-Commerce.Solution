@@ -15,8 +15,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.0" />
+    <!-- Gives access to the full ASP.NET Core API surface (RequestLocalizationOptions,
+         IRequestCultureProvider, UseRequestLocalization, etc.) from this plain class
+         library — the old Microsoft.AspNetCore.Localization NuGet package no longer
+         ships compilable types under .NET 10. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
+    <PackageReference Include="Microsoft.Extensions.Localization" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
@@ -36,6 +45,15 @@
     <ProjectReference Include="Core\ERP.Shared.Core.csproj" />
     <ProjectReference Include="Messaging\ERP.Shared.Messaging.csproj" />
     <ProjectReference Include="Contracts\ERP.Shared.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- No designer codegen: IStringLocalizer&lt;SharedResource&gt; resolves keys by convention
+         from these embedded .resx files without a generated .Designer.cs. Path mirrors the
+         SharedResource type's namespace (ERP.Shared.Localization) under ResourcesPath="Resources". -->
+    <EmbeddedResource Update="Resources\Localization\SharedResource.vi-VN.resx">
+      <DependentUpon>SharedResource.resx</DependentUpon>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>

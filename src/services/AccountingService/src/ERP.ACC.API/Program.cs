@@ -2,6 +2,7 @@ using ERP.ACC.API.Middleware;
 using ERP.ACC.Application;
 using ERP.ACC.Infrastructure;
 using ERP.Shared.Authorization;
+using ERP.Shared.Localization;
 using Serilog;
 using Serilog.Events;
 
@@ -31,6 +32,7 @@ try
 
     builder.Services.AddHealthChecks();
     builder.Services.AddControllers();
+    builder.Services.AddSharedLocalization(builder.Configuration);
 
     builder.Services
         .AddApplication()
@@ -54,6 +56,7 @@ try
     }
 
     app.UseHttpsRedirection();
+    app.UseSharedLocalization();
     app.UseUserContextHeaderMiddleware();
     app.UseCors("AllowAll");
     app.UseAuthorization();

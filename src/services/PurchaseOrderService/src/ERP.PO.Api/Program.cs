@@ -3,6 +3,7 @@ using ERP.PO.Application.Features.PurchaseOrders.Validators;
 using ERP.PO.Application.Features.Suppliers.Validators;
 using ERP.PO.Application.Caching;
 using ERP.Shared.Authorization;
+using ERP.Shared.Localization;
 using ERP.PO.Infrastructure.Data;
 using ERP.PO.Domain.Entities;
 using ERP.Shared.Infrastructure.Data;
@@ -15,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddOpenApi();
 
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(
@@ -72,6 +74,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseSharedLocalization();
 
 // Middleware to map gateway headers to user context
 app.UseMiddleware<UserContextHeaderMiddleware>();

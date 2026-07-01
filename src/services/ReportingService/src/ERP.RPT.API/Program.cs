@@ -3,6 +3,7 @@ using ERP.RPT.Application.Interfaces;
 using ERP.RPT.Infrastructure.EventConsumers;
 using ERP.RPT.Infrastructure.Persistence;
 using ERP.RPT.Infrastructure.Repositories;
+using ERP.Shared.Localization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +23,7 @@ builder.Services.AddScoped<IReportingRepository, ReportingRepository>();
 builder.Services.AddReportingKafkaConsumers();
 
 builder.Services.AddControllers();
+builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options =>
@@ -35,6 +37,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
 
 app.UseHttpsRedirection();
+app.UseSharedLocalization();
 app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapHealthChecks("/health");

@@ -37,6 +37,7 @@
 | **PromotionService** | PRM | 5012 | 7012 | /swagger | PromotionDB |
 | **NotificationService** | NTF | 5013 | 7013 | /swagger | NotificationDB |
 | **ReportingService** | RPT | 5014 | 7014 | /swagger | ReportingDB |
+| **SharedMasterDataService** | MST | 5015 | 7015 | /swagger | MasterDataDB |
 
 ---
 
@@ -266,6 +267,7 @@ URL:     http://product-service.default.svc.cluster.local:5008/api/products
 | **PromotionService** | promotion-topic | PromotionCreated, CouponRedeemed, LoyaltyPointsEarned |
 | **NotificationService** | — (consumer only) | — |
 | **ReportingService** | — (consumer only) | — |
+| **SharedMasterDataService** | mst-topic | DepartmentCreated, EmployeeHired, EmployeeTerminated, EmployeeTransferred, UnitOfMeasureCreated |
 
 ### **Topic Consumer Registration**
 

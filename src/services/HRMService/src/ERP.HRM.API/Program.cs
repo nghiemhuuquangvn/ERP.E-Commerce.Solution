@@ -1,6 +1,7 @@
 using ERP.HRM.Application;
 using ERP.HRM.Infrastructure;
 using ERP.Shared.Authorization;
+using ERP.Shared.Localization;
 using Serilog;
 using Serilog.Events;
 
@@ -31,6 +32,7 @@ try
     builder.Services.AddHealthChecks();
     builder.Services.AddProblemDetails();
     builder.Services.AddControllers();
+    builder.Services.AddSharedLocalization(builder.Configuration);
 
     // Authorization / UserContext (from API Gateway headers)
     builder.Services.AddHttpContextAccessor();
@@ -60,6 +62,7 @@ try
     app.UseExceptionHandler();
     app.UseStatusCodePages();
     app.UseHttpsRedirection();
+    app.UseSharedLocalization();
     app.UseCors("AllowAll");
 
     // Propagate user context from gateway headers

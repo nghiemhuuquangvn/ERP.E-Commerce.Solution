@@ -15,7 +15,7 @@ namespace ERP.HRM.Application
 
             services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
-            services.AddScoped<UserCreatedEventHandler>();
+            services.AddScoped<EmployeeMasterDataEventHandlers>();
 
             return services;
         }

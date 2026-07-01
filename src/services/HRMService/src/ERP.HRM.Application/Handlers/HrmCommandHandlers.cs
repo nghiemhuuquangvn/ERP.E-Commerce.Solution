@@ -8,261 +8,35 @@ using Microsoft.Extensions.Logging;
 
 namespace ERP.HRM.Application.Handlers;
 
-// ─── Department Command Handlers ───────────────────────────────────────────
-
-public class CreateDepartmentCommandHandler : IRequestHandler<CreateDepartmentCommand, DepartmentDto>
-{
-    private readonly IDepartmentRepository _departmentRepository;
-    private readonly ILogger<CreateDepartmentCommandHandler> _logger;
-
-    public CreateDepartmentCommandHandler(
-        IDepartmentRepository departmentRepository,
-        ILogger<CreateDepartmentCommandHandler> logger)
-    {
-        _departmentRepository = departmentRepository;
-        _logger = logger;
-    }
-
-    public async Task<DepartmentDto> Handle(CreateDepartmentCommand request, CancellationToken cancellationToken)
-    {
-        var codeUpper = request.Code.ToUpperInvariant();
-
-        if (await _departmentRepository.ExistsByCodeAsync(codeUpper, cancellationToken))
-            throw new InvalidOperationException($"A department with code '{codeUpper}' already exists.");
-
-        var department = Department.Create(request.Name, codeUpper, request.ManagerId, request.ParentDepartmentId);
-        _departmentRepository.Add(department);
-        await _departmentRepository.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation("Department created: {DepartmentId} ({Code})", department.Id, department.Code);
-
-        return MapToDto(department);
-    }
-
-    internal static DepartmentDto MapToDto(Department d) =>
-        new(d.Id, d.DepartmentName, d.Code, d.ManagerId, d.ParentDepartmentId, d.CreatedAt, d.UpdatedAt);
-}
-
-public class UpdateDepartmentCommandHandler : IRequestHandler<UpdateDepartmentCommand, DepartmentDto>
-{
-    private readonly IDepartmentRepository _departmentRepository;
-    private readonly ILogger<UpdateDepartmentCommandHandler> _logger;
-
-    public UpdateDepartmentCommandHandler(
-        IDepartmentRepository departmentRepository,
-        ILogger<UpdateDepartmentCommandHandler> logger)
-    {
-        _departmentRepository = departmentRepository;
-        _logger = logger;
-    }
-
-    public async Task<DepartmentDto> Handle(UpdateDepartmentCommand request, CancellationToken cancellationToken)
-    {
-        var department = await _departmentRepository.GetByIdAsync(request.DepartmentId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Department {request.DepartmentId} not found.");
-
-        department.Update(request.Name, request.Code.ToUpperInvariant(), request.ManagerId);
-        _departmentRepository.Update(department);
-        await _departmentRepository.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation("Department updated: {DepartmentId}", department.Id);
-
-        return CreateDepartmentCommandHandler.MapToDto(department);
-    }
-}
-
-// ─── Employee Command Handlers ─────────────────────────────────────────────
-
-public class HireEmployeeCommandHandler : IRequestHandler<HireEmployeeCommand, EmployeeDto>
-{
-    private readonly IEmployeeRepository _employeeRepository;
-    private readonly IDepartmentRepository _departmentRepository;
-    private readonly ILogger<HireEmployeeCommandHandler> _logger;
-
-    public HireEmployeeCommandHandler(
-        IEmployeeRepository employeeRepository,
-        IDepartmentRepository departmentRepository,
-        ILogger<HireEmployeeCommandHandler> logger)
-    {
-        _employeeRepository = employeeRepository;
-        _departmentRepository = departmentRepository;
-        _logger = logger;
-    }
-
-    public async Task<EmployeeDto> Handle(HireEmployeeCommand request, CancellationToken cancellationToken)
-    {
-        _ = await _departmentRepository.GetByIdAsync(request.DepartmentId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Department {request.DepartmentId} not found.");
-
-        if (!string.IsNullOrEmpty(request.Email) &&
-            await _employeeRepository.ExistsByEmailAsync(request.Email, cancellationToken))
-            throw new InvalidOperationException($"An employee with email '{request.Email}' already exists.");
-
-        var year = request.DateOfHire.Year;
-        var random4 = Random.Shared.Next(1000, 9999);
-        var employeeNumber = $"EMP-{year}-{random4:D4}";
-
-        var employee = Employee.Create(
-            employeeNumber,
-            request.FirstName,
-            request.LastName,
-            request.DepartmentId,
-            request.DateOfHire,
-            request.EmploymentType);
-
-        employee.Email = request.Email;
-        employee.Phone = request.Phone;
-
-        employee.RaiseHiredEvent();
-
-        _employeeRepository.Add(employee);
-        await _employeeRepository.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation("Employee hired: {EmployeeId} ({EmployeeNumber})", employee.Id, employee.EmployeeNumber);
-
-        return MapToDto(employee);
-    }
-
-    internal static EmployeeDto MapToDto(Employee e) =>
-        new(e.Id,
-            e.EmployeeNumber,
-            e.FirstName,
-            e.LastName,
-            e.FullName,
-            e.Email,
-            e.Phone,
-            e.DateOfHire,
-            e.DepartmentId,
-            ((EmploymentStatus)e.EmploymentStatus).ToString(),
-            ((EmploymentType)e.EmploymentType).ToString(),
-            e.CreatedAt,
-            e.UpdatedAt);
-}
-
-public class TerminateEmployeeCommandHandler : IRequestHandler<TerminateEmployeeCommand, EmployeeDto>
-{
-    private readonly IEmployeeRepository _employeeRepository;
-    private readonly ILogger<TerminateEmployeeCommandHandler> _logger;
-
-    public TerminateEmployeeCommandHandler(
-        IEmployeeRepository employeeRepository,
-        ILogger<TerminateEmployeeCommandHandler> logger)
-    {
-        _employeeRepository = employeeRepository;
-        _logger = logger;
-    }
-
-    public async Task<EmployeeDto> Handle(TerminateEmployeeCommand request, CancellationToken cancellationToken)
-    {
-        var employee = await _employeeRepository.GetByIdAsync(request.EmployeeId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Employee {request.EmployeeId} not found.");
-
-        employee.Terminate(request.Reason);
-        _employeeRepository.Update(employee);
-        await _employeeRepository.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation("Employee terminated: {EmployeeId}", employee.Id);
-
-        return HireEmployeeCommandHandler.MapToDto(employee);
-    }
-}
-
-public class UpdateEmployeeProfileCommandHandler : IRequestHandler<UpdateEmployeeProfileCommand, EmployeeDto>
-{
-    private readonly IEmployeeRepository _employeeRepository;
-    private readonly ILogger<UpdateEmployeeProfileCommandHandler> _logger;
-
-    public UpdateEmployeeProfileCommandHandler(
-        IEmployeeRepository employeeRepository,
-        ILogger<UpdateEmployeeProfileCommandHandler> logger)
-    {
-        _employeeRepository = employeeRepository;
-        _logger = logger;
-    }
-
-    public async Task<EmployeeDto> Handle(UpdateEmployeeProfileCommand request, CancellationToken cancellationToken)
-    {
-        var employee = await _employeeRepository.GetByIdAsync(request.EmployeeId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Employee {request.EmployeeId} not found.");
-
-        if (!string.IsNullOrEmpty(request.Email) &&
-            request.Email != employee.Email &&
-            await _employeeRepository.ExistsByEmailAsync(request.Email, cancellationToken))
-            throw new InvalidOperationException($"An employee with email '{request.Email}' already exists.");
-
-        employee.UpdateProfile(request.Email, request.Phone);
-        _employeeRepository.Update(employee);
-        await _employeeRepository.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation("Employee profile updated: {EmployeeId}", employee.Id);
-
-        return HireEmployeeCommandHandler.MapToDto(employee);
-    }
-}
-
-public class TransferEmployeeCommandHandler : IRequestHandler<TransferEmployeeCommand, EmployeeDto>
-{
-    private readonly IEmployeeRepository _employeeRepository;
-    private readonly IDepartmentRepository _departmentRepository;
-    private readonly ILogger<TransferEmployeeCommandHandler> _logger;
-
-    public TransferEmployeeCommandHandler(
-        IEmployeeRepository employeeRepository,
-        IDepartmentRepository departmentRepository,
-        ILogger<TransferEmployeeCommandHandler> logger)
-    {
-        _employeeRepository = employeeRepository;
-        _departmentRepository = departmentRepository;
-        _logger = logger;
-    }
-
-    public async Task<EmployeeDto> Handle(TransferEmployeeCommand request, CancellationToken cancellationToken)
-    {
-        var employee = await _employeeRepository.GetByIdAsync(request.EmployeeId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Employee {request.EmployeeId} not found.");
-
-        _ = await _departmentRepository.GetByIdAsync(request.NewDepartmentId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Department {request.NewDepartmentId} not found.");
-
-        if (employee.DepartmentId == request.NewDepartmentId)
-            throw new InvalidOperationException("Employee is already in the specified department.");
-
-        employee.Transfer(request.NewDepartmentId);
-        _employeeRepository.Update(employee);
-        await _employeeRepository.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation(
-            "Employee {EmployeeId} transferred to department {DepartmentId}",
-            employee.Id, request.NewDepartmentId);
-
-        return HireEmployeeCommandHandler.MapToDto(employee);
-    }
-}
+// Department/Employee command handlers moved to SharedMasterDataService.
 
 // ─── Leave Request Command Handlers ───────────────────────────────────────
 
 public class SubmitLeaveRequestCommandHandler : IRequestHandler<SubmitLeaveRequestCommand, LeaveRequestDto>
 {
     private readonly ILeaveRequestRepository _leaveRequestRepository;
-    private readonly IEmployeeRepository _employeeRepository;
+    private readonly IEmployeeSnapshotRepository _employeeSnapshotRepository;
     private readonly ILogger<SubmitLeaveRequestCommandHandler> _logger;
 
     public SubmitLeaveRequestCommandHandler(
         ILeaveRequestRepository leaveRequestRepository,
-        IEmployeeRepository employeeRepository,
+        IEmployeeSnapshotRepository employeeSnapshotRepository,
         ILogger<SubmitLeaveRequestCommandHandler> logger)
     {
         _leaveRequestRepository = leaveRequestRepository;
-        _employeeRepository = employeeRepository;
+        _employeeSnapshotRepository = employeeSnapshotRepository;
         _logger = logger;
     }
 
     public async Task<LeaveRequestDto> Handle(SubmitLeaveRequestCommand request, CancellationToken cancellationToken)
     {
-        var employee = await _employeeRepository.GetByIdAsync(request.EmployeeId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Employee {request.EmployeeId} not found.");
+        // Local snapshot is a passive projection synced from SharedMasterDataService's
+        // Kafka events, not a source of truth — if it hasn't caught up yet (or the
+        // event hasn't arrived), trust the caller-supplied EmployeeId rather than
+        // hard-failing (matches this codebase's loose cross-service coupling).
+        var snapshot = await _employeeSnapshotRepository.GetByIdAsync(request.EmployeeId, cancellationToken);
 
-        if (employee.EmploymentStatus == (int)EmploymentStatus.Terminated)
+        if (snapshot != null && snapshot.EmploymentStatus == (int)EmploymentStatus.Terminated)
             throw new InvalidOperationException("Cannot submit leave request for a terminated employee.");
 
         var daysRequested = (int)(request.EndDate.Date - request.StartDate.Date).TotalDays + 1;
@@ -306,16 +80,16 @@ public class SubmitLeaveRequestCommandHandler : IRequestHandler<SubmitLeaveReque
 public class ApproveLeaveCommandHandler : IRequestHandler<ApproveLeaveCommand, LeaveRequestDto>
 {
     private readonly ILeaveRequestRepository _leaveRequestRepository;
-    private readonly IEmployeeRepository _employeeRepository;
+    private readonly IEmployeeSnapshotRepository _employeeSnapshotRepository;
     private readonly ILogger<ApproveLeaveCommandHandler> _logger;
 
     public ApproveLeaveCommandHandler(
         ILeaveRequestRepository leaveRequestRepository,
-        IEmployeeRepository employeeRepository,
+        IEmployeeSnapshotRepository employeeSnapshotRepository,
         ILogger<ApproveLeaveCommandHandler> logger)
     {
         _leaveRequestRepository = leaveRequestRepository;
-        _employeeRepository = employeeRepository;
+        _employeeSnapshotRepository = employeeSnapshotRepository;
         _logger = logger;
     }
 
@@ -326,19 +100,24 @@ public class ApproveLeaveCommandHandler : IRequestHandler<ApproveLeaveCommand, L
 
         leaveRequest.Approve();
 
-        // Set employee to OnLeave status if leave starts today or in the past
+        // HRM no longer owns the Employee aggregate — it can only update its own
+        // local snapshot optimistically here. SharedMasterDataService closes the
+        // loop by consuming LeaveApprovedEvent/LeaveRejectedEvent (published via
+        // HRM's own outbox) and setting the canonical Employee's status itself.
         if (leaveRequest.StartDate.Date <= DateTime.UtcNow.Date)
         {
-            var employee = await _employeeRepository.GetByIdAsync(leaveRequest.EmployeeId, cancellationToken);
-            if (employee != null && employee.EmploymentStatus == (int)EmploymentStatus.Active)
+            var snapshot = await _employeeSnapshotRepository.GetByIdAsync(leaveRequest.EmployeeId, cancellationToken);
+            if (snapshot != null && snapshot.EmploymentStatus == (int)EmploymentStatus.Active)
             {
-                employee.SetOnLeave();
-                _employeeRepository.Update(employee);
+                snapshot.EmploymentStatus = (int)EmploymentStatus.OnLeave;
+                snapshot.UpdatedAt = DateTime.UtcNow;
+                _employeeSnapshotRepository.Upsert(snapshot);
             }
         }
 
         _leaveRequestRepository.Update(leaveRequest);
         await _leaveRequestRepository.SaveChangesAsync(cancellationToken);
+        await _employeeSnapshotRepository.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Leave request approved: {LeaveRequestId}", leaveRequest.Id);
 
@@ -407,23 +186,26 @@ public class CancelLeaveCommandHandler : IRequestHandler<CancelLeaveCommand, Lea
 public class GeneratePaySlipCommandHandler : IRequestHandler<GeneratePaySlipCommand, PaySlipDto>
 {
     private readonly IPaySlipRepository _paySlipRepository;
-    private readonly IEmployeeRepository _employeeRepository;
+    private readonly IEmployeeSnapshotRepository _employeeSnapshotRepository;
     private readonly ILogger<GeneratePaySlipCommandHandler> _logger;
 
     public GeneratePaySlipCommandHandler(
         IPaySlipRepository paySlipRepository,
-        IEmployeeRepository employeeRepository,
+        IEmployeeSnapshotRepository employeeSnapshotRepository,
         ILogger<GeneratePaySlipCommandHandler> logger)
     {
         _paySlipRepository = paySlipRepository;
-        _employeeRepository = employeeRepository;
+        _employeeSnapshotRepository = employeeSnapshotRepository;
         _logger = logger;
     }
 
     public async Task<PaySlipDto> Handle(GeneratePaySlipCommand request, CancellationToken cancellationToken)
     {
-        _ = await _employeeRepository.GetByIdAsync(request.EmployeeId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Employee {request.EmployeeId} not found.");
+        // See SubmitLeaveRequestCommandHandler: snapshot absence isn't fatal, only used
+        // when present to avoid generating pay slips for known-terminated employees.
+        var snapshot = await _employeeSnapshotRepository.GetByIdAsync(request.EmployeeId, cancellationToken);
+        if (snapshot != null && snapshot.EmploymentStatus == (int)EmploymentStatus.Terminated)
+            throw new InvalidOperationException($"Employee {request.EmployeeId} is terminated.");
 
         if (await _paySlipRepository.ExistsForPeriodAsync(request.EmployeeId, request.Year, request.Month, cancellationToken))
             throw new InvalidOperationException(
@@ -467,7 +249,7 @@ public class GeneratePaySlipCommandHandler : IRequestHandler<GeneratePaySlipComm
 public class ProcessPayrollCommandHandler : IRequestHandler<ProcessPayrollCommand, List<PaySlipDto>>
 {
     private readonly IPaySlipRepository _paySlipRepository;
-    private readonly IEmployeeRepository _employeeRepository;
+    private readonly IEmployeeSnapshotRepository _employeeSnapshotRepository;
     private readonly ILogger<ProcessPayrollCommandHandler> _logger;
 
     // Default deduction rate (30% for taxes and benefits)
@@ -478,17 +260,17 @@ public class ProcessPayrollCommandHandler : IRequestHandler<ProcessPayrollComman
 
     public ProcessPayrollCommandHandler(
         IPaySlipRepository paySlipRepository,
-        IEmployeeRepository employeeRepository,
+        IEmployeeSnapshotRepository employeeSnapshotRepository,
         ILogger<ProcessPayrollCommandHandler> logger)
     {
         _paySlipRepository = paySlipRepository;
-        _employeeRepository = employeeRepository;
+        _employeeSnapshotRepository = employeeSnapshotRepository;
         _logger = logger;
     }
 
     public async Task<List<PaySlipDto>> Handle(ProcessPayrollCommand request, CancellationToken cancellationToken)
     {
-        var activeEmployees = await _employeeRepository.GetActiveEmployeesAsync(cancellationToken);
+        var activeEmployees = await _employeeSnapshotRepository.GetActiveAsync(cancellationToken);
 
         _logger.LogInformation(
             "Processing payroll for {Year}-{Month:D2} — {Count} active employees",

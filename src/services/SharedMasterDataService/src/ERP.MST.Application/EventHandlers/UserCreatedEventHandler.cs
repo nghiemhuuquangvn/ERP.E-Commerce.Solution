@@ -1,9 +1,9 @@
-using ERP.HRM.Application.Commands;
+using ERP.MST.Application.Commands;
 using ERP.Shared.Contracts;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
-namespace ERP.HRM.Application.EventHandlers;
+namespace ERP.MST.Application.EventHandlers;
 
 /// <summary>
 /// Integration event contract for UserCreated consumed from Identity Service.

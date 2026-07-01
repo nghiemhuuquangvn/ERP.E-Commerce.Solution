@@ -26,9 +26,15 @@
 
 #### Human Resources & Payroll
 - **Location:** `src/services/HRMService/README.md`
-- **Topics:** Employee management, departments, attendance tracking, leave management, payroll processing, pay slip generation
-- **Workflows:** Employee hire → Department assignment → Attendance tracking → Leave approval → PayslipGeneration
-- **Entities:** Employee, Department, LeaveRequest, PaySlip, Attendance, Shift
+- **Topics:** Attendance tracking, leave management, payroll processing, pay slip generation (Employee/Department master data now lives in SharedMasterDataService — see below)
+- **Workflows:** Attendance tracking → Leave approval → Payslip generation
+- **Entities:** LeaveRequest, PaySlip, Attendance, Shift, EmployeeSnapshot (read-only projection)
+
+#### Shared Master Data
+- **Location:** `docs/business/MasterData/`, `src/services/SharedMasterDataService/README.md`
+- **Topics:** Department & position (job title) master data, employee master data, unit of measure, geographic hierarchy (Country → Province → District → Ward), supported languages, per-entity translations
+- **Workflows:** Employee hire → Department assignment → (HRMService) Attendance/Leave/Payroll referencing EmployeeId
+- **Entities:** Department, Position, Employee, UnitOfMeasure, Country, Province, District, Ward, SupportedLanguage, {Entity}Translation
 
 #### Purchase Order & Procurement
 - **Location:** `src/services/PurchaseOrderService/README.md`
