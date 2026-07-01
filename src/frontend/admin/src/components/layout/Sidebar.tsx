@@ -4,7 +4,17 @@ import { useTranslation } from 'react-i18next'
 import { useUiStore } from '@/stores/ui.store'
 import { usePermission } from '@/hooks/usePermission'
 
-const NAV_ITEMS = [
+interface NavItem {
+  labelKey: string
+  path: string
+  icon: string
+  // Single-permission items use `permission` (null = always visible). Items
+  // visible under any of several permissions (OR) use `permissions` instead.
+  permission?: string | null
+  permissions?: string[]
+}
+
+const NAV_ITEMS: NavItem[] = [
   { labelKey: 'nav.dashboard', path: '/dashboard', permission: null, icon: '⊞' },
   { labelKey: 'nav.orders', path: '/orders', permission: 'orders:view', icon: '📦' },
   { labelKey: 'nav.products', path: '/products', permission: 'products:view', icon: '🏷️' },
@@ -49,18 +59,28 @@ const NAV_ITEMS = [
   },
   { labelKey: 'nav.reports', path: '/reports', permission: 'reports:view', icon: '📊' },
   { labelKey: 'nav.settings', path: '/settings', permission: 'settings:view', icon: '⚙️' },
+  {
+    labelKey: 'nav.authSettings',
+    path: '/settings/auth',
+    permissions: ['settings:system:view', 'settings:tenant:view'],
+    icon: '🔐',
+  },
   { labelKey: 'nav.monitoring', path: '/monitoring', permission: 'monitoring:view', icon: '🖥' },
 ]
 
 export function Sidebar() {
   const { t } = useTranslation()
   const { sidebarCollapsed } = useUiStore()
-  const { hasPermission } = usePermission()
+  const { hasPermission, hasAnyPermission } = usePermission()
 
   // Recompute only when user permissions change (hasPermission is stable via useCallback)
   const visible = useMemo(
-    () => NAV_ITEMS.filter((item) => item.permission === null || hasPermission(item.permission)),
-    [hasPermission],
+    () =>
+      NAV_ITEMS.filter((item) => {
+        if (item.permissions) return hasAnyPermission(...item.permissions)
+        return item.permission === null || item.permission === undefined || hasPermission(item.permission)
+      }),
+    [hasPermission, hasAnyPermission],
   )
 
   return (

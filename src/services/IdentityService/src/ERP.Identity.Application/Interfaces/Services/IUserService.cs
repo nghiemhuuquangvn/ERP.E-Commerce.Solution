@@ -15,4 +15,6 @@ public interface IUserService
     Task DeactivateAsync(Guid id, CancellationToken ct);
     Task AssignRoleAsync(Guid userId, string roleCode, Guid tenantId, CancellationToken ct);
     Task RemoveRoleAsync(Guid userId, Guid roleId, Guid tenantId, CancellationToken ct);
+    Task EnableTwoFactorAsync(Guid id, string method, string? phoneNumber, CancellationToken ct);
+    Task DisableTwoFactorAsync(Guid id, CancellationToken ct);
 }

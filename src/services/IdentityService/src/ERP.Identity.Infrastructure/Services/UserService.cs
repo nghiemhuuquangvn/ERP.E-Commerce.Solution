@@ -164,5 +164,27 @@ namespace ERP.Identity.Infrastructure.Services
             // For now, we'll use a workaround by deleting directly from the database
             await _unitOfWork.SaveChangesAsync(ct);
         }
+
+        public async Task EnableTwoFactorAsync(Guid id, string method, string? phoneNumber, CancellationToken ct)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(id, ct);
+            if (user == null)
+                throw new InvalidOperationException($"User with id '{id}' not found");
+
+            user.EnableTwoFactor(method, phoneNumber);
+            await _unitOfWork.Users.UpdateAsync(user, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+        }
+
+        public async Task DisableTwoFactorAsync(Guid id, CancellationToken ct)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(id, ct);
+            if (user == null)
+                throw new InvalidOperationException($"User with id '{id}' not found");
+
+            user.DisableTwoFactor();
+            await _unitOfWork.Users.UpdateAsync(user, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+        }
     }
 }

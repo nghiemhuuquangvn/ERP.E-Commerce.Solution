@@ -47,6 +47,7 @@ else
     builder.Services.AddScoped<IPushSender, NullPushSender>();
 
 builder.Services.AddHostedService<NotificationDispatchJob>();
+builder.Services.AddHostedService<ERP.NTF.Infrastructure.BackgroundJobs.IdentityEventConsumer>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, HeaderUserContextService>();

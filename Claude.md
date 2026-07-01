@@ -118,6 +118,15 @@ tests/
 
 Responsibilities:
 - Authentication (JWT-based)
+- External login / SSO (Google, Microsoft, Facebook, Twitter/X) — Google/Microsoft/
+  Facebook verify a client-obtained token via `IExternalAuthProvider`; Twitter/X uses
+  a separate OAuth 2.0 Authorization Code + PKCE redirect flow (`TwitterOAuthService`)
+  since it has no equivalent single-shot verifiable token
+- Two-factor authentication (2FA) via SMS or Email, code delivered through
+  NotificationService via Kafka (`identity-topic`) — never a direct/synchronous call
+- Auth settings, two-tier: `SystemAuthSettings` (SuperAdmin-only master switch, all
+  tenants) and `TenantAuthSettings` (per-tenant, requires the System switch to also be
+  on) — each gates the external-login providers and 2FA availability/requirement
 - Authorization & access control
 - User management & lifecycle
 - Role-based access control (RBAC)
@@ -131,6 +140,7 @@ Published Events:
 - UserUpdated
 - RoleAssigned
 - PermissionGranted
+- TwoFactorCodeGenerated (consumed only by NotificationService, to deliver the OTP)
 
 Consumed Events: None
 
@@ -435,7 +445,18 @@ Consumed Events:
 - PaymentProcessed
 - EmployeeHired
 - LeadQualified
+- TwoFactorCodeGenerated (from IdentityService — sends the OTP via SMS or Email
+  depending on the event's `Method`)
 - (and all other significant domain events)
+
+Note: a live Kafka consumer (`IdentityEventConsumer`, `IHostedService`) exists only
+for IdentityService's `identity-topic` today — it is the only topic this service
+actually subscribes to at runtime; the other consumed-event names above describe the
+intended, not-yet-wired design for the other 12 services' topics. Follow
+`IdentityEventConsumer`'s pattern (mirrors HRMService's `MasterDataEventConsumer`,
+dispatches via `IMediator.Publish`) when wiring up the next topic — don't assume the
+`INotification` handler classes already in `IntegrationEventHandlers.cs` are live
+until a matching consumer exists for their topic.
 
 **Pattern:** Consumes from all 13 other service topics for event-driven notifications.
 

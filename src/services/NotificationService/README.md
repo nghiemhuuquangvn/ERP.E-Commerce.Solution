@@ -94,6 +94,24 @@ From **HRMService:**
 - EmployeeHiredIntegrationEvent → Send welcome email
 - PaySlipGeneratedIntegrationEvent → Send payslip notification
 
+From **IdentityService** (`identity-topic` — the only topic with a live consumer today,
+`IdentityEventConsumer`; see note below):
+- TwoFactorCodeGeneratedIntegrationEvent → Send the 2FA one-time code via SMS or Email
+  (`TWO_FACTOR_CODE` template, `{code}`/`{expiryMinutes}` placeholders) — Channel is
+  chosen per the event's `Method` field, not a fixed channel
+- UserCreatedIntegrationEvent → Send welcome email (name fields blank — IdentityService's
+  underlying `UserRegisteredDomainEvent` doesn't carry a first/last name split)
+
+> **Live consumer status:** as of the 2FA feature, `IdentityEventConsumer` is the
+> **first and only** real Kafka consumer in this service — it subscribes only
+> `identity-topic`. Every other "Consumed Events" entry in this README (SalesOrder,
+> Shipping, Payment, HRM, CRM, ...) describes the intended design; the corresponding
+> `INotification` + handler classes already exist in `IntegrationEventHandlers.cs`, but
+> nothing dispatches Kafka messages to them yet for those other 12 topics. When wiring
+> the next one, copy `IdentityEventConsumer`'s pattern (itself mirrored from
+> HRMService's `MasterDataEventConsumer`) rather than assuming the handler classes are
+> already live.
+
 From **CRMService:**
 - CaseOpenedIntegrationEvent → Send case confirmation
 - CaseResolvedIntegrationEvent → Send resolution notification

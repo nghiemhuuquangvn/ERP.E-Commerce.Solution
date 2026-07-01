@@ -17,8 +17,16 @@ The Identity Service is the security backbone of the entire microservices ecosys
 - User registration with email validation
 - Password authentication with secure hashing
 - JWT token generation and refresh
-- OAuth2/OpenID Connect integration (optional)
-- Multi-factor authentication (MFA) support
+- External login / SSO: Google, Microsoft, Facebook (client obtains a token via the
+  provider's SDK, server verifies it via `IExternalAuthProvider`), and Twitter/X (a
+  separate OAuth 2.0 Authorization Code + PKCE redirect flow via `TwitterOAuthService`,
+  since Twitter has no equivalent single-shot verifiable token)
+- Two-factor authentication (2FA) via SMS or Email: after password verification, if
+  required, a hashed one-shot code is issued (`TwoFactorChallenge`) and delivered
+  through NotificationService via Kafka (`identity-topic`) — never a direct call
+- Auth settings — two-tier toggle gating both of the above: `SystemAuthSettings`
+  (SuperAdmin-only, all tenants) and `TenantAuthSettings` (per-tenant; requires the
+  System switch to also allow it). See `docs/business/Identity/ExternalAuthAndTwoFactor.md`.
 - Session management
 
 ### Authorization
@@ -289,6 +297,43 @@ Response: 200 OK
 }
 ```
 
+### External Login (SSO) Endpoints
+
+```http
+POST /api/auth/external-login          # Google / Microsoft / Facebook — body: { provider, providerKey, idToken, tenantCode, userType }
+GET  /api/auth/external-login/twitter/authorize-url?tenantCode=   # Twitter/X step 1 (PKCE)
+POST /api/auth/external-login/twitter/callback                   # Twitter/X step 2 — body: { code, state }
+GET  /api/auth/login-options?tenantCode=   # [AllowAnonymous] — which providers/2FA are enabled for this tenant, for rendering a login page before any JWT exists
+```
+
+All return the same `LoginResponse` shape as `POST /api/auth/login`.
+
+### Two-Factor Authentication Endpoints
+
+```http
+POST /api/auth/2fa/verify              # body: { challengeId, code } → LoginResponse (tokens if correct)
+POST /api/auth/2fa/resend              # body: { challengeId } → LoginResponse with a new challengeId
+POST /api/users/{id}/2fa/enable        # [Authorize, self-service only] body: { method: "Sms"|"Email", phoneNumber? }
+POST /api/users/{id}/2fa/disable       # [Authorize, self-service only] — rejected if the tenant has TwoFactorRequired
+```
+
+`LoginResponse` gained `requiresTwoFactor`, `challengeId`, `twoFactorMethod`,
+`expiresInSeconds` — when `requiresTwoFactor` is true, no tokens are issued yet; the
+client must call `2fa/verify` next.
+
+### Settings Endpoints
+
+```http
+GET  /api/settings/system              # [settings:system:view]   — SuperAdmin scope
+PUT  /api/settings/system              # [settings:system:manage]
+GET  /api/settings/tenant/{tenantId}   # [settings:tenant:view]    — own tenant, or any tenant if caller also has settings:system:manage
+PUT  /api/settings/tenant/{tenantId}   # [settings:tenant:manage]
+```
+
+Each returns/accepts `{ googleEnabled, microsoftEnabled, facebookEnabled,
+twitterEnabled, twoFactorEnabled }` (system) or the same plus `tenantId`/
+`twoFactorRequired` (tenant).
+
 ## Published Events
 
 ### UserCreatedEvent
@@ -334,6 +379,26 @@ public class RoleAssignedEvent : IntegrationEvent
     public DateTime AssignedAt { get; set; }
 }
 ```
+
+### TwoFactorCodeGeneratedEvent
+Raised when a login requires 2FA and a one-shot OTP is generated. Carries the
+plaintext code (the DB only ever stores the hash) — consumed by NotificationService
+to send it via SMS or Email. Published to Kafka topic `identity-topic`.
+
+```csharp
+public class TwoFactorCodeGeneratedDomainEvent : IDomainEvent
+{
+    public Guid UserId { get; }
+    public Guid TenantId { get; }
+    public string Method { get; }       // "Sms" | "Email"
+    public string Destination { get; }  // masked phone/email
+    public string Code { get; }         // plaintext, one-shot
+    public int ExpiryMinutes { get; }
+    public DateTime OccurredOn { get; }
+}
+```
+
+**Subscribers**: Notification Service (`IdentityEventConsumer`)
 
 ## Consumed Events
 
@@ -410,6 +475,42 @@ CREATE TABLE RolePermissions (
 );
 ```
 
+#### SystemAuthSettings / TenantAuthSettings / TwoFactorChallenges / OAuthStates
+```sql
+-- Single well-known-GUID row; SuperAdmin-only master switch (all tenants)
+CREATE TABLE SystemAuthSettings (
+    Id UNIQUEIDENTIFIER PRIMARY KEY,
+    GoogleEnabled BIT, MicrosoftEnabled BIT, FacebookEnabled BIT, TwitterEnabled BIT,
+    TwoFactorEnabled BIT
+);
+
+-- One row per tenant; effective only if SystemAuthSettings also allows it
+CREATE TABLE TenantAuthSettings (
+    Id UNIQUEIDENTIFIER PRIMARY KEY,
+    TenantId UNIQUEIDENTIFIER NOT NULL UNIQUE,
+    GoogleEnabled BIT, MicrosoftEnabled BIT, FacebookEnabled BIT, TwitterEnabled BIT,
+    TwoFactorEnabled BIT, TwoFactorRequired BIT
+);
+
+-- One-shot OTP challenges created at login when 2FA is required
+CREATE TABLE TwoFactorChallenges (
+    Id UNIQUEIDENTIFIER PRIMARY KEY,
+    UserId UNIQUEIDENTIFIER NOT NULL, TenantId UNIQUEIDENTIFIER NOT NULL,
+    CodeHash NVARCHAR(500) NOT NULL, Method NVARCHAR(16) NOT NULL,
+    Destination NVARCHAR(256), ExpiredAt DATETIME2 NOT NULL,
+    AttemptCount INT, MaxAttempts INT, VerifiedAt DATETIME2
+);
+
+-- Twitter/X Authorization Code + PKCE flow — short-lived
+CREATE TABLE OAuthStates (
+    Id UNIQUEIDENTIFIER PRIMARY KEY,
+    State NVARCHAR(256) NOT NULL UNIQUE, CodeVerifier NVARCHAR(256) NOT NULL,
+    TenantCode NVARCHAR(256) NOT NULL, ExpiredAt DATETIME2 NOT NULL
+);
+```
+`Users` also gained `PhoneNumber`, `TwoFactorEnabled`, `TwoFactorMethod` columns (see
+`src/Database/Identity/002_AddExternalAuthSettingsAndTwoFactor.sql`).
+
 ## Getting Started
 
 ### Prerequisites
@@ -437,6 +538,20 @@ Create `appsettings.json`:
     "UserName": "guest",
     "Password": "guest"
   }
+}
+```
+
+For external login and 2FA, `appsettings.Development.json` also needs (see the actual
+file for the real placeholder values already checked in):
+```json
+{
+  "Authentication": {
+    "Google": { "ClientId": "..." },
+    "Microsoft": { "Authority": "...", "ClientId": "..." },
+    "Facebook": { "AppId": "...", "AppSecret": "..." },
+    "Twitter": { "ClientId": "...", "ClientSecret": "...", "RedirectUri": "http://localhost:5173/login/oauth/twitter/callback" }
+  },
+  "TwoFactorAuthentication": { "CodeLength": 6, "ExpiryMinutes": 5, "MaxAttempts": 3, "ResendCooldownSeconds": 60 }
 }
 ```
 

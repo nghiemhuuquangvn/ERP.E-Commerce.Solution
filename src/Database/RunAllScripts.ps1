@@ -20,6 +20,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $DatabaseScripts = @(
     # Core Identity first
     "Identity\001_CreateAuthDB.sql",
+    "Identity\002_AddExternalAuthSettingsAndTwoFactor.sql",
 
     # Cross-cutting master data (Department/Position/Employee/UoM/Geography/Language —
     # seed before HRM, which now references Employees/Departments here instead of owning them)

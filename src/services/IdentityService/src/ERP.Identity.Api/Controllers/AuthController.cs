@@ -9,6 +9,7 @@ using RegisterRequest = ERP.Identity.Application.DTOs.Auth.RegisterDto.RegisterR
 using RefreshTokenRequest = ERP.Identity.Application.DTOs.Auth.RefreshTokenDto.RefreshTokenRequest;
 using ForgotPasswordRequestDto = ERP.Identity.Application.DTOs.Auth.ForgotPasswordRequest;
 using ResetPasswordRequestDto = ERP.Identity.Application.DTOs.Auth.ResetPasswordRequest;
+using ExternalLoginRequest = ERP.Identity.Application.DTOs.Auth.ExternalLoginDto.ExternalLoginRequest;
 
 namespace ERP.Identity.Api.Controllers
 {
@@ -17,10 +18,12 @@ namespace ERP.Identity.Api.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly ISettingsService _settingsService;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, ISettingsService settingsService)
         {
             _authService = authService;
+            _settingsService = settingsService;
         }
 
         [HttpPost("register")]
@@ -89,6 +92,58 @@ namespace ERP.Identity.Api.Controllers
         public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailRequest request, CancellationToken cancellationToken = default)
         {
             var result = await _authService.ConfirmEmailAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("external-login")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ExternalLogin([FromBody] ExternalLoginRequest request, CancellationToken cancellationToken = default)
+        {
+            var result = await _authService.ExternalLoginAsync(request, cancellationToken);
+            if (!result.Succeeded) return Unauthorized(result.Errors);
+            return Ok(result);
+        }
+
+        [HttpGet("external-login/twitter/authorize-url")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTwitterAuthorizeUrl([FromQuery] string tenantCode, CancellationToken cancellationToken = default)
+        {
+            var result = await _authService.GetTwitterAuthorizeUrlAsync(tenantCode, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("external-login/twitter/callback")]
+        [AllowAnonymous]
+        public async Task<IActionResult> TwitterCallback([FromBody] TwitterCallbackRequest request, CancellationToken cancellationToken = default)
+        {
+            var result = await _authService.TwitterCallbackAsync(request, cancellationToken);
+            if (!result.Succeeded) return Unauthorized(result.Errors);
+            return Ok(result);
+        }
+
+        [HttpPost("2fa/verify")]
+        [AllowAnonymous]
+        public async Task<IActionResult> VerifyTwoFactor([FromBody] VerifyTwoFactorRequest request, CancellationToken cancellationToken = default)
+        {
+            var result = await _authService.VerifyTwoFactorAsync(request, cancellationToken);
+            if (!result.Succeeded) return BadRequest(result.Errors);
+            return Ok(result);
+        }
+
+        [HttpPost("2fa/resend")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ResendTwoFactor([FromBody] ResendTwoFactorRequest request, CancellationToken cancellationToken = default)
+        {
+            var result = await _authService.ResendTwoFactorAsync(request, cancellationToken);
+            if (!result.Succeeded) return BadRequest(result.Errors);
+            return Ok(result);
+        }
+
+        [HttpGet("login-options")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetLoginOptions([FromQuery] string tenantCode, CancellationToken cancellationToken = default)
+        {
+            var result = await _settingsService.GetPublicOptionsAsync(tenantCode, cancellationToken);
             return Ok(result);
         }
     }

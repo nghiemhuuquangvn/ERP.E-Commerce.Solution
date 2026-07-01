@@ -16,6 +16,10 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         IExternalLoginRepository ExternalLogins { get; }
         IOutboxMessageRepository OutboxMessages { get; }
         IPasswordResetTokenRepository PasswordResetTokens { get; }
+        ISystemAuthSettingsRepository SystemAuthSettings { get; }
+        ITenantAuthSettingsRepository TenantAuthSettings { get; }
+        ITwoFactorChallengeRepository TwoFactorChallenges { get; }
+        IOAuthStateRepository OAuthStates { get; }
         Task<int> SaveChangesAsync(CancellationToken ct);
         Task BeginTransactionAsync(CancellationToken ct);
         Task CommitTransactionAsync(CancellationToken ct);

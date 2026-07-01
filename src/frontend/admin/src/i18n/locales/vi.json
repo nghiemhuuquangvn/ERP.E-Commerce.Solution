@@ -41,6 +41,7 @@
     "languages": "Ngôn ngữ",
     "reports": "Báo cáo",
     "settings": "Cài đặt",
+    "authSettings": "Cài đặt đăng nhập",
     "monitoring": "Giám sát"
   },
   "auth": {
@@ -49,8 +50,32 @@
     "invalidCredentials": "Email hoặc mật khẩu không đúng.",
     "email": "Email",
     "password": "Mật khẩu",
+    "tenantCode": "Mã đơn vị",
     "signIn": "Đăng nhập",
-    "signingIn": "Đang đăng nhập…"
+    "signingIn": "Đang đăng nhập…",
+    "twoFactor": {
+      "title": "Xác thực hai lớp",
+      "subtitleSms": "Nhập mã 6 chữ số chúng tôi đã gửi đến điện thoại của bạn.",
+      "subtitleEmail": "Nhập mã 6 chữ số chúng tôi đã gửi đến email của bạn.",
+      "code": "Mã xác thực",
+      "verify": "Xác thực",
+      "verifying": "Đang xác thực…",
+      "verifyFailed": "Mã không đúng hoặc đã hết hạn. Vui lòng thử lại.",
+      "resend": "Gửi lại mã",
+      "resendCooldown": "Gửi lại mã ({{seconds}}s)",
+      "resendFailed": "Không thể gửi lại mã. Vui lòng chờ và thử lại.",
+      "enabledNotice": "Có thể yêu cầu xác thực hai lớp sau khi đăng nhập."
+    },
+    "externalLogin": {
+      "continueWithGoogle": "Tiếp tục với Google",
+      "continueWithMicrosoft": "Tiếp tục với Microsoft",
+      "continueWithFacebook": "Tiếp tục với Facebook",
+      "continueWithTwitter": "Tiếp tục với Twitter",
+      "failed": "Đăng nhập thất bại. Vui lòng thử lại.",
+      "googleNotConfigured": "Đăng nhập Google chưa được cấu hình đầy đủ trong môi trường này.",
+      "completingSignIn": "Đang hoàn tất đăng nhập…",
+      "twitterCallbackMissingParams": "Thiếu tham số ủy quyền từ Twitter."
+    }
   },
   "dashboard": {
     "title": "Tổng quan",
@@ -263,6 +288,21 @@
       "defaultLanguage": "Ngôn ngữ mặc định",
       "default": "Mặc định",
       "failedToSave": "Lưu ngôn ngữ thất bại. Vui lòng thử lại."
+    }
+  },
+  "settings": {
+    "auth": {
+      "title": "Cài đặt xác thực",
+      "systemTab": "Hệ thống",
+      "tenantTab": "Đơn vị",
+      "googleEnabled": "Bật đăng nhập Google",
+      "microsoftEnabled": "Bật đăng nhập Microsoft",
+      "facebookEnabled": "Bật đăng nhập Facebook",
+      "twitterEnabled": "Bật đăng nhập Twitter",
+      "twoFactorEnabled": "Bật xác thực hai lớp",
+      "twoFactorRequired": "Bắt buộc xác thực hai lớp cho tất cả người dùng",
+      "noTenant": "Không tìm thấy đơn vị cho người dùng hiện tại.",
+      "failedToSave": "Lưu cài đặt thất bại. Vui lòng thử lại."
     }
   }
 }

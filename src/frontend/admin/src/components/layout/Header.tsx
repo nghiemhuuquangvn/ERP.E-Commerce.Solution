@@ -35,9 +35,7 @@ export function Header() {
           <option value="en">EN</option>
           <option value="vi">VI</option>
         </select>
-        <span className="text-sm text-gray-600">
-          {user?.firstName} {user?.lastName}
-        </span>
+        <span className="text-sm text-gray-600">{user?.fullName ?? user?.email}</span>
         <button
           onClick={logout}
           className="rounded-md px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"

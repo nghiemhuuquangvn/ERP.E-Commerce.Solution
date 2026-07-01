@@ -41,6 +41,7 @@
     "languages": "Languages",
     "reports": "Reports",
     "settings": "Settings",
+    "authSettings": "Auth Settings",
     "monitoring": "Monitoring"
   },
   "auth": {
@@ -49,8 +50,32 @@
     "invalidCredentials": "Invalid email or password.",
     "email": "Email",
     "password": "Password",
+    "tenantCode": "Tenant Code",
     "signIn": "Sign in",
-    "signingIn": "Signing in…"
+    "signingIn": "Signing in…",
+    "twoFactor": {
+      "title": "Two-Factor Verification",
+      "subtitleSms": "Enter the 6-digit code we sent to your phone.",
+      "subtitleEmail": "Enter the 6-digit code we sent to your email.",
+      "code": "Verification Code",
+      "verify": "Verify",
+      "verifying": "Verifying…",
+      "verifyFailed": "Invalid or expired code. Please try again.",
+      "resend": "Resend code",
+      "resendCooldown": "Resend code ({{seconds}}s)",
+      "resendFailed": "Could not resend code. Please wait and try again.",
+      "enabledNotice": "Two-factor authentication may be required after sign in."
+    },
+    "externalLogin": {
+      "continueWithGoogle": "Continue with Google",
+      "continueWithMicrosoft": "Continue with Microsoft",
+      "continueWithFacebook": "Continue with Facebook",
+      "continueWithTwitter": "Continue with Twitter",
+      "failed": "Sign-in failed. Please try again.",
+      "googleNotConfigured": "Google sign-in is not fully configured in this environment.",
+      "completingSignIn": "Completing sign in…",
+      "twitterCallbackMissingParams": "Missing authorization parameters from Twitter."
+    }
   },
   "dashboard": {
     "title": "Dashboard",
@@ -263,6 +288,21 @@
       "defaultLanguage": "Default language",
       "default": "Default",
       "failedToSave": "Failed to save language. Please try again."
+    }
+  },
+  "settings": {
+    "auth": {
+      "title": "Authentication Settings",
+      "systemTab": "System",
+      "tenantTab": "Tenant",
+      "googleEnabled": "Enable Google sign-in",
+      "microsoftEnabled": "Enable Microsoft sign-in",
+      "facebookEnabled": "Enable Facebook sign-in",
+      "twitterEnabled": "Enable Twitter sign-in",
+      "twoFactorEnabled": "Enable two-factor authentication",
+      "twoFactorRequired": "Require two-factor authentication for all users",
+      "noTenant": "No tenant found for the current user.",
+      "failedToSave": "Failed to save settings. Please try again."
     }
   }
 }

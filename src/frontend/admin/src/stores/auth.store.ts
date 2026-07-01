@@ -1,11 +1,14 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-interface User {
+export interface User {
   id: string
   email: string
-  firstName: string
-  lastName: string
+  fullName?: string | null
+  // Decoded once from the JWT's `tenant_id` claim at login time (see
+  // useAuth.ts's completeLogin) and stored alongside the user — the backend's
+  // LoginResponse.user doesn't carry tenantId itself, only the token does.
+  tenantId: string
   roles: string[]
   permissions: string[]
 }

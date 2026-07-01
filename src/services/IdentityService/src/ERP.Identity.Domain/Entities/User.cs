@@ -23,6 +23,10 @@ namespace ERP.Identity.Domain.Entities
         public int AccessFailedCount { get; private set; }
         public DateTime? LastLoginAt { get; private set; }
 
+        public string? PhoneNumber { get; private set; }
+        public bool TwoFactorEnabled { get; private set; }
+        public string? TwoFactorMethod { get; private set; }
+
         public Guid TenantId { get; private set; } = default!;
 
         private readonly List<AuthUserTenant> _authTenants = new();
@@ -150,6 +154,31 @@ namespace ERP.Identity.Domain.Entities
         {
             IsLocked = false;
             AccessFailedCount = 0;
+        }
+
+        public void SetPhoneNumber(string phone)
+        {
+            if (string.IsNullOrWhiteSpace(phone))
+                throw new ArgumentException("Phone number is required");
+            PhoneNumber = phone.Trim();
+        }
+
+        public void EnableTwoFactor(string method, string? phoneNumber = null)
+        {
+            if (string.IsNullOrWhiteSpace(method))
+                throw new ArgumentException("Two-factor method is required");
+
+            if (method.Equals("Sms", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(phoneNumber))
+                SetPhoneNumber(phoneNumber);
+
+            TwoFactorEnabled = true;
+            TwoFactorMethod = method;
+        }
+
+        public void DisableTwoFactor()
+        {
+            TwoFactorEnabled = false;
+            TwoFactorMethod = null;
         }
     }
 

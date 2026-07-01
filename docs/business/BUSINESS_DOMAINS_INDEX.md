@@ -11,10 +11,17 @@
 ### ERP Core (Back-Office)
 
 #### Identity & Access Management
-- **Location:** `src/services/IdentityService/README.md`
-- **Topics:** User management, role-based access control (RBAC), permission management, multi-tenancy
-- **Workflows:** User registration → Role assignment → Permission grant → Access control
-- **Entities:** User, Role, Permission, Tenant, UserRole, RolePermission
+- **Location:** `src/services/IdentityService/README.md`,
+  `docs/business/Identity/ExternalAuthAndTwoFactor.md`
+- **Topics:** User management, role-based access control (RBAC), permission
+  management, multi-tenancy, external login/SSO (Google/Microsoft/Facebook/Twitter),
+  two-factor authentication (SMS/Email), system/tenant auth settings
+- **Workflows:** User registration → Role assignment → Permission grant → Access
+  control; Login → (2FA challenge if required) → tokens issued; External login →
+  find-or-create user → tokens issued
+- **Entities:** User, Role, Permission, Tenant, UserRole, RolePermission,
+  ExternalLogin, SystemAuthSettings, TenantAuthSettings, TwoFactorChallenge,
+  OAuthState
 
 #### Accounting & Financial Management
 - **Location:** `src/services/AccountingService/README.md`

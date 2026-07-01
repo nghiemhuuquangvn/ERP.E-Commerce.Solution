@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { LoginPage } from '@/pages/auth/LoginPage'
+import { TwoFactorPage } from '@/pages/auth/TwoFactorPage'
+import { TwitterCallbackPage } from '@/pages/auth/TwitterCallbackPage'
 import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { OrderListPage } from '@/pages/orders/OrderListPage'
 import { OrderDetailPage } from '@/pages/orders/OrderDetailPage'
@@ -16,6 +18,7 @@ import { EmployeesPage } from '@/pages/masterdata/EmployeesPage'
 import { UnitsOfMeasurePage } from '@/pages/masterdata/UnitsOfMeasurePage'
 import { GeographyPage } from '@/pages/masterdata/GeographyPage'
 import { LanguagesPage } from '@/pages/masterdata/LanguagesPage'
+import { AuthSettingsPage } from '@/pages/settings/AuthSettingsPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -27,6 +30,14 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/login/2fa',
+    element: <TwoFactorPage />,
+  },
+  {
+    path: '/login/oauth/twitter/callback',
+    element: <TwitterCallbackPage />,
   },
   {
     path: '/',
@@ -46,6 +57,7 @@ export const router = createBrowserRouter([
       { path: 'reports', element: <ReportsPage /> },
       { path: 'customers', element: <PlaceholderPage title="Customers (CRM)" /> },
       { path: 'settings', element: <PlaceholderPage title="Settings" /> },
+      { path: 'settings/auth', element: <AuthSettingsPage /> },
       { path: 'monitoring', element: <MonitoringPage /> },
       { path: 'masterdata/departments', element: <DepartmentsPage /> },
       { path: 'masterdata/positions', element: <PositionsPage /> },

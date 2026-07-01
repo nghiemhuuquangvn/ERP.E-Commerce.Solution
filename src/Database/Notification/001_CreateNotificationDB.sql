@@ -99,5 +99,6 @@ VALUES
     (NEWID(), '00000000-0000-0000-0000-000000000000', 'ORDER_CONFIRMATION','Order Confirmation',    0, 'Order #{OrderNumber} Confirmed', 'Hi {CustomerName}, your order #{OrderNumber} has been confirmed. Total: {TotalAmount}', 1, GETUTCDATE(), GETUTCDATE()),
     (NEWID(), '00000000-0000-0000-0000-000000000000', 'PAYMENT_RECEIPT',  'Payment Receipt',        0, 'Payment Received',           'Payment of {Amount} for order #{OrderNumber} received.', 1, GETUTCDATE(), GETUTCDATE()),
     (NEWID(), '00000000-0000-0000-0000-000000000000', 'SHIPMENT_NOTIFICATION','Shipment Notification', 0, 'Your order has shipped!', 'Your order #{OrderNumber} has shipped. Tracking: {TrackingNumber}', 1, GETUTCDATE(), GETUTCDATE()),
-    (NEWID(), '00000000-0000-0000-0000-000000000000', 'EMPLOYEE_WELCOME', 'Employee Welcome Email', 0, 'Welcome to the team!',      'Hi {FirstName}, welcome aboard! Your employee profile is ready.', 1, GETUTCDATE(), GETUTCDATE());
+    (NEWID(), '00000000-0000-0000-0000-000000000000', 'EMPLOYEE_WELCOME', 'Employee Welcome Email', 0, 'Welcome to the team!',      'Hi {FirstName}, welcome aboard! Your employee profile is ready.', 1, GETUTCDATE(), GETUTCDATE()),
+    (NEWID(), '00000000-0000-0000-0000-000000000000', 'TWO_FACTOR_CODE',  'Two-Factor Authentication Code', 0, 'Your verification code', 'Your verification code is {code}. It expires in {expiryMinutes} minutes.', 1, GETUTCDATE(), GETUTCDATE());
 GO

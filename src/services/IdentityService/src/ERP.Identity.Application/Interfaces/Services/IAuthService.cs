@@ -27,5 +27,13 @@ namespace ERP.Identity.Application.Interfaces.Services
         Task<ResetPasswordResponse> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken ct);
 
         Task<ConfirmEmailResponse> ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken ct);
+
+        Task<LoginResponse> VerifyTwoFactorAsync(VerifyTwoFactorRequest request, CancellationToken ct);
+
+        Task<LoginResponse> ResendTwoFactorAsync(ResendTwoFactorRequest request, CancellationToken ct);
+
+        Task<TwitterAuthorizeUrlResponse> GetTwitterAuthorizeUrlAsync(string tenantCode, CancellationToken ct);
+
+        Task<LoginResponse> TwitterCallbackAsync(TwitterCallbackRequest request, CancellationToken ct);
     }
 }

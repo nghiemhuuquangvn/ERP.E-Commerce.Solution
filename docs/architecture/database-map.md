@@ -108,7 +108,36 @@ Permissions
 RolePermissions (Junction)
 ├── RoleId (FK)
 └── PermissionId (FK)
+
+SystemAuthSettings (single well-known-GUID row — SuperAdmin master switch)
+├── Id (PK, fixed GUID)
+├── GoogleEnabled, MicrosoftEnabled, FacebookEnabled, TwitterEnabled (bit)
+└── TwoFactorEnabled (bit)
+
+TenantAuthSettings (one row per Tenant — requires SystemAuthSettings to also allow)
+├── Id (PK)
+├── TenantId (FK, unique)
+├── GoogleEnabled, MicrosoftEnabled, FacebookEnabled, TwitterEnabled (bit)
+├── TwoFactorEnabled (bit — available for this tenant)
+└── TwoFactorRequired (bit — mandatory for every user in this tenant)
+
+TwoFactorChallenges (one-shot OTP challenges, created at login when 2FA is required)
+├── Id (PK)
+├── UserId (FK), TenantId
+├── CodeHash (hashed via the same IPasswordHasher used for login passwords)
+├── Method ("Sms" | "Email"), Destination (masked)
+├── ExpiredAt, AttemptCount, MaxAttempts, VerifiedAt
+└── Index: (UserId, ExpiredAt)
+
+OAuthStates (Twitter/X Authorization Code + PKCE flow only — short-lived)
+├── Id (PK)
+├── State (unique), CodeVerifier, TenantCode
+└── ExpiredAt
 ```
+
+Migration `002_AddExternalAuthSettingsAndTwoFactor.sql` also added `Users.PhoneNumber`,
+`Users.TwoFactorEnabled`, `Users.TwoFactorMethod` and 4 new permissions
+(`settings:system:view/manage`, `settings:tenant:view/manage`).
 
 **Relationships:**
 - Users → Tenants (many-to-one)

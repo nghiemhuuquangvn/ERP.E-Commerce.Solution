@@ -25,6 +25,10 @@ namespace ERP.Identity.Infrastructure.Persistence
         public DbSet<AuthTenant> Tenants => Set<AuthTenant>();
         public DbSet<EmailConfirmToken> EmailConfirmTokens => Set<EmailConfirmToken>();
         public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+        public DbSet<SystemAuthSettings> SystemAuthSettings => Set<SystemAuthSettings>();
+        public DbSet<TenantAuthSettings> TenantAuthSettings => Set<TenantAuthSettings>();
+        public DbSet<TwoFactorChallenge> TwoFactorChallenges => Set<TwoFactorChallenge>();
+        public DbSet<OAuthState> OAuthStates => Set<OAuthState>();
         private readonly IDomainEventDispatcher _domainEventDispatcher;
 
         public AuthDbContext(DbContextOptions<AuthDbContext> options, IDomainEventDispatcher domainEventDispatcher) : base(options)
@@ -168,6 +172,10 @@ namespace ERP.Identity.Infrastructure.Persistence
             modelBuilder.Entity<ExternalLogin>().Ignore(el => el.Description);
             modelBuilder.Entity<EmailConfirmToken>().Ignore(et => et.Description);
             modelBuilder.Entity<PasswordResetToken>().Ignore(prt => prt.Description);
+            modelBuilder.Entity<SystemAuthSettings>().Ignore(s => s.Description);
+            modelBuilder.Entity<TenantAuthSettings>().Ignore(s => s.Description);
+            modelBuilder.Entity<TwoFactorChallenge>().Ignore(c => c.Description);
+            modelBuilder.Entity<OAuthState>().Ignore(o => o.Description);
 
             // 1. User Configuration
             modelBuilder.Entity<User>(entity =>
@@ -322,6 +330,39 @@ namespace ERP.Identity.Infrastructure.Persistence
                 entity.ToTable("OutboxMessages");
                 entity.HasKey(om => om.Id);
                 entity.HasIndex(om => om.ProcessedOnUtc).HasFilter("[ProcessedOnUtc] IS NULL");
+            });
+
+            modelBuilder.Entity<SystemAuthSettings>(entity =>
+            {
+                entity.ToTable("SystemAuthSettings");
+                entity.HasKey(s => s.Id);
+            });
+
+            modelBuilder.Entity<TenantAuthSettings>(entity =>
+            {
+                entity.ToTable("TenantAuthSettings");
+                entity.HasKey(s => s.Id);
+                entity.HasIndex(s => s.TenantId).IsUnique();
+            });
+
+            modelBuilder.Entity<TwoFactorChallenge>(entity =>
+            {
+                entity.ToTable("TwoFactorChallenges");
+                entity.HasKey(c => c.Id);
+                entity.Property(c => c.CodeHash).IsRequired().HasMaxLength(500);
+                entity.Property(c => c.Method).IsRequired().HasMaxLength(16);
+                entity.Property(c => c.Destination).HasMaxLength(256);
+                entity.HasIndex(c => new { c.UserId, c.ExpiredAt });
+            });
+
+            modelBuilder.Entity<OAuthState>(entity =>
+            {
+                entity.ToTable("OAuthStates");
+                entity.HasKey(o => o.Id);
+                entity.Property(o => o.State).IsRequired().HasMaxLength(256);
+                entity.Property(o => o.CodeVerifier).IsRequired().HasMaxLength(256);
+                entity.Property(o => o.TenantCode).IsRequired().HasMaxLength(256);
+                entity.HasIndex(o => o.State).IsUnique();
             });
         }
     }

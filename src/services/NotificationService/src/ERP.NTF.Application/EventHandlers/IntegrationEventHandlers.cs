@@ -62,6 +62,15 @@ public class EmployeeHiredIntegrationEvent : INotification
     public string Department { get; set; } = string.Empty;
 }
 
+public class TwoFactorCodeGeneratedIntegrationEvent : INotification
+{
+    public Guid UserId { get; set; }
+    public string Method { get; set; } = string.Empty; // "Sms" | "Email"
+    public string Destination { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+    public int ExpiryMinutes { get; set; }
+}
+
 // Event handlers — dispatch SendNotificationCommand via MediatR
 
 public class UserCreatedIntegrationEventHandler : INotificationHandler<UserCreatedIntegrationEvent>
@@ -177,6 +186,32 @@ public class EmployeeHiredIntegrationEventHandler : INotificationHandler<Employe
                 ["department"] = @event.Department
             },
             Priority = NotificationPriority.Normal
+        }, cancellationToken);
+    }
+}
+
+public class TwoFactorCodeGeneratedIntegrationEventHandler : INotificationHandler<TwoFactorCodeGeneratedIntegrationEvent>
+{
+    private readonly IMediator _mediator;
+    public TwoFactorCodeGeneratedIntegrationEventHandler(IMediator mediator) => _mediator = mediator;
+
+    public async Task Handle(TwoFactorCodeGeneratedIntegrationEvent @event, CancellationToken cancellationToken)
+    {
+        var isSms = string.Equals(@event.Method, "Sms", StringComparison.OrdinalIgnoreCase);
+
+        await _mediator.Send(new SendNotificationCommand
+        {
+            RecipientId = @event.UserId.ToString(),
+            RecipientEmail = isSms ? string.Empty : @event.Destination,
+            RecipientPhone = isSms ? @event.Destination : null,
+            Channel = isSms ? NotificationChannel.Sms : NotificationChannel.Email,
+            TemplateCode = "TWO_FACTOR_CODE",
+            TemplateVariables = new()
+            {
+                ["code"] = @event.Code,
+                ["expiryMinutes"] = @event.ExpiryMinutes.ToString()
+            },
+            Priority = NotificationPriority.High
         }, cancellationToken);
     }
 }

@@ -22,7 +22,11 @@ namespace ERP.Identity.Infrastructure.Persistence
             ITenantRepository tenantRepository,
             IExternalLoginRepository externalLoginRepository,
             IOutboxMessageRepository outboxMessageRepository,
-            IPasswordResetTokenRepository passwordResetTokenRepository)
+            IPasswordResetTokenRepository passwordResetTokenRepository,
+            ISystemAuthSettingsRepository systemAuthSettingsRepository,
+            ITenantAuthSettingsRepository tenantAuthSettingsRepository,
+            ITwoFactorChallengeRepository twoFactorChallengeRepository,
+            IOAuthStateRepository oAuthStateRepository)
         {
             _dbContext = dbContext;
             Users = userRepository;
@@ -33,6 +37,10 @@ namespace ERP.Identity.Infrastructure.Persistence
             ExternalLogins = externalLoginRepository;
             OutboxMessages = outboxMessageRepository;
             PasswordResetTokens = passwordResetTokenRepository;
+            SystemAuthSettings = systemAuthSettingsRepository;
+            TenantAuthSettings = tenantAuthSettingsRepository;
+            TwoFactorChallenges = twoFactorChallengeRepository;
+            OAuthStates = oAuthStateRepository;
         }
         public IUserRepository Users { get; }
 
@@ -45,6 +53,10 @@ namespace ERP.Identity.Infrastructure.Persistence
         public IExternalLoginRepository ExternalLogins { get; }
         public IOutboxMessageRepository OutboxMessages { get; }
         public IPasswordResetTokenRepository PasswordResetTokens { get; }
+        public ISystemAuthSettingsRepository SystemAuthSettings { get; }
+        public ITenantAuthSettingsRepository TenantAuthSettings { get; }
+        public ITwoFactorChallengeRepository TwoFactorChallenges { get; }
+        public IOAuthStateRepository OAuthStates { get; }
 
         public async Task<int> SaveChangesAsync(CancellationToken ct) => await _dbContext.SaveChangesAsync(ct);
         public async Task BeginTransactionAsync(CancellationToken ct)

@@ -17,3 +17,5 @@ public record UserDetailDto(
 public record UpdateProfileRequest(string? FullName, string? UserName);
 
 public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+
+public record EnableTwoFactorRequest(string Method, string? PhoneNumber);

@@ -20,6 +20,34 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
   Units of Measure, Geography, Languages), for adding a new master-data entity page
   without re-deriving the shape from scratch.
 
+## Auth: login, 2FA, SSO, and settings (Admin app)
+
+- `src/pages/auth/LoginPage.tsx` collects `tenantCode` alongside email/password (a
+  pre-existing gap — the login form never collected it before, even though the
+  backend's `LoginRequest` always required it) and queries `GET
+  /v1/auth/login-options?tenantCode=` to know which SSO buttons to render.
+- `src/hooks/useAuth.ts`'s `useCompleteLogin()` is the single shared "store tokens +
+  user, navigate to dashboard" step — every login path (password, 2FA-verified,
+  every SSO provider) must route through it rather than duplicating the
+  token-storage logic. `tenantId` is decoded once from the JWT `tenant_id` claim at
+  this point (via `jwt-decode`) and stored on `auth.store.ts`'s `User` — don't
+  re-decode the JWT elsewhere, read `user.tenantId` instead.
+- `LoginResponse.requiresTwoFactor` short-circuits every login path to
+  `/login/2fa?challengeId=...&method=...` instead of completing login — see
+  `src/pages/auth/TwoFactorPage.tsx`.
+- `src/pages/settings/AuthSettingsPage.tsx` is the template for any future
+  System/Tenant toggle-style settings page (as opposed to master-data CRUD — see
+  `masterdata-admin-guide.md` for that different pattern): two tabs, each gated by
+  its own `settings:{scope}:view`/`:manage` permission pair, read-only render when
+  the caller only has `:view`.
+- SSO client libraries: `@react-oauth/google` (Google), `@azure/msal-browser` +
+  `@azure/msal-react` (Microsoft), the Facebook JS SDK loaded via a script tag
+  (`src/lib/facebookSdk.ts`, no npm package), and a plain redirect for Twitter/X (no
+  client library — it's a server-driven OAuth Authorization Code + PKCE flow, see
+  `docs/business/Identity/ExternalAuthAndTwoFactor.md`). Provider client IDs are
+  Vite env vars (`VITE_GOOGLE_CLIENT_ID`, `VITE_MSAL_CLIENT_ID`, `VITE_MSAL_AUTHORITY`,
+  `VITE_FACEBOOK_APP_ID`) — placeholders only until real app registrations exist.
+
 ## Conventions that apply to all 4 apps
 
 - **No synchronous app-to-app or app-to-non-gateway calls.** Every app talks only to

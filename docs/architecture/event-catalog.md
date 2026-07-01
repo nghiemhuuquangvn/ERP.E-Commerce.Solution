@@ -90,6 +90,36 @@ public class RoleAssignedEvent : IntegrationEvent
 
 ---
 
+### TwoFactorCodeGeneratedEvent
+
+**Description:** Published when a user with 2FA enabled/required completes password
+verification during login — carries the plaintext OTP for delivery. The DB only ever
+stores the hash (`TwoFactorChallenge.CodeHash`); this event is the one place the
+plaintext code exists outside memory, and only transiently, in flight to Kafka.
+
+**Publisher:** Identity Service (`identity-topic`, via the Outbox pattern —
+`AuthDbContext.SaveChangesAsync` serializes the raw domain event, not a wrapped
+integration-event contract)
+**Subscribers:** Notification Service (`IdentityEventConsumer`) — sends the code via
+SMS or Email per `Method`
+
+**Event Structure (domain event, as actually serialized):**
+```csharp
+public record TwoFactorCodeGeneratedDomainEvent(
+    Guid UserId,
+    Guid TenantId,
+    string Method,        // "Sms" | "Email"
+    string Destination,   // masked phone/email for display
+    string Code,          // plaintext OTP, one-shot
+    int ExpiryMinutes,
+    DateTime OccurredOn) : IDomainEvent;
+```
+
+**Routing:** Kafka (`identity-topic`)
+**Delivery:** Outbox pattern (at-least-once)
+
+---
+
 ## Sales Service Events
 
 ### SalesOrderCreatedEvent

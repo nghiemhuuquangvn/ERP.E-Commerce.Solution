@@ -14,10 +14,12 @@ namespace ERP.Identity.Api.Controllers
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly ISettingsService _settingsService;
 
-        public UsersController(IUserService userService)
+        public UsersController(IUserService userService, ISettingsService settingsService)
         {
             _userService = userService;
+            _settingsService = settingsService;
         }
 
         [HttpGet]
@@ -56,6 +58,46 @@ namespace ERP.Identity.Api.Controllers
 
             await _userService.ChangePasswordAsync(id, request, ct);
             return Ok(new { message = "Password changed successfully" });
+        }
+
+        [HttpPost("{id}/2fa/enable")]
+        [Authorize]
+        public async Task<IActionResult> EnableTwoFactor([FromRoute] Guid id, [FromBody] EnableTwoFactorRequest request, CancellationToken ct = default)
+        {
+            var userId = User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var parsedUserId) || parsedUserId != id)
+                return Forbid();
+
+            var tenantId = User.FindFirst("tenant_id")?.Value;
+            if (string.IsNullOrEmpty(tenantId) || !Guid.TryParse(tenantId, out var parsedTenantId))
+                return Unauthorized();
+
+            var tenantSettings = await _settingsService.GetTenantSettingsAsync(parsedTenantId, ct);
+            if (!tenantSettings.TwoFactorEnabled)
+                return BadRequest(new { message = "Two-factor authentication is disabled for this tenant." });
+
+            await _userService.EnableTwoFactorAsync(id, request.Method, request.PhoneNumber, ct);
+            return Ok(new { message = "Two-factor authentication enabled successfully" });
+        }
+
+        [HttpPost("{id}/2fa/disable")]
+        [Authorize]
+        public async Task<IActionResult> DisableTwoFactor([FromRoute] Guid id, CancellationToken ct = default)
+        {
+            var userId = User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var parsedUserId) || parsedUserId != id)
+                return Forbid();
+
+            var tenantId = User.FindFirst("tenant_id")?.Value;
+            if (string.IsNullOrEmpty(tenantId) || !Guid.TryParse(tenantId, out var parsedTenantId))
+                return Unauthorized();
+
+            var tenantSettings = await _settingsService.GetTenantSettingsAsync(parsedTenantId, ct);
+            if (tenantSettings.TwoFactorRequired)
+                return BadRequest(new { message = "Two-factor authentication is mandatory for this tenant and cannot be disabled." });
+
+            await _userService.DisableTwoFactorAsync(id, ct);
+            return Ok(new { message = "Two-factor authentication disabled successfully" });
         }
 
         [HttpPost("{id}/lock")]

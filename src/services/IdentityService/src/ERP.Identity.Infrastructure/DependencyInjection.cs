@@ -25,9 +25,13 @@ namespace ERP.Identity.Infrastructure
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection services)
         {
+            services.AddHttpClient();
+
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IExternalAuthProvider, MicrosoftAuthProvider>();
             services.AddScoped<IExternalAuthProvider, GoogleAuthProvider>();
+            services.AddScoped<IExternalAuthProvider, FacebookAuthProvider>();
+            services.AddScoped<TwitterOAuthService>();
             services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
 
             services.Configure<KafkaSettings>(options => services.BuildServiceProvider().GetRequiredService<IConfiguration>().GetSection("KafkaSettings").Bind(options));
@@ -63,11 +67,17 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<IUserRoleResolver, UserRoleResolver>();
             services.AddScoped<IRolePermissionResolver, RolePermissionResolver>();
             services.AddScoped<IOutboxMessageRepository, OutboxMessageRepository>();
+            services.AddScoped<ISystemAuthSettingsRepository, SystemAuthSettingsRepository>();
+            services.AddScoped<ITenantAuthSettingsRepository, TenantAuthSettingsRepository>();
+            services.AddScoped<ITwoFactorChallengeRepository, TwoFactorChallengeRepository>();
+            services.AddScoped<IOAuthStateRepository, OAuthStateRepository>();
 
             // New services
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<ITenantService, TenantService>();
+            services.AddScoped<ISettingsService, SettingsService>();
+            services.AddScoped<ITwoFactorCodeGenerator, TwoFactorCodeGenerator>();
 
             services.AddHostedService<OutboxProcessor>();
 
