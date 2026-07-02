@@ -1,6 +1,9 @@
 # ERP E-Commerce Solution — Phân Tích Business Logic Toàn Diện
 
-> **Cập nhật:** 2026-06-28  
+> **Cập nhật:** 2026-07-02 — đã đối chiếu và cập nhật mục 3.1 (Identity) và 3.2 (Product)
+> theo các tính năng vừa triển khai (2FA, External Login, Auth Settings, Product
+> Attributes, Elasticsearch search); các mục còn lại (3.3-3.14, Sprint 1-4) chưa
+> được rà soát lại, vẫn giữ nguyên trạng thái ghi nhận từ 2026-06-28.
 > **Phạm vi:** 14 microservices + 4 frontend layers  
 > **Mục đích:** Kiểm kê tính năng đã có, tính năng còn thiếu, và luồng vận hành toàn hệ thống
 
@@ -71,24 +74,35 @@ Enums                 Event Handlers          Kafka Producer/Consumer
 
 ## 2. Đánh Giá Mức Độ Hoàn Thiện
 
+> **Cập nhật 2026-07-02:** Bảng dưới đây đã được đối chiếu lại toàn bộ với code thật
+> (không chỉ dựa vào cấu trúc thư mục). Bảng cũ đánh giá SaleOrder/PurchaseOrder/
+> Accounting/CRM/HRM/Reporting thấp hơn thực tế rất nhiều — các service này thực ra
+> đã có đầy đủ Domain/Application/API layer, chỉ là **event-driven backbone** (outbox
+> publish, Kafka/RabbitMQ consumer) gần như không hoạt động ở bất kỳ đâu ngoài
+> HRMService/NotificationService/ReportingService. Phần đó đã được rà soát và sửa
+> trong đợt này — xem "Event Consumer" ở cột dưới và mục 6 (Gap Analysis).
+
 | Service | Domain | Application | Infrastructure | API | Event Consumer | Mức Độ |
 |---------|--------|-------------|----------------|-----|----------------|--------|
-| IdentityService | ✅ | ✅ | ✅ | ✅ | — | **95%** |
-| SaleOrderService | ✅ | ⚠️ Thiếu nhiều command | ✅ | ⚠️ 1 controller | ✅ | **55%** |
-| PurchaseOrderService | ✅ | ⚠️ Chỉ có pattern | ✅ | ⚠️ 2 controllers | ❌ | **45%** |
-| WareHouseService | ✅ | ⚠️ | ✅ | ⚠️ 2 controllers | ✅ | **60%** |
-| AccountingService | ✅ Entities only | ❌ Thiếu commands | ⚠️ Skeleton | ❌ 0 controllers | ❌ | **20%** |
-| CRMService | ✅ Entities only | ❌ Thiếu commands | ⚠️ Skeleton | ❌ 0 controllers | ❌ | **20%** |
-| HRMService | ✅ Entities only | ❌ Thiếu commands | ⚠️ Skeleton | ❌ 0 controllers | ❌ | **20%** |
-| ProductService | ✅ | ⚠️ Features folder | ✅ | ✅ 5 controllers | ❌ | **65%** |
-| PaymentService | ✅ | ✅ | ✅ | ✅ | ✅ | **80%** |
-| ShippingService | ✅ | ✅ | ✅ | ✅ | ✅ | **80%** |
-| POSService | ✅ | ✅ | ✅ | ✅ | ❌ | **75%** |
-| PromotionService | ⚠️ Thiếu FlashSale | ✅ | ✅ | ✅ | ❌ | **70%** |
-| NotificationService | ✅ | ✅ | ✅ | ✅ | ✅ | **85%** |
-| ReportingService | ❌ Không có entity | ⚠️ Queries only | ✅ | ✅ | ❌ | **30%** |
+| IdentityService | ✅ | ✅ | ✅ | ✅ | — (upstream) | **97%** |
+| SaleOrderService | ✅ | ✅ Đầy đủ lifecycle (Create/Submit/Approve/Reject/Pick/Ship/Cancel/Deliver), chỉ thiếu UpdateOrderCommand | ✅ RabbitMQ publish trực tiếp (không dùng Outbox) | ✅ 11 endpoints | — (chỉ publish, không consume; `OrderFulfillmentSaga` tồn tại nhưng chết, chưa đăng ký DI) | **80%** |
+| PurchaseOrderService | ✅ | ✅ Đầy đủ (Create/Approve/Cancel/Submit/AddItem/RemoveItem + queries) | ✅ Outbox+Kafka (`purchasing-topic`) mới thêm — trước đây publish 0% | ✅ 2 controllers (đã xoá 1 controller trùng route gây lỗi `AmbiguousMatchException`) | ✅ (outbound thật; chưa cần consume gì) | **80%** |
+| WareHouseService | ✅ | ✅ | ✅ RabbitMQ publish đã sửa lỗi thiếu `IConnection` DI (trước đây crash khi gọi); consumer thật cho `sales_order_events` | ✅ 2 controllers | ✅ (RabbitMQ, `sales_order.*` + `purchasing-topic`) | **85%** |
+| AccountingService | ✅ | ✅ Đầy đủ (9 commands, 12 queries kể cả AR/AP aging) | ✅ Outbox+Kafka đã hoạt động từ trước; consumer mới thêm | ✅ 5 controllers, ~19 endpoints | ✅ (RabbitMQ `sales_order.*` + Kafka `purchasing-topic`/`payment-topic`) | **90%** |
+| CRMService | ✅ | ✅ Đầy đủ (14 commands, 9 queries) | ✅ Outbox+Kafka đã hoạt động từ trước; consumer mới thêm | ✅ 4 controllers, ~23 endpoints | ✅ (Kafka `identity-topic`/`payment-topic` + RabbitMQ `sales_order.*`) | **90%** |
+| HRMService | ✅ (EmployeeSnapshot/LeaveRequest/PaySlip — Employee/Department đã chuyển sang SharedMasterDataService) | ✅ | ✅ `MasterDataEventConsumer` — consumer thật đầu tiên và duy nhất trong toàn hệ thống trước đợt này | ✅ 2 controllers, ~10 endpoints | ✅ | **85%** (thiếu hẳn tính năng chấm công/Attendance) |
+| ProductService | ✅ (+ EAV attributes, dimensions) | ⚠️ Features folder | ✅ (+ Elasticsearch search) | ✅ 7 controllers | ❌ | **75%** |
+| PaymentService | ✅ | ✅ | ✅ VNPay thật (không phải stub); Outbox đã đúng từ trước, chỉ thiếu drain job — đã thêm | ✅ 3 controllers (kể cả webhook/IPN thật) | ✅ (RabbitMQ `sales_order.SalesOrderCreatedEvent`, mới thêm) | **90%** |
+| ShippingService | ✅ | ✅ (+ đã nối `AssignTrackingNumberCommand` vào endpoint, trước đây tồn tại nhưng không ai gọi được) | ✅ GHN thật; Outbox đã đúng từ trước, chỉ thiếu drain job — đã thêm | ✅ 2 controllers | ✅ (RabbitMQ `sales_order.SalesOrderApprovedEvent` + `warehouse_exchange`, cả hai mới thêm) | **90%** |
+| POSService | ✅ | ✅ (+ `GetShiftSummaryQuery` trước đây không có handler, gọi là crash — đã sửa) | ⚠️ chưa có Outbox publish (không cần cho phạm vi đợt này) | ✅ 2 controllers | ✅ (Kafka `product-topic`/`promotion-topic`, mới thêm) | **80%** |
+| PromotionService | ⚠️ Thiếu FlashSale entity/command (đã xác nhận không tồn tại, không phải "thiếu 1 phần") | ✅ (+ `RedeemLoyaltyPointsCommand` trước đây không có handler, gọi là crash — đã sửa; `Coupon.Redeem` trước đây không phát `CouponRedeemedEvent` — đã sửa) | ✅ Outbox+Kafka (`promotion-topic`) mới thêm — trước đây publish 0% dù DbContext đã sẵn sàng | ✅ 2 controllers | ✅ (Kafka `product-topic` + RabbitMQ `sales_order.*`, mới thêm) | **85%** |
+| NotificationService | ✅ | ✅ | ✅ SMTP thật, Twilio/FCM thật khi cấu hình (đã sửa lỗi thiếu `AddHttpClient()` khiến crash nếu bật) | ✅ 3 controllers | ✅ (chỉ `identity-topic` — các topic khác vẫn là handler chết, xem mục 6) | **88%** |
+| ReportingService | ⚠️ Không có domain entity giàu hành vi, nhưng có model/DbSet thật khớp schema OLAP | ✅ (3/4 query thật; `GetInventoryReport` vẫn là stub trả về 0 cứng) | ✅ 3 Kafka consumer thật (Sales/Payment/Inventory) — tài liệu cũ ghi "0 consumer" là sai | ✅ 1 controller, 3 endpoints (không có endpoint HR — `GetHRDashboard` không tồn tại) | ✅ (đã có sẵn, tài liệu cũ ghi nhầm là thiếu) | **55%** |
 
-**Trung bình toàn hệ thống: ~57%**
+**Trung bình toàn hệ thống: ~84%** (tăng từ ~57% sau khi (a) đối chiếu lại đánh giá cho
+đúng với code thật — nhiều service đã bị đánh giá thấp hơn thực tế rất nhiều — và (b)
+sửa event-driven backbone thật sự cho 8 service. ProductService/ReportingService là 2
+service còn khoảng cách rõ ràng nhất với phần còn lại.
 
 ---
 
@@ -109,7 +123,21 @@ Enums                 Event Handlers          Kafka Producer/Consumer
 - Đăng xuất (thu hồi refresh token)
 - Xác nhận email qua token
 - Quên mật khẩu / đặt lại mật khẩu
-- Đăng nhập bên thứ ba (Google, Microsoft OAuth)
+- Đăng nhập bên thứ ba: Google, Microsoft (verify ID token qua `IExternalAuthProvider`),
+  Facebook (Graph API `/me` + `/debug_token`), Twitter/X (OAuth 2.0 Authorization
+  Code + PKCE riêng qua `TwitterOAuthService`, vì Twitter không có token xác thực
+  một lần như 3 provider còn lại) — `POST /api/auth/external-login`,
+  `GET/POST /api/auth/external-login/twitter/...`
+- Xác thực 2 bước (2FA) qua SMS hoặc Email: sau khi verify mật khẩu, nếu tài khoản/tenant
+  yêu cầu 2FA, hệ thống phát sinh mã OTP một lần (hash lưu DB, mã thật gửi qua Kafka
+  `identity-topic` → NotificationService gửi SMS/Email) — `POST /api/auth/2fa/verify`,
+  `POST /api/auth/2fa/resend`, tự bật/tắt qua `POST /api/users/{id}/2fa/enable|disable`
+- Auth Settings 2 cấp: `SystemAuthSettings` (SuperAdmin, toàn hệ thống — công tắc gốc)
+  và `TenantAuthSettings` (theo từng tenant, chỉ có hiệu lực khi System cũng bật) —
+  bật/tắt từng provider đăng nhập ngoài + 2FA khả dụng/bắt buộc —
+  `GET/PUT /api/settings/system`, `GET/PUT /api/settings/tenant/{tenantId}`,
+  `GET /api/auth/login-options` (public, cho trang login biết hiện nút SSO nào)
+- Khóa tài khoản sau 5 lần sai mật khẩu liên tiếp (`User.RecordLoginFail()`) — đã có sẵn từ trước
 
 **Authorization (RBAC)**
 - Quản lý Roles (CRUD)
@@ -129,17 +157,18 @@ Enums                 Event Handlers          Kafka Producer/Consumer
 
 **Published Events**
 - `UserRegisteredIntegrationEvent` → Kafka
+- `TwoFactorCodeGeneratedEvent` → Kafka (`identity-topic`) — chỉ NotificationService consume, để gửi OTP
 
 #### ❌ Tính năng còn thiếu
 
 | Tính năng | Ưu tiên | Ghi chú |
 |-----------|---------|---------|
-| Xác thực 2 bước (2FA/MFA) | Cao | TOTP, SMS OTP |
-| Audit log đăng nhập | Cao | IP, device, thời gian, thành công/thất bại |
-| Khóa tài khoản sau N lần sai mật khẩu | Cao | Brute-force protection |
-| Session management | Trung | Xem & thu hồi sessions đang active |
+| ~~Xác thực 2 bước (2FA/MFA)~~ | ~~Cao~~ | **Đã triển khai** — SMS/Email OTP, xem `docs/business/Identity/ExternalAuthAndTwoFactor.md` |
+| ~~Khóa tài khoản sau N lần sai mật khẩu~~ | ~~Cao~~ | **Đã có sẵn từ trước** khi viết tài liệu này — `User.RecordLoginFail()` khoá sau 5 lần sai (mục này trước đó ghi nhầm là thiếu) |
+| Audit log đăng nhập | Cao | **SQL đã có sẵn nhưng chưa dùng**: bảng `SecurityAuditLogs`/`LoginAttempts`/`DeviceSessions` tồn tại trong `001_CreateAuthDB.sql` nhưng không có DbSet/entity C# nào tương ứng trong `AuthDbContext` — schema mồ côi, cần viết Domain entity + Application write-path mới thực sự hoạt động |
+| Session management | Trung | Bảng `DeviceSessions`/`TokenBlacklist` cũng đã có sẵn trong SQL nhưng chưa được dùng — cùng tình trạng schema mồ côi như trên |
 | API Key management | Trung | Cho service-to-service calls |
-| Password policy configuration | Thấp | Độ dài tối thiểu, ký tự đặc biệt |
+| Password policy configuration | Thấp | Bảng `PasswordHistories` cũng đã có sẵn trong SQL nhưng chưa được dùng |
 | LDAP/Active Directory integration | Thấp | Cho doanh nghiệp lớn |
 | Published: `UserUpdated`, `RoleAssigned`, `PermissionGranted` | Cao | Các service khác cần đồng bộ |
 
@@ -171,20 +200,36 @@ API Request → [JWT middleware] → extract claims → UserContextMiddleware
 **Product Catalog**
 - CRUD sản phẩm (`ProductsController`)
 - Quản lý danh mục phân cấp (`CategoriesController`)
-- Quản lý variants (SKU, màu sắc, kích thước) (`VariantsController`)
+- Quản lý variants (SKU, barcode) + kích thước vật lý có cấu trúc
+  (Length/Width/Height/DimensionUnit, Weight/WeightUnit — cột riêng, dùng cho tính
+  toán vận chuyển/kho; giữ cột `Dimensions` chuỗi tự do cũ để tương thích ngược)
+  (`VariantsController`)
+- Thuộc tính sản phẩm mở rộng theo danh mục (màu sắc, kích thước, đặc tính kỹ thuật...)
+  — hệ thống EAV-lite `ProductAttributes`/`ProductAttributeOptions`/
+  `ProductAttributeValues`, không cần migration khi thêm thuộc tính mới
+  (`AttributesController`) — xem `docs/architecture/extensible-attributes-pattern.md`
+- Tìm kiếm & lọc sản phẩm full-text + theo thuộc tính động qua Elasticsearch —
+  đồng bộ event-driven từ SQL (system-of-record) sang ES (read-model có thể build lại)
+  qua `SearchIndexQueue`/`SearchIndexProcessor`
+  (`GET/POST /api/products/search/advanced...`)
 - Upload & quản lý ảnh sản phẩm (`ImagesController`)
 - Quản lý bảng giá (`PricingController`)
+- Mapping ID sản phẩm/variant sang hệ thống bên thứ ba (marketplace, ERP nhà cung
+  cấp) — `ProductExternalMappings`
 
 **Domain Events**
 - `ProductCreatedDomainEvent` → Published khi tạo sản phẩm
 - `ProductDiscontinuedDomainEvent` → Published khi ngừng kinh doanh
 - `ProductPublishedDomainEvent` → Published khi đăng bán
+- `ProductSearchIndexRequestedDomainEvent` → **nội bộ, không qua Kafka** — chỉ nạp vào
+  `SearchIndexQueue` để đồng bộ Elasticsearch, không phải integration event cho
+  service khác
 
 #### ❌ Tính năng còn thiếu
 
 | Tính năng | Ưu tiên | Ghi chú |
 |-----------|---------|---------|
-| Tìm kiếm & lọc sản phẩm (full-text search) | Cao | Elasticsearch integration |
+| ~~Tìm kiếm & lọc sản phẩm (full-text search)~~ | ~~Cao~~ | **Đã triển khai** — Elasticsearch, xem mục ✅ ở trên. Storefront UI lọc/tìm kiếm theo facet vẫn CHƯA làm (phạm vi backend only) |
 | Bulk import/export (Excel/CSV) | Cao | Nhập hàng nghìn sản phẩm |
 | Trạng thái sản phẩm workflow | Cao | Draft → Review → Published → Discontinued |
 | SEO fields (slug, meta title, meta description) | Trung | Cho storefront |
@@ -194,7 +239,7 @@ API Request → [JWT middleware] → extract claims → UserContextMiddleware
 | `ProductUpdated` integration event | Cao | Thông báo SalesOrder, POS, Promotion |
 | `ProductPriceChanged` integration event | Cao | Thông báo Promotion tính lại |
 | Application layer: command handlers đầy đủ | Cao | Features folder chưa complete |
-| Attribute system (custom attributes) | Thấp | Màu sắc, chất liệu, thương hiệu |
+| ~~Attribute system (custom attributes)~~ | ~~Thấp~~ | **Đã triển khai** — xem `docs/architecture/extensible-attributes-pattern.md` và `ProductAttributes`/`ProductAttributeValues` trong ProductDB |
 | Product reviews & ratings | Thấp | Khách hàng đánh giá |
 
 #### Luồng Vận Hành
@@ -969,6 +1014,14 @@ BI Tool (Power BI / Tableau) → direct SQL query → ReportingDB (read-only)
 
 ## 4. Luồng Business End-to-End
 
+> **Chi tiết kỹ thuật (UI → Gateway → Controller → MediatR → Domain → Outbox/Kafka/
+> RabbitMQ → service khác):** xem
+> [`docs/architecture/end-to-end-request-flow.md`](../architecture/end-to-end-request-flow.md).
+> Các luồng dưới đây chỉ mô tả ở mức nghiệp vụ; tài liệu kia trace từng bước bằng
+> route/command/event thật đã verify trong code, kể cả 3 luồng không có ở đây:
+> Identity/Auth (login, 2FA, external login), Product Catalog & Search (Admin CRUD +
+> Elasticsearch), Master Data (Admin CRUD pattern).
+
 ### 4.1 Luồng Đặt Hàng E-Commerce
 
 ```
@@ -1232,16 +1285,36 @@ BI Tool (Power BI / Tableau) → direct SQL query → ReportingDB (read-only)
 | PurchaseOrderService | Create(handler), Approve, ReceiveGoods, Cancel | List, GetById |
 | WareHouseService | ReceiveStock, AdjustStock, TransferStock, LocationCRUD | StocktakeQuery |
 
-### Nhóm 3: Thiếu event consumers (không lắng nghe events)
+### Nhóm 3: Event consumers — ĐÃ SỬA (2026-07-02)
 
-| Service | Events chưa consume |
-|---------|---------------------|
-| AccountingService | SalesOrderCreated, PurchaseOrderReceived, PaymentProcessed, WarehouseMovement |
-| CRMService | UserCreated, SalesOrderCreated, PaymentReceived |
-| HRMService | UserCreated |
-| POSService | ProductCreated, PromotionCreated, PaymentProcessed |
-| PromotionService | ProductCreated, SalesOrderCreated |
-| ReportingService | TẤT CẢ events từ 13 services |
+> Tài liệu cũ liệt kê nhóm này là "chưa consume events". Rà soát lại code thật cho
+> thấy vấn đề còn sâu hơn: hầu hết các class handler này **đã tồn tại từ trước**
+> (implement `INotificationHandler<T>`/`IEventHandler<T>` đầy đủ) nhưng **không có
+> consumer thật nào gọi `Publish`/`HandleAsync`** — tức là code "trông như đã xong"
+> nhưng chưa từng chạy. Việc này đã được sửa: mỗi service dưới đây giờ có 1 Kafka
+> consumer thật (mirror `HRMService.MasterDataEventConsumer`) và/hoặc 1 RabbitMQ
+> consumer thật (mirror `WareHouseService.SalesOrderRabbitMqConsumer`, cho các event
+> từ SaleOrderService — service duy nhất publish qua RabbitMQ thay vì Outbox+Kafka).
+
+| Service | Events đã wire (2026-07-02) | Cơ chế |
+|---------|------------------------------|--------|
+| WareHouseService | `sales_order.SalesOrderCreated/Cancelled/Shipped`, `purchasing-topic` PO Created | RabbitMQ + Kafka |
+| PaymentService | `sales_order.SalesOrderCreatedEvent` | RabbitMQ |
+| ShippingService | `sales_order.SalesOrderApprovedEvent`, `warehouse_exchange` InventoryReserved | RabbitMQ (cả hai) |
+| AccountingService | `sales_order.SalesOrderCreatedEvent`, `purchasing-topic`, `payment-topic` | RabbitMQ + Kafka |
+| CRMService | `identity-topic` UserRegistered, `payment-topic`, `sales_order.SalesOrderCreatedEvent` | Kafka + RabbitMQ |
+| POSService | `product-topic` ProductCreated, `promotion-topic` PromotionCreated | Kafka |
+| PromotionService | `product-topic` ProductCreated, `sales_order.SalesOrderCreatedEvent` | Kafka + RabbitMQ |
+| HRMService | `mst-topic` (đã có sẵn từ trước, không đổi) | Kafka |
+| NotificationService | `identity-topic` (đã có sẵn từ trước, không đổi) | Kafka |
+| ReportingService | Sales/Payment/Inventory topics (đã có sẵn từ trước — tài liệu cũ ghi nhầm là thiếu) | Kafka |
+
+**Còn thiếu, chưa làm trong đợt này:** ReportingService chưa consume POS/HR events
+(chưa có `FactPOSTransactions`/`DimEmployees` model dù bảng SQL đã có); ProductService
+chưa publish `ProductUpdated`/`ProductPriceChanged` (nên POS/Promotion không đồng bộ
+giá được — đã default giá về 0 khi cache, ghi rõ trong code); `OrderFulfillmentSaga`
+(SaleOrderService) vẫn là dead code, chưa quyết định giữ lại làm true orchestration
+hay bỏ hẳn để dùng choreography qua các consumer mới.
 
 ### Nhóm 4: Thiếu external integrations
 
@@ -1252,7 +1325,7 @@ BI Tool (Power BI / Tableau) → direct SQL query → ReportingDB (read-only)
 | SMS Provider (Twilio/VIETTEL) | NotificationService | Cao |
 | FCM/APNS Push | NotificationService | Cao |
 | Carrier API (GHN/GHTK/FedEx) | ShippingService | Cao |
-| Full-text Search (Elasticsearch) | ProductService | Trung |
+| ~~Full-text Search (Elasticsearch)~~ | ~~ProductService~~ | **Đã triển khai** (backend) |
 
 ---
 
@@ -1282,9 +1355,10 @@ BI Tool (Power BI / Tableau) → direct SQL query → ReportingDB (read-only)
 
 ```
 11. ReportingService: Kafka consumers, fact/dim tables, ETL handlers
-12. ProductService: Full-text search, bulk import, event publishing đầy đủ
+12. ProductService: ~~Full-text search~~ (đã xong), bulk import, event publishing đầy đủ
 13. POSService: Event consumers, Terminal management, offline sync
-14. IdentityService: 2FA, audit log, session management
+14. IdentityService: ~~2FA~~ (đã xong), audit log (viết entity/write-path cho bảng
+    `SecurityAuditLogs`/`LoginAttempts` đã có sẵn schema), session management
 ```
 
 ### Sprint 4 — Production Readiness

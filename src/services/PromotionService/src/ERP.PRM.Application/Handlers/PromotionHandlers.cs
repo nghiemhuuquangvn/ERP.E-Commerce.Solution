@@ -72,7 +72,7 @@ public class RedeemCouponCommandHandler : IRequestHandler<RedeemCouponCommand, C
             return new() { IsValid = false, ErrorMessage = "Promotion is not active." };
 
         var discount = promotion.CalculateDiscount(request.OrderAmount);
-        coupon.Redeem(request.UserId);
+        coupon.Redeem(request.UserId, discount);
         promotion.RecordUsage();
 
         await _coupons.UpdateAsync(coupon, cancellationToken);
@@ -101,6 +101,24 @@ public class EarnLoyaltyPointsCommandHandler : IRequestHandler<EarnLoyaltyPoints
             account.EarnPoints(request.Points, request.Reason);
             await _accounts.UpdateAsync(account, cancellationToken);
         }
+
+        return new() { UserId = account.UserId, TotalPoints = account.TotalPoints,
+            AvailablePoints = account.AvailablePoints, Tier = account.Tier.ToString() };
+    }
+}
+
+public class RedeemLoyaltyPointsCommandHandler : IRequestHandler<RedeemLoyaltyPointsCommand, LoyaltyAccountDto>
+{
+    private readonly ILoyaltyAccountRepository _accounts;
+    public RedeemLoyaltyPointsCommandHandler(ILoyaltyAccountRepository accounts) => _accounts = accounts;
+
+    public async Task<LoyaltyAccountDto> Handle(RedeemLoyaltyPointsCommand request, CancellationToken cancellationToken)
+    {
+        var account = await _accounts.GetByUserIdAsync(request.UserId, cancellationToken)
+            ?? throw new InvalidOperationException($"Loyalty account not found for user {request.UserId}.");
+
+        account.RedeemPoints(request.Points);
+        await _accounts.UpdateAsync(account, cancellationToken);
 
         return new() { UserId = account.UserId, TotalPoints = account.TotalPoints,
             AvailablePoints = account.AvailablePoints, Tier = account.Tier.ToString() };

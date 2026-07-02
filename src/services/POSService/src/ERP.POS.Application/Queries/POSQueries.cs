@@ -8,7 +8,7 @@ public class GetTransactionQuery : IRequest<TransactionDto?>
     public Guid TransactionId { get; set; }
 }
 
-public class GetShiftSummaryQuery : IRequest<CashShiftDto?>
+public class GetShiftSummaryQuery : IRequest<ShiftSummaryDto?>
 {
     public Guid ShiftId { get; set; }
 }

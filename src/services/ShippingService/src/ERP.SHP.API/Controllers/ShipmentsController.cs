@@ -59,6 +59,14 @@ public class ShipmentsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("{id:guid}/tracking-number")]
+    public async Task<IActionResult> AssignTrackingNumber(Guid id, [FromBody] AssignTrackingNumberCommand command, CancellationToken ct)
+    {
+        command.ShipmentId = id;
+        var result = await _mediator.Send(command, ct);
+        return Ok(result);
+    }
+
     [HttpPost("{id:guid}/deliver")]
     public async Task<IActionResult> ConfirmDelivery(Guid id, [FromBody] ConfirmDeliveryCommand command, CancellationToken ct)
     {

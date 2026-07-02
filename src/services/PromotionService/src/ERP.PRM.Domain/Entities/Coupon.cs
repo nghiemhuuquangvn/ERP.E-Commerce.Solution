@@ -25,7 +25,7 @@ public class Coupon : BaseEntity
         };
     }
 
-    public void Redeem(string userId)
+    public void Redeem(string userId, decimal discountAmount)
     {
         if (IsUsed)
             throw new InvalidOperationException("Coupon has already been used.");
@@ -34,5 +34,6 @@ public class Coupon : BaseEntity
         UsedAt = DateTime.UtcNow;
         UsedByUserId = userId;
         UpdatedAt = DateTime.UtcNow;
+        AddDomainEvent(new CouponRedeemedEvent(Id, PromotionId, Code, userId, discountAmount));
     }
 }

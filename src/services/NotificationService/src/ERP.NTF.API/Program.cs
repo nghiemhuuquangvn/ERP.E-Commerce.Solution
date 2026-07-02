@@ -31,6 +31,11 @@ builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
 builder.Services.AddScoped<IPreferenceRepository, PreferenceRepository>();
 
+// TwilioSmsSender/FcmPushSender inject IHttpClientFactory — without this registration,
+// DI resolution throws InvalidOperationException the moment Twilio:AccountSid/Fcm:ServerKey
+// are configured (masked in dev today since both fall back to Null* stubs when unset).
+builder.Services.AddHttpClient();
+
 // Email: always SMTP (dev can use MailHog/Papercut on port 25)
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 

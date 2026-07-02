@@ -13,6 +13,11 @@ namespace ERP.PRD.Application.Features.Variants.Commands
         public decimal Cost { get; set; }
         public decimal? Weight { get; set; }
         public string? Dimensions { get; set; }
+        public decimal? Length { get; set; }
+        public decimal? Width { get; set; }
+        public decimal? Height { get; set; }
+        public string? DimensionUnit { get; set; }
+        public string? WeightUnit { get; set; }
     }
 
     public class CreateProductVariantResponse
@@ -44,6 +49,15 @@ namespace ERP.PRD.Application.Features.Variants.Commands
 
             RuleFor(x => x.Weight)
                 .GreaterThanOrEqualTo(0).When(x => x.Weight.HasValue).WithMessage("Weight must be positive");
+
+            RuleFor(x => x.Length)
+                .GreaterThanOrEqualTo(0).When(x => x.Length.HasValue).WithMessage("Length must be positive");
+
+            RuleFor(x => x.Width)
+                .GreaterThanOrEqualTo(0).When(x => x.Width.HasValue).WithMessage("Width must be positive");
+
+            RuleFor(x => x.Height)
+                .GreaterThanOrEqualTo(0).When(x => x.Height.HasValue).WithMessage("Height must be positive");
         }
     }
 
@@ -78,10 +92,13 @@ namespace ERP.PRD.Application.Features.Variants.Commands
             );
 
             if (request.Weight.HasValue)
-                variant.Weight = request.Weight;
+                variant.SetWeight(request.Weight.Value, request.WeightUnit ?? variant.WeightUnit ?? "kg");
 
             if (!string.IsNullOrWhiteSpace(request.Dimensions))
                 variant.Dimensions = request.Dimensions;
+
+            if (request.Length.HasValue || request.Width.HasValue || request.Height.HasValue)
+                variant.SetDimensions(request.Length, request.Width, request.Height, request.DimensionUnit ?? variant.DimensionUnit ?? "cm");
 
             variant.ProductId = request.ProductId;
 

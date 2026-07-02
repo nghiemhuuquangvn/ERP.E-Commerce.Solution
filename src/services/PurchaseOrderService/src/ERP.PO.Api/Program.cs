@@ -5,13 +5,17 @@ using ERP.PO.Application.Caching;
 using ERP.Shared.Authorization;
 using ERP.Shared.Localization;
 using ERP.PO.Infrastructure.Data;
+using ERP.PO.Infrastructure.BackgroundJobs;
+using ERP.PO.Infrastructure.MessageBus;
 using ERP.PO.Domain.Entities;
 using ERP.Shared.Infrastructure.Data;
+using ERP.Shared.Messaging;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using MediatR;
 using StackExchange.Redis;
 using Microsoft.EntityFrameworkCore;
+using Confluent.Kafka;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,6 +69,17 @@ builder.Services.AddDbContext<PurchasingDbContext>(options =>
 // Repository and Unit of Work
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IUnitOfWork>(sp => new UnitOfWork(sp.GetRequiredService<PurchasingDbContext>()));
+
+// Kafka producer + Outbox pattern for publishing integration events (purchasing-topic)
+var kafkaServers = builder.Configuration["KafkaSettings:BootstrapServers"] ?? "localhost:9092";
+var producerConfig = new ProducerConfig
+{
+    BootstrapServers = kafkaServers,
+    AllowAutoCreateTopics = true
+};
+builder.Services.AddSingleton(new ProducerBuilder<string, string>(producerConfig).Build());
+builder.Services.AddScoped<IMessageBus, KafkaMessageBus>();
+builder.Services.AddHostedService<OutboxProcessor>();
 
 var app = builder.Build();
 

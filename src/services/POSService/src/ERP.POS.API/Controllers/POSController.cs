@@ -90,4 +90,11 @@ public class CashShiftsController : ControllerBase
         var result = await _mediator.Send(new GetActiveShiftQuery { TerminalId = terminalId }, ct);
         return result == null ? NotFound() : Ok(result);
     }
+
+    [HttpGet("{id:guid}/summary")]
+    public async Task<IActionResult> GetSummary(Guid id, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GetShiftSummaryQuery { ShiftId = id }, ct);
+        return result == null ? NotFound() : Ok(result);
+    }
 }

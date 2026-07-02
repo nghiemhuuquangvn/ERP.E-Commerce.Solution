@@ -67,6 +67,27 @@ services:
       timeout: 10s
       retries: 5
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: erp-elasticsearch
+    hostname: elasticsearch
+    ports:
+      - "9200:9200"
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+    networks:
+      - erp-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: erp-kafka-ui
@@ -322,8 +343,12 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__ProductDB: "Server=host.docker.internal,1433;Database=ProductDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
       KafkaSettings__BootstrapServers: kafka:9092
+      Elasticsearch__Uri: http://elasticsearch:9200
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - erp-network
@@ -516,6 +541,8 @@ volumes:
   rabbitmq_data:
     driver: local
   kafka_data:
+    driver: local
+  elasticsearch_data:
     driver: local
 
 networks:

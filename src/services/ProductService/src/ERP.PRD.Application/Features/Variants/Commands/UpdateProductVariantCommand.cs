@@ -13,6 +13,11 @@ namespace ERP.PRD.Application.Features.Variants.Commands
         public decimal? Weight { get; set; }
         public string? Barcode { get; set; }
         public string? Dimensions { get; set; }
+        public decimal? Length { get; set; }
+        public decimal? Width { get; set; }
+        public decimal? Height { get; set; }
+        public string? DimensionUnit { get; set; }
+        public string? WeightUnit { get; set; }
     }
 
     public class UpdateProductVariantValidator : AbstractValidator<UpdateProductVariantCommand>
@@ -31,6 +36,15 @@ namespace ERP.PRD.Application.Features.Variants.Commands
 
             RuleFor(x => x.Barcode)
                 .MaximumLength(100).When(x => !string.IsNullOrWhiteSpace(x.Barcode)).WithMessage("Barcode too long");
+
+            RuleFor(x => x.Length)
+                .GreaterThanOrEqualTo(0).When(x => x.Length.HasValue).WithMessage("Length must be positive");
+
+            RuleFor(x => x.Width)
+                .GreaterThanOrEqualTo(0).When(x => x.Width.HasValue).WithMessage("Width must be positive");
+
+            RuleFor(x => x.Height)
+                .GreaterThanOrEqualTo(0).When(x => x.Height.HasValue).WithMessage("Height must be positive");
         }
     }
 
@@ -61,13 +75,22 @@ namespace ERP.PRD.Application.Features.Variants.Commands
                 variant.Cost = request.Cost.Value;
 
             if (request.Weight.HasValue)
-                variant.Weight = request.Weight.Value;
+                variant.SetWeight(request.Weight.Value, request.WeightUnit ?? variant.WeightUnit ?? "kg");
 
             if (!string.IsNullOrWhiteSpace(request.Barcode))
                 variant.Barcode = request.Barcode;
 
             if (!string.IsNullOrWhiteSpace(request.Dimensions))
                 variant.Dimensions = request.Dimensions;
+
+            if (request.Length.HasValue || request.Width.HasValue || request.Height.HasValue)
+            {
+                variant.SetDimensions(
+                    request.Length ?? variant.Length,
+                    request.Width ?? variant.Width,
+                    request.Height ?? variant.Height,
+                    request.DimensionUnit ?? variant.DimensionUnit ?? "cm");
+            }
 
             variant.UpdatedAt = DateTime.UtcNow;
 

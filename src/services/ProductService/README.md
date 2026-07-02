@@ -6,10 +6,15 @@ Master product catalog and pricing management for the ERP E-Commerce Solution.
 
 The Product Service is the foundational catalog service. It manages:
 - **Product Master Data** — SKUs, names, descriptions, categories
-- **Product Variants** — Size, color, dimensions (each variant has unique barcode/SKU)
+- **Product Variants** — each variant has a unique barcode/SKU, structured physical
+  dimensions (`Length`/`Width`/`Height`/`DimensionUnit`, `Weight`/`WeightUnit`)
 - **Pricing** — Price lists with effective date ranges per variant
-- **Attributes** — Product attributes (color, size, material) and their values
+- **Attributes** — category-scoped, EAV-lite product/variant specs (color, size,
+  material, technical specs) via `ProductAttributes`/`ProductAttributeOptions`/
+  `ProductAttributeValues` — see `docs/architecture/extensible-attributes-pattern.md`
 - **Images** — Product images with sort order
+- **External Mappings** — reconciling Product/Variant IDs against third-party
+  systems (marketplace SKU, supplier item code) via `ProductExternalMappings`
 
 **Key Characteristic:** All other services reference `ProductId` from this service but **never query ProductDB directly**. They consume `ProductUpdatedIntegrationEvent` to maintain local read models.
 
@@ -23,13 +28,31 @@ The Product Service is the foundational catalog service. It manages:
 - ProductStatus (Draft, Active, Discontinued)
 - List<ProductVariant> children
 - List<ProductImage> children
-- List<ProductAttribute> references
+- ExtendedDataJson (opaque escape hatch for arbitrary third-party/integration data —
+  never queried in SQL; see the three-tier design in
+  `docs/architecture/extensible-attributes-pattern.md`)
 
 **ProductVariant** (Entity, child of Product)
 - Sku (globally unique)
 - Barcode
-- Weight, Dimensions
 - Cost
+- Weight, WeightUnit
+- Length, Width, Height, DimensionUnit (structured; `Dimensions` free-text column
+  kept for backward-compat read only — prefer the structured fields for new writes)
+- ExtendedDataJson
+
+**ProductAttribute** (top-level entity, optionally `CategoryId`-scoped)
+- Code, Name, DataType (Text/Number/Boolean/Date/SingleSelect/MultiSelect)
+- IsVariantOption (marks specs that distinguish purchasable SKUs, e.g. Color/Size,
+  vs. purely descriptive specs, e.g. Country of Origin — same storage shape either way)
+- `ProductAttributeOption` children (controlled vocabulary for Select-type attributes)
+
+**ProductAttributeValue** (standalone entity, queried directly — not a child
+collection of Product/ProductVariant)
+- ProductAttributeId, OwnerType (Product|ProductVariant), OwnerId (polymorphic —
+  no real FK possible; validated at the Application layer instead)
+- Sparse typed value columns: ValueText/ValueNumber/ValueBoolean/ValueDate/
+  ProductAttributeOptionId/ValueOptionIdsJson (MultiSelect)
 
 **Category** (Aggregate Root)
 - CategoryId, Name
@@ -46,8 +69,11 @@ The Product Service is the foundational catalog service. It manages:
 - StartDate, EndDate (effective date range)
 
 ### Value Objects
-- Money (Amount, Currency)
-- Dimension (Length, Width, Height, Unit)
+
+None currently implemented as dedicated VO types — `Cost`/`BasePrice`/
+`DiscountedPrice` are plain `decimal` fields, and physical dimensions are plain
+`decimal?`/`string` columns directly on `ProductVariant` (see above), not a
+`Dimension(Length,Width,Height,Unit)` wrapper type.
 
 ## Key Business Rules
 
@@ -66,10 +92,11 @@ The Product Service is the foundational catalog service. It manages:
 - Products
 - ProductVariants
 - Categories
-- ProductAttributes
-- ProductAttributeValues
+- ProductTranslations, CategoryTranslations
+- ProductAttributes, ProductAttributeOptions, ProductAttributeValues
+- ProductExternalMappings
 - PriceLists
-- PriceListEntries
+- PriceListItems
 - ProductImages
 - OutboxMessages
 

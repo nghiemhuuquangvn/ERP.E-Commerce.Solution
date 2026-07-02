@@ -10,6 +10,7 @@
     <PackageReference Include="Confluent.Kafka" Version="2.3.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
+    <PackageReference Include="RabbitMQ.Client" Version="6.5.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\Shared\Core\ERP.Shared.Core.csproj" />

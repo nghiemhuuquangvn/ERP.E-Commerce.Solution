@@ -3,18 +3,18 @@ using MediatR;
 
 namespace ERP.SHP.Application.EventHandlers;
 
+// SaleOrderService's real SalesOrderApprovedEvent only carries (OrderId, CustomerId,
+// ApprovedAt, TotalAmount) — no ShippingAddress, no line items. Those two fields are
+// therefore placeholders below rather than guessed data; a real address/item sync
+// (e.g. SaleOrderService enriching this event, or Shipping querying its own local
+// cache built from a richer SalesOrderCreated payload) is a follow-up, not solvable
+// here without a synchronous cross-service call (forbidden by this repo's
+// architecture rules).
 public class SalesOrderApprovedIntegrationEvent : INotification
     {
     public Guid OrderId { get; set; }
-    public string ShippingAddress { get; set; } = string.Empty;
-    public List<OrderLineItem> LineItems { get; set; } = new();
-}
-
-public class OrderLineItem
-{
-    public Guid ProductId { get; set; }
-    public string ProductName { get; set; } = string.Empty;
-    public int Quantity { get; set; }
+    public Guid CustomerId { get; set; }
+    public decimal TotalAmount { get; set; }
 }
 
 public class SalesOrderApprovedIntegrationEventHandler : INotificationHandler<SalesOrderApprovedIntegrationEvent>
@@ -31,15 +31,9 @@ public class SalesOrderApprovedIntegrationEventHandler : INotificationHandler<Sa
         {
             OrderId = @event.OrderId,
             CarrierId = defaultCarrierId,
-            ShippingAddress = @event.ShippingAddress,
+            ShippingAddress = "(pending address sync)",
             EstimatedDelivery = DateTime.UtcNow.AddDays(5),
-            Items = @event.LineItems.Select(li => new ShipmentItemRequest
-            {
-                ProductId = li.ProductId,
-                ProductName = li.ProductName,
-                Quantity = li.Quantity,
-                Weight = 0.5m
-            }).ToList()
+            Items = new List<ShipmentItemRequest>()
         }, cancellationToken);
     }
 }

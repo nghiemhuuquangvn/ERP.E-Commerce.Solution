@@ -1,14 +1,20 @@
+using Confluent.Kafka;
 using ERP.PAY.Application.Handlers;
 using ERP.PAY.Application.Interfaces;
 using ERP.PAY.Application.Validators;
+using ERP.PAY.Infrastructure.BackgroundJobs;
+using ERP.PAY.Infrastructure.EventBus;
 using ERP.PAY.Infrastructure.Gateway;
+using ERP.PAY.Infrastructure.MessageBus;
 using ERP.PAY.Infrastructure.Persistence;
 using ERP.PAY.Infrastructure.Repositories;
 using ERP.Shared.Authorization;
 using ERP.Shared.Localization;
+using ERP.Shared.Messaging;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +30,41 @@ builder.Services.AddValidatorsFromAssemblyContaining<InitiatePaymentCommandValid
 
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<ISettlementRepository, SettlementRepository>();
+
+// Kafka producer + Outbox — drains PaymentDbContext.OutboxMessages (already populated
+// correctly by PaymentDbContext.SaveChangesAsync) onto the "payment-topic" topic.
+var kafkaServers = builder.Configuration["KafkaSettings:BootstrapServers"] ?? "localhost:9092";
+var producerConfig = new ProducerConfig
+{
+    BootstrapServers = kafkaServers,
+    AllowAutoCreateTopics = true
+};
+builder.Services.AddSingleton(new ProducerBuilder<string, string>(producerConfig).Build());
+builder.Services.AddScoped<IMessageBus, KafkaMessageBus>();
+builder.Services.AddHostedService<OutboxProcessor>();
+
+// RabbitMQ connection — shared single connection, matching the topic exchange model
+// SaleOrderService's RabbitMqMessageBus / WarehouseService's consumer already use.
+builder.Services.AddSingleton<IConnection>(_ =>
+{
+    var factory = new ConnectionFactory
+    {
+        HostName = builder.Configuration["RabbitMQ:HostName"] ?? "localhost",
+        Port = int.Parse(builder.Configuration["RabbitMQ:Port"] ?? "5672"),
+        UserName = builder.Configuration["RabbitMQ:UserName"] ?? "guest",
+        Password = builder.Configuration["RabbitMQ:Password"] ?? "guest",
+        VirtualHost = builder.Configuration["RabbitMQ:VirtualHost"] ?? "/",
+        DispatchConsumersAsync = true
+    };
+    return factory.CreateConnection();
+});
+
+// Consumes SaleOrderService's sales_order_events topic exchange (RabbitMQ —
+// SaleOrderService does not publish via Kafka) so the existing
+// SalesOrderCreatedIntegrationEventHandler (Application/EventHandlers/
+// SalesOrderCreatedEventHandler.cs) — previously dead code, since nothing ever
+// called IMediator.Publish with this type — actually fires.
+builder.Services.AddHostedService<SalesOrderRabbitMqConsumer>();
 
 // Payment gateway — use VNPay when credentials are configured, fall back to Null stub
 var vnpayConfigured = !string.IsNullOrEmpty(builder.Configuration["VnPay:TmnCode"]);

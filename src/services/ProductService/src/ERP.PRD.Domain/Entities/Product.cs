@@ -18,6 +18,9 @@ namespace ERP.PRD.Domain.Entities
         public Guid? CategoryId { get; set; }
         public bool HasImage { get; set; }
 
+        // Opaque escape hatch for arbitrary structured data (never queried via SQL JSON functions)
+        public string? ExtendedDataJson { get; set; }
+
         private readonly List<ProductVariant> _variants = new();
         public IReadOnlyList<ProductVariant> Variants => _variants.AsReadOnly();
 
@@ -54,12 +57,14 @@ namespace ERP.PRD.Domain.Entities
 
             Status = ProductStatus.Active;
             AddDomainEvent(new ProductPublishedDomainEvent(Id, Name));
+            AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(Id));
         }
 
         public void Discontinue()
         {
             Status = ProductStatus.Discontinued;
             AddDomainEvent(new ProductDiscontinuedDomainEvent(Id, Name));
+            AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(Id));
         }
 
         public void AddVariant(ProductVariant variant)
@@ -68,6 +73,7 @@ namespace ERP.PRD.Domain.Entities
                 throw new InvalidOperationException($"Variant with SKU {variant.Sku} already exists");
 
             _variants.Add(variant);
+            AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(Id));
         }
 
         public void AddImage(ProductImage image)
@@ -94,6 +100,14 @@ namespace ERP.PRD.Domain.Entities
 
             Description = description.Trim();
             UpdatedAt = DateTime.UtcNow;
+            AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(Id));
+        }
+
+        public void SetExtendedData(string? json)
+        {
+            ExtendedDataJson = json;
+            UpdatedAt = DateTime.UtcNow;
+            AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(Id));
         }
 
         public void Reactivate()
@@ -103,6 +117,7 @@ namespace ERP.PRD.Domain.Entities
 
             Status = ProductStatus.Active;
             AddDomainEvent(new ProductPublishedDomainEvent(Id, Name));
+            AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(Id));
         }
 
         public void RemoveVariant(Guid variantId)
@@ -115,6 +130,8 @@ namespace ERP.PRD.Domain.Entities
 
             if (Status == ProductStatus.Active && !_variants.Any())
                 throw new InvalidOperationException("Cannot remove last variant from published product");
+
+            AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(Id));
         }
 
         public bool HasVariants => _variants.Any();
@@ -147,6 +164,8 @@ namespace ERP.PRD.Domain.Entities
             {
                 _translations.Add(ProductTranslation.Create(Id, languageCode, name, description));
             }
+
+            AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(Id));
         }
     }
 }

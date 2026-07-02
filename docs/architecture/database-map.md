@@ -413,11 +413,19 @@ Bills (AP)
 ### 8. ProductDB (ProductService, Port 5008)
 
 **Key Entities:**
-- Products (10K-1M records)
-- ProductVariants (50K-10M records)
+- Products (10K-1M records) — includes `ExtendedDataJson` opaque escape-hatch column
+- ProductVariants (50K-10M records) — includes structured `Length`/`Width`/`Height`/
+  `DimensionUnit`/`WeightUnit` (first-class columns for shipping/logistics math;
+  legacy free-text `Dimensions` kept for backward-compat read) + `ExtendedDataJson`
 - Categories (100-10K records)
 - ProductImages (100K-10M records)
 - PriceLists (1K-100K records)
+- ProductAttributes / ProductAttributeOptions / ProductAttributeValues —
+  EAV-lite, category-scoped spec system (color, size, material, technical specs).
+  See `docs/architecture/extensible-attributes-pattern.md` for the design and the
+  reusable table shape for adopting this in other services.
+- ProductExternalMappings — reconciles Product/Variant IDs against third-party
+  systems (marketplace SKU, supplier item code, ERP integration key)
 
 **Published Events:**
 - ProductCreated

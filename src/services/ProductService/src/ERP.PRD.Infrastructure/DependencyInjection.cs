@@ -1,9 +1,12 @@
+using ERP.PRD.Domain.Search;
 using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Infrastructure.Search;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Confluent.Kafka;
+using Elastic.Clients.Elasticsearch;
 
 namespace ERP.PRD.Infrastructure
 {
@@ -38,6 +41,17 @@ namespace ERP.PRD.Infrastructure
 
             // Register OutboxProcessor background job
             services.AddHostedService<BackgroundJobs.OutboxProcessor>();
+
+            // Register Elasticsearch client for the derived "products" search index
+            var elasticsearchUri = configuration.GetValue<string>("Elasticsearch:Uri") ?? "http://localhost:9200";
+            services.AddSingleton(new ElasticsearchClient(new Uri(elasticsearchUri)));
+
+            services.AddScoped<IProductSearchIndexer, ElasticsearchProductIndexer>();
+            services.AddScoped<IProductSearchService, ElasticsearchProductSearchService>();
+
+            // Register SearchIndexProcessor background job (polls SearchIndexQueue, rebuilds
+            // the ES document per pending ProductId — mirrors OutboxProcessor's shape)
+            services.AddHostedService<SearchIndexProcessor>();
 
             return services;
         }

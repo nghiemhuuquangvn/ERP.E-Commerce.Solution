@@ -1,5 +1,7 @@
+using ERP.POS.Application.EventHandlers;
 using ERP.POS.Application.Handlers;
 using ERP.POS.Application.Interfaces;
+using ERP.POS.Infrastructure.BackgroundJobs;
 using ERP.POS.Infrastructure.Persistence;
 using ERP.POS.Infrastructure.Repositories;
 using ERP.Shared.Authorization;
@@ -21,6 +23,12 @@ builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<ICashShiftRepository, CashShiftRepository>();
 builder.Services.AddScoped<IPosProductCacheRepository, PosProductCacheRepository>();
 builder.Services.AddScoped<IPosPromotionCacheRepository, PosPromotionCacheRepository>();
+
+// Inbound consumer: product-topic + promotion-topic (Kafka) — previously dead
+// handler classes below.
+builder.Services.AddHostedService<PosKafkaConsumer>();
+builder.Services.AddScoped<ProductCreatedForPosHandler>();
+builder.Services.AddScoped<PromotionCreatedForPosHandler>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, HeaderUserContextService>();

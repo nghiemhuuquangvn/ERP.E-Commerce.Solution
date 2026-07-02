@@ -1,11 +1,18 @@
+using Confluent.Kafka;
+using ERP.PRM.Application.EventHandlers;
 using ERP.PRM.Application.Handlers;
 using ERP.PRM.Application.Interfaces;
+using ERP.PRM.Infrastructure.BackgroundJobs;
+using ERP.PRM.Infrastructure.EventBus;
+using ERP.PRM.Infrastructure.MessageBus;
 using ERP.PRM.Infrastructure.Persistence;
 using ERP.PRM.Infrastructure.Repositories;
 using ERP.Shared.Authorization;
 using ERP.Shared.Localization;
+using ERP.Shared.Messaging;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +28,38 @@ builder.Services.AddScoped<IPromotionRepository, PromotionRepository>();
 builder.Services.AddScoped<ICouponRepository, CouponRepository>();
 builder.Services.AddScoped<ILoyaltyAccountRepository, LoyaltyAccountRepository>();
 builder.Services.AddScoped<IPromotionProductCacheRepository, PromotionProductCacheRepository>();
+
+// Kafka producer + Outbox pattern for publishing integration events (promotion-topic) —
+// PromotionDbContext already harvests domain events into OutboxMessages correctly, it
+// was just missing the drain job.
+var kafkaServers = builder.Configuration["KafkaSettings:BootstrapServers"] ?? "localhost:9092";
+var producerConfig = new ProducerConfig { BootstrapServers = kafkaServers, AllowAutoCreateTopics = true };
+builder.Services.AddSingleton(new ProducerBuilder<string, string>(producerConfig).Build());
+builder.Services.AddScoped<IMessageBus, KafkaMessageBus>();
+builder.Services.AddHostedService<OutboxProcessor>();
+
+// RabbitMQ connection — shared single connection, matching the topic exchange model
+// SaleOrderService's RabbitMqMessageBus / WarehouseService's consumer already use.
+builder.Services.AddSingleton<IConnection>(_ =>
+{
+    var factory = new ConnectionFactory
+    {
+        HostName = builder.Configuration["RabbitMQ:HostName"] ?? "localhost",
+        Port = int.Parse(builder.Configuration["RabbitMQ:Port"] ?? "5672"),
+        UserName = builder.Configuration["RabbitMQ:UserName"] ?? "guest",
+        Password = builder.Configuration["RabbitMQ:Password"] ?? "guest",
+        VirtualHost = builder.Configuration["RabbitMQ:VirtualHost"] ?? "/",
+        DispatchConsumersAsync = true
+    };
+    return factory.CreateConnection();
+});
+
+// Inbound consumers: product-topic (Kafka) and sales_order_events (RabbitMQ) —
+// previously dead handler classes below.
+builder.Services.AddHostedService<PromotionKafkaConsumer>();
+builder.Services.AddHostedService<SalesOrderRabbitMqConsumer>();
+builder.Services.AddScoped<ProductCreatedForPromotionHandler>();
+builder.Services.AddScoped<SalesOrderCreatedForPromotionHandler>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, HeaderUserContextService>();

@@ -18,6 +18,7 @@ Technology:
 - SQL Server
 - RabbitMQ
 - Kafka
+- Elasticsearch (product search)
 - Ocelot API Gateway
 - Docker
 - Kubernetes

@@ -57,6 +57,7 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
 
             variant.Cost = request.BasePrice;
             variant.UpdatedAt = DateTime.UtcNow;
+            variant.RequestSearchReindex();
 
             await _context.SaveChangesAsync(cancellationToken);
 

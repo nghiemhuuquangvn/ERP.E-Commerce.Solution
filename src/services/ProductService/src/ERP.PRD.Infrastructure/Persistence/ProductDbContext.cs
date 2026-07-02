@@ -1,4 +1,5 @@
 using ERP.PRD.Domain.Entities;
+using ERP.PRD.Domain.Events;
 using ERP.Shared.Core.Domain;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -21,7 +22,12 @@ namespace ERP.PRD.Infrastructure.Persistence
         public DbSet<PriceList> PriceLists => Set<PriceList>();
         public DbSet<ProductTranslation> ProductTranslations => Set<ProductTranslation>();
         public DbSet<CategoryTranslation> CategoryTranslations => Set<CategoryTranslation>();
+        public DbSet<ProductAttribute> ProductAttributes => Set<ProductAttribute>();
+        public DbSet<ProductAttributeOption> ProductAttributeOptions => Set<ProductAttributeOption>();
+        public DbSet<ProductAttributeValue> ProductAttributeValues => Set<ProductAttributeValue>();
+        public DbSet<ProductExternalMapping> ProductExternalMappings => Set<ProductExternalMapping>();
         public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+        public DbSet<SearchIndexQueueEntry> SearchIndexQueue => Set<SearchIndexQueueEntry>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -43,6 +49,20 @@ namespace ERP.PRD.Infrastructure.Persistence
                     .HasName("IX_OutboxMessages_ProcessedOnUtc_Pending")
                     .HasFilter("[ProcessedOnUtc] IS NULL");
             });
+
+            // SearchIndexQueue table configuration (internal processing queue for the
+            // derived Elasticsearch index — mirrors OutboxMessage's minimal shape)
+            modelBuilder.Entity<SearchIndexQueueEntry>(entity =>
+            {
+                entity.ToTable("SearchIndexQueue");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.ProductId).IsRequired();
+                entity.Property(e => e.RequestedAt).IsRequired();
+
+                entity.HasIndex(e => e.IndexedAt)
+                    .HasDatabaseName("IX_SearchIndexQueue_Pending")
+                    .HasFilter("[IndexedAt] IS NULL");
+            });
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -62,8 +82,16 @@ namespace ERP.PRD.Infrastructure.Persistence
             // Save entities
             var result = await base.SaveChangesAsync(cancellationToken);
 
-            // Store domain events in Outbox
-            foreach (var domainEvent in domainEvents)
+            // ProductSearchIndexRequestedDomainEvent is a derived-index-refresh signal, not an
+            // integration event — it never goes to Kafka/OutboxMessages. Instead it upserts/
+            // bumps a row in SearchIndexQueue (deduplicated by ProductId), polled by
+            // SearchIndexProcessor. Every other domain event type keeps flowing through the
+            // OutboxMessages path completely unchanged.
+            var searchIndexEvents = domainEvents.OfType<ProductSearchIndexRequestedDomainEvent>().ToList();
+            var otherEvents = domainEvents.Except(searchIndexEvents).ToList();
+
+            // Store outbox-bound domain events in Outbox
+            foreach (var domainEvent in otherEvents)
             {
                 var outboxMessage = new OutboxMessage(
                     type: domainEvent.GetType().FullName!,
@@ -73,7 +101,38 @@ namespace ERP.PRD.Infrastructure.Persistence
                 await OutboxMessages.AddAsync(outboxMessage, cancellationToken);
             }
 
-            // Save outbox messages
+            // Upsert/bump SearchIndexQueue rows for the affected ProductIds, batched to avoid N+1
+            if (searchIndexEvents.Any())
+            {
+                var affectedProductIds = searchIndexEvents.Select(e => e.ProductId).Distinct().ToList();
+                var now = DateTime.UtcNow;
+
+                var existingPending = await SearchIndexQueue
+                    .Where(q => q.IndexedAt == null && affectedProductIds.Contains(q.ProductId))
+                    .ToListAsync(cancellationToken);
+
+                var existingByProductId = existingPending
+                    .GroupBy(q => q.ProductId)
+                    .ToDictionary(g => g.Key, g => g.First());
+
+                foreach (var productId in affectedProductIds)
+                {
+                    if (existingByProductId.TryGetValue(productId, out var pendingEntry))
+                    {
+                        pendingEntry.RequestedAt = now;
+                    }
+                    else
+                    {
+                        await SearchIndexQueue.AddAsync(new SearchIndexQueueEntry
+                        {
+                            ProductId = productId,
+                            RequestedAt = now
+                        }, cancellationToken);
+                    }
+                }
+            }
+
+            // Save outbox messages / search index queue rows
             if (domainEvents.Any())
             {
                 await base.SaveChangesAsync(cancellationToken);

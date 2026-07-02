@@ -48,6 +48,11 @@ namespace ERP.PRD.Application.Features.Variants.Queries
                 Cost = variant.Cost,
                 Weight = variant.Weight,
                 Dimensions = variant.Dimensions,
+                Length = variant.Length,
+                Width = variant.Width,
+                Height = variant.Height,
+                DimensionUnit = variant.DimensionUnit,
+                WeightUnit = variant.WeightUnit,
                 CreatedAt = variant.CreatedAt,
                 UpdatedAt = variant.UpdatedAt
             };

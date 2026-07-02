@@ -39,3 +39,13 @@ public class CashShiftDto
     public DateTime OpenedAt { get; set; }
     public DateTime? ClosedAt { get; set; }
 }
+
+public class ShiftSummaryDto
+{
+    public Guid ShiftId { get; set; }
+    public int CompletedTransactionCount { get; set; }
+    public int VoidedTransactionCount { get; set; }
+    public decimal TotalSales { get; set; }
+    public decimal TotalDiscount { get; set; }
+    public decimal TotalTax { get; set; }
+}

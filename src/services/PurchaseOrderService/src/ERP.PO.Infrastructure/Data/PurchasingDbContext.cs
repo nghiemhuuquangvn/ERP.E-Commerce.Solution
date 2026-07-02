@@ -1,7 +1,10 @@
 using ERP.PO.Domain.Entities;
 using ERP.Shared.Authorization;
+using ERP.Shared.Core.Domain;
 using ERP.Shared.Infrastructure.Data;
+using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace ERP.PO.Infrastructure.Data;
 
@@ -17,6 +20,7 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
     public DbSet<PurchaseOrder> PurchaseOrders { get; set; } = null!;
     public DbSet<PurchaseOrderItem> PurchaseOrderItems { get; set; } = null!;
     public DbSet<Supplier> Suppliers { get; set; } = null!;
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public PurchasingDbContext(DbContextOptions<PurchasingDbContext> options, IUserContextService userContextService)
         : base(options)
@@ -89,6 +93,14 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
             addressBuilder.Property(a => a.PostalCode).HasMaxLength(20);
             addressBuilder.Property(a => a.Country).HasMaxLength(100);
         });
+
+        // Configure Outbox pattern table
+        builder.Entity<OutboxMessage>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => x.ProcessedOnUtc);
+        });
     }
 
     public ITransaction BeginTransaction()
@@ -101,7 +113,30 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
     {
         try
         {
-            return await base.SaveChangesAsync(cancellationToken);
+            var domainEntities = ChangeTracker.Entries<BaseEntity>()
+                .Where(e => e.Entity.DomainEvents.Any()).ToList();
+
+            var outboxMessages = domainEntities
+                .SelectMany(e => e.Entity.DomainEvents)
+                .Select(ev => new OutboxMessage
+                {
+                    Id = Guid.NewGuid(),
+                    Type = ev.GetType().AssemblyQualifiedName ?? ev.GetType().Name,
+                    Content = JsonConvert.SerializeObject(ev, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All }),
+                    OccurredOnUtc = ev.OccurredOn
+                }).ToList();
+
+            domainEntities.ForEach(e => e.Entity.ClearDomainEvents());
+
+            var result = await base.SaveChangesAsync(cancellationToken);
+
+            if (outboxMessages.Any())
+            {
+                OutboxMessages.AddRange(outboxMessages);
+                await base.SaveChangesAsync(cancellationToken);
+            }
+
+            return result;
         }
         catch (DbUpdateConcurrencyException ex)
         {

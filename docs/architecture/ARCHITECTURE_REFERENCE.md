@@ -17,6 +17,7 @@
 | **All Events (48)** | EVENT_CATALOG_COMPLETE.md | Event definitions, structures, handlers |
 | **Dependencies** | DEPENDENCY_MAP_COMPLETE.md | Who calls whom, REST + Kafka |
 | **Integration Flows** | INTEGRATION_MAP_COMPLETE.md | 209 event flows, 4 critical paths |
+| **UI → API Request Flow** | end-to-end-request-flow.md | Traces real UI actions (Admin/Storefront/mobile) through the Gateway into each service's Controller/Command/Domain/events, with actual routes and known UI-wiring gaps |
 | **Governance** | CLAUDE.md | Service boundaries, integration rules |
 | **Implementation** | PHASE_3_IMPLEMENTATION_GUIDE.md | Code patterns, templates, examples |
 

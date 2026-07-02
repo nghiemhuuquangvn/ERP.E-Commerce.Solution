@@ -3,6 +3,7 @@ using ERP.POS.Application.DTOs;
 using ERP.POS.Application.Interfaces;
 using ERP.POS.Application.Queries;
 using ERP.POS.Domain.Entities;
+using ERP.POS.Domain.Enums;
 using MediatR;
 
 namespace ERP.POS.Application.Handlers;
@@ -175,5 +176,37 @@ public class GetActiveShiftQueryHandler : IRequestHandler<GetActiveShiftQuery, C
     {
         var shift = await _shifts.GetOpenByTerminalAsync(request.TerminalId, cancellationToken);
         return shift == null ? null : OpenCashShiftCommandHandler.MapShiftToDto(shift);
+    }
+}
+
+public class GetShiftSummaryQueryHandler : IRequestHandler<GetShiftSummaryQuery, ShiftSummaryDto?>
+{
+    private readonly ICashShiftRepository _shifts;
+    private readonly ITransactionRepository _transactions;
+
+    public GetShiftSummaryQueryHandler(ICashShiftRepository shifts, ITransactionRepository transactions)
+    {
+        _shifts = shifts;
+        _transactions = transactions;
+    }
+
+    public async Task<ShiftSummaryDto?> Handle(GetShiftSummaryQuery request, CancellationToken cancellationToken)
+    {
+        var shift = await _shifts.GetByIdAsync(request.ShiftId, cancellationToken);
+        if (shift == null)
+            return null;
+
+        var transactions = await _transactions.GetByShiftAsync(request.ShiftId, cancellationToken);
+        var completed = transactions.Where(t => t.Status == TransactionStatus.Completed).ToList();
+
+        return new ShiftSummaryDto
+        {
+            ShiftId = shift.Id,
+            CompletedTransactionCount = completed.Count,
+            VoidedTransactionCount = transactions.Count(t => t.Status == TransactionStatus.Voided),
+            TotalSales = completed.Sum(t => t.TotalAmount),
+            TotalDiscount = completed.Sum(t => t.DiscountAmount),
+            TotalTax = completed.Sum(t => t.TaxAmount)
+        };
     }
 }

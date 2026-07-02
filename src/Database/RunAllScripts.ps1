@@ -29,10 +29,14 @@ $DatabaseScripts = @(
     # Core business services
     "Sales\001_CreateSalesDB.sql",
     "Purchasing\001_CreatePurchasingDB.sql",
+    "Purchasing\002_AddOutboxMessages.sql",
     "Warehouse\001_CreateWarehouseDB.sql",
     "Accounting\001_CreateAccountingDB.sql",
     "Product\001_CreateProductDB.sql",
     "Product\002_AddProductTranslations.sql",
+    "Product\003_AddProductAttributesAndDimensions.sql",
+    "Product\004_AddProductExternalMappings.sql",
+    "Product\005_AddSearchIndexQueue.sql",
 
     # Customer-facing services
     "CRM\001_CreateCrmDB.sql",

@@ -1,6 +1,7 @@
 using Confluent.Kafka;
 using ERP.ACC.Application.Interfaces;
 using ERP.ACC.Infrastructure.BackgroundJobs;
+using ERP.ACC.Infrastructure.EventBus;
 using ERP.ACC.Infrastructure.MessageBus;
 using ERP.ACC.Infrastructure.Persistence;
 using ERP.ACC.Infrastructure.Repositories;
@@ -8,6 +9,7 @@ using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RabbitMQ.Client;
 
 namespace ERP.ACC.Infrastructure
 {
@@ -33,6 +35,27 @@ namespace ERP.ACC.Infrastructure
             services.AddScoped<IMessageBus, KafkaMessageBus>();
 
             services.AddHostedService<OutboxProcessor>();
+
+            // RabbitMQ connection — shared single connection, matching the topic exchange
+            // model SaleOrderService's RabbitMqMessageBus / WarehouseService's consumer use.
+            services.AddSingleton<IConnection>(_ =>
+            {
+                var factory = new ConnectionFactory
+                {
+                    HostName = configuration["RabbitMQ:HostName"] ?? "localhost",
+                    Port = int.Parse(configuration["RabbitMQ:Port"] ?? "5672"),
+                    UserName = configuration["RabbitMQ:UserName"] ?? "guest",
+                    Password = configuration["RabbitMQ:Password"] ?? "guest",
+                    VirtualHost = configuration["RabbitMQ:VirtualHost"] ?? "/",
+                    DispatchConsumersAsync = true
+                };
+                return factory.CreateConnection();
+            });
+
+            // Inbound consumers: purchasing-topic + payment-topic (Kafka) and
+            // sales_order_events (RabbitMQ) — previously dead MediatR handler classes.
+            services.AddHostedService<AccountingKafkaConsumer>();
+            services.AddHostedService<SalesOrderRabbitMqConsumer>();
 
             services.AddScoped<IAccountRepository, AccountRepository>();
             services.AddScoped<IInvoiceRepository, InvoiceRepository>();
