@@ -7,6 +7,10 @@ namespace ERP.SO.Domain.ValueObjects
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
 
+        // Partial fulfillment tracking — how much of this line has actually shipped so far.
+        public int ShippedQuantity { get; set; }
+        public int RemainingQuantity => Quantity - ShippedQuantity;
+
         public decimal LineTotal => Quantity * UnitPrice;
 
         public OrderLineItem()

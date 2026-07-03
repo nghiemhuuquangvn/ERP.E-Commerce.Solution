@@ -14,6 +14,7 @@ public static class PermissionConstants
     public const string PurchaseOrder_Cancel = "purchase_order:cancel";
     public const string PurchaseOrder_AddItem = "purchase_order:add_item";
     public const string PurchaseOrder_RemoveItem = "purchase_order:remove_item";
+    public const string PurchaseOrder_Receive = "purchase_order:receive";
 
     // Supplier Permissions
     public const string Supplier_Create = "supplier:create";
@@ -21,6 +22,7 @@ public static class PermissionConstants
     public const string Supplier_Update = "supplier:update";
     public const string Supplier_Delete = "supplier:delete";
     public const string Supplier_Deactivate = "supplier:deactivate";
+    public const string Supplier_Rate = "supplier:rate";
 
     // Danh sách tất cả các permissions
     public static readonly string[] AllPermissions = new[]
@@ -34,12 +36,14 @@ public static class PermissionConstants
         PurchaseOrder_Cancel,
         PurchaseOrder_AddItem,
         PurchaseOrder_RemoveItem,
+        PurchaseOrder_Receive,
 
         // Supplier
         Supplier_Create,
         Supplier_Read,
         Supplier_Update,
         Supplier_Delete,
-        Supplier_Deactivate
+        Supplier_Deactivate,
+        Supplier_Rate
     };
 }

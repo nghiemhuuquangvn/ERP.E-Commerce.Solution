@@ -26,7 +26,13 @@ namespace ERP.Identity.Infrastructure.Persistence
             ISystemAuthSettingsRepository systemAuthSettingsRepository,
             ITenantAuthSettingsRepository tenantAuthSettingsRepository,
             ITwoFactorChallengeRepository twoFactorChallengeRepository,
-            IOAuthStateRepository oAuthStateRepository)
+            IOAuthStateRepository oAuthStateRepository,
+            ISecurityAuditLogRepository securityAuditLogRepository,
+            ILoginAttemptRepository loginAttemptRepository,
+            IDeviceSessionRepository deviceSessionRepository,
+            ITokenBlacklistRepository tokenBlacklistRepository,
+            IPasswordHistoryRepository passwordHistoryRepository,
+            IApiKeyRepository apiKeyRepository)
         {
             _dbContext = dbContext;
             Users = userRepository;
@@ -41,6 +47,12 @@ namespace ERP.Identity.Infrastructure.Persistence
             TenantAuthSettings = tenantAuthSettingsRepository;
             TwoFactorChallenges = twoFactorChallengeRepository;
             OAuthStates = oAuthStateRepository;
+            SecurityAuditLogs = securityAuditLogRepository;
+            LoginAttempts = loginAttemptRepository;
+            DeviceSessions = deviceSessionRepository;
+            TokenBlacklist = tokenBlacklistRepository;
+            PasswordHistories = passwordHistoryRepository;
+            ApiKeys = apiKeyRepository;
         }
         public IUserRepository Users { get; }
 
@@ -57,6 +69,12 @@ namespace ERP.Identity.Infrastructure.Persistence
         public ITenantAuthSettingsRepository TenantAuthSettings { get; }
         public ITwoFactorChallengeRepository TwoFactorChallenges { get; }
         public IOAuthStateRepository OAuthStates { get; }
+        public ISecurityAuditLogRepository SecurityAuditLogs { get; }
+        public ILoginAttemptRepository LoginAttempts { get; }
+        public IDeviceSessionRepository DeviceSessions { get; }
+        public ITokenBlacklistRepository TokenBlacklist { get; }
+        public IPasswordHistoryRepository PasswordHistories { get; }
+        public IApiKeyRepository ApiKeys { get; }
 
         public async Task<int> SaveChangesAsync(CancellationToken ct) => await _dbContext.SaveChangesAsync(ct);
         public async Task BeginTransactionAsync(CancellationToken ct)

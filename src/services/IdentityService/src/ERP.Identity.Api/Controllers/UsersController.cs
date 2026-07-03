@@ -15,11 +15,13 @@ namespace ERP.Identity.Api.Controllers
     {
         private readonly IUserService _userService;
         private readonly ISettingsService _settingsService;
+        private readonly ISessionService _sessionService;
 
-        public UsersController(IUserService userService, ISettingsService settingsService)
+        public UsersController(IUserService userService, ISettingsService settingsService, ISessionService sessionService)
         {
             _userService = userService;
             _settingsService = settingsService;
+            _sessionService = sessionService;
         }
 
         [HttpGet]
@@ -146,6 +148,31 @@ namespace ERP.Identity.Api.Controllers
 
             await _userService.RemoveRoleAsync(id, roleId, parsedTenantId, ct);
             return Ok(new { message = "Role removed successfully" });
+        }
+
+        /// <summary>"Where am I logged in" — lists this user's active DeviceSessions rows.</summary>
+        [HttpGet("{id}/sessions")]
+        [Authorize]
+        public async Task<IActionResult> ListSessions([FromRoute] Guid id, CancellationToken ct = default)
+        {
+            var callerId = User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(callerId) || !Guid.TryParse(callerId, out var parsedCallerId) || parsedCallerId != id)
+                return Forbid();
+
+            var sessions = await _sessionService.ListActiveSessionsAsync(id, ct);
+            return Ok(sessions);
+        }
+
+        [HttpPost("{id}/sessions/{sessionId}/revoke")]
+        [Authorize]
+        public async Task<IActionResult> RevokeSession([FromRoute] Guid id, [FromRoute] Guid sessionId, CancellationToken ct = default)
+        {
+            var callerId = User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(callerId) || !Guid.TryParse(callerId, out var parsedCallerId) || parsedCallerId != id)
+                return Forbid();
+
+            await _sessionService.RevokeSessionAsync(id, sessionId, ct);
+            return Ok(new { message = "Session revoked successfully" });
         }
     }
 }

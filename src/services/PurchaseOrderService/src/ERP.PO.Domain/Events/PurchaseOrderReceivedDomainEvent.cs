@@ -1,0 +1,35 @@
+using ERP.Shared.Core.Domain;
+
+namespace ERP.PO.Domain.Events;
+
+/// <summary>
+/// Raised by ReceiveGoodsCommand (GRN) — previously impossible since no command
+/// existed to call PurchaseOrderItem's already-present MarkAsReceived()/
+/// MarkAsPartiallyReceived() methods at all. Consumed by WarehouseService to
+/// actually add the received quantities to stock.
+/// </summary>
+public class PurchaseOrderReceivedDomainEvent : IDomainEvent
+{
+    public Guid PurchaseOrderId { get; }
+    public string PONumber { get; }
+    public Guid SupplierId { get; }
+    public bool IsFullyReceived { get; }
+    public List<ReceivedLine> ReceivedItems { get; }
+    public DateTime OccurredOn { get; }
+
+    public PurchaseOrderReceivedDomainEvent(Guid purchaseOrderId, string poNumber, Guid supplierId, bool isFullyReceived, List<ReceivedLine> receivedItems)
+    {
+        PurchaseOrderId = purchaseOrderId;
+        PONumber = poNumber;
+        SupplierId = supplierId;
+        IsFullyReceived = isFullyReceived;
+        ReceivedItems = receivedItems;
+        OccurredOn = DateTime.UtcNow;
+    }
+
+    public class ReceivedLine
+    {
+        public string ProductCode { get; set; } = string.Empty;
+        public decimal QuantityReceived { get; set; }
+    }
+}

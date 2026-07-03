@@ -76,5 +76,16 @@ namespace ERP.SO.Infrastructure.Repositories
                 .OrderByDescending(o => o.OrderDate)
                 .ToListAsync(ct);
         }
+
+        /// <summary>Orders that still have this product on a not-yet-fulfilled line — used by ProductPriceChangedConsumer to flag a price-change warning.</summary>
+        public async Task<List<SalesOrder>> GetOpenOrdersContainingProductAsync(Guid productId, CancellationToken ct = default)
+        {
+            var openStatuses = new[] { OrderStatus.Draft, OrderStatus.Submitted, OrderStatus.Approved, OrderStatus.Picked };
+
+            return await _context.SalesOrders
+                .AsNoTracking()
+                .Where(o => openStatuses.Contains(o.Status) && o.LineItems.Any(li => li.ProductId == productId))
+                .ToListAsync(ct);
+        }
     }
 }

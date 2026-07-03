@@ -136,6 +136,141 @@ namespace ERP.SO.Api.Controllers
         }
 
         /// <summary>
+        /// Update address/notes before the order is approved
+        /// Requires: sales_order:update permission
+        /// </summary>
+        [HttpPut("{id:guid}")]
+        [ProducesResponseType(typeof(SalesOrderDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> UpdateOrder(
+            [FromRoute] Guid id,
+            [FromBody] UpdateOrderCommand command,
+            CancellationToken cancellationToken)
+        {
+            if (!_userContext.HasPermission("sales_order:update"))
+                return Forbid("Insufficient permissions: sales_order:update required");
+
+            try
+            {
+                command.OrderId = id;
+                var result = await _mediator.Send(command, cancellationToken);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+        }
+
+        /// <summary>
+        /// Add an internal (non-customer-facing) note to the order
+        /// Requires: sales_order:update permission
+        /// </summary>
+        [HttpPost("{id:guid}/notes")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> AddNote(
+            [FromRoute] Guid id,
+            [FromBody] AddOrderNoteRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (!_userContext.HasPermission("sales_order:update"))
+                return Forbid("Insufficient permissions: sales_order:update required");
+
+            await _mediator.Send(new AddOrderNoteCommand { OrderId = id, Note = request.Note, AddedBy = _userContext.UserId }, cancellationToken);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Ship specific line-item quantities — partial fulfillment. Order moves to
+        /// PartiallyShipped unless this ships everything remaining, in which case it
+        /// moves to Shipped (same as the full-order /ship endpoint).
+        /// Requires: sales_order:update permission
+        /// </summary>
+        [HttpPost("{id:guid}/ship-items")]
+        [ProducesResponseType(typeof(SalesOrderDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> ShipLineItems(
+            [FromRoute] Guid id,
+            [FromBody] ShipLineItemsRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (!_userContext.HasPermission("sales_order:update"))
+                return Forbid("Insufficient permissions: sales_order:update required");
+
+            try
+            {
+                var command = new ShipLineItemsCommand
+                {
+                    OrderId = id,
+                    Quantities = request.Quantities,
+                    TrackingNumber = request.TrackingNumber,
+                    Carrier = request.Carrier
+                };
+                var result = await _mediator.Send(command, cancellationToken);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+        }
+
+        /// <summary>
+        /// Customer requests a return for a delivered order
+        /// Requires: sales_order:update permission
+        /// </summary>
+        [HttpPost("{id:guid}/return")]
+        [ProducesResponseType(typeof(SalesOrderDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> RequestReturn(
+            [FromRoute] Guid id,
+            [FromBody] RequestReturnRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (!_userContext.HasPermission("sales_order:update"))
+                return Forbid("Insufficient permissions: sales_order:update required");
+
+            try
+            {
+                var result = await _mediator.Send(new RequestReturnCommand { OrderId = id, Reason = request.Reason }, cancellationToken);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+        }
+
+        /// <summary>
+        /// Marks the return as completed and records the refund amount — publishes
+        /// SalesOrderReturnedEvent for Payment/Accounting/Warehouse to react to.
+        /// Requires: sales_order:approve permission
+        /// </summary>
+        [HttpPost("{id:guid}/return/complete")]
+        [ProducesResponseType(typeof(SalesOrderDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> CompleteReturn(
+            [FromRoute] Guid id,
+            [FromBody] CompleteReturnRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (!_userContext.HasPermission("sales_order:approve"))
+                return Forbid("Insufficient permissions: sales_order:approve required");
+
+            try
+            {
+                var result = await _mediator.Send(new CompleteReturnCommand { OrderId = id, RefundAmount = request.RefundAmount }, cancellationToken);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+        }
+
+        /// <summary>
         /// Submit a draft order for approval
         /// Requires: sales_order:update permission
         /// </summary>
@@ -352,5 +487,27 @@ namespace ERP.SO.Api.Controllers
     public class CancelOrderRequest
     {
         public string Reason { get; set; } = string.Empty;
+    }
+
+    public class AddOrderNoteRequest
+    {
+        public string Note { get; set; } = string.Empty;
+    }
+
+    public class ShipLineItemsRequest
+    {
+        public Dictionary<Guid, int> Quantities { get; set; } = new();
+        public string TrackingNumber { get; set; } = string.Empty;
+        public string Carrier { get; set; } = string.Empty;
+    }
+
+    public class RequestReturnRequest
+    {
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    public class CompleteReturnRequest
+    {
+        public decimal RefundAmount { get; set; }
     }
 }

@@ -104,6 +104,8 @@ namespace ERP.Identity.Domain.Entities
             userRole.User = this;
             userRole.Role = role;
             _userRoles.Add(userRole);
+
+            AddDomainEvent(new RoleAssignedDomainEvent(Id, tenantId, roleId, role.RoleCode));
         }
 
         public void AddExternalLogin(string provider, string providerKey, string email)
@@ -121,6 +123,8 @@ namespace ERP.Identity.Domain.Entities
                 FullName = fullName;
             if (!string.IsNullOrWhiteSpace(userName))
                 UserName = userName.ToLowerInvariant();
+
+            AddDomainEvent(new UserUpdatedDomainEvent(Id, TenantId, FullName, UserName));
         }
 
         public void ChangePassword(string newPasswordHash)

@@ -21,6 +21,7 @@ $DatabaseScripts = @(
     # Core Identity first
     "Identity\001_CreateAuthDB.sql",
     "Identity\002_AddExternalAuthSettingsAndTwoFactor.sql",
+    "Identity\003_AddApiKeysAndSecurityPermissions.sql",
 
     # Cross-cutting master data (Department/Position/Employee/UoM/Geography/Language —
     # seed before HRM, which now references Employees/Departments here instead of owning them)
@@ -28,8 +29,10 @@ $DatabaseScripts = @(
 
     # Core business services
     "Sales\001_CreateSalesDB.sql",
+    "Sales\002_AddOrderLifecycleExtensions.sql",
     "Purchasing\001_CreatePurchasingDB.sql",
     "Purchasing\002_AddOutboxMessages.sql",
+    "Purchasing\003_AddReceivingScheduleAndSupplierRatings.sql",
     "Warehouse\001_CreateWarehouseDB.sql",
     "Accounting\001_CreateAccountingDB.sql",
     "Product\001_CreateProductDB.sql",
@@ -37,6 +40,7 @@ $DatabaseScripts = @(
     "Product\003_AddProductAttributesAndDimensions.sql",
     "Product\004_AddProductExternalMappings.sql",
     "Product\005_AddSearchIndexQueue.sql",
+    "Product\006_AddSeoStockBundlesRelationsReviews.sql",
 
     # Customer-facing services
     "CRM\001_CreateCrmDB.sql",

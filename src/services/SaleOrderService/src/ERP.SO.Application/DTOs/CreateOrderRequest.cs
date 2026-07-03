@@ -8,6 +8,7 @@ namespace ERP.SO.Application.DTOs
         public List<OrderLineItemDto> LineItems { get; set; } = new();
         public AddressDto ShippingAddress { get; set; } = new();
         public string? Notes { get; set; }
+        public string? CouponCode { get; set; }
     }
 
     public class OrderLineItemDto
@@ -16,6 +17,7 @@ namespace ERP.SO.Application.DTOs
         public string ProductName { get; set; } = string.Empty;
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
+        public int ShippedQuantity { get; set; }
     }
 
     public class AddressDto

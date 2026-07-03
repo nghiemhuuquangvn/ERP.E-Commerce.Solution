@@ -1,6 +1,7 @@
 using ERP.Shared.Messaging;
 using ERP.SO.Application.Commands;
 using ERP.SO.Application.DTOs;
+using ERP.SO.Application.Interfaces;
 using ERP.SO.Domain.Entities;
 using ERP.SO.Domain.ValueObjects;
 using MediatR;
@@ -16,17 +17,20 @@ namespace ERP.SO.Application.Handlers
         Task<List<SalesOrder>> GetAllAsync(int skip = 0, int take = 20, CancellationToken ct = default);
         Task<int> GetTotalCountAsync(Guid? customerId = null, OrderStatus? status = null, CancellationToken ct = default);
         Task<List<SalesOrder>> GetByStatusAsync(OrderStatus status, CancellationToken ct = default);
+        Task<List<SalesOrder>> GetOpenOrdersContainingProductAsync(Guid productId, CancellationToken ct = default);
     }
 
     public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, SalesOrderDto>
     {
         private readonly ISalesOrderRepository _repository;
         private readonly IMessageBus _messageBus;
+        private readonly IPromotionServiceClient _promotionServiceClient;
 
-        public CreateOrderCommandHandler(ISalesOrderRepository repository, IMessageBus messageBus)
+        public CreateOrderCommandHandler(ISalesOrderRepository repository, IMessageBus messageBus, IPromotionServiceClient promotionServiceClient)
         {
             _repository = repository;
             _messageBus = messageBus;
+            _promotionServiceClient = promotionServiceClient;
         }
 
         public async Task<SalesOrderDto> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
@@ -49,6 +53,15 @@ namespace ERP.SO.Application.Handlers
                 address,
                 lineItems,
                 request.Notes);
+
+            if (!string.IsNullOrWhiteSpace(request.CouponCode))
+            {
+                var validation = await _promotionServiceClient.ValidateCouponAsync(request.CouponCode, salesOrder.TotalAmount, cancellationToken);
+                if (validation.IsValid)
+                    salesOrder.ApplyDiscount(validation.DiscountAmount);
+                else
+                    salesOrder.AddInternalNote($"Coupon '{request.CouponCode}' not applied: {validation.ErrorMessage}", "system:promotion-validation");
+            }
 
             await _repository.AddAsync(salesOrder, cancellationToken);
 

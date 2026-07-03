@@ -20,6 +20,8 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
     public DbSet<PurchaseOrder> PurchaseOrders { get; set; } = null!;
     public DbSet<PurchaseOrderItem> PurchaseOrderItems { get; set; } = null!;
     public DbSet<Supplier> Suppliers { get; set; } = null!;
+    public DbSet<SupplierRating> SupplierRatings { get; set; } = null!;
+    public DbSet<GoodsReceipt> GoodsReceipts { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public PurchasingDbContext(DbContextOptions<PurchasingDbContext> options, IUserContextService userContextService)
@@ -60,6 +62,7 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
             .OnDelete(DeleteBehavior.Cascade);
 
         purchaseOrderBuilder.Navigation(po => po.Items).AutoInclude();
+        purchaseOrderBuilder.Navigation(po => po.Supplier).AutoInclude();
 
         // Configure PurchaseOrderItem
         var itemBuilder = builder.Entity<PurchaseOrderItem>();
@@ -93,6 +96,23 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
             addressBuilder.Property(a => a.PostalCode).HasMaxLength(20);
             addressBuilder.Property(a => a.Country).HasMaxLength(100);
         });
+
+        // Configure SupplierRating
+        var ratingBuilder = builder.Entity<SupplierRating>();
+        ratingBuilder.HasKey(r => new { r.Id, r.TenantId });
+        ratingBuilder.Property(r => r.Comment).HasMaxLength(2000);
+        ratingBuilder.Property(r => r.RatedBy).HasMaxLength(256).IsRequired();
+        ratingBuilder.Property(r => r.CreatedAt).HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd();
+        ratingBuilder.HasIndex(r => new { r.SupplierId, r.TenantId });
+
+        // Configure GoodsReceipt
+        var receiptBuilder = builder.Entity<GoodsReceipt>();
+        receiptBuilder.HasKey(r => new { r.Id, r.TenantId });
+        receiptBuilder.Property(r => r.ReceiptNumber).HasMaxLength(50).IsRequired();
+        receiptBuilder.Property(r => r.ReceivedBy).HasMaxLength(256).IsRequired();
+        receiptBuilder.Property(r => r.Notes).HasMaxLength(1000);
+        receiptBuilder.Property(r => r.CreatedAt).HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd();
+        receiptBuilder.HasIndex(r => new { r.PurchaseOrderId, r.TenantId });
 
         // Configure Outbox pattern table
         builder.Entity<OutboxMessage>(e =>

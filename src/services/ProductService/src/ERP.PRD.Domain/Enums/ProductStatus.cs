@@ -4,6 +4,7 @@ namespace ERP.PRD.Domain.Enums
     {
         Draft = 0,
         Active = 1,
-        Discontinued = 2
+        Discontinued = 2,
+        PendingReview = 3
     }
 }

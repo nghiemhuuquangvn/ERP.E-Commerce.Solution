@@ -72,5 +72,18 @@ namespace ERP.PRD.Domain.Entities
         {
             AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(ProductId));
         }
+
+        /// <summary>
+        /// Raises ProductPriceChangedDomainEvent — previously did not exist anywhere in
+        /// ProductService, so POS/Promotion's price caches (wired to product-topic
+        /// earlier this session) could only ever see a product's creation-time price
+        /// default of 0. Public for the same reason as RequestSearchReindex(): handlers
+        /// operate on ProductVariant directly via its DbSet, not through the Product
+        /// aggregate.
+        /// </summary>
+        public void RecordPriceChange(decimal oldPrice, decimal newPrice)
+        {
+            AddDomainEvent(new ProductPriceChangedDomainEvent(ProductId, Id, oldPrice, newPrice));
+        }
     }
 }

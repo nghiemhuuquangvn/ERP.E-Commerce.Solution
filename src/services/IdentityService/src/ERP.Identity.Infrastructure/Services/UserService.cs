@@ -13,11 +13,19 @@ namespace ERP.Identity.Infrastructure.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IPasswordHasher _passwordHasher;
+        private readonly ISecurityAuditService _securityAuditService;
+        private readonly IPasswordPolicyService _passwordPolicyService;
 
-        public UserService(IUnitOfWork unitOfWork, IPasswordHasher passwordHasher)
+        public UserService(
+            IUnitOfWork unitOfWork,
+            IPasswordHasher passwordHasher,
+            ISecurityAuditService securityAuditService,
+            IPasswordPolicyService passwordPolicyService)
         {
             _unitOfWork = unitOfWork;
             _passwordHasher = passwordHasher;
+            _securityAuditService = securityAuditService;
+            _passwordPolicyService = passwordPolicyService;
         }
 
         public async Task<UserDetailDto?> GetByIdAsync(Guid id, CancellationToken ct)
@@ -94,11 +102,21 @@ namespace ERP.Identity.Infrastructure.Services
                 throw new InvalidOperationException($"User with id '{id}' not found");
 
             if (!_passwordHasher.VerifyPassword(user.PasswordHash, request.CurrentPassword))
+            {
+                await _securityAuditService.LogAsync("PasswordChange", false, user.TenantId, id, user.Email, errorReason: "Current password incorrect", ct: ct);
+                await _unitOfWork.SaveChangesAsync(ct);
                 throw new InvalidOperationException("Current password is incorrect");
+            }
 
+            await _passwordPolicyService.ValidateNewPasswordAsync(id, request.NewPassword, ct);
+
+            var previousHash = user.PasswordHash;
             var newPasswordHash = _passwordHasher.HashPassword(request.NewPassword);
             user.ChangePassword(newPasswordHash);
+
+            await _passwordPolicyService.RecordPasswordHistoryAsync(id, previousHash, ct);
             await _unitOfWork.Users.UpdateAsync(user, ct);
+            await _securityAuditService.LogAsync("PasswordChange", true, user.TenantId, id, user.Email, ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
@@ -110,6 +128,7 @@ namespace ERP.Identity.Infrastructure.Services
 
             user.Lock();
             await _unitOfWork.Users.UpdateAsync(user, ct);
+            await _securityAuditService.LogAsync("AccountLocked", true, user.TenantId, id, user.Email, ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
@@ -121,6 +140,7 @@ namespace ERP.Identity.Infrastructure.Services
 
             user.Unlock();
             await _unitOfWork.Users.UpdateAsync(user, ct);
+            await _securityAuditService.LogAsync("AccountUnlocked", true, user.TenantId, id, user.Email, ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
@@ -147,6 +167,7 @@ namespace ERP.Identity.Infrastructure.Services
 
             user.AssignRole(role, tenantId);
             await _unitOfWork.Users.UpdateAsync(user, ct);
+            await _securityAuditService.LogAsync("RoleAssigned", true, tenantId, userId, user.Email, details: $"Role={roleCode}", ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
 

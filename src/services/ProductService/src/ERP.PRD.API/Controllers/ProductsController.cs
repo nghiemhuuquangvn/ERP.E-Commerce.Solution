@@ -110,6 +110,54 @@ namespace ERP.PRD.API.Controllers
         }
 
         /// <summary>
+        /// Submit a Draft product for review (optional moderation step before Publish)
+        /// </summary>
+        [HttpPost("{id}/submit-for-review")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> SubmitForReview(Guid id)
+        {
+            await _mediator.Send(new SubmitForReviewCommand { ProductId = id });
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Set SEO fields (slug, meta title, meta description) for a product
+        /// </summary>
+        [HttpPut("{id}/seo")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> SetSeo(Guid id, [FromBody] SetProductSeoCommand command)
+        {
+            command.ProductId = id;
+            await _mediator.Send(command);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Bulk-create products from a CSV payload (header row: Sku,Name,Description,ProductType,CategoryId)
+        /// </summary>
+        [HttpPost("bulk-import")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> BulkImport([FromBody] BulkImportProductsCommand command)
+        {
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Export products as a CSV file
+        /// </summary>
+        [HttpGet("export")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> Export([FromQuery] Guid? categoryId = null)
+        {
+            var csv = await _mediator.Send(new ExportProductsQuery { CategoryId = categoryId });
+            var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
+            return File(bytes, "text/csv", $"products-{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
+        }
+
+        /// <summary>
         /// Publish product (activate for sale)
         /// </summary>
         /// <param name="id">Product ID</param>

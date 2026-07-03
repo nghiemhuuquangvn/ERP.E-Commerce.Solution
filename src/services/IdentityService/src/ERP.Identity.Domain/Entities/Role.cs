@@ -1,5 +1,6 @@
 ﻿using ERP.Identity.Domain.Common;
 using ERP.Identity.Domain.Constants;
+using ERP.Identity.Domain.Events;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -48,6 +49,18 @@ namespace ERP.Identity.Domain.Entities
         public static Role CreateReference(string code, Guid tenantId)
         {
             return new Role(RoleIds.FromCode(code), code, tenantId);
+        }
+
+        /// <summary>
+        /// Raises PermissionGranted for a permission just assigned to this role by
+        /// IPermissionRepository.AssignToRoleAsync — the join-row insert itself stays in
+        /// the repository (RolePermissions is a plain many-to-many, not a rich collection
+        /// owned by this aggregate), but the domain event belongs on Role since it's the
+        /// side everyone else's users-gain-a-permission reasoning is about.
+        /// </summary>
+        public void NotifyPermissionGranted(Guid permissionId, string permissionCode)
+        {
+            AddDomainEvent(new PermissionGrantedDomainEvent(Id, TenantId, permissionId, permissionCode));
         }
     }
 

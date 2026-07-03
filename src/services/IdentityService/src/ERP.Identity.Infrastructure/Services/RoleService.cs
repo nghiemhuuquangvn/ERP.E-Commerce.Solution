@@ -78,6 +78,7 @@ namespace ERP.Identity.Infrastructure.Services
                 throw new InvalidOperationException($"Permission '{permissionCode}' not found");
 
             await _unitOfWork.Permissions.AssignToRoleAsync(roleId, permission.Id, tenantId, ct);
+            role.NotifyPermissionGranted(permission.Id, permission.PermissionCode);
             await _unitOfWork.SaveChangesAsync(ct);
         }
 

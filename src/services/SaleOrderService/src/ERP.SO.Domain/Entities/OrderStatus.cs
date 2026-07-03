@@ -9,6 +9,9 @@ namespace ERP.SO.Domain.Entities
         Shipped = 4,
         Delivered = 5,
         Rejected = 6,
-        Cancelled = 7
+        Cancelled = 7,
+        PartiallyShipped = 8,
+        ReturnRequested = 9,
+        Returned = 10
     }
 }

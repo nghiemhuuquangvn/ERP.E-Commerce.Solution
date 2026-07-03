@@ -261,4 +261,81 @@ public class PurchaseOrdersController : ControllerBase
         var result = await _mediator.Send(command);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Goods Receipt Note (GRN) — record quantities actually received for one or more lines
+    /// Yêu cầu quyền: purchase_order:receive
+    /// </summary>
+    /// <param name="id">Purchase order ID</param>
+    /// <param name="request">Received quantities keyed by item ID</param>
+    [HttpPost("{id}/receive")]
+    [AuthorizePermission(PermissionConstants.PurchaseOrder_Receive)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ReceiveGoods(Guid id, [FromBody] ReceiveGoodsRequestDto request)
+    {
+        _logger.LogInformation("Recording goods receipt for purchase order {PurchaseOrderId}", id);
+
+        var command = new ReceiveGoodsCommand { PurchaseOrderId = id, ReceivedQuantities = request.ReceivedQuantities };
+        var result = await _mediator.Send(command);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Schedule a receiving dock/date for an approved purchase order
+    /// Yêu cầu quyền: purchase_order:update
+    /// </summary>
+    [HttpPost("{id}/schedule-receipt")]
+    [AuthorizePermission(PermissionConstants.PurchaseOrder_Update)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ScheduleReceipt(Guid id, [FromBody] ScheduleReceiptRequestDto request)
+    {
+        var command = new ScheduleReceiptCommand { PurchaseOrderId = id, ScheduledDate = request.ScheduledDate };
+        var result = await _mediator.Send(command);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Compare unit prices for a product across suppliers, based on order history
+    /// Yêu cầu quyền: purchase_order:read
+    /// </summary>
+    [HttpGet("compare-prices")]
+    [AuthorizePermission(PermissionConstants.PurchaseOrder_Read)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ComparePrices([FromQuery] string productCode)
+    {
+        var result = await _mediator.Send(new ComparePricesForProductQuery { ProductCode = productCode });
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Three-way match: PO vs GRN (received quantities) vs a supplied invoice
+    /// Yêu cầu quyền: purchase_order:read
+    /// </summary>
+    [HttpPost("{id}/three-way-match")]
+    [AuthorizePermission(PermissionConstants.PurchaseOrder_Read)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ThreeWayMatch(Guid id, [FromBody] List<InvoiceLineInput> invoiceLines)
+    {
+        var result = await _mediator.Send(new ThreeWayMatchQuery { PurchaseOrderId = id, InvoiceLines = invoiceLines });
+        return Ok(result);
+    }
+}
+
+public class ReceiveGoodsRequestDto
+{
+    public Dictionary<Guid, decimal> ReceivedQuantities { get; set; } = new();
+}
+
+public class ScheduleReceiptRequestDto
+{
+    public DateTime ScheduledDate { get; set; }
 }

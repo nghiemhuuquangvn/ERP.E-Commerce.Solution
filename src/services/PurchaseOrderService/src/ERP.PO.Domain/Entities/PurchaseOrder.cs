@@ -15,6 +15,7 @@ public class PurchaseOrder : BaseEntity
     public DateTime? ExpectedDeliveryDate { get; private set; }
     public Money TotalAmount { get; private set; } = Money.Zero;
     public string? Notes { get; private set; }
+    public DateTime? ScheduledReceiptDate { get; private set; }
 
     private readonly List<PurchaseOrderItem> _items = new();
     public IReadOnlyCollection<PurchaseOrderItem> Items => _items.AsReadOnly();
@@ -105,11 +106,60 @@ public class PurchaseOrder : BaseEntity
         Status = PurchaseOrderStatus.Cancelled;
         UpdatedBy = cancelledBy;
         UpdatedAt = DateTime.UtcNow;
+
+        AddDomainEvent(new PurchaseOrderCancelledDomainEvent(Id, PONumber, cancelledBy));
     }
 
     private void RecalculateTotal()
     {
         var total = _items.Sum(i => i.TotalPrice.Amount);
         TotalAmount = new Money(total, TotalAmount.Currency);
+    }
+
+    /// <summary>Schedules a receiving dock/date — plannable ahead of the actual GRN, once the PO is Approved (or already has a partial receipt in progress).</summary>
+    public void ScheduleReceipt(DateTime scheduledDate)
+    {
+        if (Status != PurchaseOrderStatus.Approved && Status != PurchaseOrderStatus.Ordered && Status != PurchaseOrderStatus.PartiallyReceived)
+            throw new InvalidOperationException($"Cannot schedule receipt for a purchase order in {Status} status");
+
+        ScheduledReceiptDate = scheduledDate;
+        UpdatedAt = DateTime.UtcNow;
+
+        AddDomainEvent(new ReceiptScheduledDomainEvent(Id, PONumber, scheduledDate));
+    }
+
+    /// <summary>
+    /// Goods Receipt Note (GRN) — records quantities actually received per line.
+    /// Was entirely impossible before 2026-07-03: PurchaseOrderItem.MarkAsReceived()/
+    /// MarkAsPartiallyReceived() already existed but nothing in the Application layer
+    /// ever called them, and PurchaseOrderStatus.Received/PartiallyReceived were
+    /// unreachable enum values.
+    /// </summary>
+    public PurchaseOrderReceivedDomainEvent ReceiveGoods(IReadOnlyDictionary<Guid, decimal> receivedQuantities)
+    {
+        if (Status != PurchaseOrderStatus.Approved && Status != PurchaseOrderStatus.Ordered && Status != PurchaseOrderStatus.PartiallyReceived)
+            throw new InvalidOperationException($"Cannot receive goods for a purchase order in {Status} status");
+
+        if (receivedQuantities.Count == 0)
+            throw new ArgumentException("At least one line item quantity is required", nameof(receivedQuantities));
+
+        var receivedLines = new List<PurchaseOrderReceivedDomainEvent.ReceivedLine>();
+
+        foreach (var (itemId, quantity) in receivedQuantities)
+        {
+            var item = _items.FirstOrDefault(i => i.Id == itemId)
+                ?? throw new InvalidOperationException($"Item {itemId} is not on this purchase order");
+
+            item.ReceiveQuantity(quantity);
+            receivedLines.Add(new PurchaseOrderReceivedDomainEvent.ReceivedLine { ProductCode = item.ProductCode, QuantityReceived = quantity });
+        }
+
+        var fullyReceived = _items.All(i => i.RemainingQuantity == 0);
+        Status = fullyReceived ? PurchaseOrderStatus.Received : PurchaseOrderStatus.PartiallyReceived;
+        UpdatedAt = DateTime.UtcNow;
+
+        var receivedEvent = new PurchaseOrderReceivedDomainEvent(Id, PONumber, SupplierId, fullyReceived, receivedLines);
+        AddDomainEvent(receivedEvent);
+        return receivedEvent;
     }
 }

@@ -18,6 +18,29 @@ namespace ERP.SO.Application.DTOs
         public DateTime? CancelledAt { get; set; }
         public string? TrackingNumber { get; set; }
         public string? Carrier { get; set; }
+        public bool HasPriceChangeWarning { get; set; }
+        public DateTime? ReturnRequestedAt { get; set; }
+        public DateTime? ReturnedAt { get; set; }
+        public string? ReturnReason { get; set; }
+        public decimal? RefundAmount { get; set; }
+        public List<OrderNoteDto> InternalNotes { get; set; } = new();
+        public List<OrderStatusHistoryDto> StatusHistory { get; set; } = new();
+    }
+
+    public class OrderNoteDto
+    {
+        public string Note { get; set; } = string.Empty;
+        public string? AddedBy { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class OrderStatusHistoryDto
+    {
+        public string FromStatus { get; set; } = string.Empty;
+        public string ToStatus { get; set; } = string.Empty;
+        public string? Reason { get; set; }
+        public string? ChangedBy { get; set; }
+        public DateTime ChangedAt { get; set; }
     }
 
     public class SalesOrderSummaryDto

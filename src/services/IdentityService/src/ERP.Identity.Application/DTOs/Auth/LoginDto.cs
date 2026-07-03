@@ -8,7 +8,9 @@ namespace ERP.Identity.Application.DTOs.Auth
 {
     public class LoginDto
     {
-        public record LoginRequest(string Email, string Password, string TenantCode, UserType UserType);
+        public record LoginRequest(
+            string Email, string Password, string TenantCode, UserType UserType,
+            string? DeviceId = null, string? DeviceName = null, string? DeviceType = null, string? Platform = null);
 
         public record UserSummaryDto(Guid Id, string Email, string? FullName, IReadOnlyList<string> Roles, IReadOnlyList<string> Permissions);
 

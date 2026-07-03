@@ -20,6 +20,12 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         ITenantAuthSettingsRepository TenantAuthSettings { get; }
         ITwoFactorChallengeRepository TwoFactorChallenges { get; }
         IOAuthStateRepository OAuthStates { get; }
+        ISecurityAuditLogRepository SecurityAuditLogs { get; }
+        ILoginAttemptRepository LoginAttempts { get; }
+        IDeviceSessionRepository DeviceSessions { get; }
+        ITokenBlacklistRepository TokenBlacklist { get; }
+        IPasswordHistoryRepository PasswordHistories { get; }
+        IApiKeyRepository ApiKeys { get; }
         Task<int> SaveChangesAsync(CancellationToken ct);
         Task BeginTransactionAsync(CancellationToken ct);
         Task CommitTransactionAsync(CancellationToken ct);

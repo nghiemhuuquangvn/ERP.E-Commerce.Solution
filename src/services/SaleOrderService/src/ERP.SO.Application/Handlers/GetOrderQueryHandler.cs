@@ -19,43 +19,7 @@ namespace ERP.SO.Application.Handlers
             var order = await _repository.GetByIdAsync(request.OrderId, cancellationToken)
                 ?? throw new InvalidOperationException($"Order {request.OrderId} not found");
 
-            return MapToDto(order);
-        }
-
-        private SalesOrderDto MapToDto(SalesOrder order)
-        {
-            return new SalesOrderDto
-            {
-                OrderId = order.Id,
-                CustomerId = order.CustomerId,
-                CustomerName = order.CustomerName,
-                CustomerEmail = order.CustomerEmail,
-                Status = order.Status.ToString(),
-                TotalAmount = order.TotalAmount,
-                OrderDate = order.OrderDate,
-                ApprovedAt = order.ApprovedAt,
-                ShippedAt = order.ShippedAt,
-                DeliveredAt = order.DeliveredAt,
-                CancelledAt = order.CancelledAt,
-                Notes = order.Notes,
-                ShippingAddress = new AddressDto
-                {
-                    Street = order.ShippingAddress.Street,
-                    City = order.ShippingAddress.City,
-                    State = order.ShippingAddress.State,
-                    PostalCode = order.ShippingAddress.PostalCode,
-                    Country = order.ShippingAddress.Country
-                },
-                LineItems = order.LineItems
-                    .Select(li => new OrderLineItemDto
-                    {
-                        ProductId = li.ProductId,
-                        ProductName = li.ProductName,
-                        Quantity = li.Quantity,
-                        UnitPrice = li.UnitPrice
-                    })
-                    .ToList()
-            };
+            return SalesOrderMapper.MapToDto(order);
         }
     }
 

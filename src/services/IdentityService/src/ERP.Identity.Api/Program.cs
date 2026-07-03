@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,6 +51,26 @@ builder.Services.AddAuthentication("Bearer")
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+
+        // Session-management gap: a token blacklisted via /auth/logout must stop
+        // working immediately, not just at its natural expiry. Only enforced here,
+        // on Identity's own JWT validation — other services trust the gateway's
+        // injected headers rather than re-validating the JWT themselves, so a
+        // blacklisted token still works against them today (a known, documented
+        // limitation, not something this hook can fix from Identity alone).
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var jti = context.Principal?.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+                if (string.IsNullOrEmpty(jti))
+                    return;
+
+                var sessionService = context.HttpContext.RequestServices.GetRequiredService<ISessionService>();
+                if (await sessionService.IsTokenBlacklistedAsync(jti, context.HttpContext.RequestAborted))
+                    context.Fail("Token has been revoked.");
+            }
         };
     });
 

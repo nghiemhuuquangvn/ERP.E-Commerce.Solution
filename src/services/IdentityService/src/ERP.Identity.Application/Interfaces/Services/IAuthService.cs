@@ -13,14 +13,14 @@ namespace ERP.Identity.Application.Interfaces.Services
 {
     public interface IAuthService
     {
-        Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken ct);
+        Task<LoginResponse> LoginAsync(LoginRequest request, string? ipAddress, string? userAgent, CancellationToken ct);
         Task<RegisterResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default);
 
         Task<LoginResponse> ExternalLoginAsync(ExternalLoginRequest request, CancellationToken ct = default);
 
         Task<RefreshTokenResponse> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default);
 
-        Task LogoutAsync(Guid userId, string refreshToken, CancellationToken ct = default);
+        Task LogoutAsync(Guid userId, string refreshToken, string? jti, DateTime? tokenExpiresAt, string? ipAddress, CancellationToken ct = default);
 
         Task<ForgotPasswordResponse> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct);
 
@@ -28,7 +28,7 @@ namespace ERP.Identity.Application.Interfaces.Services
 
         Task<ConfirmEmailResponse> ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken ct);
 
-        Task<LoginResponse> VerifyTwoFactorAsync(VerifyTwoFactorRequest request, CancellationToken ct);
+        Task<LoginResponse> VerifyTwoFactorAsync(VerifyTwoFactorRequest request, string? ipAddress, string? userAgent, CancellationToken ct);
 
         Task<LoginResponse> ResendTwoFactorAsync(ResendTwoFactorRequest request, CancellationToken ct);
 

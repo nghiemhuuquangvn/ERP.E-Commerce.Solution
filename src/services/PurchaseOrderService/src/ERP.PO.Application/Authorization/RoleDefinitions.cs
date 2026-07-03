@@ -27,13 +27,15 @@ public static class RoleDefinitions
                 PermissionConstants.PurchaseOrder_Cancel,
                 PermissionConstants.PurchaseOrder_AddItem,
                 PermissionConstants.PurchaseOrder_RemoveItem,
+                PermissionConstants.PurchaseOrder_Receive,
 
                 // Suppliers
                 PermissionConstants.Supplier_Create,
                 PermissionConstants.Supplier_Read,
                 PermissionConstants.Supplier_Update,
                 PermissionConstants.Supplier_Delete,
-                PermissionConstants.Supplier_Deactivate
+                PermissionConstants.Supplier_Deactivate,
+                PermissionConstants.Supplier_Rate
             }
         },
 
@@ -48,10 +50,12 @@ public static class RoleDefinitions
                 PermissionConstants.PurchaseOrder_Cancel,
                 PermissionConstants.PurchaseOrder_AddItem,
                 PermissionConstants.PurchaseOrder_RemoveItem,
+                PermissionConstants.PurchaseOrder_Receive,
 
                 PermissionConstants.Supplier_Create,
                 PermissionConstants.Supplier_Read,
-                PermissionConstants.Supplier_Update
+                PermissionConstants.Supplier_Update,
+                PermissionConstants.Supplier_Rate
             }
         },
 
@@ -64,6 +68,7 @@ public static class RoleDefinitions
                 PermissionConstants.PurchaseOrder_Update,
                 PermissionConstants.PurchaseOrder_AddItem,
                 PermissionConstants.PurchaseOrder_RemoveItem,
+                PermissionConstants.PurchaseOrder_Receive,
 
                 PermissionConstants.Supplier_Read
             }

@@ -5,8 +5,11 @@ using ERP.Shared.Messaging;
 using ERP.SO.Api.Extensions;
 using ERP.SO.Api.Middleware;
 using ERP.SO.Application.Handlers;
+using ERP.SO.Application.Interfaces;
 using ERP.SO.Application.Validators;
 using ERP.SO.Infrastructure;
+using ERP.SO.Infrastructure.EventBus;
+using ERP.SO.Infrastructure.ExternalServices;
 using ERP.SO.Infrastructure.Repositories;
 using FluentValidation;
 using MediatR;
@@ -29,6 +32,14 @@ builder.Services.AddValidatorsFromAssemblyContaining(typeof(CreateOrderCommandVa
 // Repository & Message Bus
 builder.Services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();
 builder.Services.AddScoped<IMessageBus, RabbitMqMessageBus>();
+
+// PromotionService client (coupon validation at order creation)
+builder.Services.AddHttpClient<IPromotionServiceClient, PromotionServiceClient>();
+
+// Consumes ProductService's product-topic (Kafka) for ProductPriceChangedDomainEvent —
+// previously impossible, since that event didn't exist in ProductService until
+// 2026-07-03 (docs/business section 3.2).
+builder.Services.AddHostedService<ProductPriceChangedConsumer>();
 
 // Authorization & User Context
 builder.Services.AddScoped<UserContext>();

@@ -25,4 +25,11 @@ public static class Permissions
     public const string CreateTenants = "create_tenants";
     public const string EditTenants = "edit_tenants";
     public const string DeleteTenants = "delete_tenants";
+
+    // Security (audit logs, login attempts)
+    public const string ViewAuditLogs = "security:audit:view";
+
+    // API keys (service-to-service credentials)
+    public const string ViewApiKeys = "security:apikeys:view";
+    public const string ManageApiKeys = "security:apikeys:manage";
 }

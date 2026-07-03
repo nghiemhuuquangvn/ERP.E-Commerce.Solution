@@ -12,6 +12,7 @@ public class PurchaseOrderDto
     public decimal TotalAmount { get; set; }
     public string Currency { get; set; } = "USD";
     public string? Notes { get; set; }
+    public DateTime? ScheduledReceiptDate { get; set; }
     public ICollection<PurchaseOrderItemDto> Items { get; set; } = new List<PurchaseOrderItemDto>();
 }
 
@@ -25,6 +26,8 @@ public class PurchaseOrderItemDto
     public decimal UnitPrice { get; set; }
     public decimal TotalPrice { get; set; }
     public string Status { get; set; } = string.Empty;
+    public decimal ReceivedQuantity { get; set; }
+    public decimal RemainingQuantity { get; set; }
 }
 
 public class CreatePurchaseOrderDto

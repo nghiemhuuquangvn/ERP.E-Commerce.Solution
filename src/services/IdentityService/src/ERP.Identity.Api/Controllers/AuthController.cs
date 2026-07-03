@@ -39,10 +39,16 @@ namespace ERP.Identity.Api.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken = default)
         {
-            var result = await _authService.LoginAsync(request, cancellationToken);
+            var result = await _authService.LoginAsync(request, GetClientIp(), Request.Headers.UserAgent.ToString(), cancellationToken);
             if (!result.Succeeded) return Unauthorized(result.Errors);
             return Ok(result);
         }
+
+        /// <summary>Mirrors the X-Forwarded-For-first resolution the refresh endpoint already used, shared here for login/2FA/logout audit logging.</summary>
+        private string GetClientIp() =>
+            Request.Headers.ContainsKey("X-Forwarded-For")
+                ? Request.Headers["X-Forwarded-For"].ToString()
+                : HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
         [HttpPost("refresh")]
         [AllowAnonymous]
@@ -67,7 +73,12 @@ namespace ERP.Identity.Api.Controllers
             if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var parsedUserId))
                 return Unauthorized();
 
-            await _authService.LogoutAsync(parsedUserId, request.RefreshToken, cancellationToken);
+            var jti = User.FindFirst("jti")?.Value;
+            DateTime? tokenExpiresAt = long.TryParse(User.FindFirst("exp")?.Value, out var expUnix)
+                ? DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime
+                : null;
+
+            await _authService.LogoutAsync(parsedUserId, request.RefreshToken, jti, tokenExpiresAt, GetClientIp(), cancellationToken);
             return Ok(new { message = "Logged out successfully" });
         }
 
@@ -125,7 +136,7 @@ namespace ERP.Identity.Api.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> VerifyTwoFactor([FromBody] VerifyTwoFactorRequest request, CancellationToken cancellationToken = default)
         {
-            var result = await _authService.VerifyTwoFactorAsync(request, cancellationToken);
+            var result = await _authService.VerifyTwoFactorAsync(request, GetClientIp(), Request.Headers.UserAgent.ToString(), cancellationToken);
             if (!result.Succeeded) return BadRequest(result.Errors);
             return Ok(result);
         }

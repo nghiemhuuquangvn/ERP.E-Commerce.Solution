@@ -15,6 +15,10 @@ public class PurchaseOrderItem : BaseEntity
     public Money TotalPrice => new(Quantity * UnitPrice.Amount, UnitPrice.Currency);
     public PurchaseOrderItemStatus Status { get; private set; } = PurchaseOrderItemStatus.Pending;
 
+    // Goods-receipt (GRN) tracking
+    public decimal ReceivedQuantity { get; private set; }
+    public decimal RemainingQuantity => Quantity - ReceivedQuantity;
+
     private PurchaseOrderItem() { }
 
     public static PurchaseOrderItem Create(
@@ -59,5 +63,28 @@ public class PurchaseOrderItem : BaseEntity
     {
         Status = PurchaseOrderItemStatus.PartiallyReceived;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Records goods received against this line (GRN). Was previously unreachable —
+    /// MarkAsReceived()/MarkAsPartiallyReceived() already existed but nothing called
+    /// them, since no ReceiveGoodsCommand existed at all until 2026-07-03.
+    /// </summary>
+    public void ReceiveQuantity(decimal quantity)
+    {
+        if (quantity <= 0)
+            throw new ArgumentException("Received quantity must be greater than zero.", nameof(quantity));
+
+        if (quantity > RemainingQuantity)
+            throw new InvalidOperationException(
+                $"Cannot receive {quantity} — only {RemainingQuantity} remaining on this line.");
+
+        ReceivedQuantity += quantity;
+        UpdatedAt = DateTime.UtcNow;
+
+        if (RemainingQuantity == 0)
+            MarkAsReceived();
+        else
+            MarkAsPartiallyReceived();
     }
 }

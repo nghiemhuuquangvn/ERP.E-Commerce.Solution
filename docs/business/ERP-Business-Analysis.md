@@ -1,9 +1,30 @@
 # ERP E-Commerce Solution — Phân Tích Business Logic Toàn Diện
 
-> **Cập nhật:** 2026-07-02 — đã đối chiếu và cập nhật mục 3.1 (Identity) và 3.2 (Product)
-> theo các tính năng vừa triển khai (2FA, External Login, Auth Settings, Product
-> Attributes, Elasticsearch search); các mục còn lại (3.3-3.14, Sprint 1-4) chưa
-> được rà soát lại, vẫn giữ nguyên trạng thái ghi nhận từ 2026-06-28.
+> **Cập nhật:** 2026-07-03 — xử lý tuần tự từng service theo mục ❌ liệt kê (theo yêu
+> cầu "từng service một, theo thứ tự"): đã xong 3.1 → 3.2 → 3.3 → 3.4.
+> - **3.1 Identity** — đã xử lý toàn bộ tính năng ❌ còn lại (audit log, session
+>   management, API key management, password policy, account-lockout wiring, domain
+>   events UserUpdated/RoleAssigned/PermissionGranted) — chỉ còn LDAP/AD cố ý bỏ qua.
+> - **3.2 Product** — đã xử lý toàn bộ tính năng ❌ còn lại (bulk import/export CSV,
+>   product status workflow mở rộng, SEO fields, bundles, cross-sell/upsell, reviews,
+>   stock sync từ Warehouse, ProductUpdated/ProductPriceChanged events) — xác nhận
+>   "Application layer chưa complete" là claim sai của tài liệu gốc.
+> - **3.3 Sale Order** — đã xử lý toàn bộ tính năng ❌ còn lại (UpdateOrderCommand,
+>   apply coupon, order notes, partial fulfillment, order timeline/audit trail,
+>   consume ProductPriceChanged, return/refund flow, SalesOrderDelivered event) — xác
+>   nhận phần lớn mục ❌ cũ (Approve/Cancel/ListOrders/GetOrdersByCustomer/Controller
+>   đầy đủ) là claim sai của tài liệu gốc, đã có sẵn từ trước.
+> - **3.4 Purchase Order** — phát hiện quan trọng nhất đợt này: KHÔNG phải thiếu tính
+>   năng, mà **7/8 handler chính (Approve/Cancel/Submit/AddItem/RemoveItem/GetById/
+>   ListOrders) là stub hoàn toàn rỗng** — trả về thành công/list rỗng mà không chạm
+>   database, silent failure chứ không phải lỗi rõ ràng. Đã viết lại thật toàn bộ,
+>   cộng thêm ReceiveGoodsCommand (GRN), ScheduleReceipt, so sánh giá supplier,
+>   three-way matching, đánh giá supplier.
+>
+> Mục 6 (Gap Analysis, event-driven backbone toàn hệ thống) đã cập nhật ở lần
+> 2026-07-02. **3.5-3.14 chưa được xử lý ở đợt này** — sẽ tiếp tục tuần tự theo cùng
+> pattern. Xem `docs/architecture/end-to-end-request-flow.md` để trace kỹ thuật
+> UI→API cho các luồng chính.
 > **Phạm vi:** 14 microservices + 4 frontend layers  
 > **Mục đích:** Kiểm kê tính năng đã có, tính năng còn thiếu, và luồng vận hành toàn hệ thống
 
@@ -84,14 +105,14 @@ Enums                 Event Handlers          Kafka Producer/Consumer
 
 | Service | Domain | Application | Infrastructure | API | Event Consumer | Mức Độ |
 |---------|--------|-------------|----------------|-----|----------------|--------|
-| IdentityService | ✅ | ✅ | ✅ | ✅ | — (upstream) | **97%** |
-| SaleOrderService | ✅ | ✅ Đầy đủ lifecycle (Create/Submit/Approve/Reject/Pick/Ship/Cancel/Deliver), chỉ thiếu UpdateOrderCommand | ✅ RabbitMQ publish trực tiếp (không dùng Outbox) | ✅ 11 endpoints | — (chỉ publish, không consume; `OrderFulfillmentSaga` tồn tại nhưng chết, chưa đăng ký DI) | **80%** |
-| PurchaseOrderService | ✅ | ✅ Đầy đủ (Create/Approve/Cancel/Submit/AddItem/RemoveItem + queries) | ✅ Outbox+Kafka (`purchasing-topic`) mới thêm — trước đây publish 0% | ✅ 2 controllers (đã xoá 1 controller trùng route gây lỗi `AmbiguousMatchException`) | ✅ (outbound thật; chưa cần consume gì) | **80%** |
+| IdentityService | ✅ | ✅ | ✅ (+ audit log, session mgmt, API keys, password policy — 2026-07-03) | ✅ (+ Security/ApiKeys/Sessions endpoints) | — (upstream) | **99%** (còn thiếu duy nhất LDAP, cố ý bỏ qua) |
+| SaleOrderService | ✅ (+ notes, status history, partial fulfillment, return flow) | ✅ Đầy đủ lifecycle + Update/Notes/ShipItems/Return (2026-07-03) | ✅ RabbitMQ publish trực tiếp (không dùng Outbox) | ✅ 16 endpoints | ✅ (Kafka `product-topic` ProductPriceChanged, mới thêm; `OrderFulfillmentSaga` vẫn dead code) | **93%** |
+| PurchaseOrderService | ✅ (+ SupplierRating, GoodsReceipt entities mới) | ✅ Đầy đủ VÀ THẬT (2026-07-03: 7/8 handler chính trước đó là stub rỗng — xem mục 3.4) | ✅ Outbox+Kafka (`purchasing-topic`); GRN/receipt-schedule/price-comparison/3-way-match mới thêm | ✅ 2 controllers, 20 endpoints (đã xoá 1 controller trùng route gây lỗi `AmbiguousMatchException`) | ✅ (outbound thật; chưa cần consume gì) | **95%** |
 | WareHouseService | ✅ | ✅ | ✅ RabbitMQ publish đã sửa lỗi thiếu `IConnection` DI (trước đây crash khi gọi); consumer thật cho `sales_order_events` | ✅ 2 controllers | ✅ (RabbitMQ, `sales_order.*` + `purchasing-topic`) | **85%** |
 | AccountingService | ✅ | ✅ Đầy đủ (9 commands, 12 queries kể cả AR/AP aging) | ✅ Outbox+Kafka đã hoạt động từ trước; consumer mới thêm | ✅ 5 controllers, ~19 endpoints | ✅ (RabbitMQ `sales_order.*` + Kafka `purchasing-topic`/`payment-topic`) | **90%** |
 | CRMService | ✅ | ✅ Đầy đủ (14 commands, 9 queries) | ✅ Outbox+Kafka đã hoạt động từ trước; consumer mới thêm | ✅ 4 controllers, ~23 endpoints | ✅ (Kafka `identity-topic`/`payment-topic` + RabbitMQ `sales_order.*`) | **90%** |
 | HRMService | ✅ (EmployeeSnapshot/LeaveRequest/PaySlip — Employee/Department đã chuyển sang SharedMasterDataService) | ✅ | ✅ `MasterDataEventConsumer` — consumer thật đầu tiên và duy nhất trong toàn hệ thống trước đợt này | ✅ 2 controllers, ~10 endpoints | ✅ | **85%** (thiếu hẳn tính năng chấm công/Attendance) |
-| ProductService | ✅ (+ EAV attributes, dimensions) | ⚠️ Features folder | ✅ (+ Elasticsearch search) | ✅ 7 controllers | ❌ | **75%** |
+| ProductService | ✅ (+ EAV attributes, dimensions, bundles, relations, reviews) | ✅ đầy đủ (mục cũ ghi "Features folder" thiếu là sai) | ✅ (+ Elasticsearch search, stock sync từ Warehouse) | ✅ 10 controllers | ✅ (RabbitMQ `warehouse.InventoryUpdatedEvent`, mới thêm — publish-side vẫn không consume gì khác) | **93%** |
 | PaymentService | ✅ | ✅ | ✅ VNPay thật (không phải stub); Outbox đã đúng từ trước, chỉ thiếu drain job — đã thêm | ✅ 3 controllers (kể cả webhook/IPN thật) | ✅ (RabbitMQ `sales_order.SalesOrderCreatedEvent`, mới thêm) | **90%** |
 | ShippingService | ✅ | ✅ (+ đã nối `AssignTrackingNumberCommand` vào endpoint, trước đây tồn tại nhưng không ai gọi được) | ✅ GHN thật; Outbox đã đúng từ trước, chỉ thiếu drain job — đã thêm | ✅ 2 controllers | ✅ (RabbitMQ `sales_order.SalesOrderApprovedEvent` + `warehouse_exchange`, cả hai mới thêm) | **90%** |
 | POSService | ✅ | ✅ (+ `GetShiftSummaryQuery` trước đây không có handler, gọi là crash — đã sửa) | ⚠️ chưa có Outbox publish (không cần cho phạm vi đợt này) | ✅ 2 controllers | ✅ (Kafka `product-topic`/`promotion-topic`, mới thêm) | **80%** |
@@ -99,10 +120,14 @@ Enums                 Event Handlers          Kafka Producer/Consumer
 | NotificationService | ✅ | ✅ | ✅ SMTP thật, Twilio/FCM thật khi cấu hình (đã sửa lỗi thiếu `AddHttpClient()` khiến crash nếu bật) | ✅ 3 controllers | ✅ (chỉ `identity-topic` — các topic khác vẫn là handler chết, xem mục 6) | **88%** |
 | ReportingService | ⚠️ Không có domain entity giàu hành vi, nhưng có model/DbSet thật khớp schema OLAP | ✅ (3/4 query thật; `GetInventoryReport` vẫn là stub trả về 0 cứng) | ✅ 3 Kafka consumer thật (Sales/Payment/Inventory) — tài liệu cũ ghi "0 consumer" là sai | ✅ 1 controller, 3 endpoints (không có endpoint HR — `GetHRDashboard` không tồn tại) | ✅ (đã có sẵn, tài liệu cũ ghi nhầm là thiếu) | **55%** |
 
-**Trung bình toàn hệ thống: ~84%** (tăng từ ~57% sau khi (a) đối chiếu lại đánh giá cho
-đúng với code thật — nhiều service đã bị đánh giá thấp hơn thực tế rất nhiều — và (b)
-sửa event-driven backbone thật sự cho 8 service. ProductService/ReportingService là 2
-service còn khoảng cách rõ ràng nhất với phần còn lại.
+**Trung bình toàn hệ thống: ~87%** (tăng từ ~57% ban đầu sau khi (a) đối chiếu lại đánh
+giá cho đúng với code thật — nhiều service đã bị đánh giá thấp hơn thực tế rất nhiều —
+(b) sửa event-driven backbone thật sự cho 8 service, và (c) xử lý toàn bộ mục ❌ còn lại
+của IdentityService (3.1), ProductService (3.2), SaleOrderService (3.3),
+PurchaseOrderService (3.4) ngày 2026-07-03 — 3.4 đặc biệt đáng chú ý vì phát hiện 7/8
+handler chính là stub rỗng, không phải "thiếu tính năng" như tài liệu gốc mô tả.
+ReportingService là service còn khoảng cách rõ ràng nhất với phần còn lại (55%); các
+mục 3.5-3.14 khác chưa được xử lý theo cùng mức độ ở đợt này.
 
 ---
 
@@ -137,7 +162,36 @@ service còn khoảng cách rõ ràng nhất với phần còn lại.
   bật/tắt từng provider đăng nhập ngoài + 2FA khả dụng/bắt buộc —
   `GET/PUT /api/settings/system`, `GET/PUT /api/settings/tenant/{tenantId}`,
   `GET /api/auth/login-options` (public, cho trang login biết hiện nút SSO nào)
-- Khóa tài khoản sau 5 lần sai mật khẩu liên tiếp (`User.RecordLoginFail()`) — đã có sẵn từ trước
+- Khóa tài khoản sau 5 lần sai mật khẩu liên tiếp — `User.RecordLoginFail()`/`RecordLoginSuccess()`
+  tồn tại từ trước nhưng **`AuthService.LoginAsync` chưa từng gọi chúng** (cùng dạng bug "trông
+  như đã xong nhưng chưa từng chạy" phát hiện xuyên suốt hệ thống ở các đợt sửa trước) — đã sửa
+  (2026-07-03): kiểm tra `IsLocked` trước khi verify mật khẩu, `RecordLoginFail()` khi sai,
+  `RecordLoginSuccess()` khi đúng
+- Audit log bảo mật: `SecurityAuditLogs` (mọi sự kiện — Login/Logout/Register/PasswordChange/
+  PasswordReset/RoleAssigned/AccountLocked/AccountUnlocked, thành công lẫn thất bại) và
+  `LoginAttempts` (IP-based) — 2 bảng này tồn tại trong `001_CreateAuthDB.sql` từ đầu nhưng
+  không có entity/DbSet C# nào tương ứng cho tới khi sửa (2026-07-03); nay có Domain entity +
+  repository + `ISecurityAuditService`, ghi tại mọi điểm xác thực/đổi mật khẩu/gán role —
+  `GET /api/security/audit-logs`, `GET /api/security/login-attempts` (yêu cầu quyền
+  `security:audit:view`)
+- Session management: `DeviceSessions` (upsert mỗi lần đăng nhập thành công, khoá theo
+  UserId+DeviceId — nếu client không gửi `DeviceId` thì dùng hash User-Agent làm khoá dự phòng)
+  và `TokenBlacklist` (thu hồi tức thời 1 JWT theo `jti`, kiểm tra qua `OnTokenValidated` khi
+  Identity tự validate JWT của chính nó — **giới hạn thật:** các service khác tin header do
+  Gateway inject chứ không tự validate JWT, nên 1 token đã bị blacklist vẫn còn dùng được với
+  các service đó cho tới khi hết hạn tự nhiên) — `GET/POST /api/users/{id}/sessions[/{id}/revoke]`
+- API Key management: entity `ApiKey` mới (bảng `ApiKeys`, migration 003) cho service-to-service
+  calls — tạo/liệt kê/thu hồi qua `POST/GET /api/api-keys`, `POST /api/api-keys/{id}/revoke`; raw
+  key chỉ trả về đúng 1 lần lúc tạo, chỉ lưu hash. **Việc từng service cụ thể chấp nhận API Key
+  thay/cùng với Bearer token là bước tích hợp riêng của từng service, chưa làm ở đợt này** — đợt
+  này chỉ xây xong phần quản lý khoá
+- Password policy: từ chối mật khẩu ngắn hơn `PasswordPolicy:MinLength` (mặc định 8) và mật khẩu
+  trùng với 1 trong N mật khẩu gần nhất trong `PasswordHistories` (`PasswordPolicy:HistoryCount`,
+  mặc định 5) — áp dụng ở `POST /api/auth/reset-password` và `POST /api/users/{id}/change-password`
+- Domain events còn thiếu đã bổ sung: `UserUpdatedDomainEvent` (raise từ `User.UpdateProfile()`),
+  `RoleAssignedDomainEvent` (raise từ `User.AssignRole()`), `PermissionGrantedDomainEvent` (raise
+  từ `Role.NotifyPermissionGranted()`, gọi khi gán permission cho role) — cả 3 đi qua Outbox+Kafka
+  `identity-topic` giống các event khác
 
 **Authorization (RBAC)**
 - Quản lý Roles (CRUD)
@@ -149,6 +203,7 @@ service còn khoảng cách rõ ràng nhất với phần còn lại.
 **User Management**
 - CRUD người dùng
 - Kích hoạt / vô hiệu hóa tài khoản
+- Xem/thu hồi phiên đăng nhập đang hoạt động (`DeviceSessions`)
 
 **Multi-Tenant**
 - Quản lý Tenants (CRUD)
@@ -158,19 +213,22 @@ service còn khoảng cách rõ ràng nhất với phần còn lại.
 **Published Events**
 - `UserRegisteredIntegrationEvent` → Kafka
 - `TwoFactorCodeGeneratedEvent` → Kafka (`identity-topic`) — chỉ NotificationService consume, để gửi OTP
+- `UserUpdatedDomainEvent`, `RoleAssignedDomainEvent`, `PermissionGrantedDomainEvent` → Kafka
+  (`identity-topic`) — mới thêm 2026-07-03; chưa có consumer nào ở service khác lắng nghe 3 event
+  này, tương tự tình trạng ban đầu của `TwoFactorCodeGeneratedEvent` trước khi Notification wire nó
 
 #### ❌ Tính năng còn thiếu
 
 | Tính năng | Ưu tiên | Ghi chú |
 |-----------|---------|---------|
 | ~~Xác thực 2 bước (2FA/MFA)~~ | ~~Cao~~ | **Đã triển khai** — SMS/Email OTP, xem `docs/business/Identity/ExternalAuthAndTwoFactor.md` |
-| ~~Khóa tài khoản sau N lần sai mật khẩu~~ | ~~Cao~~ | **Đã có sẵn từ trước** khi viết tài liệu này — `User.RecordLoginFail()` khoá sau 5 lần sai (mục này trước đó ghi nhầm là thiếu) |
-| Audit log đăng nhập | Cao | **SQL đã có sẵn nhưng chưa dùng**: bảng `SecurityAuditLogs`/`LoginAttempts`/`DeviceSessions` tồn tại trong `001_CreateAuthDB.sql` nhưng không có DbSet/entity C# nào tương ứng trong `AuthDbContext` — schema mồ côi, cần viết Domain entity + Application write-path mới thực sự hoạt động |
-| Session management | Trung | Bảng `DeviceSessions`/`TokenBlacklist` cũng đã có sẵn trong SQL nhưng chưa được dùng — cùng tình trạng schema mồ côi như trên |
-| API Key management | Trung | Cho service-to-service calls |
-| Password policy configuration | Thấp | Bảng `PasswordHistories` cũng đã có sẵn trong SQL nhưng chưa được dùng |
-| LDAP/Active Directory integration | Thấp | Cho doanh nghiệp lớn |
-| Published: `UserUpdated`, `RoleAssigned`, `PermissionGranted` | Cao | Các service khác cần đồng bộ |
+| ~~Khóa tài khoản sau N lần sai mật khẩu~~ | ~~Cao~~ | **Đã sửa 2026-07-03** — method đã có từ trước nhưng chưa từng được gọi trong `LoginAsync`, nay đã wire |
+| ~~Audit log đăng nhập~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — xem chi tiết ở mục ✅ phía trên |
+| ~~Session management~~ | ~~Trung~~ | **Đã triển khai 2026-07-03** — xem chi tiết ở mục ✅ phía trên, kèm giới hạn thật đã ghi rõ |
+| ~~API Key management~~ | ~~Trung~~ | **Đã triển khai phần quản lý (create/list/revoke) 2026-07-03** — việc từng service chấp nhận API Key vẫn chưa làm |
+| ~~Password policy configuration~~ | ~~Thấp~~ | **Đã triển khai 2026-07-03** — độ dài tối thiểu (config) + chống trùng N mật khẩu gần nhất; chưa có UI admin cấu hình theo tenant, chỉ đọc từ `appsettings.json` |
+| LDAP/Active Directory integration | Thấp | **Cố ý bỏ qua ở đợt này** — cần thư viện LDAP client thật + một Active Directory thật để kiểm thử, không có sẵn trong môi trường này; khác các gap khác (đều chỉ cần code + schema có sẵn), đây là một loại tích hợp bên ngoài hoàn toàn mới, chưa có bất kỳ phần nào trong repo |
+| ~~Published: `UserUpdated`, `RoleAssigned`, `PermissionGranted`~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — xem mục Published Events phía trên; chưa có service nào consume |
 
 #### Luồng Vận Hành
 
@@ -193,7 +251,8 @@ API Request → [JWT middleware] → extract claims → UserContextMiddleware
 
 ### 3.2 Product Service — Quản Lý Sản Phẩm
 
-**Mục đích:** Catalog sản phẩm, variants, danh mục, giá, ảnh. Upstream source — không consume events.
+**Mục đích:** Catalog sản phẩm, variants, danh mục, giá, ảnh. Upstream source — publish
+events, không consume (ngoại trừ đồng bộ tồn kho từ Warehouse, xem dưới).
 
 #### ✅ Tính năng đã có
 
@@ -216,11 +275,45 @@ API Request → [JWT middleware] → extract claims → UserContextMiddleware
 - Quản lý bảng giá (`PricingController`)
 - Mapping ID sản phẩm/variant sang hệ thống bên thứ ba (marketplace, ERP nhà cung
   cấp) — `ProductExternalMappings`
+- **Application layer (2026-07-03): xác nhận ĐÃ đầy đủ, không phải đang thiếu** — rà
+  soát lại toàn bộ `Features/` cho thấy mọi Command/Query đều có Handler thật
+  (`CreateProductCommand`, `PublishProductCommand`, `DiscontinueProductCommand`,
+  `SetProductPriceCommand`, variants/categories/images/pricing/attributes/search đều
+  đầy đủ) — mục ❌ cũ ghi "Features folder chưa complete" là sai, tài liệu gốc chưa
+  từng đối chiếu với code thật
+- Quy trình trạng thái sản phẩm mở rộng: `Draft → PendingReview → Active →
+  Discontinued` (`POST /{id}/submit-for-review` rồi `POST /{id}/publish`) — bước
+  PendingReview là **tùy chọn**, `Publish()` vẫn nhận trực tiếp từ Draft như trước để
+  không phá luồng hiện có của team không cần duyệt
+- SEO fields: `Slug` (duy nhất), `MetaTitle`, `MetaDescription` — `PUT /{id}/seo`
+- Bulk import/export CSV: `POST /api/products/bulk-import` (trả về số dòng thành
+  công + danh sách lỗi theo dòng), `GET /api/products/export` — dùng CsvHelper, chưa
+  hỗ trợ Excel gốc (.xlsx) vì CSV đã đủ, Excel mở/sửa CSV trực tiếp được
+- Product bundles/combo: `ProductBundleItems` (bundle Product tham chiếu tới các
+  Product thành phần + số lượng) — `GET/POST/DELETE /api/products/{id}/bundle-items`
+- Cross-sell/upsell: `ProductRelations` (liên kết một chiều Product → Product liên
+  quan, loại CrossSell/UpSell) — `GET/POST/DELETE /api/products/{id}/relations`
+- Product reviews & ratings: `ProductReviews` (rating 1-5 + comment, CustomerId tham
+  chiếu lỏng sang CRM/Identity) — `GET/POST /api/products/{id}/reviews`, trả về cả
+  điểm trung bình; **chưa có hàng đợi kiểm duyệt** (mọi review tự động `IsApproved`)
+- Stock quantity sync từ Warehouse: `Product.StockQuantity`/`LastStockSyncAt` —
+  read-model đồng bộ qua `WarehouseRabbitMqConsumer` lắng nghe
+  `warehouse_exchange`/`warehouse.InventoryUpdatedEvent` (RabbitMQ, cùng cơ chế
+  SaleOrderService/WarehouseService dùng) — SQL của WarehouseService vẫn là
+  system-of-record, đây chỉ là cache hiển thị
 
 **Domain Events**
 - `ProductCreatedDomainEvent` → Published khi tạo sản phẩm
 - `ProductDiscontinuedDomainEvent` → Published khi ngừng kinh doanh
 - `ProductPublishedDomainEvent` → Published khi đăng bán
+- `ProductUpdatedDomainEvent` (mới 2026-07-03) → Published khi `UpdateDescription()` —
+  trước đây hoàn toàn không tồn tại, dù `CLAUDE.md`/tài liệu này liệt kê là published
+  event cần có; **chưa có service nào consume**
+- `ProductPriceChangedDomainEvent` (mới 2026-07-03) → Published khi
+  `SetProductPriceCommand` đổi giá variant — trước đây không tồn tại, khiến
+  POS/Promotion (đã wire consumer ở đợt trước) luôn nhận giá mặc định 0; giờ **đã có
+  nguồn phát**, nhưng POS/Promotion vẫn cần tự cập nhật consumer để nhận field mới
+  (còn thiếu, xem mục 6)
 - `ProductSearchIndexRequestedDomainEvent` → **nội bộ, không qua Kafka** — chỉ nạp vào
   `SearchIndexQueue` để đồng bộ Elasticsearch, không phải integration event cho
   service khác
@@ -230,17 +323,22 @@ API Request → [JWT middleware] → extract claims → UserContextMiddleware
 | Tính năng | Ưu tiên | Ghi chú |
 |-----------|---------|---------|
 | ~~Tìm kiếm & lọc sản phẩm (full-text search)~~ | ~~Cao~~ | **Đã triển khai** — Elasticsearch, xem mục ✅ ở trên. Storefront UI lọc/tìm kiếm theo facet vẫn CHƯA làm (phạm vi backend only) |
-| Bulk import/export (Excel/CSV) | Cao | Nhập hàng nghìn sản phẩm |
-| Trạng thái sản phẩm workflow | Cao | Draft → Review → Published → Discontinued |
-| SEO fields (slug, meta title, meta description) | Trung | Cho storefront |
-| Product bundles / combo | Trung | Bán kèm, bộ sản phẩm |
-| Cross-sell / upsell relationships | Trung | "Khách hàng cũng mua..." |
-| Stock quantity sync từ Warehouse | Cao | Real-time tồn kho trên storefront |
-| `ProductUpdated` integration event | Cao | Thông báo SalesOrder, POS, Promotion |
-| `ProductPriceChanged` integration event | Cao | Thông báo Promotion tính lại |
-| Application layer: command handlers đầy đủ | Cao | Features folder chưa complete |
+| ~~Bulk import/export (Excel/CSV)~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — CSV (không phải Excel gốc), xem mục ✅ |
+| ~~Trạng thái sản phẩm workflow~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — PendingReview thêm như bước tùy chọn |
+| ~~SEO fields~~ | ~~Trung~~ | **Đã triển khai 2026-07-03** |
+| ~~Product bundles / combo~~ | ~~Trung~~ | **Đã triển khai 2026-07-03** |
+| ~~Cross-sell / upsell relationships~~ | ~~Trung~~ | **Đã triển khai 2026-07-03** |
+| ~~Stock quantity sync từ Warehouse~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — xem mục ✅ |
+| ~~`ProductUpdated` integration event~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — chưa có consumer |
+| ~~`ProductPriceChanged` integration event~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — POS/Promotion cần cập nhật consumer để nhận field mới, xem mục 6 |
+| ~~Application layer: command handlers đầy đủ~~ | ~~Cao~~ | **Xác nhận đã đầy đủ từ trước** — mục này trong tài liệu gốc ghi sai, xem mục ✅ |
 | ~~Attribute system (custom attributes)~~ | ~~Thấp~~ | **Đã triển khai** — xem `docs/architecture/extensible-attributes-pattern.md` và `ProductAttributes`/`ProductAttributeValues` trong ProductDB |
-| Product reviews & ratings | Thấp | Khách hàng đánh giá |
+| ~~Product reviews & ratings~~ | ~~Thấp~~ | **Đã triển khai 2026-07-03** — chưa có hàng đợi kiểm duyệt, xem mục ✅ |
+
+**Còn thiếu, chưa làm trong đợt này:** Excel (.xlsx) gốc cho bulk import/export (chỉ có
+CSV); hàng đợi kiểm duyệt review; storefront UI cho facet search/SEO/bundles/
+cross-sell/reviews (toàn bộ đợt này là backend-only, giống Elasticsearch trước đó);
+POS/Promotion chưa cập nhật consumer để đọc `ProductPriceChangedDomainEvent` thật.
 
 #### Luồng Vận Hành
 
@@ -252,82 +350,140 @@ Admin → POST /api/products → CreateProductCommand → MediatR → Handler
      → POSService (sync local)
      → PromotionService (apply discount rules)
      → ReportingService (dimension table DimProducts)
+
+WarehouseService → [InventoryUpdatedEvent] → RabbitMQ warehouse_exchange
+     → ProductService.WarehouseRabbitMqConsumer → Product.SyncStockQuantity()
+     → StockQuantity cập nhật + ProductSearchIndexRequestedDomainEvent (ES resync)
 ```
 
 ---
 
 ### 3.3 Sale Order Service — Đơn Hàng Bán
 
-**Mục đích:** Tạo và quản lý đơn hàng bán, orchestrate fulfillment qua Saga pattern.
+**Mục đích:** Tạo và quản lý đơn hàng bán. Publish qua RabbitMQ trực tiếp (không dùng
+Outbox) — xem mục 1 Pattern Áp Dụng Nhất Quán.
 
 #### ✅ Tính năng đã có
 
 **Domain**
-- `SalesOrder` aggregate với `OrderLineItem` value object
-- `Address` value object (shipping/billing)
-- Trạng thái: Draft, Confirmed, Approved, Shipped, Delivered, Cancelled
-- Domain Events: Created, Approved, Cancelled, Shipped
+- `SalesOrder` aggregate với `OrderLineItem` value object (nay có thêm
+  `ShippedQuantity`/`RemainingQuantity` cho partial fulfillment)
+- `Address` value object (shipping)
+- `OrderNote` value object (nhiều ghi chú nội bộ theo thời gian, không phải chỉ 1
+  field `Notes` duy nhất lúc tạo đơn)
+- `OrderStatusHistoryEntry` value object — audit trail tự động, mỗi lần đổi trạng
+  thái đều tự ghi 1 dòng (From/To/Reason/ChangedBy/ChangedAt)
+- Trạng thái: `Draft → Submitted → Approved → Picked → Shipped/PartiallyShipped →
+  Delivered → ReturnRequested → Returned`, cộng `Rejected`/`Cancelled` — **đã xác
+  nhận 2026-07-03**: lifecycle này đã đầy đủ Approve/Reject/Pick/Ship/Cancel/
+  MarkDelivered từ trước, tài liệu gốc ghi thiếu là sai; chỉ thêm mới
+  `PartiallyShipped`/`ReturnRequested`/`Returned`
+- Domain Events: Created, Approved, Rejected*, Cancelled, Shipped, PartiallyShipped
+  (mới), Delivered (mới), Returned (mới) — (*Rejected có transition nhưng không
+  raise integration event, giữ nguyên như trước)
 
-**Commands/Queries**
-- `CreateOrderCommand` + Handler
-- `GetOrderQuery` + Handler
+**Commands/Queries — xác nhận ĐẦY ĐỦ 2026-07-03, tài liệu gốc ghi thiếu là sai:**
+`CreateOrderCommand`, `SubmitOrderCommand`, `ApproveOrderCommand`,
+`RejectOrderCommand`, `MarkAsPickedCommand`, `ShipOrderCommand`,
+`CancelOrderCommand`, `MarkAsDeliveredCommand` đều đã có Handler từ trước.
+`GetOrderQuery`, `ListOrdersQuery` (filter CustomerId/Status + skip/take),
+`GetOrdersByCustomerQuery` đều đã có Handler từ trước. Controller
+(`SalesOrdersController`) đã có 11 endpoint từ trước — mục ❌ cũ ghi "chỉ có 1
+controller rất hạn chế" là sai.
+
+**Mới thêm 2026-07-03:**
+- `UpdateOrderCommand` (`PUT /api/v1/salesorders/{id}`) — sửa địa chỉ/ghi chú, chỉ
+  cho phép khi Draft/Submitted
+- `AddOrderNoteCommand` (`POST /{id}/notes`) — ghi chú nội bộ, không giới hạn trạng
+  thái, không như field `Notes` cũ chỉ set được lúc tạo đơn
+- Partial fulfillment: `ShipLineItemsCommand` (`POST /{id}/ship-items`) — giao một
+  phần số lượng theo từng sản phẩm, đơn chuyển `PartiallyShipped` nếu còn dư, hoặc
+  `Shipped` (raise đúng `SalesOrderShippedEvent` cũ) nếu giao hết; endpoint
+  `/ship` cũ vẫn hoạt động y hệt (gọi `Ship()` nội bộ giờ delegate sang
+  `ShipLineItems` với toàn bộ số lượng còn lại)
+- Return/Refund flow: `RequestReturnCommand` (`POST /{id}/return`, chỉ từ
+  Delivered) → `CompleteReturnCommand` (`POST /{id}/return/complete`) → raise
+  `SalesOrderReturnedEvent` — Payment/Accounting tự xử lý hoàn tiền/đảo bút toán
+  qua event, SaleOrderService không gọi trực tiếp
+- Apply coupon khi tạo đơn: `CreateOrderCommand.CouponCode` (optional) →
+  `IPromotionServiceClient` gọi thật `POST /api/v1/promotions/validate-coupon` của
+  PromotionService (HTTP đồng bộ, cho phép theo `CLAUDE.md` vì chỉ là REST read,
+  không phải cross-database) — nếu PromotionService lỗi/timeout thì đơn **vẫn tạo
+  được**, chỉ log ghi chú nội bộ "coupon not applied", không chặn tạo đơn
+- Consume `ProductPriceChanged`: `ProductPriceChangedConsumer` (Kafka
+  `product-topic`) — trước đây không thể làm vì event nguồn chưa tồn tại (xem mục
+  3.2); nay khi giá đổi, mọi đơn còn mở (chưa Shipped/Delivered/Cancelled/Returned)
+  chứa sản phẩm đó được đánh dấu `HasPriceChangeWarning=true` + note giải thích —
+  **không** tự động đổi giá đơn đã tạo
+- `SalesOrderDeliveredEvent` — trước đây `MarkAsDeliveredCommandHandler` đã có sẵn
+  vòng lặp publish domain events, nhưng `MarkAsDelivered()` chưa từng raise event
+  nào nên vòng lặp đó luôn publish 0 event; đã sửa
 
 **Saga**
-- `OrderFulfillmentSaga` — điều phối luồng: Order → Reserve Inventory → Process Payment → Create Shipment
-- `OrderFulfillmentSagaState` — trạng thái saga
-- `IOrderFulfillmentSagaRepository` — persistence saga state
+- `OrderFulfillmentSaga`/`OrderFulfillmentSagaState`/`IOrderFulfillmentSagaRepository`
+  — **vẫn là dead code, chưa động tới ở đợt này** — không đăng ký DI, không có
+  entity trong DbContext; quyết định giữ làm true orchestration hay bỏ hẳn để dùng
+  choreography (các consumer RabbitMQ/Kafka đã wire ở Phase 1) vẫn treo, xem mục 6
 
 **Infrastructure**
-- `RabbitMqMessageBus` — publish integration events
+- `RabbitMqMessageBus` — publish trực tiếp, exchange `sales_order_events`, routing
+  key `sales_order.{EventType}`, JSON thường (không `$type`)
 - `SalesOrderRepository`
+- Mới: `ProductPriceChangedConsumer` (Kafka), `PromotionServiceClient` (HTTP)
 
 **Published Events**
-- `SalesOrderCreatedIntegrationEvent`
-- `SalesOrderApprovedIntegrationEvent`
-- `SalesOrderShippedIntegrationEvent`
-- `SalesOrderCancelledIntegrationEvent`
+- `SalesOrderCreatedEvent`, `SalesOrderApprovedEvent`, `SalesOrderShippedEvent`,
+  `SalesOrderCancelledEvent` (đã có từ trước)
+- `SalesOrderPartiallyShippedEvent`, `SalesOrderDeliveredEvent`,
+  `SalesOrderReturnedEvent` (mới 2026-07-03) — **chưa có consumer nào ở service
+  khác**, cùng tình trạng với các event mới thêm ở 3.1/3.2
 
 #### ❌ Tính năng còn thiếu
 
 | Tính năng | Ưu tiên | Ghi chú |
 |-----------|---------|---------|
-| `ApproveOrderCommand` | Cao | Duyệt đơn hàng (thủ công hoặc auto) |
-| `CancelOrderCommand` | Cao | Hủy đơn với lý do |
-| `UpdateOrderCommand` | Cao | Cập nhật địa chỉ, ghi chú trước khi xử lý |
-| `ListOrdersQuery` với filter/sort/page | Cao | Xem danh sách đơn hàng |
-| `GetOrdersByCustomerQuery` | Cao | Lịch sử đơn hàng của khách |
-| Controller endpoints đầy đủ | Cao | Hiện chỉ có 1 controller rất hạn chế |
-| Apply promotion/coupon khi tạo đơn | Cao | Gọi PromotionService |
-| Order notes / internal comments | Trung | Ghi chú nội bộ cho team |
-| Partial fulfillment | Trung | Xuất một phần đơn hàng |
-| Order timeline / audit trail | Trung | Lịch sử thay đổi trạng thái |
-| Consume `ProductPriceChanged` event | Cao | Cảnh báo giá thay đổi sau khi đặt |
-| Return/Refund order flow | Cao | Khách trả hàng → hoàn tiền |
-| `SalesOrderDelivered` event | Cao | Trigger loyalty points, CRM update |
+| ~~`ApproveOrderCommand`~~ | ~~Cao~~ | **Xác nhận đã có từ trước** — tài liệu gốc ghi sai |
+| ~~`CancelOrderCommand`~~ | ~~Cao~~ | **Xác nhận đã có từ trước** — tài liệu gốc ghi sai |
+| ~~`UpdateOrderCommand`~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — gap thật duy nhất trong nhóm Commands |
+| ~~`ListOrdersQuery` với filter/sort/page~~ | ~~Cao~~ | **Xác nhận đã có từ trước** — tài liệu gốc ghi sai |
+| ~~`GetOrdersByCustomerQuery`~~ | ~~Cao~~ | **Xác nhận đã có từ trước** — tài liệu gốc ghi sai |
+| ~~Controller endpoints đầy đủ~~ | ~~Cao~~ | **Xác nhận đã có 11 endpoint từ trước** — tài liệu gốc ghi "1 controller hạn chế" là sai |
+| ~~Apply promotion/coupon khi tạo đơn~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** |
+| ~~Order notes / internal comments~~ | ~~Trung~~ | **Đã triển khai 2026-07-03** |
+| ~~Partial fulfillment~~ | ~~Trung~~ | **Đã triển khai 2026-07-03** |
+| ~~Order timeline / audit trail~~ | ~~Trung~~ | **Đã triển khai 2026-07-03** |
+| ~~Consume `ProductPriceChanged` event~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — chỉ đánh dấu cảnh báo, không tự đổi giá đơn |
+| ~~Return/Refund order flow~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — SaleOrder chỉ ghi nhận + publish event, refund thật do Payment/Accounting xử lý |
+| ~~`SalesOrderDelivered` event~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — trước đây handler chờ publish event không bao giờ tồn tại |
+
+**Còn thiếu, chưa làm trong đợt này:** `OrderFulfillmentSaga` vẫn dead code (quyết
+định giữ/bỏ vẫn treo); chưa có consumer nào cho 3 event mới
+(PartiallyShipped/Delivered/Returned); refund thật (gọi PaymentService) vẫn cần
+PaymentService tự thêm consumer cho `SalesOrderReturnedEvent`.
 
 #### Luồng Vận Hành
 
 ```
-Customer → POST /api/orders → CreateOrderCommand
-                            → validate (product exists, stock available)
+Customer → POST /api/v1/salesorders → CreateOrderCommand
+                            → (nếu có CouponCode) → PromotionServiceClient.ValidateCouponAsync
                             → SalesOrder.Create() → SalesOrderCreatedEvent
-                            → Saga bắt đầu: OrderFulfillmentSaga
+                            → RabbitMqMessageBus → sales_order_events exchange
 
-OrderFulfillmentSaga:
-  Step 1: Publish → WarehouseService.ReserveInventory
-          ← InventoryReserved (thành công) → sang Step 2
-          ← InventoryFailed → Cancel order
+Choreography qua các consumer đã wire ở Phase 1 (không qua saga trung tâm):
+  WarehouseService.SalesOrderRabbitMqConsumer  → reserve inventory
+  PaymentService.SalesOrderRabbitMqConsumer    → auto-initiate payment
+  ShippingService.SalesOrderRabbitMqConsumer   → create shipment (khi Approved)
+  AccountingService/CRMService consumers       → invoice/link contact
 
-  Step 2: Publish → PaymentService.ProcessPayment
-          ← PaymentProcessed → sang Step 3
-          ← PaymentFailed → Release inventory → Cancel order
+POST /{id}/ship-items (partial) → ShipLineItemsCommand
+     → PartiallyShipped (còn dư) hoặc Shipped (hết) → SalesOrderShippedEvent
 
-  Step 3: Publish → ShippingService.CreateShipment
-          ← ShipmentCreated → Order status = Shipped
-          → NotificationService (gửi email xác nhận)
-          → AccountingService (tạo invoice)
-          → CRMService (update customer history)
-          → ReportingService (fact table)
+POST /{id}/return → RequestReturnCommand → ReturnRequested
+POST /{id}/return/complete → CompleteReturnCommand → Returned → SalesOrderReturnedEvent
+     → (chưa có consumer) Payment cần tự wire để hoàn tiền thật
+
+ProductService.ProductPriceChangedDomainEvent → Kafka product-topic
+     → SaleOrderService.ProductPriceChangedConsumer → flag đơn còn mở
 ```
 
 ---
@@ -336,57 +492,108 @@ OrderFulfillmentSaga:
 
 **Mục đích:** Quản lý quá trình mua hàng từ nhà cung cấp, từ yêu cầu mua đến nhận hàng.
 
+> **Phát hiện quan trọng nhất đợt này (2026-07-03):** Đây KHÔNG phải trường hợp
+> "thiếu tính năng" như tài liệu gốc mô tả — mà là **7 trong 8 handler chính đã tồn
+> tại nhưng thân hàm hoàn toàn rỗng** (`await Task.CompletedTask; return Unit.Value;`
+> hoặc `return _mapper.Map<PurchaseOrderDto>(new object())` — map từ `object` rỗng ra
+> DTO rác). Nghiêm trọng hơn nhiều so với các gap dạng "consumer chưa wire" tìm thấy ở
+> các service khác: `ApprovePurchaseOrderCommandHandler`, `CancelPurchaseOrderCommandHandler`,
+> `SubmitPurchaseOrderCommandHandler`, `GetPurchaseOrderByIdQueryHandler`,
+> `GetPurchaseOrdersQueryHandler` không hề chạm vào database; `AddItemCommandHandler`/
+> `RemoveItemCommandHandler` tạo/thao tác object trong bộ nhớ rồi vứt đi, không bao
+> giờ lưu. Endpoint tương ứng trong `PurchaseOrdersController` gọi các handler này vẫn
+> trả về 200 OK (rỗng) — silent failure, không phải lỗi 500. Chỉ
+> `CreatePurchaseOrderCommandHandler` là thật. Tất cả đã được viết lại thật sự
+> 2026-07-03.
+
 #### ✅ Tính năng đã có
 
 **Domain**
-- `PurchaseOrder` aggregate
-- `PurchaseOrderItem` entity
-- `Supplier` entity
+- `PurchaseOrder` aggregate, `PurchaseOrderItem` entity, `Supplier` entity
 - `Address`, `Money` value objects
-- Trạng thái: Draft, Pending, Approved, Received, Cancelled
-- Domain Events: Created, Approved, Cancelled
+- Trạng thái: `Draft → Submitted → Approved → Ordered → PartiallyReceived → Received`,
+  cộng `Cancelled`
+- Domain Events: Created, Approved, Cancelled (**`Cancel()` có sẵn
+  `PurchaseOrderCancelledDomainEvent` từ trước nhưng chưa từng raise — đã sửa
+  2026-07-03**), Received (mới), ReceiptScheduled (mới)
+- Mới 2026-07-03: `PurchaseOrderItem.ReceivedQuantity`/`RemainingQuantity` (cột SQL
+  `ReceivedQuantity` đã có sẵn từ `001_CreatePurchasingDB.sql` nhưng không có property
+  C# tương ứng); `PurchaseOrder.ScheduledReceiptDate`; `GoodsReceipt` entity (bảng SQL
+  `GoodsReceipts` cũng đã có sẵn từ trước, cùng tình trạng schema mồ côi); `SupplierRating`
+  entity (bảng mới)
+
+**Commands/Queries — viết lại thật 2026-07-03 (trước đó là stub rỗng):**
+`ApprovePurchaseOrderCommand`, `CancelPurchaseOrderCommand`, `SubmitPurchaseOrderCommand`,
+`AddItemCommand`, `RemoveItemCommand`, `GetPurchaseOrderByIdQuery`, `GetPurchaseOrdersQuery`
+(filter SupplierId/Status + phân trang). Dùng `IRepository<PurchaseOrder>`/
+`IRepository<PurchaseOrderItem>` (Clean Architecture — Application không được tham
+chiếu Infrastructure/DbContext trực tiếp); AddItem/RemoveItem dùng thêm
+`IRepository<PurchaseOrderItem>` riêng để đảm bảo EF Core đánh dấu Added/Deleted đúng
+(không đoán nhầm Modified cho dòng vừa tạo có sẵn khoá Guid).
+
+**Mới thêm 2026-07-03:**
+- `ReceiveGoodsCommand` (GRN, `POST /{id}/receive`) — nhận từng phần theo dòng, PO
+  chuyển `PartiallyReceived` hoặc `Received`, ghi 1 dòng `GoodsReceipt`, raise
+  `PurchaseOrderReceivedDomainEvent`
+- `ScheduleReceiptCommand` (`POST /{id}/schedule-receipt`) → `ReceiptScheduledDomainEvent`
+- `ComparePricesForProductQuery` (`GET /compare-prices?productCode=`) — so sánh giá
+  theo supplier dựa trên lịch sử PO (join trong bộ nhớ, không cần IQueryable xuyên
+  aggregate)
+- `ThreeWayMatchQuery` (`POST /{id}/three-way-match`) — so khớp PO vs GRN (đã nhận) vs
+  Invoice; **dòng invoice do caller (thường là AccountingService) truyền vào**, không
+  lưu trữ hay tự tra cứu Invoice (không cross-database theo `CLAUDE.md`)
+- `RateSupplierCommand`/`GetSupplierRatingsQuery` (`POST/GET /suppliers/{id}/ratings`)
+  — đánh giá 1-5 sao + trung bình
 
 **Infrastructure**
-- Authorization patterns (4 policies)
-- Caching patterns (4 cache decorators)
-- `PurchasingDbContext`
+- Outbox+Kafka (`purchasing-topic`) đã hoạt động từ trước (đợt Phase 1)
+- `PurchasingDbContext` — thêm `AutoInclude()` cho `Supplier` navigation (trước đây
+  chỉ `Items` được auto-include, khiến `Supplier` luôn null trong DTO)
 
 **API Controllers**
-- `PurchaseOrdersController` (partial)
-- `SuppliersController`
+- `PurchaseOrdersController` (nay đầy đủ, 13 endpoints), `SuppliersController` (nay 7 endpoints)
 
 #### ❌ Tính năng còn thiếu
 
 | Tính năng | Ưu tiên | Ghi chú |
 |-----------|---------|---------|
-| `CreatePurchaseOrderCommand` + Handler | Cao | Command chưa có handler |
-| `ApprovePurchaseOrderCommand` | Cao | Workflow duyệt mua hàng |
-| `ReceiveGoodsCommand` (GRN) | Cao | Nhận hàng → trigger Warehouse |
-| `ListPurchaseOrdersQuery` | Cao | Xem danh sách PO |
-| `GetPurchaseOrderQuery` | Cao | Chi tiết PO |
-| `CancelPurchaseOrderCommand` | Trung | Hủy PO |
-| Integration Event Consumers | Cao | Hiện không consume bất kỳ event nào |
-| `PurchaseOrderReceived` integration event | Cao | Trigger WarehouseService nhập kho |
-| Supplier evaluation / rating | Thấp | Đánh giá nhà cung cấp |
-| Price comparison giữa các supplier | Trung | Báo giá nhiều nhà cung cấp |
-| `ReceiptScheduled` event | Cao | Lên lịch nhận hàng |
-| Three-way matching | Thấp | PO vs GRN vs Invoice |
+| ~~`CreatePurchaseOrderCommand` + Handler~~ | ~~Cao~~ | **Xác nhận đã có từ trước, hoạt động đúng** — mục ❌ cũ ghi sai |
+| ~~`ApprovePurchaseOrderCommand`~~ | ~~Cao~~ | **Handler rỗng — đã viết lại thật 2026-07-03** |
+| ~~`ReceiveGoodsCommand` (GRN)~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** |
+| ~~`ListPurchaseOrdersQuery`~~ | ~~Cao~~ | **Handler rỗng (trả `new List<>()` cứng) — đã viết lại thật 2026-07-03** |
+| ~~`GetPurchaseOrderQuery`~~ | ~~Cao~~ | **Handler rỗng (map từ `new object()`) — đã viết lại thật 2026-07-03** |
+| ~~`CancelPurchaseOrderCommand`~~ | ~~Trung~~ | **Handler rỗng — đã viết lại thật 2026-07-03** |
+| ~~Integration Event Consumers~~ | ~~Cao~~ | **Không cần consume gì thêm ở đợt này** — PurchaseOrderService không có nhu cầu nghiệp vụ nào cần nhận event từ service khác hiện tại |
+| ~~`PurchaseOrderReceived` integration event~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — WarehouseService cần tự thêm consumer để thực sự nhập kho (xem mục 3.5 khi xử lý tới) |
+| ~~Supplier evaluation / rating~~ | ~~Thấp~~ | **Đã triển khai 2026-07-03** |
+| ~~Price comparison giữa các supplier~~ | ~~Trung~~ | **Đã triển khai 2026-07-03** |
+| ~~`ReceiptScheduled` event~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** |
+| ~~Three-way matching~~ | ~~Thấp~~ | **Đã triển khai 2026-07-03** — chỉ so khớp, không lưu trữ Invoice |
+
+**Còn thiếu, chưa làm trong đợt này:** WarehouseService chưa có consumer cho
+`PurchaseOrderReceivedDomainEvent` (chỉ mới consume `PurchaseOrderApprovedDomainEvent`
+để "chuẩn bị nhận hàng" từ Phase 1) — nhập kho thật cần chờ xử lý tới mục 3.5.
 
 #### Luồng Vận Hành
 
 ```
 Staff → POST /api/purchase-orders → CreatePurchaseOrderCommand
-     → PurchaseOrder.Create() → PurchaseOrderCreatedEvent
-     → Notify AccountingService (budget check - chưa có)
+     → PurchaseOrder.Create() → PurchaseOrderCreatedEvent → Outbox → Kafka purchasing-topic
+     → AccountingService consumer (đã wire từ Phase 1, tạo AP bill khi Approved)
 
 Manager → POST /api/purchase-orders/{id}/approve → ApprovePurchaseOrderCommand
         → PurchaseOrder.Approve() → PurchaseOrderApprovedEvent
-        → Notify Supplier (email - qua NotificationService)
+        → WarehouseService consumer (Phase 1, chuẩn bị nhận hàng)
+
+Manager → POST /api/purchase-orders/{id}/schedule-receipt → ScheduleReceiptCommand
+        → ReceiptScheduledEvent (chưa có consumer)
 
 Warehouse → POST /api/purchase-orders/{id}/receive → ReceiveGoodsCommand
-          → PurchaseOrder.MarkReceived() → PurchaseOrderReceivedEvent
-          → [THIẾU] WarehouseService.ReceiveStock()
-          → AccountingService.CreateBill()
+          → PurchaseOrder.ReceiveGoods() → PartiallyReceived hoặc Received
+          → ghi GoodsReceipt → PurchaseOrderReceivedEvent (chưa có consumer — xem mục 3.5)
+
+Accounting → POST /api/purchase-orders/{id}/three-way-match (truyền dòng invoice của mình)
+           → so khớp PO/GRN/Invoice, trả về mismatch nếu có
 ```
 
 ---
@@ -1238,8 +1445,14 @@ BI Tool (Power BI / Tableau) → direct SQL query → ReportingDB (read-only)
 | `SalesOrderCancelled` | SaleOrder | Warehouse ✅ | Accounting, Notification |
 | `SalesOrderShipped` | SaleOrder | Warehouse ✅ | Notification, Reporting |
 | `InventoryReserved` | Warehouse | — | Shipping, Notification |
-| `InventoryUpdated` | Warehouse | — | ProductService (sync), Reporting |
-| `ProductCreated` | Product | — | SaleOrder, POS, Promotion, Reporting |
+| `InventoryUpdated` | Warehouse | ProductService ✅ (stock sync, 2026-07-03) | Reporting |
+| `ProductCreated` | Product | POS ✅, Promotion ✅ | SaleOrder, Reporting |
+| `ProductUpdated` | Product | — (mới 2026-07-03) | SaleOrder, POS, Promotion |
+| `ProductPriceChanged` | Product | SaleOrder ✅ (chỉ flag cảnh báo, 2026-07-03) | POS/Promotion cần cập nhật consumer để đọc field mới |
+| `UserUpdated` | Identity | — (mới 2026-07-03) | CRM, HRM |
+| `SalesOrderDelivered` | SaleOrder | — (mới 2026-07-03) | Promotion (loyalty points), CRM (purchase history) |
+| `SalesOrderPartiallyShipped` | SaleOrder | — (mới 2026-07-03) | Warehouse, Notification |
+| `SalesOrderReturned` | SaleOrder | — (mới 2026-07-03) | Payment (hoàn tiền thật), Accounting, Warehouse (restock) |
 | `PaymentProcessed` | Payment | — | Accounting, CRM, Promotion, Notification, Reporting |
 | `PaymentFailed` | Payment | — | Notification, SaleOrder (saga compensation) |
 | `ShipmentCreated` | Shipping | — | Notification, Reporting |
@@ -1259,9 +1472,6 @@ BI Tool (Power BI / Tableau) → direct SQL query → ReportingDB (read-only)
 | `InvoiceCreated` | Accounting | Sau PaymentProcessed | Payment, Reporting |
 | `LeadQualified` | CRM | Chuyển lead → opportunity | Notification |
 | `OpportunityWon` | CRM | Đóng deal | SaleOrder, Reporting |
-| `SalesOrderDelivered` | SaleOrder | Giao hàng thành công | Promotion, CRM, Accounting |
-| `ProductPriceChanged` | Product | Thay đổi giá | SaleOrder, Promotion |
-| `UserUpdated` | Identity | Cập nhật thông tin | CRM, HRM |
 
 ---
 
@@ -1279,10 +1489,15 @@ BI Tool (Power BI / Tableau) → direct SQL query → ReportingDB (read-only)
 
 ### Nhóm 2: Có domain nhưng thiếu Application layer
 
+> **Cập nhật 2026-07-03:** SaleOrderService (mục 3.3) và PurchaseOrderService (mục
+> 3.4) đã xử lý xong — PurchaseOrderService hoá ra không phải "thiếu" mà là 7/8
+> handler chính tồn tại nhưng thân hàm rỗng (xem mục 3.4). Chỉ còn WareHouseService
+> (mục 3.5, chưa xử lý ở đợt này).
+
 | Service | Command còn thiếu | Query còn thiếu |
 |---------|-------------------|----------------|
-| SaleOrderService | Approve, Cancel, Update, Ship, ListOrders | ListOrders, GetByCustomer |
-| PurchaseOrderService | Create(handler), Approve, ReceiveGoods, Cancel | List, GetById |
+| ~~SaleOrderService~~ | ~~Approve, Cancel, Update, Ship, ListOrders~~ (đã xong 2026-07-03) | ~~ListOrders, GetByCustomer~~ (đã xong) |
+| ~~PurchaseOrderService~~ | ~~Create(handler), Approve, ReceiveGoods, Cancel~~ (đã xong 2026-07-03 — thực chất là sửa stub rỗng) | ~~List, GetById~~ (đã xong) |
 | WareHouseService | ReceiveStock, AdjustStock, TransferStock, LocationCRUD | StocktakeQuery |
 
 ### Nhóm 3: Event consumers — ĐÃ SỬA (2026-07-02)
@@ -1311,10 +1526,11 @@ BI Tool (Power BI / Tableau) → direct SQL query → ReportingDB (read-only)
 
 **Còn thiếu, chưa làm trong đợt này:** ReportingService chưa consume POS/HR events
 (chưa có `FactPOSTransactions`/`DimEmployees` model dù bảng SQL đã có); ProductService
-chưa publish `ProductUpdated`/`ProductPriceChanged` (nên POS/Promotion không đồng bộ
-giá được — đã default giá về 0 khi cache, ghi rõ trong code); `OrderFulfillmentSaga`
-(SaleOrderService) vẫn là dead code, chưa quyết định giữ lại làm true orchestration
-hay bỏ hẳn để dùng choreography qua các consumer mới.
+**đã publish** `ProductUpdated`/`ProductPriceChanged` từ 2026-07-03 (mục 3.2), nhưng
+POS/Promotion's consumer vẫn đọc theo field cũ (giá mặc định 0) — cần cập nhật 2
+consumer đó để đọc field giá thật từ `ProductPriceChangedDomainEvent`, chưa làm ở đợt
+này; `OrderFulfillmentSaga` (SaleOrderService) vẫn là dead code, chưa quyết định giữ
+lại làm true orchestration hay bỏ hẳn để dùng choreography qua các consumer mới.
 
 ### Nhóm 4: Thiếu external integrations
 
@@ -1334,8 +1550,13 @@ hay bỏ hẳn để dùng choreography qua các consumer mới.
 ### Sprint 1 — Hoàn Thiện Core Flow (E-Commerce)
 
 ```
-1. SaleOrderService: ApproveCommand, CancelCommand, ListOrdersQuery, Controller đầy đủ
-2. PurchaseOrderService: Command handlers, ReceiveGoodsCommand, event consumers
+1. ~~SaleOrderService: ApproveCommand, CancelCommand, ListOrdersQuery, Controller đầy đủ~~
+   (xác nhận đã có từ trước 2026-07-03); ~~UpdateOrderCommand, coupon, partial
+   fulfillment, return flow, audit trail~~ (đã xong 2026-07-03) — xem mục 3.3
+2. ~~PurchaseOrderService: Command handlers~~ (đã xong 2026-07-03 — 7/8 handler
+   chính là stub rỗng, đã viết lại thật); ~~ReceiveGoodsCommand~~ (đã xong) — xem
+   mục 3.4. Event consumers: không cần thêm ở PurchaseOrderService, nhưng
+   WarehouseService cần tự thêm consumer cho `PurchaseOrderReceivedEvent` (mục 3.5)
 3. WarehouseService: ReceiveStockCommand, LocationCRUD API, StockAdjust
 4. PaymentService: Gateway integration (VNPay/Stripe webhook)
 5. ShippingService: Carrier API (GHN/GHTK), rate calculation
@@ -1355,10 +1576,12 @@ hay bỏ hẳn để dùng choreography qua các consumer mới.
 
 ```
 11. ReportingService: Kafka consumers, fact/dim tables, ETL handlers
-12. ProductService: ~~Full-text search~~ (đã xong), bulk import, event publishing đầy đủ
+12. ProductService: ~~Full-text search~~ (đã xong), ~~bulk import~~ (đã xong
+    2026-07-03, CSV), ~~event publishing đầy đủ~~ (đã xong 2026-07-03 —
+    ProductUpdated/ProductPriceChanged) — xem mục 3.2
 13. POSService: Event consumers, Terminal management, offline sync
-14. IdentityService: ~~2FA~~ (đã xong), audit log (viết entity/write-path cho bảng
-    `SecurityAuditLogs`/`LoginAttempts` đã có sẵn schema), session management
+14. IdentityService: ~~2FA~~ (đã xong), ~~audit log~~ (đã xong 2026-07-03),
+    ~~session management~~ (đã xong 2026-07-03) — xem mục 3.1
 ```
 
 ### Sprint 4 — Production Readiness

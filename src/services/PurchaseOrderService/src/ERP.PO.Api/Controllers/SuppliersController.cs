@@ -182,4 +182,41 @@ public class SuppliersController : ControllerBase
         await _mediator.Send(command);
         return NoContent();
     }
+
+    /// <summary>
+    /// Rate a supplier (1-5) with an optional comment
+    /// Yêu cầu quyền: supplier:rate
+    /// </summary>
+    [HttpPost("{id}/ratings")]
+    [AuthorizePermission(PermissionConstants.Supplier_Rate)]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> RateSupplier(Guid id, [FromBody] RateSupplierRequestDto request)
+    {
+        var command = new RateSupplierCommand { SupplierId = id, Rating = request.Rating, Comment = request.Comment };
+        var ratingId = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetSupplierRatings), new { id }, new { id = ratingId });
+    }
+
+    /// <summary>
+    /// Get a supplier's ratings and average score
+    /// Yêu cầu quyền: supplier:read
+    /// </summary>
+    [HttpGet("{id}/ratings")]
+    [AuthorizePermission(PermissionConstants.Supplier_Read)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSupplierRatings(Guid id)
+    {
+        var result = await _mediator.Send(new GetSupplierRatingsQuery { SupplierId = id });
+        return Ok(result);
+    }
+}
+
+public class RateSupplierRequestDto
+{
+    public int Rating { get; set; }
+    public string? Comment { get; set; }
 }

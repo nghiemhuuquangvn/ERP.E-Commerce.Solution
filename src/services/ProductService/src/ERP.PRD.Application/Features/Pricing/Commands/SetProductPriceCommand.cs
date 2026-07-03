@@ -55,9 +55,12 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
             if (variant == null)
                 throw new KeyNotFoundException($"Variant with ID {request.VariantId} not found");
 
+            var oldPrice = variant.Cost;
             variant.Cost = request.BasePrice;
             variant.UpdatedAt = DateTime.UtcNow;
             variant.RequestSearchReindex();
+            if (oldPrice != request.BasePrice)
+                variant.RecordPriceChange(oldPrice, request.BasePrice);
 
             await _context.SaveChangesAsync(cancellationToken);
 

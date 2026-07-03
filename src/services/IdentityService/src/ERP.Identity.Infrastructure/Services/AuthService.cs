@@ -30,6 +30,9 @@ namespace ERP.Identity.Infrastructure.Services
         private readonly ITwoFactorCodeGenerator _twoFactorCodeGenerator;
         private readonly TwitterOAuthService _twitterOAuthService;
         private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
+        private readonly ISecurityAuditService _securityAuditService;
+        private readonly ISessionService _sessionService;
+        private readonly IPasswordPolicyService _passwordPolicyService;
 
         public AuthService(
             IUnitOfWork unitOfWork,
@@ -40,7 +43,10 @@ namespace ERP.Identity.Infrastructure.Services
             ISettingsService settingsService,
             ITwoFactorCodeGenerator twoFactorCodeGenerator,
             TwitterOAuthService twitterOAuthService,
-            Microsoft.Extensions.Configuration.IConfiguration configuration)
+            Microsoft.Extensions.Configuration.IConfiguration configuration,
+            ISecurityAuditService securityAuditService,
+            ISessionService sessionService,
+            IPasswordPolicyService passwordPolicyService)
         {
             _unitOfWork = unitOfWork;
             _jwtService = jwtService;
@@ -51,14 +57,21 @@ namespace ERP.Identity.Infrastructure.Services
             _twoFactorCodeGenerator = twoFactorCodeGenerator;
             _twitterOAuthService = twitterOAuthService;
             _configuration = configuration;
+            _securityAuditService = securityAuditService;
+            _sessionService = sessionService;
+            _passwordPolicyService = passwordPolicyService;
         }
 
         /// <summary>
         /// Shared tail-end of every flow that ends in issuing a JWT + refresh token:
-        /// load roles/permissions, generate tokens, persist the refresh token, build response.
-        /// Does NOT call SaveChangesAsync — callers control the transaction boundary.
+        /// load roles/permissions, generate tokens, persist the refresh token, register
+        /// a device session, build response. Does NOT call SaveChangesAsync — callers
+        /// control the transaction boundary.
         /// </summary>
-        private async Task<LoginResponse> IssueTokensAsync(User user, AuthTenant tenant, CancellationToken ct)
+        private async Task<LoginResponse> IssueTokensAsync(
+            User user, AuthTenant tenant, CancellationToken ct,
+            string? deviceId = null, string? deviceName = null, string? deviceType = null,
+            string? platform = null, string? ipAddress = null, string? userAgent = null)
         {
             var roles = await _unitOfWork.Roles.GetRolesAsync(user.Id, tenant.Id, ct);
             var permissions = await _unitOfWork.Permissions.GetPermissionAsync(user.Id, tenant.Id, ct);
@@ -71,27 +84,59 @@ namespace ERP.Identity.Infrastructure.Services
                 tenantId: tenant.Id,
                 token: refreshToken,
                 expiredAt: DateTime.UtcNow.AddDays(30),
-                createdByIp: null
+                createdByIp: ipAddress
             );
 
             await _unitOfWork.RefreshTokens.AddAsync(refreshTokenEntity, ct);
+            await _sessionService.RegisterSessionAsync(user.Id, tenant.Id, deviceId, deviceName, deviceType, platform, ipAddress, userAgent, ct);
 
             var userSummary = new UserSummaryDto(user.Id, user.Email, user.FullName, roles, permissions);
 
             return new LoginResponse(accessToken, refreshToken, Succeeded: true, User: userSummary);
         }
 
-        public async Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken ct)
+        public async Task<LoginResponse> LoginAsync(LoginRequest request, string? ipAddress, string? userAgent, CancellationToken ct)
         {
-            var tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(request.TenantCode, ct)
-                ?? throw new UnauthorizedAccessException("Tenant not found");
+            AuthTenant tenant;
+            try
+            {
+                tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(request.TenantCode, ct)
+                    ?? throw new UnauthorizedAccessException("Tenant not found");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", false, request.Email, null, "Tenant not found", ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+                throw;
+            }
 
             var user = await _unitOfWork.Users.GetByEmailAsync(request.Email, tenant.Id, ct);
             if (user == null)
+            {
+                await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", false, request.Email, null, "User not found", ct);
+                await _securityAuditService.LogAsync("Login", false, tenant.Id, null, request.Email, ipAddress, userAgent, errorReason: "User not found", ct: ct);
+                await _unitOfWork.SaveChangesAsync(ct);
                 throw new UnauthorizedAccessException("User not found");
+            }
+
+            if (user.IsLocked)
+            {
+                await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", false, request.Email, user.Id, "Account locked", ct);
+                await _securityAuditService.LogAsync("Login", false, tenant.Id, user.Id, request.Email, ipAddress, userAgent, errorReason: "Account locked", ct: ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+                throw new UnauthorizedAccessException("Account is locked. Contact an administrator to unlock it.");
+            }
 
             if (!_passwordHasher.VerifyPassword(user.PasswordHash, request.Password))
+            {
+                user.RecordLoginFail();
+                await _unitOfWork.Users.UpdateAsync(user, ct);
+                await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", false, request.Email, user.Id, "Invalid credentials", ct);
+                await _securityAuditService.LogAsync("Login", false, tenant.Id, user.Id, request.Email, ipAddress, userAgent,
+                    errorReason: user.IsLocked ? "Invalid credentials — account just locked" : "Invalid credentials", ct: ct);
+                await _unitOfWork.SaveChangesAsync(ct);
                 throw new UnauthorizedAccessException("Invalid credentials");
+            }
 
             var systemSettings = await _settingsService.GetOrCreateSystemSettingsEntityAsync(ct);
             var tenantSettings = await _settingsService.GetOrCreateTenantSettingsEntityAsync(tenant.Id, ct);
@@ -100,6 +145,8 @@ namespace ERP.Identity.Infrastructure.Services
             {
                 var (challenge, expiryMinutes) = await CreateTwoFactorChallengeAsync(user, tenant.Id, ct);
 
+                await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", true, request.Email, user.Id, ct: ct);
+                await _securityAuditService.LogAsync("Login", true, tenant.Id, user.Id, request.Email, ipAddress, userAgent, details: "Password verified, awaiting 2FA", ct: ct);
                 await _unitOfWork.SaveChangesAsync(ct);
 
                 return new LoginResponse(
@@ -112,12 +159,19 @@ namespace ERP.Identity.Infrastructure.Services
                     ExpiresInSeconds: expiryMinutes * 60);
             }
 
-            var response = await IssueTokensAsync(user, tenant, ct);
+            user.RecordLoginSuccess();
+            await _unitOfWork.Users.UpdateAsync(user, ct);
+
+            var response = await IssueTokensAsync(user, tenant, ct,
+                request.DeviceId, request.DeviceName, request.DeviceType, request.Platform, ipAddress, userAgent);
+
+            await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", true, request.Email, user.Id, ct: ct);
+            await _securityAuditService.LogAsync("Login", true, tenant.Id, user.Id, request.Email, ipAddress, userAgent, ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
             return response;
         }
 
-        public async Task<LoginResponse> VerifyTwoFactorAsync(VerifyTwoFactorRequest request, CancellationToken ct)
+        public async Task<LoginResponse> VerifyTwoFactorAsync(VerifyTwoFactorRequest request, string? ipAddress, string? userAgent, CancellationToken ct)
         {
             var challenge = await _unitOfWork.TwoFactorChallenges.GetByIdAsync(request.ChallengeId, ct);
             if (challenge == null)
@@ -128,6 +182,7 @@ namespace ERP.Identity.Infrastructure.Services
 
             if (!isValid)
             {
+                await _securityAuditService.LogAsync("Login", false, challenge.TenantId, challenge.UserId, ipAddress: ipAddress, userAgent: userAgent, errorReason: "Invalid 2FA code", ct: ct);
                 await _unitOfWork.SaveChangesAsync(ct);
                 var remaining = Math.Max(0, challenge.MaxAttempts - challenge.AttemptCount);
                 return new LoginResponse(
@@ -145,7 +200,13 @@ namespace ERP.Identity.Infrastructure.Services
             var tenant = await _unitOfWork.Tenants.GetByIdAsync(challenge.TenantId, ct)
                 ?? throw new UnauthorizedAccessException("Tenant not found");
 
-            var response = await IssueTokensAsync(user, tenant, ct);
+            user.RecordLoginSuccess();
+            await _unitOfWork.Users.UpdateAsync(user, ct);
+
+            var response = await IssueTokensAsync(user, tenant, ct,
+                request.DeviceId, request.DeviceName, request.DeviceType, request.Platform, ipAddress, userAgent);
+
+            await _securityAuditService.LogAsync("Login", true, tenant.Id, user.Id, user.Email, ipAddress, userAgent, details: "2FA verified", ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
             return response;
         }
@@ -332,9 +393,16 @@ namespace ERP.Identity.Infrastructure.Services
             return response;
         }
 
-        public async Task LogoutAsync(Guid userId, string refreshToken, CancellationToken ct = default)
+        public async Task LogoutAsync(Guid userId, string refreshToken, string? jti, DateTime? tokenExpiresAt, string? ipAddress, CancellationToken ct = default)
         {
             await _unitOfWork.RefreshTokens.RevokeAsync(refreshToken, ct);
+
+            if (!string.IsNullOrWhiteSpace(jti) && tokenExpiresAt.HasValue)
+                await _sessionService.BlacklistTokenAsync(jti, userId, tokenExpiresAt.Value, revokedBy: userId.ToString(), ct);
+
+            var user = await _unitOfWork.Users.GetByIdAsync(userId, ct);
+            await _securityAuditService.LogAsync("Logout", true, user?.TenantId, userId, user?.Email, ipAddress, ct: ct);
+
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
@@ -408,6 +476,7 @@ namespace ERP.Identity.Infrastructure.Services
                 }
 
                 // 6️⃣ Persist
+                await _securityAuditService.LogAsync("Register", true, tenant.Id, user.Id, user.Email, ct: ct);
 
                 await _unitOfWork.CommitTransactionAsync(ct);
 
@@ -458,12 +527,17 @@ namespace ERP.Identity.Infrastructure.Services
             if (user == null)
                 throw new InvalidOperationException("User not found");
 
+            await _passwordPolicyService.ValidateNewPasswordAsync(user.Id, request.NewPassword, ct);
+
+            var previousHash = user.PasswordHash;
             var newPasswordHash = _passwordHasher.HashPassword(request.NewPassword);
             user.ChangePassword(newPasswordHash);
             resetToken.MarkUsed();
 
+            await _passwordPolicyService.RecordPasswordHistoryAsync(user.Id, previousHash, ct);
             await _unitOfWork.Users.UpdateAsync(user, ct);
             await _unitOfWork.PasswordResetTokens.UpdateAsync(resetToken, ct);
+            await _securityAuditService.LogAsync("PasswordReset", true, user.TenantId, user.Id, user.Email, ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
 
             return new ResetPasswordResponse(Succeeded: true);

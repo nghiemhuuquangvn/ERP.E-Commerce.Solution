@@ -28,6 +28,9 @@ namespace ERP.PRD.Infrastructure.Persistence
         public DbSet<ProductExternalMapping> ProductExternalMappings => Set<ProductExternalMapping>();
         public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
         public DbSet<SearchIndexQueueEntry> SearchIndexQueue => Set<SearchIndexQueueEntry>();
+        public DbSet<ProductBundleItem> ProductBundleItems => Set<ProductBundleItem>();
+        public DbSet<ProductRelation> ProductRelations => Set<ProductRelation>();
+        public DbSet<ProductReview> ProductReviews => Set<ProductReview>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -62,6 +65,30 @@ namespace ERP.PRD.Infrastructure.Persistence
                 entity.HasIndex(e => e.IndexedAt)
                     .HasDatabaseName("IX_SearchIndexQueue_Pending")
                     .HasFilter("[IndexedAt] IS NULL");
+            });
+
+            modelBuilder.Entity<ProductBundleItem>(entity =>
+            {
+                entity.ToTable("ProductBundleItems");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.BundleProductId);
+                entity.HasIndex(e => new { e.BundleProductId, e.ComponentProductId }).IsUnique();
+            });
+
+            modelBuilder.Entity<ProductRelation>(entity =>
+            {
+                entity.ToTable("ProductRelations");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.ProductId, e.RelationType });
+                entity.HasIndex(e => new { e.ProductId, e.RelatedProductId, e.RelationType }).IsUnique();
+            });
+
+            modelBuilder.Entity<ProductReview>(entity =>
+            {
+                entity.ToTable("ProductReviews");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Comment).HasMaxLength(2000);
+                entity.HasIndex(e => new { e.ProductId, e.IsApproved });
             });
         }
 

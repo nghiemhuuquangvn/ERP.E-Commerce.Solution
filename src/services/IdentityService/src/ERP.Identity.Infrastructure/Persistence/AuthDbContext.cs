@@ -29,6 +29,12 @@ namespace ERP.Identity.Infrastructure.Persistence
         public DbSet<TenantAuthSettings> TenantAuthSettings => Set<TenantAuthSettings>();
         public DbSet<TwoFactorChallenge> TwoFactorChallenges => Set<TwoFactorChallenge>();
         public DbSet<OAuthState> OAuthStates => Set<OAuthState>();
+        public DbSet<SecurityAuditLog> SecurityAuditLogs => Set<SecurityAuditLog>();
+        public DbSet<LoginAttempt> LoginAttempts => Set<LoginAttempt>();
+        public DbSet<DeviceSession> DeviceSessions => Set<DeviceSession>();
+        public DbSet<TokenBlacklistEntry> TokenBlacklist => Set<TokenBlacklistEntry>();
+        public DbSet<PasswordHistoryEntry> PasswordHistories => Set<PasswordHistoryEntry>();
+        public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
         private readonly IDomainEventDispatcher _domainEventDispatcher;
 
         public AuthDbContext(DbContextOptions<AuthDbContext> options, IDomainEventDispatcher domainEventDispatcher) : base(options)
@@ -363,6 +369,62 @@ namespace ERP.Identity.Infrastructure.Persistence
                 entity.Property(o => o.CodeVerifier).IsRequired().HasMaxLength(256);
                 entity.Property(o => o.TenantCode).IsRequired().HasMaxLength(256);
                 entity.HasIndex(o => o.State).IsUnique();
+            });
+
+            modelBuilder.Entity<SecurityAuditLog>(entity =>
+            {
+                entity.ToTable("SecurityAuditLogs");
+                entity.HasKey(l => l.Id);
+                entity.Property(l => l.EventType).IsRequired().HasMaxLength(100);
+                entity.HasIndex(l => new { l.UserId, l.OccurredAt });
+                entity.HasIndex(l => new { l.TenantId, l.OccurredAt });
+                entity.HasIndex(l => new { l.EventType, l.OccurredAt });
+            });
+
+            modelBuilder.Entity<LoginAttempt>(entity =>
+            {
+                entity.ToTable("LoginAttempts");
+                entity.HasKey(l => l.Id);
+                entity.Property(l => l.IpAddress).IsRequired().HasMaxLength(64);
+                entity.HasIndex(l => new { l.IpAddress, l.AttemptedAt });
+                entity.HasIndex(l => new { l.Email, l.AttemptedAt });
+            });
+
+            modelBuilder.Entity<DeviceSession>(entity =>
+            {
+                entity.ToTable("DeviceSessions");
+                entity.HasKey(d => d.Id);
+                entity.Property(d => d.DeviceId).IsRequired().HasMaxLength(256);
+                entity.HasIndex(d => new { d.UserId, d.DeviceId }).IsUnique();
+                entity.HasIndex(d => new { d.UserId, d.IsActive, d.LastActiveAt });
+            });
+
+            modelBuilder.Entity<TokenBlacklistEntry>(entity =>
+            {
+                entity.ToTable("TokenBlacklist");
+                entity.HasKey(t => t.Jti);
+                entity.Property(t => t.Jti).HasMaxLength(200);
+                entity.HasIndex(t => t.ExpiresAt);
+                entity.HasIndex(t => t.UserId);
+            });
+
+            modelBuilder.Entity<PasswordHistoryEntry>(entity =>
+            {
+                entity.ToTable("PasswordHistories");
+                entity.HasKey(p => p.Id);
+                entity.Property(p => p.PasswordHash).IsUnicode(false).IsRequired().HasMaxLength(500);
+                entity.HasIndex(p => new { p.UserId, p.CreatedAt });
+            });
+
+            modelBuilder.Entity<ApiKey>(entity =>
+            {
+                entity.ToTable("ApiKeys");
+                entity.HasKey(k => k.Id);
+                entity.Property(k => k.Name).IsRequired().HasMaxLength(200);
+                entity.Property(k => k.KeyPrefix).IsRequired().HasMaxLength(16);
+                entity.Property(k => k.KeyHash).IsUnicode(false).IsRequired().HasMaxLength(500);
+                entity.HasIndex(k => k.KeyPrefix).IsUnique();
+                entity.HasIndex(k => k.TenantId);
             });
         }
     }

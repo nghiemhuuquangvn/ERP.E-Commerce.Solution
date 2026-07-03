@@ -1,4 +1,5 @@
 using ERP.PRD.Domain.Search;
+using ERP.PRD.Infrastructure.EventBus;
 using ERP.PRD.Infrastructure.Persistence;
 using ERP.PRD.Infrastructure.Search;
 using ERP.Shared.Messaging;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Confluent.Kafka;
 using Elastic.Clients.Elasticsearch;
+using RabbitMQ.Client;
 
 namespace ERP.PRD.Infrastructure
 {
@@ -52,6 +54,24 @@ namespace ERP.PRD.Infrastructure
             // Register SearchIndexProcessor background job (polls SearchIndexQueue, rebuilds
             // the ES document per pending ProductId — mirrors OutboxProcessor's shape)
             services.AddHostedService<SearchIndexProcessor>();
+
+            // RabbitMQ connection for consuming WarehouseService's warehouse_exchange
+            // (stock-quantity sync) — mirrors the shared-connection pattern established
+            // in WareHouseService/PaymentService/etc. earlier this session.
+            services.AddSingleton<IConnection>(_ =>
+            {
+                var factory = new ConnectionFactory
+                {
+                    HostName = configuration["RabbitMQ:HostName"] ?? "localhost",
+                    Port = int.Parse(configuration["RabbitMQ:Port"] ?? "5672"),
+                    UserName = configuration["RabbitMQ:UserName"] ?? "guest",
+                    Password = configuration["RabbitMQ:Password"] ?? "guest",
+                    VirtualHost = configuration["RabbitMQ:VirtualHost"] ?? "/",
+                    DispatchConsumersAsync = true
+                };
+                return factory.CreateConnection();
+            });
+            services.AddHostedService<WarehouseRabbitMqConsumer>();
 
             return services;
         }

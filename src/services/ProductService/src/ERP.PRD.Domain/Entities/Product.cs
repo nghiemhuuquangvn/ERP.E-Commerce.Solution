@@ -18,6 +18,18 @@ namespace ERP.PRD.Domain.Entities
         public Guid? CategoryId { get; set; }
         public bool HasImage { get; set; }
 
+        // SEO fields for storefront (product detail page <title>/<meta>/canonical URL)
+        public string? Slug { get; set; }
+        public string? MetaTitle { get; set; }
+        public string? MetaDescription { get; set; }
+
+        // Denormalized read-model projection synced from WarehouseService's
+        // InventoryUpdatedEvent (RabbitMQ, warehouse_exchange) — SQL there remains the
+        // system-of-record; this is only for fast "in stock?" display/filtering here
+        // without a synchronous cross-service call on every catalog read.
+        public int StockQuantity { get; set; }
+        public DateTime? LastStockSyncAt { get; set; }
+
         // Opaque escape hatch for arbitrary structured data (never queried via SQL JSON functions)
         public string? ExtendedDataJson { get; set; }
 
@@ -47,10 +59,25 @@ namespace ERP.PRD.Domain.Entities
             return product;
         }
 
-        public void Publish()
+        /// <summary>
+        /// Moves Draft → PendingReview. Optional moderation step: Publish() still works
+        /// directly from Draft for teams that don't want a review gate, so this doesn't
+        /// change the pre-existing one-step flow — it just adds a second, explicit
+        /// two-step Draft → PendingReview → Active path for teams that do.
+        /// </summary>
+        public void SubmitForReview()
         {
             if (Status != ProductStatus.Draft)
-                throw new InvalidOperationException("Only Draft products can be published");
+                throw new InvalidOperationException("Only Draft products can be submitted for review");
+
+            Status = ProductStatus.PendingReview;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void Publish()
+        {
+            if (Status != ProductStatus.Draft && Status != ProductStatus.PendingReview)
+                throw new InvalidOperationException("Only Draft or PendingReview products can be published");
 
             if (!_variants.Any())
                 throw new InvalidOperationException("Product must have at least one variant before publishing");
@@ -100,6 +127,29 @@ namespace ERP.PRD.Domain.Entities
 
             Description = description.Trim();
             UpdatedAt = DateTime.UtcNow;
+            AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(Id));
+            AddDomainEvent(new ProductUpdatedDomainEvent(Id, Name, Sku));
+        }
+
+        public void SetSeoFields(string? slug, string? metaTitle, string? metaDescription)
+        {
+            Slug = string.IsNullOrWhiteSpace(slug) ? null : slug.Trim().ToLowerInvariant();
+            MetaTitle = metaTitle?.Trim();
+            MetaDescription = metaDescription?.Trim();
+            UpdatedAt = DateTime.UtcNow;
+            AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(Id));
+        }
+
+        /// <summary>
+        /// Applies a stock-level projection update received from WarehouseService's
+        /// InventoryUpdatedEvent. Deliberately does not raise ProductUpdatedDomainEvent —
+        /// that event is for other services to resync, and Warehouse is the one that just
+        /// told us this, so re-publishing it back out would be a pointless echo.
+        /// </summary>
+        public void SyncStockQuantity(int quantity)
+        {
+            StockQuantity = quantity;
+            LastStockSyncAt = DateTime.UtcNow;
             AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(Id));
         }
 
