@@ -26,6 +26,11 @@ public class Reservation
     public DateTime? ReleasedAt { get; private set; }
     public string ReleaseReason { get; private set; }
 
+    // Constructor parameter "items" does not name-match the ReservedItems property,
+    // so EF Core's constructor-binding convention cannot resolve it; this
+    // parameterless constructor makes EF use property-setter materialization instead.
+    private Reservation() { }
+
     public Reservation(Guid orderId, List<ReservedItem> items, DateTime holdUntil)
     {
         ReservationId = Guid.NewGuid();

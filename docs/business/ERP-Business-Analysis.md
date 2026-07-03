@@ -1,7 +1,8 @@
 # ERP E-Commerce Solution — Phân Tích Business Logic Toàn Diện
 
 > **Cập nhật:** 2026-07-03 — xử lý tuần tự từng service theo mục ❌ liệt kê (theo yêu
-> cầu "từng service một, theo thứ tự"): đã xong 3.1 → 3.2 → 3.3 → 3.4.
+> cầu "từng service một, theo thứ tự"): đã xong 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 →
+> 3.7 → 3.8.
 > - **3.1 Identity** — đã xử lý toàn bộ tính năng ❌ còn lại (audit log, session
 >   management, API key management, password policy, account-lockout wiring, domain
 >   events UserUpdated/RoleAssigned/PermissionGranted) — chỉ còn LDAP/AD cố ý bỏ qua.
@@ -20,9 +21,64 @@
 >   database, silent failure chứ không phải lỗi rõ ràng. Đã viết lại thật toàn bộ,
 >   cộng thêm ReceiveGoodsCommand (GRN), ScheduleReceipt, so sánh giá supplier,
 >   three-way matching, đánh giá supplier.
+> - **3.5 Warehouse** — phát hiện một **crash-risk bug** độc lập với mục ❌: aggregate
+>   `Reservation.ReservedItems` (`List<ReservedItem>`) chưa từng được cấu hình trong
+>   `WarehouseDbContext` — EF Core không thể tự suy luận owned collection này, lẽ ra sẽ
+>   ném lỗi ngay lần đầu đọc/ghi Reservation; đã sửa bằng `OwnsMany`. Ngoài ra
+>   constructor của `Reservation` có tham số `items` không khớp tên property
+>   `ReservedItems` nên EF không bind được — thêm constructor rỗng private để EF dùng
+>   property-setter thay vì constructor-binding. Toàn bộ 12 mục ❌ đã xử lý thật: 
+>   `ReceiveStockCommand` + Kafka consumer thật cho `PurchaseOrderReceivedDomainEvent`
+>   (khớp SKU, không tự tạo Inventory ảo nếu không khớp), Location CRUD, Stocktake
+>   (kiểm kê vật lý, tự động ghi nhận chênh lệch thành StockMovement), Transfer Order,
+>   Lot/Batch + hạn sử dụng (`InventoryLot`, FIFO/LIFO depletion khi bán), Serial
+>   number tracking (`InventorySerial`), `AdjustStockCommand` riêng biệt với reason
+>   code, publish `ReceiptCompleted`/`StockAlert` events, và
+>   `GetInventoryValuationQuery` (FIFO/LIFO/Average dựa trên cost layers thật).
+> - **3.6 Payment** — phát hiện nghiêm trọng nhất đợt này (khác dạng so với 3.4/3.5):
+>   webhook VNPay **verify chữ ký HMAC-SHA512 thật** nhưng sau khi verify xong **không
+>   hề gọi mediator** — `PaymentAuthorizedEvent` (mục ❌ gốc tưởng là thiếu, thực ra đã
+>   có từ trước) không bao giờ được raise trong thực tế vì không có gì kích hoạt
+>   `Authorize()`; một giao dịch VNPay hợp lệ, đã xác thực đúng, không hề cập nhật gì
+>   trong DB. Cũng phát hiện `Payment.Fail()`/`Refund.MarkAsCompleted`/`MarkAsFailed`
+>   là dead code (không ai gọi) nên refund luôn kẹt ở `Pending`. Đã sửa: thêm
+>   `TransactionRef` + `ProcessGatewayCallbackCommand` idempotent nối webhook → domain
+>   thật; `IPaymentGateway.RefundAsync` (VNPay refund API thật) + sửa luôn lỗi domain
+>   logic liên quan (Status set lạc quan trước khi gateway xác nhận). Ngoài ra sửa 1
+>   vi phạm Clean Architecture độc lập với ❌ gốc: `IPaymentGateway` từng định nghĩa
+>   trong Infrastructure dù Application cần dùng nó — đã chuyển sang Application làm
+>   port đúng chuẩn. Bổ sung SavedPaymentMethod, InstallmentPlan, reconciliation
+>   report (dựa trên `SettlementId` gán thật lên từng payment thay vì chỉ đối chiếu
+>   theo khoảng ngày), InvoiceCreated consumer, fraud flag theo ngưỡng giao dịch lớn.
+> - **3.7 Shipping** — GHN xác nhận là tích hợp thật (không phải claim sai), nhưng
+>   `CreateShipmentCommandHandler` **chưa từng gọi carrier client** — Shipment tạo
+>   xong không có tracking number thật cho tới khi gọi tay
+>   `AssignTrackingNumberCommand` riêng; `Carrier.CalculateRate` cũng chưa từng được
+>   gọi (endpoint fee đi thẳng qua GHN, bỏ qua domain). Phát hiện thêm 1 crash-risk
+>   độc lập với ❌ gốc: `GhnCarrierClient` cần `IHttpClientFactory` client "GHN" nhưng
+>   `AddHttpClient` chưa từng được gọi trong service — DI sẽ crash đúng lúc GHN được
+>   cấu hình thật. Đã sửa cả ba + cấu trúc lại địa chỉ giao hàng thành field có cấu
+>   trúc (Ward/District/Province, khớp SQL gốc và khớp field GHN cần), thêm RMA
+>   (`ReturnShipment` — aggregate riêng cho reverse logistics), POD, PDF label thật
+>   (PdfSharp), bulk tracking, retry delivery, và sửa vi phạm Clean Architecture độc
+>   lập (`ICarrierClient` chuyển từ Infrastructure sang Application).
+> - **3.8 POS** — 2/13 mục ❌ gốc hoá ra đã có sẵn và hoạt động thật (Consume
+>   ProductCreated/PromotionCreated). Phát hiện nghiêm trọng nhất, độc lập với ❌ gốc:
+>   service này **hoàn toàn không có `OutboxProcessor`** — domain event ghi đúng vào
+>   `OutboxMessages` nhưng không job nào từng đẩy lên Kafka, nên "real-time inventory
+>   deduction" (mục ❌ #13) không thể hoạt động dù có sửa gì phía consume vì sự kiện
+>   không bao giờ rời khỏi DB của POS. Đã thêm Outbox+Kafka (`pos-topic`) — Warehouse
+>   vẫn cần tự thêm consumer khi rà soát tới, giống pattern 3.4→3.5. Cũng nối
+>   `ProductPriceChangedForPosHandler` (đã viết thật nhưng chưa từng đăng ký, vì
+>   ProductService lúc đó chưa có event tương ứng — nay đã có từ mục 3.2). Sửa 2 lỗi
+>   schema thật (không chỉ thiếu cột): `TransactionItem.LineTotal`/`TaxAmount` là
+>   computed property (EF bỏ qua khi ghi) trong khi SQL là cột NOT NULL thật, và
+>   `CashierId` sai kiểu (NVARCHAR vs Guid). Bổ sung Terminal entity (bảng SQL có sẵn
+>   từ đầu, không C# nào dùng), split payment, đếm tiền theo mệnh giá, Z-report,
+>   customer display, receipt text, offline sync batch.
 >
 > Mục 6 (Gap Analysis, event-driven backbone toàn hệ thống) đã cập nhật ở lần
-> 2026-07-02. **3.5-3.14 chưa được xử lý ở đợt này** — sẽ tiếp tục tuần tự theo cùng
+> 2026-07-02. **3.9-3.14 chưa được xử lý ở đợt này** — sẽ tiếp tục tuần tự theo cùng
 > pattern. Xem `docs/architecture/end-to-end-request-flow.md` để trace kỹ thuật
 > UI→API cho các luồng chính.
 > **Phạm vi:** 14 microservices + 4 frontend layers  
@@ -108,26 +164,32 @@ Enums                 Event Handlers          Kafka Producer/Consumer
 | IdentityService | ✅ | ✅ | ✅ (+ audit log, session mgmt, API keys, password policy — 2026-07-03) | ✅ (+ Security/ApiKeys/Sessions endpoints) | — (upstream) | **99%** (còn thiếu duy nhất LDAP, cố ý bỏ qua) |
 | SaleOrderService | ✅ (+ notes, status history, partial fulfillment, return flow) | ✅ Đầy đủ lifecycle + Update/Notes/ShipItems/Return (2026-07-03) | ✅ RabbitMQ publish trực tiếp (không dùng Outbox) | ✅ 16 endpoints | ✅ (Kafka `product-topic` ProductPriceChanged, mới thêm; `OrderFulfillmentSaga` vẫn dead code) | **93%** |
 | PurchaseOrderService | ✅ (+ SupplierRating, GoodsReceipt entities mới) | ✅ Đầy đủ VÀ THẬT (2026-07-03: 7/8 handler chính trước đó là stub rỗng — xem mục 3.4) | ✅ Outbox+Kafka (`purchasing-topic`); GRN/receipt-schedule/price-comparison/3-way-match mới thêm | ✅ 2 controllers, 20 endpoints (đã xoá 1 controller trùng route gây lỗi `AmbiguousMatchException`) | ✅ (outbound thật; chưa cần consume gì) | **95%** |
-| WareHouseService | ✅ | ✅ | ✅ RabbitMQ publish đã sửa lỗi thiếu `IConnection` DI (trước đây crash khi gọi); consumer thật cho `sales_order_events` | ✅ 2 controllers | ✅ (RabbitMQ, `sales_order.*` + `purchasing-topic`) | **85%** |
+| WareHouseService | ✅ (+ InventoryLot, InventorySerial, TransferOrder, Stocktake, sửa crash-risk EF mapping thiếu của `Reservation.ReservedItems` — 2026-07-03) | ✅ Đầy đủ (2026-07-03: ReceiveStock, AdjustStock riêng biệt, Location CRUD, Stocktake, Transfer Order, Lot/Serial/Expiry, Valuation FIFO/LIFO/Average — xem mục 3.5) | ✅ RabbitMQ publish đã sửa lỗi thiếu `IConnection` DI (trước đây crash khi gọi); consumer thật cho `sales_order_events` + `purchasing-topic` (PO received, mới 2026-07-03) | ✅ 7 controllers, ~30 endpoints | ✅ (RabbitMQ `sales_order.*` + Kafka `purchasing-topic` PurchaseOrderReceived, mới 2026-07-03) | **97%** |
 | AccountingService | ✅ | ✅ Đầy đủ (9 commands, 12 queries kể cả AR/AP aging) | ✅ Outbox+Kafka đã hoạt động từ trước; consumer mới thêm | ✅ 5 controllers, ~19 endpoints | ✅ (RabbitMQ `sales_order.*` + Kafka `purchasing-topic`/`payment-topic`) | **90%** |
 | CRMService | ✅ | ✅ Đầy đủ (14 commands, 9 queries) | ✅ Outbox+Kafka đã hoạt động từ trước; consumer mới thêm | ✅ 4 controllers, ~23 endpoints | ✅ (Kafka `identity-topic`/`payment-topic` + RabbitMQ `sales_order.*`) | **90%** |
 | HRMService | ✅ (EmployeeSnapshot/LeaveRequest/PaySlip — Employee/Department đã chuyển sang SharedMasterDataService) | ✅ | ✅ `MasterDataEventConsumer` — consumer thật đầu tiên và duy nhất trong toàn hệ thống trước đợt này | ✅ 2 controllers, ~10 endpoints | ✅ | **85%** (thiếu hẳn tính năng chấm công/Attendance) |
 | ProductService | ✅ (+ EAV attributes, dimensions, bundles, relations, reviews) | ✅ đầy đủ (mục cũ ghi "Features folder" thiếu là sai) | ✅ (+ Elasticsearch search, stock sync từ Warehouse) | ✅ 10 controllers | ✅ (RabbitMQ `warehouse.InventoryUpdatedEvent`, mới thêm — publish-side vẫn không consume gì khác) | **93%** |
-| PaymentService | ✅ | ✅ | ✅ VNPay thật (không phải stub); Outbox đã đúng từ trước, chỉ thiếu drain job — đã thêm | ✅ 3 controllers (kể cả webhook/IPN thật) | ✅ (RabbitMQ `sales_order.SalesOrderCreatedEvent`, mới thêm) | **90%** |
-| ShippingService | ✅ | ✅ (+ đã nối `AssignTrackingNumberCommand` vào endpoint, trước đây tồn tại nhưng không ai gọi được) | ✅ GHN thật; Outbox đã đúng từ trước, chỉ thiếu drain job — đã thêm | ✅ 2 controllers | ✅ (RabbitMQ `sales_order.SalesOrderApprovedEvent` + `warehouse_exchange`, cả hai mới thêm) | **90%** |
-| POSService | ✅ | ✅ (+ `GetShiftSummaryQuery` trước đây không có handler, gọi là crash — đã sửa) | ⚠️ chưa có Outbox publish (không cần cho phạm vi đợt này) | ✅ 2 controllers | ✅ (Kafka `product-topic`/`promotion-topic`, mới thêm) | **80%** |
+| PaymentService | ✅ (+ TransactionRef, InvoiceId, SettlementId, SavedPaymentMethod, InstallmentPlan — 2026-07-03) | ✅ Đầy đủ VÀ THẬT (2026-07-03: webhook verify chữ ký thật nhưng trước đây không gọi mediator — Authorize/Capture/Fail không bao giờ chạy; đã nối `ProcessGatewayCallbackCommand` thật, idempotent) | ✅ VNPay thật (+ `RefundAsync` mới); `IPaymentGateway` port chuyển sang Application (sửa vi phạm Clean Architecture); Outbox đã đúng từ trước | ✅ 5 controllers (kể cả webhook/IPN nay thực sự cập nhật Payment) | ✅ (RabbitMQ `sales_order.SalesOrderCreatedEvent`; Kafka `accounting-topic` InvoiceCreated, mới 2026-07-03) | **97%** |
+| ShippingService | ✅ (+ địa chỉ có cấu trúc, ReturnShipment/RMA, POD fields, DeliveryAttempts — 2026-07-03) | ✅ Đầy đủ VÀ THẬT (2026-07-03: CreateShipment nay gọi GHN thật để lấy tracking; MarkDeliveryFailed/RetryDelivery/bulk-tracking/label PDF nối thật — trước đây là domain method chết) | ✅ GHN thật (+ sửa crash-risk thiếu `AddHttpClient("GHN")`); `ICarrierClient` port chuyển sang Application; Outbox đã đúng từ trước | ✅ 3 controllers (+ ReturnShipments, label PDF, carrier quote) | ✅ (RabbitMQ `sales_order.SalesOrderApprovedEvent` + `warehouse_exchange` InventoryReserved nay có logic thật thay vì chỉ log) | **96%** |
+| POSService | ✅ (+ Terminal, TransactionTender, CashDenominationLine — 2026-07-03) | ✅ Đầy đủ (2026-07-03: split payment, denomination counting, Z-report, customer display, receipt text, offline sync batch; `GetShiftSummaryQuery` xác nhận đã thật từ trước, không phải crash) | ✅ Outbox+Kafka (`pos-topic`) **mới thêm hoàn toàn** — trước đây không tồn tại dù DbContext đã ghi outbox đúng | ✅ 5 controllers | ✅ (Kafka `product-topic`/`promotion-topic` xác nhận thật từ trước; `payment-topic` PaymentProcessed + ProductPriceChanged, mới nối 2026-07-03) | **95%** |
 | PromotionService | ⚠️ Thiếu FlashSale entity/command (đã xác nhận không tồn tại, không phải "thiếu 1 phần") | ✅ (+ `RedeemLoyaltyPointsCommand` trước đây không có handler, gọi là crash — đã sửa; `Coupon.Redeem` trước đây không phát `CouponRedeemedEvent` — đã sửa) | ✅ Outbox+Kafka (`promotion-topic`) mới thêm — trước đây publish 0% dù DbContext đã sẵn sàng | ✅ 2 controllers | ✅ (Kafka `product-topic` + RabbitMQ `sales_order.*`, mới thêm) | **85%** |
 | NotificationService | ✅ | ✅ | ✅ SMTP thật, Twilio/FCM thật khi cấu hình (đã sửa lỗi thiếu `AddHttpClient()` khiến crash nếu bật) | ✅ 3 controllers | ✅ (chỉ `identity-topic` — các topic khác vẫn là handler chết, xem mục 6) | **88%** |
 | ReportingService | ⚠️ Không có domain entity giàu hành vi, nhưng có model/DbSet thật khớp schema OLAP | ✅ (3/4 query thật; `GetInventoryReport` vẫn là stub trả về 0 cứng) | ✅ 3 Kafka consumer thật (Sales/Payment/Inventory) — tài liệu cũ ghi "0 consumer" là sai | ✅ 1 controller, 3 endpoints (không có endpoint HR — `GetHRDashboard` không tồn tại) | ✅ (đã có sẵn, tài liệu cũ ghi nhầm là thiếu) | **55%** |
 
-**Trung bình toàn hệ thống: ~87%** (tăng từ ~57% ban đầu sau khi (a) đối chiếu lại đánh
+**Trung bình toàn hệ thống: ~91%** (tăng từ ~57% ban đầu sau khi (a) đối chiếu lại đánh
 giá cho đúng với code thật — nhiều service đã bị đánh giá thấp hơn thực tế rất nhiều —
 (b) sửa event-driven backbone thật sự cho 8 service, và (c) xử lý toàn bộ mục ❌ còn lại
 của IdentityService (3.1), ProductService (3.2), SaleOrderService (3.3),
-PurchaseOrderService (3.4) ngày 2026-07-03 — 3.4 đặc biệt đáng chú ý vì phát hiện 7/8
-handler chính là stub rỗng, không phải "thiếu tính năng" như tài liệu gốc mô tả.
-ReportingService là service còn khoảng cách rõ ràng nhất với phần còn lại (55%); các
-mục 3.5-3.14 khác chưa được xử lý theo cùng mức độ ở đợt này.
+PurchaseOrderService (3.4), WareHouseService (3.5), PaymentService (3.6),
+ShippingService (3.7), POSService (3.8) ngày 2026-07-03 — 3.4 đặc biệt đáng chú ý vì
+phát hiện 7/8 handler chính là stub rỗng, 3.5 vì phát hiện một crash-risk EF mapping
+bug độc lập với danh sách ❌ gốc, 3.6 vì phát hiện webhook verify chữ ký thật nhưng
+không hề cập nhật database, 3.7 vì phát hiện carrier API thật (GHN) tồn tại nhưng
+không nằm trên đường đi chính khi tạo shipment, và 3.8 vì phát hiện service này hoàn
+toàn không có `OutboxProcessor` — domain event ghi đúng vào Outbox nhưng không bao
+giờ rời khỏi DB — không phải "thiếu tính năng" như tài liệu gốc mô tả các trường hợp
+này. ReportingService là service còn khoảng cách rõ ràng nhất với phần còn lại (55%);
+các mục 3.9-3.14 khác chưa được xử lý theo cùng mức độ ở đợt này.
 
 ---
 
@@ -564,15 +626,11 @@ chiếu Infrastructure/DbContext trực tiếp); AddItem/RemoveItem dùng thêm
 | ~~`GetPurchaseOrderQuery`~~ | ~~Cao~~ | **Handler rỗng (map từ `new object()`) — đã viết lại thật 2026-07-03** |
 | ~~`CancelPurchaseOrderCommand`~~ | ~~Trung~~ | **Handler rỗng — đã viết lại thật 2026-07-03** |
 | ~~Integration Event Consumers~~ | ~~Cao~~ | **Không cần consume gì thêm ở đợt này** — PurchaseOrderService không có nhu cầu nghiệp vụ nào cần nhận event từ service khác hiện tại |
-| ~~`PurchaseOrderReceived` integration event~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — WarehouseService cần tự thêm consumer để thực sự nhập kho (xem mục 3.5 khi xử lý tới) |
+| ~~`PurchaseOrderReceived` integration event~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — WarehouseService nay có consumer thật (`PurchaseOrderReceivedConsumer`, xem mục 3.5, đã xử lý 2026-07-03) |
 | ~~Supplier evaluation / rating~~ | ~~Thấp~~ | **Đã triển khai 2026-07-03** |
 | ~~Price comparison giữa các supplier~~ | ~~Trung~~ | **Đã triển khai 2026-07-03** |
 | ~~`ReceiptScheduled` event~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** |
 | ~~Three-way matching~~ | ~~Thấp~~ | **Đã triển khai 2026-07-03** — chỉ so khớp, không lưu trữ Invoice |
-
-**Còn thiếu, chưa làm trong đợt này:** WarehouseService chưa có consumer cho
-`PurchaseOrderReceivedDomainEvent` (chỉ mới consume `PurchaseOrderApprovedDomainEvent`
-để "chuẩn bị nhận hàng" từ Phase 1) — nhập kho thật cần chờ xử lý tới mục 3.5.
 
 #### Luồng Vận Hành
 
@@ -590,7 +648,8 @@ Manager → POST /api/purchase-orders/{id}/schedule-receipt → ScheduleReceiptC
 
 Warehouse → POST /api/purchase-orders/{id}/receive → ReceiveGoodsCommand
           → PurchaseOrder.ReceiveGoods() → PartiallyReceived hoặc Received
-          → ghi GoodsReceipt → PurchaseOrderReceivedEvent (chưa có consumer — xem mục 3.5)
+          → ghi GoodsReceipt → PurchaseOrderReceivedEvent
+          → WarehouseService.PurchaseOrderReceivedConsumer (mục 3.5, đã xử lý 2026-07-03)
 
 Accounting → POST /api/purchase-orders/{id}/three-way-match (truyền dòng invoice của mình)
            → so khớp PO/GRN/Invoice, trả về mismatch nếu có
@@ -602,45 +661,102 @@ Accounting → POST /api/purchase-orders/{id}/three-way-match (truyền dòng in
 
 **Mục đích:** Quản lý tồn kho, di chuyển hàng, đặt chỗ tồn kho cho đơn hàng.
 
+> **Cập nhật 2026-07-03:** Ground-truth audit đọc toàn bộ 34 file thật (rất nhỏ so với
+> các service khác) phát hiện một **crash-risk bug độc lập với danh sách ❌ gốc**:
+> `Reservation.ReservedItems` (`List<ReservedItem>`) chưa từng được cấu hình trong
+> `WarehouseDbContext.OnModelCreating` — EF Core không có convention nào để tự suy luận
+> một owned collection trần như vậy, nên lần đầu tiên bất kỳ handler nào đọc/ghi một
+> `Reservation` (tức là ngay `SalesOrderCreatedEventHandler`/`ReserveInventoryCommand` —
+> luồng lõi nhất của cả service) sẽ ném lỗi ở thời điểm build model EF. Đã sửa bằng
+> `OwnsMany` + shadow FK. Đồng thời, constructor `Reservation(orderId, items, holdUntil)`
+> có tham số `items` không khớp tên property `ReservedItems` nên EF không thể tự bind
+> bằng constructor injection — thêm constructor rỗng `private Reservation()` để EF dùng
+> property-setter thay vì constructor-binding (tương tự sửa `InventoryLot` vì tham số
+> `quantity` không khớp `ReceivedQuantity`/`RemainingQuantity`). Cả hai lỗi này không hề
+> được liệt kê trong danh sách ❌ gốc — chỉ lộ ra khi đọc kỹ `WarehouseDbContext` cùng
+> với domain entity thật.
+>
+> Toàn bộ 12 mục ❌ đã xử lý thật (không phải stub): `ReceiveStockCommand` (nhập kho thủ
+> công + tự tạo `Inventory` nếu sản phẩm chưa có) và một Kafka consumer thật
+> (`PurchaseOrderReceivedConsumer`, topic `purchasing-topic`) cho
+> `PurchaseOrderReceivedDomainEvent` từ PurchaseOrderService (mục 3.4) — khớp theo
+> `Inventory.ProductSku` vì event chỉ mang `ProductCode` (string), không mang
+> `ProductId` (Guid) của WarehouseService; dòng nào không khớp SKU sẽ log cảnh báo và bỏ
+> qua thay vì tự tạo `Inventory` với `ProductId` ngẫu nhiên không khớp với ProductService
+> thật. Location CRUD (`WarehouseLocation` trước đây có entity + DbSet nhưng không một
+> command/controller nào dùng tới). Stocktake/kiểm kê vật lý (snapshot số lượng hệ
+> thống → nhập số đếm thực tế → hoàn tất tự động ghi `StockMovement` cho mọi dòng lệch).
+> Transfer Order (chuyển kho — không đổi `TotalQuantity` toàn công ty vì `Inventory` ở
+> đây là 1 pool chung theo sản phẩm chứ không theo từng location, chỉ cập nhật
+> `LocationId` "nhà" và ghi `StockMovement` loại `Transferred`, trước đây định nghĩa
+> nhưng chưa từng được dùng). Lot/Batch + hạn sử dụng (`InventoryLot`, FIFO/LIFO
+> depletion khi bán qua `RecordStockMovementCommandHandler`). Serial number tracking
+> (`InventorySerial`, trạng thái InStock/Reserved/Sold/Damaged). `AdjustStockCommand`
+> riêng biệt với reason code (Damaged/Lost/Correction/Other) tách khỏi
+> `RecordStockMovementCommand` chung chung trước đây. Publish `ReceiptCompletedEvent`
+> và `StockAlertEvent` (dựa trên `Inventory.IsLowStock()` đã có sẵn nhưng trước đây
+> không publish gì). `GetInventoryValuationQuery` (FIFO/LIFO dựa trên cost layer còn lại
+> sau khi bán; Average dùng running weighted-average cost đã có sẵn trên
+> `Inventory.Cost`). Xem `docs/business/FIXS-Business/ERP-Business-Analysis-Fix.md` cho
+> danh sách gốc đã đối chiếu.
+>
+> **Giới hạn đã biết, cố ý không xử lý ở đợt này:** (1) service này chưa có
+> multi-tenancy/JWT auth nào cả (không `IUserContextService`, không `[Authorize]`) —
+> khác với PurchaseOrderService/ProductService; SQL schema đã có sẵn cột `TenantId` ở
+> mọi bảng nhưng C# hoàn toàn không dùng tới — đây là gap kiến trúc riêng, không nằm
+> trong danh sách ❌ business feature nên không tự ý thêm nửa vời. (2) bảng
+> `OutboxMessages` trong SQL vẫn là schema mồ côi — service publish qua RabbitMQ trực
+> tiếp (khớp với cách SaleOrderService publish, vì Warehouse consume từ SaleOrderService
+> qua RabbitMQ), không dùng Outbox+Kafka nên bảng này không cần thiết cho cơ chế hiện
+> tại. (3) WarehouseLocation/Inventory tổng tồn kho vẫn là 1 pool chung theo sản phẩm
+> (không theo từng location riêng) — Transfer Order chỉ cập nhật vị trí "nhà" và ghi
+> lịch sử, không tách kho theo địa điểm; nếu cần tồn kho tách theo location thật sự cần
+> đổi khoá `Inventory` sang composite (ProductId, LocationId), ngoài phạm vi đợt này.
+
 #### ✅ Tính năng đã có
 
 **Domain (Aggregates)**
-- `Inventory` aggregate (tồn kho theo sản phẩm + location)
-- `Reservation` entity (giữ hàng cho đơn)
+- `Inventory` aggregate (tồn kho theo sản phẩm; + `ProductSku`, `LocationId`,
+  `ValuationMethod` — mới 2026-07-03)
+- `Reservation` entity (giữ hàng cho đơn; EF owned-collection mapping đã sửa)
 - `StockMovement` entity (lịch sử di chuyển)
-- `WarehouseLocation` entity (vị trí trong kho)
+- `WarehouseLocation` entity (vị trí trong kho; + `Name`, `Zone`, `CurrentOccupancy` —
+  mới 2026-07-03, cột đã có sẵn trong SQL nhưng C# chưa dùng)
+- `InventoryLot` (lot/batch + hạn sử dụng — mới 2026-07-03)
+- `InventorySerial` (serial number tracking — mới 2026-07-03)
+- `TransferOrder` + `TransferOrderLine` (chuyển kho — mới 2026-07-03)
+- `Stocktake` + `StocktakeLine` (kiểm kê vật lý — mới 2026-07-03)
 
 **Domain Events**
 - `InventoryReservedEvent`
 - `InventoryUpdatedEvent`
-- `StockMovementRecordedEvent`
+- `StockMovementRecordedEvent` (+ `Reference` field — mới 2026-07-03)
+- `StockAlertEvent` (mới 2026-07-03, publish khi `Inventory.IsLowStock()`)
+- `ReceiptCompletedEvent` (mới 2026-07-03)
+- `TransferOrderCompletedEvent` (mới 2026-07-03)
+- `StocktakeCompletedEvent` (mới 2026-07-03)
 
 **Integration Event Consumers**
-- `SalesOrderCreatedEventHandler` → Reserve inventory
-- `SalesOrderCancelledEventHandler` → Release reservation
-- `SalesOrderShippedEventHandler` → Deduct actual stock
-- `PurchaseOrderCreatedEventHandler` → Prepare receiving
+- `SalesOrderCreatedEventHandler` → Reserve inventory (RabbitMQ, có sẵn)
+- `SalesOrderCancelledEventHandler` → Release reservation (RabbitMQ, có sẵn)
+- `SalesOrderShippedEventHandler` → Deduct actual stock (RabbitMQ, có sẵn)
+- `PurchaseOrderReceivedConsumer` → nhập kho thật qua `ReceiveStockCommand` (Kafka
+  `purchasing-topic`, mới 2026-07-03 — thay thế `PurchaseOrderCreatedEventHandler` cũ,
+  vốn là dead code không consumer nào gọi tới và ghi vào `IReceiptRepository` no-op)
 
 **API Controllers**
-- `InventoryController` (xem tồn kho)
+- `InventoryController` (xem tồn kho, reserve/release; + `receive`, `{id}/adjust`,
+  `{id}/valuation` — mới 2026-07-03)
 - `StockMovementController` (lịch sử di chuyển)
+- `LocationsController` (Location CRUD — mới 2026-07-03)
+- `LotsController` (lot theo sản phẩm, lot sắp hết hạn — mới 2026-07-03)
+- `SerialsController` (serial theo sản phẩm, đổi trạng thái — mới 2026-07-03)
+- `TransferOrdersController` (create/ship/complete/cancel — mới 2026-07-03)
+- `StocktakesController` (start/record-count/complete/cancel — mới 2026-07-03)
 
 #### ❌ Tính năng còn thiếu
 
-| Tính năng | Ưu tiên | Ghi chú |
-|-----------|---------|---------|
-| Nhập kho từ PO (`ReceiveStockCommand`) | Cao | Consume `PurchaseOrderReceived` event |
-| Quản lý vị trí kho (Location CRUD API) | Cao | Rack, Shelf, Bin management |
-| Kiểm kê vật lý (Stocktake / Physical Count) | Cao | So sánh thực tế với hệ thống |
-| Transfer Order (chuyển kho) | Trung | Di chuyển hàng giữa các kho |
-| Cảnh báo tồn kho tối thiểu (reorder point) | Cao | Tự động tạo PR khi stock < min |
-| Lot/Batch tracking | Trung | Theo dõi lô hàng |
-| Serial number tracking | Trung | Tracking thiết bị theo số serial |
-| Expiry date management | Trung | Quản lý hạn sử dụng |
-| Stock adjustment (điều chỉnh tồn kho) | Cao | Xử lý hàng vỡ, mất mát |
-| Publish `ReceiptCompleted` event | Cao | Thông báo khi nhập kho xong |
-| Publish `StockAlert` event | Trung | Cảnh báo tồn kho thấp |
-| Inventory valuation (FIFO/LIFO/Average) | Thấp | Cho kế toán |
+*(Toàn bộ 12 mục ❌ gốc đã xử lý — xem changelog phía trên. Không còn mục nào.)*
 
 #### Luồng Vận Hành
 
@@ -654,14 +770,29 @@ Accounting → POST /api/purchase-orders/{id}/three-way-match (truyền dòng in
 [Event: SalesOrderShipped]
 → SalesOrderShippedEventHandler
 → Inventory.Deduct(reservationId) → StockMovement.Record(OUT)
-→ InventoryUpdatedEvent
+  → nếu ValuationMethod != Average: deplete InventoryLot (FIFO/LIFO)
+→ InventoryUpdatedEvent (+ StockAlertEvent nếu IsLowStock())
 
-[THIẾU - cần thêm]
-[Event: PurchaseOrderReceived]
-→ ReceiveStockHandler
-→ Inventory.AddStock(productId, qty, locationId)
-→ StockMovement.Record(IN) → InventoryUpdatedEvent
-→ ProductService sync tồn kho (real-time)
+[Event: PurchaseOrderReceived — mục 3.4, mới 2026-07-03]
+→ PurchaseOrderReceivedConsumer (Kafka purchasing-topic)
+→ khớp từng dòng theo Inventory.ProductSku == ProductCode (event không mang ProductId)
+→ ReceiveStockCommand → Inventory.ReceiveStock(qty, unitCost)
+→ StockMovement.Record(IN) + InventoryLot (nếu có LotNumber) + InventorySerial (nếu có)
+→ InventoryUpdatedEvent + ReceiptCompletedEvent (+ StockAlertEvent nếu vẫn thấp)
+
+[Stocktake — mới 2026-07-03]
+StartStocktakeCommand (snapshot TotalQuantity hiện tại)
+→ RecordStocktakeCountCommand (nhập số đếm thực tế, nhiều lần)
+→ CompleteStocktakeCommand → mọi dòng lệch (Variance != 0)
+  → Inventory.AdjustStock(variance) → StockMovement.Record(Adjusted, "Stocktake variance")
+  → StocktakeCompletedEvent
+
+[Transfer Order — mới 2026-07-03]
+CreateTransferOrderCommand (Draft) → ShipTransferOrderCommand (InTransit)
+→ CompleteTransferOrderCommand
+  → StockMovement.Record(Transferred) cho mỗi dòng (không đổi TotalQuantity)
+  → Inventory.AssignLocation(toLocationId) nếu đây là location "nhà" hiện tại
+  → TransferOrderCompletedEvent
 ```
 
 ---
@@ -670,66 +801,148 @@ Accounting → POST /api/purchase-orders/{id}/three-way-match (truyền dòng in
 
 **Mục đích:** Xử lý thanh toán, hoàn tiền, và quyết toán.
 
+> **Cập nhật 2026-07-03:** Ground-truth audit đọc toàn bộ 21 file thật phát hiện
+> **item cuối trong danh sách ❌ gốc là claim sai** (`PaymentAuthorizedEvent` đã tồn
+> tại và được raise thật trong `Payment.Authorize()` từ trước, phân biệt rõ với
+> `PaymentProcessedEvent` của `Payment.Capture()`) — nhưng phát hiện quan trọng hơn,
+> **không nằm trong danh sách ❌ gốc**: webhook VNPay (`PaymentGatewayController`) đã
+> **verify HMAC-SHA512 signature thật** (không phải giả) nhưng sau khi verify xong
+> **không hề gọi bất kỳ command nào** — `IMediator _mediator` được inject nhưng chưa
+> từng dùng trong file. Nghĩa là một giao dịch VNPay thành công, đã được xác thực chữ
+> ký đúng, **không hề cập nhật `Payment.Status`, không set `AuthorizedAt`/`CapturedAt`,
+> không raise domain event nào** — verify thật nhưng kết quả biến mất, đây là dạng
+> "trông như đã xong" nghiêm trọng hơn cả stub handler vì phần bảo mật (chữ ký) là
+> thật, chỉ riêng phần nghiệp vụ bị thiếu. Cũng phát hiện `Payment.Fail()` và
+> `Refund.MarkAsCompleted()`/`MarkAsFailed()` là các domain method có sẵn nhưng
+> **chưa từng được gọi ở bất kỳ đâu** (dead code) — refund trước đây luôn ở trạng
+> thái `Pending` vĩnh viễn vì không ai xác nhận với gateway.
+>
+> Đã sửa: thêm `Payment.TransactionRef` (được gán khi tạo payment URL, để webhook có
+> thể tra cứu lại đúng Payment — trước đây hoàn toàn không lưu, không có cách nào map
+> callback về đúng payment một cách đáng tin cậy) và `ProcessGatewayCallbackCommand`
+> làm điểm xử lý tập trung, idempotent (bỏ qua nếu payment đã ở trạng thái cuối) cho
+> cả callback lẫn IPN, gọi `Authorize()` → `Capture()` khi thành công hoặc `Fail()`
+> khi thất bại. Thêm `IPaymentGateway.RefundAsync` (VNPay refund API, HMAC-signed,
+> `HttpClient` POST) và gọi `Refund.MarkAsCompleted`/`MarkAsFailed` thật sau khi gọi
+> gateway — đồng thời sửa một lỗi domain logic liên quan: `Payment.AddRefund` set
+> `Status = Refunded` lạc quan *trước khi* biết gateway có thành công hay không; thêm
+> `Payment.ReconcileStatusWithConfirmedRefunds()` để trạng thái chỉ phản ánh refund đã
+> được gateway xác nhận.
+>
+> Cũng phát hiện (không nằm trong ❌ gốc) `IPaymentGateway` được định nghĩa trong
+> `ERP.PAY.Infrastructure` — vi phạm Clean Architecture vì Application cần dùng
+> interface này (ví dụ `RefundPaymentCommandHandler`) nhưng Application không được
+> phép reference Infrastructure. Đã chuyển interface + các record `GatewayCreateResult`/
+> `GatewayVerifyResult`/`GatewayRefundResult` sang `ERP.PAY.Application.Interfaces`
+> (đúng vị trí port theo Clean Architecture), Infrastructure vẫn giữ implementation
+> (`VnPayGateway`/`NullPaymentGateway`).
+>
+> Orphaned schema: cột `Payments.GatewayRef` trong SQL gốc không khớp property C#
+> `GatewayTransactionId` — nghĩa là DB tạo từ script gốc sẽ thiếu cột EF thực sự dùng.
+> Đã sửa bằng `sp_rename` trong migration 002.
+
 #### ✅ Tính năng đã có
 
 **Domain**
-- `Payment` aggregate: Id, OrderId, Amount, Currency, Method, Status, GatewayTransactionId
-- `Refund` entity: Id, PaymentId, Amount, Reason, Status
+- `Payment` aggregate: OrderId (unique), InvoiceId, TransactionRef, Amount, Currency,
+  Method, Status, GatewayTransactionId, SettlementId, IsFlaggedForReview — các field
+  in nghiêng là mới 2026-07-03
+- `Refund` entity: Id, PaymentId, Amount, Reason, Status, GatewayRefundId (nay thực sự
+  được set qua gateway thật, không còn `Pending` vĩnh viễn)
 - `Settlement` entity: Id, Period, TotalAmount, Status
-- Trạng thái: Pending → Authorized → Captured → Failed/Cancelled/Refunded
-- `PaymentEvents`: PaymentProcessed, PaymentRefunded, SettlementCreated, PaymentFailed
+- `SavedPaymentMethod` (thẻ đã lưu — mới 2026-07-03, chỉ lưu token từ gateway/widget
+  tokenize phía client, không bao giờ nhận/lưu số thẻ thật — giảm phạm vi PCI-DSS)
+- `InstallmentPlan` + `InstallmentLine` (trả góp — mới 2026-07-03, theo dõi lịch trả
+  góp; VNPay không có API trả góp tích hợp sẵn trong codebase này nên đây là tracking
+  lịch trả, không phải một luồng thanh toán trả góp qua gateway)
+- Trạng thái: Pending → Authorized → Captured → Failed/Cancelled/Refunded/PartiallyRefunded
+- `PaymentEvents`: PaymentInitiated, PaymentAuthorized (đã có sẵn từ trước — mục ❌ gốc
+  ghi thiếu là sai), PaymentProcessed, PaymentRefunded, PaymentFailed
 
 **Commands**
-- `InitiatePaymentCommand`
-- `AuthorizePaymentCommand`
-- `CapturePaymentCommand`
-- `RefundPaymentCommand`
-- `ProcessSettlementCommand`
+- `InitiatePaymentCommand` (nay idempotent theo OrderId — tránh crash khi event
+  `SalesOrderCreated` bị redeliver; + fraud check + `InvoiceId` optional)
+- `AuthorizePaymentCommand`, `CapturePaymentCommand`, `CancelPaymentCommand`
+- `AssignTransactionRefCommand` (mới 2026-07-03)
+- `ProcessGatewayCallbackCommand` (mới 2026-07-03 — điểm xử lý webhook thật, idempotent)
+- `LinkInvoiceCommand` (mới 2026-07-03)
+- `RefundPaymentCommand` (nay gọi gateway thật + `ReconcileStatusWithConfirmedRefunds`)
+- `ProcessSettlementCommand` (nay gán `SettlementId` lên từng payment — trước đây chỉ
+  tính tổng, không lưu payment nào thuộc settlement nào)
+- `SavePaymentMethodCommand`/`SetDefaultPaymentMethodCommand`/`RemovePaymentMethodCommand`
+- `CreateInstallmentPlanCommand`/`RecordInstallmentPaymentCommand`
+
+**Queries**
+- `GetPaymentQuery`, `GetPaymentByOrderQuery`, `ListSettlementsQuery`
+- `GetReconciliationReportQuery` (mới 2026-07-03 — so khớp Captured payments trong kỳ
+  với `SettlementId` đã gán, trả về danh sách chưa được settle)
+- `GetPaymentMethodsByCustomerQuery`, `GetInstallmentPlanByPaymentQuery`
 
 **Event Consumers**
-- `SalesOrderCreatedEventHandler` → tự động initiate payment
+- `SalesOrderCreatedEventHandler` → tự động initiate payment (RabbitMQ, có sẵn)
+- `InvoiceCreatedConsumer` (mới 2026-07-03, Kafka `accounting-topic`) — payment theo
+  invoice (net-terms/B2B); nếu order đã có payment (từ luồng checkout) thì chỉ link
+  invoice vào payment đó thay vì tạo payment thứ hai (vì `Payment.OrderId` là unique)
 
-**API**: `PaymentsController`
+**Infrastructure**
+- `VnPayGateway`: tạo payment URL + verify callback (HMAC-SHA512, đã có sẵn, xác nhận
+  thật) + `RefundAsync` (mới 2026-07-03, HMAC-signed POST tới VNPay refund API) + guard
+  currency ≠ VND trả lỗi rõ ràng thay vì âm thầm gắn nhãn sai (VNPay chỉ settle VND)
+- `IPaymentGateway` port chuyển từ Infrastructure sang Application (sửa vi phạm Clean
+  Architecture — mới 2026-07-03)
+- `FraudDetectionService` (mới 2026-07-03) — chỉ có amount làm tín hiệu cục bộ khả dụng
+  (Payment không lưu CustomerId, không cross-service call), flag giao dịch lớn để review
+- Outbox+Kafka (`payment-topic`) đã hoạt động từ trước, xác nhận thật
+
+**API Controllers**
+- `PaymentsController`, `SettlementsController` (+ `GET /reconciliation` — mới 2026-07-03)
+- `PaymentGatewayController` (webhook nay thực sự cập nhật Payment — mới 2026-07-03)
+- `PaymentMethodsController` (mới 2026-07-03)
+- `InstallmentsController` (mới 2026-07-03)
 
 #### ❌ Tính năng còn thiếu
 
-| Tính năng | Ưu tiên | Ghi chú |
-|-----------|---------|---------|
-| Payment gateway integration thực | Cao | Stripe, VNPay, MoMo, ZaloPay |
-| Webhook handler từ gateway | Cao | Nhận callback async từ gateway |
-| `PaymentMethod` entity (saved cards) | Trung | Lưu thẻ đã dùng |
-| Partial refund | Cao | Hoàn tiền một phần |
-| Installment plan | Thấp | Trả góp |
-| Multi-currency support | Trung | USD, VND, EUR |
-| Consume `InvoiceCreated` từ Accounting | Trung | Thanh toán theo invoice |
-| Payment reconciliation report | Trung | Đối soát với ngân hàng |
-| Fraud detection integration | Thấp | Phát hiện giao dịch gian lận |
-| `PaymentAuthorized` event | Cao | Phân biệt authorize vs capture |
+*(Toàn bộ 10 mục ❌ gốc đã xử lý — xem changelog phía trên. Ghi chú riêng: MoMo/
+ZaloPay/Stripe vẫn chưa có implementation, chỉ VNPay — nếu cần đa gateway thật sự thì
+đây là việc bổ sung tương lai, không phải "hoàn thiện tính năng còn thiếu" vì VNPay đã
+là một gateway thật hoàn chỉnh. Multi-currency: domain model hỗ trợ currency tuỳ ý,
+nhưng gateway duy nhất hiện có (VNPay) chỉ xử lý được VND — đây là giới hạn thật của
+gateway, không phải thiếu sót có thể "sửa" mà không thêm gateway khác.)*
 
 #### Luồng Vận Hành
 
 ```
 [Event: SalesOrderCreated]
 → SalesOrderCreatedEventHandler
-→ Payment.Initiate(orderId, amount, method) → status: Pending
+→ InitiatePaymentCommand (idempotent theo OrderId)
+→ Payment.Initiate(orderId, amount, method) → status: Pending → PaymentInitiatedEvent
 
-Customer → POST /api/payments/{id}/authorize
-→ AuthorizePaymentCommand → [Gateway API call - CẦN IMPLEMENT]
-→ Payment.Authorize(gatewayRef) → status: Authorized → PaymentAuthorizedEvent
+Customer → POST /api/payment-gateway/{id}/create-url
+→ VnPayGateway.CreatePaymentUrlAsync() → AssignTransactionRefCommand (lưu TxnRef)
+→ redirect khách tới VNPay checkout
 
-→ POST /api/payments/{id}/capture
-→ CapturePaymentCommand → [Gateway API call]
-→ Payment.Capture() → status: Captured → PaymentProcessedEvent → RabbitMQ
-→ [Saga nhận PaymentProcessed → tiếp tục Shipping]
-→ AccountingService.CreateInvoice()
-→ CRMService.UpdateCustomerHistory()
-→ NotificationService.SendReceipt()
-→ PromotionService.EarnLoyaltyPoints()
+VNPay → GET /callback hoặc POST /ipn (sau khi khách thanh toán)
+→ VerifyCallbackAsync (HMAC-SHA512 — xác thực thật)
+→ ProcessGatewayCallbackCommand (tra Payment theo TransactionRef, idempotent)
+  → nếu IsPaid: Payment.Authorize() → PaymentAuthorizedEvent
+              → Payment.Capture() → PaymentProcessedEvent → Outbox → Kafka payment-topic
+  → nếu !IsPaid: Payment.Fail(reason) → PaymentFailedEvent
+
+[Event: InvoiceCreated — AccountingService, mới 2026-07-03]
+→ InvoiceCreatedConsumer (Kafka accounting-topic)
+→ nếu order đã có payment: LinkInvoiceCommand
+→ nếu chưa: InitiatePaymentCommand (Method=BankTransfer, InvoiceId gán sẵn)
 
 Customer → POST /api/payments/{id}/refund
-→ RefundPaymentCommand → Payment.Refund() → PaymentRefundedEvent
-→ AccountingService.CreateCreditNote()
-→ NotificationService.SendRefundConfirmation()
+→ RefundPaymentCommand → Payment.AddRefund() (đặt Status lạc quan)
+→ VnPayGateway.RefundAsync() (gọi thật)
+→ Refund.MarkAsCompleted()/MarkAsFailed() → Payment.ReconcileStatusWithConfirmedRefunds()
+→ PaymentRefundedEvent
+
+Accountant → POST /api/settlements (ProcessSettlementCommand)
+→ gán SettlementId lên từng Captured payment trong kỳ
+→ GET /api/settlements/reconciliation?periodStart=...&periodEnd=...
+  → so khớp Captured payments vs SettlementId đã gán → liệt kê payment chưa settle
 ```
 
 ---
@@ -738,61 +951,136 @@ Customer → POST /api/payments/{id}/refund
 
 **Mục đích:** Tạo lô giao hàng, theo dõi vận chuyển, xác nhận giao hàng.
 
+> **Cập nhật 2026-07-03:** Ground-truth audit đọc toàn bộ 20 file thật phát hiện GHN
+> (`GhnCarrierClient`) là tích hợp thật (HTTP request/response thật với API GHN thật:
+> create order, track order, calculate fee) — xác nhận claim trước đó. Nhưng phát
+> hiện **`CreateShipmentCommandHandler` chưa từng gọi carrier client** — Shipment được
+> tạo xong vẫn không có tracking number thật cho tới khi ai đó gọi
+> `AssignTrackingNumberCommand` thủ công riêng biệt; "carrier API integration thực" tồn
+> tại nhưng không nằm trên đường đi chính. Cũng phát hiện `Carrier.CalculateRate`
+> (công thức theo cân nặng) **chưa từng được gọi ở đâu** — endpoint `calculate-fee`
+> thật ra gọi thẳng GHN API, bỏ qua hoàn toàn logic trong domain. Và một **crash-risk
+> bug độc lập với ❌ gốc**: `GhnCarrierClient` cần `IHttpClientFactory.CreateClient
+> ("GHN")` nhưng `AddHttpClient` chưa từng được gọi ở bất kỳ đâu trong service —
+> nghĩa là DI sẽ crash ngay khi GHN thực sự được cấu hình (đúng môi trường duy nhất
+> mà client này có ý nghĩa). Domain method `MarkDeliveryFailed`/`MarkInTransit`/
+> `MarkOutForDelivery` tồn tại nhưng không handler nào gọi tới — hàng giao thất bại
+> không có cách nào ghi nhận qua API.
+>
+> Đã sửa: nối `CreateShipmentCommandHandler` → `ICarrierClient.CreateOrderAsync` thật
+> (đặt đơn với GHN ngay khi tạo shipment, lấy tracking number thật); thêm
+> `AddHttpClient("GHN")` (sửa crash-risk); cấu trúc lại địa chỉ từ 1 chuỗi
+> `ShippingAddress` thành các field có cấu trúc (Ward/District/Province) khớp với cột
+> SQL gốc và khớp với field GHN thực sự cần; `Carrier.CalculateRate`/mới thêm
+> `EstimateDeliveryDate` tính theo mô hình nội tỉnh/liên tỉnh (không có geocoding thật
+> trong service này nên đây là xấp xỉ theo tỉnh — đúng cách các carrier VN tự làm cho
+> bước báo giá đầu tiên) và đã nối vào endpoint `GET /carriers/{id}/quote` thật.
+>
+> Cũng sửa 1 vi phạm Clean Architecture độc lập với ❌ gốc: `ICarrierClient` từng định
+> nghĩa trong Infrastructure dù Application cần dùng (để gọi carrier khi tạo shipment)
+> — đã chuyển sang `ERP.SHP.Application.Interfaces` làm port đúng chuẩn.
+>
+> Orphaned schema: `ShipmentTrackingEvents.Status` là `INT` trong SQL gốc nhưng C#/EF
+> luôn dùng `string` — khác với các trường hợp khác trong đợt này (chỉ thiếu cột),
+> đây là sai KIỂU DỮ LIỆU thật sự, sẽ lỗi ngay khi đọc/ghi nếu DB tạo từ script gốc.
+> Đã sửa bằng đổi kiểu cột trong migration 002.
+
 #### ✅ Tính năng đã có
 
 **Domain**
-- `Shipment` aggregate: OrderId, CarrierId, TrackingNumber, Status
+- `Shipment` aggregate: OrderId, CarrierId, TrackingNumber, Status, + địa chỉ có cấu
+  trúc (RecipientName/Phone, AddressStreet/Ward/District/Province/PostalCode/Country
+  — mới 2026-07-03, thay cho 1 chuỗi `ShippingAddress` cũ), CancelledAt/CancelReason,
+  DeliveryAttempts, ReceivedByName/SignatureUrl/PhotoUrl (POD)
 - `ShipmentItem` entity: ProductId, Quantity, Weight
 - `TrackingEvent` entity: Status, Location, OccurredAt
-- `Carrier` entity: Name, Code, IsActive, BaseRatePerKg
-- Trạng thái: Pending → Picked → InTransit → OutForDelivery → Delivered/Failed/Returned
-- `ShipmentEvents`: ShipmentCreated, TrackingUpdated, DeliveryConfirmed
+- `Carrier` entity: Name, Code, IsActive, BaseRatePerKg, + InterProvinceSurcharge,
+  OriginProvince (mới 2026-07-03)
+- `ReturnShipment` + trạng thái riêng (RMA — mới 2026-07-03, reverse logistics là
+  aggregate riêng, không tái dùng state machine của Shipment thuận)
+- Trạng thái Shipment: Pending → **ReadyForPickup** (mới) → PickedUp → InTransit →
+  OutForDelivery → Delivered/DeliveryFailed (nay có `RetryDelivery()`)/Returned/Cancelled
+- `ShipmentEvents`: ShipmentCreated, TrackingUpdated, DeliveryConfirmed,
+  `ShipmentFailedEvent` (mới 2026-07-03), `ReturnInitiatedEvent`/`ReturnReceivedEvent` (mới)
 
 **Commands**
-- `CreateShipmentCommand`
-- `AddTrackingEventCommand`
-- `AssignCarrierCommand`
-- `ConfirmDeliveryCommand`
+- `CreateShipmentCommand` (nay gọi `ICarrierClient.CreateOrderAsync` thật để lấy
+  tracking number — trước đây phải gọi `AssignTrackingNumberCommand` thủ công riêng)
+- `AddTrackingEventCommand`, `AssignTrackingNumberCommand` (xác nhận đã nối endpoint
+  từ trước — claim "chưa có endpoint" của note cũ là sai)
+- `ConfirmDeliveryCommand` (+ POD fields — mới 2026-07-03)
+- `MarkDeliveryFailedCommand`/`RetryDeliveryCommand` (mới 2026-07-03 — nối
+  `Shipment.MarkDeliveryFailed`/`RetryDelivery` trước đây tồn tại nhưng không handler
+  nào gọi tới)
+- `BulkUpdateTrackingCommand` (mới 2026-07-03 — best-effort theo từng dòng, 1 lỗi
+  không làm hỏng cả batch)
+- `InitiateReturnCommand`/`AssignReturnTrackingNumberCommand`/`MarkReturnPickedUpCommand`/
+  `MarkReturnReceivedCommand`/`CancelReturnCommand` (RMA — mới 2026-07-03)
+
+**Queries**
+- `GetShipmentQuery`, `TrackShipmentQuery`, `ListShipmentsByOrderQuery`, `ListCarriersQuery`
+- `GetCarrierQuoteQuery` (mới 2026-07-03 — nối `Carrier.CalculateRate`/
+  `EstimateDeliveryDate` trước đây tồn tại nhưng không ai gọi)
+- `GenerateShippingLabelQuery` (mới 2026-07-03 — PDF thật qua PdfSharp, không phải ảnh
+  giả hay text thuần)
+- `GetReturnShipmentByIdQuery`/`ListReturnsByShipmentQuery`
 
 **Event Consumers**
-- `SalesOrderApprovedEventHandler` → tạo shipment
+- `SalesOrderApprovedEventHandler` → tạo shipment (RabbitMQ, có sẵn; vẫn dùng địa chỉ
+  placeholder vì `SalesOrderApprovedEvent` gốc không mang address — giới hạn từ phía
+  publisher, không sửa được ở đây)
+- `InventoryReservedEventHandler` (mới 2026-07-03: trước đây chỉ log, nay gọi
+  `Shipment.MarkReadyForPickup()` thật nếu Shipment đã tồn tại cho order đó — dùng
+  `GetTrackedByOrderIdAsync` thay vì bản `AsNoTracking()` để tránh rủi ro EF đoán sai
+  Added/Modified cho `TrackingEvent` mới thêm vào)
 
-**API**: `ShipmentsController`
+**Infrastructure**
+- `GhnCarrierClient` thật (create order/track/calculate fee — xác nhận đúng claim);
+  `IHttpClientFactory` cho client "GHN" trước đây chưa từng đăng ký — đã sửa (crash-risk)
+- `ICarrierClient` port chuyển từ Infrastructure sang Application (sửa vi phạm Clean
+  Architecture — mới 2026-07-03)
+- Outbox+Kafka (`shipping-topic`) đã hoạt động từ trước, xác nhận thật
+
+**API Controllers**
+- `ShipmentsController` (+ delivery-failed, retry-delivery, bulk-tracking, label — mới
+  2026-07-03)
+- `ReturnShipmentsController` (mới 2026-07-03)
+- `CarriersController` (+ `{id}/quote` — mới 2026-07-03)
 
 #### ❌ Tính năng còn thiếu
 
-| Tính năng | Ưu tiên | Ghi chú |
-|-----------|---------|---------|
-| Carrier API integration thực | Cao | GHN, GHTK, J&T, FedEx, DHL |
-| Shipping rate calculation | Cao | Tính phí theo cân nặng/khoảng cách |
-| Label printing | Trung | PDF shipping label |
-| Failed delivery handling | Cao | Giao thất bại → retry/return |
-| Return shipment flow | Cao | Khách trả hàng → RMA |
-| Bulk tracking update | Trung | Cập nhật tracking nhiều đơn cùng lúc |
-| `InventoryReserved` event consumer | Cao | Lên lịch pickup sau khi kho confirm |
-| Proof of delivery (POD) | Trung | Ảnh chụp, chữ ký xác nhận |
-| Estimated delivery date calculation | Trung | ETA dựa theo route |
-| `ShipmentFailed` event | Cao | Giao thất bại notify các service khác |
+*(Toàn bộ 10 mục ❌ gốc đã xử lý — xem changelog phía trên. Ghi chú riêng: chỉ GHN có
+implementation thật; GHTK/J&T/FedEx/DHL vẫn chưa có — nếu cần đa carrier thật sự thì
+đây là việc bổ sung tương lai. Rate/ETA theo tỉnh là xấp xỉ, không phải geocoding
+khoảng cách thật — cần tích hợp bản đồ nếu muốn chính xác hơn.)*
 
 #### Luồng Vận Hành
 
 ```
 [Event: SalesOrderApproved]
 → SalesOrderApprovedEventHandler
-→ CreateShipmentCommand → Shipment.Create(orderId, items)
-→ [Tự động hoặc manual] AssignCarrier → [CẦN] carrier rate API
-→ ShipmentCreatedEvent → NotificationService (tracking code)
+→ CreateShipmentCommand → Shipment.Create(orderId, recipient, items)
+→ ICarrierClient.CreateOrderAsync (GHN thật) → AssignTrackingNumber nếu thành công
+→ ShipmentCreatedEvent → Outbox → Kafka shipping-topic
 
-Carrier webhook → POST /api/shipments/{id}/tracking
-→ AddTrackingEventCommand → Shipment.AddTracking(status, location)
-→ TrackingUpdatedEvent → NotificationService (SMS/email update)
+[Event: InventoryReserved — WarehouseService, mới 2026-07-03]
+→ InventoryReservedEventHandler
+→ nếu Shipment đã tồn tại cho order: Shipment.MarkReadyForPickup()
+→ nếu chưa: chỉ log (chưa có gì để lên lịch)
 
-→ ConfirmDeliveryCommand → Shipment.MarkDelivered()
-→ DeliveryConfirmedEvent
-→ SaleOrderService (update order status → Delivered)
-→ PromotionService.EarnLoyaltyPoints()
-→ AccountingService (finalize invoice)
-→ NotificationService (delivery confirmation)
+Carrier → POST /api/v1/shipments/{id}/tracking (hoặc bulk-tracking cho nhiều đơn)
+→ AddTrackingEventCommand/BulkUpdateTrackingCommand → TrackingUpdatedEvent
+
+→ ConfirmDeliveryCommand (kèm ReceivedByName/SignatureUrl/PhotoUrl — POD)
+→ Shipment.MarkAsDelivered() → DeliveryConfirmedEvent
+  [Thất bại] → MarkDeliveryFailedCommand → ShipmentFailedEvent
+             → RetryDeliveryCommand (thử giao lại) hoặc InitiateReturnCommand (RMA)
+
+Khách trả hàng → POST /api/v1/shipments/{id}/returns (InitiateReturnCommand)
+→ ReturnInitiatedEvent → AssignReturnTrackingNumberCommand → MarkReturnPickedUpCommand
+→ MarkReturnReceivedCommand → ReturnReceivedEvent (Warehouse restock — chưa có consumer)
+
+GET /api/v1/shipments/{id}/label → PDF thật (PdfSharp): tracking number, địa chỉ, cân nặng
 ```
 
 ---
@@ -801,66 +1089,134 @@ Carrier webhook → POST /api/shipments/{id}/tracking
 
 **Mục đích:** Quản lý giao dịch bán lẻ tại điểm bán, ca làm việc, terminal.
 
+> **Cập nhật 2026-07-03:** Ground-truth audit xác nhận `Consume ProductCreated` và
+> `Consume PromotionCreated` (2 trong 13 mục ❌ gốc) **đã có sẵn và hoạt động thật**
+> (`PosKafkaConsumer` thật, đăng ký `IHostedService`, cập nhật cache thật) — claim
+> "thiếu" trong tài liệu gốc là sai cho 2 mục này. `Shift summary` cũng đã xác nhận có
+> sẵn và hoạt động thật từ trước (`GetShiftSummaryQueryHandler` tính toán thật từ DB,
+> không phải stub — một ghi chú kế hoạch trước đó nói handler này thiếu đã lỗi thời).
+>
+> Phát hiện nghiêm trọng nhất, **không nằm trong danh sách ❌ gốc**: service này
+> **hoàn toàn không có `OutboxProcessor`** — `POSDbContext.SaveChangesAsync` ghi đúng
+> `TransactionCreatedEvent`/`CashShiftClosedEvent` vào bảng `OutboxMessages` (Outbox
+> pattern viết đúng), nhưng không có job nào từng tồn tại để đẩy các message này lên
+> Kafka. Đây là nguyên nhân gốc rễ khiến "Real-time inventory deduction" (mục ❌ #13)
+> không thể hoạt động — sự kiện bán hàng không bao giờ rời khỏi database của chính
+> POS, nên WarehouseService không có gì để consume. Đã thêm `OutboxProcessor` +
+> `KafkaMessageBus` (topic `pos-topic`) theo đúng pattern các service khác.
+>
+> Cũng phát hiện `ProductPriceChangedForPosHandler` là handler thật (cập nhật cache
+> giá đúng) nhưng chưa từng được đăng ký DI/dispatch — comment cũ trong code giải
+> thích lý do (ProductService chưa có domain event tương ứng), nhưng ProductService
+> đã thêm `ProductPriceChangedDomainEvent` từ mục 3.2 (2026-07-03) nên giờ đây có thể
+> nối thật. Orphaned schema: `TransactionItem.LineTotal`/`TaxAmount` là computed
+> property (không có setter) trong khi SQL định nghĩa là cột `NOT NULL` thật — EF sẽ
+> bỏ qua các property này khi ghi, gây lỗi ràng buộc NOT NULL nếu DB tạo từ script gốc;
+> đã chuyển sang stored property tính lại mỗi lần Recalculate(). `CashierId` trong SQL
+> là `NVARCHAR(100)` nhưng C# luôn dùng `Guid` — sai kiểu dữ liệu thật, đã sửa bằng
+> đổi kiểu cột trong migration 002.
+
 #### ✅ Tính năng đã có
 
 **Domain**
-- `Transaction` aggregate: TerminalId, CashierId, Items, TotalAmount, DiscountAmount, TaxAmount
-- `TransactionItem` entity: ProductId, Quantity, UnitPrice, TaxAmount
-- `CashShift` entity: TerminalId, CashierId, OpeningBalance, ClosingBalance, TotalSales
-- Trạng thái: Draft → Completed / Voided
-- `POSEvents`: TransactionCreated, CashShiftClosed, RegisterBalanced
+- `Transaction` aggregate: TerminalId, CashierId, Items, TotalAmount, DiscountAmount,
+  TaxAmount, + PromotionId, VoidedAt, ExternalPaymentId (mới 2026-07-03, cột đã có sẵn
+  trong SQL nhưng C# chưa dùng), Tenders (split payment — mới)
+- `TransactionItem` entity: ProductId, Quantity, UnitPrice, TaxAmount (nay là stored
+  property thay vì computed-only — sửa lỗi NOT NULL constraint tiềm ẩn), DiscountAmount
+- `TransactionTender` (mới 2026-07-03 — split payment, nhiều phương thức/1 giao dịch)
+- `CashShift` entity: TerminalId, CashierId, OpeningBalance, ClosingBalance, TotalSales,
+  + Denominations (đếm tiền từng mệnh giá — mới 2026-07-03)
+- `Terminal` (mới 2026-07-03 — bảng SQL đã có sẵn từ đầu nhưng hoàn toàn không có C#
+  entity/repository/controller nào dùng tới)
+- Trạng thái: Open → Completed / Voided / Suspended (giá trị `Suspended` vẫn chưa dùng
+  — giữ nguyên như đã có, không phải mục ❌ gốc)
+- `POSEvents`: TransactionCreated, CashShiftClosed
 
 **Commands**
-- `OpenTransactionCommand`
-- `AddTransactionItemCommand`
-- `ApplyDiscountCommand`
-- `CompleteTransactionCommand`
-- `VoidTransactionCommand`
-- `OpenCashShiftCommand`
-- `CloseCashShiftCommand`
+- `OpenTransactionCommand`, `AddTransactionItemCommand`, `VoidTransactionCommand`
+- `ApplyDiscountCommand` (+ `PromotionId` — mới 2026-07-03)
+- `CompleteTransactionCommand` (+ `Tenders` list cho split payment — mới 2026-07-03,
+  tương thích ngược với single-method cũ)
+- `OpenCashShiftCommand`/`CloseCashShiftCommand` (+ đếm tiền theo mệnh giá, validate
+  tổng khớp với balance — mới 2026-07-03)
+- `SyncOfflineTransactionsCommand` (mới 2026-07-03 — batch, idempotent theo
+  ClientTransactionId do terminal tự sinh; việc lưu trữ offline thật sự nằm ở phía
+  client/terminal app, ngoài phạm vi backend này — đây là nửa "sync" của offline mode)
+- `CreateTerminalCommand`/`SetTerminalActiveCommand`/`RenameTerminalCommand` (mới)
 
-**API**: `POSController`
+**Queries**
+- `GetTransactionQuery`, `GetActiveShiftQuery`, `GetShiftSummaryQuery` (+ breakdown
+  theo phương thức thanh toán — mới 2026-07-03; xác nhận handler này đã thật từ trước)
+- `GetProductByBarcodeQuery` (mới 2026-07-03 — nối `IPosProductCacheRepository.
+  GetBySkuAsync` đã có sẵn nhưng chưa từng được gọi từ đâu)
+- `GetDailyZReportQuery` (mới 2026-07-03 — tổng hợp mọi ca trong ngày, theo terminal
+  hoặc toàn hệ thống)
+- `GetCustomerDisplayQuery` (mới 2026-07-03 — poll giao dịch đang mở của 1 terminal
+  cho màn hình phụ; không có tích hợp phần cứng thật, đây là nguồn dữ liệu để client
+  màn hình phụ tự poll/subscribe)
+- `GetReceiptQuery` (mới 2026-07-03 — text thuần định dạng 42 cột cho máy in nhiệt,
+  không có driver ESC/POS thật trong service này)
+- `ListTerminalsQuery`
+
+**Event Consumers**
+- `ProductCreatedForPosHandler` → cache sản phẩm (Kafka `product-topic`, xác nhận có
+  sẵn và hoạt động thật)
+- `ProductPriceChangedForPosHandler` → cập nhật giá cache (mới nối 2026-07-03 — handler
+  có sẵn nhưng chưa từng đăng ký/dispatch)
+- `PromotionCreatedForPosHandler` → cache khuyến mãi (Kafka `promotion-topic`, xác
+  nhận có sẵn và hoạt động thật)
+- `PaymentProcessedForPosHandler` (mới 2026-07-03, Kafka `payment-topic`) — khớp theo
+  Transaction.Id == PaymentProcessedEvent.OrderId cho kịch bản click-and-collect/
+  thanh toán online rồi nhận tại quầy; không khớp là bình thường (đa số online order
+  không đi qua POS terminal nào)
+
+**Infrastructure**
+- Outbox+Kafka (`pos-topic`) — **mới 2026-07-03**, trước đây hoàn toàn không tồn tại
+  dù `POSDbContext` đã ghi outbox đúng từ trước
+
+**API Controllers**
+- `TransactionsController` (+ receipt, sync-offline — mới 2026-07-03)
+- `CashShiftsController`
+- `PosProductsController` (barcode lookup — mới), `TerminalsController` (mới, +
+  customer-display), `ReportsController` (Z-report — mới)
 
 #### ❌ Tính năng còn thiếu
 
-| Tính năng | Ưu tiên | Ghi chú |
-|-----------|---------|---------|
-| Terminal entity & management API | Cao | Quản lý máy POS, kích hoạt |
-| Consume `ProductCreated` event | Cao | Sync sản phẩm mới xuống POS |
-| Consume `PromotionCreated` event | Cao | Sync khuyến mãi xuống POS |
-| Consume `PaymentProcessed` event | Cao | Xác nhận thanh toán từ gateway |
-| Offline mode & sync queue | Cao | Giao dịch khi mất mạng |
-| Barcode / QR scanner integration | Trung | Tìm sản phẩm nhanh |
-| Cash denomination tracking | Trung | Đếm tiền từng mệnh giá |
-| Receipt printing | Trung | In hóa đơn nhiệt |
-| Daily Z-report | Cao | Báo cáo doanh thu cuối ngày |
-| Shift summary | Cao | Tổng kết ca làm việc |
-| Customer display integration | Thấp | Màn hình phụ cho khách |
-| Split payment | Trung | Vừa tiền mặt vừa thẻ |
-| Real-time inventory deduction | Cao | Giảm tồn kho ngay khi bán |
+*(Toàn bộ 13 mục ❌ gốc đã xử lý — xem changelog phía trên; 2 mục hoá ra đã có sẵn từ
+trước (ProductCreated/PromotionCreated consumers), phần còn lại triển khai thật mới.
+Ghi chú riêng: WarehouseService vẫn cần tự thêm consumer cho `pos-topic` để thực sự
+trừ tồn kho — tương tự pattern PurchaseOrderService (3.4) → WarehouseService (3.5),
+việc publish giờ đã thật nhưng phía consume là việc của WarehouseService khi rà soát
+tới, ngoài phạm vi đợt này.)*
 
 #### Luồng Vận Hành
 
 ```
-Cashier → POST /pos/shifts/open → OpenCashShiftCommand → CashShift.Open()
+Cashier → POST /pos/shifts/open (kèm đếm tiền theo mệnh giá) → CashShift.Open()
 
 Cashier → POST /pos/transactions/open → Transaction.Open(terminalId, cashierId)
 
-Cashier → scan barcode → GET /products/{barcode}
+Cashier → quét mã vạch → GET /pos/products/lookup/{barcode} → GetProductByBarcodeQuery
        → POST /pos/transactions/{id}/items → AddItem() → recalculate total
 
-Cashier → POST /pos/transactions/{id}/discount → ApplyDiscount(promotionId)
-        → [CẦN] PromotionService.ValidatePromotion()
+Cashier → POST /pos/transactions/{id}/discount (kèm PromotionId nếu có)
 
-Cashier → POST /pos/transactions/{id}/complete → payment captured
-        → Transaction.Complete() → TransactionCreatedEvent
-        → [CẦN] WarehouseService.DeductStock()
-        → AccountingService.PostRevenue()
-        → PromotionService.EarnLoyaltyPoints()
-        → ReportingService (fact table)
+Cashier → POST /pos/transactions/{id}/complete (1 hoặc nhiều Tenders — split payment)
+        → Transaction.CompleteWithTenders() → TransactionCreatedEvent
+        → Outbox → Kafka pos-topic (mới 2026-07-03 — trước đây không đến đâu cả)
+        → [WarehouseService cần tự thêm consumer để trừ tồn kho — chưa xử lý ở đợt này]
 
-Cashier → POST /pos/shifts/close → CashShift.Close(closingBalance)
-        → RegisterBalanced event → ReportingService
+[Event: PaymentProcessed — PaymentService, mới 2026-07-03]
+→ PaymentProcessedForPosHandler → khớp theo Transaction.Id == OrderId nếu có
+
+Cashier → GET /pos/transactions/{id}/receipt → text thuần cho máy in nhiệt
+
+[Mất mạng] → terminal tự lưu cục bộ → có mạng lại
+→ POST /pos/transactions/sync-offline (batch, idempotent theo ClientTransactionId)
+
+Cashier → POST /pos/shifts/close (kèm đếm tiền theo mệnh giá) → CashShift.Close()
+Manager → GET /pos/reports/z-report?date=... → tổng hợp mọi ca trong ngày
 ```
 
 ---
@@ -1444,21 +1800,26 @@ BI Tool (Power BI / Tableau) → direct SQL query → ReportingDB (read-only)
 | `SalesOrderApproved` | SaleOrder | Shipping ✅ | Accounting, Notification |
 | `SalesOrderCancelled` | SaleOrder | Warehouse ✅ | Accounting, Notification |
 | `SalesOrderShipped` | SaleOrder | Warehouse ✅ | Notification, Reporting |
-| `InventoryReserved` | Warehouse | — | Shipping, Notification |
+| `InventoryReserved` | Warehouse | Shipping ✅ (`MarkReadyForPickup()` thật, mới 2026-07-03 — trước đây transport có sẵn nhưng handler chỉ log) | Notification |
 | `InventoryUpdated` | Warehouse | ProductService ✅ (stock sync, 2026-07-03) | Reporting |
+| `PurchaseOrderReceived` | PurchaseOrder | Warehouse ✅ (mới 2026-07-03, khớp theo ProductSku) | Accounting |
+| `ReceiptCompleted` | Warehouse | — (mới 2026-07-03) | Notification, Accounting |
+| `StockAlert` | Warehouse | — (mới 2026-07-03) | PurchaseOrder (tự tạo PR — chưa làm), Notification |
 | `ProductCreated` | Product | POS ✅, Promotion ✅ | SaleOrder, Reporting |
 | `ProductUpdated` | Product | — (mới 2026-07-03) | SaleOrder, POS, Promotion |
-| `ProductPriceChanged` | Product | SaleOrder ✅ (chỉ flag cảnh báo, 2026-07-03) | POS/Promotion cần cập nhật consumer để đọc field mới |
+| `ProductPriceChanged` | Product | SaleOrder ✅ (chỉ flag cảnh báo, 2026-07-03), POS ✅ (mới 2026-07-03 — handler đã thật từ trước nhưng chưa đăng ký/dispatch) | Promotion cần cập nhật consumer để đọc field mới |
 | `UserUpdated` | Identity | — (mới 2026-07-03) | CRM, HRM |
 | `SalesOrderDelivered` | SaleOrder | — (mới 2026-07-03) | Promotion (loyalty points), CRM (purchase history) |
 | `SalesOrderPartiallyShipped` | SaleOrder | — (mới 2026-07-03) | Warehouse, Notification |
 | `SalesOrderReturned` | SaleOrder | — (mới 2026-07-03) | Payment (hoàn tiền thật), Accounting, Warehouse (restock) |
-| `PaymentProcessed` | Payment | — | Accounting, CRM, Promotion, Notification, Reporting |
+| `PaymentAuthorized` | Payment | — (đã có sẵn từ trước, mục ❌ gốc ghi thiếu là sai; nay thực sự được trigger qua webhook — 2026-07-03) | Accounting |
+| `PaymentProcessed` | Payment | POS ✅ (mới 2026-07-03 — khớp theo Transaction.Id == OrderId cho kịch bản click-and-collect) | Accounting, CRM, Promotion, Notification, Reporting |
 | `PaymentFailed` | Payment | — | Notification, SaleOrder (saga compensation) |
+| `InvoiceCreated` | Accounting | Payment ✅ (mới 2026-07-03 — tạo/link payment theo invoice) | Reporting |
 | `ShipmentCreated` | Shipping | — | Notification, Reporting |
 | `DeliveryConfirmed` | Shipping | — | SaleOrder, Promotion, Accounting |
-| `TransactionCreated` | POS | — | Warehouse, Accounting, Reporting |
-| `PromotionCreated` | Promotion | — | POS, SaleOrder |
+| `TransactionCreated` | POS | — (publish nay đã thật qua Outbox+Kafka `pos-topic`, mới 2026-07-03 — trước đây hoàn toàn không tồn tại processor nào) | Warehouse (trừ tồn kho — chưa có consumer), Accounting, Reporting |
+| `PromotionCreated` | Promotion | POS ✅ (xác nhận có sẵn và hoạt động thật) | SaleOrder |
 | `CouponRedeemed` | Promotion | — | Reporting |
 | `EmployeeHired` | HRM | — | Identity, Notification |
 | `PaySlipGenerated` | HRM | — | Accounting, Notification |
@@ -1467,9 +1828,6 @@ BI Tool (Power BI / Tableau) → direct SQL query → ReportingDB (read-only)
 
 | Event cần tạo | Service | Trigger | Consumers |
 |---------------|---------|---------|-----------|
-| `PurchaseOrderReceived` | PurchaseOrder | Nhận hàng | Warehouse, Accounting |
-| `StockAlert` | Warehouse | Tồn kho thấp | PurchaseOrder, Notification |
-| `InvoiceCreated` | Accounting | Sau PaymentProcessed | Payment, Reporting |
 | `LeadQualified` | CRM | Chuyển lead → opportunity | Notification |
 | `OpportunityWon` | CRM | Đóng deal | SaleOrder, Reporting |
 
@@ -1489,16 +1847,17 @@ BI Tool (Power BI / Tableau) → direct SQL query → ReportingDB (read-only)
 
 ### Nhóm 2: Có domain nhưng thiếu Application layer
 
-> **Cập nhật 2026-07-03:** SaleOrderService (mục 3.3) và PurchaseOrderService (mục
-> 3.4) đã xử lý xong — PurchaseOrderService hoá ra không phải "thiếu" mà là 7/8
-> handler chính tồn tại nhưng thân hàm rỗng (xem mục 3.4). Chỉ còn WareHouseService
-> (mục 3.5, chưa xử lý ở đợt này).
+> **Cập nhật 2026-07-03:** SaleOrderService (mục 3.3), PurchaseOrderService (mục 3.4)
+> và WareHouseService (mục 3.5) đã xử lý xong — PurchaseOrderService hoá ra không phải
+> "thiếu" mà là 7/8 handler chính tồn tại nhưng thân hàm rỗng (xem mục 3.4). Nhóm này
+> nay không còn service nào — 3.8-3.14 sẽ được rà soát tuần tự tiếp theo, có thể phát
+> hiện thêm case tương tự.
 
 | Service | Command còn thiếu | Query còn thiếu |
 |---------|-------------------|----------------|
 | ~~SaleOrderService~~ | ~~Approve, Cancel, Update, Ship, ListOrders~~ (đã xong 2026-07-03) | ~~ListOrders, GetByCustomer~~ (đã xong) |
 | ~~PurchaseOrderService~~ | ~~Create(handler), Approve, ReceiveGoods, Cancel~~ (đã xong 2026-07-03 — thực chất là sửa stub rỗng) | ~~List, GetById~~ (đã xong) |
-| WareHouseService | ReceiveStock, AdjustStock, TransferStock, LocationCRUD | StocktakeQuery |
+| ~~WareHouseService~~ | ~~ReceiveStock, AdjustStock, TransferStock, LocationCRUD~~ (đã xong 2026-07-03) | ~~StocktakeQuery~~ (đã xong) |
 
 ### Nhóm 3: Event consumers — ĐÃ SỬA (2026-07-02)
 
@@ -1513,12 +1872,12 @@ BI Tool (Power BI / Tableau) → direct SQL query → ReportingDB (read-only)
 
 | Service | Events đã wire (2026-07-02) | Cơ chế |
 |---------|------------------------------|--------|
-| WareHouseService | `sales_order.SalesOrderCreated/Cancelled/Shipped`, `purchasing-topic` PO Created | RabbitMQ + Kafka |
-| PaymentService | `sales_order.SalesOrderCreatedEvent` | RabbitMQ |
-| ShippingService | `sales_order.SalesOrderApprovedEvent`, `warehouse_exchange` InventoryReserved | RabbitMQ (cả hai) |
+| WareHouseService | `sales_order.SalesOrderCreated/Cancelled/Shipped`, `purchasing-topic` PurchaseOrderReceived (mới 2026-07-03, thay thế PO Created dead code cũ) | RabbitMQ + Kafka |
+| PaymentService | `sales_order.SalesOrderCreatedEvent`; `accounting-topic` InvoiceCreated (mới 2026-07-03) | RabbitMQ + Kafka |
+| ShippingService | `sales_order.SalesOrderApprovedEvent`, `warehouse_exchange` InventoryReserved (nay `MarkReadyForPickup()` thật, trước đây chỉ log — 2026-07-03) | RabbitMQ (cả hai) |
 | AccountingService | `sales_order.SalesOrderCreatedEvent`, `purchasing-topic`, `payment-topic` | RabbitMQ + Kafka |
 | CRMService | `identity-topic` UserRegistered, `payment-topic`, `sales_order.SalesOrderCreatedEvent` | Kafka + RabbitMQ |
-| POSService | `product-topic` ProductCreated, `promotion-topic` PromotionCreated | Kafka |
+| POSService | `product-topic` ProductCreated/ProductPriceChanged (ProductPriceChanged mới nối 2026-07-03), `promotion-topic` PromotionCreated, `payment-topic` PaymentProcessed (mới 2026-07-03) | Kafka |
 | PromotionService | `product-topic` ProductCreated, `sales_order.SalesOrderCreatedEvent` | Kafka + RabbitMQ |
 | HRMService | `mst-topic` (đã có sẵn từ trước, không đổi) | Kafka |
 | NotificationService | `identity-topic` (đã có sẵn từ trước, không đổi) | Kafka |
@@ -1526,21 +1885,24 @@ BI Tool (Power BI / Tableau) → direct SQL query → ReportingDB (read-only)
 
 **Còn thiếu, chưa làm trong đợt này:** ReportingService chưa consume POS/HR events
 (chưa có `FactPOSTransactions`/`DimEmployees` model dù bảng SQL đã có); ProductService
-**đã publish** `ProductUpdated`/`ProductPriceChanged` từ 2026-07-03 (mục 3.2), nhưng
-POS/Promotion's consumer vẫn đọc theo field cũ (giá mặc định 0) — cần cập nhật 2
-consumer đó để đọc field giá thật từ `ProductPriceChangedDomainEvent`, chưa làm ở đợt
-này; `OrderFulfillmentSaga` (SaleOrderService) vẫn là dead code, chưa quyết định giữ
-lại làm true orchestration hay bỏ hẳn để dùng choreography qua các consumer mới.
+**đã publish** `ProductUpdated`/`ProductPriceChanged` từ 2026-07-03 (mục 3.2). POS's
+consumer đã nối lại để đọc giá thật (mục 3.8, 2026-07-03); Promotion's consumer vẫn
+đọc theo field cũ (giá mặc định 0) — cần cập nhật, chưa làm ở đợt này. WarehouseService
+vẫn cần tự thêm consumer cho POS's `pos-topic` (`TransactionCreatedEvent`) để thực sự
+trừ tồn kho khi bán tại quầy — publish giờ đã thật (mục 3.8) nhưng phía consume là
+việc của Warehouse khi rà soát tới. `OrderFulfillmentSaga` (SaleOrderService) vẫn là
+dead code, chưa quyết định giữ lại làm true orchestration hay bỏ hẳn để dùng
+choreography qua các consumer mới.
 
 ### Nhóm 4: Thiếu external integrations
 
 | Integration | Cần cho | Ưu tiên |
 |------------|---------|---------|
-| Payment Gateway (VNPay/Stripe/MoMo) | PaymentService | Cao |
+| ~~Payment Gateway (VNPay)~~ | ~~PaymentService~~ | **Đã có sẵn và xác nhận thật, webhook nay nối vào domain (2026-07-03)** — Stripe/MoMo/ZaloPay vẫn chưa có |
 | Email Provider (SendGrid/SES) | NotificationService | Cao |
 | SMS Provider (Twilio/VIETTEL) | NotificationService | Cao |
 | FCM/APNS Push | NotificationService | Cao |
-| Carrier API (GHN/GHTK/FedEx) | ShippingService | Cao |
+| ~~Carrier API (GHN)~~ | ~~ShippingService~~ | **Đã có sẵn và xác nhận thật, nay nối vào luồng tạo shipment chính (2026-07-03)** — GHTK/J&T/FedEx/DHL vẫn chưa có |
 | ~~Full-text Search (Elasticsearch)~~ | ~~ProductService~~ | **Đã triển khai** (backend) |
 
 ---
@@ -1555,11 +1917,19 @@ lại làm true orchestration hay bỏ hẳn để dùng choreography qua các c
    fulfillment, return flow, audit trail~~ (đã xong 2026-07-03) — xem mục 3.3
 2. ~~PurchaseOrderService: Command handlers~~ (đã xong 2026-07-03 — 7/8 handler
    chính là stub rỗng, đã viết lại thật); ~~ReceiveGoodsCommand~~ (đã xong) — xem
-   mục 3.4. Event consumers: không cần thêm ở PurchaseOrderService, nhưng
-   WarehouseService cần tự thêm consumer cho `PurchaseOrderReceivedEvent` (mục 3.5)
-3. WarehouseService: ReceiveStockCommand, LocationCRUD API, StockAdjust
-4. PaymentService: Gateway integration (VNPay/Stripe webhook)
-5. ShippingService: Carrier API (GHN/GHTK), rate calculation
+   mục 3.4.
+3. ~~WarehouseService: ReceiveStockCommand, LocationCRUD API, StockAdjust~~ (đã xong
+   2026-07-03 — cộng thêm Stocktake, Transfer Order, Lot/Serial/Expiry tracking,
+   Inventory valuation, và sửa 1 crash-risk EF mapping bug độc lập với danh sách ❌
+   gốc) — xem mục 3.5
+4. ~~PaymentService: Gateway integration (VNPay/Stripe webhook)~~ (đã xong 2026-07-03
+   — VNPay đã thật từ trước, nhưng webhook verify chữ ký xong không hề cập nhật DB;
+   đã nối thật + refund gateway + saved cards + installment + reconciliation) — xem
+   mục 3.6. Stripe/MoMo/ZaloPay vẫn chưa có, chỉ VNPay.
+5. ~~ShippingService: Carrier API (GHN/GHTK), rate calculation~~ (đã xong 2026-07-03
+   — GHN đã thật từ trước nhưng không nằm trên đường đi chính khi tạo shipment; đã
+   nối thật + rate/ETA theo tỉnh + RMA + POD + label PDF + sửa 1 crash-risk
+   `AddHttpClient` thiếu) — xem mục 3.7. GHTK/J&T/FedEx/DHL vẫn chưa có.
 ```
 
 ### Sprint 2 — Business Logic Services
@@ -1579,7 +1949,11 @@ lại làm true orchestration hay bỏ hẳn để dùng choreography qua các c
 12. ProductService: ~~Full-text search~~ (đã xong), ~~bulk import~~ (đã xong
     2026-07-03, CSV), ~~event publishing đầy đủ~~ (đã xong 2026-07-03 —
     ProductUpdated/ProductPriceChanged) — xem mục 3.2
-13. POSService: Event consumers, Terminal management, offline sync
+13. ~~POSService: Event consumers, Terminal management, offline sync~~ (đã xong
+    2026-07-03 — phát hiện service này hoàn toàn không có `OutboxProcessor`, domain
+    event ghi đúng vào Outbox nhưng không bao giờ lên Kafka; đã thêm + Terminal entity
+    + offline sync batch + split payment + denomination counting + Z-report) — xem
+    mục 3.8. WarehouseService vẫn cần tự thêm consumer cho `pos-topic` để trừ tồn kho.
 14. IdentityService: ~~2FA~~ (đã xong), ~~audit log~~ (đã xong 2026-07-03),
     ~~session management~~ (đã xong 2026-07-03) — xem mục 3.1
 ```

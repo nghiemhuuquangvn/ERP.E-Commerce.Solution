@@ -14,10 +14,23 @@ public class Shipment : AggregateRoot
     public string CarrierName { get; private set; } = string.Empty;
     public string? TrackingNumber { get; private set; }
     public ShipmentStatus Status { get; private set; }
-    public string ShippingAddress { get; private set; } = string.Empty;
+    public string RecipientName { get; private set; } = string.Empty;
+    public string? RecipientPhone { get; private set; }
+    public string AddressStreet { get; private set; } = string.Empty;
+    public string? AddressWard { get; private set; }
+    public string AddressDistrict { get; private set; } = string.Empty;
+    public string AddressProvince { get; private set; } = string.Empty;
+    public string? AddressPostalCode { get; private set; }
+    public string AddressCountry { get; private set; } = "Vietnam";
     public DateTime? EstimatedDelivery { get; private set; }
     public DateTime? PickedUpAt { get; private set; }
     public DateTime? DeliveredAt { get; private set; }
+    public DateTime? CancelledAt { get; private set; }
+    public string? CancelReason { get; private set; }
+    public int DeliveryAttempts { get; private set; }
+    public string? ReceivedByName { get; private set; }
+    public string? SignatureUrl { get; private set; }
+    public string? PhotoUrl { get; private set; }
     public decimal TotalWeight { get; private set; }
     public IReadOnlyCollection<ShipmentItem> Items => _items.AsReadOnly();
     public IReadOnlyCollection<TrackingEvent> TrackingEvents => _trackingEvents.AsReadOnly();
@@ -25,7 +38,7 @@ public class Shipment : AggregateRoot
     private Shipment() { }
 
     public static Shipment Create(Guid orderId, Guid carrierId, string carrierName,
-        string shippingAddress, List<(Guid productId, string name, int qty, decimal weight)> items,
+        ShipmentRecipient recipient, List<(Guid productId, string name, int qty, decimal weight)> items,
         DateTime? estimatedDelivery = null)
     {
         var shipment = new Shipment
@@ -34,7 +47,14 @@ public class Shipment : AggregateRoot
             OrderId = orderId,
             CarrierId = carrierId,
             CarrierName = carrierName,
-            ShippingAddress = shippingAddress,
+            RecipientName = recipient.RecipientName,
+            RecipientPhone = recipient.RecipientPhone,
+            AddressStreet = recipient.AddressStreet,
+            AddressWard = recipient.AddressWard,
+            AddressDistrict = recipient.AddressDistrict,
+            AddressProvince = recipient.AddressProvince,
+            AddressPostalCode = recipient.AddressPostalCode,
+            AddressCountry = string.IsNullOrWhiteSpace(recipient.AddressCountry) ? "Vietnam" : recipient.AddressCountry,
             EstimatedDelivery = estimatedDelivery,
             Status = ShipmentStatus.Pending,
             CreatedAt = DateTime.UtcNow
@@ -54,6 +74,16 @@ public class Shipment : AggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
+    public void MarkReadyForPickup()
+    {
+        if (Status != ShipmentStatus.Pending)
+            return; // already progressed (or arrived out of order) — not an error, just a no-op
+
+        Status = ShipmentStatus.ReadyForPickup;
+        UpdatedAt = DateTime.UtcNow;
+        AddTrackingEvent("ReadyForPickup", "Warehouse", "Inventory reserved — ready for carrier pickup");
+    }
+
     public void AddTrackingEvent(string status, string location, string description)
     {
         var trackingEvent = TrackingEvent.Create(Id, status, location, description);
@@ -65,7 +95,7 @@ public class Shipment : AggregateRoot
 
     public void MarkAsPickedUp()
     {
-        if (Status != ShipmentStatus.Pending)
+        if (Status != ShipmentStatus.Pending && Status != ShipmentStatus.ReadyForPickup)
             throw new InvalidOperationException($"Cannot pick up shipment in {Status} state.");
 
         Status = ShipmentStatus.PickedUp;
@@ -88,13 +118,16 @@ public class Shipment : AggregateRoot
         AddTrackingEvent("OutForDelivery", location, "Package out for delivery");
     }
 
-    public void MarkAsDelivered(string location)
+    public void MarkAsDelivered(string location, string? receivedByName = null, string? signatureUrl = null, string? photoUrl = null)
     {
         if (Status != ShipmentStatus.OutForDelivery && Status != ShipmentStatus.InTransit)
             throw new InvalidOperationException($"Cannot deliver shipment in {Status} state.");
 
         Status = ShipmentStatus.Delivered;
         DeliveredAt = DateTime.UtcNow;
+        ReceivedByName = receivedByName;
+        SignatureUrl = signatureUrl;
+        PhotoUrl = photoUrl;
         UpdatedAt = DateTime.UtcNow;
         AddTrackingEvent("Delivered", location, "Package delivered successfully");
         AddDomainEvent(new DeliveryConfirmedEvent(Id, OrderId, DeliveredAt.Value));
@@ -102,9 +135,24 @@ public class Shipment : AggregateRoot
 
     public void MarkDeliveryFailed(string reason)
     {
+        if (Status is ShipmentStatus.Delivered or ShipmentStatus.Cancelled or ShipmentStatus.Returned)
+            throw new InvalidOperationException($"Cannot fail delivery for a shipment in {Status} state.");
+
         Status = ShipmentStatus.DeliveryFailed;
+        DeliveryAttempts++;
         UpdatedAt = DateTime.UtcNow;
-        AddTrackingEvent("DeliveryFailed", ShippingAddress, $"Delivery attempt failed: {reason}");
+        AddTrackingEvent("DeliveryFailed", $"{AddressDistrict}, {AddressProvince}", $"Delivery attempt failed: {reason}");
+        AddDomainEvent(new ShipmentFailedEvent(Id, OrderId, reason, DeliveryAttempts));
+    }
+
+    public void RetryDelivery()
+    {
+        if (Status != ShipmentStatus.DeliveryFailed)
+            throw new InvalidOperationException($"Cannot retry delivery for a shipment in {Status} state.");
+
+        Status = ShipmentStatus.OutForDelivery;
+        UpdatedAt = DateTime.UtcNow;
+        AddTrackingEvent("OutForDelivery", $"{AddressDistrict}, {AddressProvince}", $"Delivery re-attempt #{DeliveryAttempts + 1}");
     }
 
     public void Cancel(string reason)
@@ -113,6 +161,18 @@ public class Shipment : AggregateRoot
             throw new InvalidOperationException($"Cannot cancel shipment in {Status} state.");
 
         Status = ShipmentStatus.Cancelled;
+        CancelledAt = DateTime.UtcNow;
+        CancelReason = reason;
         UpdatedAt = DateTime.UtcNow;
     }
 }
+
+public record ShipmentRecipient(
+    string RecipientName,
+    string? RecipientPhone,
+    string AddressStreet,
+    string? AddressWard,
+    string AddressDistrict,
+    string AddressProvince,
+    string? AddressPostalCode,
+    string AddressCountry = "Vietnam");

@@ -10,6 +10,8 @@ public class PaymentDbContext : DbContext
 {
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Settlement> Settlements => Set<Settlement>();
+    public DbSet<SavedPaymentMethod> SavedPaymentMethods => Set<SavedPaymentMethod>();
+    public DbSet<InstallmentPlan> InstallmentPlans => Set<InstallmentPlan>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public PaymentDbContext(DbContextOptions<PaymentDbContext> options) : base(options) { }
@@ -22,11 +24,14 @@ public class PaymentDbContext : DbContext
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Amount).HasPrecision(18, 2);
             e.Property(x => x.Currency).IsRequired().HasMaxLength(3);
+            e.Property(x => x.TransactionRef).HasMaxLength(50);
             e.Property(x => x.GatewayTransactionId).HasMaxLength(200);
             e.Property(x => x.GatewayProvider).HasMaxLength(100);
             e.Property(x => x.FailureReason).HasMaxLength(1000);
+            e.Property(x => x.FraudReviewReason).HasMaxLength(500);
             e.HasIndex(x => x.OrderId).IsUnique();
             e.HasIndex(x => x.Status);
+            e.HasIndex(x => x.TransactionRef);
             e.OwnsMany(x => x.Refunds, r =>
             {
                 r.HasKey(x => x.Id);
@@ -34,6 +39,7 @@ public class PaymentDbContext : DbContext
                 r.Property(x => x.Amount).HasPrecision(18, 2);
                 r.Property(x => x.Reason).IsRequired().HasMaxLength(500);
                 r.Property(x => x.GatewayRefundId).HasMaxLength(200);
+                r.Property(x => x.FailureReason).HasMaxLength(500);
                 r.ToTable("PaymentRefunds");
             });
         });
@@ -44,6 +50,33 @@ public class PaymentDbContext : DbContext
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.TotalAmount).HasPrecision(18, 2);
             e.Property(x => x.Notes).HasMaxLength(1000);
+        });
+
+        modelBuilder.Entity<SavedPaymentMethod>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Provider).IsRequired().HasMaxLength(50);
+            e.Property(x => x.Token).IsRequired().HasMaxLength(500);
+            e.Property(x => x.Brand).HasMaxLength(50);
+            e.Property(x => x.Last4).HasMaxLength(4);
+            e.HasIndex(x => x.CustomerId);
+        });
+
+        modelBuilder.Entity<InstallmentPlan>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.TotalAmount).HasPrecision(18, 2);
+            e.HasIndex(x => x.PaymentId).IsUnique();
+            e.OwnsMany(x => x.Installments, i =>
+            {
+                i.WithOwner().HasForeignKey("InstallmentPlanId");
+                i.HasKey(x => x.Id);
+                i.Property(x => x.Id).ValueGeneratedNever();
+                i.Property(x => x.Amount).HasPrecision(18, 2);
+                i.ToTable("InstallmentLines");
+            });
         });
 
         modelBuilder.Entity<OutboxMessage>(e =>

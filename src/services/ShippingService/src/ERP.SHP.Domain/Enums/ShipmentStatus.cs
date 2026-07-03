@@ -9,5 +9,6 @@ public enum ShipmentStatus
     Delivered = 4,
     DeliveryFailed = 5,
     Returned = 6,
-    Cancelled = 7
+    Cancelled = 7,
+    ReadyForPickup = 8
 }

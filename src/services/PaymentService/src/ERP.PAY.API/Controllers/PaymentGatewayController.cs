@@ -1,5 +1,5 @@
 using ERP.PAY.Application.Commands;
-using ERP.PAY.Infrastructure.Gateway;
+using ERP.PAY.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -36,6 +36,11 @@ public class PaymentGatewayController : ControllerBase
         if (!result.Success)
             return BadRequest(new { error = result.Error });
 
+        // Persist the reference VNPay will echo back on callback/IPN — previously
+        // nothing stored this, so the webhook had no reliable way to identify which
+        // Payment a callback belonged to.
+        await _mediator.Send(new AssignTransactionRefCommand { PaymentId = paymentId, TransactionRef = result.TransactionRef }, ct);
+
         return Ok(new { paymentUrl = result.PaymentUrl, transactionRef = result.TransactionRef });
     }
 
@@ -56,17 +61,24 @@ public class PaymentGatewayController : ControllerBase
             return BadRequest("Invalid payment signature");
         }
 
+        var payment = await _mediator.Send(new ProcessGatewayCallbackCommand
+        {
+            TransactionRef = verify.TransactionRef,
+            IsPaid = verify.IsPaid,
+            GatewayTransactionId = verify.GatewayTransactionId,
+            GatewayProvider = "VNPay",
+            FailureReason = verify.Error
+        }, ct);
+
         if (!verify.IsPaid)
         {
             _logger.LogWarning("[VNPay] Payment not completed: {Error}", verify.Error);
             return Ok(new { status = "failed", message = verify.Error });
         }
 
-        // txnRef is first 16 chars of paymentId (N format)
-        var txnRef = verify.TransactionRef;
-        _logger.LogInformation("[VNPay] Payment callback success: TxnRef={TxnRef} GatewayId={GId}", txnRef, verify.GatewayTransactionId);
+        _logger.LogInformation("[VNPay] Payment callback success: TxnRef={TxnRef} GatewayId={GId}", verify.TransactionRef, verify.GatewayTransactionId);
 
-        return Ok(new { status = "success", transactionRef = txnRef, gatewayTransactionId = verify.GatewayTransactionId });
+        return Ok(new { status = "success", transactionRef = verify.TransactionRef, gatewayTransactionId = verify.GatewayTransactionId, paymentStatus = payment.Status });
     }
 
     /// <summary>
@@ -78,12 +90,28 @@ public class PaymentGatewayController : ControllerBase
         var queryParams = Request.Query.ToDictionary(q => q.Key, q => q.Value.ToString());
         var verify = await _gateway.VerifyCallbackAsync(queryParams);
 
-        if (!verify.Success || !verify.IsPaid)
-            return Ok(new { RspCode = "97", Message = "Checksum failed or payment not successful" });
+        if (!verify.Success)
+            return Ok(new { RspCode = "97", Message = "Checksum failed" });
+
+        try
+        {
+            await _mediator.Send(new ProcessGatewayCallbackCommand
+            {
+                TransactionRef = verify.TransactionRef,
+                IsPaid = verify.IsPaid,
+                GatewayTransactionId = verify.GatewayTransactionId,
+                GatewayProvider = "VNPay",
+                FailureReason = verify.Error
+            }, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning("[VNPay] IPN could not be applied: {Error}", ex.Message);
+            return Ok(new { RspCode = "01", Message = "Order not found" });
+        }
 
         _logger.LogInformation("[VNPay] IPN received: TxnRef={TxnRef}", verify.TransactionRef);
 
-        // Respond to VNPay that IPN was processed
         return Ok(new { RspCode = "00", Message = "Confirm Success" });
     }
 }

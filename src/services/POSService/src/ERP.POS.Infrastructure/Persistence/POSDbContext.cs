@@ -11,6 +11,7 @@ public class POSDbContext : DbContext
 {
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<CashShift> CashShifts => Set<CashShift>();
+    public DbSet<Terminal> Terminals => Set<Terminal>();
     public DbSet<PosProductCache> ProductCache => Set<PosProductCache>();
     public DbSet<PosPromotionCache> PromotionCache => Set<PosPromotionCache>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
@@ -37,7 +38,18 @@ public class POSDbContext : DbContext
                 item.Property(i => i.ProductName).IsRequired().HasMaxLength(300);
                 item.Property(i => i.UnitPrice).HasPrecision(18, 2);
                 item.Property(i => i.TaxRate).HasPrecision(5, 2);
+                item.Property(i => i.DiscountAmount).HasPrecision(18, 2);
+                item.Property(i => i.LineTotal).HasPrecision(18, 2);
+                item.Property(i => i.TaxAmount).HasPrecision(18, 2);
                 item.ToTable("TransactionItems");
+            });
+            e.OwnsMany(x => x.Tenders, tender =>
+            {
+                tender.HasKey(t => t.Id);
+                tender.Property(t => t.Id).ValueGeneratedNever();
+                tender.Property(t => t.PaymentMethod).IsRequired().HasMaxLength(50);
+                tender.Property(t => t.Amount).HasPrecision(18, 2);
+                tender.ToTable("TransactionTenders");
             });
         });
 
@@ -50,6 +62,20 @@ public class POSDbContext : DbContext
             e.Property(x => x.TotalSales).HasPrecision(18, 2);
             e.Property(x => x.Notes).HasMaxLength(1000);
             e.HasIndex(x => new { x.TerminalId, x.Status });
+            e.OwnsMany(x => x.Denominations, d =>
+            {
+                d.HasKey(x => x.Id);
+                d.Property(x => x.Id).ValueGeneratedNever();
+                d.Property(x => x.Denomination).HasPrecision(18, 2);
+                d.ToTable("CashDenominationLines");
+            });
+        });
+
+        modelBuilder.Entity<Terminal>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Name).IsRequired().HasMaxLength(100);
         });
 
         modelBuilder.Entity<PosProductCache>(e =>

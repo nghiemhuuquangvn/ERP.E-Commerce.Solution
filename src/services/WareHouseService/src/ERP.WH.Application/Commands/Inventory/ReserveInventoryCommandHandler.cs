@@ -91,6 +91,7 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
 public interface IInventoryRepository
 {
     Task<InventoryEntity> GetByProductIdAsync(Guid productId, CancellationToken cancellationToken);
+    Task<InventoryEntity?> GetByProductSkuAsync(string sku, CancellationToken cancellationToken);
     Task UpdateAsync(InventoryEntity inventory, CancellationToken cancellationToken);
     Task AddAsync(InventoryEntity inventory, CancellationToken cancellationToken);
     Task<List<InventoryEntity>> GetAllAsync(CancellationToken cancellationToken);

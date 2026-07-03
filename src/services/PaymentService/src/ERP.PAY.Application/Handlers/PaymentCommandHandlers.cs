@@ -9,11 +9,30 @@ namespace ERP.PAY.Application.Handlers;
 public class InitiatePaymentCommandHandler : IRequestHandler<InitiatePaymentCommand, PaymentDto>
 {
     private readonly IPaymentRepository _payments;
-    public InitiatePaymentCommandHandler(IPaymentRepository payments) => _payments = payments;
+    private readonly IFraudDetectionService _fraudDetection;
+
+    public InitiatePaymentCommandHandler(IPaymentRepository payments, IFraudDetectionService fraudDetection)
+    {
+        _payments = payments;
+        _fraudDetection = fraudDetection;
+    }
 
     public async Task<PaymentDto> Handle(InitiatePaymentCommand request, CancellationToken cancellationToken)
     {
-        var payment = Payment.Initiate(request.OrderId, request.Amount, request.Method, request.Currency);
+        // Payment.OrderId is unique per payment — a redelivered SalesOrderCreated
+        // event (Kafka/RabbitMQ at-least-once delivery) must not crash on a DB unique
+        // constraint violation, so treat re-initiation for an already-known order as
+        // idempotent instead of attempting a second insert.
+        var existing = await _payments.GetByOrderIdAsync(request.OrderId, cancellationToken);
+        if (existing != null)
+            return MapToDto(existing);
+
+        var payment = Payment.Initiate(request.OrderId, request.Amount, request.Method, request.Currency, request.InvoiceId);
+
+        var fraudCheck = await _fraudDetection.EvaluateAsync(request.OrderId, request.Amount, cancellationToken);
+        if (fraudCheck.IsSuspicious)
+            payment.FlagForReview(fraudCheck.Reason!);
+
         await _payments.AddAsync(payment, cancellationToken);
         return MapToDto(payment);
     }
@@ -22,15 +41,20 @@ public class InitiatePaymentCommandHandler : IRequestHandler<InitiatePaymentComm
     {
         Id = p.Id,
         OrderId = p.OrderId,
+        InvoiceId = p.InvoiceId,
         Amount = p.Amount,
         Currency = p.Currency,
         Method = p.Method.ToString(),
         Status = p.Status.ToString(),
+        TransactionRef = p.TransactionRef,
         GatewayTransactionId = p.GatewayTransactionId,
         GatewayProvider = p.GatewayProvider,
         FailureReason = p.FailureReason,
         AuthorizedAt = p.AuthorizedAt,
         CapturedAt = p.CapturedAt,
+        CancelledAt = p.CancelledAt,
+        IsFlaggedForReview = p.IsFlaggedForReview,
+        FraudReviewReason = p.FraudReviewReason,
         CreatedAt = p.CreatedAt,
         Refunds = p.Refunds.Select(r => new RefundDto
         {
@@ -38,9 +62,74 @@ public class InitiatePaymentCommandHandler : IRequestHandler<InitiatePaymentComm
             Amount = r.Amount,
             Reason = r.Reason,
             Status = r.Status.ToString(),
+            GatewayRefundId = r.GatewayRefundId,
+            FailureReason = r.FailureReason,
             CompletedAt = r.CompletedAt
         }).ToList()
     };
+}
+
+public class AssignTransactionRefCommandHandler : IRequestHandler<AssignTransactionRefCommand, PaymentDto>
+{
+    private readonly IPaymentRepository _payments;
+    public AssignTransactionRefCommandHandler(IPaymentRepository payments) => _payments = payments;
+
+    public async Task<PaymentDto> Handle(AssignTransactionRefCommand request, CancellationToken cancellationToken)
+    {
+        var payment = await _payments.GetByIdAsync(request.PaymentId, cancellationToken)
+            ?? throw new InvalidOperationException($"Payment {request.PaymentId} not found.");
+
+        payment.AssignTransactionRef(request.TransactionRef);
+        await _payments.UpdateAsync(payment, cancellationToken);
+        return InitiatePaymentCommandHandler.MapToDto(payment);
+    }
+}
+
+public class LinkInvoiceCommandHandler : IRequestHandler<LinkInvoiceCommand, PaymentDto>
+{
+    private readonly IPaymentRepository _payments;
+    public LinkInvoiceCommandHandler(IPaymentRepository payments) => _payments = payments;
+
+    public async Task<PaymentDto> Handle(LinkInvoiceCommand request, CancellationToken cancellationToken)
+    {
+        var payment = await _payments.GetByIdAsync(request.PaymentId, cancellationToken)
+            ?? throw new InvalidOperationException($"Payment {request.PaymentId} not found.");
+
+        payment.LinkInvoice(request.InvoiceId);
+        await _payments.UpdateAsync(payment, cancellationToken);
+        return InitiatePaymentCommandHandler.MapToDto(payment);
+    }
+}
+
+public class ProcessGatewayCallbackCommandHandler : IRequestHandler<ProcessGatewayCallbackCommand, PaymentDto>
+{
+    private readonly IPaymentRepository _payments;
+    public ProcessGatewayCallbackCommandHandler(IPaymentRepository payments) => _payments = payments;
+
+    public async Task<PaymentDto> Handle(ProcessGatewayCallbackCommand request, CancellationToken cancellationToken)
+    {
+        var payment = await _payments.GetByTransactionRefAsync(request.TransactionRef, cancellationToken)
+            ?? throw new InvalidOperationException($"No payment found for transaction reference '{request.TransactionRef}'.");
+
+        // Gateways retry callbacks/IPNs — a payment already resolved to a terminal
+        // state must not be re-processed (Authorize/Capture would throw since they
+        // require the Pending/Authorized starting state).
+        if (payment.Status is Domain.Enums.PaymentStatus.Captured or Domain.Enums.PaymentStatus.Failed)
+            return InitiatePaymentCommandHandler.MapToDto(payment);
+
+        if (request.IsPaid)
+        {
+            payment.Authorize(request.GatewayTransactionId ?? string.Empty, request.GatewayProvider ?? "VNPay");
+            payment.Capture();
+        }
+        else
+        {
+            payment.Fail(request.FailureReason ?? "Gateway reported payment failure");
+        }
+
+        await _payments.UpdateAsync(payment, cancellationToken);
+        return InitiatePaymentCommandHandler.MapToDto(payment);
+    }
 }
 
 public class AuthorizePaymentCommandHandler : IRequestHandler<AuthorizePaymentCommand, PaymentDto>
@@ -78,14 +167,40 @@ public class CapturePaymentCommandHandler : IRequestHandler<CapturePaymentComman
 public class RefundPaymentCommandHandler : IRequestHandler<RefundPaymentCommand, PaymentDto>
 {
     private readonly IPaymentRepository _payments;
-    public RefundPaymentCommandHandler(IPaymentRepository payments) => _payments = payments;
+    private readonly IPaymentGateway _gateway;
+
+    public RefundPaymentCommandHandler(IPaymentRepository payments, IPaymentGateway gateway)
+    {
+        _payments = payments;
+        _gateway = gateway;
+    }
 
     public async Task<PaymentDto> Handle(RefundPaymentCommand request, CancellationToken cancellationToken)
     {
         var payment = await _payments.GetByIdAsync(request.PaymentId, cancellationToken)
             ?? throw new InvalidOperationException($"Payment {request.PaymentId} not found.");
 
-        payment.AddRefund(request.Amount, request.Reason);
+        var refund = payment.AddRefund(request.Amount, request.Reason);
+
+        // Previously the refund only ever flipped Payment.Status and the Refund row
+        // stayed Pending forever — Refund.MarkAsCompleted/MarkAsFailed existed but no
+        // call site ever invoked them, and no money was ever actually returned via the
+        // gateway. Now the gateway is genuinely called before the refund is
+        // considered final.
+        var gatewayResult = await _gateway.RefundAsync(
+            payment.GatewayTransactionId ?? string.Empty,
+            payment.TransactionRef ?? payment.Id.ToString("N")[..16].ToUpperInvariant(),
+            request.Amount,
+            request.Reason,
+            cancellationToken);
+
+        if (gatewayResult.Success)
+            refund.MarkAsCompleted(gatewayResult.GatewayRefundId ?? string.Empty);
+        else
+            refund.MarkAsFailed(gatewayResult.Error ?? "Gateway refund failed");
+
+        payment.ReconcileStatusWithConfirmedRefunds();
+
         await _payments.UpdateAsync(payment, cancellationToken);
         return InitiatePaymentCommandHandler.MapToDto(payment);
     }
@@ -135,6 +250,15 @@ public class ProcessSettlementCommandHandler : IRequestHandler<ProcessSettlement
         settlement.Complete();
 
         await _settlements.AddAsync(settlement, cancellationToken);
+
+        // Previously a Settlement was just a sum with no record of which specific
+        // payments it covered, making reconciliation against it impossible beyond
+        // date-range guessing. Linking each included payment closes that gap.
+        foreach (var payment in inPeriod)
+        {
+            payment.AssignSettlement(settlement.Id);
+            await _payments.UpdateAsync(payment, cancellationToken);
+        }
 
         return new SettlementDto
         {

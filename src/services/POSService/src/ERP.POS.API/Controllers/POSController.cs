@@ -63,6 +63,122 @@ public class TransactionsController : ControllerBase
         command.TransactionId = id;
         return Ok(await _mediator.Send(command, ct));
     }
+
+    [HttpGet("{id:guid}/receipt")]
+    public async Task<IActionResult> GetReceipt(Guid id, CancellationToken ct)
+    {
+        var receipt = await _mediator.Send(new GetReceiptQuery { TransactionId = id }, ct);
+        return Content(receipt, "text/plain");
+    }
+
+    [HttpPost("sync-offline")]
+    public async Task<IActionResult> SyncOffline([FromBody] SyncOfflineTransactionsCommand command, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("pos:transactions"))
+            return Forbid();
+
+        return Ok(await _mediator.Send(command, ct));
+    }
+}
+
+[ApiController]
+[Route("api/v1/pos/products")]
+public class PosProductsController : ControllerBase
+{
+    private readonly IMediator _mediator;
+    public PosProductsController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet("lookup/{barcode}")]
+    public async Task<IActionResult> LookupByBarcode(string barcode, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GetProductByBarcodeQuery { Barcode = barcode }, ct);
+        return result == null ? NotFound() : Ok(result);
+    }
+}
+
+[ApiController]
+[Route("api/v1/pos/terminals")]
+public class TerminalsController : ControllerBase
+{
+    private readonly IMediator _mediator;
+    private readonly UserContext _userContext;
+
+    public TerminalsController(IMediator mediator, UserContext userContext)
+    {
+        _mediator = mediator;
+        _userContext = userContext;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> List([FromQuery] bool? isActive, CancellationToken ct) =>
+        Ok(await _mediator.Send(new ListTerminalsQuery { IsActive = isActive }, ct));
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateTerminalCommand command, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("pos:terminals:manage"))
+            return Forbid();
+
+        return Ok(await _mediator.Send(command, ct));
+    }
+
+    [HttpPost("{id:guid}/activate")]
+    public async Task<IActionResult> Activate(Guid id, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("pos:terminals:manage"))
+            return Forbid();
+
+        return Ok(await _mediator.Send(new SetTerminalActiveCommand { TerminalId = id, IsActive = true }, ct));
+    }
+
+    [HttpPost("{id:guid}/deactivate")]
+    public async Task<IActionResult> Deactivate(Guid id, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("pos:terminals:manage"))
+            return Forbid();
+
+        return Ok(await _mediator.Send(new SetTerminalActiveCommand { TerminalId = id, IsActive = false }, ct));
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Rename(Guid id, [FromBody] RenameTerminalCommand command, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("pos:terminals:manage"))
+            return Forbid();
+
+        command.TerminalId = id;
+        return Ok(await _mediator.Send(command, ct));
+    }
+
+    [HttpGet("{id:guid}/customer-display")]
+    public async Task<IActionResult> CustomerDisplay(Guid id, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GetCustomerDisplayQuery { TerminalId = id }, ct);
+        return result == null ? NotFound() : Ok(result);
+    }
+}
+
+[ApiController]
+[Route("api/v1/pos/reports")]
+public class ReportsController : ControllerBase
+{
+    private readonly IMediator _mediator;
+    private readonly UserContext _userContext;
+
+    public ReportsController(IMediator mediator, UserContext userContext)
+    {
+        _mediator = mediator;
+        _userContext = userContext;
+    }
+
+    [HttpGet("z-report")]
+    public async Task<IActionResult> GetDailyZReport([FromQuery] Guid? terminalId, [FromQuery] DateTime date, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("pos:reports:view"))
+            return Forbid();
+
+        return Ok(await _mediator.Send(new GetDailyZReportQuery { TerminalId = terminalId, Date = date }, ct));
+    }
 }
 
 [ApiController]

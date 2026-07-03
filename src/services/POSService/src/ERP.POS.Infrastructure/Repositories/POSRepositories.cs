@@ -19,6 +19,12 @@ public class TransactionRepository : ITransactionRepository
         await _db.Transactions.Include(t => t.Items)
             .Where(t => t.CashShiftId == shiftId).AsNoTracking().ToListAsync(ct);
 
+    public async Task<Transaction?> GetOpenByTerminalAsync(Guid terminalId, CancellationToken ct = default) =>
+        await _db.Transactions.Include(t => t.Items)
+            .Where(t => t.TerminalId == terminalId && t.Status == TransactionStatus.Open)
+            .OrderByDescending(t => t.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
     public async Task AddAsync(Transaction transaction, CancellationToken ct = default)
     {
         await _db.Transactions.AddAsync(transaction, ct);
@@ -43,6 +49,16 @@ public class CashShiftRepository : ICashShiftRepository
     public async Task<CashShift?> GetOpenByTerminalAsync(Guid terminalId, CancellationToken ct = default) =>
         await _db.CashShifts.FirstOrDefaultAsync(s => s.TerminalId == terminalId && s.Status == CashShiftStatus.Open, ct);
 
+    public async Task<List<CashShift>> GetByDateRangeAsync(Guid? terminalId, DateTime start, DateTime end, CancellationToken ct = default)
+    {
+        var query = _db.CashShifts.Where(s => s.OpenedAt >= start && s.OpenedAt <= end);
+
+        if (terminalId.HasValue)
+            query = query.Where(s => s.TerminalId == terminalId.Value);
+
+        return await query.AsNoTracking().ToListAsync(ct);
+    }
+
     public async Task AddAsync(CashShift shift, CancellationToken ct = default)
     {
         await _db.CashShifts.AddAsync(shift, ct);
@@ -52,6 +68,36 @@ public class CashShiftRepository : ICashShiftRepository
     public async Task UpdateAsync(CashShift shift, CancellationToken ct = default)
     {
         _db.CashShifts.Update(shift);
+        await _db.SaveChangesAsync(ct);
+    }
+}
+
+public class TerminalRepository : ITerminalRepository
+{
+    private readonly POSDbContext _db;
+    public TerminalRepository(POSDbContext db) => _db = db;
+
+    public async Task<Terminal?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+        await _db.Terminals.FindAsync(new object[] { id }, ct);
+
+    public async Task<List<Terminal>> GetAllAsync(bool? isActive, CancellationToken ct = default)
+    {
+        var query = _db.Terminals.AsQueryable();
+        if (isActive.HasValue)
+            query = query.Where(t => t.IsActive == isActive.Value);
+
+        return await query.AsNoTracking().ToListAsync(ct);
+    }
+
+    public async Task AddAsync(Terminal terminal, CancellationToken ct = default)
+    {
+        await _db.Terminals.AddAsync(terminal, ct);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateAsync(Terminal terminal, CancellationToken ct = default)
+    {
+        _db.Terminals.Update(terminal);
         await _db.SaveChangesAsync(ct);
     }
 }

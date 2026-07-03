@@ -91,6 +91,39 @@ public class PromotionCreatedForPosHandler
     }
 }
 
+/// <summary>
+/// Handles PaymentProcessed from PaymentService — relevant to POS for click-and-collect
+/// / online-order-paid-in-store scenarios, where a POS Transaction is opened using the
+/// same Id as the originating SalesOrder so this event can correlate back to it. Not
+/// every PaymentProcessed event will match an in-progress POS transaction (most online
+/// orders never touch a POS terminal at all) — a miss is expected and not an error.
+/// </summary>
+public class PaymentProcessedForPosHandler
+{
+    private readonly ILogger<PaymentProcessedForPosHandler> _logger;
+    private readonly ITransactionRepository _transactions;
+
+    public PaymentProcessedForPosHandler(ILogger<PaymentProcessedForPosHandler> logger, ITransactionRepository transactions)
+    {
+        _logger = logger;
+        _transactions = transactions;
+    }
+
+    public async Task HandleAsync(PaymentProcessedIntegrationEvent @event, CancellationToken ct = default)
+    {
+        var transaction = await _transactions.GetByIdAsync(@event.OrderId, ct);
+        if (transaction == null)
+        {
+            _logger.LogInformation("[POS] PaymentProcessed for order {OrderId} has no matching POS transaction — not a POS-originated sale.", @event.OrderId);
+            return;
+        }
+
+        transaction.ConfirmExternalPayment(@event.PaymentId);
+        await _transactions.UpdateAsync(transaction, ct);
+        _logger.LogInformation("[POS] PaymentProcessed confirmed against transaction {TransactionId}", transaction.Id);
+    }
+}
+
 // ── Cache DTOs for POS local sync ──────────────────────────────────────────
 
 public class PosProductCache

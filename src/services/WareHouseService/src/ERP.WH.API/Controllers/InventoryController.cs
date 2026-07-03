@@ -101,4 +101,59 @@ public class InventoryController : ControllerBase
             return NotFound(new { message = ex.Message });
         }
     }
+
+    [HttpPost("receive")]
+    [ProducesResponseType(typeof(ReceiveStockResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ReceiveStockResponse>> ReceiveStock([FromBody] ReceiveStockCommand command)
+    {
+        try
+        {
+            var result = await _mediator.Send(command);
+            return CreatedAtAction(nameof(GetInventory), new { productId = result.ProductId }, result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{productId}/adjust")]
+    [ProducesResponseType(typeof(AdjustStockResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AdjustStockResponse>> AdjustStock(Guid productId, [FromBody] AdjustStockCommand command)
+    {
+        command.ProductId = productId;
+
+        try
+        {
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("{productId}/valuation")]
+    [ProducesResponseType(typeof(GetInventoryValuationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<GetInventoryValuationResponse>> GetValuation(Guid productId)
+    {
+        try
+        {
+            var result = await _mediator.Send(new GetInventoryValuationQuery { ProductId = productId });
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
 }

@@ -31,7 +31,13 @@ public class SalesOrderApprovedIntegrationEventHandler : INotificationHandler<Sa
         {
             OrderId = @event.OrderId,
             CarrierId = defaultCarrierId,
-            ShippingAddress = "(pending address sync)",
+            Recipient = new ShipmentRecipientRequest
+            {
+                RecipientName = "(pending address sync)",
+                AddressStreet = "(pending address sync)",
+                AddressDistrict = "(pending)",
+                AddressProvince = "(pending)"
+            },
             EstimatedDelivery = DateTime.UtcNow.AddDays(5),
             Items = new List<ShipmentItemRequest>()
         }, cancellationToken);

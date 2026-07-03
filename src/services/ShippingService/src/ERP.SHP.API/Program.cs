@@ -26,6 +26,7 @@ builder.Services.AddMediatR(cfg =>
 
 builder.Services.AddScoped<IShipmentRepository, ShipmentRepository>();
 builder.Services.AddScoped<ICarrierRepository, CarrierRepository>();
+builder.Services.AddScoped<IReturnShipmentRepository, ReturnShipmentRepository>();
 
 // Kafka producer + Outbox pattern for publishing integration events (shipping-topic) —
 // ShippingDbContext already harvests domain events into OutboxMessages correctly, it
@@ -57,7 +58,11 @@ builder.Services.AddSingleton<IConnection>(_ =>
 builder.Services.AddHostedService<SalesOrderRabbitMqConsumer>();
 builder.Services.AddHostedService<WarehouseRabbitMqConsumer>();
 
-// Carrier client — GHN when Token configured, else Null stub
+// Carrier client — GHN when Token configured, else Null stub.
+// GhnCarrierClient resolves IHttpClientFactory.CreateClient("GHN") — previously
+// AddHttpClient was never called anywhere in this service, so DI would throw the
+// moment GHN was actually configured (the one environment where this client matters).
+builder.Services.AddHttpClient("GHN");
 if (!string.IsNullOrEmpty(builder.Configuration["Ghn:Token"]))
     builder.Services.AddScoped<ICarrierClient, GhnCarrierClient>();
 else

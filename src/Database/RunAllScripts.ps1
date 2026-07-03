@@ -34,6 +34,7 @@ $DatabaseScripts = @(
     "Purchasing\002_AddOutboxMessages.sql",
     "Purchasing\003_AddReceivingScheduleAndSupplierRatings.sql",
     "Warehouse\001_CreateWarehouseDB.sql",
+    "Warehouse\002_AddLotsSerialsTransfersStocktakes.sql",
     "Accounting\001_CreateAccountingDB.sql",
     "Product\001_CreateProductDB.sql",
     "Product\002_AddProductTranslations.sql",
@@ -45,12 +46,15 @@ $DatabaseScripts = @(
     # Customer-facing services
     "CRM\001_CreateCrmDB.sql",
     "Payment\001_CreatePaymentDB.sql",
+    "Payment\002_AddInvoiceLinkAndSavedMethodsAndInstallments.sql",
     "Shipping\001_CreateShippingDB.sql",
+    "Shipping\002_AddReturnsPodAddressRestructure.sql",
 
     # HR & Retail
     "HRM\001_CreateHrmDB.sql",
     "HRM\002_RemoveEmployeeDepartmentOwnership.sql",
     "POS\001_CreatePosDB.sql",
+    "POS\002_AddTendersDenominationsAndTypeFixes.sql",
 
     # Cross-cutting
     "Promotion\001_CreatePromotionDB.sql",

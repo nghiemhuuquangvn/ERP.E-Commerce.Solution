@@ -19,3 +19,21 @@ public record DeliveryConfirmedEvent(
 {
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
+
+public record ShipmentFailedEvent(
+    Guid ShipmentId, Guid OrderId, string Reason, int DeliveryAttempts) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}
+
+public record ReturnInitiatedEvent(
+    Guid ReturnShipmentId, Guid OriginalShipmentId, Guid OrderId, string Reason) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}
+
+public record ReturnReceivedEvent(
+    Guid ReturnShipmentId, Guid OriginalShipmentId, Guid OrderId) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}

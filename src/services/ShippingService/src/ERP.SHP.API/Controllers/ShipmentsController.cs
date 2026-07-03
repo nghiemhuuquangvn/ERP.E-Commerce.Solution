@@ -1,6 +1,6 @@
 using ERP.SHP.Application.Commands;
+using ERP.SHP.Application.Interfaces;
 using ERP.SHP.Application.Queries;
-using ERP.SHP.Infrastructure.Carriers;
 using ERP.Shared.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -77,6 +77,123 @@ public class ShipmentsController : ControllerBase
         var result = await _mediator.Send(command, ct);
         return Ok(result);
     }
+
+    [HttpPost("{id:guid}/delivery-failed")]
+    public async Task<IActionResult> MarkDeliveryFailed(Guid id, [FromBody] MarkDeliveryFailedCommand command, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("shipping:update"))
+            return Forbid();
+
+        command.ShipmentId = id;
+        var result = await _mediator.Send(command, ct);
+        return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/retry-delivery")]
+    public async Task<IActionResult> RetryDelivery(Guid id, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("shipping:update"))
+            return Forbid();
+
+        var result = await _mediator.Send(new RetryDeliveryCommand { ShipmentId = id }, ct);
+        return Ok(result);
+    }
+
+    [HttpPost("bulk-tracking")]
+    public async Task<IActionResult> BulkUpdateTracking([FromBody] BulkUpdateTrackingCommand command, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("shipping:update"))
+            return Forbid();
+
+        var result = await _mediator.Send(command, ct);
+        return Ok(result);
+    }
+
+    [HttpGet("{id:guid}/label")]
+    public async Task<IActionResult> GetLabel(Guid id, CancellationToken ct)
+    {
+        var pdfBytes = await _mediator.Send(new GenerateShippingLabelQuery { ShipmentId = id }, ct);
+        return File(pdfBytes, "application/pdf", $"shipping-label-{id:N}.pdf");
+    }
+}
+
+[ApiController]
+[Route("api/v1/shipments/{shipmentId:guid}/returns")]
+public class ReturnShipmentsController : ControllerBase
+{
+    private readonly IMediator _mediator;
+    private readonly UserContext _userContext;
+
+    public ReturnShipmentsController(IMediator mediator, UserContext userContext)
+    {
+        _mediator = mediator;
+        _userContext = userContext;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> List(Guid shipmentId, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new ListReturnsByShipmentQuery { OriginalShipmentId = shipmentId }, ct);
+        return Ok(result);
+    }
+
+    [HttpGet("{returnId:guid}")]
+    public async Task<IActionResult> GetById(Guid shipmentId, Guid returnId, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GetReturnShipmentByIdQuery { ReturnShipmentId = returnId }, ct);
+        return result == null ? NotFound() : Ok(result);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Initiate(Guid shipmentId, [FromBody] InitiateReturnCommand command, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("shipping:update"))
+            return Forbid();
+
+        command.OriginalShipmentId = shipmentId;
+
+        try
+        {
+            var result = await _mediator.Send(command, ct);
+            return CreatedAtAction(nameof(GetById), new { shipmentId, returnId = result.Id }, result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("{returnId:guid}/tracking-number")]
+    public async Task<IActionResult> AssignTrackingNumber(Guid shipmentId, Guid returnId, [FromBody] AssignReturnTrackingNumberCommand command, CancellationToken ct)
+    {
+        command.ReturnShipmentId = returnId;
+        var result = await _mediator.Send(command, ct);
+        return Ok(result);
+    }
+
+    [HttpPost("{returnId:guid}/picked-up")]
+    public async Task<IActionResult> MarkPickedUp(Guid shipmentId, Guid returnId, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new MarkReturnPickedUpCommand { ReturnShipmentId = returnId }, ct);
+        return Ok(result);
+    }
+
+    [HttpPost("{returnId:guid}/received")]
+    public async Task<IActionResult> MarkReceived(Guid shipmentId, Guid returnId, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("shipping:update"))
+            return Forbid();
+
+        var result = await _mediator.Send(new MarkReturnReceivedCommand { ReturnShipmentId = returnId }, ct);
+        return Ok(result);
+    }
+
+    [HttpPost("{returnId:guid}/cancel")]
+    public async Task<IActionResult> Cancel(Guid shipmentId, Guid returnId, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new CancelReturnCommand { ReturnShipmentId = returnId }, ct);
+        return Ok(result);
+    }
 }
 
 [ApiController]
@@ -104,5 +221,19 @@ public class CarriersController : ControllerBase
     {
         var fees = await _carrierClient.CalculateFeeAsync(request, ct);
         return Ok(fees);
+    }
+
+    [HttpGet("{id:guid}/quote")]
+    public async Task<IActionResult> GetQuote(Guid id, [FromQuery] decimal weightKg, [FromQuery] string? destinationProvince, CancellationToken ct)
+    {
+        try
+        {
+            var result = await _mediator.Send(new GetCarrierQuoteQuery { CarrierId = id, WeightKg = weightKg, DestinationProvince = destinationProvince }, ct);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
     }
 }

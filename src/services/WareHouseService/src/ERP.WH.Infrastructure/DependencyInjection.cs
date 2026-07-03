@@ -5,7 +5,9 @@ using RabbitMQ.Client;
 using ERP.WH.Infrastructure.Persistence;
 using ERP.WH.Infrastructure.EventBus;
 using ERP.WH.Application.Commands.Inventory;
-using ERP.WH.Application.EventHandlers;
+using ERP.WH.Application.Commands.Locations;
+using ERP.WH.Application.Commands.Transfers;
+using ERP.WH.Application.Commands.Stocktakes;
 
 namespace ERP.WH.Infrastructure;
 
@@ -20,9 +22,12 @@ public static class DependencyInjection
         services.AddScoped<IInventoryRepository, InventoryRepository>();
         services.AddScoped<IReservationRepository, ReservationRepository>();
         services.AddScoped<IStockMovementRepository, StockMovementRepository>();
+        services.AddScoped<IInventoryLotRepository, InventoryLotRepository>();
+        services.AddScoped<IInventorySerialRepository, InventorySerialRepository>();
+        services.AddScoped<ILocationRepository, LocationRepository>();
+        services.AddScoped<ITransferOrderRepository, TransferOrderRepository>();
+        services.AddScoped<IStocktakeRepository, StocktakeRepository>();
         services.AddScoped<IEventPublisher, EventPublisher>();
-
-        services.AddScoped<IReceiptRepository, ReceiptRepository>();
 
         // RabbitMQ connection — previously never registered, so EventPublisher (which
         // requires IConnection) would throw at DI-resolution time the moment any
@@ -49,6 +54,14 @@ public static class DependencyInjection
         // dead code, since nothing ever called IMediator.Publish with these types —
         // actually fire.
         services.AddHostedService<SalesOrderRabbitMqConsumer>();
+
+        // Consumes PurchaseOrderService's "purchasing-topic" (Outbox + Kafka,
+        // Newtonsoft TypeNameHandling.All — dispatch by "$type" substring) so
+        // PurchaseOrderReceivedDomainEvent actually drives a real goods receipt here,
+        // replacing the previous PurchaseOrderCreatedEventHandler dead-code path that
+        // fired (if anything had ever published it, which nothing did) on PO
+        // *creation* rather than actual receipt, and wrote to a no-op stub repository.
+        services.AddHostedService<PurchaseOrderReceivedConsumer>();
 
         return services;
     }

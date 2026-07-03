@@ -10,6 +10,7 @@ public class ShippingDbContext : DbContext
 {
     public DbSet<Shipment> Shipments => Set<Shipment>();
     public DbSet<Carrier> Carriers => Set<Carrier>();
+    public DbSet<ReturnShipment> ReturnShipments => Set<ReturnShipment>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public ShippingDbContext(DbContextOptions<ShippingDbContext> options) : base(options) { }
@@ -20,9 +21,20 @@ public class ShippingDbContext : DbContext
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
-            e.Property(x => x.ShippingAddress).IsRequired().HasMaxLength(500);
             e.Property(x => x.CarrierName).IsRequired().HasMaxLength(200);
             e.Property(x => x.TrackingNumber).HasMaxLength(100);
+            e.Property(x => x.RecipientName).IsRequired().HasMaxLength(200);
+            e.Property(x => x.RecipientPhone).HasMaxLength(50);
+            e.Property(x => x.AddressStreet).IsRequired().HasMaxLength(300);
+            e.Property(x => x.AddressWard).HasMaxLength(100);
+            e.Property(x => x.AddressDistrict).IsRequired().HasMaxLength(100);
+            e.Property(x => x.AddressProvince).IsRequired().HasMaxLength(100);
+            e.Property(x => x.AddressPostalCode).HasMaxLength(20);
+            e.Property(x => x.AddressCountry).IsRequired().HasMaxLength(100);
+            e.Property(x => x.CancelReason).HasMaxLength(500);
+            e.Property(x => x.ReceivedByName).HasMaxLength(200);
+            e.Property(x => x.SignatureUrl).HasMaxLength(1000);
+            e.Property(x => x.PhotoUrl).HasMaxLength(1000);
             e.Property(x => x.TotalWeight).HasPrecision(10, 3);
             e.HasIndex(x => x.OrderId);
             e.HasIndex(x => x.Status);
@@ -52,7 +64,19 @@ public class ShippingDbContext : DbContext
             e.Property(x => x.Name).IsRequired().HasMaxLength(200);
             e.Property(x => x.Code).IsRequired().HasMaxLength(20);
             e.Property(x => x.BaseRatePerKg).HasPrecision(10, 4);
+            e.Property(x => x.InterProvinceSurcharge).HasPrecision(10, 2);
+            e.Property(x => x.OriginProvince).HasMaxLength(100);
             e.HasIndex(x => x.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<ReturnShipment>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Reason).IsRequired().HasMaxLength(500);
+            e.Property(x => x.TrackingNumber).HasMaxLength(100);
+            e.HasIndex(x => x.OriginalShipmentId);
+            e.HasIndex(x => x.OrderId);
         });
 
         modelBuilder.Entity<OutboxMessage>(e =>

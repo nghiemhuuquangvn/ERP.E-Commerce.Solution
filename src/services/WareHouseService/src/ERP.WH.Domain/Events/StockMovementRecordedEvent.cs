@@ -8,6 +8,7 @@ public class StockMovementRecordedEvent
     public string MovementType { get; set; }
     public string FromLocation { get; set; }
     public string ToLocation { get; set; }
+    public string? Reference { get; set; }
     public string Reason { get; set; }
     public Guid? SourceOrderId { get; set; }
     public DateTime RecordedAt { get; set; }

@@ -7,10 +7,12 @@ namespace ERP.POS.Domain.Entities;
 public class Transaction : AggregateRoot
 {
     private readonly List<TransactionItem> _items = new();
+    private readonly List<TransactionTender> _tenders = new();
 
     public Guid TerminalId { get; private set; }
     public Guid CashierId { get; private set; }
     public Guid? CashShiftId { get; private set; }
+    public Guid? PromotionId { get; private set; }
     public decimal SubTotal { get; private set; }
     public decimal DiscountAmount { get; private set; }
     public decimal TaxAmount { get; private set; }
@@ -19,15 +21,18 @@ public class Transaction : AggregateRoot
     public TransactionStatus Status { get; private set; }
     public string? VoidReason { get; private set; }
     public DateTime? CompletedAt { get; private set; }
+    public DateTime? VoidedAt { get; private set; }
+    public Guid? ExternalPaymentId { get; private set; }
     public IReadOnlyCollection<TransactionItem> Items => _items.AsReadOnly();
+    public IReadOnlyCollection<TransactionTender> Tenders => _tenders.AsReadOnly();
 
     private Transaction() { }
 
-    public static Transaction Open(Guid terminalId, Guid cashierId, Guid? cashShiftId = null)
+    public static Transaction Open(Guid terminalId, Guid cashierId, Guid? cashShiftId = null, Guid? id = null)
     {
         return new Transaction
         {
-            Id = Guid.NewGuid(),
+            Id = id ?? Guid.NewGuid(),
             TerminalId = terminalId,
             CashierId = cashierId,
             CashShiftId = cashShiftId,
@@ -63,27 +68,56 @@ public class Transaction : AggregateRoot
         Recalculate();
     }
 
-    public void ApplyDiscount(decimal discountAmount)
+    public void ApplyDiscount(decimal discountAmount, Guid? promotionId = null)
     {
         if (discountAmount > SubTotal)
             throw new InvalidOperationException("Discount cannot exceed subtotal.");
         DiscountAmount = discountAmount;
+        PromotionId = promotionId;
         Recalculate();
     }
 
-    public void Complete(string paymentMethod)
+    /// <summary>
+    /// Single-method completion — kept for backward compatibility with existing
+    /// callers/tests. Delegates to CompleteWithTenders with one tender for the full
+    /// amount so both paths share the same validation and event-raising logic.
+    /// </summary>
+    public void Complete(string paymentMethod) =>
+        CompleteWithTenders(new List<(string method, decimal amount)> { (paymentMethod, TotalAmount) });
+
+    /// <summary>
+    /// Split payment — e.g. part cash, part card. Tenders must sum to exactly
+    /// TotalAmount; PaymentMethod is recorded as "Mixed" when more than one tender is
+    /// used (a single tender keeps its own method name for backward-compatible display).
+    /// </summary>
+    public void CompleteWithTenders(List<(string method, decimal amount)> tenders)
     {
         if (Status != TransactionStatus.Open)
             throw new InvalidOperationException($"Cannot complete transaction in {Status} state.");
         if (!_items.Any())
             throw new InvalidOperationException("Cannot complete empty transaction.");
+        if (tenders == null || tenders.Count == 0)
+            throw new InvalidOperationException("At least one payment tender is required.");
 
-        PaymentMethod = paymentMethod;
+        var tenderTotal = tenders.Sum(t => t.amount);
+        if (tenderTotal != TotalAmount)
+            throw new InvalidOperationException($"Tender total {tenderTotal} does not match transaction total {TotalAmount}.");
+
+        foreach (var (method, amount) in tenders)
+            _tenders.Add(new TransactionTender(Id, method, amount));
+
+        PaymentMethod = tenders.Count > 1 ? "Mixed" : tenders[0].method;
         Status = TransactionStatus.Completed;
         CompletedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        AddDomainEvent(new TransactionCreatedEvent(Id, TerminalId, CashierId, TotalAmount, paymentMethod, CompletedAt.Value));
+        AddDomainEvent(new TransactionCreatedEvent(Id, TerminalId, CashierId, TotalAmount, PaymentMethod, CompletedAt.Value));
+    }
+
+    public void ConfirmExternalPayment(Guid externalPaymentId)
+    {
+        ExternalPaymentId = externalPaymentId;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void Void(string reason)
@@ -93,6 +127,7 @@ public class Transaction : AggregateRoot
 
         Status = TransactionStatus.Voided;
         VoidReason = reason;
+        VoidedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
     }
 

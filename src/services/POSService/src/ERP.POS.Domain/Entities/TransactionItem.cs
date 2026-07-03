@@ -10,15 +10,21 @@ public class TransactionItem : BaseEntity
     public int Quantity { get; private set; }
     public decimal UnitPrice { get; private set; }
     public decimal TaxRate { get; private set; }
-    public decimal LineTotal => UnitPrice * Quantity;
-    public decimal TaxAmount => LineTotal * TaxRate / 100;
+    public decimal DiscountAmount { get; private set; }
+
+    // Stored (not computed-only) — the SQL schema models LineTotal/TaxAmount as real
+    // NOT NULL columns; a pure expression-bodied property is invisible to EF (no
+    // setter), which would omit them from INSERT/UPDATE entirely and violate those
+    // NOT NULL constraints against a DB actually provisioned from that script.
+    public decimal LineTotal { get; private set; }
+    public decimal TaxAmount { get; private set; }
 
     private TransactionItem() { }
 
     public static TransactionItem Create(Guid transactionId, Guid productId, string productName,
         int quantity, decimal unitPrice, decimal taxRate = 0)
     {
-        return new TransactionItem
+        var item = new TransactionItem
         {
             Id = Guid.NewGuid(),
             TransactionId = transactionId,
@@ -29,5 +35,14 @@ public class TransactionItem : BaseEntity
             TaxRate = taxRate,
             CreatedAt = DateTime.UtcNow
         };
+
+        item.Recalculate();
+        return item;
+    }
+
+    private void Recalculate()
+    {
+        LineTotal = UnitPrice * Quantity;
+        TaxAmount = (LineTotal - DiscountAmount) * TaxRate / 100;
     }
 }

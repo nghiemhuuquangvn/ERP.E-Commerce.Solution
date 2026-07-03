@@ -106,4 +106,14 @@ public class SettlementsController : ControllerBase
         var result = await _mediator.Send(command, ct);
         return Ok(result);
     }
+
+    [HttpGet("reconciliation")]
+    public async Task<IActionResult> Reconciliation([FromQuery] DateTime periodStart, [FromQuery] DateTime periodEnd, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("payments:settlements:manage"))
+            return Forbid();
+
+        var result = await _mediator.Send(new GetReconciliationReportQuery { PeriodStart = periodStart, PeriodEnd = periodEnd }, ct);
+        return Ok(result);
+    }
 }

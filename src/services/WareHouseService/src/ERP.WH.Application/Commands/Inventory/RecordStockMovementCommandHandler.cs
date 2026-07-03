@@ -8,15 +8,18 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
 {
     private readonly IInventoryRepository _inventoryRepository;
     private readonly IStockMovementRepository _movementRepository;
+    private readonly IInventoryLotRepository _lotRepository;
     private readonly IEventPublisher _eventPublisher;
 
     public RecordStockMovementCommandHandler(
         IInventoryRepository inventoryRepository,
         IStockMovementRepository movementRepository,
+        IInventoryLotRepository lotRepository,
         IEventPublisher eventPublisher)
     {
         _inventoryRepository = inventoryRepository;
         _movementRepository = movementRepository;
+        _lotRepository = lotRepository;
         _eventPublisher = eventPublisher;
     }
 
@@ -37,6 +40,8 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
                 break;
             case MovementType.Sold:
                 inventory.SellStock(request.Quantity);
+                if (inventory.ValuationMethod != ValuationMethod.Average)
+                    await DepleteLotsAsync(inventory, request.Quantity, cancellationToken);
                 break;
             case MovementType.Adjusted:
                 inventory.AdjustStock(request.Quantity);
@@ -91,6 +96,19 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
 
         await _eventPublisher.PublishAsync(inventoryUpdatedEvent, cancellationToken);
 
+        if (inventory.IsLowStock())
+        {
+            await _eventPublisher.PublishAsync(new StockAlertEvent
+            {
+                ProductId = inventory.ProductId,
+                ProductName = inventory.ProductName,
+                CurrentQuantity = inventory.TotalQuantity,
+                ReorderPoint = inventory.ReorderPoint,
+                ReorderQuantity = inventory.ReorderQuantity,
+                EventCreatedAt = DateTime.UtcNow
+            }, cancellationToken);
+        }
+
         return new RecordStockMovementResponse
         {
             MovementId = movement.MovementId,
@@ -98,6 +116,37 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
             Quantity = request.Quantity,
             RecordedAt = DateTime.UtcNow
         };
+    }
+
+    /// <summary>
+    /// Depletes cost layers so GetInventoryValuationQuery reflects which lots are
+    /// actually still on hand under the product's chosen costing method. Best-effort:
+    /// not all quantity may be lot-tracked (e.g. stock received before lot tracking
+    /// was used), so this depletes whatever lot quantity is available up to the sold
+    /// amount rather than requiring an exact match.
+    /// </summary>
+    private async Task DepleteLotsAsync(Domain.Aggregates.Inventory.Inventory inventory, int quantitySold, CancellationToken cancellationToken)
+    {
+        var lots = await _lotRepository.GetByProductIdAsync(inventory.ProductId, includeDepleted: false, cancellationToken);
+
+        var ordered = inventory.ValuationMethod == ValuationMethod.LIFO
+            ? lots.OrderByDescending(l => l.ReceivedDate).ToList()
+            : lots.OrderBy(l => l.ReceivedDate).ToList();
+
+        var remainingToDeplete = quantitySold;
+        foreach (var lot in ordered)
+        {
+            if (remainingToDeplete <= 0)
+                break;
+
+            var depleteFromLot = Math.Min(lot.RemainingQuantity, remainingToDeplete);
+            if (depleteFromLot <= 0)
+                continue;
+
+            lot.Deplete(depleteFromLot);
+            await _lotRepository.UpdateAsync(lot, cancellationToken);
+            remainingToDeplete -= depleteFromLot;
+        }
     }
 }
 

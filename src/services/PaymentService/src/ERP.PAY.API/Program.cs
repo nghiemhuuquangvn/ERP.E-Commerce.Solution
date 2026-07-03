@@ -1,6 +1,7 @@
 using Confluent.Kafka;
 using ERP.PAY.Application.Handlers;
 using ERP.PAY.Application.Interfaces;
+using ERP.PAY.Application.Services;
 using ERP.PAY.Application.Validators;
 using ERP.PAY.Infrastructure.BackgroundJobs;
 using ERP.PAY.Infrastructure.EventBus;
@@ -30,6 +31,10 @@ builder.Services.AddValidatorsFromAssemblyContaining<InitiatePaymentCommandValid
 
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<ISettlementRepository, SettlementRepository>();
+builder.Services.AddScoped<ISavedPaymentMethodRepository, SavedPaymentMethodRepository>();
+builder.Services.AddScoped<IInstallmentPlanRepository, InstallmentPlanRepository>();
+builder.Services.AddScoped<IFraudDetectionService, FraudDetectionService>();
+builder.Services.AddHttpClient(); // used by VnPayGateway.RefundAsync (server-to-server POST)
 
 // Kafka producer + Outbox — drains PaymentDbContext.OutboxMessages (already populated
 // correctly by PaymentDbContext.SaveChangesAsync) onto the "payment-topic" topic.
@@ -65,6 +70,11 @@ builder.Services.AddSingleton<IConnection>(_ =>
 // SalesOrderCreatedEventHandler.cs) — previously dead code, since nothing ever
 // called IMediator.Publish with this type — actually fires.
 builder.Services.AddHostedService<SalesOrderRabbitMqConsumer>();
+
+// Consumes AccountingService's "accounting-topic" for InvoiceCreatedEvent so
+// invoice-based (net-terms) payments get a Payment record even when no upfront
+// checkout payment was initiated for that order.
+builder.Services.AddHostedService<InvoiceCreatedConsumer>();
 
 // Payment gateway — use VNPay when credentials are configured, fall back to Null stub
 var vnpayConfigured = !string.IsNullOrEmpty(builder.Configuration["VnPay:TmnCode"]);

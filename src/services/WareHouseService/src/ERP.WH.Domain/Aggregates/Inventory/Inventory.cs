@@ -4,6 +4,7 @@ public class Inventory
 {
     public Guid ProductId { get; private set; }
     public string ProductName { get; private set; }
+    public string? ProductSku { get; private set; }
     public int TotalQuantity { get; private set; }
     public int ReservedQuantity { get; private set; }
     public int LockedQuantity { get; private set; }
@@ -11,28 +12,57 @@ public class Inventory
     public int ReorderPoint { get; private set; }
     public int ReorderQuantity { get; private set; }
     public decimal Cost { get; private set; }
+    public Guid? LocationId { get; private set; }
+    public ValuationMethod ValuationMethod { get; private set; }
     public DateTime LastMovementDate { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
-    public Inventory(Guid productId, string productName, int reorderPoint = 100, int reorderQuantity = 500)
+    public Inventory(Guid productId, string productName, int reorderPoint = 100, int reorderQuantity = 500, string? productSku = null)
     {
         ProductId = productId;
         ProductName = productName;
+        ProductSku = productSku;
         TotalQuantity = 0;
         ReservedQuantity = 0;
         LockedQuantity = 0;
         ReorderPoint = reorderPoint;
         ReorderQuantity = reorderQuantity;
         Cost = 0;
+        ValuationMethod = ValuationMethod.FIFO;
         LastMovementDate = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
     }
 
     public void ReceiveStock(int quantity, decimal unitCost)
     {
+        if (unitCost > 0)
+        {
+            Cost = ValuationMethod == ValuationMethod.Average && TotalQuantity + quantity > 0
+                ? ((Cost * TotalQuantity) + (unitCost * quantity)) / (TotalQuantity + quantity)
+                : unitCost;
+        }
+
         TotalQuantity += quantity;
-        Cost = unitCost;
         LastMovementDate = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void AssignLocation(Guid? locationId)
+    {
+        LocationId = locationId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetValuationMethod(ValuationMethod method)
+    {
+        ValuationMethod = method;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetReorderLevels(int reorderPoint, int reorderQuantity)
+    {
+        ReorderPoint = reorderPoint;
+        ReorderQuantity = reorderQuantity;
         UpdatedAt = DateTime.UtcNow;
     }
 

@@ -1,0 +1,173 @@
+using MediatR;
+using ERP.WH.Domain.Aggregates.Inventory;
+using ERP.WH.Domain.Events;
+using InventoryEntity = ERP.WH.Domain.Aggregates.Inventory.Inventory;
+
+namespace ERP.WH.Application.Commands.Inventory;
+
+/// <summary>
+/// Real goods-receipt flow — previously the only receiving path was
+/// PurchaseOrderCreatedEventHandler, which fired on PO *creation* (not actual
+/// receipt) and wrote to a literal no-op IReceiptRepository stub. This command
+/// is invoked directly (manual API receiving) and by the new
+/// PurchaseOrderReceivedConsumer (Infrastructure/EventBus/) once goods actually
+/// arrive against an approved PO.
+/// </summary>
+public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, ReceiveStockResponse>
+{
+    private readonly IInventoryRepository _inventoryRepository;
+    private readonly IStockMovementRepository _movementRepository;
+    private readonly IInventoryLotRepository _lotRepository;
+    private readonly IInventorySerialRepository _serialRepository;
+    private readonly IEventPublisher _eventPublisher;
+
+    public ReceiveStockCommandHandler(
+        IInventoryRepository inventoryRepository,
+        IStockMovementRepository movementRepository,
+        IInventoryLotRepository lotRepository,
+        IInventorySerialRepository serialRepository,
+        IEventPublisher eventPublisher)
+    {
+        _inventoryRepository = inventoryRepository;
+        _movementRepository = movementRepository;
+        _lotRepository = lotRepository;
+        _serialRepository = serialRepository;
+        _eventPublisher = eventPublisher;
+    }
+
+    public async Task<ReceiveStockResponse> Handle(ReceiveStockCommand request, CancellationToken cancellationToken)
+    {
+        if (request.Quantity <= 0)
+            throw new InvalidOperationException("Received quantity must be positive");
+
+        var inventory = await _inventoryRepository.GetByProductIdAsync(request.ProductId, cancellationToken);
+        if (inventory == null)
+        {
+            inventory = new InventoryEntity(
+                request.ProductId,
+                request.ProductName ?? $"Product-{request.ProductId}",
+                productSku: request.ProductSku);
+            await _inventoryRepository.AddAsync(inventory, cancellationToken);
+        }
+
+        var previousQuantity = inventory.TotalQuantity;
+
+        inventory.ReceiveStock(request.Quantity, request.UnitCost);
+
+        if (request.LocationId.HasValue && inventory.LocationId == null)
+            inventory.AssignLocation(request.LocationId);
+
+        await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
+
+        var movement = new StockMovement(
+            request.ProductId,
+            request.Quantity,
+            MovementType.Received,
+            fromLocation: null,
+            toLocation: request.LocationId?.ToString(),
+            reference: request.Reference,
+            reason: null,
+            sourceOrderId: request.PurchaseOrderId);
+
+        await _movementRepository.AddAsync(movement, cancellationToken);
+
+        Guid? lotId = null;
+        if (!string.IsNullOrWhiteSpace(request.LotNumber))
+        {
+            var lot = new InventoryLot(
+                request.ProductId,
+                request.LotNumber,
+                request.Quantity,
+                request.UnitCost,
+                request.ExpiryDate,
+                request.PurchaseOrderId);
+
+            await _lotRepository.AddAsync(lot, cancellationToken);
+            lotId = lot.LotId;
+
+            if (request.SerialNumbers != null)
+            {
+                foreach (var serialNumber in request.SerialNumbers)
+                {
+                    var serial = new InventorySerial(request.ProductId, serialNumber, lotId);
+                    await _serialRepository.AddAsync(serial, cancellationToken);
+                }
+            }
+        }
+
+        await _eventPublisher.PublishAsync(new StockMovementRecordedEvent
+        {
+            MovementId = movement.MovementId,
+            ProductId = request.ProductId,
+            Quantity = request.Quantity,
+            MovementType = nameof(MovementType.Received),
+            FromLocation = movement.FromLocation,
+            ToLocation = movement.ToLocation,
+            Reason = movement.Reason,
+            SourceOrderId = request.PurchaseOrderId,
+            RecordedAt = movement.RecordedAt,
+            EventCreatedAt = DateTime.UtcNow
+        }, cancellationToken);
+
+        await _eventPublisher.PublishAsync(new InventoryUpdatedEvent
+        {
+            ProductId = request.ProductId,
+            PreviousQuantity = previousQuantity,
+            CurrentQuantity = inventory.TotalQuantity,
+            MovementType = nameof(MovementType.Received),
+            ReferenceId = request.PurchaseOrderId,
+            UpdatedAt = DateTime.UtcNow,
+            EventCreatedAt = DateTime.UtcNow
+        }, cancellationToken);
+
+        await _eventPublisher.PublishAsync(new ReceiptCompletedEvent
+        {
+            ProductId = request.ProductId,
+            QuantityReceived = request.Quantity,
+            LotNumber = request.LotNumber,
+            PurchaseOrderId = request.PurchaseOrderId,
+            Reference = request.Reference,
+            ReceivedAt = movement.RecordedAt,
+            EventCreatedAt = DateTime.UtcNow
+        }, cancellationToken);
+
+        if (inventory.IsLowStock())
+        {
+            await _eventPublisher.PublishAsync(new StockAlertEvent
+            {
+                ProductId = inventory.ProductId,
+                ProductName = inventory.ProductName,
+                CurrentQuantity = inventory.TotalQuantity,
+                ReorderPoint = inventory.ReorderPoint,
+                ReorderQuantity = inventory.ReorderQuantity,
+                EventCreatedAt = DateTime.UtcNow
+            }, cancellationToken);
+        }
+
+        return new ReceiveStockResponse
+        {
+            ProductId = inventory.ProductId,
+            TotalQuantity = inventory.TotalQuantity,
+            MovementId = movement.MovementId,
+            LotId = lotId,
+            ReceivedAt = movement.RecordedAt
+        };
+    }
+}
+
+public interface IInventoryLotRepository
+{
+    Task<InventoryLot?> GetByIdAsync(Guid lotId, CancellationToken cancellationToken);
+    Task<List<InventoryLot>> GetByProductIdAsync(Guid productId, bool includeDepleted, CancellationToken cancellationToken);
+    Task<List<InventoryLot>> GetExpiringAsync(DateTime beforeUtc, CancellationToken cancellationToken);
+    Task AddAsync(InventoryLot lot, CancellationToken cancellationToken);
+    Task UpdateAsync(InventoryLot lot, CancellationToken cancellationToken);
+}
+
+public interface IInventorySerialRepository
+{
+    Task<InventorySerial?> GetBySerialNumberAsync(string serialNumber, CancellationToken cancellationToken);
+    Task<List<InventorySerial>> GetByProductIdAsync(Guid productId, SerialStatus? status, CancellationToken cancellationToken);
+    Task AddAsync(InventorySerial serial, CancellationToken cancellationToken);
+    Task UpdateAsync(InventorySerial serial, CancellationToken cancellationToken);
+}

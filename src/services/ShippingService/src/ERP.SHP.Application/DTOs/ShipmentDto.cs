@@ -8,14 +8,40 @@ public class ShipmentDto
     public string CarrierName { get; set; } = string.Empty;
     public string? TrackingNumber { get; set; }
     public string Status { get; set; } = string.Empty;
-    public string ShippingAddress { get; set; } = string.Empty;
+    public string RecipientName { get; set; } = string.Empty;
+    public string? RecipientPhone { get; set; }
+    public string AddressStreet { get; set; } = string.Empty;
+    public string? AddressWard { get; set; }
+    public string AddressDistrict { get; set; } = string.Empty;
+    public string AddressProvince { get; set; } = string.Empty;
+    public string? AddressPostalCode { get; set; }
+    public string AddressCountry { get; set; } = string.Empty;
     public DateTime? EstimatedDelivery { get; set; }
     public DateTime? PickedUpAt { get; set; }
     public DateTime? DeliveredAt { get; set; }
+    public DateTime? CancelledAt { get; set; }
+    public string? CancelReason { get; set; }
+    public int DeliveryAttempts { get; set; }
+    public string? ReceivedByName { get; set; }
+    public string? SignatureUrl { get; set; }
+    public string? PhotoUrl { get; set; }
     public decimal TotalWeight { get; set; }
     public DateTime CreatedAt { get; set; }
     public List<TrackingEventDto> TrackingEvents { get; set; } = new();
     public List<ShipmentItemDto> Items { get; set; } = new();
+}
+
+public class ReturnShipmentDto
+{
+    public Guid Id { get; set; }
+    public Guid OriginalShipmentId { get; set; }
+    public Guid OrderId { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public string? TrackingNumber { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public DateTime? PickedUpAt { get; set; }
+    public DateTime? ReceivedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
 
 public class TrackingEventDto

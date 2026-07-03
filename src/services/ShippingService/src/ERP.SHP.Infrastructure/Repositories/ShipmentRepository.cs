@@ -18,6 +18,10 @@ public class ShipmentRepository : IShipmentRepository
         await _db.Shipments.Include(s => s.Items).Include(s => s.TrackingEvents)
             .Where(s => s.OrderId == orderId).AsNoTracking().ToListAsync(ct);
 
+    public async Task<List<Shipment>> GetTrackedByOrderIdAsync(Guid orderId, CancellationToken ct = default) =>
+        await _db.Shipments.Include(s => s.Items).Include(s => s.TrackingEvents)
+            .Where(s => s.OrderId == orderId).ToListAsync(ct);
+
     public async Task AddAsync(Shipment shipment, CancellationToken ct = default)
     {
         await _db.Shipments.AddAsync(shipment, ct);
@@ -27,6 +31,30 @@ public class ShipmentRepository : IShipmentRepository
     public async Task UpdateAsync(Shipment shipment, CancellationToken ct = default)
     {
         _db.Shipments.Update(shipment);
+        await _db.SaveChangesAsync(ct);
+    }
+}
+
+public class ReturnShipmentRepository : IReturnShipmentRepository
+{
+    private readonly ShippingDbContext _db;
+    public ReturnShipmentRepository(ShippingDbContext db) => _db = db;
+
+    public async Task<ReturnShipment?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+        await _db.ReturnShipments.FirstOrDefaultAsync(r => r.Id == id, ct);
+
+    public async Task<List<ReturnShipment>> GetByOriginalShipmentIdAsync(Guid originalShipmentId, CancellationToken ct = default) =>
+        await _db.ReturnShipments.Where(r => r.OriginalShipmentId == originalShipmentId).AsNoTracking().ToListAsync(ct);
+
+    public async Task AddAsync(ReturnShipment returnShipment, CancellationToken ct = default)
+    {
+        await _db.ReturnShipments.AddAsync(returnShipment, ct);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateAsync(ReturnShipment returnShipment, CancellationToken ct = default)
+    {
+        _db.ReturnShipments.Update(returnShipment);
         await _db.SaveChangesAsync(ct);
     }
 }

@@ -18,6 +18,11 @@ public class InventoryRepository : IInventoryRepository
         return await _context.Inventories.FirstOrDefaultAsync(i => i.ProductId == productId, cancellationToken);
     }
 
+    public async Task<Inventory?> GetByProductSkuAsync(string sku, CancellationToken cancellationToken)
+    {
+        return await _context.Inventories.FirstOrDefaultAsync(i => i.ProductSku == sku, cancellationToken);
+    }
+
     public async Task UpdateAsync(Inventory inventory, CancellationToken cancellationToken)
     {
         _context.Inventories.Update(inventory);

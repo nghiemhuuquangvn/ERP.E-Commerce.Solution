@@ -14,3 +14,9 @@ public class GetPaymentByOrderQuery : IRequest<PaymentDto?>
 }
 
 public class ListSettlementsQuery : IRequest<List<SettlementDto>> { }
+
+public class GetReconciliationReportQuery : IRequest<ReconciliationReportDto>
+{
+    public DateTime PeriodStart { get; set; }
+    public DateTime PeriodEnd { get; set; }
+}

@@ -1,3 +1,4 @@
+using ERP.SHP.Application.Interfaces;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -5,12 +6,13 @@ namespace ERP.SHP.Application.EventHandlers;
 
 /// <summary>
 /// Integration event consumed from WarehouseService's "warehouse_exchange" (RabbitMQ).
-/// This is the previously-missing "InventoryReserved event consumer" gap. A Shipment
-/// for the order may not exist yet at this point (it's created separately, in
-/// reaction to SalesOrderApprovedEvent, which can arrive before or after this one) —
-/// so this only logs receipt for correlation rather than inventing new Shipment
-/// state-machine behavior; wiring inventory-confirmed status onto Shipment is a
-/// follow-up once both events' arrival order is handled deliberately.
+/// This was previously a log-only no-op — the "schedule pickup" business meaning of
+/// InventoryReserved never actually touched a Shipment. A Shipment for the order may
+/// not exist yet at this point (it's created separately, in reaction to
+/// SalesOrderApprovedEvent, which can arrive before or after this one): if it doesn't
+/// exist yet, there's genuinely nothing to schedule a pickup for, so this still just
+/// logs in that case; if it does exist and is still Pending, it's transitioned to
+/// ReadyForPickup so the carrier pickup step has a real, queryable trigger.
 /// </summary>
 public class InventoryReservedIntegrationEvent : INotification
 {
@@ -20,19 +22,30 @@ public class InventoryReservedIntegrationEvent : INotification
 
 public class InventoryReservedEventHandler : INotificationHandler<InventoryReservedIntegrationEvent>
 {
+    private readonly IShipmentRepository _shipments;
     private readonly ILogger<InventoryReservedEventHandler> _logger;
 
-    public InventoryReservedEventHandler(ILogger<InventoryReservedEventHandler> logger)
+    public InventoryReservedEventHandler(IShipmentRepository shipments, ILogger<InventoryReservedEventHandler> logger)
     {
+        _shipments = shipments;
         _logger = logger;
     }
 
-    public Task Handle(InventoryReservedIntegrationEvent @event, CancellationToken cancellationToken)
+    public async Task Handle(InventoryReservedIntegrationEvent @event, CancellationToken cancellationToken)
     {
-        _logger.LogInformation(
-            "Inventory reserved for order {OrderId} (reservation {ReservationId}) — ready to ship once ready.",
-            @event.OrderId, @event.ReservationId);
+        var shipments = await _shipments.GetTrackedByOrderIdAsync(@event.OrderId, cancellationToken);
+        if (shipments.Count == 0)
+        {
+            _logger.LogInformation(
+                "Inventory reserved for order {OrderId} (reservation {ReservationId}) but no Shipment exists yet — nothing to schedule.",
+                @event.OrderId, @event.ReservationId);
+            return;
+        }
 
-        return Task.CompletedTask;
+        foreach (var shipment in shipments)
+        {
+            shipment.MarkReadyForPickup();
+            await _shipments.UpdateAsync(shipment, cancellationToken);
+        }
     }
 }

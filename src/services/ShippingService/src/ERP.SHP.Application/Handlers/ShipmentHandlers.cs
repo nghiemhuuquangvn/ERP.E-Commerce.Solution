@@ -11,11 +11,13 @@ public class CreateShipmentCommandHandler : IRequestHandler<CreateShipmentComman
 {
     private readonly IShipmentRepository _shipments;
     private readonly ICarrierRepository _carriers;
+    private readonly ICarrierClient _carrierClient;
 
-    public CreateShipmentCommandHandler(IShipmentRepository shipments, ICarrierRepository carriers)
+    public CreateShipmentCommandHandler(IShipmentRepository shipments, ICarrierRepository carriers, ICarrierClient carrierClient)
     {
         _shipments = shipments;
         _carriers = carriers;
+        _carrierClient = carrierClient;
     }
 
     public async Task<ShipmentDto> Handle(CreateShipmentCommand request, CancellationToken cancellationToken)
@@ -27,9 +29,34 @@ public class CreateShipmentCommandHandler : IRequestHandler<CreateShipmentComman
             .Select(i => (i.ProductId, i.ProductName, i.Quantity, i.Weight))
             .ToList();
 
-        var shipment = Shipment.Create(
-            request.OrderId, request.CarrierId, carrier.Name,
-            request.ShippingAddress, items, request.EstimatedDelivery);
+        var r = request.Recipient;
+        var recipient = new ShipmentRecipient(
+            r.RecipientName, r.RecipientPhone, r.AddressStreet, r.AddressWard,
+            r.AddressDistrict, r.AddressProvince, r.AddressPostalCode, r.AddressCountry);
+
+        var estimatedDelivery = request.EstimatedDelivery ?? carrier.EstimateDeliveryDate(r.AddressProvince);
+
+        var shipment = Shipment.Create(request.OrderId, request.CarrierId, carrier.Name, recipient, items, estimatedDelivery);
+
+        // Previously nothing ever called the carrier when a shipment was created —
+        // ICarrierClient (GHN, real) existed but only AssignTrackingNumberCommand
+        // (a separate, manual step) ever set a tracking number. Booking the carrier
+        // order here is what makes "real carrier integration" actually load-bearing.
+        var carrierResult = await _carrierClient.CreateOrderAsync(new CarrierOrderRequest(
+            r.RecipientName,
+            r.RecipientPhone ?? string.Empty,
+            r.AddressStreet,
+            r.AddressWard ?? string.Empty,
+            r.AddressDistrict,
+            r.AddressProvince,
+            shipment.TotalWeight,
+            0,
+            $"Shipment for order {request.OrderId}",
+            request.Items.Select(i => new CarrierItem(i.ProductName, i.Quantity, 0)).ToList()
+        ), cancellationToken);
+
+        if (carrierResult.Success && !string.IsNullOrEmpty(carrierResult.TrackingCode))
+            shipment.AssignTrackingNumber(carrierResult.TrackingCode);
 
         await _shipments.AddAsync(shipment, cancellationToken);
         return MapToDto(shipment);
@@ -43,10 +70,23 @@ public class CreateShipmentCommandHandler : IRequestHandler<CreateShipmentComman
         CarrierName = s.CarrierName,
         TrackingNumber = s.TrackingNumber,
         Status = s.Status.ToString(),
-        ShippingAddress = s.ShippingAddress,
+        RecipientName = s.RecipientName,
+        RecipientPhone = s.RecipientPhone,
+        AddressStreet = s.AddressStreet,
+        AddressWard = s.AddressWard,
+        AddressDistrict = s.AddressDistrict,
+        AddressProvince = s.AddressProvince,
+        AddressPostalCode = s.AddressPostalCode,
+        AddressCountry = s.AddressCountry,
         EstimatedDelivery = s.EstimatedDelivery,
         PickedUpAt = s.PickedUpAt,
         DeliveredAt = s.DeliveredAt,
+        CancelledAt = s.CancelledAt,
+        CancelReason = s.CancelReason,
+        DeliveryAttempts = s.DeliveryAttempts,
+        ReceivedByName = s.ReceivedByName,
+        SignatureUrl = s.SignatureUrl,
+        PhotoUrl = s.PhotoUrl,
         TotalWeight = s.TotalWeight,
         CreatedAt = s.CreatedAt,
         Items = s.Items.Select(i => new ShipmentItemDto
@@ -104,9 +144,65 @@ public class ConfirmDeliveryCommandHandler : IRequestHandler<ConfirmDeliveryComm
         var shipment = await _shipments.GetByIdAsync(request.ShipmentId, cancellationToken)
             ?? throw new InvalidOperationException($"Shipment {request.ShipmentId} not found.");
 
-        shipment.MarkAsDelivered(request.Location);
+        shipment.MarkAsDelivered(request.Location, request.ReceivedByName, request.SignatureUrl, request.PhotoUrl);
         await _shipments.UpdateAsync(shipment, cancellationToken);
         return CreateShipmentCommandHandler.MapToDto(shipment);
+    }
+}
+
+public class MarkDeliveryFailedCommandHandler : IRequestHandler<MarkDeliveryFailedCommand, ShipmentDto>
+{
+    private readonly IShipmentRepository _shipments;
+    public MarkDeliveryFailedCommandHandler(IShipmentRepository shipments) => _shipments = shipments;
+
+    public async Task<ShipmentDto> Handle(MarkDeliveryFailedCommand request, CancellationToken cancellationToken)
+    {
+        var shipment = await _shipments.GetByIdAsync(request.ShipmentId, cancellationToken)
+            ?? throw new InvalidOperationException($"Shipment {request.ShipmentId} not found.");
+
+        shipment.MarkDeliveryFailed(request.Reason);
+        await _shipments.UpdateAsync(shipment, cancellationToken);
+        return CreateShipmentCommandHandler.MapToDto(shipment);
+    }
+}
+
+public class RetryDeliveryCommandHandler : IRequestHandler<RetryDeliveryCommand, ShipmentDto>
+{
+    private readonly IShipmentRepository _shipments;
+    public RetryDeliveryCommandHandler(IShipmentRepository shipments) => _shipments = shipments;
+
+    public async Task<ShipmentDto> Handle(RetryDeliveryCommand request, CancellationToken cancellationToken)
+    {
+        var shipment = await _shipments.GetByIdAsync(request.ShipmentId, cancellationToken)
+            ?? throw new InvalidOperationException($"Shipment {request.ShipmentId} not found.");
+
+        shipment.RetryDelivery();
+        await _shipments.UpdateAsync(shipment, cancellationToken);
+        return CreateShipmentCommandHandler.MapToDto(shipment);
+    }
+}
+
+public class BulkUpdateTrackingCommandHandler : IRequestHandler<BulkUpdateTrackingCommand, List<ShipmentDto>>
+{
+    private readonly IShipmentRepository _shipments;
+    public BulkUpdateTrackingCommandHandler(IShipmentRepository shipments) => _shipments = shipments;
+
+    public async Task<List<ShipmentDto>> Handle(BulkUpdateTrackingCommand request, CancellationToken cancellationToken)
+    {
+        var results = new List<ShipmentDto>();
+
+        foreach (var update in request.Updates)
+        {
+            var shipment = await _shipments.GetByIdAsync(update.ShipmentId, cancellationToken);
+            if (shipment == null)
+                continue; // best-effort: bulk operation should not fail the whole batch for one bad id
+
+            shipment.AddTrackingEvent(update.Status, update.Location, update.Description);
+            await _shipments.UpdateAsync(shipment, cancellationToken);
+            results.Add(CreateShipmentCommandHandler.MapToDto(shipment));
+        }
+
+        return results;
     }
 }
 
