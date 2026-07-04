@@ -39,6 +39,8 @@ namespace ERP.HRM.Infrastructure
             services.AddScoped<IEmployeeSnapshotRepository, EmployeeSnapshotRepository>();
             services.AddScoped<ILeaveRequestRepository, LeaveRequestRepository>();
             services.AddScoped<IPaySlipRepository, PaySlipRepository>();
+            services.AddScoped<IAttendanceRepository, AttendanceRepository>();
+            services.AddScoped<IWorkShiftRepository, WorkShiftRepository>();
 
             return services;
         }

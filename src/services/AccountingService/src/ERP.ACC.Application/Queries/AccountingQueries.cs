@@ -64,4 +64,48 @@ namespace ERP.ACC.Application.Queries
     {
         public DateTime? AsOfDate { get; set; }
     }
+
+    public class GetTrialBalanceQuery : IRequest<List<TrialBalanceLineDto>>
+    {
+        public Guid? FiscalPeriodId { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public bool HideZeroBalance { get; set; } = true;
+    }
+
+    public class GetProfitAndLossQuery : IRequest<ProfitAndLossDto>
+    {
+        public DateTime FromDate { get; set; }
+        public DateTime ToDate { get; set; }
+    }
+
+    public class GetBalanceSheetQuery : IRequest<BalanceSheetDto>
+    {
+        public DateTime AsOfDate { get; set; }
+    }
+
+    public class ListTaxRatesQuery : IRequest<List<TaxRateDto>>
+    {
+        public bool? ActiveOnly { get; set; }
+    }
+
+    public class GetTaxRateQuery : IRequest<TaxRateDto?>
+    {
+        public Guid TaxRateId { get; set; }
+    }
+
+    public class ListBankAccountsQuery : IRequest<List<BankAccountDto>>
+    {
+        public bool? ActiveOnly { get; set; }
+    }
+
+    public class GetBankAccountQuery : IRequest<BankAccountDto?>
+    {
+        public Guid BankAccountId { get; set; }
+    }
+
+    public class ListBankStatementsQuery : IRequest<List<BankStatementDto>>
+    {
+        public Guid BankAccountId { get; set; }
+    }
 }

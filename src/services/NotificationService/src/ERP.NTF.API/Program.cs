@@ -11,6 +11,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+
 // External channel senders registered below — Twilio for SMS, FCM for push
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,6 +31,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<SendNotificationCommandVali
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
 builder.Services.AddScoped<IPreferenceRepository, PreferenceRepository>();
+builder.Services.AddScoped<IWebhookRepository, WebhookRepository>();
 
 // TwilioSmsSender/FcmPushSender inject IHttpClientFactory — without this registration,
 // DI resolution throws InvalidOperationException the moment Twilio:AccountSid/Fcm:ServerKey
@@ -50,6 +52,8 @@ if (!string.IsNullOrEmpty(builder.Configuration["Fcm:ServerKey"]))
     builder.Services.AddScoped<IPushSender, FcmPushSender>();
 else
     builder.Services.AddScoped<IPushSender, NullPushSender>();
+
+builder.Services.AddScoped<IWebhookSender, WebhookSender>();
 
 builder.Services.AddHostedService<NotificationDispatchJob>();
 builder.Services.AddHostedService<ERP.NTF.Infrastructure.BackgroundJobs.IdentityEventConsumer>();

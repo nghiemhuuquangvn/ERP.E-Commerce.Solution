@@ -14,6 +14,12 @@ public interface IContactRepository
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);
+
+    Task<(IEnumerable<Contact> Items, int TotalCount)> GetByIdsPagedAsync(
+        IEnumerable<Guid> ids,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
 }
 
 public interface ILeadRepository
@@ -58,4 +64,27 @@ public interface ICaseRepository
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);
+}
+
+public interface IActivityRepository
+{
+    Task<Activity?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task AddAsync(Activity activity, CancellationToken cancellationToken = default);
+    Task UpdateAsync(Activity activity, CancellationToken cancellationToken = default);
+    Task<(IEnumerable<Activity> Items, int TotalCount)> GetPagedAsync(
+        Guid? contactId,
+        Guid? opportunityId,
+        int? activityType,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IContactTagRepository
+{
+    Task<IEnumerable<ContactTag>> GetByContactIdAsync(Guid contactId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Guid>> GetContactIdsByTagAsync(string tag, CancellationToken cancellationToken = default);
+    Task AddAsync(ContactTag tag, CancellationToken cancellationToken = default);
+    Task DeleteAsync(Guid contactId, string tag, CancellationToken cancellationToken = default);
+    Task<IEnumerable<string>> GetAllTagsAsync(CancellationToken cancellationToken = default);
 }

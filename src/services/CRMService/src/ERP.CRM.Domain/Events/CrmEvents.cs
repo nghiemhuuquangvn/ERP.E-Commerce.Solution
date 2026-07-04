@@ -46,3 +46,14 @@ public record ContactCreatedEvent(Guid ContactId, string Name, string? Email) : 
 {
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
+
+public record ActivityCreatedEvent(
+    Guid ActivityId, Guid ContactId, string ActivityType, string Subject) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}
+
+public record ActivityCompletedEvent(Guid ActivityId, Guid ContactId) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}

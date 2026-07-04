@@ -176,6 +176,9 @@ namespace ERP.ACC.Application.Handlers
             var entry = JournalEntry.Create(request.EntryNumber, request.FiscalPeriodId, request.Description);
             entry.Post(totalDebit, totalCredit);
 
+            foreach (var line in request.Lines)
+                entry.AddLine(line.AccountId, line.Debit, line.Credit, line.Description);
+
             await _journalEntries.AddAsync(entry, cancellationToken);
 
             return new JournalEntryDto
@@ -187,7 +190,13 @@ namespace ERP.ACC.Application.Handlers
                 TotalDebit = entry.TotalDebit,
                 TotalCredit = entry.TotalCredit,
                 CreatedAt = entry.CreatedAt,
-                Lines = request.Lines
+                Lines = entry.Lines.Select(l => new JournalLineDto
+                {
+                    AccountId = l.AccountId,
+                    Debit = l.Debit,
+                    Credit = l.Credit,
+                    Description = l.Description
+                }).ToList()
             };
         }
     }

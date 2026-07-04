@@ -22,6 +22,7 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
     {
         private const string PurchasingTopic = "purchasing-topic";
         private const string PaymentTopic = "payment-topic";
+        private const string WarehouseTopic = "warehouse-topic";
 
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<AccountingKafkaConsumer> _logger;
@@ -51,7 +52,7 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _consumer.Subscribe(new[] { PurchasingTopic, PaymentTopic });
+            _consumer.Subscribe(new[] { PurchasingTopic, PaymentTopic, WarehouseTopic });
             _executingTask = Task.Run(() => ExecuteAsync(_cancellationTokenSource.Token), CancellationToken.None);
 
             return Task.CompletedTask;
@@ -135,8 +136,23 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
                 if (evt.PaymentId != Guid.Empty)
                     await mediator.Publish(evt, cancellationToken);
             }
-            // Other purchasing-topic/payment-topic events are not yet consumed by
-            // Accounting — no local handler exists for them today.
+            else if (typeName.Contains("StockMoved") || typeName.Contains("InventoryMoved") || typeName.Contains("WarehouseMovement"))
+            {
+                var raw = JObject.Parse(json);
+                var evt = new WarehouseMovementIntegrationEvent
+                {
+                    MovementId = raw.Value<Guid?>("MovementId") ?? raw.Value<Guid?>("Id") ?? Guid.Empty,
+                    MovementType = raw.Value<string?>("MovementType") ?? "Unknown",
+                    ItemId = raw.Value<Guid?>("ItemId") ?? raw.Value<Guid?>("ProductId") ?? Guid.Empty,
+                    Quantity = raw.Value<int?>("Quantity") ?? 0,
+                    UnitCost = raw.Value<decimal?>("UnitCost") ?? 0m,
+                    TotalValue = raw.Value<decimal?>("TotalValue") ?? raw.Value<decimal?>("TotalAmount") ?? 0m
+                };
+
+                if (evt.MovementId != Guid.Empty)
+                    await mediator.Publish(evt, cancellationToken);
+            }
+            // Other topic events are not yet consumed by Accounting.
         }
     }
 }

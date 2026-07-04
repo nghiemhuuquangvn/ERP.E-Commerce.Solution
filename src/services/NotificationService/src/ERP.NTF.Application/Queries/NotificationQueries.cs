@@ -36,3 +36,10 @@ public class GetPreferenceQuery : IRequest<NotificationPreferenceDto?>
 {
     public Guid UserId { get; set; }
 }
+
+public class ListWebhooksQuery : IRequest<List<WebhookDto>> { }
+
+public class GetWebhookQuery : IRequest<WebhookDto?>
+{
+    public Guid WebhookId { get; set; }
+}

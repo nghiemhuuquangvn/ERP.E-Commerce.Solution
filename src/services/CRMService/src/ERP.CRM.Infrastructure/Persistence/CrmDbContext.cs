@@ -13,6 +13,8 @@ namespace ERP.CRM.Infrastructure.Persistence
         public DbSet<Lead> Leads { get; set; }
         public DbSet<Opportunity> Opportunities { get; set; }
         public DbSet<Case> Cases { get; set; }
+        public DbSet<Activity> Activities { get; set; }
+        public DbSet<ContactTag> ContactTags { get; set; }
         public DbSet<OutboxMessage> OutboxMessages { get; set; }
 
         public CrmDbContext(DbContextOptions<CrmDbContext> options) : base(options)
@@ -28,6 +30,28 @@ namespace ERP.CRM.Infrastructure.Persistence
             modelBuilder.Entity<OutboxMessage>()
                 .HasIndex(m => m.ProcessedOnUtc)
                 .HasFilter("[ProcessedOnUtc] IS NULL");
+
+            modelBuilder.Entity<Activity>(e =>
+            {
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.Subject).IsRequired().HasMaxLength(300);
+                e.Property(x => x.Notes).HasMaxLength(4000);
+                e.Property(x => x.Source).HasMaxLength(200);
+                e.HasIndex(x => x.ContactId);
+                e.HasIndex(x => new { x.ContactId, x.Status });
+                e.HasIndex(x => x.OpportunityId);
+                e.HasIndex(x => x.CreatedAt);
+            });
+
+            modelBuilder.Entity<ContactTag>(e =>
+            {
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.Tag).IsRequired().HasMaxLength(50);
+                e.HasIndex(x => new { x.ContactId, x.Tag }).IsUnique();
+                e.HasIndex(x => x.Tag);
+            });
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

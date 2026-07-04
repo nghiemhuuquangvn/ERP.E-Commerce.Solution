@@ -7,6 +7,7 @@ using MediatR;
 
 namespace ERP.NTF.Application.Handlers;
 
+
 public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCommand, NotificationDto>
 {
     private readonly INotificationRepository _notifications;
@@ -96,7 +97,7 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
         await _notifications.UpdateAsync(notification, ct);
     }
 
-    private static NotificationDto MapToDto(Notification n) => new()
+    internal static NotificationDto MapToDto(Notification n) => new()
     {
         Id = n.Id,
         RecipientId = n.RecipientId,
@@ -119,4 +120,81 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
             EventTimestamp = l.EventTimestamp
         }).ToList()
     };
+}
+
+public class BulkSendNotificationCommandHandler : IRequestHandler<BulkSendNotificationCommand, BulkSendResult>
+{
+    private readonly INotificationRepository _notifications;
+    private readonly ITemplateRepository _templates;
+    private readonly IPreferenceRepository _preferences;
+
+    public BulkSendNotificationCommandHandler(
+        INotificationRepository notifications,
+        ITemplateRepository templates,
+        IPreferenceRepository preferences)
+    {
+        _notifications = notifications;
+        _templates = templates;
+        _preferences = preferences;
+    }
+
+    public async Task<BulkSendResult> Handle(BulkSendNotificationCommand request, CancellationToken cancellationToken)
+    {
+        NotificationTemplate? template = null;
+        if (!string.IsNullOrEmpty(request.TemplateCode))
+        {
+            template = await _templates.GetByCodeAsync(request.TemplateCode, cancellationToken)
+                ?? throw new InvalidOperationException($"Template '{request.TemplateCode}' not found.");
+        }
+
+        var result = new BulkSendResult();
+        var toAdd = new List<Notification>();
+
+        foreach (var recipient in request.Recipients)
+        {
+            if (Guid.TryParse(recipient.RecipientId, out var userId))
+            {
+                var preference = await _preferences.GetByUserIdAsync(userId, cancellationToken);
+                if (preference != null && !preference.IsChannelEnabled(request.Channel))
+                {
+                    result.Skipped++;
+                    continue;
+                }
+            }
+
+            var subject = request.Subject;
+            var body = request.Body;
+
+            if (template != null)
+            {
+                subject = template.Subject;
+                var vars = new Dictionary<string, string>(request.SharedVariables ?? new());
+                if (recipient.Variables != null)
+                    foreach (var kv in recipient.Variables)
+                        vars[kv.Key] = kv.Value;
+                body = template.Render(vars);
+            }
+
+            var notification = Notification.Create(
+                recipient.RecipientId,
+                recipient.RecipientEmail,
+                request.Channel,
+                subject,
+                body,
+                request.Priority,
+                template?.Id,
+                recipient.RecipientPhone,
+                recipient.RecipientDeviceToken,
+                request.ScheduledFor);
+
+            toAdd.Add(notification);
+            result.NotificationIds.Add(notification.Id);
+        }
+
+        if (toAdd.Count > 0)
+            await _notifications.AddRangeAsync(toAdd, cancellationToken);
+
+        result.Queued = toAdd.Count;
+        return result;
+    }
 }

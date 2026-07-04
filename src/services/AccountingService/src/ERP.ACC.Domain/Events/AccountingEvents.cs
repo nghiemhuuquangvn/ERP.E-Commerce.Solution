@@ -63,4 +63,22 @@ namespace ERP.ACC.Domain.Events
     {
         public DateTime OccurredOn { get; } = DateTime.UtcNow;
     }
+
+    public record TaxRateCreatedEvent(
+        Guid TaxRateId,
+        string Name,
+        string Code,
+        decimal Rate) : IDomainEvent
+    {
+        public DateTime OccurredOn { get; } = DateTime.UtcNow;
+    }
+
+    public record BankAccountCreatedEvent(
+        Guid BankAccountId,
+        string AccountName,
+        string BankName,
+        string AccountNumber) : IDomainEvent
+    {
+        public DateTime OccurredOn { get; } = DateTime.UtcNow;
+    }
 }

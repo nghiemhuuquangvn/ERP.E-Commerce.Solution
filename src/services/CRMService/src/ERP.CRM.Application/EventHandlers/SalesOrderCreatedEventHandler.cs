@@ -1,4 +1,6 @@
 using ERP.CRM.Application.Interfaces;
+using ERP.CRM.Domain.Entities;
+using ERP.CRM.Domain.Enums;
 using ERP.Shared.Messaging;
 using Microsoft.Extensions.Logging;
 
@@ -13,13 +15,16 @@ public record SalesOrderCreatedIntegrationEvent(Guid OrderId, Guid CustomerId, d
 public class SalesOrderCreatedEventHandler : IEventHandler<SalesOrderCreatedIntegrationEvent>
 {
     private readonly IContactRepository _contacts;
+    private readonly IActivityRepository _activities;
     private readonly ILogger<SalesOrderCreatedEventHandler> _logger;
 
     public SalesOrderCreatedEventHandler(
         IContactRepository contacts,
+        IActivityRepository activities,
         ILogger<SalesOrderCreatedEventHandler> logger)
     {
         _contacts = contacts;
+        _activities = activities;
         _logger = logger;
     }
 
@@ -29,7 +34,6 @@ public class SalesOrderCreatedEventHandler : IEventHandler<SalesOrderCreatedInte
             "Received SalesOrderCreatedIntegrationEvent OrderId={OrderId} CustomerId={CustomerId} Amount={Amount}",
             @event.OrderId, @event.CustomerId, @event.TotalAmount);
 
-        // Find the CRM contact linked to this customer (by UserId)
         var contact = await _contacts.GetByUserIdAsync(@event.CustomerId, cancellationToken);
 
         if (contact is null)
@@ -40,10 +44,17 @@ public class SalesOrderCreatedEventHandler : IEventHandler<SalesOrderCreatedInte
             return;
         }
 
-        // Activity logging would be stored in a future Activity entity.
-        // For now we record the event in the log so it can be correlated.
+        var activity = Activity.Create(
+            contactId: contact.Id,
+            activityType: ActivityType.Note,
+            subject: $"Sales order placed — Order #{@event.OrderId:N}",
+            notes: $"Order total: {(@event.TotalAmount):C}. Order ID: {@event.OrderId}",
+            source: "SalesOrderService");
+
+        await _activities.AddAsync(activity, cancellationToken);
+
         _logger.LogInformation(
-            "Sales activity recorded: Contact={ContactId} placed order {OrderId} for {Amount:C}",
-            contact.Id, @event.OrderId, @event.TotalAmount);
+            "Activity {ActivityId} created for Contact={ContactId}, Order={OrderId}",
+            activity.Id, contact.Id, @event.OrderId);
     }
 }

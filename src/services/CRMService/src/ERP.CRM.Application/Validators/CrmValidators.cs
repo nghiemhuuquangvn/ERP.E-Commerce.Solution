@@ -88,6 +88,34 @@ public class CreateOpportunityCommandValidator : AbstractValidator<CreateOpportu
     }
 }
 
+public class CreateActivityCommandValidator : AbstractValidator<CreateActivityCommand>
+{
+    public CreateActivityCommandValidator()
+    {
+        RuleFor(x => x.ContactId).NotEmpty().WithMessage("ContactId is required.");
+        RuleFor(x => x.Subject)
+            .NotEmpty().WithMessage("Activity subject is required.")
+            .MaximumLength(300).WithMessage("Subject must not exceed 300 characters.");
+        RuleFor(x => x.ActivityType)
+            .InclusiveBetween(0, 4).WithMessage("ActivityType must be 0=Call, 1=Email, 2=Meeting, 3=Note, 4=Task.");
+        RuleFor(x => x.Notes)
+            .MaximumLength(4000).WithMessage("Notes must not exceed 4000 characters.")
+            .When(x => x.Notes != null);
+    }
+}
+
+public class AddContactTagCommandValidator : AbstractValidator<AddContactTagCommand>
+{
+    public AddContactTagCommandValidator()
+    {
+        RuleFor(x => x.ContactId).NotEmpty().WithMessage("ContactId is required.");
+        RuleFor(x => x.Tag)
+            .NotEmpty().WithMessage("Tag is required.")
+            .MaximumLength(50).WithMessage("Tag must not exceed 50 characters.")
+            .Matches(@"^[a-zA-Z0-9\-_\s]+$").WithMessage("Tag may only contain letters, numbers, hyphens, underscores and spaces.");
+    }
+}
+
 public class OpenCaseCommandValidator : AbstractValidator<OpenCaseCommand>
 {
     public OpenCaseCommandValidator()

@@ -51,7 +51,9 @@ public class EmployeeMasterDataEventHandlers
     {
         _logger.LogInformation("Received EmployeeHired for {EmployeeId}", @event.EmployeeId);
         await _mediator.Send(
-            new UpsertEmployeeSnapshotCommand(@event.EmployeeId, @event.FullName, EmploymentStatus: 0, @event.DepartmentId),
+            new UpsertEmployeeSnapshotCommand(
+                @event.EmployeeId, @event.FullName, EmploymentStatus: 0, @event.DepartmentId,
+                @event.EmployeeNumber, @event.Email),
             cancellationToken);
     }
 

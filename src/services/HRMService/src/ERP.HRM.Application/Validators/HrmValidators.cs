@@ -3,6 +3,41 @@ using FluentValidation;
 
 namespace ERP.HRM.Application.Validators;
 
+public class CheckInCommandValidator : AbstractValidator<CheckInCommand>
+{
+    public CheckInCommandValidator()
+    {
+        RuleFor(x => x.EmployeeId).NotEmpty().WithMessage("EmployeeId is required.");
+        RuleFor(x => x.CheckInTime).NotEmpty().WithMessage("CheckInTime is required.");
+        RuleFor(x => x.Notes).MaximumLength(500).When(x => x.Notes != null);
+    }
+}
+
+public class CheckOutCommandValidator : AbstractValidator<CheckOutCommand>
+{
+    public CheckOutCommandValidator()
+    {
+        RuleFor(x => x.AttendanceRecordId).NotEmpty().WithMessage("AttendanceRecordId is required.");
+        RuleFor(x => x.CheckOutTime).NotEmpty().WithMessage("CheckOutTime is required.");
+    }
+}
+
+public class CreateWorkShiftCommandValidator : AbstractValidator<CreateWorkShiftCommand>
+{
+    public CreateWorkShiftCommandValidator()
+    {
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Shift name is required.")
+            .MaximumLength(100).WithMessage("Shift name must not exceed 100 characters.");
+        RuleFor(x => x.StartTime)
+            .NotEmpty().WithMessage("StartTime is required.")
+            .Must(t => TimeSpan.TryParse(t, out _)).WithMessage("StartTime must be in HH:mm format.");
+        RuleFor(x => x.EndTime)
+            .NotEmpty().WithMessage("EndTime is required.")
+            .Must(t => TimeSpan.TryParse(t, out _)).WithMessage("EndTime must be in HH:mm format.");
+    }
+}
+
 public class SubmitLeaveRequestCommandValidator : AbstractValidator<SubmitLeaveRequestCommand>
 {
     public SubmitLeaveRequestCommandValidator()

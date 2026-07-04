@@ -11,6 +11,7 @@ public class NotificationDbContext : DbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationTemplate> Templates => Set<NotificationTemplate>();
     public DbSet<NotificationPreference> Preferences => Set<NotificationPreference>();
+    public DbSet<WebhookEndpoint> WebhookEndpoints => Set<WebhookEndpoint>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public NotificationDbContext(DbContextOptions<NotificationDbContext> options) : base(options) { }
@@ -55,6 +56,18 @@ public class NotificationDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasIndex(x => x.UserId).IsUnique();
+        });
+
+        modelBuilder.Entity<WebhookEndpoint>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            e.Property(x => x.Url).IsRequired().HasMaxLength(2000);
+            e.Property(x => x.Secret).HasMaxLength(500);
+            e.Property(x => x.EventTypesRaw).HasColumnName("EventTypes").HasMaxLength(1000);
+            e.Ignore(x => x.EventTypes);
+            e.HasIndex(x => x.IsActive);
         });
 
         modelBuilder.Entity<OutboxMessage>(e =>

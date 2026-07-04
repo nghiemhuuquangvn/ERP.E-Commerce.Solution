@@ -40,6 +40,12 @@ public class NotificationRepository : INotificationRepository
         await _db.SaveChangesAsync(ct);
     }
 
+    public async Task AddRangeAsync(IEnumerable<Notification> notifications, CancellationToken ct = default)
+    {
+        await _db.Notifications.AddRangeAsync(notifications, ct);
+        await _db.SaveChangesAsync(ct);
+    }
+
     public async Task UpdateAsync(Notification notification, CancellationToken ct = default)
     {
         _db.Notifications.Update(notification);
@@ -99,5 +105,46 @@ public class PreferenceRepository : IPreferenceRepository
     {
         _db.Preferences.Update(preference);
         await _db.SaveChangesAsync(ct);
+    }
+}
+
+public class WebhookRepository : IWebhookRepository
+{
+    private readonly NotificationDbContext _db;
+    public WebhookRepository(NotificationDbContext db) => _db = db;
+
+    public async Task<WebhookEndpoint?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+        await _db.WebhookEndpoints.FindAsync(new object[] { id }, ct);
+
+    public async Task<List<WebhookEndpoint>> GetAllAsync(CancellationToken ct = default) =>
+        await _db.WebhookEndpoints.OrderBy(w => w.Name).AsNoTracking().ToListAsync(ct);
+
+    public async Task<List<WebhookEndpoint>> GetActiveByEventTypeAsync(string eventType, CancellationToken ct = default)
+    {
+        // Load active endpoints in-memory and filter by event type to avoid partial-match SQL issues.
+        var active = await _db.WebhookEndpoints.Where(w => w.IsActive).AsNoTracking().ToListAsync(ct);
+        return active.Where(w => !w.EventTypes.Any() || w.EventTypes.Contains(eventType)).ToList();
+    }
+
+    public async Task AddAsync(WebhookEndpoint endpoint, CancellationToken ct = default)
+    {
+        await _db.WebhookEndpoints.AddAsync(endpoint, ct);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateAsync(WebhookEndpoint endpoint, CancellationToken ct = default)
+    {
+        _db.WebhookEndpoints.Update(endpoint);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        var endpoint = await _db.WebhookEndpoints.FindAsync(new object[] { id }, ct);
+        if (endpoint != null)
+        {
+            _db.WebhookEndpoints.Remove(endpoint);
+            await _db.SaveChangesAsync(ct);
+        }
     }
 }

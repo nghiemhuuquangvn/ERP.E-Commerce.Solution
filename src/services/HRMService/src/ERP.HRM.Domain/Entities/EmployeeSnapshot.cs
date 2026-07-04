@@ -13,16 +13,26 @@ namespace ERP.HRM.Domain.Entities
     /// </summary>
     public class EmployeeSnapshot : BaseEntity
     {
+        public string EmployeeNumber { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
+        public string? Email { get; set; }
         public int EmploymentStatus { get; set; }
         public Guid DepartmentId { get; set; }
 
-        public static EmployeeSnapshot Create(Guid employeeId, string fullName, int employmentStatus, Guid departmentId)
+        public static EmployeeSnapshot Create(
+            Guid employeeId,
+            string fullName,
+            int employmentStatus,
+            Guid departmentId,
+            string? employeeNumber = null,
+            string? email = null)
         {
             return new EmployeeSnapshot
             {
                 Id = employeeId,
+                EmployeeNumber = employeeNumber ?? string.Empty,
                 FullName = fullName,
+                Email = email,
                 EmploymentStatus = employmentStatus,
                 DepartmentId = departmentId,
                 CreatedAt = DateTime.UtcNow,

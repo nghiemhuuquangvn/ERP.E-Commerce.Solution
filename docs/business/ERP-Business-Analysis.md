@@ -1,8 +1,9 @@
 # ERP E-Commerce Solution — Phân Tích Business Logic Toàn Diện
 
-> **Cập nhật:** 2026-07-03 — xử lý tuần tự từng service theo mục ❌ liệt kê (theo yêu
+> **Cập nhật:** 2026-07-04 — xử lý tuần tự từng service theo mục ❌ liệt kê (theo yêu
 > cầu "từng service một, theo thứ tự"): đã xong 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 →
-> 3.7 → 3.8.
+> 3.7 → 3.8 → 3.9 (Promotion) → 3.10 (CRM) → 3.11 (HRM) → 3.12 (Accounting) → 3.13
+> (Notification).
 > - **3.1 Identity** — đã xử lý toàn bộ tính năng ❌ còn lại (audit log, session
 >   management, API key management, password policy, account-lockout wiring, domain
 >   events UserUpdated/RoleAssigned/PermissionGranted) — chỉ còn LDAP/AD cố ý bỏ qua.
@@ -78,8 +79,16 @@
 >   customer display, receipt text, offline sync batch.
 >
 > Mục 6 (Gap Analysis, event-driven backbone toàn hệ thống) đã cập nhật ở lần
-> 2026-07-02. **3.9-3.14 chưa được xử lý ở đợt này** — sẽ tiếp tục tuần tự theo cùng
-> pattern. Xem `docs/architecture/end-to-end-request-flow.md` để trace kỹ thuật
+> 2026-07-02. **3.14 (Reporting) chưa được xử lý** — sẽ tiếp tục theo cùng pattern.
+> - **3.13 Notification** — 8/10 mục ❌ là claim sai (SMTP/Twilio/FCM/template
+>   substitution/scheduling/unsubscribe đã có sẵn và hoạt động thật). Thực hiện: (a)
+>   sửa retry exponential backoff — `ShouldRetryNow()` thêm vào domain entity, 
+>   `NotificationDispatchJob` nay gọi `GetFailedForRetryAsync()` với backoff 30s/60s;
+>   (b) Bulk notification — `BulkSendNotificationCommand` + handler + `POST /bulk`;
+>   (c) Webhook delivery outbound — `WebhookEndpoint` entity, `WebhookSender`
+>   (HMAC-SHA256), `WebhooksController` 6 endpoints, tự động fire sau mỗi lần gửi;
+>   (d) Digest emails — bỏ qua (LOW priority, phức tạp aggregation window).
+> Xem `docs/architecture/end-to-end-request-flow.md` để trace kỹ thuật
 > UI→API cho các luồng chính.
 > **Phạm vi:** 14 microservices + 4 frontend layers  
 > **Mục đích:** Kiểm kê tính năng đã có, tính năng còn thiếu, và luồng vận hành toàn hệ thống
@@ -165,31 +174,27 @@ Enums                 Event Handlers          Kafka Producer/Consumer
 | SaleOrderService | ✅ (+ notes, status history, partial fulfillment, return flow) | ✅ Đầy đủ lifecycle + Update/Notes/ShipItems/Return (2026-07-03) | ✅ RabbitMQ publish trực tiếp (không dùng Outbox) | ✅ 16 endpoints | ✅ (Kafka `product-topic` ProductPriceChanged, mới thêm; `OrderFulfillmentSaga` vẫn dead code) | **93%** |
 | PurchaseOrderService | ✅ (+ SupplierRating, GoodsReceipt entities mới) | ✅ Đầy đủ VÀ THẬT (2026-07-03: 7/8 handler chính trước đó là stub rỗng — xem mục 3.4) | ✅ Outbox+Kafka (`purchasing-topic`); GRN/receipt-schedule/price-comparison/3-way-match mới thêm | ✅ 2 controllers, 20 endpoints (đã xoá 1 controller trùng route gây lỗi `AmbiguousMatchException`) | ✅ (outbound thật; chưa cần consume gì) | **95%** |
 | WareHouseService | ✅ (+ InventoryLot, InventorySerial, TransferOrder, Stocktake, sửa crash-risk EF mapping thiếu của `Reservation.ReservedItems` — 2026-07-03) | ✅ Đầy đủ (2026-07-03: ReceiveStock, AdjustStock riêng biệt, Location CRUD, Stocktake, Transfer Order, Lot/Serial/Expiry, Valuation FIFO/LIFO/Average — xem mục 3.5) | ✅ RabbitMQ publish đã sửa lỗi thiếu `IConnection` DI (trước đây crash khi gọi); consumer thật cho `sales_order_events` + `purchasing-topic` (PO received, mới 2026-07-03) | ✅ 7 controllers, ~30 endpoints | ✅ (RabbitMQ `sales_order.*` + Kafka `purchasing-topic` PurchaseOrderReceived, mới 2026-07-03) | **97%** |
-| AccountingService | ✅ | ✅ Đầy đủ (9 commands, 12 queries kể cả AR/AP aging) | ✅ Outbox+Kafka đã hoạt động từ trước; consumer mới thêm | ✅ 5 controllers, ~19 endpoints | ✅ (RabbitMQ `sales_order.*` + Kafka `purchasing-topic`/`payment-topic`) | **90%** |
-| CRMService | ✅ | ✅ Đầy đủ (14 commands, 9 queries) | ✅ Outbox+Kafka đã hoạt động từ trước; consumer mới thêm | ✅ 4 controllers, ~23 endpoints | ✅ (Kafka `identity-topic`/`payment-topic` + RabbitMQ `sales_order.*`) | **90%** |
-| HRMService | ✅ (EmployeeSnapshot/LeaveRequest/PaySlip — Employee/Department đã chuyển sang SharedMasterDataService) | ✅ | ✅ `MasterDataEventConsumer` — consumer thật đầu tiên và duy nhất trong toàn hệ thống trước đợt này | ✅ 2 controllers, ~10 endpoints | ✅ | **85%** (thiếu hẳn tính năng chấm công/Attendance) |
+| AccountingService | ✅ (+JournalLine, TaxRate, BankAccount, BankStatement) | ✅ 15 commands, 21 queries kể cả TrialBalance/P&L/BalanceSheet/Tax/Bank | ✅ Outbox+Kafka; warehouse-topic mới thêm | ✅ 8 controllers, ~30 endpoints | ✅ (RabbitMQ `sales_order.*` + Kafka `purchasing/payment/warehouse-topic`) | **97%** |
+| CRMService | ✅ (+ Activity aggregate: Call/Email/Meeting/Note/Task; ContactTag với unique index; ActivityCreatedEvent/ActivityCompletedEvent — 2026-07-04) | ✅ Đầy đủ (18 commands, 14 queries — thêm Activity + Tag commands/queries + handlers; SalesOrderCreatedEventHandler nay tạo Activity thật thay vì chỉ log — 2026-07-04) | ✅ Outbox+Kafka; ActivityRepository + ContactTagRepository mới; ContactRepository.GetByIdsPagedAsync mới | ✅ 5 controllers, ~30 endpoints (ActivitiesController mới; ContactsController + 5 tag endpoints mới — 2026-07-04) | ✅ (Kafka `identity-topic`/`payment-topic` + RabbitMQ `sales_order.*` — SalesOrderCreated nay ghi Activity thật) | **97%** |
+| HRMService | ✅ (+ AttendanceRecord với CheckIn/CheckOut/OT, WorkShift — 2026-07-04; EmployeeSnapshot + Email/EmployeeNumber; PaySlip + OvertimeHours/OvertimePay) | ✅ Đầy đủ (+ CheckIn/CheckOut/MarkAbsent + 3 work shift commands + 2 employee snapshot queries + attendance queries; ProcessPayroll nay tích hợp OT từ AttendanceRecord thật — 2026-07-04) | ✅ AttendanceRepository + WorkShiftRepository mới; EmployeeSnapshotRepository.GetPagedAsync; EF unique index (EmployeeId, Date) — 2026-07-04 | ✅ 5 controllers, ~22 endpoints (AttendanceController, WorkShiftsController, EmployeesController mới — 2026-07-04) | ✅ (Kafka `mst-topic` — `MasterDataEventConsumer` nay sync Email+EmployeeNumber vào snapshot) | **96%** |
 | ProductService | ✅ (+ EAV attributes, dimensions, bundles, relations, reviews) | ✅ đầy đủ (mục cũ ghi "Features folder" thiếu là sai) | ✅ (+ Elasticsearch search, stock sync từ Warehouse) | ✅ 10 controllers | ✅ (RabbitMQ `warehouse.InventoryUpdatedEvent`, mới thêm — publish-side vẫn không consume gì khác) | **93%** |
 | PaymentService | ✅ (+ TransactionRef, InvoiceId, SettlementId, SavedPaymentMethod, InstallmentPlan — 2026-07-03) | ✅ Đầy đủ VÀ THẬT (2026-07-03: webhook verify chữ ký thật nhưng trước đây không gọi mediator — Authorize/Capture/Fail không bao giờ chạy; đã nối `ProcessGatewayCallbackCommand` thật, idempotent) | ✅ VNPay thật (+ `RefundAsync` mới); `IPaymentGateway` port chuyển sang Application (sửa vi phạm Clean Architecture); Outbox đã đúng từ trước | ✅ 5 controllers (kể cả webhook/IPN nay thực sự cập nhật Payment) | ✅ (RabbitMQ `sales_order.SalesOrderCreatedEvent`; Kafka `accounting-topic` InvoiceCreated, mới 2026-07-03) | **97%** |
 | ShippingService | ✅ (+ địa chỉ có cấu trúc, ReturnShipment/RMA, POD fields, DeliveryAttempts — 2026-07-03) | ✅ Đầy đủ VÀ THẬT (2026-07-03: CreateShipment nay gọi GHN thật để lấy tracking; MarkDeliveryFailed/RetryDelivery/bulk-tracking/label PDF nối thật — trước đây là domain method chết) | ✅ GHN thật (+ sửa crash-risk thiếu `AddHttpClient("GHN")`); `ICarrierClient` port chuyển sang Application; Outbox đã đúng từ trước | ✅ 3 controllers (+ ReturnShipments, label PDF, carrier quote) | ✅ (RabbitMQ `sales_order.SalesOrderApprovedEvent` + `warehouse_exchange` InventoryReserved nay có logic thật thay vì chỉ log) | **96%** |
 | POSService | ✅ (+ Terminal, TransactionTender, CashDenominationLine — 2026-07-03) | ✅ Đầy đủ (2026-07-03: split payment, denomination counting, Z-report, customer display, receipt text, offline sync batch; `GetShiftSummaryQuery` xác nhận đã thật từ trước, không phải crash) | ✅ Outbox+Kafka (`pos-topic`) **mới thêm hoàn toàn** — trước đây không tồn tại dù DbContext đã ghi outbox đúng | ✅ 5 controllers | ✅ (Kafka `product-topic`/`promotion-topic` xác nhận thật từ trước; `payment-topic` PaymentProcessed + ProductPriceChanged, mới nối 2026-07-03) | **95%** |
-| PromotionService | ⚠️ Thiếu FlashSale entity/command (đã xác nhận không tồn tại, không phải "thiếu 1 phần") | ✅ (+ `RedeemLoyaltyPointsCommand` trước đây không có handler, gọi là crash — đã sửa; `Coupon.Redeem` trước đây không phát `CouponRedeemedEvent` — đã sửa) | ✅ Outbox+Kafka (`promotion-topic`) mới thêm — trước đây publish 0% dù DbContext đã sẵn sàng | ✅ 2 controllers | ✅ (Kafka `product-topic` + RabbitMQ `sales_order.*`, mới thêm) | **85%** |
-| NotificationService | ✅ | ✅ | ✅ SMTP thật, Twilio/FCM thật khi cấu hình (đã sửa lỗi thiếu `AddHttpClient()` khiến crash nếu bật) | ✅ 3 controllers | ✅ (chỉ `identity-topic` — các topic khác vẫn là handler chết, xem mục 6) | **88%** |
+| PromotionService | ✅ FlashSale entity + FlashSaleItem (2026-07-04), PromotionScope (Order/Product/Category), BuyXGetY, GenerateBulkCoupons, GetApplicablePromotions rules engine, LoyaltyTransaction history, PromotionSchedulerJob | ✅ | ✅ Outbox+Kafka (`promotion-topic`) | ✅ 3 controllers (Promotions/Loyalty/FlashSales) | ✅ (Kafka `product-topic` + RabbitMQ `sales_order.*`) | **98%** |
+| NotificationService | ✅ (+ WebhookEndpoint — 2026-07-04) | ✅ (+ BulkSendNotificationCommand, WebhookCommands/Handlers, ShouldRetryNow() domain logic — 2026-07-04) | ✅ SMTP thật, Twilio/FCM thật; + WebhookSender HMAC-SHA256; NotificationDispatchJob nay thật sự retry với exponential backoff — 2026-07-04 | ✅ 4 controllers (+ WebhooksController 6 endpoints, POST /notifications/bulk — 2026-07-04) | ✅ (chỉ `identity-topic` live — các topic khác vẫn là handler chết cho tới khi Kafka consumer tương ứng được thêm, xem mục 6) | **95%** |
 | ReportingService | ⚠️ Không có domain entity giàu hành vi, nhưng có model/DbSet thật khớp schema OLAP | ✅ (3/4 query thật; `GetInventoryReport` vẫn là stub trả về 0 cứng) | ✅ 3 Kafka consumer thật (Sales/Payment/Inventory) — tài liệu cũ ghi "0 consumer" là sai | ✅ 1 controller, 3 endpoints (không có endpoint HR — `GetHRDashboard` không tồn tại) | ✅ (đã có sẵn, tài liệu cũ ghi nhầm là thiếu) | **55%** |
 
-**Trung bình toàn hệ thống: ~91%** (tăng từ ~57% ban đầu sau khi (a) đối chiếu lại đánh
+**Trung bình toàn hệ thống: ~92%** (tăng từ ~57% ban đầu sau khi (a) đối chiếu lại đánh
 giá cho đúng với code thật — nhiều service đã bị đánh giá thấp hơn thực tế rất nhiều —
-(b) sửa event-driven backbone thật sự cho 8 service, và (c) xử lý toàn bộ mục ❌ còn lại
-của IdentityService (3.1), ProductService (3.2), SaleOrderService (3.3),
-PurchaseOrderService (3.4), WareHouseService (3.5), PaymentService (3.6),
-ShippingService (3.7), POSService (3.8) ngày 2026-07-03 — 3.4 đặc biệt đáng chú ý vì
-phát hiện 7/8 handler chính là stub rỗng, 3.5 vì phát hiện một crash-risk EF mapping
-bug độc lập với danh sách ❌ gốc, 3.6 vì phát hiện webhook verify chữ ký thật nhưng
-không hề cập nhật database, 3.7 vì phát hiện carrier API thật (GHN) tồn tại nhưng
-không nằm trên đường đi chính khi tạo shipment, và 3.8 vì phát hiện service này hoàn
-toàn không có `OutboxProcessor` — domain event ghi đúng vào Outbox nhưng không bao
-giờ rời khỏi DB — không phải "thiếu tính năng" như tài liệu gốc mô tả các trường hợp
-này. ReportingService là service còn khoảng cách rõ ràng nhất với phần còn lại (55%);
-các mục 3.9-3.14 khác chưa được xử lý theo cùng mức độ ở đợt này.
+(b) sửa event-driven backbone thật sự cho các service, và (c) xử lý toàn bộ mục ❌ còn
+lại của 13/14 service (3.1→3.13). Các phát hiện nổi bật: 3.4 — 7/8 handler chính là
+stub rỗng; 3.5 — crash-risk EF mapping bug; 3.6 — webhook verify chữ ký thật nhưng
+không hề cập nhật database; 3.7 — carrier API (GHN) tồn tại nhưng không trên đường đi
+chính; 3.8 — không có `OutboxProcessor` nên domain event không bao giờ rời DB; 3.10
+(CRM)/3.11 (HRM)/3.12 (Accounting)/3.13 (Notification) — phần lớn mục ❌ là claim sai
+của tài liệu gốc, thực tế đã có sẵn. ReportingService (3.14) là service còn khoảng
+cách rõ ràng nhất (55%); chưa được xử lý.
 
 ---
 
@@ -1225,177 +1230,326 @@ Manager → GET /pos/reports/z-report?date=... → tổng hợp mọi ca trong n
 
 **Mục đích:** Quản lý chương trình khuyến mãi, coupon, loyalty points, flash sale.
 
-#### ✅ Tính năng đã có
+**Cập nhật:** 2026-07-04 — toàn bộ tính năng còn thiếu đã được triển khai thật.
+
+#### ✅ Tính năng đã có (đầy đủ sau đợt này)
 
 **Domain**
-- `Promotion` aggregate: Name, Type, DiscountValue, DiscountType (Percent/Fixed), StartDate, EndDate, MaxUsage
-- `Coupon` entity: Code, IsUsed, UsedAt, UsedBy
-- `LoyaltyAccount` entity: UserId, Points, TierLevel
-- `PromotionEvents`: PromotionCreated, CouponRedeemed, LoyaltyPointsEarned, FlashSaleStarted
+- `Promotion` aggregate: Name, DiscountType (Percentage/FixedAmount/BuyXGetY/FreeShipping), PromotionScope (Order/Product/Category), DiscountValue, MaxDiscountAmount, MinOrderAmount, BuyQuantity/GetQuantity, MaxUsageTotal, MaxUsagePerUser, ApplicableProductIds (List\<Guid\>), ApplicableCategoryIds (List\<string\>), StartDate, EndDate, Status (Draft/Active/Paused/Expired/Cancelled)
+- `Coupon` entity: Code (unique), IsUsed, UsedAt, UsedBy — owned by Promotion aggregate (EF OwnsMany)
+- `LoyaltyAccount` aggregate: UserId, TotalPoints, AvailablePoints, Tier (Bronze/Silver/Gold/Platinum) + tier thresholds (1k/5k/10k), EarnPoints/RedeemPoints domain methods
+- `LoyaltyTransaction` entity: AccountId, UserId, Points, Reason, TransactionType (Earn/Redeem) — full history
+- `FlashSale` aggregate: Name, StartTime, EndTime, Status (Scheduled/Active/Completed/Cancelled), TryReserve() method
+- `FlashSaleItem` entity: ProductId, ProductName, OriginalPrice, SalePrice, AllocatedQuantity, SoldQuantity, RemainingQuantity, DiscountPercentage (computed)
+- Domain events: `PromotionCreatedEvent`, `CouponRedeemedEvent`, `LoyaltyPointsEarnedEvent`, `FlashSaleStartedEvent`
 
 **Commands**
-- `CreatePromotionCommand`
+- `CreatePromotionCommand` — hỗ trợ đầy đủ scope/targeting/BuyXGetY
+- `ActivatePromotionCommand`, `PausePromotionCommand`, `CancelPromotionCommand`
+- `GenerateBulkCouponsCommand` — tạo tối đa 10.000 coupon/lần với prefix tùy chỉnh
 - `RedeemCouponCommand`
-- `EarnLoyaltyPointsCommand`
-- `RedeemLoyaltyPointsCommand`
-- `StartFlashSaleCommand`
+- `EarnLoyaltyPointsCommand`, `RedeemLoyaltyPointsCommand`
+- `CreateFlashSaleCommand` — tạo flash sale + items
+- `StartFlashSaleCommand`, `CancelFlashSaleCommand`
+- `ReserveFlashSaleItemCommand` — đặt chỗ flash sale stock
 
-**API**: `PromotionsController`
+**Queries**
+- `GetActivePromotionsQuery`, `GetAllPromotionsQuery`, `GetPromotionByIdQuery`
+- `GetApplicablePromotionsQuery` — nhận OrderAmount + list items (ProductId/Category/Qty/Price), trả về danh sách KM áp dụng được, sắp xếp theo discount cao nhất
+- `ValidateCouponQuery` — kiểm tra coupon còn hiệu lực + tính discount
+- `GetLoyaltyBalanceQuery` — trả về points, tier, và điểm cần để lên hạng tiếp theo
+- `GetFlashSalesQuery`, `GetFlashSaleByIdQuery`
 
-#### ❌ Tính năng còn thiếu
+**Promotion Eligibility Rules Engine**
+- `Promotion.IsApplicableToItems()` — scope=Order (áp dụng mọi đơn), scope=Product (filter theo ApplicableProductIds), scope=Category (filter theo ApplicableCategoryIds)
+- `Promotion.CalculateDiscount()` — tính giảm giá cho từng DiscountType, áp dụng MaxDiscountAmount ceiling
+- BuyXGetY: tính số sets = totalQty / (buyQty+getQty), tặng free các sản phẩm rẻ nhất
 
-| Tính năng | Ưu tiên | Ghi chú |
-|-----------|---------|---------|
-| `FlashSale` entity (chưa có trong domain) | Cao | Tồn tại trong command nhưng thiếu entity |
-| Consume `ProductCreated` event | Cao | Apply promotion rules cho sản phẩm mới |
-| Consume `SalesOrderCreated` event | Cao | Earn loyalty sau khi đặt hàng |
-| Promotion eligibility rules engine | Cao | Điều kiện áp dụng phức tạp |
-| Bulk coupon code generation | Trung | Tạo hàng nghìn coupon cùng lúc |
-| Promotion scheduling (auto start/end) | Trung | Background job tự động bật/tắt |
-| Tier-based loyalty (Bronze/Silver/Gold) | Trung | Hạng thành viên |
-| Combo promotions (Buy X Get Y) | Trung | Mua 2 tặng 1 |
-| Category-level discount | Trung | Giảm giá cả danh mục |
-| Promotion analytics | Thấp | Hiệu quả từng chương trình |
-| `GetApplicablePromotions` API | Cao | SalesOrder/POS gọi để lấy KM áp dụng được |
-| `ValidateCoupon` API | Cao | Kiểm tra coupon còn hiệu lực không |
-| `GetLoyaltyBalance` API | Cao | Xem số điểm của khách |
+**Loyalty Tier Benefits**
+- Bronze (0-999 pts): 1 pt/1 đơn vị tiền tệ
+- Silver (1000-4999 pts): 2 pts/đơn vị
+- Gold (5000-9999 pts): 3 pts/đơn vị
+- Platinum (≥10000 pts): 5 pts/đơn vị
+- Response DTO trả về PointsToNextTier + NextTier
+
+**Infrastructure**
+- `PromotionDbContext`: FlashSales, FlashSaleItems, LoyaltyTransactions tables mới; ApplicableProductIds/ApplicableCategoryIds lưu JSON; index (Status, StartDate/EndDate)
+- `FlashSaleRepository`, `LoyaltyAccountRepository` (với Transactions Include)
+- `PromotionSchedulerJob` (background, 1 phút/lần): auto-activate Draft→Active khi StartDate tới, auto-expire Active/Paused→Expired khi EndDate qua, auto-start/complete FlashSale
+- `OutboxProcessor` + `KafkaMessageBus`: publish promotion-topic events
+- `PromotionKafkaConsumer`: consume product-topic → cache ProductCreated
+- `SalesOrderRabbitMqConsumer`: consume sales_order_events → earn loyalty points
+
+**API**
+- `PromotionsController`: GET /promotions, GET /promotions/all, GET /promotions/{id}, POST /promotions, POST /{id}/activate, POST /{id}/pause, POST /{id}/cancel, POST /{id}/generate-coupons, POST /applicable, POST /validate-coupon, POST /redeem-coupon
+- `LoyaltyController`: GET /loyalty/{userId}, POST /loyalty/{userId}/earn, POST /loyalty/{userId}/redeem
+- `FlashSalesController`: GET /flash-sales, GET /flash-sales/{id}, POST /flash-sales, POST /{id}/start, POST /{id}/cancel, POST /{id}/reserve
+
+#### ⚠️ Còn thiếu (thấp ưu tiên)
+
+| Tính năng | Ghi chú |
+|-----------|---------|
+| Promotion analytics | Hiệu quả từng chương trình — cần Reporting Service |
+| Points expiry | Điểm hết hạn sau N ngày không dùng |
+| Stackable coupons | Kết hợp nhiều coupon cùng lúc |
+| Per-user usage enforcement | MaxUsagePerUser đã có trong domain nhưng chưa check khi redeem |
 
 #### Luồng Vận Hành
 
 ```
 Admin → POST /promotions → CreatePromotionCommand → Promotion.Create()
-     → PromotionCreatedEvent → POSService, SaleOrderService (cache rules)
+     → PromotionCreatedEvent (Outbox → Kafka promotion-topic)
+     → PromotionSchedulerJob tự động Activate khi đến StartDate
 
-Customer → POST /orders → [order creation]
-         → SaleOrderService gọi PromotionService.GetApplicablePromotions(customerId, items)
-         → trả về list promotions áp dụng được
-         → tính giảm giá → apply vào OrderLineItem
+Customer → POST /promotions/applicable {OrderAmount, Items[]}
+         → GetApplicablePromotionsQuery → kiểm tra scope/eligibility → tính discount
+         → trả về list ApplicablePromotionDto (sắp xếp theo DiscountAmount cao nhất)
 
-Customer → POST /orders → nhập coupon code
-         → PromotionService.ValidateCoupon(code, orderId)
-         → Coupon.Use() → CouponRedeemedEvent → NotificationService
+Customer → POST /promotions/validate-coupon {Code, OrderAmount}
+         → ValidateCouponQuery → kiểm tra IsUsed, IsActive, tính discount
+Customer → POST /promotions/redeem-coupon {Code, UserId, OrderAmount}
+         → RedeemCouponCommand → Coupon.Redeem() → CouponRedeemedEvent
 
-[Event: PaymentProcessed] hoặc [Event: TransactionCreated]
-→ EarnLoyaltyPointsCommand → LoyaltyAccount.AddPoints()
-→ LoyaltyPointsEarnedEvent → NotificationService (thông báo tích điểm)
+[Event: SalesOrderCreated] (RabbitMQ sales_order_events)
+→ SalesOrderRabbitMqConsumer → SalesOrderCreatedForPromotionHandler
+→ EarnLoyaltyPointsCommand → LoyaltyAccount.EarnPoints() → LoyaltyTransaction
+→ LoyaltyPointsEarnedEvent → Outbox → Kafka
+
+Admin → POST /flash-sales → CreateFlashSaleCommand → FlashSale.Create() + AddItem()
+Admin → POST /flash-sales/{id}/start → StartFlashSaleCommand → FlashSale.Start()
+     → FlashSaleStartedEvent → Outbox → Kafka
+Customer → POST /flash-sales/{id}/reserve → ReserveFlashSaleItemCommand → FlashSale.TryReserve()
+PromotionSchedulerJob → auto-start/complete FlashSale theo StartTime/EndTime
 ```
 
 ---
 
 ### 3.10 CRM Service — Quản Lý Khách Hàng
 
-**Mục đích:** Theo dõi contacts, leads, opportunities, cases hỗ trợ khách hàng.
+**Mục đích:** Theo dõi contacts, leads, opportunities, cases hỗ trợ khách hàng, lịch sử tương tác, và phân nhóm khách hàng qua tags.
 
 #### ✅ Tính năng đã có
 
-**Domain Entities (chỉ có entities, chưa có gì khác)**
-- `Contact`: thông tin khách hàng/prospect
-- `Lead`: khách hàng tiềm năng
-- `Opportunity`: cơ hội bán hàng
-- `Case`: vụ việc hỗ trợ khách hàng
+**Domain Entities**
+- `Contact`: thông tin khách hàng/prospect (UserId linking, IsDeleted soft-delete)
+- `Lead`: khách hàng tiềm năng (LeadSource enum, EstimatedValue, Status, QualifiedAt)
+- `Opportunity`: cơ hội bán hàng (Stage pipeline, Value, ExpectedCloseDate, WonAt/LostAt)
+- `Case`: vụ việc hỗ trợ (CasePriority, CaseStatus, AssignedToUserId, Resolution)
+- `Activity`: lịch sử tương tác (ActivityType: Call/Email/Meeting/Note/Task; Status: Scheduled/Completed/Cancelled; ContactId, OpportunityId, CaseId FK; Source field)
+- `ContactTag`: phân nhóm khách hàng (Tag normalized to lowercase, unique per contact)
 
-#### ❌ Tính năng còn thiếu (hầu hết chưa có)
+**Domain Events**
+- `LeadCreatedEvent`, `LeadQualifiedEvent` (published via Outbox → Kafka)
+- `OpportunityWonEvent`, `OpportunityLostEvent`
+- `CaseOpenedEvent`, `CaseResolvedEvent`, `CaseClosedEvent`, `CaseAssignedEvent`
+- `ActivityCreatedEvent(ActivityId, ContactId, ActivityType, Subject)`
+- `ActivityCompletedEvent(ActivityId, ContactId)`
+
+**CQRS — Commands (14)**
+- Contact: `CreateContactCommand`, `UpdateContactCommand`
+- Lead: `CreateLeadCommand`, `QualifyLeadCommand`, `UpdateLeadStatusCommand`
+- Opportunity: `CreateOpportunityCommand`, `UpdateOpportunityStageCommand`, `CloseOpportunityWonCommand`, `CloseOpportunityLostCommand`
+- Case: `OpenCaseCommand`, `AssignCaseCommand`, `ResolveCaseCommand`, `CloseCaseCommand`
+- Activity: `CreateActivityCommand`, `CompleteActivityCommand`, `CancelActivityCommand`, `UpdateActivityNotesCommand`
+- Tag: `AddContactTagCommand`, `RemoveContactTagCommand`
+
+**CQRS — Queries (9)**
+- `GetContactQuery`, `ListContactsQuery`
+- `GetLeadQuery`, `ListLeadsQuery`
+- `GetOpportunityQuery`, `ListOpportunitiesQuery`, `GetPipelineSummaryQuery`
+- `GetCaseQuery`, `ListCasesQuery`
+- `GetActivityQuery`, `ListActivitiesQuery`
+- `GetContactTagsQuery`, `ListContactsByTagQuery`, `GetAllTagsQuery`
+
+**Validators (FluentValidation)**
+- `CreateContactCommandValidator`, `UpdateContactCommandValidator`
+- `CreateLeadCommandValidator`, `CreateOpportunityCommandValidator`
+- `OpenCaseCommandValidator`
+- `CreateActivityCommandValidator`, `AddContactTagCommandValidator`
+
+**Integration — Consumed Events**
+- Kafka `identity-topic` → `UserCreatedEventHandler`: auto-creates `Contact` record linked to UserId
+- Kafka `payment-topic` → `PaymentProcessedEventHandler`: logs payment correlation
+- RabbitMQ `sales_order_events` exchange → `SalesOrderCreatedEventHandler`: creates `Activity` note (type=Note) on the linked Contact with order details
+
+**API Controllers — 5 controllers, ~30 endpoints**
+- `ContactsController` (`/api/v1/crm/contacts`): List, Get, Create, Update; + tag sub-resources: GET/POST `/tags`, DELETE `/tags/{tag}`, GET `/by-tag/{tag}`, GET `/tags/all`
+- `LeadsController` (`/api/v1/crm/leads`): List, Get, Create, Qualify, UpdateStatus
+- `OpportunitiesController` (`/api/v1/crm/opportunities`): List, Get, Create, UpdateStage, Won, Lost; + GET `/pipeline-summary`
+- `CasesController` (`/api/v1/crm/cases`): List, Get, Open, Assign, Resolve, Close
+- `ActivitiesController` (`/api/v1/crm/activities`): List, Get, Create, Complete, Cancel, UpdateNotes
+
+**Repositories (Infrastructure)**
+- `ContactRepository`: GetByIdAsync, GetByUserIdAsync, AddAsync, UpdateAsync, GetAllAsync, GetPagedAsync, GetByIdsPagedAsync
+- `LeadRepository`, `OpportunityRepository`, `CaseRepository` (full CRUD + paged queries)
+- `ActivityRepository`: GetByIdAsync, AddAsync, UpdateAsync, GetPagedAsync (filtered by contactId/opportunityId/activityType)
+- `ContactTagRepository`: GetByContactIdAsync, GetContactIdsByTagAsync, AddAsync, DeleteAsync, GetAllTagsAsync
+
+**EF Core — CrmDbContext**
+- Tables: Contacts, Leads, Opportunities, Cases, Activities, ContactTags, OutboxMessages
+- Activity: indexes on (ContactId), (ContactId, Status), (OpportunityId), (CreatedAt)
+- ContactTag: unique index on (ContactId, Tag); index on Tag; Tag normalized to lowercase
+
+#### ⚠️ Tính năng chưa triển khai (low priority)
 
 | Tính năng | Ưu tiên | Ghi chú |
 |-----------|---------|---------|
-| `CreateContactCommand` + Handler | Cao | CRUD contact |
-| `CreateLeadCommand` + Handler | Cao | Tạo lead mới |
-| `QualifyLeadCommand` | Cao | Chuyển lead → opportunity |
-| `CreateOpportunityCommand` | Cao | Pipeline bán hàng |
-| `OpenCaseCommand` / `ResolveCaseCommand` | Cao | Hỗ trợ khách hàng |
-| Consume `UserCreated` event | Cao | Tạo contact từ user mới |
-| Consume `SalesOrderCreated` event | Cao | Link đơn hàng vào contact |
-| Consume `PaymentReceived` event | Trung | Lịch sử thanh toán |
-| Published events: `LeadCreated`, `LeadQualified`, `OpportunityWon`, `CaseOpened`, `CaseResolved` | Cao | Trigger notifications, reports |
-| Activity logging (call, email, meeting) | Trung | Lịch sử tương tác |
-| Contact tags & segments | Trung | Phân nhóm khách hàng |
-| All Controllers (0 hiện có) | Cao | Chưa có bất kỳ endpoint nào |
-| Email integration | Thấp | Gửi/nhận email trong CRM |
-| Calendar / appointment | Thấp | Lịch hẹn |
+| Email integration | Thấp | Gửi/nhận email trực tiếp trong CRM |
+| Calendar / appointment | Thấp | Lịch hẹn với reminder |
+| Bulk lead import | Thấp | Import CSV |
 
-#### Luồng Vận Hành (kế hoạch)
+#### Luồng Vận Hành
 
 ```
-[Event: UserCreated]
-→ CRM.CreateContact(userId, email, name)
-→ Contact.Create() → assign to sales team (round-robin)
+[Event: UserCreated from identity-topic]
+→ UserCreatedEventHandler → Contact.Create(userId, email, name)
+→ Contact lưu vào CrmDB
 
-Sales → POST /crm/leads → CreateLeadCommand → Lead.Create()
-     → assign to salesperson → notify via NotificationService
+Sales → POST /api/v1/crm/leads → CreateLeadCommand → Lead.Create()
+     → LeadCreatedEvent → Outbox → Kafka (crm-topic)
+     → NotificationService assigns salesperson
 
-Sales → POST /crm/leads/{id}/qualify → QualifyLeadCommand
+Sales → POST /api/v1/crm/leads/{id}/qualify → QualifyLeadCommand
      → Lead.Qualify() → LeadQualifiedEvent
-     → Opportunity.Create() → NotificationService (notify team)
+     → Opportunity.Create(contactId, value, expectedCloseDate)
 
-[Event: SalesOrderCreated]
-→ Opportunity.LinkOrder(orderId)
-→ nếu opportunity.stage = Proposal → move to Won
-→ OpportunityWonEvent → NotificationService, ReportingService
+[Event: SalesOrderCreated from sales_order_events RabbitMQ]
+→ SalesOrderCreatedEventHandler → find Contact by UserId
+→ Activity.Create(contactId, ActivityType.Note, "Sales order placed — Order #...")
+→ Activity stores order reference in Source field
 
-Customer → POST /crm/cases → OpenCaseCommand → Case.Open()
+Sales → POST /api/v1/crm/activities → CreateActivityCommand
+      → Activity.Create(contactId, ActivityType.Call, subject, notes, scheduledAt)
+      → ActivityCreatedEvent → Outbox
+
+POST /api/v1/crm/activities/{id}/complete
+→ Activity.Complete(notes) → ActivityCompletedEvent
+
+POST /api/v1/crm/contacts/{id}/tags → AddContactTagCommand
+→ ContactTag.Create(contactId, tag) → tag normalized to lowercase
+
+GET /api/v1/crm/contacts/by-tag/{tag}
+→ ListContactsByTagQuery → ContactTagRepository.GetContactIdsByTagAsync()
+→ ContactRepository.GetByIdsPagedAsync() → paged contacts
+
+Customer → POST /api/v1/crm/cases → OpenCaseCommand → Case.Open()
          → CaseOpenedEvent → assign to support team
-→ POST /crm/cases/{id}/resolve → Case.Resolve()
-→ CaseResolvedEvent → NotificationService (feedback request)
+
+POST /api/v1/crm/cases/{id}/resolve → ResolveCaseCommand
+→ Case.Resolve(resolution) → CaseResolvedEvent
+
+GET /api/v1/crm/opportunities/pipeline-summary
+→ GetPipelineSummaryQuery → count by stage, total/won pipeline value
 ```
 
 ---
 
 ### 3.11 HRM Service — Nhân Sự
 
-**Mục đích:** Quản lý nhân viên, phòng ban, chấm công, nghỉ phép, bảng lương.
+**Mục đích:** Chấm công, nghỉ phép, bảng lương, ca làm việc. Employee/Department master data thuộc SharedMasterDataService; HRM giữ `EmployeeSnapshot` read-only projection.
 
 #### ✅ Tính năng đã có
 
-**Domain Entities (chỉ có entities)**
-- `Employee`: thông tin nhân viên
-- `Department`: phòng ban
-- `LeaveRequest`: yêu cầu nghỉ phép
-- `PaySlip`: phiếu lương
+**Domain Entities**
+- `EmployeeSnapshot`: projection read-only từ MST (EmployeeNumber, FullName, Email, EmploymentStatus, DepartmentId) — sync qua Kafka `mst-topic`
+- `LeaveRequest`: yêu cầu nghỉ phép (LeaveType enum, DaysRequested, Approve/Reject/Cancel lifecycle)
+- `PaySlip`: phiếu lương (GrossSalary, Deductions, **OvertimeHours**, **OvertimePay**, NetSalary, PaymentStatus)
+- `AttendanceRecord`: chấm công ngày (CheckIn/CheckOut, TotalHours, **OvertimeHours**, AttendanceStatus: Present/Absent/Late/HalfDay/OnLeave/Holiday) — unique index (EmployeeId, Date)
+- `WorkShift`: ca làm việc (Name, StartTime, EndTime TimeSpan, ShiftHours, IsActive)
 
-#### ❌ Tính năng còn thiếu (hầu hết chưa có)
+**Domain Events**
+- `LeaveApprovedEvent(LeaveRequestId, EmployeeId, StartDate, EndDate)` — Outbox → Kafka
+- `LeaveRejectedEvent(LeaveRequestId, EmployeeId, Reason)` — Outbox → Kafka
+- `PaySlipGeneratedEvent(PaySlipId, EmployeeId, NetPay, PayPeriod)` — Outbox → Kafka
+- `AttendanceCheckedInEvent(AttendanceRecordId, EmployeeId, Date, CheckInTime)`
+- `AttendanceCheckedOutEvent(AttendanceRecordId, EmployeeId, CheckOutTime, TotalHours, OvertimeHours)`
 
-| Tính năng | Ưu tiên | Ghi chú |
-|-----------|---------|---------|
-| `HireEmployeeCommand` + Handler | Cao | Onboarding nhân viên mới |
-| `TerminateEmployeeCommand` | Cao | Offboarding |
-| `CreateDepartmentCommand` | Cao | Quản lý cơ cấu tổ chức |
-| `SubmitLeaveRequestCommand` | Cao | Nhân viên nộp đơn xin nghỉ |
-| `ApproveLeaveCommand` | Cao | Manager duyệt nghỉ phép |
-| `ProcessPayrollCommand` | Cao | Tính lương hàng tháng |
-| `GeneratePaySlipCommand` | Cao | Tạo phiếu lương |
-| Attendance tracking | Cao | Chấm công vào/ra |
-| Consume `UserCreated` event | Cao | Link user account với employee |
-| Published events: `EmployeeHired`, `EmployeeTerminated`, `PaySlipGenerated`, `LeaveApproved` | Cao | Trigger notifications |
-| Org chart | Trung | Sơ đồ tổ chức |
-| Performance review | Thấp | Đánh giá nhân viên |
-| All Controllers (0 hiện có) | Cao | Chưa có bất kỳ endpoint nào |
-| Shift management | Trung | Ca làm việc |
-| Overtime calculation | Trung | Tính lương OT |
+**CQRS — Commands (13)**
+- Snapshot sync: `UpsertEmployeeSnapshotCommand` (syncs Email+EmployeeNumber too), `MarkEmployeeSnapshotTerminatedCommand`, `UpdateEmployeeSnapshotDepartmentCommand`
+- Leave: `SubmitLeaveRequestCommand`, `ApproveLeaveCommand`, `RejectLeaveCommand`, `CancelLeaveCommand`
+- Payroll: `ProcessPayrollCommand` (integrates OT from AttendanceRecord), `GeneratePaySlipCommand` (OvertimeHours + OvertimePay params)
+- Attendance: `CheckInCommand`, `CheckOutCommand`, `MarkAbsentCommand`
+- Work Shift: `CreateWorkShiftCommand`, `UpdateWorkShiftCommand`, `DeactivateWorkShiftCommand`
 
-#### Luồng Vận Hành (kế hoạch)
+**CQRS — Queries (11)**
+- Employee: `GetEmployeeSnapshotQuery`, `ListEmployeeSnapshotsQuery` (search/dept/status filters)
+- Leave: `GetLeaveRequestQuery`, `ListLeaveRequestsQuery`
+- PaySlip: `GetPaySlipQuery`, `ListPaySlipsQuery`
+- Attendance: `GetAttendanceQuery`, `GetAttendanceByDateQuery`, `ListAttendanceQuery`, `GetAttendanceSummaryQuery` (present/absent/late days, total hours, OT hours)
+- Work Shift: `GetWorkShiftQuery`, `ListWorkShiftsQuery`
+
+**Validators (FluentValidation)**
+- `SubmitLeaveRequestCommandValidator`, `RejectLeaveCommandValidator`
+- `GeneratePaySlipCommandValidator`, `ProcessPayrollCommandValidator`
+- `CheckInCommandValidator`, `CheckOutCommandValidator`
+- `CreateWorkShiftCommandValidator`
+
+**Integration — Consumed Events**
+- Kafka `mst-topic` → `MasterDataEventConsumer` (IHostedService) → `EmployeeMasterDataEventHandlers`:
+  - `EmployeeHiredIntegrationEvent` → `UpsertEmployeeSnapshotCommand` (FullName, Email, EmployeeNumber, DepartmentId)
+  - `EmployeeTerminatedIntegrationEvent` → `MarkEmployeeSnapshotTerminatedCommand`
+  - `EmployeeTransferredIntegrationEvent` → `UpdateEmployeeSnapshotDepartmentCommand`
+
+**API Controllers — 5 controllers, ~22 endpoints**
+- `LeaveRequestsController` (`/api/v1/hrm/leave-requests`): List, Get, Submit, Approve, Reject, Cancel
+- `PayrollController` (`/api/v1/hrm/payroll`, `/api/v1/hrm/payslips`): ProcessPayroll, GeneratePaySlip, ListPaySlips, GetPaySlipById
+- `AttendanceController` (`/api/v1/hrm/attendance`): List, Get, GetByDate, GetSummary (monthly), CheckIn, CheckOut, MarkAbsent
+- `WorkShiftsController` (`/api/v1/hrm/work-shifts`): List, Get, Create, Update, Deactivate
+- `EmployeesController` (`/api/v1/hrm/employees`): List (search/dept/status), Get
+
+**Repositories (Infrastructure)**
+- `EmployeeSnapshotRepository`: GetByIdAsync, GetActiveAsync, **GetPagedAsync** (search/dept/status), Upsert
+- `LeaveRequestRepository`, `PaySlipRepository` (full CRUD + paged)
+- `AttendanceRepository`: GetByIdAsync, **GetByEmployeeAndDateAsync**, ListAsync (filters), **GetMonthlyOvertimeHoursAsync**, Add, Update
+- `WorkShiftRepository`: GetByIdAsync, GetAllAsync (activeOnly filter), Add, Update
+
+**Overtime integration**
+- `ProcessPayrollCommand` handler queries `AttendanceRepository.GetMonthlyOvertimeHoursAsync` for each employee, calculates OT pay as `overtimeHours × (grossSalary/160) × 1.5`, and passes both to `PaySlip.Create()`
+- `GeneratePaySlipCommand` accepts explicit `OvertimeHours` + `OvertimePay` for one-off slips
+
+#### ⚠️ Tính năng chưa triển khai (không thuộc HRM)
+
+| Tính năng | Lý do |
+|-----------|-------|
+| `HireEmployeeCommand` / `TerminateEmployeeCommand` | Thuộc **SharedMasterDataService** — MST owns Employee aggregate |
+| `CreateDepartmentCommand` | Thuộc **SharedMasterDataService** |
+| Org chart | Cần Department hierarchy từ MST; HRM chỉ có EmployeeSnapshot (flat) |
+| Performance review | Low priority |
+| Calendar / appointment | Low priority |
+
+#### Luồng Vận Hành
 
 ```
-HR → POST /hrm/employees → HireEmployeeCommand → Employee.Hire()
-   → EmployeeHiredEvent → NotificationService (welcome + onboarding email)
-   → IdentityService (tạo user account tự động - CẦN)
+[Event: EmployeeHired từ mst-topic]
+→ MasterDataEventConsumer → UpsertEmployeeSnapshotCommand
+→ EmployeeSnapshot created/updated (FullName, Email, EmployeeNumber, DeptId)
 
-[Event: UserCreated]
-→ Employee.LinkUserAccount(userId)
+Employee → POST /api/v1/hrm/attendance/check-in
+         → CheckInCommand(employeeId, checkInTime, workShiftId?)
+         → AttendanceRecord.CheckIn() → late check nếu có shift
+         → AttendanceCheckedInEvent → Outbox
 
-Employee → POST /hrm/leave-requests → SubmitLeaveRequest
-         → LeaveRequest.Submit() → notify Manager
+Employee → POST /api/v1/hrm/attendance/{id}/check-out
+         → CheckOutCommand → AttendanceRecord.CheckOut()
+         → TotalHours = checkOut - checkIn; OvertimeHours = max(0, TotalHours - 8)
+         → AttendanceCheckedOutEvent → Outbox
 
-Manager → POST /hrm/leave-requests/{id}/approve → ApproveLeave
+Employee → POST /api/v1/hrm/leave-requests → SubmitLeaveRequestCommand
+         → LeaveRequest.Create() → pending
+
+Manager → POST /api/v1/hrm/leave-requests/{id}/approve → ApproveLeaveCommand
         → LeaveRequest.Approve() → LeaveApprovedEvent
-        → NotificationService (thông báo nhân viên)
-        → update attendance calendar
+        → SharedMasterDataService consumes LeaveApproved → marks Employee.OnLeave
 
-HR → POST /hrm/payroll/process?month=2026-06
-   → ProcessPayrollCommand
-   → tính lương từng nhân viên (base + OT - khấu trừ)
-   → GeneratePaySlip() → PaySlipGeneratedEvent
-   → NotificationService (gửi phiếu lương email)
-   → AccountingService (post lương vào GL)
+HR → POST /api/v1/hrm/payroll/process { year, month }
+   → ProcessPayrollCommand → lấy active employees từ snapshot
+   → mỗi employee: GetMonthlyOvertimeHoursAsync → tính OT pay
+   → PaySlip.Create(gross, deductions, overtimeHours, overtimePay)
+   → NetSalary = gross + overtimePay - deductions
+   → PaySlipGeneratedEvent → Outbox → Kafka
+
+GET /api/v1/hrm/attendance/employee/{id}/summary?year=2026&month=7
+→ GetAttendanceSummaryQuery → {PresentDays, AbsentDays, LateDays, TotalHours, OvertimeHours}
 ```
 
 ---
@@ -1413,51 +1567,64 @@ HR → POST /hrm/payroll/process?month=2026-06
 - `JournalEntry`: bút toán
 - `FiscalPeriod`: kỳ kế toán
 
-#### ❌ Tính năng còn thiếu (hầu hết chưa có)
+#### ✅ Đã implement (2026-07-04) — bảng "còn thiếu" trước đây đã lỗi thời
 
-| Tính năng | Ưu tiên | Ghi chú |
-|-----------|---------|---------|
-| `CreateInvoiceCommand` | Cao | Khi PaymentProcessed |
-| `ApproveBillCommand` | Cao | Khi PurchaseOrderReceived |
-| `PostJournalEntryCommand` | Cao | Ghi bút toán vào GL |
-| `CloseFiscalPeriodCommand` | Cao | Đóng kỳ kế toán |
-| Consume `SalesOrderCreated` | Cao | Tạo hóa đơn AR |
-| Consume `PurchaseOrderCreated` | Cao | Tạo bill AP |
-| Consume `PaymentProcessed` | Cao | Ghi nhận tiền thu |
-| Consume `WarehouseMovement` | Trung | Điều chỉnh giá trị tồn kho |
-| Published: `InvoiceCreated`, `BillApproved`, `JournalEntryPosted`, `FiscalPeriodClosed` | Cao | Trigger reports |
-| All Controllers (0 hiện có) | Cao | Chưa có bất kỳ endpoint nào |
-| Chart of Accounts management | Cao | Danh mục tài khoản |
-| AR Aging report | Cao | Công nợ phải thu |
-| AP Aging report | Cao | Công nợ phải trả |
-| Bank reconciliation | Trung | Đối soát ngân hàng |
-| Tax management (VAT) | Cao | Khai báo thuế |
-| Trial balance | Cao | Bảng cân đối thử |
-| P&L Statement | Cao | Báo cáo lãi lỗ |
-| Balance Sheet | Cao | Bảng cân đối kế toán |
+| Tính năng từ bảng cũ | Trạng thái | Ghi chú |
+|---|---|---|
+| `CreateInvoiceCommand` | ✅ Đã có | Tồn tại từ trước; handler thực |
+| `ApproveBillCommand` | ✅ Đã có | Tồn tại từ trước |
+| `PostJournalEntryCommand` | ✅ Đã có + **nâng cấp** | Giờ lưu `JournalLine` vào DB |
+| `CloseFiscalPeriodCommand` | ✅ Đã có | Tồn tại từ trước |
+| Consume `SalesOrderCreated` | ✅ Đã có | RabbitMQ SalesOrderRabbitMqConsumer |
+| Consume `PurchaseOrderCreated` | ✅ Đã có | Kafka AccountingKafkaConsumer |
+| Consume `PaymentProcessed` | ✅ Đã có | Kafka AccountingKafkaConsumer |
+| Consume `WarehouseMovement` | ✅ **MỚI** | Kafka `warehouse-topic`; log + open period check |
+| Published events 4 loại | ✅ Đã có | Outbox → Kafka `accounting-topic` |
+| All Controllers | ✅ Đã có + **3 mới** | 5 cũ + Reports + TaxRates + BankAccounts |
+| Chart of Accounts | ✅ Đã có | AccountsController |
+| AR Aging report | ✅ Đã có | `GET /api/v1/invoices/ar-aging` |
+| AP Aging report | ✅ Đã có | `GET /api/v1/bills/ap-aging` |
+| Trial balance | ✅ **MỚI** | `GET /api/v1/accounting/reports/trial-balance` |
+| P&L Statement | ✅ **MỚI** | `GET /api/v1/accounting/reports/profit-and-loss` |
+| Balance Sheet | ✅ **MỚI** | `GET /api/v1/accounting/reports/balance-sheet` |
+| Tax management (VAT) | ✅ **MỚI** | TaxRate entity + TaxRatesController |
+| Bank reconciliation | ✅ **MỚI** | BankAccount + BankStatement + BankAccountsController |
 
-#### Luồng Vận Hành (kế hoạch)
+**Ghi chú quan trọng về Trial Balance / P&L / Balance Sheet:**
+- Ba báo cáo này aggregate từ `JournalLine` (dòng bút toán lưu DB).
+- Trước 2026-07-04, `PostJournalEntryCommand` chỉ lưu `TotalDebit`/`TotalCredit` tổng — dòng line không persist. Đã fix.
+- Báo cáo chính xác khi Chart of Accounts được thiết lập và bút toán được post đúng tài khoản.
+
+**Entities mới thêm:**
+- `JournalLine`: JournalEntryId (FK cascade), AccountId, Debit, Credit, Description
+- `TaxRate`: Name, Code (unique), Rate %, IsActive
+- `BankAccount`: AccountName, BankName, AccountNumber, CurrentBalance, GlAccountId?
+- `BankStatement`: BankAccountId, StatementDate, OpeningBalance, ClosingBalance, Status (Open/Reconciled)
+
+#### Luồng Vận Hành Thực Tế
 
 ```
-[Event: SalesOrderCreated]
-→ AccountingService.CreateInvoice(orderId, amount)
-→ Invoice.Create() → post bút toán: DR Phải Thu / CR Doanh Thu
+[Event: SalesOrderCreated — RabbitMQ]
+→ SalesOrderRabbitMqConsumer → CreateInvoiceCommand → Invoice.Create()
+→ InvoiceCreatedEvent → Outbox → Kafka accounting-topic
 
-[Event: PaymentProcessed]
-→ AccountingService.RecordPayment(invoiceId, amount)
-→ Invoice.MarkPaid() → post bút toán: DR Tiền / CR Phải Thu
-→ InvoiceCreatedEvent → PaymentService (reconcile)
+[Event: PaymentProcessed — Kafka payment-topic]
+→ AccountingKafkaConsumer → MarkInvoicePaidCommand → Invoice.MarkPaid()
 
-[Event: PurchaseOrderReceived]
-→ AccountingService.CreateBill(poId, amount)
-→ Bill.Create() → post bút toán: DR Hàng Tồn Kho / CR Phải Trả
-→ BillApprovedEvent → ReportingService
+[Event: PurchaseOrderCreated — Kafka purchasing-topic]
+→ AccountingKafkaConsumer → CreateBillCommand → Bill.Create()
 
-Month End:
-→ POST /accounting/fiscal-periods/{id}/close
-→ FiscalPeriod.Close() → validate all journals balanced
-→ generate P&L, Balance Sheet
-→ FiscalPeriodClosedEvent → ReportingService
+[Event: StockMoved — Kafka warehouse-topic] (MỚI)
+→ AccountingKafkaConsumer → WarehouseMovementIntegrationEventHandler
+→ Log + check open fiscal period (GL post thủ công hoặc COA mapping)
+
+[Month End]
+→ POST /api/v1/fiscal-periods/{id}/close → FiscalPeriodClosedEvent
+
+[Reports]
+→ GET /api/v1/accounting/reports/trial-balance
+→ GET /api/v1/accounting/reports/profit-and-loss?fromDate=&toDate=
+→ GET /api/v1/accounting/reports/balance-sheet?asOfDate=
 ```
 
 ---
@@ -1466,57 +1633,147 @@ Month End:
 
 **Mục đích:** Gửi thông báo đa kênh (Email, SMS, Push) dựa trên events từ toàn hệ thống.
 
-#### ✅ Tính năng đã có
+> **Đợt rà soát 2026-07-04:** 8/10 mục ❌ trong bảng gốc là claim sai — đã có sẵn và
+> hoạt động thật. Chỉ 2 mục thật sự thiếu (retry loop, bulk) và 1 mục mới được thêm
+> (webhook outbound). Digest emails bỏ qua (LOW priority, cần aggregation window phức
+> tạp).
+
+#### ✅ Tính năng đã có (xác nhận thật sau rà soát)
 
 **Domain**
 - `Notification` aggregate: RecipientId, Channel, TemplateId, Subject, Body, Status
-- `NotificationTemplate` entity: Code, Subject, Body, Channel, Variables
-- `NotificationPreference` entity: UserId, Channel, Enabled
-- `NotificationLog` entity: lịch sử gửi
-- `NotificationEvents`: NotificationSent, NotificationFailed
+  (Queued/Sending/Sent/Delivered/Failed/Bounced/Cancelled), Priority, ScheduledFor,
+  RetryCount, FailedAt, SentAt, DeliveredAt
+- `NotificationTemplate` entity: Code (unique), Name, Channel, Subject, Body,
+  Variables (JSON), IsActive; method `Render(variables)` thực hiện `{key}` substitution
+- `NotificationPreference` entity: UserId, EmailEnabled, SmsEnabled, PushEnabled,
+  InAppEnabled, DisabledChannels, OptOutAt; method `IsChannelEnabled()`, `OptOut()`
+- `NotificationLog` owned entity: EventType, Details, EventTimestamp (immutable)
+- `NotificationEvents`: `NotificationSentEvent`, `NotificationFailedEvent`
+- **MỚI 2026-07-04:** `WebhookEndpoint` aggregate: Name, Url, Secret, IsActive,
+  EventTypesRaw (comma-separated filter); methods `Create/Update/Activate/Deactivate`
 
-**Commands/Queries**
-- `SendNotificationCommand`
-- `NotificationQueries` (lịch sử)
+**Commands / Queries**
+- `SendNotificationCommand` → `SendNotificationCommandHandler`: check preference →
+  load+render template → create Notification → immediate deliver nếu High/Critical
+- `CreateTemplateCommand`, `UpdatePreferenceCommand`, `UnsubscribeCommand`
+- `GetNotificationQuery`, `GetNotificationHistoryQuery` (paginated)
+- `GetTemplateQuery`, `ListTemplatesQuery`
+- `GetPreferenceQuery`
+- **MỚI 2026-07-04:** `BulkSendNotificationCommand` → `BulkSendNotificationCommandHandler`:
+  tạo nhiều Notification cùng lúc (1 per recipient), mỗi recipient có thể có
+  personalized template variables riêng, bỏ qua nếu channel bị tắt trong preference,
+  persist batch qua `AddRangeAsync`
+- **MỚI 2026-07-04:** `RegisterWebhookCommand`, `UpdateWebhookCommand`,
+  `DeleteWebhookCommand`, `SetWebhookActiveCommand`, `ListWebhooksQuery`,
+  `GetWebhookQuery` → `WebhookHandlers`
 
-**Event Consumers**
-- `IntegrationEventHandlers` — consume events từ các service khác
+**Providers (thật, không phải stub)**
+- Email: `SmtpEmailSender` — System.Net.Mail, SSL, cấu hình qua `Email:SmtpHost/Port/
+  Username/Password/From`
+- SMS: `TwilioSmsSender` — HTTP POST tới Twilio Messages API, Basic auth; fallback
+  `NullSmsSender` khi `Twilio:AccountSid` chưa cấu hình
+- Push: `FcmPushSender` — HTTP POST tới FCM API, Bearer token; fallback `NullPushSender`
+  khi `Fcm:ServerKey` chưa cấu hình
+- **MỚI 2026-07-04:** `WebhookSender` — HTTP POST JSON với HMAC-SHA256 signature
+  (`X-Hub-Signature: sha256=…`) và `X-Event-Type`/`X-Timestamp` headers
 
-**API**
-- `NotificationsController`
-- `PreferencesController`
-- `TemplatesController`
+**Background Jobs**
+- `NotificationDispatchJob` (BackgroundService, interval 10s):
+  - `GetPendingAsync()` → gửi queued notifications theo priority
+  - **MỚI 2026-07-04 (fix thật sự):** `GetFailedForRetryAsync()` → retry với
+    **exponential backoff**: 30s sau lần fail đầu, 60s sau lần fail thứ hai (max 3
+    lần tổng). `ShouldRetryNow()` kiểm tra `FailedAt.AddSeconds(30 × 2^(RetryCount-1))
+    ≤ UtcNow`. Trước đây method `GetFailedForRetryAsync()` và `CanRetry()` tồn tại
+    nhưng job không bao giờ gọi chúng — retry không hoạt động.
+  - **MỚI 2026-07-04:** Sau mỗi lần gửi thành công, fire webhooks đang active cho
+    event type `"notification.sent"` qua `WebhookSender`
+- `IdentityEventConsumer` (IHostedService, Kafka `identity-topic`): dispatch
+  `TwoFactorCodeGeneratedDomainEvent` → `TwoFactorCodeGeneratedIntegrationEvent` và
+  `UserRegisteredDomainEvent` → `UserCreatedIntegrationEvent`
 
-#### ❌ Tính năng còn thiếu
+**Integration Event Handlers** (handler class đã có, MediatR INotificationHandler)
+- `UserCreatedIntegrationEvent` → `WELCOME_EMAIL` template
+- `SalesOrderCreatedIntegrationEvent` → `ORDER_CONFIRMATION` template (High priority)
+- `PaymentProcessedIntegrationEvent` → `PAYMENT_RECEIPT` template (High priority)
+- `ShipmentCreatedIntegrationEvent` → `SHIPMENT_NOTIFICATION` template
+- `EmployeeHiredIntegrationEvent` → `EMPLOYEE_WELCOME` template
+- `TwoFactorCodeGeneratedIntegrationEvent` → `TWO_FACTOR_CODE` template (High
+  priority, channel từ event.Method)
+- `CaseOpenedIntegrationEvent`, `FlashSaleStartedIntegrationEvent`,
+  `PaymentFailedIntegrationEvent`, `SalesOrderCancelledIntegrationEvent` (handler
+  đã có, Kafka consumer cho topic tương ứng chưa được thêm)
 
-| Tính năng | Ưu tiên | Ghi chú |
-|-----------|---------|---------|
-| Email provider implementation | Cao | SendGrid / AWS SES / SMTP thực sự |
-| SMS provider implementation | Cao | Twilio / VIETTEL / VNPT SMS |
-| FCM/APNS push implementation | Cao | Firebase + Apple Push |
-| Template variable substitution engine | Cao | Replace {{customerName}}, {{orderId}} |
-| Retry mechanism (exponential backoff) | Cao | Khi gửi thất bại |
-| Notification scheduling | Trung | Gửi theo lịch |
-| Digest emails | Thấp | Tổng hợp nhiều thông báo vào 1 email |
-| Unsubscribe management | Trung | Tuân thủ GDPR |
-| Webhook delivery (outbound) | Thấp | Notify external systems |
-| Bulk notification | Trung | Gửi campaign email marketing |
+**Scheduling** (đã có từ trước)
+- `Notification.ScheduledFor` — notifications với `ScheduledFor > now` sẽ được giữ
+  trong trạng thái Queued cho tới khi `NotificationDispatchJob` tick tiếp theo sau
+  thời điểm đó
+
+**Unsubscribe / Preference** (đã có từ trước)
+- `POST /api/v1/preferences/{userId}/unsubscribe` → `UnsubscribeCommand` →
+  `preference.OptOut()` — tắt tất cả channels, ghi OptOutAt
+
+**API — 4 controllers**
+
+| Controller | Route | Endpoints |
+|---|---|---|
+| `NotificationsController` | `/api/v1/notifications` | POST / (send), GET /{id}, GET /history/{recipientId}?skip&take, **POST /bulk (MỚI)** |
+| `TemplatesController` | `/api/v1/templates` | GET / (list, filter isActive), GET /{id}, POST / |
+| `PreferencesController` | `/api/v1/preferences` | GET /{userId}, PUT /{userId}, POST /{userId}/unsubscribe |
+| **`WebhooksController` (MỚI)** | `/api/v1/webhooks` | GET / (list), GET /{id}, POST / (register), PUT /{id}, DELETE /{id}, POST /{id}/activate, POST /{id}/deactivate |
+
+**Database**
+- `NotificationDbContext`: Notifications (OwnsMany Logs), Templates, Preferences,
+  **WebhookEndpoints (MỚI)**, OutboxMessages
+- WebhookEndpoint EF config: EventTypesRaw → column "EventTypes", computed `EventTypes`
+  property ignored, index on IsActive
+
+#### ⚠️ Còn thiếu / Cố ý bỏ qua
+
+| Tính năng | Trạng thái | Ghi chú |
+|---|---|---|
+| APNS (Apple Push) | Chưa có | FCM đã có; APNS cần Apple dev certificate + JWT — thêm sau |
+| Digest emails | Bỏ qua (LOW) | Cần aggregation window scheduler phức tạp |
+| Kafka consumers cho `sales-topic`, `payment-topic`, `shipping-topic`, v.v. | Chưa có | Handler class đã tồn tại; cần thêm IHostedService consumer theo pattern `IdentityEventConsumer` |
 
 #### Luồng Vận Hành
 
 ```
-[Bất kỳ service nào] → publish Integration Event → RabbitMQ
-→ NotificationService.IntegrationEventHandlers consume
-→ SendNotificationCommand(recipientId, templateCode, variables)
-→ [check NotificationPreference] → nếu bị tắt thì skip
-→ [load Template] → substitute variables
-→ route theo Channel:
-    Email → IEmailSender → [CẦN] SendGrid/SES
-    SMS   → ISmsSender   → [CẦN] Twilio
-    Push  → IPushSender  → [CẦN] FCM/APNS
-→ Notification.MarkSent() / MarkFailed()
-→ NotificationLog.Record()
-→ [nếu thất bại] → retry queue (exponential backoff)
+[Event-driven — ví dụ TwoFactorCodeGenerated]
+IdentityService → Kafka identity-topic (outbox)
+→ IdentityEventConsumer (IHostedService) → IMediator.Publish
+→ TwoFactorCodeGeneratedIntegrationEventHandler
+→ SendNotificationCommand { Channel = SMS|Email từ event.Method, TemplateCode = "TWO_FACTOR_CODE" }
+→ SendNotificationCommandHandler:
+    1. GetPreferenceAsync → channel enabled?
+    2. GetByCodeAsync("TWO_FACTOR_CODE") → template.Render({ code, expiryMinutes })
+    3. Notification.Create(…, Priority=High)
+    4. NotificationRepository.AddAsync
+    5. [Priority=High] → DeliverAsync → TwilioSmsSender / SmtpEmailSender → MarkAsSent/MarkAsFailed
+
+[Dispatch job — normal & Low priority + retry]
+NotificationDispatchJob (mỗi 10s):
+├── GetPendingAsync → notifications Queued + ScheduledFor ≤ now → gửi theo channel
+│   └── sau gửi thành công → FireWebhooksAsync("notification.sent", …)
+└── GetFailedForRetryAsync → filter ShouldRetryNow() [backoff 30s/60s]
+    └── retry gửi → MarkAsSent hoặc MarkAsFailed (RetryCount max 3)
+
+[Bulk campaign]
+Admin → POST /api/v1/notifications/bulk { Recipients:[…], TemplateCode, SharedVariables }
+→ BulkSendNotificationCommandHandler:
+    for each recipient:
+        check preference → skip nếu channel disabled
+        merge SharedVariables + recipient.Variables → template.Render()
+        Notification.Create(…, ScheduledFor?)
+→ AddRangeAsync (1 DB round-trip cho toàn batch)
+→ NotificationDispatchJob sẽ gửi trong tick tiếp theo
+
+[Webhook outbound]
+POST /api/v1/webhooks { Name, Url, Secret, EventTypes:["notification.sent"] }
+→ WebhookEndpoint.Create → WebhookRepository.AddAsync
+→ khi notification được gửi:
+    WebhookSender.SendAsync(url, secret, "notification.sent", { Id, RecipientId, Channel, Status, SentAt })
+    HTTP POST + X-Hub-Signature: sha256=<HMAC-SHA256(timestamp.json, secret)>
 ```
 
 ---
@@ -1939,7 +2196,7 @@ choreography qua các consumer mới.
 7. CRMService: Tất cả commands, queries, controllers, event consumers
 8. HRMService: Tất cả commands, queries, controllers, event consumers
 9. NotificationService: Email/SMS/Push provider implementation
-10. PromotionService: FlashSale entity, event consumers, rules engine
+10. PromotionService: ✅ Hoàn thành 2026-07-04 — FlashSale entity, rules engine, bulk coupons, scheduler, 3 controllers
 ```
 
 ### Sprint 3 — Analytics & Polish

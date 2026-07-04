@@ -3,6 +3,7 @@ using ERP.PRM.Infrastructure.Models;
 using ERP.Shared.Core.Domain;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Newtonsoft.Json;
 
 namespace ERP.PRM.Infrastructure.Persistence;
@@ -11,6 +12,9 @@ public class PromotionDbContext : DbContext
 {
     public DbSet<Promotion> Promotions => Set<Promotion>();
     public DbSet<LoyaltyAccount> LoyaltyAccounts => Set<LoyaltyAccount>();
+    public DbSet<LoyaltyTransaction> LoyaltyTransactions => Set<LoyaltyTransaction>();
+    public DbSet<FlashSale> FlashSales => Set<FlashSale>();
+    public DbSet<FlashSaleItem> FlashSaleItems => Set<FlashSaleItem>();
     public DbSet<PromotionProductCache> ProductCache => Set<PromotionProductCache>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
@@ -24,8 +28,30 @@ public class PromotionDbContext : DbContext
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Name).IsRequired().HasMaxLength(300);
             e.Property(x => x.DiscountValue).HasPrecision(18, 4);
+            e.Property(x => x.MaxDiscountAmount).HasPrecision(18, 2);
             e.Property(x => x.MinOrderAmount).HasPrecision(18, 2);
             e.HasIndex(x => x.Status);
+            e.HasIndex(x => new { x.Status, x.StartDate, x.EndDate });
+
+            // Store List<Guid>/List<string> as JSON strings
+            e.Property(x => x.ApplicableProductIds)
+                .HasConversion(
+                    v => JsonConvert.SerializeObject(v),
+                    v => JsonConvert.DeserializeObject<List<Guid>>(v) ?? new List<Guid>())
+                .Metadata.SetValueComparer(new ValueComparer<List<Guid>>(
+                    (a, b) => a != null && b != null && a.SequenceEqual(b),
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()));
+
+            e.Property(x => x.ApplicableCategoryIds)
+                .HasConversion(
+                    v => JsonConvert.SerializeObject(v),
+                    v => JsonConvert.DeserializeObject<List<string>>(v) ?? new List<string>())
+                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
+                    (a, b) => a != null && b != null && a.SequenceEqual(b),
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()));
+
             e.OwnsMany(x => x.Coupons, c =>
             {
                 c.HasKey(x => x.Id);
@@ -41,6 +67,46 @@ public class PromotionDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasIndex(x => x.UserId).IsUnique();
+            e.HasMany(x => x.Transactions)
+                .WithOne()
+                .HasForeignKey(t => t.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LoyaltyTransaction>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Reason).HasMaxLength(500);
+            e.Property(x => x.TransactionType).HasMaxLength(20);
+            e.HasIndex(x => x.AccountId);
+            e.HasIndex(x => x.UserId);
+            e.ToTable("LoyaltyTransactions");
+        });
+
+        modelBuilder.Entity<FlashSale>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Name).IsRequired().HasMaxLength(300);
+            e.HasIndex(x => x.Status);
+            e.HasIndex(x => new { x.Status, x.StartTime, x.EndTime });
+            e.HasMany(x => x.Items)
+                .WithOne()
+                .HasForeignKey(i => i.FlashSaleId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.ToTable("FlashSales");
+        });
+
+        modelBuilder.Entity<FlashSaleItem>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.ProductName).IsRequired().HasMaxLength(300);
+            e.Property(x => x.OriginalPrice).HasPrecision(18, 2);
+            e.Property(x => x.SalePrice).HasPrecision(18, 2);
+            e.HasIndex(x => new { x.FlashSaleId, x.ProductId }).IsUnique();
+            e.ToTable("FlashSaleItems");
         });
 
         modelBuilder.Entity<PromotionProductCache>(e =>

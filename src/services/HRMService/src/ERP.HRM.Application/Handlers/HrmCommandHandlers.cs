@@ -6,6 +6,8 @@ using ERP.HRM.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
+// OT rate: 1.5× hourly rate. Hourly rate = GrossSalary / 160 (standard monthly hours).
+
 namespace ERP.HRM.Application.Handlers;
 
 // Department/Employee command handlers moved to SharedMasterDataService.
@@ -201,8 +203,6 @@ public class GeneratePaySlipCommandHandler : IRequestHandler<GeneratePaySlipComm
 
     public async Task<PaySlipDto> Handle(GeneratePaySlipCommand request, CancellationToken cancellationToken)
     {
-        // See SubmitLeaveRequestCommandHandler: snapshot absence isn't fatal, only used
-        // when present to avoid generating pay slips for known-terminated employees.
         var snapshot = await _employeeSnapshotRepository.GetByIdAsync(request.EmployeeId, cancellationToken);
         if (snapshot != null && snapshot.EmploymentStatus == (int)EmploymentStatus.Terminated)
             throw new InvalidOperationException($"Employee {request.EmployeeId} is terminated.");
@@ -219,7 +219,9 @@ public class GeneratePaySlipCommandHandler : IRequestHandler<GeneratePaySlipComm
             request.Year,
             request.Month,
             request.GrossPay,
-            request.Deductions);
+            request.Deductions,
+            request.OvertimeHours,
+            request.OvertimePay);
 
         _paySlipRepository.Add(paySlip);
         await _paySlipRepository.SaveChangesAsync(cancellationToken);
@@ -240,6 +242,8 @@ public class GeneratePaySlipCommandHandler : IRequestHandler<GeneratePaySlipComm
             ps.PayPeriod,
             ps.GrossSalary,
             ps.Deductions,
+            ps.OvertimeHours,
+            ps.OvertimePay,
             ps.NetSalary,
             ps.PaymentDate,
             ((Domain.Enums.PaymentStatus)ps.PaymentStatus).ToString(),
@@ -250,21 +254,23 @@ public class ProcessPayrollCommandHandler : IRequestHandler<ProcessPayrollComman
 {
     private readonly IPaySlipRepository _paySlipRepository;
     private readonly IEmployeeSnapshotRepository _employeeSnapshotRepository;
+    private readonly IAttendanceRepository _attendanceRepository;
     private readonly ILogger<ProcessPayrollCommandHandler> _logger;
 
-    // Default deduction rate (30% for taxes and benefits)
     private const decimal DefaultDeductionRate = 0.30m;
-
-    // Default gross salary when not set (fallback for demo/seeding)
     private const decimal DefaultGrossSalary = 5000m;
+    private const decimal StandardMonthlyHours = 160m;
+    private const decimal OvertimeRateMultiplier = 1.5m;
 
     public ProcessPayrollCommandHandler(
         IPaySlipRepository paySlipRepository,
         IEmployeeSnapshotRepository employeeSnapshotRepository,
+        IAttendanceRepository attendanceRepository,
         ILogger<ProcessPayrollCommandHandler> logger)
     {
         _paySlipRepository = paySlipRepository;
         _employeeSnapshotRepository = employeeSnapshotRepository;
+        _attendanceRepository = attendanceRepository;
         _logger = logger;
     }
 
@@ -291,6 +297,12 @@ public class ProcessPayrollCommandHandler : IRequestHandler<ProcessPayrollComman
             var grossSalary = DefaultGrossSalary;
             var deductions = Math.Round(grossSalary * DefaultDeductionRate, 2);
 
+            var overtimeHours = await _attendanceRepository.GetMonthlyOvertimeHoursAsync(
+                employee.Id, request.Year, request.Month, cancellationToken);
+
+            var hourlyRate = grossSalary / StandardMonthlyHours;
+            var overtimePay = Math.Round(overtimeHours * hourlyRate * OvertimeRateMultiplier, 2);
+
             var paySlipNumber = $"PS-{request.Year:D4}{request.Month:D2}-{Random.Shared.Next(1000, 9999):D4}";
 
             var paySlip = PaySlip.Create(
@@ -299,7 +311,9 @@ public class ProcessPayrollCommandHandler : IRequestHandler<ProcessPayrollComman
                 request.Year,
                 request.Month,
                 grossSalary,
-                deductions);
+                deductions,
+                overtimeHours,
+                overtimePay);
 
             _paySlipRepository.Add(paySlip);
             results.Add(GeneratePaySlipCommandHandler.MapToDto(paySlip));

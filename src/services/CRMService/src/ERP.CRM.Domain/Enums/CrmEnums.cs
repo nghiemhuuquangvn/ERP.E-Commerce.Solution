@@ -50,3 +50,19 @@ public enum ContactSource
     UserRegistration = 1,
     Import = 2
 }
+
+public enum ActivityType
+{
+    Call = 0,
+    Email = 1,
+    Meeting = 2,
+    Note = 3,
+    Task = 4
+}
+
+public enum ActivityStatus
+{
+    Scheduled = 0,
+    Completed = 1,
+    Cancelled = 2
+}

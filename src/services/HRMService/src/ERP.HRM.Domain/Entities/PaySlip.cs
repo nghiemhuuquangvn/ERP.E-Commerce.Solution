@@ -11,6 +11,8 @@ namespace ERP.HRM.Domain.Entities
         public int Month { get; set; }
         public decimal GrossSalary { get; set; }
         public decimal Deductions { get; set; }
+        public decimal OvertimeHours { get; set; }
+        public decimal OvertimePay { get; set; }
         public decimal NetSalary { get; set; }
         public DateTime PaymentDate { get; set; }
         public int PaymentStatus { get; set; }
@@ -23,7 +25,9 @@ namespace ERP.HRM.Domain.Entities
             int year,
             int month,
             decimal grossSalary,
-            decimal deductions)
+            decimal deductions,
+            decimal overtimeHours = 0m,
+            decimal overtimePay = 0m)
         {
             var paySlip = new PaySlip
             {
@@ -34,7 +38,9 @@ namespace ERP.HRM.Domain.Entities
                 Month = month,
                 GrossSalary = grossSalary,
                 Deductions = deductions,
-                NetSalary = grossSalary - deductions,
+                OvertimeHours = overtimeHours,
+                OvertimePay = overtimePay,
+                NetSalary = grossSalary + overtimePay - deductions,
                 PaymentDate = new DateTime(year, month, 1).AddMonths(1).AddDays(-1),
                 PaymentStatus = 0,
                 CreatedAt = DateTime.UtcNow,

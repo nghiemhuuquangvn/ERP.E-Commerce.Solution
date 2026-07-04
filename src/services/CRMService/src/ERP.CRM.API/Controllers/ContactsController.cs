@@ -77,4 +77,70 @@ public class ContactsController : ControllerBase
         var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);
     }
+
+    // ─── Tag endpoints ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Get all tags assigned to a contact.
+    /// </summary>
+    [HttpGet("{id:guid}/tags")]
+    [AuthorizePermission("crm:contacts:view")]
+    public async Task<IActionResult> GetTags(Guid id, CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new GetContactTagsQuery(id), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Add a tag to a contact. Idempotent — duplicate tags are ignored.
+    /// </summary>
+    [HttpPost("{id:guid}/tags")]
+    [AuthorizePermission("crm:contacts:manage")]
+    public async Task<IActionResult> AddTag(
+        Guid id,
+        [FromBody] TagRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new AddContactTagCommand(id, request.Tag), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Remove a tag from a contact.
+    /// </summary>
+    [HttpDelete("{id:guid}/tags/{tag}")]
+    [AuthorizePermission("crm:contacts:manage")]
+    public async Task<IActionResult> RemoveTag(Guid id, string tag, CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new RemoveContactTagCommand(id, tag), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// List contacts that have a specific tag applied.
+    /// </summary>
+    [HttpGet("by-tag/{tag}")]
+    [AuthorizePermission("crm:contacts:view")]
+    public async Task<IActionResult> ListByTag(
+        string tag,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new ListContactsByTagQuery(tag, page, pageSize), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// List all distinct tags used across all contacts.
+    /// </summary>
+    [HttpGet("tags/all")]
+    [AuthorizePermission("crm:contacts:view")]
+    public async Task<IActionResult> GetAllTags(CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new GetAllTagsQuery(), cancellationToken);
+        return Ok(result);
+    }
+
+    public record TagRequest(string Tag);
 }

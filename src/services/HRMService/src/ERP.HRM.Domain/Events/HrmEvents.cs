@@ -5,6 +5,25 @@ namespace ERP.HRM.Domain.Events;
 // Employee/Department lifecycle events moved to SharedMasterDataService
 // (ERP.MST.Domain.Events.MasterDataEvents) — HRM no longer owns those aggregates.
 
+public record AttendanceCheckedInEvent(
+    Guid AttendanceRecordId,
+    Guid EmployeeId,
+    DateTime Date,
+    DateTime CheckInTime) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}
+
+public record AttendanceCheckedOutEvent(
+    Guid AttendanceRecordId,
+    Guid EmployeeId,
+    DateTime CheckOutTime,
+    decimal TotalHours,
+    decimal OvertimeHours) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}
+
 public record LeaveApprovedEvent(
     Guid LeaveRequestId,
     Guid EmployeeId,

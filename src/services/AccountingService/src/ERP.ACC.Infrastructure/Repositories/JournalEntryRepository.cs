@@ -12,13 +12,13 @@ namespace ERP.ACC.Infrastructure.Repositories
         public JournalEntryRepository(AccountingDbContext db) => _db = db;
 
         public async Task<JournalEntry?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
-            await _db.JournalEntries.FirstOrDefaultAsync(j => j.Id == id, ct);
+            await _db.JournalEntries.Include(j => j.Lines).FirstOrDefaultAsync(j => j.Id == id, ct);
 
         public async Task<List<JournalEntry>> GetAllAsync(CancellationToken ct = default) =>
-            await _db.JournalEntries.OrderByDescending(j => j.CreatedAt).AsNoTracking().ToListAsync(ct);
+            await _db.JournalEntries.Include(j => j.Lines).OrderByDescending(j => j.CreatedAt).AsNoTracking().ToListAsync(ct);
 
         public async Task<List<JournalEntry>> GetByFiscalPeriodIdAsync(Guid fiscalPeriodId, CancellationToken ct = default) =>
-            await _db.JournalEntries.Where(j => j.FiscalPeriodId == fiscalPeriodId).OrderByDescending(j => j.CreatedAt).AsNoTracking().ToListAsync(ct);
+            await _db.JournalEntries.Include(j => j.Lines).Where(j => j.FiscalPeriodId == fiscalPeriodId).OrderByDescending(j => j.CreatedAt).AsNoTracking().ToListAsync(ct);
 
         public async Task AddAsync(JournalEntry entry, CancellationToken ct = default)
         {

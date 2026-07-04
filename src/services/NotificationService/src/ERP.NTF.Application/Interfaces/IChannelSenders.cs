@@ -14,3 +14,8 @@ public interface IPushSender
 {
     Task SendAsync(string deviceToken, string title, string body, CancellationToken ct = default);
 }
+
+public interface IWebhookSender
+{
+    Task SendAsync(string url, string? secret, string eventType, object payload, CancellationToken ct = default);
+}

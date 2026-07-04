@@ -65,6 +65,8 @@ namespace ERP.CRM.Infrastructure
             services.AddScoped<ILeadRepository, LeadRepository>();
             services.AddScoped<IOpportunityRepository, OpportunityRepository>();
             services.AddScoped<ICaseRepository, CaseRepository>();
+            services.AddScoped<IActivityRepository, ActivityRepository>();
+            services.AddScoped<IContactTagRepository, ContactTagRepository>();
 
             return services;
         }

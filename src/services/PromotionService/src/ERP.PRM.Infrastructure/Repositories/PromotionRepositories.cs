@@ -20,6 +20,9 @@ public class PromotionRepository : IPromotionRepository
             .Where(p => p.Status == PromotionStatus.Active && p.StartDate <= DateTime.UtcNow && p.EndDate >= DateTime.UtcNow)
             .AsNoTracking().ToListAsync(ct);
 
+    public async Task<List<Promotion>> GetAllAsync(CancellationToken ct = default) =>
+        await _db.Promotions.AsNoTracking().ToListAsync(ct);
+
     public async Task AddAsync(Promotion promotion, CancellationToken ct = default)
     {
         await _db.Promotions.AddAsync(promotion, ct);
@@ -56,7 +59,9 @@ public class LoyaltyAccountRepository : ILoyaltyAccountRepository
     public LoyaltyAccountRepository(PromotionDbContext db) => _db = db;
 
     public async Task<LoyaltyAccount?> GetByUserIdAsync(Guid userId, CancellationToken ct = default) =>
-        await _db.LoyaltyAccounts.FirstOrDefaultAsync(a => a.UserId == userId, ct);
+        await _db.LoyaltyAccounts
+            .Include(a => a.Transactions)
+            .FirstOrDefaultAsync(a => a.UserId == userId, ct);
 
     public async Task AddAsync(LoyaltyAccount account, CancellationToken ct = default)
     {
@@ -100,5 +105,35 @@ public class PromotionProductCacheRepository : IPromotionProductCacheRepository
     {
         var entry = await _db.ProductCache.FindAsync(new object[] { productId }, ct);
         return entry?.Category;
+    }
+}
+
+public class FlashSaleRepository : IFlashSaleRepository
+{
+    private readonly PromotionDbContext _db;
+    public FlashSaleRepository(PromotionDbContext db) => _db = db;
+
+    public async Task<FlashSale?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+        await _db.FlashSales.Include(fs => fs.Items).FirstOrDefaultAsync(fs => fs.Id == id, ct);
+
+    public async Task<List<FlashSale>> GetActiveAsync(CancellationToken ct = default) =>
+        await _db.FlashSales
+            .Include(fs => fs.Items)
+            .Where(fs => fs.Status == FlashSaleStatus.Active && fs.StartTime <= DateTime.UtcNow && fs.EndTime >= DateTime.UtcNow)
+            .AsNoTracking().ToListAsync(ct);
+
+    public async Task<List<FlashSale>> GetAllAsync(CancellationToken ct = default) =>
+        await _db.FlashSales.Include(fs => fs.Items).AsNoTracking().ToListAsync(ct);
+
+    public async Task AddAsync(FlashSale flashSale, CancellationToken ct = default)
+    {
+        await _db.FlashSales.AddAsync(flashSale, ct);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateAsync(FlashSale flashSale, CancellationToken ct = default)
+    {
+        _db.FlashSales.Update(flashSale);
+        await _db.SaveChangesAsync(ct);
     }
 }

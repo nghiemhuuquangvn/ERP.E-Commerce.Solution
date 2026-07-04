@@ -10,6 +10,7 @@ namespace ERP.ACC.Domain.Entities
         public string Description { get; set; } = string.Empty;
         public decimal TotalDebit { get; set; }
         public decimal TotalCredit { get; set; }
+        public List<JournalLine> Lines { get; private set; } = new();
 
         public static JournalEntry Create(string entryNumber, Guid fiscalPeriodId, string description)
         {
@@ -23,6 +24,11 @@ namespace ERP.ACC.Domain.Entities
             };
 
             return entry;
+        }
+
+        public void AddLine(Guid accountId, decimal debit, decimal credit, string description = "")
+        {
+            Lines.Add(JournalLine.Create(Id, accountId, debit, credit, description));
         }
 
         public void Post(decimal totalDebit, decimal totalCredit)

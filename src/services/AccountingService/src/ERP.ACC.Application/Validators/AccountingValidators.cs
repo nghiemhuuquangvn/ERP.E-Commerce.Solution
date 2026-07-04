@@ -62,4 +62,37 @@ namespace ERP.ACC.Application.Validators
                 .WithMessage("End date must be after start date.");
         }
     }
+
+    public class CreateTaxRateCommandValidator : AbstractValidator<CreateTaxRateCommand>
+    {
+        public CreateTaxRateCommandValidator()
+        {
+            RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+            RuleFor(x => x.Code).NotEmpty().MaximumLength(20);
+            RuleFor(x => x.Rate).InclusiveBetween(0, 100).WithMessage("Tax rate must be between 0 and 100 percent.");
+        }
+    }
+
+    public class CreateBankAccountCommandValidator : AbstractValidator<CreateBankAccountCommand>
+    {
+        public CreateBankAccountCommandValidator()
+        {
+            RuleFor(x => x.AccountName).NotEmpty().MaximumLength(200);
+            RuleFor(x => x.BankName).NotEmpty().MaximumLength(200);
+            RuleFor(x => x.AccountNumber).NotEmpty().MaximumLength(50);
+            RuleFor(x => x.CurrencyCode).NotEmpty().MaximumLength(10);
+            RuleFor(x => x.OpeningBalance).GreaterThanOrEqualTo(0);
+        }
+    }
+
+    public class CreateBankStatementCommandValidator : AbstractValidator<CreateBankStatementCommand>
+    {
+        public CreateBankStatementCommandValidator()
+        {
+            RuleFor(x => x.BankAccountId).NotEmpty();
+            RuleFor(x => x.StatementDate).NotEmpty();
+            RuleFor(x => x.OpeningBalance).GreaterThanOrEqualTo(0);
+            RuleFor(x => x.ClosingBalance).GreaterThanOrEqualTo(0);
+        }
+    }
 }

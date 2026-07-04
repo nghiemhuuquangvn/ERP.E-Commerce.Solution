@@ -42,3 +42,24 @@ public class UnsubscribeCommand : IRequest<bool>
 {
     public Guid UserId { get; set; }
 }
+
+public class BulkSendNotificationCommand : IRequest<BulkSendResult>
+{
+    public List<BulkRecipient> Recipients { get; set; } = new();
+    public NotificationChannel Channel { get; set; }
+    public string Subject { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public NotificationPriority Priority { get; set; } = NotificationPriority.Normal;
+    public string? TemplateCode { get; set; }
+    public Dictionary<string, string>? SharedVariables { get; set; }
+    public DateTime? ScheduledFor { get; set; }
+}
+
+public class BulkRecipient
+{
+    public string RecipientId { get; set; } = string.Empty;
+    public string RecipientEmail { get; set; } = string.Empty;
+    public string? RecipientPhone { get; set; }
+    public string? RecipientDeviceToken { get; set; }
+    public Dictionary<string, string>? Variables { get; set; }
+}

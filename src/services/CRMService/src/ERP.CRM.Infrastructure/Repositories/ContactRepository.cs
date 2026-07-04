@@ -72,4 +72,23 @@ public class ContactRepository : IContactRepository
 
         return (items, total);
     }
+
+    public async Task<(IEnumerable<Contact> Items, int TotalCount)> GetByIdsPagedAsync(
+        IEnumerable<Guid> ids,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var idList = ids.ToList();
+        var query = _db.Contacts.Where(c => !c.IsDeleted && idList.Contains(c.Id));
+
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderBy(c => c.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, total);
+    }
 }

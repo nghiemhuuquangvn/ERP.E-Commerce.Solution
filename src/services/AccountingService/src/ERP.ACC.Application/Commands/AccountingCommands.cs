@@ -63,4 +63,51 @@ namespace ERP.ACC.Application.Commands
     {
         public Guid FiscalPeriodId { get; set; }
     }
+
+    public class CreateTaxRateCommand : IRequest<TaxRateDto>
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+        public decimal Rate { get; set; }
+        public string? Description { get; set; }
+    }
+
+    public class UpdateTaxRateCommand : IRequest<TaxRateDto>
+    {
+        public Guid TaxRateId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+        public decimal Rate { get; set; }
+        public string? Description { get; set; }
+    }
+
+    public class DeactivateTaxRateCommand : IRequest<TaxRateDto>
+    {
+        public Guid TaxRateId { get; set; }
+    }
+
+    public class CreateBankAccountCommand : IRequest<BankAccountDto>
+    {
+        public string AccountName { get; set; } = string.Empty;
+        public string BankName { get; set; } = string.Empty;
+        public string AccountNumber { get; set; } = string.Empty;
+        public decimal OpeningBalance { get; set; }
+        public string CurrencyCode { get; set; } = "VND";
+        public Guid? GlAccountId { get; set; }
+    }
+
+    public class CreateBankStatementCommand : IRequest<BankStatementDto>
+    {
+        public Guid BankAccountId { get; set; }
+        public DateTime StatementDate { get; set; }
+        public decimal OpeningBalance { get; set; }
+        public decimal ClosingBalance { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public class ReconcileBankStatementCommand : IRequest<BankStatementDto>
+    {
+        public Guid BankStatementId { get; set; }
+        public string? Notes { get; set; }
+    }
 }

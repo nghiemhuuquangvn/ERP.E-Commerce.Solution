@@ -50,6 +50,30 @@ public record WinOpportunityCommand(Guid OpportunityId) : IRequest<OpportunityDt
 
 public record LoseOpportunityCommand(Guid OpportunityId, string Reason) : IRequest<OpportunityDto>;
 
+// Activity commands
+public record CreateActivityCommand(
+    Guid ContactId,
+    int ActivityType,
+    string Subject,
+    string? Notes,
+    DateTime? ScheduledAt,
+    Guid? OpportunityId,
+    Guid? CaseId,
+    Guid? AssignedToUserId,
+    string? Source
+) : IRequest<ActivityDto>;
+
+public record CompleteActivityCommand(Guid ActivityId, string? Notes) : IRequest<ActivityDto>;
+
+public record CancelActivityCommand(Guid ActivityId) : IRequest<ActivityDto>;
+
+public record UpdateActivityNotesCommand(Guid ActivityId, string Notes) : IRequest<ActivityDto>;
+
+// Tag commands
+public record AddContactTagCommand(Guid ContactId, string Tag) : IRequest<ContactTagsDto>;
+
+public record RemoveContactTagCommand(Guid ContactId, string Tag) : IRequest<ContactTagsDto>;
+
 // Case commands
 public record OpenCaseCommand(
     string Title,

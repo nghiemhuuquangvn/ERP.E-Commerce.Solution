@@ -24,7 +24,9 @@ public class UpsertEmployeeSnapshotCommandHandler : IRequestHandler<UpsertEmploy
 
     public async Task<Unit> Handle(UpsertEmployeeSnapshotCommand request, CancellationToken cancellationToken)
     {
-        var snapshot = EmployeeSnapshot.Create(request.EmployeeId, request.FullName, request.EmploymentStatus, request.DepartmentId);
+        var snapshot = EmployeeSnapshot.Create(
+            request.EmployeeId, request.FullName, request.EmploymentStatus, request.DepartmentId,
+            request.EmployeeNumber, request.Email);
         _repository.Upsert(snapshot);
         await _repository.SaveChangesAsync(cancellationToken);
 

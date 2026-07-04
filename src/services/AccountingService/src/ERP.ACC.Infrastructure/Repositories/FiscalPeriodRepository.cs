@@ -17,6 +17,9 @@ namespace ERP.ACC.Infrastructure.Repositories
         public async Task<List<FiscalPeriod>> GetAllAsync(CancellationToken ct = default) =>
             await _db.FiscalPeriods.OrderByDescending(p => p.StartDate).AsNoTracking().ToListAsync(ct);
 
+        public async Task<FiscalPeriod?> GetOpenPeriodAsync(CancellationToken ct = default) =>
+            await _db.FiscalPeriods.Where(p => p.Status == 0).OrderByDescending(p => p.StartDate).FirstOrDefaultAsync(ct);
+
         public async Task AddAsync(FiscalPeriod period, CancellationToken ct = default)
         {
             await _db.FiscalPeriods.AddAsync(period, ct);

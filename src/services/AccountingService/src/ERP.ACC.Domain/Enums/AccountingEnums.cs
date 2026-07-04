@@ -41,4 +41,18 @@ namespace ERP.ACC.Domain.Enums
         Open = 0,
         Closed = 1
     }
+
+    public enum BankStatementStatus
+    {
+        Open = 0,
+        Reconciled = 1
+    }
+
+    public enum InventoryMovementType
+    {
+        Receipt = 1,
+        Shipment = 2,
+        Adjustment = 3,
+        Transfer = 4
+    }
 }

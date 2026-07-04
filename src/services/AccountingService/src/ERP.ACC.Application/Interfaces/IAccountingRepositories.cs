@@ -1,3 +1,4 @@
+using ERP.ACC.Application.DTOs;
 using ERP.ACC.Domain.Entities;
 
 namespace ERP.ACC.Application.Interfaces
@@ -45,7 +46,40 @@ namespace ERP.ACC.Application.Interfaces
     {
         Task<FiscalPeriod?> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task<List<FiscalPeriod>> GetAllAsync(CancellationToken ct = default);
+        Task<FiscalPeriod?> GetOpenPeriodAsync(CancellationToken ct = default);
         Task AddAsync(FiscalPeriod period, CancellationToken ct = default);
         Task UpdateAsync(FiscalPeriod period, CancellationToken ct = default);
+    }
+
+    public interface IJournalLineRepository
+    {
+        Task<List<JournalLine>> GetByJournalEntryIdAsync(Guid journalEntryId, CancellationToken ct = default);
+        Task<List<AccountBalanceSummary>> GetAccountBalancesAsync(
+            DateTime? fromDate, DateTime? toDate, Guid? fiscalPeriodId, CancellationToken ct = default);
+        Task AddRangeAsync(IEnumerable<JournalLine> lines, CancellationToken ct = default);
+    }
+
+    public interface ITaxRateRepository
+    {
+        Task<TaxRate?> GetByIdAsync(Guid id, CancellationToken ct = default);
+        Task<List<TaxRate>> GetAllAsync(bool? activeOnly = null, CancellationToken ct = default);
+        Task AddAsync(TaxRate taxRate, CancellationToken ct = default);
+        Task UpdateAsync(TaxRate taxRate, CancellationToken ct = default);
+    }
+
+    public interface IBankAccountRepository
+    {
+        Task<BankAccount?> GetByIdAsync(Guid id, CancellationToken ct = default);
+        Task<List<BankAccount>> GetAllAsync(bool? activeOnly = null, CancellationToken ct = default);
+        Task AddAsync(BankAccount bankAccount, CancellationToken ct = default);
+        Task UpdateAsync(BankAccount bankAccount, CancellationToken ct = default);
+    }
+
+    public interface IBankStatementRepository
+    {
+        Task<BankStatement?> GetByIdAsync(Guid id, CancellationToken ct = default);
+        Task<List<BankStatement>> GetByBankAccountIdAsync(Guid bankAccountId, CancellationToken ct = default);
+        Task AddAsync(BankStatement statement, CancellationToken ct = default);
+        Task UpdateAsync(BankStatement statement, CancellationToken ct = default);
     }
 }

@@ -41,5 +41,23 @@ public record ListCasesQuery(
     int PageSize = 20
 ) : IRequest<PagedResult<CaseDto>>;
 
+// Activity queries
+public record GetActivityQuery(Guid ActivityId) : IRequest<ActivityDto?>;
+
+public record ListActivitiesQuery(
+    Guid? ContactId = null,
+    Guid? OpportunityId = null,
+    int? ActivityType = null,
+    int Page = 1,
+    int PageSize = 20
+) : IRequest<PagedResult<ActivityDto>>;
+
+// Tag queries
+public record GetContactTagsQuery(Guid ContactId) : IRequest<ContactTagsDto>;
+
+public record ListContactsByTagQuery(string Tag, int Page = 1, int PageSize = 20) : IRequest<PagedResult<ContactDto>>;
+
+public record GetAllTagsQuery() : IRequest<IEnumerable<string>>;
+
 // Pipeline summary
 public record GetPipelineSummaryQuery() : IRequest<PipelineSummaryDto>;

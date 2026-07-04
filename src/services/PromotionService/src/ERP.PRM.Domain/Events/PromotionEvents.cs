@@ -21,3 +21,10 @@ public record LoyaltyPointsEarnedEvent(
 {
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
+
+public record FlashSaleStartedEvent(
+    Guid FlashSaleId, string Name, DateTime StartTime, DateTime EndTime,
+    List<Guid> ProductIds) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}

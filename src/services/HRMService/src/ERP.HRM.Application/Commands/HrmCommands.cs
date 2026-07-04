@@ -13,7 +13,9 @@ public record UpsertEmployeeSnapshotCommand(
     Guid EmployeeId,
     string FullName,
     int EmploymentStatus,
-    Guid DepartmentId) : IRequest<Unit>;
+    Guid DepartmentId,
+    string? EmployeeNumber = null,
+    string? Email = null) : IRequest<Unit>;
 
 public record MarkEmployeeSnapshotTerminatedCommand(
     Guid EmployeeId) : IRequest<Unit>;
@@ -52,4 +54,39 @@ public record GeneratePaySlipCommand(
     int Year,
     int Month,
     decimal GrossPay,
-    decimal Deductions) : IRequest<PaySlipDto>;
+    decimal Deductions,
+    decimal OvertimeHours = 0m,
+    decimal OvertimePay = 0m) : IRequest<PaySlipDto>;
+
+// ─── Attendance Commands ───────────────────────────────────────────────────
+
+public record CheckInCommand(
+    Guid EmployeeId,
+    DateTime CheckInTime,
+    Guid? WorkShiftId = null,
+    string? Notes = null) : IRequest<AttendanceDto>;
+
+public record CheckOutCommand(
+    Guid AttendanceRecordId,
+    DateTime CheckOutTime,
+    string? Notes = null) : IRequest<AttendanceDto>;
+
+public record MarkAbsentCommand(
+    Guid EmployeeId,
+    DateTime Date,
+    string? Notes = null) : IRequest<AttendanceDto>;
+
+// ─── Work Shift Commands ───────────────────────────────────────────────────
+
+public record CreateWorkShiftCommand(
+    string Name,
+    string StartTime,
+    string EndTime) : IRequest<WorkShiftDto>;
+
+public record UpdateWorkShiftCommand(
+    Guid ShiftId,
+    string Name,
+    string StartTime,
+    string EndTime) : IRequest<WorkShiftDto>;
+
+public record DeactivateWorkShiftCommand(Guid ShiftId) : IRequest<WorkShiftDto>;

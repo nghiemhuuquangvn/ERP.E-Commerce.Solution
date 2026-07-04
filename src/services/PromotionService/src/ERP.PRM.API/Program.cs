@@ -28,18 +28,19 @@ builder.Services.AddScoped<IPromotionRepository, PromotionRepository>();
 builder.Services.AddScoped<ICouponRepository, CouponRepository>();
 builder.Services.AddScoped<ILoyaltyAccountRepository, LoyaltyAccountRepository>();
 builder.Services.AddScoped<IPromotionProductCacheRepository, PromotionProductCacheRepository>();
+builder.Services.AddScoped<IFlashSaleRepository, FlashSaleRepository>();
 
-// Kafka producer + Outbox pattern for publishing integration events (promotion-topic) —
-// PromotionDbContext already harvests domain events into OutboxMessages correctly, it
-// was just missing the drain job.
+// Kafka producer + Outbox pattern for publishing integration events (promotion-topic)
 var kafkaServers = builder.Configuration["KafkaSettings:BootstrapServers"] ?? "localhost:9092";
 var producerConfig = new ProducerConfig { BootstrapServers = kafkaServers, AllowAutoCreateTopics = true };
 builder.Services.AddSingleton(new ProducerBuilder<string, string>(producerConfig).Build());
 builder.Services.AddScoped<IMessageBus, KafkaMessageBus>();
 builder.Services.AddHostedService<OutboxProcessor>();
 
-// RabbitMQ connection — shared single connection, matching the topic exchange model
-// SaleOrderService's RabbitMqMessageBus / WarehouseService's consumer already use.
+// Promotion scheduler: auto-activate/expire promotions and flash sales
+builder.Services.AddHostedService<PromotionSchedulerJob>();
+
+// RabbitMQ connection for SalesOrderCreated events
 builder.Services.AddSingleton<IConnection>(_ =>
 {
     var factory = new ConnectionFactory
@@ -54,8 +55,7 @@ builder.Services.AddSingleton<IConnection>(_ =>
     return factory.CreateConnection();
 });
 
-// Inbound consumers: product-topic (Kafka) and sales_order_events (RabbitMQ) —
-// previously dead handler classes below.
+// Inbound consumers: product-topic (Kafka) and sales_order_events (RabbitMQ)
 builder.Services.AddHostedService<PromotionKafkaConsumer>();
 builder.Services.AddHostedService<SalesOrderRabbitMqConsumer>();
 builder.Services.AddScoped<ProductCreatedForPromotionHandler>();

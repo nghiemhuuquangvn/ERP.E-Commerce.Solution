@@ -48,3 +48,20 @@ public class NotificationPreferenceDto
     public bool PushEnabled { get; set; }
     public bool InAppEnabled { get; set; }
 }
+
+public class BulkSendResult
+{
+    public int Queued { get; set; }
+    public int Skipped { get; set; }
+    public List<Guid> NotificationIds { get; set; } = new();
+}
+
+public class WebhookDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Url { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+    public List<string> EventTypes { get; set; } = new();
+    public DateTime CreatedAt { get; set; }
+}

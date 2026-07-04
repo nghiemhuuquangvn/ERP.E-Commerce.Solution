@@ -102,6 +102,12 @@ public class Notification : AggregateRoot
 
     public bool CanRetry() => RetryCount < 3 && Status == NotificationStatus.Failed;
 
+    // Exponential backoff: 30s after 1st fail, 60s after 2nd. RetryCount already incremented by MarkAsFailed.
+    public bool ShouldRetryNow() =>
+        CanRetry() &&
+        FailedAt.HasValue &&
+        FailedAt.Value.AddSeconds(30 * Math.Pow(2, RetryCount - 1)) <= DateTime.UtcNow;
+
     public bool IsReadyToSend() =>
         Status == NotificationStatus.Queued &&
         (!ScheduledFor.HasValue || ScheduledFor.Value <= DateTime.UtcNow);

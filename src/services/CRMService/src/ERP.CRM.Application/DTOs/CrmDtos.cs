@@ -71,3 +71,29 @@ public record PagedResult<T>(
 {
     public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
 }
+
+public record ActivityDto(
+    Guid Id,
+    Guid ContactId,
+    Guid? OpportunityId,
+    Guid? CaseId,
+    string ActivityType,
+    string Subject,
+    string? Notes,
+    string Status,
+    DateTime? ScheduledAt,
+    DateTime? CompletedAt,
+    Guid? AssignedToUserId,
+    string? Source,
+    DateTime CreatedAt
+);
+
+public record ContactTagDto(
+    Guid ContactId,
+    string Tag
+);
+
+public record ContactTagsDto(
+    Guid ContactId,
+    IEnumerable<string> Tags
+);

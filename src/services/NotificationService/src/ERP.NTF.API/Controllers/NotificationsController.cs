@@ -1,4 +1,5 @@
 using ERP.NTF.Application.Commands;
+using ERP.NTF.Application.DTOs;
 using ERP.NTF.Application.Queries;
 using ERP.Shared.Authorization;
 using MediatR;
@@ -50,5 +51,17 @@ public class NotificationsController : ControllerBase
             Take = take
         }, ct);
         return Ok(result);
+    }
+
+    [HttpPost("bulk")]
+    [ProducesResponseType(typeof(BulkSendResult), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> BulkSend([FromBody] BulkSendNotificationCommand command, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("notifications:send"))
+            return Forbid();
+
+        var result = await _mediator.Send(command, ct);
+        return Accepted(result);
     }
 }
