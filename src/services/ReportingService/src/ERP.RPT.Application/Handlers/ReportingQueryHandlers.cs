@@ -31,3 +31,21 @@ public class GetInventoryReportQueryHandler : IRequestHandler<GetInventoryReport
     public Task<InventoryReportDto> Handle(GetInventoryReportQuery request, CancellationToken cancellationToken) =>
         _repository.GetInventoryReportAsync(cancellationToken);
 }
+
+public class GetHRDashboardQueryHandler : IRequestHandler<GetHRDashboardQuery, HRDashboardDto>
+{
+    private readonly IReportingRepository _repository;
+    public GetHRDashboardQueryHandler(IReportingRepository repository) => _repository = repository;
+
+    public Task<HRDashboardDto> Handle(GetHRDashboardQuery request, CancellationToken cancellationToken) =>
+        _repository.GetHRDashboardAsync(request.From, request.To, cancellationToken);
+}
+
+public class GetPOSDashboardQueryHandler : IRequestHandler<GetPOSDashboardQuery, POSDashboardDto>
+{
+    private readonly IReportingRepository _repository;
+    public GetPOSDashboardQueryHandler(IReportingRepository repository) => _repository = repository;
+
+    public Task<POSDashboardDto> Handle(GetPOSDashboardQuery request, CancellationToken cancellationToken) =>
+        _repository.GetPOSDashboardAsync(request.From, request.To, cancellationToken);
+}

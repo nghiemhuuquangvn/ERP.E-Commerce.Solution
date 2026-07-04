@@ -50,3 +50,37 @@ public class DimDate
     public string DayName { get; set; } = string.Empty;
     public bool IsWeekend { get; set; }
 }
+
+public class FactPOSTransaction
+{
+    public Guid TransactionId { get; set; }
+    public Guid StoreId { get; set; }
+    public Guid CashierId { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal TaxAmount { get; set; }
+    public int ItemCount { get; set; }
+    public DateTime OccurredAt { get; set; }
+    public int DateKey { get; set; }
+}
+
+public class FactHRPayslip
+{
+    public Guid PayslipId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string Period { get; set; } = string.Empty;
+    public decimal BasicSalary { get; set; }
+    public decimal OvertimePay { get; set; }
+    public decimal TotalAmount { get; set; }
+    public DateTime? PaidAt { get; set; }
+    public int DateKey { get; set; }
+}
+
+public class DimProduct
+{
+    public Guid ProductId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+    public bool IsActive { get; set; }
+}

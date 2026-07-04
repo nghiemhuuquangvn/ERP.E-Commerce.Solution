@@ -54,3 +54,26 @@ public class StockLevelDto
     public int AvailableQuantity { get; set; }
     public string StockStatus { get; set; } = string.Empty;
 }
+
+public class HRDashboardDto
+{
+    public int TotalPayslips { get; set; }
+    public decimal TotalPayroll { get; set; }
+    public decimal AverageSalary { get; set; }
+    public List<PayrollByPeriodDto> ByPeriod { get; set; } = new();
+}
+
+public class PayrollByPeriodDto
+{
+    public string Period { get; set; } = string.Empty;
+    public int EmployeeCount { get; set; }
+    public decimal TotalAmount { get; set; }
+}
+
+public class POSDashboardDto
+{
+    public int TotalTransactions { get; set; }
+    public decimal TotalRevenue { get; set; }
+    public decimal AverageTransactionValue { get; set; }
+    public List<RevenueByDayDto> RevenueByDay { get; set; } = new();
+}

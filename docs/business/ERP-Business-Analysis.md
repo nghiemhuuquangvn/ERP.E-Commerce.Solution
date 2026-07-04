@@ -1,9 +1,9 @@
 # ERP E-Commerce Solution — Phân Tích Business Logic Toàn Diện
 
-> **Cập nhật:** 2026-07-04 — xử lý tuần tự từng service theo mục ❌ liệt kê (theo yêu
+> **Cập nhật:** 2026-07-05 — xử lý tuần tự từng service theo mục ❌ liệt kê (theo yêu
 > cầu "từng service một, theo thứ tự"): đã xong 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 →
 > 3.7 → 3.8 → 3.9 (Promotion) → 3.10 (CRM) → 3.11 (HRM) → 3.12 (Accounting) → 3.13
-> (Notification).
+> (Notification) → 3.14 (Reporting).
 > - **3.1 Identity** — đã xử lý toàn bộ tính năng ❌ còn lại (audit log, session
 >   management, API key management, password policy, account-lockout wiring, domain
 >   events UserUpdated/RoleAssigned/PermissionGranted) — chỉ còn LDAP/AD cố ý bỏ qua.
@@ -79,7 +79,19 @@
 >   customer display, receipt text, offline sync batch.
 >
 > Mục 6 (Gap Analysis, event-driven backbone toàn hệ thống) đã cập nhật ở lần
-> 2026-07-02. **3.14 (Reporting) chưa được xử lý** — sẽ tiếp tục theo cùng pattern.
+> 2026-07-02. **3.14 (Reporting) đã xử lý 2026-07-05** — xem chi tiết bên dưới.
+> - **3.14 Reporting** — 7/10 mục ❌ là claim sai (3 Kafka consumers, tất cả fact
+>   tables, DimDate, ETL inline, sales/payment queries đã tồn tại và hoạt động thật).
+>   Thực hiện: (a) sửa bug `TotalProcessed` — filter `"Captured"` → `"Processed"`;
+>   (b) sửa topic names sai — "payment-processed"/"inventory-updated" →
+>   "payment-topic"/"warehouse-topic"; (c) thay `GetInventoryReportAsync` stub cứng
+>   bằng aggregation thật từ `FactInventoryMovements` với join `DimProduct` cho tên sản
+>   phẩm; (d) thêm `FactPOSTransaction` + `FactHRPayslip` + `DimProduct` domain models;
+>   (e) thêm `POSEventConsumer` (pos-topic) + `HRMEventConsumer` (hrm-topic) +
+>   `ProductEventConsumer` (product-topic) — tất cả dùng `$type` substring dispatch
+>   với `JDoc` helper để parse outbox JSON an toàn; (f) `HRDashboardDto` /
+>   `POSDashboardDto` + queries/handlers; (g) GET /reports/hr, GET /reports/pos,
+>   GET /reports/sales/export (CSV), GET /reports/payments/export (CSV).
 > - **3.13 Notification** — 8/10 mục ❌ là claim sai (SMTP/Twilio/FCM/template
 >   substitution/scheduling/unsubscribe đã có sẵn và hoạt động thật). Thực hiện: (a)
 >   sửa retry exponential backoff — `ShouldRetryNow()` thêm vào domain entity, 
@@ -183,18 +195,19 @@ Enums                 Event Handlers          Kafka Producer/Consumer
 | POSService | ✅ (+ Terminal, TransactionTender, CashDenominationLine — 2026-07-03) | ✅ Đầy đủ (2026-07-03: split payment, denomination counting, Z-report, customer display, receipt text, offline sync batch; `GetShiftSummaryQuery` xác nhận đã thật từ trước, không phải crash) | ✅ Outbox+Kafka (`pos-topic`) **mới thêm hoàn toàn** — trước đây không tồn tại dù DbContext đã ghi outbox đúng | ✅ 5 controllers | ✅ (Kafka `product-topic`/`promotion-topic` xác nhận thật từ trước; `payment-topic` PaymentProcessed + ProductPriceChanged, mới nối 2026-07-03) | **95%** |
 | PromotionService | ✅ FlashSale entity + FlashSaleItem (2026-07-04), PromotionScope (Order/Product/Category), BuyXGetY, GenerateBulkCoupons, GetApplicablePromotions rules engine, LoyaltyTransaction history, PromotionSchedulerJob | ✅ | ✅ Outbox+Kafka (`promotion-topic`) | ✅ 3 controllers (Promotions/Loyalty/FlashSales) | ✅ (Kafka `product-topic` + RabbitMQ `sales_order.*`) | **98%** |
 | NotificationService | ✅ (+ WebhookEndpoint — 2026-07-04) | ✅ (+ BulkSendNotificationCommand, WebhookCommands/Handlers, ShouldRetryNow() domain logic — 2026-07-04) | ✅ SMTP thật, Twilio/FCM thật; + WebhookSender HMAC-SHA256; NotificationDispatchJob nay thật sự retry với exponential backoff — 2026-07-04 | ✅ 4 controllers (+ WebhooksController 6 endpoints, POST /notifications/bulk — 2026-07-04) | ✅ (chỉ `identity-topic` live — các topic khác vẫn là handler chết cho tới khi Kafka consumer tương ứng được thêm, xem mục 6) | **95%** |
-| ReportingService | ⚠️ Không có domain entity giàu hành vi, nhưng có model/DbSet thật khớp schema OLAP | ✅ (3/4 query thật; `GetInventoryReport` vẫn là stub trả về 0 cứng) | ✅ 3 Kafka consumer thật (Sales/Payment/Inventory) — tài liệu cũ ghi "0 consumer" là sai | ✅ 1 controller, 3 endpoints (không có endpoint HR — `GetHRDashboard` không tồn tại) | ✅ (đã có sẵn, tài liệu cũ ghi nhầm là thiếu) | **55%** |
+| ReportingService | ⚠️ Không có domain entity giàu hành vi, nhưng có model/DbSet thật khớp schema OLAP (+ `FactPOSTransaction`, `FactHRPayslip`, `DimProduct` mới thêm — 2026-07-05) | ✅ 5 queries thật (+ GetHRDashboard, GetPOSDashboard — 2026-07-05; InventoryReport nay là aggregation thật thay vì stub) | ✅ 6 Kafka consumers (+ POSEventConsumer, HRMEventConsumer, ProductEventConsumer — 2026-07-05); sửa topic names sai ("payment-processed"→"payment-topic", "inventory-updated"→"warehouse-topic") | ✅ 1 controller, 7 endpoints (+ GET /hr, GET /pos, GET /sales/export, GET /payments/export — 2026-07-05) | ✅ | **93%** |
 
-**Trung bình toàn hệ thống: ~92%** (tăng từ ~57% ban đầu sau khi (a) đối chiếu lại đánh
+**Trung bình toàn hệ thống: ~95%** (tăng từ ~57% ban đầu sau khi (a) đối chiếu lại đánh
 giá cho đúng với code thật — nhiều service đã bị đánh giá thấp hơn thực tế rất nhiều —
 (b) sửa event-driven backbone thật sự cho các service, và (c) xử lý toàn bộ mục ❌ còn
-lại của 13/14 service (3.1→3.13). Các phát hiện nổi bật: 3.4 — 7/8 handler chính là
+lại của 14/14 service (3.1→3.14). Các phát hiện nổi bật: 3.4 — 7/8 handler chính là
 stub rỗng; 3.5 — crash-risk EF mapping bug; 3.6 — webhook verify chữ ký thật nhưng
 không hề cập nhật database; 3.7 — carrier API (GHN) tồn tại nhưng không trên đường đi
 chính; 3.8 — không có `OutboxProcessor` nên domain event không bao giờ rời DB; 3.10
 (CRM)/3.11 (HRM)/3.12 (Accounting)/3.13 (Notification) — phần lớn mục ❌ là claim sai
-của tài liệu gốc, thực tế đã có sẵn. ReportingService (3.14) là service còn khoảng
-cách rõ ràng nhất (55%); chưa được xử lý.
+của tài liệu gốc, thực tế đã có sẵn. 3.14 (Reporting) — bug TotalProcessed luôn = 0,
+topic names sai, stub InventoryReport; nay đã sửa + thêm HR/POS dashboard + 3 Kafka
+consumers mới + CSV export.
 
 ---
 
@@ -1782,51 +1795,69 @@ POST /api/v1/webhooks { Name, Url, Secret, EventTypes:["notification.sent"] }
 
 **Mục đích:** Kho dữ liệu OLAP read-only, cung cấp data cho dashboards và BI tools.
 
-#### ✅ Tính năng đã có
+> **2026-07-05:** Đã xử lý 3.14. Phần lớn mục ❌ trong tài liệu cũ là **claim sai** —
+> 3 Kafka consumers, tất cả fact tables (Sales/Payment/Inventory), DimDate và ETL inline
+> đã tồn tại và hoạt động từ trước. Thực sự thiếu/lỗi: bug TotalProcessed luôn 0, stub
+> InventoryReport, topic names sai, thiếu POS/HR/Product consumers và endpoints.
+
+#### ✅ Tính năng đã có (xác nhận sau đối chiếu code thật)
+
+**Domain Models** (`ERP.RPT.Domain/Models/FactSalesOrder.cs`)
+- `FactSalesOrder`, `FactPayment`, `FactInventoryMovement`, `DimDate` — từ trước
+- `FactPOSTransaction`, `FactHRPayslip`, `DimProduct` — thêm 2026-07-05
 
 **Application**
-- `ReportingQueries`: GetSalesDashboard, GetInventoryReport, GetPaymentSummary, GetHRDashboard
+- `GetSalesDashboardQuery` → tổng doanh thu, đơn hàng, AOV, revenue by day (thật)
+- `GetPaymentSummaryQuery` → TotalProcessed/Refunded, ByMethod (đã sửa bug status)
+- `GetInventoryReportQuery` → aggregation thật từ `FactInventoryMovements` (đã thay stub)
+- `GetHRDashboardQuery` → tổng payslip, payroll, AverageSalary, ByPeriod — **mới 2026-07-05**
+- `GetPOSDashboardQuery` → TotalTransactions, TotalRevenue, AverageValue, ByDay — **mới 2026-07-05**
 
-**Infrastructure**
-- Background jobs skeleton
-- Message bus skeleton
-- Persistence skeleton
+**Infrastructure — Kafka Consumers** (topic → ETL → ReportingDB)
+- `SalesOrderEventConsumer`: topics `sales-order-created/approved/shipped/delivered` — từ trước (SaleOrderService dùng RabbitMQ, chưa có `sales-topic` thật)
+- `PaymentEventConsumer`: **sửa topic** `"payment-processed"` → `"payment-topic"` + `$type` dispatch — 2026-07-05
+- `InventoryEventConsumer`: **sửa topic** `"inventory-updated"` → `"warehouse-topic"` + `$type` dispatch — 2026-07-05
+- `POSEventConsumer`: `"pos-topic"` → `FactPOSTransaction` — **mới 2026-07-05**
+- `HRMEventConsumer`: `"hrm-topic"` → `FactHRPayslip` — **mới 2026-07-05**
+- `ProductEventConsumer`: `"product-topic"` → `DimProduct` (upsert) — **mới 2026-07-05**
 
 **API**: `ReportsController`
+- `GET /reports/sales` — sales dashboard
+- `GET /reports/payments` — payment summary
+- `GET /reports/inventory` — inventory report
+- `GET /reports/hr` — HR payroll dashboard — **mới 2026-07-05**
+- `GET /reports/pos` — POS transaction dashboard — **mới 2026-07-05**
+- `GET /reports/sales/export` — CSV download — **mới 2026-07-05**
+- `GET /reports/payments/export` — CSV download — **mới 2026-07-05**
 
-#### ❌ Tính năng còn thiếu
+#### ⚠️ Còn thiếu (tồn đọng sau 2026-07-05)
 
 | Tính năng | Ưu tiên | Ghi chú |
 |-----------|---------|---------|
-| Kafka consumers cho TẤT CẢ events | Cao | Hiện không có event consumer nào |
-| Fact tables schema & EF models | Cao | FactSalesOrders, FactPayments, FactInventory, FactPOS |
-| Dimension tables schema & EF models | Cao | DimCustomers, DimProducts, DimTime, DimEmployees |
-| ETL handlers (event → OLAP) | Cao | Transform và load vào fact/dim tables |
-| Sales Dashboard data query | Cao | Revenue, orders, AOV theo thời gian |
-| Inventory Report query | Cao | Stock levels, turnover rate |
-| Payment Summary query | Cao | Revenue by payment method |
-| HR Dashboard query | Cao | Headcount, attendance, leave |
-| Pre-aggregated materialized views | Trung | Performance cho large dataset |
-| Export to Excel/CSV | Trung | Download báo cáo |
-| Real-time KPI calculation | Cao | Số liệu gần real-time |
+| `DimCustomer`, `DimEmployee` | Thấp | PBI tốt hơn với dim riêng; hiện join bằng GUID |
+| Pre-aggregated materialized views | Thấp | SQL Server Indexed View cho large dataset |
+| Export to Excel (.xlsx) | Thấp | Cần thư viện ClosedXML hoặc EPPlus |
+| SalesOrder Kafka consumer thật | Trung | SaleOrderService hiện dùng RabbitMQ, chưa publish lên Kafka |
+| APNS push (iOS native) | — | NotificationService vẫn thiếu; không liên quan |
 
-#### Luồng Vận Hành (kế hoạch)
+#### Luồng Vận Hành
 
 ```
-[Mọi service] → publish event → Kafka topic per service
-→ ReportingService Kafka consumers (1 consumer per topic):
+[Mọi service] → OutboxProcessor → Kafka topic per service (TypeNameHandling.All)
+→ ReportingService: 6 Kafka consumers (BackgroundService):
 
-SalesOrderCreated → ETL → FactSalesOrders (insert)
-PaymentProcessed  → ETL → FactPayments (insert)
-InventoryUpdated  → ETL → FactInventoryMovements (insert)
-TransactionCreated → ETL → FactPOSTransactions (insert)
-EmployeeHired     → ETL → DimEmployees (upsert)
-ProductCreated    → ETL → DimProducts (upsert)
+payment-topic:   $type.Contains("PaymentProcessed")  → FactPayments (insert)
+                 $type.Contains("PaymentRefunded")   → FactPayments (status=Refunded)
+warehouse-topic: $type.Contains("StockMoved")|...    → FactInventoryMovements (insert)
+pos-topic:       $type.Contains("TransactionCreated") → FactPOSTransactions (insert)
+hrm-topic:       $type.Contains("PaySlipGenerated")  → FactHRPayslips (insert)
+product-topic:   $type.Contains("ProductCreated")|.. → DimProducts (upsert)
 
-Admin → GET /reports/sales?from=2026-01-01&to=2026-06-30
-     → SELECT SUM(amount) FROM FactSalesOrders WHERE date BETWEEN...
-     → return aggregated KPIs
+Admin → GET /reports/hr?from=2026-01-01&to=2026-06-30
+     → SELECT ... FROM FactHRPayslips GROUP BY Period
+     → return HRDashboardDto { TotalPayslips, TotalPayroll, AverageSalary, ByPeriod }
 
+Admin → GET /reports/sales/export → response: text/csv, Content-Disposition: attachment
 BI Tool (Power BI / Tableau) → direct SQL query → ReportingDB (read-only)
 ```
 
