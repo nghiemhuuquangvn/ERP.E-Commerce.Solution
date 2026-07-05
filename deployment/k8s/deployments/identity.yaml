@@ -13,9 +13,6 @@ spec:
       labels:
         app: identity-service
     spec:
-      hostAliases:
-      - ip: "host-gateway"
-        hostnames: [host.docker.internal]
       containers:
       - name: identity-service
         image: erp/identity-service:latest

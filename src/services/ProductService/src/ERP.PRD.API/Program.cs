@@ -1,19 +1,15 @@
 using ERP.PRD.Application;
 using ERP.PRD.Infrastructure;
-using ERP.Shared.Core.Domain;
 using ERP.Shared.Localization;
-using ERP.Shared.Messaging;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container
 builder.Services
     .AddApplication()
     .AddInfrastructure(builder.Configuration);
 
-// Add Swagger/OpenAPI
-builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -45,17 +41,9 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/openapi/v1.json", "Product Service API v1");
-    });
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
 app.UseSharedLocalization();
 app.UseCors();
 app.UseAuthorization();

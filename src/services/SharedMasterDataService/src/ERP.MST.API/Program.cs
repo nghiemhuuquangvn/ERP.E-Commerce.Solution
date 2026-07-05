@@ -34,7 +34,6 @@ try
     builder.Services.AddControllers();
     builder.Services.AddSharedLocalization(builder.Configuration);
 
-    // Authorization / UserContext (from API Gateway headers)
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<IUserContextService, HeaderUserContextService>();
 
@@ -42,30 +41,22 @@ try
         .AddApplication()
         .AddInfrastructure(builder.Configuration);
 
-    builder.Services.AddOpenApi();
-    builder.Services.AddSwaggerGen();
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen(c =>
+        c.SwaggerDoc("v1", new() { Title = "Master Data Service API", Version = "v1" }));
 
     var app = builder.Build();
 
     app.UseSerilogRequestLogging();
 
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseSwagger();
-        app.UseSwaggerUI(c =>
-        {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Master Data Service API v1");
-        });
-        app.MapOpenApi();
-    }
+    app.UseSwagger();
+    app.UseSwaggerUI();
 
     app.UseExceptionHandler();
     app.UseStatusCodePages();
-    app.UseHttpsRedirection();
     app.UseSharedLocalization();
     app.UseCors("AllowAll");
 
-    // Propagate user context from gateway headers
     app.UseMiddleware<UserContextHeaderMiddleware>();
 
     app.UseAuthorization();

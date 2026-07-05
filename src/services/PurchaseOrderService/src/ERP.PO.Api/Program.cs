@@ -54,6 +54,7 @@ else
 }
 
 builder.Services.AddLogging();
+builder.Services.AddHealthChecks();
 
 // Database Configuration
 var connectionString = builder.Configuration.GetConnectionString("PurchasingDb")
@@ -83,17 +84,14 @@ builder.Services.AddHostedService<OutboxProcessor>();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+app.MapOpenApi();
 
-app.UseHttpsRedirection();
 app.UseSharedLocalization();
 
 // Middleware to map gateway headers to user context
 app.UseMiddleware<UserContextHeaderMiddleware>();
 
+app.MapHealthChecks("/health");
 app.MapControllers();
 
 app.Run();

@@ -35,34 +35,36 @@ services:
       retries: 5
 
   kafka:
-    image: apache/kafka:3.9.0
+    image: confluentinc/cp-kafka:7.8.0
     container_name: erp-kafka
     hostname: kafka
     ports:
       - "9092:9092"
-      - "9094:9094"
     environment:
       KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: controller,broker
+      KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
-      KAFKA_LISTENERS: "INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9094,CONTROLLER://0.0.0.0:9093"
-      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka:9092,EXTERNAL://localhost:9094"
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT"
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
-      KAFKA_CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_HEAP_OPTS: "-Xmx512M -Xms256M"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
     volumes:
       - kafka_data:/var/lib/kafka/data
     restart: unless-stopped
     networks:
       - erp-network
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions.sh", "--bootstrap-server", "kafka:9092"]
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -125,6 +127,7 @@ services:
   # ── API Gateway ─────────────────────────────────────────────────────────────
 
   gateway:
+    image: erp/gateway:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -147,6 +150,7 @@ services:
   # ── Backend Services ────────────────────────────────────────────────────────
 
   identityservice:
+    image: erp/identity-service:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -165,6 +169,9 @@ services:
       Cache__Type: "Redis"
       Cache__InstanceName: "identity"
       KafkaSettings__BootstrapServers: kafka:9092
+      Jwt__Key: "ERP_Identity_JWT_Signing_Secret_Key_Minimum_256_Bits_Required"
+      Jwt__Expired: "60"
+      Jwt__RefreshTokenExpirationDays: "7"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -177,6 +184,7 @@ services:
       - erp-network
 
   salesorderservice:
+    image: erp/salesorder-service:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -211,6 +219,7 @@ services:
       - erp-network
 
   purchaseorderservice:
+    image: erp/purchaseorder-service:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -245,6 +254,7 @@ services:
       - erp-network
 
   warehouseservice:
+    image: erp/warehouse-service:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -262,10 +272,10 @@ services:
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "wh"
-      RabbitMQSettings__HostName: rabbitmq
-      RabbitMQSettings__Port: "5672"
-      RabbitMQSettings__UserName: admin
-      RabbitMQSettings__Password: Admin123
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: Admin123
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -279,6 +289,7 @@ services:
       - erp-network
 
   accountingservice:
+    image: erp/accounting-service:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -313,6 +324,7 @@ services:
       - erp-network
 
   crmservice:
+    image: erp/crm-service:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -347,6 +359,7 @@ services:
       - erp-network
 
   hrmservice:
+    image: erp/hrm-service:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -377,6 +390,7 @@ services:
       - erp-network
 
   masterdataservice:
+    image: erp/masterdata-service:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -407,6 +421,7 @@ services:
       - erp-network
 
   productservice:
+    image: erp/product-service:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -424,6 +439,10 @@ services:
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "prd"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: Admin123
       KafkaSettings__BootstrapServers: kafka:9092
       Elasticsearch__Uri: http://elasticsearch:9200
     extra_hosts:
@@ -433,11 +452,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - erp-network
 
   paymentservice:
+    image: erp/payment-service:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -472,6 +494,7 @@ services:
       - erp-network
 
   shippingservice:
+    image: erp/shipping-service:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -506,6 +529,7 @@ services:
       - erp-network
 
   posservice:
+    image: erp/pos-service:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -540,6 +564,7 @@ services:
       - erp-network
 
   promotionservice:
+    image: erp/promotion-service:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -574,6 +599,7 @@ services:
       - erp-network
 
   notificationservice:
+    image: erp/notification-service:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -610,6 +636,7 @@ services:
       - erp-network
 
   reportingservice:
+    image: erp/reporting-service:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -648,6 +675,7 @@ services:
   # ── Frontend ────────────────────────────────────────────────────────────────
 
   admin:
+    image: erp/admin:latest
     build:
       context: src/frontend/admin
       dockerfile: Dockerfile
@@ -661,6 +689,7 @@ services:
       - erp-network
 
   storefront:
+    image: erp/storefront:latest
     build:
       context: src/frontend/storefront
       dockerfile: Dockerfile

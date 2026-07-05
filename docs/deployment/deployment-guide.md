@@ -670,3 +670,54 @@ kubectl apply -f infrastructure/
 kubectl apply -f deployments/
 kubectl apply -f ingress.yaml
 ```
+
+### /health returns 401 on AccountingService or SaleOrderService
+
+Symptom: `GET http://localhost:5005/health` returns 401.
+
+Cause: These services have a local `UserContextHeaderMiddleware` that blocks all requests without gateway-injected `X-User-Id` headers, including the health check path.
+
+Fix (already applied in code): Both services' `Middleware/UserContextMiddleware.cs` skip auth for `/health`, `/swagger`, `/openapi` paths.
+
+### NotificationService or ReportingService stops after startup (BackgroundService crash)
+
+Symptom: Container starts, logs show "Application started", then stops with a SQL exception about missing columns/tables.
+
+Cause: `BackgroundServiceExceptionBehavior` defaults to `StopHost` — a background job failure kills the entire process.
+
+Fix (already applied): `NotificationService/Program.cs` uses `BackgroundServiceExceptionBehavior.Ignore`. If you see this on another service, add:
+```csharp
+builder.Services.Configure<HostOptions>(opts =>
+    opts.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
+```
+
+### Kafka crashes at startup — "advertised.listeners cannot use 0.0.0.0"
+
+Symptom: `erp-kafka` container restarts in a loop with `IllegalArgumentException: requirement failed: advertised.listeners cannot use the nonroutable meta-address 0.0.0.0`.
+
+Cause: `apache/kafka:3.9.0` image has a bug in its `StorageTool` where `KAFKA_ADVERTISED_LISTENERS` is not read correctly.
+
+Fix (already applied in docker-compose.yml): Use `confluentinc/cp-kafka:7.8.0` image with `CLUSTER_ID` env var (not `KAFKA_CLUSTER_ID`) and volume at `/var/lib/kafka/data`.
+
+### Ocelot Gateway crashes — "ServiceDiscoveryFinderDelegate not registered"
+
+Symptom: `erp-gateway` restarts with `Unable to start Ocelot because ... ServiceDiscoveryOptions ... no ServiceDiscoveryFinderDelegate has been registered`.
+
+Cause: `ocelot.json` had `"ServiceDiscoveryProvider": { "Type": "ConsulServiceDiscovery" }` in `GlobalConfiguration` but Consul is not running.
+
+Fix (already applied): Removed `ServiceDiscoveryProvider` section from `ocelot.json` `GlobalConfiguration`.
+
+### docker compose build fails with EOF error on parallel build
+
+Symptom: `target masterdataservice: failed to receive status: rpc error: code = Unavailable desc = error reading from server: EOF`
+
+Cause: Building all 18 services in parallel exhausts Docker BuildKit resources.
+
+Fix: Build in batches of 4-5 services:
+```powershell
+docker compose build identityservice salesorderservice purchaseorderservice warehouseservice
+docker compose build accountingservice crmservice hrmservice masterdataservice
+docker compose build productservice paymentservice shippingservice posservice
+docker compose build promotionservice notificationservice reportingservice gateway
+docker compose build admin storefront
+```

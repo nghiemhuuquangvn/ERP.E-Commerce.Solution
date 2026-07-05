@@ -48,14 +48,9 @@ try
 
     app.UseSerilogRequestLogging();
 
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseSwagger();
-        app.UseSwaggerUI();
-        app.MapOpenApi();
-    }
+    app.UseSwagger();
+    app.UseSwaggerUI();
 
-    app.UseHttpsRedirection();
     app.UseSharedLocalization();
     app.UseUserContextHeaderMiddleware();
     app.UseCors("AllowAll");

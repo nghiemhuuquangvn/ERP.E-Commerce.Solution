@@ -21,8 +21,17 @@ namespace ERP.ACC.API.Middleware
             _logger = logger;
         }
 
+        private static readonly string[] _openPaths = ["/health", "/swagger", "/openapi"];
+
         public async Task InvokeAsync(HttpContext context, UserContext userContext)
         {
+            var path = context.Request.Path.Value ?? "";
+            if (_openPaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
+            {
+                await _next(context);
+                return;
+            }
+
             if (context.Request.Headers.TryGetValue("X-User-Id", out var userId))
             {
                 userContext.UserId = userId.ToString();

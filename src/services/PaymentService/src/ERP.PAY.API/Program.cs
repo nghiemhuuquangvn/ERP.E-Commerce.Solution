@@ -90,6 +90,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, HeaderUserContextService>();
 builder.Services.AddScoped<UserContext>();
 
+builder.Services.AddHealthChecks();
 builder.Services.AddControllers();
 builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
@@ -100,17 +101,14 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
 app.UseSharedLocalization();
 app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
 app.UseCors("AllowAll");
 app.UseAuthorization();
+app.MapHealthChecks("/health");
 app.MapControllers();
 
 app.Run();

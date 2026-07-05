@@ -222,10 +222,6 @@
     }
   ],
   "GlobalConfiguration": {
-    "BaseUrl": "http://localhost:5000",
-    "ServiceDiscoveryProvider": {
-      "Type": "ConsulServiceDiscovery",
-      "PollingInterval": 100
-    }
+    "BaseUrl": "http://gateway:5000"
   }
 }

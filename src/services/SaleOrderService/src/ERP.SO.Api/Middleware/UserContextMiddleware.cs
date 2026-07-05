@@ -21,8 +21,17 @@ namespace ERP.SO.Api.Middleware
             _logger = logger;
         }
 
+        private static readonly string[] _openPaths = ["/health", "/swagger", "/openapi"];
+
         public async Task InvokeAsync(HttpContext context, UserContext userContext)
         {
+            var path = context.Request.Path.Value ?? "";
+            if (_openPaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
+            {
+                await _next(context);
+                return;
+            }
+
             // Extract user information from headers (from API Gateway/Identity Service)
             if (context.Request.Headers.TryGetValue("X-User-Id", out var userId))
             {
