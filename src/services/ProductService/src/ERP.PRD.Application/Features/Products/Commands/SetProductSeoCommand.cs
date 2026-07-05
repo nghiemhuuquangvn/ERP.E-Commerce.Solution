@@ -1,7 +1,6 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using FluentValidation;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Products.Commands
 {
@@ -25,32 +24,31 @@ namespace ERP.PRD.Application.Features.Products.Commands
 
     public class SetProductSeoHandler : IRequestHandler<SetProductSeoCommand, Unit>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public SetProductSeoHandler(ProductDbContext context)
+        public SetProductSeoHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<Unit> Handle(SetProductSeoCommand request, CancellationToken cancellationToken)
         {
-            var product = await _context.Products.FirstOrDefaultAsync(
-                x => x.Id == request.ProductId && !x.IsDeleted, cancellationToken);
+            var product = await _uow.Products.GetByIdAsync(request.ProductId, cancellationToken);
 
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
 
             if (!string.IsNullOrWhiteSpace(request.Slug))
             {
-                var slugTaken = await _context.Products.AnyAsync(
-                    p => p.Id != request.ProductId && p.Slug == request.Slug.Trim().ToLower(), cancellationToken);
+                var slugTaken = await _uow.Products.SlugTakenByAnotherAsync(
+                    request.ProductId, request.Slug, cancellationToken);
                 if (slugTaken)
                     throw new InvalidOperationException($"Slug '{request.Slug}' is already used by another product");
             }
 
             product.SetSeoFields(request.Slug, request.MetaTitle, request.MetaDescription);
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return Unit.Value;
         }

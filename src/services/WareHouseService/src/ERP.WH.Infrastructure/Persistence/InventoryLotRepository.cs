@@ -38,12 +38,10 @@ public class InventoryLotRepository : IInventoryLotRepository
     public async Task AddAsync(InventoryLot lot, CancellationToken cancellationToken)
     {
         await _context.InventoryLots.AddAsync(lot, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task UpdateAsync(InventoryLot lot, CancellationToken cancellationToken)
     {
         _context.InventoryLots.Update(lot);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 }

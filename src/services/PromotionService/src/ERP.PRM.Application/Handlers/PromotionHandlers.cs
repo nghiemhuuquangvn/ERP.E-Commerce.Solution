@@ -12,8 +12,8 @@ namespace ERP.PRM.Application.Handlers;
 
 public class CreatePromotionCommandHandler : IRequestHandler<CreatePromotionCommand, PromotionDto>
 {
-    private readonly IPromotionRepository _promotions;
-    public CreatePromotionCommandHandler(IPromotionRepository promotions) => _promotions = promotions;
+    private readonly IPromotionUnitOfWork _uow;
+    public CreatePromotionCommandHandler(IPromotionUnitOfWork uow) => _uow = uow;
 
     public async Task<PromotionDto> Handle(CreatePromotionCommand request, CancellationToken cancellationToken)
     {
@@ -27,7 +27,8 @@ public class CreatePromotionCommandHandler : IRequestHandler<CreatePromotionComm
         foreach (var pid in request.ApplicableProductIds) promo.AddApplicableProduct(pid);
         foreach (var cat in request.ApplicableCategoryIds) promo.AddApplicableCategory(cat);
 
-        await _promotions.AddAsync(promo, cancellationToken);
+        await _uow.Promotions.AddAsync(promo, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return MapToDto(promo);
     }
 
@@ -48,64 +49,68 @@ public class CreatePromotionCommandHandler : IRequestHandler<CreatePromotionComm
 
 public class ActivatePromotionCommandHandler : IRequestHandler<ActivatePromotionCommand, PromotionDto>
 {
-    private readonly IPromotionRepository _promotions;
-    public ActivatePromotionCommandHandler(IPromotionRepository promotions) => _promotions = promotions;
+    private readonly IPromotionUnitOfWork _uow;
+    public ActivatePromotionCommandHandler(IPromotionUnitOfWork uow) => _uow = uow;
 
     public async Task<PromotionDto> Handle(ActivatePromotionCommand request, CancellationToken cancellationToken)
     {
-        var promo = await _promotions.GetByIdAsync(request.PromotionId, cancellationToken)
+        var promo = await _uow.Promotions.GetByIdAsync(request.PromotionId, cancellationToken)
             ?? throw new InvalidOperationException($"Promotion {request.PromotionId} not found.");
         promo.Activate();
-        await _promotions.UpdateAsync(promo, cancellationToken);
+        await _uow.Promotions.UpdateAsync(promo, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return CreatePromotionCommandHandler.MapToDto(promo);
     }
 }
 
 public class PausePromotionCommandHandler : IRequestHandler<PausePromotionCommand, PromotionDto>
 {
-    private readonly IPromotionRepository _promotions;
-    public PausePromotionCommandHandler(IPromotionRepository promotions) => _promotions = promotions;
+    private readonly IPromotionUnitOfWork _uow;
+    public PausePromotionCommandHandler(IPromotionUnitOfWork uow) => _uow = uow;
 
     public async Task<PromotionDto> Handle(PausePromotionCommand request, CancellationToken cancellationToken)
     {
-        var promo = await _promotions.GetByIdAsync(request.PromotionId, cancellationToken)
+        var promo = await _uow.Promotions.GetByIdAsync(request.PromotionId, cancellationToken)
             ?? throw new InvalidOperationException($"Promotion {request.PromotionId} not found.");
         promo.Pause();
-        await _promotions.UpdateAsync(promo, cancellationToken);
+        await _uow.Promotions.UpdateAsync(promo, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return CreatePromotionCommandHandler.MapToDto(promo);
     }
 }
 
 public class CancelPromotionCommandHandler : IRequestHandler<CancelPromotionCommand, PromotionDto>
 {
-    private readonly IPromotionRepository _promotions;
-    public CancelPromotionCommandHandler(IPromotionRepository promotions) => _promotions = promotions;
+    private readonly IPromotionUnitOfWork _uow;
+    public CancelPromotionCommandHandler(IPromotionUnitOfWork uow) => _uow = uow;
 
     public async Task<PromotionDto> Handle(CancelPromotionCommand request, CancellationToken cancellationToken)
     {
-        var promo = await _promotions.GetByIdAsync(request.PromotionId, cancellationToken)
+        var promo = await _uow.Promotions.GetByIdAsync(request.PromotionId, cancellationToken)
             ?? throw new InvalidOperationException($"Promotion {request.PromotionId} not found.");
         promo.Cancel();
-        await _promotions.UpdateAsync(promo, cancellationToken);
+        await _uow.Promotions.UpdateAsync(promo, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return CreatePromotionCommandHandler.MapToDto(promo);
     }
 }
 
 public class GenerateBulkCouponsCommandHandler : IRequestHandler<GenerateBulkCouponsCommand, BulkCouponResult>
 {
-    private readonly IPromotionRepository _promotions;
-    public GenerateBulkCouponsCommandHandler(IPromotionRepository promotions) => _promotions = promotions;
+    private readonly IPromotionUnitOfWork _uow;
+    public GenerateBulkCouponsCommandHandler(IPromotionUnitOfWork uow) => _uow = uow;
 
     public async Task<BulkCouponResult> Handle(GenerateBulkCouponsCommand request, CancellationToken cancellationToken)
     {
         if (request.Count <= 0 || request.Count > 10000)
             throw new InvalidOperationException("Count must be between 1 and 10,000.");
 
-        var promo = await _promotions.GetByIdAsync(request.PromotionId, cancellationToken)
+        var promo = await _uow.Promotions.GetByIdAsync(request.PromotionId, cancellationToken)
             ?? throw new InvalidOperationException($"Promotion {request.PromotionId} not found.");
 
         var coupons = promo.GenerateBulkCoupons(request.Count, request.Prefix);
-        await _promotions.UpdateAsync(promo, cancellationToken);
+        await _uow.Promotions.UpdateAsync(promo, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return new BulkCouponResult
         {
@@ -120,25 +125,23 @@ public class GenerateBulkCouponsCommandHandler : IRequestHandler<GenerateBulkCou
 
 public class RedeemCouponCommandHandler : IRequestHandler<RedeemCouponCommand, CouponValidationResult>
 {
-    private readonly ICouponRepository _coupons;
-    private readonly IPromotionRepository _promotions;
+    private readonly IPromotionUnitOfWork _uow;
 
-    public RedeemCouponCommandHandler(ICouponRepository coupons, IPromotionRepository promotions)
+    public RedeemCouponCommandHandler(IPromotionUnitOfWork uow)
     {
-        _coupons = coupons;
-        _promotions = promotions;
+        _uow = uow;
     }
 
     public async Task<CouponValidationResult> Handle(RedeemCouponCommand request, CancellationToken cancellationToken)
     {
-        var coupon = await _coupons.GetByCodeAsync(request.Code.ToUpperInvariant(), cancellationToken);
+        var coupon = await _uow.Coupons.GetByCodeAsync(request.Code.ToUpperInvariant(), cancellationToken);
         if (coupon == null)
             return new() { IsValid = false, ErrorMessage = "Coupon code not found." };
 
         if (coupon.IsUsed)
             return new() { IsValid = false, ErrorMessage = "Coupon has already been used." };
 
-        var promotion = await _promotions.GetByIdAsync(coupon.PromotionId, cancellationToken);
+        var promotion = await _uow.Promotions.GetByIdAsync(coupon.PromotionId, cancellationToken);
         if (promotion == null || !promotion.IsActive())
             return new() { IsValid = false, ErrorMessage = "Promotion is not active." };
 
@@ -146,8 +149,9 @@ public class RedeemCouponCommandHandler : IRequestHandler<RedeemCouponCommand, C
         coupon.Redeem(request.UserId, discount);
         promotion.RecordUsage();
 
-        await _coupons.UpdateAsync(coupon, cancellationToken);
-        await _promotions.UpdateAsync(promotion, cancellationToken);
+        await _uow.Coupons.UpdateAsync(coupon, cancellationToken);
+        await _uow.Promotions.UpdateAsync(promotion, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return new() { IsValid = true, DiscountAmount = discount, PromotionId = promotion.Id, CouponCode = coupon.Code };
     }
@@ -157,24 +161,25 @@ public class RedeemCouponCommandHandler : IRequestHandler<RedeemCouponCommand, C
 
 public class EarnLoyaltyPointsCommandHandler : IRequestHandler<EarnLoyaltyPointsCommand, LoyaltyAccountDto>
 {
-    private readonly ILoyaltyAccountRepository _accounts;
-    public EarnLoyaltyPointsCommandHandler(ILoyaltyAccountRepository accounts) => _accounts = accounts;
+    private readonly IPromotionUnitOfWork _uow;
+    public EarnLoyaltyPointsCommandHandler(IPromotionUnitOfWork uow) => _uow = uow;
 
     public async Task<LoyaltyAccountDto> Handle(EarnLoyaltyPointsCommand request, CancellationToken cancellationToken)
     {
-        var account = await _accounts.GetByUserIdAsync(request.UserId, cancellationToken);
+        var account = await _uow.LoyaltyAccounts.GetByUserIdAsync(request.UserId, cancellationToken);
         if (account == null)
         {
             account = LoyaltyAccount.Create(request.UserId);
             account.EarnPoints(request.Points, request.Reason);
-            await _accounts.AddAsync(account, cancellationToken);
+            await _uow.LoyaltyAccounts.AddAsync(account, cancellationToken);
         }
         else
         {
             account.EarnPoints(request.Points, request.Reason);
-            await _accounts.UpdateAsync(account, cancellationToken);
+            await _uow.LoyaltyAccounts.UpdateAsync(account, cancellationToken);
         }
 
+        await _uow.SaveChangesAsync(cancellationToken);
         return MapLoyaltyDto(account);
     }
 
@@ -201,15 +206,16 @@ public class EarnLoyaltyPointsCommandHandler : IRequestHandler<EarnLoyaltyPoints
 
 public class RedeemLoyaltyPointsCommandHandler : IRequestHandler<RedeemLoyaltyPointsCommand, LoyaltyAccountDto>
 {
-    private readonly ILoyaltyAccountRepository _accounts;
-    public RedeemLoyaltyPointsCommandHandler(ILoyaltyAccountRepository accounts) => _accounts = accounts;
+    private readonly IPromotionUnitOfWork _uow;
+    public RedeemLoyaltyPointsCommandHandler(IPromotionUnitOfWork uow) => _uow = uow;
 
     public async Task<LoyaltyAccountDto> Handle(RedeemLoyaltyPointsCommand request, CancellationToken cancellationToken)
     {
-        var account = await _accounts.GetByUserIdAsync(request.UserId, cancellationToken)
+        var account = await _uow.LoyaltyAccounts.GetByUserIdAsync(request.UserId, cancellationToken)
             ?? throw new InvalidOperationException($"Loyalty account not found for user {request.UserId}.");
         account.RedeemPoints(request.Points);
-        await _accounts.UpdateAsync(account, cancellationToken);
+        await _uow.LoyaltyAccounts.UpdateAsync(account, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return EarnLoyaltyPointsCommandHandler.MapLoyaltyDto(account);
     }
 }
@@ -218,8 +224,8 @@ public class RedeemLoyaltyPointsCommandHandler : IRequestHandler<RedeemLoyaltyPo
 
 public class CreateFlashSaleCommandHandler : IRequestHandler<CreateFlashSaleCommand, FlashSaleDto>
 {
-    private readonly IFlashSaleRepository _flashSales;
-    public CreateFlashSaleCommandHandler(IFlashSaleRepository flashSales) => _flashSales = flashSales;
+    private readonly IPromotionUnitOfWork _uow;
+    public CreateFlashSaleCommandHandler(IPromotionUnitOfWork uow) => _uow = uow;
 
     public async Task<FlashSaleDto> Handle(CreateFlashSaleCommand request, CancellationToken cancellationToken)
     {
@@ -228,7 +234,8 @@ public class CreateFlashSaleCommandHandler : IRequestHandler<CreateFlashSaleComm
         foreach (var item in request.Items)
             flashSale.AddItem(item.ProductId, item.ProductName, item.OriginalPrice, item.SalePrice, item.AllocatedQuantity);
 
-        await _flashSales.AddAsync(flashSale, cancellationToken);
+        await _uow.FlashSales.AddAsync(flashSale, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return MapToDto(flashSale);
     }
 
@@ -250,46 +257,52 @@ public class CreateFlashSaleCommandHandler : IRequestHandler<CreateFlashSaleComm
 
 public class StartFlashSaleCommandHandler : IRequestHandler<StartFlashSaleCommand, FlashSaleDto>
 {
-    private readonly IFlashSaleRepository _flashSales;
-    public StartFlashSaleCommandHandler(IFlashSaleRepository flashSales) => _flashSales = flashSales;
+    private readonly IPromotionUnitOfWork _uow;
+    public StartFlashSaleCommandHandler(IPromotionUnitOfWork uow) => _uow = uow;
 
     public async Task<FlashSaleDto> Handle(StartFlashSaleCommand request, CancellationToken cancellationToken)
     {
-        var flashSale = await _flashSales.GetByIdAsync(request.FlashSaleId, cancellationToken)
+        var flashSale = await _uow.FlashSales.GetByIdAsync(request.FlashSaleId, cancellationToken)
             ?? throw new InvalidOperationException($"Flash sale {request.FlashSaleId} not found.");
         flashSale.Start();
-        await _flashSales.UpdateAsync(flashSale, cancellationToken);
+        await _uow.FlashSales.UpdateAsync(flashSale, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return CreateFlashSaleCommandHandler.MapToDto(flashSale);
     }
 }
 
 public class CancelFlashSaleCommandHandler : IRequestHandler<CancelFlashSaleCommand, FlashSaleDto>
 {
-    private readonly IFlashSaleRepository _flashSales;
-    public CancelFlashSaleCommandHandler(IFlashSaleRepository flashSales) => _flashSales = flashSales;
+    private readonly IPromotionUnitOfWork _uow;
+    public CancelFlashSaleCommandHandler(IPromotionUnitOfWork uow) => _uow = uow;
 
     public async Task<FlashSaleDto> Handle(CancelFlashSaleCommand request, CancellationToken cancellationToken)
     {
-        var flashSale = await _flashSales.GetByIdAsync(request.FlashSaleId, cancellationToken)
+        var flashSale = await _uow.FlashSales.GetByIdAsync(request.FlashSaleId, cancellationToken)
             ?? throw new InvalidOperationException($"Flash sale {request.FlashSaleId} not found.");
         flashSale.Cancel();
-        await _flashSales.UpdateAsync(flashSale, cancellationToken);
+        await _uow.FlashSales.UpdateAsync(flashSale, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return CreateFlashSaleCommandHandler.MapToDto(flashSale);
     }
 }
 
 public class ReserveFlashSaleItemCommandHandler : IRequestHandler<ReserveFlashSaleItemCommand, bool>
 {
-    private readonly IFlashSaleRepository _flashSales;
-    public ReserveFlashSaleItemCommandHandler(IFlashSaleRepository flashSales) => _flashSales = flashSales;
+    private readonly IPromotionUnitOfWork _uow;
+    public ReserveFlashSaleItemCommandHandler(IPromotionUnitOfWork uow) => _uow = uow;
 
     public async Task<bool> Handle(ReserveFlashSaleItemCommand request, CancellationToken cancellationToken)
     {
-        var flashSale = await _flashSales.GetByIdAsync(request.FlashSaleId, cancellationToken);
+        var flashSale = await _uow.FlashSales.GetByIdAsync(request.FlashSaleId, cancellationToken);
         if (flashSale == null) return false;
 
         var reserved = flashSale.TryReserve(request.ProductId, request.Quantity);
-        if (reserved) await _flashSales.UpdateAsync(flashSale, cancellationToken);
+        if (reserved)
+        {
+            await _uow.FlashSales.UpdateAsync(flashSale, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
+        }
         return reserved;
     }
 }

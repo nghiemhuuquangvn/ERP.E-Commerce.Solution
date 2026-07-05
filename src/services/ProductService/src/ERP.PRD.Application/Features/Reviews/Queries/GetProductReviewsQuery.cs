@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Reviews.Queries
 {
@@ -29,36 +28,31 @@ namespace ERP.PRD.Application.Features.Reviews.Queries
 
     public class GetProductReviewsHandler : IRequestHandler<GetProductReviewsQuery, ProductReviewsResult>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public GetProductReviewsHandler(ProductDbContext context)
+        public GetProductReviewsHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<ProductReviewsResult> Handle(GetProductReviewsQuery request, CancellationToken cancellationToken)
         {
-            var baseQuery = _context.ProductReviews
-                .Where(r => r.ProductId == request.ProductId && r.IsApproved);
+            var (items, total, average) = await _uow.Reviews.GetPagedByProductIdAsync(
+                request.ProductId, request.Skip, request.Take, cancellationToken);
 
-            var totalCount = await baseQuery.CountAsync(cancellationToken);
-            var averageRating = totalCount == 0 ? 0 : await baseQuery.AverageAsync(r => r.Rating, cancellationToken);
-
-            var items = await baseQuery
-                .OrderByDescending(r => r.CreatedAt)
-                .Skip(request.Skip)
-                .Take(request.Take)
-                .Select(r => new ProductReviewDto
+            return new ProductReviewsResult
+            {
+                Items = items.Select(r => new ProductReviewDto
                 {
                     Id = r.Id,
                     CustomerId = r.CustomerId,
                     Rating = r.Rating,
                     Comment = r.Comment,
                     CreatedAt = r.CreatedAt
-                })
-                .ToListAsync(cancellationToken);
-
-            return new ProductReviewsResult { Items = items, TotalCount = totalCount, AverageRating = Math.Round(averageRating, 2) };
+                }).ToList(),
+                TotalCount = total,
+                AverageRating = Math.Round(average, 2)
+            };
         }
     }
 }

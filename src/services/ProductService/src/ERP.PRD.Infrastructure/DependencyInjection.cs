@@ -1,6 +1,8 @@
+using ERP.PRD.Application.Interfaces;
 using ERP.PRD.Domain.Search;
 using ERP.PRD.Infrastructure.EventBus;
 using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Infrastructure.Repositories;
 using ERP.PRD.Infrastructure.Search;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +27,22 @@ namespace ERP.PRD.Infrastructure
                     sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "dbo");
                 });
             });
+
+            // Register Repositories
+            services.AddScoped<IProductRepository, ProductRepository>();
+            services.AddScoped<ICategoryRepository, CategoryRepository>();
+            services.AddScoped<IProductVariantRepository, ProductVariantRepository>();
+            services.AddScoped<IProductAttributeRepository, ProductAttributeRepository>();
+            services.AddScoped<IProductAttributeValueRepository, ProductAttributeValueRepository>();
+            services.AddScoped<IProductImageRepository, ProductImageRepository>();
+            services.AddScoped<IPriceListRepository, PriceListRepository>();
+            services.AddScoped<IProductBundleRepository, ProductBundleRepository>();
+            services.AddScoped<IProductRelationRepository, ProductRelationRepository>();
+            services.AddScoped<IProductReviewRepository, ProductReviewRepository>();
+            services.AddScoped<ISearchIndexQueueRepository, SearchIndexQueueRepository>();
+
+            // Register Unit of Work
+            services.AddScoped<IProductUnitOfWork, ProductUnitOfWork>();
 
             // Register Kafka Message Bus
             var kafkaSettings = configuration.GetSection("KafkaSettings");

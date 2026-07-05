@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pos-service
+  namespace: erp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pos-service
+  template:
+    metadata:
+      labels:
+        app: pos-service
+    spec:
+      containers:
+      - name: pos-service
+        image: erp/pos-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5011
+        envFrom:
+        - configMapRef:
+            name: erp-config
+        env:
+        - name: ASPNETCORE_URLS
+          value: "http://+:5011"
+        - name: Cache__InstanceName
+          value: "pos"
+        - name: ConnectionStrings__PosDb
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: sql-pos-db
+        - name: RabbitMQ__Password
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: rabbitmq-password
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5011
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5011
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "400m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pos-service
+  namespace: erp
+spec:
+  selector:
+    app: pos-service
+  ports:
+  - port: 5011
+    targetPort: 5011

@@ -31,12 +31,10 @@ public class InventorySerialRepository : IInventorySerialRepository
     public async Task AddAsync(InventorySerial serial, CancellationToken cancellationToken)
     {
         await _context.InventorySerials.AddAsync(serial, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task UpdateAsync(InventorySerial serial, CancellationToken cancellationToken)
     {
         _context.InventorySerials.Update(serial);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 }

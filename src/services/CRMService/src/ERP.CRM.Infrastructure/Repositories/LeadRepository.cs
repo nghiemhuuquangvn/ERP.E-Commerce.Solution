@@ -23,13 +23,12 @@ public class LeadRepository : ILeadRepository
     public async Task AddAsync(Lead lead, CancellationToken cancellationToken = default)
     {
         await _db.Leads.AddAsync(lead, cancellationToken);
-        await _db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task UpdateAsync(Lead lead, CancellationToken cancellationToken = default)
+    public Task UpdateAsync(Lead lead, CancellationToken cancellationToken = default)
     {
         _db.Leads.Update(lead);
-        await _db.SaveChangesAsync(cancellationToken);
+        return Task.CompletedTask;
     }
 
     public async Task<IEnumerable<Lead>> GetAllAsync(CancellationToken cancellationToken = default)

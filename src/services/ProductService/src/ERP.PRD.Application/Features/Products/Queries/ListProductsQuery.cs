@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Products.Queries
 {
@@ -23,35 +22,26 @@ namespace ERP.PRD.Application.Features.Products.Queries
 
     public class ListProductsHandler : IRequestHandler<ListProductsQuery, ListProductsResponse>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public ListProductsHandler(ProductDbContext context)
+        public ListProductsHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<ListProductsResponse> Handle(ListProductsQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.Products
-                .Include(p => p.Variants)
-                .Include(p => p.Translations)
-                .Where(x => !x.IsDeleted
-                    && (!request.CategoryId.HasValue || x.CategoryId == request.CategoryId)
-                    && (!request.Status.HasValue || (int)x.Status == request.Status));
-
-            var total = await query.CountAsync(cancellationToken);
-            var pagedProducts = await query
-                .OrderByDescending(p => p.CreatedAt)
-                .Skip(request.Skip)
-                .Take(request.Take)
-                .ToListAsync(cancellationToken);
+            var (items, total) = await _uow.Products.GetPagedAsync(
+                request.Skip, request.Take,
+                request.CategoryId, request.Status,
+                cancellationToken);
 
             return new ListProductsResponse
             {
                 Total = total,
                 Skip = request.Skip,
                 Take = request.Take,
-                Products = pagedProducts.Select(p => ProductTranslationMapper.MapToDto(p, request.LanguageCode)).ToList()
+                Products = items.Select(p => ProductTranslationMapper.MapToDto(p, request.LanguageCode)).ToList()
             };
         }
     }

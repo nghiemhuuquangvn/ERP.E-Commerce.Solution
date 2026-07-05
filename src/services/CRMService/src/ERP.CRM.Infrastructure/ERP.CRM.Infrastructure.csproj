@@ -16,6 +16,7 @@
     <ProjectReference Include="..\..\..\..\Shared\Core\ERP.Shared.Core.csproj" />
     <ProjectReference Include="..\..\..\..\Shared\Messaging\ERP.Shared.Messaging.csproj" />
     <ProjectReference Include="..\..\..\..\Shared\Contracts\ERP.Shared.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\ERP.Shared.csproj" />
     <ProjectReference Include="..\ERP.CRM.Domain\ERP.CRM.Domain.csproj" />
     <ProjectReference Include="..\ERP.CRM.Application\ERP.CRM.Application.csproj" />
   </ItemGroup>

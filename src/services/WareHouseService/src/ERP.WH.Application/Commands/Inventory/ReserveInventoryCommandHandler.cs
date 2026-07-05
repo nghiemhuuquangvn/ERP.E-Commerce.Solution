@@ -1,4 +1,5 @@
 using MediatR;
+using ERP.WH.Application.Interfaces;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
 using InventoryEntity = ERP.WH.Domain.Aggregates.Inventory.Inventory;
@@ -7,17 +8,14 @@ namespace ERP.WH.Application.Commands.Inventory;
 
 public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCommand, ReserveInventoryResponse>
 {
-    private readonly IInventoryRepository _inventoryRepository;
-    private readonly IReservationRepository _reservationRepository;
+    private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventPublisher _eventPublisher;
 
     public ReserveInventoryCommandHandler(
-        IInventoryRepository inventoryRepository,
-        IReservationRepository reservationRepository,
+        IWarehouseUnitOfWork uow,
         IEventPublisher eventPublisher)
     {
-        _inventoryRepository = inventoryRepository;
-        _reservationRepository = reservationRepository;
+        _uow = uow;
         _eventPublisher = eventPublisher;
     }
 
@@ -28,7 +26,7 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
 
         foreach (var item in request.Items)
         {
-            var inventory = await _inventoryRepository.GetByProductIdAsync(item.ProductId, cancellationToken);
+            var inventory = await _uow.Inventories.GetByProductIdAsync(item.ProductId, cancellationToken);
             if (inventory == null)
                 throw new InvalidOperationException($"Product {item.ProductId} not found in inventory");
 
@@ -37,7 +35,7 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
                     $"Cannot reserve {item.Quantity} units of {inventory.ProductName}. Available: {inventory.AvailableQuantity}");
 
             inventory.ReserveStock(item.Quantity);
-            await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
+            await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
 
             reservedItems.Add(new ReservedItem
             {
@@ -63,7 +61,8 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
             WarehouseLocation = i.WarehouseLocation
         }).ToList();
 
-        await _reservationRepository.AddAsync(reservation, cancellationToken);
+        await _uow.Reservations.AddAsync(reservation, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         var @event = new InventoryReservedEvent
         {

@@ -8,6 +8,7 @@ using ERP.PRM.Infrastructure.MessageBus;
 using ERP.PRM.Infrastructure.Persistence;
 using ERP.PRM.Infrastructure.Repositories;
 using ERP.Shared.Authorization;
+using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
 using ERP.Shared.Messaging;
 using MediatR;
@@ -29,6 +30,8 @@ builder.Services.AddScoped<ICouponRepository, CouponRepository>();
 builder.Services.AddScoped<ILoyaltyAccountRepository, LoyaltyAccountRepository>();
 builder.Services.AddScoped<IPromotionProductCacheRepository, PromotionProductCacheRepository>();
 builder.Services.AddScoped<IFlashSaleRepository, FlashSaleRepository>();
+builder.Services.AddScoped<IPromotionUnitOfWork, PromotionUnitOfWork>();
+builder.Services.AddCacheService(builder.Configuration, "prm");
 
 // Kafka producer + Outbox pattern for publishing integration events (promotion-topic)
 var kafkaServers = builder.Configuration["KafkaSettings:BootstrapServers"] ?? "localhost:9092";

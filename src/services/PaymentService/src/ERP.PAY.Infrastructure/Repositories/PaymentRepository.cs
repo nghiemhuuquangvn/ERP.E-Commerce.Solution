@@ -23,16 +23,13 @@ public class PaymentRepository : IPaymentRepository
     public async Task<List<Payment>> GetByStatusAsync(PaymentStatus status, CancellationToken ct = default) =>
         await _db.Payments.Where(p => p.Status == status).AsNoTracking().ToListAsync(ct);
 
-    public async Task AddAsync(Payment payment, CancellationToken ct = default)
-    {
+    public async Task AddAsync(Payment payment, CancellationToken ct = default) =>
         await _db.Payments.AddAsync(payment, ct);
-        await _db.SaveChangesAsync(ct);
-    }
 
-    public async Task UpdateAsync(Payment payment, CancellationToken ct = default)
+    public Task UpdateAsync(Payment payment, CancellationToken ct = default)
     {
         _db.Payments.Update(payment);
-        await _db.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 }
 
@@ -47,16 +44,13 @@ public class SettlementRepository : ISettlementRepository
     public async Task<List<Settlement>> GetAllAsync(CancellationToken ct = default) =>
         await _db.Settlements.OrderByDescending(s => s.CreatedAt).AsNoTracking().ToListAsync(ct);
 
-    public async Task AddAsync(Settlement settlement, CancellationToken ct = default)
-    {
+    public async Task AddAsync(Settlement settlement, CancellationToken ct = default) =>
         await _db.Settlements.AddAsync(settlement, ct);
-        await _db.SaveChangesAsync(ct);
-    }
 
-    public async Task UpdateAsync(Settlement settlement, CancellationToken ct = default)
+    public Task UpdateAsync(Settlement settlement, CancellationToken ct = default)
     {
         _db.Settlements.Update(settlement);
-        await _db.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 }
 
@@ -71,22 +65,19 @@ public class SavedPaymentMethodRepository : ISavedPaymentMethodRepository
     public async Task<List<SavedPaymentMethod>> GetByCustomerIdAsync(Guid customerId, CancellationToken ct = default) =>
         await _db.SavedPaymentMethods.Where(m => m.CustomerId == customerId).ToListAsync(ct);
 
-    public async Task AddAsync(SavedPaymentMethod method, CancellationToken ct = default)
-    {
+    public async Task AddAsync(SavedPaymentMethod method, CancellationToken ct = default) =>
         await _db.SavedPaymentMethods.AddAsync(method, ct);
-        await _db.SaveChangesAsync(ct);
-    }
 
-    public async Task UpdateAsync(SavedPaymentMethod method, CancellationToken ct = default)
+    public Task UpdateAsync(SavedPaymentMethod method, CancellationToken ct = default)
     {
         _db.SavedPaymentMethods.Update(method);
-        await _db.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 
-    public async Task DeleteAsync(SavedPaymentMethod method, CancellationToken ct = default)
+    public Task DeleteAsync(SavedPaymentMethod method, CancellationToken ct = default)
     {
         _db.SavedPaymentMethods.Remove(method);
-        await _db.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 }
 
@@ -101,15 +92,12 @@ public class InstallmentPlanRepository : IInstallmentPlanRepository
     public async Task<InstallmentPlan?> GetByPaymentIdAsync(Guid paymentId, CancellationToken ct = default) =>
         await _db.InstallmentPlans.FirstOrDefaultAsync(p => p.PaymentId == paymentId, ct);
 
-    public async Task AddAsync(InstallmentPlan plan, CancellationToken ct = default)
-    {
+    public async Task AddAsync(InstallmentPlan plan, CancellationToken ct = default) =>
         await _db.InstallmentPlans.AddAsync(plan, ct);
-        await _db.SaveChangesAsync(ct);
-    }
 
-    public async Task UpdateAsync(InstallmentPlan plan, CancellationToken ct = default)
+    public Task UpdateAsync(InstallmentPlan plan, CancellationToken ct = default)
     {
         _db.InstallmentPlans.Update(plan);
-        await _db.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 }

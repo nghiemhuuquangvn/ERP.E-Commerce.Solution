@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Variants.Queries
 {
@@ -11,11 +10,11 @@ namespace ERP.PRD.Application.Features.Variants.Queries
 
     public class GetVariantBySkuHandler : IRequestHandler<GetVariantBySkuQuery, ProductVariantDto>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public GetVariantBySkuHandler(ProductDbContext context)
+        public GetVariantBySkuHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<ProductVariantDto> Handle(GetVariantBySkuQuery request, CancellationToken cancellationToken)
@@ -23,21 +22,10 @@ namespace ERP.PRD.Application.Features.Variants.Queries
             if (string.IsNullOrWhiteSpace(request.Sku))
                 throw new ArgumentException("SKU is required");
 
-            var sku = request.Sku.ToUpper().Trim();
+            var variant = await _uow.Variants.GetBySkuAsync(request.Sku, cancellationToken);
 
-            // Search all products for variant with matching SKU
-            var allProducts = await _context.Products
-                .Include(p => p.Variants)
-                .Where(x => !x.IsDeleted)
-                .ToListAsync(cancellationToken);
-
-            var product = allProducts.FirstOrDefault(p => p.Variants.Any(v => v.Sku == sku));
-
-            if (product == null)
+            if (variant == null)
                 throw new KeyNotFoundException($"Variant with SKU '{request.Sku}' not found");
-
-            var variant = product.GetVariantBySku(sku)
-                ?? throw new KeyNotFoundException($"Variant with SKU '{request.Sku}' not found");
 
             return new ProductVariantDto
             {

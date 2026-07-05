@@ -1,7 +1,6 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
 using FluentValidation;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Attributes.Commands
 {
@@ -32,25 +31,23 @@ namespace ERP.PRD.Application.Features.Attributes.Commands
 
     public class AddAttributeOptionHandler : IRequestHandler<AddAttributeOptionCommand, AddAttributeOptionResponse>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public AddAttributeOptionHandler(ProductDbContext context)
+        public AddAttributeOptionHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<AddAttributeOptionResponse> Handle(AddAttributeOptionCommand request, CancellationToken cancellationToken)
         {
-            var attribute = await _context.ProductAttributes
-                .Include(a => a.Options)
-                .FirstOrDefaultAsync(a => a.Id == request.ProductAttributeId && !a.IsDeleted, cancellationToken);
+            var attribute = await _uow.Attributes.GetByIdWithOptionsAsync(request.ProductAttributeId, cancellationToken);
 
             if (attribute == null)
                 throw new KeyNotFoundException($"Attribute with ID {request.ProductAttributeId} not found");
 
             var option = attribute.AddOption(request.Value, request.SortOrder);
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return new AddAttributeOptionResponse
             {

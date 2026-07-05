@@ -1,4 +1,5 @@
 using MediatR;
+using ERP.WH.Application.Interfaces;
 
 namespace ERP.WH.Application.Commands.Stocktakes;
 
@@ -11,20 +12,21 @@ public class RecordStocktakeCountCommand : IRequest<StocktakeDto>
 
 public class RecordStocktakeCountCommandHandler : IRequestHandler<RecordStocktakeCountCommand, StocktakeDto>
 {
-    private readonly IStocktakeRepository _stocktakeRepository;
+    private readonly IWarehouseUnitOfWork _uow;
 
-    public RecordStocktakeCountCommandHandler(IStocktakeRepository stocktakeRepository)
+    public RecordStocktakeCountCommandHandler(IWarehouseUnitOfWork uow)
     {
-        _stocktakeRepository = stocktakeRepository;
+        _uow = uow;
     }
 
     public async Task<StocktakeDto> Handle(RecordStocktakeCountCommand request, CancellationToken cancellationToken)
     {
-        var stocktake = await _stocktakeRepository.GetByIdAsync(request.StocktakeId, cancellationToken)
+        var stocktake = await _uow.Stocktakes.GetByIdAsync(request.StocktakeId, cancellationToken)
             ?? throw new InvalidOperationException($"Stocktake {request.StocktakeId} not found");
 
         stocktake.RecordCount(request.ProductId, request.CountedQuantity);
-        await _stocktakeRepository.UpdateAsync(stocktake, cancellationToken);
+        await _uow.Stocktakes.UpdateAsync(stocktake, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return StartStocktakeCommandHandler.Map(stocktake);
     }
@@ -37,20 +39,21 @@ public class CancelStocktakeCommand : IRequest<StocktakeDto>
 
 public class CancelStocktakeCommandHandler : IRequestHandler<CancelStocktakeCommand, StocktakeDto>
 {
-    private readonly IStocktakeRepository _stocktakeRepository;
+    private readonly IWarehouseUnitOfWork _uow;
 
-    public CancelStocktakeCommandHandler(IStocktakeRepository stocktakeRepository)
+    public CancelStocktakeCommandHandler(IWarehouseUnitOfWork uow)
     {
-        _stocktakeRepository = stocktakeRepository;
+        _uow = uow;
     }
 
     public async Task<StocktakeDto> Handle(CancelStocktakeCommand request, CancellationToken cancellationToken)
     {
-        var stocktake = await _stocktakeRepository.GetByIdAsync(request.StocktakeId, cancellationToken)
+        var stocktake = await _uow.Stocktakes.GetByIdAsync(request.StocktakeId, cancellationToken)
             ?? throw new InvalidOperationException($"Stocktake {request.StocktakeId} not found");
 
         stocktake.Cancel();
-        await _stocktakeRepository.UpdateAsync(stocktake, cancellationToken);
+        await _uow.Stocktakes.UpdateAsync(stocktake, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return StartStocktakeCommandHandler.Map(stocktake);
     }

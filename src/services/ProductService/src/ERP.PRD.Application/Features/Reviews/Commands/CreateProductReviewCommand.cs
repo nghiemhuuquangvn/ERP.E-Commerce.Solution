@@ -1,8 +1,7 @@
+using ERP.PRD.Application.Interfaces;
 using ERP.PRD.Domain.Entities;
-using ERP.PRD.Infrastructure.Persistence;
 using FluentValidation;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Reviews.Commands
 {
@@ -32,22 +31,22 @@ namespace ERP.PRD.Application.Features.Reviews.Commands
     /// </summary>
     public class CreateProductReviewHandler : IRequestHandler<CreateProductReviewCommand, Guid>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public CreateProductReviewHandler(ProductDbContext context)
+        public CreateProductReviewHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<Guid> Handle(CreateProductReviewCommand request, CancellationToken cancellationToken)
         {
-            var productExists = await _context.Products.AnyAsync(p => p.Id == request.ProductId && !p.IsDeleted, cancellationToken);
+            var productExists = await _uow.Reviews.ProductExistsAsync(request.ProductId, cancellationToken);
             if (!productExists)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
 
             var review = ProductReview.Create(request.ProductId, request.CustomerId, request.Rating, request.Comment);
-            await _context.ProductReviews.AddAsync(review, cancellationToken);
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.Reviews.AddAsync(review, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return review.Id;
         }

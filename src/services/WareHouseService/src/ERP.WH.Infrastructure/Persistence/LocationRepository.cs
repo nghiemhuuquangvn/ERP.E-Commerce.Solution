@@ -36,12 +36,10 @@ public class LocationRepository : ILocationRepository
     public async Task AddAsync(WarehouseLocation location, CancellationToken cancellationToken)
     {
         await _context.WarehouseLocations.AddAsync(location, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task UpdateAsync(WarehouseLocation location, CancellationToken cancellationToken)
     {
         _context.WarehouseLocations.Update(location);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 }

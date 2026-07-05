@@ -73,18 +73,19 @@ public class TransactionCreatedForPromotionHandler
 /// </summary>
 public class ProductCreatedForPromotionHandler
 {
-    private readonly IPromotionProductCacheRepository _cache;
+    private readonly IPromotionUnitOfWork _uow;
     private readonly ILogger<ProductCreatedForPromotionHandler> _logger;
 
-    public ProductCreatedForPromotionHandler(IPromotionProductCacheRepository cache, ILogger<ProductCreatedForPromotionHandler> logger)
+    public ProductCreatedForPromotionHandler(IPromotionUnitOfWork uow, ILogger<ProductCreatedForPromotionHandler> logger)
     {
-        _cache = cache;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task HandleAsync(ProductCreatedIntegrationEvent @event, CancellationToken ct = default)
     {
         _logger.LogInformation("[PROMOTION] ProductCreated: caching {ProductId} for promotion rules", @event.ProductId);
-        await _cache.UpsertAsync(@event.ProductId, @event.Category, @event.Price, ct);
+        await _uow.ProductCache.UpsertAsync(@event.ProductId, @event.Category, @event.Price, ct);
+        await _uow.SaveChangesAsync(ct);
     }
 }

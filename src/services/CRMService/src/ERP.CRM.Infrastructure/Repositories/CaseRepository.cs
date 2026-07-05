@@ -23,13 +23,12 @@ public class CaseRepository : ICaseRepository
     public async Task AddAsync(Case caseEntity, CancellationToken cancellationToken = default)
     {
         await _db.Cases.AddAsync(caseEntity, cancellationToken);
-        await _db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task UpdateAsync(Case caseEntity, CancellationToken cancellationToken = default)
+    public Task UpdateAsync(Case caseEntity, CancellationToken cancellationToken = default)
     {
         _db.Cases.Update(caseEntity);
-        await _db.SaveChangesAsync(cancellationToken);
+        return Task.CompletedTask;
     }
 
     public async Task<IEnumerable<Case>> GetAllAsync(CancellationToken cancellationToken = default)

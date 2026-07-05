@@ -1,38 +1,36 @@
 using MediatR;
+using ERP.WH.Application.Interfaces;
 
 namespace ERP.WH.Application.Commands.Inventory;
 
 public class ReleaseReservationCommandHandler : IRequestHandler<ReleaseReservationCommand, ReleaseReservationResponse>
 {
-    private readonly IReservationRepository _reservationRepository;
-    private readonly IInventoryRepository _inventoryRepository;
+    private readonly IWarehouseUnitOfWork _uow;
 
-    public ReleaseReservationCommandHandler(
-        IReservationRepository reservationRepository,
-        IInventoryRepository inventoryRepository)
+    public ReleaseReservationCommandHandler(IWarehouseUnitOfWork uow)
     {
-        _reservationRepository = reservationRepository;
-        _inventoryRepository = inventoryRepository;
+        _uow = uow;
     }
 
     public async Task<ReleaseReservationResponse> Handle(ReleaseReservationCommand request, CancellationToken cancellationToken)
     {
-        var reservation = await _reservationRepository.GetByIdAsync(request.ReservationId, cancellationToken);
+        var reservation = await _uow.Reservations.GetByIdAsync(request.ReservationId, cancellationToken);
         if (reservation == null)
             throw new InvalidOperationException($"Reservation {request.ReservationId} not found");
 
         foreach (var item in reservation.ReservedItems)
         {
-            var inventory = await _inventoryRepository.GetByProductIdAsync(item.ProductId, cancellationToken);
+            var inventory = await _uow.Inventories.GetByProductIdAsync(item.ProductId, cancellationToken);
             if (inventory != null)
             {
                 inventory.ReleaseReservation(item.Quantity);
-                await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
+                await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
             }
         }
 
         reservation.Release(request.Reason);
-        await _reservationRepository.UpdateAsync(reservation, cancellationToken);
+        await _uow.Reservations.UpdateAsync(reservation, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return new ReleaseReservationResponse
         {

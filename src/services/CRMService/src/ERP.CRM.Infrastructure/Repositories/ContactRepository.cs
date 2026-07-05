@@ -29,13 +29,12 @@ public class ContactRepository : IContactRepository
     public async Task AddAsync(Contact contact, CancellationToken cancellationToken = default)
     {
         await _db.Contacts.AddAsync(contact, cancellationToken);
-        await _db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task UpdateAsync(Contact contact, CancellationToken cancellationToken = default)
+    public Task UpdateAsync(Contact contact, CancellationToken cancellationToken = default)
     {
         _db.Contacts.Update(contact);
-        await _db.SaveChangesAsync(cancellationToken);
+        return Task.CompletedTask;
     }
 
     public async Task<IEnumerable<Contact>> GetAllAsync(CancellationToken cancellationToken = default)

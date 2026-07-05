@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Attributes.Commands
 {
@@ -11,17 +10,16 @@ namespace ERP.PRD.Application.Features.Attributes.Commands
 
     public class DeleteProductAttributeHandler : IRequestHandler<DeleteProductAttributeCommand, Unit>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public DeleteProductAttributeHandler(ProductDbContext context)
+        public DeleteProductAttributeHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<Unit> Handle(DeleteProductAttributeCommand request, CancellationToken cancellationToken)
         {
-            var attribute = await _context.ProductAttributes
-                .FirstOrDefaultAsync(a => a.Id == request.Id && !a.IsDeleted, cancellationToken);
+            var attribute = await _uow.Attributes.GetByIdAsync(request.Id, cancellationToken);
 
             if (attribute == null)
                 throw new KeyNotFoundException($"Attribute with ID {request.Id} not found");
@@ -29,15 +27,14 @@ namespace ERP.PRD.Application.Features.Attributes.Commands
             // Mirror Product.RemoveVariant's guard-rail style: refuse the operation outright
             // rather than cascading, since values already assigned to products/variants would
             // otherwise be silently orphaned.
-            var hasValues = await _context.ProductAttributeValues
-                .AnyAsync(v => v.ProductAttributeId == request.Id && !v.IsDeleted, cancellationToken);
+            var hasValues = await _uow.AttributeValues.AnyByAttributeIdAsync(request.Id, cancellationToken);
 
             if (hasValues)
                 throw new InvalidOperationException("Cannot delete an attribute that has values assigned to products or variants. Remove those values first.");
 
             attribute.Delete();
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return Unit.Value;
         }

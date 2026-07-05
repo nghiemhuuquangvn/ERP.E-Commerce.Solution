@@ -9,14 +9,15 @@ namespace ERP.ACC.Application.Handlers
 {
     public class CreateAccountCommandHandler : IRequestHandler<CreateAccountCommand, AccountDto>
     {
-        private readonly IAccountRepository _accounts;
+        private readonly IAccountingUnitOfWork _uow;
 
-        public CreateAccountCommandHandler(IAccountRepository accounts) => _accounts = accounts;
+        public CreateAccountCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
 
         public async Task<AccountDto> Handle(CreateAccountCommand request, CancellationToken cancellationToken)
         {
             var account = Account.Create(request.AccountNumber, request.Name, request.AccountType, request.NormalBalance);
-            await _accounts.AddAsync(account, cancellationToken);
+            await _uow.Accounts.AddAsync(account, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
             return MapAccountToDto(account);
         }
 
@@ -33,9 +34,9 @@ namespace ERP.ACC.Application.Handlers
 
     public class CreateInvoiceCommandHandler : IRequestHandler<CreateInvoiceCommand, InvoiceDto>
     {
-        private readonly IInvoiceRepository _invoices;
+        private readonly IAccountingUnitOfWork _uow;
 
-        public CreateInvoiceCommandHandler(IInvoiceRepository invoices) => _invoices = invoices;
+        public CreateInvoiceCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
 
         public async Task<InvoiceDto> Handle(CreateInvoiceCommand request, CancellationToken cancellationToken)
         {
@@ -46,7 +47,8 @@ namespace ERP.ACC.Application.Handlers
                 request.Amount,
                 request.DueDate);
 
-            await _invoices.AddAsync(invoice, cancellationToken);
+            await _uow.Invoices.AddAsync(invoice, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
             return MapInvoiceToDto(invoice);
         }
 
@@ -65,26 +67,27 @@ namespace ERP.ACC.Application.Handlers
 
     public class MarkInvoicePaidCommandHandler : IRequestHandler<MarkInvoicePaidCommand, InvoiceDto>
     {
-        private readonly IInvoiceRepository _invoices;
+        private readonly IAccountingUnitOfWork _uow;
 
-        public MarkInvoicePaidCommandHandler(IInvoiceRepository invoices) => _invoices = invoices;
+        public MarkInvoicePaidCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
 
         public async Task<InvoiceDto> Handle(MarkInvoicePaidCommand request, CancellationToken cancellationToken)
         {
-            var invoice = await _invoices.GetByIdAsync(request.InvoiceId, cancellationToken)
+            var invoice = await _uow.Invoices.GetByIdAsync(request.InvoiceId, cancellationToken)
                 ?? throw new InvalidOperationException($"Invoice {request.InvoiceId} not found.");
 
             invoice.MarkPaid();
-            await _invoices.UpdateAsync(invoice, cancellationToken);
+            await _uow.Invoices.UpdateAsync(invoice, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
             return CreateInvoiceCommandHandler.MapInvoiceToDto(invoice);
         }
     }
 
     public class CreateBillCommandHandler : IRequestHandler<CreateBillCommand, BillDto>
     {
-        private readonly IBillRepository _bills;
+        private readonly IAccountingUnitOfWork _uow;
 
-        public CreateBillCommandHandler(IBillRepository bills) => _bills = bills;
+        public CreateBillCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
 
         public async Task<BillDto> Handle(CreateBillCommand request, CancellationToken cancellationToken)
         {
@@ -95,7 +98,8 @@ namespace ERP.ACC.Application.Handlers
                 request.Amount,
                 request.DueDate);
 
-            await _bills.AddAsync(bill, cancellationToken);
+            await _uow.Bills.AddAsync(bill, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
             return MapBillToDto(bill);
         }
 
@@ -114,54 +118,49 @@ namespace ERP.ACC.Application.Handlers
 
     public class ApproveBillCommandHandler : IRequestHandler<ApproveBillCommand, BillDto>
     {
-        private readonly IBillRepository _bills;
+        private readonly IAccountingUnitOfWork _uow;
 
-        public ApproveBillCommandHandler(IBillRepository bills) => _bills = bills;
+        public ApproveBillCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
 
         public async Task<BillDto> Handle(ApproveBillCommand request, CancellationToken cancellationToken)
         {
-            var bill = await _bills.GetByIdAsync(request.BillId, cancellationToken)
+            var bill = await _uow.Bills.GetByIdAsync(request.BillId, cancellationToken)
                 ?? throw new InvalidOperationException($"Bill {request.BillId} not found.");
 
             bill.Approve();
-            await _bills.UpdateAsync(bill, cancellationToken);
+            await _uow.Bills.UpdateAsync(bill, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
             return CreateBillCommandHandler.MapBillToDto(bill);
         }
     }
 
     public class MarkBillPaidCommandHandler : IRequestHandler<MarkBillPaidCommand, BillDto>
     {
-        private readonly IBillRepository _bills;
+        private readonly IAccountingUnitOfWork _uow;
 
-        public MarkBillPaidCommandHandler(IBillRepository bills) => _bills = bills;
+        public MarkBillPaidCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
 
         public async Task<BillDto> Handle(MarkBillPaidCommand request, CancellationToken cancellationToken)
         {
-            var bill = await _bills.GetByIdAsync(request.BillId, cancellationToken)
+            var bill = await _uow.Bills.GetByIdAsync(request.BillId, cancellationToken)
                 ?? throw new InvalidOperationException($"Bill {request.BillId} not found.");
 
             bill.MarkPaid();
-            await _bills.UpdateAsync(bill, cancellationToken);
+            await _uow.Bills.UpdateAsync(bill, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
             return CreateBillCommandHandler.MapBillToDto(bill);
         }
     }
 
     public class PostJournalEntryCommandHandler : IRequestHandler<PostJournalEntryCommand, JournalEntryDto>
     {
-        private readonly IJournalEntryRepository _journalEntries;
-        private readonly IFiscalPeriodRepository _fiscalPeriods;
+        private readonly IAccountingUnitOfWork _uow;
 
-        public PostJournalEntryCommandHandler(
-            IJournalEntryRepository journalEntries,
-            IFiscalPeriodRepository fiscalPeriods)
-        {
-            _journalEntries = journalEntries;
-            _fiscalPeriods = fiscalPeriods;
-        }
+        public PostJournalEntryCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
 
         public async Task<JournalEntryDto> Handle(PostJournalEntryCommand request, CancellationToken cancellationToken)
         {
-            var fiscalPeriod = await _fiscalPeriods.GetByIdAsync(request.FiscalPeriodId, cancellationToken)
+            var fiscalPeriod = await _uow.FiscalPeriods.GetByIdAsync(request.FiscalPeriodId, cancellationToken)
                 ?? throw new InvalidOperationException($"Fiscal period {request.FiscalPeriodId} not found.");
 
             if (fiscalPeriod.Status != (int)FiscalPeriodStatus.Open)
@@ -179,7 +178,8 @@ namespace ERP.ACC.Application.Handlers
             foreach (var line in request.Lines)
                 entry.AddLine(line.AccountId, line.Debit, line.Credit, line.Description);
 
-            await _journalEntries.AddAsync(entry, cancellationToken);
+            await _uow.JournalEntries.AddAsync(entry, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return new JournalEntryDto
             {
@@ -203,14 +203,15 @@ namespace ERP.ACC.Application.Handlers
 
     public class OpenFiscalPeriodCommandHandler : IRequestHandler<OpenFiscalPeriodCommand, FiscalPeriodDto>
     {
-        private readonly IFiscalPeriodRepository _fiscalPeriods;
+        private readonly IAccountingUnitOfWork _uow;
 
-        public OpenFiscalPeriodCommandHandler(IFiscalPeriodRepository fiscalPeriods) => _fiscalPeriods = fiscalPeriods;
+        public OpenFiscalPeriodCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
 
         public async Task<FiscalPeriodDto> Handle(OpenFiscalPeriodCommand request, CancellationToken cancellationToken)
         {
             var period = FiscalPeriod.Create(request.PeriodName, request.StartDate, request.EndDate);
-            await _fiscalPeriods.AddAsync(period, cancellationToken);
+            await _uow.FiscalPeriods.AddAsync(period, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
             return MapFiscalPeriodToDto(period);
         }
 
@@ -227,17 +228,18 @@ namespace ERP.ACC.Application.Handlers
 
     public class CloseFiscalPeriodCommandHandler : IRequestHandler<CloseFiscalPeriodCommand, FiscalPeriodDto>
     {
-        private readonly IFiscalPeriodRepository _fiscalPeriods;
+        private readonly IAccountingUnitOfWork _uow;
 
-        public CloseFiscalPeriodCommandHandler(IFiscalPeriodRepository fiscalPeriods) => _fiscalPeriods = fiscalPeriods;
+        public CloseFiscalPeriodCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
 
         public async Task<FiscalPeriodDto> Handle(CloseFiscalPeriodCommand request, CancellationToken cancellationToken)
         {
-            var period = await _fiscalPeriods.GetByIdAsync(request.FiscalPeriodId, cancellationToken)
+            var period = await _uow.FiscalPeriods.GetByIdAsync(request.FiscalPeriodId, cancellationToken)
                 ?? throw new InvalidOperationException($"Fiscal period {request.FiscalPeriodId} not found.");
 
             period.Close();
-            await _fiscalPeriods.UpdateAsync(period, cancellationToken);
+            await _uow.FiscalPeriods.UpdateAsync(period, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
             return OpenFiscalPeriodCommandHandler.MapFiscalPeriodToDto(period);
         }
     }

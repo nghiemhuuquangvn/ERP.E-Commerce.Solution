@@ -1,7 +1,6 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
 using FluentValidation;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Variants.Commands
 {
@@ -63,19 +62,17 @@ namespace ERP.PRD.Application.Features.Variants.Commands
 
     public class CreateProductVariantHandler : IRequestHandler<CreateProductVariantCommand, CreateProductVariantResponse>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public CreateProductVariantHandler(ProductDbContext context)
+        public CreateProductVariantHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<CreateProductVariantResponse> Handle(CreateProductVariantCommand request, CancellationToken cancellationToken)
         {
-            // Verify product exists
-            var product = await _context.Products
-                .Include(p => p.Variants)
-                .FirstOrDefaultAsync(x => x.Id == request.ProductId && !x.IsDeleted, cancellationToken);
+            // Verify product exists and load variants
+            var product = await _uow.Products.GetByIdWithVariantsAsync(request.ProductId, cancellationToken);
 
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
@@ -106,7 +103,7 @@ namespace ERP.PRD.Application.Features.Variants.Commands
             product.AddVariant(variant);
 
             // Save
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return new CreateProductVariantResponse
             {

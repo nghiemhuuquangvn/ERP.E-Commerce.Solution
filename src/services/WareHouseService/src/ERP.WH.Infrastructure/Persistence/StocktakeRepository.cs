@@ -26,12 +26,10 @@ public class StocktakeRepository : IStocktakeRepository
     public async Task AddAsync(Stocktake stocktake, CancellationToken cancellationToken)
     {
         await _context.Stocktakes.AddAsync(stocktake, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task UpdateAsync(Stocktake stocktake, CancellationToken cancellationToken)
     {
         _context.Stocktakes.Update(stocktake);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 }

@@ -10,6 +10,7 @@ using ERP.PAY.Infrastructure.MessageBus;
 using ERP.PAY.Infrastructure.Persistence;
 using ERP.PAY.Infrastructure.Repositories;
 using ERP.Shared.Authorization;
+using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
 using ERP.Shared.Messaging;
 using FluentValidation;
@@ -33,7 +34,9 @@ builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<ISettlementRepository, SettlementRepository>();
 builder.Services.AddScoped<ISavedPaymentMethodRepository, SavedPaymentMethodRepository>();
 builder.Services.AddScoped<IInstallmentPlanRepository, InstallmentPlanRepository>();
+builder.Services.AddScoped<IPaymentUnitOfWork, PaymentUnitOfWork>();
 builder.Services.AddScoped<IFraudDetectionService, FraudDetectionService>();
+builder.Services.AddCacheService(builder.Configuration, "pay");
 builder.Services.AddHttpClient(); // used by VnPayGateway.RefundAsync (server-to-server POST)
 
 // Kafka producer + Outbox — drains PaymentDbContext.OutboxMessages (already populated

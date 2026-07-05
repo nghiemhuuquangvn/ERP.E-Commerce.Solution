@@ -1,9 +1,8 @@
+using ERP.PRD.Application.Interfaces;
 using ERP.PRD.Domain.Entities;
 using ERP.PRD.Domain.Enums;
-using ERP.PRD.Infrastructure.Persistence;
 using MediatR;
 using FluentValidation;
-using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 
 namespace ERP.PRD.Application.Features.Attributes.Commands
@@ -36,40 +35,34 @@ namespace ERP.PRD.Application.Features.Attributes.Commands
 
     public class SetProductAttributeValueHandler : IRequestHandler<SetProductAttributeValueCommand, Unit>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public SetProductAttributeValueHandler(ProductDbContext context)
+        public SetProductAttributeValueHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<Unit> Handle(SetProductAttributeValueCommand request, CancellationToken cancellationToken)
         {
-            var attribute = await _context.ProductAttributes
-                .Include(a => a.Options)
-                .FirstOrDefaultAsync(a => a.Id == request.ProductAttributeId && !a.IsDeleted, cancellationToken);
+            var attribute = await _uow.Attributes.GetByIdWithOptionsAsync(
+                request.ProductAttributeId, cancellationToken);
 
             if (attribute == null)
                 throw new KeyNotFoundException($"Attribute with ID {request.ProductAttributeId} not found");
 
             var ownerType = (AttributeOwnerType)request.OwnerType;
 
-            var ownerExists = ownerType == AttributeOwnerType.Product
-                ? await _context.Products.AnyAsync(p => p.Id == request.OwnerId && !p.IsDeleted, cancellationToken)
-                : await _context.ProductVariants.AnyAsync(v => v.Id == request.OwnerId && !v.IsDeleted, cancellationToken);
+            bool ownerExists = ownerType == AttributeOwnerType.Product
+                ? await _uow.Products.ExistsAsync(request.OwnerId, cancellationToken)
+                : await _uow.Variants.GetByIdAsync(request.OwnerId, cancellationToken) != null;
 
             if (!ownerExists)
                 throw new KeyNotFoundException($"{ownerType} with ID {request.OwnerId} not found");
 
-            // Resolve the owning Product's Id for the search-reindex signal — for a
-            // Product-owned value it's OwnerId directly, for a ProductVariant-owned value we
-            // need that variant's ProductId (the AnyAsync check above only confirmed existence).
+            // Resolve the owning Product's Id for the search-reindex signal
             var productId = ownerType == AttributeOwnerType.Product
                 ? request.OwnerId
-                : await _context.ProductVariants
-                    .Where(v => v.Id == request.OwnerId)
-                    .Select(v => v.ProductId)
-                    .FirstAsync(cancellationToken);
+                : await _uow.AttributeValues.GetProductIdForVariantAsync(request.OwnerId, cancellationToken);
 
             // Exactly one value field must be populated, and it must be the one matching the
             // attribute's DataType.
@@ -132,11 +125,8 @@ namespace ERP.PRD.Application.Features.Attributes.Commands
             }
 
             // Upsert — mirror Product.SetTranslation's exact find-or-create shape.
-            var existing = await _context.ProductAttributeValues
-                .FirstOrDefaultAsync(v => v.OwnerType == ownerType
-                                        && v.OwnerId == request.OwnerId
-                                        && v.ProductAttributeId == request.ProductAttributeId
-                                        && !v.IsDeleted, cancellationToken);
+            var existing = await _uow.AttributeValues.GetExistingAsync(
+                ownerType, request.OwnerId, request.ProductAttributeId, cancellationToken);
 
             if (existing != null)
             {
@@ -160,10 +150,10 @@ namespace ERP.PRD.Application.Features.Attributes.Commands
                 value.ValueOptionIdsJson = optionIdsJson;
                 value.RequestSearchReindex(productId);
 
-                await _context.ProductAttributeValues.AddAsync(value, cancellationToken);
+                await _uow.AttributeValues.AddAsync(value, cancellationToken);
             }
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return Unit.Value;
         }

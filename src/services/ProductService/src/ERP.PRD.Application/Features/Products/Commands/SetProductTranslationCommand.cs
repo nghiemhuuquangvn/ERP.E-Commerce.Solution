@@ -1,7 +1,6 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using FluentValidation;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Products.Commands
 {
@@ -35,25 +34,23 @@ namespace ERP.PRD.Application.Features.Products.Commands
 
     public class SetProductTranslationHandler : IRequestHandler<SetProductTranslationCommand, Unit>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public SetProductTranslationHandler(ProductDbContext context)
+        public SetProductTranslationHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<Unit> Handle(SetProductTranslationCommand request, CancellationToken cancellationToken)
         {
-            var product = await _context.Products
-                .Include(p => p.Translations)
-                .FirstOrDefaultAsync(x => x.Id == request.ProductId && !x.IsDeleted, cancellationToken);
+            var product = await _uow.Products.GetByIdWithTranslationsAsync(request.ProductId, cancellationToken);
 
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
 
             product.SetTranslation(request.LanguageCode, request.Name, request.Description);
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return Unit.Value;
         }

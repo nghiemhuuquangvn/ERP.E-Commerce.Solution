@@ -1,9 +1,11 @@
 using Confluent.Kafka;
+using ERP.MST.Application.EventHandlers;
 using ERP.MST.Application.Interfaces;
 using ERP.MST.Infrastructure.BackgroundJobs;
 using ERP.MST.Infrastructure.MessageBus;
 using ERP.MST.Infrastructure.Persistence;
 using ERP.MST.Infrastructure.Repositories;
+using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -34,6 +36,12 @@ namespace ERP.MST.Infrastructure
 
             services.AddHostedService<OutboxProcessor>();
             services.AddHostedService<HrmEventConsumer>();
+            services.AddHostedService<IdentityEventConsumer>();
+
+            services.AddScoped<UserCreatedEventHandler>();
+            services.AddScoped<LeaveApprovedEventHandler>();
+
+            services.AddCacheService(configuration, "mst");
 
             // Repositories
             services.AddScoped<IDepartmentRepository, DepartmentRepository>();

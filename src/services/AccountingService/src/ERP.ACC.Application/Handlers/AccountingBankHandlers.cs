@@ -10,9 +10,9 @@ namespace ERP.ACC.Application.Handlers
 {
     public class CreateBankAccountCommandHandler : IRequestHandler<CreateBankAccountCommand, BankAccountDto>
     {
-        private readonly IBankAccountRepository _bankAccounts;
+        private readonly IAccountingUnitOfWork _uow;
 
-        public CreateBankAccountCommandHandler(IBankAccountRepository bankAccounts) => _bankAccounts = bankAccounts;
+        public CreateBankAccountCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
 
         public async Task<BankAccountDto> Handle(CreateBankAccountCommand request, CancellationToken cancellationToken)
         {
@@ -24,7 +24,8 @@ namespace ERP.ACC.Application.Handlers
                 request.CurrencyCode,
                 request.GlAccountId);
 
-            await _bankAccounts.AddAsync(ba, cancellationToken);
+            await _uow.BankAccounts.AddAsync(ba, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
             return MapToDto(ba);
         }
 
@@ -70,18 +71,13 @@ namespace ERP.ACC.Application.Handlers
 
     public class CreateBankStatementCommandHandler : IRequestHandler<CreateBankStatementCommand, BankStatementDto>
     {
-        private readonly IBankStatementRepository _statements;
-        private readonly IBankAccountRepository _bankAccounts;
+        private readonly IAccountingUnitOfWork _uow;
 
-        public CreateBankStatementCommandHandler(IBankStatementRepository statements, IBankAccountRepository bankAccounts)
-        {
-            _statements = statements;
-            _bankAccounts = bankAccounts;
-        }
+        public CreateBankStatementCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
 
         public async Task<BankStatementDto> Handle(CreateBankStatementCommand request, CancellationToken cancellationToken)
         {
-            var bankAccount = await _bankAccounts.GetByIdAsync(request.BankAccountId, cancellationToken)
+            var bankAccount = await _uow.BankAccounts.GetByIdAsync(request.BankAccountId, cancellationToken)
                 ?? throw new InvalidOperationException($"Bank account {request.BankAccountId} not found.");
 
             var statement = BankStatement.Create(
@@ -91,10 +87,12 @@ namespace ERP.ACC.Application.Handlers
                 request.ClosingBalance,
                 request.Notes);
 
-            await _statements.AddAsync(statement, cancellationToken);
+            await _uow.BankStatements.AddAsync(statement, cancellationToken);
 
             bankAccount.UpdateBalance(request.ClosingBalance);
-            await _bankAccounts.UpdateAsync(bankAccount, cancellationToken);
+            await _uow.BankAccounts.UpdateAsync(bankAccount, cancellationToken);
+
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return MapToDto(statement);
         }
@@ -115,17 +113,18 @@ namespace ERP.ACC.Application.Handlers
 
     public class ReconcileBankStatementCommandHandler : IRequestHandler<ReconcileBankStatementCommand, BankStatementDto>
     {
-        private readonly IBankStatementRepository _statements;
+        private readonly IAccountingUnitOfWork _uow;
 
-        public ReconcileBankStatementCommandHandler(IBankStatementRepository statements) => _statements = statements;
+        public ReconcileBankStatementCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
 
         public async Task<BankStatementDto> Handle(ReconcileBankStatementCommand request, CancellationToken cancellationToken)
         {
-            var statement = await _statements.GetByIdAsync(request.BankStatementId, cancellationToken)
+            var statement = await _uow.BankStatements.GetByIdAsync(request.BankStatementId, cancellationToken)
                 ?? throw new InvalidOperationException($"Bank statement {request.BankStatementId} not found.");
 
             statement.Reconcile(request.Notes);
-            await _statements.UpdateAsync(statement, cancellationToken);
+            await _uow.BankStatements.UpdateAsync(statement, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
             return CreateBankStatementCommandHandler.MapToDto(statement);
         }
     }

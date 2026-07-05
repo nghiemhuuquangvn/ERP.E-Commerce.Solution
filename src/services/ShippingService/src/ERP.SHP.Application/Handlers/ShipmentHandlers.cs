@@ -9,20 +9,18 @@ namespace ERP.SHP.Application.Handlers;
 
 public class CreateShipmentCommandHandler : IRequestHandler<CreateShipmentCommand, ShipmentDto>
 {
-    private readonly IShipmentRepository _shipments;
-    private readonly ICarrierRepository _carriers;
+    private readonly IShippingUnitOfWork _uow;
     private readonly ICarrierClient _carrierClient;
 
-    public CreateShipmentCommandHandler(IShipmentRepository shipments, ICarrierRepository carriers, ICarrierClient carrierClient)
+    public CreateShipmentCommandHandler(IShippingUnitOfWork uow, ICarrierClient carrierClient)
     {
-        _shipments = shipments;
-        _carriers = carriers;
+        _uow = uow;
         _carrierClient = carrierClient;
     }
 
     public async Task<ShipmentDto> Handle(CreateShipmentCommand request, CancellationToken cancellationToken)
     {
-        var carrier = await _carriers.GetByIdAsync(request.CarrierId, cancellationToken)
+        var carrier = await _uow.Carriers.GetByIdAsync(request.CarrierId, cancellationToken)
             ?? throw new InvalidOperationException($"Carrier {request.CarrierId} not found.");
 
         var items = request.Items
@@ -58,7 +56,8 @@ public class CreateShipmentCommandHandler : IRequestHandler<CreateShipmentComman
         if (carrierResult.Success && !string.IsNullOrEmpty(carrierResult.TrackingCode))
             shipment.AssignTrackingNumber(carrierResult.TrackingCode);
 
-        await _shipments.AddAsync(shipment, cancellationToken);
+        await _uow.Shipments.AddAsync(shipment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return MapToDto(shipment);
     }
 
@@ -104,88 +103,93 @@ public class CreateShipmentCommandHandler : IRequestHandler<CreateShipmentComman
 
 public class AssignTrackingNumberCommandHandler : IRequestHandler<AssignTrackingNumberCommand, ShipmentDto>
 {
-    private readonly IShipmentRepository _shipments;
-    public AssignTrackingNumberCommandHandler(IShipmentRepository shipments) => _shipments = shipments;
+    private readonly IShippingUnitOfWork _uow;
+    public AssignTrackingNumberCommandHandler(IShippingUnitOfWork uow) => _uow = uow;
 
     public async Task<ShipmentDto> Handle(AssignTrackingNumberCommand request, CancellationToken cancellationToken)
     {
-        var shipment = await _shipments.GetByIdAsync(request.ShipmentId, cancellationToken)
+        var shipment = await _uow.Shipments.GetByIdAsync(request.ShipmentId, cancellationToken)
             ?? throw new InvalidOperationException($"Shipment {request.ShipmentId} not found.");
 
         shipment.AssignTrackingNumber(request.TrackingNumber);
-        await _shipments.UpdateAsync(shipment, cancellationToken);
+        await _uow.Shipments.UpdateAsync(shipment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return CreateShipmentCommandHandler.MapToDto(shipment);
     }
 }
 
 public class AddTrackingEventCommandHandler : IRequestHandler<AddTrackingEventCommand, ShipmentDto>
 {
-    private readonly IShipmentRepository _shipments;
-    public AddTrackingEventCommandHandler(IShipmentRepository shipments) => _shipments = shipments;
+    private readonly IShippingUnitOfWork _uow;
+    public AddTrackingEventCommandHandler(IShippingUnitOfWork uow) => _uow = uow;
 
     public async Task<ShipmentDto> Handle(AddTrackingEventCommand request, CancellationToken cancellationToken)
     {
-        var shipment = await _shipments.GetByIdAsync(request.ShipmentId, cancellationToken)
+        var shipment = await _uow.Shipments.GetByIdAsync(request.ShipmentId, cancellationToken)
             ?? throw new InvalidOperationException($"Shipment {request.ShipmentId} not found.");
 
         shipment.AddTrackingEvent(request.Status, request.Location, request.Description);
-        await _shipments.UpdateAsync(shipment, cancellationToken);
+        await _uow.Shipments.UpdateAsync(shipment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return CreateShipmentCommandHandler.MapToDto(shipment);
     }
 }
 
 public class ConfirmDeliveryCommandHandler : IRequestHandler<ConfirmDeliveryCommand, ShipmentDto>
 {
-    private readonly IShipmentRepository _shipments;
-    public ConfirmDeliveryCommandHandler(IShipmentRepository shipments) => _shipments = shipments;
+    private readonly IShippingUnitOfWork _uow;
+    public ConfirmDeliveryCommandHandler(IShippingUnitOfWork uow) => _uow = uow;
 
     public async Task<ShipmentDto> Handle(ConfirmDeliveryCommand request, CancellationToken cancellationToken)
     {
-        var shipment = await _shipments.GetByIdAsync(request.ShipmentId, cancellationToken)
+        var shipment = await _uow.Shipments.GetByIdAsync(request.ShipmentId, cancellationToken)
             ?? throw new InvalidOperationException($"Shipment {request.ShipmentId} not found.");
 
         shipment.MarkAsDelivered(request.Location, request.ReceivedByName, request.SignatureUrl, request.PhotoUrl);
-        await _shipments.UpdateAsync(shipment, cancellationToken);
+        await _uow.Shipments.UpdateAsync(shipment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return CreateShipmentCommandHandler.MapToDto(shipment);
     }
 }
 
 public class MarkDeliveryFailedCommandHandler : IRequestHandler<MarkDeliveryFailedCommand, ShipmentDto>
 {
-    private readonly IShipmentRepository _shipments;
-    public MarkDeliveryFailedCommandHandler(IShipmentRepository shipments) => _shipments = shipments;
+    private readonly IShippingUnitOfWork _uow;
+    public MarkDeliveryFailedCommandHandler(IShippingUnitOfWork uow) => _uow = uow;
 
     public async Task<ShipmentDto> Handle(MarkDeliveryFailedCommand request, CancellationToken cancellationToken)
     {
-        var shipment = await _shipments.GetByIdAsync(request.ShipmentId, cancellationToken)
+        var shipment = await _uow.Shipments.GetByIdAsync(request.ShipmentId, cancellationToken)
             ?? throw new InvalidOperationException($"Shipment {request.ShipmentId} not found.");
 
         shipment.MarkDeliveryFailed(request.Reason);
-        await _shipments.UpdateAsync(shipment, cancellationToken);
+        await _uow.Shipments.UpdateAsync(shipment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return CreateShipmentCommandHandler.MapToDto(shipment);
     }
 }
 
 public class RetryDeliveryCommandHandler : IRequestHandler<RetryDeliveryCommand, ShipmentDto>
 {
-    private readonly IShipmentRepository _shipments;
-    public RetryDeliveryCommandHandler(IShipmentRepository shipments) => _shipments = shipments;
+    private readonly IShippingUnitOfWork _uow;
+    public RetryDeliveryCommandHandler(IShippingUnitOfWork uow) => _uow = uow;
 
     public async Task<ShipmentDto> Handle(RetryDeliveryCommand request, CancellationToken cancellationToken)
     {
-        var shipment = await _shipments.GetByIdAsync(request.ShipmentId, cancellationToken)
+        var shipment = await _uow.Shipments.GetByIdAsync(request.ShipmentId, cancellationToken)
             ?? throw new InvalidOperationException($"Shipment {request.ShipmentId} not found.");
 
         shipment.RetryDelivery();
-        await _shipments.UpdateAsync(shipment, cancellationToken);
+        await _uow.Shipments.UpdateAsync(shipment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return CreateShipmentCommandHandler.MapToDto(shipment);
     }
 }
 
 public class BulkUpdateTrackingCommandHandler : IRequestHandler<BulkUpdateTrackingCommand, List<ShipmentDto>>
 {
-    private readonly IShipmentRepository _shipments;
-    public BulkUpdateTrackingCommandHandler(IShipmentRepository shipments) => _shipments = shipments;
+    private readonly IShippingUnitOfWork _uow;
+    public BulkUpdateTrackingCommandHandler(IShippingUnitOfWork uow) => _uow = uow;
 
     public async Task<List<ShipmentDto>> Handle(BulkUpdateTrackingCommand request, CancellationToken cancellationToken)
     {
@@ -193,15 +197,16 @@ public class BulkUpdateTrackingCommandHandler : IRequestHandler<BulkUpdateTracki
 
         foreach (var update in request.Updates)
         {
-            var shipment = await _shipments.GetByIdAsync(update.ShipmentId, cancellationToken);
+            var shipment = await _uow.Shipments.GetByIdAsync(update.ShipmentId, cancellationToken);
             if (shipment == null)
                 continue; // best-effort: bulk operation should not fail the whole batch for one bad id
 
             shipment.AddTrackingEvent(update.Status, update.Location, update.Description);
-            await _shipments.UpdateAsync(shipment, cancellationToken);
+            await _uow.Shipments.UpdateAsync(shipment, cancellationToken);
             results.Add(CreateShipmentCommandHandler.MapToDto(shipment));
         }
 
+        await _uow.SaveChangesAsync(cancellationToken);
         return results;
     }
 }

@@ -13,12 +13,12 @@ namespace ERP.CRM.Application.Handlers;
 
 public class CreateActivityCommandHandler : IRequestHandler<CreateActivityCommand, ActivityDto>
 {
-    private readonly IActivityRepository _activities;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<CreateActivityCommandHandler> _logger;
 
-    public CreateActivityCommandHandler(IActivityRepository activities, ILogger<CreateActivityCommandHandler> logger)
+    public CreateActivityCommandHandler(ICrmUnitOfWork uow, ILogger<CreateActivityCommandHandler> logger)
     {
-        _activities = activities;
+        _uow = uow;
         _logger = logger;
     }
 
@@ -35,7 +35,8 @@ public class CreateActivityCommandHandler : IRequestHandler<CreateActivityComman
             request.AssignedToUserId,
             request.Source);
 
-        await _activities.AddAsync(activity, cancellationToken);
+        await _uow.Activities.AddAsync(activity, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Activity {ActivityId} ({Type}) created for Contact {ContactId}", activity.Id, activity.ActivityType, request.ContactId);
         return MapToDto(activity);
     }
@@ -50,22 +51,23 @@ public class CreateActivityCommandHandler : IRequestHandler<CreateActivityComman
 
 public class CompleteActivityCommandHandler : IRequestHandler<CompleteActivityCommand, ActivityDto>
 {
-    private readonly IActivityRepository _activities;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<CompleteActivityCommandHandler> _logger;
 
-    public CompleteActivityCommandHandler(IActivityRepository activities, ILogger<CompleteActivityCommandHandler> logger)
+    public CompleteActivityCommandHandler(ICrmUnitOfWork uow, ILogger<CompleteActivityCommandHandler> logger)
     {
-        _activities = activities;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<ActivityDto> Handle(CompleteActivityCommand request, CancellationToken cancellationToken)
     {
-        var activity = await _activities.GetByIdAsync(request.ActivityId, cancellationToken)
+        var activity = await _uow.Activities.GetByIdAsync(request.ActivityId, cancellationToken)
             ?? throw new KeyNotFoundException($"Activity {request.ActivityId} not found.");
 
         activity.Complete(request.Notes);
-        await _activities.UpdateAsync(activity, cancellationToken);
+        await _uow.Activities.UpdateAsync(activity, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Activity {ActivityId} completed", request.ActivityId);
         return CreateActivityCommandHandler.MapToDto(activity);
     }
@@ -73,22 +75,23 @@ public class CompleteActivityCommandHandler : IRequestHandler<CompleteActivityCo
 
 public class CancelActivityCommandHandler : IRequestHandler<CancelActivityCommand, ActivityDto>
 {
-    private readonly IActivityRepository _activities;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<CancelActivityCommandHandler> _logger;
 
-    public CancelActivityCommandHandler(IActivityRepository activities, ILogger<CancelActivityCommandHandler> logger)
+    public CancelActivityCommandHandler(ICrmUnitOfWork uow, ILogger<CancelActivityCommandHandler> logger)
     {
-        _activities = activities;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<ActivityDto> Handle(CancelActivityCommand request, CancellationToken cancellationToken)
     {
-        var activity = await _activities.GetByIdAsync(request.ActivityId, cancellationToken)
+        var activity = await _uow.Activities.GetByIdAsync(request.ActivityId, cancellationToken)
             ?? throw new KeyNotFoundException($"Activity {request.ActivityId} not found.");
 
         activity.Cancel();
-        await _activities.UpdateAsync(activity, cancellationToken);
+        await _uow.Activities.UpdateAsync(activity, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Activity {ActivityId} cancelled", request.ActivityId);
         return CreateActivityCommandHandler.MapToDto(activity);
     }
@@ -96,17 +99,18 @@ public class CancelActivityCommandHandler : IRequestHandler<CancelActivityComman
 
 public class UpdateActivityNotesCommandHandler : IRequestHandler<UpdateActivityNotesCommand, ActivityDto>
 {
-    private readonly IActivityRepository _activities;
+    private readonly ICrmUnitOfWork _uow;
 
-    public UpdateActivityNotesCommandHandler(IActivityRepository activities) => _activities = activities;
+    public UpdateActivityNotesCommandHandler(ICrmUnitOfWork uow) => _uow = uow;
 
     public async Task<ActivityDto> Handle(UpdateActivityNotesCommand request, CancellationToken cancellationToken)
     {
-        var activity = await _activities.GetByIdAsync(request.ActivityId, cancellationToken)
+        var activity = await _uow.Activities.GetByIdAsync(request.ActivityId, cancellationToken)
             ?? throw new KeyNotFoundException($"Activity {request.ActivityId} not found.");
 
         activity.UpdateNotes(request.Notes);
-        await _activities.UpdateAsync(activity, cancellationToken);
+        await _uow.Activities.UpdateAsync(activity, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return CreateActivityCommandHandler.MapToDto(activity);
     }
 }
@@ -143,49 +147,51 @@ public class ListActivitiesQueryHandler : IRequestHandler<ListActivitiesQuery, P
 
 public class AddContactTagCommandHandler : IRequestHandler<AddContactTagCommand, ContactTagsDto>
 {
-    private readonly IContactTagRepository _tags;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<AddContactTagCommandHandler> _logger;
 
-    public AddContactTagCommandHandler(IContactTagRepository tags, ILogger<AddContactTagCommandHandler> logger)
+    public AddContactTagCommandHandler(ICrmUnitOfWork uow, ILogger<AddContactTagCommandHandler> logger)
     {
-        _tags = tags;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<ContactTagsDto> Handle(AddContactTagCommand request, CancellationToken cancellationToken)
     {
-        var existing = await _tags.GetByContactIdAsync(request.ContactId, cancellationToken);
+        var existing = await _uow.ContactTags.GetByContactIdAsync(request.ContactId, cancellationToken);
         var normalizedTag = request.Tag.Trim().ToLowerInvariant();
 
         if (!existing.Any(t => t.Tag == normalizedTag))
         {
             var tag = ContactTag.Create(request.ContactId, request.Tag);
-            await _tags.AddAsync(tag, cancellationToken);
+            await _uow.ContactTags.AddAsync(tag, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
             _logger.LogInformation("Tag '{Tag}' added to Contact {ContactId}", normalizedTag, request.ContactId);
         }
 
-        var allTags = await _tags.GetByContactIdAsync(request.ContactId, cancellationToken);
+        var allTags = await _uow.ContactTags.GetByContactIdAsync(request.ContactId, cancellationToken);
         return new ContactTagsDto(request.ContactId, allTags.Select(t => t.Tag));
     }
 }
 
 public class RemoveContactTagCommandHandler : IRequestHandler<RemoveContactTagCommand, ContactTagsDto>
 {
-    private readonly IContactTagRepository _tags;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<RemoveContactTagCommandHandler> _logger;
 
-    public RemoveContactTagCommandHandler(IContactTagRepository tags, ILogger<RemoveContactTagCommandHandler> logger)
+    public RemoveContactTagCommandHandler(ICrmUnitOfWork uow, ILogger<RemoveContactTagCommandHandler> logger)
     {
-        _tags = tags;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<ContactTagsDto> Handle(RemoveContactTagCommand request, CancellationToken cancellationToken)
     {
-        await _tags.DeleteAsync(request.ContactId, request.Tag, cancellationToken);
+        await _uow.ContactTags.DeleteAsync(request.ContactId, request.Tag, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Tag '{Tag}' removed from Contact {ContactId}", request.Tag, request.ContactId);
 
-        var remaining = await _tags.GetByContactIdAsync(request.ContactId, cancellationToken);
+        var remaining = await _uow.ContactTags.GetByContactIdAsync(request.ContactId, cancellationToken);
         return new ContactTagsDto(request.ContactId, remaining.Select(t => t.Tag));
     }
 }

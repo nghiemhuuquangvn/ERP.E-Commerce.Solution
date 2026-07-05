@@ -16,17 +16,14 @@ namespace ERP.HRM.Application.Handlers;
 
 public class SubmitLeaveRequestCommandHandler : IRequestHandler<SubmitLeaveRequestCommand, LeaveRequestDto>
 {
-    private readonly ILeaveRequestRepository _leaveRequestRepository;
-    private readonly IEmployeeSnapshotRepository _employeeSnapshotRepository;
+    private readonly IHrmUnitOfWork _uow;
     private readonly ILogger<SubmitLeaveRequestCommandHandler> _logger;
 
     public SubmitLeaveRequestCommandHandler(
-        ILeaveRequestRepository leaveRequestRepository,
-        IEmployeeSnapshotRepository employeeSnapshotRepository,
+        IHrmUnitOfWork uow,
         ILogger<SubmitLeaveRequestCommandHandler> logger)
     {
-        _leaveRequestRepository = leaveRequestRepository;
-        _employeeSnapshotRepository = employeeSnapshotRepository;
+        _uow = uow;
         _logger = logger;
     }
 
@@ -36,7 +33,7 @@ public class SubmitLeaveRequestCommandHandler : IRequestHandler<SubmitLeaveReque
         // Kafka events, not a source of truth — if it hasn't caught up yet (or the
         // event hasn't arrived), trust the caller-supplied EmployeeId rather than
         // hard-failing (matches this codebase's loose cross-service coupling).
-        var snapshot = await _employeeSnapshotRepository.GetByIdAsync(request.EmployeeId, cancellationToken);
+        var snapshot = await _uow.EmployeeSnapshots.GetByIdAsync(request.EmployeeId, cancellationToken);
 
         if (snapshot != null && snapshot.EmploymentStatus == (int)EmploymentStatus.Terminated)
             throw new InvalidOperationException("Cannot submit leave request for a terminated employee.");
@@ -55,8 +52,8 @@ public class SubmitLeaveRequestCommandHandler : IRequestHandler<SubmitLeaveReque
             daysRequested,
             request.Reason);
 
-        _leaveRequestRepository.Add(leaveRequest);
-        await _leaveRequestRepository.SaveChangesAsync(cancellationToken);
+        _uow.LeaveRequests.Add(leaveRequest);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
             "Leave request submitted: {LeaveRequestId} for employee {EmployeeId}",
@@ -81,23 +78,20 @@ public class SubmitLeaveRequestCommandHandler : IRequestHandler<SubmitLeaveReque
 
 public class ApproveLeaveCommandHandler : IRequestHandler<ApproveLeaveCommand, LeaveRequestDto>
 {
-    private readonly ILeaveRequestRepository _leaveRequestRepository;
-    private readonly IEmployeeSnapshotRepository _employeeSnapshotRepository;
+    private readonly IHrmUnitOfWork _uow;
     private readonly ILogger<ApproveLeaveCommandHandler> _logger;
 
     public ApproveLeaveCommandHandler(
-        ILeaveRequestRepository leaveRequestRepository,
-        IEmployeeSnapshotRepository employeeSnapshotRepository,
+        IHrmUnitOfWork uow,
         ILogger<ApproveLeaveCommandHandler> logger)
     {
-        _leaveRequestRepository = leaveRequestRepository;
-        _employeeSnapshotRepository = employeeSnapshotRepository;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<LeaveRequestDto> Handle(ApproveLeaveCommand request, CancellationToken cancellationToken)
     {
-        var leaveRequest = await _leaveRequestRepository.GetByIdAsync(request.LeaveRequestId, cancellationToken)
+        var leaveRequest = await _uow.LeaveRequests.GetByIdAsync(request.LeaveRequestId, cancellationToken)
             ?? throw new KeyNotFoundException($"Leave request {request.LeaveRequestId} not found.");
 
         leaveRequest.Approve();
@@ -108,18 +102,17 @@ public class ApproveLeaveCommandHandler : IRequestHandler<ApproveLeaveCommand, L
         // HRM's own outbox) and setting the canonical Employee's status itself.
         if (leaveRequest.StartDate.Date <= DateTime.UtcNow.Date)
         {
-            var snapshot = await _employeeSnapshotRepository.GetByIdAsync(leaveRequest.EmployeeId, cancellationToken);
+            var snapshot = await _uow.EmployeeSnapshots.GetByIdAsync(leaveRequest.EmployeeId, cancellationToken);
             if (snapshot != null && snapshot.EmploymentStatus == (int)EmploymentStatus.Active)
             {
                 snapshot.EmploymentStatus = (int)EmploymentStatus.OnLeave;
                 snapshot.UpdatedAt = DateTime.UtcNow;
-                _employeeSnapshotRepository.Upsert(snapshot);
+                _uow.EmployeeSnapshots.Upsert(snapshot);
             }
         }
 
-        _leaveRequestRepository.Update(leaveRequest);
-        await _leaveRequestRepository.SaveChangesAsync(cancellationToken);
-        await _employeeSnapshotRepository.SaveChangesAsync(cancellationToken);
+        _uow.LeaveRequests.Update(leaveRequest);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Leave request approved: {LeaveRequestId}", leaveRequest.Id);
 
@@ -129,25 +122,25 @@ public class ApproveLeaveCommandHandler : IRequestHandler<ApproveLeaveCommand, L
 
 public class RejectLeaveCommandHandler : IRequestHandler<RejectLeaveCommand, LeaveRequestDto>
 {
-    private readonly ILeaveRequestRepository _leaveRequestRepository;
+    private readonly IHrmUnitOfWork _uow;
     private readonly ILogger<RejectLeaveCommandHandler> _logger;
 
     public RejectLeaveCommandHandler(
-        ILeaveRequestRepository leaveRequestRepository,
+        IHrmUnitOfWork uow,
         ILogger<RejectLeaveCommandHandler> logger)
     {
-        _leaveRequestRepository = leaveRequestRepository;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<LeaveRequestDto> Handle(RejectLeaveCommand request, CancellationToken cancellationToken)
     {
-        var leaveRequest = await _leaveRequestRepository.GetByIdAsync(request.LeaveRequestId, cancellationToken)
+        var leaveRequest = await _uow.LeaveRequests.GetByIdAsync(request.LeaveRequestId, cancellationToken)
             ?? throw new KeyNotFoundException($"Leave request {request.LeaveRequestId} not found.");
 
         leaveRequest.Reject(request.Reason);
-        _leaveRequestRepository.Update(leaveRequest);
-        await _leaveRequestRepository.SaveChangesAsync(cancellationToken);
+        _uow.LeaveRequests.Update(leaveRequest);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Leave request rejected: {LeaveRequestId}", leaveRequest.Id);
 
@@ -157,25 +150,25 @@ public class RejectLeaveCommandHandler : IRequestHandler<RejectLeaveCommand, Lea
 
 public class CancelLeaveCommandHandler : IRequestHandler<CancelLeaveCommand, LeaveRequestDto>
 {
-    private readonly ILeaveRequestRepository _leaveRequestRepository;
+    private readonly IHrmUnitOfWork _uow;
     private readonly ILogger<CancelLeaveCommandHandler> _logger;
 
     public CancelLeaveCommandHandler(
-        ILeaveRequestRepository leaveRequestRepository,
+        IHrmUnitOfWork uow,
         ILogger<CancelLeaveCommandHandler> logger)
     {
-        _leaveRequestRepository = leaveRequestRepository;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<LeaveRequestDto> Handle(CancelLeaveCommand request, CancellationToken cancellationToken)
     {
-        var leaveRequest = await _leaveRequestRepository.GetByIdAsync(request.LeaveRequestId, cancellationToken)
+        var leaveRequest = await _uow.LeaveRequests.GetByIdAsync(request.LeaveRequestId, cancellationToken)
             ?? throw new KeyNotFoundException($"Leave request {request.LeaveRequestId} not found.");
 
         leaveRequest.Cancel();
-        _leaveRequestRepository.Update(leaveRequest);
-        await _leaveRequestRepository.SaveChangesAsync(cancellationToken);
+        _uow.LeaveRequests.Update(leaveRequest);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Leave request cancelled: {LeaveRequestId}", leaveRequest.Id);
 
@@ -187,27 +180,24 @@ public class CancelLeaveCommandHandler : IRequestHandler<CancelLeaveCommand, Lea
 
 public class GeneratePaySlipCommandHandler : IRequestHandler<GeneratePaySlipCommand, PaySlipDto>
 {
-    private readonly IPaySlipRepository _paySlipRepository;
-    private readonly IEmployeeSnapshotRepository _employeeSnapshotRepository;
+    private readonly IHrmUnitOfWork _uow;
     private readonly ILogger<GeneratePaySlipCommandHandler> _logger;
 
     public GeneratePaySlipCommandHandler(
-        IPaySlipRepository paySlipRepository,
-        IEmployeeSnapshotRepository employeeSnapshotRepository,
+        IHrmUnitOfWork uow,
         ILogger<GeneratePaySlipCommandHandler> logger)
     {
-        _paySlipRepository = paySlipRepository;
-        _employeeSnapshotRepository = employeeSnapshotRepository;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<PaySlipDto> Handle(GeneratePaySlipCommand request, CancellationToken cancellationToken)
     {
-        var snapshot = await _employeeSnapshotRepository.GetByIdAsync(request.EmployeeId, cancellationToken);
+        var snapshot = await _uow.EmployeeSnapshots.GetByIdAsync(request.EmployeeId, cancellationToken);
         if (snapshot != null && snapshot.EmploymentStatus == (int)EmploymentStatus.Terminated)
             throw new InvalidOperationException($"Employee {request.EmployeeId} is terminated.");
 
-        if (await _paySlipRepository.ExistsForPeriodAsync(request.EmployeeId, request.Year, request.Month, cancellationToken))
+        if (await _uow.PaySlips.ExistsForPeriodAsync(request.EmployeeId, request.Year, request.Month, cancellationToken))
             throw new InvalidOperationException(
                 $"Pay slip for employee {request.EmployeeId} for period {request.Year:D4}-{request.Month:D2} already exists.");
 
@@ -223,8 +213,8 @@ public class GeneratePaySlipCommandHandler : IRequestHandler<GeneratePaySlipComm
             request.OvertimeHours,
             request.OvertimePay);
 
-        _paySlipRepository.Add(paySlip);
-        await _paySlipRepository.SaveChangesAsync(cancellationToken);
+        _uow.PaySlips.Add(paySlip);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
             "Pay slip generated: {PaySlipId} for employee {EmployeeId} period {Period}",
@@ -252,9 +242,7 @@ public class GeneratePaySlipCommandHandler : IRequestHandler<GeneratePaySlipComm
 
 public class ProcessPayrollCommandHandler : IRequestHandler<ProcessPayrollCommand, List<PaySlipDto>>
 {
-    private readonly IPaySlipRepository _paySlipRepository;
-    private readonly IEmployeeSnapshotRepository _employeeSnapshotRepository;
-    private readonly IAttendanceRepository _attendanceRepository;
+    private readonly IHrmUnitOfWork _uow;
     private readonly ILogger<ProcessPayrollCommandHandler> _logger;
 
     private const decimal DefaultDeductionRate = 0.30m;
@@ -263,20 +251,16 @@ public class ProcessPayrollCommandHandler : IRequestHandler<ProcessPayrollComman
     private const decimal OvertimeRateMultiplier = 1.5m;
 
     public ProcessPayrollCommandHandler(
-        IPaySlipRepository paySlipRepository,
-        IEmployeeSnapshotRepository employeeSnapshotRepository,
-        IAttendanceRepository attendanceRepository,
+        IHrmUnitOfWork uow,
         ILogger<ProcessPayrollCommandHandler> logger)
     {
-        _paySlipRepository = paySlipRepository;
-        _employeeSnapshotRepository = employeeSnapshotRepository;
-        _attendanceRepository = attendanceRepository;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<List<PaySlipDto>> Handle(ProcessPayrollCommand request, CancellationToken cancellationToken)
     {
-        var activeEmployees = await _employeeSnapshotRepository.GetActiveAsync(cancellationToken);
+        var activeEmployees = await _uow.EmployeeSnapshots.GetActiveAsync(cancellationToken);
 
         _logger.LogInformation(
             "Processing payroll for {Year}-{Month:D2} — {Count} active employees",
@@ -286,7 +270,7 @@ public class ProcessPayrollCommandHandler : IRequestHandler<ProcessPayrollComman
 
         foreach (var employee in activeEmployees)
         {
-            if (await _paySlipRepository.ExistsForPeriodAsync(employee.Id, request.Year, request.Month, cancellationToken))
+            if (await _uow.PaySlips.ExistsForPeriodAsync(employee.Id, request.Year, request.Month, cancellationToken))
             {
                 _logger.LogWarning(
                     "Pay slip already exists for employee {EmployeeId} period {Year}-{Month:D2} — skipping.",
@@ -297,7 +281,7 @@ public class ProcessPayrollCommandHandler : IRequestHandler<ProcessPayrollComman
             var grossSalary = DefaultGrossSalary;
             var deductions = Math.Round(grossSalary * DefaultDeductionRate, 2);
 
-            var overtimeHours = await _attendanceRepository.GetMonthlyOvertimeHoursAsync(
+            var overtimeHours = await _uow.Attendance.GetMonthlyOvertimeHoursAsync(
                 employee.Id, request.Year, request.Month, cancellationToken);
 
             var hourlyRate = grossSalary / StandardMonthlyHours;
@@ -315,11 +299,11 @@ public class ProcessPayrollCommandHandler : IRequestHandler<ProcessPayrollComman
                 overtimeHours,
                 overtimePay);
 
-            _paySlipRepository.Add(paySlip);
+            _uow.PaySlips.Add(paySlip);
             results.Add(GeneratePaySlipCommandHandler.MapToDto(paySlip));
         }
 
-        await _paySlipRepository.SaveChangesAsync(cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
             "Payroll processed for {Year}-{Month:D2} — {Count} pay slips generated.",

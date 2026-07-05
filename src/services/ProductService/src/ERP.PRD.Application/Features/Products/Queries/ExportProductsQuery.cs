@@ -1,8 +1,7 @@
 using System.Globalization;
 using CsvHelper;
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Products.Queries
 {
@@ -23,20 +22,20 @@ namespace ERP.PRD.Application.Features.Products.Queries
 
     public class ExportProductsHandler : IRequestHandler<ExportProductsQuery, string>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public ExportProductsHandler(ProductDbContext context)
+        public ExportProductsHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<string> Handle(ExportProductsQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.Products.Where(p => !p.IsDeleted).AsQueryable();
-            if (request.CategoryId.HasValue)
-                query = query.Where(p => p.CategoryId == request.CategoryId);
+            // Reuse the paged query with a very large page to get all products for export
+            var (items, _) = await _uow.Products.GetPagedAsync(
+                0, int.MaxValue, request.CategoryId, null, cancellationToken);
 
-            var rows = await query
+            var rows = items
                 .OrderBy(p => p.Sku)
                 .Select(p => new ProductExportRow
                 {
@@ -47,7 +46,7 @@ namespace ERP.PRD.Application.Features.Products.Queries
                     Status = p.Status.ToString(),
                     CategoryId = p.CategoryId
                 })
-                .ToListAsync(cancellationToken);
+                .ToList();
 
             using var writer = new StringWriter();
             using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))

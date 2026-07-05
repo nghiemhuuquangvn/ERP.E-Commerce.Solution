@@ -1,4 +1,5 @@
 using MediatR;
+using ERP.WH.Application.Interfaces;
 using ERP.WH.Domain.Aggregates.Transfers;
 
 namespace ERP.WH.Application.Commands.Transfers;
@@ -39,11 +40,11 @@ public class TransferOrderDto
 
 public class CreateTransferOrderCommandHandler : IRequestHandler<CreateTransferOrderCommand, TransferOrderDto>
 {
-    private readonly ITransferOrderRepository _transferOrderRepository;
+    private readonly IWarehouseUnitOfWork _uow;
 
-    public CreateTransferOrderCommandHandler(ITransferOrderRepository transferOrderRepository)
+    public CreateTransferOrderCommandHandler(IWarehouseUnitOfWork uow)
     {
-        _transferOrderRepository = transferOrderRepository;
+        _uow = uow;
     }
 
     public async Task<TransferOrderDto> Handle(CreateTransferOrderCommand request, CancellationToken cancellationToken)
@@ -57,7 +58,8 @@ public class CreateTransferOrderCommandHandler : IRequestHandler<CreateTransferO
         foreach (var line in request.Lines)
             transferOrder.AddLine(line.ProductId, line.Quantity);
 
-        await _transferOrderRepository.AddAsync(transferOrder, cancellationToken);
+        await _uow.TransferOrders.AddAsync(transferOrder, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return Map(transferOrder);
     }

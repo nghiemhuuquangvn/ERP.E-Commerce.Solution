@@ -1,7 +1,6 @@
+using ERP.PRD.Application.Interfaces;
 using ERP.PRD.Domain.Entities;
-using ERP.PRD.Infrastructure.Persistence;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Bundles.Commands
 {
@@ -14,26 +13,26 @@ namespace ERP.PRD.Application.Features.Bundles.Commands
 
     public class AddBundleItemHandler : IRequestHandler<AddBundleItemCommand, Guid>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public AddBundleItemHandler(ProductDbContext context)
+        public AddBundleItemHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<Guid> Handle(AddBundleItemCommand request, CancellationToken cancellationToken)
         {
-            var bundleExists = await _context.Products.AnyAsync(p => p.Id == request.BundleProductId && !p.IsDeleted, cancellationToken);
+            var bundleExists = await _uow.Bundles.ProductExistsAsync(request.BundleProductId, cancellationToken);
             if (!bundleExists)
                 throw new KeyNotFoundException($"Product with ID {request.BundleProductId} not found");
 
-            var componentExists = await _context.Products.AnyAsync(p => p.Id == request.ComponentProductId && !p.IsDeleted, cancellationToken);
+            var componentExists = await _uow.Bundles.ProductExistsAsync(request.ComponentProductId, cancellationToken);
             if (!componentExists)
                 throw new KeyNotFoundException($"Component product with ID {request.ComponentProductId} not found");
 
             var item = ProductBundleItem.Create(request.BundleProductId, request.ComponentProductId, request.Quantity);
-            await _context.ProductBundleItems.AddAsync(item, cancellationToken);
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.Bundles.AddAsync(item, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return item.Id;
         }

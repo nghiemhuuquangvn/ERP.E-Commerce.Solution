@@ -1,4 +1,5 @@
 using MediatR;
+using ERP.WH.Application.Interfaces;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
 using InventoryEntity = ERP.WH.Domain.Aggregates.Inventory.Inventory;
@@ -15,23 +16,14 @@ namespace ERP.WH.Application.Commands.Inventory;
 /// </summary>
 public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, ReceiveStockResponse>
 {
-    private readonly IInventoryRepository _inventoryRepository;
-    private readonly IStockMovementRepository _movementRepository;
-    private readonly IInventoryLotRepository _lotRepository;
-    private readonly IInventorySerialRepository _serialRepository;
+    private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventPublisher _eventPublisher;
 
     public ReceiveStockCommandHandler(
-        IInventoryRepository inventoryRepository,
-        IStockMovementRepository movementRepository,
-        IInventoryLotRepository lotRepository,
-        IInventorySerialRepository serialRepository,
+        IWarehouseUnitOfWork uow,
         IEventPublisher eventPublisher)
     {
-        _inventoryRepository = inventoryRepository;
-        _movementRepository = movementRepository;
-        _lotRepository = lotRepository;
-        _serialRepository = serialRepository;
+        _uow = uow;
         _eventPublisher = eventPublisher;
     }
 
@@ -40,14 +32,14 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
         if (request.Quantity <= 0)
             throw new InvalidOperationException("Received quantity must be positive");
 
-        var inventory = await _inventoryRepository.GetByProductIdAsync(request.ProductId, cancellationToken);
+        var inventory = await _uow.Inventories.GetByProductIdAsync(request.ProductId, cancellationToken);
         if (inventory == null)
         {
             inventory = new InventoryEntity(
                 request.ProductId,
                 request.ProductName ?? $"Product-{request.ProductId}",
                 productSku: request.ProductSku);
-            await _inventoryRepository.AddAsync(inventory, cancellationToken);
+            await _uow.Inventories.AddAsync(inventory, cancellationToken);
         }
 
         var previousQuantity = inventory.TotalQuantity;
@@ -57,7 +49,7 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
         if (request.LocationId.HasValue && inventory.LocationId == null)
             inventory.AssignLocation(request.LocationId);
 
-        await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
+        await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
 
         var movement = new StockMovement(
             request.ProductId,
@@ -69,7 +61,7 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
             reason: null,
             sourceOrderId: request.PurchaseOrderId);
 
-        await _movementRepository.AddAsync(movement, cancellationToken);
+        await _uow.StockMovements.AddAsync(movement, cancellationToken);
 
         Guid? lotId = null;
         if (!string.IsNullOrWhiteSpace(request.LotNumber))
@@ -82,7 +74,7 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
                 request.ExpiryDate,
                 request.PurchaseOrderId);
 
-            await _lotRepository.AddAsync(lot, cancellationToken);
+            await _uow.InventoryLots.AddAsync(lot, cancellationToken);
             lotId = lot.LotId;
 
             if (request.SerialNumbers != null)
@@ -90,10 +82,12 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
                 foreach (var serialNumber in request.SerialNumbers)
                 {
                     var serial = new InventorySerial(request.ProductId, serialNumber, lotId);
-                    await _serialRepository.AddAsync(serial, cancellationToken);
+                    await _uow.InventorySerials.AddAsync(serial, cancellationToken);
                 }
             }
         }
+
+        await _uow.SaveChangesAsync(cancellationToken);
 
         await _eventPublisher.PublishAsync(new StockMovementRecordedEvent
         {

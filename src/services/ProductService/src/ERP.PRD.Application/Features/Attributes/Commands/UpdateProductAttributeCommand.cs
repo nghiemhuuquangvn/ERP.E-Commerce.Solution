@@ -1,7 +1,6 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
 using FluentValidation;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Attributes.Commands
 {
@@ -32,17 +31,16 @@ namespace ERP.PRD.Application.Features.Attributes.Commands
 
     public class UpdateProductAttributeHandler : IRequestHandler<UpdateProductAttributeCommand, Unit>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public UpdateProductAttributeHandler(ProductDbContext context)
+        public UpdateProductAttributeHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<Unit> Handle(UpdateProductAttributeCommand request, CancellationToken cancellationToken)
         {
-            var attribute = await _context.ProductAttributes
-                .FirstOrDefaultAsync(a => a.Id == request.Id && !a.IsDeleted, cancellationToken);
+            var attribute = await _uow.Attributes.GetByIdAsync(request.Id, cancellationToken);
 
             if (attribute == null)
                 throw new KeyNotFoundException($"Attribute with ID {request.Id} not found");
@@ -64,7 +62,7 @@ namespace ERP.PRD.Application.Features.Attributes.Commands
 
             attribute.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return Unit.Value;
         }

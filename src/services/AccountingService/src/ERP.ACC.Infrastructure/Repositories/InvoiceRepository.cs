@@ -29,13 +29,12 @@ namespace ERP.ACC.Infrastructure.Repositories
         public async Task AddAsync(Invoice invoice, CancellationToken ct = default)
         {
             await _db.Invoices.AddAsync(invoice, ct);
-            await _db.SaveChangesAsync(ct);
         }
 
-        public async Task UpdateAsync(Invoice invoice, CancellationToken ct = default)
+        public Task UpdateAsync(Invoice invoice, CancellationToken ct = default)
         {
             _db.Invoices.Update(invoice);
-            await _db.SaveChangesAsync(ct);
+            return Task.CompletedTask;
         }
     }
 }

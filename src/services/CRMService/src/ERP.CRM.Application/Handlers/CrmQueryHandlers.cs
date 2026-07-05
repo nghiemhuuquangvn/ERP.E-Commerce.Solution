@@ -3,6 +3,7 @@ using ERP.CRM.Application.Handlers;
 using ERP.CRM.Application.Interfaces;
 using ERP.CRM.Application.Queries;
 using ERP.CRM.Domain.Enums;
+using ERP.Shared.Infrastructure.Caching;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -13,33 +14,60 @@ namespace ERP.CRM.Application.Handlers;
 public class GetContactQueryHandler : IRequestHandler<GetContactQuery, ContactDto?>
 {
     private readonly IContactRepository _contacts;
+    private readonly ICacheService _cache;
 
-    public GetContactQueryHandler(IContactRepository contacts)
+    public GetContactQueryHandler(IContactRepository contacts, ICacheService cache)
     {
         _contacts = contacts;
+        _cache = cache;
     }
 
     public async Task<ContactDto?> Handle(GetContactQuery request, CancellationToken cancellationToken)
     {
+        var cacheKey = $"crm:contact:{request.ContactId}";
+        var cached = await _cache.GetAsync<ContactDto>(cacheKey, cancellationToken);
+        if (cached != null) return cached;
+
         var contact = await _contacts.GetByIdAsync(request.ContactId, cancellationToken);
-        return contact is null ? null : CreateContactCommandHandler.MapToDto(contact);
+        if (contact is null) return null;
+
+        var dto = CreateContactCommandHandler.MapToDto(contact);
+        await _cache.SetAsync(cacheKey, dto, TimeSpan.FromMinutes(5), cancellationToken);
+        return dto;
     }
 }
 
 public class ListContactsQueryHandler : IRequestHandler<ListContactsQuery, PagedResult<ContactDto>>
 {
     private readonly IContactRepository _contacts;
+    private readonly ICacheService _cache;
 
-    public ListContactsQueryHandler(IContactRepository contacts)
+    public ListContactsQueryHandler(IContactRepository contacts, ICacheService cache)
     {
         _contacts = contacts;
+        _cache = cache;
     }
 
     public async Task<PagedResult<ContactDto>> Handle(ListContactsQuery request, CancellationToken cancellationToken)
     {
+        // Cache only unfiltered page 1 (common dashboard use case)
+        var cacheKey = string.IsNullOrWhiteSpace(request.Search)
+            ? $"crm:contacts:page:{request.Page}:size:{request.PageSize}"
+            : null;
+
+        if (cacheKey != null)
+        {
+            var cached = await _cache.GetAsync<PagedResult<ContactDto>>(cacheKey, cancellationToken);
+            if (cached != null) return cached;
+        }
+
         var (items, total) = await _contacts.GetPagedAsync(request.Search, request.Page, request.PageSize, cancellationToken);
-        var dtos = items.Select(CreateContactCommandHandler.MapToDto);
-        return new PagedResult<ContactDto>(dtos, total, request.Page, request.PageSize);
+        var result = new PagedResult<ContactDto>(items.Select(CreateContactCommandHandler.MapToDto), total, request.Page, request.PageSize);
+
+        if (cacheKey != null)
+            await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(5), cancellationToken);
+
+        return result;
     }
 }
 

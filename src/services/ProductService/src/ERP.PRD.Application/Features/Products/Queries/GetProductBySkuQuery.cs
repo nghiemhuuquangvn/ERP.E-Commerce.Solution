@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Products.Queries
 {
@@ -12,11 +11,11 @@ namespace ERP.PRD.Application.Features.Products.Queries
 
     public class GetProductBySkuHandler : IRequestHandler<GetProductBySkuQuery, ProductDto>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public GetProductBySkuHandler(ProductDbContext context)
+        public GetProductBySkuHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<ProductDto> Handle(GetProductBySkuQuery request, CancellationToken cancellationToken)
@@ -24,10 +23,7 @@ namespace ERP.PRD.Application.Features.Products.Queries
             if (string.IsNullOrWhiteSpace(request.Sku))
                 throw new ArgumentException("SKU is required");
 
-            var product = await _context.Products
-                .Include(p => p.Variants)
-                .Include(p => p.Translations)
-                .FirstOrDefaultAsync(x => x.Sku == request.Sku.ToUpper() && !x.IsDeleted, cancellationToken);
+            var product = await _uow.Products.GetBySkuAsync(request.Sku, cancellationToken);
 
             if (product == null)
                 throw new KeyNotFoundException($"Product with SKU {request.Sku} not found");

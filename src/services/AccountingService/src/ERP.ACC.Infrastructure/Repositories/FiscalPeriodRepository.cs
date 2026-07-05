@@ -23,13 +23,12 @@ namespace ERP.ACC.Infrastructure.Repositories
         public async Task AddAsync(FiscalPeriod period, CancellationToken ct = default)
         {
             await _db.FiscalPeriods.AddAsync(period, ct);
-            await _db.SaveChangesAsync(ct);
         }
 
-        public async Task UpdateAsync(FiscalPeriod period, CancellationToken ct = default)
+        public Task UpdateAsync(FiscalPeriod period, CancellationToken ct = default)
         {
             _db.FiscalPeriods.Update(period);
-            await _db.SaveChangesAsync(ct);
+            return Task.CompletedTask;
         }
     }
 }

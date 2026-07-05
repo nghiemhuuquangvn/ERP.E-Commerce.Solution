@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: purchaseorder-service
+  namespace: erp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: purchaseorder-service
+  template:
+    metadata:
+      labels:
+        app: purchaseorder-service
+    spec:
+      containers:
+      - name: purchaseorder-service
+        image: erp/purchaseorder-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5003
+        envFrom:
+        - configMapRef:
+            name: erp-config
+        env:
+        - name: ASPNETCORE_URLS
+          value: "http://+:5003"
+        - name: Cache__InstanceName
+          value: "po"
+        - name: ConnectionStrings__PurchasingDb
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: sql-purchasing-db
+        - name: RabbitMQ__Password
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: rabbitmq-password
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5003
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5003
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "400m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: purchaseorder-service
+  namespace: erp
+spec:
+  selector:
+    app: purchaseorder-service
+  ports:
+  - port: 5003
+    targetPort: 5003

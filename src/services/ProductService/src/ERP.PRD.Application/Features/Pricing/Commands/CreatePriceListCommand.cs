@@ -1,5 +1,5 @@
+using ERP.PRD.Application.Interfaces;
 using ERP.PRD.Domain.Entities;
-using ERP.PRD.Infrastructure.Persistence;
 using FluentValidation;
 using MediatR;
 
@@ -68,12 +68,12 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
 
     public class CreatePriceListHandler : IRequestHandler<CreatePriceListCommand, CreatePriceListResponse>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
         private readonly ILogger<CreatePriceListHandler> _logger;
 
-        public CreatePriceListHandler(ProductDbContext context, ILogger<CreatePriceListHandler> logger)
+        public CreatePriceListHandler(IProductUnitOfWork uow, ILogger<CreatePriceListHandler> logger)
         {
-            _context = context;
+            _uow = uow;
             _logger = logger;
         }
 
@@ -87,15 +87,15 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
 
             foreach (var item in request.Items)
             {
-                var variant = await _context.ProductVariants.FindAsync(new object[] { item.VariantId }, cancellationToken: cancellationToken);
+                var variant = await _uow.PriceLists.GetVariantByIdAsync(item.VariantId, cancellationToken);
                 if (variant == null)
                     throw new KeyNotFoundException($"Variant with ID {item.VariantId} not found");
 
                 priceList.AddItem(item.VariantId, item.BasePrice, item.DiscountedPrice);
             }
 
-            _context.PriceLists.Add(priceList);
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.PriceLists.AddAsync(priceList, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Price list created: {PriceListId}, Name: {Name}, Items: {Count}",
                 priceList.Id, priceList.Name, request.Items.Count);

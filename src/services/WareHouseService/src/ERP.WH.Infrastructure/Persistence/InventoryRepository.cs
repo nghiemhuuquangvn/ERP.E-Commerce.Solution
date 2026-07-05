@@ -26,13 +26,11 @@ public class InventoryRepository : IInventoryRepository
     public async Task UpdateAsync(Inventory inventory, CancellationToken cancellationToken)
     {
         _context.Inventories.Update(inventory);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task AddAsync(Inventory inventory, CancellationToken cancellationToken)
     {
         await _context.Inventories.AddAsync(inventory, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<List<Inventory>> GetAllAsync(CancellationToken cancellationToken)

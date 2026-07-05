@@ -8,22 +8,21 @@ namespace ERP.SHP.Application.Handlers;
 
 public class InitiateReturnCommandHandler : IRequestHandler<InitiateReturnCommand, ReturnShipmentDto>
 {
-    private readonly IReturnShipmentRepository _returns;
-    private readonly IShipmentRepository _shipments;
+    private readonly IShippingUnitOfWork _uow;
 
-    public InitiateReturnCommandHandler(IReturnShipmentRepository returns, IShipmentRepository shipments)
+    public InitiateReturnCommandHandler(IShippingUnitOfWork uow)
     {
-        _returns = returns;
-        _shipments = shipments;
+        _uow = uow;
     }
 
     public async Task<ReturnShipmentDto> Handle(InitiateReturnCommand request, CancellationToken cancellationToken)
     {
-        var original = await _shipments.GetByIdAsync(request.OriginalShipmentId, cancellationToken)
+        var original = await _uow.Shipments.GetByIdAsync(request.OriginalShipmentId, cancellationToken)
             ?? throw new InvalidOperationException($"Shipment {request.OriginalShipmentId} not found.");
 
         var returnShipment = ReturnShipment.Create(original.Id, original.OrderId, request.Reason);
-        await _returns.AddAsync(returnShipment, cancellationToken);
+        await _uow.ReturnShipments.AddAsync(returnShipment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return MapToDto(returnShipment);
     }
@@ -44,64 +43,68 @@ public class InitiateReturnCommandHandler : IRequestHandler<InitiateReturnComman
 
 public class AssignReturnTrackingNumberCommandHandler : IRequestHandler<AssignReturnTrackingNumberCommand, ReturnShipmentDto>
 {
-    private readonly IReturnShipmentRepository _returns;
-    public AssignReturnTrackingNumberCommandHandler(IReturnShipmentRepository returns) => _returns = returns;
+    private readonly IShippingUnitOfWork _uow;
+    public AssignReturnTrackingNumberCommandHandler(IShippingUnitOfWork uow) => _uow = uow;
 
     public async Task<ReturnShipmentDto> Handle(AssignReturnTrackingNumberCommand request, CancellationToken cancellationToken)
     {
-        var returnShipment = await _returns.GetByIdAsync(request.ReturnShipmentId, cancellationToken)
+        var returnShipment = await _uow.ReturnShipments.GetByIdAsync(request.ReturnShipmentId, cancellationToken)
             ?? throw new InvalidOperationException($"Return shipment {request.ReturnShipmentId} not found.");
 
         returnShipment.AssignTrackingNumber(request.TrackingNumber);
-        await _returns.UpdateAsync(returnShipment, cancellationToken);
+        await _uow.ReturnShipments.UpdateAsync(returnShipment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return InitiateReturnCommandHandler.MapToDto(returnShipment);
     }
 }
 
 public class MarkReturnPickedUpCommandHandler : IRequestHandler<MarkReturnPickedUpCommand, ReturnShipmentDto>
 {
-    private readonly IReturnShipmentRepository _returns;
-    public MarkReturnPickedUpCommandHandler(IReturnShipmentRepository returns) => _returns = returns;
+    private readonly IShippingUnitOfWork _uow;
+    public MarkReturnPickedUpCommandHandler(IShippingUnitOfWork uow) => _uow = uow;
 
     public async Task<ReturnShipmentDto> Handle(MarkReturnPickedUpCommand request, CancellationToken cancellationToken)
     {
-        var returnShipment = await _returns.GetByIdAsync(request.ReturnShipmentId, cancellationToken)
+        var returnShipment = await _uow.ReturnShipments.GetByIdAsync(request.ReturnShipmentId, cancellationToken)
             ?? throw new InvalidOperationException($"Return shipment {request.ReturnShipmentId} not found.");
 
         returnShipment.MarkPickedUp();
-        await _returns.UpdateAsync(returnShipment, cancellationToken);
+        await _uow.ReturnShipments.UpdateAsync(returnShipment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return InitiateReturnCommandHandler.MapToDto(returnShipment);
     }
 }
 
 public class MarkReturnReceivedCommandHandler : IRequestHandler<MarkReturnReceivedCommand, ReturnShipmentDto>
 {
-    private readonly IReturnShipmentRepository _returns;
-    public MarkReturnReceivedCommandHandler(IReturnShipmentRepository returns) => _returns = returns;
+    private readonly IShippingUnitOfWork _uow;
+    public MarkReturnReceivedCommandHandler(IShippingUnitOfWork uow) => _uow = uow;
 
     public async Task<ReturnShipmentDto> Handle(MarkReturnReceivedCommand request, CancellationToken cancellationToken)
     {
-        var returnShipment = await _returns.GetByIdAsync(request.ReturnShipmentId, cancellationToken)
+        var returnShipment = await _uow.ReturnShipments.GetByIdAsync(request.ReturnShipmentId, cancellationToken)
             ?? throw new InvalidOperationException($"Return shipment {request.ReturnShipmentId} not found.");
 
         returnShipment.MarkReceived();
-        await _returns.UpdateAsync(returnShipment, cancellationToken);
+        await _uow.ReturnShipments.UpdateAsync(returnShipment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return InitiateReturnCommandHandler.MapToDto(returnShipment);
     }
 }
 
 public class CancelReturnCommandHandler : IRequestHandler<CancelReturnCommand, ReturnShipmentDto>
 {
-    private readonly IReturnShipmentRepository _returns;
-    public CancelReturnCommandHandler(IReturnShipmentRepository returns) => _returns = returns;
+    private readonly IShippingUnitOfWork _uow;
+    public CancelReturnCommandHandler(IShippingUnitOfWork uow) => _uow = uow;
 
     public async Task<ReturnShipmentDto> Handle(CancelReturnCommand request, CancellationToken cancellationToken)
     {
-        var returnShipment = await _returns.GetByIdAsync(request.ReturnShipmentId, cancellationToken)
+        var returnShipment = await _uow.ReturnShipments.GetByIdAsync(request.ReturnShipmentId, cancellationToken)
             ?? throw new InvalidOperationException($"Return shipment {request.ReturnShipmentId} not found.");
 
         returnShipment.Cancel();
-        await _returns.UpdateAsync(returnShipment, cancellationToken);
+        await _uow.ReturnShipments.UpdateAsync(returnShipment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return InitiateReturnCommandHandler.MapToDto(returnShipment);
     }
 }

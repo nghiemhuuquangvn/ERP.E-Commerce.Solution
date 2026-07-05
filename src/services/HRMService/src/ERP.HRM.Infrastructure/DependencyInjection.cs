@@ -4,6 +4,7 @@ using ERP.HRM.Infrastructure.BackgroundJobs;
 using ERP.HRM.Infrastructure.MessageBus;
 using ERP.HRM.Infrastructure.Persistence;
 using ERP.HRM.Infrastructure.Repositories;
+using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -41,6 +42,12 @@ namespace ERP.HRM.Infrastructure
             services.AddScoped<IPaySlipRepository, PaySlipRepository>();
             services.AddScoped<IAttendanceRepository, AttendanceRepository>();
             services.AddScoped<IWorkShiftRepository, WorkShiftRepository>();
+
+            // Unit of Work
+            services.AddScoped<IHrmUnitOfWork, HrmUnitOfWork>();
+
+            // Cache
+            services.AddCacheService(configuration, "hrm");
 
             return services;
         }

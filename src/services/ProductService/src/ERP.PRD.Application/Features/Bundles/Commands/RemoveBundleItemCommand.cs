@@ -1,4 +1,4 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
 
 namespace ERP.PRD.Application.Features.Bundles.Commands
@@ -10,21 +10,21 @@ namespace ERP.PRD.Application.Features.Bundles.Commands
 
     public class RemoveBundleItemHandler : IRequestHandler<RemoveBundleItemCommand, Unit>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public RemoveBundleItemHandler(ProductDbContext context)
+        public RemoveBundleItemHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<Unit> Handle(RemoveBundleItemCommand request, CancellationToken cancellationToken)
         {
-            var item = await _context.ProductBundleItems.FindAsync(new object[] { request.BundleItemId }, cancellationToken);
+            var item = await _uow.Bundles.FindByIdAsync(request.BundleItemId, cancellationToken);
             if (item == null)
                 throw new KeyNotFoundException($"Bundle item with ID {request.BundleItemId} not found");
 
-            _context.ProductBundleItems.Remove(item);
-            await _context.SaveChangesAsync(cancellationToken);
+            _uow.Bundles.Remove(item);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return Unit.Value;
         }

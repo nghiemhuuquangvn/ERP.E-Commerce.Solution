@@ -1,8 +1,7 @@
+using ERP.PRD.Application.Interfaces;
 using ERP.PRD.Domain.Entities;
 using ERP.PRD.Domain.Enums;
-using ERP.PRD.Infrastructure.Persistence;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Relations.Commands
 {
@@ -16,26 +15,26 @@ namespace ERP.PRD.Application.Features.Relations.Commands
 
     public class AddProductRelationHandler : IRequestHandler<AddProductRelationCommand, Guid>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public AddProductRelationHandler(ProductDbContext context)
+        public AddProductRelationHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<Guid> Handle(AddProductRelationCommand request, CancellationToken cancellationToken)
         {
-            var productExists = await _context.Products.AnyAsync(p => p.Id == request.ProductId && !p.IsDeleted, cancellationToken);
+            var productExists = await _uow.Products.ExistsAsync(request.ProductId, cancellationToken);
             if (!productExists)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
 
-            var relatedExists = await _context.Products.AnyAsync(p => p.Id == request.RelatedProductId && !p.IsDeleted, cancellationToken);
+            var relatedExists = await _uow.Products.ExistsAsync(request.RelatedProductId, cancellationToken);
             if (!relatedExists)
                 throw new KeyNotFoundException($"Related product with ID {request.RelatedProductId} not found");
 
             var relation = ProductRelation.Create(request.ProductId, request.RelatedProductId, request.RelationType, request.SortOrder);
-            await _context.ProductRelations.AddAsync(relation, cancellationToken);
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.Relations.AddAsync(relation, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return relation.Id;
         }

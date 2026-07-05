@@ -21,13 +21,11 @@ public class ReservationRepository : IReservationRepository
     public async Task AddAsync(Reservation reservation, CancellationToken cancellationToken)
     {
         await _context.Reservations.AddAsync(reservation, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task UpdateAsync(Reservation reservation, CancellationToken cancellationToken)
     {
         _context.Reservations.Update(reservation);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<List<Reservation>> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken)

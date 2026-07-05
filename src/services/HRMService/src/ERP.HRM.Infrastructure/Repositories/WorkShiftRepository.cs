@@ -27,7 +27,4 @@ public class WorkShiftRepository : IWorkShiftRepository
     public void Add(WorkShift shift) => _db.WorkShifts.Add(shift);
 
     public void Update(WorkShift shift) => _db.WorkShifts.Update(shift);
-
-    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        => _db.SaveChangesAsync(cancellationToken);
 }

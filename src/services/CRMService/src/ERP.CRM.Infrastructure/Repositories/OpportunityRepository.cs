@@ -24,13 +24,12 @@ public class OpportunityRepository : IOpportunityRepository
     public async Task AddAsync(Opportunity opportunity, CancellationToken cancellationToken = default)
     {
         await _db.Opportunities.AddAsync(opportunity, cancellationToken);
-        await _db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task UpdateAsync(Opportunity opportunity, CancellationToken cancellationToken = default)
+    public Task UpdateAsync(Opportunity opportunity, CancellationToken cancellationToken = default)
     {
         _db.Opportunities.Update(opportunity);
-        await _db.SaveChangesAsync(cancellationToken);
+        return Task.CompletedTask;
     }
 
     public async Task<IEnumerable<Opportunity>> GetAllAsync(CancellationToken cancellationToken = default)

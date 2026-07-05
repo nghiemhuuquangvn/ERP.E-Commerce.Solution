@@ -1,7 +1,6 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using FluentValidation;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Products.Commands
 {
@@ -26,26 +25,23 @@ namespace ERP.PRD.Application.Features.Products.Commands
 
     public class UpdateProductDescriptionHandler : IRequestHandler<UpdateProductDescriptionCommand, Unit>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public UpdateProductDescriptionHandler(ProductDbContext context)
+        public UpdateProductDescriptionHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<Unit> Handle(UpdateProductDescriptionCommand request, CancellationToken cancellationToken)
         {
-            var product = await _context.Products.FirstOrDefaultAsync(
-                x => x.Id == request.ProductId && !x.IsDeleted,
-                cancellationToken
-            );
+            var product = await _uow.Products.GetByIdAsync(request.ProductId, cancellationToken);
 
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
 
             product.UpdateDescription(request.Description);
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return Unit.Value;
         }

@@ -1,4 +1,5 @@
 using MediatR;
+using ERP.WH.Application.Interfaces;
 
 namespace ERP.WH.Application.Commands.Locations;
 
@@ -15,20 +16,21 @@ public class UpdateLocationCommand : IRequest<LocationDto>
 
 public class UpdateLocationCommandHandler : MediatR.IRequestHandler<UpdateLocationCommand, LocationDto>
 {
-    private readonly ILocationRepository _locationRepository;
+    private readonly IWarehouseUnitOfWork _uow;
 
-    public UpdateLocationCommandHandler(ILocationRepository locationRepository)
+    public UpdateLocationCommandHandler(IWarehouseUnitOfWork uow)
     {
-        _locationRepository = locationRepository;
+        _uow = uow;
     }
 
     public async Task<LocationDto> Handle(UpdateLocationCommand request, CancellationToken cancellationToken)
     {
-        var location = await _locationRepository.GetByIdAsync(request.LocationId, cancellationToken)
+        var location = await _uow.Locations.GetByIdAsync(request.LocationId, cancellationToken)
             ?? throw new InvalidOperationException($"Location {request.LocationId} not found");
 
         location.Update(request.Name, request.Zone, request.Aisle, request.Bin, request.Shelf, request.Capacity);
-        await _locationRepository.UpdateAsync(location, cancellationToken);
+        await _uow.Locations.UpdateAsync(location, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return CreateLocationCommandHandler.Map(location);
     }
@@ -42,20 +44,21 @@ public class SetLocationActiveCommand : IRequest<LocationDto>
 
 public class SetLocationActiveCommandHandler : MediatR.IRequestHandler<SetLocationActiveCommand, LocationDto>
 {
-    private readonly ILocationRepository _locationRepository;
+    private readonly IWarehouseUnitOfWork _uow;
 
-    public SetLocationActiveCommandHandler(ILocationRepository locationRepository)
+    public SetLocationActiveCommandHandler(IWarehouseUnitOfWork uow)
     {
-        _locationRepository = locationRepository;
+        _uow = uow;
     }
 
     public async Task<LocationDto> Handle(SetLocationActiveCommand request, CancellationToken cancellationToken)
     {
-        var location = await _locationRepository.GetByIdAsync(request.LocationId, cancellationToken)
+        var location = await _uow.Locations.GetByIdAsync(request.LocationId, cancellationToken)
             ?? throw new InvalidOperationException($"Location {request.LocationId} not found");
 
         if (request.IsActive) location.Activate(); else location.Deactivate();
-        await _locationRepository.UpdateAsync(location, cancellationToken);
+        await _uow.Locations.UpdateAsync(location, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return CreateLocationCommandHandler.Map(location);
     }

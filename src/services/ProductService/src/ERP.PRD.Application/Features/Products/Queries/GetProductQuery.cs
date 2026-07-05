@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Products.Queries
 {
@@ -28,19 +27,17 @@ namespace ERP.PRD.Application.Features.Products.Queries
 
     public class GetProductHandler : IRequestHandler<GetProductQuery, ProductDto>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public GetProductHandler(ProductDbContext context)
+        public GetProductHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<ProductDto> Handle(GetProductQuery request, CancellationToken cancellationToken)
         {
-            var product = await _context.Products
-                .Include(p => p.Variants)
-                .Include(p => p.Translations)
-                .FirstOrDefaultAsync(x => x.Id == request.ProductId && !x.IsDeleted, cancellationToken);
+            var product = await _uow.Products.GetByIdWithVariantsAndTranslationsAsync(
+                request.ProductId, cancellationToken);
 
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");

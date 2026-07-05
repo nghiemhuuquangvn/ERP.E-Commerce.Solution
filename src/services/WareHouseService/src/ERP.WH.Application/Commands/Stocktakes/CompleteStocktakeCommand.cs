@@ -1,4 +1,5 @@
 using MediatR;
+using ERP.WH.Application.Interfaces;
 using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
@@ -17,40 +18,34 @@ public class CompleteStocktakeCommand : IRequest<StocktakeDto>
 /// </summary>
 public class CompleteStocktakeCommandHandler : IRequestHandler<CompleteStocktakeCommand, StocktakeDto>
 {
-    private readonly IStocktakeRepository _stocktakeRepository;
-    private readonly IInventoryRepository _inventoryRepository;
-    private readonly IStockMovementRepository _movementRepository;
+    private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventPublisher _eventPublisher;
 
     public CompleteStocktakeCommandHandler(
-        IStocktakeRepository stocktakeRepository,
-        IInventoryRepository inventoryRepository,
-        IStockMovementRepository movementRepository,
+        IWarehouseUnitOfWork uow,
         IEventPublisher eventPublisher)
     {
-        _stocktakeRepository = stocktakeRepository;
-        _inventoryRepository = inventoryRepository;
-        _movementRepository = movementRepository;
+        _uow = uow;
         _eventPublisher = eventPublisher;
     }
 
     public async Task<StocktakeDto> Handle(CompleteStocktakeCommand request, CancellationToken cancellationToken)
     {
-        var stocktake = await _stocktakeRepository.GetByIdAsync(request.StocktakeId, cancellationToken)
+        var stocktake = await _uow.Stocktakes.GetByIdAsync(request.StocktakeId, cancellationToken)
             ?? throw new InvalidOperationException($"Stocktake {request.StocktakeId} not found");
 
         var variances = stocktake.Complete();
-        await _stocktakeRepository.UpdateAsync(stocktake, cancellationToken);
+        await _uow.Stocktakes.UpdateAsync(stocktake, cancellationToken);
 
         foreach (var line in variances)
         {
-            var inventory = await _inventoryRepository.GetByProductIdAsync(line.ProductId, cancellationToken);
+            var inventory = await _uow.Inventories.GetByProductIdAsync(line.ProductId, cancellationToken);
             if (inventory == null)
                 continue;
 
             var previousQuantity = inventory.TotalQuantity;
             inventory.AdjustStock(line.Variance);
-            await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
+            await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
 
             var movement = new StockMovement(
                 line.ProductId,
@@ -61,7 +56,7 @@ public class CompleteStocktakeCommandHandler : IRequestHandler<CompleteStocktake
                 reference: stocktake.StocktakeNumber,
                 reason: "Stocktake variance");
 
-            await _movementRepository.AddAsync(movement, cancellationToken);
+            await _uow.StockMovements.AddAsync(movement, cancellationToken);
 
             await _eventPublisher.PublishAsync(new StockMovementRecordedEvent
             {
@@ -98,6 +93,8 @@ public class CompleteStocktakeCommandHandler : IRequestHandler<CompleteStocktake
                 }, cancellationToken);
             }
         }
+
+        await _uow.SaveChangesAsync(cancellationToken);
 
         await _eventPublisher.PublishAsync(new StocktakeCompletedEvent
         {

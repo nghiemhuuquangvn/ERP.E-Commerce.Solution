@@ -22,18 +22,18 @@ public class InventoryReservedIntegrationEvent : INotification
 
 public class InventoryReservedEventHandler : INotificationHandler<InventoryReservedIntegrationEvent>
 {
-    private readonly IShipmentRepository _shipments;
+    private readonly IShippingUnitOfWork _uow;
     private readonly ILogger<InventoryReservedEventHandler> _logger;
 
-    public InventoryReservedEventHandler(IShipmentRepository shipments, ILogger<InventoryReservedEventHandler> logger)
+    public InventoryReservedEventHandler(IShippingUnitOfWork uow, ILogger<InventoryReservedEventHandler> logger)
     {
-        _shipments = shipments;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task Handle(InventoryReservedIntegrationEvent @event, CancellationToken cancellationToken)
     {
-        var shipments = await _shipments.GetTrackedByOrderIdAsync(@event.OrderId, cancellationToken);
+        var shipments = await _uow.Shipments.GetTrackedByOrderIdAsync(@event.OrderId, cancellationToken);
         if (shipments.Count == 0)
         {
             _logger.LogInformation(
@@ -45,7 +45,9 @@ public class InventoryReservedEventHandler : INotificationHandler<InventoryReser
         foreach (var shipment in shipments)
         {
             shipment.MarkReadyForPickup();
-            await _shipments.UpdateAsync(shipment, cancellationToken);
+            await _uow.Shipments.UpdateAsync(shipment, cancellationToken);
         }
+
+        await _uow.SaveChangesAsync(cancellationToken);
     }
 }

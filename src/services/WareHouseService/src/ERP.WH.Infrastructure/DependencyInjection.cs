@@ -8,6 +8,8 @@ using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Application.Commands.Locations;
 using ERP.WH.Application.Commands.Transfers;
 using ERP.WH.Application.Commands.Stocktakes;
+using ERP.WH.Application.Interfaces;
+using ERP.Shared.Infrastructure.Caching;
 
 namespace ERP.WH.Infrastructure;
 
@@ -27,7 +29,10 @@ public static class DependencyInjection
         services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<ITransferOrderRepository, TransferOrderRepository>();
         services.AddScoped<IStocktakeRepository, StocktakeRepository>();
+        services.AddScoped<IWarehouseUnitOfWork, WarehouseUnitOfWork>();
         services.AddScoped<IEventPublisher, EventPublisher>();
+
+        services.AddCacheService(configuration, "wh");
 
         // RabbitMQ connection — previously never registered, so EventPublisher (which
         // requires IConnection) would throw at DI-resolution time the moment any

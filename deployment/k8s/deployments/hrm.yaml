@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hrm-service
+  namespace: erp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hrm-service
+  template:
+    metadata:
+      labels:
+        app: hrm-service
+    spec:
+      containers:
+      - name: hrm-service
+        image: erp/hrm-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5007
+        envFrom:
+        - configMapRef:
+            name: erp-config
+        env:
+        - name: ASPNETCORE_URLS
+          value: "http://+:5007"
+        - name: Cache__InstanceName
+          value: "hrm"
+        - name: ConnectionStrings__HrmDB
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: sql-hrm-db
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5007
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5007
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "400m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hrm-service
+  namespace: erp
+spec:
+  selector:
+    app: hrm-service
+  ports:
+  - port: 5007
+    targetPort: 5007

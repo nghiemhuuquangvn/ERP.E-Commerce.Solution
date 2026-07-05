@@ -1,7 +1,5 @@
-using ERP.PRD.Domain.Enums;
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 
 namespace ERP.PRD.Application.Features.Attributes.Queries
@@ -29,42 +27,28 @@ namespace ERP.PRD.Application.Features.Attributes.Queries
 
     public class GetProductAttributeValuesHandler : IRequestHandler<GetProductAttributeValuesQuery, List<AttributeValueDto>>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public GetProductAttributeValuesHandler(ProductDbContext context)
+        public GetProductAttributeValuesHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<List<AttributeValueDto>> Handle(GetProductAttributeValuesQuery request, CancellationToken cancellationToken)
         {
-            var productExists = await _context.Products
-                .AnyAsync(p => p.Id == request.ProductId && !p.IsDeleted, cancellationToken);
+            var productExists = await _uow.Products.ExistsAsync(request.ProductId, cancellationToken);
 
             if (!productExists)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
 
-            // A variant should show its own specific attribute values plus the parent product's
-            // shared ones, so when VariantId is provided we pull both owner rows; otherwise only
-            // the Product-owned values.
-            var values = request.VariantId.HasValue
-                ? await _context.ProductAttributeValues
-                    .Where(v => !v.IsDeleted &&
-                        ((v.OwnerType == AttributeOwnerType.Product && v.OwnerId == request.ProductId) ||
-                         (v.OwnerType == AttributeOwnerType.ProductVariant && v.OwnerId == request.VariantId.Value)))
-                    .ToListAsync(cancellationToken)
-                : await _context.ProductAttributeValues
-                    .Where(v => !v.IsDeleted && v.OwnerType == AttributeOwnerType.Product && v.OwnerId == request.ProductId)
-                    .ToListAsync(cancellationToken);
+            var values = await _uow.AttributeValues.GetByOwnerAsync(
+                request.ProductId, request.VariantId, cancellationToken);
 
             if (values.Count == 0)
                 return new List<AttributeValueDto>();
 
             var attributeIds = values.Select(v => v.ProductAttributeId).Distinct().ToList();
-            var attributes = await _context.ProductAttributes
-                .Include(a => a.Options)
-                .Where(a => attributeIds.Contains(a.Id))
-                .ToDictionaryAsync(a => a.Id, cancellationToken);
+            var attributes = await _uow.Attributes.GetByIdsWithOptionsAsDictionaryAsync(attributeIds, cancellationToken);
 
             var result = new List<AttributeValueDto>();
 

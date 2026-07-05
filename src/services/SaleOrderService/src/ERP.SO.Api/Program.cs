@@ -6,11 +6,13 @@ using ERP.SO.Api.Extensions;
 using ERP.SO.Api.Middleware;
 using ERP.SO.Application.Handlers;
 using ERP.SO.Application.Interfaces;
+using ERP.SO.Application.Sagas;
 using ERP.SO.Application.Validators;
 using ERP.SO.Infrastructure;
 using ERP.SO.Infrastructure.EventBus;
 using ERP.SO.Infrastructure.ExternalServices;
 using ERP.SO.Infrastructure.Repositories;
+using ERP.SO.Infrastructure.Sagas;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -29,8 +31,10 @@ builder.Services.AddCacheService(builder.Configuration, "so");
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining(typeof(CreateOrderCommandHandler)));
 builder.Services.AddValidatorsFromAssemblyContaining(typeof(CreateOrderCommandValidator));
 
-// Repository & Message Bus
+// Repository, UnitOfWork & Message Bus
 builder.Services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();
+builder.Services.AddScoped<IOrderFulfillmentSagaRepository, OrderFulfillmentSagaRepository>();
+builder.Services.AddScoped<ISalesOrderUnitOfWork, SalesOrderUnitOfWork>();
 builder.Services.AddScoped<IMessageBus, RabbitMqMessageBus>();
 
 // PromotionService client (coupon validation at order creation)

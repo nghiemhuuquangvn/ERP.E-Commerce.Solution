@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reporting-service
+  namespace: erp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reporting-service
+  template:
+    metadata:
+      labels:
+        app: reporting-service
+    spec:
+      containers:
+      - name: reporting-service
+        image: erp/reporting-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5014
+        envFrom:
+        - configMapRef:
+            name: erp-config
+        env:
+        - name: ASPNETCORE_URLS
+          value: "http://+:5014"
+        - name: Cache__InstanceName
+          value: "rpt"
+        - name: ConnectionStrings__ReportingDb
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: sql-reporting-db
+        - name: RabbitMQ__Password
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: rabbitmq-password
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5014
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5014
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "400m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reporting-service
+  namespace: erp
+spec:
+  selector:
+    app: reporting-service
+  ports:
+  - port: 5014
+    targetPort: 5014

@@ -12,12 +12,12 @@ namespace ERP.CRM.Application.Handlers;
 
 public class CreateContactCommandHandler : IRequestHandler<CreateContactCommand, ContactDto>
 {
-    private readonly IContactRepository _contacts;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<CreateContactCommandHandler> _logger;
 
-    public CreateContactCommandHandler(IContactRepository contacts, ILogger<CreateContactCommandHandler> logger)
+    public CreateContactCommandHandler(ICrmUnitOfWork uow, ILogger<CreateContactCommandHandler> logger)
     {
-        _contacts = contacts;
+        _uow = uow;
         _logger = logger;
     }
 
@@ -27,7 +27,8 @@ public class CreateContactCommandHandler : IRequestHandler<CreateContactCommand,
         contact.Company = request.Company;
         contact.ContactSource = request.ContactSource;
 
-        await _contacts.AddAsync(contact, cancellationToken);
+        await _uow.Contacts.AddAsync(contact, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Contact {ContactId} created for {Name}", contact.Id, request.Name);
 
@@ -49,22 +50,23 @@ public class CreateContactCommandHandler : IRequestHandler<CreateContactCommand,
 
 public class UpdateContactCommandHandler : IRequestHandler<UpdateContactCommand, ContactDto>
 {
-    private readonly IContactRepository _contacts;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<UpdateContactCommandHandler> _logger;
 
-    public UpdateContactCommandHandler(IContactRepository contacts, ILogger<UpdateContactCommandHandler> logger)
+    public UpdateContactCommandHandler(ICrmUnitOfWork uow, ILogger<UpdateContactCommandHandler> logger)
     {
-        _contacts = contacts;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<ContactDto> Handle(UpdateContactCommand request, CancellationToken cancellationToken)
     {
-        var contact = await _contacts.GetByIdAsync(request.ContactId, cancellationToken)
+        var contact = await _uow.Contacts.GetByIdAsync(request.ContactId, cancellationToken)
             ?? throw new KeyNotFoundException($"Contact {request.ContactId} not found.");
 
         contact.Update(request.Name, request.Email, request.Phone, request.Company);
-        await _contacts.UpdateAsync(contact, cancellationToken);
+        await _uow.Contacts.UpdateAsync(contact, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Contact {ContactId} updated", request.ContactId);
 
@@ -76,12 +78,12 @@ public class UpdateContactCommandHandler : IRequestHandler<UpdateContactCommand,
 
 public class CreateLeadCommandHandler : IRequestHandler<CreateLeadCommand, LeadDto>
 {
-    private readonly ILeadRepository _leads;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<CreateLeadCommandHandler> _logger;
 
-    public CreateLeadCommandHandler(ILeadRepository leads, ILogger<CreateLeadCommandHandler> logger)
+    public CreateLeadCommandHandler(ICrmUnitOfWork uow, ILogger<CreateLeadCommandHandler> logger)
     {
-        _leads = leads;
+        _uow = uow;
         _logger = logger;
     }
 
@@ -91,7 +93,8 @@ public class CreateLeadCommandHandler : IRequestHandler<CreateLeadCommand, LeadD
         lead.EstimatedValue = request.EstimatedValue;
         lead.ContactId = request.ContactId;
 
-        await _leads.AddAsync(lead, cancellationToken);
+        await _uow.Leads.AddAsync(lead, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Lead {LeadId} created: {LeadName}", lead.Id, request.LeadName);
 
@@ -112,23 +115,18 @@ public class CreateLeadCommandHandler : IRequestHandler<CreateLeadCommand, LeadD
 
 public class QualifyLeadCommandHandler : IRequestHandler<QualifyLeadCommand, LeadDto>
 {
-    private readonly ILeadRepository _leads;
-    private readonly IOpportunityRepository _opportunities;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<QualifyLeadCommandHandler> _logger;
 
-    public QualifyLeadCommandHandler(
-        ILeadRepository leads,
-        IOpportunityRepository opportunities,
-        ILogger<QualifyLeadCommandHandler> logger)
+    public QualifyLeadCommandHandler(ICrmUnitOfWork uow, ILogger<QualifyLeadCommandHandler> logger)
     {
-        _leads = leads;
-        _opportunities = opportunities;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<LeadDto> Handle(QualifyLeadCommand request, CancellationToken cancellationToken)
     {
-        var lead = await _leads.GetByIdAsync(request.LeadId, cancellationToken)
+        var lead = await _uow.Leads.GetByIdAsync(request.LeadId, cancellationToken)
             ?? throw new KeyNotFoundException($"Lead {request.LeadId} not found.");
 
         // Create an opportunity from this lead
@@ -139,10 +137,11 @@ public class QualifyLeadCommandHandler : IRequestHandler<QualifyLeadCommand, Lea
             DateTime.UtcNow.AddMonths(3)
         );
 
-        await _opportunities.AddAsync(opportunity, cancellationToken);
+        await _uow.Opportunities.AddAsync(opportunity, cancellationToken);
 
         lead.Qualify(opportunity.Id);
-        await _leads.UpdateAsync(lead, cancellationToken);
+        await _uow.Leads.UpdateAsync(lead, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Lead {LeadId} qualified, opportunity {OpportunityId} created", lead.Id, opportunity.Id);
 
@@ -152,22 +151,23 @@ public class QualifyLeadCommandHandler : IRequestHandler<QualifyLeadCommand, Lea
 
 public class ContactLeadCommandHandler : IRequestHandler<ContactLeadCommand, LeadDto>
 {
-    private readonly ILeadRepository _leads;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<ContactLeadCommandHandler> _logger;
 
-    public ContactLeadCommandHandler(ILeadRepository leads, ILogger<ContactLeadCommandHandler> logger)
+    public ContactLeadCommandHandler(ICrmUnitOfWork uow, ILogger<ContactLeadCommandHandler> logger)
     {
-        _leads = leads;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<LeadDto> Handle(ContactLeadCommand request, CancellationToken cancellationToken)
     {
-        var lead = await _leads.GetByIdAsync(request.LeadId, cancellationToken)
+        var lead = await _uow.Leads.GetByIdAsync(request.LeadId, cancellationToken)
             ?? throw new KeyNotFoundException($"Lead {request.LeadId} not found.");
 
         lead.Contact();
-        await _leads.UpdateAsync(lead, cancellationToken);
+        await _uow.Leads.UpdateAsync(lead, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Lead {LeadId} marked as contacted", request.LeadId);
 
@@ -177,22 +177,23 @@ public class ContactLeadCommandHandler : IRequestHandler<ContactLeadCommand, Lea
 
 public class LoseLeadCommandHandler : IRequestHandler<LoseLeadCommand, LeadDto>
 {
-    private readonly ILeadRepository _leads;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<LoseLeadCommandHandler> _logger;
 
-    public LoseLeadCommandHandler(ILeadRepository leads, ILogger<LoseLeadCommandHandler> logger)
+    public LoseLeadCommandHandler(ICrmUnitOfWork uow, ILogger<LoseLeadCommandHandler> logger)
     {
-        _leads = leads;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<LeadDto> Handle(LoseLeadCommand request, CancellationToken cancellationToken)
     {
-        var lead = await _leads.GetByIdAsync(request.LeadId, cancellationToken)
+        var lead = await _uow.Leads.GetByIdAsync(request.LeadId, cancellationToken)
             ?? throw new KeyNotFoundException($"Lead {request.LeadId} not found.");
 
         lead.MarkLost(request.Reason);
-        await _leads.UpdateAsync(lead, cancellationToken);
+        await _uow.Leads.UpdateAsync(lead, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Lead {LeadId} marked as lost", request.LeadId);
 
@@ -204,12 +205,12 @@ public class LoseLeadCommandHandler : IRequestHandler<LoseLeadCommand, LeadDto>
 
 public class CreateOpportunityCommandHandler : IRequestHandler<CreateOpportunityCommand, OpportunityDto>
 {
-    private readonly IOpportunityRepository _opportunities;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<CreateOpportunityCommandHandler> _logger;
 
-    public CreateOpportunityCommandHandler(IOpportunityRepository opportunities, ILogger<CreateOpportunityCommandHandler> logger)
+    public CreateOpportunityCommandHandler(ICrmUnitOfWork uow, ILogger<CreateOpportunityCommandHandler> logger)
     {
-        _opportunities = opportunities;
+        _uow = uow;
         _logger = logger;
     }
 
@@ -223,7 +224,8 @@ public class CreateOpportunityCommandHandler : IRequestHandler<CreateOpportunity
             request.AssignedToUserId
         );
 
-        await _opportunities.AddAsync(opportunity, cancellationToken);
+        await _uow.Opportunities.AddAsync(opportunity, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Opportunity {OpportunityId} created: {Title}", opportunity.Id, request.Title);
 
@@ -247,22 +249,23 @@ public class CreateOpportunityCommandHandler : IRequestHandler<CreateOpportunity
 
 public class AdvanceOpportunityStageCommandHandler : IRequestHandler<AdvanceOpportunityStageCommand, OpportunityDto>
 {
-    private readonly IOpportunityRepository _opportunities;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<AdvanceOpportunityStageCommandHandler> _logger;
 
-    public AdvanceOpportunityStageCommandHandler(IOpportunityRepository opportunities, ILogger<AdvanceOpportunityStageCommandHandler> logger)
+    public AdvanceOpportunityStageCommandHandler(ICrmUnitOfWork uow, ILogger<AdvanceOpportunityStageCommandHandler> logger)
     {
-        _opportunities = opportunities;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<OpportunityDto> Handle(AdvanceOpportunityStageCommand request, CancellationToken cancellationToken)
     {
-        var opportunity = await _opportunities.GetByIdAsync(request.OpportunityId, cancellationToken)
+        var opportunity = await _uow.Opportunities.GetByIdAsync(request.OpportunityId, cancellationToken)
             ?? throw new KeyNotFoundException($"Opportunity {request.OpportunityId} not found.");
 
         opportunity.AdvanceStage();
-        await _opportunities.UpdateAsync(opportunity, cancellationToken);
+        await _uow.Opportunities.UpdateAsync(opportunity, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Opportunity {OpportunityId} advanced to stage {Stage}", request.OpportunityId, opportunity.OpportunityStage);
 
@@ -272,22 +275,23 @@ public class AdvanceOpportunityStageCommandHandler : IRequestHandler<AdvanceOppo
 
 public class WinOpportunityCommandHandler : IRequestHandler<WinOpportunityCommand, OpportunityDto>
 {
-    private readonly IOpportunityRepository _opportunities;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<WinOpportunityCommandHandler> _logger;
 
-    public WinOpportunityCommandHandler(IOpportunityRepository opportunities, ILogger<WinOpportunityCommandHandler> logger)
+    public WinOpportunityCommandHandler(ICrmUnitOfWork uow, ILogger<WinOpportunityCommandHandler> logger)
     {
-        _opportunities = opportunities;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<OpportunityDto> Handle(WinOpportunityCommand request, CancellationToken cancellationToken)
     {
-        var opportunity = await _opportunities.GetByIdAsync(request.OpportunityId, cancellationToken)
+        var opportunity = await _uow.Opportunities.GetByIdAsync(request.OpportunityId, cancellationToken)
             ?? throw new KeyNotFoundException($"Opportunity {request.OpportunityId} not found.");
 
         opportunity.MarkWon();
-        await _opportunities.UpdateAsync(opportunity, cancellationToken);
+        await _uow.Opportunities.UpdateAsync(opportunity, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Opportunity {OpportunityId} marked as won", request.OpportunityId);
 
@@ -297,22 +301,23 @@ public class WinOpportunityCommandHandler : IRequestHandler<WinOpportunityComman
 
 public class LoseOpportunityCommandHandler : IRequestHandler<LoseOpportunityCommand, OpportunityDto>
 {
-    private readonly IOpportunityRepository _opportunities;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<LoseOpportunityCommandHandler> _logger;
 
-    public LoseOpportunityCommandHandler(IOpportunityRepository opportunities, ILogger<LoseOpportunityCommandHandler> logger)
+    public LoseOpportunityCommandHandler(ICrmUnitOfWork uow, ILogger<LoseOpportunityCommandHandler> logger)
     {
-        _opportunities = opportunities;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<OpportunityDto> Handle(LoseOpportunityCommand request, CancellationToken cancellationToken)
     {
-        var opportunity = await _opportunities.GetByIdAsync(request.OpportunityId, cancellationToken)
+        var opportunity = await _uow.Opportunities.GetByIdAsync(request.OpportunityId, cancellationToken)
             ?? throw new KeyNotFoundException($"Opportunity {request.OpportunityId} not found.");
 
         opportunity.MarkLost(request.Reason);
-        await _opportunities.UpdateAsync(opportunity, cancellationToken);
+        await _uow.Opportunities.UpdateAsync(opportunity, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Opportunity {OpportunityId} marked as lost", request.OpportunityId);
 
@@ -324,12 +329,12 @@ public class LoseOpportunityCommandHandler : IRequestHandler<LoseOpportunityComm
 
 public class OpenCaseCommandHandler : IRequestHandler<OpenCaseCommand, CaseDto>
 {
-    private readonly ICaseRepository _cases;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<OpenCaseCommandHandler> _logger;
 
-    public OpenCaseCommandHandler(ICaseRepository cases, ILogger<OpenCaseCommandHandler> logger)
+    public OpenCaseCommandHandler(ICrmUnitOfWork uow, ILogger<OpenCaseCommandHandler> logger)
     {
-        _cases = cases;
+        _uow = uow;
         _logger = logger;
     }
 
@@ -337,7 +342,8 @@ public class OpenCaseCommandHandler : IRequestHandler<OpenCaseCommand, CaseDto>
     {
         var caseEntity = Case.Create(request.Title, request.ContactId, request.Description, request.Priority);
 
-        await _cases.AddAsync(caseEntity, cancellationToken);
+        await _uow.Cases.AddAsync(caseEntity, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Case {CaseId} opened: {Title}", caseEntity.Id, request.Title);
 
@@ -361,22 +367,23 @@ public class OpenCaseCommandHandler : IRequestHandler<OpenCaseCommand, CaseDto>
 
 public class AssignCaseCommandHandler : IRequestHandler<AssignCaseCommand, CaseDto>
 {
-    private readonly ICaseRepository _cases;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<AssignCaseCommandHandler> _logger;
 
-    public AssignCaseCommandHandler(ICaseRepository cases, ILogger<AssignCaseCommandHandler> logger)
+    public AssignCaseCommandHandler(ICrmUnitOfWork uow, ILogger<AssignCaseCommandHandler> logger)
     {
-        _cases = cases;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<CaseDto> Handle(AssignCaseCommand request, CancellationToken cancellationToken)
     {
-        var caseEntity = await _cases.GetByIdAsync(request.CaseId, cancellationToken)
+        var caseEntity = await _uow.Cases.GetByIdAsync(request.CaseId, cancellationToken)
             ?? throw new KeyNotFoundException($"Case {request.CaseId} not found.");
 
         caseEntity.Assign(request.AssignedToUserId);
-        await _cases.UpdateAsync(caseEntity, cancellationToken);
+        await _uow.Cases.UpdateAsync(caseEntity, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Case {CaseId} assigned to {UserId}", request.CaseId, request.AssignedToUserId);
 
@@ -386,22 +393,23 @@ public class AssignCaseCommandHandler : IRequestHandler<AssignCaseCommand, CaseD
 
 public class ResolveCaseCommandHandler : IRequestHandler<ResolveCaseCommand, CaseDto>
 {
-    private readonly ICaseRepository _cases;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<ResolveCaseCommandHandler> _logger;
 
-    public ResolveCaseCommandHandler(ICaseRepository cases, ILogger<ResolveCaseCommandHandler> logger)
+    public ResolveCaseCommandHandler(ICrmUnitOfWork uow, ILogger<ResolveCaseCommandHandler> logger)
     {
-        _cases = cases;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<CaseDto> Handle(ResolveCaseCommand request, CancellationToken cancellationToken)
     {
-        var caseEntity = await _cases.GetByIdAsync(request.CaseId, cancellationToken)
+        var caseEntity = await _uow.Cases.GetByIdAsync(request.CaseId, cancellationToken)
             ?? throw new KeyNotFoundException($"Case {request.CaseId} not found.");
 
         caseEntity.Resolve(request.Resolution);
-        await _cases.UpdateAsync(caseEntity, cancellationToken);
+        await _uow.Cases.UpdateAsync(caseEntity, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Case {CaseId} resolved", request.CaseId);
 
@@ -411,22 +419,23 @@ public class ResolveCaseCommandHandler : IRequestHandler<ResolveCaseCommand, Cas
 
 public class CloseCaseCommandHandler : IRequestHandler<CloseCaseCommand, CaseDto>
 {
-    private readonly ICaseRepository _cases;
+    private readonly ICrmUnitOfWork _uow;
     private readonly ILogger<CloseCaseCommandHandler> _logger;
 
-    public CloseCaseCommandHandler(ICaseRepository cases, ILogger<CloseCaseCommandHandler> logger)
+    public CloseCaseCommandHandler(ICrmUnitOfWork uow, ILogger<CloseCaseCommandHandler> logger)
     {
-        _cases = cases;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<CaseDto> Handle(CloseCaseCommand request, CancellationToken cancellationToken)
     {
-        var caseEntity = await _cases.GetByIdAsync(request.CaseId, cancellationToken)
+        var caseEntity = await _uow.Cases.GetByIdAsync(request.CaseId, cancellationToken)
             ?? throw new KeyNotFoundException($"Case {request.CaseId} not found.");
 
         caseEntity.Close();
-        await _cases.UpdateAsync(caseEntity, cancellationToken);
+        await _uow.Cases.UpdateAsync(caseEntity, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Case {CaseId} closed", request.CaseId);
 

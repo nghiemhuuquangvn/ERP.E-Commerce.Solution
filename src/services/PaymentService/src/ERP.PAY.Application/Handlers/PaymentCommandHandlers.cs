@@ -8,12 +8,12 @@ namespace ERP.PAY.Application.Handlers;
 
 public class InitiatePaymentCommandHandler : IRequestHandler<InitiatePaymentCommand, PaymentDto>
 {
-    private readonly IPaymentRepository _payments;
+    private readonly IPaymentUnitOfWork _uow;
     private readonly IFraudDetectionService _fraudDetection;
 
-    public InitiatePaymentCommandHandler(IPaymentRepository payments, IFraudDetectionService fraudDetection)
+    public InitiatePaymentCommandHandler(IPaymentUnitOfWork uow, IFraudDetectionService fraudDetection)
     {
-        _payments = payments;
+        _uow = uow;
         _fraudDetection = fraudDetection;
     }
 
@@ -23,7 +23,7 @@ public class InitiatePaymentCommandHandler : IRequestHandler<InitiatePaymentComm
         // event (Kafka/RabbitMQ at-least-once delivery) must not crash on a DB unique
         // constraint violation, so treat re-initiation for an already-known order as
         // idempotent instead of attempting a second insert.
-        var existing = await _payments.GetByOrderIdAsync(request.OrderId, cancellationToken);
+        var existing = await _uow.Payments.GetByOrderIdAsync(request.OrderId, cancellationToken);
         if (existing != null)
             return MapToDto(existing);
 
@@ -33,7 +33,8 @@ public class InitiatePaymentCommandHandler : IRequestHandler<InitiatePaymentComm
         if (fraudCheck.IsSuspicious)
             payment.FlagForReview(fraudCheck.Reason!);
 
-        await _payments.AddAsync(payment, cancellationToken);
+        await _uow.Payments.AddAsync(payment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return MapToDto(payment);
     }
 
@@ -71,44 +72,46 @@ public class InitiatePaymentCommandHandler : IRequestHandler<InitiatePaymentComm
 
 public class AssignTransactionRefCommandHandler : IRequestHandler<AssignTransactionRefCommand, PaymentDto>
 {
-    private readonly IPaymentRepository _payments;
-    public AssignTransactionRefCommandHandler(IPaymentRepository payments) => _payments = payments;
+    private readonly IPaymentUnitOfWork _uow;
+    public AssignTransactionRefCommandHandler(IPaymentUnitOfWork uow) => _uow = uow;
 
     public async Task<PaymentDto> Handle(AssignTransactionRefCommand request, CancellationToken cancellationToken)
     {
-        var payment = await _payments.GetByIdAsync(request.PaymentId, cancellationToken)
+        var payment = await _uow.Payments.GetByIdAsync(request.PaymentId, cancellationToken)
             ?? throw new InvalidOperationException($"Payment {request.PaymentId} not found.");
 
         payment.AssignTransactionRef(request.TransactionRef);
-        await _payments.UpdateAsync(payment, cancellationToken);
+        await _uow.Payments.UpdateAsync(payment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return InitiatePaymentCommandHandler.MapToDto(payment);
     }
 }
 
 public class LinkInvoiceCommandHandler : IRequestHandler<LinkInvoiceCommand, PaymentDto>
 {
-    private readonly IPaymentRepository _payments;
-    public LinkInvoiceCommandHandler(IPaymentRepository payments) => _payments = payments;
+    private readonly IPaymentUnitOfWork _uow;
+    public LinkInvoiceCommandHandler(IPaymentUnitOfWork uow) => _uow = uow;
 
     public async Task<PaymentDto> Handle(LinkInvoiceCommand request, CancellationToken cancellationToken)
     {
-        var payment = await _payments.GetByIdAsync(request.PaymentId, cancellationToken)
+        var payment = await _uow.Payments.GetByIdAsync(request.PaymentId, cancellationToken)
             ?? throw new InvalidOperationException($"Payment {request.PaymentId} not found.");
 
         payment.LinkInvoice(request.InvoiceId);
-        await _payments.UpdateAsync(payment, cancellationToken);
+        await _uow.Payments.UpdateAsync(payment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return InitiatePaymentCommandHandler.MapToDto(payment);
     }
 }
 
 public class ProcessGatewayCallbackCommandHandler : IRequestHandler<ProcessGatewayCallbackCommand, PaymentDto>
 {
-    private readonly IPaymentRepository _payments;
-    public ProcessGatewayCallbackCommandHandler(IPaymentRepository payments) => _payments = payments;
+    private readonly IPaymentUnitOfWork _uow;
+    public ProcessGatewayCallbackCommandHandler(IPaymentUnitOfWork uow) => _uow = uow;
 
     public async Task<PaymentDto> Handle(ProcessGatewayCallbackCommand request, CancellationToken cancellationToken)
     {
-        var payment = await _payments.GetByTransactionRefAsync(request.TransactionRef, cancellationToken)
+        var payment = await _uow.Payments.GetByTransactionRefAsync(request.TransactionRef, cancellationToken)
             ?? throw new InvalidOperationException($"No payment found for transaction reference '{request.TransactionRef}'.");
 
         // Gateways retry callbacks/IPNs — a payment already resolved to a terminal
@@ -127,57 +130,60 @@ public class ProcessGatewayCallbackCommandHandler : IRequestHandler<ProcessGatew
             payment.Fail(request.FailureReason ?? "Gateway reported payment failure");
         }
 
-        await _payments.UpdateAsync(payment, cancellationToken);
+        await _uow.Payments.UpdateAsync(payment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return InitiatePaymentCommandHandler.MapToDto(payment);
     }
 }
 
 public class AuthorizePaymentCommandHandler : IRequestHandler<AuthorizePaymentCommand, PaymentDto>
 {
-    private readonly IPaymentRepository _payments;
-    public AuthorizePaymentCommandHandler(IPaymentRepository payments) => _payments = payments;
+    private readonly IPaymentUnitOfWork _uow;
+    public AuthorizePaymentCommandHandler(IPaymentUnitOfWork uow) => _uow = uow;
 
     public async Task<PaymentDto> Handle(AuthorizePaymentCommand request, CancellationToken cancellationToken)
     {
-        var payment = await _payments.GetByIdAsync(request.PaymentId, cancellationToken)
+        var payment = await _uow.Payments.GetByIdAsync(request.PaymentId, cancellationToken)
             ?? throw new InvalidOperationException($"Payment {request.PaymentId} not found.");
 
         payment.Authorize(request.GatewayTransactionId, request.GatewayProvider);
-        await _payments.UpdateAsync(payment, cancellationToken);
+        await _uow.Payments.UpdateAsync(payment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return InitiatePaymentCommandHandler.MapToDto(payment);
     }
 }
 
 public class CapturePaymentCommandHandler : IRequestHandler<CapturePaymentCommand, PaymentDto>
 {
-    private readonly IPaymentRepository _payments;
-    public CapturePaymentCommandHandler(IPaymentRepository payments) => _payments = payments;
+    private readonly IPaymentUnitOfWork _uow;
+    public CapturePaymentCommandHandler(IPaymentUnitOfWork uow) => _uow = uow;
 
     public async Task<PaymentDto> Handle(CapturePaymentCommand request, CancellationToken cancellationToken)
     {
-        var payment = await _payments.GetByIdAsync(request.PaymentId, cancellationToken)
+        var payment = await _uow.Payments.GetByIdAsync(request.PaymentId, cancellationToken)
             ?? throw new InvalidOperationException($"Payment {request.PaymentId} not found.");
 
         payment.Capture();
-        await _payments.UpdateAsync(payment, cancellationToken);
+        await _uow.Payments.UpdateAsync(payment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return InitiatePaymentCommandHandler.MapToDto(payment);
     }
 }
 
 public class RefundPaymentCommandHandler : IRequestHandler<RefundPaymentCommand, PaymentDto>
 {
-    private readonly IPaymentRepository _payments;
+    private readonly IPaymentUnitOfWork _uow;
     private readonly IPaymentGateway _gateway;
 
-    public RefundPaymentCommandHandler(IPaymentRepository payments, IPaymentGateway gateway)
+    public RefundPaymentCommandHandler(IPaymentUnitOfWork uow, IPaymentGateway gateway)
     {
-        _payments = payments;
+        _uow = uow;
         _gateway = gateway;
     }
 
     public async Task<PaymentDto> Handle(RefundPaymentCommand request, CancellationToken cancellationToken)
     {
-        var payment = await _payments.GetByIdAsync(request.PaymentId, cancellationToken)
+        var payment = await _uow.Payments.GetByIdAsync(request.PaymentId, cancellationToken)
             ?? throw new InvalidOperationException($"Payment {request.PaymentId} not found.");
 
         var refund = payment.AddRefund(request.Amount, request.Reason);
@@ -201,41 +207,41 @@ public class RefundPaymentCommandHandler : IRequestHandler<RefundPaymentCommand,
 
         payment.ReconcileStatusWithConfirmedRefunds();
 
-        await _payments.UpdateAsync(payment, cancellationToken);
+        await _uow.Payments.UpdateAsync(payment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return InitiatePaymentCommandHandler.MapToDto(payment);
     }
 }
 
 public class CancelPaymentCommandHandler : IRequestHandler<CancelPaymentCommand, PaymentDto>
 {
-    private readonly IPaymentRepository _payments;
-    public CancelPaymentCommandHandler(IPaymentRepository payments) => _payments = payments;
+    private readonly IPaymentUnitOfWork _uow;
+    public CancelPaymentCommandHandler(IPaymentUnitOfWork uow) => _uow = uow;
 
     public async Task<PaymentDto> Handle(CancelPaymentCommand request, CancellationToken cancellationToken)
     {
-        var payment = await _payments.GetByIdAsync(request.PaymentId, cancellationToken)
+        var payment = await _uow.Payments.GetByIdAsync(request.PaymentId, cancellationToken)
             ?? throw new InvalidOperationException($"Payment {request.PaymentId} not found.");
 
         payment.Cancel();
-        await _payments.UpdateAsync(payment, cancellationToken);
+        await _uow.Payments.UpdateAsync(payment, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return InitiatePaymentCommandHandler.MapToDto(payment);
     }
 }
 
 public class ProcessSettlementCommandHandler : IRequestHandler<ProcessSettlementCommand, SettlementDto>
 {
-    private readonly IPaymentRepository _payments;
-    private readonly ISettlementRepository _settlements;
+    private readonly IPaymentUnitOfWork _uow;
 
-    public ProcessSettlementCommandHandler(IPaymentRepository payments, ISettlementRepository settlements)
+    public ProcessSettlementCommandHandler(IPaymentUnitOfWork uow)
     {
-        _payments = payments;
-        _settlements = settlements;
+        _uow = uow;
     }
 
     public async Task<SettlementDto> Handle(ProcessSettlementCommand request, CancellationToken cancellationToken)
     {
-        var capturedPayments = await _payments.GetByStatusAsync(Domain.Enums.PaymentStatus.Captured, cancellationToken);
+        var capturedPayments = await _uow.Payments.GetByStatusAsync(Domain.Enums.PaymentStatus.Captured, cancellationToken);
         var inPeriod = capturedPayments
             .Where(p => p.CapturedAt >= request.PeriodStart && p.CapturedAt <= request.PeriodEnd)
             .ToList();
@@ -249,7 +255,7 @@ public class ProcessSettlementCommandHandler : IRequestHandler<ProcessSettlement
         settlement.Process();
         settlement.Complete();
 
-        await _settlements.AddAsync(settlement, cancellationToken);
+        await _uow.Settlements.AddAsync(settlement, cancellationToken);
 
         // Previously a Settlement was just a sum with no record of which specific
         // payments it covered, making reconciliation against it impossible beyond
@@ -257,8 +263,10 @@ public class ProcessSettlementCommandHandler : IRequestHandler<ProcessSettlement
         foreach (var payment in inPeriod)
         {
             payment.AssignSettlement(settlement.Id);
-            await _payments.UpdateAsync(payment, cancellationToken);
+            await _uow.Payments.UpdateAsync(payment, cancellationToken);
         }
+
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return new SettlementDto
         {

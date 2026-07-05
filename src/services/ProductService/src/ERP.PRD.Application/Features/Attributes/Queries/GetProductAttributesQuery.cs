@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Attributes.Queries
 {
@@ -33,29 +32,16 @@ namespace ERP.PRD.Application.Features.Attributes.Queries
 
     public class GetProductAttributesHandler : IRequestHandler<GetProductAttributesQuery, List<ProductAttributeDto>>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public GetProductAttributesHandler(ProductDbContext context)
+        public GetProductAttributesHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<List<ProductAttributeDto>> Handle(GetProductAttributesQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.ProductAttributes
-                .Include(a => a.Options)
-                .Where(a => !a.IsDeleted)
-                .AsQueryable();
-
-            // Global (CategoryId == null) attributes always apply, plus the requested category's own.
-            query = request.CategoryId.HasValue
-                ? query.Where(a => a.CategoryId == null || a.CategoryId == request.CategoryId)
-                : query.Where(a => a.CategoryId == null);
-
-            var attributes = await query
-                .OrderBy(a => a.SortOrder)
-                .ThenBy(a => a.Name)
-                .ToListAsync(cancellationToken);
+            var attributes = await _uow.Attributes.GetByCategoryAsync(request.CategoryId, cancellationToken);
 
             return attributes.Select(a => new ProductAttributeDto
             {

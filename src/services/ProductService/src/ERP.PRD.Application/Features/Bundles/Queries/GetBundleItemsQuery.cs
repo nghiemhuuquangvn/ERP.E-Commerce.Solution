@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Bundles.Queries
 {
@@ -20,27 +19,25 @@ namespace ERP.PRD.Application.Features.Bundles.Queries
 
     public class GetBundleItemsHandler : IRequestHandler<GetBundleItemsQuery, List<BundleItemDto>>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public GetBundleItemsHandler(ProductDbContext context)
+        public GetBundleItemsHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<List<BundleItemDto>> Handle(GetBundleItemsQuery request, CancellationToken cancellationToken)
         {
-            return await (
-                from item in _context.ProductBundleItems
-                join component in _context.Products on item.ComponentProductId equals component.Id
-                where item.BundleProductId == request.BundleProductId
-                select new BundleItemDto
-                {
-                    Id = item.Id,
-                    ComponentProductId = component.Id,
-                    ComponentName = component.Name,
-                    ComponentSku = component.Sku,
-                    Quantity = item.Quantity
-                }).ToListAsync(cancellationToken);
+            var items = await _uow.Bundles.GetByBundleProductIdAsync(request.BundleProductId, cancellationToken);
+
+            return items.Select(i => new BundleItemDto
+            {
+                Id = i.Id,
+                ComponentProductId = i.ComponentProductId,
+                ComponentName = i.ComponentName,
+                ComponentSku = i.ComponentSku,
+                Quantity = i.Quantity
+            }).ToList();
         }
     }
 }

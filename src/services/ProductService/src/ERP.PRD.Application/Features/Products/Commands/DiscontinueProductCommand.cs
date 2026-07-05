@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Products.Commands
 {
@@ -11,26 +10,23 @@ namespace ERP.PRD.Application.Features.Products.Commands
 
     public class DiscontinueProductHandler : IRequestHandler<DiscontinueProductCommand, Unit>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public DiscontinueProductHandler(ProductDbContext context)
+        public DiscontinueProductHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<Unit> Handle(DiscontinueProductCommand request, CancellationToken cancellationToken)
         {
-            var product = await _context.Products.FirstOrDefaultAsync(
-                x => x.Id == request.ProductId && !x.IsDeleted,
-                cancellationToken
-            );
+            var product = await _uow.Products.GetByIdAsync(request.ProductId, cancellationToken);
 
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
 
             product.Discontinue();
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return Unit.Value;
         }

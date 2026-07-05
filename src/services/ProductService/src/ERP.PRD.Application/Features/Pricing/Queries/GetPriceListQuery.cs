@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Pricing.Queries
 {
@@ -30,20 +29,18 @@ namespace ERP.PRD.Application.Features.Pricing.Queries
 
     public class GetPriceListHandler : IRequestHandler<GetPriceListQuery, PriceListDetailDto>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
         private readonly ILogger<GetPriceListHandler> _logger;
 
-        public GetPriceListHandler(ProductDbContext context, ILogger<GetPriceListHandler> logger)
+        public GetPriceListHandler(IProductUnitOfWork uow, ILogger<GetPriceListHandler> logger)
         {
-            _context = context;
+            _uow = uow;
             _logger = logger;
         }
 
         public async Task<PriceListDetailDto> Handle(GetPriceListQuery request, CancellationToken cancellationToken)
         {
-            var priceList = await _context.PriceLists
-                .Include(p => p.Items)
-                .FirstOrDefaultAsync(p => p.Id == request.PriceListId, cancellationToken: cancellationToken);
+            var priceList = await _uow.PriceLists.GetByIdWithItemsAsync(request.PriceListId, cancellationToken);
 
             if (priceList == null)
                 throw new KeyNotFoundException($"Price list with ID {request.PriceListId} not found");

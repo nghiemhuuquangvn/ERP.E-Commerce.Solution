@@ -1,4 +1,5 @@
 using MediatR;
+using ERP.WH.Application.Interfaces;
 using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
@@ -18,30 +19,24 @@ public class CompleteTransferOrderCommand : IRequest<TransferOrderDto>
 /// </summary>
 public class CompleteTransferOrderCommandHandler : IRequestHandler<CompleteTransferOrderCommand, TransferOrderDto>
 {
-    private readonly ITransferOrderRepository _transferOrderRepository;
-    private readonly IInventoryRepository _inventoryRepository;
-    private readonly IStockMovementRepository _movementRepository;
+    private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventPublisher _eventPublisher;
 
     public CompleteTransferOrderCommandHandler(
-        ITransferOrderRepository transferOrderRepository,
-        IInventoryRepository inventoryRepository,
-        IStockMovementRepository movementRepository,
+        IWarehouseUnitOfWork uow,
         IEventPublisher eventPublisher)
     {
-        _transferOrderRepository = transferOrderRepository;
-        _inventoryRepository = inventoryRepository;
-        _movementRepository = movementRepository;
+        _uow = uow;
         _eventPublisher = eventPublisher;
     }
 
     public async Task<TransferOrderDto> Handle(CompleteTransferOrderCommand request, CancellationToken cancellationToken)
     {
-        var order = await _transferOrderRepository.GetByIdAsync(request.TransferOrderId, cancellationToken)
+        var order = await _uow.TransferOrders.GetByIdAsync(request.TransferOrderId, cancellationToken)
             ?? throw new InvalidOperationException($"Transfer order {request.TransferOrderId} not found");
 
         order.Complete();
-        await _transferOrderRepository.UpdateAsync(order, cancellationToken);
+        await _uow.TransferOrders.UpdateAsync(order, cancellationToken);
 
         foreach (var line in order.Lines)
         {
@@ -53,13 +48,13 @@ public class CompleteTransferOrderCommandHandler : IRequestHandler<CompleteTrans
                 toLocation: order.ToLocationId.ToString(),
                 reference: order.TransferNumber);
 
-            await _movementRepository.AddAsync(movement, cancellationToken);
+            await _uow.StockMovements.AddAsync(movement, cancellationToken);
 
-            var inventory = await _inventoryRepository.GetByProductIdAsync(line.ProductId, cancellationToken);
+            var inventory = await _uow.Inventories.GetByProductIdAsync(line.ProductId, cancellationToken);
             if (inventory != null && (inventory.LocationId == null || inventory.LocationId == order.FromLocationId))
             {
                 inventory.AssignLocation(order.ToLocationId);
-                await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
+                await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
             }
 
             await _eventPublisher.PublishAsync(new StockMovementRecordedEvent
@@ -75,6 +70,8 @@ public class CompleteTransferOrderCommandHandler : IRequestHandler<CompleteTrans
                 EventCreatedAt = DateTime.UtcNow
             }, cancellationToken);
         }
+
+        await _uow.SaveChangesAsync(cancellationToken);
 
         await _eventPublisher.PublishAsync(new TransferOrderCompletedEvent
         {

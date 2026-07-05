@@ -26,12 +26,10 @@ public class TransferOrderRepository : ITransferOrderRepository
     public async Task AddAsync(TransferOrder transferOrder, CancellationToken cancellationToken)
     {
         await _context.TransferOrders.AddAsync(transferOrder, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task UpdateAsync(TransferOrder transferOrder, CancellationToken cancellationToken)
     {
         _context.TransferOrders.Update(transferOrder);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 }

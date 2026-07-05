@@ -1,6 +1,7 @@
 using ERP.ACC.Application.DTOs;
 using ERP.ACC.Application.Interfaces;
 using ERP.ACC.Application.Queries;
+using ERP.Shared.Infrastructure.Caching;
 using MediatR;
 
 namespace ERP.ACC.Application.Handlers
@@ -8,26 +9,50 @@ namespace ERP.ACC.Application.Handlers
     public class GetAccountQueryHandler : IRequestHandler<GetAccountQuery, AccountDto?>
     {
         private readonly IAccountRepository _accounts;
+        private readonly ICacheService _cache;
 
-        public GetAccountQueryHandler(IAccountRepository accounts) => _accounts = accounts;
+        public GetAccountQueryHandler(IAccountRepository accounts, ICacheService cache)
+        {
+            _accounts = accounts;
+            _cache = cache;
+        }
 
         public async Task<AccountDto?> Handle(GetAccountQuery request, CancellationToken cancellationToken)
         {
+            var cacheKey = $"acc:account:{request.AccountId}";
+            var cached = await _cache.GetAsync<AccountDto>(cacheKey, cancellationToken);
+            if (cached != null) return cached;
+
             var account = await _accounts.GetByIdAsync(request.AccountId, cancellationToken);
-            return account == null ? null : CreateAccountCommandHandler.MapAccountToDto(account);
+            if (account == null) return null;
+
+            var dto = CreateAccountCommandHandler.MapAccountToDto(account);
+            await _cache.SetAsync(cacheKey, dto, TimeSpan.FromMinutes(5), cancellationToken);
+            return dto;
         }
     }
 
     public class ListAccountsQueryHandler : IRequestHandler<ListAccountsQuery, List<AccountDto>>
     {
         private readonly IAccountRepository _accounts;
+        private readonly ICacheService _cache;
 
-        public ListAccountsQueryHandler(IAccountRepository accounts) => _accounts = accounts;
+        public ListAccountsQueryHandler(IAccountRepository accounts, ICacheService cache)
+        {
+            _accounts = accounts;
+            _cache = cache;
+        }
 
         public async Task<List<AccountDto>> Handle(ListAccountsQuery request, CancellationToken cancellationToken)
         {
+            const string cacheKey = "acc:accounts:all";
+            var cached = await _cache.GetAsync<List<AccountDto>>(cacheKey, cancellationToken);
+            if (cached != null) return cached;
+
             var accounts = await _accounts.GetAllAsync(cancellationToken);
-            return accounts.Select(CreateAccountCommandHandler.MapAccountToDto).ToList();
+            var dtos = accounts.Select(CreateAccountCommandHandler.MapAccountToDto).ToList();
+            await _cache.SetAsync(cacheKey, dtos, TimeSpan.FromMinutes(5), cancellationToken);
+            return dtos;
         }
     }
 

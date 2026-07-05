@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Search.Commands
 {
@@ -16,50 +15,22 @@ namespace ERP.PRD.Application.Features.Search.Commands
 
     public class ReindexAllProductsCommandHandler : IRequestHandler<ReindexAllProductsCommand, int>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public ReindexAllProductsCommandHandler(ProductDbContext context)
+        public ReindexAllProductsCommandHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<int> Handle(ReindexAllProductsCommand request, CancellationToken cancellationToken)
         {
-            var productIds = await _context.Products
-                .Where(p => !p.IsDeleted)
-                .Select(p => p.Id)
-                .ToListAsync(cancellationToken);
+            var productIds = await _uow.SearchIndexQueue.GetAllActiveProductIdsAsync(cancellationToken);
 
             if (productIds.Count == 0)
                 return 0;
 
-            var existingPending = await _context.SearchIndexQueue
-                .Where(q => q.IndexedAt == null && productIds.Contains(q.ProductId))
-                .ToListAsync(cancellationToken);
-
-            var existingByProductId = existingPending
-                .GroupBy(q => q.ProductId)
-                .ToDictionary(g => g.Key, g => g.First());
-
-            var now = DateTime.UtcNow;
-
-            foreach (var productId in productIds)
-            {
-                if (existingByProductId.TryGetValue(productId, out var pendingEntry))
-                {
-                    pendingEntry.RequestedAt = now;
-                }
-                else
-                {
-                    await _context.SearchIndexQueue.AddAsync(new SearchIndexQueueEntry
-                    {
-                        ProductId = productId,
-                        RequestedAt = now
-                    }, cancellationToken);
-                }
-            }
-
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SearchIndexQueue.UpsertBatchAsync(productIds, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return productIds.Count;
         }

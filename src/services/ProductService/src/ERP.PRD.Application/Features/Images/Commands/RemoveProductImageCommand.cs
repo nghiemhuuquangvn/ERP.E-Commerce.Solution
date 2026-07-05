@@ -1,7 +1,6 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using FluentValidation;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Images.Commands
 {
@@ -25,20 +24,18 @@ namespace ERP.PRD.Application.Features.Images.Commands
 
     public class RemoveProductImageHandler : IRequestHandler<RemoveProductImageCommand>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
         private readonly ILogger<RemoveProductImageHandler> _logger;
 
-        public RemoveProductImageHandler(ProductDbContext context, ILogger<RemoveProductImageHandler> logger)
+        public RemoveProductImageHandler(IProductUnitOfWork uow, ILogger<RemoveProductImageHandler> logger)
         {
-            _context = context;
+            _uow = uow;
             _logger = logger;
         }
 
         public async Task Handle(RemoveProductImageCommand request, CancellationToken cancellationToken)
         {
-            var product = await _context.Products
-                .Include(p => p.Images)
-                .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken: cancellationToken);
+            var product = await _uow.Products.GetByIdWithImagesAsync(request.ProductId, cancellationToken);
 
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
@@ -56,7 +53,7 @@ namespace ERP.PRD.Application.Features.Images.Commands
                 product.Images.First().SetAsPrimary();
             }
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Image removed from product {ProductId}: {ImageId}", request.ProductId, request.ImageId);
         }

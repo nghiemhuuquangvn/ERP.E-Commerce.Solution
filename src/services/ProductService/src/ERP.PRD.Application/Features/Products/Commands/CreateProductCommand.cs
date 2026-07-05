@@ -1,4 +1,4 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
 
 namespace ERP.PRD.Application.Features.Products.Commands
@@ -22,11 +22,11 @@ namespace ERP.PRD.Application.Features.Products.Commands
 
     public class CreateProductHandler : IRequestHandler<CreateProductCommand, CreateProductResponse>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public CreateProductHandler(ProductDbContext context)
+        public CreateProductHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<CreateProductResponse> Handle(CreateProductCommand request, CancellationToken cancellationToken)
@@ -41,8 +41,8 @@ namespace ERP.PRD.Application.Features.Products.Commands
             if (!string.IsNullOrWhiteSpace(request.Description))
                 product.UpdateDescription(request.Description);
 
-            _context.Products.Add(product);
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.Products.AddAsync(product, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return new CreateProductResponse
             {

@@ -1,4 +1,5 @@
 using MediatR;
+using ERP.WH.Application.Interfaces;
 using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Domain.Aggregates.Stocktakes;
 
@@ -40,13 +41,11 @@ public class StartStocktakeCommand : IRequest<StocktakeDto>
 /// </summary>
 public class StartStocktakeCommandHandler : IRequestHandler<StartStocktakeCommand, StocktakeDto>
 {
-    private readonly IStocktakeRepository _stocktakeRepository;
-    private readonly IInventoryRepository _inventoryRepository;
+    private readonly IWarehouseUnitOfWork _uow;
 
-    public StartStocktakeCommandHandler(IStocktakeRepository stocktakeRepository, IInventoryRepository inventoryRepository)
+    public StartStocktakeCommandHandler(IWarehouseUnitOfWork uow)
     {
-        _stocktakeRepository = stocktakeRepository;
-        _inventoryRepository = inventoryRepository;
+        _uow = uow;
     }
 
     public async Task<StocktakeDto> Handle(StartStocktakeCommand request, CancellationToken cancellationToken)
@@ -54,7 +53,7 @@ public class StartStocktakeCommandHandler : IRequestHandler<StartStocktakeComman
         var stocktakeNumber = $"ST-{DateTime.UtcNow:yyyyMMddHHmmss}";
         var stocktake = new Stocktake(stocktakeNumber, request.StartedBy, request.LocationId, request.Notes);
 
-        var allInventory = await _inventoryRepository.GetAllAsync(cancellationToken);
+        var allInventory = await _uow.Inventories.GetAllAsync(cancellationToken);
         var candidates = request.ProductIds is { Count: > 0 }
             ? allInventory.Where(i => request.ProductIds.Contains(i.ProductId))
             : allInventory.AsEnumerable();
@@ -62,7 +61,8 @@ public class StartStocktakeCommandHandler : IRequestHandler<StartStocktakeComman
         foreach (var inventory in candidates)
             stocktake.AddLine(inventory.ProductId, inventory.TotalQuantity);
 
-        await _stocktakeRepository.AddAsync(stocktake, cancellationToken);
+        await _uow.Stocktakes.AddAsync(stocktake, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return Map(stocktake);
     }

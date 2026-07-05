@@ -1,7 +1,6 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using FluentValidation;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Categories.Commands
 {
@@ -31,20 +30,18 @@ namespace ERP.PRD.Application.Features.Categories.Commands
 
     public class SetCategoryTranslationHandler : IRequestHandler<SetCategoryTranslationCommand, Unit>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
         private readonly ILogger<SetCategoryTranslationHandler> _logger;
 
-        public SetCategoryTranslationHandler(ProductDbContext context, ILogger<SetCategoryTranslationHandler> logger)
+        public SetCategoryTranslationHandler(IProductUnitOfWork uow, ILogger<SetCategoryTranslationHandler> logger)
         {
-            _context = context;
+            _uow = uow;
             _logger = logger;
         }
 
         public async Task<Unit> Handle(SetCategoryTranslationCommand request, CancellationToken cancellationToken)
         {
-            var category = await _context.Categories
-                .Include(c => c.Translations)
-                .FirstOrDefaultAsync(x => x.Id == request.CategoryId, cancellationToken);
+            var category = await _uow.Categories.GetByIdWithTranslationsAsync(request.CategoryId, cancellationToken);
 
             if (category == null)
                 throw new KeyNotFoundException($"Category with ID {request.CategoryId} not found");
@@ -52,7 +49,7 @@ namespace ERP.PRD.Application.Features.Categories.Commands
             category.SetTranslation(request.LanguageCode, request.Name);
             category.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Category translation set: {CategoryId}, Language: {LanguageCode}", category.Id, request.LanguageCode);
 

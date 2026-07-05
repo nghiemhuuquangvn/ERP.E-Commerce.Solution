@@ -25,16 +25,13 @@ public class TransactionRepository : ITransactionRepository
             .OrderByDescending(t => t.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
-    public async Task AddAsync(Transaction transaction, CancellationToken ct = default)
-    {
+    public async Task AddAsync(Transaction transaction, CancellationToken ct = default) =>
         await _db.Transactions.AddAsync(transaction, ct);
-        await _db.SaveChangesAsync(ct);
-    }
 
-    public async Task UpdateAsync(Transaction transaction, CancellationToken ct = default)
+    public Task UpdateAsync(Transaction transaction, CancellationToken ct = default)
     {
         _db.Transactions.Update(transaction);
-        await _db.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 }
 
@@ -59,16 +56,13 @@ public class CashShiftRepository : ICashShiftRepository
         return await query.AsNoTracking().ToListAsync(ct);
     }
 
-    public async Task AddAsync(CashShift shift, CancellationToken ct = default)
-    {
+    public async Task AddAsync(CashShift shift, CancellationToken ct = default) =>
         await _db.CashShifts.AddAsync(shift, ct);
-        await _db.SaveChangesAsync(ct);
-    }
 
-    public async Task UpdateAsync(CashShift shift, CancellationToken ct = default)
+    public Task UpdateAsync(CashShift shift, CancellationToken ct = default)
     {
         _db.CashShifts.Update(shift);
-        await _db.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 }
 
@@ -89,16 +83,13 @@ public class TerminalRepository : ITerminalRepository
         return await query.AsNoTracking().ToListAsync(ct);
     }
 
-    public async Task AddAsync(Terminal terminal, CancellationToken ct = default)
-    {
+    public async Task AddAsync(Terminal terminal, CancellationToken ct = default) =>
         await _db.Terminals.AddAsync(terminal, ct);
-        await _db.SaveChangesAsync(ct);
-    }
 
-    public async Task UpdateAsync(Terminal terminal, CancellationToken ct = default)
+    public Task UpdateAsync(Terminal terminal, CancellationToken ct = default)
     {
         _db.Terminals.Update(terminal);
-        await _db.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 }
 
@@ -120,7 +111,6 @@ public class PosProductCacheRepository : IPosProductCacheRepository
             existing.IsActive = product.IsActive;
             existing.SyncedAt = product.SyncedAt;
         }
-        await _db.SaveChangesAsync(ct);
     }
 
     public async Task UpdatePriceAsync(Guid productId, decimal newPrice, CancellationToken ct = default)
@@ -129,7 +119,6 @@ public class PosProductCacheRepository : IPosProductCacheRepository
         if (existing == null) return;
         existing.Price = newPrice;
         existing.SyncedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync(ct);
     }
 
     public async Task<PosProductCache?> GetBySkuAsync(string sku, CancellationToken ct = default) =>
@@ -157,7 +146,6 @@ public class PosPromotionCacheRepository : IPosPromotionCacheRepository
             existing.StartDate = promotion.StartDate;
             existing.EndDate = promotion.EndDate;
         }
-        await _db.SaveChangesAsync(ct);
     }
 
     public async Task<List<PosPromotionCache>> GetActiveAsync(CancellationToken ct = default) =>

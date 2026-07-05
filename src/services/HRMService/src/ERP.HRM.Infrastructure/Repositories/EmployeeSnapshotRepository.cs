@@ -70,7 +70,4 @@ public class EmployeeSnapshotRepository : IEmployeeSnapshotRepository
         else
             _context.EmployeeSnapshots.Add(snapshot);
     }
-
-    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        => _context.SaveChangesAsync(cancellationToken);
 }

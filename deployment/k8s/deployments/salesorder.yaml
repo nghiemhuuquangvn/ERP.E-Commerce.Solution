@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: salesorder-service
+  namespace: erp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: salesorder-service
+  template:
+    metadata:
+      labels:
+        app: salesorder-service
+    spec:
+      containers:
+      - name: salesorder-service
+        image: erp/salesorder-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5002
+        envFrom:
+        - configMapRef:
+            name: erp-config
+        env:
+        - name: ASPNETCORE_URLS
+          value: "http://+:5002"
+        - name: Cache__InstanceName
+          value: "so"
+        - name: ConnectionStrings__SalesDb
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: sql-sales-db
+        - name: RabbitMQ__Password
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: rabbitmq-password
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5002
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5002
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "400m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: salesorder-service
+  namespace: erp
+spec:
+  selector:
+    app: salesorder-service
+  ports:
+  - port: 5002
+    targetPort: 5002

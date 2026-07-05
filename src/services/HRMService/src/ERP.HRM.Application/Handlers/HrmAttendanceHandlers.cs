@@ -48,26 +48,20 @@ public class ListEmployeeSnapshotsQueryHandler : IRequestHandler<ListEmployeeSna
 
 public class CheckInCommandHandler : IRequestHandler<CheckInCommand, AttendanceDto>
 {
-    private readonly IAttendanceRepository _attendance;
-    private readonly IWorkShiftRepository _shifts;
-    private readonly IEmployeeSnapshotRepository _employees;
+    private readonly IHrmUnitOfWork _uow;
     private readonly ILogger<CheckInCommandHandler> _logger;
 
     public CheckInCommandHandler(
-        IAttendanceRepository attendance,
-        IWorkShiftRepository shifts,
-        IEmployeeSnapshotRepository employees,
+        IHrmUnitOfWork uow,
         ILogger<CheckInCommandHandler> logger)
     {
-        _attendance = attendance;
-        _shifts = shifts;
-        _employees = employees;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<AttendanceDto> Handle(CheckInCommand request, CancellationToken cancellationToken)
     {
-        var existing = await _attendance.GetByEmployeeAndDateAsync(
+        var existing = await _uow.Attendance.GetByEmployeeAndDateAsync(
             request.EmployeeId, request.CheckInTime.Date, cancellationToken);
         if (existing is not null)
             throw new InvalidOperationException(
@@ -76,7 +70,7 @@ public class CheckInCommandHandler : IRequestHandler<CheckInCommand, AttendanceD
         TimeSpan? shiftStart = null;
         if (request.WorkShiftId.HasValue)
         {
-            var shift = await _shifts.GetByIdAsync(request.WorkShiftId.Value, cancellationToken);
+            var shift = await _uow.WorkShifts.GetByIdAsync(request.WorkShiftId.Value, cancellationToken);
             shiftStart = shift?.StartTime;
         }
 
@@ -87,8 +81,8 @@ public class CheckInCommandHandler : IRequestHandler<CheckInCommand, AttendanceD
             shiftStart,
             request.Notes);
 
-        _attendance.Add(record);
-        await _attendance.SaveChangesAsync(cancellationToken);
+        _uow.Attendance.Add(record);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Employee {EmployeeId} checked in at {Time}", request.EmployeeId, request.CheckInTime);
         return MapToDto(record);
@@ -103,26 +97,26 @@ public class CheckInCommandHandler : IRequestHandler<CheckInCommand, AttendanceD
 
 public class CheckOutCommandHandler : IRequestHandler<CheckOutCommand, AttendanceDto>
 {
-    private readonly IAttendanceRepository _attendance;
+    private readonly IHrmUnitOfWork _uow;
     private readonly ILogger<CheckOutCommandHandler> _logger;
 
-    public CheckOutCommandHandler(IAttendanceRepository attendance, ILogger<CheckOutCommandHandler> logger)
+    public CheckOutCommandHandler(IHrmUnitOfWork uow, ILogger<CheckOutCommandHandler> logger)
     {
-        _attendance = attendance;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<AttendanceDto> Handle(CheckOutCommand request, CancellationToken cancellationToken)
     {
-        var record = await _attendance.GetByIdAsync(request.AttendanceRecordId, cancellationToken)
+        var record = await _uow.Attendance.GetByIdAsync(request.AttendanceRecordId, cancellationToken)
             ?? throw new KeyNotFoundException($"Attendance record {request.AttendanceRecordId} not found.");
 
         if (record.CheckOutTime.HasValue)
             throw new InvalidOperationException("Already checked out.");
 
         record.CheckOut(request.CheckOutTime, request.Notes);
-        _attendance.Update(record);
-        await _attendance.SaveChangesAsync(cancellationToken);
+        _uow.Attendance.Update(record);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
             "Employee {EmployeeId} checked out at {Time} — {Hours:F2}h worked ({OT:F2}h OT)",
@@ -134,30 +128,30 @@ public class CheckOutCommandHandler : IRequestHandler<CheckOutCommand, Attendanc
 
 public class MarkAbsentCommandHandler : IRequestHandler<MarkAbsentCommand, AttendanceDto>
 {
-    private readonly IAttendanceRepository _attendance;
+    private readonly IHrmUnitOfWork _uow;
     private readonly ILogger<MarkAbsentCommandHandler> _logger;
 
-    public MarkAbsentCommandHandler(IAttendanceRepository attendance, ILogger<MarkAbsentCommandHandler> logger)
+    public MarkAbsentCommandHandler(IHrmUnitOfWork uow, ILogger<MarkAbsentCommandHandler> logger)
     {
-        _attendance = attendance;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<AttendanceDto> Handle(MarkAbsentCommand request, CancellationToken cancellationToken)
     {
-        var existing = await _attendance.GetByEmployeeAndDateAsync(request.EmployeeId, request.Date, cancellationToken);
+        var existing = await _uow.Attendance.GetByEmployeeAndDateAsync(request.EmployeeId, request.Date, cancellationToken);
         if (existing is not null)
         {
             existing.MarkAbsent(request.Notes);
-            _attendance.Update(existing);
-            await _attendance.SaveChangesAsync(cancellationToken);
+            _uow.Attendance.Update(existing);
+            await _uow.SaveChangesAsync(cancellationToken);
             return CheckInCommandHandler.MapToDto(existing);
         }
 
         var record = AttendanceRecord.CheckIn(request.EmployeeId, request.Date, notes: request.Notes);
         record.MarkAbsent(request.Notes);
-        _attendance.Add(record);
-        await _attendance.SaveChangesAsync(cancellationToken);
+        _uow.Attendance.Add(record);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Employee {EmployeeId} marked absent for {Date:yyyy-MM-dd}", request.EmployeeId, request.Date);
         return CheckInCommandHandler.MapToDto(record);
@@ -237,12 +231,12 @@ public class GetAttendanceSummaryQueryHandler : IRequestHandler<GetAttendanceSum
 
 public class CreateWorkShiftCommandHandler : IRequestHandler<CreateWorkShiftCommand, WorkShiftDto>
 {
-    private readonly IWorkShiftRepository _shifts;
+    private readonly IHrmUnitOfWork _uow;
     private readonly ILogger<CreateWorkShiftCommandHandler> _logger;
 
-    public CreateWorkShiftCommandHandler(IWorkShiftRepository shifts, ILogger<CreateWorkShiftCommandHandler> logger)
+    public CreateWorkShiftCommandHandler(IHrmUnitOfWork uow, ILogger<CreateWorkShiftCommandHandler> logger)
     {
-        _shifts = shifts;
+        _uow = uow;
         _logger = logger;
     }
 
@@ -252,8 +246,8 @@ public class CreateWorkShiftCommandHandler : IRequestHandler<CreateWorkShiftComm
         var end = TimeSpan.Parse(request.EndTime);
 
         var shift = WorkShift.Create(request.Name, start, end);
-        _shifts.Add(shift);
-        await _shifts.SaveChangesAsync(cancellationToken);
+        _uow.WorkShifts.Add(shift);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Work shift '{Name}' created: {Id}", shift.Name, shift.Id);
         return MapToDto(shift);
@@ -266,18 +260,18 @@ public class CreateWorkShiftCommandHandler : IRequestHandler<CreateWorkShiftComm
 
 public class UpdateWorkShiftCommandHandler : IRequestHandler<UpdateWorkShiftCommand, WorkShiftDto>
 {
-    private readonly IWorkShiftRepository _shifts;
+    private readonly IHrmUnitOfWork _uow;
 
-    public UpdateWorkShiftCommandHandler(IWorkShiftRepository shifts) => _shifts = shifts;
+    public UpdateWorkShiftCommandHandler(IHrmUnitOfWork uow) => _uow = uow;
 
     public async Task<WorkShiftDto> Handle(UpdateWorkShiftCommand request, CancellationToken cancellationToken)
     {
-        var shift = await _shifts.GetByIdAsync(request.ShiftId, cancellationToken)
+        var shift = await _uow.WorkShifts.GetByIdAsync(request.ShiftId, cancellationToken)
             ?? throw new KeyNotFoundException($"Work shift {request.ShiftId} not found.");
 
         shift.Update(request.Name, TimeSpan.Parse(request.StartTime), TimeSpan.Parse(request.EndTime));
-        _shifts.Update(shift);
-        await _shifts.SaveChangesAsync(cancellationToken);
+        _uow.WorkShifts.Update(shift);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return CreateWorkShiftCommandHandler.MapToDto(shift);
     }
@@ -285,18 +279,18 @@ public class UpdateWorkShiftCommandHandler : IRequestHandler<UpdateWorkShiftComm
 
 public class DeactivateWorkShiftCommandHandler : IRequestHandler<DeactivateWorkShiftCommand, WorkShiftDto>
 {
-    private readonly IWorkShiftRepository _shifts;
+    private readonly IHrmUnitOfWork _uow;
 
-    public DeactivateWorkShiftCommandHandler(IWorkShiftRepository shifts) => _shifts = shifts;
+    public DeactivateWorkShiftCommandHandler(IHrmUnitOfWork uow) => _uow = uow;
 
     public async Task<WorkShiftDto> Handle(DeactivateWorkShiftCommand request, CancellationToken cancellationToken)
     {
-        var shift = await _shifts.GetByIdAsync(request.ShiftId, cancellationToken)
+        var shift = await _uow.WorkShifts.GetByIdAsync(request.ShiftId, cancellationToken)
             ?? throw new KeyNotFoundException($"Work shift {request.ShiftId} not found.");
 
         shift.Deactivate();
-        _shifts.Update(shift);
-        await _shifts.SaveChangesAsync(cancellationToken);
+        _uow.WorkShifts.Update(shift);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return CreateWorkShiftCommandHandler.MapToDto(shift);
     }

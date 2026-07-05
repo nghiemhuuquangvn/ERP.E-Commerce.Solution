@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Products.Queries
 {
@@ -12,11 +11,11 @@ namespace ERP.PRD.Application.Features.Products.Queries
 
     public class SearchProductsHandler : IRequestHandler<SearchProductsQuery, List<ProductDto>>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public SearchProductsHandler(ProductDbContext context)
+        public SearchProductsHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<List<ProductDto>> Handle(SearchProductsQuery request, CancellationToken cancellationToken)
@@ -24,16 +23,7 @@ namespace ERP.PRD.Application.Features.Products.Queries
             if (string.IsNullOrWhiteSpace(request.SearchTerm))
                 return new();
 
-            var searchLower = request.SearchTerm.ToLower();
-
-            var products = await _context.Products
-                .Include(p => p.Variants)
-                .Include(p => p.Translations)
-                .Where(x => !x.IsDeleted
-                    && (x.Name.ToLower().Contains(searchLower)
-                        || x.Sku.ToLower().Contains(searchLower)
-                        || (x.Description != null && x.Description.ToLower().Contains(searchLower))))
-                .ToListAsync(cancellationToken);
+            var products = await _uow.Products.SearchAsync(request.SearchTerm, cancellationToken);
 
             return products
                 .OrderByDescending(p => p.Name.StartsWith(request.SearchTerm, StringComparison.OrdinalIgnoreCase))

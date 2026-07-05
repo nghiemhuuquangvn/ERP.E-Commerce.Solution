@@ -25,13 +25,12 @@ namespace ERP.ACC.Infrastructure.Repositories
         public async Task AddAsync(TaxRate taxRate, CancellationToken ct = default)
         {
             await _db.TaxRates.AddAsync(taxRate, ct);
-            await _db.SaveChangesAsync(ct);
         }
 
-        public async Task UpdateAsync(TaxRate taxRate, CancellationToken ct = default)
+        public Task UpdateAsync(TaxRate taxRate, CancellationToken ct = default)
         {
             _db.TaxRates.Update(taxRate);
-            await _db.SaveChangesAsync(ct);
+            return Task.CompletedTask;
         }
     }
 }

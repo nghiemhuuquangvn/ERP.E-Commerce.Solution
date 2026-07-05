@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="../ERP.WH.Application/ERP.WH.Application.csproj" />
     <ProjectReference Include="../ERP.WH.Domain/ERP.WH.Domain.csproj" />
+    <ProjectReference Include="../../../../Shared/ERP.Shared.csproj" />
   </ItemGroup>
 
 </Project>

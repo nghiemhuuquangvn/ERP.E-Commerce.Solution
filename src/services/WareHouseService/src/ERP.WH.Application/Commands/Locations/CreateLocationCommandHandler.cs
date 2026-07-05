@@ -1,20 +1,21 @@
 using MediatR;
+using ERP.WH.Application.Interfaces;
 using ERP.WH.Domain.Aggregates.Inventory;
 
 namespace ERP.WH.Application.Commands.Locations;
 
 public class CreateLocationCommandHandler : IRequestHandler<CreateLocationCommand, LocationDto>
 {
-    private readonly ILocationRepository _locationRepository;
+    private readonly IWarehouseUnitOfWork _uow;
 
-    public CreateLocationCommandHandler(ILocationRepository locationRepository)
+    public CreateLocationCommandHandler(IWarehouseUnitOfWork uow)
     {
-        _locationRepository = locationRepository;
+        _uow = uow;
     }
 
     public async Task<LocationDto> Handle(CreateLocationCommand request, CancellationToken cancellationToken)
     {
-        var existing = await _locationRepository.GetByCodeAsync(request.LocationCode, cancellationToken);
+        var existing = await _uow.Locations.GetByCodeAsync(request.LocationCode, cancellationToken);
         if (existing != null)
             throw new InvalidOperationException($"Location code '{request.LocationCode}' already exists");
 
@@ -27,7 +28,8 @@ public class CreateLocationCommandHandler : IRequestHandler<CreateLocationComman
             request.Name,
             request.Zone);
 
-        await _locationRepository.AddAsync(location, cancellationToken);
+        await _uow.Locations.AddAsync(location, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return Map(location);
     }

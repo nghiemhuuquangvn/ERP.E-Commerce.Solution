@@ -7,6 +7,7 @@ using ERP.POS.Infrastructure.MessageBus;
 using ERP.POS.Infrastructure.Persistence;
 using ERP.POS.Infrastructure.Repositories;
 using ERP.Shared.Authorization;
+using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
 using ERP.Shared.Messaging;
 using MediatR;
@@ -27,6 +28,8 @@ builder.Services.AddScoped<ICashShiftRepository, CashShiftRepository>();
 builder.Services.AddScoped<ITerminalRepository, TerminalRepository>();
 builder.Services.AddScoped<IPosProductCacheRepository, PosProductCacheRepository>();
 builder.Services.AddScoped<IPosPromotionCacheRepository, PosPromotionCacheRepository>();
+builder.Services.AddScoped<IPosUnitOfWork, PosUnitOfWork>();
+builder.Services.AddCacheService(builder.Configuration, "pos");
 
 // Inbound consumer: product-topic + promotion-topic + payment-topic (Kafka) —
 // previously dead handler classes below (ProductPriceChangedForPosHandler and

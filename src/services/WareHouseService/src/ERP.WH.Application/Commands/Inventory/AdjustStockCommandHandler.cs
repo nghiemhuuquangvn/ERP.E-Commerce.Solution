@@ -1,4 +1,5 @@
 using MediatR;
+using ERP.WH.Application.Interfaces;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
 
@@ -11,17 +12,14 @@ namespace ERP.WH.Application.Commands.Inventory;
 /// </summary>
 public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, AdjustStockResponse>
 {
-    private readonly IInventoryRepository _inventoryRepository;
-    private readonly IStockMovementRepository _movementRepository;
+    private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventPublisher _eventPublisher;
 
     public AdjustStockCommandHandler(
-        IInventoryRepository inventoryRepository,
-        IStockMovementRepository movementRepository,
+        IWarehouseUnitOfWork uow,
         IEventPublisher eventPublisher)
     {
-        _inventoryRepository = inventoryRepository;
-        _movementRepository = movementRepository;
+        _uow = uow;
         _eventPublisher = eventPublisher;
     }
 
@@ -30,14 +28,14 @@ public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, Adj
         if (request.QuantityDelta == 0)
             throw new InvalidOperationException("Adjustment quantity delta must not be zero");
 
-        var inventory = await _inventoryRepository.GetByProductIdAsync(request.ProductId, cancellationToken);
+        var inventory = await _uow.Inventories.GetByProductIdAsync(request.ProductId, cancellationToken);
         if (inventory == null)
             throw new InvalidOperationException($"Product {request.ProductId} not found");
 
         var previousQuantity = inventory.TotalQuantity;
 
         inventory.AdjustStock(request.QuantityDelta);
-        await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
+        await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
 
         var movementType = request.Reason == AdjustmentReason.Damaged ? MovementType.Damaged : MovementType.Adjusted;
         var reasonText = string.IsNullOrWhiteSpace(request.Notes)
@@ -53,7 +51,8 @@ public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, Adj
             reference: null,
             reason: reasonText);
 
-        await _movementRepository.AddAsync(movement, cancellationToken);
+        await _uow.StockMovements.AddAsync(movement, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         await _eventPublisher.PublishAsync(new StockMovementRecordedEvent
         {

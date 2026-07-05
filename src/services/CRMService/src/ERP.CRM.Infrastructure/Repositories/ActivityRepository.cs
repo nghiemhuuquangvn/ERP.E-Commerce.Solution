@@ -17,13 +17,12 @@ public class ActivityRepository : IActivityRepository
     public async Task AddAsync(Activity activity, CancellationToken cancellationToken = default)
     {
         await _db.Activities.AddAsync(activity, cancellationToken);
-        await _db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task UpdateAsync(Activity activity, CancellationToken cancellationToken = default)
+    public Task UpdateAsync(Activity activity, CancellationToken cancellationToken = default)
     {
         _db.Activities.Update(activity);
-        await _db.SaveChangesAsync(cancellationToken);
+        return Task.CompletedTask;
     }
 
     public async Task<(IEnumerable<Activity> Items, int TotalCount)> GetPagedAsync(

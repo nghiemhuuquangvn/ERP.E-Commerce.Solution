@@ -1,8 +1,6 @@
-using ERP.PRD.Domain.Entities;
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using FluentValidation;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Pricing.Commands
 {
@@ -40,18 +38,18 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
 
     public class SetProductPriceHandler : IRequestHandler<SetProductPriceCommand>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
         private readonly ILogger<SetProductPriceHandler> _logger;
 
-        public SetProductPriceHandler(ProductDbContext context, ILogger<SetProductPriceHandler> logger)
+        public SetProductPriceHandler(IProductUnitOfWork uow, ILogger<SetProductPriceHandler> logger)
         {
-            _context = context;
+            _uow = uow;
             _logger = logger;
         }
 
         public async Task Handle(SetProductPriceCommand request, CancellationToken cancellationToken)
         {
-            var variant = await _context.ProductVariants.FindAsync(new object[] { request.VariantId }, cancellationToken: cancellationToken);
+            var variant = await _uow.Variants.GetByIdAsync(request.VariantId, cancellationToken);
             if (variant == null)
                 throw new KeyNotFoundException($"Variant with ID {request.VariantId} not found");
 
@@ -62,7 +60,7 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
             if (oldPrice != request.BasePrice)
                 variant.RecordPriceChange(oldPrice, request.BasePrice);
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Price set for variant {VariantId}: Base={BasePrice}, Discounted={DiscountedPrice}",
                 request.VariantId, request.BasePrice, request.DiscountedPrice ?? request.BasePrice);

@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Variants.Commands
 {
@@ -12,18 +11,16 @@ namespace ERP.PRD.Application.Features.Variants.Commands
 
     public class DeleteProductVariantHandler : IRequestHandler<DeleteProductVariantCommand, Unit>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public DeleteProductVariantHandler(ProductDbContext context)
+        public DeleteProductVariantHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<Unit> Handle(DeleteProductVariantCommand request, CancellationToken cancellationToken)
         {
-            var product = await _context.Products
-                .Include(p => p.Variants)
-                .FirstOrDefaultAsync(x => x.Id == request.ProductId && !x.IsDeleted, cancellationToken);
+            var product = await _uow.Products.GetByIdWithVariantsAsync(request.ProductId, cancellationToken);
 
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
@@ -35,7 +32,7 @@ namespace ERP.PRD.Application.Features.Variants.Commands
             // Remove variant
             product.RemoveVariant(request.VariantId);
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return Unit.Value;
         }

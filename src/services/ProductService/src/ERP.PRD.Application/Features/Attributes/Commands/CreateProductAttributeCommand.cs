@@ -1,8 +1,7 @@
+using ERP.PRD.Application.Interfaces;
 using ERP.PRD.Domain.Enums;
-using ERP.PRD.Infrastructure.Persistence;
 using MediatR;
 using FluentValidation;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Attributes.Commands
 {
@@ -58,27 +57,24 @@ namespace ERP.PRD.Application.Features.Attributes.Commands
 
     public class CreateProductAttributeHandler : IRequestHandler<CreateProductAttributeCommand, CreateProductAttributeResponse>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public CreateProductAttributeHandler(ProductDbContext context)
+        public CreateProductAttributeHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<CreateProductAttributeResponse> Handle(CreateProductAttributeCommand request, CancellationToken cancellationToken)
         {
             if (request.CategoryId.HasValue)
             {
-                var categoryExists = await _context.Categories
-                    .AnyAsync(c => c.Id == request.CategoryId && !c.IsDeleted, cancellationToken);
-
+                var categoryExists = await _uow.Categories.ExistsAsync(request.CategoryId.Value, cancellationToken);
                 if (!categoryExists)
                     throw new KeyNotFoundException($"Category with ID {request.CategoryId} not found");
             }
 
             var normalizedCode = request.Code.Trim().ToLowerInvariant();
-            var codeExists = await _context.ProductAttributes
-                .AnyAsync(a => a.Code == normalizedCode && !a.IsDeleted, cancellationToken);
+            var codeExists = await _uow.Attributes.CodeExistsAsync(normalizedCode, cancellationToken);
 
             if (codeExists)
                 throw new InvalidOperationException($"Attribute with code '{request.Code}' already exists");
@@ -101,8 +97,8 @@ namespace ERP.PRD.Application.Features.Attributes.Commands
                     attribute.AddOption(option);
             }
 
-            await _context.ProductAttributes.AddAsync(attribute, cancellationToken);
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.Attributes.AddAsync(attribute, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             return new CreateProductAttributeResponse
             {

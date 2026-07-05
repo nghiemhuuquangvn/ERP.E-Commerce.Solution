@@ -23,13 +23,12 @@ namespace ERP.ACC.Infrastructure.Repositories
         public async Task AddAsync(JournalEntry entry, CancellationToken ct = default)
         {
             await _db.JournalEntries.AddAsync(entry, ct);
-            await _db.SaveChangesAsync(ct);
         }
 
-        public async Task UpdateAsync(JournalEntry entry, CancellationToken ct = default)
+        public Task UpdateAsync(JournalEntry entry, CancellationToken ct = default)
         {
             _db.JournalEntries.Update(entry);
-            await _db.SaveChangesAsync(ct);
+            return Task.CompletedTask;
         }
     }
 }

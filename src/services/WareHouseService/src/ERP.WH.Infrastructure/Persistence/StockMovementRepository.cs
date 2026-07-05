@@ -21,7 +21,6 @@ public class StockMovementRepository : IStockMovementRepository
     public async Task AddAsync(StockMovement movement, CancellationToken cancellationToken)
     {
         await _context.StockMovements.AddAsync(movement, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<List<StockMovement>> GetByProductIdAsync(

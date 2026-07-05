@@ -57,9 +57,4 @@ public class LeaveRequestRepository : ILeaveRequestRepository
     {
         _context.LeaveRequests.Update(leaveRequest);
     }
-
-    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        return _context.SaveChangesAsync(cancellationToken);
-    }
 }

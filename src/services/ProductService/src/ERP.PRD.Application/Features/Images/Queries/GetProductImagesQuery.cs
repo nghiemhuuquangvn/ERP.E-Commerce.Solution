@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Images.Queries
 {
@@ -21,38 +20,35 @@ namespace ERP.PRD.Application.Features.Images.Queries
 
     public class GetProductImagesHandler : IRequestHandler<GetProductImagesQuery, List<ProductImageDto>>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
         private readonly ILogger<GetProductImagesHandler> _logger;
 
-        public GetProductImagesHandler(ProductDbContext context, ILogger<GetProductImagesHandler> logger)
+        public GetProductImagesHandler(IProductUnitOfWork uow, ILogger<GetProductImagesHandler> logger)
         {
-            _context = context;
+            _uow = uow;
             _logger = logger;
         }
 
         public async Task<List<ProductImageDto>> Handle(GetProductImagesQuery request, CancellationToken cancellationToken)
         {
-            var product = await _context.Products.FindAsync(new object[] { request.ProductId }, cancellationToken: cancellationToken);
-            if (product == null)
+            var productExists = await _uow.Products.ExistsAsync(request.ProductId, cancellationToken);
+            if (!productExists)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
 
-            var images = await _context.ProductImages
-                .Where(i => i.ProductId == request.ProductId)
-                .OrderBy(i => i.IsPrimary ? 0 : 1) // Primary first, then by sort order
-                .ThenBy(i => i.SortOrder)
-                .Select(i => new ProductImageDto
-                {
-                    Id = i.Id,
-                    ImageUrl = i.ImageUrl,
-                    AltText = i.AltText,
-                    SortOrder = i.SortOrder,
-                    IsPrimary = i.IsPrimary,
-                    CreatedAt = i.CreatedAt
-                })
-                .ToListAsync(cancellationToken);
+            var images = await _uow.Images.GetByProductIdAsync(request.ProductId, cancellationToken);
 
-            _logger.LogInformation("Retrieved {Count} images for product {ProductId}", images.Count, request.ProductId);
-            return images;
+            var dtos = images.Select(i => new ProductImageDto
+            {
+                Id = i.Id,
+                ImageUrl = i.ImageUrl,
+                AltText = i.AltText,
+                SortOrder = i.SortOrder,
+                IsPrimary = i.IsPrimary,
+                CreatedAt = i.CreatedAt
+            }).ToList();
+
+            _logger.LogInformation("Retrieved {Count} images for product {ProductId}", dtos.Count, request.ProductId);
+            return dtos;
         }
     }
 }

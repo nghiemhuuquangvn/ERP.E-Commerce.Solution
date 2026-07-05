@@ -1,5 +1,5 @@
+using ERP.PRD.Application.Interfaces;
 using ERP.PRD.Domain.Entities;
-using ERP.PRD.Infrastructure.Persistence;
 using FluentValidation;
 using MediatR;
 
@@ -41,18 +41,18 @@ namespace ERP.PRD.Application.Features.Images.Commands
 
     public class UploadProductImageHandler : IRequestHandler<UploadProductImageCommand, UploadProductImageResponse>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
         private readonly ILogger<UploadProductImageHandler> _logger;
 
-        public UploadProductImageHandler(ProductDbContext context, ILogger<UploadProductImageHandler> logger)
+        public UploadProductImageHandler(IProductUnitOfWork uow, ILogger<UploadProductImageHandler> logger)
         {
-            _context = context;
+            _uow = uow;
             _logger = logger;
         }
 
         public async Task<UploadProductImageResponse> Handle(UploadProductImageCommand request, CancellationToken cancellationToken)
         {
-            var product = await _context.Products.FindAsync(new object[] { request.ProductId }, cancellationToken: cancellationToken);
+            var product = await _uow.Products.GetByIdWithImagesAsync(request.ProductId, cancellationToken);
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
 
@@ -77,7 +77,7 @@ namespace ERP.PRD.Application.Features.Images.Commands
             );
 
             product.AddImage(image);
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Image uploaded for product {ProductId}: {ImageUrl}, IsPrimary: {IsPrimary}",
                 request.ProductId, request.ImageUrl, isPrimary);

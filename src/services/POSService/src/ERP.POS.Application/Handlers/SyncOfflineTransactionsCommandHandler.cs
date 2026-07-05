@@ -13,13 +13,11 @@ namespace ERP.POS.Application.Handlers;
 /// </summary>
 public class SyncOfflineTransactionsCommandHandler : IRequestHandler<SyncOfflineTransactionsCommand, List<OfflineSyncResultDto>>
 {
-    private readonly ITransactionRepository _transactions;
-    private readonly ICashShiftRepository _shifts;
+    private readonly IPosUnitOfWork _uow;
 
-    public SyncOfflineTransactionsCommandHandler(ITransactionRepository transactions, ICashShiftRepository shifts)
+    public SyncOfflineTransactionsCommandHandler(IPosUnitOfWork uow)
     {
-        _transactions = transactions;
-        _shifts = shifts;
+        _uow = uow;
     }
 
     public async Task<List<OfflineSyncResultDto>> Handle(SyncOfflineTransactionsCommand request, CancellationToken cancellationToken)
@@ -30,7 +28,7 @@ public class SyncOfflineTransactionsCommandHandler : IRequestHandler<SyncOffline
         {
             try
             {
-                var existing = await _transactions.GetByIdAsync(req.ClientTransactionId, cancellationToken);
+                var existing = await _uow.Transactions.GetByIdAsync(req.ClientTransactionId, cancellationToken);
                 if (existing != null)
                 {
                     results.Add(new OfflineSyncResultDto
@@ -53,17 +51,19 @@ public class SyncOfflineTransactionsCommandHandler : IRequestHandler<SyncOffline
                 var tenders = req.Tenders.Select(t => (t.PaymentMethod, t.Amount)).ToList();
                 transaction.CompleteWithTenders(tenders);
 
-                await _transactions.AddAsync(transaction, cancellationToken);
+                await _uow.Transactions.AddAsync(transaction, cancellationToken);
 
                 if (transaction.CashShiftId.HasValue)
                 {
-                    var shift = await _shifts.GetByIdAsync(transaction.CashShiftId.Value, cancellationToken);
+                    var shift = await _uow.CashShifts.GetByIdAsync(transaction.CashShiftId.Value, cancellationToken);
                     if (shift != null)
                     {
                         shift.RecordTransaction(transaction.TotalAmount);
-                        await _shifts.UpdateAsync(shift, cancellationToken);
+                        await _uow.CashShifts.UpdateAsync(shift, cancellationToken);
                     }
                 }
+
+                await _uow.SaveChangesAsync(cancellationToken);
 
                 results.Add(new OfflineSyncResultDto
                 {

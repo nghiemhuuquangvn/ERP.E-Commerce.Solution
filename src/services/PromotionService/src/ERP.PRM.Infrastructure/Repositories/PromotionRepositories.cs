@@ -23,16 +23,13 @@ public class PromotionRepository : IPromotionRepository
     public async Task<List<Promotion>> GetAllAsync(CancellationToken ct = default) =>
         await _db.Promotions.AsNoTracking().ToListAsync(ct);
 
-    public async Task AddAsync(Promotion promotion, CancellationToken ct = default)
-    {
+    public async Task AddAsync(Promotion promotion, CancellationToken ct = default) =>
         await _db.Promotions.AddAsync(promotion, ct);
-        await _db.SaveChangesAsync(ct);
-    }
 
-    public async Task UpdateAsync(Promotion promotion, CancellationToken ct = default)
+    public Task UpdateAsync(Promotion promotion, CancellationToken ct = default)
     {
         _db.Promotions.Update(promotion);
-        await _db.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 }
 
@@ -46,10 +43,10 @@ public class CouponRepository : ICouponRepository
             .SelectMany(p => p.Coupons)
             .FirstOrDefaultAsync(c => c.Code == code, ct);
 
-    public async Task UpdateAsync(Coupon coupon, CancellationToken ct = default)
+    public Task UpdateAsync(Coupon coupon, CancellationToken ct = default)
     {
         _db.Entry(coupon).State = EntityState.Modified;
-        await _db.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 }
 
@@ -63,16 +60,13 @@ public class LoyaltyAccountRepository : ILoyaltyAccountRepository
             .Include(a => a.Transactions)
             .FirstOrDefaultAsync(a => a.UserId == userId, ct);
 
-    public async Task AddAsync(LoyaltyAccount account, CancellationToken ct = default)
-    {
+    public async Task AddAsync(LoyaltyAccount account, CancellationToken ct = default) =>
         await _db.LoyaltyAccounts.AddAsync(account, ct);
-        await _db.SaveChangesAsync(ct);
-    }
 
-    public async Task UpdateAsync(LoyaltyAccount account, CancellationToken ct = default)
+    public Task UpdateAsync(LoyaltyAccount account, CancellationToken ct = default)
     {
         _db.LoyaltyAccounts.Update(account);
-        await _db.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 }
 
@@ -98,7 +92,6 @@ public class PromotionProductCacheRepository : IPromotionProductCacheRepository
             existing.Price = price;
             existing.SyncedAt = DateTime.UtcNow;
         }
-        await _db.SaveChangesAsync(ct);
     }
 
     public async Task<string?> GetCategoryAsync(Guid productId, CancellationToken ct = default)
@@ -125,15 +118,12 @@ public class FlashSaleRepository : IFlashSaleRepository
     public async Task<List<FlashSale>> GetAllAsync(CancellationToken ct = default) =>
         await _db.FlashSales.Include(fs => fs.Items).AsNoTracking().ToListAsync(ct);
 
-    public async Task AddAsync(FlashSale flashSale, CancellationToken ct = default)
-    {
+    public async Task AddAsync(FlashSale flashSale, CancellationToken ct = default) =>
         await _db.FlashSales.AddAsync(flashSale, ct);
-        await _db.SaveChangesAsync(ct);
-    }
 
-    public async Task UpdateAsync(FlashSale flashSale, CancellationToken ct = default)
+    public Task UpdateAsync(FlashSale flashSale, CancellationToken ct = default)
     {
         _db.FlashSales.Update(flashSale);
-        await _db.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 }

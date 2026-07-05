@@ -11,14 +11,14 @@ namespace ERP.HRM.Application.Handlers;
 
 public class UpsertEmployeeSnapshotCommandHandler : IRequestHandler<UpsertEmployeeSnapshotCommand, Unit>
 {
-    private readonly IEmployeeSnapshotRepository _repository;
+    private readonly IHrmUnitOfWork _uow;
     private readonly ILogger<UpsertEmployeeSnapshotCommandHandler> _logger;
 
     public UpsertEmployeeSnapshotCommandHandler(
-        IEmployeeSnapshotRepository repository,
+        IHrmUnitOfWork uow,
         ILogger<UpsertEmployeeSnapshotCommandHandler> logger)
     {
-        _repository = repository;
+        _uow = uow;
         _logger = logger;
     }
 
@@ -27,8 +27,8 @@ public class UpsertEmployeeSnapshotCommandHandler : IRequestHandler<UpsertEmploy
         var snapshot = EmployeeSnapshot.Create(
             request.EmployeeId, request.FullName, request.EmploymentStatus, request.DepartmentId,
             request.EmployeeNumber, request.Email);
-        _repository.Upsert(snapshot);
-        await _repository.SaveChangesAsync(cancellationToken);
+        _uow.EmployeeSnapshots.Upsert(snapshot);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Employee snapshot upserted: {EmployeeId}", request.EmployeeId);
         return Unit.Value;
@@ -37,20 +37,20 @@ public class UpsertEmployeeSnapshotCommandHandler : IRequestHandler<UpsertEmploy
 
 public class MarkEmployeeSnapshotTerminatedCommandHandler : IRequestHandler<MarkEmployeeSnapshotTerminatedCommand, Unit>
 {
-    private readonly IEmployeeSnapshotRepository _repository;
+    private readonly IHrmUnitOfWork _uow;
     private readonly ILogger<MarkEmployeeSnapshotTerminatedCommandHandler> _logger;
 
     public MarkEmployeeSnapshotTerminatedCommandHandler(
-        IEmployeeSnapshotRepository repository,
+        IHrmUnitOfWork uow,
         ILogger<MarkEmployeeSnapshotTerminatedCommandHandler> logger)
     {
-        _repository = repository;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<Unit> Handle(MarkEmployeeSnapshotTerminatedCommand request, CancellationToken cancellationToken)
     {
-        var snapshot = await _repository.GetByIdAsync(request.EmployeeId, cancellationToken);
+        var snapshot = await _uow.EmployeeSnapshots.GetByIdAsync(request.EmployeeId, cancellationToken);
         if (snapshot == null)
         {
             _logger.LogWarning(
@@ -61,8 +61,8 @@ public class MarkEmployeeSnapshotTerminatedCommandHandler : IRequestHandler<Mark
 
         snapshot.EmploymentStatus = (int)Domain.Enums.EmploymentStatus.Terminated;
         snapshot.UpdatedAt = DateTime.UtcNow;
-        _repository.Upsert(snapshot);
-        await _repository.SaveChangesAsync(cancellationToken);
+        _uow.EmployeeSnapshots.Upsert(snapshot);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Employee snapshot marked terminated: {EmployeeId}", request.EmployeeId);
         return Unit.Value;
@@ -71,20 +71,20 @@ public class MarkEmployeeSnapshotTerminatedCommandHandler : IRequestHandler<Mark
 
 public class UpdateEmployeeSnapshotDepartmentCommandHandler : IRequestHandler<UpdateEmployeeSnapshotDepartmentCommand, Unit>
 {
-    private readonly IEmployeeSnapshotRepository _repository;
+    private readonly IHrmUnitOfWork _uow;
     private readonly ILogger<UpdateEmployeeSnapshotDepartmentCommandHandler> _logger;
 
     public UpdateEmployeeSnapshotDepartmentCommandHandler(
-        IEmployeeSnapshotRepository repository,
+        IHrmUnitOfWork uow,
         ILogger<UpdateEmployeeSnapshotDepartmentCommandHandler> logger)
     {
-        _repository = repository;
+        _uow = uow;
         _logger = logger;
     }
 
     public async Task<Unit> Handle(UpdateEmployeeSnapshotDepartmentCommand request, CancellationToken cancellationToken)
     {
-        var snapshot = await _repository.GetByIdAsync(request.EmployeeId, cancellationToken);
+        var snapshot = await _uow.EmployeeSnapshots.GetByIdAsync(request.EmployeeId, cancellationToken);
         if (snapshot == null)
         {
             _logger.LogWarning(
@@ -95,8 +95,8 @@ public class UpdateEmployeeSnapshotDepartmentCommandHandler : IRequestHandler<Up
 
         snapshot.DepartmentId = request.NewDepartmentId;
         snapshot.UpdatedAt = DateTime.UtcNow;
-        _repository.Upsert(snapshot);
-        await _repository.SaveChangesAsync(cancellationToken);
+        _uow.EmployeeSnapshots.Upsert(snapshot);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Employee snapshot department updated: {EmployeeId}", request.EmployeeId);
         return Unit.Value;

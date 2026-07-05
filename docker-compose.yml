@@ -67,6 +67,24 @@ services:
       timeout: 10s
       retries: 5
 
+  redis:
+    image: redis:7.4-alpine
+    container_name: erp-redis
+    hostname: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save 60 1
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - erp-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
     container_name: erp-elasticsearch
@@ -143,8 +161,17 @@ services:
       ASPNETCORE_URLS: "http://+:5001"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__AuthDB: "Server=host.docker.internal,1433;Database=AuthDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "identity"
+      KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - erp-network
@@ -164,6 +191,9 @@ services:
       ASPNETCORE_URLS: "http://+:5002"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__SalesDb: "Server=host.docker.internal,1433;Database=SalesDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "so"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -173,6 +203,8 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -193,6 +225,9 @@ services:
       ASPNETCORE_URLS: "http://+:5003"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__PurchasingDb: "Server=host.docker.internal,1433;Database=PurchasingDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "po"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -202,6 +237,8 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -222,6 +259,9 @@ services:
       ASPNETCORE_URLS: "http://+:5004"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__WarehouseDB: "Server=host.docker.internal,1433;Database=WarehouseDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "wh"
       RabbitMQSettings__HostName: rabbitmq
       RabbitMQSettings__Port: "5672"
       RabbitMQSettings__UserName: admin
@@ -231,6 +271,8 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -251,9 +293,21 @@ services:
       ASPNETCORE_URLS: "http://+:5005"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__AccountingDB: "Server=host.docker.internal,1433;Database=AccountingDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "acc"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: Admin123
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - erp-network
@@ -273,9 +327,21 @@ services:
       ASPNETCORE_URLS: "http://+:5006"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__CrmDB: "Server=host.docker.internal,1433;Database=CrmDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "crm"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: Admin123
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - erp-network
@@ -295,9 +361,17 @@ services:
       ASPNETCORE_URLS: "http://+:5007"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__HrmDB: "Server=host.docker.internal,1433;Database=HrmDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "hrm"
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - erp-network
@@ -317,11 +391,16 @@ services:
       ASPNETCORE_URLS: "http://+:5015"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__MasterDataDb: "Server=host.docker.internal,1433;Database=MasterDataDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "mst"
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       kafka:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -342,12 +421,17 @@ services:
       ASPNETCORE_URLS: "http://+:5008"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__ProductDB: "Server=host.docker.internal,1433;Database=ProductDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "prd"
       KafkaSettings__BootstrapServers: kafka:9092
       Elasticsearch__Uri: http://elasticsearch:9200
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       elasticsearch:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -368,9 +452,21 @@ services:
       ASPNETCORE_URLS: "http://+:5009"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__PaymentDb: "Server=host.docker.internal,1433;Database=PaymentDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "pay"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: Admin123
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - erp-network
@@ -390,9 +486,21 @@ services:
       ASPNETCORE_URLS: "http://+:5010"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__ShippingDb: "Server=host.docker.internal,1433;Database=ShippingDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "shp"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: Admin123
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - erp-network
@@ -412,9 +520,21 @@ services:
       ASPNETCORE_URLS: "http://+:5011"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__PosDb: "Server=host.docker.internal,1433;Database=PosDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "pos"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: Admin123
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - erp-network
@@ -434,9 +554,21 @@ services:
       ASPNETCORE_URLS: "http://+:5012"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__PromotionDb: "Server=host.docker.internal,1433;Database=PromotionDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "prm"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: Admin123
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - erp-network
@@ -456,9 +588,23 @@ services:
       ASPNETCORE_URLS: "http://+:5013"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__NotificationDb: "Server=host.docker.internal,1433;Database=NotificationDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "ntf"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: Admin123
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - erp-network
@@ -478,11 +624,22 @@ services:
       ASPNETCORE_URLS: "http://+:5014"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__ReportingDb: "Server=host.docker.internal,1433;Database=ReportingDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "rpt"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: admin
+      RabbitMQ__Password: Admin123
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       kafka:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -543,6 +700,8 @@ volumes:
   kafka_data:
     driver: local
   elasticsearch_data:
+    driver: local
+  redis_data:
     driver: local
 
 networks:

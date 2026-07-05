@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Categories.Queries
 {
@@ -22,30 +21,18 @@ namespace ERP.PRD.Application.Features.Categories.Queries
 
     public class GetCategoriesHandler : IRequestHandler<GetCategoriesQuery, List<CategoryDto>>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
         private readonly ILogger<GetCategoriesHandler> _logger;
 
-        public GetCategoriesHandler(ProductDbContext context, ILogger<GetCategoriesHandler> logger)
+        public GetCategoriesHandler(IProductUnitOfWork uow, ILogger<GetCategoriesHandler> logger)
         {
-            _context = context;
+            _uow = uow;
             _logger = logger;
         }
 
         public async Task<List<CategoryDto>> Handle(GetCategoriesQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.Categories
-                .Include(c => c.Translations)
-                .AsQueryable();
-
-            if (request.ParentCategoryId.HasValue)
-                query = query.Where(c => c.ParentCategoryId == request.ParentCategoryId);
-            else
-                query = query.Where(c => c.ParentCategoryId == null);
-
-            var categories = await query
-                .OrderBy(c => c.SortOrder)
-                .ThenBy(c => c.Name)
-                .ToListAsync(cancellationToken);
+            var categories = await _uow.Categories.GetByParentIdAsync(request.ParentCategoryId, cancellationToken);
 
             var dtos = categories.Select(c =>
             {

@@ -25,13 +25,12 @@ namespace ERP.ACC.Infrastructure.Repositories
         public async Task AddAsync(BankAccount bankAccount, CancellationToken ct = default)
         {
             await _db.BankAccounts.AddAsync(bankAccount, ct);
-            await _db.SaveChangesAsync(ct);
         }
 
-        public async Task UpdateAsync(BankAccount bankAccount, CancellationToken ct = default)
+        public Task UpdateAsync(BankAccount bankAccount, CancellationToken ct = default)
         {
             _db.BankAccounts.Update(bankAccount);
-            await _db.SaveChangesAsync(ct);
+            return Task.CompletedTask;
         }
     }
 }

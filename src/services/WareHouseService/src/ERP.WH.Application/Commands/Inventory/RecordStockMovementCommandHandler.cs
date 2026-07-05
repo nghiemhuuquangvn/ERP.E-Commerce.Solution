@@ -1,4 +1,5 @@
 using MediatR;
+using ERP.WH.Application.Interfaces;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
 
@@ -6,26 +7,20 @@ namespace ERP.WH.Application.Commands.Inventory;
 
 public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMovementCommand, RecordStockMovementResponse>
 {
-    private readonly IInventoryRepository _inventoryRepository;
-    private readonly IStockMovementRepository _movementRepository;
-    private readonly IInventoryLotRepository _lotRepository;
+    private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventPublisher _eventPublisher;
 
     public RecordStockMovementCommandHandler(
-        IInventoryRepository inventoryRepository,
-        IStockMovementRepository movementRepository,
-        IInventoryLotRepository lotRepository,
+        IWarehouseUnitOfWork uow,
         IEventPublisher eventPublisher)
     {
-        _inventoryRepository = inventoryRepository;
-        _movementRepository = movementRepository;
-        _lotRepository = lotRepository;
+        _uow = uow;
         _eventPublisher = eventPublisher;
     }
 
     public async Task<RecordStockMovementResponse> Handle(RecordStockMovementCommand request, CancellationToken cancellationToken)
     {
-        var inventory = await _inventoryRepository.GetByProductIdAsync(request.ProductId, cancellationToken);
+        var inventory = await _uow.Inventories.GetByProductIdAsync(request.ProductId, cancellationToken);
         if (inventory == null)
             throw new InvalidOperationException($"Product {request.ProductId} not found");
 
@@ -53,7 +48,7 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
                 throw new InvalidOperationException($"Unknown movement type: {request.MovementType}");
         }
 
-        await _inventoryRepository.UpdateAsync(inventory, cancellationToken);
+        await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
 
         var movement = new StockMovement(
             request.ProductId,
@@ -65,7 +60,8 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
             request.Reason,
             request.SourceOrderId);
 
-        await _movementRepository.AddAsync(movement, cancellationToken);
+        await _uow.StockMovements.AddAsync(movement, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         var @event = new StockMovementRecordedEvent
         {
@@ -127,7 +123,7 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
     /// </summary>
     private async Task DepleteLotsAsync(Domain.Aggregates.Inventory.Inventory inventory, int quantitySold, CancellationToken cancellationToken)
     {
-        var lots = await _lotRepository.GetByProductIdAsync(inventory.ProductId, includeDepleted: false, cancellationToken);
+        var lots = await _uow.InventoryLots.GetByProductIdAsync(inventory.ProductId, includeDepleted: false, cancellationToken);
 
         var ordered = inventory.ValuationMethod == ValuationMethod.LIFO
             ? lots.OrderByDescending(l => l.ReceivedDate).ToList()
@@ -144,7 +140,7 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
                 continue;
 
             lot.Deplete(depleteFromLot);
-            await _lotRepository.UpdateAsync(lot, cancellationToken);
+            await _uow.InventoryLots.UpdateAsync(lot, cancellationToken);
             remainingToDeplete -= depleteFromLot;
         }
     }

@@ -1,6 +1,5 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Pricing.Queries
 {
@@ -19,35 +18,34 @@ namespace ERP.PRD.Application.Features.Pricing.Queries
 
     public class GetProductPricesHandler : IRequestHandler<GetProductPricesQuery, List<VariantPriceDto>>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
         private readonly ILogger<GetProductPricesHandler> _logger;
 
-        public GetProductPricesHandler(ProductDbContext context, ILogger<GetProductPricesHandler> logger)
+        public GetProductPricesHandler(IProductUnitOfWork uow, ILogger<GetProductPricesHandler> logger)
         {
-            _context = context;
+            _uow = uow;
             _logger = logger;
         }
 
         public async Task<List<VariantPriceDto>> Handle(GetProductPricesQuery request, CancellationToken cancellationToken)
         {
-            var product = await _context.Products.FindAsync(new object[] { request.ProductId }, cancellationToken: cancellationToken);
-            if (product == null)
+            var productExists = await _uow.Products.ExistsAsync(request.ProductId, cancellationToken);
+            if (!productExists)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
 
-            var prices = await _context.ProductVariants
-                .Where(v => v.ProductId == request.ProductId)
-                .OrderBy(v => v.Sku)
-                .Select(v => new VariantPriceDto
-                {
-                    VariantId = v.Id,
-                    Sku = v.Sku,
-                    Cost = v.Cost,
-                    UpdatedAt = v.UpdatedAt
-                })
-                .ToListAsync(cancellationToken);
+            var prices = await _uow.Variants.GetPricesByProductIdAsync(request.ProductId, cancellationToken);
 
-            _logger.LogInformation("Retrieved prices for product {ProductId}: {Count} variants", request.ProductId, prices.Count);
-            return prices;
+            var dtos = prices.Select(v => new VariantPriceDto
+            {
+                VariantId = v.VariantId,
+                Sku = v.Sku,
+                Cost = v.Cost,
+                UpdatedAt = v.UpdatedAt
+            }).ToList();
+
+            _logger.LogInformation("Retrieved prices for product {ProductId}: {Count} variants",
+                request.ProductId, dtos.Count);
+            return dtos;
         }
     }
 }

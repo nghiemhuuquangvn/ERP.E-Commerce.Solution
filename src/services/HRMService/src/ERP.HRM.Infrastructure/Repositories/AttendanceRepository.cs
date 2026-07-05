@@ -67,7 +67,4 @@ public class AttendanceRepository : IAttendanceRepository
     public void Add(AttendanceRecord record) => _db.AttendanceRecords.Add(record);
 
     public void Update(AttendanceRecord record) => _db.AttendanceRecords.Update(record);
-
-    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        => _db.SaveChangesAsync(cancellationToken);
 }

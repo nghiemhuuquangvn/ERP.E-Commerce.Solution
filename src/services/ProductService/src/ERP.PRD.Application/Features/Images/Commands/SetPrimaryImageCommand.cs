@@ -1,7 +1,6 @@
-using ERP.PRD.Infrastructure.Persistence;
+using ERP.PRD.Application.Interfaces;
 using FluentValidation;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Images.Commands
 {
@@ -25,20 +24,18 @@ namespace ERP.PRD.Application.Features.Images.Commands
 
     public class SetPrimaryImageHandler : IRequestHandler<SetPrimaryImageCommand>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
         private readonly ILogger<SetPrimaryImageHandler> _logger;
 
-        public SetPrimaryImageHandler(ProductDbContext context, ILogger<SetPrimaryImageHandler> logger)
+        public SetPrimaryImageHandler(IProductUnitOfWork uow, ILogger<SetPrimaryImageHandler> logger)
         {
-            _context = context;
+            _uow = uow;
             _logger = logger;
         }
 
         public async Task Handle(SetPrimaryImageCommand request, CancellationToken cancellationToken)
         {
-            var product = await _context.Products
-                .Include(p => p.Images)
-                .FirstOrDefaultAsync(p => p.Id == request.ProductId, cancellationToken: cancellationToken);
+            var product = await _uow.Products.GetByIdWithImagesAsync(request.ProductId, cancellationToken);
 
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
@@ -56,7 +53,7 @@ namespace ERP.PRD.Application.Features.Images.Commands
             // Set new primary image
             image.SetAsPrimary();
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Primary image set for product {ProductId}: {ImageId}", request.ProductId, request.ImageId);
         }

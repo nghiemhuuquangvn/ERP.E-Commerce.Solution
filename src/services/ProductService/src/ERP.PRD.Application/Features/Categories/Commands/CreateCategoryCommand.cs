@@ -1,5 +1,5 @@
+using ERP.PRD.Application.Interfaces;
 using ERP.PRD.Domain.Entities;
-using ERP.PRD.Infrastructure.Persistence;
 using FluentValidation;
 using MediatR;
 
@@ -32,12 +32,12 @@ namespace ERP.PRD.Application.Features.Categories.Commands
 
     public class CreateCategoryHandler : IRequestHandler<CreateCategoryCommand, CreateCategoryResponse>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
         private readonly ILogger<CreateCategoryHandler> _logger;
 
-        public CreateCategoryHandler(ProductDbContext context, ILogger<CreateCategoryHandler> logger)
+        public CreateCategoryHandler(IProductUnitOfWork uow, ILogger<CreateCategoryHandler> logger)
         {
-            _context = context;
+            _uow = uow;
             _logger = logger;
         }
 
@@ -45,15 +45,15 @@ namespace ERP.PRD.Application.Features.Categories.Commands
         {
             if (request.ParentCategoryId.HasValue)
             {
-                var parentExists = await _context.Categories.FindAsync(new object[] { request.ParentCategoryId }, cancellationToken: cancellationToken);
-                if (parentExists == null)
+                var parentExists = await _uow.Categories.ExistsAsync(request.ParentCategoryId.Value, cancellationToken);
+                if (!parentExists)
                     throw new KeyNotFoundException($"Parent category with ID {request.ParentCategoryId} not found");
             }
 
             var category = Category.Create(request.Name, request.ParentCategoryId);
 
-            _context.Categories.Add(category);
-            await _context.SaveChangesAsync(cancellationToken);
+            await _uow.Categories.AddAsync(category, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Category created: {CategoryId}, Name: {Name}", category.Id, category.Name);
 

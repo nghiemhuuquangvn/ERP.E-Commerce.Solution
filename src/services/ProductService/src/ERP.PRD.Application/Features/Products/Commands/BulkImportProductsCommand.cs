@@ -1,11 +1,10 @@
 using System.Globalization;
 using CsvHelper;
 using CsvHelper.Configuration;
+using ERP.PRD.Application.Interfaces;
 using ERP.PRD.Domain.Entities;
 using ERP.PRD.Domain.Enums;
-using ERP.PRD.Infrastructure.Persistence;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PRD.Application.Features.Products.Commands
 {
@@ -47,11 +46,11 @@ namespace ERP.PRD.Application.Features.Products.Commands
 
     public class BulkImportProductsHandler : IRequestHandler<BulkImportProductsCommand, BulkImportResult>
     {
-        private readonly ProductDbContext _context;
+        private readonly IProductUnitOfWork _uow;
 
-        public BulkImportProductsHandler(ProductDbContext context)
+        public BulkImportProductsHandler(IProductUnitOfWork uow)
         {
-            _context = context;
+            _uow = uow;
         }
 
         public async Task<BulkImportResult> Handle(BulkImportProductsCommand request, CancellationToken cancellationToken)
@@ -77,7 +76,7 @@ namespace ERP.PRD.Application.Features.Products.Commands
                     if (string.IsNullOrWhiteSpace(row.Sku) || string.IsNullOrWhiteSpace(row.Name))
                         throw new InvalidOperationException("Sku and Name are required");
 
-                    var skuTaken = await _context.Products.AnyAsync(p => p.Sku == row.Sku && !p.IsDeleted, cancellationToken);
+                    var skuTaken = await _uow.Products.SkuExistsAsync(row.Sku, cancellationToken);
                     if (skuTaken)
                         throw new InvalidOperationException($"Sku '{row.Sku}' already exists");
 
@@ -88,7 +87,7 @@ namespace ERP.PRD.Application.Features.Products.Commands
                     if (!string.IsNullOrWhiteSpace(row.Description))
                         product.UpdateDescription(row.Description);
 
-                    await _context.Products.AddAsync(product, cancellationToken);
+                    await _uow.Products.AddAsync(product, cancellationToken);
                     result.SuccessCount++;
                 }
                 catch (Exception ex)
@@ -98,7 +97,7 @@ namespace ERP.PRD.Application.Features.Products.Commands
             }
 
             if (result.SuccessCount > 0)
-                await _context.SaveChangesAsync(cancellationToken);
+                await _uow.SaveChangesAsync(cancellationToken);
 
             return result;
         }

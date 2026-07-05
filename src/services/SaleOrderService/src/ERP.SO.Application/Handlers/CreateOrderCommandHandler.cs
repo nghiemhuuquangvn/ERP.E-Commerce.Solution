@@ -22,13 +22,13 @@ namespace ERP.SO.Application.Handlers
 
     public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, SalesOrderDto>
     {
-        private readonly ISalesOrderRepository _repository;
+        private readonly ISalesOrderUnitOfWork _uow;
         private readonly IMessageBus _messageBus;
         private readonly IPromotionServiceClient _promotionServiceClient;
 
-        public CreateOrderCommandHandler(ISalesOrderRepository repository, IMessageBus messageBus, IPromotionServiceClient promotionServiceClient)
+        public CreateOrderCommandHandler(ISalesOrderUnitOfWork uow, IMessageBus messageBus, IPromotionServiceClient promotionServiceClient)
         {
-            _repository = repository;
+            _uow = uow;
             _messageBus = messageBus;
             _promotionServiceClient = promotionServiceClient;
         }
@@ -63,9 +63,9 @@ namespace ERP.SO.Application.Handlers
                     salesOrder.AddInternalNote($"Coupon '{request.CouponCode}' not applied: {validation.ErrorMessage}", "system:promotion-validation");
             }
 
-            await _repository.AddAsync(salesOrder, cancellationToken);
+            await _uow.Orders.AddAsync(salesOrder, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
-            // Publish domain events
             foreach (var domainEvent in salesOrder.DomainEvents)
             {
                 await _messageBus.PublishAsync(domainEvent, cancellationToken);
@@ -113,22 +113,23 @@ namespace ERP.SO.Application.Handlers
 
     public class ApproveOrderCommandHandler : IRequestHandler<ApproveOrderCommand, SalesOrderDto>
     {
-        private readonly ISalesOrderRepository _repository;
+        private readonly ISalesOrderUnitOfWork _uow;
         private readonly IMessageBus _messageBus;
 
-        public ApproveOrderCommandHandler(ISalesOrderRepository repository, IMessageBus messageBus)
+        public ApproveOrderCommandHandler(ISalesOrderUnitOfWork uow, IMessageBus messageBus)
         {
-            _repository = repository;
+            _uow = uow;
             _messageBus = messageBus;
         }
 
         public async Task<SalesOrderDto> Handle(ApproveOrderCommand request, CancellationToken cancellationToken)
         {
-            var order = await _repository.GetByIdAsync(request.OrderId, cancellationToken)
+            var order = await _uow.Orders.GetByIdAsync(request.OrderId, cancellationToken)
                 ?? throw new InvalidOperationException($"Order {request.OrderId} not found");
 
             order.Approve();
-            await _repository.UpdateAsync(order, cancellationToken);
+            await _uow.Orders.UpdateAsync(order, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             foreach (var domainEvent in order.DomainEvents)
             {
@@ -177,22 +178,23 @@ namespace ERP.SO.Application.Handlers
 
     public class ShipOrderCommandHandler : IRequestHandler<ShipOrderCommand, SalesOrderDto>
     {
-        private readonly ISalesOrderRepository _repository;
+        private readonly ISalesOrderUnitOfWork _uow;
         private readonly IMessageBus _messageBus;
 
-        public ShipOrderCommandHandler(ISalesOrderRepository repository, IMessageBus messageBus)
+        public ShipOrderCommandHandler(ISalesOrderUnitOfWork uow, IMessageBus messageBus)
         {
-            _repository = repository;
+            _uow = uow;
             _messageBus = messageBus;
         }
 
         public async Task<SalesOrderDto> Handle(ShipOrderCommand request, CancellationToken cancellationToken)
         {
-            var order = await _repository.GetByIdAsync(request.OrderId, cancellationToken)
+            var order = await _uow.Orders.GetByIdAsync(request.OrderId, cancellationToken)
                 ?? throw new InvalidOperationException($"Order {request.OrderId} not found");
 
             order.Ship(request.TrackingNumber, request.Carrier);
-            await _repository.UpdateAsync(order, cancellationToken);
+            await _uow.Orders.UpdateAsync(order, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             foreach (var domainEvent in order.DomainEvents)
             {
@@ -241,22 +243,23 @@ namespace ERP.SO.Application.Handlers
 
     public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, SalesOrderDto>
     {
-        private readonly ISalesOrderRepository _repository;
+        private readonly ISalesOrderUnitOfWork _uow;
         private readonly IMessageBus _messageBus;
 
-        public CancelOrderCommandHandler(ISalesOrderRepository repository, IMessageBus messageBus)
+        public CancelOrderCommandHandler(ISalesOrderUnitOfWork uow, IMessageBus messageBus)
         {
-            _repository = repository;
+            _uow = uow;
             _messageBus = messageBus;
         }
 
         public async Task<SalesOrderDto> Handle(CancelOrderCommand request, CancellationToken cancellationToken)
         {
-            var order = await _repository.GetByIdAsync(request.OrderId, cancellationToken)
+            var order = await _uow.Orders.GetByIdAsync(request.OrderId, cancellationToken)
                 ?? throw new InvalidOperationException($"Order {request.OrderId} not found");
 
             order.Cancel(request.Reason);
-            await _repository.UpdateAsync(order, cancellationToken);
+            await _uow.Orders.UpdateAsync(order, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
 
             foreach (var domainEvent in order.DomainEvents)
             {

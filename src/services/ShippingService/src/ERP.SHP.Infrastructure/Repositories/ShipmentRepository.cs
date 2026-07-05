@@ -22,16 +22,13 @@ public class ShipmentRepository : IShipmentRepository
         await _db.Shipments.Include(s => s.Items).Include(s => s.TrackingEvents)
             .Where(s => s.OrderId == orderId).ToListAsync(ct);
 
-    public async Task AddAsync(Shipment shipment, CancellationToken ct = default)
-    {
+    public async Task AddAsync(Shipment shipment, CancellationToken ct = default) =>
         await _db.Shipments.AddAsync(shipment, ct);
-        await _db.SaveChangesAsync(ct);
-    }
 
-    public async Task UpdateAsync(Shipment shipment, CancellationToken ct = default)
+    public Task UpdateAsync(Shipment shipment, CancellationToken ct = default)
     {
         _db.Shipments.Update(shipment);
-        await _db.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 }
 
@@ -46,16 +43,13 @@ public class ReturnShipmentRepository : IReturnShipmentRepository
     public async Task<List<ReturnShipment>> GetByOriginalShipmentIdAsync(Guid originalShipmentId, CancellationToken ct = default) =>
         await _db.ReturnShipments.Where(r => r.OriginalShipmentId == originalShipmentId).AsNoTracking().ToListAsync(ct);
 
-    public async Task AddAsync(ReturnShipment returnShipment, CancellationToken ct = default)
-    {
+    public async Task AddAsync(ReturnShipment returnShipment, CancellationToken ct = default) =>
         await _db.ReturnShipments.AddAsync(returnShipment, ct);
-        await _db.SaveChangesAsync(ct);
-    }
 
-    public async Task UpdateAsync(ReturnShipment returnShipment, CancellationToken ct = default)
+    public Task UpdateAsync(ReturnShipment returnShipment, CancellationToken ct = default)
     {
         _db.ReturnShipments.Update(returnShipment);
-        await _db.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 }
 
@@ -70,15 +64,12 @@ public class CarrierRepository : ICarrierRepository
     public async Task<List<Carrier>> GetActiveAsync(CancellationToken ct = default) =>
         await _db.Carriers.Where(c => c.IsActive).AsNoTracking().ToListAsync(ct);
 
-    public async Task AddAsync(Carrier carrier, CancellationToken ct = default)
-    {
+    public async Task AddAsync(Carrier carrier, CancellationToken ct = default) =>
         await _db.Carriers.AddAsync(carrier, ct);
-        await _db.SaveChangesAsync(ct);
-    }
 
-    public async Task UpdateAsync(Carrier carrier, CancellationToken ct = default)
+    public Task UpdateAsync(Carrier carrier, CancellationToken ct = default)
     {
         _db.Carriers.Update(carrier);
-        await _db.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 }

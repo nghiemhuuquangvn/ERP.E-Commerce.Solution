@@ -53,7 +53,6 @@ namespace ERP.ACC.Infrastructure.Repositories
         public async Task AddRangeAsync(IEnumerable<JournalLine> lines, CancellationToken ct = default)
         {
             await _db.JournalLines.AddRangeAsync(lines, ct);
-            await _db.SaveChangesAsync(ct);
         }
     }
 }

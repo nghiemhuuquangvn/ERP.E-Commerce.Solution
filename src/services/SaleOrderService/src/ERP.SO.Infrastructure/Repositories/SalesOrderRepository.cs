@@ -23,13 +23,12 @@ namespace ERP.SO.Infrastructure.Repositories
         public async Task AddAsync(SalesOrder order, CancellationToken ct = default)
         {
             await _context.SalesOrders.AddAsync(order, ct);
-            await _context.SaveChangesAsync(ct);
         }
 
-        public async Task UpdateAsync(SalesOrder order, CancellationToken ct = default)
+        public Task UpdateAsync(SalesOrder order, CancellationToken ct = default)
         {
             _context.SalesOrders.Update(order);
-            await _context.SaveChangesAsync(ct);
+            return Task.CompletedTask;
         }
 
         public async Task<List<SalesOrder>> GetByCustomerIdAsync(Guid customerId, CancellationToken ct = default)

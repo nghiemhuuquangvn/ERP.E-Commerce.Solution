@@ -8,6 +8,7 @@ using ERP.SHP.Infrastructure.MessageBus;
 using ERP.SHP.Infrastructure.Persistence;
 using ERP.SHP.Infrastructure.Repositories;
 using ERP.Shared.Authorization;
+using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
 using ERP.Shared.Messaging;
 using MediatR;
@@ -27,6 +28,8 @@ builder.Services.AddMediatR(cfg =>
 builder.Services.AddScoped<IShipmentRepository, ShipmentRepository>();
 builder.Services.AddScoped<ICarrierRepository, CarrierRepository>();
 builder.Services.AddScoped<IReturnShipmentRepository, ReturnShipmentRepository>();
+builder.Services.AddScoped<IShippingUnitOfWork, ShippingUnitOfWork>();
+builder.Services.AddCacheService(builder.Configuration, "shp");
 
 // Kafka producer + Outbox pattern for publishing integration events (shipping-topic) —
 // ShippingDbContext already harvests domain events into OutboxMessages correctly, it

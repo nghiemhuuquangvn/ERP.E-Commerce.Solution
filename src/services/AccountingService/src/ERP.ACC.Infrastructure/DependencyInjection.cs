@@ -5,6 +5,7 @@ using ERP.ACC.Infrastructure.EventBus;
 using ERP.ACC.Infrastructure.MessageBus;
 using ERP.ACC.Infrastructure.Persistence;
 using ERP.ACC.Infrastructure.Repositories;
+using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -66,6 +67,9 @@ namespace ERP.ACC.Infrastructure
             services.AddScoped<ITaxRateRepository, TaxRateRepository>();
             services.AddScoped<IBankAccountRepository, BankAccountRepository>();
             services.AddScoped<IBankStatementRepository, BankStatementRepository>();
+            services.AddScoped<IAccountingUnitOfWork, AccountingUnitOfWork>();
+
+            services.AddCacheService(configuration, "acc");
 
             return services;
         }

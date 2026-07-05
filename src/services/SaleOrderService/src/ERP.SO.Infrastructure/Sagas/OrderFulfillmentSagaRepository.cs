@@ -24,13 +24,12 @@ public sealed class OrderFulfillmentSagaRepository : IOrderFulfillmentSagaReposi
     public async Task AddAsync(OrderFulfillmentSagaState state, CancellationToken ct = default)
     {
         await _dbContext.Set<OrderFulfillmentSagaState>().AddAsync(state, ct);
-        await _dbContext.SaveChangesAsync(ct);
     }
 
-    public async Task UpdateAsync(OrderFulfillmentSagaState state, CancellationToken ct = default)
+    public Task UpdateAsync(OrderFulfillmentSagaState state, CancellationToken ct = default)
     {
         _dbContext.Set<OrderFulfillmentSagaState>().Update(state);
-        await _dbContext.SaveChangesAsync(ct);
+        return Task.CompletedTask;
     }
 
     public async Task<IEnumerable<OrderFulfillmentSagaState>> GetStuckSagasAsync(TimeSpan timeout, CancellationToken ct = default)

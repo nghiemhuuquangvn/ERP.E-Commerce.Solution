@@ -19,7 +19,6 @@ public interface IEmployeeSnapshotRepository
         int pageSize,
         CancellationToken cancellationToken = default);
     void Upsert(EmployeeSnapshot snapshot);
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
 public interface ILeaveRequestRepository
@@ -33,7 +32,6 @@ public interface ILeaveRequestRepository
         CancellationToken cancellationToken = default);
     void Add(LeaveRequest leaveRequest);
     void Update(LeaveRequest leaveRequest);
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IPaySlipRepository
@@ -48,7 +46,6 @@ public interface IPaySlipRepository
         CancellationToken cancellationToken = default);
     Task<bool> ExistsForPeriodAsync(Guid employeeId, int year, int month, CancellationToken cancellationToken = default);
     void Add(PaySlip paySlip);
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IAttendanceRepository
@@ -66,7 +63,6 @@ public interface IAttendanceRepository
     Task<decimal> GetMonthlyOvertimeHoursAsync(Guid employeeId, int year, int month, CancellationToken cancellationToken = default);
     void Add(AttendanceRecord record);
     void Update(AttendanceRecord record);
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IWorkShiftRepository
@@ -75,5 +71,4 @@ public interface IWorkShiftRepository
     Task<IReadOnlyList<WorkShift>> GetAllAsync(bool? activeOnly = null, CancellationToken cancellationToken = default);
     void Add(WorkShift shift);
     void Update(WorkShift shift);
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

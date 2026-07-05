@@ -1,24 +1,33 @@
 using MediatR;
 using ERP.WH.Application.Commands.Inventory;
+using ERP.Shared.Infrastructure.Caching;
 
 namespace ERP.WH.Application.Queries.Inventory;
 
 public class GetInventoryQueryHandler : IRequestHandler<GetInventoryQuery, GetInventoryResponse>
 {
     private readonly IInventoryRepository _inventoryRepository;
+    private readonly ICacheService _cache;
 
-    public GetInventoryQueryHandler(IInventoryRepository inventoryRepository)
+    public GetInventoryQueryHandler(IInventoryRepository inventoryRepository, ICacheService cache)
     {
         _inventoryRepository = inventoryRepository;
+        _cache = cache;
     }
 
     public async Task<GetInventoryResponse> Handle(GetInventoryQuery request, CancellationToken cancellationToken)
     {
+        var cacheKey = $"wh:inventory:{request.ProductId}";
+
+        var cached = await _cache.GetAsync<GetInventoryResponse>(cacheKey, cancellationToken);
+        if (cached != null)
+            return cached;
+
         var inventory = await _inventoryRepository.GetByProductIdAsync(request.ProductId, cancellationToken);
         if (inventory == null)
             throw new InvalidOperationException($"Product {request.ProductId} not found");
 
-        return new GetInventoryResponse
+        var response = new GetInventoryResponse
         {
             ProductId = inventory.ProductId,
             ProductName = inventory.ProductName,
@@ -39,5 +48,9 @@ public class GetInventoryQueryHandler : IRequestHandler<GetInventoryQuery, GetIn
             },
             LastUpdated = inventory.UpdatedAt
         };
+
+        await _cache.SetAsync(cacheKey, response, TimeSpan.FromMinutes(2), cancellationToken);
+
+        return response;
     }
 }

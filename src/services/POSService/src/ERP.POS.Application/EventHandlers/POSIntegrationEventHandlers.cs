@@ -16,19 +16,19 @@ public record PaymentProcessedIntegrationEvent(Guid PaymentId, Guid OrderId, dec
 public class ProductCreatedForPosHandler
 {
     private readonly ILogger<ProductCreatedForPosHandler> _logger;
-    private readonly IPosProductCacheRepository _cache;
+    private readonly IPosUnitOfWork _uow;
 
-    public ProductCreatedForPosHandler(ILogger<ProductCreatedForPosHandler> logger, IPosProductCacheRepository cache)
+    public ProductCreatedForPosHandler(ILogger<ProductCreatedForPosHandler> logger, IPosUnitOfWork uow)
     {
         _logger = logger;
-        _cache = cache;
+        _uow = uow;
     }
 
     public async Task HandleAsync(ProductCreatedIntegrationEvent @event, CancellationToken ct = default)
     {
         _logger.LogInformation("[POS] ProductCreated: syncing product {ProductId} ({Name})", @event.ProductId, @event.Name);
 
-        await _cache.UpsertAsync(new PosProductCache
+        await _uow.ProductCache.UpsertAsync(new PosProductCache
         {
             ProductId = @event.ProductId,
             Name = @event.Name,
@@ -37,6 +37,7 @@ public class ProductCreatedForPosHandler
             IsActive = @event.IsActive,
             SyncedAt = DateTime.UtcNow
         }, ct);
+        await _uow.SaveChangesAsync(ct);
     }
 }
 
@@ -46,18 +47,19 @@ public class ProductCreatedForPosHandler
 public class ProductPriceChangedForPosHandler
 {
     private readonly ILogger<ProductPriceChangedForPosHandler> _logger;
-    private readonly IPosProductCacheRepository _cache;
+    private readonly IPosUnitOfWork _uow;
 
-    public ProductPriceChangedForPosHandler(ILogger<ProductPriceChangedForPosHandler> logger, IPosProductCacheRepository cache)
+    public ProductPriceChangedForPosHandler(ILogger<ProductPriceChangedForPosHandler> logger, IPosUnitOfWork uow)
     {
         _logger = logger;
-        _cache = cache;
+        _uow = uow;
     }
 
     public async Task HandleAsync(ProductPriceChangedIntegrationEvent @event, CancellationToken ct = default)
     {
         _logger.LogInformation("[POS] ProductPriceChanged: {ProductId} {Old} → {New}", @event.ProductId, @event.OldPrice, @event.NewPrice);
-        await _cache.UpdatePriceAsync(@event.ProductId, @event.NewPrice, ct);
+        await _uow.ProductCache.UpdatePriceAsync(@event.ProductId, @event.NewPrice, ct);
+        await _uow.SaveChangesAsync(ct);
     }
 }
 
@@ -67,19 +69,19 @@ public class ProductPriceChangedForPosHandler
 public class PromotionCreatedForPosHandler
 {
     private readonly ILogger<PromotionCreatedForPosHandler> _logger;
-    private readonly IPosPromotionCacheRepository _cache;
+    private readonly IPosUnitOfWork _uow;
 
-    public PromotionCreatedForPosHandler(ILogger<PromotionCreatedForPosHandler> logger, IPosPromotionCacheRepository cache)
+    public PromotionCreatedForPosHandler(ILogger<PromotionCreatedForPosHandler> logger, IPosUnitOfWork uow)
     {
         _logger = logger;
-        _cache = cache;
+        _uow = uow;
     }
 
     public async Task HandleAsync(PromotionCreatedIntegrationEvent @event, CancellationToken ct = default)
     {
         _logger.LogInformation("[POS] PromotionCreated: caching promotion {PromotionId} ({Name})", @event.PromotionId, @event.Name);
 
-        await _cache.UpsertAsync(new PosPromotionCache
+        await _uow.PromotionCache.UpsertAsync(new PosPromotionCache
         {
             PromotionId = @event.PromotionId,
             Name = @event.Name,
@@ -88,6 +90,7 @@ public class PromotionCreatedForPosHandler
             StartDate = @event.StartDate,
             EndDate = @event.EndDate
         }, ct);
+        await _uow.SaveChangesAsync(ct);
     }
 }
 
@@ -101,17 +104,17 @@ public class PromotionCreatedForPosHandler
 public class PaymentProcessedForPosHandler
 {
     private readonly ILogger<PaymentProcessedForPosHandler> _logger;
-    private readonly ITransactionRepository _transactions;
+    private readonly IPosUnitOfWork _uow;
 
-    public PaymentProcessedForPosHandler(ILogger<PaymentProcessedForPosHandler> logger, ITransactionRepository transactions)
+    public PaymentProcessedForPosHandler(ILogger<PaymentProcessedForPosHandler> logger, IPosUnitOfWork uow)
     {
         _logger = logger;
-        _transactions = transactions;
+        _uow = uow;
     }
 
     public async Task HandleAsync(PaymentProcessedIntegrationEvent @event, CancellationToken ct = default)
     {
-        var transaction = await _transactions.GetByIdAsync(@event.OrderId, ct);
+        var transaction = await _uow.Transactions.GetByIdAsync(@event.OrderId, ct);
         if (transaction == null)
         {
             _logger.LogInformation("[POS] PaymentProcessed for order {OrderId} has no matching POS transaction — not a POS-originated sale.", @event.OrderId);
@@ -119,7 +122,8 @@ public class PaymentProcessedForPosHandler
         }
 
         transaction.ConfirmExternalPayment(@event.PaymentId);
-        await _transactions.UpdateAsync(transaction, ct);
+        await _uow.Transactions.UpdateAsync(transaction, ct);
+        await _uow.SaveChangesAsync(ct);
         _logger.LogInformation("[POS] PaymentProcessed confirmed against transaction {TransactionId}", transaction.Id);
     }
 }

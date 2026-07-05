@@ -30,7 +30,6 @@ public class ContactTagRepository : IContactTagRepository
     public async Task AddAsync(ContactTag tag, CancellationToken cancellationToken = default)
     {
         await _db.ContactTags.AddAsync(tag, cancellationToken);
-        await _db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(Guid contactId, string tag, CancellationToken cancellationToken = default)
@@ -42,7 +41,6 @@ public class ContactTagRepository : IContactTagRepository
         if (entity is not null)
         {
             _db.ContactTags.Remove(entity);
-            await _db.SaveChangesAsync(cancellationToken);
         }
     }
 

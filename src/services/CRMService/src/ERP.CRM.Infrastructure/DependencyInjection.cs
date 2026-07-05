@@ -5,6 +5,7 @@ using ERP.CRM.Infrastructure.EventBus;
 using ERP.CRM.Infrastructure.MessageBus;
 using ERP.CRM.Infrastructure.Persistence;
 using ERP.CRM.Infrastructure.Repositories;
+using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -67,6 +68,9 @@ namespace ERP.CRM.Infrastructure
             services.AddScoped<ICaseRepository, CaseRepository>();
             services.AddScoped<IActivityRepository, ActivityRepository>();
             services.AddScoped<IContactTagRepository, ContactTagRepository>();
+            services.AddScoped<ICrmUnitOfWork, CrmUnitOfWork>();
+
+            services.AddCacheService(configuration, "crm");
 
             return services;
         }

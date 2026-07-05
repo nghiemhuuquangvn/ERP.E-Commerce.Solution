@@ -10,13 +10,14 @@ namespace ERP.POS.Application.Handlers;
 
 public class OpenTransactionCommandHandler : IRequestHandler<OpenTransactionCommand, TransactionDto>
 {
-    private readonly ITransactionRepository _transactions;
-    public OpenTransactionCommandHandler(ITransactionRepository transactions) => _transactions = transactions;
+    private readonly IPosUnitOfWork _uow;
+    public OpenTransactionCommandHandler(IPosUnitOfWork uow) => _uow = uow;
 
     public async Task<TransactionDto> Handle(OpenTransactionCommand request, CancellationToken cancellationToken)
     {
         var transaction = Transaction.Open(request.TerminalId, request.CashierId, request.CashShiftId);
-        await _transactions.AddAsync(transaction, cancellationToken);
+        await _uow.Transactions.AddAsync(transaction, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return MapToDto(transaction);
     }
 
@@ -43,50 +44,50 @@ public class OpenTransactionCommandHandler : IRequestHandler<OpenTransactionComm
 
 public class AddTransactionItemCommandHandler : IRequestHandler<AddTransactionItemCommand, TransactionDto>
 {
-    private readonly ITransactionRepository _transactions;
-    public AddTransactionItemCommandHandler(ITransactionRepository transactions) => _transactions = transactions;
+    private readonly IPosUnitOfWork _uow;
+    public AddTransactionItemCommandHandler(IPosUnitOfWork uow) => _uow = uow;
 
     public async Task<TransactionDto> Handle(AddTransactionItemCommand request, CancellationToken cancellationToken)
     {
-        var t = await _transactions.GetByIdAsync(request.TransactionId, cancellationToken)
+        var t = await _uow.Transactions.GetByIdAsync(request.TransactionId, cancellationToken)
             ?? throw new InvalidOperationException($"Transaction {request.TransactionId} not found.");
 
         t.AddItem(request.ProductId, request.ProductName, request.Quantity, request.UnitPrice, request.TaxRate);
-        await _transactions.UpdateAsync(t, cancellationToken);
+        await _uow.Transactions.UpdateAsync(t, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return OpenTransactionCommandHandler.MapToDto(t);
     }
 }
 
 public class ApplyDiscountCommandHandler : IRequestHandler<ApplyDiscountCommand, TransactionDto>
 {
-    private readonly ITransactionRepository _transactions;
-    public ApplyDiscountCommandHandler(ITransactionRepository transactions) => _transactions = transactions;
+    private readonly IPosUnitOfWork _uow;
+    public ApplyDiscountCommandHandler(IPosUnitOfWork uow) => _uow = uow;
 
     public async Task<TransactionDto> Handle(ApplyDiscountCommand request, CancellationToken cancellationToken)
     {
-        var t = await _transactions.GetByIdAsync(request.TransactionId, cancellationToken)
+        var t = await _uow.Transactions.GetByIdAsync(request.TransactionId, cancellationToken)
             ?? throw new InvalidOperationException("Transaction not found.");
 
         t.ApplyDiscount(request.DiscountAmount, request.PromotionId);
-        await _transactions.UpdateAsync(t, cancellationToken);
+        await _uow.Transactions.UpdateAsync(t, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return OpenTransactionCommandHandler.MapToDto(t);
     }
 }
 
 public class CompleteTransactionCommandHandler : IRequestHandler<CompleteTransactionCommand, TransactionDto>
 {
-    private readonly ITransactionRepository _transactions;
-    private readonly ICashShiftRepository _shifts;
+    private readonly IPosUnitOfWork _uow;
 
-    public CompleteTransactionCommandHandler(ITransactionRepository transactions, ICashShiftRepository shifts)
+    public CompleteTransactionCommandHandler(IPosUnitOfWork uow)
     {
-        _transactions = transactions;
-        _shifts = shifts;
+        _uow = uow;
     }
 
     public async Task<TransactionDto> Handle(CompleteTransactionCommand request, CancellationToken cancellationToken)
     {
-        var t = await _transactions.GetByIdAsync(request.TransactionId, cancellationToken)
+        var t = await _uow.Transactions.GetByIdAsync(request.TransactionId, cancellationToken)
             ?? throw new InvalidOperationException("Transaction not found.");
 
         if (request.Tenders is { Count: > 0 })
@@ -96,46 +97,49 @@ public class CompleteTransactionCommandHandler : IRequestHandler<CompleteTransac
 
         if (t.CashShiftId.HasValue)
         {
-            var shift = await _shifts.GetByIdAsync(t.CashShiftId.Value, cancellationToken);
+            var shift = await _uow.CashShifts.GetByIdAsync(t.CashShiftId.Value, cancellationToken);
             shift?.RecordTransaction(t.TotalAmount);
-            if (shift != null) await _shifts.UpdateAsync(shift, cancellationToken);
+            if (shift != null) await _uow.CashShifts.UpdateAsync(shift, cancellationToken);
         }
 
-        await _transactions.UpdateAsync(t, cancellationToken);
+        await _uow.Transactions.UpdateAsync(t, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return OpenTransactionCommandHandler.MapToDto(t);
     }
 }
 
 public class VoidTransactionCommandHandler : IRequestHandler<VoidTransactionCommand, TransactionDto>
 {
-    private readonly ITransactionRepository _transactions;
-    public VoidTransactionCommandHandler(ITransactionRepository transactions) => _transactions = transactions;
+    private readonly IPosUnitOfWork _uow;
+    public VoidTransactionCommandHandler(IPosUnitOfWork uow) => _uow = uow;
 
     public async Task<TransactionDto> Handle(VoidTransactionCommand request, CancellationToken cancellationToken)
     {
-        var t = await _transactions.GetByIdAsync(request.TransactionId, cancellationToken)
+        var t = await _uow.Transactions.GetByIdAsync(request.TransactionId, cancellationToken)
             ?? throw new InvalidOperationException("Transaction not found.");
 
         t.Void(request.Reason);
-        await _transactions.UpdateAsync(t, cancellationToken);
+        await _uow.Transactions.UpdateAsync(t, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return OpenTransactionCommandHandler.MapToDto(t);
     }
 }
 
 public class OpenCashShiftCommandHandler : IRequestHandler<OpenCashShiftCommand, CashShiftDto>
 {
-    private readonly ICashShiftRepository _shifts;
-    public OpenCashShiftCommandHandler(ICashShiftRepository shifts) => _shifts = shifts;
+    private readonly IPosUnitOfWork _uow;
+    public OpenCashShiftCommandHandler(IPosUnitOfWork uow) => _uow = uow;
 
     public async Task<CashShiftDto> Handle(OpenCashShiftCommand request, CancellationToken cancellationToken)
     {
-        var existing = await _shifts.GetOpenByTerminalAsync(request.TerminalId, cancellationToken);
+        var existing = await _uow.CashShifts.GetOpenByTerminalAsync(request.TerminalId, cancellationToken);
         if (existing != null)
             throw new InvalidOperationException("Terminal already has an open shift.");
 
         var openingCounts = request.OpeningCounts?.Select(c => (c.Denomination, c.Count)).ToList();
         var shift = CashShift.Open(request.TerminalId, request.CashierId, request.OpeningBalance, openingCounts);
-        await _shifts.AddAsync(shift, cancellationToken);
+        await _uow.CashShifts.AddAsync(shift, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return MapShiftToDto(shift);
     }
 
@@ -154,17 +158,18 @@ public class OpenCashShiftCommandHandler : IRequestHandler<OpenCashShiftCommand,
 
 public class CloseCashShiftCommandHandler : IRequestHandler<CloseCashShiftCommand, CashShiftDto>
 {
-    private readonly ICashShiftRepository _shifts;
-    public CloseCashShiftCommandHandler(ICashShiftRepository shifts) => _shifts = shifts;
+    private readonly IPosUnitOfWork _uow;
+    public CloseCashShiftCommandHandler(IPosUnitOfWork uow) => _uow = uow;
 
     public async Task<CashShiftDto> Handle(CloseCashShiftCommand request, CancellationToken cancellationToken)
     {
-        var shift = await _shifts.GetByIdAsync(request.ShiftId, cancellationToken)
+        var shift = await _uow.CashShifts.GetByIdAsync(request.ShiftId, cancellationToken)
             ?? throw new InvalidOperationException("Shift not found.");
 
         var closingCounts = request.ClosingCounts?.Select(c => (c.Denomination, c.Count)).ToList();
         shift.Close(request.ClosingBalance, request.Notes, closingCounts);
-        await _shifts.UpdateAsync(shift, cancellationToken);
+        await _uow.CashShifts.UpdateAsync(shift, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
         return OpenCashShiftCommandHandler.MapShiftToDto(shift);
     }
 }

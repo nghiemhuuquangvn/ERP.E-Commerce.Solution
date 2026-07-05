@@ -71,9 +71,4 @@ public class PaySlipRepository : IPaySlipRepository
     {
         _context.PaySlips.Add(paySlip);
     }
-
-    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        return _context.SaveChangesAsync(cancellationToken);
-    }
 }

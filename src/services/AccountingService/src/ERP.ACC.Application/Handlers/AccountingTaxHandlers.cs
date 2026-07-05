@@ -9,14 +9,15 @@ namespace ERP.ACC.Application.Handlers
 {
     public class CreateTaxRateCommandHandler : IRequestHandler<CreateTaxRateCommand, TaxRateDto>
     {
-        private readonly ITaxRateRepository _taxRates;
+        private readonly IAccountingUnitOfWork _uow;
 
-        public CreateTaxRateCommandHandler(ITaxRateRepository taxRates) => _taxRates = taxRates;
+        public CreateTaxRateCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
 
         public async Task<TaxRateDto> Handle(CreateTaxRateCommand request, CancellationToken cancellationToken)
         {
             var taxRate = TaxRate.Create(request.Name, request.Code, request.Rate, request.Description);
-            await _taxRates.AddAsync(taxRate, cancellationToken);
+            await _uow.TaxRates.AddAsync(taxRate, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
             return MapToDto(taxRate);
         }
 
@@ -34,34 +35,36 @@ namespace ERP.ACC.Application.Handlers
 
     public class UpdateTaxRateCommandHandler : IRequestHandler<UpdateTaxRateCommand, TaxRateDto>
     {
-        private readonly ITaxRateRepository _taxRates;
+        private readonly IAccountingUnitOfWork _uow;
 
-        public UpdateTaxRateCommandHandler(ITaxRateRepository taxRates) => _taxRates = taxRates;
+        public UpdateTaxRateCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
 
         public async Task<TaxRateDto> Handle(UpdateTaxRateCommand request, CancellationToken cancellationToken)
         {
-            var taxRate = await _taxRates.GetByIdAsync(request.TaxRateId, cancellationToken)
+            var taxRate = await _uow.TaxRates.GetByIdAsync(request.TaxRateId, cancellationToken)
                 ?? throw new InvalidOperationException($"Tax rate {request.TaxRateId} not found.");
 
             taxRate.Update(request.Name, request.Code, request.Rate, request.Description);
-            await _taxRates.UpdateAsync(taxRate, cancellationToken);
+            await _uow.TaxRates.UpdateAsync(taxRate, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
             return CreateTaxRateCommandHandler.MapToDto(taxRate);
         }
     }
 
     public class DeactivateTaxRateCommandHandler : IRequestHandler<DeactivateTaxRateCommand, TaxRateDto>
     {
-        private readonly ITaxRateRepository _taxRates;
+        private readonly IAccountingUnitOfWork _uow;
 
-        public DeactivateTaxRateCommandHandler(ITaxRateRepository taxRates) => _taxRates = taxRates;
+        public DeactivateTaxRateCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
 
         public async Task<TaxRateDto> Handle(DeactivateTaxRateCommand request, CancellationToken cancellationToken)
         {
-            var taxRate = await _taxRates.GetByIdAsync(request.TaxRateId, cancellationToken)
+            var taxRate = await _uow.TaxRates.GetByIdAsync(request.TaxRateId, cancellationToken)
                 ?? throw new InvalidOperationException($"Tax rate {request.TaxRateId} not found.");
 
             taxRate.Deactivate();
-            await _taxRates.UpdateAsync(taxRate, cancellationToken);
+            await _uow.TaxRates.UpdateAsync(taxRate, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
             return CreateTaxRateCommandHandler.MapToDto(taxRate);
         }
     }
