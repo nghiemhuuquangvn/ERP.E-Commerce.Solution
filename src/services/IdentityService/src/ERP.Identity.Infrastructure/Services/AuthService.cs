@@ -433,7 +433,7 @@ namespace ERP.Identity.Infrastructure.Services
             return new RefreshTokenResponse(issued.AccessToken!, issued.RefreshToken!);
         }
 
-        public  async Task<RegisterResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
+        public async Task<LoginResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
         {
             try
             {
@@ -451,10 +451,18 @@ namespace ERP.Identity.Infrastructure.Services
                 // 3️⃣ Hash password
                 var passwordHash = _passwordHasher.HashPassword(request.Password.Trim());
 
-                // 4️⃣ Create user (DOMAIN)
+                // 4️⃣ Resolve display name: explicit UserName > FirstName+LastName > email
+                var userName = request.UserName;
+                if (string.IsNullOrWhiteSpace(userName))
+                {
+                    var combined = $"{request.FirstName} {request.LastName}".Trim();
+                    userName = string.IsNullOrWhiteSpace(combined) ? request.Email : combined;
+                }
+
+                // 5️⃣ Create user (DOMAIN)
                 var user = User.Create(
                     email: request.Email,
-                    username: request.UserName ?? request.Email,
+                    username: userName,
                     passwordHash: passwordHash,
                     tenantId: tenant.Id,
                     userType: request.UserType
@@ -462,36 +470,36 @@ namespace ERP.Identity.Infrastructure.Services
 
                 await _unitOfWork.Users.AddAsync(user, ct);
 
-                // 5️⃣ Add user vào tenant (UserTenant / UserRole mặc định)
+                // 6️⃣ Assign to tenant + default role for user type
                 user.AssignToTenant(tenant);
 
                 var roleMap = _userRoleResolver.GetRolesForUser(request.UserType);
-
-                var roles = await _unitOfWork.Roles.GetRolesByCodeAsync(roleMap, tenant.Id,ct);
-                if(roles == null)
-                    throw new InvalidOperationException("Role not found");
+                var roles = await _unitOfWork.Roles.GetRolesByCodeAsync(roleMap, tenant.Id, ct);
+                if (roles == null || !roles.Any())
+                    throw new InvalidOperationException($"Default role for user type '{request.UserType}' not found in tenant '{request.TenantCode}'");
                 foreach (var role in roles)
                 {
                     user.AssignRole(role, tenant.Id);
                 }
 
-                // 6️⃣ Persist
-                await _securityAuditService.LogAsync("Register", true, tenant.Id, user.Id, user.Email, ct: ct);
+                // 7️⃣ Persist User + roles to DB before issuing tokens (RefreshTokens/DeviceSessions
+                //    FK-reference Users.Id; SaveChanges here ensures the row exists before they insert)
+                await _unitOfWork.SaveChangesAsync(ct);
 
+                // 8️⃣ Issue tokens so user is logged in immediately after registration
+                var loginResponse = await IssueTokensAsync(user, tenant, ct);
+
+                // 9️⃣ Audit + commit
+                await _securityAuditService.LogAsync("Register", true, tenant.Id, user.Id, user.Email, ct: ct);
                 await _unitOfWork.CommitTransactionAsync(ct);
 
-                // 7️⃣ Response
-                return new RegisterResponse(
-                    Succeeded: true,
-                    Errors: []
-                );
+                return loginResponse;
             }
             catch
             {
                 await _unitOfWork.RollbackTransactionAsync(ct);
                 throw;
             }
-
         }
 
         public async Task<ForgotPasswordResponse> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct)

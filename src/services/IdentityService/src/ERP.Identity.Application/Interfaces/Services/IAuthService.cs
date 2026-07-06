@@ -14,7 +14,7 @@ namespace ERP.Identity.Application.Interfaces.Services
     public interface IAuthService
     {
         Task<LoginResponse> LoginAsync(LoginRequest request, string? ipAddress, string? userAgent, CancellationToken ct);
-        Task<RegisterResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default);
+        Task<LoginResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default);
 
         Task<LoginResponse> ExternalLoginAsync(ExternalLoginRequest request, CancellationToken ct = default);
 

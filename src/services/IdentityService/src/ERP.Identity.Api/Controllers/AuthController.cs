@@ -32,7 +32,7 @@ namespace ERP.Identity.Api.Controllers
         {
             var result = await _authService.RegisterAsync(request, cancellationToken);
             if (!result.Succeeded) return BadRequest(result.Errors);
-            return Ok(result);
+            return Ok(result); // LoginResponse: { accessToken, refreshToken, user, succeeded }
         }
 
         [HttpPost("login")]

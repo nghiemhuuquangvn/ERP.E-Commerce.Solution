@@ -5,9 +5,18 @@ import { apiClient } from '@/api/client'
 interface User {
   id: string
   email: string
-  firstName: string
-  lastName: string
+  fullName: string | null
 }
+
+interface AuthResponse {
+  accessToken: string | null
+  refreshToken: string | null
+  succeeded: boolean
+  errors?: string[]
+  user?: User | null
+}
+
+const TENANT_CODE = import.meta.env.VITE_TENANT_CODE ?? 'SYSTEM'
 
 export const useAuthStore = defineStore(
   'auth',
@@ -17,30 +26,31 @@ export const useAuthStore = defineStore(
     const refreshToken = ref<string | null>(null)
 
     const isAuthenticated = computed(() => !!accessToken.value)
-    const fullName = computed(() =>
-      user.value ? `${user.value.firstName} ${user.value.lastName}` : '',
-    )
+    const fullName = computed(() => user.value?.fullName ?? '')
 
     async function login(email: string, password: string) {
-      const { data } = await apiClient.post<{
-        accessToken: string
-        refreshToken: string
-        user: User
-      }>('/v1/auth/login', { email, password })
+      const { data } = await apiClient.post<AuthResponse>('/v1/auth/login', {
+        email,
+        password,
+        tenantCode: TENANT_CODE,
+        userType: 0, // Customer
+      })
       accessToken.value = data.accessToken
       refreshToken.value = data.refreshToken
-      user.value = data.user
+      user.value = data.user ?? null
     }
 
     async function register(firstName: string, lastName: string, email: string, password: string) {
-      const { data } = await apiClient.post<{
-        accessToken: string
-        refreshToken: string
-        user: User
-      }>('/v1/auth/register', { firstName, lastName, email, password })
+      const { data } = await apiClient.post<AuthResponse>('/v1/auth/register', {
+        email,
+        password,
+        userName: `${firstName} ${lastName}`.trim(),
+        tenantCode: TENANT_CODE,
+        userType: 0, // Customer — returns LoginResponse with tokens
+      })
       accessToken.value = data.accessToken
       refreshToken.value = data.refreshToken
-      user.value = data.user
+      user.value = data.user ?? null
     }
 
     function logout() {

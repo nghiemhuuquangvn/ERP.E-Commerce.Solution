@@ -33,22 +33,37 @@ namespace ERP.SO.Api.Controllers
             [FromBody] CreateOrderRequest request,
             CancellationToken cancellationToken)
         {
-            // Authorization check
-            if (!_userContext.HasPermission("sales_order:create"))
+            // Customers may create orders for themselves; staff/admin require explicit permission
+            bool isOwnOrder = Guid.TryParse(_userContext.UserId, out var currentUserId)
+                && request.CustomerId == currentUserId;
+            if (!isOwnOrder && !_userContext.HasPermission("sales_order:create"))
             {
                 return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:create required" });
             }
 
-            // Validation
             if (!ModelState.IsValid)
-            {
                 return BadRequest(ModelState);
-            }
 
             var command = new CreateOrderCommand(request);
             var result = await _mediator.Send(command, cancellationToken);
 
             return CreatedAtAction(nameof(GetOrderById), new { id = result.OrderId }, result);
+        }
+
+        /// <summary>
+        /// Get all orders belonging to the currently authenticated user (storefront customers)
+        /// </summary>
+        [HttpGet("my")]
+        [ProducesResponseType(typeof(List<SalesOrderSummaryDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetMyOrders(CancellationToken cancellationToken)
+        {
+            if (!Guid.TryParse(_userContext.UserId, out var userId))
+                return Unauthorized(new { message = "Invalid user ID" });
+
+            var query = new GetOrdersByCustomerQuery(userId);
+            var result = await _mediator.Send(query, cancellationToken);
+            return Ok(result);
         }
 
         /// <summary>

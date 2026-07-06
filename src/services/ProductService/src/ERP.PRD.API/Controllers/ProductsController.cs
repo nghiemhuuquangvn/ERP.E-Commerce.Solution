@@ -51,6 +51,25 @@ namespace ERP.PRD.API.Controllers
         }
 
         /// <summary>
+        /// Get featured (active) products for storefront home page
+        /// </summary>
+        [HttpGet("featured")]
+        [AllowAnonymous]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetFeaturedProducts([FromQuery] string? languageCode = null)
+        {
+            var query = new ListProductsQuery
+            {
+                Skip = 0,
+                Take = 8,
+                Status = 1, // ProductStatus.Active
+                LanguageCode = ResolveLanguageCode(languageCode)
+            };
+            var result = await _mediator.Send(query);
+            return Ok(result.Products);
+        }
+
+        /// <summary>
         /// Get product by ID
         /// </summary>
         /// <param name="id">Product ID</param>

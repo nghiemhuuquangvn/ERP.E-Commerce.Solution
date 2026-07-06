@@ -59,7 +59,10 @@ namespace ERP.Identity.Domain.Entities
                 TenantId = tenantId,
                 UserTypeCode = userType.ToString(),
                 IsActive = true,
-                CreatedBy = "System", // System user
+                IsEmailConfirmed = false,
+                IsPhoneConfirmed = false,
+                FullName = username.Trim(),
+                CreatedBy = "System",
                 CreatedAt = DateTime.UtcNow
             };
             user.AddDomainEvent(new UserRegisteredDomainEvent(user.Id, tenantId, email, userType.ToString()));

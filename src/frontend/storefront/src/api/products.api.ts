@@ -23,7 +23,7 @@ export interface ListProductsParams {
   minPrice?: number
   maxPrice?: number
   sortBy?: 'price_asc' | 'price_desc' | 'name' | 'newest'
-  /** Explicit culture code to request translated content for, e.g. 'vi-VN'. Defaults to the Accept-Language header when omitted. */
+  /** Explicit culture code to request translated content for, e.g. 'vi-VN'. */
   languageCode?: string
 }
 
@@ -34,9 +34,44 @@ export interface PaginatedProducts {
   pageSize: number
 }
 
+// Backend list response shape: { Total, Skip, Take, Products }
+interface BackendListResponse {
+  total: number
+  skip: number
+  take: number
+  products: Product[]
+}
+
 export const productsApi = {
-  list: (params: ListProductsParams) =>
-    apiClient.get<PaginatedProducts>('/v1/products', { params }).then((r) => r.data),
+  list: async (params: ListProductsParams): Promise<PaginatedProducts> => {
+    const page = params.page ?? 1
+    const pageSize = params.pageSize ?? 20
+
+    // When search term is present, delegate to the search endpoint (returns Product[])
+    if (params.search?.trim()) {
+      const { data } = await apiClient.get<Product[]>('/v1/products/search', {
+        params: { searchTerm: params.search.trim(), languageCode: params.languageCode },
+      })
+      return { items: data, totalCount: data.length, pageNumber: 1, pageSize: data.length }
+    }
+
+    // Map page/pageSize → skip/take; categoryId and languageCode pass through
+    const { data } = await apiClient.get<BackendListResponse>('/v1/products', {
+      params: {
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        categoryId: params.categoryId,
+        languageCode: params.languageCode,
+      },
+    })
+
+    return {
+      items: data.products ?? [],
+      totalCount: data.total ?? 0,
+      pageNumber: page,
+      pageSize: data.take ?? pageSize,
+    }
+  },
 
   get: (id: string, languageCode?: string) =>
     apiClient.get<Product>(`/v1/products/${id}`, { params: { languageCode } }).then((r) => r.data),
