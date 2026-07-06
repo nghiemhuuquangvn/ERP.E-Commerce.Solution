@@ -1,6 +1,7 @@
 import axios, { AxiosError } from 'axios'
 import { useAuthStore } from '@/stores/auth.store'
 import { useUiStore } from '@/stores/ui.store'
+import { logger } from '@/utils/logger'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -28,6 +29,24 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const original = error.config as typeof error.config & { _retry?: boolean }
+
+    // Don't log failures of the log-shipping call itself — would just be noise
+    // (and the logger already swallows its own request errors).
+    const isLogsEndpoint = original?.url?.includes('/logs/api/v1/logs')
+    if (!isLogsEndpoint) {
+      const status = error.response?.status
+      if (!error.response) {
+        logger.trace('Warning', `Network error calling ${original?.method?.toUpperCase()} ${original?.url}`, {
+          url: original?.url ?? '',
+        })
+      } else if (status !== undefined && status >= 500) {
+        logger.exception(error, {
+          url: original?.url ?? '',
+          method: original?.method ?? '',
+          statusCode: String(status),
+        })
+      }
+    }
 
     if (error.response?.status !== 401 || original._retry) {
       return Promise.reject(error)

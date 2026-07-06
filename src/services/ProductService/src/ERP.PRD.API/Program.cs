@@ -1,9 +1,12 @@
 using ERP.PRD.Application;
 using ERP.PRD.Infrastructure;
+using ERP.Shared.Extensions;
 using ERP.Shared.Localization;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddSerilogLogging("ProductService");
 
 builder.Services
     .AddApplication()
@@ -40,6 +43,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+
+app.UseGlobalExceptionHandling();
 
 app.UseSwagger();
 app.UseSwaggerUI();

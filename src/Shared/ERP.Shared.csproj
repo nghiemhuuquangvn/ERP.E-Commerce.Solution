@@ -6,12 +6,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <!-- Exclude sub-project source trees to avoid duplicate symbol errors -->
+  <!-- Exclude sub-project source trees (each has its own .csproj) to avoid duplicate symbol
+       errors. Extensions\ and Observability\ have no separate .csproj — they belong to this
+       root project and must stay compiled here (AddSerilogLogging/KafkaLogSink live there). -->
   <ItemGroup>
     <Compile Remove="Core\**\*.cs" />
     <Compile Remove="Messaging\**\*.cs" />
     <Compile Remove="Contracts\**\*.cs" />
-    <Compile Remove="Extensions\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -39,6 +40,8 @@
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0" />
     <PackageReference Include="StackExchange.Redis" Version="2.8.12" />
+    <PackageReference Include="Confluent.Kafka" Version="2.13.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>

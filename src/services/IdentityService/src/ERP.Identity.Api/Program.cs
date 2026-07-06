@@ -6,6 +6,7 @@ using ERP.Identity.Infrastructure;
 using ERP.Identity.Infrastructure.Persistence;
 using ERP.Identity.Infrastructure.Repositories;
 using ERP.Identity.Infrastructure.Services;
+using ERP.Shared.Extensions;
 using ERP.Shared.Localization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +15,8 @@ using System.Text;
 using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddSerilogLogging("IdentityService");
 
 // Database
 builder.Services.AddDbContext<AuthDbContext>(opt =>
@@ -83,6 +86,8 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+
+app.UseGlobalExceptionHandling();
 
 app.UseSwagger();
 app.UseSwaggerUI();

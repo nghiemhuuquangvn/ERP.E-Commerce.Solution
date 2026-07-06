@@ -24,7 +24,9 @@
     "name": "Name",
     "status": "Status",
     "date": "Date",
-    "actions": "Actions"
+    "actions": "Actions",
+    "close": "Close",
+    "noPermission": "You do not have permission to view this page."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -42,7 +44,8 @@
     "reports": "Reports",
     "settings": "Settings",
     "authSettings": "Auth Settings",
-    "monitoring": "Monitoring"
+    "monitoring": "Monitoring",
+    "logs": "System Logs"
   },
   "auth": {
     "title": "ERP Admin",
@@ -165,6 +168,27 @@
     "recentExceptions": "Recent Exceptions",
     "noExceptions": "No exceptions recorded",
     "noData": "No data"
+  },
+  "logs": {
+    "title": "System Logs",
+    "subtitle": "Information, Warning, Error, and Exception logs across services and frontend apps",
+    "columns": {
+      "time": "Time",
+      "service": "Service",
+      "level": "Level",
+      "kind": "Kind",
+      "message": "Message"
+    },
+    "filters": {
+      "allServices": "All Services",
+      "allLevels": "All Levels",
+      "allKinds": "All Kinds",
+      "keyword": "Search message or exception…"
+    },
+    "details": {
+      "title": "Log Details",
+      "exceptionType": "Exception Type"
+    }
   },
   "masterdata": {
     "departments": {

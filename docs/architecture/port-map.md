@@ -38,6 +38,7 @@
 | **NotificationService** | NTF | 5013 | 7013 | /swagger | NotificationDB |
 | **ReportingService** | RPT | 5014 | 7014 | /swagger | ReportingDB |
 | **SharedMasterDataService** | MST | 5015 | 7015 | /swagger | MasterDataDB |
+| **LoggingService** | LOG | 5016 | 7016 | /swagger | — (Elasticsearch `service-logs-*`, no SQL DB) |
 
 ---
 

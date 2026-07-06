@@ -12,6 +12,7 @@ import { InventoryListPage } from '@/pages/inventory/InventoryListPage'
 import { PaymentsPage } from '@/pages/payments/PaymentsPage'
 import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { MonitoringPage } from '@/pages/monitoring/MonitoringPage'
+import { LogsPage } from '@/pages/logs/LogsPage'
 import { DepartmentsPage } from '@/pages/masterdata/DepartmentsPage'
 import { PositionsPage } from '@/pages/masterdata/PositionsPage'
 import { EmployeesPage } from '@/pages/masterdata/EmployeesPage'
@@ -59,6 +60,7 @@ export const router = createBrowserRouter([
       { path: 'settings', element: <PlaceholderPage title="Settings" /> },
       { path: 'settings/auth', element: <AuthSettingsPage /> },
       { path: 'monitoring', element: <MonitoringPage /> },
+      { path: 'logs', element: <LogsPage /> },
       { path: 'masterdata/departments', element: <DepartmentsPage /> },
       { path: 'masterdata/positions', element: <PositionsPage /> },
       { path: 'masterdata/employees', element: <EmployeesPage /> },

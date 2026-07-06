@@ -641,6 +641,40 @@ public class SalesOrderCreatedEventHandler : IIntegrationEventHandler<SalesOrder
 }
 ```
 
+## Cross-Cutting / Observability Events
+
+### ServiceLogEvent
+
+**Description:** Wire contract for the centralized log management feature (Information/Warning/Error/Exception logs across services and frontend apps, filterable by service/date/level — see `docs/business` pilot notes). Published by every Serilog-enabled backend service via the shared `KafkaLogSink` (pilot: Gateway, ProductService, IdentityService); frontend apps (pilot: Admin) instead POST this same shape directly to LoggingService's client-ingestion endpoint since they cannot produce to Kafka.
+
+**Publisher:** Any pilot service's shared Serilog pipeline (`AddSerilogLogging`) + Admin frontend's client logger  
+**Subscribers:** LoggingService (sole subscriber; indexes into Elasticsearch)
+
+**Event Structure:**
+```csharp
+public class ServiceLogEvent : IntegrationEventBase
+{
+    public string ServiceName { get; set; }
+    public string? Environment { get; set; }
+    public LogSeverity Level { get; set; } // Information, Warning, Error, Critical
+    public LogKind Kind { get; set; }       // Trace, Exception
+    public string Message { get; set; }
+    public string? ExceptionType { get; set; }  // set only when Kind = Exception
+    public string? StackTrace { get; set; }     // set only when Kind = Exception
+    public string? CorrelationId { get; set; }
+    public string? Source { get; set; }         // "Backend" | "Frontend"
+    public Dictionary<string, string>? Properties { get; set; }
+}
+```
+
+**Routing:** Kafka (`system-logs-topic`) for backend services; HTTP `POST /logs/api/v1/logs/client` (via Ocelot Gateway, unauthenticated) for frontend apps  
+**Delivery:** Best-effort, fire-and-forget — logs are diagnostic, not business-critical, so no outbox/transactional guarantee is used. A Kafka sink failure degrades to a `Console.Error` line rather than blocking or crashing the publishing service.
+
+**Handling:**
+- LoggingService: indexes the event into the `service-logs-{yyyy.MM}` Elasticsearch index (`Kind` derived automatically from whether the originating Serilog `LogEvent` carried an exception — no publisher call sites need to set it explicitly)
+
+---
+
 ## Monitoring & Troubleshooting
 
 ### Event Metrics

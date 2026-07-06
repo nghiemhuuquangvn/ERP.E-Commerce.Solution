@@ -24,7 +24,9 @@
     "name": "Tên",
     "status": "Trạng thái",
     "date": "Ngày",
-    "actions": "Thao tác"
+    "actions": "Thao tác",
+    "close": "Đóng",
+    "noPermission": "Bạn không có quyền xem trang này."
   },
   "nav": {
     "dashboard": "Tổng quan",
@@ -42,7 +44,8 @@
     "reports": "Báo cáo",
     "settings": "Cài đặt",
     "authSettings": "Cài đặt đăng nhập",
-    "monitoring": "Giám sát"
+    "monitoring": "Giám sát",
+    "logs": "Nhật ký hệ thống"
   },
   "auth": {
     "title": "ERP Admin",
@@ -165,6 +168,27 @@
     "recentExceptions": "Lỗi gần đây",
     "noExceptions": "Không có lỗi nào được ghi nhận",
     "noData": "Không có dữ liệu"
+  },
+  "logs": {
+    "title": "Nhật ký hệ thống",
+    "subtitle": "Nhật ký Information, Warning, Error và Exception trên các service và ứng dụng frontend",
+    "columns": {
+      "time": "Thời gian",
+      "service": "Service",
+      "level": "Cấp độ",
+      "kind": "Loại",
+      "message": "Nội dung"
+    },
+    "filters": {
+      "allServices": "Tất cả service",
+      "allLevels": "Tất cả cấp độ",
+      "allKinds": "Tất cả loại",
+      "keyword": "Tìm theo nội dung hoặc exception…"
+    },
+    "details": {
+      "title": "Chi tiết nhật ký",
+      "exceptionType": "Loại Exception"
+    }
   },
   "masterdata": {
     "departments": {

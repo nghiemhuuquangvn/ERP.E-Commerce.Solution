@@ -404,10 +404,15 @@ DECLARE @PermMonitoringId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-0000000000
 DECLARE @PermUsersManageId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000002';
 DECLARE @PermRolesManageId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000003';
 DECLARE @PermAllId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000004';
+DECLARE @PermLoggingLogsViewId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000005';
 
 IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionCode = 'monitoring:view')
     INSERT INTO Permissions (Id, PermissionCode, PermissionName, Module)
     VALUES (@PermMonitoringId, 'monitoring:view', 'View System Monitoring', 'System');
+
+IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionCode = 'logging:logs:view')
+    INSERT INTO Permissions (Id, PermissionCode, PermissionName, Module)
+    VALUES (@PermLoggingLogsViewId, 'logging:logs:view', 'View System Logs', 'System');
 
 IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionCode = 'users:manage')
     INSERT INTO Permissions (Id, PermissionCode, PermissionName, Module)
@@ -424,6 +429,9 @@ IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionCode = 'system:admin')
 -- Assign all permissions to SuperAdmin role
 IF NOT EXISTS (SELECT 1 FROM RolePermissions WHERE RoleId = @SuperAdminRoleId AND PermissionId = @PermMonitoringId)
     INSERT INTO RolePermissions (RoleId, PermissionId) VALUES (@SuperAdminRoleId, @PermMonitoringId);
+
+IF NOT EXISTS (SELECT 1 FROM RolePermissions WHERE RoleId = @SuperAdminRoleId AND PermissionId = @PermLoggingLogsViewId)
+    INSERT INTO RolePermissions (RoleId, PermissionId) VALUES (@SuperAdminRoleId, @PermLoggingLogsViewId);
 
 IF NOT EXISTS (SELECT 1 FROM RolePermissions WHERE RoleId = @SuperAdminRoleId AND PermissionId = @PermUsersManageId)
     INSERT INTO RolePermissions (RoleId, PermissionId) VALUES (@SuperAdminRoleId, @PermUsersManageId);

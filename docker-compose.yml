@@ -142,8 +142,10 @@ services:
       ASPNETCORE_URLS: "http://+:5000"
       ASPNETCORE_ENVIRONMENT: Production
       Jwt__Key: "ERP_Identity_JWT_Signing_Secret_Key_Minimum_256_Bits_Required"
+      KafkaSettings__BootstrapServers: kafka:9092
     depends_on:
       - rabbitmq
+      - kafka
     restart: unless-stopped
     networks:
       - erp-network
@@ -416,6 +418,33 @@ services:
       kafka:
         condition: service_healthy
       redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - erp-network
+
+  loggingservice:
+    image: erp/logging-service:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/LoggingService/src/ERP.LOG.API
+        PROJECT_FILE: ERP.LOG.API.csproj
+        ASSEMBLY_NAME: ERP.LOG.API
+    container_name: erp-logging-service
+    ports:
+      - "5016:5016"
+    environment:
+      ASPNETCORE_URLS: "http://+:5016"
+      ASPNETCORE_ENVIRONMENT: Production
+      KafkaSettings__BootstrapServers: kafka:9092
+      Elasticsearch__Uri: http://elasticsearch:9200
+      Elasticsearch__IndexPrefix: service-logs
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     restart: unless-stopped
     networks:

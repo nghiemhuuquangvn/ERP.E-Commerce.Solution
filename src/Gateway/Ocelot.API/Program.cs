@@ -3,6 +3,7 @@ using Ocelot.Middleware;
 using Ocelot.API.Authorization;
 using Ocelot.API.Monitoring;
 using ERP.Shared.Authorization;
+using ERP.Shared.Extensions;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Serilog.Events;
@@ -19,16 +20,7 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
-    builder.Host.UseSerilog((context, services, config) => config
-        .ReadFrom.Configuration(context.Configuration)
-        .ReadFrom.Services(services)
-        .Enrich.FromLogContext()
-        .Enrich.WithMachineName()
-        .Enrich.WithProperty("Service", "Gateway")
-        .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [GW] {SourceContext}: {Message:lj}{NewLine}{Exception}")
-        .WriteTo.File("logs/gateway-.log", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 14)
-        .MinimumLevel.Override("Ocelot", LogEventLevel.Warning)
-        .MinimumLevel.Override("Microsoft", LogEventLevel.Warning));
+    builder.AddSerilogLogging("Gateway");
 
     // Configuration
     builder.Configuration
@@ -75,6 +67,8 @@ try
     builder.Services.AddHealthChecks();
 
     var app = builder.Build();
+
+    app.UseGlobalExceptionHandling();
 
     app.UseSerilogRequestLogging(opts =>
     {

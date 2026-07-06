@@ -260,9 +260,36 @@
       "UpstreamPathTemplate": "/api/id/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
       "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/logs/client",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "loggingservice", "Port": 5016 }],
+      "UpstreamPathTemplate": "/logs/api/v1/logs/client",
+      "UpstreamHttpMethod": [ "POST" ],
+      "RateLimitOptions": {
+        "EnableRateLimiting": true,
+        "Period": "1m",
+        "PeriodTimespan": 10,
+        "Limit": 60
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "loggingservice", "Port": 5016 }],
+      "UpstreamPathTemplate": "/logs/api/{everything}",
+      "UpstreamHttpMethod": [ "GET" ],
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     }
   ],
   "GlobalConfiguration": {
-    "BaseUrl": "http://gateway:5000"
+    "BaseUrl": "http://gateway:5000",
+    "RateLimitOptions": {
+      "ClientIdHeader": "ClientId",
+      "QuotaExceededMessage": "Too many log submissions, please slow down.",
+      "HttpStatusCode": 429,
+      "DisableRateLimitHeaders": false
+    }
   }
 }

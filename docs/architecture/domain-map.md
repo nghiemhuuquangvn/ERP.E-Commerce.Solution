@@ -81,10 +81,11 @@ Services providing platform-wide capabilities (pure consumers or broadcast-only)
 | **NotificationService** | NTF | 5013 | NotificationDB | Multi-channel notifications (email, SMS, push), templates, preferences, notification history |
 | **ReportingService** | RPT | 5014 | ReportingDB | Analytics, business intelligence, dashboards, KPI reports (read-only data warehouse) |
 | **SharedMasterDataService** | MST | 5015 | MasterDataDB | Department, position, employee, unit of measure, geography (Country→Province→District→Ward), supported-language reference data used by other services |
+| **LoggingService** | LOG | 5016 | — (Elasticsearch `service-logs-*`, no SQL DB) | Centralized Information/Warning/Error/Exception log management — App Insights-style — across backend services and frontend apps; pilot scope: Gateway, ProductService, IdentityService, Admin |
 
-**Event Consumption:** Notification/Reporting consume from ALL 14 other services (UserCreated, SalesOrderCreated, PaymentReceived, EmployeeHired, etc.); SharedMasterDataService additionally consumes UserCreated (to auto-create Employee records) and HRM's LeaveApproved (to set Employee OnLeave status)
+**Event Consumption:** Notification/Reporting consume from ALL 14 other services (UserCreated, SalesOrderCreated, PaymentReceived, EmployeeHired, etc.); SharedMasterDataService additionally consumes UserCreated (to auto-create Employee records) and HRM's LeaveApproved (to set Employee OnLeave status); LoggingService consumes `ServiceLogEvent` from the shared `system-logs-topic` (backend) plus direct HTTP posts (frontend)
 
-**Pattern:** Event fanout — NotificationService sends emails/SMS/push for all business events; ReportingService populates data warehouse for BI queries; SharedMasterDataService is the reference-data source other services increasingly depend on (e.g. HRMService's EmployeeSnapshot projection)
+**Pattern:** Event fanout — NotificationService sends emails/SMS/push for all business events; ReportingService populates data warehouse for BI queries; SharedMasterDataService is the reference-data source other services increasingly depend on (e.g. HRMService's EmployeeSnapshot projection); LoggingService is a pure log sink with no SQL database, backed entirely by Elasticsearch (the only other consumer of Elasticsearch in the platform is ProductService's unrelated product-search index)
 
 ---
 
