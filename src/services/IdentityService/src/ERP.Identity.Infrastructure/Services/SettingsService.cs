@@ -51,8 +51,10 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task<PublicAuthOptionsDto> GetPublicOptionsAsync(string tenantCode, CancellationToken ct)
         {
-            var tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(tenantCode, ct)
-                ?? throw new InvalidOperationException("Tenant not found");
+            if (!await _unitOfWork.Tenants.ExistsByCodeAsync(tenantCode, ct))
+                return new PublicAuthOptionsDto(false, false, false, false, false);
+
+            var tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(tenantCode, ct);
 
             var systemSettings = await GetOrCreateSystemSettingsEntityAsync(ct);
             var tenantSettings = await GetOrCreateTenantSettingsEntityAsync(tenant.Id, ct);

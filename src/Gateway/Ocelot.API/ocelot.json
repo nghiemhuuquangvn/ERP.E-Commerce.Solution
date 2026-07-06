@@ -13,15 +13,37 @@
       "DownstreamHostAndPorts": [{ "Host": "identityservice", "Port": 5001 }],
       "UpstreamPathTemplate": "/id/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
-      "DownstreamPathTemplate": "/api/v1/products/{everything}",
+      "DownstreamPathTemplate": "/api/products",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "productservice", "Port": 5008 }],
+      "UpstreamPathTemplate": "/api/v1/products",
+      "UpstreamHttpMethod": [ "GET" ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/products",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "productservice", "Port": 5008 }],
+      "UpstreamPathTemplate": "/api/v1/products",
+      "UpstreamHttpMethod": [ "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
+    },
+    {
+      "DownstreamPathTemplate": "/api/products/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [{ "Host": "productservice", "Port": 5008 }],
       "UpstreamPathTemplate": "/api/v1/products/{everything}",
       "UpstreamHttpMethod": [ "GET" ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/products/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "productservice", "Port": 5008 }],
+      "UpstreamPathTemplate": "/api/v1/products/{everything}",
+      "UpstreamHttpMethod": [ "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/v1/promotions/coupons/validate",
@@ -32,13 +54,28 @@
       "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
+      "DownstreamPathTemplate": "/api/v1/orders",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "salesorderservice", "Port": 5002 }],
+      "UpstreamPathTemplate": "/api/v1/orders",
+      "UpstreamHttpMethod": [ "GET", "POST" ],
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
+    },
+    {
       "DownstreamPathTemplate": "/api/v1/orders/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [{ "Host": "salesorderservice", "Port": 5002 }],
       "UpstreamPathTemplate": "/api/v1/orders/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/inventory",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "warehouseservice", "Port": 5004 }],
+      "UpstreamPathTemplate": "/api/v1/inventory",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "PATCH" ],
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/v1/inventory/{everything}",
@@ -46,8 +83,15 @@
       "DownstreamHostAndPorts": [{ "Host": "warehouseservice", "Port": 5004 }],
       "UpstreamPathTemplate": "/api/v1/inventory/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/payments",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "paymentservice", "Port": 5009 }],
+      "UpstreamPathTemplate": "/api/v1/payments",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "PATCH" ],
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/v1/payments/{everything}",
@@ -55,8 +99,7 @@
       "DownstreamHostAndPorts": [{ "Host": "paymentservice", "Port": 5009 }],
       "UpstreamPathTemplate": "/api/v1/payments/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/v1/shipments/{everything}",
@@ -64,8 +107,7 @@
       "DownstreamHostAndPorts": [{ "Host": "shippingservice", "Port": 5010 }],
       "UpstreamPathTemplate": "/api/v1/shipments/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/v1/pos/{everything}",
@@ -73,8 +115,7 @@
       "DownstreamHostAndPorts": [{ "Host": "posservice", "Port": 5011 }],
       "UpstreamPathTemplate": "/api/v1/pos/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/v1/notifications/{everything}",
@@ -82,8 +123,7 @@
       "DownstreamHostAndPorts": [{ "Host": "notificationservice", "Port": 5013 }],
       "UpstreamPathTemplate": "/api/v1/notifications/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/v1/reports/{everything}",
@@ -91,8 +131,7 @@
       "DownstreamHostAndPorts": [{ "Host": "reportingservice", "Port": 5014 }],
       "UpstreamPathTemplate": "/api/v1/reports/{everything}",
       "UpstreamHttpMethod": [ "GET" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/{everything}",
@@ -100,8 +139,7 @@
       "DownstreamHostAndPorts": [{ "Host": "purchaseorderservice", "Port": 5003 }],
       "UpstreamPathTemplate": "/po/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/{everything}",
@@ -109,8 +147,7 @@
       "DownstreamHostAndPorts": [{ "Host": "salesorderservice", "Port": 5002 }],
       "UpstreamPathTemplate": "/so/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/{everything}",
@@ -118,8 +155,7 @@
       "DownstreamHostAndPorts": [{ "Host": "warehouseservice", "Port": 5004 }],
       "UpstreamPathTemplate": "/wh/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/{everything}",
@@ -127,8 +163,7 @@
       "DownstreamHostAndPorts": [{ "Host": "accountingservice", "Port": 5005 }],
       "UpstreamPathTemplate": "/acc/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/{everything}",
@@ -136,8 +171,7 @@
       "DownstreamHostAndPorts": [{ "Host": "crmservice", "Port": 5006 }],
       "UpstreamPathTemplate": "/crm/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/{everything}",
@@ -145,8 +179,7 @@
       "DownstreamHostAndPorts": [{ "Host": "hrmservice", "Port": 5007 }],
       "UpstreamPathTemplate": "/hrm/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/{everything}",
@@ -154,8 +187,7 @@
       "DownstreamHostAndPorts": [{ "Host": "masterdataservice", "Port": 5015 }],
       "UpstreamPathTemplate": "/mst/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/{everything}",
@@ -163,8 +195,7 @@
       "DownstreamHostAndPorts": [{ "Host": "productservice", "Port": 5008 }],
       "UpstreamPathTemplate": "/prd/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/{everything}",
@@ -172,8 +203,7 @@
       "DownstreamHostAndPorts": [{ "Host": "paymentservice", "Port": 5009 }],
       "UpstreamPathTemplate": "/pay/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/{everything}",
@@ -181,8 +211,7 @@
       "DownstreamHostAndPorts": [{ "Host": "shippingservice", "Port": 5010 }],
       "UpstreamPathTemplate": "/shp/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/{everything}",
@@ -190,8 +219,7 @@
       "DownstreamHostAndPorts": [{ "Host": "posservice", "Port": 5011 }],
       "UpstreamPathTemplate": "/pos/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/{everything}",
@@ -199,8 +227,7 @@
       "DownstreamHostAndPorts": [{ "Host": "promotionservice", "Port": 5012 }],
       "UpstreamPathTemplate": "/prm/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/{everything}",
@@ -208,8 +235,7 @@
       "DownstreamHostAndPorts": [{ "Host": "notificationservice", "Port": 5013 }],
       "UpstreamPathTemplate": "/ntf/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     },
     {
       "DownstreamPathTemplate": "/api/{everything}",
@@ -217,8 +243,23 @@
       "DownstreamHostAndPorts": [{ "Host": "reportingservice", "Port": 5014 }],
       "UpstreamPathTemplate": "/rpt/api/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" },
-      "RouteClaimsRequirement": { "tenant_id": ".*" }
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
+    },
+    {
+      "DownstreamPathTemplate": "/api/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "masterdataservice", "Port": 5015 }],
+      "UpstreamPathTemplate": "/api/mst/api/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
+    },
+    {
+      "DownstreamPathTemplate": "/api/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "identityservice", "Port": 5001 }],
+      "UpstreamPathTemplate": "/api/id/api/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
     }
   ],
   "GlobalConfiguration": {

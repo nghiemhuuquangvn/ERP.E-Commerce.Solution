@@ -42,12 +42,21 @@ namespace ERP.ACC.Infrastructure.Persistence
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
+            modelBuilder.Entity<Invoice>(e =>
+            {
+                // DB column is TotalAmount; entity property is Amount
+                e.Property(x => x.Amount).HasColumnName("TotalAmount").HasColumnType("decimal(18,2)");
+            });
+
             modelBuilder.Entity<JournalLine>(e =>
             {
+                // DB table is JournalEntryLines; DbSet is JournalLines
+                e.ToTable("JournalEntryLines");
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Id).ValueGeneratedNever();
-                e.Property(x => x.Debit).HasColumnType("decimal(18,2)");
-                e.Property(x => x.Credit).HasColumnType("decimal(18,2)");
+                // DB columns are DebitAmount/CreditAmount; entity properties are Debit/Credit
+                e.Property(x => x.Debit).HasColumnName("DebitAmount").HasColumnType("decimal(18,2)");
+                e.Property(x => x.Credit).HasColumnName("CreditAmount").HasColumnType("decimal(18,2)");
                 e.Property(x => x.Description).HasMaxLength(500);
                 e.HasIndex(x => x.JournalEntryId);
                 e.HasIndex(x => x.AccountId);

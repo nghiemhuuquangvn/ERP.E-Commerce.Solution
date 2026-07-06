@@ -64,17 +64,17 @@ export interface MonitoringDashboard {
 
 export const monitoringApi = {
   getDashboard: () =>
-    apiClient.get<MonitoringDashboard>('/api/v1/monitoring/dashboard').then((r) => r.data),
+    apiClient.get<MonitoringDashboard>('/v1/monitoring/dashboard').then((r) => r.data),
 
   getRecentRequests: () =>
-    apiClient.get<ApiRequestLog[]>('/api/v1/monitoring/requests').then((r) => r.data),
+    apiClient.get<ApiRequestLog[]>('/v1/monitoring/requests').then((r) => r.data),
 
   getExceptions: () =>
-    apiClient.get<ExceptionLog[]>('/api/v1/monitoring/exceptions').then((r) => r.data),
+    apiClient.get<ExceptionLog[]>('/v1/monitoring/exceptions').then((r) => r.data),
 
   getServicesHealth: () =>
-    apiClient.get<ServiceHealth[]>('/api/v1/monitoring/services').then((r) => r.data),
+    apiClient.get<ServiceHealth[]>('/v1/monitoring/services').then((r) => r.data),
 
   getRouteStats: () =>
-    apiClient.get<RouteStats[]>('/api/v1/monitoring/routes').then((r) => r.data),
+    apiClient.get<RouteStats[]>('/v1/monitoring/routes').then((r) => r.data),
 }

@@ -48,6 +48,11 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
         purchaseOrderBuilder.Property(po => po.Status).IsRequired();
         purchaseOrderBuilder.Property(po => po.CreatedAt).HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd();
         purchaseOrderBuilder.Property(po => po.UpdatedAt).HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAddOrUpdate();
+        purchaseOrderBuilder.OwnsOne(po => po.TotalAmount, m =>
+        {
+            m.Property(x => x.Amount).HasColumnName("TotalAmount_Amount").HasColumnType("decimal(18,2)");
+            m.Property(x => x.Currency).HasColumnName("TotalAmount_Currency").HasMaxLength(10);
+        });
 
         // Foreign key to Supplier
         purchaseOrderBuilder.HasOne(po => po.Supplier)
@@ -74,6 +79,12 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
         itemBuilder.Property(poi => poi.Status).IsRequired();
         itemBuilder.Property(poi => poi.CreatedAt).HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd();
         itemBuilder.Property(poi => poi.UpdatedAt).HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAddOrUpdate();
+        itemBuilder.OwnsOne(poi => poi.UnitPrice, m =>
+        {
+            m.Property(x => x.Amount).HasColumnName("UnitPrice_Amount").HasColumnType("decimal(18,2)");
+            m.Property(x => x.Currency).HasColumnName("UnitPrice_Currency").HasMaxLength(10);
+        });
+        itemBuilder.Ignore(poi => poi.TotalPrice);
 
         // Configure Supplier aggregate
         var supplierBuilder = builder.Entity<Supplier>();

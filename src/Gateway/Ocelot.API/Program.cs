@@ -6,6 +6,7 @@ using ERP.Shared.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Serilog.Events;
+using System.Text;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -39,21 +40,24 @@ try
     // Ocelot
     builder.Services.AddOcelot(builder.Configuration);
 
-    // Authentication
-    var identityServerUrl = builder.Configuration["IdentityServer:Authority"] ?? "http://localhost:5001";
+    // Authentication — symmetric key (identity service is custom JWT, not OIDC)
+    var jwtKey = builder.Configuration["Jwt:Key"]
+        ?? "ERP_Identity_JWT_Signing_Secret_Key_Minimum_256_Bits_Required";
+    var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
     builder.Services
         .AddAuthentication("Bearer")
         .AddJwtBearer("Bearer", options =>
         {
-            options.Authority = identityServerUrl;
             options.RequireHttpsMetadata = false;
+            options.MapInboundClaims = false;
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateAudience = false,
                 ValidateIssuer = false,
                 ValidateLifetime = true,
-                ValidateIssuerSigningKey = false,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = signingKey,
                 ClockSkew = TimeSpan.FromSeconds(60)
             };
         });
@@ -89,6 +93,21 @@ try
     // Monitoring + health endpoints (handled before Ocelot forwarding)
     app.MapControllers();
     app.MapHealthChecks("/health");
+
+    // Short-circuit requests that matched a local MVC endpoint (monitoring controller,
+    // health checks) so Ocelot's terminal middleware never intercepts them.
+    // UseRouting (auto-added by WebApplication) already set the endpoint on HttpContext;
+    // UseAuthentication + UseAuthorization above already enforced [Authorize].
+    app.Use(async (context, next) =>
+    {
+        var endpoint = context.GetEndpoint();
+        if (endpoint is not null)
+        {
+            await endpoint.RequestDelegate!(context);
+            return;
+        }
+        await next(context);
+    });
 
     // Ocelot — forwards all other requests downstream
     await app.UseOcelot();

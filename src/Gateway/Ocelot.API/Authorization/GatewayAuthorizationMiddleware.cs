@@ -35,8 +35,9 @@ public class GatewayAuthorizationMiddleware
                 var tenantName = ExtractClaim(context.User, "tenant_name") ?? tenantId;
                 var expiresAtStr = ExtractClaim(context.User, "exp");
 
-                // Extract roles
-                var roles = context.User.FindAll("role")
+                // Extract roles — identity service emits ClaimTypes.Role (full URI) as the JWT claim key,
+                // so we must match by ClaimTypes.Role, not the short "role" name.
+                var roles = context.User.FindAll(ClaimTypes.Role)
                     .Select(c => c.Value)
                     .Where(r => !string.IsNullOrEmpty(r))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -80,7 +81,7 @@ public class GatewayAuthorizationMiddleware
                     context.Request.Headers.Add("X-User-Permissions", string.Join(",", permissions));
                 }
 
-                // Add expiry as unix timestamp
+                // Add expiry as ticks (HeaderUserContextService parses via long.TryParse → DateTime ticks)
                 context.Request.Headers.Add("X-User-ExpiresAt", expiresAt.Ticks.ToString());
 
                 _logger.LogInformation(

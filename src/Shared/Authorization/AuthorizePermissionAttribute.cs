@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
@@ -43,10 +44,10 @@ public class AuthorizePermissionAttribute : Attribute, IAsyncAuthorizationFilter
             return;
         }
 
-        // Check permissions
-        if (!user.HasAllPermissions(_requiredPermissions))
+        // SuperAdmin role bypasses all permission checks
+        if (!user.HasRole("SuperAdmin") && !user.HasAllPermissions(_requiredPermissions))
         {
-            context.Result = new ForbidResult();
+            context.Result = new StatusCodeResult(StatusCodes.Status403Forbidden);
             return;
         }
 
@@ -94,10 +95,10 @@ public class AuthorizeAnyPermissionAttribute : Attribute, IAsyncAuthorizationFil
             return;
         }
 
-        // Check permissions
-        if (!user.HasAnyPermission(_requiredPermissions))
+        // system:admin bypasses all permission checks
+        if (!user.HasPermission("system:admin") && !user.HasAnyPermission(_requiredPermissions))
         {
-            context.Result = new ForbidResult();
+            context.Result = new StatusCodeResult(StatusCodes.Status403Forbidden);
             return;
         }
 
@@ -145,10 +146,10 @@ public class AuthorizeRoleAttribute : Attribute, IAsyncAuthorizationFilter
             return;
         }
 
-        // Check roles
-        if (!user.HasAllRoles(_requiredRoles))
+        // SuperAdmin role bypasses all role checks
+        if (!user.HasRole("SuperAdmin") && !user.HasAllRoles(_requiredRoles))
         {
-            context.Result = new ForbidResult();
+            context.Result = new StatusCodeResult(StatusCodes.Status403Forbidden);
             return;
         }
 

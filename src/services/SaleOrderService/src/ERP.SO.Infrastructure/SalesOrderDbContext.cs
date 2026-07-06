@@ -41,6 +41,7 @@ namespace ERP.SO.Infrastructure
 
                 eb.OwnsMany(e => e.LineItems, li =>
                 {
+                    li.ToTable("SalesOrderItems");
                     li.WithOwner().HasForeignKey("OrderId");
                     li.HasKey("Id");
                     li.Property(p => p.ProductId).IsRequired();
@@ -48,10 +49,13 @@ namespace ERP.SO.Infrastructure
                     li.Property(p => p.Quantity).IsRequired();
                     li.Property(p => p.UnitPrice).IsRequired().HasPrecision(18, 2);
                     li.Property(p => p.ShippedQuantity).IsRequired();
+                    li.Ignore(p => p.RemainingQuantity);
+                    li.Ignore(p => p.LineTotal);
                 });
 
                 eb.OwnsMany(e => e.InternalNotes, n =>
                 {
+                    n.ToTable("OrderNotes");
                     n.WithOwner().HasForeignKey("OrderId");
                     n.HasKey("Id");
                     n.Property(p => p.Note).IsRequired().HasMaxLength(2000);
@@ -61,6 +65,7 @@ namespace ERP.SO.Infrastructure
 
                 eb.OwnsMany(e => e.StatusHistory, h =>
                 {
+                    h.ToTable("OrderStatusHistory");
                     h.WithOwner().HasForeignKey("OrderId");
                     h.HasKey("Id");
                     h.Property(p => p.FromStatus).IsRequired();

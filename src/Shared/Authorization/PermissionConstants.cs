@@ -25,18 +25,60 @@ public static class PermissionConstants
     public const string Supplier_Deactivate = "supplier:deactivate";
     public const string Supplier_Rate = "supplier:rate";
 
+    // Sales Order Permissions
+    public const string SalesOrder_Create = "sales_order:create";
+    public const string SalesOrder_Read = "sales_order:read";
+    public const string SalesOrder_Update = "sales_order:update";
+    public const string SalesOrder_Approve = "sales_order:approve";
+    public const string SalesOrder_Cancel = "sales_order:cancel";
+
+    // Accounting Permissions
+    public const string Accounting_InvoicesManage = "accounting:invoices:manage";
+    public const string Accounting_BillsManage = "accounting:bills:manage";
+    public const string Accounting_JournalsManage = "accounting:journals:manage";
+    public const string Accounting_PeriodsManage = "accounting:periods:manage";
+    public const string Accounting_BankManage = "accounting:bank:manage";
+    public const string Accounting_TaxManage = "accounting:tax:manage";
+    public const string Accounting_ReportsView = "accounting:reports:view";
+
+    // Shipping Permissions
+    public const string Shipping_Create = "shipping:create";
+    public const string Shipping_Update = "shipping:update";
+
+    // Payment Permissions
+    public const string Payments_Create = "payments:create";
+    public const string Payments_Refund = "payments:refund";
+    public const string Payments_SettlementsManage = "payments:settlements:manage";
+
+    // POS Permissions
+    public const string POS_Transactions = "pos:transactions";
+    public const string POS_TerminalsManage = "pos:terminals:manage";
+    public const string POS_ReportsView = "pos:reports:view";
+
+    // Promotion Permissions
+    public const string Promotions_Manage = "promotions:manage";
+
+    // Notification Permissions
+    public const string Notifications_Send = "notifications:send";
+    public const string Notifications_TemplatesManage = "notifications:templates:manage";
+    public const string Notifications_WebhooksManage = "notifications:webhooks:manage";
+
     /// <summary>
     /// Lấy tất cả permissions
     /// </summary>
-    public static string[] GetAllPermissions()
-    {
-        return new[]
-        {
-            PurchaseOrder_Create, PurchaseOrder_Read, PurchaseOrder_Update, PurchaseOrder_Delete,
-            PurchaseOrder_Approve, PurchaseOrder_Cancel, PurchaseOrder_AddItem, PurchaseOrder_RemoveItem,
-            PurchaseOrder_Receive,
-            Supplier_Create, Supplier_Read, Supplier_Update, Supplier_Delete, Supplier_Deactivate,
-            Supplier_Rate
-        };
-    }
+    public static string[] GetAllPermissions() =>
+    [
+        PurchaseOrder_Create, PurchaseOrder_Read, PurchaseOrder_Update, PurchaseOrder_Delete,
+        PurchaseOrder_Approve, PurchaseOrder_Cancel, PurchaseOrder_AddItem, PurchaseOrder_RemoveItem,
+        PurchaseOrder_Receive,
+        Supplier_Create, Supplier_Read, Supplier_Update, Supplier_Delete, Supplier_Deactivate, Supplier_Rate,
+        SalesOrder_Create, SalesOrder_Read, SalesOrder_Update, SalesOrder_Approve, SalesOrder_Cancel,
+        Accounting_InvoicesManage, Accounting_BillsManage, Accounting_JournalsManage, Accounting_PeriodsManage,
+        Accounting_BankManage, Accounting_TaxManage, Accounting_ReportsView,
+        Shipping_Create, Shipping_Update,
+        Payments_Create, Payments_Refund, Payments_SettlementsManage,
+        POS_Transactions, POS_TerminalsManage, POS_ReportsView,
+        Promotions_Manage,
+        Notifications_Send, Notifications_TemplatesManage, Notifications_WebhooksManage,
+    ];
 }

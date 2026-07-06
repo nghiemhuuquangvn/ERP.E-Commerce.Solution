@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.SO.Api.Controllers
 {
     [ApiController]
-    [Route("api/v1/[controller]")]
+    [Route("api/v1/orders")]
     public class SalesOrdersController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -36,7 +36,7 @@ namespace ERP.SO.Api.Controllers
             // Authorization check
             if (!_userContext.HasPermission("sales_order:create"))
             {
-                return Forbid("Insufficient permissions: sales_order:create required");
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:create required" });
             }
 
             // Validation
@@ -66,7 +66,7 @@ namespace ERP.SO.Api.Controllers
         {
             if (!_userContext.HasPermission("sales_order:read"))
             {
-                return Forbid("Insufficient permissions: sales_order:read required");
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:read required" });
             }
 
             try
@@ -92,21 +92,21 @@ namespace ERP.SO.Api.Controllers
         public async Task<IActionResult> ListOrders(
             [FromQuery] Guid? customerId,
             [FromQuery] string? status,
-            [FromQuery] int skip = 0,
-            [FromQuery] int take = 20,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
         {
             if (!_userContext.HasPermission("sales_order:read"))
             {
-                return Forbid("Insufficient permissions: sales_order:read required");
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:read required" });
             }
 
             var query = new ListOrdersQuery
             {
                 CustomerId = customerId,
                 Status = status,
-                Skip = skip,
-                Take = take
+                Skip = (page - 1) * pageSize,
+                Take = pageSize
             };
 
             var result = await _mediator.Send(query, cancellationToken);
@@ -127,7 +127,7 @@ namespace ERP.SO.Api.Controllers
         {
             if (!_userContext.HasPermission("sales_order:read"))
             {
-                return Forbid("Insufficient permissions: sales_order:read required");
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:read required" });
             }
 
             var query = new GetOrdersByCustomerQuery(customerId);
@@ -151,7 +151,7 @@ namespace ERP.SO.Api.Controllers
             CancellationToken cancellationToken)
         {
             if (!_userContext.HasPermission("sales_order:update"))
-                return Forbid("Insufficient permissions: sales_order:update required");
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:update required" });
 
             try
             {
@@ -176,7 +176,7 @@ namespace ERP.SO.Api.Controllers
             CancellationToken cancellationToken)
         {
             if (!_userContext.HasPermission("sales_order:update"))
-                return Forbid("Insufficient permissions: sales_order:update required");
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:update required" });
 
             await _mediator.Send(new AddOrderNoteCommand { OrderId = id, Note = request.Note, AddedBy = _userContext.UserId }, cancellationToken);
             return NoContent();
@@ -200,7 +200,7 @@ namespace ERP.SO.Api.Controllers
             CancellationToken cancellationToken)
         {
             if (!_userContext.HasPermission("sales_order:update"))
-                return Forbid("Insufficient permissions: sales_order:update required");
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:update required" });
 
             try
             {
@@ -233,7 +233,7 @@ namespace ERP.SO.Api.Controllers
             CancellationToken cancellationToken)
         {
             if (!_userContext.HasPermission("sales_order:update"))
-                return Forbid("Insufficient permissions: sales_order:update required");
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:update required" });
 
             try
             {
@@ -260,7 +260,7 @@ namespace ERP.SO.Api.Controllers
             CancellationToken cancellationToken)
         {
             if (!_userContext.HasPermission("sales_order:approve"))
-                return Forbid("Insufficient permissions: sales_order:approve required");
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:approve required" });
 
             try
             {
@@ -286,7 +286,7 @@ namespace ERP.SO.Api.Controllers
         {
             if (!_userContext.HasPermission("sales_order:update"))
             {
-                return Forbid("Insufficient permissions: sales_order:update required");
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:update required" });
             }
 
             try
@@ -317,7 +317,7 @@ namespace ERP.SO.Api.Controllers
         {
             if (!_userContext.HasPermission("sales_order:approve"))
             {
-                return Forbid("Insufficient permissions: sales_order:approve required");
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:approve required" });
             }
 
             try
@@ -349,7 +349,7 @@ namespace ERP.SO.Api.Controllers
         {
             if (!_userContext.HasPermission("sales_order:update"))
             {
-                return Forbid("Insufficient permissions: sales_order:update required");
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:update required" });
             }
 
             if (!ModelState.IsValid)
@@ -391,7 +391,7 @@ namespace ERP.SO.Api.Controllers
         {
             if (!_userContext.HasPermission("sales_order:cancel"))
             {
-                return Forbid("Insufficient permissions: sales_order:cancel required");
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:cancel required" });
             }
 
             if (!ModelState.IsValid)
@@ -431,7 +431,7 @@ namespace ERP.SO.Api.Controllers
         {
             if (!_userContext.HasPermission("sales_order:update"))
             {
-                return Forbid("Insufficient permissions: sales_order:update required");
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:update required" });
             }
 
             try
@@ -453,7 +453,7 @@ namespace ERP.SO.Api.Controllers
             CancellationToken cancellationToken)
         {
             if (!_userContext.HasPermission("sales_order:approve"))
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions" });
             try
             {
                 var result = await _mediator.Send(new RejectOrderCommand { OrderId = id, Reason = request.Reason }, cancellationToken);
@@ -466,7 +466,7 @@ namespace ERP.SO.Api.Controllers
         public async Task<IActionResult> MarkAsPicked([FromRoute] Guid id, CancellationToken cancellationToken)
         {
             if (!_userContext.HasPermission("sales_order:update"))
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions" });
             try
             {
                 var result = await _mediator.Send(new MarkAsPickedCommand { OrderId = id }, cancellationToken);

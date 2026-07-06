@@ -1,9 +1,34 @@
 using ERP.PAY.Application.DTOs;
 using ERP.PAY.Application.Interfaces;
 using ERP.PAY.Application.Queries;
+using ERP.PAY.Domain.Enums;
 using MediatR;
 
 namespace ERP.PAY.Application.Handlers;
+
+public class ListPaymentsQueryHandler : IRequestHandler<ListPaymentsQuery, ListPaymentsResult>
+{
+    private readonly IPaymentRepository _payments;
+    public ListPaymentsQueryHandler(IPaymentRepository payments) => _payments = payments;
+
+    public async Task<ListPaymentsResult> Handle(ListPaymentsQuery request, CancellationToken cancellationToken)
+    {
+        PaymentStatus? status = null;
+        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<PaymentStatus>(request.Status, ignoreCase: true, out var parsed))
+            status = parsed;
+
+        var skip = (request.Page - 1) * request.PageSize;
+        var (items, total) = await _payments.GetPagedAsync(skip, request.PageSize, status, cancellationToken);
+
+        return new ListPaymentsResult
+        {
+            Items = items.Select(p => InitiatePaymentCommandHandler.MapToDto(p)).ToList(),
+            TotalCount = total,
+            PageNumber = request.Page,
+            PageSize = request.PageSize
+        };
+    }
+}
 
 public class GetPaymentQueryHandler : IRequestHandler<GetPaymentQuery, PaymentDto?>
 {

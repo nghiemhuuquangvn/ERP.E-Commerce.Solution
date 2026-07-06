@@ -23,6 +23,16 @@ public class PaymentRepository : IPaymentRepository
     public async Task<List<Payment>> GetByStatusAsync(PaymentStatus status, CancellationToken ct = default) =>
         await _db.Payments.Where(p => p.Status == status).AsNoTracking().ToListAsync(ct);
 
+    public async Task<(List<Payment> Items, int Total)> GetPagedAsync(int skip, int take, PaymentStatus? status, CancellationToken ct = default)
+    {
+        var query = _db.Payments.AsNoTracking();
+        if (status.HasValue)
+            query = query.Where(p => p.Status == status.Value);
+        var total = await query.CountAsync(ct);
+        var items = await query.OrderByDescending(p => p.CreatedAt).Skip(skip).Take(take).ToListAsync(ct);
+        return (items, total);
+    }
+
     public async Task AddAsync(Payment payment, CancellationToken ct = default) =>
         await _db.Payments.AddAsync(payment, ct);
 

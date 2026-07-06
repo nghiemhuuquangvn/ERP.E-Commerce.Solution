@@ -19,6 +19,13 @@ public class PaymentsController : ControllerBase
         _userContext = userContext;
     }
 
+    [HttpGet]
+    public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? status = null, CancellationToken ct = default)
+    {
+        var result = await _mediator.Send(new ListPaymentsQuery { Page = page, PageSize = pageSize, Status = status }, ct);
+        return Ok(result);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Initiate([FromBody] InitiatePaymentCommand command, CancellationToken ct)
     {

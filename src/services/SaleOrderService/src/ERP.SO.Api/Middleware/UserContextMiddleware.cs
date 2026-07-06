@@ -54,7 +54,7 @@ namespace ERP.SO.Api.Middleware
             }
 
             // Parse permissions from comma-separated header
-            if (context.Request.Headers.TryGetValue("X-Permissions", out var permissions))
+            if (context.Request.Headers.TryGetValue("X-User-Permissions", out var permissions))
             {
                 var permissionArray = permissions.ToString()
                     .Split(',')
@@ -65,7 +65,7 @@ namespace ERP.SO.Api.Middleware
             }
 
             // Parse roles from comma-separated header
-            if (context.Request.Headers.TryGetValue("X-Roles", out var roles))
+            if (context.Request.Headers.TryGetValue("X-User-Roles", out var roles))
             {
                 var roleArray = roles.ToString()
                     .Split(',')
@@ -75,12 +75,12 @@ namespace ERP.SO.Api.Middleware
                 userContext.Roles = roleArray;
             }
 
-            // Parse token expiration
-            if (context.Request.Headers.TryGetValue("X-Token-Expires", out var expiresAt))
+            // Parse token expiration (gateway sends DateTime.Ticks as long)
+            if (context.Request.Headers.TryGetValue("X-User-ExpiresAt", out var expiresAt))
             {
-                if (long.TryParse(expiresAt.ToString(), out var timestamp))
+                if (long.TryParse(expiresAt.ToString(), out var ticks))
                 {
-                    userContext.ExpiresAt = DateTimeOffset.FromUnixTimeSeconds(timestamp).UtcDateTime;
+                    userContext.ExpiresAt = new DateTime(ticks, DateTimeKind.Utc);
                 }
             }
 
