@@ -27,6 +27,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ManageApiKeys)]
         public async Task<IActionResult> Create([FromBody] CreateApiKeyRequest request, CancellationToken ct = default)
         {
@@ -40,6 +41,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ViewApiKeys)]
         public async Task<IActionResult> List(CancellationToken ct = default)
         {
@@ -52,6 +54,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{id:guid}/revoke")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ManageApiKeys)]
         public async Task<IActionResult> Revoke([FromRoute] Guid id, CancellationToken ct = default)
         {

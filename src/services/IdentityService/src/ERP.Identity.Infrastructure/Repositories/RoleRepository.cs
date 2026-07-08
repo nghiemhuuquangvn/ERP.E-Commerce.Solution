@@ -56,5 +56,10 @@ namespace ERP.Identity.Infrastructure.Repositories
             return await _dbContext.Roles.AsNoTracking()
                 .AnyAsync(r => r.RoleCode == code && r.TenantId == tenantId, ct);
         }
+
+        public async Task<Role?> GetByIdInTenantAsync(Guid id, Guid tenantId, CancellationToken ct)
+        {
+            return await _dbContext.Roles.FirstOrDefaultAsync(r => r.Id == id && r.TenantId == tenantId, ct);
+        }
     }
 }

@@ -23,6 +23,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("audit-logs")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ViewAuditLogs)]
         public async Task<IActionResult> GetAuditLogs(
             [FromQuery] Guid? tenantId, [FromQuery] Guid? userId, [FromQuery] string? eventType,
@@ -33,6 +34,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("login-attempts")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ViewAuditLogs)]
         public async Task<IActionResult> GetLoginAttempts(
             [FromQuery] string? ipAddress, [FromQuery] string? email,

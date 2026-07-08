@@ -11,8 +11,14 @@ public record UserDetailDto(
     bool IsLocked,
     DateTime? LastLoginAt,
     List<string> Roles,
-    List<string> Permissions
+    List<string> Permissions,
+    List<RoleAssignmentDto> RoleAssignments
 );
+
+// RoleId is needed alongside RoleCode/RoleName so the frontend can call
+// DELETE /api/users/{id}/roles/{roleId} — the plain Roles: List<string> above only
+// has display names, not enough to target a specific assignment for removal.
+public record RoleAssignmentDto(Guid RoleId, string RoleCode, string RoleName);
 
 public record UpdateProfileRequest(string? FullName, string? UserName);
 

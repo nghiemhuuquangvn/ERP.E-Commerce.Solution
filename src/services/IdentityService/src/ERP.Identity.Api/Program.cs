@@ -1,3 +1,4 @@
+using ERP.Identity.Api.Authorization;
 using ERP.Identity.Application;
 using ERP.Identity.Application.Authorization;
 using ERP.Identity.Application.Interfaces.Repositories;
@@ -33,7 +34,10 @@ catch (System.Reflection.ReflectionTypeLoadException ex)
         Console.WriteLine($"Type load error: {loaderException?.Message}");
 }
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<IdentityExceptionFilter>();
+});
 builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

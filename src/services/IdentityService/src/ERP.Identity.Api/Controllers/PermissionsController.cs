@@ -20,6 +20,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ViewPermissions)]
         public async Task<IActionResult> List(CancellationToken ct = default)
         {
@@ -28,6 +29,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ManagePermissions)]
         public async Task<IActionResult> Create([FromBody] CreatePermissionRequest request, CancellationToken ct = default)
         {
@@ -36,6 +38,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ManagePermissions)]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdatePermissionRequest request, CancellationToken ct = default)
         {
@@ -44,6 +47,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ManagePermissions)]
         public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken ct = default)
         {

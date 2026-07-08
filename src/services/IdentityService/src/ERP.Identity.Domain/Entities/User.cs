@@ -1,5 +1,4 @@
 ﻿using ERP.Identity.Domain.Common;
-using ERP.Identity.Domain.Constants;
 using ERP.Identity.Domain.Events;
 using System;
 using System.Collections.Generic;
@@ -97,18 +96,19 @@ namespace ERP.Identity.Domain.Entities
             if(!_authTenants.Any(at => at.TenantId == tenantId))
                 throw new InvalidOperationException("User is not assigned to the tenant");
 
-            //var role = Role.CreateReference(roleCode, tenantId);
-            var roleId = RoleIds.FromCode(role.RoleCode);
-
-            if (_userRoles.Any(r => r.RoleId == roleId && r.TenantId == tenantId))
+            // Previously substituted a fixed, global, hardcoded GUID (RoleIds.FromCode)
+            // in place of the real per-tenant Role.Id passed in — those constants never
+            // matched any actually-seeded Roles.Id row, so every assignment violated the
+            // UserRoles.RoleId FK. Use the real role.Id.
+            if (_userRoles.Any(r => r.RoleId == role.Id && r.TenantId == tenantId))
                 return;
 
-            var userRole = new UserRole(this.Id, roleId, tenantId);
+            var userRole = new UserRole(this.Id, role.Id, tenantId);
             userRole.User = this;
             userRole.Role = role;
             _userRoles.Add(userRole);
 
-            AddDomainEvent(new RoleAssignedDomainEvent(Id, tenantId, roleId, role.RoleCode));
+            AddDomainEvent(new RoleAssignedDomainEvent(Id, tenantId, role.Id, role.RoleCode));
         }
 
         public void AddExternalLogin(string provider, string providerKey, string email)

@@ -45,7 +45,9 @@
     "settings": "Cài đặt",
     "authSettings": "Cài đặt đăng nhập",
     "monitoring": "Giám sát",
-    "logs": "Nhật ký hệ thống"
+    "logs": "Nhật ký hệ thống",
+    "users": "Người dùng",
+    "rolesPermissions": "Vai trò & Phân quyền"
   },
   "auth": {
     "title": "ERP Admin",
@@ -327,6 +329,49 @@
       "twoFactorRequired": "Bắt buộc xác thực hai lớp cho tất cả người dùng",
       "noTenant": "Không tìm thấy đơn vị cho người dùng hiện tại.",
       "failedToSave": "Lưu cài đặt thất bại. Vui lòng thử lại."
+    }
+  },
+  "identity": {
+    "users": {
+      "title": "Người dùng",
+      "email": "Email",
+      "fullName": "Họ tên",
+      "userName": "Tên đăng nhập",
+      "roles": "Vai trò",
+      "tenant": "Đơn vị",
+      "myTenant": "Đơn vị của tôi",
+      "editProfileTitle": "Chỉnh sửa hồ sơ",
+      "manageRoles": "Quản lý vai trò",
+      "manageRolesTitle": "Quản lý vai trò — {{email}}",
+      "noRoles": "Chưa có vai trò nào được gán.",
+      "assignRole": "Gán",
+      "lock": "Khóa",
+      "unlock": "Mở khóa",
+      "locked": "Đã khóa",
+      "lockTitle": "Khóa người dùng",
+      "unlockTitle": "Mở khóa người dùng",
+      "lockConfirm": "Bạn có chắc chắn muốn thực hiện hành động này với \"{{email}}\"?",
+      "deactivateTitle": "Vô hiệu hóa người dùng",
+      "deactivateConfirm": "Bạn có chắc chắn muốn vô hiệu hóa \"{{email}}\"?",
+      "invite": "Mời người dùng",
+      "inviteTitle": "Mời người dùng đã có vào đơn vị này",
+      "roleOptional": "Vai trò (không bắt buộc)",
+      "inviteSuccess": "Đã mời người dùng vào đơn vị này thành công.",
+      "inviteAlreadyMember": "Người dùng này đã là thành viên của đơn vị này.",
+      "inviteFailed": "Mời người dùng thất bại. Vui lòng kiểm tra email và thử lại."
+    },
+    "roles": {
+      "title": "Vai trò",
+      "add": "Thêm vai trò",
+      "addTitle": "Thêm vai trò",
+      "editTitle": "Chỉnh sửa vai trò",
+      "module": "Nhóm chức năng",
+      "managePermissions": "Quyền hạn",
+      "managePermissionsTitle": "Quản lý quyền hạn — {{name}}",
+      "permissionCatalog": "Danh mục quyền hạn",
+      "permissionCatalogHint": "Danh sách tham khảo (chỉ đọc) tất cả các mã quyền hạn có trong hệ thống.",
+      "deleteTitle": "Xóa vai trò",
+      "deleteConfirm": "Bạn có chắc chắn muốn xóa \"{{name}}\"?"
     }
   }
 }

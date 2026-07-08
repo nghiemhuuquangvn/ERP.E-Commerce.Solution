@@ -60,6 +60,33 @@ namespace ERP.Identity.Infrastructure.Repositories
             return user;
         }
 
+        public async Task<User?> GetByEmailGloballyAsync(string email, CancellationToken ct)
+        {
+            return await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Email == email, ct);
+        }
+
+        public async Task<User?> GetByIdInTenantAsync(Guid id, Guid tenantId, CancellationToken ct)
+        {
+            return await _dbContext.Users
+                .FirstOrDefaultAsync(u => u.Id == id && u.UserTenants.Any(ut => ut.TenantId == tenantId), ct);
+        }
+
+        public async Task<User?> GetByIdWithDetailsInTenantAsync(Guid id, Guid tenantId, CancellationToken ct)
+        {
+            return await _dbContext.Users
+                .Include(x => x.UserRoles)
+                .ThenInclude(x => x.Role)
+                .ThenInclude(x => x.RolePermissions)
+                .ThenInclude(x => x.Permission)
+                .FirstOrDefaultAsync(u => u.Id == id && u.UserTenants.Any(ut => ut.TenantId == tenantId), ct);
+        }
+
+        public async Task<bool> IsInTenantAsync(Guid userId, Guid tenantId, CancellationToken ct)
+        {
+            return await _dbContext.Set<AuthUserTenant>().AsNoTracking()
+                .AnyAsync(ut => ut.UserId == userId && ut.TenantId == tenantId, ct);
+        }
+
         public async Task<User> GetByIdAsync(Guid id, CancellationToken ct)
         {
            var user = await _dbContext.Users
@@ -119,9 +146,19 @@ namespace ERP.Identity.Infrastructure.Repositories
 
         public async Task<IReadOnlyList<User>> ListByTenantAsync(Guid tenantId, int page, int pageSize, CancellationToken ct)
         {
+            // Scoped through AuthUserTenant membership (not User.TenantId equality) so a
+            // user invited into a second tenant shows up there too — matches
+            // GetByIdInTenantAsync/IsInTenantAsync's membership model. Eager-loads
+            // Role/RolePermissions/Permission since UserService projects Roles/
+            // Permissions/RoleAssignments straight off these navigations.
             return await _dbContext.Users
                 .AsNoTracking()
-                .Where(x => x.TenantId == tenantId)
+                .Where(x => x.UserTenants.Any(ut => ut.TenantId == tenantId))
+                .Include(x => x.UserRoles.Where(ur => ur.TenantId == tenantId))
+                    .ThenInclude(ur => ur.Role)
+                        .ThenInclude(r => r.RolePermissions)
+                            .ThenInclude(rp => rp.Permission)
+                .OrderBy(x => x.Email)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync(ct);
@@ -136,8 +173,21 @@ namespace ERP.Identity.Infrastructure.Repositories
         public async Task<int> CountByTenantAsync(Guid tenantId, CancellationToken ct)
         {
             return await _dbContext.Users.AsNoTracking()
-                .Where(x => x.TenantId == tenantId)
+                .Where(x => x.UserTenants.Any(ut => ut.TenantId == tenantId))
                 .CountAsync(ct);
+        }
+
+        public async Task RemoveRoleAsync(Guid userId, Guid roleId, Guid tenantId, CancellationToken ct)
+        {
+            // Fetched directly from the DbSet (not via a loaded User.UserRoles
+            // collection) — UserService.RemoveRoleAsync previously tried removing from
+            // an in-memory collection and gave up ("tricky with EF Core"), silently
+            // doing nothing. A direct query + Remove() is unambiguous.
+            var userRole = await _dbContext.UserRoles
+                .FirstOrDefaultAsync(ur => ur.UserId == userId && ur.RoleId == roleId && ur.TenantId == tenantId, ct);
+
+            if (userRole != null)
+                _dbContext.UserRoles.Remove(userRole);
         }
     }
 }

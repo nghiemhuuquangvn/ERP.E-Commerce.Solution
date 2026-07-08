@@ -67,6 +67,13 @@ const NAV_ITEMS: NavItem[] = [
   },
   { labelKey: 'nav.monitoring', path: '/monitoring', permission: 'monitoring:view', icon: '🖥' },
   { labelKey: 'nav.logs', path: '/logs', permission: 'logging:logs:view', icon: '📜' },
+  { labelKey: 'nav.users', path: '/identity/users', permission: 'identity:users:view', icon: '🧑‍💼' },
+  {
+    labelKey: 'nav.rolesPermissions',
+    path: '/identity/roles',
+    permission: 'identity:roles:view',
+    icon: '🛡️',
+  },
 ]
 
 export function Sidebar() {

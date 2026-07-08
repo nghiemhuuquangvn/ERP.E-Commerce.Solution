@@ -1,5 +1,4 @@
 ﻿using ERP.Identity.Domain.Common;
-using ERP.Identity.Domain.Constants;
 using ERP.Identity.Domain.Events;
 using System;
 using System.Collections.Generic;
@@ -27,28 +26,10 @@ namespace ERP.Identity.Domain.Entities
             TenantId = tenantId;
             IsActive = true;
         }
-        private Role(Guid id, string roleCode)
-        {
-            Id = id;
-            RoleCode = roleCode;
-        }
-        private Role(Guid id, string roleCode, Guid tenantId)
-        {
-            Id = id;
-            RoleCode = roleCode;
-            TenantId = tenantId;
-        }
+
         public static Role Create(string roleCode, string roleName, Guid tenantId)
         {
             return new Role(Guid.NewGuid(), roleCode, roleName, tenantId);
-        }
-        public static Role CreateReference(string code)
-        {
-            return new Role(RoleIds.FromCode(code), code);
-        }
-        public static Role CreateReference(string code, Guid tenantId)
-        {
-            return new Role(RoleIds.FromCode(code), code, tenantId);
         }
 
         /// <summary>

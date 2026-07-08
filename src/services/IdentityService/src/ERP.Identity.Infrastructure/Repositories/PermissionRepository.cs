@@ -42,7 +42,7 @@ namespace ERP.Identity.Infrastructure.Repositories
             var userPermissions = await _dbContext.UserRoles.AsNoTracking()
                             .Where(ur => ur.UserId == userId && ur.TenantId == tenantId)
                             .SelectMany(ur => _dbContext.RolePermissions.AsNoTracking()
-                                .Where(rp => rp.RoleId == ur.RoleId && rp.TenantId == tenantId))
+                                .Where(rp => rp.RoleId == ur.RoleId))
                             .Select(rp => rp.Permission.PermissionCode)
                             .ToListAsync();
 
@@ -73,8 +73,7 @@ namespace ERP.Identity.Infrastructure.Repositories
             var rolePermission = new RolePermission
             {
                 RoleId = roleId,
-                PermissionId = permissionId,
-                TenantId = tenantId
+                PermissionId = permissionId
             };
 
             await _dbContext.RolePermissions.AddAsync(rolePermission, ct);

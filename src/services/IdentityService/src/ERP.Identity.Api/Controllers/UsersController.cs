@@ -16,37 +16,74 @@ namespace ERP.Identity.Api.Controllers
         private readonly IUserService _userService;
         private readonly ISettingsService _settingsService;
         private readonly ISessionService _sessionService;
+        private readonly IPermissionService _permissionService;
 
-        public UsersController(IUserService userService, ISettingsService settingsService, ISessionService sessionService)
+        public UsersController(IUserService userService, ISettingsService settingsService, ISessionService sessionService, IPermissionService permissionService)
         {
             _userService = userService;
             _settingsService = settingsService;
             _sessionService = sessionService;
+            _permissionService = permissionService;
         }
 
         [HttpGet]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ViewUsers)]
-        public async Task<IActionResult> List([FromQuery] Guid tenantId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
+        public async Task<IActionResult> List([FromQuery] Guid? tenantId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
         {
-            var result = await _userService.ListByTenantAsync(tenantId, page, pageSize, ct);
+            var callerTenantId = this.GetCallerTenantId();
+            if (callerTenantId is null)
+                return Unauthorized();
+
+            var effectiveTenantId = callerTenantId.Value;
+
+            if (tenantId.HasValue && tenantId.Value != callerTenantId.Value)
+            {
+                // Cross-tenant override — only for callers who also hold identity:tenants:view,
+                // re-verified against the DB (not trusted from JWT claims) via the same gate
+                // TenantsController.List uses. This is what makes a real SuperAdmin
+                // cross-tenant view legitimate without reopening this for everyone else.
+                var callerUserId = this.GetCallerUserId();
+                if (callerUserId is null)
+                    return Unauthorized();
+
+                var canCrossTenant = await _permissionService.HasPermissionAsync(
+                    callerUserId.Value, callerTenantId.Value, new[] { Permissions.ViewTenants });
+                if (!canCrossTenant)
+                    return Forbid();
+
+                effectiveTenantId = tenantId.Value;
+            }
+
+            var result = await _userService.ListByTenantAsync(effectiveTenantId, page, pageSize, ct);
             return Ok(result);
         }
 
         [HttpGet("{id}")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ViewUsers)]
         public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken ct = default)
         {
-            var user = await _userService.GetByIdAsync(id, ct);
+            var callerTenantId = this.GetCallerTenantId();
+            if (callerTenantId is null)
+                return Unauthorized();
+
+            var user = await _userService.GetByIdAsync(id, callerTenantId.Value, ct);
             if (user == null)
                 return NotFound();
             return Ok(user);
         }
 
         [HttpPut("{id}/profile")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.EditUsers)]
         public async Task<IActionResult> UpdateProfile([FromRoute] Guid id, [FromBody] UpdateProfileRequest request, CancellationToken ct = default)
         {
-            await _userService.UpdateProfileAsync(id, request, ct);
+            var callerTenantId = this.GetCallerTenantId();
+            if (callerTenantId is null)
+                return Unauthorized();
+
+            await _userService.UpdateProfileAsync(id, callerTenantId.Value, request, ct);
             return Ok(new { message = "Profile updated successfully" });
         }
 
@@ -103,51 +140,87 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{id}/lock")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ManageUsers)]
         public async Task<IActionResult> Lock([FromRoute] Guid id, CancellationToken ct = default)
         {
-            await _userService.LockAsync(id, ct);
+            var callerTenantId = this.GetCallerTenantId();
+            if (callerTenantId is null)
+                return Unauthorized();
+
+            await _userService.LockAsync(id, callerTenantId.Value, ct);
             return Ok(new { message = "User locked successfully" });
         }
 
         [HttpPost("{id}/unlock")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ManageUsers)]
         public async Task<IActionResult> Unlock([FromRoute] Guid id, CancellationToken ct = default)
         {
-            await _userService.UnlockAsync(id, ct);
+            var callerTenantId = this.GetCallerTenantId();
+            if (callerTenantId is null)
+                return Unauthorized();
+
+            await _userService.UnlockAsync(id, callerTenantId.Value, ct);
             return Ok(new { message = "User unlocked successfully" });
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.DeleteUsers)]
         public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken ct = default)
         {
-            await _userService.DeactivateAsync(id, ct);
+            var callerTenantId = this.GetCallerTenantId();
+            if (callerTenantId is null)
+                return Unauthorized();
+
+            await _userService.DeactivateAsync(id, callerTenantId.Value, ct);
             return Ok(new { message = "User deleted successfully" });
         }
 
         [HttpPost("{id}/roles")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ManageUsers)]
         public async Task<IActionResult> AssignRole([FromRoute] Guid id, [FromBody] AssignRoleRequest request, CancellationToken ct = default)
         {
-            var tenantId = User.FindFirst("tenant_id")?.Value;
-            if (string.IsNullOrEmpty(tenantId) || !Guid.TryParse(tenantId, out var parsedTenantId))
+            var parsedTenantId = this.GetCallerTenantId();
+            if (parsedTenantId is null)
                 return Unauthorized();
 
-            await _userService.AssignRoleAsync(id, request.RoleCode, parsedTenantId, ct);
+            await _userService.AssignRoleAsync(id, request.RoleCode, parsedTenantId.Value, ct);
             return Ok(new { message = "Role assigned successfully" });
         }
 
         [HttpDelete("{id}/roles/{roleId}")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ManageUsers)]
         public async Task<IActionResult> RemoveRole([FromRoute] Guid id, [FromRoute] Guid roleId, CancellationToken ct = default)
         {
-            var tenantId = User.FindFirst("tenant_id")?.Value;
-            if (string.IsNullOrEmpty(tenantId) || !Guid.TryParse(tenantId, out var parsedTenantId))
+            var parsedTenantId = this.GetCallerTenantId();
+            if (parsedTenantId is null)
                 return Unauthorized();
 
-            await _userService.RemoveRoleAsync(id, roleId, parsedTenantId, ct);
+            await _userService.RemoveRoleAsync(id, roleId, parsedTenantId.Value, ct);
             return Ok(new { message = "Role removed successfully" });
+        }
+
+        /// <summary>
+        /// Attaches an already-existing account (found by email) to the caller's own
+        /// tenant. Self-service registration deliberately does NOT do this silently
+        /// (see AuthService.RegisterAsync) — only an authenticated admin action with
+        /// manage_users may pull a known account into their tenant.
+        /// </summary>
+        [HttpPost("invite")]
+        [Authorize(Policy = "Permission")]
+        [RequirePermission(Permissions.ManageUsers)]
+        public async Task<IActionResult> Invite([FromBody] InviteUserToTenantRequest request, CancellationToken ct = default)
+        {
+            var callerTenantId = this.GetCallerTenantId();
+            if (callerTenantId is null)
+                return Unauthorized();
+
+            var result = await _userService.InviteToTenantAsync(callerTenantId.Value, request, ct);
+            return Ok(result);
         }
 
         /// <summary>"Where am I logged in" — lists this user's active DeviceSessions rows.</summary>

@@ -22,6 +22,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("system")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(SettingsPermissions.SystemView)]
         public async Task<IActionResult> GetSystemSettings(CancellationToken ct = default)
         {
@@ -30,6 +31,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("system")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(SettingsPermissions.SystemManage)]
         public async Task<IActionResult> UpdateSystemSettings([FromBody] UpdateSystemAuthSettingsRequest request, CancellationToken ct = default)
         {
@@ -38,6 +40,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("tenant/{tenantId}")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(SettingsPermissions.TenantView)]
         public async Task<IActionResult> GetTenantSettings([FromRoute] Guid tenantId, CancellationToken ct = default)
         {
@@ -49,6 +52,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("tenant/{tenantId}")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(SettingsPermissions.TenantManage)]
         public async Task<IActionResult> UpdateTenantSettings([FromRoute] Guid tenantId, [FromBody] UpdateTenantAuthSettingsRequest request, CancellationToken ct = default)
         {

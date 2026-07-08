@@ -2,29 +2,29 @@ namespace ERP.Identity.Application.Authorization;
 public static class Permissions
 {
     // Users
-    public const string ManageUsers = "manage_users";
-    public const string ViewUsers = "view_users";
-    public const string CreateUsers = "create_users";
-    public const string EditUsers = "edit_users";
-    public const string DeleteUsers = "delete_users";
+    public const string ManageUsers = "identity:users:manage";
+    public const string ViewUsers = "identity:users:view";
+    public const string CreateUsers = "identity:users:create";
+    public const string EditUsers = "identity:users:edit";
+    public const string DeleteUsers = "identity:users:delete";
 
     // Roles
-    public const string ManageRoles = "manage_roles";
-    public const string ViewRoles = "view_roles";
-    public const string CreateRoles = "create_roles";
-    public const string EditRoles = "edit_roles";
-    public const string DeleteRoles = "delete_roles";
+    public const string ManageRoles = "identity:roles:manage";
+    public const string ViewRoles = "identity:roles:view";
+    public const string CreateRoles = "identity:roles:create";
+    public const string EditRoles = "identity:roles:edit";
+    public const string DeleteRoles = "identity:roles:delete";
 
     // Permissions
-    public const string ManagePermissions = "manage_permissions";
-    public const string ViewPermissions = "view_permissions";
+    public const string ManagePermissions = "identity:permissions:manage";
+    public const string ViewPermissions = "identity:permissions:view";
 
     // Tenants
-    public const string ManageTenants = "manage_tenants";
-    public const string ViewTenants = "view_tenants";
-    public const string CreateTenants = "create_tenants";
-    public const string EditTenants = "edit_tenants";
-    public const string DeleteTenants = "delete_tenants";
+    public const string ManageTenants = "identity:tenants:manage";
+    public const string ViewTenants = "identity:tenants:view";
+    public const string CreateTenants = "identity:tenants:create";
+    public const string EditTenants = "identity:tenants:edit";
+    public const string DeleteTenants = "identity:tenants:delete";
 
     // Security (audit logs, login attempts)
     public const string ViewAuditLogs = "security:audit:view";

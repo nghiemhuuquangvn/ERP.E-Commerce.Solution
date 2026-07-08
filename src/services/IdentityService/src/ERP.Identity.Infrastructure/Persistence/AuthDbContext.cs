@@ -233,7 +233,7 @@ namespace ERP.Identity.Infrastructure.Persistence
             modelBuilder.Entity<UserRole>(entity =>
             {
                 entity.ToTable("UserRoles");
-                entity.HasKey(ur => new { ur.UserId, ur.RoleId });
+                entity.HasKey(ur => new { ur.UserId, ur.RoleId, ur.TenantId });
 
                 entity.HasOne(ur => ur.Role)
                     .WithMany(r => r.UserRoles)

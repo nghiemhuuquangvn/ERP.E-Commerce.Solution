@@ -20,6 +20,8 @@ import { UnitsOfMeasurePage } from '@/pages/masterdata/UnitsOfMeasurePage'
 import { GeographyPage } from '@/pages/masterdata/GeographyPage'
 import { LanguagesPage } from '@/pages/masterdata/LanguagesPage'
 import { AuthSettingsPage } from '@/pages/settings/AuthSettingsPage'
+import { UsersPage } from '@/pages/identity/UsersPage'
+import { RolesPermissionsPage } from '@/pages/identity/RolesPermissionsPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -67,6 +69,8 @@ export const router = createBrowserRouter([
       { path: 'masterdata/units-of-measure', element: <UnitsOfMeasurePage /> },
       { path: 'masterdata/geography', element: <GeographyPage /> },
       { path: 'masterdata/languages', element: <LanguagesPage /> },
+      { path: 'identity/users', element: <UsersPage /> },
+      { path: 'identity/roles', element: <RolesPermissionsPage /> },
       // Kept for anyone with the old bookmark/link — SharedMasterDataService now
       // owns Employee data, not HRM.
       { path: 'employees', element: <Navigate to="/masterdata/employees" replace /> },

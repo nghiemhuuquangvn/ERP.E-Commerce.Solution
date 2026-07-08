@@ -442,11 +442,15 @@ namespace ERP.Identity.Infrastructure.Services
                 var tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(request.TenantCode, ct)
                     ?? throw new InvalidOperationException("Tenant not found");
 
-                // 2️⃣ Check email duplicate trong tenant
-                var existedUser = await _unitOfWork.Users.GetByEmailAsync(request.Email, tenant.Id, ct);
+                // 2️⃣ Check email duplicate globally — Users.Email has a global unique index,
+                // so a tenant-scoped check alone lets a second tenant's registration slip
+                // past the app check and crash on the raw SQL constraint. An existing account
+                // must go through POST /api/users/invite (admin-gated) to join a new tenant,
+                // not silently self-attach here.
+                var existedUser = await _unitOfWork.Users.GetByEmailGloballyAsync(request.Email, ct);
 
                 if (existedUser != null)
-                    throw new InvalidOperationException("Email already exists");
+                    throw new DuplicateException("Email", request.Email);
 
                 // 3️⃣ Hash password
                 var passwordHash = _passwordHasher.HashPassword(request.Password.Trim());

@@ -3,6 +3,7 @@ using ERP.Identity.Application.DTOs.Common;
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Domain.Entities;
+using ERP.Shared.Infrastructure.Exceptions;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,13 +29,18 @@ namespace ERP.Identity.Infrastructure.Services
             _passwordPolicyService = passwordPolicyService;
         }
 
-        public async Task<UserDetailDto?> GetByIdAsync(Guid id, CancellationToken ct)
+        public async Task<UserDetailDto?> GetByIdAsync(Guid id, Guid callerTenantId, CancellationToken ct)
         {
-            var user = await _unitOfWork.Users.GetByIdWithDetailsAsync(id, ct);
+            // Tenant-scoped fetch — a user in another tenant collapses to the same
+            // "not found" outcome as a user that doesn't exist at all (anti-enumeration).
+            var user = await _unitOfWork.Users.GetByIdWithDetailsInTenantAsync(id, callerTenantId, ct);
             if (user == null)
                 return null;
 
             var roles = user.UserRoles.Select(ur => ur.Role.RoleName).ToList();
+            var roleAssignments = user.UserRoles
+                .Select(ur => new RoleAssignmentDto(ur.RoleId, ur.Role.RoleCode, ur.Role.RoleName))
+                .ToList();
             var permissions = user.UserRoles
                 .SelectMany(ur => ur.Role.RolePermissions)
                 .Select(rp => rp.Permission.PermissionCode)
@@ -50,7 +56,8 @@ namespace ERP.Identity.Infrastructure.Services
                 user.IsLocked,
                 user.LastLoginAt,
                 roles,
-                permissions
+                permissions,
+                roleAssignments
             );
         }
 
@@ -62,6 +69,9 @@ namespace ERP.Identity.Infrastructure.Services
             var userDtos = users.Select(u =>
             {
                 var roles = u.UserRoles.Select(ur => ur.Role.RoleName).ToList();
+                var roleAssignments = u.UserRoles
+                    .Select(ur => new RoleAssignmentDto(ur.RoleId, ur.Role.RoleCode, ur.Role.RoleName))
+                    .ToList();
                 var permissions = u.UserRoles
                     .SelectMany(ur => ur.Role.RolePermissions)
                     .Select(rp => rp.Permission.PermissionCode)
@@ -77,18 +87,18 @@ namespace ERP.Identity.Infrastructure.Services
                     u.IsLocked,
                     u.LastLoginAt,
                     roles,
-                    permissions
+                    permissions,
+                    roleAssignments
                 );
             }).ToList();
 
             return new PagedResponse<UserDetailDto>(userDtos, totalCount, page, pageSize);
         }
 
-        public async Task UpdateProfileAsync(Guid id, UpdateProfileRequest request, CancellationToken ct)
+        public async Task UpdateProfileAsync(Guid id, Guid callerTenantId, UpdateProfileRequest request, CancellationToken ct)
         {
-            var user = await _unitOfWork.Users.GetByIdAsync(id, ct);
-            if (user == null)
-                throw new InvalidOperationException($"User with id '{id}' not found");
+            var user = await _unitOfWork.Users.GetByIdInTenantAsync(id, callerTenantId, ct)
+                ?? throw new EntityNotFoundException("User", id);
 
             user.UpdateProfile(request.FullName, request.UserName);
             await _unitOfWork.Users.UpdateAsync(user, ct);
@@ -120,11 +130,10 @@ namespace ERP.Identity.Infrastructure.Services
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
-        public async Task LockAsync(Guid id, CancellationToken ct)
+        public async Task LockAsync(Guid id, Guid callerTenantId, CancellationToken ct)
         {
-            var user = await _unitOfWork.Users.GetByIdAsync(id, ct);
-            if (user == null)
-                throw new InvalidOperationException($"User with id '{id}' not found");
+            var user = await _unitOfWork.Users.GetByIdInTenantAsync(id, callerTenantId, ct)
+                ?? throw new EntityNotFoundException("User", id);
 
             user.Lock();
             await _unitOfWork.Users.UpdateAsync(user, ct);
@@ -132,11 +141,10 @@ namespace ERP.Identity.Infrastructure.Services
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
-        public async Task UnlockAsync(Guid id, CancellationToken ct)
+        public async Task UnlockAsync(Guid id, Guid callerTenantId, CancellationToken ct)
         {
-            var user = await _unitOfWork.Users.GetByIdAsync(id, ct);
-            if (user == null)
-                throw new InvalidOperationException($"User with id '{id}' not found");
+            var user = await _unitOfWork.Users.GetByIdInTenantAsync(id, callerTenantId, ct)
+                ?? throw new EntityNotFoundException("User", id);
 
             user.Unlock();
             await _unitOfWork.Users.UpdateAsync(user, ct);
@@ -144,11 +152,10 @@ namespace ERP.Identity.Infrastructure.Services
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
-        public async Task DeactivateAsync(Guid id, CancellationToken ct)
+        public async Task DeactivateAsync(Guid id, Guid callerTenantId, CancellationToken ct)
         {
-            var user = await _unitOfWork.Users.GetByIdAsync(id, ct);
-            if (user == null)
-                throw new InvalidOperationException($"User with id '{id}' not found");
+            var user = await _unitOfWork.Users.GetByIdInTenantAsync(id, callerTenantId, ct)
+                ?? throw new EntityNotFoundException("User", id);
 
             user.Deactivate();
             await _unitOfWork.Users.UpdateAsync(user, ct);
@@ -181,9 +188,39 @@ namespace ERP.Identity.Infrastructure.Services
             if (userRole == null)
                 throw new InvalidOperationException($"User doesn't have this role");
 
-            // We need to remove from the collection - this is tricky with EF Core
-            // For now, we'll use a workaround by deleting directly from the database
+            // Previously a no-op: this method removed nothing and just called
+            // SaveChangesAsync, so DELETE /api/users/{id}/roles/{roleId} always
+            // returned 200 OK while leaving the role assigned. A direct repository
+            // delete (not a collection-remove-then-hope-EF-notices) actually persists it.
+            await _unitOfWork.Users.RemoveRoleAsync(userId, roleId, tenantId, ct);
             await _unitOfWork.SaveChangesAsync(ct);
+        }
+
+        public async Task<InviteUserToTenantResponse> InviteToTenantAsync(Guid callerTenantId, InviteUserToTenantRequest request, CancellationToken ct)
+        {
+            var user = await _unitOfWork.Users.GetByEmailGloballyAsync(request.Email, ct)
+                ?? throw new KeyNotFoundException($"No account found for email '{request.Email}'.");
+
+            if (await _unitOfWork.Users.IsInTenantAsync(user.Id, callerTenantId, ct))
+                return new InviteUserToTenantResponse(user.Id, callerTenantId, AlreadyMember: true);
+
+            var tenant = await _unitOfWork.Tenants.GetByIdAsync(callerTenantId, ct)
+                ?? throw new InvalidOperationException("Tenant not found");
+
+            user.AssignToTenant(tenant);
+
+            if (!string.IsNullOrWhiteSpace(request.RoleCode))
+            {
+                var role = await _unitOfWork.Roles.GetByCodeAsync(request.RoleCode, callerTenantId, ct)
+                    ?? throw new InvalidOperationException($"Role '{request.RoleCode}' not found for tenant");
+                user.AssignRole(role, callerTenantId);
+            }
+
+            await _unitOfWork.Users.UpdateAsync(user, ct);
+            await _securityAuditService.LogAsync("UserInvitedToTenant", true, callerTenantId, user.Id, user.Email, ct: ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+
+            return new InviteUserToTenantResponse(user.Id, callerTenantId, AlreadyMember: false);
         }
 
         public async Task EnableTwoFactorAsync(Guid id, string method, string? phoneNumber, CancellationToken ct)

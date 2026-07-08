@@ -2,6 +2,7 @@ using ERP.Identity.Application.DTOs.Permission;
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Domain.Entities;
+using ERP.Shared.Infrastructure.Exceptions;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,9 +24,9 @@ namespace ERP.Identity.Infrastructure.Services
             return roles.Select(r => new RoleDto(r.Id, r.RoleCode, r.RoleName, r.IsActive)).ToList();
         }
 
-        public async Task<RoleDto?> GetByIdAsync(Guid id, CancellationToken ct)
+        public async Task<RoleDto?> GetByIdAsync(Guid id, Guid callerTenantId, CancellationToken ct)
         {
-            var role = await _unitOfWork.Roles.GetByIdAsync(id, ct);
+            var role = await _unitOfWork.Roles.GetByIdInTenantAsync(id, callerTenantId, ct);
             if (role == null)
                 return null;
 
@@ -45,22 +46,20 @@ namespace ERP.Identity.Infrastructure.Services
             return new RoleDto(role.Id, role.RoleCode, role.RoleName, role.IsActive);
         }
 
-        public async Task UpdateAsync(Guid id, UpdateRoleRequest request, CancellationToken ct)
+        public async Task UpdateAsync(Guid id, Guid callerTenantId, UpdateRoleRequest request, CancellationToken ct)
         {
-            var role = await _unitOfWork.Roles.GetByIdAsync(id, ct);
-            if (role == null)
-                throw new InvalidOperationException($"Role with id '{id}' not found");
+            var role = await _unitOfWork.Roles.GetByIdInTenantAsync(id, callerTenantId, ct)
+                ?? throw new EntityNotFoundException("Role", id);
 
             role.RoleName = request.RoleName;
             await _unitOfWork.Roles.UpdateAsync(role, ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
-        public async Task DeleteAsync(Guid id, CancellationToken ct)
+        public async Task DeleteAsync(Guid id, Guid callerTenantId, CancellationToken ct)
         {
-            var role = await _unitOfWork.Roles.GetByIdAsync(id, ct);
-            if (role == null)
-                throw new InvalidOperationException($"Role with id '{id}' not found");
+            var role = await _unitOfWork.Roles.GetByIdInTenantAsync(id, callerTenantId, ct)
+                ?? throw new EntityNotFoundException("Role", id);
 
             await _unitOfWork.Roles.DeleteAsync(role, ct);
             await _unitOfWork.SaveChangesAsync(ct);
@@ -68,9 +67,12 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task AssignPermissionAsync(Guid roleId, string permissionCode, Guid tenantId, CancellationToken ct)
         {
-            var role = await _unitOfWork.Roles.GetByIdAsync(roleId, ct);
-            if (role == null)
-                throw new InvalidOperationException($"Role with id '{roleId}' not found");
+            // Previously fetched via the un-scoped GetByIdAsync and never actually
+            // checked role.TenantId == tenantId — a caller could attach permissions to
+            // another tenant's role by GUID despite the controller already extracting
+            // and passing the caller's own tenantId down here.
+            var role = await _unitOfWork.Roles.GetByIdInTenantAsync(roleId, tenantId, ct)
+                ?? throw new EntityNotFoundException("Role", roleId);
 
             var permissions = await _unitOfWork.Permissions.ListAllAsync(ct);
             var permission = permissions.FirstOrDefault(p => p.PermissionCode == permissionCode);
@@ -84,16 +86,18 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task RemovePermissionAsync(Guid roleId, Guid permissionId, Guid tenantId, CancellationToken ct)
         {
-            var role = await _unitOfWork.Roles.GetByIdAsync(roleId, ct);
-            if (role == null)
-                throw new InvalidOperationException($"Role with id '{roleId}' not found");
+            var role = await _unitOfWork.Roles.GetByIdInTenantAsync(roleId, tenantId, ct)
+                ?? throw new EntityNotFoundException("Role", roleId);
 
             await _unitOfWork.Permissions.RemoveFromRoleAsync(roleId, permissionId, tenantId, ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
-        public async Task<IReadOnlyList<string>> GetPermissionsAsync(Guid roleId, CancellationToken ct)
+        public async Task<IReadOnlyList<string>> GetPermissionsAsync(Guid roleId, Guid callerTenantId, CancellationToken ct)
         {
+            _ = await _unitOfWork.Roles.GetByIdInTenantAsync(roleId, callerTenantId, ct)
+                ?? throw new EntityNotFoundException("Role", roleId);
+
             return await _unitOfWork.Permissions.GetPermissionsForRoleAsync(roleId, ct);
         }
     }

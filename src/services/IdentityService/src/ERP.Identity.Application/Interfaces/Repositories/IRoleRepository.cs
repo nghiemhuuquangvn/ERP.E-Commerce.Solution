@@ -15,5 +15,10 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         Task<Role?> GetByCodeAsync(string code, Guid tenantId, CancellationToken ct);
         Task<IReadOnlyList<Role>> ListByTenantAsync(Guid tenantId, CancellationToken ct);
         Task<bool> ExistsAsync(string code, Guid tenantId, CancellationToken ct);
+
+        /// <summary>Tenant-boundary-safe fetch — null if the role doesn't exist OR
+        /// belongs to a different tenant (a Role has no cross-tenant concept, unlike
+        /// User, so this is a simple equality check).</summary>
+        Task<Role?> GetByIdInTenantAsync(Guid id, Guid tenantId, CancellationToken ct);
     }
 }

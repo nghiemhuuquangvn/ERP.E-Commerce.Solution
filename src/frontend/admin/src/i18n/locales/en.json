@@ -45,7 +45,9 @@
     "settings": "Settings",
     "authSettings": "Auth Settings",
     "monitoring": "Monitoring",
-    "logs": "System Logs"
+    "logs": "System Logs",
+    "users": "Users",
+    "rolesPermissions": "Roles & Permissions"
   },
   "auth": {
     "title": "ERP Admin",
@@ -327,6 +329,49 @@
       "twoFactorRequired": "Require two-factor authentication for all users",
       "noTenant": "No tenant found for the current user.",
       "failedToSave": "Failed to save settings. Please try again."
+    }
+  },
+  "identity": {
+    "users": {
+      "title": "Users",
+      "email": "Email",
+      "fullName": "Full Name",
+      "userName": "Username",
+      "roles": "Roles",
+      "tenant": "Tenant",
+      "myTenant": "My Tenant",
+      "editProfileTitle": "Edit Profile",
+      "manageRoles": "Manage Roles",
+      "manageRolesTitle": "Manage Roles — {{email}}",
+      "noRoles": "No roles assigned.",
+      "assignRole": "Assign",
+      "lock": "Lock",
+      "unlock": "Unlock",
+      "locked": "Locked",
+      "lockTitle": "Lock User",
+      "unlockTitle": "Unlock User",
+      "lockConfirm": "Are you sure about this action for \"{{email}}\"?",
+      "deactivateTitle": "Deactivate User",
+      "deactivateConfirm": "Are you sure you want to deactivate \"{{email}}\"?",
+      "invite": "Invite User",
+      "inviteTitle": "Invite Existing User to This Tenant",
+      "roleOptional": "Role (optional)",
+      "inviteSuccess": "User invited to this tenant successfully.",
+      "inviteAlreadyMember": "This user is already a member of this tenant.",
+      "inviteFailed": "Failed to invite user. Check the email and try again."
+    },
+    "roles": {
+      "title": "Roles",
+      "add": "Add Role",
+      "addTitle": "Add Role",
+      "editTitle": "Edit Role",
+      "module": "Module",
+      "managePermissions": "Permissions",
+      "managePermissionsTitle": "Manage Permissions — {{name}}",
+      "permissionCatalog": "Permission Catalog",
+      "permissionCatalogHint": "Read-only reference of all permission codes available in the system.",
+      "deleteTitle": "Delete Role",
+      "deleteConfirm": "Are you sure you want to delete \"{{name}}\"?"
     }
   }
 }

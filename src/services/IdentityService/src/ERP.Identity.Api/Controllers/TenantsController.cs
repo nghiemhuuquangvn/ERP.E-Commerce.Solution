@@ -20,6 +20,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ViewTenants)]
         public async Task<IActionResult> List(CancellationToken ct = default)
         {
@@ -28,6 +29,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ViewTenants)]
         public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken ct = default)
         {
@@ -38,6 +40,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.CreateTenants)]
         public async Task<IActionResult> Create([FromBody] CreateTenantRequest request, CancellationToken ct = default)
         {
@@ -46,6 +49,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.EditTenants)]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateTenantRequest request, CancellationToken ct = default)
         {
@@ -54,6 +58,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{id}/activate")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ManageTenants)]
         public async Task<IActionResult> Activate([FromRoute] Guid id, CancellationToken ct = default)
         {
@@ -62,6 +67,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{id}/deactivate")]
+        [Authorize(Policy = "Permission")]
         [RequirePermission(Permissions.ManageTenants)]
         public async Task<IActionResult> Deactivate([FromRoute] Guid id, CancellationToken ct = default)
         {

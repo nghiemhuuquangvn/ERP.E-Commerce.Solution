@@ -10,7 +10,6 @@ namespace ERP.Identity.Domain.Entities
     {
         public Guid RoleId { get; set; }
         public Guid PermissionId { get; set; }
-        public Guid TenantId { get; set; }
         public virtual Permission Permission { get; set; } = default!;
         public virtual Role Role { get; set; } = default!;
     }
