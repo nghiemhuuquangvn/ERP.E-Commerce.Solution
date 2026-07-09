@@ -37,9 +37,12 @@ try
         .AddApplication()
         .AddInfrastructure(builder.Configuration);
 
-    // User context — reads identity from API Gateway headers
+    // User context — real JWT validation (previously trusted the Gateway's forwarded
+    // X-User-*/X-Tenant-* headers with no signature verification; see
+    // AuthenticationExtensions.AddErpJwtAuthentication/JwtClaimsUserContextService).
+    builder.Services.AddErpJwtAuthentication(builder.Configuration);
     builder.Services.AddHttpContextAccessor();
-    builder.Services.AddScoped<IUserContextService, HeaderUserContextService>();
+    builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 
     builder.Services.AddOpenApi();
     builder.Services.AddSwaggerGen();
@@ -53,6 +56,7 @@ try
 
     app.UseSharedLocalization();
     app.UseCors("AllowAll");
+    app.UseAuthentication();
     app.UseAuthorization();
     app.MapHealthChecks("/health");
     app.MapControllers();

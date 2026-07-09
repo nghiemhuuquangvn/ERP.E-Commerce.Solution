@@ -67,6 +67,10 @@ A comprehensive .NET 10 microservices-based ERP platform designed for enterprise
 
 4. **Run services**
    ```bash
+   # One-time: copy .env.example to .env and set SA_PASSWORD / RABBITMQ_PASSWORD /
+   # JWT_SIGNING_KEY (docker-compose.yml reads secrets from .env, which is gitignored)
+   cp .env.example .env
+
    docker-compose up -d
    ```
 

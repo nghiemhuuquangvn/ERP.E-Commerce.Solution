@@ -48,6 +48,24 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
   Vite env vars (`VITE_GOOGLE_CLIENT_ID`, `VITE_MSAL_CLIENT_ID`, `VITE_MSAL_AUTHORITY`,
   `VITE_FACEBOOK_APP_ID`) — placeholders only until real app registrations exist.
 
+## User & Role Management (Admin app)
+
+- `src/pages/identity/UsersPage.tsx` and `RolesPermissionsPage.tsx` — CRUD/management
+  UI for IdentityService's Users/Roles/Permissions/Tenants, gated on the hierarchical
+  `identity:{resource}:{action}` permission codes (see
+  `docs/business/Identity/Permissions.md`/`docs/business/ERP-Business-Analysis.md` §3.1
+  for the backend tenant-isolation model these pages assume). File-layout convention
+  borrowed from `masterdata-admin-guide.md` (one `.api.ts` per entity mirroring the real
+  controller + one page combining list/modals), but the data source is IdentityService,
+  not SharedMasterDataService — don't reuse `mstClient.ts`.
+- Tenant selector on both pages only renders for callers holding
+  `identity:tenants:view` (re-verified server-side against the DB, never trusted from
+  the JWT alone) — everyone else only ever sees their own tenant's data.
+- `permissions.api.ts` is deliberately **list-only** — `PermissionsController`'s
+  Create/Update/Delete never persist (a known backend bug, not yet fixed), so the
+  frontend ships a read-only permission catalog instead of CRUD against a broken
+  endpoint.
+
 ## Conventions that apply to all 4 apps
 
 - **No synchronous app-to-app or app-to-non-gateway calls.** Every app talks only to

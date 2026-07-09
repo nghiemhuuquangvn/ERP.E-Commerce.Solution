@@ -2,12 +2,12 @@ version: '3.9'
 
 # ════════════════════════════════════════════════════════════════════════════════
 # ERP E-Commerce Platform — Full Docker Compose
-# SQL Server: host machine (host.docker.internal:1433)  sa / !Edw@rd!123456!
+# SQL Server: host machine (host.docker.internal:1433)  sa / ${SA_PASSWORD}
 # Domains  : erp.local | shop.erp.local | api.erp.local | rabbit.erp.local | kafka.erp.local
 # Run      : docker compose up --build -d
 # ════════════════════════════════════════════════════════════════════════════════
 
-x-sql-base: &sql-base "Server=host.docker.internal,1433;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=True"
+x-sql-base: &sql-base "Server=host.docker.internal,1433;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=True"
 
 services:
 
@@ -22,7 +22,7 @@ services:
       - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: Admin123
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     restart: unless-stopped
@@ -141,7 +141,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5000"
       ASPNETCORE_ENVIRONMENT: Production
-      Jwt__Key: "ERP_Identity_JWT_Signing_Secret_Key_Minimum_256_Bits_Required"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       KafkaSettings__BootstrapServers: kafka:9092
     depends_on:
       - rabbitmq
@@ -167,12 +167,12 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5001"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__AuthDB: "Server=host.docker.internal,1433;Database=AuthDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__AuthDB: "Server=host.docker.internal,1433;Database=AuthDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "identity"
       KafkaSettings__BootstrapServers: kafka:9092
-      Jwt__Key: "ERP_Identity_JWT_Signing_Secret_Key_Minimum_256_Bits_Required"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       Jwt__Expired: "60"
       Jwt__RefreshTokenExpirationDays: "7"
     extra_hosts:
@@ -201,14 +201,15 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5002"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__SalesDb: "Server=host.docker.internal,1433;Database=SalesDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__SalesDb: "Server=host.docker.internal,1433;Database=SalesDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "so"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
-      RabbitMQ__Password: Admin123
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -236,14 +237,15 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5003"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__PurchasingDb: "Server=host.docker.internal,1433;Database=PurchasingDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__PurchasingDb: "Server=host.docker.internal,1433;Database=PurchasingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "po"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
-      RabbitMQ__Password: Admin123
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -271,14 +273,15 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5004"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__WarehouseDB: "Server=host.docker.internal,1433;Database=WarehouseDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__WarehouseDB: "Server=host.docker.internal,1433;Database=WarehouseDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "wh"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
-      RabbitMQ__Password: Admin123
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -306,14 +309,15 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5005"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__AccountingDB: "Server=host.docker.internal,1433;Database=AccountingDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__AccountingDB: "Server=host.docker.internal,1433;Database=AccountingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "acc"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
-      RabbitMQ__Password: Admin123
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -341,14 +345,15 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5006"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__CrmDB: "Server=host.docker.internal,1433;Database=CrmDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__CrmDB: "Server=host.docker.internal,1433;Database=CrmDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "crm"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
-      RabbitMQ__Password: Admin123
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -376,10 +381,11 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5007"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__HrmDB: "Server=host.docker.internal,1433;Database=HrmDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__HrmDB: "Server=host.docker.internal,1433;Database=HrmDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "hrm"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -407,10 +413,11 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5015"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__MasterDataDb: "Server=host.docker.internal,1433;Database=MasterDataDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__MasterDataDb: "Server=host.docker.internal,1433;Database=MasterDataDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "mst"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -465,14 +472,15 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5008"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__ProductDB: "Server=host.docker.internal,1433;Database=ProductDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__ProductDB: "Server=host.docker.internal,1433;Database=ProductDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "prd"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
-      RabbitMQ__Password: Admin123
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
       Elasticsearch__Uri: http://elasticsearch:9200
     extra_hosts:
@@ -503,14 +511,15 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5009"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__PaymentDb: "Server=host.docker.internal,1433;Database=PaymentDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__PaymentDb: "Server=host.docker.internal,1433;Database=PaymentDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "pay"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
-      RabbitMQ__Password: Admin123
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -538,14 +547,15 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5010"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__ShippingDb: "Server=host.docker.internal,1433;Database=ShippingDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__ShippingDb: "Server=host.docker.internal,1433;Database=ShippingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "shp"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
-      RabbitMQ__Password: Admin123
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -573,14 +583,15 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5011"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__PosDb: "Server=host.docker.internal,1433;Database=PosDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__PosDb: "Server=host.docker.internal,1433;Database=PosDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "pos"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
-      RabbitMQ__Password: Admin123
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -608,14 +619,15 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5012"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__PromotionDb: "Server=host.docker.internal,1433;Database=PromotionDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__PromotionDb: "Server=host.docker.internal,1433;Database=PromotionDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "prm"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
-      RabbitMQ__Password: Admin123
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -643,14 +655,15 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5013"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__NotificationDb: "Server=host.docker.internal,1433;Database=NotificationDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__NotificationDb: "Server=host.docker.internal,1433;Database=NotificationDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "ntf"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
-      RabbitMQ__Password: Admin123
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -680,14 +693,15 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5014"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__ReportingDb: "Server=host.docker.internal,1433;Database=ReportingDB;User Id=sa;Password=!Edw@rd!123456!;TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__ReportingDb: "Server=host.docker.internal,1433;Database=ReportingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "rpt"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
-      RabbitMQ__Password: Admin123
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
     extra_hosts:
       - "host.docker.internal:host-gateway"

@@ -10,6 +10,14 @@ namespace ERP.SO.Api.Middleware
         }
     }
 
+    /// <summary>
+    /// Populates the request-scoped UserContext from the now-validated JWT claims on
+    /// context.User (populated by AddErpJwtAuthentication + app.UseAuthentication(),
+    /// which must run before this middleware) and gates on real authentication —
+    /// previously this trusted the Gateway's forwarded X-User-*/X-Tenant-*/X-Token-*
+    /// headers directly, which anyone with direct network access to this service
+    /// (bypassing the Gateway) could forge to impersonate any user/tenant/role.
+    /// </summary>
     public class UserContextHeaderMiddleware
     {
         private readonly RequestDelegate _next;
@@ -23,7 +31,7 @@ namespace ERP.SO.Api.Middleware
 
         private static readonly string[] _openPaths = ["/health", "/swagger", "/openapi"];
 
-        public async Task InvokeAsync(HttpContext context, UserContext userContext)
+        public async Task InvokeAsync(HttpContext context, UserContext userContext, IUserContextService userContextService)
         {
             var path = context.Request.Path.Value ?? "";
             if (_openPaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
@@ -32,68 +40,26 @@ namespace ERP.SO.Api.Middleware
                 return;
             }
 
-            // Extract user information from headers (from API Gateway/Identity Service)
-            if (context.Request.Headers.TryGetValue("X-User-Id", out var userId))
-            {
-                userContext.UserId = userId.ToString();
-            }
+            var authenticated = userContextService.GetCurrentUser();
+            userContext.UserId = authenticated.UserId;
+            userContext.UserName = authenticated.UserName;
+            userContext.TenantId = authenticated.TenantId;
+            userContext.TenantName = authenticated.TenantName;
+            userContext.Roles = authenticated.Roles;
+            userContext.Permissions = authenticated.Permissions;
+            userContext.ExpiresAt = authenticated.ExpiresAt;
 
-            if (context.Request.Headers.TryGetValue("X-User-Name", out var userName))
-            {
-                userContext.UserName = userName.ToString();
-            }
-
-            if (context.Request.Headers.TryGetValue("X-Tenant-Id", out var tenantId))
-            {
-                userContext.TenantId = tenantId.ToString();
-            }
-
-            if (context.Request.Headers.TryGetValue("X-Tenant-Name", out var tenantName))
-            {
-                userContext.TenantName = tenantName.ToString();
-            }
-
-            // Parse permissions from comma-separated header
-            if (context.Request.Headers.TryGetValue("X-User-Permissions", out var permissions))
-            {
-                var permissionArray = permissions.ToString()
-                    .Split(',')
-                    .Select(p => p.Trim())
-                    .Where(p => !string.IsNullOrEmpty(p))
-                    .ToArray();
-                userContext.Permissions = permissionArray;
-            }
-
-            // Parse roles from comma-separated header
-            if (context.Request.Headers.TryGetValue("X-User-Roles", out var roles))
-            {
-                var roleArray = roles.ToString()
-                    .Split(',')
-                    .Select(r => r.Trim())
-                    .Where(r => !string.IsNullOrEmpty(r))
-                    .ToArray();
-                userContext.Roles = roleArray;
-            }
-
-            // Parse token expiration (gateway sends DateTime.Ticks as long)
-            if (context.Request.Headers.TryGetValue("X-User-ExpiresAt", out var expiresAt))
-            {
-                if (long.TryParse(expiresAt.ToString(), out var ticks))
-                {
-                    userContext.ExpiresAt = new DateTime(ticks, DateTimeKind.Utc);
-                }
-            }
-
-            // Check authentication
             if (string.IsNullOrEmpty(userContext.UserId))
             {
-                _logger.LogWarning("Request without authentication headers");
+                _logger.LogWarning("Request without a valid authenticated token");
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 await context.Response.WriteAsJsonAsync(new { message = "Unauthorized: Missing authentication" });
                 return;
             }
 
-            // Check token expiration
+            // JWT lifetime is already enforced by ValidateLifetime=true in
+            // AddErpJwtAuthentication — a request reaching this point never carries an
+            // expired token, so this check is a defensive no-op today, not the gate.
             if (userContext.IsTokenExpired)
             {
                 _logger.LogWarning("Token expired for user: {UserId}", userContext.UserId);

@@ -15,7 +15,16 @@ namespace ERP.Identity.Application.Interfaces.Services
         Task<IReadOnlyList<ApiKeyDto>> ListByTenantAsync(Guid tenantId, CancellationToken ct);
         Task RevokeAsync(Guid id, CancellationToken ct);
 
-        /// <summary>Validates a raw API key presented by a caller; returns the tenant/scopes if valid, null otherwise. Updates LastUsedAt on success.</summary>
-        Task<ApiKeyDto?> ValidateAsync(string rawKey, CancellationToken ct);
+        /// <summary>
+        /// Validates a raw API key presented by a caller; returns the tenant/scopes if
+        /// valid, null otherwise. Updates LastUsedAt on success. When
+        /// <paramref name="requiredScope"/> is given, the key's comma-separated
+        /// Scopes must contain it, or validation fails — callers (e.g. a future
+        /// per-service API-key authentication handler) must pass the operation's
+        /// required scope; a null/empty requiredScope only checks the key itself is
+        /// valid (unscoped/back-compat callers), not that it's authorized for anything
+        /// specific.
+        /// </summary>
+        Task<ApiKeyDto?> ValidateAsync(string rawKey, string? requiredScope, CancellationToken ct);
     }
 }

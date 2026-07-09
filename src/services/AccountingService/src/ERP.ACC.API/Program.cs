@@ -38,6 +38,12 @@ try
         .AddApplication()
         .AddInfrastructure(builder.Configuration);
 
+    // Real JWT validation — previously this service trusted the Gateway's forwarded
+    // X-User-*/X-Tenant-* headers with no signature verification; see
+    // AuthenticationExtensions.AddErpJwtAuthentication/JwtClaimsUserContextService.
+    builder.Services.AddErpJwtAuthentication(builder.Configuration);
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
     builder.Services.AddScoped<UserContext>();
 
     builder.Services.AddOpenApi();
@@ -52,6 +58,7 @@ try
     app.UseSwaggerUI();
 
     app.UseSharedLocalization();
+    app.UseAuthentication();
     app.UseUserContextHeaderMiddleware();
     app.UseCors("AllowAll");
     app.UseAuthorization();

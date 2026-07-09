@@ -3,6 +3,7 @@ using ERP.RPT.Application.Interfaces;
 using ERP.RPT.Infrastructure.EventConsumers;
 using ERP.RPT.Infrastructure.Persistence;
 using ERP.RPT.Infrastructure.Repositories;
+using ERP.Shared.Authorization;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
 using MediatR;
@@ -46,6 +47,14 @@ builder.Services.AddReportingKafkaConsumers();
 // (SaleOrderService publishes via RabbitMQ, not Kafka)
 builder.Services.AddHostedService<ReportingSalesOrderRabbitMqConsumer>();
 
+// Real JWT validation — this service previously had no authentication pipeline at
+// all (no AddAuthentication/AddJwtBearer, no IUserContextService); adding it now
+// for consistency with the rest of the platform and so any future [Authorize]-gated
+// endpoint actually works instead of silently passing through.
+builder.Services.AddErpJwtAuthentication(builder.Configuration);
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+
 builder.Services.AddControllers();
 builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
@@ -63,6 +72,7 @@ app.UseSwaggerUI();
 
 app.UseSharedLocalization();
 app.UseCors("AllowAll");
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapHealthChecks("/health");
 app.MapControllers();

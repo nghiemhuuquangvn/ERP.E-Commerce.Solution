@@ -30,8 +30,13 @@
 ```
 Server: localhost,1433  (or host.docker.internal,1433 from containers)
 Username: sa
-Password: !Edw@rd!123456!
+Password: <your own SA password — see .env below, not a fixed system credential>
 ```
+
+**Since 2026-07-08:** the `sa`/RabbitMQ/JWT-signing secrets are no longer hardcoded in
+`docker-compose.yml`. Copy `.env.example` (repo root) to `.env` and set your own values
+for `SA_PASSWORD`, `RABBITMQ_PASSWORD`, `JWT_SIGNING_KEY` before running anything below
+— `.env` is gitignored, `docker compose` loads it automatically from the repo root.
 
 ### Hosts File Entries (Windows: C:\Windows\System32\drivers\etc\hosts)
 
@@ -84,6 +89,10 @@ Password: SuperAdmin@123
 ```powershell
 cd d:\Documents\ERP\Sources\ERP.E-Commerce.Solution
 
+# One-time: create your local secrets file (gitignored) if you haven't already
+copy .env.example .env
+# then edit .env and set SA_PASSWORD / RABBITMQ_PASSWORD / JWT_SIGNING_KEY
+
 # First run — builds all images (~10-15 min)
 docker compose up --build -d
 
@@ -119,7 +128,7 @@ docker compose logs --tail=50 identityservice
 | API Gateway | http://api.erp.local or http://localhost:5000 |
 | Admin SPA | http://erp.local or http://localhost:3000 |
 | Storefront | http://shop.erp.local or http://localhost:3001 |
-| RabbitMQ UI | http://rabbit.erp.local or http://localhost:15672 (admin / Admin123) |
+| RabbitMQ UI | http://rabbit.erp.local or http://localhost:15672 (admin / your `.env`'s `RABBITMQ_PASSWORD`) |
 | Kafka UI | http://kafka.erp.local or http://localhost:8080 |
 | Identity API | http://localhost:5001 |
 | Sales Order API | http://localhost:5002 |
@@ -218,7 +227,13 @@ kubectl apply -f namespace.yaml
 
 # 2. Config + Secrets
 kubectl apply -f configmap.yaml
-kubectl apply -f secrets.yaml
+
+# Secrets: secrets.yaml is gitignored (real values never committed — see
+# secrets.yaml.example for the shape). Either copy it and fill in real values,
+# or generate the secret directly from your .env:
+kubectl create secret generic erp-secrets --from-env-file=../../.env -n erp
+# — or, if you've filled in a local secrets.yaml from the .example template:
+# kubectl apply -f secrets.yaml
 
 # 3. Infrastructure (order matters — wait for each to be ready)
 kubectl apply -f infrastructure/redis.yaml
@@ -540,7 +555,7 @@ npm run dev
 ### 7.1 RabbitMQ Management UI
 
 URL: http://localhost:15672 (Docker) or http://rabbit.erp.local (with hosts)  
-Credentials: admin / Admin123
+Credentials: admin / your `.env`'s `RABBITMQ_PASSWORD`
 
 Check:
 - **Queues** tab → `notification-service.sales-order-events`, `reporting-service.sales-order-events` should appear after first message

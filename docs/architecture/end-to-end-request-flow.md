@@ -67,17 +67,28 @@ inventory reservation, payment, and shipping haven't happened yet.
 Every route except `/api/v1/auth/*` and the GET-only public product/report routes
 requires `AuthenticationProviderKey: "Bearer"` + `RouteClaimsRequirement: {"tenant_id": ".*"}`.
 
-**JWT handling** (`src/Gateway/Ocelot.API/Program.cs`): `AddJwtBearer` validates
-against `IdentityServer:Authority` but with `ValidateAudience/Issuer/IssuerSigningKey
-= false` — i.e. the gateway trusts any token shaped correctly rather than
-cryptographically re-verifying it against Identity's signing key. `GatewayAuthorizationMiddleware`
+**JWT handling** (`src/Gateway/Ocelot.API/Program.cs`): `AddJwtBearer` sets
+`ValidateIssuerSigningKey = true` (real HMAC-SHA256 signature check against the shared
+`Jwt:Key`) and `ValidateLifetime = true`, but leaves `ValidateAudience`/`ValidateIssuer
+= false` — so the Gateway does cryptographically verify the signature, it just doesn't
+check the `iss`/`aud` claims match an expected value. `GatewayAuthorizationMiddleware`
 then extracts claims (`sub`, `tenant_id`, roles → computed permissions via
 `RoleDefinitions.GetPermissionsForRoles`) and injects them as
 `X-User-Id`/`X-Tenant-Id`/`X-User-Roles`/`X-User-Permissions` headers onto the
-downstream request — **this is how every downstream Controller gets the caller's
-identity**, not from the JWT itself (services never validate the token; they trust
-these headers, which only the gateway can set since services aren't
-publicly reachable outside the Docker network). No rate limiting is configured
+downstream request for convenience (some pre-existing code paths still read these
+headers directly). **Updated 2026-07-08:** until then, this was *also* the **only**
+place any signature verification happened — all 13 non-Identity services trusted
+these forwarded headers with zero cryptographic check of their own, so anyone with
+direct network access to a service (bypassing the Gateway, e.g. another container on
+the same Docker network) could forge the headers and impersonate any user/tenant/
+role/permission. Every one of those 13 services now independently re-validates the
+JWT's signature/expiry via a new shared `AddErpJwtAuthentication` extension
+(`src/Shared/Authorization/AuthenticationExtensions.cs`) + `JwtClaimsUserContextService`
+(reads claims off the now-validated `HttpContext.User`, not headers) — see
+`docs/business/ERP-Business-Analysis.md`'s 2026-07-08 entry for the full list of
+services touched and the residual gap (token-blacklist/logout revocation is still
+Identity-only; a downstream service that only checks signature+expiry will still
+accept a just-logged-out-but-not-yet-expired token). No rate limiting is configured
 anywhere in `ocelot.json` today.
 
 ### 1.3 The two async event-delivery mechanisms
@@ -129,7 +140,10 @@ call** from Identity to Notification, per `CLAUDE.md`.
 `MicrosoftAuthProvider`/`FacebookAuthProvider`) which calls the provider's own
 token-verification endpoint synchronously (this one **is** a real outbound HTTP call,
 since it's to an external IdP, not another internal service) → on success, same
-login/2FA branching as 2.1.
+login/2FA branching as 2.1 (shared `IssueTokensOrChallengeAsync` helper). **Fixed
+2026-07-08:** this flow (and 2.3's Twitter callback) previously called
+`IssueTokensAsync` directly with no 2FA check at all — a 2FA-enabled user could bypass
+2FA entirely by signing in through an external provider instead of `/auth/login`.
 
 ### 2.3 External login (Twitter/X — OAuth 2.0 Authorization Code + PKCE)
 

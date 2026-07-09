@@ -9,6 +9,8 @@ using ERP.Identity.Infrastructure.Repositories;
 using ERP.Identity.Infrastructure.Services;
 using ERP.Shared.Extensions;
 using ERP.Shared.Localization;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -38,9 +40,22 @@ builder.Services.AddControllers(options =>
 {
     options.Filters.Add<IdentityExceptionFilter>();
 });
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblies(AppDomain.CurrentDomain.GetAssemblies());
+
 builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// CORS — explicit allow-list from config, not AllowAnyOrigin. IdentityService issues
+// tokens for every other service, so a permissive CORS policy here is a
+// higher-value target than on a downstream service.
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("IdentityCors", policy =>
+        policy.WithOrigins(corsOrigins).AllowAnyMethod().AllowAnyHeader());
+});
 
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"]
@@ -93,12 +108,25 @@ var app = builder.Build();
 
 app.UseGlobalExceptionHandling();
 
+app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+    app.UseHsts();
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Content-Security-Policy"] = "default-src 'self'";
+    await next();
+});
+
 app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseSharedLocalization();
 
 app.UseRouting();
+app.UseCors("IdentityCors");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

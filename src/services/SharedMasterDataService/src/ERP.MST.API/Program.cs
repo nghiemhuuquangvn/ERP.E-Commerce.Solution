@@ -34,8 +34,12 @@ try
     builder.Services.AddControllers();
     builder.Services.AddSharedLocalization(builder.Configuration);
 
+    // Real JWT validation — previously trusted the Gateway's forwarded X-User-*/
+    // X-Tenant-* headers with no signature verification; see
+    // AuthenticationExtensions.AddErpJwtAuthentication/JwtClaimsUserContextService.
+    builder.Services.AddErpJwtAuthentication(builder.Configuration);
     builder.Services.AddHttpContextAccessor();
-    builder.Services.AddScoped<IUserContextService, HeaderUserContextService>();
+    builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 
     builder.Services
         .AddApplication()
@@ -57,6 +61,7 @@ try
     app.UseSharedLocalization();
     app.UseCors("AllowAll");
 
+    app.UseAuthentication();
     app.UseMiddleware<UserContextHeaderMiddleware>();
 
     app.UseAuthorization();

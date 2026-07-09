@@ -48,8 +48,12 @@ is fundamentally different (stateful, needs a persisted `OAuthState` row for the
 
 All four providers converge on the same "find existing `ExternalLogin` by
 (Provider, ProviderKey), else auto-register a new `User` with default roles for that
-tenant" logic, then issue tokens through the same `AuthService.IssueTokensAsync` path
-as a normal password login.
+tenant" logic, then run through the same `AuthService.IssueTokensOrChallengeAsync`
+gate as a normal password login — this checks `TwoFactorEnabled` and returns a
+`RequiresTwoFactor` challenge instead of tokens when applicable. **Fixed 2026-07-08:**
+until then, `ExternalLoginAsync`/`TwitterCallbackAsync` called `IssueTokensAsync`
+directly with no 2FA check at all, so a 2FA-enabled user could bypass 2FA entirely by
+signing in via an external provider instead of `/auth/login`.
 
 Adding a 5th provider (e.g. GitHub, LinkedIn): if it offers a client-side SDK with a
 directly verifiable token (like Google/Microsoft/Facebook), implement
@@ -60,8 +64,10 @@ string. If it only offers a redirect-based flow (like Twitter), mirror
 
 ## Two-factor authentication
 
-1. `POST /api/auth/login` verifies the password as normal. If 2FA is required for
-   this user (`System.TwoFactorEnabled && Tenant.TwoFactorEnabled && (Tenant.
+1. `POST /api/auth/login` (and, since 2026-07-08, `POST /api/auth/external-login` and
+   the Twitter callback too — all three share `IssueTokensOrChallengeAsync`) verifies
+   the password/provider token as normal. If 2FA is required for this user
+   (`System.TwoFactorEnabled && Tenant.TwoFactorEnabled && (Tenant.
    TwoFactorRequired || User.TwoFactorEnabled)`), no tokens are issued yet — instead a
    `TwoFactorChallenge` is created (6-digit code, hashed, 5-minute expiry, max 3
    attempts by default — all configurable under `TwoFactorAuthentication:*`), and the

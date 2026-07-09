@@ -3,6 +3,7 @@ using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Domain.Entities;
 using ERP.Shared.Infrastructure.Exceptions;
 using Microsoft.Extensions.Configuration;
+using System.Linq;
 
 namespace ERP.Identity.Infrastructure.Services
 {
@@ -24,6 +25,18 @@ namespace ERP.Identity.Infrastructure.Services
             var minLength = GetConfigInt("PasswordPolicy:MinLength", 8);
             if (string.IsNullOrWhiteSpace(newPlaintextPassword) || newPlaintextPassword.Length < minLength)
                 throw new BusinessRuleException("PasswordTooShort", $"Password must be at least {minLength} characters long.");
+
+            if (GetConfigBool("PasswordPolicy:RequireUppercase", true) && !newPlaintextPassword.Any(char.IsUpper))
+                throw new BusinessRuleException("PasswordMissingUppercase", "Password must contain at least one uppercase letter.");
+
+            if (GetConfigBool("PasswordPolicy:RequireLowercase", true) && !newPlaintextPassword.Any(char.IsLower))
+                throw new BusinessRuleException("PasswordMissingLowercase", "Password must contain at least one lowercase letter.");
+
+            if (GetConfigBool("PasswordPolicy:RequireDigit", true) && !newPlaintextPassword.Any(char.IsDigit))
+                throw new BusinessRuleException("PasswordMissingDigit", "Password must contain at least one digit.");
+
+            if (GetConfigBool("PasswordPolicy:RequireSymbol", true) && !newPlaintextPassword.Any(c => !char.IsLetterOrDigit(c)))
+                throw new BusinessRuleException("PasswordMissingSymbol", "Password must contain at least one symbol.");
 
             var historyCount = GetConfigInt("PasswordPolicy:HistoryCount", 5);
             if (historyCount <= 0)
@@ -52,6 +65,12 @@ namespace ERP.Identity.Infrastructure.Services
         {
             var raw = _configuration[key];
             return int.TryParse(raw, out var value) ? value : fallback;
+        }
+
+        private bool GetConfigBool(string key, bool fallback)
+        {
+            var raw = _configuration[key];
+            return bool.TryParse(raw, out var value) ? value : fallback;
         }
     }
 }

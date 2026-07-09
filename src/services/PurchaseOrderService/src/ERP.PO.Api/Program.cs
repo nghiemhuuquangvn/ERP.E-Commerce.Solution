@@ -31,9 +31,12 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblies(AppDomain.CurrentDomain.GetAssemblies());
 
-// Shared Authorization Services (from API Gateway)
+// Shared Authorization Services — real JWT validation (previously this service
+// trusted the Gateway's forwarded X-User-*/X-Tenant-* headers with no signature
+// verification; see AuthenticationExtensions.AddErpJwtAuthentication/JwtClaimsUserContextService).
+builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<IUserContextService, HeaderUserContextService>();
+builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 
 // Caching Configuration
 var cacheSettings = builder.Configuration.GetSection("CacheSettings");
@@ -88,8 +91,10 @@ app.MapOpenApi();
 
 app.UseSharedLocalization();
 
+app.UseAuthentication();
 // Middleware to map gateway headers to user context
 app.UseMiddleware<UserContextHeaderMiddleware>();
+app.UseAuthorization();
 
 app.MapHealthChecks("/health");
 app.MapControllers();

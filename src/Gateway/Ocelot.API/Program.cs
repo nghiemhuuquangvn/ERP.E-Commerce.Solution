@@ -32,9 +32,11 @@ try
     // Ocelot
     builder.Services.AddOcelot(builder.Configuration);
 
-    // Authentication — symmetric key (identity service is custom JWT, not OIDC)
+    // Authentication — symmetric key (identity service is custom JWT, not OIDC).
+    // No hardcoded fallback: a silent default here would let anyone forge tokens
+    // against every downstream service if an environment ever forgot to set Jwt:Key.
     var jwtKey = builder.Configuration["Jwt:Key"]
-        ?? "ERP_Identity_JWT_Signing_Secret_Key_Minimum_256_Bits_Required";
+        ?? throw new InvalidOperationException("Configuration value 'Jwt:Key' is missing.");
     var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
     builder.Services

@@ -322,8 +322,13 @@ Update order status to "Inventory Reserved"
 ### API Gateway
 - **Gateway:** Ocelot
 - **Port:** 5000 (local), 443 (production)
-- **Authentication:** JWT (Identity Service)
-- **Rate Limiting:** Per user/IP
+- **Authentication:** JWT (Identity Service) — Gateway validates the signature, then
+  forwards `X-User-*` headers for convenience; since 2026-07-08 every one of the 13
+  downstream services *also* independently re-validates the JWT itself
+  (`AddErpJwtAuthentication`), rather than trusting those forwarded headers alone —
+  see `docs/architecture/end-to-end-request-flow.md` §1.2
+- **Rate Limiting:** Not yet implemented at the Gateway/`ocelot.json` level; login
+  brute-force protection exists in IdentityService itself (2026-07-08)
 
 ### Dependency Injection
 - **Container:** Microsoft.Extensions.DependencyInjection

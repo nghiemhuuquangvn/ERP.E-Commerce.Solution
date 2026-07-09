@@ -103,7 +103,7 @@ services:
     networks:
       - erp-network
     environment:
-      SA_PASSWORD: YourPassword123
+      SA_PASSWORD: ${SA_PASSWORD}
       ACCEPT_EULA: Y
 
   kafka:

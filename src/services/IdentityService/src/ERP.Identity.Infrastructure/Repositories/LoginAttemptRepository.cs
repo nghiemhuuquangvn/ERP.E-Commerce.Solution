@@ -31,11 +31,18 @@ namespace ERP.Identity.Infrastructure.Repositories
             return (items, totalCount);
         }
 
-        public async Task<int> CountRecentFailedAsync(string ipAddress, TimeSpan window, CancellationToken ct)
+        public async Task<int> CountRecentFailedAsync(string ipAddress, string? email, TimeSpan window, CancellationToken ct)
         {
             var since = DateTime.UtcNow - window;
-            return await _dbContext.Set<LoginAttempt>().AsNoTracking()
-                .CountAsync(l => l.IpAddress == ipAddress && !l.IsSuccessful && l.AttemptedAt >= since, ct);
+            var query = _dbContext.Set<LoginAttempt>().AsNoTracking()
+                .Where(l => l.IpAddress == ipAddress && !l.IsSuccessful && l.AttemptedAt >= since);
+
+            // Scoped to (ip, email) when an email is known, not IP alone — otherwise a
+            // shared-NAT/corporate IP would get locked out by one account's failures.
+            if (!string.IsNullOrWhiteSpace(email))
+                query = query.Where(l => l.Email == email);
+
+            return await query.CountAsync(ct);
         }
     }
 }

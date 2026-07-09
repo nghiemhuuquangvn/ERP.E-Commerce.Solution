@@ -10,6 +10,14 @@ namespace ERP.ACC.API.Middleware
         }
     }
 
+    /// <summary>
+    /// Populates the request-scoped UserContext from the now-validated JWT claims on
+    /// context.User (populated by AddErpJwtAuthentication + app.UseAuthentication(),
+    /// which must run before this middleware) and gates on real authentication —
+    /// previously this trusted the Gateway's forwarded X-User-*/X-Tenant-* headers
+    /// directly, which anyone with direct network access to this service (bypassing
+    /// the Gateway) could forge to impersonate any user/tenant/role.
+    /// </summary>
     public class UserContextHeaderMiddleware
     {
         private readonly RequestDelegate _next;
@@ -23,7 +31,7 @@ namespace ERP.ACC.API.Middleware
 
         private static readonly string[] _openPaths = ["/health", "/swagger", "/openapi"];
 
-        public async Task InvokeAsync(HttpContext context, UserContext userContext)
+        public async Task InvokeAsync(HttpContext context, UserContext userContext, IUserContextService userContextService)
         {
             var path = context.Request.Path.Value ?? "";
             if (_openPaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
@@ -32,56 +40,18 @@ namespace ERP.ACC.API.Middleware
                 return;
             }
 
-            if (context.Request.Headers.TryGetValue("X-User-Id", out var userId))
-            {
-                userContext.UserId = userId.ToString();
-            }
-
-            if (context.Request.Headers.TryGetValue("X-User-Name", out var userName))
-            {
-                userContext.UserName = userName.ToString();
-            }
-
-            if (context.Request.Headers.TryGetValue("X-Tenant-Id", out var tenantId))
-            {
-                userContext.TenantId = tenantId.ToString();
-            }
-
-            if (context.Request.Headers.TryGetValue("X-Tenant-Name", out var tenantName))
-            {
-                userContext.TenantName = tenantName.ToString();
-            }
-
-            if (context.Request.Headers.TryGetValue("X-User-Permissions", out var permissions))
-            {
-                userContext.Permissions = permissions.ToString()
-                    .Split(',')
-                    .Select(p => p.Trim())
-                    .Where(p => !string.IsNullOrEmpty(p))
-                    .ToArray();
-            }
-
-            if (context.Request.Headers.TryGetValue("X-User-Roles", out var roles))
-            {
-                userContext.Roles = roles.ToString()
-                    .Split(',')
-                    .Select(r => r.Trim())
-                    .Where(r => !string.IsNullOrEmpty(r))
-                    .ToArray();
-            }
-
-            // Gateway sends DateTime.Ticks as long
-            if (context.Request.Headers.TryGetValue("X-User-ExpiresAt", out var expiresAt))
-            {
-                if (long.TryParse(expiresAt.ToString(), out var ticks))
-                {
-                    userContext.ExpiresAt = new DateTime(ticks, DateTimeKind.Utc);
-                }
-            }
+            var authenticated = userContextService.GetCurrentUser();
+            userContext.UserId = authenticated.UserId;
+            userContext.UserName = authenticated.UserName;
+            userContext.TenantId = authenticated.TenantId;
+            userContext.TenantName = authenticated.TenantName;
+            userContext.Roles = authenticated.Roles;
+            userContext.Permissions = authenticated.Permissions;
+            userContext.ExpiresAt = authenticated.ExpiresAt;
 
             if (string.IsNullOrEmpty(userContext.UserId))
             {
-                _logger.LogWarning("Request without authentication headers");
+                _logger.LogWarning("Request without a valid authenticated token");
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 await context.Response.WriteAsJsonAsync(new { message = "Unauthorized: Missing authentication" });
                 return;

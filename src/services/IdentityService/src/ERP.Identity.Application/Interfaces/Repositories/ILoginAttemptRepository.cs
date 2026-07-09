@@ -8,6 +8,6 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         Task<(IReadOnlyList<LoginAttempt> Items, int TotalCount)> SearchAsync(
             string? ipAddress, string? email, int page, int pageSize, CancellationToken ct);
 
-        Task<int> CountRecentFailedAsync(string ipAddress, TimeSpan window, CancellationToken ct);
+        Task<int> CountRecentFailedAsync(string ipAddress, string? email, TimeSpan window, CancellationToken ct);
     }
 }

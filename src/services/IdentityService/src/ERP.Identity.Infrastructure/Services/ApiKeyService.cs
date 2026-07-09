@@ -51,7 +51,7 @@ namespace ERP.Identity.Infrastructure.Services
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
-        public async Task<ApiKeyDto?> ValidateAsync(string rawKey, CancellationToken ct)
+        public async Task<ApiKeyDto?> ValidateAsync(string rawKey, string? requiredScope, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(rawKey) || rawKey.Length < 12)
                 return null;
@@ -63,6 +63,14 @@ namespace ERP.Identity.Infrastructure.Services
 
             if (!_passwordHasher.VerifyPassword(apiKey.KeyHash, rawKey))
                 return null;
+
+            if (!string.IsNullOrWhiteSpace(requiredScope))
+            {
+                var grantedScopes = (apiKey.Scopes ?? string.Empty)
+                    .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                if (!grantedScopes.Contains(requiredScope, StringComparer.OrdinalIgnoreCase))
+                    return null;
+            }
 
             apiKey.Touch();
             await _unitOfWork.ApiKeys.UpdateAsync(apiKey, ct);

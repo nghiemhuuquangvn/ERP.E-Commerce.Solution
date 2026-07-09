@@ -16,6 +16,7 @@ using ERP.Identity.Infrastructure.ExternalAuthLogin;
 using ERP.Identity.Domain.Constants;
 using ERP.Identity.Application.Interfaces.Mapping;
 using ERP.Shared.Infrastructure.Exceptions;
+using ERP.Identity.Infrastructure.Security;
 
 namespace ERP.Identity.Infrastructure.Services
 {
@@ -83,7 +84,7 @@ namespace ERP.Identity.Infrastructure.Services
                 userId: user.Id,
                 tenantId: tenant.Id,
                 token: refreshToken,
-                expiredAt: DateTime.UtcNow.AddDays(30),
+                expiredAt: DateTime.UtcNow.AddDays(GetConfigInt("Jwt:RefreshTokenExpirationDays", 7)),
                 createdByIp: ipAddress
             );
 
@@ -97,6 +98,16 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task<LoginResponse> LoginAsync(LoginRequest request, string? ipAddress, string? userAgent, CancellationToken ct)
         {
+            // Brute-force guard — checked before any tenant/user lookup so a flood of
+            // credential-stuffing attempts against one (ip, email) pair gets rejected
+            // cheaply, before a real password hash comparison ever runs.
+            var windowMinutes = GetConfigInt("PasswordPolicy:FailedAttemptsWindowMinutes", 15);
+            var maxAttempts = GetConfigInt("PasswordPolicy:MaxFailedAttemptsPerWindow", 10);
+            var recentFailures = await _unitOfWork.LoginAttempts.CountRecentFailedAsync(
+                ipAddress ?? "unknown", request.Email, TimeSpan.FromMinutes(windowMinutes), ct);
+            if (recentFailures >= maxAttempts)
+                throw new UnauthorizedAccessException("Too many failed login attempts. Please try again later.");
+
             AuthTenant tenant;
             try
             {
@@ -138,6 +149,28 @@ namespace ERP.Identity.Infrastructure.Services
                 throw new UnauthorizedAccessException("Invalid credentials");
             }
 
+            var response = await IssueTokensOrChallengeAsync(user, tenant, ct,
+                request.DeviceId, request.DeviceName, request.DeviceType, request.Platform, ipAddress, userAgent);
+
+            await _unitOfWork.SaveChangesAsync(ct);
+            return response;
+        }
+
+        /// <summary>
+        /// Shared 2FA gate for every flow that ends in a successful credential check
+        /// (password login, external-provider login, Twitter OAuth callback) — decides
+        /// whether to issue tokens immediately or return a RequiresTwoFactor challenge.
+        /// Previously only LoginAsync had this check; ExternalLoginAsync/TwitterCallbackAsync
+        /// called IssueTokensAsync directly, letting a 2FA-enabled user bypass 2FA entirely
+        /// via external login. Does NOT call SaveChangesAsync — callers control the
+        /// transaction boundary, same contract as IssueTokensAsync.
+        /// </summary>
+        private async Task<LoginResponse> IssueTokensOrChallengeAsync(
+            User user, AuthTenant tenant, CancellationToken ct,
+            string? deviceId = null, string? deviceName = null, string? deviceType = null,
+            string? platform = null, string? ipAddress = null, string? userAgent = null,
+            string auditEventName = "Login")
+        {
             var systemSettings = await _settingsService.GetOrCreateSystemSettingsEntityAsync(ct);
             var tenantSettings = await _settingsService.GetOrCreateTenantSettingsEntityAsync(tenant.Id, ct);
 
@@ -145,9 +178,8 @@ namespace ERP.Identity.Infrastructure.Services
             {
                 var (challenge, expiryMinutes) = await CreateTwoFactorChallengeAsync(user, tenant.Id, ct);
 
-                await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", true, request.Email, user.Id, ct: ct);
-                await _securityAuditService.LogAsync("Login", true, tenant.Id, user.Id, request.Email, ipAddress, userAgent, details: "Password verified, awaiting 2FA", ct: ct);
-                await _unitOfWork.SaveChangesAsync(ct);
+                await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", true, user.Email, user.Id, ct: ct);
+                await _securityAuditService.LogAsync(auditEventName, true, tenant.Id, user.Id, user.Email, ipAddress, userAgent, details: "Password verified, awaiting 2FA", ct: ct);
 
                 return new LoginResponse(
                     AccessToken: null,
@@ -162,12 +194,10 @@ namespace ERP.Identity.Infrastructure.Services
             user.RecordLoginSuccess();
             await _unitOfWork.Users.UpdateAsync(user, ct);
 
-            var response = await IssueTokensAsync(user, tenant, ct,
-                request.DeviceId, request.DeviceName, request.DeviceType, request.Platform, ipAddress, userAgent);
+            var response = await IssueTokensAsync(user, tenant, ct, deviceId, deviceName, deviceType, platform, ipAddress, userAgent);
 
-            await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", true, request.Email, user.Id, ct: ct);
-            await _securityAuditService.LogAsync("Login", true, tenant.Id, user.Id, request.Email, ipAddress, userAgent, ct: ct);
-            await _unitOfWork.SaveChangesAsync(ct);
+            await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", true, user.Email, user.Id, ct: ct);
+            await _securityAuditService.LogAsync(auditEventName, true, tenant.Id, user.Id, user.Email, ipAddress, userAgent, ct: ct);
             return response;
         }
 
@@ -325,7 +355,7 @@ namespace ERP.Identity.Infrastructure.Services
                 tenant: tenant,
                 ct: ct);
 
-            var response = await IssueTokensAsync(user, tenant, ct);
+            var response = await IssueTokensOrChallengeAsync(user, tenant, ct, auditEventName: "ExternalLogin");
             await _unitOfWork.SaveChangesAsync(ct);
             return response;
         }
@@ -388,7 +418,7 @@ namespace ERP.Identity.Infrastructure.Services
                 tenant: tenant,
                 ct: ct);
 
-            var response = await IssueTokensAsync(user, tenant, ct);
+            var response = await IssueTokensOrChallengeAsync(user, tenant, ct, auditEventName: "TwitterLogin");
             await _unitOfWork.SaveChangesAsync(ct);
             return response;
         }
@@ -452,10 +482,15 @@ namespace ERP.Identity.Infrastructure.Services
                 if (existedUser != null)
                     throw new DuplicateException("Email", request.Email);
 
-                // 3️⃣ Hash password
+                // 3️⃣ Enforce password policy (length/complexity) — previously only
+                // ResetPasswordAsync/ChangePasswordAsync validated this, so self-service
+                // registration could set an arbitrarily weak password.
+                await _passwordPolicyService.ValidateNewPasswordAsync(Guid.NewGuid(), request.Password, ct);
+
+                // 5️⃣ Hash password
                 var passwordHash = _passwordHasher.HashPassword(request.Password.Trim());
 
-                // 4️⃣ Resolve display name: explicit UserName > FirstName+LastName > email
+                // 6️⃣ Resolve display name: explicit UserName > FirstName+LastName > email
                 var userName = request.UserName;
                 if (string.IsNullOrWhiteSpace(userName))
                 {
@@ -463,7 +498,7 @@ namespace ERP.Identity.Infrastructure.Services
                     userName = string.IsNullOrWhiteSpace(combined) ? request.Email : combined;
                 }
 
-                // 5️⃣ Create user (DOMAIN)
+                // 7️⃣ Create user (DOMAIN)
                 var user = User.Create(
                     email: request.Email,
                     username: userName,
@@ -474,7 +509,7 @@ namespace ERP.Identity.Infrastructure.Services
 
                 await _unitOfWork.Users.AddAsync(user, ct);
 
-                // 6️⃣ Assign to tenant + default role for user type
+                // 8️⃣ Assign to tenant + default role for user type
                 user.AssignToTenant(tenant);
 
                 var roleMap = _userRoleResolver.GetRolesForUser(request.UserType);
@@ -486,14 +521,14 @@ namespace ERP.Identity.Infrastructure.Services
                     user.AssignRole(role, tenant.Id);
                 }
 
-                // 7️⃣ Persist User + roles to DB before issuing tokens (RefreshTokens/DeviceSessions
+                // 9️⃣ Persist User + roles to DB before issuing tokens (RefreshTokens/DeviceSessions
                 //    FK-reference Users.Id; SaveChanges here ensures the row exists before they insert)
                 await _unitOfWork.SaveChangesAsync(ct);
 
-                // 8️⃣ Issue tokens so user is logged in immediately after registration
+                // 🔟 Issue tokens so user is logged in immediately after registration
                 var loginResponse = await IssueTokensAsync(user, tenant, ct);
 
-                // 9️⃣ Audit + commit
+                // 1️⃣1️⃣ Audit + commit
                 await _securityAuditService.LogAsync("Register", true, tenant.Id, user.Id, user.Email, ct: ct);
                 await _unitOfWork.CommitTransactionAsync(ct);
 
@@ -515,9 +550,11 @@ namespace ERP.Identity.Infrastructure.Services
             if (user == null)
                 throw new InvalidOperationException("User not found");
 
-            // Generate password reset token
-            var resetToken = Guid.NewGuid().ToString();
-            var passwordResetToken = PasswordResetToken.Create(user.Id, resetToken, DateTime.UtcNow.AddHours(24));
+            // Generate password reset token — only the SHA-256 hash is persisted
+            // (see OpaqueTokenHasher); the raw token is returned/emailed once and never
+            // stored, so DB read access alone can't be used to reset a user's password.
+            var resetToken = OpaqueTokenHasher.GenerateToken();
+            var passwordResetToken = PasswordResetToken.Create(user.Id, OpaqueTokenHasher.Hash(resetToken), DateTime.UtcNow.AddHours(24));
             await _unitOfWork.PasswordResetTokens.AddAsync(passwordResetToken, ct);
             await _unitOfWork.SaveChangesAsync(ct);
 
@@ -531,7 +568,7 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task<ResetPasswordResponse> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken ct)
         {
-            var resetToken = await _unitOfWork.PasswordResetTokens.GetByTokenAsync(request.Token, ct);
+            var resetToken = await _unitOfWork.PasswordResetTokens.GetByTokenAsync(OpaqueTokenHasher.Hash(request.Token), ct);
             if (resetToken == null || !resetToken.IsValid)
                 throw new InvalidOperationException("Invalid or expired reset token");
 

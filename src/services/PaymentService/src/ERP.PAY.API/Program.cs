@@ -86,8 +86,12 @@ if (vnpayConfigured)
 else
     builder.Services.AddScoped<IPaymentGateway, NullPaymentGateway>();
 
+// Real JWT validation — previously trusted the Gateway's forwarded X-User-*/
+// X-Tenant-* headers with no signature verification; see
+// AuthenticationExtensions.AddErpJwtAuthentication/JwtClaimsUserContextService.
+builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<IUserContextService, HeaderUserContextService>();
+builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 builder.Services.AddScoped<UserContext>();
 
 builder.Services.AddHealthChecks();
@@ -105,6 +109,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseSharedLocalization();
+app.UseAuthentication();
 app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
 app.UseCors("AllowAll");
 app.UseAuthorization();

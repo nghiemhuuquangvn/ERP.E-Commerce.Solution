@@ -45,8 +45,10 @@ builder.Services.AddHttpClient<IPromotionServiceClient, PromotionServiceClient>(
 // 2026-07-03 (docs/business section 3.2).
 builder.Services.AddHostedService<ProductPriceChangedConsumer>();
 
-// Authorization & User Context
-builder.Services.AddScoped<UserContext>();
+// Authorization & User Context — real JWT validation (previously this service trusted
+// the Gateway's forwarded X-User-*/X-Tenant-* headers with no signature verification;
+// see AuthenticationExtensions.AddErpJwtAuthentication/JwtClaimsUserContextService).
+builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddMiddleware();
 
 // API
@@ -63,6 +65,7 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
+app.UseAuthentication();
 app.UseUserContextHeaderMiddleware();
 app.UseSharedLocalization();
 app.UseCors("AllowAll");

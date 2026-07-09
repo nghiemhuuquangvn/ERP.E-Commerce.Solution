@@ -1,9 +1,11 @@
 # ERP E-Commerce Solution — Phân Tích Business Logic Toàn Diện
 
-> **Cập nhật:** 2026-07-05 — xử lý tuần tự từng service theo mục ❌ liệt kê (theo yêu
-> cầu "từng service một, theo thứ tự"): đã xong 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 →
-> 3.7 → 3.8 → 3.9 (Promotion) → 3.10 (CRM) → 3.11 (HRM) → 3.12 (Accounting) → 3.13
-> (Notification) → 3.14 (Reporting).
+> **Cập nhật:** 2026-07-08 — xem block "Cập nhật 2026-07-08" bên dưới cho đợt mới
+> nhất (Tenant Isolation & Permission Model + Security Hardening 3 tầng cho
+> IdentityService). Lịch sử trước đó (2026-07-05 trở về trước): xử lý tuần tự từng
+> service theo mục ❌ liệt kê (theo yêu cầu "từng service một, theo thứ tự"): đã xong
+> 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7 → 3.8 → 3.9 (Promotion) → 3.10 (CRM) → 3.11
+> (HRM) → 3.12 (Accounting) → 3.13 (Notification) → 3.14 (Reporting).
 > - **3.1 Identity** — đã xử lý toàn bộ tính năng ❌ còn lại (audit log, session
 >   management, API key management, password policy, account-lockout wiring, domain
 >   events UserUpdated/RoleAssigned/PermissionGranted) — chỉ còn LDAP/AD cố ý bỏ qua.
@@ -102,8 +104,74 @@
 >   (d) Digest emails — bỏ qua (LOW priority, phức tạp aggregation window).
 > Xem `docs/architecture/end-to-end-request-flow.md` để trace kỹ thuật
 > UI→API cho các luồng chính.
-> **Phạm vi:** 14 microservices + 4 frontend layers  
-> **Mục đích:** Kiểm kê tính năng đã có, tính năng còn thiếu, và luồng vận hành toàn hệ thống
+>
+> **Cập nhật 2026-07-08 — IdentityService, 2 đợt riêng biệt (bảo mật dữ liệu user):**
+> - **Đợt 1 (Tenant Isolation & Permission Model):** phát hiện lỗ hổng IDOR sống —
+>   `UsersController`/`RolesController` (`GetById`, `Update`, `Lock/Unlock`, `Delete`,
+>   `AssignPermission`, `List`) không kiểm tra tenant, cho phép user thuộc Tenant A
+>   xem/sửa/khoá user hoặc role thuộc Tenant B chỉ bằng cách đổi GUID/tham số. Đã sửa
+>   toàn bộ theo mô hình 404 (không phải 403) khi tài nguyên thuộc tenant khác — tránh
+>   lộ thông tin "tồn tại hay không". Phát hiện thêm chuỗi bug dữ liệu độc lập:
+>   `RoleIds.FromCode()` trả về GUID cứng không khớp `Roles.Id` thật (mọi lần gán role,
+>   kể cả tự đăng ký, đều vi phạm FK) — đã xoá hẳn, dùng `role.Id` thật;
+>   `RolePermission.TenantId` là cột ma (EF map nhưng SQL không có) gây lỗi 500 sống
+>   mỗi lần gán/gỡ permission cho role — đã xoá property; `UserRole`'s khoá composite
+>   EF sai (thiếu TenantId) so với PK SQL thật; `UserService.RemoveRoleAsync` là no-op
+>   (tìm thấy row nhưng không xoá) — đã sửa cả 4. `AuthService.RegisterAsync` trước
+>   đây chỉ kiểm tra email trùng trong phạm vi tenant hiện tại, không phát hiện email
+>   đã tồn tại ở tenant khác (vi phạm unique index toàn cục, crash SQL thô thay vì lỗi
+>   sạch) — đã sửa dùng kiểm tra global + thêm `POST /api/users/invite` (gated
+>   `identity:users:manage`) để admin gắn 1 tài khoản đã tồn tại vào tenant mới, theo
+>   đúng mô hình "1 User dùng chung nhiều tenant qua `AuthUserTenant`" đã xác nhận với
+>   người dùng. Đổi toàn bộ hằng số permission từ `snake_case` phẳng
+>   (`manage_users`...) sang dạng phân cấp `identity:{resource}:{action}` khớp quy ước
+>   `PermissionConstants.cs` dùng ở 13 service còn lại. Xây 2 trang admin frontend mới:
+>   Users (gán/gỡ role, khoá/mở khoá, mời user vào tenant, chọn tenant nếu có
+>   `identity:tenants:view`) và Roles & Permissions (CRUD role, gán quyền theo
+>   checklist, danh mục quyền chỉ đọc).
+> - **Đợt 2 (Security Hardening 3 tầng, sau khi người dùng hỏi "đã đảm bảo bảo mật dữ
+>   liệu user chưa"):** audit phát hiện lỗ hổng nghiêm trọng nhất hệ thống — **2FA có
+>   thể bị bỏ qua hoàn toàn** qua đường external-login (Google/Microsoft/Facebook) và
+>   Twitter callback, vì 2 luồng này cấp token thẳng mà không hề kiểm tra
+>   `TwoFactorEnabled` như luồng `/login` thường — đã sửa bằng cách gộp logic kiểm tra
+>   2FA của `LoginAsync` thành 1 helper dùng chung (`IssueTokensOrChallengeAsync`) cho
+>   cả 3 luồng. **Tier 1 (IdentityService, tự chứa):** JWT signing secret hardcode
+>   trong git → chuyển sang biến môi trường; refresh-token hết hạn sau 30 ngày dù cấu
+>   hình ghi 7 ngày (code bỏ qua config) — đã sửa đọc từ config; token reset-password
+>   lưu plaintext trong DB → hash SHA-256 trước khi lưu; thêm FluentValidation (theo
+>   đúng pattern `AddFluentValidationAutoValidation` đã dùng ở PurchaseOrderService,
+>   không phải MediatR pipeline vì Identity không dùng MediatR); thêm CORS allow-list +
+>   HTTPS redirection/HSTS + security headers (trước đây hoàn toàn không có); thêm
+>   chống brute-force đăng nhập (nối vào 1 hàm đếm login fail đã viết sẵn nhưng chưa ai
+>   gọi); API key `Scopes` được lưu nhưng chưa từng kiểm tra khi dùng key — đã thêm
+>   enforcement; password policy thêm yêu cầu độ phức tạp (hoa/thường/số/ký tự đặc
+>   biệt) và áp dụng cả lúc đăng ký (trước đây chỉ áp dụng lúc đổi/reset mật khẩu).
+>   **Tier 2 (vệ sinh secrets toàn hạ tầng):** mật khẩu SQL Server/RabbitMQ/JWT key
+>   hardcode plaintext trong `docker-compose.yml` (~30 chỗ) và `deployment/k8s/
+>   secrets.yaml` — chuyển sang biến môi trường (`.env.example` mẫu, `.env` thật
+>   gitignore); file k8s đổi thành `secrets.yaml.example` với placeholder.
+>   **Tier 3 (lỗ hổng kiến trúc nghiêm trọng nhất, xuyên suốt toàn hệ thống):** Gateway
+>   xác thực chữ ký JWT đúng cách, nhưng **13 service còn lại (tất cả trừ Identity)
+>   không hề tự validate JWT** — chỉ tin các header `X-User-Id`/`X-Tenant-Id`/
+>   `X-User-Roles`/`X-User-Permissions` do Gateway gắn vào, không kiểm tra chữ ký nào
+>   cả. Bất kỳ ai truy cập trực tiếp vào 1 service (bỏ qua Gateway, ví dụ trong cùng
+>   mạng docker) có thể giả mạo header và mạo danh bất kỳ user/tenant/role/permission
+>   nào. Đã xây `AddErpJwtAuthentication` + `JwtClaimsUserContextService` dùng chung
+>   (`src/Shared/Authorization/`) và áp dụng cho **toàn bộ 13 service** (SaleOrderService
+>   và AccountingService còn có middleware nội bộ tự viết trùng lặp, đọc header trực
+>   tiếp — đã viết lại để đọc từ `HttpContext.User` đã xác thực thay vì header). Giới
+>   hạn còn lại đã ghi nhận rõ, chưa xử lý: việc thu hồi token (`TokenBlacklist`) vẫn
+>   chỉ Identity biết, service khác xác thực chữ ký/hạn dùng nhưng không biết token đã
+>   bị logout — cần một kho thu hồi dùng chung (Redis) hoặc event logout qua
+>   Kafka/RabbitMQ ở đợt sau. Ngoài phạm vi bảo mật, phát hiện thêm 1 lỗi build tồn tại
+>   từ trước (không liên quan bảo mật): 10 service pin `Confluent.Kafka` phiên bản cũ
+>   (2.3.0) xung đột với `ERP.Shared`'s yêu cầu mới hơn (2.13.1) — đã nâng cấp đồng bộ
+>   để tất cả 16 project (Gateway + Identity + 14 service) build sạch 0 lỗi.
+>
+> **Cập nhật 2026-07-05:** xử lý tuần tự từng service theo mục ❌ liệt kê (theo yêu
+> cầu "từng service một, theo thứ tự"): đã xong 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 →
+> 3.7 → 3.8 → 3.9 (Promotion) → 3.10 (CRM) → 3.11 (HRM) → 3.12 (Accounting) → 3.13
+> (Notification) → 3.14 (Reporting).
 
 ---
 
@@ -182,7 +250,7 @@ Enums                 Event Handlers          Kafka Producer/Consumer
 
 | Service | Domain | Application | Infrastructure | API | Event Consumer | Mức Độ |
 |---------|--------|-------------|----------------|-----|----------------|--------|
-| IdentityService | ✅ | ✅ | ✅ (+ audit log, session mgmt, API keys, password policy — 2026-07-03) | ✅ (+ Security/ApiKeys/Sessions endpoints) | — (upstream) | **99%** (còn thiếu duy nhất LDAP, cố ý bỏ qua) |
+| IdentityService | ✅ (+ AuthUserTenant invite flow — 2026-07-08) | ✅ | ✅ (+ audit log, session mgmt, API keys, password policy — 2026-07-03; + tenant-scoped repos, hashed reset tokens, brute-force guard, hierarchical permission codes — 2026-07-08) | ✅ (+ Security/ApiKeys/Sessions endpoints; + tenant IDOR closed trên Users/Roles controllers, FluentValidation, CORS/HSTS/security headers — 2026-07-08) | — (upstream) | **99%** (LDAP/AD vẫn cố ý bỏ qua; đã đóng lỗ hổng IDOR + 2FA-bypass + JWT trust boundary xuyên suốt 13 service khác — xem mục 3.1 và ghi chú 2026-07-08 ở đầu tài liệu) |
 | SaleOrderService | ✅ (+ notes, status history, partial fulfillment, return flow) | ✅ Đầy đủ lifecycle + Update/Notes/ShipItems/Return (2026-07-03) | ✅ RabbitMQ publish trực tiếp (không dùng Outbox) | ✅ 16 endpoints | ✅ (Kafka `product-topic` ProductPriceChanged, mới thêm; `OrderFulfillmentSaga` vẫn dead code) | **93%** |
 | PurchaseOrderService | ✅ (+ SupplierRating, GoodsReceipt entities mới) | ✅ Đầy đủ VÀ THẬT (2026-07-03: 7/8 handler chính trước đó là stub rỗng — xem mục 3.4) | ✅ Outbox+Kafka (`purchasing-topic`); GRN/receipt-schedule/price-comparison/3-way-match mới thêm | ✅ 2 controllers, 20 endpoints (đã xoá 1 controller trùng route gây lỗi `AmbiguousMatchException`) | ✅ (outbound thật; chưa cần consume gì) | **95%** |
 | WareHouseService | ✅ (+ InventoryLot, InventorySerial, TransferOrder, Stocktake, sửa crash-risk EF mapping thiếu của `Reservation.ReservedItems` — 2026-07-03) | ✅ Đầy đủ (2026-07-03: ReceiveStock, AdjustStock riêng biệt, Location CRUD, Stocktake, Transfer Order, Lot/Serial/Expiry, Valuation FIFO/LIFO/Average — xem mục 3.5) | ✅ RabbitMQ publish đã sửa lỗi thiếu `IConnection` DI (trước đây crash khi gọi); consumer thật cho `sales_order_events` + `purchasing-topic` (PO received, mới 2026-07-03) | ✅ 7 controllers, ~30 endpoints | ✅ (RabbitMQ `sales_order.*` + Kafka `purchasing-topic` PurchaseOrderReceived, mới 2026-07-03) | **97%** |
@@ -236,7 +304,12 @@ consumers mới + CSV export.
 - Xác thực 2 bước (2FA) qua SMS hoặc Email: sau khi verify mật khẩu, nếu tài khoản/tenant
   yêu cầu 2FA, hệ thống phát sinh mã OTP một lần (hash lưu DB, mã thật gửi qua Kafka
   `identity-topic` → NotificationService gửi SMS/Email) — `POST /api/auth/2fa/verify`,
-  `POST /api/auth/2fa/resend`, tự bật/tắt qua `POST /api/users/{id}/2fa/enable|disable`
+  `POST /api/auth/2fa/resend`, tự bật/tắt qua `POST /api/users/{id}/2fa/enable|disable`.
+  **Lỗ hổng đã sửa (2026-07-08):** đăng nhập qua external-login (Google/Microsoft/
+  Facebook) và Twitter callback trước đây cấp token thẳng, không hề kiểm tra
+  `TwoFactorEnabled` như luồng `/login` thường — 1 user đã bật 2FA có thể bỏ qua hoàn
+  toàn bằng cách đăng nhập qua provider ngoài. Đã gộp logic kiểm tra 2FA của cả 3
+  luồng vào 1 helper dùng chung (`IssueTokensOrChallengeAsync`).
 - Auth Settings 2 cấp: `SystemAuthSettings` (SuperAdmin, toàn hệ thống — công tắc gốc)
   và `TenantAuthSettings` (theo từng tenant, chỉ có hiệu lực khi System cũng bật) —
   bật/tắt từng provider đăng nhập ngoài + 2FA khả dụng/bắt buộc —
@@ -257,9 +330,14 @@ consumers mới + CSV export.
 - Session management: `DeviceSessions` (upsert mỗi lần đăng nhập thành công, khoá theo
   UserId+DeviceId — nếu client không gửi `DeviceId` thì dùng hash User-Agent làm khoá dự phòng)
   và `TokenBlacklist` (thu hồi tức thời 1 JWT theo `jti`, kiểm tra qua `OnTokenValidated` khi
-  Identity tự validate JWT của chính nó — **giới hạn thật:** các service khác tin header do
-  Gateway inject chứ không tự validate JWT, nên 1 token đã bị blacklist vẫn còn dùng được với
-  các service đó cho tới khi hết hạn tự nhiên) — `GET/POST /api/users/{id}/sessions[/{id}/revoke]`
+  Identity tự validate JWT của chính nó) — `GET/POST /api/users/{id}/sessions[/{id}/revoke]`.
+  **Cập nhật 2026-07-08:** trước đây các service khác chỉ tin header do Gateway inject,
+  không tự validate JWT — nay cả 13 service đã tự validate chữ ký/hạn dùng JWT (xem
+  "Cross-Service JWT Trust Boundary" bên dưới). **Giới hạn còn lại:** việc thu hồi
+  token (`TokenBlacklist`) vẫn chỉ Identity biết — 1 token đã logout nhưng chưa hết
+  hạn tự nhiên vẫn được các service khác chấp nhận cho tới khi hết hạn, vì họ chỉ
+  kiểm tra chữ ký/hạn dùng chứ không tra `TokenBlacklist` của Identity. Cần kho thu
+  hồi dùng chung (Redis) hoặc event logout qua Kafka/RabbitMQ để đóng nốt giới hạn này.
 - API Key management: entity `ApiKey` mới (bảng `ApiKeys`, migration 003) cho service-to-service
   calls — tạo/liệt kê/thu hồi qua `POST/GET /api/api-keys`, `POST /api/api-keys/{id}/revoke`; raw
   key chỉ trả về đúng 1 lần lúc tạo, chỉ lưu hash. **Việc từng service cụ thể chấp nhận API Key
@@ -267,7 +345,11 @@ consumers mới + CSV export.
   này chỉ xây xong phần quản lý khoá
 - Password policy: từ chối mật khẩu ngắn hơn `PasswordPolicy:MinLength` (mặc định 8) và mật khẩu
   trùng với 1 trong N mật khẩu gần nhất trong `PasswordHistories` (`PasswordPolicy:HistoryCount`,
-  mặc định 5) — áp dụng ở `POST /api/auth/reset-password` và `POST /api/users/{id}/change-password`
+  mặc định 5) — áp dụng ở `POST /api/auth/reset-password` và `POST /api/users/{id}/change-password`.
+  **Cập nhật 2026-07-08:** thêm yêu cầu độ phức tạp (chữ hoa/chữ thường/số/ký tự đặc
+  biệt, mỗi loại bật/tắt riêng qua config) và áp dụng cả lúc **đăng ký**
+  (`POST /api/auth/register`) — trước đây `RegisterAsync` hoàn toàn không gọi
+  `ValidateNewPasswordAsync`, chỉ 2 luồng đổi/reset mật khẩu mới kiểm tra policy
 - Domain events còn thiếu đã bổ sung: `UserUpdatedDomainEvent` (raise từ `User.UpdateProfile()`),
   `RoleAssignedDomainEvent` (raise từ `User.AssignRole()`), `PermissionGrantedDomainEvent` (raise
   từ `Role.NotifyPermissionGranted()`, gọi khi gán permission cho role) — cả 3 đi qua Outbox+Kafka
@@ -278,17 +360,42 @@ consumers mới + CSV export.
 - Gán Role cho User
 - Quản lý Permissions (CRUD)
 - Gán Permission trực tiếp cho User hoặc qua Role
-- Middleware truyền UserContext qua HTTP header sang các service khác
+- Middleware truyền UserContext qua HTTP header sang các service khác (nay đã có xác
+  thực chữ ký JWT thật đứng sau — xem "Cross-Service JWT Trust Boundary" bên dưới)
+- Hằng số permission đổi từ `snake_case` phẳng (`manage_users`) sang dạng phân cấp
+  `identity:{resource}:{action}` (2026-07-08), khớp quy ước `PermissionConstants.cs`
+  dùng ở 13 service còn lại — giảm rủi ro trùng tên khi số lượng tenant/permission tăng
+- `[Authorize(Policy = "Permission")]` được thêm vào **toàn bộ 35 chỗ dùng
+  `[RequirePermission(...)]`** trên 7 controller (2026-07-08) — phát hiện quan trọng:
+  trước đó chỉ có `[Authorize]` trần (policy mặc định = "đã đăng nhập"), nên
+  `PermissionAuthorizationHandler` tự viết sẵn **chưa từng được gọi** — bất kỳ user đã
+  đăng nhập nào, bất kể có permission thật hay không, đều qua được mọi endpoint có gắn
+  `[RequirePermission]`
 
 **User Management**
 - CRUD người dùng
 - Kích hoạt / vô hiệu hóa tài khoản
 - Xem/thu hồi phiên đăng nhập đang hoạt động (`DeviceSessions`)
+- **Tenant isolation (IDOR) đã đóng (2026-07-08):** `GetById`/`UpdateProfile`/
+  `Lock`/`Unlock`/`Delete`/`AssignRole`/`RemoveRole` trên `UsersController`, và
+  tương tự trên `RolesController`, trước đây không kiểm tra tenant — 1 user thuộc
+  Tenant A có thể xem/sửa/khoá user hoặc role thuộc Tenant B chỉ bằng cách đổi
+  GUID trên URL. Nay trả về 404 (không phải 403) khi tài nguyên thuộc tenant
+  khác, tránh lộ "tồn tại hay không" cho kẻ dò quét. `List` mặc định về tenant của
+  người gọi; muốn xem tenant khác phải có thêm quyền `identity:tenants:view`,
+  kiểm tra lại từ DB chứ không tin claim JWT
 
 **Multi-Tenant**
 - Quản lý Tenants (CRUD)
 - Gán User vào Tenant
 - Lọc dữ liệu theo TenantId
+- **Invite-to-tenant flow (2026-07-08):** `POST /api/users/invite` (gated
+  `identity:users:manage`) gắn 1 tài khoản đã tồn tại (theo email) vào tenant của
+  người gọi — idempotent (`alreadyMember: true` nếu đã là thành viên), tuỳ chọn
+  gán role ngay lúc mời. Đây là con đường **duy nhất** hợp lệ để 1 user tham gia
+  tenant thứ 2 — tự đăng ký (`/auth/register`) với email đã tồn tại ở tenant khác
+  bị từ chối sạch (409) thay vì tự động gắn vào (tránh vấn đề tiếp nhận tài khoản
+  không có sự đồng ý)
 
 **Published Events**
 - `UserRegisteredIntegrationEvent` → Kafka
@@ -297,6 +404,35 @@ consumers mới + CSV export.
   (`identity-topic`) — mới thêm 2026-07-03; chưa có consumer nào ở service khác lắng nghe 3 event
   này, tương tự tình trạng ban đầu của `TwoFactorCodeGeneratedEvent` trước khi Notification wire nó
 
+**Bảo mật dữ liệu user (đợt rà soát 2026-07-08, sau câu hỏi trực tiếp của người dùng
+"IdentityService đã đảm bảo bảo mật dữ liệu user chưa")**
+- Token reset-password (`PasswordResetTokens.Token`) trước đây lưu **plaintext** trong
+  DB — nay hash SHA-256 trước khi lưu; raw token vẫn trả về/gửi email đúng 1 lần như cũ
+- FluentValidation thêm cho `RegisterRequest`/`LoginRequest`/`ChangePasswordRequest`/
+  `ForgotPasswordRequest`/`ResetPasswordRequest` — trước đây không có validation nào
+  ngoài vài check thủ công rải rác trong domain
+- CORS allow-list (đọc từ config, không phải `AllowAnyOrigin`), HTTPS redirection/HSTS,
+  security headers (`X-Content-Type-Options`, `X-Frame-Options`, CSP) — trước đây
+  IdentityService không có bất kỳ thứ nào trong 3 thứ này
+- Chống brute-force đăng nhập: khoá tạm theo cặp (IP, email) sau N lần sai trong 1
+  khoảng thời gian cấu hình được (`PasswordPolicy:MaxFailedAttemptsPerWindow`/
+  `FailedAttemptsWindowMinutes`) — nối vào 1 hàm đếm login fail đã viết sẵn từ trước
+  (`CountRecentFailedAsync`) nhưng chưa từng được gọi ở đâu
+- API key `Scopes` (lưu từ trước) nay được kiểm tra thật khi validate key — trước đây
+  bất kỳ key hợp lệ nào cũng được cấp toàn quyền bất kể scope đã cấp là gì
+- JWT signing secret chuyển từ hardcode trong `appsettings.json`/`docker-compose.yml`
+  sang biến môi trường (`${JWT_SIGNING_KEY}`, mẫu ở `.env.example`) — xem
+  `docs/architecture/deployment-guide.md`
+- **Cross-Service JWT Trust Boundary (thay đổi kiến trúc lớn nhất đợt này):** trước
+  đây chỉ Gateway xác thực chữ ký JWT; 13 service còn lại chỉ tin header
+  `X-User-Id`/`X-Tenant-Id`/`X-User-Roles`/`X-User-Permissions` do Gateway gắn vào —
+  ai truy cập trực tiếp vào 1 service (bỏ qua Gateway) có thể giả mạo header và mạo
+  danh bất kỳ ai. Đã thêm `AddErpJwtAuthentication`/`JwtClaimsUserContextService` dùng
+  chung (`src/Shared/Authorization/`) và áp dụng cho toàn bộ 13 service — mỗi service
+  giờ tự xác thực chữ ký/hạn dùng JWT độc lập, không còn phụ thuộc header do Gateway
+  gắn vào là nguồn tin cậy duy nhất. Giới hạn còn lại: thu hồi token (logout) vẫn chỉ
+  Identity biết — xem ghi chú "Session management" ở mục ✅ phía trên
+
 #### ❌ Tính năng còn thiếu
 
 | Tính năng | Ưu tiên | Ghi chú |
@@ -304,10 +440,16 @@ consumers mới + CSV export.
 | ~~Xác thực 2 bước (2FA/MFA)~~ | ~~Cao~~ | **Đã triển khai** — SMS/Email OTP, xem `docs/business/Identity/ExternalAuthAndTwoFactor.md` |
 | ~~Khóa tài khoản sau N lần sai mật khẩu~~ | ~~Cao~~ | **Đã sửa 2026-07-03** — method đã có từ trước nhưng chưa từng được gọi trong `LoginAsync`, nay đã wire |
 | ~~Audit log đăng nhập~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — xem chi tiết ở mục ✅ phía trên |
-| ~~Session management~~ | ~~Trung~~ | **Đã triển khai 2026-07-03** — xem chi tiết ở mục ✅ phía trên, kèm giới hạn thật đã ghi rõ |
-| ~~API Key management~~ | ~~Trung~~ | **Đã triển khai phần quản lý (create/list/revoke) 2026-07-03** — việc từng service chấp nhận API Key vẫn chưa làm |
-| ~~Password policy configuration~~ | ~~Thấp~~ | **Đã triển khai 2026-07-03** — độ dài tối thiểu (config) + chống trùng N mật khẩu gần nhất; chưa có UI admin cấu hình theo tenant, chỉ đọc từ `appsettings.json` |
+| ~~Session management~~ | ~~Trung~~ | **Đã triển khai 2026-07-03**, giới hạn thu hồi token thật đã đóng một phần 2026-07-08 (13 service tự validate JWT) — xem ghi chú "Session management" ở mục ✅ |
+| ~~API Key management~~ | ~~Trung~~ | **Đã triển khai phần quản lý (create/list/revoke) 2026-07-03; scope enforcement thêm 2026-07-08** — việc từng service chấp nhận API Key thay Bearer token vẫn chưa làm |
+| ~~Password policy configuration~~ | ~~Thấp~~ | **Đã triển khai 2026-07-03; thêm yêu cầu độ phức tạp + áp dụng lúc đăng ký 2026-07-08** — chưa có UI admin cấu hình theo tenant, chỉ đọc từ `appsettings.json` |
+| ~~Tenant isolation trên Users/Roles (IDOR)~~ | ~~Cao~~ | **Đã sửa 2026-07-08** — xem "Tenant isolation (IDOR) đã đóng" ở mục ✅ phía trên |
+| ~~2FA có thể bị bỏ qua qua external-login~~ | ~~Cao~~ | **Đã sửa 2026-07-08** — xem ghi chú trong mục 2FA ở mục ✅ phía trên |
 | LDAP/Active Directory integration | Thấp | **Cố ý bỏ qua ở đợt này** — cần thư viện LDAP client thật + một Active Directory thật để kiểm thử, không có sẵn trong môi trường này; khác các gap khác (đều chỉ cần code + schema có sẵn), đây là một loại tích hợp bên ngoài hoàn toàn mới, chưa có bất kỳ phần nào trong repo |
+| Thu hồi token dùng chung giữa các service (shared token blacklist) | Trung | **Chưa làm** — mỗi service tự validate chữ ký/hạn dùng JWT (2026-07-08) nhưng không service nào (ngoài Identity) biết token đã bị logout/thu hồi trước hạn; cần kho Redis dùng chung hoặc event logout qua Kafka/RabbitMQ |
+| `PermissionsController.Create/Update/Delete` không lưu (không gọi `SaveChangesAsync`) | Trung | **Biết nhưng cố ý chưa sửa 2026-07-08** — admin frontend chỉ hiển thị danh mục quyền dạng chỉ đọc, không xây CRUD trên endpoint đang lỗi này |
+| Gán/thu hồi permission trực tiếp cho từng User (không qua Role) | Thấp | **Chưa có service method** — hiện chỉ hỗ trợ gán permission qua Role; `UserPermission` override trực tiếp chưa có tầng service |
+| Gateway/PurchaseOrderService's `RoleDefinitions` cứng, không theo tenant | Thấp | **Cố ý ngoài phạm vi 2026-07-08** — 2 nơi này có bảng permission tính lại độc lập, không dùng RBAC theo tenant thật của Identity; là sáng kiến lớn hơn, riêng biệt |
 | ~~Published: `UserUpdated`, `RoleAssigned`, `PermissionGranted`~~ | ~~Cao~~ | **Đã triển khai 2026-07-03** — xem mục Published Events phía trên; chưa có service nào consume |
 
 #### Luồng Vận Hành
@@ -319,12 +461,21 @@ Client → POST /auth/register → [validate] → User entity → PublishDomainE
                                                       → HRMService (if employee)
                                                       → CRMService (if customer)
 
-Client → POST /auth/login → [verify password] → generate JWT + RefreshToken
+Client → POST /auth/login → [verify password] → [check 2FA required?]
+                                              → yes: TwoFactorChallenge → 2fa/verify → tokens
+                                              → no:  generate JWT + RefreshToken
                           → return {accessToken, refreshToken, expiresIn}
+        (external-login/Twitter callback đi qua CÙNG bước [check 2FA required?] này
+        từ 2026-07-08 — trước đó 2 luồng này bỏ qua 2FA hoàn toàn)
 
-API Request → [JWT middleware] → extract claims → UserContextMiddleware
-           → inject X-User-Id, X-User-Roles, X-Tenant-Id headers
+API Request → Gateway: [validate chữ ký JWT] → inject X-User-Id/X-Tenant-Id/
+              X-User-Roles/X-User-Permissions headers (tiện cho code cũ còn đọc header)
            → forward to downstream service
+           → downstream service (từ 2026-07-08): [tự validate chữ ký/hạn dùng JWT
+             qua AddErpJwtAuthentication] → JwtClaimsUserContextService đọc
+             HttpContext.User đã xác thực, KHÔNG còn tin header không chữ ký làm
+             nguồn duy nhất — đóng lỗ hổng giả mạo header khi truy cập thẳng vào
+             service, bỏ qua Gateway
 ```
 
 ---
@@ -2243,7 +2394,8 @@ choreography qua các consumer mới.
     + offline sync batch + split payment + denomination counting + Z-report) — xem
     mục 3.8. WarehouseService vẫn cần tự thêm consumer cho `pos-topic` để trừ tồn kho.
 14. IdentityService: ~~2FA~~ (đã xong), ~~audit log~~ (đã xong 2026-07-03),
-    ~~session management~~ (đã xong 2026-07-03) — xem mục 3.1
+    ~~session management~~ (đã xong 2026-07-03), ~~tenant isolation (IDOR)~~,
+    ~~2FA-bypass qua external-login~~ (đã xong 2026-07-08) — xem mục 3.1
 ```
 
 ### Sprint 4 — Production Readiness
@@ -2254,7 +2406,11 @@ choreography qua các consumer mới.
 17. Docker Compose: health checks, restart policies
 18. Kubernetes: HPA, resource limits, liveness/readiness probes
 19. Observability: OpenTelemetry tracing, Grafana dashboards
-20. Security: Rate limiting, input sanitization, OWASP hardening
+20. ~~Security: Rate limiting, input sanitization, OWASP hardening~~ — **IdentityService
+    đã xong 2026-07-08** (rate limiting đăng nhập, FluentValidation, CORS/HSTS/security
+    headers, secrets hygiene, cross-service JWT trust boundary cho 13 service khác —
+    xem mục 3.1). Rate limiting/OWASP hardening cho các endpoint khác của 13 service
+    còn lại (ngoài phạm vi auth) vẫn chưa làm.
 ```
 
 ---
