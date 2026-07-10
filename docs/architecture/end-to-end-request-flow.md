@@ -91,6 +91,32 @@ Identity-only; a downstream service that only checks signature+expiry will still
 accept a just-logged-out-but-not-yet-expired token). No rate limiting is configured
 anywhere in `ocelot.json` today.
 
+**Updated 2026-07-09 (re-check of claim correctness):** `AddJwtBearer`'s
+`MapInboundClaims` option defaults to `true` in ASP.NET Core (confirmed empirically —
+loaded the installed `Microsoft.AspNetCore.Authentication.JwtBearer` 10.0.0 assembly
+and instantiated `JwtBearerOptions` directly) — when `true`, the framework silently
+renames the token's `sub`/`email` claims to `ClaimTypes.NameIdentifier`/`ClaimTypes.Email`
+once decoded into `HttpContext.User`. The Gateway already set `MapInboundClaims = false`
+(line ~47), but neither `AddErpJwtAuthentication` (the shared extension the 13
+downstream services use, added 2026-07-08) nor **IdentityService's own** `AddJwtBearer`
+call did — so a bare `HttpContext.User.FindFirst("sub")` returned `null` for every real
+token everywhere except the Gateway. `JwtClaimsUserContextService` (the 13 downstream
+services' claims reader) already defended against this with a dual-lookup, so those
+services were unaffected; but 8 call sites *inside IdentityService itself*
+(`ControllerTenantExtensions.GetCallerUserId()`, `PermissionAuthorizationHandler`,
+`AuthController.Logout`, and 5 self-service actions in `UsersController`) read the bare
+claim directly, so **logout, password change, 2FA enable/disable, and session
+management were all silently broken** (401/403 for every real caller) until this was
+fixed. A second, independent bug found in the same pass: `PermissionAuthorizationHandler`
+was never registered as an `IAuthorizationHandler` in DI at all, so the `"Permission"`
+policy (backing every `[RequirePermission(...)]` attribute added 2026-07-08) failed
+closed for 100% of callers regardless of the claims bug. Both are fixed — see
+`docs/business/ERP-Business-Analysis.md`'s 2026-07-09 entry for the full file list. Also
+added: a `name` claim (display name, previously only `email` existed) read by
+`JwtClaimsUserContextService` and `GatewayAuthorizationMiddleware` (which previously
+looked for a `preferred_username` claim that this system's tokens never actually emit,
+silently falling back to the raw user GUID as the "username").
+
 ### 1.3 The two async event-delivery mechanisms
 
 | | SaleOrderService & WareHouseService | Every other service |

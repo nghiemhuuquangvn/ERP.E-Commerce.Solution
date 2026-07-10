@@ -33,6 +33,10 @@ public class JwtClaimsUserContextService : IUserContextService
         // handler — check both forms so this works regardless of that setting.
         var userId = FindFirst(user, JwtRegisteredClaimNames.Sub, ClaimTypes.NameIdentifier);
         var email = FindFirst(user, JwtRegisteredClaimNames.Email, ClaimTypes.Email);
+        // "name" is the user's display name (FullName/UserName/Email fallback chain —
+        // see TokenService.GenerateAccessToken); falls back to email for tokens issued
+        // before this claim existed.
+        var name = FindFirst(user, JwtRegisteredClaimNames.Name, ClaimTypes.Name);
         var tenantId = FindFirst(user, "tenant_id");
         var roles = user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray();
         var permissions = user.FindAll("permission").Select(c => c.Value).ToArray();
@@ -45,7 +49,7 @@ public class JwtClaimsUserContextService : IUserContextService
         return new UserContext
         {
             UserId = userId ?? string.Empty,
-            UserName = email ?? string.Empty,
+            UserName = name ?? email ?? string.Empty,
             TenantId = tenantId ?? string.Empty,
             Roles = roles,
             Permissions = permissions,

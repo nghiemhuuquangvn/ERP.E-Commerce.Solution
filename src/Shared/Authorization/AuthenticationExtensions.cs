@@ -32,6 +32,13 @@ public static class AuthenticationExtensions
         services.AddAuthentication("Bearer")
             .AddJwtBearer("Bearer", options =>
             {
+                // Without this, ASP.NET Core's default inbound claim map silently
+                // renames the token's "sub"/"email" claims to the legacy ClaimTypes.*
+                // URIs, so a bare HttpContext.User.FindFirst("sub") returns null even
+                // though the token is valid. Off so HttpContext.User's claim types
+                // match TokenService's literal claim strings exactly (mirrors the
+                // Gateway's own Program.cs, which already sets this for the same reason).
+                options.MapInboundClaims = false;
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,

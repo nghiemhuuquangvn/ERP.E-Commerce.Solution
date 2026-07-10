@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ERP.Identity.Api.Authorization;
 using ERP.Identity.Application.DTOs.Auth;
 using ERP.Identity.Application.Interfaces.Services;
 using LoginRequest = ERP.Identity.Application.DTOs.Auth.LoginDto.LoginRequest;
@@ -69,8 +70,8 @@ namespace ERP.Identity.Api.Controllers
         [Authorize]
         public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken = default)
         {
-            var userId = User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var parsedUserId))
+            var callerUserId = this.GetCallerUserId();
+            if (callerUserId is null)
                 return Unauthorized();
 
             var jti = User.FindFirst("jti")?.Value;
@@ -78,7 +79,7 @@ namespace ERP.Identity.Api.Controllers
                 ? DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime
                 : null;
 
-            await _authService.LogoutAsync(parsedUserId, request.RefreshToken, jti, tokenExpiresAt, GetClientIp(), cancellationToken);
+            await _authService.LogoutAsync(callerUserId.Value, request.RefreshToken, jti, tokenExpiresAt, GetClientIp(), cancellationToken);
             return Ok(new { message = "Logged out successfully" });
         }
 

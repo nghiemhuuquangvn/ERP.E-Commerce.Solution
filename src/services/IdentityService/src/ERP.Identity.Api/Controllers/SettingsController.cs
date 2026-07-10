@@ -69,15 +69,15 @@ namespace ERP.Identity.Api.Controllers
         /// </summary>
         private async Task<bool> CallerCanAccessTenantAsync(Guid tenantId, CancellationToken ct)
         {
-            var callerTenantId = User.FindFirst("tenant_id")?.Value;
-            if (!string.IsNullOrEmpty(callerTenantId) && Guid.TryParse(callerTenantId, out var parsedTenantId) && parsedTenantId == tenantId)
+            var callerTenantId = this.GetCallerTenantId();
+            if (callerTenantId == tenantId)
                 return true;
 
-            var callerUserId = User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(callerUserId) || !Guid.TryParse(callerUserId, out var parsedUserId) || string.IsNullOrEmpty(callerTenantId) || !Guid.TryParse(callerTenantId, out var ownTenantId))
+            var callerUserId = this.GetCallerUserId();
+            if (callerUserId is null || callerTenantId is null)
                 return false;
 
-            return await _permissionService.HasPermissionAsync(parsedUserId, ownTenantId, new[] { SettingsPermissions.SystemManage });
+            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { SettingsPermissions.SystemManage });
         }
     }
 }

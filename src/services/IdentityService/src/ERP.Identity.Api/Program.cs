@@ -64,6 +64,12 @@ var jwtKey = builder.Configuration["Jwt:Key"]
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer(options =>
     {
+        // Without this, ASP.NET Core's default inbound claim map silently renames
+        // "sub"/"email" to the legacy ClaimTypes.* URIs, so bare
+        // HttpContext.User.FindFirst("sub") calls (ControllerTenantExtensions,
+        // PermissionAuthorizationHandler, several controllers) return null even for a
+        // valid token. Off so claim types match TokenService's literal claim strings.
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -76,11 +82,13 @@ builder.Services.AddAuthentication("Bearer")
         };
 
         // Session-management gap: a token blacklisted via /auth/logout must stop
-        // working immediately, not just at its natural expiry. Only enforced here,
-        // on Identity's own JWT validation — other services trust the gateway's
-        // injected headers rather than re-validating the JWT themselves, so a
-        // blacklisted token still works against them today (a known, documented
-        // limitation, not something this hook can fix from Identity alone).
+        // working immediately, not just at its natural expiry. All 13 downstream
+        // services now independently validate JWT signature/expiry too (via
+        // AddErpJwtAuthentication), but none of them check TokenBlacklist — that
+        // check only runs here, on Identity's own JWT validation. A blacklisted
+        // token's signature/expiry are still valid, so it keeps working against
+        // every other service until it expires naturally (known, documented
+        // limitation — needs a shared revocation store to close fully).
         options.Events = new JwtBearerEvents
         {
             OnTokenValidated = async context =>

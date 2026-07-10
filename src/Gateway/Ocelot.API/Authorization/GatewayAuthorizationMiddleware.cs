@@ -30,7 +30,10 @@ public class GatewayAuthorizationMiddleware
             if (context.User?.Identity?.IsAuthenticated == true)
             {
                 var userId = ExtractClaim(context.User, "sub") ?? "unknown";
-                var userName = ExtractClaim(context.User, "preferred_username") ?? userId;
+                // TokenService.GenerateAccessToken emits "name" (FullName/UserName/Email
+                // fallback chain), not "preferred_username" — that claim never existed in
+                // our own tokens, so this always fell back to the raw user GUID before.
+                var userName = ExtractClaim(context.User, "name") ?? ExtractClaim(context.User, "preferred_username") ?? userId;
                 var tenantId = ExtractClaim(context.User, "tenant_id");
                 var tenantName = ExtractClaim(context.User, "tenant_name") ?? tenantId;
                 var expiresAtStr = ExtractClaim(context.User, "exp");

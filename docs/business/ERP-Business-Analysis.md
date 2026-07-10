@@ -1,8 +1,10 @@
 # ERP E-Commerce Solution — Phân Tích Business Logic Toàn Diện
 
-> **Cập nhật:** 2026-07-08 — xem block "Cập nhật 2026-07-08" bên dưới cho đợt mới
-> nhất (Tenant Isolation & Permission Model + Security Hardening 3 tầng cho
-> IdentityService). Lịch sử trước đó (2026-07-05 trở về trước): xử lý tuần tự từng
+> **Cập nhật:** 2026-07-09 — xem block "Cập nhật 2026-07-09" bên dưới (re-check chuỗi
+> JWT: 2 bug nghiêm trọng khiến auth/authz thất bại âm thầm trong chính
+> IdentityService). Trước đó, 2026-07-08 — xem block cùng tên (Tenant Isolation &
+> Permission Model + Security Hardening 3 tầng cho IdentityService). Lịch sử trước đó
+> (2026-07-05 trở về trước): xử lý tuần tự từng
 > service theo mục ❌ liệt kê (theo yêu cầu "từng service một, theo thứ tự"): đã xong
 > 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7 → 3.8 → 3.9 (Promotion) → 3.10 (CRM) → 3.11
 > (HRM) → 3.12 (Accounting) → 3.13 (Notification) → 3.14 (Reporting).
@@ -167,6 +169,49 @@
 >   từ trước (không liên quan bảo mật): 10 service pin `Confluent.Kafka` phiên bản cũ
 >   (2.3.0) xung đột với `ERP.Shared`'s yêu cầu mới hơn (2.13.1) — đã nâng cấp đồng bộ
 >   để tất cả 16 project (Gateway + Identity + 14 service) build sạch 0 lỗi.
+>
+> **Cập nhật 2026-07-09 — Re-check chuỗi JWT (header.payload.signature) và độ đầy đủ
+> của payload cho authentication/authorization, theo yêu cầu trực tiếp của người
+> dùng:** cấu trúc token đúng chuẩn (JWT 3 phần, ký HMAC-SHA256 thật qua
+> `JwtSecurityTokenHandler`), nhưng phát hiện **2 bug độc lập khiến auth/authz âm
+> thầm thất bại ngay trong chính IdentityService** (13 service khác không bị ảnh
+> hưởng, vì `JwtClaimsUserContextService` đã tự phòng thủ từ đợt 2026-07-08):
+> - **Bug 1 — `MapInboundClaims` mặc định `true`:** xác minh bằng cách load thật
+>   assembly `Microsoft.AspNetCore.Authentication.JwtBearer` 10.0.0 và khởi tạo
+>   `JwtBearerOptions` — ASP.NET Core tự đổi tên claim `sub`→`ClaimTypes.NameIdentifier`
+>   (và `email`→`ClaimTypes.Email`) khi giải mã token, trừ khi tắt cờ này. Chỉ Gateway
+>   đã tắt; `AddErpJwtAuthentication` (dùng chung cho 13 service) và `Program.cs` của
+>   chính IdentityService thì chưa — khiến **8 chỗ đọc `FindFirst("sub")` trần trong
+>   IdentityService trả về `null`** với token thật:
+>   `ControllerTenantExtensions.GetCallerUserId()`, `PermissionAuthorizationHandler`,
+>   và 6 action (`UsersController.ChangePassword/EnableTwoFactor/DisableTwoFactor/
+>   ListSessions/RevokeSession`, `AuthController.Logout`, `SettingsController`'s
+>   cross-tenant override check, `ApiKeysController.Create`'s audit field) — tức là
+>   **đăng xuất, đổi mật khẩu, bật/tắt 2FA, quản lý session đều trả về 401/403 với
+>   token hợp lệ** trước khi sửa. Đã tắt `MapInboundClaims` ở cả 2 nơi, và route toàn
+>   bộ 8 chỗ qua `GetCallerUserId()` (đã nâng cấp thành dual-lookup phòng thủ, giống
+>   pattern `JwtClaimsUserContextService` đã dùng).
+> - **Bug 2 — `PermissionAuthorizationHandler` chưa từng được đăng ký vào DI (nguyên
+>   nhân độc lập với Bug 1):** xác nhận qua grep toàn repo — không nơi nào gọi
+>   `services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>()`.
+>   Theo mô hình authorization của ASP.NET Core, 1 policy chỉ thoả khi có handler đã
+>   đăng ký gọi `context.Succeed(...)` — không có handler nào thì policy `"Permission"`
+>   **luôn thất bại cho mọi người gọi, kể cả SuperAdmin có token hợp lệ**. Điều này có
+>   nghĩa là phát biểu ở đợt 2026-07-08 rằng "`[Authorize(Policy="Permission")]` đã
+>   khiến `PermissionAuthorizationHandler` thực sự chạy" là **chưa đầy đủ** — attribute
+>   đã nối đúng policy, nhưng policy đó chưa có handler đứng sau. Đã đăng ký handler
+>   trong `ERP.Identity.Infrastructure/DependencyInjection.cs`.
+> - **Thiếu claim username/tên hiển thị:** token trước đây chỉ có `email`, không có
+>   `UserName`/`FullName` (dù cả 2 field đều có sẵn trên `User` entity) — nên
+>   `UserContext.UserName` ở mọi service chỉ là bản sao chuỗi email. Đã thêm claim
+>   `name` (chuỗi ưu tiên `FullName` → `UserName` → `Email`) vào token, và cập nhật
+>   `JwtClaimsUserContextService` + Gateway's `GatewayAuthorizationMiddleware` (vốn
+>   trước đây tìm claim `preferred_username` không tồn tại trong token của hệ thống
+>   này, luôn fallback về GUID) để đọc claim mới.
+> - **Giới hạn xác minh:** không có docker trong môi trường này nên không chạy được
+>   round-trip token thật (login → decode → gọi endpoint) — đã xác minh bằng
+>   `dotnet build` (Identity + Gateway + 2 service downstream, 0 lỗi) và suy luận thủ
+>   công qua từng đường code bị ảnh hưởng, không phải test tự động.
 >
 > **Cập nhật 2026-07-05:** xử lý tuần tự từng service theo mục ❌ liệt kê (theo yêu
 > cầu "từng service một, theo thứ tự"): đã xong 3.1 → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 →
@@ -370,7 +415,12 @@ consumers mới + CSV export.
   trước đó chỉ có `[Authorize]` trần (policy mặc định = "đã đăng nhập"), nên
   `PermissionAuthorizationHandler` tự viết sẵn **chưa từng được gọi** — bất kỳ user đã
   đăng nhập nào, bất kể có permission thật hay không, đều qua được mọi endpoint có gắn
-  `[RequirePermission]`
+  `[RequirePermission]`. **Sửa tiếp 2026-07-09:** attribute nối đúng policy nhưng
+  handler vẫn chưa chạy được, vì `PermissionAuthorizationHandler` chưa từng đăng ký
+  vào DI (`services.AddSingleton<IAuthorizationHandler, ...>()` không tồn tại ở đâu) —
+  policy `"Permission"` luôn thất bại cho mọi người cho tới khi đăng ký handler này.
+  Cộng thêm `MapInboundClaims` (ASP.NET Core, mặc định `true`) khiến claim `sub` trong
+  handler đọc ra `null` — cả 2 đã sửa cùng lúc, xem block "Cập nhật 2026-07-09"
 
 **User Management**
 - CRUD người dùng
@@ -432,6 +482,17 @@ consumers mới + CSV export.
   giờ tự xác thực chữ ký/hạn dùng JWT độc lập, không còn phụ thuộc header do Gateway
   gắn vào là nguồn tin cậy duy nhất. Giới hạn còn lại: thu hồi token (logout) vẫn chỉ
   Identity biết — xem ghi chú "Session management" ở mục ✅ phía trên
+- **Sửa tiếp 2026-07-09 (re-check theo yêu cầu người dùng):** phát hiện chính
+  IdentityService (không phải 13 service kia) mới là nơi có 2 bug khiến claim JWT
+  không đọc được đúng — `MapInboundClaims` (ASP.NET Core) mặc định `true`, tự đổi tên
+  claim `sub`/`email` sang `ClaimTypes.*` khi giải mã token; chỉ Gateway đã tắt cờ này
+  từ trước, `AddErpJwtAuthentication` và Program.cs của Identity thì chưa — khiến 8 chỗ
+  đọc `FindFirst("sub")` trần trong Identity (đăng xuất, đổi mật khẩu, bật/tắt 2FA,
+  quản lý session, `PermissionAuthorizationHandler`) trả về `null`/thất bại với token
+  thật. Độc lập với bug đó: `PermissionAuthorizationHandler` chưa từng được đăng ký vào
+  DI, nên policy `"Permission"` (nối vào 35 chỗ dùng `[RequirePermission]` ở đợt
+  2026-07-08) **luôn 403 cho mọi người bất kể quyền thật**. Cả 2 đã sửa — xem block
+  "Cập nhật 2026-07-09" ở đầu tài liệu để biết chi tiết đầy đủ.
 
 #### ❌ Tính năng còn thiếu
 
@@ -445,6 +506,8 @@ consumers mới + CSV export.
 | ~~Password policy configuration~~ | ~~Thấp~~ | **Đã triển khai 2026-07-03; thêm yêu cầu độ phức tạp + áp dụng lúc đăng ký 2026-07-08** — chưa có UI admin cấu hình theo tenant, chỉ đọc từ `appsettings.json` |
 | ~~Tenant isolation trên Users/Roles (IDOR)~~ | ~~Cao~~ | **Đã sửa 2026-07-08** — xem "Tenant isolation (IDOR) đã đóng" ở mục ✅ phía trên |
 | ~~2FA có thể bị bỏ qua qua external-login~~ | ~~Cao~~ | **Đã sửa 2026-07-08** — xem ghi chú trong mục 2FA ở mục ✅ phía trên |
+| ~~`PermissionAuthorizationHandler` chưa đăng ký DI → policy "Permission" luôn 403~~ | ~~Cao~~ | **Đã sửa 2026-07-09** (re-check theo yêu cầu người dùng) — độc lập với bug `MapInboundClaims`; không có handler thì mọi `[RequirePermission]` 403 vô điều kiện, kể cả SuperAdmin |
+| ~~`MapInboundClaims` mặc định `true` → 8 chỗ đọc claim `sub` trần trong Identity trả về `null`~~ | ~~Cao~~ | **Đã sửa 2026-07-09** — đăng xuất/đổi mật khẩu/2FA/session management đều 401 trước khi sửa; xem block "Cập nhật 2026-07-09" |
 | LDAP/Active Directory integration | Thấp | **Cố ý bỏ qua ở đợt này** — cần thư viện LDAP client thật + một Active Directory thật để kiểm thử, không có sẵn trong môi trường này; khác các gap khác (đều chỉ cần code + schema có sẵn), đây là một loại tích hợp bên ngoài hoàn toàn mới, chưa có bất kỳ phần nào trong repo |
 | Thu hồi token dùng chung giữa các service (shared token blacklist) | Trung | **Chưa làm** — mỗi service tự validate chữ ký/hạn dùng JWT (2026-07-08) nhưng không service nào (ngoài Identity) biết token đã bị logout/thu hồi trước hạn; cần kho Redis dùng chung hoặc event logout qua Kafka/RabbitMQ |
 | `PermissionsController.Create/Update/Delete` không lưu (không gọi `SaveChangesAsync`) | Trung | **Biết nhưng cố ý chưa sửa 2026-07-08** — admin frontend chỉ hiển thị danh mục quyền dạng chỉ đọc, không xây CRUD trên endpoint đang lỗi này |

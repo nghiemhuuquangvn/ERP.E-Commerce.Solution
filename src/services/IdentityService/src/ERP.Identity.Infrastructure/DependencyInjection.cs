@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
+using ERP.Identity.Infrastructure.Authorization;
 using ERP.Identity.Application.Interfaces;
 using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Infrastructure.Services;
@@ -88,6 +90,13 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<ISessionService, SessionService>();
             services.AddScoped<IApiKeyService, ApiKeyService>();
             services.AddScoped<IPasswordPolicyService, PasswordPolicyService>();
+
+            // Backs the "Permission" authorization policy (AddAuthorization in
+            // Program.cs). Without this, [Authorize(Policy = "Permission")] +
+            // [RequirePermission(...)] fails closed for every caller — a policy
+            // requirement is only satisfied if a registered IAuthorizationHandler
+            // calls context.Succeed(...), and none was ever registered.
+            services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
             services.AddHostedService<OutboxProcessor>();
 

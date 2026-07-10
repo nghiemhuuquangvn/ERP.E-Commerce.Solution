@@ -3,6 +3,7 @@ using ERP.Identity.Application.Authorization;
 using ERP.Identity.Application.Interfaces.Mapping;
 using ERP.Identity.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace ERP.Identity.Infrastructure.Authorization;
 
@@ -24,7 +25,13 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
         if (!context.User.Identity?.IsAuthenticated ?? true)
             return;
 
-        var userId = context.User.FindFirst("sub")?.Value;
+        // Dual-lookup for "sub": a registered JWT claim name gets silently renamed to
+        // ClaimTypes.NameIdentifier if MapInboundClaims is ever true (the ASP.NET Core
+        // default) — this handler gating every [RequirePermission] endpoint must keep
+        // resolving the caller even if that config regresses. "tenant_id" is custom,
+        // never touched by the inbound claim map, so a single lookup is safe.
+        var userId = context.User.FindFirst("sub")?.Value
+            ?? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var tenantId = context.User.FindFirst("tenant_id")?.Value;
 
         if (userId == null || tenantId == null)

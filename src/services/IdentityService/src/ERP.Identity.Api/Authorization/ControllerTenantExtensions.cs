@@ -1,3 +1,5 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.Identity.Api.Authorization;
@@ -12,13 +14,20 @@ public static class ControllerTenantExtensions
 {
     public static Guid? GetCallerTenantId(this ControllerBase controller)
     {
+        // Custom claim type, never touched by ASP.NET Core's inbound claim map — safe
+        // to read as-is regardless of MapInboundClaims.
         var value = controller.User.FindFirst("tenant_id")?.Value;
         return Guid.TryParse(value, out var tenantId) ? tenantId : null;
     }
 
     public static Guid? GetCallerUserId(this ControllerBase controller)
     {
-        var value = controller.User.FindFirst("sub")?.Value;
+        // Dual-lookup: "sub" is a registered JWT claim name, so it gets silently
+        // renamed to ClaimTypes.NameIdentifier if MapInboundClaims is ever true (the
+        // ASP.NET Core default) — this must keep working even if that config
+        // regresses, since this is the tenant/self-ownership boundary check.
+        var value = controller.User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+            ?? controller.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         return Guid.TryParse(value, out var userId) ? userId : null;
     }
 }

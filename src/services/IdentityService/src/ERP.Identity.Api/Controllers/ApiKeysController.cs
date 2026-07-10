@@ -31,12 +31,12 @@ namespace ERP.Identity.Api.Controllers
         [RequirePermission(Permissions.ManageApiKeys)]
         public async Task<IActionResult> Create([FromBody] CreateApiKeyRequest request, CancellationToken ct = default)
         {
-            var tenantId = User.FindFirst("tenant_id")?.Value;
-            if (string.IsNullOrEmpty(tenantId) || !Guid.TryParse(tenantId, out var parsedTenantId))
+            var parsedTenantId = this.GetCallerTenantId();
+            if (parsedTenantId is null)
                 return Unauthorized();
 
-            var createdBy = User.FindFirst("sub")?.Value;
-            var result = await _apiKeyService.CreateAsync(parsedTenantId, request.Name, request.Scopes, request.ExpiresInDays, createdBy, ct);
+            var createdBy = this.GetCallerUserId()?.ToString();
+            var result = await _apiKeyService.CreateAsync(parsedTenantId.Value, request.Name, request.Scopes, request.ExpiresInDays, createdBy, ct);
             return CreatedAtAction(nameof(List), new { }, result);
         }
 

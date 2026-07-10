@@ -91,8 +91,8 @@ namespace ERP.Identity.Api.Controllers
         [Authorize]
         public async Task<IActionResult> ChangePassword([FromRoute] Guid id, [FromBody] ChangePasswordRequest request, CancellationToken ct = default)
         {
-            var userId = User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var parsedUserId) || parsedUserId != id)
+            var callerUserId = this.GetCallerUserId();
+            if (callerUserId is null || callerUserId.Value != id)
                 return Forbid();
 
             await _userService.ChangePasswordAsync(id, request, ct);
@@ -103,8 +103,8 @@ namespace ERP.Identity.Api.Controllers
         [Authorize]
         public async Task<IActionResult> EnableTwoFactor([FromRoute] Guid id, [FromBody] EnableTwoFactorRequest request, CancellationToken ct = default)
         {
-            var userId = User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var parsedUserId) || parsedUserId != id)
+            var callerUserId = this.GetCallerUserId();
+            if (callerUserId is null || callerUserId.Value != id)
                 return Forbid();
 
             var tenantId = User.FindFirst("tenant_id")?.Value;
@@ -123,8 +123,8 @@ namespace ERP.Identity.Api.Controllers
         [Authorize]
         public async Task<IActionResult> DisableTwoFactor([FromRoute] Guid id, CancellationToken ct = default)
         {
-            var userId = User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var parsedUserId) || parsedUserId != id)
+            var callerUserId = this.GetCallerUserId();
+            if (callerUserId is null || callerUserId.Value != id)
                 return Forbid();
 
             var tenantId = User.FindFirst("tenant_id")?.Value;
@@ -228,8 +228,8 @@ namespace ERP.Identity.Api.Controllers
         [Authorize]
         public async Task<IActionResult> ListSessions([FromRoute] Guid id, CancellationToken ct = default)
         {
-            var callerId = User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(callerId) || !Guid.TryParse(callerId, out var parsedCallerId) || parsedCallerId != id)
+            var callerUserId = this.GetCallerUserId();
+            if (callerUserId is null || callerUserId.Value != id)
                 return Forbid();
 
             var sessions = await _sessionService.ListActiveSessionsAsync(id, ct);
@@ -240,8 +240,8 @@ namespace ERP.Identity.Api.Controllers
         [Authorize]
         public async Task<IActionResult> RevokeSession([FromRoute] Guid id, [FromRoute] Guid sessionId, CancellationToken ct = default)
         {
-            var callerId = User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(callerId) || !Guid.TryParse(callerId, out var parsedCallerId) || parsedCallerId != id)
+            var callerUserId = this.GetCallerUserId();
+            if (callerUserId is null || callerUserId.Value != id)
                 return Forbid();
 
             await _sessionService.RevokeSessionAsync(id, sessionId, ct);
