@@ -16,6 +16,7 @@ public class PurchaseOrder : BaseEntity
     public Money TotalAmount { get; private set; } = Money.Zero;
     public string? Notes { get; private set; }
     public DateTime? ScheduledReceiptDate { get; private set; }
+    public string? RejectionReason { get; private set; }
 
     private readonly List<PurchaseOrderItem> _items = new();
     public IReadOnlyCollection<PurchaseOrderItem> Items => _items.AsReadOnly();
@@ -98,9 +99,31 @@ public class PurchaseOrder : BaseEntity
         AddDomainEvent(new PurchaseOrderApprovedDomainEvent(Id, PONumber, SupplierId, approvedBy));
     }
 
+    /// <summary>
+    /// Distinct from Cancel: only valid while awaiting approval, and requires a reason —
+    /// lets the approver send a Submitted order back with feedback instead of ending it
+    /// permanently. Unlike Cancel, Rejected is terminal (matches SalesOrder.Reject()'s
+    /// behavior in SaleOrderService, kept consistent across the two services).
+    /// </summary>
+    public void Reject(string reason, string rejectedBy)
+    {
+        if (Status != PurchaseOrderStatus.Submitted)
+            throw new InvalidOperationException("Only Submitted orders can be rejected.");
+
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("A reason is required to reject a purchase order.", nameof(reason));
+
+        Status = PurchaseOrderStatus.Rejected;
+        RejectionReason = reason;
+        UpdatedBy = rejectedBy;
+        UpdatedAt = DateTime.UtcNow;
+
+        AddDomainEvent(new PurchaseOrderRejectedDomainEvent(Id, PONumber, SupplierId, reason, rejectedBy));
+    }
+
     public void Cancel(string cancelledBy)
     {
-        if (Status == PurchaseOrderStatus.Received || Status == PurchaseOrderStatus.Cancelled)
+        if (Status is PurchaseOrderStatus.Received or PurchaseOrderStatus.Cancelled or PurchaseOrderStatus.Rejected)
             throw new InvalidOperationException("Order cannot be cancelled in its current state.");
 
         Status = PurchaseOrderStatus.Cancelled;
@@ -135,7 +158,7 @@ public class PurchaseOrder : BaseEntity
     /// ever called them, and PurchaseOrderStatus.Received/PartiallyReceived were
     /// unreachable enum values.
     /// </summary>
-    public PurchaseOrderReceivedDomainEvent ReceiveGoods(IReadOnlyDictionary<Guid, decimal> receivedQuantities)
+    public PurchaseOrderReceivedDomainEvent ReceiveGoods(IReadOnlyDictionary<Guid, GoodsReceiptLineInput> receivedQuantities)
     {
         if (Status != PurchaseOrderStatus.Approved && Status != PurchaseOrderStatus.Ordered && Status != PurchaseOrderStatus.PartiallyReceived)
             throw new InvalidOperationException($"Cannot receive goods for a purchase order in {Status} status");
@@ -145,13 +168,18 @@ public class PurchaseOrder : BaseEntity
 
         var receivedLines = new List<PurchaseOrderReceivedDomainEvent.ReceivedLine>();
 
-        foreach (var (itemId, quantity) in receivedQuantities)
+        foreach (var (itemId, line) in receivedQuantities)
         {
             var item = _items.FirstOrDefault(i => i.Id == itemId)
                 ?? throw new InvalidOperationException($"Item {itemId} is not on this purchase order");
 
-            item.ReceiveQuantity(quantity);
-            receivedLines.Add(new PurchaseOrderReceivedDomainEvent.ReceivedLine { ProductCode = item.ProductCode, QuantityReceived = quantity });
+            item.ReceiveQuantity(line.QuantityAccepted, line.QuantityRejected);
+            receivedLines.Add(new PurchaseOrderReceivedDomainEvent.ReceivedLine
+            {
+                ProductCode = item.ProductCode,
+                QuantityReceived = line.QuantityAccepted,
+                QuantityRejected = line.QuantityRejected
+            });
         }
 
         var fullyReceived = _items.All(i => i.RemainingQuantity == 0);

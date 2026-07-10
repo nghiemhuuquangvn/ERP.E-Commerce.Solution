@@ -8,5 +8,6 @@ public enum PurchaseOrderStatus
     Ordered = 3,
     PartiallyReceived = 4,
     Received = 5,
-    Cancelled = 6
+    Cancelled = 6,
+    Rejected = 7
 }

@@ -15,8 +15,11 @@ public class PurchaseOrderItem : BaseEntity
     public Money TotalPrice => new(Quantity * UnitPrice.Amount, UnitPrice.Currency);
     public PurchaseOrderItemStatus Status { get; private set; } = PurchaseOrderItemStatus.Pending;
 
-    // Goods-receipt (GRN) tracking
+    // Goods-receipt (GRN) tracking. ReceivedQuantity is cumulative ACCEPTED quantity
+    // only — rejected units don't count toward fulfilling this line, since the
+    // supplier still owes a replacement for them.
     public decimal ReceivedQuantity { get; private set; }
+    public decimal RejectedQuantity { get; private set; }
     public decimal RemainingQuantity => Quantity - ReceivedQuantity;
 
     private PurchaseOrderItem() { }
@@ -66,20 +69,27 @@ public class PurchaseOrderItem : BaseEntity
     }
 
     /// <summary>
-    /// Records goods received against this line (GRN). Was previously unreachable —
-    /// MarkAsReceived()/MarkAsPartiallyReceived() already existed but nothing called
-    /// them, since no ReceiveGoodsCommand existed at all until 2026-07-03.
+    /// Records goods received against this line (GRN), split into accepted (passes
+    /// quality inspection) and rejected (defective/wrong item) quantities. Was
+    /// previously unreachable — MarkAsReceived()/MarkAsPartiallyReceived() already
+    /// existed but nothing called them, since no ReceiveGoodsCommand existed at all
+    /// until 2026-07-03; the accepted/rejected split was added 2026-07-10.
     /// </summary>
-    public void ReceiveQuantity(decimal quantity)
+    public void ReceiveQuantity(decimal quantityAccepted, decimal quantityRejected)
     {
-        if (quantity <= 0)
-            throw new ArgumentException("Received quantity must be greater than zero.", nameof(quantity));
+        if (quantityAccepted < 0 || quantityRejected < 0)
+            throw new ArgumentException("Accepted/rejected quantities cannot be negative.");
 
-        if (quantity > RemainingQuantity)
+        var total = quantityAccepted + quantityRejected;
+        if (total <= 0)
+            throw new ArgumentException("At least one of accepted/rejected quantity must be greater than zero.");
+
+        if (total > RemainingQuantity)
             throw new InvalidOperationException(
-                $"Cannot receive {quantity} — only {RemainingQuantity} remaining on this line.");
+                $"Cannot receive {total} — only {RemainingQuantity} remaining on this line.");
 
-        ReceivedQuantity += quantity;
+        ReceivedQuantity += quantityAccepted;
+        RejectedQuantity += quantityRejected;
         UpdatedAt = DateTime.UtcNow;
 
         if (RemainingQuantity == 0)

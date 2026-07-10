@@ -43,7 +43,11 @@ public class ReceiveGoodsCommandHandler : IRequestHandler<ReceiveGoodsCommand, P
         var order = await _repository.GetByIdAsync(request.PurchaseOrderId, tenantId, cancellationToken)
             ?? throw new KeyNotFoundException($"Purchase order {request.PurchaseOrderId} not found");
 
-        order.ReceiveGoods(request.ReceivedQuantities);
+        var receivedLines = request.ReceivedQuantities.ToDictionary(
+            kv => kv.Key,
+            kv => new GoodsReceiptLineInput { QuantityAccepted = kv.Value.QuantityAccepted, QuantityRejected = kv.Value.QuantityRejected });
+
+        order.ReceiveGoods(receivedLines);
         order.UpdatedBy = user.UserId;
 
         var receiptNumber = $"GRN-{order.PONumber}-{DateTime.UtcNow:yyyyMMddHHmmss}";

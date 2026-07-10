@@ -7,8 +7,14 @@ public class ReceiveGoodsCommand : IRequest<PurchaseOrderDto>
 {
     public Guid PurchaseOrderId { get; set; }
 
-    /// <summary>Key = PurchaseOrderItem.Id, Value = quantity received on this GRN for that line.</summary>
-    public Dictionary<Guid, decimal> ReceivedQuantities { get; set; } = new();
+    /// <summary>Key = PurchaseOrderItem.Id, Value = accepted/rejected quantity received on this GRN for that line.</summary>
+    public Dictionary<Guid, ReceiveGoodsLineDto> ReceivedQuantities { get; set; } = new();
+}
+
+public class ReceiveGoodsLineDto
+{
+    public decimal QuantityAccepted { get; set; }
+    public decimal QuantityRejected { get; set; }
 }
 
 public class ScheduleReceiptCommand : IRequest<PurchaseOrderDto>

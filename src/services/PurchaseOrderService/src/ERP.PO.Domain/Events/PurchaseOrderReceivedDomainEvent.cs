@@ -30,6 +30,14 @@ public class PurchaseOrderReceivedDomainEvent : IDomainEvent
     public class ReceivedLine
     {
         public string ProductCode { get; set; } = string.Empty;
+
+        /// <summary>Accepted quantity only — what WarehouseService should add to
+        /// sellable stock. Rejected units are tracked separately and must not be
+        /// added to inventory.</summary>
         public decimal QuantityReceived { get; set; }
+
+        /// <summary>Added 2026-07-10. No consumer reads this field yet — Warehouse
+        /// only reacts to QuantityReceived (accepted) today.</summary>
+        public decimal QuantityRejected { get; set; }
     }
 }

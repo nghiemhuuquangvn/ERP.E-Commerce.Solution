@@ -146,8 +146,18 @@ Services providing platform-wide capabilities (pure consumers or broadcast-only)
 
 ### **Level 3: Scaffold-Only (Core 4 Pre-Existing)**
 - 🔨 IdentityService — Production-ready (JWT, RBAC, multi-tenant)
-- 🔨 SaleOrderService — Core scaffold, minimal implementation
-- 🔨 PurchaseOrderService — Domain complete, Application/Infrastructure stubs
+- ✅ SaleOrderService — *(Updated 2026-07-10, was "Core scaffold, minimal
+  implementation" — stale)* Full CQRS: create/submit/approve/reject/pick/ship
+  (incl. partial fulfillment)/deliver/cancel/return, RabbitMQ integration
+  events, status-history audit trail. See `docs/business/Sales/SalesOrder.md`
+  for the real state machine and known gaps (no inventory check before
+  Approve, dead `OrderFulfillmentSaga`).
+- ✅ PurchaseOrderService — *(Updated 2026-07-10, was "Domain complete,
+  Application/Infrastructure stubs" — stale)* Full CQRS: create/submit/
+  approve/cancel/receive (GRN)/schedule-receipt/compare-prices/three-way-match,
+  Outbox + Kafka `purchasing-topic`. See
+  `docs/business/Purchasing/PurchaseOrder.md` for the real state machine and
+  known gaps (no separate Reject flow, no accept/reject quantity on receipt).
 - 🔨 WareHouseService — Scaffold with README
 
 ---

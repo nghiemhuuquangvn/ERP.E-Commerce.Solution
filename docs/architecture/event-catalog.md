@@ -236,6 +236,99 @@ public class SalesOrderCancelledEvent : IntegrationEvent
 
 ---
 
+### SalesOrderPartiallyShippedEvent
+
+> Added 2026-07-10 — existed in code (`ERP.SO.Domain/Events/SalesOrderPartiallyShippedEvent.cs`)
+> since the 2026-07-03 partial-fulfillment work but was never added to this catalog.
+
+**Description:** Published when a subset of an order's line items is shipped
+(`SalesOrder.ShipLineItems()`, when at least one line still has a remaining
+quantity after the shipment).
+
+**Publisher:** Sales Service  
+**Subscribers:** None confirmed today (see `docs/business/Sales/SalesWorkflow.md`)
+
+**Event Structure (actual code):**
+```csharp
+public class SalesOrderPartiallyShippedEvent
+{
+    public Guid OrderId { get; set; }
+    public Guid CustomerId { get; set; }
+    public string TrackingNumber { get; set; }
+    public string Carrier { get; set; }
+    public List<ShippedLine> ShippedLines { get; set; }
+    public DateTime ShippedAt { get; set; }
+}
+
+public class ShippedLine
+{
+    public Guid ProductId { get; set; }
+    public int Quantity { get; set; }
+}
+```
+
+**Routing:** RabbitMQ  
+**Delivery:** Guaranteed
+
+---
+
+### SalesOrderDeliveredEvent
+
+> Added 2026-07-10 — existed in code since 2026-07-03 but was never added to this catalog.
+
+**Description:** Published when `SalesOrder.MarkAsDelivered()` moves the order
+from `Shipped` to `Delivered`.
+
+**Publisher:** Sales Service  
+**Subscribers:** None confirmed today
+
+**Event Structure (actual code):**
+```csharp
+public class SalesOrderDeliveredEvent
+{
+    public Guid OrderId { get; set; }
+    public Guid CustomerId { get; set; }
+    public decimal TotalAmount { get; set; }
+    public DateTime DeliveredAt { get; set; }
+}
+```
+
+**Routing:** RabbitMQ  
+**Delivery:** Guaranteed
+
+---
+
+### SalesOrderReturnedEvent
+
+> Added 2026-07-10 — existed in code since 2026-07-03 but was never added to this catalog.
+
+**Description:** Published when `SalesOrder.CompleteReturn(refundAmount)` moves
+the order from `ReturnRequested` to `Returned`. Recording the refund amount on
+this event is the *only* thing that happens synchronously — PaymentService/
+AccountingService are expected to react to this event to actually process the
+refund/reverse the journal entry, but no consumer for it has been confirmed
+yet (see `docs/business/Sales/SalesWorkflow.md`).
+
+**Publisher:** Sales Service  
+**Subscribers:** None confirmed today (intended: Payment Service, Accounting Service)
+
+**Event Structure (actual code):**
+```csharp
+public class SalesOrderReturnedEvent
+{
+    public Guid OrderId { get; set; }
+    public Guid CustomerId { get; set; }
+    public string Reason { get; set; }
+    public decimal RefundAmount { get; set; }
+    public DateTime ReturnedAt { get; set; }
+}
+```
+
+**Routing:** RabbitMQ  
+**Delivery:** Guaranteed
+
+---
+
 ## Purchasing Service Events
 
 ### PurchaseOrderCreatedEvent
@@ -298,33 +391,72 @@ public class PurchaseOrderApprovedEvent : IntegrationEvent
 
 ---
 
-### PurchaseOrderReceivedEvent
+### ReceiptScheduledEvent
 
-**Description:** Published when a purchase order is received and inspected.
+> Added 2026-07-10 — existed in code (`ERP.PO.Domain/Events/ReceiptScheduledDomainEvent.cs`)
+> since the 2026-07-03 GRN work but was never added to this catalog.
+
+**Description:** Published by `PurchaseOrder.ScheduleReceipt(date)` when a
+receiving dock/date is planned ahead of the actual goods receipt. Does not
+change `PurchaseOrderStatus`.
 
 **Publisher:** Purchasing Service  
-**Subscribers:** Warehouse Service, Accounting Service
+**Subscribers:** None today — see `docs/business/Purchasing/PurchasingWorkflow.md`
+(intended: Warehouse Service, to plan dock/labor ahead of the GRN)
 
-**Event Structure:**
+**Event Structure (actual code):**
 ```csharp
-public class PurchaseOrderReceivedEvent : IntegrationEvent
+public class ReceiptScheduledDomainEvent
 {
     public Guid PurchaseOrderId { get; set; }
-    public Guid SupplierId { get; set; }
-    public List<ReceivedLineItem> ReceivedItems { get; set; }
-    public DateTime ReceivedAt { get; set; }
-}
-
-public class ReceivedLineItem
-{
-    public Guid ProductId { get; set; }
-    public int QuantityReceived { get; set; }
-    public int QuantityAccepted { get; set; }
-    public int QuantityRejected { get; set; }
+    public string PONumber { get; set; }
+    public DateTime ScheduledDate { get; set; }
+    public DateTime OccurredOn { get; set; }
 }
 ```
 
-**Routing:** RabbitMQ  
+**Routing:** Kafka (`purchasing-topic`, Outbox Pattern)  
+**Delivery:** Guaranteed
+
+---
+
+### PurchaseOrderReceivedEvent
+
+**Description:** Published when a purchase order is received (GRN).
+
+**Publisher:** Purchasing Service  
+**Subscribers:** Warehouse Service (updates inventory by matching `ProductCode`
+to SKU); Accounting Service subscription (`Record actual costs`) below is the
+intended design — not confirmed wired today.
+
+**Event Structure (actual code, `PurchaseOrderReceivedDomainEvent`, updated 2026-07-10):**
+```csharp
+public class PurchaseOrderReceivedDomainEvent
+{
+    public Guid PurchaseOrderId { get; set; }
+    public string PONumber { get; set; }
+    public Guid SupplierId { get; set; }
+    public bool IsFullyReceived { get; set; }
+    public List<ReceivedLine> ReceivedItems { get; set; }
+    public DateTime OccurredOn { get; set; }
+}
+
+public class ReceivedLine
+{
+    public string ProductCode { get; set; }
+    public decimal QuantityReceived; // accepted quantity only
+    public decimal QuantityRejected;
+}
+```
+
+> **Resolved 2026-07-10:** `ReceiveGoodsCommand` now accepts a
+> `QuantityAccepted`/`QuantityRejected` split per line (previously a single
+> quantity, matching the gap this catalog used to flag). `QuantityReceived`
+> keeps its field name for wire compatibility but now means *accepted only*;
+> `QuantityRejected` is new and has no consumer yet (WarehouseService still
+> only reads `QuantityReceived`).
+
+**Routing:** Kafka (`purchasing-topic`, Outbox Pattern)  
 **Delivery:** Guaranteed
 
 **Handling:**

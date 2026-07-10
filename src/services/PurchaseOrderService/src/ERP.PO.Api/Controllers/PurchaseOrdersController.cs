@@ -174,6 +174,37 @@ public class PurchaseOrdersController : ControllerBase
     }
 
     /// <summary>
+    /// Reject a submitted purchase order (distinct from Cancel — requires a reason,
+    /// only valid while Submitted awaiting approval)
+    /// Yêu cầu quyền: purchase_order:approve
+    /// Roles: Admin, Manager
+    /// </summary>
+    /// <param name="id">Purchase order ID</param>
+    /// <param name="request">Rejection reason</param>
+    /// <returns>No content</returns>
+    [HttpPost("{id}/reject")]
+    [AuthorizePermission(PermissionConstants.PurchaseOrder_Approve)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> RejectPurchaseOrder(Guid id, [FromBody] RejectPurchaseOrderRequestDto request)
+    {
+        _logger.LogInformation("Rejecting purchase order {PurchaseOrderId}", id);
+
+        var command = new RejectPurchaseOrderCommand
+        {
+            PurchaseOrderId = id,
+            Reason = request.Reason,
+            RejectedBy = "system"
+        };
+
+        await _mediator.Send(command);
+        return NoContent();
+    }
+
+    /// <summary>
     /// Cancel a purchase order
     /// Yêu cầu quyền: purchase_order:cancel
     /// Roles: Admin, Manager
@@ -330,9 +361,14 @@ public class PurchaseOrdersController : ControllerBase
     }
 }
 
+public class RejectPurchaseOrderRequestDto
+{
+    public string Reason { get; set; } = string.Empty;
+}
+
 public class ReceiveGoodsRequestDto
 {
-    public Dictionary<Guid, decimal> ReceivedQuantities { get; set; } = new();
+    public Dictionary<Guid, ReceiveGoodsLineDto> ReceivedQuantities { get; set; } = new();
 }
 
 public class ScheduleReceiptRequestDto
