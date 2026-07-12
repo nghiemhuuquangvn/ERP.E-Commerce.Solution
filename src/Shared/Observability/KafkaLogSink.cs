@@ -52,7 +52,7 @@ namespace ERP.Shared.Observability
                     StackTrace = hasException ? logEvent.Exception!.ToString() : null,
                     Source = "Backend",
                     Properties = logEvent.Properties.Count > 0
-                        ? logEvent.Properties.ToDictionary(p => p.Key, p => p.Value.ToString())
+                        ? logEvent.Properties.ToDictionary(p => p.Key, p => RenderPropertyValue(p.Value))
                         : null
                 };
 
@@ -75,6 +75,21 @@ namespace ERP.Shared.Observability
                 Console.Error.WriteLine($"[KafkaLogSink] Error emitting log event: {ex.Message}");
             }
         }
+
+        /// <summary>
+        /// LogEventPropertyValue.ToString() renders values the way they'd appear inlined in a
+        /// message template — which wraps strings in literal quote characters (e.g. the value
+        /// becomes the 26-character string "0HNN...:00000001" instead of the bare 24-character
+        /// id). That breaks exact-match filtering downstream. Unwrap ScalarValue to its raw
+        /// value instead; fall back to ToString() only for structured/sequence/dictionary values,
+        /// which have no single flat representation.
+        /// </summary>
+        private static string RenderPropertyValue(LogEventPropertyValue value) => value switch
+        {
+            ScalarValue { Value: null } => string.Empty,
+            ScalarValue scalar => scalar.Value!.ToString() ?? string.Empty,
+            _ => value.ToString()
+        };
 
         private static LogSeverity MapLevel(LogEventLevel level) => level switch
         {

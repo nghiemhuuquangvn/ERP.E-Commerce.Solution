@@ -20,7 +20,11 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
-    builder.AddSerilogLogging("Gateway");
+    // Ocelot's own middleware chain (Authorization/Requester/RateLimiting/...) logs several
+    // Information-level lines per single request — useful for local console debugging, but pure
+    // noise once shipped to the centralized log store (it drowns out the one line that matters:
+    // the "HTTP ... responded ..." request-completed log). Restrict it to Warning+ here.
+    builder.AddSerilogLogging("Gateway", ("Ocelot", LogEventLevel.Warning));
 
     // Configuration
     builder.Configuration

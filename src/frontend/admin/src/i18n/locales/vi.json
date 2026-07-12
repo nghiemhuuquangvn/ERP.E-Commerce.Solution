@@ -26,6 +26,7 @@
     "date": "Ngày",
     "actions": "Thao tác",
     "close": "Đóng",
+    "clear": "Xóa lọc",
     "noPermission": "Bạn không có quyền xem trang này."
   },
   "nav": {
@@ -169,7 +170,8 @@
     "recentRequests": "Yêu cầu gần đây",
     "recentExceptions": "Lỗi gần đây",
     "noExceptions": "Không có lỗi nào được ghi nhận",
-    "noData": "Không có dữ liệu"
+    "noData": "Không có dữ liệu",
+    "viewLogs": "Xem log →"
   },
   "logs": {
     "title": "Nhật ký hệ thống",
@@ -185,7 +187,8 @@
       "allServices": "Tất cả service",
       "allLevels": "Tất cả cấp độ",
       "allKinds": "Tất cả loại",
-      "keyword": "Tìm theo nội dung hoặc exception…"
+      "keyword": "Tìm theo nội dung hoặc exception…",
+      "requestIdActive": "Đang xem log của request"
     },
     "details": {
       "title": "Chi tiết nhật ký",

@@ -19,7 +19,16 @@ import {
   RouteStats,
 } from '@/api/monitoring.api'
 import { usePermission } from '@/hooks/usePermission'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
+
+// Deep-links a Monitoring row into System Logs, scoped to Gateway (RequestId only has
+// meaning within Gateway's own logs — it's Kestrel's per-request TraceIdentifier, not a
+// cross-service correlation id) and to the request's exact RequestId when available.
+function logsLinkFor(requestId?: string, level: 'Warning' | 'Error' = 'Warning') {
+  const params = new URLSearchParams({ serviceName: 'Gateway', level })
+  if (requestId) params.set('requestId', requestId)
+  return `/logs?${params.toString()}`
+}
 
 export function MonitoringPage() {
   const { t } = useTranslation()
@@ -266,7 +275,8 @@ function RecentRequestsCard() {
                 <th className="pb-2 pr-2">Method</th>
                 <th className="pb-2 pr-2">Path</th>
                 <th className="pb-2 pr-2">Status</th>
-                <th className="pb-2">ms</th>
+                <th className="pb-2 pr-2">ms</th>
+                <th className="pb-2"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -285,7 +295,17 @@ function RecentRequestsCard() {
                     {req.path}
                   </td>
                   <td className={`pr-2 ${statusClass(req.statusCode)}`}>{req.statusCode}</td>
-                  <td className="text-gray-500">{Math.round(req.elapsedMs)}</td>
+                  <td className="text-gray-500 pr-2">{Math.round(req.elapsedMs)}</td>
+                  <td>
+                    {req.statusCode >= 400 && (
+                      <Link
+                        to={logsLinkFor(req.requestId, req.statusCode >= 500 ? 'Error' : 'Warning')}
+                        className="text-primary-600 hover:underline whitespace-nowrap"
+                      >
+                        {t('monitoring.viewLogs')}
+                      </Link>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -350,6 +370,9 @@ function ExceptionsCard() {
               {ex.stackTrace && (
                 <p className="text-xs text-gray-400 mt-1 truncate">{ex.stackTrace}</p>
               )}
+              <Link to={logsLinkFor(ex.requestId, 'Error')} className="text-xs text-primary-600 hover:underline">
+                {t('monitoring.viewLogs')}
+              </Link>
             </div>
           ))}
         </div>

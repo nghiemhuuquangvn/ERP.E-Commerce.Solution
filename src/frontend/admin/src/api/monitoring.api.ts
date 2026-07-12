@@ -38,6 +38,9 @@ export interface ApiRequestLog {
   statusCode: number
   elapsedMs: number
   tenantId?: string
+  // Matches the "RequestId" property Gateway's Serilog request-logging stamps on every log
+  // line for this request — lets the UI deep-link into System Logs for the exact request.
+  requestId?: string
   timestamp: string
 }
 
@@ -47,6 +50,7 @@ export interface ExceptionLog {
   stackTrace?: string
   path?: string
   method?: string
+  requestId?: string
   timestamp: string
 }
 

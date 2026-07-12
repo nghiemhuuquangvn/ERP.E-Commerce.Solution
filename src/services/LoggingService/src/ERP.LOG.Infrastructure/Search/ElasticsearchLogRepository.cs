@@ -100,6 +100,13 @@ public class ElasticsearchLogRepository : ILogQueryRepository
                 s => s.Match(mm => mm.Field("stackTrace").Query(keyword)))));
         }
 
+        if (!string.IsNullOrWhiteSpace(criteria.RequestId))
+        {
+            // Dynamically-mapped text field — exact match needs the auto-generated .keyword subfield.
+            var requestId = criteria.RequestId;
+            mustClauses.Add(m => m.Term(t => t.Field("properties.RequestId.keyword").Value(requestId)));
+        }
+
         if (mustClauses.Count == 0)
         {
             mustClauses.Add(m => m.MatchAll(new MatchAllQuery()));

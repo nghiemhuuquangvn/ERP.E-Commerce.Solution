@@ -27,6 +27,7 @@ public class GetLogsQueryHandler : IRequestHandler<GetLogsQuery, PagedResultDto<
             FromUtc = request.FromUtc,
             ToUtc = request.ToUtc,
             Keyword = request.Keyword,
+            RequestId = request.RequestId,
             Page = page,
             PageSize = pageSize
         }, cancellationToken);
