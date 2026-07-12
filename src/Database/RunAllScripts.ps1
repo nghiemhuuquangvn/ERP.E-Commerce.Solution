@@ -26,6 +26,7 @@ $DatabaseScripts = @(
     "Identity\005_AddBaseEntityAuditColumns.sql",
     "Identity\006_AddCustomerAndStaffRoles.sql",
     "Identity\007_SeedIdentityManagementPermissions.sql",
+    "Identity\008_AddPermissionsAuditColumns.sql",
 
     # Cross-cutting master data (Department/Position/Employee/UoM/Geography/Language —
     # seed before HRM, which now references Employees/Departments here instead of owning them)
