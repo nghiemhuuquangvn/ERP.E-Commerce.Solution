@@ -32,6 +32,11 @@ spec:
             secretKeyRef:
               name: erp-secrets
               key: sql-product-db
+        - name: RabbitMQ__Password
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: rabbitmq-password
         readinessProbe:
           httpGet:
             path: /health

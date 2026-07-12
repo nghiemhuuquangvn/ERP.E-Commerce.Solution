@@ -32,7 +32,7 @@ spec:
             secretKeyRef:
               name: erp-secrets
               key: sql-warehouse-db
-        - name: RabbitMQSettings__Password
+        - name: RabbitMQ__Password
           valueFrom:
             secretKeyRef:
               name: erp-secrets

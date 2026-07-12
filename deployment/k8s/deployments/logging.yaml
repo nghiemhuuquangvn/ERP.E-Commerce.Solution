@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logging-service
+  namespace: erp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logging-service
+  template:
+    metadata:
+      labels:
+        app: logging-service
+    spec:
+      containers:
+      - name: logging-service
+        image: erp/logging-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5016
+        env:
+        - name: ASPNETCORE_URLS
+          value: "http://+:5016"
+        - name: KafkaSettings__BootstrapServers
+          value: "kafka:9092"
+        - name: Elasticsearch__Uri
+          value: "http://elasticsearch:9200"
+        - name: Elasticsearch__IndexPrefix
+          value: "service-logs"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5016
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5016
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: logging-service
+  namespace: erp
+spec:
+  selector:
+    app: logging-service
+  ports:
+  - port: 5016
+    targetPort: 5016
