@@ -19,6 +19,9 @@ spec:
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000
+        envFrom:
+        - configMapRef:
+            name: erp-config
         env:
         - name: ASPNETCORE_URLS
           value: "http://+:5000"

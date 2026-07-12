@@ -60,7 +60,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: warehouse-service
+  name: warehouseservice
   namespace: erp
 spec:
   selector:

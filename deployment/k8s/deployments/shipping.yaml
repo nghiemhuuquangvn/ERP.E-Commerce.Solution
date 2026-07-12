@@ -60,7 +60,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: shipping-service
+  name: shippingservice
   namespace: erp
 spec:
   selector:

@@ -200,6 +200,40 @@ RabbitMQ connection attempt. Always grep the service's
 `configuration["Section:Key"]` calls before naming a manifest's env vars —
 don't assume the appsettings.json section name is what the code binds to.
 
+**Kubernetes Service names must match what `ocelot.json` expects — they are
+not automatically the same as the Deployment name.** `ocelot.json`'s
+`DownstreamHostAndPorts` entries use the Docker Compose service names
+(`identityservice`, `productservice`, `salesorderservice`, ... — no hyphens),
+because that's what Docker Compose's internal DNS resolves. Kubernetes
+Deployments in this repo are conventionally named with hyphens
+(`identity-service`), and it's easy to give the paired `Service` object the
+same hyphenated name "for consistency" — but the Service name *is* the DNS
+name other pods use to reach it. If the Service is named `identity-service`
+while `ocelot.json` asks for `identityservice`, the Gateway fails every
+downstream call with `HttpRequestException: Name or service not known
+(identityservice:5001)`, which surfaces to users as every API call returning
+`502 Bad Gateway` — static pages (the Admin/Storefront SPA shells) still
+load fine, so this looks like "the frontend is broken" rather than a DNS
+mismatch. Keep the Deployment name hyphenated (matches this repo's existing
+convention and every `kubectl` command in this guide) but name the paired
+**Service** object without hyphens, matching `ocelot.json` and
+`docker-compose.yml` exactly. `deployment/k8s/deployments/*.yaml` already
+follows this convention — if you add a new service, copy an existing file's
+`Service` block rather than renaming it to match the Deployment.
+
+**Every deployment manifest that calls other infrastructure (Kafka, Redis,
+RabbitMQ, Elasticsearch) needs `envFrom: configMapRef: name: erp-config`.**
+It's easy to hand-write a new Deployment's `env:` block with just the
+service's own port and DB connection string and forget the shared
+`envFrom` — the container starts fine and passes its own health check (which
+doesn't touch Kafka/Redis), so nothing fails loudly. The symptom instead is
+the container's logs slowly filling with `rdkafka` connection-refused
+retries against `localhost:9092` (the appsettings.json default) because it
+never received `KafkaSettings__BootstrapServers=kafka:9092` from the
+configmap. Always include `envFrom: - configMapRef: { name: erp-config }` on
+every service Deployment, even ones (like the Gateway) that don't have their
+own database.
+
 **A StatefulSet's PersistentVolumeClaim outlives credential changes.**
 `RABBITMQ_DEFAULT_USER`/`RABBITMQ_DEFAULT_PASS` (and similarly Kafka's
 `CLUSTER_ID`) only take effect the *first* time the pod boots against an

@@ -51,7 +51,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: logging-service
+  name: loggingservice
   namespace: erp
 spec:
   selector:

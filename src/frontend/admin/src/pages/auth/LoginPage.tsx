@@ -2,11 +2,10 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { GoogleOAuthProvider, GoogleLogin, type CredentialResponse } from '@react-oauth/google'
-import { MsalProvider } from '@azure/msal-react'
 import { jwtDecode } from 'jwt-decode'
 import { useLogin, useCompleteLogin } from '@/hooks/useAuth'
 import { authApi, ADMIN_USER_TYPE } from '@/api/auth.api'
-import { msalInstance } from '@/lib/msalConfig'
+import { getMsalInstance } from '@/lib/msalConfig'
 import { loadFacebookSdk } from '@/lib/facebookSdk'
 
 const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? ''
@@ -69,7 +68,7 @@ function MicrosoftLoginButton({
 
   const handleClick = async () => {
     try {
-      const result = await msalInstance.loginPopup({ scopes: ['openid', 'profile', 'email'] })
+      const result = await getMsalInstance().loginPopup({ scopes: ['openid', 'profile', 'email'] })
       if (!result.idToken) {
         onError(t('auth.externalLogin.failed'))
         return
@@ -284,10 +283,8 @@ function LoginForm() {
 
 export function LoginPage() {
   return (
-    <MsalProvider instance={msalInstance}>
-      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-        <LoginForm />
-      </GoogleOAuthProvider>
-    </MsalProvider>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <LoginForm />
+    </GoogleOAuthProvider>
   )
 }
