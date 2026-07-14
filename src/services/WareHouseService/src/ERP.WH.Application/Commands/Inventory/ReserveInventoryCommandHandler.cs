@@ -19,21 +19,50 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
         _eventPublisher = eventPublisher;
     }
 
-    public async Task<ReserveInventoryResponse> Handle(ReserveInventoryCommand request, CancellationToken cancellationToken)
+    public async Task<ReserveInventoryResponse?> Handle(ReserveInventoryCommand request, CancellationToken cancellationToken)
     {
+        // Two-phase: check every line's availability first. Previously this reserved
+        // items one at a time and threw on the first shortfall, leaving earlier items
+        // in the same request already reserved with no rollback.
+        var insufficient = new List<InsufficientItemDto>();
+        var inventories = new Dictionary<Guid, InventoryEntity>();
+
+        foreach (var item in request.Items)
+        {
+            var inventory = await _uow.Inventories.GetByProductIdAsync(item.ProductId, cancellationToken);
+            if (inventory == null || !inventory.CanReserve(item.Quantity))
+            {
+                insufficient.Add(new InsufficientItemDto
+                {
+                    ProductId = item.ProductId,
+                    RequestedQuantity = item.Quantity,
+                    AvailableQuantity = inventory?.AvailableQuantity ?? 0
+                });
+                continue;
+            }
+
+            inventories[item.ProductId] = inventory;
+        }
+
+        if (insufficient.Count > 0)
+        {
+            await _eventPublisher.PublishAsync(new InventoryInsufficientEvent
+            {
+                OrderId = request.OrderId,
+                InsufficientItems = insufficient,
+                Reason = $"{insufficient.Count} line item(s) could not be fully reserved",
+                CorrelationId = request.CorrelationId,
+                EventCreatedAt = DateTime.UtcNow
+            }, cancellationToken);
+            return null;
+        }
+
         var reservedItems = new List<ReservedItem>();
         var reservedItemResponses = new List<ReservedItemResponse>();
 
         foreach (var item in request.Items)
         {
-            var inventory = await _uow.Inventories.GetByProductIdAsync(item.ProductId, cancellationToken);
-            if (inventory == null)
-                throw new InvalidOperationException($"Product {item.ProductId} not found in inventory");
-
-            if (!inventory.CanReserve(item.Quantity))
-                throw new InvalidOperationException(
-                    $"Cannot reserve {item.Quantity} units of {inventory.ProductName}. Available: {inventory.AvailableQuantity}");
-
+            var inventory = inventories[item.ProductId];
             inventory.ReserveStock(item.Quantity);
             await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
 

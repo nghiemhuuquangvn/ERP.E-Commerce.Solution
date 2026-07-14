@@ -41,10 +41,12 @@ Draft/Submitted/Approved/Picked/PartiallyShipped --Cancel(reason)--> Cancelled
 ```
 
 Ghi chú quan trọng:
-- **`Approve()` chỉ kiểm tra `Status == Submitted`, không kiểm tra tồn kho** —
-  đơn có thể được duyệt trước khi Warehouse xác nhận đủ hàng; việc reserve tồn
-  kho xảy ra hoàn toàn bất đồng bộ qua sự kiện `SalesOrderCreatedEvent` (xem
-  `SalesWorkflow.md`).
+- **`Approve()` chỉ kiểm tra `Status == Submitted`, tự nó không kiểm tra tồn
+  kho** — nhưng từ 2026-07-14, `ApproveOrderCommandHandler` gọi thêm
+  `OrderFulfillmentSaga.HandleOrderApprovedAsync()` trong cùng tiến trình:
+  saga sẽ chỉ yêu cầu tạo shipment sau khi **cả hai** điều kiện đã đúng — đơn
+  đã Approved **và** Warehouse đã xác nhận giữ đủ hàng (`InventoryReservedEvent`)
+  — xem `SalesWorkflow.md` mục Saga.
 - **`Ship()`** (giao toàn bộ) chỉ là tiện ích gọi `ShipLineItems` với toàn bộ
   `RemainingQuantity` mỗi dòng — không phải luồng riêng.
 - **`ShipLineItems()`**: sau khi cập nhật `ShippedQuantity` từng dòng, nếu
@@ -94,22 +96,19 @@ PO): `SalesOrderCreatedEvent`, `SalesOrderApprovedEvent`,
 
 ## 5. Khoảng trống & Đề xuất
 
-1. **Không kiểm tra tồn kho trước khi Approve** — đơn có thể duyệt xong mới
-   phát hiện thiếu hàng (Warehouse phản hồi bất đồng bộ). Rủi ro: cam kết giao
-   hàng cho khách trước khi chắc chắn có hàng.
-2. ~~**`OrderFulfillmentSaga` là dead code**~~ — **Đã gỡ bỏ 2026-07-10**: class
-   này (cùng `OrderFulfillmentSagaState`, `IOrderFulfillmentSagaRepository`,
-   `OrderFulfillmentSagaRepository`) chưa từng được đăng ký trong DI và không
-   handler/consumer nào gọi tới các phương thức `Handle*Async` của nó — hơn
-   nữa, entity `OrderFulfillmentSagaState` không hề được cấu hình trong
-   `SalesOrderDbContext`, nên `_dbContext.Set<OrderFulfillmentSagaState>()`
-   của repository sẽ ném lỗi nếu từng được gọi. Vì mô hình saga này dùng
-   orchestration (tự phát `InitiatePaymentCommand`/`ReserveInventoryCommand`/
-   `CreateShipmentCommand` riêng) trong khi hệ thống thực tế đã chạy theo
-   choreography (mỗi service tự consume `SalesOrderCreatedEvent`/
-   `SalesOrderApprovedEvent`), nối saga vào hoạt động sẽ gây trùng lặp xử lý
-   (khởi tạo thanh toán/giữ tồn kho 2 lần) thay vì bổ khuyết — nên quyết định
-   gỡ bỏ hoàn toàn thay vì cố nối dây.
+1. ~~**Không kiểm tra tồn kho trước khi Approve**~~ — **Đã bổ sung 2026-07-14**
+   qua `OrderFulfillmentSaga` (xem mục 2 ngay dưới và `SalesWorkflow.md`):
+   shipment chỉ được tạo sau khi cả Approve lẫn Inventory Reserved đều đã xảy
+   ra, thay vì tạo ngay khi Approve như cách hiểu cũ.
+2. ~~**`OrderFulfillmentSaga` là dead code**~~ — **Đã gỡ bỏ 2026-07-10, sau đó
+   nối dây thật lại 2026-07-14** theo yêu cầu nghiệp vụ (cần đảm bảo tính nhất
+   quán dữ liệu giữa Order/Payment/Inventory/Shipment). Khi gỡ ban đầu, saga
+   là dead code hoàn toàn: chưa từng đăng ký DI, `OrderFulfillmentSagaState`
+   chưa được cấu hình trong `SalesOrderDbContext` (mọi lần gọi
+   `_dbContext.Set<OrderFulfillmentSagaState>()` sẽ ném lỗi), và không
+   handler/consumer nào gọi tới các phương thức `Handle*Async` của nó. Lần nối
+   dây thứ hai đã sửa toàn bộ những vấn đề đó cộng thêm một số bug khác phát
+   hiện khi rà soát kỹ — xem chi tiết đầy đủ ở `SalesWorkflow.md` mục Saga.
 3. **Không có hạn mức tín dụng (credit limit)** dù README mô tả — không có
    field/kiểm tra nào trên `SalesOrder` hoặc CustomerId liên quan.
 4. **Không có trạng thái thanh toán trên đơn** — README liệt kê

@@ -1,0 +1,288 @@
+using ERP.Shared.Messaging;
+using ERP.SO.Application.Commands;
+using ERP.SO.Application.Interfaces;
+using ERP.SO.Domain.Sagas;
+using MediatR;
+using Microsoft.Extensions.Logging;
+
+namespace ERP.SO.Application.Sagas;
+
+/// <summary>
+/// Orchestrates the Order Fulfillment Saga.
+///
+/// Flow: Order Created → Payment Initiated → Payment Processed → Inventory Reserved
+/// → (wait for both Inventory Reserved AND manual order Approval) → Shipment Created
+/// → Completed. Compensation: a payment failure or insufficient inventory cancels the
+/// order (in-process — SO owns that command) and, if a payment already exists,
+/// requests a refund from PaymentService.
+///
+/// Persistence and idempotency: every transition is followed by a single
+/// <see cref="ISalesOrderUnitOfWork.SaveChangesAsync"/> call — omitting this was the
+/// reason this saga previously discarded all of its state. Every Handle*Async method
+/// also guards on <see cref="OrderFulfillmentSagaState.CurrentStep"/> before mutating,
+/// so a redelivered message (Kafka auto-commit, RabbitMQ nack-requeue) is a no-op
+/// instead of double-publishing the next command.
+/// </summary>
+public sealed class OrderFulfillmentSaga
+{
+    private readonly ISalesOrderUnitOfWork _uow;
+    private readonly IMessageBus _messageBus;
+    private readonly IMediator _mediator;
+    private readonly ILogger<OrderFulfillmentSaga> _logger;
+
+    public OrderFulfillmentSaga(
+        ISalesOrderUnitOfWork uow,
+        IMessageBus messageBus,
+        IMediator mediator,
+        ILogger<OrderFulfillmentSaga> logger)
+    {
+        _uow = uow;
+        _messageBus = messageBus;
+        _mediator = mediator;
+        _logger = logger;
+    }
+
+    // ── Step 1: Order created → start saga + request payment ──────────────
+    public async Task HandleOrderCreatedAsync(Guid orderId, Guid tenantId, decimal totalAmount, CancellationToken ct)
+    {
+        var existing = await _uow.Sagas.GetByOrderIdAsync(orderId, ct);
+        if (existing is not null)
+        {
+            _logger.LogWarning("Saga already exists for Order {OrderId}", orderId);
+            return;
+        }
+
+        var saga = OrderFulfillmentSagaState.Start(orderId, tenantId);
+        await _uow.Sagas.AddAsync(saga, ct);
+        await _uow.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Saga {SagaId} started for Order {OrderId} — requesting payment (Amount={Amount})",
+            saga.Id, orderId, totalAmount);
+
+        await _messageBus.PublishAsync(new InitiatePaymentCommand
+        {
+            OrderId = orderId,
+            TenantId = tenantId,
+            Amount = totalAmount
+        }, ct);
+    }
+
+    // ── Step 2: Payment processed → reserve inventory ─────────────────────
+    public async Task HandlePaymentProcessedAsync(Guid orderId, Guid paymentId, CancellationToken ct)
+    {
+        var saga = await _uow.Sagas.GetByOrderIdAsync(orderId, ct);
+        if (saga is null)
+        {
+            _logger.LogError("No saga found for Order {OrderId} on PaymentProcessed", orderId);
+            return;
+        }
+
+        if (saga.CurrentStep != SagaStep.PaymentPending)
+        {
+            _logger.LogInformation("Saga {SagaId} already past PaymentPending (at {Step}) — ignoring redelivered PaymentProcessed", saga.Id, saga.CurrentStep);
+            return;
+        }
+
+        var order = await _uow.Orders.GetByIdAsync(orderId, ct);
+        if (order is null)
+        {
+            _logger.LogError("Saga {SagaId}: Order {OrderId} not found while reserving inventory", saga.Id, orderId);
+            return;
+        }
+
+        saga.PaymentInitiated(paymentId);
+        await _uow.Sagas.UpdateAsync(saga, ct);
+        await _uow.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Saga {SagaId}: payment {PaymentId} confirmed — requesting inventory reservation",
+            saga.Id, paymentId);
+
+        await _messageBus.PublishAsync(new ReserveInventoryCommand
+        {
+            OrderId = orderId,
+            TenantId = saga.TenantId,
+            Items = order.LineItems.Select(li => new SagaLineItem { ProductId = li.ProductId, Quantity = li.Quantity }).ToList()
+        }, ct);
+    }
+
+    // ── Step 3a: Inventory reserved → advance to shipping once also approved ──
+    public async Task HandleInventoryReservedAsync(Guid orderId, Guid reservationId, CancellationToken ct)
+    {
+        var saga = await _uow.Sagas.GetByOrderIdAsync(orderId, ct);
+        if (saga is null)
+        {
+            _logger.LogError("No saga found for Order {OrderId} on InventoryReserved", orderId);
+            return;
+        }
+
+        if (saga.CurrentStep != SagaStep.InventoryPending)
+        {
+            _logger.LogInformation("Saga {SagaId} already past InventoryPending (at {Step}) — ignoring redelivered InventoryReserved", saga.Id, saga.CurrentStep);
+            return;
+        }
+
+        saga.RecordInventoryReserved(reservationId);
+        var readyToShip = saga.TryAdvanceToShipping();
+        await _uow.Sagas.UpdateAsync(saga, ct);
+        await _uow.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Saga {SagaId}: inventory reserved ({ReservationId})", saga.Id, reservationId);
+
+        if (readyToShip)
+            await PublishCreateShipmentCommandAsync(saga, ct);
+    }
+
+    // ── Step 3b: Order approved (manual gate) → advance to shipping once also reserved ──
+    public async Task HandleOrderApprovedAsync(Guid orderId, CancellationToken ct)
+    {
+        var saga = await _uow.Sagas.GetByOrderIdAsync(orderId, ct);
+        if (saga is null)
+        {
+            _logger.LogWarning("No saga found for Order {OrderId} on manual Approve — order predates this feature or saga was never started", orderId);
+            return;
+        }
+
+        if (saga.CurrentStep is SagaStep.ShippingPending or SagaStep.Completed or SagaStep.Compensating or SagaStep.Failed)
+        {
+            _logger.LogInformation("Saga {SagaId} at {Step} — Approve signal is a no-op", saga.Id, saga.CurrentStep);
+            return;
+        }
+
+        saga.MarkApproved();
+        var readyToShip = saga.TryAdvanceToShipping();
+        await _uow.Sagas.UpdateAsync(saga, ct);
+        await _uow.SaveChangesAsync(ct);
+
+        if (readyToShip)
+            await PublishCreateShipmentCommandAsync(saga, ct);
+    }
+
+    private async Task PublishCreateShipmentCommandAsync(OrderFulfillmentSagaState saga, CancellationToken ct)
+    {
+        _logger.LogInformation("Saga {SagaId}: approved and inventory reserved — requesting shipment creation", saga.Id);
+
+        await _messageBus.PublishAsync(new CreateShipmentCommand
+        {
+            OrderId = saga.OrderId,
+            TenantId = saga.TenantId
+        }, ct);
+    }
+
+    // ── Step 4: Shipment created → saga complete ──────────────────────────
+    public async Task HandleShipmentCreatedAsync(Guid orderId, Guid shipmentId, CancellationToken ct)
+    {
+        var saga = await _uow.Sagas.GetByOrderIdAsync(orderId, ct);
+        if (saga is null)
+        {
+            _logger.LogError("No saga found for Order {OrderId} on ShipmentCreated", orderId);
+            return;
+        }
+
+        if (saga.CurrentStep != SagaStep.ShippingPending)
+        {
+            _logger.LogInformation("Saga {SagaId} not awaiting shipment (at {Step}) — ignoring redelivered ShipmentCreated", saga.Id, saga.CurrentStep);
+            return;
+        }
+
+        saga.ShipmentCreated(shipmentId);
+        await _uow.Sagas.UpdateAsync(saga, ct);
+        await _uow.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Saga {SagaId} completed for Order {OrderId} in {Duration}ms",
+            saga.Id, orderId, (saga.CompletedAt!.Value - saga.CreatedAt).TotalMilliseconds);
+    }
+
+    // ── Compensation: payment failed → cancel order (in-process) ──────────
+    public async Task HandlePaymentFailedAsync(Guid orderId, string reason, CancellationToken ct)
+    {
+        var saga = await _uow.Sagas.GetByOrderIdAsync(orderId, ct);
+        if (saga is null) return;
+
+        if (saga.CurrentStep != SagaStep.PaymentPending)
+        {
+            _logger.LogInformation("Saga {SagaId} already past PaymentPending (at {Step}) — ignoring redelivered PaymentFailed", saga.Id, saga.CurrentStep);
+            return;
+        }
+
+        _logger.LogWarning("Saga {SagaId}: payment failed for Order {OrderId} — {Reason}. Compensating.",
+            saga.Id, orderId, reason);
+
+        saga.BeginCompensation($"Payment failed: {reason}");
+        saga.MarkFailed($"Payment failed: {reason}");
+        await _uow.Sagas.UpdateAsync(saga, ct);
+        await _uow.SaveChangesAsync(ct);
+
+        await _mediator.Send(new CancelOrderCommand { OrderId = orderId, Reason = $"Payment failed: {reason}" }, ct);
+    }
+
+    // ── Compensation: inventory insufficient → refund (if paid) + cancel order ──
+    public async Task HandleInventoryInsufficientAsync(Guid orderId, string reason, CancellationToken ct)
+    {
+        var saga = await _uow.Sagas.GetByOrderIdAsync(orderId, ct);
+        if (saga is null) return;
+
+        if (saga.CurrentStep != SagaStep.InventoryPending)
+        {
+            _logger.LogInformation("Saga {SagaId} not awaiting inventory (at {Step}) — ignoring redelivered InventoryInsufficient", saga.Id, saga.CurrentStep);
+            return;
+        }
+
+        _logger.LogWarning("Saga {SagaId}: inventory insufficient for Order {OrderId} — {Reason}. Compensating.",
+            saga.Id, orderId, reason);
+
+        saga.BeginCompensation($"Inventory insufficient: {reason}");
+        saga.MarkFailed($"Inventory insufficient: {reason}");
+        await _uow.Sagas.UpdateAsync(saga, ct);
+        await _uow.SaveChangesAsync(ct);
+
+        if (saga.PaymentId.HasValue)
+        {
+            await _messageBus.PublishAsync(new RefundPaymentCommand
+            {
+                PaymentId = saga.PaymentId.Value,
+                OrderId = orderId,
+                TenantId = saga.TenantId,
+                Reason = "Order cancelled: inventory insufficient"
+            }, ct);
+        }
+
+        await _mediator.Send(new CancelOrderCommand { OrderId = orderId, Reason = $"Inventory insufficient: {reason}" }, ct);
+    }
+}
+
+// ── Cross-service command DTOs published by the saga via IMessageBus ───────
+// (Cancel stays in-process via SO's own real CancelOrderCommand — see above.)
+
+public record InitiatePaymentCommand
+{
+    public Guid OrderId { get; init; }
+    public Guid TenantId { get; init; }
+    public decimal Amount { get; init; }
+}
+
+public record ReserveInventoryCommand
+{
+    public Guid OrderId { get; init; }
+    public Guid TenantId { get; init; }
+    public List<SagaLineItem> Items { get; init; } = new();
+}
+
+public record SagaLineItem
+{
+    public Guid ProductId { get; init; }
+    public int Quantity { get; init; }
+}
+
+public record CreateShipmentCommand
+{
+    public Guid OrderId { get; init; }
+    public Guid TenantId { get; init; }
+}
+
+public record RefundPaymentCommand
+{
+    public Guid PaymentId { get; init; }
+    public Guid OrderId { get; init; }
+    public Guid TenantId { get; init; }
+    public string Reason { get; init; } = string.Empty;
+}

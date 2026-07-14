@@ -6,21 +6,28 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using ERP.SHP.Application.EventHandlers;
+using ERP.SHP.Application.Commands;
 
 namespace ERP.SHP.Infrastructure.EventBus
 {
     /// <summary>
     /// Consumes SaleOrderService's "sales_order_events" topic exchange (RabbitMQ — that
-    /// service publishes via RabbitMqMessageBus, not Kafka/Outbox). Dispatches
-    /// "sales_order.SalesOrderApprovedEvent" (plain System.Text.Json, no "$type") to the
-    /// existing (previously dead) SalesOrderApprovedIntegrationEventHandler, which
-    /// creates a Shipment. Mirrors WareHouseService's SalesOrderRabbitMqConsumer.
+    /// service publishes via RabbitMqMessageBus, not Kafka/Outbox). Mirrors
+    /// WareHouseService's SalesOrderRabbitMqConsumer.
+    ///
+    /// 2026-07-14: shipment creation is now driven by OrderFulfillmentSaga's own
+    /// "sales_order.CreateShipmentCommand" (published once the order is both
+    /// Approved and has inventory reserved), not directly off order approval —
+    /// retired the old SalesOrderApprovedEvent binding to avoid double-creating
+    /// shipments. Recipient/address are still placeholders (parity with the retired
+    /// handler, not a regression) — SO's events still don't carry real address data.
     /// </summary>
     public class SalesOrderRabbitMqConsumer : IHostedService
     {
         private const string ExchangeName = "sales_order_events";
         private const string QueueName = "shipping-service.sales-order-events";
+
+        private static readonly Guid DefaultCarrierId = Guid.Parse("00000000-0000-0000-0000-000000000001");
 
         private readonly IConnection _connection;
         private readonly IServiceProvider _serviceProvider;
@@ -43,7 +50,7 @@ namespace ERP.SHP.Infrastructure.EventBus
 
             _channel.ExchangeDeclare(ExchangeName, ExchangeType.Topic, durable: true);
             _channel.QueueDeclare(QueueName, durable: true, exclusive: false, autoDelete: false);
-            _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderApprovedEvent");
+            _channel.QueueBind(QueueName, ExchangeName, "sales_order.CreateShipmentCommand");
 
             var consumer = new AsyncEventingBasicConsumer(_channel);
             consumer.Received += OnMessageReceivedAsync;
@@ -66,9 +73,25 @@ namespace ERP.SHP.Infrastructure.EventBus
 
                 switch (ea.RoutingKey)
                 {
-                    case "sales_order.SalesOrderApprovedEvent":
-                        var evt = JsonSerializer.Deserialize<SalesOrderApprovedIntegrationEvent>(json);
-                        if (evt != null) await mediator.Publish(evt);
+                    case "sales_order.CreateShipmentCommand":
+                        var evt = JsonSerializer.Deserialize<SagaCreateShipmentCommand>(json);
+                        if (evt != null)
+                        {
+                            await mediator.Send(new CreateShipmentCommand
+                            {
+                                OrderId = evt.OrderId,
+                                CarrierId = DefaultCarrierId,
+                                Recipient = new ShipmentRecipientRequest
+                                {
+                                    RecipientName = "(pending address sync)",
+                                    AddressStreet = "(pending address sync)",
+                                    AddressDistrict = "(pending)",
+                                    AddressProvince = "(pending)"
+                                },
+                                EstimatedDelivery = DateTime.UtcNow.AddDays(5),
+                                Items = new List<ShipmentItemRequest>()
+                            });
+                        }
                         break;
 
                     default:
@@ -91,5 +114,13 @@ namespace ERP.SHP.Infrastructure.EventBus
             _channel?.Dispose();
             return Task.CompletedTask;
         }
+    }
+
+    // Local mirror of OrderFulfillmentSaga's own CreateShipmentCommand message
+    // (ERP.SO.Application.Sagas.CreateShipmentCommand) — only the fields Shipping needs.
+    public class SagaCreateShipmentCommand
+    {
+        public Guid OrderId { get; set; }
+        public Guid TenantId { get; set; }
     }
 }

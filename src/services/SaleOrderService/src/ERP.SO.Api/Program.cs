@@ -6,14 +6,17 @@ using ERP.SO.Api.Extensions;
 using ERP.SO.Api.Middleware;
 using ERP.SO.Application.Handlers;
 using ERP.SO.Application.Interfaces;
+using ERP.SO.Application.Sagas;
 using ERP.SO.Application.Validators;
 using ERP.SO.Infrastructure;
 using ERP.SO.Infrastructure.EventBus;
 using ERP.SO.Infrastructure.ExternalServices;
 using ERP.SO.Infrastructure.Repositories;
+using ERP.SO.Infrastructure.Sagas;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,8 +34,15 @@ builder.Services.AddValidatorsFromAssemblyContaining(typeof(CreateOrderCommandVa
 
 // Repository, UnitOfWork & Message Bus
 builder.Services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();
+builder.Services.AddScoped<IOrderFulfillmentSagaRepository, OrderFulfillmentSagaRepository>();
 builder.Services.AddScoped<ISalesOrderUnitOfWork, SalesOrderUnitOfWork>();
 builder.Services.AddScoped<IMessageBus, RabbitMqMessageBus>();
+
+// Orchestration saga — Order → Payment → Inventory Reservation → (Approval gate) →
+// Shipment. Wired up 2026-07-14: previously registered nowhere, its own state entity
+// wasn't even configured in EF Core, and none of its Handle*Async methods were ever
+// invoked by anything.
+builder.Services.AddScoped<OrderFulfillmentSaga>();
 
 // PromotionService client (coupon validation at order creation)
 builder.Services.AddHttpClient<IPromotionServiceClient, PromotionServiceClient>();
@@ -41,6 +51,34 @@ builder.Services.AddHttpClient<IPromotionServiceClient, PromotionServiceClient>(
 // previously impossible, since that event didn't exist in ProductService until
 // 2026-07-03 (docs/business section 3.2).
 builder.Services.AddHostedService<ProductPriceChangedConsumer>();
+
+// RabbitMQ connection — shared single connection, matching the topic exchange model
+// PaymentService/WarehouseService/ShippingService's consumers already use. SO didn't
+// need one before since RabbitMqMessageBus (outbound only) creates its own internally.
+builder.Services.AddSingleton<IConnection>(_ =>
+{
+    var factory = new ConnectionFactory
+    {
+        HostName = builder.Configuration["RabbitMQ:HostName"] ?? "localhost",
+        Port = int.Parse(builder.Configuration["RabbitMQ:Port"] ?? "5672"),
+        UserName = builder.Configuration["RabbitMQ:UserName"] ?? "guest",
+        Password = builder.Configuration["RabbitMQ:Password"] ?? "guest",
+        VirtualHost = builder.Configuration["RabbitMQ:VirtualHost"] ?? "/",
+        DispatchConsumersAsync = true
+    };
+    return factory.CreateConnection();
+});
+
+// Feed the saga: PaymentProcessed/PaymentFailed (Kafka payment-topic),
+// InventoryReserved/InventoryInsufficient (RabbitMQ warehouse_exchange),
+// ShipmentCreated (Kafka shipping-topic).
+builder.Services.AddHostedService<PaymentKafkaConsumer>();
+builder.Services.AddHostedService<WarehouseRabbitMqConsumer>();
+builder.Services.AddHostedService<ShippingKafkaConsumer>();
+
+// Surfaces sagas that haven't progressed within a reasonable time — GetStuckSagasAsync
+// existed on the repository already but nothing ever called it.
+builder.Services.AddHostedService<SagaRecoveryHostedService>();
 
 // Authorization & User Context — real JWT validation (previously this service trusted
 // the Gateway's forwarded X-User-*/X-Tenant-* headers with no signature verification;

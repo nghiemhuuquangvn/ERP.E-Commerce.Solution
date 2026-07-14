@@ -1,4 +1,5 @@
 using ERP.SO.Domain.Entities;
+using ERP.SO.Domain.Sagas;
 using Microsoft.EntityFrameworkCore;
 
 namespace ERP.SO.Infrastructure
@@ -9,6 +10,7 @@ namespace ERP.SO.Infrastructure
             : base(options) { }
 
         public DbSet<SalesOrder> SalesOrders { get; set; } = null!;
+        public DbSet<OrderFulfillmentSagaState> OrderFulfillmentSagas { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -78,6 +80,26 @@ namespace ERP.SO.Infrastructure
                 eb.HasIndex(e => e.CustomerId);
                 eb.HasIndex(e => e.Status);
                 eb.HasIndex(e => e.OrderDate);
+            });
+
+            modelBuilder.Entity<OrderFulfillmentSagaState>(eb =>
+            {
+                eb.ToTable("OrderFulfillmentSagas");
+                eb.HasKey(e => e.Id);
+                eb.Property(e => e.Id).ValueGeneratedNever();
+                eb.Property(e => e.TenantId).IsRequired();
+                eb.Property(e => e.OrderId).IsRequired();
+                eb.Property(e => e.CurrentStep).IsRequired();
+                eb.Property(e => e.Status).IsRequired();
+                eb.Property(e => e.Approved).IsRequired();
+                eb.Property(e => e.InventoryReserved).IsRequired();
+                eb.Property(e => e.ErrorMessage).HasMaxLength(1000);
+                eb.Property(e => e.RetryCount).IsRequired();
+                eb.Property(e => e.LastUpdatedAt).IsRequired();
+                eb.Property(e => e.CreatedAt).IsRequired();
+
+                eb.HasIndex(e => e.OrderId).IsUnique();
+                eb.HasIndex(e => new { e.Status, e.LastUpdatedAt });
             });
         }
     }

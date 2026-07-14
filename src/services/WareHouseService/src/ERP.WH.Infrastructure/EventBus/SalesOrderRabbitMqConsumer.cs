@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using MediatR;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Application.EventHandlers;
 
 namespace ERP.WH.Infrastructure.EventBus;
@@ -19,6 +20,11 @@ namespace ERP.WH.Infrastructure.EventBus;
 /// Outbox pattern used elsewhere) to the matching locally-defined event contract in
 /// Application/EventHandlers/*.cs, then publishes it through MediatR so the
 /// existing (previously unreachable) INotificationHandler implementations run.
+///
+/// 2026-07-14: inventory reservation is now driven by OrderFulfillmentSaga's own
+/// "sales_order.ReserveInventoryCommand" (published only once payment is confirmed),
+/// not directly off order creation — retired the old SalesOrderCreatedEvent binding
+/// that used to trigger reservation immediately, to avoid double-reserving stock.
 /// </summary>
 public class SalesOrderRabbitMqConsumer : IHostedService
 {
@@ -47,7 +53,7 @@ public class SalesOrderRabbitMqConsumer : IHostedService
         _channel.ExchangeDeclare(ExchangeName, ExchangeType.Topic, durable: true);
         _channel.QueueDeclare(QueueName, durable: true, exclusive: false, autoDelete: false);
 
-        _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderCreatedEvent");
+        _channel.QueueBind(QueueName, ExchangeName, "sales_order.ReserveInventoryCommand");
         _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderCancelledEvent");
         _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderShippedEvent");
 
@@ -72,9 +78,18 @@ public class SalesOrderRabbitMqConsumer : IHostedService
 
             switch (ea.RoutingKey)
             {
-                case "sales_order.SalesOrderCreatedEvent":
-                    var created = JsonSerializer.Deserialize<SalesOrderCreatedEvent>(json);
-                    if (created != null) await mediator.Publish(created);
+                case "sales_order.ReserveInventoryCommand":
+                    var reserve = JsonSerializer.Deserialize<SagaReserveInventoryCommand>(json);
+                    if (reserve != null)
+                    {
+                        await mediator.Send(new ReserveInventoryCommand
+                        {
+                            OrderId = reserve.OrderId,
+                            Items = reserve.Items.Select(i => new ReservationItemDto { ProductId = i.ProductId, Quantity = i.Quantity }).ToList(),
+                            HoldUntil = DateTime.UtcNow.AddDays(7),
+                            CorrelationId = reserve.OrderId.ToString()
+                        });
+                    }
                     break;
 
                 case "sales_order.SalesOrderCancelledEvent":
@@ -107,4 +122,19 @@ public class SalesOrderRabbitMqConsumer : IHostedService
         _channel?.Dispose();
         return Task.CompletedTask;
     }
+}
+
+// Local mirror of OrderFulfillmentSaga's own ReserveInventoryCommand message
+// (ERP.SO.Application.Sagas.ReserveInventoryCommand) — only the fields WH needs.
+public class SagaReserveInventoryCommand
+{
+    public Guid OrderId { get; set; }
+    public Guid TenantId { get; set; }
+    public List<SagaLineItemContract> Items { get; set; } = new();
+}
+
+public class SagaLineItemContract
+{
+    public Guid ProductId { get; set; }
+    public int Quantity { get; set; }
 }

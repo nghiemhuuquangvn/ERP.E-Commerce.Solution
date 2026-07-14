@@ -1,7 +1,9 @@
+using ERP.Shared.Authorization;
 using ERP.Shared.Messaging;
 using ERP.SO.Application.Commands;
 using ERP.SO.Application.DTOs;
 using ERP.SO.Application.Interfaces;
+using ERP.SO.Application.Sagas;
 using ERP.SO.Domain.Entities;
 using ERP.SO.Domain.ValueObjects;
 using MediatR;
@@ -25,12 +27,21 @@ namespace ERP.SO.Application.Handlers
         private readonly ISalesOrderUnitOfWork _uow;
         private readonly IMessageBus _messageBus;
         private readonly IPromotionServiceClient _promotionServiceClient;
+        private readonly OrderFulfillmentSaga _saga;
+        private readonly IUserContextService _userContextService;
 
-        public CreateOrderCommandHandler(ISalesOrderUnitOfWork uow, IMessageBus messageBus, IPromotionServiceClient promotionServiceClient)
+        public CreateOrderCommandHandler(
+            ISalesOrderUnitOfWork uow,
+            IMessageBus messageBus,
+            IPromotionServiceClient promotionServiceClient,
+            OrderFulfillmentSaga saga,
+            IUserContextService userContextService)
         {
             _uow = uow;
             _messageBus = messageBus;
             _promotionServiceClient = promotionServiceClient;
+            _saga = saga;
+            _userContextService = userContextService;
         }
 
         public async Task<SalesOrderDto> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
@@ -70,6 +81,9 @@ namespace ERP.SO.Application.Handlers
             {
                 await _messageBus.PublishAsync(domainEvent, cancellationToken);
             }
+
+            var tenantId = new Guid(_userContextService.GetCurrentUser().TenantId);
+            await _saga.HandleOrderCreatedAsync(salesOrder.Id, tenantId, salesOrder.TotalAmount, cancellationToken);
 
             return MapToDto(salesOrder);
         }
@@ -115,11 +129,13 @@ namespace ERP.SO.Application.Handlers
     {
         private readonly ISalesOrderUnitOfWork _uow;
         private readonly IMessageBus _messageBus;
+        private readonly OrderFulfillmentSaga _saga;
 
-        public ApproveOrderCommandHandler(ISalesOrderUnitOfWork uow, IMessageBus messageBus)
+        public ApproveOrderCommandHandler(ISalesOrderUnitOfWork uow, IMessageBus messageBus, OrderFulfillmentSaga saga)
         {
             _uow = uow;
             _messageBus = messageBus;
+            _saga = saga;
         }
 
         public async Task<SalesOrderDto> Handle(ApproveOrderCommand request, CancellationToken cancellationToken)
@@ -135,6 +151,8 @@ namespace ERP.SO.Application.Handlers
             {
                 await _messageBus.PublishAsync(domainEvent, cancellationToken);
             }
+
+            await _saga.HandleOrderApprovedAsync(order.Id, cancellationToken);
 
             return MapToDto(order);
         }

@@ -1,5 +1,6 @@
 using ERP.SO.Application.Handlers;
 using ERP.SO.Application.Interfaces;
+using ERP.SO.Application.Sagas;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace ERP.SO.Infrastructure;
@@ -11,13 +12,16 @@ public sealed class SalesOrderUnitOfWork : ISalesOrderUnitOfWork
 
     public SalesOrderUnitOfWork(
         SalesOrderDbContext db,
-        ISalesOrderRepository orders)
+        ISalesOrderRepository orders,
+        IOrderFulfillmentSagaRepository sagas)
     {
         _db = db;
         Orders = orders;
+        Sagas = sagas;
     }
 
     public ISalesOrderRepository Orders { get; }
+    public IOrderFulfillmentSagaRepository Sagas { get; }
 
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
         => await _db.SaveChangesAsync(ct);
