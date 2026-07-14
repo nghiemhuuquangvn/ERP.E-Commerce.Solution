@@ -26,6 +26,7 @@
     "date": "Date",
     "actions": "Actions",
     "close": "Close",
+    "clear": "Clear",
     "noPermission": "You do not have permission to view this page."
   },
   "nav": {
@@ -182,7 +183,8 @@
     "recentRequests": "Recent Requests",
     "recentExceptions": "Recent Exceptions",
     "noExceptions": "No exceptions recorded",
-    "noData": "No data"
+    "noData": "No data",
+    "viewLogs": "View logs →"
   },
   "logs": {
     "title": "System Logs",
@@ -198,7 +200,8 @@
       "allServices": "All Services",
       "allLevels": "All Levels",
       "allKinds": "All Kinds",
-      "keyword": "Search message or exception…"
+      "keyword": "Search message or exception…",
+      "requestIdActive": "Showing logs for request"
     },
     "details": {
       "title": "Log Details",

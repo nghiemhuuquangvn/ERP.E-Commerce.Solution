@@ -15,7 +15,19 @@ public static class LoggingExtensions
     /// Reads overrides from appsettings.json "Serilog" section; Kafka bootstrap servers from
     /// the "KafkaSettings:BootstrapServers" key already used by every service's message bus.
     /// </summary>
-    public static WebApplicationBuilder AddSerilogLogging(this WebApplicationBuilder builder, string serviceName)
+    /// <param name="extraOverrides">
+    /// Additional per-source-context minimum-level overrides, applied unconditionally (unlike
+    /// the built-in Microsoft/System overrides below, which only apply when appsettings.json
+    /// doesn't already configure "Serilog:MinimumLevel:Override"). Use this for a source that
+    /// floods the centralized log store with low-value noise for one specific service — e.g.
+    /// Gateway passes ("Ocelot", Warning) since Ocelot's per-request internal middleware chain
+    /// logs several Information-level lines per request that aren't useful once shipped to
+    /// LoggingService (they duplicate the single "HTTP ... responded ..." request-log line).
+    /// </param>
+    public static WebApplicationBuilder AddSerilogLogging(
+        this WebApplicationBuilder builder,
+        string serviceName,
+        params (string SourceContext, LogEventLevel MinimumLevel)[] extraOverrides)
     {
         builder.Host.UseSerilog((context, services, config) =>
         {
@@ -48,6 +60,11 @@ public static class LoggingExtensions
                     .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
                     .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning)
                     .MinimumLevel.Override("System", LogEventLevel.Warning);
+            }
+
+            foreach (var (sourceContext, minimumLevel) in extraOverrides)
+            {
+                config.MinimumLevel.Override(sourceContext, minimumLevel);
             }
         });
 

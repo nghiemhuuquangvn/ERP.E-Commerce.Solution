@@ -11,6 +11,7 @@ public class GetLogsQuery : IRequest<PagedResultDto<LogEntryDto>>
     public DateTime? FromUtc { get; set; }
     public DateTime? ToUtc { get; set; }
     public string? Keyword { get; set; }
+    public string? RequestId { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 25;
 }

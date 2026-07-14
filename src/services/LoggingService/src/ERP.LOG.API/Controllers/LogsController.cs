@@ -47,6 +47,7 @@ public class LogsController : ControllerBase
         [FromQuery] DateTime? fromUtc,
         [FromQuery] DateTime? toUtc,
         [FromQuery] string? keyword,
+        [FromQuery] string? requestId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
         CancellationToken cancellationToken = default)
@@ -59,6 +60,7 @@ public class LogsController : ControllerBase
             FromUtc = fromUtc,
             ToUtc = toUtc,
             Keyword = keyword,
+            RequestId = requestId,
             Page = page,
             PageSize = pageSize
         }, cancellationToken);

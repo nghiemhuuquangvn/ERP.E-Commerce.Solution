@@ -37,6 +37,11 @@ spec:
             secretKeyRef:
               name: erp-secrets
               key: rabbitmq-password
+        - name: Jwt__Key
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: jwt-signing-key
         readinessProbe:
           httpGet:
             path: /health
@@ -60,7 +65,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: purchaseorder-service
+  name: purchaseorderservice
   namespace: erp
 spec:
   selector:

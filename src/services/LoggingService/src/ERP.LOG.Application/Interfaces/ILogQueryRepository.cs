@@ -10,6 +10,9 @@ public class LogQueryCriteria
     public DateTime? FromUtc { get; set; }
     public DateTime? ToUtc { get; set; }
     public string? Keyword { get; set; }
+    /// <summary>Exact match against properties.RequestId — the Gateway request's
+    /// HttpContext.TraceIdentifier, used to deep-link from a Monitoring row to its exact logs.</summary>
+    public string? RequestId { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 25;
 }

@@ -17,6 +17,7 @@ using ERP.Identity.Domain.Constants;
 using ERP.Identity.Application.Interfaces.Mapping;
 using ERP.Shared.Infrastructure.Exceptions;
 using ERP.Identity.Infrastructure.Security;
+using ERP.Shared.Authorization;
 
 namespace ERP.Identity.Infrastructure.Services
 {
@@ -77,7 +78,21 @@ namespace ERP.Identity.Infrastructure.Services
             var roles = await _unitOfWork.Roles.GetRolesAsync(user.Id, tenant.Id, ct);
             var permissions = await _unitOfWork.Permissions.GetPermissionAsync(user.Id, tenant.Id, ct);
 
-            var accessToken = await _jwtService.GenerateAccessToken(user, tenant, roles, permissions);
+            // The business services (SalesOrder, PurchaseOrder, Accounting, ...) check
+            // UserContext.HasPermission against ERP.Shared.Authorization.RoleDefinitions'
+            // codes (e.g. "sales_order:read"), not IdentityService's own fine-grained
+            // AuthDB permission codes (e.g. "users:manage") — two separate permission
+            // vocabularies. Before the JWT-claims migration, the Gateway forwarded a
+            // header computed from RoleDefinitions and every downstream service trusted
+            // it; now that services validate the JWT directly, that header is never
+            // consulted, so business-service permission checks need this vocabulary
+            // baked into the token too, or they reject every request regardless of role.
+            var permissionSet = permissions
+                .Concat(RoleDefinitions.GetPermissionsForRoles(roles.ToArray()))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var accessToken = await _jwtService.GenerateAccessToken(user, tenant, roles, permissionSet);
             var refreshToken = await _jwtService.GenerateRefreshToken(user.Id, tenant.Id);
 
             var refreshTokenEntity = RefreshToken.Create(
@@ -91,7 +106,7 @@ namespace ERP.Identity.Infrastructure.Services
             await _unitOfWork.RefreshTokens.AddAsync(refreshTokenEntity, ct);
             await _sessionService.RegisterSessionAsync(user.Id, tenant.Id, deviceId, deviceName, deviceType, platform, ipAddress, userAgent, ct);
 
-            var userSummary = new UserSummaryDto(user.Id, user.Email, user.FullName, roles, permissions);
+            var userSummary = new UserSummaryDto(user.Id, user.Email, user.FullName, roles, permissionSet);
 
             return new LoginResponse(accessToken, refreshToken, Succeeded: true, User: userSummary);
         }

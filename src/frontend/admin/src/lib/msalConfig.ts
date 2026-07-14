@@ -16,4 +16,17 @@ const msalConfig: Configuration = {
   },
 }
 
-export const msalInstance = new PublicClientApplication(msalConfig)
+let instance: PublicClientApplication | null = null
+
+// Constructed lazily, on first actual use, instead of at module load. MSAL's
+// constructor requires window.crypto.subtle, which browsers only expose in
+// secure contexts (HTTPS, or the literal "localhost" origin) — eagerly
+// constructing this at import time throws and crashes the entire bundle
+// (blank page, no login at all) on any plain-HTTP custom domain, even for
+// users who never touch Microsoft sign-in.
+export function getMsalInstance(): PublicClientApplication {
+  if (!instance) {
+    instance = new PublicClientApplication(msalConfig)
+  }
+  return instance
+}

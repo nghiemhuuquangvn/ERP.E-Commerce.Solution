@@ -18,7 +18,7 @@ public sealed class RequestMetricsStore
     private long _totalRequests;
     private long _totalErrors;
 
-    public void RecordRequest(string method, string path, int statusCode, double elapsedMs, string? tenantId)
+    public void RecordRequest(string method, string path, int statusCode, double elapsedMs, string? tenantId, string? requestId)
     {
         Interlocked.Increment(ref _totalRequests);
         if (statusCode >= 500) Interlocked.Increment(ref _totalErrors);
@@ -30,6 +30,7 @@ public sealed class RequestMetricsStore
             StatusCode = statusCode,
             ElapsedMs = elapsedMs,
             TenantId = tenantId,
+            RequestId = requestId,
             Timestamp = DateTime.UtcNow
         };
 
@@ -50,7 +51,7 @@ public sealed class RequestMetricsStore
             });
     }
 
-    public void RecordException(Exception ex, string? path, string? method)
+    public void RecordException(Exception ex, string? path, string? method, string? requestId)
     {
         var log = new ExceptionLog
         {
@@ -59,6 +60,7 @@ public sealed class RequestMetricsStore
             StackTrace = ex.StackTrace?.Split('\n').FirstOrDefault()?.Trim(),
             Path = path,
             Method = method,
+            RequestId = requestId,
             Timestamp = DateTime.UtcNow
         };
 
@@ -103,6 +105,10 @@ public record ApiRequestLog
     public int StatusCode { get; init; }
     public double ElapsedMs { get; init; }
     public string? TenantId { get; init; }
+    /// <summary>HttpContext.TraceIdentifier — matches the "RequestId" property Serilog's
+    /// request-logging middleware stamps on every log line for this request, so the Admin UI
+    /// can deep-link from a Monitoring row to the exact matching entries in System Logs.</summary>
+    public string? RequestId { get; init; }
     public DateTime Timestamp { get; init; }
 }
 
@@ -113,6 +119,7 @@ public record ExceptionLog
     public string? StackTrace { get; init; }
     public string? Path { get; init; }
     public string? Method { get; init; }
+    public string? RequestId { get; init; }
     public DateTime Timestamp { get; init; }
 }
 

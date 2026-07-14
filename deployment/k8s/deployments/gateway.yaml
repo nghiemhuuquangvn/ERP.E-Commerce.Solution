@@ -19,11 +19,19 @@ spec:
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000
+        envFrom:
+        - configMapRef:
+            name: erp-config
         env:
         - name: ASPNETCORE_URLS
           value: "http://+:5000"
         - name: ASPNETCORE_ENVIRONMENT
           value: Production
+        - name: Jwt__Key
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: jwt-signing-key
         readinessProbe:
           httpGet:
             path: /health

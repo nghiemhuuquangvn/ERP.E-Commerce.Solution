@@ -40,6 +40,17 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
         if (context.Resource == null)
             return;
 
+        // SuperAdmin bypasses granular permission checks entirely. Without this,
+        // SuperAdmin only has whatever fine-grained codes happen to be seeded into
+        // RolePermissions — every new [RequirePermission] code added later (e.g.
+        // ViewTenants, ViewUsers vs ManageUsers) silently locks SuperAdmin out
+        // until someone remembers to re-grant it, which is exactly what happened.
+        if (context.User.IsInRole("SuperAdmin"))
+        {
+            context.Succeed(requirement);
+            return;
+        }
+
         var permissions = context.Resource.GetRequiredPermissions(); // từ attribute
 
         var hasPermission = await _permissionService.HasPermissionAsync(Guid.Parse(userId), Guid.Parse(tenantId), permissions);

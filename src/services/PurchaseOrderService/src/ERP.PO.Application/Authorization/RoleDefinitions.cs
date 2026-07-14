@@ -6,6 +6,7 @@ namespace ERP.PO.Application.Authorization;
 public static class RoleDefinitions
 {
     // Role Names
+    public const string SuperAdmin = "SuperAdmin";
     public const string Admin = "Admin";
     public const string Manager = "Manager";
     public const string Purchaser = "Purchaser";
@@ -14,6 +15,13 @@ public static class RoleDefinitions
     // Role to Permissions Mapping
     public static readonly Dictionary<string, string[]> RolePermissions = new()
     {
+        // SuperAdmin: toàn quyền hệ thống — không có entry này thì
+        // ExtractPermissionsFromRoles trả về mảng rỗng cho SuperAdmin,
+        // vì Dictionary.TryGetValue không khớp được role "SuperAdmin".
+        {
+            SuperAdmin, PermissionConstants.AllPermissions
+        },
+
         // Admin: Toàn quyền
         {
             Admin, new[]

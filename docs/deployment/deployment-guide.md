@@ -1,5 +1,10 @@
 # ERP E-Commerce Solution — Deployment Guide
 
+> Already have an environment running and just need to redeploy after a code
+> change, or add a new service? See
+> [rebuild-and-redeploy-guide.md](rebuild-and-redeploy-guide.md) instead —
+> this guide is for setting up an environment from scratch.
+
 ## Table of Contents
 
 1. [Prerequisites](#1-prerequisites)
@@ -145,6 +150,7 @@ docker compose logs --tail=50 identityservice
 | Promotion API | http://localhost:5012 |
 | Notification API | http://localhost:5013 |
 | Reporting API | http://localhost:5014 |
+| Logging API | http://localhost:5016 |
 
 ### 3.5 Stop and clean up
 
@@ -197,7 +203,8 @@ $services = @(
   @{path="src/services/POSService/src/ERP.POS.API"; proj="ERP.POS.API.csproj"; tag="erp/pos-service"},
   @{path="src/services/PromotionService/src/ERP.PRM.API"; proj="ERP.PRM.API.csproj"; tag="erp/promotion-service"},
   @{path="src/services/NotificationService/src/ERP.NTF.API"; proj="ERP.NTF.API.csproj"; tag="erp/notification-service"},
-  @{path="src/services/ReportingService/src/ERP.RPT.API"; proj="ERP.RPT.API.csproj"; tag="erp/reporting-service"}
+  @{path="src/services/ReportingService/src/ERP.RPT.API"; proj="ERP.RPT.API.csproj"; tag="erp/reporting-service"},
+  @{path="src/services/LoggingService/src/ERP.LOG.API"; proj="ERP.LOG.API.csproj"; tag="erp/logging-service"}
 )
 
 foreach ($svc in $services) {
@@ -337,7 +344,7 @@ kubectl rollout status deployment/salesorder-service -n erp
 All services expose `/health`. Verify all are alive:
 
 ```powershell
-$ports = 5001,5002,5003,5004,5005,5006,5007,5008,5009,5010,5011,5012,5013,5014,5015
+$ports = 5001,5002,5003,5004,5005,5006,5007,5008,5009,5010,5011,5012,5013,5014,5015,5016
 
 foreach ($port in $ports) {
   try {

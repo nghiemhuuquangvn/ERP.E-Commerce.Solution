@@ -8,7 +8,7 @@ namespace ERP.Identity.Application.DTOs.Auth
 {
     public class RefreshTokenDto
     {
-        public record RefreshTokenRequest(string RefreshToken, Guid TenantId, string IpAddress);
+        public record RefreshTokenRequest(string RefreshToken, Guid TenantId = default, string? IpAddress = null);
         public record RefreshTokenResponse(string AccessToken, string RefreshToken, bool Succeeded = true, IEnumerable<string>? Errors = null);
     }
 }
