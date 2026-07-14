@@ -44,6 +44,9 @@ namespace ERP.PRD.Infrastructure
             // Register Unit of Work
             services.AddScoped<IProductUnitOfWork, ProductUnitOfWork>();
 
+            // Store/Product Settings (System/Tenant two-tier) — storage+CRUD only for now
+            services.AddScoped<Application.Interfaces.Services.IStoreProductSettingsService, Services.StoreProductSettingsService>();
+
             // Register Kafka Message Bus
             var kafkaSettings = configuration.GetSection("KafkaSettings");
             var bootstrapServers = kafkaSettings.GetValue<string>("BootstrapServers") ?? "localhost:9092";

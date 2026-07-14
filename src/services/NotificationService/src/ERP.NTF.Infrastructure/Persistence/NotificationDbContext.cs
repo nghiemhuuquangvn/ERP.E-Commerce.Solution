@@ -1,4 +1,5 @@
 using ERP.NTF.Domain.Entities;
+using ERP.NTF.Domain.Entities.Settings;
 using ERP.Shared.Core.Domain;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,12 @@ public class NotificationDbContext : DbContext
     public DbSet<NotificationPreference> Preferences => Set<NotificationPreference>();
     public DbSet<WebhookEndpoint> WebhookEndpoints => Set<WebhookEndpoint>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<SystemNotificationSettings> SystemNotificationSettings => Set<SystemNotificationSettings>();
+    public DbSet<TenantNotificationSettings> TenantNotificationSettings => Set<TenantNotificationSettings>();
+    public DbSet<SystemEmailSettings> SystemEmailSettings => Set<SystemEmailSettings>();
+    public DbSet<TenantEmailSettings> TenantEmailSettings => Set<TenantEmailSettings>();
+    public DbSet<SystemSmsSettings> SystemSmsSettings => Set<SystemSmsSettings>();
+    public DbSet<TenantSmsSettings> TenantSmsSettings => Set<TenantSmsSettings>();
 
     public NotificationDbContext(DbContextOptions<NotificationDbContext> options) : base(options) { }
 
@@ -75,6 +82,56 @@ public class NotificationDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasIndex(x => x.ProcessedOnUtc);
+        });
+
+        modelBuilder.Entity<SystemNotificationSettings>(e =>
+        {
+            e.ToTable("SystemNotificationSettings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+        });
+
+        modelBuilder.Entity<TenantNotificationSettings>(e =>
+        {
+            e.ToTable("TenantNotificationSettings");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.TenantId).IsUnique();
+        });
+
+        modelBuilder.Entity<SystemEmailSettings>(e =>
+        {
+            e.ToTable("SystemEmailSettings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+        });
+
+        modelBuilder.Entity<TenantEmailSettings>(e =>
+        {
+            e.ToTable("TenantEmailSettings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.SmtpHost).HasMaxLength(255);
+            e.Property(x => x.SmtpUsername).HasMaxLength(255);
+            e.Property(x => x.SmtpPasswordEncrypted).HasMaxLength(500);
+            e.Property(x => x.FromAddress).HasMaxLength(320);
+            e.Property(x => x.FromName).HasMaxLength(200);
+            e.HasIndex(x => x.TenantId).IsUnique();
+        });
+
+        modelBuilder.Entity<SystemSmsSettings>(e =>
+        {
+            e.ToTable("SystemSmsSettings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+        });
+
+        modelBuilder.Entity<TenantSmsSettings>(e =>
+        {
+            e.ToTable("TenantSmsSettings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ProviderName).HasMaxLength(100);
+            e.Property(x => x.ApiKeyEncrypted).HasMaxLength(500);
+            e.Property(x => x.FromNumber).HasMaxLength(32);
+            e.HasIndex(x => x.TenantId).IsUnique();
         });
     }
 

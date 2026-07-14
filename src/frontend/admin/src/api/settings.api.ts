@@ -14,6 +14,14 @@ export interface SystemAuthSettings {
   facebookEnabled: boolean
   twitterEnabled: boolean
   twoFactorEnabled: boolean
+  minPasswordLength: number
+  requireUppercase: boolean
+  requireLowercase: boolean
+  requireDigit: boolean
+  requireSymbol: boolean
+  maxLoginAttempts: number
+  lockoutDurationMinutes: number
+  sessionTimeoutMinutes: number
 }
 
 export type UpdateSystemAuthSettingsRequest = SystemAuthSettings
@@ -26,6 +34,14 @@ export interface TenantAuthSettings {
   twitterEnabled: boolean
   twoFactorEnabled: boolean
   twoFactorRequired: boolean
+  minPasswordLength: number
+  requireUppercase: boolean
+  requireLowercase: boolean
+  requireDigit: boolean
+  requireSymbol: boolean
+  maxLoginAttempts: number
+  lockoutDurationMinutes: number
+  sessionTimeoutMinutes: number
 }
 
 export type UpdateTenantAuthSettingsRequest = Omit<TenantAuthSettings, 'tenantId'>

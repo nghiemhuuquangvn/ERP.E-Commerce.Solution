@@ -9,6 +9,7 @@ using ERP.NTF.Infrastructure.Services;
 using ERP.Shared.Authorization;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
+using ERP.Shared.Security;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -32,6 +33,12 @@ builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
 builder.Services.AddScoped<IPreferenceRepository, PreferenceRepository>();
 builder.Services.AddScoped<IWebhookRepository, WebhookRepository>();
+
+// Notification/Email/SMS Settings (System/Tenant two-tier) — storage+CRUD only for now
+builder.Services.AddScoped<ISecretProtector, AesSecretProtector>();
+builder.Services.AddScoped<INotificationSettingsService, NotificationSettingsService>();
+builder.Services.AddScoped<IEmailSettingsService, EmailSettingsService>();
+builder.Services.AddScoped<ISmsSettingsService, SmsSettingsService>();
 
 builder.Services.AddHttpClient();
 

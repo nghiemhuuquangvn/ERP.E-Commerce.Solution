@@ -20,6 +20,19 @@ import { UnitsOfMeasurePage } from '@/pages/masterdata/UnitsOfMeasurePage'
 import { GeographyPage } from '@/pages/masterdata/GeographyPage'
 import { LanguagesPage } from '@/pages/masterdata/LanguagesPage'
 import { AuthSettingsPage } from '@/pages/settings/AuthSettingsPage'
+import { GeneralSettingsPage } from '@/pages/settings/GeneralSettingsPage'
+import { CompanySettingsPage } from '@/pages/settings/CompanySettingsPage'
+import { NotificationSettingsPage } from '@/pages/settings/NotificationSettingsPage'
+import { EmailSettingsPage } from '@/pages/settings/EmailSettingsPage'
+import { SmsSettingsPage } from '@/pages/settings/SmsSettingsPage'
+import { StoreProductSettingsPage } from '@/pages/settings/StoreProductSettingsPage'
+import { CartCheckoutSettingsPage } from '@/pages/settings/CartCheckoutSettingsPage'
+import { OrderSettingsPage } from '@/pages/settings/OrderSettingsPage'
+import { InventorySettingsPage } from '@/pages/settings/InventorySettingsPage'
+import { PaymentSettingsPage } from '@/pages/settings/PaymentSettingsPage'
+import { ShippingSettingsPage } from '@/pages/settings/ShippingSettingsPage'
+import { TaxSettingsPage } from '@/pages/settings/TaxSettingsPage'
+import { CurrencySettingsPage } from '@/pages/settings/CurrencySettingsPage'
 import { UsersPage } from '@/pages/identity/UsersPage'
 import { RolesPermissionsPage } from '@/pages/identity/RolesPermissionsPage'
 
@@ -60,7 +73,20 @@ export const router = createBrowserRouter([
       { path: 'reports', element: <ReportsPage /> },
       { path: 'customers', element: <PlaceholderPage title="Customers (CRM)" /> },
       { path: 'settings', element: <PlaceholderPage title="Settings" /> },
+      { path: 'settings/general', element: <GeneralSettingsPage /> },
+      { path: 'settings/company', element: <CompanySettingsPage /> },
       { path: 'settings/auth', element: <AuthSettingsPage /> },
+      { path: 'settings/notification', element: <NotificationSettingsPage /> },
+      { path: 'settings/email', element: <EmailSettingsPage /> },
+      { path: 'settings/sms', element: <SmsSettingsPage /> },
+      { path: 'settings/store-product', element: <StoreProductSettingsPage /> },
+      { path: 'settings/cart-checkout', element: <CartCheckoutSettingsPage /> },
+      { path: 'settings/order', element: <OrderSettingsPage /> },
+      { path: 'settings/inventory', element: <InventorySettingsPage /> },
+      { path: 'settings/payment', element: <PaymentSettingsPage /> },
+      { path: 'settings/shipping', element: <ShippingSettingsPage /> },
+      { path: 'settings/tax', element: <TaxSettingsPage /> },
+      { path: 'settings/currency', element: <CurrencySettingsPage /> },
       { path: 'monitoring', element: <MonitoringPage /> },
       { path: 'logs', element: <LogsPage /> },
       { path: 'masterdata/departments', element: <DepartmentsPage /> },

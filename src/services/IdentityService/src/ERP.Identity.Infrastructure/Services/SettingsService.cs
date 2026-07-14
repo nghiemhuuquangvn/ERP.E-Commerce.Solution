@@ -2,6 +2,7 @@ using ERP.Identity.Application.DTOs.Settings;
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Domain.Entities;
+using ERP.Shared.Infrastructure.Exceptions;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,7 +28,9 @@ namespace ERP.Identity.Infrastructure.Services
         public async Task<SystemAuthSettingsDto> UpdateSystemSettingsAsync(UpdateSystemAuthSettingsRequest request, CancellationToken ct)
         {
             var settings = await GetOrCreateSystemSettingsEntityAsync(ct);
-            settings.Update(request.GoogleEnabled, request.MicrosoftEnabled, request.FacebookEnabled, request.TwitterEnabled, request.TwoFactorEnabled);
+            settings.Update(request.GoogleEnabled, request.MicrosoftEnabled, request.FacebookEnabled, request.TwitterEnabled, request.TwoFactorEnabled,
+                request.MinPasswordLength, request.RequireUppercase, request.RequireLowercase, request.RequireDigit, request.RequireSymbol,
+                request.MaxLoginAttempts, request.LockoutDurationMinutes, request.SessionTimeoutMinutes);
             await _unitOfWork.SystemAuthSettings.UpdateAsync(settings, ct);
             await _unitOfWork.SaveChangesAsync(ct);
             return ToDto(settings);
@@ -42,11 +45,57 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task<TenantAuthSettingsDto> UpdateTenantSettingsAsync(Guid tenantId, UpdateTenantAuthSettingsRequest request, CancellationToken ct)
         {
+            var systemSettings = await GetOrCreateSystemSettingsEntityAsync(ct);
+            ValidateTenantNotWeakerThanSystemBaseline(request, systemSettings);
+
             var settings = await GetOrCreateTenantSettingsEntityAsync(tenantId, ct);
-            settings.Update(request.GoogleEnabled, request.MicrosoftEnabled, request.FacebookEnabled, request.TwitterEnabled, request.TwoFactorEnabled, request.TwoFactorRequired);
+            settings.Update(request.GoogleEnabled, request.MicrosoftEnabled, request.FacebookEnabled, request.TwitterEnabled, request.TwoFactorEnabled, request.TwoFactorRequired,
+                request.MinPasswordLength, request.RequireUppercase, request.RequireLowercase, request.RequireDigit, request.RequireSymbol,
+                request.MaxLoginAttempts, request.LockoutDurationMinutes, request.SessionTimeoutMinutes);
             await _unitOfWork.TenantAuthSettings.UpdateAsync(settings, ct);
             await _unitOfWork.SaveChangesAsync(ct);
             return ToDto(settings);
+        }
+
+        /// <summary>
+        /// A tenant may tighten the platform baseline but never loosen it — e.g. a tenant
+        /// can require a longer minimum password than System, but not a shorter one. Pure
+        /// input validation (storage+CRUD scope) — does not itself enforce the policy at
+        /// login/password-change time, that wiring is a follow-up.
+        /// </summary>
+        private static void ValidateTenantNotWeakerThanSystemBaseline(UpdateTenantAuthSettingsRequest request, SystemAuthSettings systemSettings)
+        {
+            if (request.MinPasswordLength < systemSettings.MinPasswordLength)
+                throw new BusinessRuleException(
+                    "TenantPasswordPolicyWeakerThanSystem",
+                    $"Tenant's minimum password length ({request.MinPasswordLength}) cannot be shorter than the platform baseline ({systemSettings.MinPasswordLength}).");
+
+            if (systemSettings.RequireUppercase && !request.RequireUppercase)
+                throw new BusinessRuleException("TenantPasswordPolicyWeakerThanSystem", "Tenant cannot disable the uppercase requirement mandated at the platform level.");
+
+            if (systemSettings.RequireLowercase && !request.RequireLowercase)
+                throw new BusinessRuleException("TenantPasswordPolicyWeakerThanSystem", "Tenant cannot disable the lowercase requirement mandated at the platform level.");
+
+            if (systemSettings.RequireDigit && !request.RequireDigit)
+                throw new BusinessRuleException("TenantPasswordPolicyWeakerThanSystem", "Tenant cannot disable the digit requirement mandated at the platform level.");
+
+            if (systemSettings.RequireSymbol && !request.RequireSymbol)
+                throw new BusinessRuleException("TenantPasswordPolicyWeakerThanSystem", "Tenant cannot disable the symbol requirement mandated at the platform level.");
+
+            if (request.MaxLoginAttempts > systemSettings.MaxLoginAttempts)
+                throw new BusinessRuleException(
+                    "TenantLockoutPolicyWeakerThanSystem",
+                    $"Tenant's max login attempts ({request.MaxLoginAttempts}) cannot exceed the platform baseline ({systemSettings.MaxLoginAttempts}).");
+
+            if (request.LockoutDurationMinutes < systemSettings.LockoutDurationMinutes)
+                throw new BusinessRuleException(
+                    "TenantLockoutPolicyWeakerThanSystem",
+                    $"Tenant's lockout duration ({request.LockoutDurationMinutes} min) cannot be shorter than the platform baseline ({systemSettings.LockoutDurationMinutes} min).");
+
+            if (request.SessionTimeoutMinutes > systemSettings.SessionTimeoutMinutes)
+                throw new BusinessRuleException(
+                    "TenantSessionPolicyWeakerThanSystem",
+                    $"Tenant's session timeout ({request.SessionTimeoutMinutes} min) cannot exceed the platform baseline ({systemSettings.SessionTimeoutMinutes} min).");
         }
 
         public async Task<PublicAuthOptionsDto> GetPublicOptionsAsync(string tenantCode, CancellationToken ct)
@@ -114,9 +163,13 @@ namespace ERP.Identity.Infrastructure.Services
         }
 
         private static SystemAuthSettingsDto ToDto(SystemAuthSettings s) =>
-            new(s.GoogleEnabled, s.MicrosoftEnabled, s.FacebookEnabled, s.TwitterEnabled, s.TwoFactorEnabled);
+            new(s.GoogleEnabled, s.MicrosoftEnabled, s.FacebookEnabled, s.TwitterEnabled, s.TwoFactorEnabled,
+                s.MinPasswordLength, s.RequireUppercase, s.RequireLowercase, s.RequireDigit, s.RequireSymbol,
+                s.MaxLoginAttempts, s.LockoutDurationMinutes, s.SessionTimeoutMinutes);
 
         private static TenantAuthSettingsDto ToDto(TenantAuthSettings s) =>
-            new(s.TenantId, s.GoogleEnabled, s.MicrosoftEnabled, s.FacebookEnabled, s.TwitterEnabled, s.TwoFactorEnabled, s.TwoFactorRequired);
+            new(s.TenantId, s.GoogleEnabled, s.MicrosoftEnabled, s.FacebookEnabled, s.TwitterEnabled, s.TwoFactorEnabled, s.TwoFactorRequired,
+                s.MinPasswordLength, s.RequireUppercase, s.RequireLowercase, s.RequireDigit, s.RequireSymbol,
+                s.MaxLoginAttempts, s.LockoutDurationMinutes, s.SessionTimeoutMinutes);
     }
 }

@@ -1,4 +1,5 @@
 using ERP.SHP.Domain.Entities;
+using ERP.SHP.Domain.Entities.Settings;
 using ERP.Shared.Core.Domain;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,8 @@ public class ShippingDbContext : DbContext
     public DbSet<Carrier> Carriers => Set<Carrier>();
     public DbSet<ReturnShipment> ReturnShipments => Set<ReturnShipment>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<SystemShippingSettings> SystemShippingSettings => Set<SystemShippingSettings>();
+    public DbSet<TenantShippingSettings> TenantShippingSettings => Set<TenantShippingSettings>();
 
     public ShippingDbContext(DbContextOptions<ShippingDbContext> options) : base(options) { }
 
@@ -84,6 +87,22 @@ public class ShippingDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasIndex(x => x.ProcessedOnUtc);
+        });
+
+        modelBuilder.Entity<SystemShippingSettings>(e =>
+        {
+            e.ToTable("SystemShippingSettings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+        });
+
+        modelBuilder.Entity<TenantShippingSettings>(e =>
+        {
+            e.ToTable("TenantShippingSettings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.DefaultShippingFee).HasPrecision(18, 2);
+            e.Property(x => x.FreeShippingThreshold).HasPrecision(18, 2);
+            e.HasIndex(x => x.TenantId).IsUnique();
         });
     }
 

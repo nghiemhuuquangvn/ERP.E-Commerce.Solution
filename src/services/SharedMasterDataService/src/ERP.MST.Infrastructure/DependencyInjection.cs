@@ -5,6 +5,7 @@ using ERP.MST.Infrastructure.BackgroundJobs;
 using ERP.MST.Infrastructure.MessageBus;
 using ERP.MST.Infrastructure.Persistence;
 using ERP.MST.Infrastructure.Repositories;
+using ERP.MST.Infrastructure.Services;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -53,6 +54,9 @@ namespace ERP.MST.Infrastructure
             services.AddScoped<IDistrictRepository, DistrictRepository>();
             services.AddScoped<IWardRepository, WardRepository>();
             services.AddScoped<ISupportedLanguageRepository, SupportedLanguageRepository>();
+
+            // Currency Settings (System/Tenant two-tier) — storage+CRUD only for now
+            services.AddScoped<ICurrencySettingsService, CurrencySettingsService>();
 
             return services;
         }

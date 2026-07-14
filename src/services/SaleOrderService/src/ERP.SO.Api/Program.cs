@@ -13,6 +13,7 @@ using ERP.SO.Infrastructure.EventBus;
 using ERP.SO.Infrastructure.ExternalServices;
 using ERP.SO.Infrastructure.Repositories;
 using ERP.SO.Infrastructure.Sagas;
+using ERP.SO.Infrastructure.Services;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -43,6 +44,10 @@ builder.Services.AddScoped<IMessageBus, RabbitMqMessageBus>();
 // wasn't even configured in EF Core, and none of its Handle*Async methods were ever
 // invoked by anything.
 builder.Services.AddScoped<OrderFulfillmentSaga>();
+
+// Cart/Checkout/Customer + Order Settings (System/Tenant two-tier) — storage+CRUD only for now
+builder.Services.AddScoped<ICartCheckoutSettingsService, CartCheckoutSettingsService>();
+builder.Services.AddScoped<IOrderSettingsService, OrderSettingsService>();
 
 // PromotionService client (coupon validation at order creation)
 builder.Services.AddHttpClient<IPromotionServiceClient, PromotionServiceClient>();

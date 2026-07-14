@@ -32,6 +32,9 @@ public static class DependencyInjection
         services.AddScoped<IWarehouseUnitOfWork, WarehouseUnitOfWork>();
         services.AddScoped<IEventPublisher, EventPublisher>();
 
+        // Inventory Settings (System/Tenant two-tier) — storage+CRUD only for now
+        services.AddScoped<IInventorySettingsService, Services.InventorySettingsService>();
+
         services.AddCacheService(configuration, "wh");
 
         // RabbitMQ connection — previously never registered, so EventPublisher (which

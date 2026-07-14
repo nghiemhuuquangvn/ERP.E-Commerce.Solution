@@ -18,6 +18,9 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         IPasswordResetTokenRepository PasswordResetTokens { get; }
         ISystemAuthSettingsRepository SystemAuthSettings { get; }
         ITenantAuthSettingsRepository TenantAuthSettings { get; }
+        ISystemGeneralSettingsRepository SystemGeneralSettings { get; }
+        ITenantGeneralSettingsRepository TenantGeneralSettings { get; }
+        ITenantCompanySettingsRepository TenantCompanySettings { get; }
         ITwoFactorChallengeRepository TwoFactorChallenges { get; }
         IOAuthStateRepository OAuthStates { get; }
         ISecurityAuditLogRepository SecurityAuditLogs { get; }

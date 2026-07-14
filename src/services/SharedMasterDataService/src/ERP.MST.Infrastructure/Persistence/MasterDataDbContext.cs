@@ -1,4 +1,5 @@
 using ERP.MST.Domain.Entities;
+using ERP.MST.Domain.Entities.Settings;
 using ERP.Shared.Core.Domain;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -28,6 +29,8 @@ namespace ERP.MST.Infrastructure.Persistence
         public DbSet<WardTranslation> WardTranslations { get; set; }
 
         public DbSet<OutboxMessage> OutboxMessages { get; set; }
+        public DbSet<SystemCurrencySettings> SystemCurrencySettings { get; set; }
+        public DbSet<TenantCurrencySettings> TenantCurrencySettings { get; set; }
 
         public MasterDataDbContext(DbContextOptions<MasterDataDbContext> options) : base(options)
         {
@@ -42,6 +45,22 @@ namespace ERP.MST.Infrastructure.Persistence
             modelBuilder.Entity<OutboxMessage>()
                 .HasIndex(m => m.ProcessedOnUtc)
                 .HasFilter("[ProcessedOnUtc] IS NULL");
+
+            modelBuilder.Entity<SystemCurrencySettings>(e =>
+            {
+                e.ToTable("SystemCurrencySettings");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+            });
+
+            modelBuilder.Entity<TenantCurrencySettings>(e =>
+            {
+                e.ToTable("TenantCurrencySettings");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.DefaultCurrencyCode).IsRequired().HasMaxLength(3);
+                e.Property(x => x.ExchangeRateSource).IsRequired().HasMaxLength(50);
+                e.HasIndex(x => x.TenantId).IsUnique();
+            });
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

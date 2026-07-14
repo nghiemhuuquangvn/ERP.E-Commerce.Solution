@@ -27,6 +27,9 @@ namespace ERP.Identity.Infrastructure.Persistence
         public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
         public DbSet<SystemAuthSettings> SystemAuthSettings => Set<SystemAuthSettings>();
         public DbSet<TenantAuthSettings> TenantAuthSettings => Set<TenantAuthSettings>();
+        public DbSet<SystemGeneralSettings> SystemGeneralSettings => Set<SystemGeneralSettings>();
+        public DbSet<TenantGeneralSettings> TenantGeneralSettings => Set<TenantGeneralSettings>();
+        public DbSet<TenantCompanySettings> TenantCompanySettings => Set<TenantCompanySettings>();
         public DbSet<TwoFactorChallenge> TwoFactorChallenges => Set<TwoFactorChallenge>();
         public DbSet<OAuthState> OAuthStates => Set<OAuthState>();
         public DbSet<SecurityAuditLog> SecurityAuditLogs => Set<SecurityAuditLog>();
@@ -348,6 +351,39 @@ namespace ERP.Identity.Infrastructure.Persistence
             {
                 entity.ToTable("TenantAuthSettings");
                 entity.HasKey(s => s.Id);
+                entity.HasIndex(s => s.TenantId).IsUnique();
+            });
+
+            modelBuilder.Entity<SystemGeneralSettings>(entity =>
+            {
+                entity.ToTable("SystemGeneralSettings");
+                entity.HasKey(s => s.Id);
+                entity.Property(s => s.DefaultLanguageCode).IsRequired().HasMaxLength(10);
+            });
+
+            modelBuilder.Entity<TenantGeneralSettings>(entity =>
+            {
+                entity.ToTable("TenantGeneralSettings");
+                entity.HasKey(s => s.Id);
+                entity.Property(s => s.SiteName).HasMaxLength(200);
+                entity.Property(s => s.DefaultLanguageCode).IsRequired().HasMaxLength(10);
+                entity.Property(s => s.TimeZone).IsRequired().HasMaxLength(100);
+                entity.Property(s => s.DateFormat).IsRequired().HasMaxLength(20);
+                entity.HasIndex(s => s.TenantId).IsUnique();
+            });
+
+            modelBuilder.Entity<TenantCompanySettings>(entity =>
+            {
+                entity.ToTable("TenantCompanySettings");
+                entity.HasKey(s => s.Id);
+                entity.Property(s => s.CompanyName).HasMaxLength(200);
+                entity.Property(s => s.LegalName).HasMaxLength(200);
+                entity.Property(s => s.TaxCode).HasMaxLength(50);
+                entity.Property(s => s.Address).HasMaxLength(500);
+                entity.Property(s => s.Phone).HasMaxLength(50);
+                entity.Property(s => s.Email).HasMaxLength(200);
+                entity.Property(s => s.LogoUrl).HasMaxLength(500);
+                entity.Property(s => s.Website).HasMaxLength(200);
                 entity.HasIndex(s => s.TenantId).IsUnique();
             });
 

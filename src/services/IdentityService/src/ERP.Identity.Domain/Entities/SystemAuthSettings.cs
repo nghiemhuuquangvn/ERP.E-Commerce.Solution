@@ -17,6 +17,19 @@ namespace ERP.Identity.Domain.Entities
         public bool TwitterEnabled { get; private set; } = true;
         public bool TwoFactorEnabled { get; private set; } = true;
 
+        // User & Security Settings (Phase 2) — platform-wide baseline. Storage+CRUD
+        // only for now: PasswordPolicyService still reads PasswordPolicy:* from
+        // appsettings.json and User.RecordLoginFail() still hardcodes a 5-attempt
+        // lockout threshold — wiring those to read these fields is a follow-up.
+        public int MinPasswordLength { get; private set; } = 8;
+        public bool RequireUppercase { get; private set; } = true;
+        public bool RequireLowercase { get; private set; } = true;
+        public bool RequireDigit { get; private set; } = true;
+        public bool RequireSymbol { get; private set; } = true;
+        public int MaxLoginAttempts { get; private set; } = 5;
+        public int LockoutDurationMinutes { get; private set; } = 15;
+        public int SessionTimeoutMinutes { get; private set; } = 60;
+
         protected SystemAuthSettings() { }
 
         public static SystemAuthSettings CreateDefault()
@@ -29,18 +42,36 @@ namespace ERP.Identity.Domain.Entities
                 FacebookEnabled = true,
                 TwitterEnabled = true,
                 TwoFactorEnabled = true,
+                MinPasswordLength = 8,
+                RequireUppercase = true,
+                RequireLowercase = true,
+                RequireDigit = true,
+                RequireSymbol = true,
+                MaxLoginAttempts = 5,
+                LockoutDurationMinutes = 15,
+                SessionTimeoutMinutes = 60,
                 CreatedBy = "System",
                 CreatedAt = DateTime.UtcNow
             };
         }
 
-        public void Update(bool googleEnabled, bool microsoftEnabled, bool facebookEnabled, bool twitterEnabled, bool twoFactorEnabled)
+        public void Update(bool googleEnabled, bool microsoftEnabled, bool facebookEnabled, bool twitterEnabled, bool twoFactorEnabled,
+            int minPasswordLength, bool requireUppercase, bool requireLowercase, bool requireDigit, bool requireSymbol,
+            int maxLoginAttempts, int lockoutDurationMinutes, int sessionTimeoutMinutes)
         {
             GoogleEnabled = googleEnabled;
             MicrosoftEnabled = microsoftEnabled;
             FacebookEnabled = facebookEnabled;
             TwitterEnabled = twitterEnabled;
             TwoFactorEnabled = twoFactorEnabled;
+            MinPasswordLength = minPasswordLength;
+            RequireUppercase = requireUppercase;
+            RequireLowercase = requireLowercase;
+            RequireDigit = requireDigit;
+            RequireSymbol = requireSymbol;
+            MaxLoginAttempts = maxLoginAttempts;
+            LockoutDurationMinutes = lockoutDurationMinutes;
+            SessionTimeoutMinutes = sessionTimeoutMinutes;
         }
     }
 }

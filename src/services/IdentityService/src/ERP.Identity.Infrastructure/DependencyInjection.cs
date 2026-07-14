@@ -71,6 +71,9 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<IOutboxMessageRepository, OutboxMessageRepository>();
             services.AddScoped<ISystemAuthSettingsRepository, SystemAuthSettingsRepository>();
             services.AddScoped<ITenantAuthSettingsRepository, TenantAuthSettingsRepository>();
+            services.AddScoped<ISystemGeneralSettingsRepository, SystemGeneralSettingsRepository>();
+            services.AddScoped<ITenantGeneralSettingsRepository, TenantGeneralSettingsRepository>();
+            services.AddScoped<ITenantCompanySettingsRepository, TenantCompanySettingsRepository>();
             services.AddScoped<ITwoFactorChallengeRepository, TwoFactorChallengeRepository>();
             services.AddScoped<IOAuthStateRepository, OAuthStateRepository>();
             services.AddScoped<ISecurityAuditLogRepository, SecurityAuditLogRepository>();
@@ -85,6 +88,8 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<ITenantService, TenantService>();
             services.AddScoped<ISettingsService, SettingsService>();
+            services.AddScoped<IGeneralSettingsService, GeneralSettingsService>();
+            services.AddScoped<ICompanySettingsService, CompanySettingsService>();
             services.AddScoped<ITwoFactorCodeGenerator, TwoFactorCodeGenerator>();
             services.AddScoped<ISecurityAuditService, SecurityAuditService>();
             services.AddScoped<ISessionService, SessionService>();

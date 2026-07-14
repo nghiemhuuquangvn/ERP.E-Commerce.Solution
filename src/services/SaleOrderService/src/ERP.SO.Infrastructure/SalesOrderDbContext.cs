@@ -1,4 +1,5 @@
 using ERP.SO.Domain.Entities;
+using ERP.SO.Domain.Entities.Settings;
 using ERP.SO.Domain.Sagas;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +12,10 @@ namespace ERP.SO.Infrastructure
 
         public DbSet<SalesOrder> SalesOrders { get; set; } = null!;
         public DbSet<OrderFulfillmentSagaState> OrderFulfillmentSagas { get; set; } = null!;
+        public DbSet<SystemCartCheckoutSettings> SystemCartCheckoutSettings { get; set; } = null!;
+        public DbSet<TenantCartCheckoutSettings> TenantCartCheckoutSettings { get; set; } = null!;
+        public DbSet<SystemOrderSettings> SystemOrderSettings { get; set; } = null!;
+        public DbSet<TenantOrderSettings> TenantOrderSettings { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -100,6 +105,35 @@ namespace ERP.SO.Infrastructure
 
                 eb.HasIndex(e => e.OrderId).IsUnique();
                 eb.HasIndex(e => new { e.Status, e.LastUpdatedAt });
+            });
+
+            modelBuilder.Entity<SystemCartCheckoutSettings>(eb =>
+            {
+                eb.ToTable("SystemCartCheckoutSettings");
+                eb.HasKey(e => e.Id);
+                eb.Property(e => e.Id).ValueGeneratedNever();
+            });
+
+            modelBuilder.Entity<TenantCartCheckoutSettings>(eb =>
+            {
+                eb.ToTable("TenantCartCheckoutSettings");
+                eb.HasKey(e => e.Id);
+                eb.HasIndex(e => e.TenantId).IsUnique();
+            });
+
+            modelBuilder.Entity<SystemOrderSettings>(eb =>
+            {
+                eb.ToTable("SystemOrderSettings");
+                eb.HasKey(e => e.Id);
+                eb.Property(e => e.Id).ValueGeneratedNever();
+            });
+
+            modelBuilder.Entity<TenantOrderSettings>(eb =>
+            {
+                eb.ToTable("TenantOrderSettings");
+                eb.HasKey(e => e.Id);
+                eb.Property(e => e.OrderNumberPrefix).HasMaxLength(20);
+                eb.HasIndex(e => e.TenantId).IsUnique();
             });
         }
     }

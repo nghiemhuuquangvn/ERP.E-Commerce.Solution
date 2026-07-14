@@ -9,10 +9,12 @@ using ERP.PAY.Infrastructure.Gateway;
 using ERP.PAY.Infrastructure.MessageBus;
 using ERP.PAY.Infrastructure.Persistence;
 using ERP.PAY.Infrastructure.Repositories;
+using ERP.PAY.Infrastructure.Services;
 using ERP.Shared.Authorization;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
 using ERP.Shared.Messaging;
+using ERP.Shared.Security;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +38,10 @@ builder.Services.AddScoped<ISavedPaymentMethodRepository, SavedPaymentMethodRepo
 builder.Services.AddScoped<IInstallmentPlanRepository, InstallmentPlanRepository>();
 builder.Services.AddScoped<IPaymentUnitOfWork, PaymentUnitOfWork>();
 builder.Services.AddScoped<IFraudDetectionService, FraudDetectionService>();
+
+// Payment Settings (System/Tenant two-tier) — storage+CRUD only for now
+builder.Services.AddScoped<ISecretProtector, AesSecretProtector>();
+builder.Services.AddScoped<IPaymentSettingsService, PaymentSettingsService>();
 builder.Services.AddCacheService(builder.Configuration, "pay");
 builder.Services.AddHttpClient(); // used by VnPayGateway.RefundAsync (server-to-server POST)
 

@@ -1,4 +1,5 @@
 using ERP.ACC.Domain.Entities;
+using ERP.ACC.Domain.Entities.Settings;
 using ERP.Shared.Core.Domain;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +20,8 @@ namespace ERP.ACC.Infrastructure.Persistence
         public DbSet<BankAccount> BankAccounts { get; set; }
         public DbSet<BankStatement> BankStatements { get; set; }
         public DbSet<OutboxMessage> OutboxMessages { get; set; }
+        public DbSet<SystemTaxSettings> SystemTaxSettings { get; set; }
+        public DbSet<TenantTaxSettings> TenantTaxSettings { get; set; }
 
         public AccountingDbContext(DbContextOptions<AccountingDbContext> options) : base(options)
         {
@@ -94,6 +97,22 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.Notes).HasMaxLength(1000);
                 e.HasIndex(x => x.BankAccountId);
                 e.HasIndex(x => new { x.BankAccountId, x.StatementDate });
+            });
+
+            modelBuilder.Entity<SystemTaxSettings>(e =>
+            {
+                e.ToTable("SystemTaxSettings");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+            });
+
+            modelBuilder.Entity<TenantTaxSettings>(e =>
+            {
+                e.ToTable("TenantTaxSettings");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.CompanyTaxCode).HasMaxLength(50);
+                e.Property(x => x.DefaultTaxRatePercent).HasColumnType("decimal(8,4)");
+                e.HasIndex(x => x.TenantId).IsUnique();
             });
         }
 

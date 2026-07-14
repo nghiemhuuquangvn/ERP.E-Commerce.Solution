@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Aggregates.Transfers;
 using ERP.WH.Domain.Aggregates.Stocktakes;
+using ERP.WH.Domain.Settings;
 
 namespace ERP.WH.Infrastructure.Persistence;
 
@@ -15,6 +16,8 @@ public class WarehouseDbContext : DbContext
     public DbSet<InventorySerial> InventorySerials { get; set; }
     public DbSet<TransferOrder> TransferOrders { get; set; }
     public DbSet<Stocktake> Stocktakes { get; set; }
+    public DbSet<SystemInventorySettings> SystemInventorySettings { get; set; }
+    public DbSet<TenantInventorySettings> TenantInventorySettings { get; set; }
 
     public WarehouseDbContext(DbContextOptions<WarehouseDbContext> options) : base(options)
     {
@@ -170,6 +173,20 @@ public class WarehouseDbContext : DbContext
         {
             entity.HasKey(e => e.LineId);
             entity.Property(e => e.SystemQuantity).IsRequired();
+        });
+
+        modelBuilder.Entity<SystemInventorySettings>(entity =>
+        {
+            entity.ToTable("SystemInventorySettings");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever();
+        });
+
+        modelBuilder.Entity<TenantInventorySettings>(entity =>
+        {
+            entity.ToTable("TenantInventorySettings");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantId).IsUnique();
         });
     }
 }

@@ -1,4 +1,5 @@
 using ERP.PAY.Domain.Entities;
+using ERP.PAY.Domain.Entities.Settings;
 using ERP.Shared.Core.Domain;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,8 @@ public class PaymentDbContext : DbContext
     public DbSet<SavedPaymentMethod> SavedPaymentMethods => Set<SavedPaymentMethod>();
     public DbSet<InstallmentPlan> InstallmentPlans => Set<InstallmentPlan>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<SystemPaymentSettings> SystemPaymentSettings => Set<SystemPaymentSettings>();
+    public DbSet<TenantPaymentSettings> TenantPaymentSettings => Set<TenantPaymentSettings>();
 
     public PaymentDbContext(DbContextOptions<PaymentDbContext> options) : base(options) { }
 
@@ -84,6 +87,21 @@ public class PaymentDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasIndex(x => x.ProcessedOnUtc);
+        });
+
+        modelBuilder.Entity<SystemPaymentSettings>(e =>
+        {
+            e.ToTable("SystemPaymentSettings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+        });
+
+        modelBuilder.Entity<TenantPaymentSettings>(e =>
+        {
+            e.ToTable("TenantPaymentSettings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.VnPaySecretKeyEncrypted).HasMaxLength(500);
+            e.HasIndex(x => x.TenantId).IsUnique();
         });
     }
 

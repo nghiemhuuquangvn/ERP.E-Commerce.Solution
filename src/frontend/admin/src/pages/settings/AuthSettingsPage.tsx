@@ -18,6 +18,14 @@ interface SystemFormValues {
   facebookEnabled: boolean
   twitterEnabled: boolean
   twoFactorEnabled: boolean
+  minPasswordLength: number
+  requireUppercase: boolean
+  requireLowercase: boolean
+  requireDigit: boolean
+  requireSymbol: boolean
+  maxLoginAttempts: number
+  lockoutDurationMinutes: number
+  sessionTimeoutMinutes: number
 }
 
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
@@ -37,6 +45,14 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
       facebookEnabled: false,
       twitterEnabled: false,
       twoFactorEnabled: false,
+      minPasswordLength: 8,
+      requireUppercase: true,
+      requireLowercase: true,
+      requireDigit: true,
+      requireSymbol: true,
+      maxLoginAttempts: 5,
+      lockoutDurationMinutes: 15,
+      sessionTimeoutMinutes: 60,
     },
   })
 
@@ -76,6 +92,60 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
         {t('settings.auth.twoFactorEnabled')}
       </label>
 
+      <h2 className="pt-2 text-sm font-semibold text-gray-800">{t('settings.auth.securitySectionTitle')}</h2>
+      <label className="block text-sm text-gray-700">
+        {t('settings.auth.minPasswordLength')}
+        <input
+          type="number"
+          disabled={!canManage}
+          {...register('minPasswordLength', { valueAsNumber: true })}
+          className="input mt-1 w-full"
+        />
+      </label>
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input type="checkbox" disabled={!canManage} {...register('requireUppercase')} />
+        {t('settings.auth.requireUppercase')}
+      </label>
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input type="checkbox" disabled={!canManage} {...register('requireLowercase')} />
+        {t('settings.auth.requireLowercase')}
+      </label>
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input type="checkbox" disabled={!canManage} {...register('requireDigit')} />
+        {t('settings.auth.requireDigit')}
+      </label>
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input type="checkbox" disabled={!canManage} {...register('requireSymbol')} />
+        {t('settings.auth.requireSymbol')}
+      </label>
+      <label className="block text-sm text-gray-700">
+        {t('settings.auth.maxLoginAttempts')}
+        <input
+          type="number"
+          disabled={!canManage}
+          {...register('maxLoginAttempts', { valueAsNumber: true })}
+          className="input mt-1 w-full"
+        />
+      </label>
+      <label className="block text-sm text-gray-700">
+        {t('settings.auth.lockoutDurationMinutes')}
+        <input
+          type="number"
+          disabled={!canManage}
+          {...register('lockoutDurationMinutes', { valueAsNumber: true })}
+          className="input mt-1 w-full"
+        />
+      </label>
+      <label className="block text-sm text-gray-700">
+        {t('settings.auth.sessionTimeoutMinutes')}
+        <input
+          type="number"
+          disabled={!canManage}
+          {...register('sessionTimeoutMinutes', { valueAsNumber: true })}
+          className="input mt-1 w-full"
+        />
+      </label>
+
       {mutation.isError && <p className="text-xs text-red-600">{t('settings.auth.failedToSave')}</p>}
 
       {canManage && (
@@ -96,6 +166,14 @@ interface TenantFormValues {
   twitterEnabled: boolean
   twoFactorEnabled: boolean
   twoFactorRequired: boolean
+  minPasswordLength: number
+  requireUppercase: boolean
+  requireLowercase: boolean
+  requireDigit: boolean
+  requireSymbol: boolean
+  maxLoginAttempts: number
+  lockoutDurationMinutes: number
+  sessionTimeoutMinutes: number
 }
 
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
@@ -117,6 +195,14 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       twitterEnabled: false,
       twoFactorEnabled: false,
       twoFactorRequired: false,
+      minPasswordLength: 8,
+      requireUppercase: true,
+      requireLowercase: true,
+      requireDigit: true,
+      requireSymbol: true,
+      maxLoginAttempts: 5,
+      lockoutDurationMinutes: 15,
+      sessionTimeoutMinutes: 60,
     },
   })
 
@@ -159,6 +245,60 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       <label className="flex items-center gap-2 text-sm text-gray-700">
         <input type="checkbox" disabled={!canManage} {...register('twoFactorRequired')} />
         {t('settings.auth.twoFactorRequired')}
+      </label>
+
+      <h2 className="pt-2 text-sm font-semibold text-gray-800">{t('settings.auth.securitySectionTitle')}</h2>
+      <label className="block text-sm text-gray-700">
+        {t('settings.auth.minPasswordLength')}
+        <input
+          type="number"
+          disabled={!canManage}
+          {...register('minPasswordLength', { valueAsNumber: true })}
+          className="input mt-1 w-full"
+        />
+      </label>
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input type="checkbox" disabled={!canManage} {...register('requireUppercase')} />
+        {t('settings.auth.requireUppercase')}
+      </label>
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input type="checkbox" disabled={!canManage} {...register('requireLowercase')} />
+        {t('settings.auth.requireLowercase')}
+      </label>
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input type="checkbox" disabled={!canManage} {...register('requireDigit')} />
+        {t('settings.auth.requireDigit')}
+      </label>
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input type="checkbox" disabled={!canManage} {...register('requireSymbol')} />
+        {t('settings.auth.requireSymbol')}
+      </label>
+      <label className="block text-sm text-gray-700">
+        {t('settings.auth.maxLoginAttempts')}
+        <input
+          type="number"
+          disabled={!canManage}
+          {...register('maxLoginAttempts', { valueAsNumber: true })}
+          className="input mt-1 w-full"
+        />
+      </label>
+      <label className="block text-sm text-gray-700">
+        {t('settings.auth.lockoutDurationMinutes')}
+        <input
+          type="number"
+          disabled={!canManage}
+          {...register('lockoutDurationMinutes', { valueAsNumber: true })}
+          className="input mt-1 w-full"
+        />
+      </label>
+      <label className="block text-sm text-gray-700">
+        {t('settings.auth.sessionTimeoutMinutes')}
+        <input
+          type="number"
+          disabled={!canManage}
+          {...register('sessionTimeoutMinutes', { valueAsNumber: true })}
+          className="input mt-1 w-full"
+        />
       </label>
 
       {mutation.isError && <p className="text-xs text-red-600">{t('settings.auth.failedToSave')}</p>}

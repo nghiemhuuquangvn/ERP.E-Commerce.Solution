@@ -1,4 +1,5 @@
 using ERP.PRD.Domain.Entities;
+using ERP.PRD.Domain.Entities.Settings;
 using ERP.PRD.Domain.Events;
 using ERP.Shared.Core.Domain;
 using ERP.Shared.Messaging;
@@ -31,6 +32,8 @@ namespace ERP.PRD.Infrastructure.Persistence
         public DbSet<ProductBundleItem> ProductBundleItems => Set<ProductBundleItem>();
         public DbSet<ProductRelation> ProductRelations => Set<ProductRelation>();
         public DbSet<ProductReview> ProductReviews => Set<ProductReview>();
+        public DbSet<SystemStoreProductSettings> SystemStoreProductSettings => Set<SystemStoreProductSettings>();
+        public DbSet<TenantStoreProductSettings> TenantStoreProductSettings => Set<TenantStoreProductSettings>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -38,6 +41,23 @@ namespace ERP.PRD.Infrastructure.Persistence
 
             // Apply entity configurations from this assembly
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
+            modelBuilder.Entity<SystemStoreProductSettings>(entity =>
+            {
+                entity.ToTable("SystemStoreProductSettings");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedNever();
+            });
+
+            modelBuilder.Entity<TenantStoreProductSettings>(entity =>
+            {
+                entity.ToTable("TenantStoreProductSettings");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.StoreName).HasMaxLength(200);
+                entity.Property(e => e.StoreDescription).HasMaxLength(2000);
+                entity.Property(e => e.LogoUrl).HasMaxLength(500);
+                entity.HasIndex(e => e.TenantId).IsUnique();
+            });
 
             // Outbox table configuration
             modelBuilder.Entity<OutboxMessage>(entity =>

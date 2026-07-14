@@ -1,5 +1,6 @@
 using Confluent.Kafka;
 using ERP.ACC.Application.Interfaces;
+using ERP.ACC.Infrastructure.Services;
 using ERP.ACC.Infrastructure.BackgroundJobs;
 using ERP.ACC.Infrastructure.EventBus;
 using ERP.ACC.Infrastructure.MessageBus;
@@ -68,6 +69,9 @@ namespace ERP.ACC.Infrastructure
             services.AddScoped<IBankAccountRepository, BankAccountRepository>();
             services.AddScoped<IBankStatementRepository, BankStatementRepository>();
             services.AddScoped<IAccountingUnitOfWork, AccountingUnitOfWork>();
+
+            // Tax Settings (System/Tenant two-tier) — storage+CRUD only for now
+            services.AddScoped<ITaxSettingsService, TaxSettingsService>();
 
             services.AddCacheService(configuration, "acc");
 

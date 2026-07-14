@@ -25,6 +25,9 @@ namespace ERP.Identity.Infrastructure.Persistence
             IPasswordResetTokenRepository passwordResetTokenRepository,
             ISystemAuthSettingsRepository systemAuthSettingsRepository,
             ITenantAuthSettingsRepository tenantAuthSettingsRepository,
+            ISystemGeneralSettingsRepository systemGeneralSettingsRepository,
+            ITenantGeneralSettingsRepository tenantGeneralSettingsRepository,
+            ITenantCompanySettingsRepository tenantCompanySettingsRepository,
             ITwoFactorChallengeRepository twoFactorChallengeRepository,
             IOAuthStateRepository oAuthStateRepository,
             ISecurityAuditLogRepository securityAuditLogRepository,
@@ -45,6 +48,9 @@ namespace ERP.Identity.Infrastructure.Persistence
             PasswordResetTokens = passwordResetTokenRepository;
             SystemAuthSettings = systemAuthSettingsRepository;
             TenantAuthSettings = tenantAuthSettingsRepository;
+            SystemGeneralSettings = systemGeneralSettingsRepository;
+            TenantGeneralSettings = tenantGeneralSettingsRepository;
+            TenantCompanySettings = tenantCompanySettingsRepository;
             TwoFactorChallenges = twoFactorChallengeRepository;
             OAuthStates = oAuthStateRepository;
             SecurityAuditLogs = securityAuditLogRepository;
@@ -67,6 +73,9 @@ namespace ERP.Identity.Infrastructure.Persistence
         public IPasswordResetTokenRepository PasswordResetTokens { get; }
         public ISystemAuthSettingsRepository SystemAuthSettings { get; }
         public ITenantAuthSettingsRepository TenantAuthSettings { get; }
+        public ISystemGeneralSettingsRepository SystemGeneralSettings { get; }
+        public ITenantGeneralSettingsRepository TenantGeneralSettings { get; }
+        public ITenantCompanySettingsRepository TenantCompanySettings { get; }
         public ITwoFactorChallengeRepository TwoFactorChallenges { get; }
         public IOAuthStateRepository OAuthStates { get; }
         public ISecurityAuditLogRepository SecurityAuditLogs { get; }
