@@ -54,6 +54,7 @@ builder.Services.AddHostedService<ReportingSalesOrderRabbitMqConsumer>();
 builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+builder.Services.AddScoped<UserContext>();
 
 builder.Services.AddControllers();
 builder.Services.AddSharedLocalization(builder.Configuration);
@@ -73,6 +74,7 @@ app.UseSwaggerUI();
 app.UseSharedLocalization();
 app.UseCors("AllowAll");
 app.UseAuthentication();
+app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
 app.UseAuthorization();
 app.MapHealthChecks("/health");
 app.MapControllers();

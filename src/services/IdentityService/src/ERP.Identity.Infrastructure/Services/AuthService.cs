@@ -95,10 +95,14 @@ namespace ERP.Identity.Infrastructure.Services
             var accessToken = await _jwtService.GenerateAccessToken(user, tenant, roles, permissionSet);
             var refreshToken = await _jwtService.GenerateRefreshToken(user.Id, tenant.Id);
 
+            // Only the hash is persisted — same "opaque high-entropy token, hashed at
+            // rest" pattern as PasswordResetToken — so DB read access alone doesn't
+            // hand out a usable, long-lived session token. The raw value is returned
+            // to the caller below and never stored.
             var refreshTokenEntity = RefreshToken.Create(
                 userId: user.Id,
                 tenantId: tenant.Id,
-                token: refreshToken,
+                token: OpaqueTokenHasher.Hash(refreshToken),
                 expiredAt: DateTime.UtcNow.AddDays(GetConfigInt("Jwt:RefreshTokenExpirationDays", 7)),
                 createdByIp: ipAddress
             );
@@ -440,7 +444,7 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task LogoutAsync(Guid userId, string refreshToken, string? jti, DateTime? tokenExpiresAt, string? ipAddress, CancellationToken ct = default)
         {
-            await _unitOfWork.RefreshTokens.RevokeAsync(refreshToken, ct);
+            await _unitOfWork.RefreshTokens.RevokeAsync(OpaqueTokenHasher.Hash(refreshToken), ct);
 
             if (!string.IsNullOrWhiteSpace(jti) && tokenExpiresAt.HasValue)
                 await _sessionService.BlacklistTokenAsync(jti, userId, tokenExpiresAt.Value, revokedBy: userId.ToString(), ct);
@@ -454,7 +458,7 @@ namespace ERP.Identity.Infrastructure.Services
         public async Task<RefreshTokenResponse> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default)
         {
             // 1) Hash token & lookup
-            var session = await _unitOfWork.RefreshTokens.GetByTokenAsync(request.RefreshToken);
+            var session = await _unitOfWork.RefreshTokens.GetByTokenAsync(OpaqueTokenHasher.Hash(request.RefreshToken));
 
             if (session is null || !session.IsTokenValid)
                 throw new UnauthorizedAccessException("Invalid refresh token");

@@ -26,6 +26,9 @@ namespace ERP.ACC.API.Controllers
             [FromQuery] bool? activeOnly,
             CancellationToken ct = default)
         {
+            if (!_userContext.HasPermission("accounting:tax:view"))
+                return Forbid();
+
             var result = await _mediator.Send(new ListTaxRatesQuery { ActiveOnly = activeOnly }, ct);
             return Ok(result);
         }
@@ -35,6 +38,9 @@ namespace ERP.ACC.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetById(Guid id, CancellationToken ct = default)
         {
+            if (!_userContext.HasPermission("accounting:tax:view"))
+                return Forbid();
+
             var result = await _mediator.Send(new GetTaxRateQuery { TaxRateId = id }, ct);
             return result == null ? NotFound() : Ok(result);
         }

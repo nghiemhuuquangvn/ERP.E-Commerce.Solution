@@ -2,7 +2,9 @@ using ERP.LOG.Application.DTOs;
 using ERP.LOG.Application.Interfaces;
 using ERP.LOG.Application.Queries;
 using ERP.LOG.Domain.Models;
+using ERP.Shared.Authorization;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.LOG.API.Controllers;
@@ -25,17 +27,20 @@ public class ClientLogEntryDto
 
 [ApiController]
 [Route("api/v1/logs")]
+[Authorize]
 public class LogsController : ControllerBase
 {
     private const int MaxClientBatchSize = 100;
 
     private readonly IMediator _mediator;
     private readonly ILogQueryRepository _repository;
+    private readonly UserContext _userContext;
 
-    public LogsController(IMediator mediator, ILogQueryRepository repository)
+    public LogsController(IMediator mediator, ILogQueryRepository repository, UserContext userContext)
     {
         _mediator = mediator;
         _repository = repository;
+        _userContext = userContext;
     }
 
     /// <summary>Authenticated query endpoint — gated by Bearer auth at the Ocelot Gateway route.</summary>
@@ -52,6 +57,9 @@ public class LogsController : ControllerBase
         [FromQuery] int pageSize = 25,
         CancellationToken cancellationToken = default)
     {
+        if (!_userContext.HasPermission("logs:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetLogsQuery
         {
             ServiceName = serviceName,
@@ -74,6 +82,7 @@ public class LogsController : ControllerBase
     /// the Ocelot Gateway route; batch size capped here as defense in depth.
     /// </summary>
     [HttpPost("client")]
+    [AllowAnonymous]
     public async Task<IActionResult> ReportClientLogs(
         [FromBody] List<ClientLogEntryDto> entries,
         CancellationToken cancellationToken)

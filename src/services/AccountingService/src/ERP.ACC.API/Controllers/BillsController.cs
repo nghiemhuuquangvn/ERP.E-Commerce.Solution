@@ -27,6 +27,9 @@ namespace ERP.ACC.API.Controllers
             [FromQuery] int pageSize = 20,
             CancellationToken ct = default)
         {
+            if (!_userContext.HasPermission("accounting:bills:view"))
+                return Forbid();
+
             var result = await _mediator.Send(new ListBillsQuery
             {
                 SupplierId = supplierId,
@@ -40,6 +43,9 @@ namespace ERP.ACC.API.Controllers
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
         {
+            if (!_userContext.HasPermission("accounting:bills:view"))
+                return Forbid();
+
             var result = await _mediator.Send(new GetBillQuery { BillId = id }, ct);
             return result == null ? NotFound() : Ok(result);
         }
@@ -77,6 +83,9 @@ namespace ERP.ACC.API.Controllers
         [HttpGet("ap-aging")]
         public async Task<IActionResult> GetAPAgeing([FromQuery] DateTime? asOfDate, CancellationToken ct)
         {
+            if (!_userContext.HasPermission("accounting:bills:view"))
+                return Forbid();
+
             var result = await _mediator.Send(new GetAPAgingQuery { AsOfDate = asOfDate }, ct);
             return Ok(result);
         }

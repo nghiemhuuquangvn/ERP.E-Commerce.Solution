@@ -13,7 +13,15 @@ namespace ERP.Identity.Application.Interfaces.Services
     {
         Task<ApiKeyCreatedDto> CreateAsync(Guid tenantId, string name, string? scopes, int? expiresInDays, string? createdBy, CancellationToken ct);
         Task<IReadOnlyList<ApiKeyDto>> ListByTenantAsync(Guid tenantId, CancellationToken ct);
-        Task RevokeAsync(Guid id, CancellationToken ct);
+
+        /// <summary>
+        /// Revokes the key only if it belongs to <paramref name="callerTenantId"/>, unless
+        /// <paramref name="bypassTenantCheck"/> is true (the caller holds the SuperAdmin
+        /// cross-tenant override) — throws <see cref="UnauthorizedAccessException"/> if a
+        /// non-override caller targets another tenant's key. Prevents a tenant Admin from
+        /// revoking a different tenant's API key by guessing/enumerating its GUID.
+        /// </summary>
+        Task RevokeAsync(Guid id, Guid callerTenantId, bool bypassTenantCheck, CancellationToken ct);
 
         /// <summary>
         /// Validates a raw API key presented by a caller; returns the tenant/scopes if

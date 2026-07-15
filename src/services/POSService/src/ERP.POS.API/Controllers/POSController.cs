@@ -32,6 +32,9 @@ public class TransactionsController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("pos:transactions"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetTransactionQuery { TransactionId = id }, ct);
         return result == null ? NotFound() : Ok(result);
     }
@@ -39,6 +42,9 @@ public class TransactionsController : ControllerBase
     [HttpPost("{id:guid}/items")]
     public async Task<IActionResult> AddItem(Guid id, [FromBody] AddTransactionItemCommand command, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("pos:transactions"))
+            return Forbid();
+
         command.TransactionId = id;
         return Ok(await _mediator.Send(command, ct));
     }
@@ -46,6 +52,9 @@ public class TransactionsController : ControllerBase
     [HttpPost("{id:guid}/discount")]
     public async Task<IActionResult> ApplyDiscount(Guid id, [FromBody] ApplyDiscountCommand command, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("pos:transactions"))
+            return Forbid();
+
         command.TransactionId = id;
         return Ok(await _mediator.Send(command, ct));
     }
@@ -53,6 +62,9 @@ public class TransactionsController : ControllerBase
     [HttpPost("{id:guid}/complete")]
     public async Task<IActionResult> Complete(Guid id, [FromBody] CompleteTransactionCommand command, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("pos:transactions"))
+            return Forbid();
+
         command.TransactionId = id;
         return Ok(await _mediator.Send(command, ct));
     }
@@ -60,6 +72,9 @@ public class TransactionsController : ControllerBase
     [HttpPost("{id:guid}/void")]
     public async Task<IActionResult> Void(Guid id, [FromBody] VoidTransactionCommand command, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("pos:transactions"))
+            return Forbid();
+
         command.TransactionId = id;
         return Ok(await _mediator.Send(command, ct));
     }
@@ -67,6 +82,9 @@ public class TransactionsController : ControllerBase
     [HttpGet("{id:guid}/receipt")]
     public async Task<IActionResult> GetReceipt(Guid id, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("pos:transactions"))
+            return Forbid();
+
         var receipt = await _mediator.Send(new GetReceiptQuery { TransactionId = id }, ct);
         return Content(receipt, "text/plain");
     }
@@ -186,16 +204,29 @@ public class ReportsController : ControllerBase
 public class CashShiftsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly UserContext _userContext;
 
-    public CashShiftsController(IMediator mediator) => _mediator = mediator;
+    public CashShiftsController(IMediator mediator, UserContext userContext)
+    {
+        _mediator = mediator;
+        _userContext = userContext;
+    }
 
     [HttpPost("open")]
-    public async Task<IActionResult> Open([FromBody] OpenCashShiftCommand command, CancellationToken ct) =>
-        Ok(await _mediator.Send(command, ct));
+    public async Task<IActionResult> Open([FromBody] OpenCashShiftCommand command, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("pos:shifts:manage"))
+            return Forbid();
+
+        return Ok(await _mediator.Send(command, ct));
+    }
 
     [HttpPost("{id:guid}/close")]
     public async Task<IActionResult> Close(Guid id, [FromBody] CloseCashShiftCommand command, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("pos:shifts:manage"))
+            return Forbid();
+
         command.ShiftId = id;
         return Ok(await _mediator.Send(command, ct));
     }
@@ -203,6 +234,9 @@ public class CashShiftsController : ControllerBase
     [HttpGet("active/{terminalId:guid}")]
     public async Task<IActionResult> GetActive(Guid terminalId, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("pos:shifts:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetActiveShiftQuery { TerminalId = terminalId }, ct);
         return result == null ? NotFound() : Ok(result);
     }
@@ -210,6 +244,9 @@ public class CashShiftsController : ControllerBase
     [HttpGet("{id:guid}/summary")]
     public async Task<IActionResult> GetSummary(Guid id, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("pos:shifts:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetShiftSummaryQuery { ShiftId = id }, ct);
         return result == null ? NotFound() : Ok(result);
     }

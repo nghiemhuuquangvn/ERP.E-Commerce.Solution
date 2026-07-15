@@ -26,6 +26,9 @@ namespace ERP.ACC.API.Controllers
             [FromQuery] bool? activeOnly,
             CancellationToken ct = default)
         {
+            if (!_userContext.HasPermission("accounting:bank:view"))
+                return Forbid();
+
             var result = await _mediator.Send(new ListBankAccountsQuery { ActiveOnly = activeOnly }, ct);
             return Ok(result);
         }
@@ -35,6 +38,9 @@ namespace ERP.ACC.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetById(Guid id, CancellationToken ct = default)
         {
+            if (!_userContext.HasPermission("accounting:bank:view"))
+                return Forbid();
+
             var result = await _mediator.Send(new GetBankAccountQuery { BankAccountId = id }, ct);
             return result == null ? NotFound() : Ok(result);
         }
@@ -58,6 +64,9 @@ namespace ERP.ACC.API.Controllers
         [ProducesResponseType(typeof(List<BankStatementDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> ListStatements(Guid id, CancellationToken ct = default)
         {
+            if (!_userContext.HasPermission("accounting:bank:view"))
+                return Forbid();
+
             var result = await _mediator.Send(new ListBankStatementsQuery { BankAccountId = id }, ct);
             return Ok(result);
         }

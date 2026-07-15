@@ -37,6 +37,7 @@ builder.Services.AddValidatorsFromAssemblies(AppDomain.CurrentDomain.GetAssembli
 builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+builder.Services.AddScoped<UserContext>();
 
 // Caching Configuration
 var cacheSettings = builder.Configuration.GetSection("CacheSettings");

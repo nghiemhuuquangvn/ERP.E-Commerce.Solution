@@ -1,5 +1,6 @@
 using ERP.RPT.Application.Interfaces;
 using ERP.RPT.Application.Queries;
+using ERP.Shared.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
@@ -12,11 +13,13 @@ public class ReportsController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IReportingRepository _repository;
+    private readonly UserContext _userContext;
 
-    public ReportsController(IMediator mediator, IReportingRepository repository)
+    public ReportsController(IMediator mediator, IReportingRepository repository, UserContext userContext)
     {
         _mediator = mediator;
         _repository = repository;
+        _userContext = userContext;
     }
 
     [HttpGet("sales")]
@@ -25,6 +28,9 @@ public class ReportsController : ControllerBase
         [FromQuery] DateTime? to,
         CancellationToken ct)
     {
+        if (!_userContext.HasPermission("reports:sales:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetSalesDashboardQuery
         {
             From = from ?? DateTime.UtcNow.AddDays(-30),
@@ -39,6 +45,9 @@ public class ReportsController : ControllerBase
         [FromQuery] DateTime? to,
         CancellationToken ct)
     {
+        if (!_userContext.HasPermission("reports:payments:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetPaymentSummaryQuery
         {
             From = from ?? DateTime.UtcNow.AddDays(-30),
@@ -48,8 +57,13 @@ public class ReportsController : ControllerBase
     }
 
     [HttpGet("inventory")]
-    public async Task<IActionResult> GetInventoryReport(CancellationToken ct) =>
-        Ok(await _mediator.Send(new GetInventoryReportQuery(), ct));
+    public async Task<IActionResult> GetInventoryReport(CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("reports:inventory:view"))
+            return Forbid();
+
+        return Ok(await _mediator.Send(new GetInventoryReportQuery(), ct));
+    }
 
     [HttpGet("hr")]
     public async Task<IActionResult> GetHRDashboard(
@@ -57,6 +71,9 @@ public class ReportsController : ControllerBase
         [FromQuery] DateTime? to,
         CancellationToken ct)
     {
+        if (!_userContext.HasPermission("reports:hr:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetHRDashboardQuery
         {
             From = from ?? DateTime.UtcNow.AddMonths(-6),
@@ -71,6 +88,9 @@ public class ReportsController : ControllerBase
         [FromQuery] DateTime? to,
         CancellationToken ct)
     {
+        if (!_userContext.HasPermission("reports:pos:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetPOSDashboardQuery
         {
             From = from ?? DateTime.UtcNow.AddDays(-30),
@@ -86,6 +106,9 @@ public class ReportsController : ControllerBase
         [FromQuery] DateTime? to,
         CancellationToken ct)
     {
+        if (!_userContext.HasPermission("reports:sales:view"))
+            return Forbid();
+
         var orders = await _repository.GetSalesOrdersForExportAsync(
             from ?? DateTime.UtcNow.AddDays(-30),
             to ?? DateTime.UtcNow,
@@ -117,6 +140,9 @@ public class ReportsController : ControllerBase
         [FromQuery] DateTime? to,
         CancellationToken ct)
     {
+        if (!_userContext.HasPermission("reports:payments:view"))
+            return Forbid();
+
         var payments = await _repository.GetPaymentsForExportAsync(
             from ?? DateTime.UtcNow.AddDays(-30),
             to ?? DateTime.UtcNow,

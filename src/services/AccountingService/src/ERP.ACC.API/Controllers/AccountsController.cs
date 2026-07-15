@@ -22,6 +22,9 @@ namespace ERP.ACC.API.Controllers
         [HttpGet]
         public async Task<IActionResult> List(CancellationToken ct)
         {
+            if (!_userContext.HasPermission("accounting:accounts:view"))
+                return Forbid();
+
             var result = await _mediator.Send(new ListAccountsQuery(), ct);
             return Ok(result);
         }
@@ -29,6 +32,9 @@ namespace ERP.ACC.API.Controllers
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
         {
+            if (!_userContext.HasPermission("accounting:accounts:view"))
+                return Forbid();
+
             var result = await _mediator.Send(new GetAccountQuery { AccountId = id }, ct);
             return result == null ? NotFound() : Ok(result);
         }

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using MediatR;
+using ERP.Shared.Authorization;
 using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Application.Queries.Inventory;
 
@@ -7,13 +9,16 @@ namespace ERP.WH.API.Controllers;
 
 [ApiController]
 [Route("api/v1/inventory")]
+[Authorize]
 public class InventoryController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IUserContextService _userContextService;
 
-    public InventoryController(IMediator mediator)
+    public InventoryController(IMediator mediator, IUserContextService userContextService)
     {
         _mediator = mediator;
+        _userContextService = userContextService;
     }
 
     [HttpGet("{productId}")]
@@ -21,6 +26,9 @@ public class InventoryController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<GetInventoryResponse>> GetInventory(Guid productId)
     {
+        if (!_userContextService.HasPermission("inventory:view"))
+            return Forbid();
+
         try
         {
             var query = new GetInventoryQuery { ProductId = productId };
@@ -41,6 +49,9 @@ public class InventoryController : ControllerBase
         [FromQuery] int skip = 0,
         [FromQuery] int take = 50)
     {
+        if (!_userContextService.HasPermission("inventory:view"))
+            return Forbid();
+
         var query = new ListInventoryQuery
         {
             Search = search,
@@ -57,6 +68,9 @@ public class InventoryController : ControllerBase
     [ProducesResponseType(typeof(ListInventoryResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<ListInventoryResponse>> GetLowStockItems()
     {
+        if (!_userContextService.HasPermission("inventory:view"))
+            return Forbid();
+
         var query = new ListInventoryQuery
         {
             LowStockOnly = true,
@@ -74,6 +88,9 @@ public class InventoryController : ControllerBase
     public async Task<ActionResult<ReserveInventoryResponse>> ReserveInventory(
         [FromBody] ReserveInventoryCommand command)
     {
+        if (!_userContextService.HasPermission("inventory:manage"))
+            return Forbid();
+
         try
         {
             var result = await _mediator.Send(command);
@@ -91,6 +108,9 @@ public class InventoryController : ControllerBase
     public async Task<ActionResult<ReleaseReservationResponse>> ReleaseReservation(
         [FromBody] ReleaseReservationCommand command)
     {
+        if (!_userContextService.HasPermission("inventory:manage"))
+            return Forbid();
+
         try
         {
             var result = await _mediator.Send(command);
@@ -107,6 +127,9 @@ public class InventoryController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ReceiveStockResponse>> ReceiveStock([FromBody] ReceiveStockCommand command)
     {
+        if (!_userContextService.HasPermission("inventory:manage"))
+            return Forbid();
+
         try
         {
             var result = await _mediator.Send(command);
@@ -124,6 +147,9 @@ public class InventoryController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AdjustStockResponse>> AdjustStock(Guid productId, [FromBody] AdjustStockCommand command)
     {
+        if (!_userContextService.HasPermission("inventory:manage"))
+            return Forbid();
+
         command.ProductId = productId;
 
         try
@@ -146,6 +172,9 @@ public class InventoryController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<GetInventoryValuationResponse>> GetValuation(Guid productId)
     {
+        if (!_userContextService.HasPermission("inventory:view"))
+            return Forbid();
+
         try
         {
             var result = await _mediator.Send(new GetInventoryValuationQuery { ProductId = productId });

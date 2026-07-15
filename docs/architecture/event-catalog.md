@@ -807,6 +807,62 @@ public class ServiceLogEvent : IntegrationEventBase
 
 ---
 
+### SettingsChangedIntegrationEvent
+
+**Description:** Published whenever any of the 22 Settings categories' System or
+Tenant row is updated (see `docs/business/Settings/SettingsOverview.md`), so a
+service that depends on another service's setting doesn't keep acting on a value it
+cached before the other service's write. Deliberately carries **no** changed field
+values — a consumer that cares re-fetches the category's current value via that
+service's own Settings API, so it never needs to understand another service's
+Settings schema.
+
+**Publisher:** All 9 Settings-owning services, each via its own Outbox pattern (see
+table below for topic per service).
+**Subscribers:** ProductService and SaleOrderService — both filter for
+`ServiceName == "SharedMasterDataService" && Category == "Currency"` only. No other
+category has a consumer today (deliberately not built speculatively — see
+`docs/business/Settings/SettingsOverview.md#event-driven-sync`).
+
+**Event Structure:**
+```csharp
+public class SettingsChangedIntegrationEvent : IntegrationEventBase
+{
+    public string ServiceName { get; set; } = default!;   // "IdentityService", "SharedMasterDataService", ...
+    public string Category { get; set; } = default!;      // "Auth", "Inventory", "Currency", ...
+    public string Scope { get; set; } = default!;          // "System" | "Tenant"
+    public Guid? TenantId { get; set; }                    // set only when Scope == "Tenant"
+}
+```
+
+**Routing per publisher:**
+
+| Publisher | Topic | Notes |
+|---|---|---|
+| IdentityService | `identity-topic` | Existing Outbox / local `IMessageBus` / `OutboxProcessor` — no new infrastructure, reused as-is |
+| ProductService | `product-topic` | Existing Outbox→Kafka pipeline, reused as-is |
+| PaymentService | `payment-topic` | Existing Outbox→Kafka pipeline, reused as-is |
+| ShippingService | `shipping-topic` | Existing Outbox→Kafka pipeline, reused as-is |
+| AccountingService | `accounting-topic` | Existing Outbox→Kafka pipeline, reused as-is |
+| SharedMasterDataService | `mst-topic` | Existing Outbox→Kafka pipeline, reused as-is — this is the topic ProductService/SaleOrderService actually consume |
+| NotificationService | `notification-topic` | **New** — this service had zero publish capability before this event; new `KafkaMessageBus` + `OutboxProcessor` added |
+| SaleOrderService | `sale-order-settings-topic` | **New**, isolated Kafka producer + Outbox — deliberately separate from this service's existing RabbitMQ `sales_order_events` domain-event publishing, so that flow could not regress |
+| WareHouseService | `warehouse-settings-topic` | **New**, isolated Kafka producer + Outbox — deliberately separate from this service's existing RabbitMQ `warehouse_exchange` domain-event publishing |
+
+**Delivery:** Outbox pattern (at-least-once) for every publisher.
+
+**Handling:**
+- ProductService (`CurrencySettingsConsumer`, its first-ever Kafka consumer) and
+  SaleOrderService (`CurrencySettingsConsumer`, alongside its existing
+  `PaymentKafkaConsumer`/`ProductPriceChangedConsumer`/`ShippingKafkaConsumer`) both
+  subscribe to `mst-topic` and, on a matching Currency event, invalidate
+  `currency-settings:system` or `currency-settings:tenant:{tenantId}` in their own
+  local cache. **No visible effect today** — neither service actually fetches/caches
+  Currency Settings from SharedMasterDataService anywhere yet; this is
+  forward-compatible plumbing.
+
+---
+
 ## Monitoring & Troubleshooting
 
 ### Event Metrics
@@ -836,5 +892,5 @@ Event Published → [Service A] → Event Consumed → [Service B] → Updated
 
 ---
 
-**Last Updated:** 2026-06-13  
-**Version:** 1.0
+**Last Updated:** 2026-07-15  
+**Version:** 1.1 (added `SettingsChangedIntegrationEvent`, Settings Phase 4)

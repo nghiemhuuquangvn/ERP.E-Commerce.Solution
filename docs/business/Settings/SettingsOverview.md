@@ -1,4 +1,4 @@
-# Platform Settings — Business Analysis (Phases 1–3)
+# Platform Settings — Business Analysis (Phases 1–4)
 
 **Services:** IdentityService, NotificationService, ProductService, SaleOrderService,
 WarehouseService, PaymentService, ShippingService, AccountingService,
@@ -15,11 +15,15 @@ of the service that already owns that business domain — there is no separate
 "SettingsService" microservice (see `docs/architecture/domain-map.md` for why each
 service owns its own database).
 
-**Current scope: storage + CRUD only.** Every category below can be read and written
-through the Admin UI and its REST API, and every value is persisted correctly. What is
-**not yet true** for any category is runtime behavior actually changing because of the
-stored value — see [Known Limitations](#known-limitations-not-yet-wired-to-behavior)
-before assuming a toggle "does" anything today.
+**Current scope: storage + CRUD, plus caching and cross-service change notification
+(Phase 4).** Every category below can be read and written through the Admin UI and
+its REST API, every value is persisted correctly, reads are cached, and writes notify
+other services via an integration event. What is **still not true** for any category
+is *business* runtime behavior changing because of the stored value — see
+[Known Limitations](#known-limitations-not-yet-wired-to-behavior) before assuming a
+toggle "does" anything today. Caching and change notification are cross-cutting
+infrastructure, not business-behavior wiring — see
+[Caching](#caching) and [Event-driven sync](#event-driven-sync) below.
 
 ## Architecture pattern
 
@@ -72,6 +76,52 @@ any System row, additionally requires the platform-wide `settings:system:manage`
 override (IdentityService) or the equivalent `settings:{category}:system:manage`
 override (other services) — one SuperAdmin grant is enough to administer every
 category, not one grant per category.
+
+### Caching
+
+Every category's `Get{System|Tenant}SettingsAsync` reads through
+`ERP.Shared.Infrastructure.Caching.ICacheService` (cache-aside via `GetOrSetAsync`)
+before touching SQL Server. Cache key convention:
+`settings:{service}:{category}:system` / `settings:{service}:{category}:tenant:{tenantId}`
+(Feature Flags uses `settings:identity:feature-flags:system:all` /
+`...:tenant:{tenantId}:all` instead, since it's a list, not a singleton row). TTL: 15
+minutes. Every `Update{System|Tenant}SettingsAsync` calls `ICacheService.RemoveAsync`
+for the exact key it just wrote, immediately after the database save succeeds — a
+write is visible to the next read on the same service instance right away, and to
+every other instance within at most 15 minutes even without the event below.
+IdentityService and ProductService had no cache infrastructure at all before this —
+both now register `ICacheService` (in-memory by default; `Cache:Type` config switches
+to Redis) for the first time.
+
+### Event-driven sync
+
+Whenever any category's System or Tenant row changes, the owning service publishes a
+`SettingsChangedIntegrationEvent` (`src/Shared/Contracts/SettingsChangedIntegrationEvent.cs`
+— carries `ServiceName`, `Category`, `Scope`, `TenantId`, deliberately **no** changed
+field values, so a consumer never needs to understand another service's Settings
+schema) via the Outbox pattern. This exists so a service that depends on another
+service's setting doesn't keep acting on a value it cached before the other service's
+write.
+
+| Publishing service(s) | Topic | Mechanism |
+|---|---|---|
+| IdentityService | `identity-topic` | Reuses its existing Outbox / local `IMessageBus` / `OutboxProcessor` — no new infrastructure |
+| Product, Payment, Shipping, Accounting, SharedMasterData Services | `product-topic`, `payment-topic`, `shipping-topic`, `accounting-topic`, `mst-topic` | Reuses each service's existing Outbox→Kafka pipeline — no new infrastructure |
+| NotificationService | `notification-topic` (new) | New `KafkaMessageBus` + `OutboxProcessor` — this service had zero publish capability before this |
+| SaleOrderService | `sale-order-settings-topic` (new) | New, isolated Kafka producer + Outbox, kept separate from its existing RabbitMQ `sales_order_events` domain-event publishing so nothing there regressed |
+| WareHouseService | `warehouse-settings-topic` (new) | New, isolated Kafka producer + Outbox, kept separate from its existing RabbitMQ `warehouse_exchange` domain-event publishing |
+
+**Consumers today: exactly two, both narrowly scoped.** ProductService (its
+first-ever Kafka consumer) and SaleOrderService both subscribe to `mst-topic`,
+filter for `ServiceName == "SharedMasterDataService" && Category == "Currency"`, and
+invalidate a `currency-settings:system` / `currency-settings:tenant:{tenantId}` cache
+key. **This has no visible effect yet** — neither service actually fetches or caches
+Currency Settings from SharedMasterDataService anywhere today; the consumers are
+forward-compatible plumbing, ready the moment that integration is built. No other
+category has a consumer — deliberately not built speculatively for categories with no
+confirmed cross-service dependency yet. Full event contract and topic list:
+`docs/architecture/event-catalog.md` → *Cross-Cutting / Observability Events* →
+`SettingsChangedIntegrationEvent`.
 
 ## Category reference (all 22, by phase)
 
@@ -136,8 +186,11 @@ checks a flag's value to gate behavior yet — this is a pure key/value store to
 
 ## Known limitations (not yet wired to behavior)
 
-Storage and CRUD are complete and correct for all 22 categories; the following real
-runtime code paths still read their **old** hard-coded sources, not these tables:
+Storage, CRUD, caching, and cross-service change notification (Phase 4) are complete
+and correct for all 22 categories; the following real runtime **business** code paths
+still read their **old** hard-coded sources, not these tables — caching a setting
+faster and telling other services it changed does not, by itself, make any business
+logic consult that setting:
 
 - `PasswordPolicyService` still reads `PasswordPolicy:*` from `appsettings.json`.
 - `User.RecordLoginFail()` still hard-codes a 5-attempt lockout.
@@ -154,9 +207,12 @@ runtime code paths still read their **old** hard-coded sources, not these tables
   negative-stock/backorder rules, Shipping's default fee/free-shipping threshold, and
   Tax's default rate — none of these are consulted by their services' real order/cart/
   inventory/shipping/tax logic yet.
+- The Currency Settings cross-service consumers (ProductService/SaleOrderService) are
+  real and correctly wired, but currently a no-op — see
+  [Event-driven sync](#event-driven-sync) above.
 
 Wiring any of the above into real behavior is explicitly the next body of work, not
-part of Phases 1–3.
+part of Phases 1–4.
 
 ## Phase history
 
@@ -171,12 +227,24 @@ part of Phases 1–3.
 - **Phase 3** — the remaining 9 categories, all IdentityService: Workflow, File
   Storage, Scheduler, Integration, API Settings, Audit, Advanced, Localization (fixed
   System/Tenant shape) + Feature Flags (dynamic key/value shape).
+- **Phase 4** — cache + event-driven sync on top of all 22 categories, per
+  `FEATURE_SETTINGS_MODULE.md` (no new categories, no schema changes to any existing
+  category). Added `ICacheService` read-through caching everywhere (new for
+  IdentityService and ProductService, which had no cache infrastructure before this),
+  and `SettingsChangedIntegrationEvent` publishing from all 9 services (new Kafka
+  publish infrastructure for NotificationService, SaleOrderService, and
+  WareHouseService specifically, isolated from each service's pre-existing event
+  flows). Added exactly two consumers (ProductService, SaleOrderService, both for
+  SharedMasterDataService's Currency category) — see
+  [Event-driven sync](#event-driven-sync).
 
 ## See also
 
 - [Settings Admin Guide](../../frontend/settings-admin-guide.md) — how to use every
   Settings page in the Admin app, and how to add a new category following this same
   pattern.
+- `docs/architecture/event-catalog.md` — full `SettingsChangedIntegrationEvent`
+  contract, every publisher's topic, and both consumers.
 - `docs/business/Identity/ExternalAuthAndTwoFactor.md` — the original System/Tenant
   hierarchy (Auth Settings) that every later category's shape is modeled on.
 - `docs/architecture/database-map.md` — which database each service (and therefore

@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using ERP.Identity.Api.Authorization;
 using ERP.Identity.Application.DTOs.Auth;
 using ERP.Identity.Application.Interfaces.Services;
@@ -29,6 +30,7 @@ namespace ERP.Identity.Api.Controllers
 
         [HttpPost("register")]
         [AllowAnonymous]
+        [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken = default)
         {
             var result = await _authService.RegisterAsync(request, cancellationToken);
@@ -38,6 +40,7 @@ namespace ERP.Identity.Api.Controllers
 
         [HttpPost("login")]
         [AllowAnonymous]
+        [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken = default)
         {
             var result = await _authService.LoginAsync(request, GetClientIp(), Request.Headers.UserAgent.ToString(), cancellationToken);
@@ -85,6 +88,7 @@ namespace ERP.Identity.Api.Controllers
 
         [HttpPost("forgot-password")]
         [AllowAnonymous]
+        [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto request, CancellationToken cancellationToken = default)
         {
             var result = await _authService.ForgotPasswordAsync(request, cancellationToken);
@@ -93,6 +97,7 @@ namespace ERP.Identity.Api.Controllers
 
         [HttpPost("reset-password")]
         [AllowAnonymous]
+        [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDto request, CancellationToken cancellationToken = default)
         {
             var result = await _authService.ResetPasswordAsync(request, cancellationToken);
@@ -109,6 +114,7 @@ namespace ERP.Identity.Api.Controllers
 
         [HttpPost("external-login")]
         [AllowAnonymous]
+        [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> ExternalLogin([FromBody] ExternalLoginRequest request, CancellationToken cancellationToken = default)
         {
             var result = await _authService.ExternalLoginAsync(request, cancellationToken);
@@ -126,6 +132,7 @@ namespace ERP.Identity.Api.Controllers
 
         [HttpPost("external-login/twitter/callback")]
         [AllowAnonymous]
+        [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> TwitterCallback([FromBody] TwitterCallbackRequest request, CancellationToken cancellationToken = default)
         {
             var result = await _authService.TwitterCallbackAsync(request, cancellationToken);
@@ -135,6 +142,7 @@ namespace ERP.Identity.Api.Controllers
 
         [HttpPost("2fa/verify")]
         [AllowAnonymous]
+        [EnableRateLimiting("auth-2fa-verify")]
         public async Task<IActionResult> VerifyTwoFactor([FromBody] VerifyTwoFactorRequest request, CancellationToken cancellationToken = default)
         {
             var result = await _authService.VerifyTwoFactorAsync(request, GetClientIp(), Request.Headers.UserAgent.ToString(), cancellationToken);
@@ -144,6 +152,7 @@ namespace ERP.Identity.Api.Controllers
 
         [HttpPost("2fa/resend")]
         [AllowAnonymous]
+        [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> ResendTwoFactor([FromBody] ResendTwoFactorRequest request, CancellationToken cancellationToken = default)
         {
             var result = await _authService.ResendTwoFactorAsync(request, cancellationToken);

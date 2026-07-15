@@ -13,10 +13,12 @@ using ERP.Shared.Localization;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -64,6 +66,14 @@ builder.Services.AddCors(options =>
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("Configuration value 'Jwt:Key' is missing.");
+
+// This key signs tokens accepted by every one of the 14 downstream services (see
+// ERP.Shared.Authorization.AuthenticationExtensions) — a short/weak value is
+// brute-forceable and would forge valid tokens platform-wide, so fail fast rather
+// than starting up with an insecure signing key. 32 bytes/UTF-8 chars = 256 bits,
+// matching HmacSha256's expected key size.
+if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
+    throw new InvalidOperationException("Configuration value 'Jwt:Key' must be at least 32 bytes (256 bits) to be a secure HMAC-SHA256 signing key.");
 
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer(options =>
@@ -116,6 +126,40 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddHealthChecks();
 
+// Brute-force protection for the auth endpoints. This is on top of, not instead of,
+// the per-(ip,email) failed-attempt counter in LoginAttemptRepository — that guard
+// only scopes to one (ip,email) pair, so it doesn't stop an attacker spraying
+// attempts across many different accounts from one IP. Rate limits are keyed by
+// client IP (X-Forwarded-For first, matching AuthController.GetClientIp()).
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    string ResolveClientIp(HttpContext context) =>
+        context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwarded) && !string.IsNullOrEmpty(forwarded)
+            ? forwarded.ToString()
+            : context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+    options.AddPolicy("auth-sensitive", context =>
+        RateLimitPartition.GetFixedWindowLimiter(ResolveClientIp(context), _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+
+    // Tighter: a 6-digit 2FA code has only 1,000,000 possibilities — this is the
+    // control that actually prevents brute-forcing it, since TwoFactorChallenge's
+    // own MaxAttempts only caps attempts against one challenge, not new challenges.
+    options.AddPolicy("auth-2fa-verify", context =>
+        RateLimitPartition.GetFixedWindowLimiter(ResolveClientIp(context), _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+});
+
 var app = builder.Build();
 
 app.UseGlobalExceptionHandling();
@@ -129,6 +173,7 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Content-Security-Policy"] = "default-src 'self'";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     await next();
 });
 
@@ -139,6 +184,7 @@ app.UseSharedLocalization();
 
 app.UseRouting();
 app.UseCors("IdentityCors");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

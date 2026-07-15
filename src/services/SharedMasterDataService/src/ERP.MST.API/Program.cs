@@ -40,6 +40,7 @@ try
     builder.Services.AddErpJwtAuthentication(builder.Configuration);
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+    builder.Services.AddScoped<UserContext>();
 
     builder.Services
         .AddApplication()

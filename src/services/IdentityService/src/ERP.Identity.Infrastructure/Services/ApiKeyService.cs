@@ -40,11 +40,14 @@ namespace ERP.Identity.Infrastructure.Services
             return keys.Select(ToDto).ToList();
         }
 
-        public async Task RevokeAsync(Guid id, CancellationToken ct)
+        public async Task RevokeAsync(Guid id, Guid callerTenantId, bool bypassTenantCheck, CancellationToken ct)
         {
             var key = await _unitOfWork.ApiKeys.GetByIdAsync(id, ct);
             if (key == null)
                 throw new InvalidOperationException("API key not found");
+
+            if (!bypassTenantCheck && key.TenantId != callerTenantId)
+                throw new UnauthorizedAccessException("API key belongs to a different tenant");
 
             key.Revoke();
             await _unitOfWork.ApiKeys.UpdateAsync(key, ct);

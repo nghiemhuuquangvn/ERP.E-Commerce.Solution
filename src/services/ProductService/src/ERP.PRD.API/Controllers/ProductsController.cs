@@ -9,6 +9,7 @@ namespace ERP.PRD.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class ProductsController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -75,6 +76,7 @@ namespace ERP.PRD.API.Controllers
         /// <param name="id">Product ID</param>
         /// <returns>Product details</returns>
         [HttpGet("{id}")]
+        [AllowAnonymous]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetProduct(Guid id, [FromQuery] string? languageCode = null)
@@ -221,6 +223,7 @@ namespace ERP.PRD.API.Controllers
         /// <param name="status">Filter by status (optional)</param>
         /// <returns>Paginated list of products</returns>
         [HttpGet]
+        [AllowAnonymous]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> ListProducts(
             [FromQuery] int skip = 0,
@@ -251,6 +254,7 @@ namespace ERP.PRD.API.Controllers
         /// <param name="searchTerm">Search term (name or SKU)</param>
         /// <returns>Matching products</returns>
         [HttpGet("search")]
+        [AllowAnonymous]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> SearchProducts([FromQuery] string searchTerm, [FromQuery] string? languageCode = null)
         {

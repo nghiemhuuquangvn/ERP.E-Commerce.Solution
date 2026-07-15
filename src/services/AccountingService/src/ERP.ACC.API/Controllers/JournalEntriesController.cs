@@ -26,6 +26,9 @@ namespace ERP.ACC.API.Controllers
             [FromQuery] int pageSize = 20,
             CancellationToken ct = default)
         {
+            if (!_userContext.HasPermission("accounting:journals:view"))
+                return Forbid();
+
             var result = await _mediator.Send(new ListJournalEntriesQuery
             {
                 FiscalPeriodId = fiscalPeriodId,
@@ -38,6 +41,9 @@ namespace ERP.ACC.API.Controllers
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
         {
+            if (!_userContext.HasPermission("accounting:journals:view"))
+                return Forbid();
+
             var result = await _mediator.Send(new GetJournalEntryQuery { JournalEntryId = id }, ct);
             return result == null ? NotFound() : Ok(result);
         }

@@ -122,9 +122,10 @@
   IdentityService; Notification/Email/SMS in NotificationService; Store-Product in
   ProductService; Cart-Checkout/Order in SaleOrderService; Inventory in
   WarehouseService; Payment in PaymentService; Shipping in ShippingService; Tax in
-  AccountingService; Currency in SharedMasterDataService). Storage+CRUD only — see
-  the overview doc's Known Limitations section for what is not yet wired to runtime
-  behavior.
+  AccountingService; Currency in SharedMasterDataService). Storage+CRUD, plus
+  read-through caching and cross-service change notification via
+  `SettingsChangedIntegrationEvent` (Phase 4) — see the overview doc's Known
+  Limitations section for what is still not wired to *business* runtime behavior.
 - **Workflows:** SuperAdmin sets a System-tier ceiling → Tenant Admin configures
   their own Tenant-tier row → capability effective only when both agree
   (`System.XEnabled && Tenant.XEnabled`)

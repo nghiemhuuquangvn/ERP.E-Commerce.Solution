@@ -20,10 +20,12 @@ namespace ERP.Identity.Api.Controllers
     public class ApiKeysController : ControllerBase
     {
         private readonly IApiKeyService _apiKeyService;
+        private readonly IPermissionService _permissionService;
 
-        public ApiKeysController(IApiKeyService apiKeyService)
+        public ApiKeysController(IApiKeyService apiKeyService, IPermissionService permissionService)
         {
             _apiKeyService = apiKeyService;
+            _permissionService = permissionService;
         }
 
         [HttpPost]
@@ -58,7 +60,23 @@ namespace ERP.Identity.Api.Controllers
         [RequirePermission(Permissions.ManageApiKeys)]
         public async Task<IActionResult> Revoke([FromRoute] Guid id, CancellationToken ct = default)
         {
-            await _apiKeyService.RevokeAsync(id, ct);
+            var callerTenantId = this.GetCallerTenantId();
+            var callerUserId = this.GetCallerUserId();
+            if (callerTenantId is null || callerUserId is null)
+                return Unauthorized();
+
+            var bypassTenantCheck = await _permissionService.HasPermissionAsync(
+                callerUserId.Value, callerTenantId.Value, new[] { SettingsPermissions.SystemManage });
+
+            try
+            {
+                await _apiKeyService.RevokeAsync(id, callerTenantId.Value, bypassTenantCheck, ct);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+
             return Ok(new { message = "API key revoked successfully" });
         }
     }
