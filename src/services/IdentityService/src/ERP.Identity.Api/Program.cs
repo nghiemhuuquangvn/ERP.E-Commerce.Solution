@@ -8,6 +8,7 @@ using ERP.Identity.Infrastructure.Persistence;
 using ERP.Identity.Infrastructure.Repositories;
 using ERP.Identity.Infrastructure.Services;
 using ERP.Shared.Extensions;
+using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -24,6 +25,9 @@ builder.AddSerilogLogging("IdentityService");
 // Database
 builder.Services.AddDbContext<AuthDbContext>(opt =>
     opt.UseSqlServer(builder.Configuration.GetConnectionString("AuthDB")));
+
+// Settings read-through cache (Memory by default; set Cache:Type=Redis to switch)
+builder.Services.AddCacheService(builder.Configuration, "identity");
 
 // DI
 try

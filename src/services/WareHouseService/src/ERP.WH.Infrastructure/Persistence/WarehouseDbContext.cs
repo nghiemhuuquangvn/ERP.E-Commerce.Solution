@@ -3,6 +3,7 @@ using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Aggregates.Transfers;
 using ERP.WH.Domain.Aggregates.Stocktakes;
 using ERP.WH.Domain.Settings;
+using ERP.Shared.Messaging;
 
 namespace ERP.WH.Infrastructure.Persistence;
 
@@ -18,6 +19,13 @@ public class WarehouseDbContext : DbContext
     public DbSet<Stocktake> Stocktakes { get; set; }
     public DbSet<SystemInventorySettings> SystemInventorySettings { get; set; }
     public DbSet<TenantInventorySettings> TenantInventorySettings { get; set; }
+
+    /// <summary>
+    /// Isolated Outbox table used only for the new Settings-changed Kafka publish path
+    /// (SettingsOutboxProcessor / KafkaSettingsEventPublisher). Unrelated to
+    /// IEventPublisher/EventPublisher's RabbitMQ warehouse_exchange flow.
+    /// </summary>
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public WarehouseDbContext(DbContextOptions<WarehouseDbContext> options) : base(options)
     {
@@ -187,6 +195,20 @@ public class WarehouseDbContext : DbContext
             entity.ToTable("TenantInventorySettings");
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.TenantId).IsUnique();
+        });
+
+        modelBuilder.Entity<OutboxMessage>(entity =>
+        {
+            entity.ToTable("OutboxMessages");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Type).IsRequired();
+            entity.Property(e => e.Content).IsRequired();
+            entity.Property(e => e.OccurredOnUtc).IsRequired();
+
+            // Index for pending messages (used by SettingsOutboxProcessor)
+            entity.HasIndex(e => e.ProcessedOnUtc)
+                .HasDatabaseName("IX_OutboxMessages_ProcessedOnUtc_Pending")
+                .HasFilter("[ProcessedOnUtc] IS NULL");
         });
     }
 }

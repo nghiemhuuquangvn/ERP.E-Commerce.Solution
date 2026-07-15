@@ -2,8 +2,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using RabbitMQ.Client;
+using Confluent.Kafka;
 using ERP.WH.Infrastructure.Persistence;
 using ERP.WH.Infrastructure.EventBus;
+using ERP.WH.Infrastructure.MessageBus;
+using ERP.WH.Infrastructure.BackgroundJobs;
 using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Application.Commands.Locations;
 using ERP.WH.Application.Commands.Transfers;
@@ -70,6 +73,20 @@ public static class DependencyInjection
         // fired (if anything had ever published it, which nothing did) on PO
         // *creation* rather than actual receipt, and wrote to a no-op stub repository.
         services.AddHostedService<PurchaseOrderReceivedConsumer>();
+
+        // --- Settings-changed Kafka publish path (isolated from IEventPublisher/EventPublisher
+        // RabbitMQ warehouse_exchange flow used by inventory command handlers) ---
+        services.AddSingleton<IProducer<string, string>>(_ =>
+        {
+            var producerConfig = new ProducerConfig
+            {
+                BootstrapServers = configuration["KafkaSettings:BootstrapServers"] ?? "localhost:9092",
+                Acks = Acks.All
+            };
+            return new ProducerBuilder<string, string>(producerConfig).Build();
+        });
+        services.AddScoped<ISettingsEventPublisher, KafkaSettingsEventPublisher>();
+        services.AddHostedService<SettingsOutboxProcessor>();
 
         return services;
     }

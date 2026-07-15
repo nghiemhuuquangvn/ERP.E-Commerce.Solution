@@ -2,7 +2,11 @@ using ERP.SHP.Application.DTOs.Settings;
 using ERP.SHP.Application.Interfaces;
 using ERP.SHP.Domain.Entities.Settings;
 using ERP.SHP.Infrastructure.Persistence;
+using ERP.Shared.Contracts;
+using ERP.Shared.Infrastructure.Caching;
+using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace ERP.SHP.Infrastructure.Services;
 
@@ -14,40 +18,63 @@ namespace ERP.SHP.Infrastructure.Services;
 /// </summary>
 public class ShippingSettingsService : IShippingSettingsService
 {
-    private readonly ShippingDbContext _dbContext;
+    private const string SystemCacheKey = "settings:shipping:shipping:system";
 
-    public ShippingSettingsService(ShippingDbContext dbContext)
+    private readonly ShippingDbContext _dbContext;
+    private readonly ICacheService _cache;
+
+    public ShippingSettingsService(ShippingDbContext dbContext, ICacheService cache)
     {
         _dbContext = dbContext;
+        _cache = cache;
     }
 
-    public async Task<SystemShippingSettingsDto> GetSystemSettingsAsync(CancellationToken ct)
+    public Task<SystemShippingSettingsDto> GetSystemSettingsAsync(CancellationToken ct)
     {
-        var settings = await GetOrCreateSystemAsync(ct);
-        await _dbContext.SaveChangesAsync(ct);
-        return new(settings.CustomCarriersAllowed);
+        return _cache.GetOrSetAsync(SystemCacheKey, async () =>
+        {
+            var settings = await GetOrCreateSystemAsync(ct);
+            await _dbContext.SaveChangesAsync(ct);
+            return new SystemShippingSettingsDto(settings.CustomCarriersAllowed);
+        }, TimeSpan.FromMinutes(15), ct);
     }
 
     public async Task<SystemShippingSettingsDto> UpdateSystemSettingsAsync(UpdateSystemShippingSettingsRequest request, CancellationToken ct)
     {
         var settings = await GetOrCreateSystemAsync(ct);
         settings.Update(request.CustomCarriersAllowed);
+
+        var @event = new SettingsChangedIntegrationEvent { ServiceName = "ShippingService", Category = "Shipping", Scope = "System", TenantId = null };
+        var content = JsonConvert.SerializeObject(@event, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
+        _dbContext.OutboxMessages.Add(new OutboxMessage(nameof(SettingsChangedIntegrationEvent), content));
+
         await _dbContext.SaveChangesAsync(ct);
+        await _cache.RemoveAsync(SystemCacheKey, ct);
         return new(settings.CustomCarriersAllowed);
     }
 
-    public async Task<TenantShippingSettingsDto> GetTenantSettingsAsync(Guid tenantId, CancellationToken ct)
+    public Task<TenantShippingSettingsDto> GetTenantSettingsAsync(Guid tenantId, CancellationToken ct)
     {
-        var settings = await GetOrCreateTenantAsync(tenantId, ct);
-        await _dbContext.SaveChangesAsync(ct);
-        return new(settings.TenantId, settings.DefaultShippingFee, settings.FreeShippingThreshold);
+        var cacheKey = $"settings:shipping:shipping:tenant:{tenantId}";
+        return _cache.GetOrSetAsync(cacheKey, async () =>
+        {
+            var settings = await GetOrCreateTenantAsync(tenantId, ct);
+            await _dbContext.SaveChangesAsync(ct);
+            return new TenantShippingSettingsDto(settings.TenantId, settings.DefaultShippingFee, settings.FreeShippingThreshold);
+        }, TimeSpan.FromMinutes(15), ct);
     }
 
     public async Task<TenantShippingSettingsDto> UpdateTenantSettingsAsync(Guid tenantId, UpdateTenantShippingSettingsRequest request, CancellationToken ct)
     {
         var settings = await GetOrCreateTenantAsync(tenantId, ct);
         settings.Update(request.DefaultShippingFee, request.FreeShippingThreshold);
+
+        var @event = new SettingsChangedIntegrationEvent { ServiceName = "ShippingService", Category = "Shipping", Scope = "Tenant", TenantId = tenantId };
+        var content = JsonConvert.SerializeObject(@event, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
+        _dbContext.OutboxMessages.Add(new OutboxMessage(nameof(SettingsChangedIntegrationEvent), content));
+
         await _dbContext.SaveChangesAsync(ct);
+        await _cache.RemoveAsync($"settings:shipping:shipping:tenant:{tenantId}", ct);
         return new(settings.TenantId, settings.DefaultShippingFee, settings.FreeShippingThreshold);
     }
 

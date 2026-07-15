@@ -2,7 +2,10 @@ using ERP.Identity.Application.DTOs.Settings;
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Domain.Entities;
+using ERP.Shared.Contracts;
+using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Infrastructure.Exceptions;
+using Newtonsoft.Json;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,17 +15,25 @@ namespace ERP.Identity.Infrastructure.Services
     public class SettingsService : ISettingsService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ICacheService _cache;
+        private const string ServiceName = "IdentityService";
+        private const string Category = "Auth";
+        private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(15);
 
-        public SettingsService(IUnitOfWork unitOfWork)
+        public SettingsService(IUnitOfWork unitOfWork, ICacheService cache)
         {
             _unitOfWork = unitOfWork;
+            _cache = cache;
         }
 
-        public async Task<SystemAuthSettingsDto> GetSystemSettingsAsync(CancellationToken ct)
+        public Task<SystemAuthSettingsDto> GetSystemSettingsAsync(CancellationToken ct)
         {
-            var settings = await GetOrCreateSystemSettingsEntityAsync(ct);
-            await _unitOfWork.SaveChangesAsync(ct);
-            return ToDto(settings);
+            return _cache.GetOrSetAsync(SystemCacheKey, async () =>
+            {
+                var settings = await GetOrCreateSystemSettingsEntityAsync(ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+                return ToDto(settings);
+            }, CacheTtl, ct);
         }
 
         public async Task<SystemAuthSettingsDto> UpdateSystemSettingsAsync(UpdateSystemAuthSettingsRequest request, CancellationToken ct)
@@ -32,15 +43,20 @@ namespace ERP.Identity.Infrastructure.Services
                 request.MinPasswordLength, request.RequireUppercase, request.RequireLowercase, request.RequireDigit, request.RequireSymbol,
                 request.MaxLoginAttempts, request.LockoutDurationMinutes, request.SessionTimeoutMinutes);
             await _unitOfWork.SystemAuthSettings.UpdateAsync(settings, ct);
+            await AddSettingsChangedOutboxMessageAsync("System", null, ct);
             await _unitOfWork.SaveChangesAsync(ct);
+            await _cache.RemoveAsync(SystemCacheKey, ct);
             return ToDto(settings);
         }
 
-        public async Task<TenantAuthSettingsDto> GetTenantSettingsAsync(Guid tenantId, CancellationToken ct)
+        public Task<TenantAuthSettingsDto> GetTenantSettingsAsync(Guid tenantId, CancellationToken ct)
         {
-            var settings = await GetOrCreateTenantSettingsEntityAsync(tenantId, ct);
-            await _unitOfWork.SaveChangesAsync(ct);
-            return ToDto(settings);
+            return _cache.GetOrSetAsync(TenantCacheKey(tenantId), async () =>
+            {
+                var settings = await GetOrCreateTenantSettingsEntityAsync(tenantId, ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+                return ToDto(settings);
+            }, CacheTtl, ct);
         }
 
         public async Task<TenantAuthSettingsDto> UpdateTenantSettingsAsync(Guid tenantId, UpdateTenantAuthSettingsRequest request, CancellationToken ct)
@@ -53,7 +69,9 @@ namespace ERP.Identity.Infrastructure.Services
                 request.MinPasswordLength, request.RequireUppercase, request.RequireLowercase, request.RequireDigit, request.RequireSymbol,
                 request.MaxLoginAttempts, request.LockoutDurationMinutes, request.SessionTimeoutMinutes);
             await _unitOfWork.TenantAuthSettings.UpdateAsync(settings, ct);
+            await AddSettingsChangedOutboxMessageAsync("Tenant", tenantId, ct);
             await _unitOfWork.SaveChangesAsync(ct);
+            await _cache.RemoveAsync(TenantCacheKey(tenantId), ct);
             return ToDto(settings);
         }
 
@@ -171,5 +189,22 @@ namespace ERP.Identity.Infrastructure.Services
             new(s.TenantId, s.GoogleEnabled, s.MicrosoftEnabled, s.FacebookEnabled, s.TwitterEnabled, s.TwoFactorEnabled, s.TwoFactorRequired,
                 s.MinPasswordLength, s.RequireUppercase, s.RequireLowercase, s.RequireDigit, s.RequireSymbol,
                 s.MaxLoginAttempts, s.LockoutDurationMinutes, s.SessionTimeoutMinutes);
+
+        private async Task AddSettingsChangedOutboxMessageAsync(string scope, Guid? tenantId, CancellationToken ct)
+        {
+            var @event = new SettingsChangedIntegrationEvent { ServiceName = ServiceName, Category = Category, Scope = scope, TenantId = tenantId };
+            var content = JsonConvert.SerializeObject(@event, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
+            var outboxMessage = new OutboxMessage
+            {
+                Id = Guid.NewGuid(),
+                OccurredOnUtc = DateTime.UtcNow,
+                Type = nameof(SettingsChangedIntegrationEvent),
+                Content = content
+            };
+            await _unitOfWork.OutboxMessages.AddAsync(outboxMessage, ct);
+        }
+
+        private static string SystemCacheKey => "settings:identity:auth:system";
+        private static string TenantCacheKey(Guid tenantId) => $"settings:identity:auth:tenant:{tenantId}";
     }
 }

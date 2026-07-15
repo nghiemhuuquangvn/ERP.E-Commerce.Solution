@@ -1,3 +1,4 @@
+using Confluent.Kafka;
 using ERP.Shared.Authorization;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
@@ -9,8 +10,10 @@ using ERP.SO.Application.Interfaces;
 using ERP.SO.Application.Sagas;
 using ERP.SO.Application.Validators;
 using ERP.SO.Infrastructure;
+using ERP.SO.Infrastructure.BackgroundJobs;
 using ERP.SO.Infrastructure.EventBus;
 using ERP.SO.Infrastructure.ExternalServices;
+using ERP.SO.Infrastructure.MessageBus;
 using ERP.SO.Infrastructure.Repositories;
 using ERP.SO.Infrastructure.Sagas;
 using ERP.SO.Infrastructure.Services;
@@ -56,6 +59,31 @@ builder.Services.AddHttpClient<IPromotionServiceClient, PromotionServiceClient>(
 // previously impossible, since that event didn't exist in ProductService until
 // 2026-07-03 (docs/business section 3.2).
 builder.Services.AddHostedService<ProductPriceChangedConsumer>();
+
+// Forward-compatible plumbing: invalidates cached Currency Settings when
+// SharedMasterDataService publishes a SettingsChangedIntegrationEvent on its "mst-topic".
+// Distinct consumer group id so it doesn't compete for offsets with the other consumers'
+// "sales-order-service-consumer" group. No visible effect yet — SaleOrderService doesn't
+// fetch/cache Currency Settings anywhere today.
+builder.Services.AddHostedService<CurrencySettingsConsumer>();
+
+// Isolated Settings-changed Kafka publish path (Outbox -> "sale-order-settings-topic").
+// Entirely separate from IMessageBus/RabbitMqMessageBus and the "sales_order_events"
+// exchange used by the order-fulfillment saga — this is the first time SaleOrderService
+// produces to Kafka, so its own IProducer<string,string> singleton is registered here
+// (the existing Kafka consumers above only ever consumed, never produced).
+var settingsKafkaSettings = builder.Configuration.GetSection("KafkaSettings");
+var settingsBootstrapServers = settingsKafkaSettings.GetValue<string>("BootstrapServers") ?? "localhost:9092";
+var settingsProducerConfig = new ProducerConfig
+{
+    BootstrapServers = settingsBootstrapServers,
+    Acks = Acks.All,
+    RetryBackoffMs = settingsKafkaSettings.GetValue<int>("RetryBackoffMs", 100),
+    MessageTimeoutMs = settingsKafkaSettings.GetValue<int>("MessageTimeoutMs", 30000)
+};
+builder.Services.AddSingleton(new ProducerBuilder<string, string>(settingsProducerConfig).Build());
+builder.Services.AddScoped<ISettingsEventPublisher, KafkaSettingsEventPublisher>();
+builder.Services.AddHostedService<SettingsOutboxProcessor>();
 
 // RabbitMQ connection — shared single connection, matching the topic exchange model
 // PaymentService/WarehouseService/ShippingService's consumers already use. SO didn't

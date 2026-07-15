@@ -3,12 +3,14 @@ using ERP.NTF.Application.Handlers;
 using ERP.NTF.Application.Interfaces;
 using ERP.NTF.Application.Validators;
 using ERP.NTF.Infrastructure.BackgroundJobs;
+using ERP.NTF.Infrastructure.MessageBus;
 using ERP.NTF.Infrastructure.Persistence;
 using ERP.NTF.Infrastructure.Repositories;
 using ERP.NTF.Infrastructure.Services;
 using ERP.Shared.Authorization;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
+using ERP.Shared.Messaging;
 using ERP.Shared.Security;
 using FluentValidation;
 using MediatR;
@@ -77,12 +79,19 @@ builder.Services.AddSingleton<IConnection>(_ =>
     return factory.CreateConnection();
 });
 
-// Kafka producer config (for potential future Outbox)
-builder.Services.AddSingleton(new ProducerConfig
+// Kafka producer config (consumers use this same config's BootstrapServers value)
+var kafkaProducerConfig = new ProducerConfig
 {
     BootstrapServers = builder.Configuration["KafkaSettings:BootstrapServers"] ?? "localhost:9092",
+    Acks = Acks.All,
     AllowAutoCreateTopics = true
-});
+};
+builder.Services.AddSingleton(kafkaProducerConfig);
+
+// Kafka producer + Outbox pattern — publishes to "notification-topic" (e.g. SettingsChangedIntegrationEvent)
+builder.Services.AddSingleton(new ProducerBuilder<string, string>(kafkaProducerConfig).Build());
+builder.Services.AddScoped<IMessageBus, KafkaMessageBus>();
+builder.Services.AddHostedService<OutboxProcessor>();
 
 // Background consumers
 builder.Services.AddHostedService<NotificationDispatchJob>();

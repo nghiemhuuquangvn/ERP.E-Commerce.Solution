@@ -19,6 +19,12 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
   Admin app's SharedMasterDataService CRUD pages (Departments, Positions, Employees,
   Units of Measure, Geography, Languages), for adding a new master-data entity page
   without re-deriving the shape from scratch.
+- [settings-admin-guide.md](settings-admin-guide.md) — all 22 Settings categories
+  (General, Company, Auth & Security, Notification/Email/SMS, Store/Product,
+  Cart/Checkout, Order, Inventory, Payment, Shipping, Tax, Currency, Localization,
+  File Storage, Scheduler, Integration, API, Feature Flags, Audit, Advanced): how to
+  use each page in the Admin app, and how to add a new category following the same
+  System/Tenant pattern. Business analysis: `docs/business/Settings/SettingsOverview.md`.
 
 ## Auth: login, 2FA, SSO, and settings (Admin app)
 
@@ -39,7 +45,8 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
   System/Tenant toggle-style settings page (as opposed to master-data CRUD — see
   `masterdata-admin-guide.md` for that different pattern): two tabs, each gated by
   its own `settings:{scope}:view`/`:manage` permission pair, read-only render when
-  the caller only has `:view`.
+  the caller only has `:view`. See [settings-admin-guide.md](settings-admin-guide.md)
+  for the full 22-category reference and the checklist for adding a new one.
 - SSO client libraries: `@react-oauth/google` (Google), `@azure/msal-browser` +
   `@azure/msal-react` (Microsoft), the Facebook JS SDK loaded via a script tag
   (`src/lib/facebookSdk.ts`, no npm package), and a plain redirect for Twitter/X (no

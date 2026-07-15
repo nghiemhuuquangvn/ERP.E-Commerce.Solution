@@ -2,7 +2,11 @@ using ERP.ACC.Application.DTOs.Settings;
 using ERP.ACC.Application.Interfaces;
 using ERP.ACC.Domain.Entities.Settings;
 using ERP.ACC.Infrastructure.Persistence;
+using ERP.Shared.Contracts;
+using ERP.Shared.Infrastructure.Caching;
+using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace ERP.ACC.Infrastructure.Services;
 
@@ -15,40 +19,63 @@ namespace ERP.ACC.Infrastructure.Services;
 /// </summary>
 public class TaxSettingsService : ITaxSettingsService
 {
-    private readonly AccountingDbContext _dbContext;
+    private const string SystemCacheKey = "settings:accounting:tax:system";
 
-    public TaxSettingsService(AccountingDbContext dbContext)
+    private readonly AccountingDbContext _dbContext;
+    private readonly ICacheService _cache;
+
+    public TaxSettingsService(AccountingDbContext dbContext, ICacheService cache)
     {
         _dbContext = dbContext;
+        _cache = cache;
     }
 
-    public async Task<SystemTaxSettingsDto> GetSystemSettingsAsync(CancellationToken ct)
+    public Task<SystemTaxSettingsDto> GetSystemSettingsAsync(CancellationToken ct)
     {
-        var settings = await GetOrCreateSystemAsync(ct);
-        await _dbContext.SaveChangesAsync(ct);
-        return new(settings.RegionalTaxConfigAllowed);
+        return _cache.GetOrSetAsync(SystemCacheKey, async () =>
+        {
+            var settings = await GetOrCreateSystemAsync(ct);
+            await _dbContext.SaveChangesAsync(ct);
+            return new SystemTaxSettingsDto(settings.RegionalTaxConfigAllowed);
+        }, TimeSpan.FromMinutes(15), ct);
     }
 
     public async Task<SystemTaxSettingsDto> UpdateSystemSettingsAsync(UpdateSystemTaxSettingsRequest request, CancellationToken ct)
     {
         var settings = await GetOrCreateSystemAsync(ct);
         settings.Update(request.RegionalTaxConfigAllowed);
+
+        var @event = new SettingsChangedIntegrationEvent { ServiceName = "AccountingService", Category = "Tax", Scope = "System", TenantId = null };
+        var content = JsonConvert.SerializeObject(@event, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
+        _dbContext.OutboxMessages.Add(new OutboxMessage(nameof(SettingsChangedIntegrationEvent), content));
+
         await _dbContext.SaveChangesAsync(ct);
+        await _cache.RemoveAsync(SystemCacheKey, ct);
         return new(settings.RegionalTaxConfigAllowed);
     }
 
-    public async Task<TenantTaxSettingsDto> GetTenantSettingsAsync(Guid tenantId, CancellationToken ct)
+    public Task<TenantTaxSettingsDto> GetTenantSettingsAsync(Guid tenantId, CancellationToken ct)
     {
-        var settings = await GetOrCreateTenantAsync(tenantId, ct);
-        await _dbContext.SaveChangesAsync(ct);
-        return new(settings.TenantId, settings.CompanyTaxCode, settings.DefaultTaxRatePercent, settings.PricesIncludeTax);
+        var cacheKey = $"settings:accounting:tax:tenant:{tenantId}";
+        return _cache.GetOrSetAsync(cacheKey, async () =>
+        {
+            var settings = await GetOrCreateTenantAsync(tenantId, ct);
+            await _dbContext.SaveChangesAsync(ct);
+            return new TenantTaxSettingsDto(settings.TenantId, settings.CompanyTaxCode, settings.DefaultTaxRatePercent, settings.PricesIncludeTax);
+        }, TimeSpan.FromMinutes(15), ct);
     }
 
     public async Task<TenantTaxSettingsDto> UpdateTenantSettingsAsync(Guid tenantId, UpdateTenantTaxSettingsRequest request, CancellationToken ct)
     {
         var settings = await GetOrCreateTenantAsync(tenantId, ct);
         settings.Update(request.CompanyTaxCode, request.DefaultTaxRatePercent, request.PricesIncludeTax);
+
+        var @event = new SettingsChangedIntegrationEvent { ServiceName = "AccountingService", Category = "Tax", Scope = "Tenant", TenantId = tenantId };
+        var content = JsonConvert.SerializeObject(@event, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
+        _dbContext.OutboxMessages.Add(new OutboxMessage(nameof(SettingsChangedIntegrationEvent), content));
+
         await _dbContext.SaveChangesAsync(ct);
+        await _cache.RemoveAsync($"settings:accounting:tax:tenant:{tenantId}", ct);
         return new(settings.TenantId, settings.CompanyTaxCode, settings.DefaultTaxRatePercent, settings.PricesIncludeTax);
     }
 

@@ -1,6 +1,7 @@
 using ERP.SO.Domain.Entities;
 using ERP.SO.Domain.Entities.Settings;
 using ERP.SO.Domain.Sagas;
+using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 
 namespace ERP.SO.Infrastructure
@@ -16,6 +17,13 @@ namespace ERP.SO.Infrastructure
         public DbSet<TenantCartCheckoutSettings> TenantCartCheckoutSettings { get; set; } = null!;
         public DbSet<SystemOrderSettings> SystemOrderSettings { get; set; } = null!;
         public DbSet<TenantOrderSettings> TenantOrderSettings { get; set; } = null!;
+
+        /// <summary>
+        /// Outbox for the isolated Settings-changed Kafka publish path
+        /// (<see cref="ERP.SO.Infrastructure.BackgroundJobs.SettingsOutboxProcessor"/>).
+        /// Distinct from, and does not affect, the RabbitMQ order-fulfillment event flow.
+        /// </summary>
+        public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -134,6 +142,19 @@ namespace ERP.SO.Infrastructure
                 eb.HasKey(e => e.Id);
                 eb.Property(e => e.OrderNumberPrefix).HasMaxLength(20);
                 eb.HasIndex(e => e.TenantId).IsUnique();
+            });
+
+            // Outbox table configuration (Settings-changed Kafka publish path only)
+            modelBuilder.Entity<OutboxMessage>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Type).IsRequired();
+                entity.Property(e => e.Content).IsRequired();
+                entity.Property(e => e.OccurredOnUtc).IsRequired();
+
+                entity.HasIndex(e => e.ProcessedOnUtc)
+                    .HasDatabaseName("IX_OutboxMessages_ProcessedOnUtc_Pending")
+                    .HasFilter("[ProcessedOnUtc] IS NULL");
             });
         }
     }

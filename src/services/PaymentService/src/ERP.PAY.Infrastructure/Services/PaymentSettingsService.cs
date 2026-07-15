@@ -2,8 +2,12 @@ using ERP.PAY.Application.DTOs.Settings;
 using ERP.PAY.Application.Interfaces;
 using ERP.PAY.Domain.Entities.Settings;
 using ERP.PAY.Infrastructure.Persistence;
+using ERP.Shared.Contracts;
+using ERP.Shared.Infrastructure.Caching;
+using ERP.Shared.Messaging;
 using ERP.Shared.Security;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace ERP.PAY.Infrastructure.Services;
 
@@ -16,35 +20,52 @@ namespace ERP.PAY.Infrastructure.Services;
 /// </summary>
 public class PaymentSettingsService : IPaymentSettingsService
 {
+    private const string SystemCacheKey = "settings:payment:payment:system";
+
     private readonly PaymentDbContext _dbContext;
     private readonly ISecretProtector _secretProtector;
+    private readonly ICacheService _cache;
 
-    public PaymentSettingsService(PaymentDbContext dbContext, ISecretProtector secretProtector)
+    public PaymentSettingsService(PaymentDbContext dbContext, ISecretProtector secretProtector, ICacheService cache)
     {
         _dbContext = dbContext;
         _secretProtector = secretProtector;
+        _cache = cache;
     }
 
-    public async Task<SystemPaymentSettingsDto> GetSystemSettingsAsync(CancellationToken ct)
+    public Task<SystemPaymentSettingsDto> GetSystemSettingsAsync(CancellationToken ct)
     {
-        var settings = await GetOrCreateSystemAsync(ct);
-        await _dbContext.SaveChangesAsync(ct);
-        return new(settings.VnPayAvailable, settings.ManualBankTransferAvailable);
+        return _cache.GetOrSetAsync(SystemCacheKey, async () =>
+        {
+            var settings = await GetOrCreateSystemAsync(ct);
+            await _dbContext.SaveChangesAsync(ct);
+            return new SystemPaymentSettingsDto(settings.VnPayAvailable, settings.ManualBankTransferAvailable);
+        }, TimeSpan.FromMinutes(15), ct);
     }
 
     public async Task<SystemPaymentSettingsDto> UpdateSystemSettingsAsync(UpdateSystemPaymentSettingsRequest request, CancellationToken ct)
     {
         var settings = await GetOrCreateSystemAsync(ct);
         settings.Update(request.VnPayAvailable, request.ManualBankTransferAvailable);
+
+        var @event = new SettingsChangedIntegrationEvent { ServiceName = "PaymentService", Category = "Payment", Scope = "System", TenantId = null };
+        var content = JsonConvert.SerializeObject(@event, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
+        _dbContext.OutboxMessages.Add(new OutboxMessage(nameof(SettingsChangedIntegrationEvent), content));
+
         await _dbContext.SaveChangesAsync(ct);
+        await _cache.RemoveAsync(SystemCacheKey, ct);
         return new(settings.VnPayAvailable, settings.ManualBankTransferAvailable);
     }
 
-    public async Task<TenantPaymentSettingsDto> GetTenantSettingsAsync(Guid tenantId, CancellationToken ct)
+    public Task<TenantPaymentSettingsDto> GetTenantSettingsAsync(Guid tenantId, CancellationToken ct)
     {
-        var settings = await GetOrCreateTenantAsync(tenantId, ct);
-        await _dbContext.SaveChangesAsync(ct);
-        return ToDto(settings);
+        var cacheKey = $"settings:payment:payment:tenant:{tenantId}";
+        return _cache.GetOrSetAsync(cacheKey, async () =>
+        {
+            var settings = await GetOrCreateTenantAsync(tenantId, ct);
+            await _dbContext.SaveChangesAsync(ct);
+            return ToDto(settings);
+        }, TimeSpan.FromMinutes(15), ct);
     }
 
     public async Task<TenantPaymentSettingsDto> UpdateTenantSettingsAsync(Guid tenantId, UpdateTenantPaymentSettingsRequest request, CancellationToken ct)
@@ -52,7 +73,13 @@ public class PaymentSettingsService : IPaymentSettingsService
         var settings = await GetOrCreateTenantAsync(tenantId, ct);
         var encryptedKey = string.IsNullOrEmpty(request.VnPaySecretKey) ? null : _secretProtector.Protect(request.VnPaySecretKey);
         settings.Update(request.VnPayEnabled, encryptedKey, request.SandboxMode);
+
+        var @event = new SettingsChangedIntegrationEvent { ServiceName = "PaymentService", Category = "Payment", Scope = "Tenant", TenantId = tenantId };
+        var content = JsonConvert.SerializeObject(@event, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
+        _dbContext.OutboxMessages.Add(new OutboxMessage(nameof(SettingsChangedIntegrationEvent), content));
+
         await _dbContext.SaveChangesAsync(ct);
+        await _cache.RemoveAsync($"settings:payment:payment:tenant:{tenantId}", ct);
         return ToDto(settings);
     }
 

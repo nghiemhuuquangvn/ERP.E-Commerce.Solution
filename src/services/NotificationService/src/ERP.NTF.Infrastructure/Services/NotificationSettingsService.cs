@@ -2,7 +2,11 @@ using ERP.NTF.Application.DTOs.Settings;
 using ERP.NTF.Application.Interfaces;
 using ERP.NTF.Domain.Entities.Settings;
 using ERP.NTF.Infrastructure.Persistence;
+using ERP.Shared.Contracts;
+using ERP.Shared.Infrastructure.Caching;
+using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace ERP.NTF.Infrastructure.Services;
 
@@ -14,39 +18,67 @@ namespace ERP.NTF.Infrastructure.Services;
 public class NotificationSettingsService : INotificationSettingsService
 {
     private readonly NotificationDbContext _dbContext;
+    private readonly ICacheService _cache;
 
-    public NotificationSettingsService(NotificationDbContext dbContext)
+    public NotificationSettingsService(NotificationDbContext dbContext, ICacheService cache)
     {
         _dbContext = dbContext;
+        _cache = cache;
     }
 
     public async Task<SystemNotificationSettingsDto> GetSystemSettingsAsync(CancellationToken ct)
     {
-        var settings = await GetOrCreateSystemAsync(ct);
-        await _dbContext.SaveChangesAsync(ct);
-        return new(settings.EmailChannelAvailable, settings.SmsChannelAvailable, settings.PushChannelAvailable);
+        const string cacheKey = "settings:notification:notification:system";
+        return await _cache.GetOrSetAsync(cacheKey, async () =>
+        {
+            var settings = await GetOrCreateSystemAsync(ct);
+            await _dbContext.SaveChangesAsync(ct);
+            return new SystemNotificationSettingsDto(settings.EmailChannelAvailable, settings.SmsChannelAvailable, settings.PushChannelAvailable);
+        }, TimeSpan.FromMinutes(15), ct);
     }
 
     public async Task<SystemNotificationSettingsDto> UpdateSystemSettingsAsync(UpdateSystemNotificationSettingsRequest request, CancellationToken ct)
     {
         var settings = await GetOrCreateSystemAsync(ct);
         settings.Update(request.EmailChannelAvailable, request.SmsChannelAvailable, request.PushChannelAvailable);
+
+        var @event = new SettingsChangedIntegrationEvent { ServiceName = "NotificationService", Category = "Notification", Scope = "System", TenantId = null };
+        var content = JsonConvert.SerializeObject(@event, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
+        _dbContext.OutboxMessages.Add(new OutboxMessage(nameof(SettingsChangedIntegrationEvent), content));
+
         await _dbContext.SaveChangesAsync(ct);
+
+        const string cacheKey = "settings:notification:notification:system";
+        await _cache.RemoveAsync(cacheKey, ct);
+
         return new(settings.EmailChannelAvailable, settings.SmsChannelAvailable, settings.PushChannelAvailable);
     }
 
     public async Task<TenantNotificationSettingsDto> GetTenantSettingsAsync(Guid tenantId, CancellationToken ct)
     {
-        var settings = await GetOrCreateTenantAsync(tenantId, ct);
-        await _dbContext.SaveChangesAsync(ct);
-        return new(settings.TenantId, settings.EmailEnabledByDefault, settings.SmsEnabledByDefault, settings.PushEnabledByDefault);
+        var cacheKey = $"settings:notification:notification:tenant:{tenantId}";
+        return await _cache.GetOrSetAsync(cacheKey, async () =>
+        {
+            var settings = await GetOrCreateTenantAsync(tenantId, ct);
+            await _dbContext.SaveChangesAsync(ct);
+            return new TenantNotificationSettingsDto(settings.TenantId, settings.EmailEnabledByDefault, settings.SmsEnabledByDefault, settings.PushEnabledByDefault);
+        }, TimeSpan.FromMinutes(15), ct);
     }
 
     public async Task<TenantNotificationSettingsDto> UpdateTenantSettingsAsync(Guid tenantId, UpdateTenantNotificationSettingsRequest request, CancellationToken ct)
     {
         var settings = await GetOrCreateTenantAsync(tenantId, ct);
         settings.Update(request.EmailEnabledByDefault, request.SmsEnabledByDefault, request.PushEnabledByDefault);
+
+        var @event = new SettingsChangedIntegrationEvent { ServiceName = "NotificationService", Category = "Notification", Scope = "Tenant", TenantId = tenantId };
+        var content = JsonConvert.SerializeObject(@event, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
+        _dbContext.OutboxMessages.Add(new OutboxMessage(nameof(SettingsChangedIntegrationEvent), content));
+
         await _dbContext.SaveChangesAsync(ct);
+
+        var cacheKey = $"settings:notification:notification:tenant:{tenantId}";
+        await _cache.RemoveAsync(cacheKey, ct);
+
         return new(settings.TenantId, settings.EmailEnabledByDefault, settings.SmsEnabledByDefault, settings.PushEnabledByDefault);
     }
 

@@ -113,6 +113,25 @@
 
 ### Cross-Cutting Concerns
 
+#### Platform Settings
+- **Location:** `docs/business/Settings/SettingsOverview.md`,
+  `docs/frontend/settings-admin-guide.md`
+- **Topics:** 22 System/Tenant two-tier Settings categories distributed across 9
+  services by owning domain (General/Company/Auth&Security/Workflow/Localization/
+  File Storage/Scheduler/Integration/API/Feature Flags/Audit/Advanced in
+  IdentityService; Notification/Email/SMS in NotificationService; Store-Product in
+  ProductService; Cart-Checkout/Order in SaleOrderService; Inventory in
+  WarehouseService; Payment in PaymentService; Shipping in ShippingService; Tax in
+  AccountingService; Currency in SharedMasterDataService). Storage+CRUD only — see
+  the overview doc's Known Limitations section for what is not yet wired to runtime
+  behavior.
+- **Workflows:** SuperAdmin sets a System-tier ceiling → Tenant Admin configures
+  their own Tenant-tier row → capability effective only when both agree
+  (`System.XEnabled && Tenant.XEnabled`)
+- **Entities:** `System{X}Settings`/`Tenant{X}Settings` per category (22 pairs, one
+  per category), plus `SystemFeatureFlag`/`TenantFeatureFlagOverride` (Feature Flags'
+  dynamic key-value shape)
+
 #### Notification & Communication
 - **Location:** `src/services/NotificationService/README.md`
 - **Topics:** Multi-channel notifications (email, SMS, push), notification templates, preference management, notification history

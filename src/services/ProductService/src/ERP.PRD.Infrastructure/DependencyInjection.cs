@@ -4,6 +4,7 @@ using ERP.PRD.Infrastructure.EventBus;
 using ERP.PRD.Infrastructure.Persistence;
 using ERP.PRD.Infrastructure.Repositories;
 using ERP.PRD.Infrastructure.Search;
+using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -46,6 +47,9 @@ namespace ERP.PRD.Infrastructure
 
             // Store/Product Settings (System/Tenant two-tier) — storage+CRUD only for now
             services.AddScoped<Application.Interfaces.Services.IStoreProductSettingsService, Services.StoreProductSettingsService>();
+
+            // Cache service (Memory by default, Redis when configured via Cache:Type)
+            services.AddCacheService(configuration, "product");
 
             // Register Kafka Message Bus
             var kafkaSettings = configuration.GetSection("KafkaSettings");
@@ -93,6 +97,12 @@ namespace ERP.PRD.Infrastructure
                 return factory.CreateConnection();
             });
             services.AddHostedService<WarehouseRabbitMqConsumer>();
+
+            // Kafka consumer for SharedMasterDataService's "mst-topic" — invalidates the
+            // Currency Settings cache entries when notified of a change. Forward-compatible
+            // plumbing: ProductService doesn't cache Currency Settings yet (see
+            // CurrencySettingsConsumer's doc comment).
+            services.AddHostedService<CurrencySettingsConsumer>();
 
             return services;
         }
