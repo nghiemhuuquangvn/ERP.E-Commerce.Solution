@@ -30,6 +30,24 @@ namespace ERP.Identity.Infrastructure.Persistence
         public DbSet<SystemGeneralSettings> SystemGeneralSettings => Set<SystemGeneralSettings>();
         public DbSet<TenantGeneralSettings> TenantGeneralSettings => Set<TenantGeneralSettings>();
         public DbSet<TenantCompanySettings> TenantCompanySettings => Set<TenantCompanySettings>();
+        public DbSet<SystemWorkflowSettings> SystemWorkflowSettings => Set<SystemWorkflowSettings>();
+        public DbSet<TenantWorkflowSettings> TenantWorkflowSettings => Set<TenantWorkflowSettings>();
+        public DbSet<SystemFileStorageSettings> SystemFileStorageSettings => Set<SystemFileStorageSettings>();
+        public DbSet<TenantFileStorageSettings> TenantFileStorageSettings => Set<TenantFileStorageSettings>();
+        public DbSet<SystemSchedulerSettings> SystemSchedulerSettings => Set<SystemSchedulerSettings>();
+        public DbSet<TenantSchedulerSettings> TenantSchedulerSettings => Set<TenantSchedulerSettings>();
+        public DbSet<SystemIntegrationSettings> SystemIntegrationSettings => Set<SystemIntegrationSettings>();
+        public DbSet<TenantIntegrationSettings> TenantIntegrationSettings => Set<TenantIntegrationSettings>();
+        public DbSet<SystemApiSettings> SystemApiSettings => Set<SystemApiSettings>();
+        public DbSet<TenantApiSettings> TenantApiSettings => Set<TenantApiSettings>();
+        public DbSet<SystemAuditSettings> SystemAuditSettings => Set<SystemAuditSettings>();
+        public DbSet<TenantAuditSettings> TenantAuditSettings => Set<TenantAuditSettings>();
+        public DbSet<SystemAdvancedSettings> SystemAdvancedSettings => Set<SystemAdvancedSettings>();
+        public DbSet<TenantAdvancedSettings> TenantAdvancedSettings => Set<TenantAdvancedSettings>();
+        public DbSet<SystemLocalizationSettings> SystemLocalizationSettings => Set<SystemLocalizationSettings>();
+        public DbSet<TenantLocalizationSettings> TenantLocalizationSettings => Set<TenantLocalizationSettings>();
+        public DbSet<SystemFeatureFlag> SystemFeatureFlags => Set<SystemFeatureFlag>();
+        public DbSet<TenantFeatureFlagOverride> TenantFeatureFlagOverrides => Set<TenantFeatureFlagOverride>();
         public DbSet<TwoFactorChallenge> TwoFactorChallenges => Set<TwoFactorChallenge>();
         public DbSet<OAuthState> OAuthStates => Set<OAuthState>();
         public DbSet<SecurityAuditLog> SecurityAuditLogs => Set<SecurityAuditLog>();
@@ -385,6 +403,137 @@ namespace ERP.Identity.Infrastructure.Persistence
                 entity.Property(s => s.LogoUrl).HasMaxLength(500);
                 entity.Property(s => s.Website).HasMaxLength(200);
                 entity.HasIndex(s => s.TenantId).IsUnique();
+            });
+
+            modelBuilder.Entity<SystemWorkflowSettings>(entity =>
+            {
+                entity.ToTable("SystemWorkflowSettings");
+                entity.HasKey(s => s.Id);
+            });
+
+            modelBuilder.Entity<TenantWorkflowSettings>(entity =>
+            {
+                entity.ToTable("TenantWorkflowSettings");
+                entity.HasKey(s => s.Id);
+                entity.Property(s => s.AutoApproveThresholdAmount).HasColumnType("decimal(18,2)");
+                entity.HasIndex(s => s.TenantId).IsUnique();
+            });
+
+            modelBuilder.Entity<SystemFileStorageSettings>(entity =>
+            {
+                entity.ToTable("SystemFileStorageSettings");
+                entity.HasKey(s => s.Id);
+            });
+
+            modelBuilder.Entity<TenantFileStorageSettings>(entity =>
+            {
+                entity.ToTable("TenantFileStorageSettings");
+                entity.HasKey(s => s.Id);
+                entity.Property(s => s.Provider).IsRequired().HasMaxLength(50);
+                entity.Property(s => s.CdnBaseUrl).HasMaxLength(500);
+                entity.HasIndex(s => s.TenantId).IsUnique();
+            });
+
+            modelBuilder.Entity<SystemSchedulerSettings>(entity =>
+            {
+                entity.ToTable("SystemSchedulerSettings");
+                entity.HasKey(s => s.Id);
+            });
+
+            modelBuilder.Entity<TenantSchedulerSettings>(entity =>
+            {
+                entity.ToTable("TenantSchedulerSettings");
+                entity.HasKey(s => s.Id);
+                entity.HasIndex(s => s.TenantId).IsUnique();
+            });
+
+            modelBuilder.Entity<SystemIntegrationSettings>(entity =>
+            {
+                entity.ToTable("SystemIntegrationSettings");
+                entity.HasKey(s => s.Id);
+            });
+
+            modelBuilder.Entity<TenantIntegrationSettings>(entity =>
+            {
+                entity.ToTable("TenantIntegrationSettings");
+                entity.HasKey(s => s.Id);
+                entity.Property(s => s.ExternalApiBaseUrl).HasMaxLength(500);
+                entity.Property(s => s.ExternalApiKeyEncrypted).HasMaxLength(500);
+                entity.HasIndex(s => s.TenantId).IsUnique();
+            });
+
+            modelBuilder.Entity<SystemApiSettings>(entity =>
+            {
+                entity.ToTable("SystemApiSettings");
+                entity.HasKey(s => s.Id);
+            });
+
+            modelBuilder.Entity<TenantApiSettings>(entity =>
+            {
+                entity.ToTable("TenantApiSettings");
+                entity.HasKey(s => s.Id);
+                entity.HasIndex(s => s.TenantId).IsUnique();
+            });
+
+            modelBuilder.Entity<SystemAuditSettings>(entity =>
+            {
+                entity.ToTable("SystemAuditSettings");
+                entity.HasKey(s => s.Id);
+            });
+
+            modelBuilder.Entity<TenantAuditSettings>(entity =>
+            {
+                entity.ToTable("TenantAuditSettings");
+                entity.HasKey(s => s.Id);
+                entity.HasIndex(s => s.TenantId).IsUnique();
+            });
+
+            modelBuilder.Entity<SystemAdvancedSettings>(entity =>
+            {
+                entity.ToTable("SystemAdvancedSettings");
+                entity.HasKey(s => s.Id);
+            });
+
+            modelBuilder.Entity<TenantAdvancedSettings>(entity =>
+            {
+                entity.ToTable("TenantAdvancedSettings");
+                entity.HasKey(s => s.Id);
+                entity.Property(s => s.CustomCssUrl).HasMaxLength(500);
+                entity.HasIndex(s => s.TenantId).IsUnique();
+            });
+
+            modelBuilder.Entity<SystemLocalizationSettings>(entity =>
+            {
+                entity.ToTable("SystemLocalizationSettings");
+                entity.HasKey(s => s.Id);
+                entity.Property(s => s.DefaultLocale).IsRequired().HasMaxLength(20);
+            });
+
+            modelBuilder.Entity<TenantLocalizationSettings>(entity =>
+            {
+                entity.ToTable("TenantLocalizationSettings");
+                entity.HasKey(s => s.Id);
+                entity.Property(s => s.DefaultLocale).IsRequired().HasMaxLength(20);
+                entity.Property(s => s.SupportedLocales).IsRequired().HasMaxLength(500);
+                entity.Property(s => s.NumberFormatLocale).IsRequired().HasMaxLength(20);
+                entity.HasIndex(s => s.TenantId).IsUnique();
+            });
+
+            modelBuilder.Entity<SystemFeatureFlag>(entity =>
+            {
+                entity.ToTable("SystemFeatureFlags");
+                entity.HasKey(f => f.Id);
+                entity.Property(f => f.Key).IsRequired().HasMaxLength(200);
+                entity.Property(f => f.Description).HasMaxLength(500);
+                entity.HasIndex(f => f.Key).IsUnique();
+            });
+
+            modelBuilder.Entity<TenantFeatureFlagOverride>(entity =>
+            {
+                entity.ToTable("TenantFeatureFlagOverrides");
+                entity.HasKey(f => f.Id);
+                entity.Property(f => f.Key).IsRequired().HasMaxLength(200);
+                entity.HasIndex(f => new { f.TenantId, f.Key }).IsUnique();
             });
 
             modelBuilder.Entity<TwoFactorChallenge>(entity =>

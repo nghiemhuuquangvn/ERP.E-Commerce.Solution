@@ -25,6 +25,15 @@ import { CompanySettingsPage } from '@/pages/settings/CompanySettingsPage'
 import { NotificationSettingsPage } from '@/pages/settings/NotificationSettingsPage'
 import { EmailSettingsPage } from '@/pages/settings/EmailSettingsPage'
 import { SmsSettingsPage } from '@/pages/settings/SmsSettingsPage'
+import { WorkflowSettingsPage } from '@/pages/settings/WorkflowSettingsPage'
+import { FileStorageSettingsPage } from '@/pages/settings/FileStorageSettingsPage'
+import { SchedulerSettingsPage } from '@/pages/settings/SchedulerSettingsPage'
+import { IntegrationSettingsPage } from '@/pages/settings/IntegrationSettingsPage'
+import { ApiSettingsPage } from '@/pages/settings/ApiSettingsPage'
+import { AuditSettingsPage } from '@/pages/settings/AuditSettingsPage'
+import { AdvancedSettingsPage } from '@/pages/settings/AdvancedSettingsPage'
+import { LocalizationSettingsPage } from '@/pages/settings/LocalizationSettingsPage'
+import { FeatureFlagsPage } from '@/pages/settings/FeatureFlagsPage'
 import { StoreProductSettingsPage } from '@/pages/settings/StoreProductSettingsPage'
 import { CartCheckoutSettingsPage } from '@/pages/settings/CartCheckoutSettingsPage'
 import { OrderSettingsPage } from '@/pages/settings/OrderSettingsPage'
@@ -79,6 +88,15 @@ export const router = createBrowserRouter([
       { path: 'settings/notification', element: <NotificationSettingsPage /> },
       { path: 'settings/email', element: <EmailSettingsPage /> },
       { path: 'settings/sms', element: <SmsSettingsPage /> },
+      { path: 'settings/workflow', element: <WorkflowSettingsPage /> },
+      { path: 'settings/file-storage', element: <FileStorageSettingsPage /> },
+      { path: 'settings/scheduler', element: <SchedulerSettingsPage /> },
+      { path: 'settings/integration', element: <IntegrationSettingsPage /> },
+      { path: 'settings/api', element: <ApiSettingsPage /> },
+      { path: 'settings/audit', element: <AuditSettingsPage /> },
+      { path: 'settings/advanced', element: <AdvancedSettingsPage /> },
+      { path: 'settings/localization', element: <LocalizationSettingsPage /> },
+      { path: 'settings/feature-flags', element: <FeatureFlagsPage /> },
       { path: 'settings/store-product', element: <StoreProductSettingsPage /> },
       { path: 'settings/cart-checkout', element: <CartCheckoutSettingsPage /> },
       { path: 'settings/order', element: <OrderSettingsPage /> },

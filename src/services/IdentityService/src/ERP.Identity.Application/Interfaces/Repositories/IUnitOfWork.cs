@@ -21,6 +21,24 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         ISystemGeneralSettingsRepository SystemGeneralSettings { get; }
         ITenantGeneralSettingsRepository TenantGeneralSettings { get; }
         ITenantCompanySettingsRepository TenantCompanySettings { get; }
+        ISystemWorkflowSettingsRepository SystemWorkflowSettings { get; }
+        ITenantWorkflowSettingsRepository TenantWorkflowSettings { get; }
+        ISystemFileStorageSettingsRepository SystemFileStorageSettings { get; }
+        ITenantFileStorageSettingsRepository TenantFileStorageSettings { get; }
+        ISystemSchedulerSettingsRepository SystemSchedulerSettings { get; }
+        ITenantSchedulerSettingsRepository TenantSchedulerSettings { get; }
+        ISystemIntegrationSettingsRepository SystemIntegrationSettings { get; }
+        ITenantIntegrationSettingsRepository TenantIntegrationSettings { get; }
+        ISystemApiSettingsRepository SystemApiSettings { get; }
+        ITenantApiSettingsRepository TenantApiSettings { get; }
+        ISystemAuditSettingsRepository SystemAuditSettings { get; }
+        ITenantAuditSettingsRepository TenantAuditSettings { get; }
+        ISystemAdvancedSettingsRepository SystemAdvancedSettings { get; }
+        ITenantAdvancedSettingsRepository TenantAdvancedSettings { get; }
+        ISystemLocalizationSettingsRepository SystemLocalizationSettings { get; }
+        ITenantLocalizationSettingsRepository TenantLocalizationSettings { get; }
+        ISystemFeatureFlagRepository SystemFeatureFlags { get; }
+        ITenantFeatureFlagOverrideRepository TenantFeatureFlagOverrides { get; }
         ITwoFactorChallengeRepository TwoFactorChallenges { get; }
         IOAuthStateRepository OAuthStates { get; }
         ISecurityAuditLogRepository SecurityAuditLogs { get; }

@@ -20,6 +20,7 @@ using ERP.Identity.Infrastructure.MessageBus;
 using ERP.Identity.Infrastructure.BackgroundJobs;
 using Confluent.Kafka;
 using Microsoft.Extensions.Options;
+using ERP.Shared.Security;
 
 namespace ERP.Identity.Infrastructure
 {
@@ -74,6 +75,24 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<ISystemGeneralSettingsRepository, SystemGeneralSettingsRepository>();
             services.AddScoped<ITenantGeneralSettingsRepository, TenantGeneralSettingsRepository>();
             services.AddScoped<ITenantCompanySettingsRepository, TenantCompanySettingsRepository>();
+            services.AddScoped<ISystemWorkflowSettingsRepository, SystemWorkflowSettingsRepository>();
+            services.AddScoped<ITenantWorkflowSettingsRepository, TenantWorkflowSettingsRepository>();
+            services.AddScoped<ISystemFileStorageSettingsRepository, SystemFileStorageSettingsRepository>();
+            services.AddScoped<ITenantFileStorageSettingsRepository, TenantFileStorageSettingsRepository>();
+            services.AddScoped<ISystemSchedulerSettingsRepository, SystemSchedulerSettingsRepository>();
+            services.AddScoped<ITenantSchedulerSettingsRepository, TenantSchedulerSettingsRepository>();
+            services.AddScoped<ISystemIntegrationSettingsRepository, SystemIntegrationSettingsRepository>();
+            services.AddScoped<ITenantIntegrationSettingsRepository, TenantIntegrationSettingsRepository>();
+            services.AddScoped<ISystemApiSettingsRepository, SystemApiSettingsRepository>();
+            services.AddScoped<ITenantApiSettingsRepository, TenantApiSettingsRepository>();
+            services.AddScoped<ISystemAuditSettingsRepository, SystemAuditSettingsRepository>();
+            services.AddScoped<ITenantAuditSettingsRepository, TenantAuditSettingsRepository>();
+            services.AddScoped<ISystemAdvancedSettingsRepository, SystemAdvancedSettingsRepository>();
+            services.AddScoped<ITenantAdvancedSettingsRepository, TenantAdvancedSettingsRepository>();
+            services.AddScoped<ISystemLocalizationSettingsRepository, SystemLocalizationSettingsRepository>();
+            services.AddScoped<ITenantLocalizationSettingsRepository, TenantLocalizationSettingsRepository>();
+            services.AddScoped<ISystemFeatureFlagRepository, SystemFeatureFlagRepository>();
+            services.AddScoped<ITenantFeatureFlagOverrideRepository, TenantFeatureFlagOverrideRepository>();
             services.AddScoped<ITwoFactorChallengeRepository, TwoFactorChallengeRepository>();
             services.AddScoped<IOAuthStateRepository, OAuthStateRepository>();
             services.AddScoped<ISecurityAuditLogRepository, SecurityAuditLogRepository>();
@@ -90,6 +109,16 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<ISettingsService, SettingsService>();
             services.AddScoped<IGeneralSettingsService, GeneralSettingsService>();
             services.AddScoped<ICompanySettingsService, CompanySettingsService>();
+            services.AddScoped<ISecretProtector, AesSecretProtector>();
+            services.AddScoped<IWorkflowSettingsService, WorkflowSettingsService>();
+            services.AddScoped<IFileStorageSettingsService, FileStorageSettingsService>();
+            services.AddScoped<ISchedulerSettingsService, SchedulerSettingsService>();
+            services.AddScoped<IIntegrationSettingsService, IntegrationSettingsService>();
+            services.AddScoped<IApiSettingsService, ApiSettingsService>();
+            services.AddScoped<IAuditSettingsService, AuditSettingsService>();
+            services.AddScoped<IAdvancedSettingsService, AdvancedSettingsService>();
+            services.AddScoped<ILocalizationSettingsService, LocalizationSettingsService>();
+            services.AddScoped<IFeatureFlagService, FeatureFlagService>();
             services.AddScoped<ITwoFactorCodeGenerator, TwoFactorCodeGenerator>();
             services.AddScoped<ISecurityAuditService, SecurityAuditService>();
             services.AddScoped<ISessionService, SessionService>();

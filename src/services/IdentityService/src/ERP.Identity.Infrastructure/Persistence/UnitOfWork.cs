@@ -28,6 +28,24 @@ namespace ERP.Identity.Infrastructure.Persistence
             ISystemGeneralSettingsRepository systemGeneralSettingsRepository,
             ITenantGeneralSettingsRepository tenantGeneralSettingsRepository,
             ITenantCompanySettingsRepository tenantCompanySettingsRepository,
+            ISystemWorkflowSettingsRepository systemWorkflowSettingsRepository,
+            ITenantWorkflowSettingsRepository tenantWorkflowSettingsRepository,
+            ISystemFileStorageSettingsRepository systemFileStorageSettingsRepository,
+            ITenantFileStorageSettingsRepository tenantFileStorageSettingsRepository,
+            ISystemSchedulerSettingsRepository systemSchedulerSettingsRepository,
+            ITenantSchedulerSettingsRepository tenantSchedulerSettingsRepository,
+            ISystemIntegrationSettingsRepository systemIntegrationSettingsRepository,
+            ITenantIntegrationSettingsRepository tenantIntegrationSettingsRepository,
+            ISystemApiSettingsRepository systemApiSettingsRepository,
+            ITenantApiSettingsRepository tenantApiSettingsRepository,
+            ISystemAuditSettingsRepository systemAuditSettingsRepository,
+            ITenantAuditSettingsRepository tenantAuditSettingsRepository,
+            ISystemAdvancedSettingsRepository systemAdvancedSettingsRepository,
+            ITenantAdvancedSettingsRepository tenantAdvancedSettingsRepository,
+            ISystemLocalizationSettingsRepository systemLocalizationSettingsRepository,
+            ITenantLocalizationSettingsRepository tenantLocalizationSettingsRepository,
+            ISystemFeatureFlagRepository systemFeatureFlagRepository,
+            ITenantFeatureFlagOverrideRepository tenantFeatureFlagOverrideRepository,
             ITwoFactorChallengeRepository twoFactorChallengeRepository,
             IOAuthStateRepository oAuthStateRepository,
             ISecurityAuditLogRepository securityAuditLogRepository,
@@ -51,6 +69,24 @@ namespace ERP.Identity.Infrastructure.Persistence
             SystemGeneralSettings = systemGeneralSettingsRepository;
             TenantGeneralSettings = tenantGeneralSettingsRepository;
             TenantCompanySettings = tenantCompanySettingsRepository;
+            SystemWorkflowSettings = systemWorkflowSettingsRepository;
+            TenantWorkflowSettings = tenantWorkflowSettingsRepository;
+            SystemFileStorageSettings = systemFileStorageSettingsRepository;
+            TenantFileStorageSettings = tenantFileStorageSettingsRepository;
+            SystemSchedulerSettings = systemSchedulerSettingsRepository;
+            TenantSchedulerSettings = tenantSchedulerSettingsRepository;
+            SystemIntegrationSettings = systemIntegrationSettingsRepository;
+            TenantIntegrationSettings = tenantIntegrationSettingsRepository;
+            SystemApiSettings = systemApiSettingsRepository;
+            TenantApiSettings = tenantApiSettingsRepository;
+            SystemAuditSettings = systemAuditSettingsRepository;
+            TenantAuditSettings = tenantAuditSettingsRepository;
+            SystemAdvancedSettings = systemAdvancedSettingsRepository;
+            TenantAdvancedSettings = tenantAdvancedSettingsRepository;
+            SystemLocalizationSettings = systemLocalizationSettingsRepository;
+            TenantLocalizationSettings = tenantLocalizationSettingsRepository;
+            SystemFeatureFlags = systemFeatureFlagRepository;
+            TenantFeatureFlagOverrides = tenantFeatureFlagOverrideRepository;
             TwoFactorChallenges = twoFactorChallengeRepository;
             OAuthStates = oAuthStateRepository;
             SecurityAuditLogs = securityAuditLogRepository;
@@ -76,6 +112,24 @@ namespace ERP.Identity.Infrastructure.Persistence
         public ISystemGeneralSettingsRepository SystemGeneralSettings { get; }
         public ITenantGeneralSettingsRepository TenantGeneralSettings { get; }
         public ITenantCompanySettingsRepository TenantCompanySettings { get; }
+        public ISystemWorkflowSettingsRepository SystemWorkflowSettings { get; }
+        public ITenantWorkflowSettingsRepository TenantWorkflowSettings { get; }
+        public ISystemFileStorageSettingsRepository SystemFileStorageSettings { get; }
+        public ITenantFileStorageSettingsRepository TenantFileStorageSettings { get; }
+        public ISystemSchedulerSettingsRepository SystemSchedulerSettings { get; }
+        public ITenantSchedulerSettingsRepository TenantSchedulerSettings { get; }
+        public ISystemIntegrationSettingsRepository SystemIntegrationSettings { get; }
+        public ITenantIntegrationSettingsRepository TenantIntegrationSettings { get; }
+        public ISystemApiSettingsRepository SystemApiSettings { get; }
+        public ITenantApiSettingsRepository TenantApiSettings { get; }
+        public ISystemAuditSettingsRepository SystemAuditSettings { get; }
+        public ITenantAuditSettingsRepository TenantAuditSettings { get; }
+        public ISystemAdvancedSettingsRepository SystemAdvancedSettings { get; }
+        public ITenantAdvancedSettingsRepository TenantAdvancedSettings { get; }
+        public ISystemLocalizationSettingsRepository SystemLocalizationSettings { get; }
+        public ITenantLocalizationSettingsRepository TenantLocalizationSettings { get; }
+        public ISystemFeatureFlagRepository SystemFeatureFlags { get; }
+        public ITenantFeatureFlagOverrideRepository TenantFeatureFlagOverrides { get; }
         public ITwoFactorChallengeRepository TwoFactorChallenges { get; }
         public IOAuthStateRepository OAuthStates { get; }
         public ISecurityAuditLogRepository SecurityAuditLogs { get; }
