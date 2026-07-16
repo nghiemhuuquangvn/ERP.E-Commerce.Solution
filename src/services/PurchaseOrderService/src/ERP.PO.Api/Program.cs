@@ -1,8 +1,8 @@
 using ERP.PO.Application.Mappings;
 using ERP.PO.Application.Features.PurchaseOrders.Validators;
 using ERP.PO.Application.Features.Suppliers.Validators;
-using ERP.PO.Application.Caching;
 using ERP.Shared.Authorization;
+using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
 using ERP.PO.Infrastructure.Data;
 using ERP.PO.Infrastructure.BackgroundJobs;
@@ -13,7 +13,6 @@ using ERP.Shared.Messaging;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using MediatR;
-using StackExchange.Redis;
 using Microsoft.EntityFrameworkCore;
 using Confluent.Kafka;
 
@@ -40,23 +39,11 @@ builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 builder.Services.AddScoped<UserContext>();
 builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.PurchaseOrder));
 
-// Caching Configuration
-var cacheSettings = builder.Configuration.GetSection("CacheSettings");
-var cacheType = cacheSettings["Type"] ?? "Memory"; // Memory or Redis
-
-if (cacheType.Equals("Redis", StringComparison.OrdinalIgnoreCase))
-{
-    var redisConnection = cacheSettings["RedisConnection"] ?? "localhost:6379";
-    var redis = ConnectionMultiplexer.Connect(redisConnection);
-    builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
-    builder.Services.AddSingleton<ICacheService>(sp =>
-        new RedisCacheService(sp.GetRequiredService<IConnectionMultiplexer>()));
-}
-else
-{
-    builder.Services.AddMemoryCache();
-    builder.Services.AddSingleton<ICacheService, MemoryCacheService>();
-}
+// Caching — shared Cache:Type / ConnectionStrings:Redis convention used by every other
+// service (was previously its own duplicate ICacheService/RedisCacheService reading a
+// different "CacheSettings:Type" config key that docker-compose/K8s never actually set,
+// and which nothing in this service ever injected — dead, inconsistent infrastructure).
+builder.Services.AddCacheService(builder.Configuration, "po");
 
 builder.Services.AddLogging();
 builder.Services.AddHealthChecks();
