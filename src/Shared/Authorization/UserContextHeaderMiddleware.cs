@@ -54,6 +54,7 @@ public class UserContextHeaderMiddleware
             userContext.TenantName = user.TenantName;
             userContext.Roles = user.Roles;
             userContext.Permissions = user.Permissions;
+            userContext.LicensedModules = user.LicensedModules;
             userContext.ExpiresAt = user.ExpiresAt;
 
             // Kept for any existing caller that reads context.Items directly.

@@ -219,7 +219,15 @@ namespace ERP.Identity.Infrastructure.Services
                     return Array.Empty<string>();
 
                 var modules = await _unitOfWork.TenantLicenseModules.GetByTenantLicenseIdAsync(license.Id, ct);
-                return modules.Select(m => m.ModuleCode).ToArray();
+
+                // A module deactivated at the catalog level (ModuleDefinition.IsActive = false)
+                // must stop being granted even to tenants whose TenantLicenseModules row for it
+                // still exists — otherwise deactivating a module here would be a no-op for
+                // anyone who already had it, defeating the point of the catalog-level switch.
+                var catalog = await _unitOfWork.ModuleDefinitions.ListAllAsync(ct);
+                var activeCodes = catalog.Where(m => m.IsActive).Select(m => m.ModuleCode).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                return modules.Select(m => m.ModuleCode).Where(activeCodes.Contains).ToArray();
             }, EffectiveModulesCacheTtl, ct);
         }
 
@@ -232,6 +240,14 @@ namespace ERP.Identity.Infrastructure.Services
 
             if (planId.HasValue)
             {
+                // A deactivated or nonexistent plan must not be silently usable to issue/renew
+                // a license — without this check, an inactive plan's module set would still be
+                // copied in, and a nonexistent one would only fail later at SaveChangesAsync via
+                // the FK constraint (an unhandled 500, not a clean validation error).
+                var plan = await _unitOfWork.LicensePlans.GetByIdAsync(planId.Value, ct);
+                if (plan == null || !plan.IsActive)
+                    throw new InvalidOperationException($"License plan '{planId}' does not exist or is not active.");
+
                 var planModules = await _unitOfWork.LicensePlanModules.GetByPlanIdAsync(planId.Value, ct);
                 return planModules.Select(m => m.ModuleCode).ToArray();
             }

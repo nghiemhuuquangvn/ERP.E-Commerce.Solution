@@ -63,6 +63,7 @@ app.UseSwaggerUI();
 app.UseSharedLocalization();
 app.UseCors();
 app.UseAuthentication();
+app.UseMiddleware<UserContextHeaderMiddleware>();
 app.UseMiddleware<LicenseEnforcementMiddleware>();
 app.UseAuthorization();
 app.MapControllers();

@@ -47,6 +47,7 @@ namespace ERP.ACC.API.Middleware
             userContext.TenantName = authenticated.TenantName;
             userContext.Roles = authenticated.Roles;
             userContext.Permissions = authenticated.Permissions;
+            userContext.LicensedModules = authenticated.LicensedModules;
             userContext.ExpiresAt = authenticated.ExpiresAt;
 
             if (string.IsNullOrEmpty(userContext.UserId))

@@ -59,6 +59,7 @@ try
     app.UseSharedLocalization();
     app.UseCors("AllowAll");
     app.UseAuthentication();
+    app.UseMiddleware<UserContextHeaderMiddleware>();
     app.UseMiddleware<LicenseEnforcementMiddleware>();
     app.UseAuthorization();
     app.MapHealthChecks("/health");

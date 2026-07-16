@@ -50,7 +50,20 @@ public class LicenseEnforcementMiddleware
     {
         var allowAnonymous = context.GetEndpoint()?.Metadata?.GetMetadata<IAllowAnonymous>() != null;
 
-        if (!allowAnonymous && userContext.IsAuthenticated && !userContext.HasModule(moduleIdentity.ModuleCode))
+        // Gate on the real ASP.NET Core authentication result (context.User), not
+        // userContext.IsAuthenticated — the latter depends on a separate middleware
+        // (UserContextHeaderMiddleware or a service's local equivalent) having
+        // actually run and populated userContext first. If that step is ever missing
+        // from a service's pipeline, or silently throws, userContext.IsAuthenticated
+        // would read false and this middleware would incorrectly treat a genuinely
+        // authenticated, unlicensed caller as anonymous and let it through — this
+        // exact bypass was found in WareHouseService/ProductService/CRMService, which
+        // ran this middleware without UserContextHeaderMiddleware ahead of it.
+        // Checking context.User directly makes this fail closed regardless of
+        // whether userContext ever gets populated.
+        var isAuthenticated = context.User?.Identity?.IsAuthenticated == true;
+
+        if (!allowAnonymous && isAuthenticated && !userContext.HasModule(moduleIdentity.ModuleCode))
         {
             _logger.LogWarning(
                 "Tenant {TenantId} rejected: not licensed for module {ModuleCode}",

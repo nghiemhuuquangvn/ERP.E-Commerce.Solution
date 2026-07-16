@@ -66,5 +66,9 @@ public class RenewLicenseRequestValidator : AbstractValidator<RenewLicenseReques
         RuleFor(x => x.ModuleCodes)
             .Must(codes => codes == null || codes.All(c => ModuleCodes.All.Contains(c)))
             .WithMessage($"Module codes must be one of: {string.Join(", ", ModuleCodes.All)}.");
+
+        RuleFor(x => x.ExpiresAt)
+            .GreaterThan(DateTime.UtcNow).WithMessage("ExpiresAt must be in the future.")
+            .When(x => x.ExpiresAt.HasValue);
     }
 }
