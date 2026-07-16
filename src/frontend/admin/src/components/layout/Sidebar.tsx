@@ -150,6 +150,21 @@ const NAV_ITEMS: NavItem[] = [
     icon: '🚩',
   },
   {
+    labelKey: 'nav.licenseSettings',
+    path: '/settings/license',
+    // License is not a normal self-service Settings category — gate the nav item on
+    // holding any of the license:* permissions (modules/plans catalog management, or
+    // viewing/issuing a tenant's license), not a system/tenant view pair.
+    permissions: [
+      'license:modules:manage',
+      'license:plans:view',
+      'license:plans:manage',
+      'license:tenant:view',
+      'license:tenant:issue',
+    ],
+    icon: '🔑',
+  },
+  {
     labelKey: 'nav.storeProductSettings',
     path: '/settings/store-product',
     permissions: ['settings:store-product:system:view', 'settings:store-product:tenant:view'],

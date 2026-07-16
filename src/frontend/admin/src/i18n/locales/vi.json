@@ -59,6 +59,7 @@
     "advancedSettings": "Cài đặt Nâng cao",
     "localizationSettings": "Cài đặt Bản địa hóa",
     "featureFlagsSettings": "Cờ tính năng",
+    "licenseSettings": "Giấy phép",
     "storeProductSettings": "Cài đặt Cửa hàng/Sản phẩm",
     "cartCheckoutSettings": "Cài đặt Giỏ hàng/Thanh toán",
     "orderSettings": "Cài đặt Đơn hàng",
@@ -677,6 +678,59 @@
       "permissionCatalogHint": "Danh sách tham khảo (chỉ đọc) tất cả các mã quyền hạn có trong hệ thống.",
       "deleteTitle": "Xóa vai trò",
       "deleteConfirm": "Bạn có chắc chắn muốn xóa \"{{name}}\"?"
+    }
+  },
+  "license": {
+    "title": "Giấy phép",
+    "modules": {
+      "tab": "Module",
+      "moduleCode": "Mã module",
+      "moduleName": "Tên module",
+      "active": "Đang kích hoạt",
+      "noModules": "Chưa có module nào được định nghĩa."
+    },
+    "plans": {
+      "tab": "Gói",
+      "title": "Gói",
+      "planCode": "Mã gói",
+      "planName": "Tên gói",
+      "description": "Mô tả",
+      "maxUsers": "Số người dùng tối đa",
+      "modules": "Module",
+      "active": "Đang kích hoạt",
+      "addPlan": "Thêm gói",
+      "editPlan": "Chỉnh sửa gói",
+      "noPlans": "Chưa có gói giấy phép nào được định nghĩa."
+    },
+    "tenant": {
+      "tab": "Giấy phép đơn vị",
+      "tenant": "Đơn vị",
+      "currentLicense": "Giấy phép hiện tại",
+      "licenseKey": "Mã giấy phép",
+      "issuedAt": "Ngày cấp",
+      "startsAt": "Ngày bắt đầu",
+      "expiresAt": "Ngày hết hạn",
+      "perpetual": "Vĩnh viễn (không hết hạn)",
+      "issuedBy": "Người cấp",
+      "notes": "Ghi chú",
+      "noLicense": "Đơn vị này chưa được cấp giấy phép.",
+      "issue": "Cấp giấy phép",
+      "issueTitle": "Cấp giấy phép",
+      "renew": "Gia hạn",
+      "renewTitle": "Gia hạn giấy phép",
+      "suspend": "Tạm ngưng",
+      "suspendTitle": "Tạm ngưng giấy phép",
+      "suspendConfirm": "Bạn có chắc chắn muốn tạm ngưng giấy phép của đơn vị này? Quyền truy cập các module được cấp phép sẽ bị chặn ở lần làm mới token tiếp theo của đơn vị.",
+      "revoke": "Thu hồi",
+      "revokeTitle": "Thu hồi giấy phép",
+      "revokeConfirm": "Bạn có chắc chắn muốn thu hồi giấy phép của đơn vị này? Hành động này không thể hoàn tác.",
+      "customPlan": "— Tùy chỉnh (không dùng gói) —",
+      "status": {
+        "Active": "Đang hoạt động",
+        "Suspended": "Đã tạm ngưng",
+        "Revoked": "Đã thu hồi",
+        "Expired": "Đã hết hạn"
+      }
     }
   }
 }

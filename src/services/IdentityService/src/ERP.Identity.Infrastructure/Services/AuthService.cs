@@ -35,6 +35,7 @@ namespace ERP.Identity.Infrastructure.Services
         private readonly ISecurityAuditService _securityAuditService;
         private readonly ISessionService _sessionService;
         private readonly IPasswordPolicyService _passwordPolicyService;
+        private readonly ILicenseService _licenseService;
 
         public AuthService(
             IUnitOfWork unitOfWork,
@@ -48,7 +49,8 @@ namespace ERP.Identity.Infrastructure.Services
             Microsoft.Extensions.Configuration.IConfiguration configuration,
             ISecurityAuditService securityAuditService,
             ISessionService sessionService,
-            IPasswordPolicyService passwordPolicyService)
+            IPasswordPolicyService passwordPolicyService,
+            ILicenseService licenseService)
         {
             _unitOfWork = unitOfWork;
             _jwtService = jwtService;
@@ -62,6 +64,7 @@ namespace ERP.Identity.Infrastructure.Services
             _securityAuditService = securityAuditService;
             _sessionService = sessionService;
             _passwordPolicyService = passwordPolicyService;
+            _licenseService = licenseService;
         }
 
         /// <summary>
@@ -92,7 +95,13 @@ namespace ERP.Identity.Infrastructure.Services
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            var accessToken = await _jwtService.GenerateAccessToken(user, tenant, roles, permissionSet);
+            // Embeds the tenant's currently-licensed module codes into the JWT (parallel to
+            // the "permission" claims above) so every other service can check "am I
+            // licensed for this tenant" without a network call — see LicenseService.
+            // GetEffectiveModulesAsync. Returns [] if the tenant has no valid license.
+            var licensedModules = await _licenseService.GetEffectiveModulesAsync(tenant.Id, ct);
+
+            var accessToken = await _jwtService.GenerateAccessToken(user, tenant, roles, permissionSet, licensedModules);
             var refreshToken = await _jwtService.GenerateRefreshToken(user.Id, tenant.Id);
 
             // Only the hash is persisted — same "opaque high-entropy token, hashed at

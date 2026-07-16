@@ -24,7 +24,7 @@ namespace ERP.Identity.Infrastructure.Services
             _configuration = configuration;
             _refreshTokenRepository = refreshTokenRepository;
         }
-        public Task<string> GenerateAccessToken(User user, AuthTenant tenant, IEnumerable<string> roles, IEnumerable<string> permissions)
+        public Task<string> GenerateAccessToken(User user, AuthTenant tenant, IEnumerable<string> roles, IEnumerable<string> permissions, IEnumerable<string> licensedModules)
         {
             var claims = new List<Claim>
             {
@@ -37,6 +37,7 @@ namespace ERP.Identity.Infrastructure.Services
 
             claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
             claims.AddRange(permissions.Select(p => new Claim("permission", p)));
+            claims.AddRange(licensedModules.Select(m => new Claim("licensed_module", m)));
 
             var keyString = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key configuration is missing.");
             var issuer = _configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer configuration is missing.");

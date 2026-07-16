@@ -39,6 +39,11 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         ITenantLocalizationSettingsRepository TenantLocalizationSettings { get; }
         ISystemFeatureFlagRepository SystemFeatureFlags { get; }
         ITenantFeatureFlagOverrideRepository TenantFeatureFlagOverrides { get; }
+        IModuleDefinitionRepository ModuleDefinitions { get; }
+        ILicensePlanRepository LicensePlans { get; }
+        ILicensePlanModuleRepository LicensePlanModules { get; }
+        ITenantLicenseRepository TenantLicenses { get; }
+        ITenantLicenseModuleRepository TenantLicenseModules { get; }
         ITwoFactorChallengeRepository TwoFactorChallenges { get; }
         IOAuthStateRepository OAuthStates { get; }
         ISecurityAuditLogRepository SecurityAuditLogs { get; }

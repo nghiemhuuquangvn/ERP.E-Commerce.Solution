@@ -40,6 +40,7 @@ public class JwtClaimsUserContextService : IUserContextService
         var tenantId = FindFirst(user, "tenant_id");
         var roles = user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray();
         var permissions = user.FindAll("permission").Select(c => c.Value).ToArray();
+        var licensedModules = user.FindAll("licensed_module").Select(c => c.Value).ToArray();
 
         var expClaim = FindFirst(user, JwtRegisteredClaimNames.Exp);
         var expiresAt = long.TryParse(expClaim, out var expSeconds)
@@ -53,6 +54,7 @@ public class JwtClaimsUserContextService : IUserContextService
             TenantId = tenantId ?? string.Empty,
             Roles = roles,
             Permissions = permissions,
+            LicensedModules = licensedModules,
             ExpiresAt = expiresAt
         };
     }

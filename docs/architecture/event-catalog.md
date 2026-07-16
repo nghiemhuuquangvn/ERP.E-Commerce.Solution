@@ -863,6 +863,40 @@ public class SettingsChangedIntegrationEvent : IntegrationEventBase
 
 ---
 
+### TenantLicenseChangedIntegrationEvent
+
+**Description:** Published by IdentityService whenever a tenant's license is issued,
+renewed, suspended, or revoked (see `docs/business/Identity/License.md`).
+Deliberately carries no module list — a consumer that needs the current entitlement
+calls IdentityService's `GET /api/license/tenant/{tenantId}` API. Cross-service
+*enforcement* of module entitlement does not depend on this event at all — it is
+JWT-claim-based (see License.md), so this event exists purely for notification and
+analytics, not for cache invalidation.
+
+**Publisher:** IdentityService, via its existing Outbox / local `IMessageBus` /
+`OutboxProcessor` on `identity-topic` — no new publish infrastructure, reused as-is
+(same mechanism `SettingsChangedIntegrationEvent` uses from this service).
+**Subscribers:** None wired yet — intended for NotificationService (alert the tenant
+admin) and ReportingService (analytics), matching the "publish now, wire narrow
+consumers later" precedent already used for `SettingsChangedIntegrationEvent`.
+
+**Event Structure:**
+```csharp
+public class TenantLicenseChangedIntegrationEvent : IntegrationEventBase
+{
+    public Guid TenantId { get; set; }
+    public string Action { get; set; } = default!; // "Issued" | "Renewed" | "Suspended" | "Revoked"
+}
+```
+
+**Delivery:** Outbox pattern (at-least-once).
+
+**Handling:** None live today — no consumer is wired to `identity-topic` for this
+event type yet (see `docs/business/Identity/License.md` for the enforcement model,
+which does not require a consumer).
+
+---
+
 ## Monitoring & Troubleshooting
 
 ### Event Metrics
@@ -892,5 +926,5 @@ Event Published → [Service A] → Event Consumed → [Service B] → Updated
 
 ---
 
-**Last Updated:** 2026-07-15  
-**Version:** 1.1 (added `SettingsChangedIntegrationEvent`, Settings Phase 4)
+**Last Updated:** 2026-07-16  
+**Version:** 1.2 (added `TenantLicenseChangedIntegrationEvent`, License Management)

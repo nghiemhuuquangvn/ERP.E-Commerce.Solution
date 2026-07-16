@@ -20,6 +20,8 @@ builder.Services
 builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+builder.Services.AddScoped<UserContext>();
+builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Product));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -61,6 +63,7 @@ app.UseSwaggerUI();
 app.UseSharedLocalization();
 app.UseCors();
 app.UseAuthentication();
+app.UseMiddleware<LicenseEnforcementMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");

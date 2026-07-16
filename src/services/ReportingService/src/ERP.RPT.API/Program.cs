@@ -55,6 +55,7 @@ builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 builder.Services.AddScoped<UserContext>();
+builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Reporting));
 
 builder.Services.AddControllers();
 builder.Services.AddSharedLocalization(builder.Configuration);
@@ -75,6 +76,7 @@ app.UseSharedLocalization();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
+app.UseMiddleware<LicenseEnforcementMiddleware>();
 app.UseAuthorization();
 app.MapHealthChecks("/health");
 app.MapControllers();

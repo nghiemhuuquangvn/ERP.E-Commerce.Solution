@@ -68,6 +68,15 @@ namespace ERP.SO.Api.Middleware
                 return;
             }
 
+            if (!_openPaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+                && !userContext.HasModule(ModuleCodes.SaleOrder))
+            {
+                _logger.LogWarning("Tenant {TenantId} rejected: not licensed for module {ModuleCode}", userContext.TenantId, ModuleCodes.SaleOrder);
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await context.Response.WriteAsJsonAsync(new { message = $"Your organization is not licensed for this module ('{ModuleCodes.SaleOrder}')." });
+                return;
+            }
+
             _logger.LogInformation("User {UserId} authenticated with permissions: {Permissions}",
                 userContext.UserId, string.Join(", ", userContext.Permissions));
 

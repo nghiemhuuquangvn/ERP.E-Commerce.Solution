@@ -38,6 +38,7 @@ builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 builder.Services.AddScoped<UserContext>();
+builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.PurchaseOrder));
 
 // Caching Configuration
 var cacheSettings = builder.Configuration.GetSection("CacheSettings");
@@ -95,6 +96,7 @@ app.UseSharedLocalization();
 app.UseAuthentication();
 // Middleware to map gateway headers to user context
 app.UseMiddleware<UserContextHeaderMiddleware>();
+app.UseMiddleware<LicenseEnforcementMiddleware>();
 app.UseAuthorization();
 
 app.MapHealthChecks("/health");

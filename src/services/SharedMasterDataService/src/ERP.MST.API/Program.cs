@@ -41,6 +41,7 @@ try
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
     builder.Services.AddScoped<UserContext>();
+    builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.SharedMasterData));
 
     builder.Services
         .AddApplication()
@@ -64,6 +65,7 @@ try
 
     app.UseAuthentication();
     app.UseMiddleware<UserContextHeaderMiddleware>();
+    app.UseMiddleware<LicenseEnforcementMiddleware>();
 
     app.UseAuthorization();
     app.MapHealthChecks("/health");

@@ -46,6 +46,11 @@ namespace ERP.Identity.Infrastructure.Persistence
             ITenantLocalizationSettingsRepository tenantLocalizationSettingsRepository,
             ISystemFeatureFlagRepository systemFeatureFlagRepository,
             ITenantFeatureFlagOverrideRepository tenantFeatureFlagOverrideRepository,
+            IModuleDefinitionRepository moduleDefinitionRepository,
+            ILicensePlanRepository licensePlanRepository,
+            ILicensePlanModuleRepository licensePlanModuleRepository,
+            ITenantLicenseRepository tenantLicenseRepository,
+            ITenantLicenseModuleRepository tenantLicenseModuleRepository,
             ITwoFactorChallengeRepository twoFactorChallengeRepository,
             IOAuthStateRepository oAuthStateRepository,
             ISecurityAuditLogRepository securityAuditLogRepository,
@@ -87,6 +92,11 @@ namespace ERP.Identity.Infrastructure.Persistence
             TenantLocalizationSettings = tenantLocalizationSettingsRepository;
             SystemFeatureFlags = systemFeatureFlagRepository;
             TenantFeatureFlagOverrides = tenantFeatureFlagOverrideRepository;
+            ModuleDefinitions = moduleDefinitionRepository;
+            LicensePlans = licensePlanRepository;
+            LicensePlanModules = licensePlanModuleRepository;
+            TenantLicenses = tenantLicenseRepository;
+            TenantLicenseModules = tenantLicenseModuleRepository;
             TwoFactorChallenges = twoFactorChallengeRepository;
             OAuthStates = oAuthStateRepository;
             SecurityAuditLogs = securityAuditLogRepository;
@@ -130,6 +140,11 @@ namespace ERP.Identity.Infrastructure.Persistence
         public ITenantLocalizationSettingsRepository TenantLocalizationSettings { get; }
         public ISystemFeatureFlagRepository SystemFeatureFlags { get; }
         public ITenantFeatureFlagOverrideRepository TenantFeatureFlagOverrides { get; }
+        public IModuleDefinitionRepository ModuleDefinitions { get; }
+        public ILicensePlanRepository LicensePlans { get; }
+        public ILicensePlanModuleRepository LicensePlanModules { get; }
+        public ITenantLicenseRepository TenantLicenses { get; }
+        public ITenantLicenseModuleRepository TenantLicenseModules { get; }
         public ITwoFactorChallengeRepository TwoFactorChallenges { get; }
         public IOAuthStateRepository OAuthStates { get; }
         public ISecurityAuditLogRepository SecurityAuditLogs { get; }

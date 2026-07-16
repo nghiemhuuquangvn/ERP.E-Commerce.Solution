@@ -12,6 +12,14 @@ public class UserContext
     public string TenantName { get; set; } = string.Empty;
     public string[] Roles { get; set; } = Array.Empty<string>();
     public string[] Permissions { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Module codes (see <see cref="ModuleCodes"/>) the caller's tenant is currently
+    /// licensed to use, snapshotted into the JWT at login/refresh — see
+    /// LicenseEnforcementMiddleware for how this gates cross-service access.
+    /// </summary>
+    public string[] LicensedModules { get; set; } = Array.Empty<string>();
+
     public DateTime ExpiresAt { get; set; }
 
     public bool IsAuthenticated => !string.IsNullOrEmpty(UserId) && !string.IsNullOrEmpty(TenantId);
@@ -48,6 +56,14 @@ public class UserContext
     public bool HasRole(string role)
     {
         return Roles.Contains(role, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Kiểm tra tenant hiện tại có license cho module cụ thể không (xem ModuleCodes).
+    /// </summary>
+    public bool HasModule(string moduleCode)
+    {
+        return LicensedModules.Contains(moduleCode, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>

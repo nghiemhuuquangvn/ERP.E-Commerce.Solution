@@ -99,6 +99,7 @@ builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 builder.Services.AddScoped<UserContext>();
+builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Payment));
 
 builder.Services.AddHealthChecks();
 builder.Services.AddControllers();
@@ -117,6 +118,7 @@ app.UseSwaggerUI();
 app.UseSharedLocalization();
 app.UseAuthentication();
 app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
+app.UseMiddleware<LicenseEnforcementMiddleware>();
 app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapHealthChecks("/health");

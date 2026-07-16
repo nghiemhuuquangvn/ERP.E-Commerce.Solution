@@ -59,6 +59,7 @@
     "advancedSettings": "Advanced Settings",
     "localizationSettings": "Localization Settings",
     "featureFlagsSettings": "Feature Flags",
+    "licenseSettings": "License",
     "storeProductSettings": "Store/Product Settings",
     "cartCheckoutSettings": "Cart/Checkout Settings",
     "orderSettings": "Order Settings",
@@ -677,6 +678,59 @@
       "permissionCatalogHint": "Read-only reference of all permission codes available in the system.",
       "deleteTitle": "Delete Role",
       "deleteConfirm": "Are you sure you want to delete \"{{name}}\"?"
+    }
+  },
+  "license": {
+    "title": "License",
+    "modules": {
+      "tab": "Modules",
+      "moduleCode": "Module Code",
+      "moduleName": "Module Name",
+      "active": "Active",
+      "noModules": "No modules defined yet."
+    },
+    "plans": {
+      "tab": "Plans",
+      "title": "Plan",
+      "planCode": "Plan Code",
+      "planName": "Plan Name",
+      "description": "Description",
+      "maxUsers": "Max Users",
+      "modules": "Modules",
+      "active": "Active",
+      "addPlan": "Add Plan",
+      "editPlan": "Edit Plan",
+      "noPlans": "No license plans defined yet."
+    },
+    "tenant": {
+      "tab": "Tenant License",
+      "tenant": "Tenant",
+      "currentLicense": "Current License",
+      "licenseKey": "License Key",
+      "issuedAt": "Issued At",
+      "startsAt": "Starts At",
+      "expiresAt": "Expires At",
+      "perpetual": "Perpetual (no expiry)",
+      "issuedBy": "Issued By",
+      "notes": "Notes",
+      "noLicense": "This tenant has no license issued yet.",
+      "issue": "Issue License",
+      "issueTitle": "Issue License",
+      "renew": "Renew",
+      "renewTitle": "Renew License",
+      "suspend": "Suspend",
+      "suspendTitle": "Suspend License",
+      "suspendConfirm": "Are you sure you want to suspend this tenant's license? Access to licensed modules will be blocked at the tenant's next token refresh.",
+      "revoke": "Revoke",
+      "revokeTitle": "Revoke License",
+      "revokeConfirm": "Are you sure you want to revoke this tenant's license? This cannot be undone.",
+      "customPlan": "— Custom (no plan) —",
+      "status": {
+        "Active": "Active",
+        "Suspended": "Suspended",
+        "Revoked": "Revoked",
+        "Expired": "Expired"
+      }
     }
   }
 }

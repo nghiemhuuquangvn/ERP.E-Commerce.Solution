@@ -44,6 +44,8 @@ try
     builder.Services.AddErpJwtAuthentication(builder.Configuration);
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+    builder.Services.AddScoped<UserContext>();
+    builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Warehouse));
 
     builder.Services.AddOpenApi();
     builder.Services.AddSwaggerGen();
@@ -58,6 +60,7 @@ try
     app.UseSharedLocalization();
     app.UseCors("AllowAll");
     app.UseAuthentication();
+    app.UseMiddleware<LicenseEnforcementMiddleware>();
     app.UseAuthorization();
     app.MapHealthChecks("/health");
     app.MapControllers();

@@ -34,6 +34,7 @@ import { AuditSettingsPage } from '@/pages/settings/AuditSettingsPage'
 import { AdvancedSettingsPage } from '@/pages/settings/AdvancedSettingsPage'
 import { LocalizationSettingsPage } from '@/pages/settings/LocalizationSettingsPage'
 import { FeatureFlagsPage } from '@/pages/settings/FeatureFlagsPage'
+import { LicensePage } from '@/pages/settings/LicensePage'
 import { StoreProductSettingsPage } from '@/pages/settings/StoreProductSettingsPage'
 import { CartCheckoutSettingsPage } from '@/pages/settings/CartCheckoutSettingsPage'
 import { OrderSettingsPage } from '@/pages/settings/OrderSettingsPage'
@@ -97,6 +98,7 @@ export const router = createBrowserRouter([
       { path: 'settings/advanced', element: <AdvancedSettingsPage /> },
       { path: 'settings/localization', element: <LocalizationSettingsPage /> },
       { path: 'settings/feature-flags', element: <FeatureFlagsPage /> },
+      { path: 'settings/license', element: <LicensePage /> },
       { path: 'settings/store-product', element: <StoreProductSettingsPage /> },
       { path: 'settings/cart-checkout', element: <CartCheckoutSettingsPage /> },
       { path: 'settings/order', element: <OrderSettingsPage /> },

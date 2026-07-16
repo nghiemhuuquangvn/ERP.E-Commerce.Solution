@@ -12,16 +12,19 @@
 
 #### Identity & Access Management
 - **Location:** `src/services/IdentityService/README.md`,
-  `docs/business/Identity/ExternalAuthAndTwoFactor.md`
+  `docs/business/Identity/ExternalAuthAndTwoFactor.md`,
+  `docs/business/Identity/License.md`
 - **Topics:** User management, role-based access control (RBAC), permission
   management, multi-tenancy, external login/SSO (Google/Microsoft/Facebook/Twitter),
-  two-factor authentication (SMS/Email), system/tenant auth settings
+  two-factor authentication (SMS/Email), system/tenant auth settings, per-tenant
+  module licensing (which of the 14 backend modules a tenant is entitled to use)
 - **Workflows:** User registration → Role assignment → Permission grant → Access
   control; Login → (2FA challenge if required) → tokens issued; External login →
-  find-or-create user → tokens issued
+  find-or-create user → tokens issued; License issue/renew/suspend/revoke →
+  `licensed_module` JWT claims → per-service `LicenseEnforcementMiddleware` check
 - **Entities:** User, Role, Permission, Tenant, UserRole, RolePermission,
   ExternalLogin, SystemAuthSettings, TenantAuthSettings, TwoFactorChallenge,
-  OAuthState
+  OAuthState, ModuleDefinition, LicensePlan, TenantLicense
 
 #### Accounting & Financial Management
 - **Location:** `src/services/AccountingService/README.md`

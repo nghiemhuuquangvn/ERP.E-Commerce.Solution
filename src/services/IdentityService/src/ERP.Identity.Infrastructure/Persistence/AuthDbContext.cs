@@ -48,6 +48,11 @@ namespace ERP.Identity.Infrastructure.Persistence
         public DbSet<TenantLocalizationSettings> TenantLocalizationSettings => Set<TenantLocalizationSettings>();
         public DbSet<SystemFeatureFlag> SystemFeatureFlags => Set<SystemFeatureFlag>();
         public DbSet<TenantFeatureFlagOverride> TenantFeatureFlagOverrides => Set<TenantFeatureFlagOverride>();
+        public DbSet<ModuleDefinition> ModuleDefinitions => Set<ModuleDefinition>();
+        public DbSet<LicensePlan> LicensePlans => Set<LicensePlan>();
+        public DbSet<LicensePlanModule> LicensePlanModules => Set<LicensePlanModule>();
+        public DbSet<TenantLicense> TenantLicenses => Set<TenantLicense>();
+        public DbSet<TenantLicenseModule> TenantLicenseModules => Set<TenantLicenseModule>();
         public DbSet<TwoFactorChallenge> TwoFactorChallenges => Set<TwoFactorChallenge>();
         public DbSet<OAuthState> OAuthStates => Set<OAuthState>();
         public DbSet<SecurityAuditLog> SecurityAuditLogs => Set<SecurityAuditLog>();
@@ -534,6 +539,53 @@ namespace ERP.Identity.Infrastructure.Persistence
                 entity.HasKey(f => f.Id);
                 entity.Property(f => f.Key).IsRequired().HasMaxLength(200);
                 entity.HasIndex(f => new { f.TenantId, f.Key }).IsUnique();
+            });
+
+            modelBuilder.Entity<ModuleDefinition>(entity =>
+            {
+                entity.ToTable("ModuleDefinitions");
+                entity.HasKey(m => m.Id);
+                entity.Property(m => m.ModuleCode).IsRequired().HasMaxLength(20);
+                entity.Property(m => m.ModuleName).IsRequired().HasMaxLength(200);
+                entity.HasIndex(m => m.ModuleCode).IsUnique();
+            });
+
+            modelBuilder.Entity<LicensePlan>(entity =>
+            {
+                entity.ToTable("LicensePlans");
+                entity.HasKey(p => p.Id);
+                entity.Property(p => p.PlanCode).IsRequired().HasMaxLength(50);
+                entity.Property(p => p.PlanName).IsRequired().HasMaxLength(200);
+                entity.Property(p => p.Description).HasMaxLength(500);
+                entity.HasIndex(p => p.PlanCode).IsUnique();
+            });
+
+            modelBuilder.Entity<LicensePlanModule>(entity =>
+            {
+                entity.ToTable("LicensePlanModules");
+                entity.HasKey(m => m.Id);
+                entity.Property(m => m.ModuleCode).IsRequired().HasMaxLength(20);
+                entity.HasIndex(m => new { m.LicensePlanId, m.ModuleCode }).IsUnique();
+            });
+
+            modelBuilder.Entity<TenantLicense>(entity =>
+            {
+                entity.ToTable("TenantLicenses");
+                entity.HasKey(l => l.Id);
+                entity.Property(l => l.LicenseKey).IsRequired().HasMaxLength(50);
+                entity.Property(l => l.Status).IsRequired().HasMaxLength(20);
+                entity.Property(l => l.IssuedBy).IsRequired().HasMaxLength(256);
+                entity.Property(l => l.Notes).HasMaxLength(1000);
+                entity.HasIndex(l => l.TenantId).IsUnique();
+                entity.Ignore(l => l.IsCurrentlyValid);
+            });
+
+            modelBuilder.Entity<TenantLicenseModule>(entity =>
+            {
+                entity.ToTable("TenantLicenseModules");
+                entity.HasKey(m => m.Id);
+                entity.Property(m => m.ModuleCode).IsRequired().HasMaxLength(20);
+                entity.HasIndex(m => new { m.TenantLicenseId, m.ModuleCode }).IsUnique();
             });
 
             modelBuilder.Entity<TwoFactorChallenge>(entity =>

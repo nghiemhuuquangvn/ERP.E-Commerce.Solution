@@ -93,6 +93,11 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<ITenantLocalizationSettingsRepository, TenantLocalizationSettingsRepository>();
             services.AddScoped<ISystemFeatureFlagRepository, SystemFeatureFlagRepository>();
             services.AddScoped<ITenantFeatureFlagOverrideRepository, TenantFeatureFlagOverrideRepository>();
+            services.AddScoped<IModuleDefinitionRepository, ModuleDefinitionRepository>();
+            services.AddScoped<ILicensePlanRepository, LicensePlanRepository>();
+            services.AddScoped<ILicensePlanModuleRepository, LicensePlanModuleRepository>();
+            services.AddScoped<ITenantLicenseRepository, TenantLicenseRepository>();
+            services.AddScoped<ITenantLicenseModuleRepository, TenantLicenseModuleRepository>();
             services.AddScoped<ITwoFactorChallengeRepository, TwoFactorChallengeRepository>();
             services.AddScoped<IOAuthStateRepository, OAuthStateRepository>();
             services.AddScoped<ISecurityAuditLogRepository, SecurityAuditLogRepository>();
@@ -119,6 +124,7 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<IAdvancedSettingsService, AdvancedSettingsService>();
             services.AddScoped<ILocalizationSettingsService, LocalizationSettingsService>();
             services.AddScoped<IFeatureFlagService, FeatureFlagService>();
+            services.AddScoped<ILicenseService, LicenseService>();
             services.AddScoped<ITwoFactorCodeGenerator, TwoFactorCodeGenerator>();
             services.AddScoped<ISecurityAuditService, SecurityAuditService>();
             services.AddScoped<ISessionService, SessionService>();

@@ -9,7 +9,7 @@ namespace ERP.Identity.Application.Interfaces.Services
 {
     public interface ITokenService
     {
-        Task<string> GenerateAccessToken(User user, AuthTenant tenant, IEnumerable<string> roles, IEnumerable<string> permissions);
+        Task<string> GenerateAccessToken(User user, AuthTenant tenant, IEnumerable<string> roles, IEnumerable<string> permissions, IEnumerable<string> licensedModules);
         Task<string> GenerateRefreshToken(Guid userId, Guid tenantId);
     }
 }
