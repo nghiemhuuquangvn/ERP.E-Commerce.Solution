@@ -44,7 +44,11 @@ existing precedent for the `permission` claim, which uses the same model):
 1. At login/token-refresh, `AuthService.IssueTokensAsync` calls
    `ILicenseService.GetEffectiveModulesAsync(tenantId)`, which resolves the
    tenant's current `TenantLicense` (respecting `IsCurrentlyValid`) into a
-   module-code list.
+   module-code list, filtered against `ModuleDefinition.IsActive` — a module
+   deactivated in the catalog stops being granted even to tenants whose
+   `TenantLicenseModule` row for it still exists, so the catalog-level
+   kill-switch actually takes effect instead of being a no-op for existing
+   holders.
 2. `TokenService.GenerateAccessToken` embeds each code as a repeated
    `licensed_module` JWT claim — the same pattern already used for
    `permission` claims.
@@ -58,11 +62,29 @@ existing precedent for the `permission` claim, which uses the same model):
    (`builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Warehouse))`,
    etc.). AccountingService and SaleOrderService — which run their own local
    `UserContextHeaderMiddleware` copies rather than the shared one — have
-   the equivalent check inlined directly into those local files instead.
+   the equivalent check inlined directly into those local files instead. The
+   gate condition checks `context.User.Identity.IsAuthenticated` (the real
+   ASP.NET Core authentication result) rather than the separately-populated
+   `UserContext.IsAuthenticated`, so the check fails closed even if a
+   service's `UserContext`-population step is ever missing or throws.
 5. `[AllowAnonymous]` endpoints (health checks, login, etc.) are exempt, same
    convention as `[Authorize]`. IdentityService itself never runs this
    middleware — it must stay reachable regardless of any tenant's license
    state, so a SuperAdmin can always fix a suspended tenant.
+
+**Fixed 2026-07-16:** the initial rollout had two opposite defects, found in a
+follow-up security review before this feature shipped. (1) `UserContext`'s
+`LicensedModules` field was never copied into the request-scoped instance by
+`UserContextHeaderMiddleware` (or the two local copies), so `HasModule()`
+always returned `false` — every licensed tenant was rejected everywhere. (2)
+WareHouseService, ProductService, and CRMService ran
+`LicenseEnforcementMiddleware` without ever running `UserContextHeaderMiddleware`
+ahead of it, so their scoped `UserContext` stayed blank/unauthenticated and the
+middleware's own gate condition treated every caller as anonymous — a full
+bypass in those 3 services, license or not. Both are fixed: the missing copy
+line was added everywhere, `UserContextHeaderMiddleware` was added to those 3
+services' pipelines, and point 4's fail-closed gate change above was added as
+a structural safeguard against this class of bug recurring.
 
 **Consequence of this design**: revoking or suspending a tenant's license
 takes effect for any *newly issued* token immediately, but a token already in
@@ -83,6 +105,13 @@ and `MaxUsers`), optionally customizes the module list, sets
 (`ERP-XXXX-XXXX-XXXX`) is generated for display/support/audit purposes only —
 it is **not** the enforcement mechanism; the `TenantLicense` DB row is the
 sole source of truth.
+
+Issuing/renewing against a `PlanId` validates the plan exists and is
+`IsActive` — a deactivated or nonexistent plan is rejected with a clean error
+rather than silently copying a retired plan's module set or failing later at
+`SaveChangesAsync` via the FK constraint. Renewing also requires `ExpiresAt`
+(when provided) to be in the future — Issue already had this check; Renew was
+missing it until the same review that found the enforcement bugs above.
 
 ## API
 
