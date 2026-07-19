@@ -583,9 +583,9 @@ Conventions:
 docs/conventions
 
 Frontend:
-docs/frontend (app stacks, i18n pattern, Admin Master Data CRUD pattern — read
-before adding a new frontend page/entity so existing conventions are reused, not
-re-derived)
+docs/frontend (app stacks, i18n pattern, Admin Master Data CRUD pattern, Admin HRM
+CRUD pattern — read before adding a new frontend page/entity so existing
+conventions are reused, not re-derived)
 
 ## Claude Working Rules
 
@@ -622,6 +622,6 @@ When reviewing code:
 7. **docs/architecture/dependency-map.md** (Complete service-to-service dependency matrix)
 8. **Service README.md** (e.g., ProductService/README.md — business logic, entities, events, endpoints)
 9. **docs/business/{Domain}/*.md** (Domain business documentation — workflows, rules, examples)
-10. **docs/frontend/*.md** (Frontend app stacks, i18n pattern, Admin Master Data CRUD pattern — read before touching `src/frontend/`)
+10. **docs/frontend/*.md** (Frontend app stacks, i18n pattern, Admin Master Data CRUD pattern, Admin HRM CRUD pattern — read before touching `src/frontend/`)
 11. **Source Code** (After understanding architecture and business domain)
 
