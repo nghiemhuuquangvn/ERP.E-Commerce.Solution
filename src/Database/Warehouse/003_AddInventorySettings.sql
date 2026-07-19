@@ -18,7 +18,7 @@ BEGIN
         CreatedBy               NVARCHAR(200) NULL,
         CreatedAt               DATETIME2 NOT NULL,
         UpdatedBy               NVARCHAR(200) NULL,
-        UpdatedAt               DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt               DATETIME2 NULL,
         RowVersion              ROWVERSION
     );
 END
@@ -38,7 +38,7 @@ BEGIN
         CreatedBy           NVARCHAR(200) NULL,
         CreatedAt           DATETIME2 NOT NULL,
         UpdatedBy           NVARCHAR(200) NULL,
-        UpdatedAt           DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt           DATETIME2 NULL,
         RowVersion          ROWVERSION
     );
 END

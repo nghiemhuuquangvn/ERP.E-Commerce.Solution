@@ -8,6 +8,11 @@
 USE AuthDB;
 GO
 
+-- Required for INSERTs into tables with filtered indexes; some sqlcmd
+-- sessions don't inherit ON even when the DB-level default is ON.
+SET QUOTED_IDENTIFIER ON;
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SystemFeatureFlags')
 CREATE TABLE SystemFeatureFlags (
     Id          UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,

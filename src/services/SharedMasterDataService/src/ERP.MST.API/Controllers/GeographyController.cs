@@ -45,8 +45,15 @@ public class GeographyController : ControllerBase
         [FromBody] CreateCountryCommand command,
         CancellationToken cancellationToken = default)
     {
-        var result = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(GetCountry), new { countryId = result.Id }, result);
+        try
+        {
+            var result = await _mediator.Send(command, cancellationToken);
+            return CreatedAtAction(nameof(GetCountry), new { countryId = result.Id }, result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     [HttpGet("countries/{countryId:guid}")]
@@ -97,8 +104,15 @@ public class GeographyController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var command = new CreateProvinceCommand(countryId, request.Code, request.Name);
-        var result = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(GetProvince), new { provinceId = result.Id }, result);
+        try
+        {
+            var result = await _mediator.Send(command, cancellationToken);
+            return CreatedAtAction(nameof(GetProvince), new { provinceId = result.Id }, result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     [HttpGet("provinces/{provinceId:guid}")]
@@ -149,8 +163,15 @@ public class GeographyController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var command = new CreateDistrictCommand(provinceId, request.Code, request.Name);
-        var result = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(GetDistrict), new { districtId = result.Id }, result);
+        try
+        {
+            var result = await _mediator.Send(command, cancellationToken);
+            return CreatedAtAction(nameof(GetDistrict), new { districtId = result.Id }, result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     [HttpGet("districts/{districtId:guid}")]
@@ -201,8 +222,15 @@ public class GeographyController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var command = new CreateWardCommand(districtId, request.Code, request.Name);
-        var result = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(GetWard), new { wardId = result.Id }, result);
+        try
+        {
+            var result = await _mediator.Send(command, cancellationToken);
+            return CreatedAtAction(nameof(GetWard), new { wardId = result.Id }, result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     [HttpGet("wards/{wardId:guid}")]

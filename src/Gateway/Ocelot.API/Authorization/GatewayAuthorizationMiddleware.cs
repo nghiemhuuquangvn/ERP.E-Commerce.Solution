@@ -16,6 +16,21 @@ public class GatewayAuthorizationMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<GatewayAuthorizationMiddleware> _logger;
 
+    // This middleware runs for every request regardless of whether the matched Ocelot
+    // route actually requires Bearer auth (see ocelot.json — /api/auth/*, /api/products*,
+    // and /logs/api/v1/logs/client (+ its /api/-prefixed mirror) are all deliberately
+    // public), plus the Gateway's own /health used by K8s readiness/liveness probes every
+    // 10-20s per pod. An unauthenticated request to any of these is expected, not
+    // noteworthy — only log at Warning for paths outside this known-public set.
+    private static readonly string[] KnownPublicPathPrefixes =
+    [
+        "/health",
+        "/api/auth",
+        "/api/products",
+        "/logs/api/v1/logs/client",
+        "/api/logs/api/v1/logs/client",
+    ];
+
     public GatewayAuthorizationMiddleware(RequestDelegate next, ILogger<GatewayAuthorizationMiddleware> logger)
     {
         _next = next;
@@ -93,7 +108,15 @@ public class GatewayAuthorizationMiddleware
             }
             else
             {
-                _logger.LogWarning("Request without authentication");
+                var path = context.Request.Path.Value ?? string.Empty;
+                if (KnownPublicPathPrefixes.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _logger.LogDebug("Request without authentication (known public route: {Path})", path);
+                }
+                else
+                {
+                    _logger.LogWarning("Request without authentication ({Path})", path);
+                }
             }
         }
         catch (Exception ex)

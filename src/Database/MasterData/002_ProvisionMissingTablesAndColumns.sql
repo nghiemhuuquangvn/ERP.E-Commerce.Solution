@@ -9,6 +9,11 @@
 USE MasterDataDB;
 GO
 
+-- Required for MERGE/INSERTs into tables with filtered indexes; some sqlcmd
+-- sessions don't inherit ON even when the DB-level default is ON.
+SET QUOTED_IDENTIFIER ON;
+GO
+
 -- ============================================================
 -- Departments — add missing BaseEntity columns
 -- ============================================================

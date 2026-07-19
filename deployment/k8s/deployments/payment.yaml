@@ -42,6 +42,11 @@ spec:
             secretKeyRef:
               name: erp-secrets
               key: jwt-signing-key
+        - name: Security__SettingsEncryptionKey
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: settings-encryption-key
         readinessProbe:
           httpGet:
             path: /health

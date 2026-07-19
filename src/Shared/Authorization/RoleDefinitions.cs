@@ -43,29 +43,57 @@ public static class RoleDefinitions
                 PermissionConstants.SalesOrder_Cancel,
                 // Accounting
                 PermissionConstants.Accounting_InvoicesManage,
+                PermissionConstants.Accounting_InvoicesView,
                 PermissionConstants.Accounting_BillsManage,
+                PermissionConstants.Accounting_BillsView,
                 PermissionConstants.Accounting_JournalsManage,
+                PermissionConstants.Accounting_JournalsView,
                 PermissionConstants.Accounting_PeriodsManage,
+                PermissionConstants.Accounting_PeriodsView,
                 PermissionConstants.Accounting_BankManage,
+                PermissionConstants.Accounting_BankView,
                 PermissionConstants.Accounting_TaxManage,
+                PermissionConstants.Accounting_TaxView,
+                PermissionConstants.Accounting_AccountsView,
                 PermissionConstants.Accounting_ReportsView,
                 // Shipping
                 PermissionConstants.Shipping_Create,
                 PermissionConstants.Shipping_Update,
+                // Warehouse / Inventory
+                PermissionConstants.Inventory_View,
+                PermissionConstants.Inventory_Manage,
                 // Payment
+                PermissionConstants.Payments_View,
                 PermissionConstants.Payments_Create,
+                PermissionConstants.Payments_Authorize,
+                PermissionConstants.Payments_Capture,
+                PermissionConstants.Payments_Cancel,
                 PermissionConstants.Payments_Refund,
+                PermissionConstants.Payments_SettlementsView,
                 PermissionConstants.Payments_SettlementsManage,
                 // POS
                 PermissionConstants.POS_Transactions,
                 PermissionConstants.POS_TerminalsManage,
                 PermissionConstants.POS_ReportsView,
+                PermissionConstants.POS_ShiftsView,
+                PermissionConstants.POS_ShiftsManage,
                 // Promotion
                 PermissionConstants.Promotions_Manage,
                 // Notifications
                 PermissionConstants.Notifications_Send,
                 PermissionConstants.Notifications_TemplatesManage,
                 PermissionConstants.Notifications_WebhooksManage,
+                // Reporting
+                PermissionConstants.Reports_SalesView,
+                PermissionConstants.Reports_InventoryView,
+                PermissionConstants.Reports_PaymentsView,
+                PermissionConstants.Reports_PosView,
+                PermissionConstants.Reports_HrView,
+                // Logging
+                PermissionConstants.Logs_View,
+                // Per-service Settings — tenant tier only (system tier stays SuperAdmin-only,
+                // same tiering rule as IdentityService's own Settings categories)
+                .. PermissionConstants.GetTenantSettingsPermissions(),
             ]
         },
 
@@ -96,11 +124,22 @@ public static class RoleDefinitions
                 // Shipping
                 PermissionConstants.Shipping_Create,
                 PermissionConstants.Shipping_Update,
+                // Warehouse / Inventory (Manager runs day-to-day operations)
+                PermissionConstants.Inventory_View,
+                PermissionConstants.Inventory_Manage,
+                // Payment (view + shift-level actions, no settlement/auth control)
+                PermissionConstants.Payments_View,
                 // POS
                 PermissionConstants.POS_Transactions,
                 PermissionConstants.POS_ReportsView,
+                PermissionConstants.POS_ShiftsView,
+                PermissionConstants.POS_ShiftsManage,
                 // Promotion
                 PermissionConstants.Promotions_Manage,
+                // Reporting
+                PermissionConstants.Reports_SalesView,
+                PermissionConstants.Reports_InventoryView,
+                PermissionConstants.Reports_PosView,
             ]
         },
 
@@ -126,6 +165,14 @@ public static class RoleDefinitions
                 PermissionConstants.SalesOrder_Read,
                 PermissionConstants.Accounting_ReportsView,
                 PermissionConstants.POS_ReportsView,
+                PermissionConstants.Inventory_View,
+                PermissionConstants.Payments_View,
+                PermissionConstants.POS_ShiftsView,
+                PermissionConstants.Reports_SalesView,
+                PermissionConstants.Reports_InventoryView,
+                PermissionConstants.Reports_PaymentsView,
+                PermissionConstants.Reports_PosView,
+                PermissionConstants.Reports_HrView,
             ]
         }
     };

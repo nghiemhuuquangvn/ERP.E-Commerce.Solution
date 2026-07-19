@@ -60,18 +60,31 @@ namespace ERP.Identity.Infrastructure.BackgroundJobs
                         }
 
                         // 2. Lưu lại trạng thái của cả lô
-                        // Vì chúng ta đang dùng DbContext từ Scope, SaveChanges ở đây 
+                        // Vì chúng ta đang dùng DbContext từ Scope, SaveChanges ở đây
                         // chỉ cập nhật trạng thái "Đã xử lý" cho bảng Outbox.
                         await unitOfWork.SaveChangesAsync(stoppingToken);
                     }
                     // Khi kết thúc khối using, Scope sẽ bị hủy, Repository và DbContext sẽ được giải phóng sạch sẽ.
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    // Host is shutting down (pod restart/rollout) — Task.Delay above throws this
+                    // as part of normal graceful shutdown, not an actual processing failure.
+                    break;
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Lỗi khi xử lý Outbox");
                 }
 
-                await Task.Delay(5000, stoppingToken);
+                try
+                {
+                    await Task.Delay(5000, stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
             }
         }
     }

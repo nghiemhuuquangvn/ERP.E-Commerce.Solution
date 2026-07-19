@@ -6,12 +6,18 @@
 USE AuthDB;
 GO
 
+-- Required for INSERTs into tables with filtered indexes; some sqlcmd
+-- sessions don't inherit ON even when the DB-level default is ON.
+SET QUOTED_IDENTIFIER ON;
+GO
+
 -- ============================================================
 -- SystemGeneralSettings (single well-known-GUID row)
 -- ============================================================
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SystemGeneralSettings')
 CREATE TABLE SystemGeneralSettings (
     Id                      UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    Description             NVARCHAR(MAX)    NULL,
     MaintenanceModeEnabled  BIT              NOT NULL DEFAULT 0,
     DefaultLanguageCode     NVARCHAR(10)     NOT NULL DEFAULT 'en',
     CreatedBy               NVARCHAR(256)    NULL,
@@ -35,6 +41,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TenantGeneralSettings')
 CREATE TABLE TenantGeneralSettings (
     Id                      UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
     TenantId                UNIQUEIDENTIFIER NOT NULL,
+    Description             NVARCHAR(MAX)    NULL,
     SiteName                NVARCHAR(200)    NOT NULL DEFAULT '',
     DefaultLanguageCode     NVARCHAR(10)     NOT NULL DEFAULT 'en',
     TimeZone                NVARCHAR(100)    NOT NULL DEFAULT 'UTC',
@@ -63,6 +70,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TenantCompanySettings')
 CREATE TABLE TenantCompanySettings (
     Id              UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
     TenantId        UNIQUEIDENTIFIER NOT NULL,
+    Description     NVARCHAR(MAX)    NULL,
     CompanyName     NVARCHAR(200)    NOT NULL DEFAULT '',
     LegalName       NVARCHAR(200)    NULL,
     TaxCode         NVARCHAR(50)     NULL,
