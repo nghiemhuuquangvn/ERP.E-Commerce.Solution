@@ -31,7 +31,8 @@
   },
   "nav": {
     "dashboard": "Dashboard",
-    "orders": "Orders",
+    "salesOrders": "Sales Orders",
+    "purchaseOrders": "Purchase Orders",
     "products": "Products",
     "inventory": "Inventory",
     "customers": "Customers",
@@ -115,7 +116,7 @@
     "loadingChart": "Loading chart..."
   },
   "orders": {
-    "title": "Orders",
+    "title": "Sales Orders",
     "newOrder": "+ New Order",
     "searchPlaceholder": "Search by order # or customer…",
     "customer": "Customer",
@@ -126,7 +127,7 @@
     "cancelOrderTitle": "Cancel Order",
     "cancelOrderMessage": "Are you sure you want to cancel this order? This action cannot be undone.",
     "cancelOrderConfirm": "Cancel Order",
-    "backToOrders": "← Orders",
+    "backToOrders": "← Sales Orders",
     "orderNotFound": "Order not found.",
     "orderInfo": "Order Info",
     "lineItems": "Line Items",
@@ -140,6 +141,41 @@
       "shipped": "Shipped",
       "delivered": "Delivered",
       "cancelled": "Cancelled"
+    },
+    "form": {
+      "customerId": "Customer ID",
+      "customerIdPlaceholder": "Enter customer ID",
+      "customerRequired": "Please enter a customer ID.",
+      "lineRequired": "Please add at least one line item.",
+      "addLine": "+ Add line",
+      "removeLine": "Remove"
+    }
+  },
+  "purchaseOrders": {
+    "title": "Purchase Orders",
+    "newPurchaseOrder": "+ New Purchase Order",
+    "poNumber": "PO #",
+    "supplier": "Supplier",
+    "backToPurchaseOrders": "← Purchase Orders",
+    "notFound": "Purchase order not found.",
+    "expectedDelivery": "Expected Delivery",
+    "notes": "Notes",
+    "received": "Received",
+    "cancelTitle": "Cancel Purchase Order",
+    "cancelMessage": "Are you sure you want to cancel this purchase order? This action cannot be undone.",
+    "statusFilters": {
+      "draft": "Draft",
+      "submitted": "Submitted",
+      "approved": "Approved",
+      "ordered": "Ordered",
+      "partiallyReceived": "Partially Received",
+      "received": "Received",
+      "cancelled": "Cancelled"
+    },
+    "form": {
+      "supplierId": "Supplier ID",
+      "supplierIdPlaceholder": "Enter supplier ID",
+      "requiredFields": "PO number and supplier ID are required."
     }
   },
   "products": {

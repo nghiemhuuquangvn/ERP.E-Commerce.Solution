@@ -31,7 +31,8 @@
   },
   "nav": {
     "dashboard": "Tổng quan",
-    "orders": "Đơn hàng",
+    "salesOrders": "Đơn hàng bán",
+    "purchaseOrders": "Đơn hàng mua",
     "products": "Sản phẩm",
     "inventory": "Tồn kho",
     "customers": "Khách hàng",
@@ -115,7 +116,7 @@
     "loadingChart": "Đang tải biểu đồ..."
   },
   "orders": {
-    "title": "Đơn hàng",
+    "title": "Đơn hàng bán",
     "newOrder": "+ Đơn hàng mới",
     "searchPlaceholder": "Tìm theo số đơn hoặc khách hàng…",
     "customer": "Khách hàng",
@@ -126,7 +127,7 @@
     "cancelOrderTitle": "Hủy đơn hàng",
     "cancelOrderMessage": "Bạn có chắc chắn muốn hủy đơn hàng này? Hành động này không thể hoàn tác.",
     "cancelOrderConfirm": "Hủy đơn hàng",
-    "backToOrders": "← Đơn hàng",
+    "backToOrders": "← Đơn hàng bán",
     "orderNotFound": "Không tìm thấy đơn hàng.",
     "orderInfo": "Thông tin đơn hàng",
     "lineItems": "Chi tiết đơn hàng",
@@ -140,6 +141,41 @@
       "shipped": "Đã giao vận",
       "delivered": "Đã giao hàng",
       "cancelled": "Đã hủy"
+    },
+    "form": {
+      "customerId": "Mã khách hàng",
+      "customerIdPlaceholder": "Nhập mã khách hàng",
+      "customerRequired": "Vui lòng nhập mã khách hàng.",
+      "lineRequired": "Vui lòng thêm ít nhất một dòng sản phẩm.",
+      "addLine": "+ Thêm dòng",
+      "removeLine": "Xóa"
+    }
+  },
+  "purchaseOrders": {
+    "title": "Đơn hàng mua",
+    "newPurchaseOrder": "+ Đơn mua mới",
+    "poNumber": "Số PO",
+    "supplier": "Nhà cung cấp",
+    "backToPurchaseOrders": "← Đơn hàng mua",
+    "notFound": "Không tìm thấy đơn mua hàng.",
+    "expectedDelivery": "Ngày giao dự kiến",
+    "notes": "Ghi chú",
+    "received": "Đã nhận",
+    "cancelTitle": "Hủy đơn mua hàng",
+    "cancelMessage": "Bạn có chắc chắn muốn hủy đơn mua hàng này? Hành động này không thể hoàn tác.",
+    "statusFilters": {
+      "draft": "Nháp",
+      "submitted": "Đã gửi",
+      "approved": "Đã duyệt",
+      "ordered": "Đã đặt hàng",
+      "partiallyReceived": "Nhận một phần",
+      "received": "Đã nhận hàng",
+      "cancelled": "Đã hủy"
+    },
+    "form": {
+      "supplierId": "Mã nhà cung cấp",
+      "supplierIdPlaceholder": "Nhập mã nhà cung cấp",
+      "requiredFields": "Vui lòng nhập số PO và mã nhà cung cấp."
     }
   },
   "products": {

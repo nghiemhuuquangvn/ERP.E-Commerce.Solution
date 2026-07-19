@@ -176,7 +176,8 @@ const SETTINGS_CHILDREN: NavItem[] = [
 
 const NAV_ITEMS: NavItem[] = [
   { labelKey: 'nav.dashboard', path: '/dashboard', permission: null, icon: '⊞' },
-  { labelKey: 'nav.orders', path: '/orders', permission: 'orders:view', icon: '📦' },
+  { labelKey: 'nav.salesOrders', path: '/orders', permission: 'orders:view', icon: '📦' },
+  { labelKey: 'nav.purchaseOrders', path: '/orders/purchase', permission: 'purchaseOrders:view', icon: '🧾' },
   { labelKey: 'nav.products', path: '/products', permission: 'products:view', icon: '🏷️' },
   { labelKey: 'nav.inventory', path: '/inventory', permission: 'inventory:view', icon: '🏭' },
   { labelKey: 'nav.customers', path: '/customers', permission: 'crm:view', icon: '👥' },

@@ -7,6 +7,10 @@ import { TwitterCallbackPage } from '@/pages/auth/TwitterCallbackPage'
 import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { OrderListPage } from '@/pages/orders/OrderListPage'
 import { OrderDetailPage } from '@/pages/orders/OrderDetailPage'
+import { OrderFormPage } from '@/pages/orders/OrderFormPage'
+import { PurchaseOrderListPage } from '@/pages/orders/PurchaseOrderListPage'
+import { PurchaseOrderDetailPage } from '@/pages/orders/PurchaseOrderDetailPage'
+import { PurchaseOrderFormPage } from '@/pages/orders/PurchaseOrderFormPage'
 import { ProductListPage } from '@/pages/products/ProductListPage'
 import { InventoryListPage } from '@/pages/inventory/InventoryListPage'
 import { PaymentsPage } from '@/pages/payments/PaymentsPage'
@@ -76,6 +80,10 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: <DashboardPage /> },
       { path: 'orders', element: <OrderListPage /> },
+      { path: 'orders/new', element: <OrderFormPage /> },
+      { path: 'orders/purchase', element: <PurchaseOrderListPage /> },
+      { path: 'orders/purchase/new', element: <PurchaseOrderFormPage /> },
+      { path: 'orders/purchase/:id', element: <PurchaseOrderDetailPage /> },
       { path: 'orders/:id', element: <OrderDetailPage /> },
       { path: 'products', element: <ProductListPage /> },
       { path: 'inventory', element: <InventoryListPage /> },
