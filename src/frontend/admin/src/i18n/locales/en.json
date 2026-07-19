@@ -41,6 +41,11 @@
     "positions": "Positions",
     "employees": "Employees",
     "unitsOfMeasure": "Units of Measure",
+    "hrm": "HRM",
+    "attendance": "Attendance",
+    "leaveRequests": "Leave Requests",
+    "payroll": "Payroll",
+    "workShifts": "Work Shifts",
     "geography": "Geography",
     "languages": "Languages",
     "reports": "Reports",
@@ -376,6 +381,96 @@
       "defaultLanguage": "Default language",
       "default": "Default",
       "failedToSave": "Failed to save language. Please try again."
+    }
+  },
+  "hrm": {
+    "employee": "Employee",
+    "allEmployees": "All Employees",
+    "required": "Required.",
+    "notes": "Notes",
+    "attendance": {
+      "title": "Attendance",
+      "checkIn": "Check In",
+      "checkInTitle": "Record Check-In",
+      "checkInTime": "Check-In Time",
+      "checkOut": "Check Out",
+      "checkOutTitle": "Record Check-Out",
+      "checkOutTime": "Check-Out Time",
+      "markAbsent": "Mark Absent",
+      "markAbsentTitle": "Mark Employee Absent",
+      "totalHours": "Total Hours",
+      "workShiftOptional": "Work Shift (optional)",
+      "failedToSave": "Failed to save attendance record. Please try again.",
+      "statuses": {
+        "present": "Present",
+        "absent": "Absent",
+        "late": "Late",
+        "halfDay": "Half Day",
+        "onLeave": "On Leave",
+        "holiday": "Holiday"
+      }
+    },
+    "leaveRequests": {
+      "title": "Leave Requests",
+      "add": "+ Submit Leave Request",
+      "addTitle": "Submit Leave Request",
+      "number": "Request #",
+      "leaveType": "Leave Type",
+      "leaveTypes": {
+        "annual": "Annual",
+        "sick": "Sick",
+        "unpaid": "Unpaid",
+        "maternity": "Maternity",
+        "paternity": "Paternity"
+      },
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "days": "Days",
+      "reason": "Reason",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectTitle": "Reject Leave Request — {{number}}",
+      "cancel": "Cancel",
+      "cancelTitle": "Cancel Leave Request",
+      "cancelConfirm": "Are you sure you want to cancel leave request \"{{number}}\"?",
+      "failedToSave": "Failed to save leave request. Please try again.",
+      "statuses": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled"
+      }
+    },
+    "payroll": {
+      "title": "Payroll & Pay Slips",
+      "number": "Pay Slip #",
+      "payPeriod": "Pay Period",
+      "grossSalary": "Gross Salary",
+      "grossPay": "Gross Pay",
+      "deductions": "Deductions",
+      "netSalary": "Net Salary",
+      "overtimeHours": "Overtime Hours",
+      "overtimePay": "Overtime Pay",
+      "year": "Year",
+      "month": "Month",
+      "process": "Process Payroll",
+      "processTitle": "Process Payroll",
+      "processHint": "Generates a pay slip for every active employee for the given year and month.",
+      "generate": "+ Generate Pay Slip",
+      "generateTitle": "Generate Pay Slip",
+      "failedToSave": "Failed to save. Please try again."
+    },
+    "workShifts": {
+      "title": "Work Shifts",
+      "add": "+ Add Work Shift",
+      "editTitle": "Edit Work Shift",
+      "addTitle": "Add Work Shift",
+      "startTime": "Start Time",
+      "endTime": "End Time",
+      "shiftHours": "Shift Hours",
+      "deactivateTitle": "Deactivate Work Shift",
+      "deactivateConfirm": "Are you sure you want to deactivate \"{{name}}\"?",
+      "failedToSave": "Failed to save work shift. Please try again."
     }
   },
   "crm": {

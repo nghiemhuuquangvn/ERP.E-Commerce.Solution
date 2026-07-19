@@ -507,6 +507,17 @@ assigned inside `.Update(...)`. On the very first `CreateDefault()` insert
 **File**: `src/Gateway/Ocelot.API/Authorization/GatewayAuthorizationMiddleware.cs`
 **Rebuild scope**: `gateway` only.
 
+### Fix 46 — Overnight work shifts (e.g. night shift 22:00–06:00) were rejected entirely, and the rejection crashed with 500 instead of 400
+
+**Root cause**: reported by the user while trying to enter "Ca 3" (Shift 3), 22:00 the previous day to 06:00 the next — `WorkShift.Create`/`.Update` rejected any shift where `endTime <= startTime`, treating every overnight shift as invalid, even though night shifts are completely normal in HR scheduling. On top of that, the resulting `InvalidOperationException` wasn't caught by `WorkShiftsController`, so it fell through to a generic 500 instead of a validation-appropriate 400.
+**Fix**:
+1. `WorkShift.Create`/`.Update` (`src/services/HRMService/src/ERP.HRM.Domain/Entities/WorkShift.cs`) now only reject an *exact* start/end match (ambiguous zero-length/24h shift) — `endTime <= startTime` is treated as a valid overnight shift that wraps past midnight.
+2. `ShiftHours` now adds 24h to the duration when it would otherwise be zero or negative, so an overnight shift reports its correct positive duration (22:00–06:00 → 8h, not -16h).
+3. `WorkShiftsController.Create`/`.Update` now catch `InvalidOperationException` and return `400 Bad Request` with the message, instead of an unhandled 500.
+**Files**: `src/services/HRMService/src/ERP.HRM.Domain/Entities/WorkShift.cs`, `src/services/HRMService/src/ERP.HRM.API/Controllers/WorkShiftsController.cs`
+**Rebuild scope**: `hrmservice` only.
+**Verified**: `Ca 3` (22:00–06:00) now creates successfully with `shiftHours: 8`; an actually-invalid same-time shift now returns 400 instead of 500.
+
 ### Environmental note — License enforcement is new and tenants start unlicensed by design
 
 Not a bug: migration `012_AddLicenseManagement.sql` seeds the module/plan

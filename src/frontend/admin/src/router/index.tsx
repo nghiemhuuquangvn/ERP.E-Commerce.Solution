@@ -50,6 +50,10 @@ import { TaxSettingsPage } from '@/pages/settings/TaxSettingsPage'
 import { CurrencySettingsPage } from '@/pages/settings/CurrencySettingsPage'
 import { UsersPage } from '@/pages/identity/UsersPage'
 import { RolesPermissionsPage } from '@/pages/identity/RolesPermissionsPage'
+import { AttendancePage } from '@/pages/hrm/AttendancePage'
+import { LeaveRequestsPage } from '@/pages/hrm/LeaveRequestsPage'
+import { PayrollPage } from '@/pages/hrm/PayrollPage'
+import { WorkShiftsPage } from '@/pages/hrm/WorkShiftsPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -126,6 +130,10 @@ export const router = createBrowserRouter([
       { path: 'masterdata/languages', element: <LanguagesPage /> },
       { path: 'identity/users', element: <UsersPage /> },
       { path: 'identity/roles', element: <RolesPermissionsPage /> },
+      { path: 'hrm/attendance', element: <AttendancePage /> },
+      { path: 'hrm/leave-requests', element: <LeaveRequestsPage /> },
+      { path: 'hrm/payroll', element: <PayrollPage /> },
+      { path: 'hrm/work-shifts', element: <WorkShiftsPage /> },
       // Kept for anyone with the old bookmark/link — SharedMasterDataService now
       // owns Employee data, not HRM.
       { path: 'employees', element: <Navigate to="/masterdata/employees" replace /> },

@@ -174,6 +174,33 @@ const SETTINGS_CHILDREN: NavItem[] = [
   },
 ]
 
+const HRM_CHILDREN: NavItem[] = [
+  {
+    labelKey: 'nav.attendance',
+    path: '/hrm/attendance',
+    permission: 'hrm:attendance:view',
+    icon: '🕒',
+  },
+  {
+    labelKey: 'nav.leaveRequests',
+    path: '/hrm/leave-requests',
+    permission: 'hrm:leave:manage',
+    icon: '🏖️',
+  },
+  {
+    labelKey: 'nav.payroll',
+    path: '/hrm/payroll',
+    permission: 'hrm:payroll:manage',
+    icon: '💵',
+  },
+  {
+    labelKey: 'nav.workShifts',
+    path: '/hrm/work-shifts',
+    permission: 'hrm:shifts:view',
+    icon: '⏰',
+  },
+]
+
 const NAV_ITEMS: NavItem[] = [
   { labelKey: 'nav.dashboard', path: '/dashboard', permission: null, icon: '⊞' },
   { labelKey: 'nav.salesOrders', path: '/orders', permission: 'orders:view', icon: '📦' },
@@ -217,6 +244,7 @@ const NAV_ITEMS: NavItem[] = [
     permission: 'masterdata:units-of-measure:view',
     icon: '📏',
   },
+  { labelKey: 'nav.hrm', path: '/hrm', icon: '🧑‍💼', children: HRM_CHILDREN },
   {
     labelKey: 'nav.geography',
     path: '/masterdata/geography',

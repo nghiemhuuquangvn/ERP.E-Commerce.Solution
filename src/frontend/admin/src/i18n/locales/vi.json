@@ -41,6 +41,11 @@
     "positions": "Chức vụ",
     "employees": "Nhân viên",
     "unitsOfMeasure": "Đơn vị tính",
+    "hrm": "Nhân sự",
+    "attendance": "Chấm công",
+    "leaveRequests": "Đơn nghỉ phép",
+    "payroll": "Bảng lương",
+    "workShifts": "Ca làm việc",
     "geography": "Địa lý",
     "languages": "Ngôn ngữ",
     "reports": "Báo cáo",
@@ -376,6 +381,96 @@
       "defaultLanguage": "Ngôn ngữ mặc định",
       "default": "Mặc định",
       "failedToSave": "Lưu ngôn ngữ thất bại. Vui lòng thử lại."
+    }
+  },
+  "hrm": {
+    "employee": "Nhân viên",
+    "allEmployees": "Tất cả nhân viên",
+    "required": "Bắt buộc.",
+    "notes": "Ghi chú",
+    "attendance": {
+      "title": "Chấm công",
+      "checkIn": "Chấm công vào",
+      "checkInTitle": "Ghi nhận Chấm công vào",
+      "checkInTime": "Giờ vào",
+      "checkOut": "Chấm công ra",
+      "checkOutTitle": "Ghi nhận Chấm công ra",
+      "checkOutTime": "Giờ ra",
+      "markAbsent": "Đánh dấu vắng mặt",
+      "markAbsentTitle": "Đánh dấu nhân viên vắng mặt",
+      "totalHours": "Tổng số giờ",
+      "workShiftOptional": "Ca làm việc (tùy chọn)",
+      "failedToSave": "Lưu bản ghi chấm công thất bại. Vui lòng thử lại.",
+      "statuses": {
+        "present": "Có mặt",
+        "absent": "Vắng mặt",
+        "late": "Đi trễ",
+        "halfDay": "Nửa ngày",
+        "onLeave": "Nghỉ phép",
+        "holiday": "Ngày lễ"
+      }
+    },
+    "leaveRequests": {
+      "title": "Đơn nghỉ phép",
+      "add": "+ Gửi đơn nghỉ phép",
+      "addTitle": "Gửi đơn nghỉ phép",
+      "number": "Số đơn",
+      "leaveType": "Loại nghỉ phép",
+      "leaveTypes": {
+        "annual": "Nghỉ phép năm",
+        "sick": "Nghỉ ốm",
+        "unpaid": "Nghỉ không lương",
+        "maternity": "Nghỉ thai sản",
+        "paternity": "Nghỉ chăm con"
+      },
+      "startDate": "Ngày bắt đầu",
+      "endDate": "Ngày kết thúc",
+      "days": "Số ngày",
+      "reason": "Lý do",
+      "approve": "Duyệt",
+      "reject": "Từ chối",
+      "rejectTitle": "Từ chối đơn nghỉ phép — {{number}}",
+      "cancel": "Hủy",
+      "cancelTitle": "Hủy đơn nghỉ phép",
+      "cancelConfirm": "Bạn có chắc chắn muốn hủy đơn nghỉ phép \"{{number}}\"?",
+      "failedToSave": "Lưu đơn nghỉ phép thất bại. Vui lòng thử lại.",
+      "statuses": {
+        "pending": "Đang chờ",
+        "approved": "Đã duyệt",
+        "rejected": "Đã từ chối",
+        "cancelled": "Đã hủy"
+      }
+    },
+    "payroll": {
+      "title": "Bảng lương & Phiếu lương",
+      "number": "Số phiếu lương",
+      "payPeriod": "Kỳ lương",
+      "grossSalary": "Lương gộp",
+      "grossPay": "Lương gộp",
+      "deductions": "Khoản khấu trừ",
+      "netSalary": "Lương thực nhận",
+      "overtimeHours": "Giờ tăng ca",
+      "overtimePay": "Lương tăng ca",
+      "year": "Năm",
+      "month": "Tháng",
+      "process": "Xử lý bảng lương",
+      "processTitle": "Xử lý bảng lương",
+      "processHint": "Tạo phiếu lương cho tất cả nhân viên đang làm việc trong năm và tháng đã chọn.",
+      "generate": "+ Tạo phiếu lương",
+      "generateTitle": "Tạo phiếu lương",
+      "failedToSave": "Lưu thất bại. Vui lòng thử lại."
+    },
+    "workShifts": {
+      "title": "Ca làm việc",
+      "add": "+ Thêm ca làm việc",
+      "editTitle": "Sửa ca làm việc",
+      "addTitle": "Thêm ca làm việc",
+      "startTime": "Giờ bắt đầu",
+      "endTime": "Giờ kết thúc",
+      "shiftHours": "Số giờ ca",
+      "deactivateTitle": "Ngừng hoạt động ca làm việc",
+      "deactivateConfirm": "Bạn có chắc chắn muốn ngừng hoạt động \"{{name}}\"?",
+      "failedToSave": "Lưu ca làm việc thất bại. Vui lòng thử lại."
     }
   },
   "crm": {

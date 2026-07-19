@@ -13,8 +13,20 @@ public class WorkShift : AggregateRoot
     public TimeSpan EndTime { get; private set; }
     public bool IsActive { get; private set; }
 
-    /// <summary>Duration in hours between StartTime and EndTime (exclusive of breaks).</summary>
-    public decimal ShiftHours => (decimal)(EndTime - StartTime).TotalHours;
+    /// <summary>
+    /// Duration in hours between StartTime and EndTime (exclusive of breaks). Shifts that
+    /// cross midnight (EndTime &lt;= StartTime, e.g. 22:00–06:00) wrap into the next day.
+    /// </summary>
+    public decimal ShiftHours
+    {
+        get
+        {
+            var duration = EndTime - StartTime;
+            if (duration <= TimeSpan.Zero)
+                duration += TimeSpan.FromHours(24);
+            return (decimal)duration.TotalHours;
+        }
+    }
 
     private WorkShift() { }
 
@@ -23,8 +35,10 @@ public class WorkShift : AggregateRoot
         if (string.IsNullOrWhiteSpace(name))
             throw new InvalidOperationException("Shift name is required.");
 
-        if (endTime <= startTime)
-            throw new InvalidOperationException("Shift end time must be after start time.");
+        // EndTime <= StartTime is a valid overnight shift (e.g. 22:00–06:00), not an error —
+        // only an exact match is ambiguous (zero-length or full 24h shift).
+        if (endTime == startTime)
+            throw new InvalidOperationException("Shift start and end time cannot be the same.");
 
         return new WorkShift
         {
@@ -43,8 +57,8 @@ public class WorkShift : AggregateRoot
         if (string.IsNullOrWhiteSpace(name))
             throw new InvalidOperationException("Shift name is required.");
 
-        if (endTime <= startTime)
-            throw new InvalidOperationException("Shift end time must be after start time.");
+        if (endTime == startTime)
+            throw new InvalidOperationException("Shift start and end time cannot be the same.");
 
         Name = name.Trim();
         StartTime = startTime;
