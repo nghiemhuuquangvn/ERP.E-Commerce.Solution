@@ -378,6 +378,132 @@
       "failedToSave": "Lưu ngôn ngữ thất bại. Vui lòng thử lại."
     }
   },
+  "crm": {
+    "title": "Khách hàng (CRM)",
+    "tabs": {
+      "contacts": "Liên hệ",
+      "leads": "Khách hàng tiềm năng",
+      "opportunities": "Cơ hội bán hàng",
+      "cases": "Yêu cầu hỗ trợ",
+      "activities": "Hoạt động"
+    },
+    "contacts": {
+      "add": "+ Thêm liên hệ",
+      "addTitle": "Thêm liên hệ",
+      "editTitle": "Sửa liên hệ",
+      "email": "Email",
+      "phone": "Điện thoại",
+      "company": "Công ty",
+      "source": "Nguồn",
+      "tags": "Thẻ",
+      "tagsTitle": "Thẻ — {{name}}",
+      "noTags": "Chưa có thẻ nào.",
+      "newTag": "Thẻ mới",
+      "required": "Bắt buộc.",
+      "failedToSave": "Lưu liên hệ thất bại. Vui lòng thử lại."
+    },
+    "leads": {
+      "add": "+ Thêm khách hàng tiềm năng",
+      "addTitle": "Thêm khách hàng tiềm năng",
+      "leadName": "Tên khách hàng tiềm năng",
+      "source": "Nguồn",
+      "sources": {
+        "Website": "Website",
+        "Referral": "Giới thiệu",
+        "SocialMedia": "Mạng xã hội",
+        "Email": "Email",
+        "Phone": "Điện thoại",
+        "Other": "Khác"
+      },
+      "estimatedValue": "Giá trị ước tính",
+      "contactOptional": "Liên hệ (tùy chọn)",
+      "markContacted": "Đánh dấu đã liên hệ",
+      "qualify": "Chuyển thành cơ hội",
+      "markLost": "Đánh dấu thất bại",
+      "loseTitle": "Đánh dấu thất bại — {{name}}",
+      "reason": "Lý do",
+      "required": "Bắt buộc.",
+      "statusOptions": {
+        "all": "Tất cả trạng thái",
+        "new": "Mới",
+        "contacted": "Đã liên hệ",
+        "qualified": "Đã đánh giá",
+        "lost": "Thất bại"
+      },
+      "failedToSave": "Lưu khách hàng tiềm năng thất bại. Vui lòng thử lại."
+    },
+    "opportunities": {
+      "add": "+ Thêm cơ hội",
+      "addTitle": "Thêm cơ hội",
+      "name": "Tên",
+      "contact": "Liên hệ",
+      "value": "Giá trị",
+      "expectedCloseDate": "Ngày dự kiến chốt",
+      "assignedToOptional": "Người phụ trách (tùy chọn)",
+      "stage": "Giai đoạn",
+      "probability": "Xác suất",
+      "advance": "Chuyển giai đoạn",
+      "win": "Thắng",
+      "markLost": "Đánh dấu thất bại",
+      "loseTitle": "Đánh dấu thất bại — {{name}}",
+      "reason": "Lý do",
+      "required": "Bắt buộc.",
+      "stageOptions": { "all": "Tất cả giai đoạn" },
+      "stages": {
+        "Prospecting": "Tìm kiếm",
+        "Qualification": "Đánh giá",
+        "Proposal": "Đề xuất",
+        "Negotiation": "Đàm phán",
+        "Won": "Thắng",
+        "Lost": "Thất bại"
+      },
+      "failedToSave": "Lưu cơ hội thất bại. Vui lòng thử lại."
+    },
+    "cases": {
+      "add": "+ Mở yêu cầu hỗ trợ",
+      "addTitle": "Mở yêu cầu hỗ trợ",
+      "caseNumber": "Mã yêu cầu",
+      "subject": "Tiêu đề",
+      "description": "Mô tả",
+      "contact": "Liên hệ",
+      "priority": "Mức độ ưu tiên",
+      "priorities": { "Low": "Thấp", "Medium": "Trung bình", "High": "Cao", "Critical": "Khẩn cấp" },
+      "assign": "Phân công",
+      "assignTitle": "Phân công — {{number}}",
+      "assignee": "Người phụ trách",
+      "resolve": "Giải quyết",
+      "resolveTitle": "Giải quyết — {{number}}",
+      "resolution": "Kết quả giải quyết",
+      "close": "Đóng",
+      "required": "Bắt buộc.",
+      "statusOptions": {
+        "all": "Tất cả trạng thái",
+        "open": "Đang mở",
+        "inProgress": "Đang xử lý",
+        "resolved": "Đã giải quyết",
+        "closed": "Đã đóng"
+      },
+      "failedToSave": "Lưu yêu cầu hỗ trợ thất bại. Vui lòng thử lại."
+    },
+    "activities": {
+      "add": "+ Ghi nhận hoạt động",
+      "addTitle": "Ghi nhận hoạt động",
+      "contact": "Liên hệ",
+      "type": "Loại",
+      "types": { "Call": "Gọi điện", "Email": "Email", "Meeting": "Họp", "Note": "Ghi chú", "Task": "Công việc" },
+      "typeOptions": { "all": "Tất cả loại" },
+      "subject": "Tiêu đề",
+      "notes": "Ghi chú",
+      "scheduledAtOptional": "Thời gian dự kiến (tùy chọn)",
+      "opportunityIdOptional": "Mã cơ hội (tùy chọn)",
+      "caseIdOptional": "Mã yêu cầu hỗ trợ (tùy chọn)",
+      "complete": "Hoàn thành",
+      "completeTitle": "Hoàn thành — {{subject}}",
+      "cancel": "Hủy",
+      "required": "Bắt buộc.",
+      "failedToSave": "Lưu hoạt động thất bại. Vui lòng thử lại."
+    }
+  },
   "settings": {
     "general": {
       "title": "Cài đặt chung",

@@ -180,7 +180,18 @@ const NAV_ITEMS: NavItem[] = [
   { labelKey: 'nav.purchaseOrders', path: '/orders/purchase', permission: 'purchaseOrders:view', icon: '🧾' },
   { labelKey: 'nav.products', path: '/products', permission: 'products:view', icon: '🏷️' },
   { labelKey: 'nav.inventory', path: '/inventory', permission: 'inventory:view', icon: '🏭' },
-  { labelKey: 'nav.customers', path: '/customers', permission: 'crm:view', icon: '👥' },
+  {
+    labelKey: 'nav.customers',
+    path: '/customers',
+    permissions: [
+      'crm:contacts:view',
+      'crm:leads:view',
+      'crm:opportunities:view',
+      'crm:cases:view',
+      'crm:activities:view',
+    ],
+    icon: '👥',
+  },
   { labelKey: 'nav.payments', path: '/payments', permission: 'payments:view', icon: '💳' },
   {
     labelKey: 'nav.departments',

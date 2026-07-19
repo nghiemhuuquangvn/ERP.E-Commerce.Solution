@@ -378,6 +378,132 @@
       "failedToSave": "Failed to save language. Please try again."
     }
   },
+  "crm": {
+    "title": "Customers (CRM)",
+    "tabs": {
+      "contacts": "Contacts",
+      "leads": "Leads",
+      "opportunities": "Opportunities",
+      "cases": "Cases",
+      "activities": "Activities"
+    },
+    "contacts": {
+      "add": "+ Add Contact",
+      "addTitle": "Add Contact",
+      "editTitle": "Edit Contact",
+      "email": "Email",
+      "phone": "Phone",
+      "company": "Company",
+      "source": "Source",
+      "tags": "Tags",
+      "tagsTitle": "Tags — {{name}}",
+      "noTags": "No tags yet.",
+      "newTag": "New tag",
+      "required": "Required.",
+      "failedToSave": "Failed to save contact. Please try again."
+    },
+    "leads": {
+      "add": "+ Add Lead",
+      "addTitle": "Add Lead",
+      "leadName": "Lead Name",
+      "source": "Source",
+      "sources": {
+        "Website": "Website",
+        "Referral": "Referral",
+        "SocialMedia": "Social Media",
+        "Email": "Email",
+        "Phone": "Phone",
+        "Other": "Other"
+      },
+      "estimatedValue": "Estimated Value",
+      "contactOptional": "Contact (optional)",
+      "markContacted": "Mark Contacted",
+      "qualify": "Qualify",
+      "markLost": "Mark Lost",
+      "loseTitle": "Mark Lost — {{name}}",
+      "reason": "Reason",
+      "required": "Required.",
+      "statusOptions": {
+        "all": "All Statuses",
+        "new": "New",
+        "contacted": "Contacted",
+        "qualified": "Qualified",
+        "lost": "Lost"
+      },
+      "failedToSave": "Failed to save lead. Please try again."
+    },
+    "opportunities": {
+      "add": "+ Add Opportunity",
+      "addTitle": "Add Opportunity",
+      "name": "Name",
+      "contact": "Contact",
+      "value": "Value",
+      "expectedCloseDate": "Expected Close Date",
+      "assignedToOptional": "Assigned To (optional)",
+      "stage": "Stage",
+      "probability": "Probability",
+      "advance": "Advance",
+      "win": "Win",
+      "markLost": "Mark Lost",
+      "loseTitle": "Mark Lost — {{name}}",
+      "reason": "Reason",
+      "required": "Required.",
+      "stageOptions": { "all": "All Stages" },
+      "stages": {
+        "Prospecting": "Prospecting",
+        "Qualification": "Qualification",
+        "Proposal": "Proposal",
+        "Negotiation": "Negotiation",
+        "Won": "Won",
+        "Lost": "Lost"
+      },
+      "failedToSave": "Failed to save opportunity. Please try again."
+    },
+    "cases": {
+      "add": "+ Open Case",
+      "addTitle": "Open Case",
+      "caseNumber": "Case #",
+      "subject": "Subject",
+      "description": "Description",
+      "contact": "Contact",
+      "priority": "Priority",
+      "priorities": { "Low": "Low", "Medium": "Medium", "High": "High", "Critical": "Critical" },
+      "assign": "Assign",
+      "assignTitle": "Assign — {{number}}",
+      "assignee": "Assignee",
+      "resolve": "Resolve",
+      "resolveTitle": "Resolve — {{number}}",
+      "resolution": "Resolution",
+      "close": "Close",
+      "required": "Required.",
+      "statusOptions": {
+        "all": "All Statuses",
+        "open": "Open",
+        "inProgress": "In Progress",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      },
+      "failedToSave": "Failed to save case. Please try again."
+    },
+    "activities": {
+      "add": "+ Log Activity",
+      "addTitle": "Log Activity",
+      "contact": "Contact",
+      "type": "Type",
+      "types": { "Call": "Call", "Email": "Email", "Meeting": "Meeting", "Note": "Note", "Task": "Task" },
+      "typeOptions": { "all": "All Types" },
+      "subject": "Subject",
+      "notes": "Notes",
+      "scheduledAtOptional": "Scheduled At (optional)",
+      "opportunityIdOptional": "Opportunity ID (optional)",
+      "caseIdOptional": "Case ID (optional)",
+      "complete": "Complete",
+      "completeTitle": "Complete — {{subject}}",
+      "cancel": "Cancel",
+      "required": "Required.",
+      "failedToSave": "Failed to save activity. Please try again."
+    }
+  },
   "settings": {
     "general": {
       "title": "General Settings",

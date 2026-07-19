@@ -23,6 +23,7 @@ import { EmployeesPage } from '@/pages/masterdata/EmployeesPage'
 import { UnitsOfMeasurePage } from '@/pages/masterdata/UnitsOfMeasurePage'
 import { GeographyPage } from '@/pages/masterdata/GeographyPage'
 import { LanguagesPage } from '@/pages/masterdata/LanguagesPage'
+import { CustomersPage } from '@/pages/crm/CustomersPage'
 import { AuthSettingsPage } from '@/pages/settings/AuthSettingsPage'
 import { GeneralSettingsPage } from '@/pages/settings/GeneralSettingsPage'
 import { CompanySettingsPage } from '@/pages/settings/CompanySettingsPage'
@@ -89,7 +90,7 @@ export const router = createBrowserRouter([
       { path: 'inventory', element: <InventoryListPage /> },
       { path: 'payments', element: <PaymentsPage /> },
       { path: 'reports', element: <ReportsPage /> },
-      { path: 'customers', element: <PlaceholderPage title="Customers (CRM)" /> },
+      { path: 'customers', element: <CustomersPage /> },
       { path: 'settings', element: <PlaceholderPage title="Settings" /> },
       { path: 'settings/general', element: <GeneralSettingsPage /> },
       { path: 'settings/company', element: <CompanySettingsPage /> },
