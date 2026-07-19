@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { NavLink } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useUiStore } from '@/stores/ui.store'
 import { usePermission } from '@/hooks/usePermission'
@@ -12,53 +12,13 @@ interface NavItem {
   // visible under any of several permissions (OR) use `permissions` instead.
   permission?: string | null
   permissions?: string[]
+  // Present only on group headers (e.g. "Settings"). A group renders as an
+  // expand/collapse toggle instead of a link; `path` is unused for routing
+  // but kept so the group has a stable React key.
+  children?: NavItem[]
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { labelKey: 'nav.dashboard', path: '/dashboard', permission: null, icon: '⊞' },
-  { labelKey: 'nav.orders', path: '/orders', permission: 'orders:view', icon: '📦' },
-  { labelKey: 'nav.products', path: '/products', permission: 'products:view', icon: '🏷️' },
-  { labelKey: 'nav.inventory', path: '/inventory', permission: 'inventory:view', icon: '🏭' },
-  { labelKey: 'nav.customers', path: '/customers', permission: 'crm:view', icon: '👥' },
-  { labelKey: 'nav.payments', path: '/payments', permission: 'payments:view', icon: '💳' },
-  {
-    labelKey: 'nav.departments',
-    path: '/masterdata/departments',
-    permission: 'masterdata:departments:view',
-    icon: '🏢',
-  },
-  {
-    labelKey: 'nav.positions',
-    path: '/masterdata/positions',
-    permission: 'masterdata:positions:view',
-    icon: '📋',
-  },
-  {
-    labelKey: 'nav.employees',
-    path: '/masterdata/employees',
-    permission: 'masterdata:employees:view',
-    icon: '👤',
-  },
-  {
-    labelKey: 'nav.unitsOfMeasure',
-    path: '/masterdata/units-of-measure',
-    permission: 'masterdata:units-of-measure:view',
-    icon: '📏',
-  },
-  {
-    labelKey: 'nav.geography',
-    path: '/masterdata/geography',
-    permission: 'masterdata:geography:view',
-    icon: '🗺️',
-  },
-  {
-    labelKey: 'nav.languages',
-    path: '/masterdata/languages',
-    permission: 'masterdata:languages:view',
-    icon: '🌐',
-  },
-  { labelKey: 'nav.reports', path: '/reports', permission: 'reports:view', icon: '📊' },
-  { labelKey: 'nav.settings', path: '/settings', permission: 'settings:view', icon: '⚙️' },
+const SETTINGS_CHILDREN: NavItem[] = [
   {
     labelKey: 'nav.generalSettings',
     path: '/settings/general',
@@ -212,6 +172,53 @@ const NAV_ITEMS: NavItem[] = [
     permissions: ['settings:currency:system:view', 'settings:currency:tenant:view'],
     icon: '💱',
   },
+]
+
+const NAV_ITEMS: NavItem[] = [
+  { labelKey: 'nav.dashboard', path: '/dashboard', permission: null, icon: '⊞' },
+  { labelKey: 'nav.orders', path: '/orders', permission: 'orders:view', icon: '📦' },
+  { labelKey: 'nav.products', path: '/products', permission: 'products:view', icon: '🏷️' },
+  { labelKey: 'nav.inventory', path: '/inventory', permission: 'inventory:view', icon: '🏭' },
+  { labelKey: 'nav.customers', path: '/customers', permission: 'crm:view', icon: '👥' },
+  { labelKey: 'nav.payments', path: '/payments', permission: 'payments:view', icon: '💳' },
+  {
+    labelKey: 'nav.departments',
+    path: '/masterdata/departments',
+    permission: 'masterdata:departments:view',
+    icon: '🏢',
+  },
+  {
+    labelKey: 'nav.positions',
+    path: '/masterdata/positions',
+    permission: 'masterdata:positions:view',
+    icon: '📋',
+  },
+  {
+    labelKey: 'nav.employees',
+    path: '/masterdata/employees',
+    permission: 'masterdata:employees:view',
+    icon: '👤',
+  },
+  {
+    labelKey: 'nav.unitsOfMeasure',
+    path: '/masterdata/units-of-measure',
+    permission: 'masterdata:units-of-measure:view',
+    icon: '📏',
+  },
+  {
+    labelKey: 'nav.geography',
+    path: '/masterdata/geography',
+    permission: 'masterdata:geography:view',
+    icon: '🗺️',
+  },
+  {
+    labelKey: 'nav.languages',
+    path: '/masterdata/languages',
+    permission: 'masterdata:languages:view',
+    icon: '🌐',
+  },
+  { labelKey: 'nav.reports', path: '/reports', permission: 'reports:view', icon: '📊' },
+  { labelKey: 'nav.settings', path: '/settings', icon: '⚙️', children: SETTINGS_CHILDREN },
   { labelKey: 'nav.monitoring', path: '/monitoring', permission: 'monitoring:view', icon: '🖥' },
   { labelKey: 'nav.logs', path: '/logs', permission: 'logging:logs:view', icon: '📜' },
   { labelKey: 'nav.users', path: '/identity/users', permission: 'identity:users:view', icon: '🧑‍💼' },
@@ -223,20 +230,44 @@ const NAV_ITEMS: NavItem[] = [
   },
 ]
 
+function isItemVisible(item: NavItem, hasPermission: (p: string) => boolean, hasAnyPermission: (...p: string[]) => boolean) {
+  if (item.permissions) return hasAnyPermission(...item.permissions)
+  return item.permission === null || item.permission === undefined || hasPermission(item.permission)
+}
+
 export function Sidebar() {
   const { t } = useTranslation()
   const { sidebarCollapsed } = useUiStore()
   const { hasPermission, hasAnyPermission } = usePermission()
+  const { pathname } = useLocation()
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
-  // Recompute only when user permissions change (hasPermission is stable via useCallback)
+  // Recompute only when user permissions change (hasPermission is stable via useCallback).
+  // Groups (e.g. Settings) are visible when at least one child passes the permission check;
+  // the children themselves are pre-filtered here too so rendering doesn't repeat the check.
   const visible = useMemo(
     () =>
-      NAV_ITEMS.filter((item) => {
-        if (item.permissions) return hasAnyPermission(...item.permissions)
-        return item.permission === null || item.permission === undefined || hasPermission(item.permission)
+      NAV_ITEMS.map((item) => {
+        if (!item.children) return item
+        const visibleChildren = item.children.filter((child) => isItemVisible(child, hasPermission, hasAnyPermission))
+        return { ...item, children: visibleChildren }
+      }).filter((item) => {
+        if (item.children) return item.children.length > 0
+        return isItemVisible(item, hasPermission, hasAnyPermission)
       }),
     [hasPermission, hasAnyPermission],
   )
+
+  const isGroupActive = (item: NavItem) => item.children?.some((child) => pathname.startsWith(child.path)) ?? false
+
+  const toggleGroup = (labelKey: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(labelKey)) next.delete(labelKey)
+      else next.add(labelKey)
+      return next
+    })
+  }
 
   return (
     <aside
@@ -253,20 +284,67 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4">
-        {visible.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-gray-50 ${
-                isActive ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-600' : 'text-gray-600'
-              }`
-            }
-          >
-            <span className="text-base">{item.icon}</span>
-            {!sidebarCollapsed && <span>{t(item.labelKey)}</span>}
-          </NavLink>
-        ))}
+        {visible.map((item) => {
+          if (!item.children) {
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-gray-50 ${
+                    isActive ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-600' : 'text-gray-600'
+                  }`
+                }
+              >
+                <span className="text-base">{item.icon}</span>
+                {!sidebarCollapsed && <span>{t(item.labelKey)}</span>}
+              </NavLink>
+            )
+          }
+
+          const active = isGroupActive(item)
+          const expanded = expandedGroups.has(item.labelKey) || active
+
+          return (
+            <div key={item.labelKey}>
+              <button
+                type="button"
+                onClick={() => toggleGroup(item.labelKey)}
+                className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-gray-50 ${
+                  active ? 'text-primary-700' : 'text-gray-600'
+                }`}
+              >
+                <span className="text-base">{item.icon}</span>
+                {!sidebarCollapsed && (
+                  <>
+                    <span className="flex-1 text-left">{t(item.labelKey)}</span>
+                    <span className="text-xs">{expanded ? '▾' : '▸'}</span>
+                  </>
+                )}
+              </button>
+              {!sidebarCollapsed && expanded && (
+                <div>
+                  {item.children.map((child) => (
+                    <NavLink
+                      key={child.path}
+                      to={child.path}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 py-2 pl-11 pr-4 text-sm font-medium transition-colors hover:bg-gray-50 ${
+                          isActive
+                            ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-600'
+                            : 'text-gray-600'
+                        }`
+                      }
+                    >
+                      <span className="text-sm">{child.icon}</span>
+                      <span>{t(child.labelKey)}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </nav>
     </aside>
   )
