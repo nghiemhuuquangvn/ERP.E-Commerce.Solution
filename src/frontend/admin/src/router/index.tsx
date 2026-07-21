@@ -45,6 +45,14 @@ import { TaxSettingsPage } from '@/pages/settings/TaxSettingsPage'
 import { CurrencySettingsPage } from '@/pages/settings/CurrencySettingsPage'
 import { UsersPage } from '@/pages/identity/UsersPage'
 import { RolesPermissionsPage } from '@/pages/identity/RolesPermissionsPage'
+import { AccountsPage } from '@/pages/accounting/AccountsPage'
+import { FiscalPeriodsPage } from '@/pages/accounting/FiscalPeriodsPage'
+import { TaxRatesPage } from '@/pages/accounting/TaxRatesPage'
+import { InvoicesPage } from '@/pages/accounting/InvoicesPage'
+import { BillsPage } from '@/pages/accounting/BillsPage'
+import { ReportsPage as AccountingReportsPage } from '@/pages/accounting/ReportsPage'
+import { JournalEntriesPage } from '@/pages/accounting/JournalEntriesPage'
+import { BankAccountsPage } from '@/pages/accounting/BankAccountsPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -117,6 +125,14 @@ export const router = createBrowserRouter([
       { path: 'masterdata/languages', element: <LanguagesPage /> },
       { path: 'identity/users', element: <UsersPage /> },
       { path: 'identity/roles', element: <RolesPermissionsPage /> },
+      { path: 'accounting/accounts', element: <AccountsPage /> },
+      { path: 'accounting/fiscal-periods', element: <FiscalPeriodsPage /> },
+      { path: 'accounting/tax-rates', element: <TaxRatesPage /> },
+      { path: 'accounting/invoices', element: <InvoicesPage /> },
+      { path: 'accounting/bills', element: <BillsPage /> },
+      { path: 'accounting/reports', element: <AccountingReportsPage /> },
+      { path: 'accounting/journal-entries', element: <JournalEntriesPage /> },
+      { path: 'accounting/bank-accounts', element: <BankAccountsPage /> },
       // Kept for anyone with the old bookmark/link — SharedMasterDataService now
       // owns Employee data, not HRM.
       { path: 'employees', element: <Navigate to="/masterdata/employees" replace /> },

@@ -33,11 +33,27 @@ public static class PermissionConstants
     public const string SalesOrder_Cancel = "sales_order:cancel";
 
     // Accounting Permissions
+    // NOTE: AccountingService's controllers check both a "...:view" (GET) and
+    // "...:manage" (POST/PUT/status actions) variant per entity — the ":view"
+    // half of this pairing was missing entirely from this vocabulary (the one
+    // ERP.Shared.Authorization.RoleDefinitions/business-service controllers
+    // actually use, distinct from IdentityService's own DB-seeded AuthDB
+    // permissions), so every GET endpoint across all 7 controllers was
+    // unconditionally Forbidden for every role, including SuperAdmin, until
+    // these were added.
+    public const string Accounting_AccountsView = "accounting:accounts:view";
+    public const string Accounting_AccountsManage = "accounting:accounts:manage";
+    public const string Accounting_InvoicesView = "accounting:invoices:view";
     public const string Accounting_InvoicesManage = "accounting:invoices:manage";
+    public const string Accounting_BillsView = "accounting:bills:view";
     public const string Accounting_BillsManage = "accounting:bills:manage";
+    public const string Accounting_JournalsView = "accounting:journals:view";
     public const string Accounting_JournalsManage = "accounting:journals:manage";
+    public const string Accounting_PeriodsView = "accounting:periods:view";
     public const string Accounting_PeriodsManage = "accounting:periods:manage";
+    public const string Accounting_BankView = "accounting:bank:view";
     public const string Accounting_BankManage = "accounting:bank:manage";
+    public const string Accounting_TaxView = "accounting:tax:view";
     public const string Accounting_TaxManage = "accounting:tax:manage";
     public const string Accounting_ReportsView = "accounting:reports:view";
 
@@ -73,8 +89,14 @@ public static class PermissionConstants
         PurchaseOrder_Receive,
         Supplier_Create, Supplier_Read, Supplier_Update, Supplier_Delete, Supplier_Deactivate, Supplier_Rate,
         SalesOrder_Create, SalesOrder_Read, SalesOrder_Update, SalesOrder_Approve, SalesOrder_Cancel,
-        Accounting_InvoicesManage, Accounting_BillsManage, Accounting_JournalsManage, Accounting_PeriodsManage,
-        Accounting_BankManage, Accounting_TaxManage, Accounting_ReportsView,
+        Accounting_AccountsView, Accounting_AccountsManage,
+        Accounting_InvoicesView, Accounting_InvoicesManage,
+        Accounting_BillsView, Accounting_BillsManage,
+        Accounting_JournalsView, Accounting_JournalsManage,
+        Accounting_PeriodsView, Accounting_PeriodsManage,
+        Accounting_BankView, Accounting_BankManage,
+        Accounting_TaxView, Accounting_TaxManage,
+        Accounting_ReportsView,
         Shipping_Create, Shipping_Update,
         Payments_Create, Payments_Refund, Payments_SettlementsManage,
         POS_Transactions, POS_TerminalsManage, POS_ReportsView,

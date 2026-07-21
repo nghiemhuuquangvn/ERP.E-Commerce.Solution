@@ -42,7 +42,7 @@ namespace ERP.ACC.API.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateAccountCommand command, CancellationToken ct)
         {
-            if (!_userContext.HasPermission("accounting:invoices:manage"))
+            if (!_userContext.HasPermission("accounting:accounts:manage"))
                 return Forbid();
 
             var result = await _mediator.Send(command, ct);
