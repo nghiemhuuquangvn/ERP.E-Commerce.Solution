@@ -8,12 +8,18 @@
 USE AuthDB;
 GO
 
+-- Required for INSERTs into tables with filtered indexes; some sqlcmd
+-- sessions don't inherit ON even when the DB-level default is ON.
+SET QUOTED_IDENTIFIER ON;
+GO
+
 -- ============================================================
 -- Workflow Settings
 -- ============================================================
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SystemWorkflowSettings')
 CREATE TABLE SystemWorkflowSettings (
     Id                          UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    Description                 NVARCHAR(MAX)    NULL,
     MultiLevelApprovalAvailable BIT              NOT NULL DEFAULT 1,
     CreatedBy                   NVARCHAR(256)    NULL,
     CreatedAt                   DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
@@ -33,6 +39,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TenantWorkflowSettings')
 CREATE TABLE TenantWorkflowSettings (
     Id                          UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
     TenantId                    UNIQUEIDENTIFIER NOT NULL,
+    Description                 NVARCHAR(MAX)    NULL,
     MultiLevelApprovalEnabled   BIT              NOT NULL DEFAULT 0,
     DefaultApprovalLevels       INT              NOT NULL DEFAULT 1,
     AutoApproveThresholdAmount  DECIMAL(18,2)    NULL,
@@ -59,6 +66,7 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SystemFileStorageSettings')
 CREATE TABLE SystemFileStorageSettings (
     Id                          UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    Description                 NVARCHAR(MAX)    NULL,
     CustomStorageProviderAllowed BIT             NOT NULL DEFAULT 1,
     DefaultMaxUploadSizeMb      INT              NOT NULL DEFAULT 10,
     CreatedBy                   NVARCHAR(256)    NULL,
@@ -79,6 +87,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TenantFileStorageSettings'
 CREATE TABLE TenantFileStorageSettings (
     Id              UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
     TenantId        UNIQUEIDENTIFIER NOT NULL,
+    Description     NVARCHAR(MAX)    NULL,
     Provider        NVARCHAR(50)     NOT NULL DEFAULT 'Local',
     MaxUploadSizeMb INT              NOT NULL DEFAULT 10,
     CdnBaseUrl      NVARCHAR(500)    NULL,
@@ -105,6 +114,7 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SystemSchedulerSettings')
 CREATE TABLE SystemSchedulerSettings (
     Id                    UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    Description           NVARCHAR(MAX)    NULL,
     BackgroundJobsEnabled BIT              NOT NULL DEFAULT 1,
     CreatedBy             NVARCHAR(256)    NULL,
     CreatedAt             DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
@@ -124,6 +134,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TenantSchedulerSettings')
 CREATE TABLE TenantSchedulerSettings (
     Id                              UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
     TenantId                        UNIQUEIDENTIFIER NOT NULL,
+    Description                     NVARCHAR(MAX)    NULL,
     OutboxPollingIntervalSeconds    INT              NOT NULL DEFAULT 30,
     MaxRetryAttempts                INT              NOT NULL DEFAULT 5,
     CreatedBy                       NVARCHAR(256)    NULL,
@@ -149,6 +160,7 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SystemIntegrationSettings')
 CREATE TABLE SystemIntegrationSettings (
     Id                          UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    Description                 NVARCHAR(MAX)    NULL,
     ExternalIntegrationsAllowed BIT              NOT NULL DEFAULT 1,
     CreatedBy                   NVARCHAR(256)    NULL,
     CreatedAt                   DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
@@ -168,6 +180,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TenantIntegrationSettings'
 CREATE TABLE TenantIntegrationSettings (
     Id                      UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
     TenantId                UNIQUEIDENTIFIER NOT NULL,
+    Description             NVARCHAR(MAX)    NULL,
     ExternalApiBaseUrl      NVARCHAR(500)    NULL,
     ExternalApiKeyEncrypted NVARCHAR(500)    NULL,
     SyncEnabled             BIT              NOT NULL DEFAULT 0,
@@ -194,6 +207,7 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SystemApiSettings')
 CREATE TABLE SystemApiSettings (
     Id                          UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    Description                 NVARCHAR(MAX)    NULL,
     ApiKeysAllowed              BIT              NOT NULL DEFAULT 1,
     DefaultRateLimitPerMinute   INT              NOT NULL DEFAULT 60,
     CreatedBy                   NVARCHAR(256)    NULL,
@@ -214,6 +228,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TenantApiSettings')
 CREATE TABLE TenantApiSettings (
     Id                  UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
     TenantId            UNIQUEIDENTIFIER NOT NULL,
+    Description         NVARCHAR(MAX)    NULL,
     RateLimitPerMinute  INT              NOT NULL DEFAULT 60,
     MaxActiveApiKeys    INT              NOT NULL DEFAULT 5,
     CreatedBy           NVARCHAR(256)    NULL,
@@ -239,6 +254,7 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SystemAuditSettings')
 CREATE TABLE SystemAuditSettings (
     Id                  UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    Description         NVARCHAR(MAX)    NULL,
     AuditLoggingEnabled BIT              NOT NULL DEFAULT 1,
     CreatedBy           NVARCHAR(256)    NULL,
     CreatedAt           DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
@@ -258,6 +274,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TenantAuditSettings')
 CREATE TABLE TenantAuditSettings (
     Id                      UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
     TenantId                UNIQUEIDENTIFIER NOT NULL,
+    Description             NVARCHAR(MAX)    NULL,
     RetentionDays           INT              NOT NULL DEFAULT 90,
     LogSuccessfulLogins     BIT              NOT NULL DEFAULT 1,
     LogFailedLogins         BIT              NOT NULL DEFAULT 1,
@@ -285,6 +302,7 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SystemAdvancedSettings')
 CREATE TABLE SystemAdvancedSettings (
     Id                UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    Description       NVARCHAR(MAX)    NULL,
     DebugModeAllowed  BIT              NOT NULL DEFAULT 0,
     CreatedBy         NVARCHAR(256)    NULL,
     CreatedAt         DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
@@ -304,6 +322,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TenantAdvancedSettings')
 CREATE TABLE TenantAdvancedSettings (
     Id                  UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
     TenantId            UNIQUEIDENTIFIER NOT NULL,
+    Description         NVARCHAR(MAX)    NULL,
     DebugModeEnabled    BIT              NOT NULL DEFAULT 0,
     CustomCssUrl        NVARCHAR(500)    NULL,
     DataExportEnabled   BIT              NOT NULL DEFAULT 1,
@@ -330,6 +349,7 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SystemLocalizationSettings')
 CREATE TABLE SystemLocalizationSettings (
     Id                    UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    Description           NVARCHAR(MAX)    NULL,
     MultiLanguageAllowed  BIT              NOT NULL DEFAULT 1,
     DefaultLocale         NVARCHAR(20)     NOT NULL DEFAULT 'en-US',
     CreatedBy             NVARCHAR(256)    NULL,
@@ -350,6 +370,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TenantLocalizationSettings
 CREATE TABLE TenantLocalizationSettings (
     Id                  UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
     TenantId            UNIQUEIDENTIFIER NOT NULL,
+    Description         NVARCHAR(MAX)    NULL,
     DefaultLocale       NVARCHAR(20)     NOT NULL DEFAULT 'en-US',
     SupportedLocales    NVARCHAR(500)    NOT NULL DEFAULT 'en-US',
     NumberFormatLocale  NVARCHAR(20)     NOT NULL DEFAULT 'en-US',

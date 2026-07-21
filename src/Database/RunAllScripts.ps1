@@ -26,34 +26,53 @@ $DatabaseScripts = @(
     "Identity\005_AddBaseEntityAuditColumns.sql",
     "Identity\006_AddCustomerAndStaffRoles.sql",
     "Identity\007_SeedIdentityManagementPermissions.sql",
+    "Identity\008_AddGeneralAndCompanySettings.sql",
     "Identity\008_AddPermissionsAuditColumns.sql",
+    "Identity\009_ExtendAuthSettingsSecurityFields.sql",
+    "Identity\010_AddPhase3FixedSettingsCategories.sql",
+    "Identity\011_AddFeatureFlags.sql",
+    "Identity\012_AddLicenseManagement.sql",
 
     # Cross-cutting master data (Department/Position/Employee/UoM/Geography/Language —
     # seed before HRM, which now references Employees/Departments here instead of owning them)
     "MasterData\001_CreateMasterDataDB.sql",
+    "MasterData\002_ProvisionMissingTablesAndColumns.sql",
+    "MasterData\003_AddCurrencySettings.sql",
 
     # Core business services
     "Sales\001_CreateSalesDB.sql",
     "Sales\002_AddOrderLifecycleExtensions.sql",
+    "Sales\003_AddBaseEntityColumns.sql",
+    "Sales\004_AddOrderFulfillmentSagaState.sql",
+    "Sales\005_AddCartCheckoutAndOrderSettings.sql",
     "Purchasing\001_CreatePurchasingDB.sql",
     "Purchasing\002_AddOutboxMessages.sql",
     "Purchasing\003_AddReceivingScheduleAndSupplierRatings.sql",
+    "Purchasing\004_AddRejectionColumns.sql",
     "Warehouse\001_CreateWarehouseDB.sql",
     "Warehouse\002_AddLotsSerialsTransfersStocktakes.sql",
+    "Warehouse\003_AddInventorySettings.sql",
     "Accounting\001_CreateAccountingDB.sql",
+    "Accounting\002_AddTaxSettings.sql",
     "Product\001_CreateProductDB.sql",
     "Product\002_AddProductTranslations.sql",
     "Product\003_AddProductAttributesAndDimensions.sql",
     "Product\004_AddProductExternalMappings.sql",
     "Product\005_AddSearchIndexQueue.sql",
     "Product\006_AddSeoStockBundlesRelationsReviews.sql",
+    "Product\007_RebuildProductsAndMissingTables.sql",
+    "Product\008_FixMissingEntityColumns.sql",
+    "Product\009_AddStoreProductSettings.sql",
 
     # Customer-facing services
     "CRM\001_CreateCrmDB.sql",
     "Payment\001_CreatePaymentDB.sql",
     "Payment\002_AddInvoiceLinkAndSavedMethodsAndInstallments.sql",
+    "Payment\003_AddBaseEntityColumns.sql",
+    "Payment\004_AddPaymentSettings.sql",
     "Shipping\001_CreateShippingDB.sql",
     "Shipping\002_AddReturnsPodAddressRestructure.sql",
+    "Shipping\003_AddShippingSettings.sql",
 
     # HR & Retail
     "HRM\001_CreateHrmDB.sql",
@@ -64,6 +83,7 @@ $DatabaseScripts = @(
     # Cross-cutting
     "Promotion\001_CreatePromotionDB.sql",
     "Notification\001_CreateNotificationDB.sql",
+    "Notification\002_AddNotificationEmailSmsSettings.sql",
     "Reporting\001_CreateReportingDB.sql"
 )
 

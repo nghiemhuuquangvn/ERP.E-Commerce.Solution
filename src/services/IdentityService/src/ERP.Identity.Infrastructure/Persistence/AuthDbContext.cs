@@ -586,6 +586,13 @@ namespace ERP.Identity.Infrastructure.Persistence
                 entity.HasKey(m => m.Id);
                 entity.Property(m => m.ModuleCode).IsRequired().HasMaxLength(20);
                 entity.HasIndex(m => new { m.TenantLicenseId, m.ModuleCode }).IsUnique();
+                // Without this, EF doesn't know TenantLicenseModules depends on
+                // TenantLicenses and can batch the child INSERT before the parent's,
+                // violating FK_TenantLicenseModules_TenantLicense on first issue/renew.
+                entity.HasOne<TenantLicense>()
+                    .WithMany()
+                    .HasForeignKey(m => m.TenantLicenseId)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
 
             modelBuilder.Entity<TwoFactorChallenge>(entity =>

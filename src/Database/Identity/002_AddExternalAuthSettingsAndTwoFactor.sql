@@ -27,6 +27,7 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'SystemAuthSettings')
 CREATE TABLE SystemAuthSettings (
     Id                  UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    Description         NVARCHAR(MAX)    NULL,
     GoogleEnabled       BIT              NOT NULL DEFAULT 1,
     MicrosoftEnabled    BIT              NOT NULL DEFAULT 1,
     FacebookEnabled     BIT              NOT NULL DEFAULT 1,
@@ -53,6 +54,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'TenantAuthSettings')
 CREATE TABLE TenantAuthSettings (
     Id                  UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
     TenantId            UNIQUEIDENTIFIER NOT NULL,
+    Description         NVARCHAR(MAX)    NULL,
     GoogleEnabled       BIT              NOT NULL DEFAULT 1,
     MicrosoftEnabled    BIT              NOT NULL DEFAULT 1,
     FacebookEnabled     BIT              NOT NULL DEFAULT 1,

@@ -8,9 +8,13 @@ business analysis) follow one of two UI patterns in the Admin app. This guide co
 
 ### Navigation and permissions
 
-Every category has its own sidebar item under **Settings** (`Sidebar.tsx`), gated on
-the `settings:{category}:{system|tenant}:view` permission pair — a user who holds
-neither permission never sees the nav item at all. Inside a page:
+All 24 categories live as children of a single collapsible **Settings** group in the
+sidebar (`Sidebar.tsx`, `SETTINGS_CHILDREN` array) rather than as flat top-level items
+— this keeps the main menu short. Each child is gated on the
+`settings:{category}:{system|tenant}:view` permission pair — a user who holds neither
+permission never sees that child at all, and the group itself only renders if at least
+one child is visible. The group auto-expands when the current route is under
+`/settings/*`. Inside a page:
 
 - The **System** tab only renders if the caller holds
   `settings:{category}:system:view`; it defaults to hidden for ordinary tenant Admins.
@@ -140,10 +144,11 @@ usually means a step was skipped, not that the pattern itself is wrong.
     `WorkflowSettingsPage.tsx` for the standard tab shape, `CompanySettingsPage.tsx`
     for a Tenant-only category, or `FeatureFlagsPage.tsx` for a dynamic key/value
     category.
-11. **Wire it up** — import + route in `router/index.tsx`, nav item in
-    `Sidebar.tsx` (with the `permissions: [...]` array gating visibility), and the
-    `settings.{x}.*`/`nav.{x}Settings` keys in **both** `i18n/locales/en.json` and
-    `vi.json`.
+11. **Wire it up** — import + route in `router/index.tsx`, a new entry appended to the
+    `SETTINGS_CHILDREN` array in `Sidebar.tsx` (with the `permissions: [...]` array
+    gating visibility — do **not** add it as a separate top-level `NAV_ITEMS` entry),
+    and the `settings.{x}.*`/`nav.{x}Settings` keys in **both** `i18n/locales/en.json`
+    and `vi.json`.
 12. **Verify** — `npx tsc --noEmit`; the only pre-existing, unrelated failures you
     should ever see are `LogsPage`/`logs.api` (a known gap, out of scope for Settings
     work).

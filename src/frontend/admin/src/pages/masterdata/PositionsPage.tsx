@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { positionsApi } from '@/api/masterdata/positions.api'
 import type { Position } from '@/api/masterdata/positions.api'
+import { departmentsApi } from '@/api/masterdata/departments.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { Pagination } from '@/components/shared/Pagination'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
@@ -28,6 +29,11 @@ function PositionModal({
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const isEdit = !!position
+  const { data: departmentsPage } = useQuery({
+    queryKey: ['masterdata', 'departments', 'picker'],
+    queryFn: () => departmentsApi.list({ page: 1, pageSize: 100 }),
+    staleTime: 60_000,
+  })
   const { register, handleSubmit, formState: { errors } } = useForm<PositionFormValues>({
     defaultValues: {
       title: position?.title ?? '',
@@ -86,7 +92,14 @@ function PositionModal({
               <label className="mb-1 block text-sm font-medium text-gray-700">
                 {t('masterdata.positions.departmentIdOptional')}
               </label>
-              <input className="input" {...register('departmentId')} />
+              <select className="input" {...register('departmentId')}>
+                <option value="">{t('common.none')}</option>
+                {(departmentsPage?.items ?? []).map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.departmentName}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
           {mutation.isError && (

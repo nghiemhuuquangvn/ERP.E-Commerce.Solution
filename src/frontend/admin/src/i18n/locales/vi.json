@@ -31,7 +31,8 @@
   },
   "nav": {
     "dashboard": "Tổng quan",
-    "orders": "Đơn hàng",
+    "salesOrders": "Đơn hàng bán",
+    "purchaseOrders": "Đơn hàng mua",
     "products": "Sản phẩm",
     "inventory": "Tồn kho",
     "customers": "Khách hàng",
@@ -40,6 +41,11 @@
     "positions": "Chức vụ",
     "employees": "Nhân viên",
     "unitsOfMeasure": "Đơn vị tính",
+    "hrm": "Nhân sự",
+    "attendance": "Chấm công",
+    "leaveRequests": "Đơn nghỉ phép",
+    "payroll": "Bảng lương",
+    "workShifts": "Ca làm việc",
     "geography": "Địa lý",
     "languages": "Ngôn ngữ",
     "reports": "Báo cáo",
@@ -123,7 +129,7 @@
     "loadingChart": "Đang tải biểu đồ..."
   },
   "orders": {
-    "title": "Đơn hàng",
+    "title": "Đơn hàng bán",
     "newOrder": "+ Đơn hàng mới",
     "searchPlaceholder": "Tìm theo số đơn hoặc khách hàng…",
     "customer": "Khách hàng",
@@ -134,7 +140,7 @@
     "cancelOrderTitle": "Hủy đơn hàng",
     "cancelOrderMessage": "Bạn có chắc chắn muốn hủy đơn hàng này? Hành động này không thể hoàn tác.",
     "cancelOrderConfirm": "Hủy đơn hàng",
-    "backToOrders": "← Đơn hàng",
+    "backToOrders": "← Đơn hàng bán",
     "orderNotFound": "Không tìm thấy đơn hàng.",
     "orderInfo": "Thông tin đơn hàng",
     "lineItems": "Chi tiết đơn hàng",
@@ -148,6 +154,41 @@
       "shipped": "Đã giao vận",
       "delivered": "Đã giao hàng",
       "cancelled": "Đã hủy"
+    },
+    "form": {
+      "customerId": "Mã khách hàng",
+      "customerIdPlaceholder": "Nhập mã khách hàng",
+      "customerRequired": "Vui lòng nhập mã khách hàng.",
+      "lineRequired": "Vui lòng thêm ít nhất một dòng sản phẩm.",
+      "addLine": "+ Thêm dòng",
+      "removeLine": "Xóa"
+    }
+  },
+  "purchaseOrders": {
+    "title": "Đơn hàng mua",
+    "newPurchaseOrder": "+ Đơn mua mới",
+    "poNumber": "Số PO",
+    "supplier": "Nhà cung cấp",
+    "backToPurchaseOrders": "← Đơn hàng mua",
+    "notFound": "Không tìm thấy đơn mua hàng.",
+    "expectedDelivery": "Ngày giao dự kiến",
+    "notes": "Ghi chú",
+    "received": "Đã nhận",
+    "cancelTitle": "Hủy đơn mua hàng",
+    "cancelMessage": "Bạn có chắc chắn muốn hủy đơn mua hàng này? Hành động này không thể hoàn tác.",
+    "statusFilters": {
+      "draft": "Nháp",
+      "submitted": "Đã gửi",
+      "approved": "Đã duyệt",
+      "ordered": "Đã đặt hàng",
+      "partiallyReceived": "Nhận một phần",
+      "received": "Đã nhận hàng",
+      "cancelled": "Đã hủy"
+    },
+    "form": {
+      "supplierId": "Mã nhà cung cấp",
+      "supplierIdPlaceholder": "Nhập mã nhà cung cấp",
+      "requiredFields": "Vui lòng nhập số PO và mã nhà cung cấp."
     }
   },
   "products": {
@@ -348,6 +389,222 @@
       "defaultLanguage": "Ngôn ngữ mặc định",
       "default": "Mặc định",
       "failedToSave": "Lưu ngôn ngữ thất bại. Vui lòng thử lại."
+    }
+  },
+  "hrm": {
+    "employee": "Nhân viên",
+    "allEmployees": "Tất cả nhân viên",
+    "required": "Bắt buộc.",
+    "notes": "Ghi chú",
+    "attendance": {
+      "title": "Chấm công",
+      "checkIn": "Chấm công vào",
+      "checkInTitle": "Ghi nhận Chấm công vào",
+      "checkInTime": "Giờ vào",
+      "checkOut": "Chấm công ra",
+      "checkOutTitle": "Ghi nhận Chấm công ra",
+      "checkOutTime": "Giờ ra",
+      "markAbsent": "Đánh dấu vắng mặt",
+      "markAbsentTitle": "Đánh dấu nhân viên vắng mặt",
+      "totalHours": "Tổng số giờ",
+      "workShiftOptional": "Ca làm việc (tùy chọn)",
+      "failedToSave": "Lưu bản ghi chấm công thất bại. Vui lòng thử lại.",
+      "statuses": {
+        "present": "Có mặt",
+        "absent": "Vắng mặt",
+        "late": "Đi trễ",
+        "halfDay": "Nửa ngày",
+        "onLeave": "Nghỉ phép",
+        "holiday": "Ngày lễ"
+      }
+    },
+    "leaveRequests": {
+      "title": "Đơn nghỉ phép",
+      "add": "+ Gửi đơn nghỉ phép",
+      "addTitle": "Gửi đơn nghỉ phép",
+      "number": "Số đơn",
+      "leaveType": "Loại nghỉ phép",
+      "leaveTypes": {
+        "annual": "Nghỉ phép năm",
+        "sick": "Nghỉ ốm",
+        "unpaid": "Nghỉ không lương",
+        "maternity": "Nghỉ thai sản",
+        "paternity": "Nghỉ chăm con"
+      },
+      "startDate": "Ngày bắt đầu",
+      "endDate": "Ngày kết thúc",
+      "days": "Số ngày",
+      "reason": "Lý do",
+      "approve": "Duyệt",
+      "reject": "Từ chối",
+      "rejectTitle": "Từ chối đơn nghỉ phép — {{number}}",
+      "cancel": "Hủy",
+      "cancelTitle": "Hủy đơn nghỉ phép",
+      "cancelConfirm": "Bạn có chắc chắn muốn hủy đơn nghỉ phép \"{{number}}\"?",
+      "failedToSave": "Lưu đơn nghỉ phép thất bại. Vui lòng thử lại.",
+      "statuses": {
+        "pending": "Đang chờ",
+        "approved": "Đã duyệt",
+        "rejected": "Đã từ chối",
+        "cancelled": "Đã hủy"
+      }
+    },
+    "payroll": {
+      "title": "Bảng lương & Phiếu lương",
+      "number": "Số phiếu lương",
+      "payPeriod": "Kỳ lương",
+      "grossSalary": "Lương gộp",
+      "grossPay": "Lương gộp",
+      "deductions": "Khoản khấu trừ",
+      "netSalary": "Lương thực nhận",
+      "overtimeHours": "Giờ tăng ca",
+      "overtimePay": "Lương tăng ca",
+      "year": "Năm",
+      "month": "Tháng",
+      "process": "Xử lý bảng lương",
+      "processTitle": "Xử lý bảng lương",
+      "processHint": "Tạo phiếu lương cho tất cả nhân viên đang làm việc trong năm và tháng đã chọn.",
+      "generate": "+ Tạo phiếu lương",
+      "generateTitle": "Tạo phiếu lương",
+      "failedToSave": "Lưu thất bại. Vui lòng thử lại."
+    },
+    "workShifts": {
+      "title": "Ca làm việc",
+      "add": "+ Thêm ca làm việc",
+      "editTitle": "Sửa ca làm việc",
+      "addTitle": "Thêm ca làm việc",
+      "startTime": "Giờ bắt đầu",
+      "endTime": "Giờ kết thúc",
+      "shiftHours": "Số giờ ca",
+      "deactivateTitle": "Ngừng hoạt động ca làm việc",
+      "deactivateConfirm": "Bạn có chắc chắn muốn ngừng hoạt động \"{{name}}\"?",
+      "failedToSave": "Lưu ca làm việc thất bại. Vui lòng thử lại."
+    }
+  },
+  "crm": {
+    "title": "Khách hàng (CRM)",
+    "tabs": {
+      "contacts": "Liên hệ",
+      "leads": "Khách hàng tiềm năng",
+      "opportunities": "Cơ hội bán hàng",
+      "cases": "Yêu cầu hỗ trợ",
+      "activities": "Hoạt động"
+    },
+    "contacts": {
+      "add": "+ Thêm liên hệ",
+      "addTitle": "Thêm liên hệ",
+      "editTitle": "Sửa liên hệ",
+      "email": "Email",
+      "phone": "Điện thoại",
+      "company": "Công ty",
+      "source": "Nguồn",
+      "tags": "Thẻ",
+      "tagsTitle": "Thẻ — {{name}}",
+      "noTags": "Chưa có thẻ nào.",
+      "newTag": "Thẻ mới",
+      "required": "Bắt buộc.",
+      "failedToSave": "Lưu liên hệ thất bại. Vui lòng thử lại."
+    },
+    "leads": {
+      "add": "+ Thêm khách hàng tiềm năng",
+      "addTitle": "Thêm khách hàng tiềm năng",
+      "leadName": "Tên khách hàng tiềm năng",
+      "source": "Nguồn",
+      "sources": {
+        "Website": "Website",
+        "Referral": "Giới thiệu",
+        "SocialMedia": "Mạng xã hội",
+        "Email": "Email",
+        "Phone": "Điện thoại",
+        "Other": "Khác"
+      },
+      "estimatedValue": "Giá trị ước tính",
+      "contactOptional": "Liên hệ (tùy chọn)",
+      "markContacted": "Đánh dấu đã liên hệ",
+      "qualify": "Chuyển thành cơ hội",
+      "markLost": "Đánh dấu thất bại",
+      "loseTitle": "Đánh dấu thất bại — {{name}}",
+      "reason": "Lý do",
+      "required": "Bắt buộc.",
+      "statusOptions": {
+        "all": "Tất cả trạng thái",
+        "new": "Mới",
+        "contacted": "Đã liên hệ",
+        "qualified": "Đã đánh giá",
+        "lost": "Thất bại"
+      },
+      "failedToSave": "Lưu khách hàng tiềm năng thất bại. Vui lòng thử lại."
+    },
+    "opportunities": {
+      "add": "+ Thêm cơ hội",
+      "addTitle": "Thêm cơ hội",
+      "name": "Tên",
+      "contact": "Liên hệ",
+      "value": "Giá trị",
+      "expectedCloseDate": "Ngày dự kiến chốt",
+      "assignedToOptional": "Người phụ trách (tùy chọn)",
+      "stage": "Giai đoạn",
+      "probability": "Xác suất",
+      "advance": "Chuyển giai đoạn",
+      "win": "Thắng",
+      "markLost": "Đánh dấu thất bại",
+      "loseTitle": "Đánh dấu thất bại — {{name}}",
+      "reason": "Lý do",
+      "required": "Bắt buộc.",
+      "stageOptions": { "all": "Tất cả giai đoạn" },
+      "stages": {
+        "Prospecting": "Tìm kiếm",
+        "Qualification": "Đánh giá",
+        "Proposal": "Đề xuất",
+        "Negotiation": "Đàm phán",
+        "Won": "Thắng",
+        "Lost": "Thất bại"
+      },
+      "failedToSave": "Lưu cơ hội thất bại. Vui lòng thử lại."
+    },
+    "cases": {
+      "add": "+ Mở yêu cầu hỗ trợ",
+      "addTitle": "Mở yêu cầu hỗ trợ",
+      "caseNumber": "Mã yêu cầu",
+      "subject": "Tiêu đề",
+      "description": "Mô tả",
+      "contact": "Liên hệ",
+      "priority": "Mức độ ưu tiên",
+      "priorities": { "Low": "Thấp", "Medium": "Trung bình", "High": "Cao", "Critical": "Khẩn cấp" },
+      "assign": "Phân công",
+      "assignTitle": "Phân công — {{number}}",
+      "assignee": "Người phụ trách",
+      "resolve": "Giải quyết",
+      "resolveTitle": "Giải quyết — {{number}}",
+      "resolution": "Kết quả giải quyết",
+      "close": "Đóng",
+      "required": "Bắt buộc.",
+      "statusOptions": {
+        "all": "Tất cả trạng thái",
+        "open": "Đang mở",
+        "inProgress": "Đang xử lý",
+        "resolved": "Đã giải quyết",
+        "closed": "Đã đóng"
+      },
+      "failedToSave": "Lưu yêu cầu hỗ trợ thất bại. Vui lòng thử lại."
+    },
+    "activities": {
+      "add": "+ Ghi nhận hoạt động",
+      "addTitle": "Ghi nhận hoạt động",
+      "contact": "Liên hệ",
+      "type": "Loại",
+      "types": { "Call": "Gọi điện", "Email": "Email", "Meeting": "Họp", "Note": "Ghi chú", "Task": "Công việc" },
+      "typeOptions": { "all": "Tất cả loại" },
+      "subject": "Tiêu đề",
+      "notes": "Ghi chú",
+      "scheduledAtOptional": "Thời gian dự kiến (tùy chọn)",
+      "opportunityIdOptional": "Mã cơ hội (tùy chọn)",
+      "caseIdOptional": "Mã yêu cầu hỗ trợ (tùy chọn)",
+      "complete": "Hoàn thành",
+      "completeTitle": "Hoàn thành — {{subject}}",
+      "cancel": "Hủy",
+      "required": "Bắt buộc.",
+      "failedToSave": "Lưu hoạt động thất bại. Vui lòng thử lại."
     }
   },
   "settings": {

@@ -55,8 +55,15 @@ public class WorkShiftsController : ControllerBase
         [FromBody] CreateWorkShiftCommand command,
         CancellationToken cancellationToken = default)
     {
-        var result = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
+        try
+        {
+            var result = await _mediator.Send(command, cancellationToken);
+            return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     /// <summary>
@@ -71,10 +78,17 @@ public class WorkShiftsController : ControllerBase
         [FromBody] UpdateShiftRequest request,
         CancellationToken cancellationToken = default)
     {
-        var result = await _mediator.Send(
-            new UpdateWorkShiftCommand(id, request.Name, request.StartTime, request.EndTime),
-            cancellationToken);
-        return Ok(result);
+        try
+        {
+            var result = await _mediator.Send(
+                new UpdateWorkShiftCommand(id, request.Name, request.StartTime, request.EndTime),
+                cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     /// <summary>

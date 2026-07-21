@@ -7,6 +7,10 @@ import { TwitterCallbackPage } from '@/pages/auth/TwitterCallbackPage'
 import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { OrderListPage } from '@/pages/orders/OrderListPage'
 import { OrderDetailPage } from '@/pages/orders/OrderDetailPage'
+import { OrderFormPage } from '@/pages/orders/OrderFormPage'
+import { PurchaseOrderListPage } from '@/pages/orders/PurchaseOrderListPage'
+import { PurchaseOrderDetailPage } from '@/pages/orders/PurchaseOrderDetailPage'
+import { PurchaseOrderFormPage } from '@/pages/orders/PurchaseOrderFormPage'
 import { ProductListPage } from '@/pages/products/ProductListPage'
 import { InventoryListPage } from '@/pages/inventory/InventoryListPage'
 import { PaymentsPage } from '@/pages/payments/PaymentsPage'
@@ -19,6 +23,7 @@ import { EmployeesPage } from '@/pages/masterdata/EmployeesPage'
 import { UnitsOfMeasurePage } from '@/pages/masterdata/UnitsOfMeasurePage'
 import { GeographyPage } from '@/pages/masterdata/GeographyPage'
 import { LanguagesPage } from '@/pages/masterdata/LanguagesPage'
+import { CustomersPage } from '@/pages/crm/CustomersPage'
 import { AuthSettingsPage } from '@/pages/settings/AuthSettingsPage'
 import { GeneralSettingsPage } from '@/pages/settings/GeneralSettingsPage'
 import { CompanySettingsPage } from '@/pages/settings/CompanySettingsPage'
@@ -53,6 +58,10 @@ import { BillsPage } from '@/pages/accounting/BillsPage'
 import { ReportsPage as AccountingReportsPage } from '@/pages/accounting/ReportsPage'
 import { JournalEntriesPage } from '@/pages/accounting/JournalEntriesPage'
 import { BankAccountsPage } from '@/pages/accounting/BankAccountsPage'
+import { AttendancePage } from '@/pages/hrm/AttendancePage'
+import { LeaveRequestsPage } from '@/pages/hrm/LeaveRequestsPage'
+import { PayrollPage } from '@/pages/hrm/PayrollPage'
+import { WorkShiftsPage } from '@/pages/hrm/WorkShiftsPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -84,12 +93,16 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: <DashboardPage /> },
       { path: 'orders', element: <OrderListPage /> },
+      { path: 'orders/new', element: <OrderFormPage /> },
+      { path: 'orders/purchase', element: <PurchaseOrderListPage /> },
+      { path: 'orders/purchase/new', element: <PurchaseOrderFormPage /> },
+      { path: 'orders/purchase/:id', element: <PurchaseOrderDetailPage /> },
       { path: 'orders/:id', element: <OrderDetailPage /> },
       { path: 'products', element: <ProductListPage /> },
       { path: 'inventory', element: <InventoryListPage /> },
       { path: 'payments', element: <PaymentsPage /> },
       { path: 'reports', element: <ReportsPage /> },
-      { path: 'customers', element: <PlaceholderPage title="Customers (CRM)" /> },
+      { path: 'customers', element: <CustomersPage /> },
       { path: 'settings', element: <PlaceholderPage title="Settings" /> },
       { path: 'settings/general', element: <GeneralSettingsPage /> },
       { path: 'settings/company', element: <CompanySettingsPage /> },
@@ -133,6 +146,10 @@ export const router = createBrowserRouter([
       { path: 'accounting/reports', element: <AccountingReportsPage /> },
       { path: 'accounting/journal-entries', element: <JournalEntriesPage /> },
       { path: 'accounting/bank-accounts', element: <BankAccountsPage /> },
+      { path: 'hrm/attendance', element: <AttendancePage /> },
+      { path: 'hrm/leave-requests', element: <LeaveRequestsPage /> },
+      { path: 'hrm/payroll', element: <PayrollPage /> },
+      { path: 'hrm/work-shifts', element: <WorkShiftsPage /> },
       // Kept for anyone with the old bookmark/link — SharedMasterDataService now
       // owns Employee data, not HRM.
       { path: 'employees', element: <Navigate to="/masterdata/employees" replace /> },

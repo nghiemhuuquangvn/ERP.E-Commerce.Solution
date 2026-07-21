@@ -31,7 +31,8 @@
   },
   "nav": {
     "dashboard": "Dashboard",
-    "orders": "Orders",
+    "salesOrders": "Sales Orders",
+    "purchaseOrders": "Purchase Orders",
     "products": "Products",
     "inventory": "Inventory",
     "customers": "Customers",
@@ -40,6 +41,11 @@
     "positions": "Positions",
     "employees": "Employees",
     "unitsOfMeasure": "Units of Measure",
+    "hrm": "HRM",
+    "attendance": "Attendance",
+    "leaveRequests": "Leave Requests",
+    "payroll": "Payroll",
+    "workShifts": "Work Shifts",
     "geography": "Geography",
     "languages": "Languages",
     "reports": "Reports",
@@ -123,7 +129,7 @@
     "loadingChart": "Loading chart..."
   },
   "orders": {
-    "title": "Orders",
+    "title": "Sales Orders",
     "newOrder": "+ New Order",
     "searchPlaceholder": "Search by order # or customer…",
     "customer": "Customer",
@@ -134,7 +140,7 @@
     "cancelOrderTitle": "Cancel Order",
     "cancelOrderMessage": "Are you sure you want to cancel this order? This action cannot be undone.",
     "cancelOrderConfirm": "Cancel Order",
-    "backToOrders": "← Orders",
+    "backToOrders": "← Sales Orders",
     "orderNotFound": "Order not found.",
     "orderInfo": "Order Info",
     "lineItems": "Line Items",
@@ -148,6 +154,41 @@
       "shipped": "Shipped",
       "delivered": "Delivered",
       "cancelled": "Cancelled"
+    },
+    "form": {
+      "customerId": "Customer ID",
+      "customerIdPlaceholder": "Enter customer ID",
+      "customerRequired": "Please enter a customer ID.",
+      "lineRequired": "Please add at least one line item.",
+      "addLine": "+ Add line",
+      "removeLine": "Remove"
+    }
+  },
+  "purchaseOrders": {
+    "title": "Purchase Orders",
+    "newPurchaseOrder": "+ New Purchase Order",
+    "poNumber": "PO #",
+    "supplier": "Supplier",
+    "backToPurchaseOrders": "← Purchase Orders",
+    "notFound": "Purchase order not found.",
+    "expectedDelivery": "Expected Delivery",
+    "notes": "Notes",
+    "received": "Received",
+    "cancelTitle": "Cancel Purchase Order",
+    "cancelMessage": "Are you sure you want to cancel this purchase order? This action cannot be undone.",
+    "statusFilters": {
+      "draft": "Draft",
+      "submitted": "Submitted",
+      "approved": "Approved",
+      "ordered": "Ordered",
+      "partiallyReceived": "Partially Received",
+      "received": "Received",
+      "cancelled": "Cancelled"
+    },
+    "form": {
+      "supplierId": "Supplier ID",
+      "supplierIdPlaceholder": "Enter supplier ID",
+      "requiredFields": "PO number and supplier ID are required."
     }
   },
   "products": {
@@ -348,6 +389,222 @@
       "defaultLanguage": "Default language",
       "default": "Default",
       "failedToSave": "Failed to save language. Please try again."
+    }
+  },
+  "hrm": {
+    "employee": "Employee",
+    "allEmployees": "All Employees",
+    "required": "Required.",
+    "notes": "Notes",
+    "attendance": {
+      "title": "Attendance",
+      "checkIn": "Check In",
+      "checkInTitle": "Record Check-In",
+      "checkInTime": "Check-In Time",
+      "checkOut": "Check Out",
+      "checkOutTitle": "Record Check-Out",
+      "checkOutTime": "Check-Out Time",
+      "markAbsent": "Mark Absent",
+      "markAbsentTitle": "Mark Employee Absent",
+      "totalHours": "Total Hours",
+      "workShiftOptional": "Work Shift (optional)",
+      "failedToSave": "Failed to save attendance record. Please try again.",
+      "statuses": {
+        "present": "Present",
+        "absent": "Absent",
+        "late": "Late",
+        "halfDay": "Half Day",
+        "onLeave": "On Leave",
+        "holiday": "Holiday"
+      }
+    },
+    "leaveRequests": {
+      "title": "Leave Requests",
+      "add": "+ Submit Leave Request",
+      "addTitle": "Submit Leave Request",
+      "number": "Request #",
+      "leaveType": "Leave Type",
+      "leaveTypes": {
+        "annual": "Annual",
+        "sick": "Sick",
+        "unpaid": "Unpaid",
+        "maternity": "Maternity",
+        "paternity": "Paternity"
+      },
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "days": "Days",
+      "reason": "Reason",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectTitle": "Reject Leave Request — {{number}}",
+      "cancel": "Cancel",
+      "cancelTitle": "Cancel Leave Request",
+      "cancelConfirm": "Are you sure you want to cancel leave request \"{{number}}\"?",
+      "failedToSave": "Failed to save leave request. Please try again.",
+      "statuses": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled"
+      }
+    },
+    "payroll": {
+      "title": "Payroll & Pay Slips",
+      "number": "Pay Slip #",
+      "payPeriod": "Pay Period",
+      "grossSalary": "Gross Salary",
+      "grossPay": "Gross Pay",
+      "deductions": "Deductions",
+      "netSalary": "Net Salary",
+      "overtimeHours": "Overtime Hours",
+      "overtimePay": "Overtime Pay",
+      "year": "Year",
+      "month": "Month",
+      "process": "Process Payroll",
+      "processTitle": "Process Payroll",
+      "processHint": "Generates a pay slip for every active employee for the given year and month.",
+      "generate": "+ Generate Pay Slip",
+      "generateTitle": "Generate Pay Slip",
+      "failedToSave": "Failed to save. Please try again."
+    },
+    "workShifts": {
+      "title": "Work Shifts",
+      "add": "+ Add Work Shift",
+      "editTitle": "Edit Work Shift",
+      "addTitle": "Add Work Shift",
+      "startTime": "Start Time",
+      "endTime": "End Time",
+      "shiftHours": "Shift Hours",
+      "deactivateTitle": "Deactivate Work Shift",
+      "deactivateConfirm": "Are you sure you want to deactivate \"{{name}}\"?",
+      "failedToSave": "Failed to save work shift. Please try again."
+    }
+  },
+  "crm": {
+    "title": "Customers (CRM)",
+    "tabs": {
+      "contacts": "Contacts",
+      "leads": "Leads",
+      "opportunities": "Opportunities",
+      "cases": "Cases",
+      "activities": "Activities"
+    },
+    "contacts": {
+      "add": "+ Add Contact",
+      "addTitle": "Add Contact",
+      "editTitle": "Edit Contact",
+      "email": "Email",
+      "phone": "Phone",
+      "company": "Company",
+      "source": "Source",
+      "tags": "Tags",
+      "tagsTitle": "Tags — {{name}}",
+      "noTags": "No tags yet.",
+      "newTag": "New tag",
+      "required": "Required.",
+      "failedToSave": "Failed to save contact. Please try again."
+    },
+    "leads": {
+      "add": "+ Add Lead",
+      "addTitle": "Add Lead",
+      "leadName": "Lead Name",
+      "source": "Source",
+      "sources": {
+        "Website": "Website",
+        "Referral": "Referral",
+        "SocialMedia": "Social Media",
+        "Email": "Email",
+        "Phone": "Phone",
+        "Other": "Other"
+      },
+      "estimatedValue": "Estimated Value",
+      "contactOptional": "Contact (optional)",
+      "markContacted": "Mark Contacted",
+      "qualify": "Qualify",
+      "markLost": "Mark Lost",
+      "loseTitle": "Mark Lost — {{name}}",
+      "reason": "Reason",
+      "required": "Required.",
+      "statusOptions": {
+        "all": "All Statuses",
+        "new": "New",
+        "contacted": "Contacted",
+        "qualified": "Qualified",
+        "lost": "Lost"
+      },
+      "failedToSave": "Failed to save lead. Please try again."
+    },
+    "opportunities": {
+      "add": "+ Add Opportunity",
+      "addTitle": "Add Opportunity",
+      "name": "Name",
+      "contact": "Contact",
+      "value": "Value",
+      "expectedCloseDate": "Expected Close Date",
+      "assignedToOptional": "Assigned To (optional)",
+      "stage": "Stage",
+      "probability": "Probability",
+      "advance": "Advance",
+      "win": "Win",
+      "markLost": "Mark Lost",
+      "loseTitle": "Mark Lost — {{name}}",
+      "reason": "Reason",
+      "required": "Required.",
+      "stageOptions": { "all": "All Stages" },
+      "stages": {
+        "Prospecting": "Prospecting",
+        "Qualification": "Qualification",
+        "Proposal": "Proposal",
+        "Negotiation": "Negotiation",
+        "Won": "Won",
+        "Lost": "Lost"
+      },
+      "failedToSave": "Failed to save opportunity. Please try again."
+    },
+    "cases": {
+      "add": "+ Open Case",
+      "addTitle": "Open Case",
+      "caseNumber": "Case #",
+      "subject": "Subject",
+      "description": "Description",
+      "contact": "Contact",
+      "priority": "Priority",
+      "priorities": { "Low": "Low", "Medium": "Medium", "High": "High", "Critical": "Critical" },
+      "assign": "Assign",
+      "assignTitle": "Assign — {{number}}",
+      "assignee": "Assignee",
+      "resolve": "Resolve",
+      "resolveTitle": "Resolve — {{number}}",
+      "resolution": "Resolution",
+      "close": "Close",
+      "required": "Required.",
+      "statusOptions": {
+        "all": "All Statuses",
+        "open": "Open",
+        "inProgress": "In Progress",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      },
+      "failedToSave": "Failed to save case. Please try again."
+    },
+    "activities": {
+      "add": "+ Log Activity",
+      "addTitle": "Log Activity",
+      "contact": "Contact",
+      "type": "Type",
+      "types": { "Call": "Call", "Email": "Email", "Meeting": "Meeting", "Note": "Note", "Task": "Task" },
+      "typeOptions": { "all": "All Types" },
+      "subject": "Subject",
+      "notes": "Notes",
+      "scheduledAtOptional": "Scheduled At (optional)",
+      "opportunityIdOptional": "Opportunity ID (optional)",
+      "caseIdOptional": "Case ID (optional)",
+      "complete": "Complete",
+      "completeTitle": "Complete — {{subject}}",
+      "cancel": "Cancel",
+      "required": "Required.",
+      "failedToSave": "Failed to save activity. Please try again."
     }
   },
   "settings": {

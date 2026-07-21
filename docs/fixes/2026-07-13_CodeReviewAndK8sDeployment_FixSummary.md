@@ -281,6 +281,256 @@ it doesn't affect runtime behavior today.
 
 ---
 
+## F — Redeploy verification after GitHub fetch (2026-07-19)
+
+A large fetch (208 files, ~10.7k insertions — Settings/FeatureFlags/License
+management, Redis cache changes) required rebuilding and redeploying all 19
+service images. Rebuilding surfaced 4 more issues during end-to-end
+re-verification, none related to the rebuild itself — all pre-existing gaps
+the new License-enforcement and Settings features finally exercised.
+
+### Fix 32 — Admin SPA's non-`/api`-prefixed routes silently served the SPA shell instead of JSON
+
+**Root cause**: ~29 of the Admin frontend's API client files (tenants,
+users, roles, permissions, every `settings/*.api.ts`, masterdata, logs,
+license) deliberately build root-relative URLs like `/id/api/roles`,
+`/mst/api/departments`, `/po/api/purchase-orders` — bypassing the `/api`
+prefix entirely to hit Ocelot's per-service route prefixes directly (see
+the file-header comments: *"mounted under the Gateway's `/id/api/...`
+route"*). But the Admin container's nginx only had a `location /api/`
+proxy block; every other prefix fell through to `try_files ... /index.html`
+— returning HTTP 200 with `text/html` instead of an error, which is why
+this went unnoticed for so long (no 4xx/5xx to catch in a network tab scan,
+just a page that silently didn't update).
+**Fix**: added a second nginx `location` block matching
+`^/(id|po|so|wh|acc|crm|hrm|mst|prd|pay|shp|pos|prm|ntf|rpt|logs)/api/`,
+proxying to the same gateway upstream as `/api/`.
+**File**: `src/frontend/admin/nginx.docker.conf`
+**Impact**: this was very likely the root cause of a large fraction of the
+403/404s reported earlier in this document's own testing — those tests
+went through `curl` directly against the gateway or `api.erp.local`, which
+never exercised this nginx layer, so it was never caught until this
+session tested through `erp.local` (the same host the real browser uses).
+
+### Fix 33 — `settings:system:manage`/`settings:system:view` never made it into the live AuthDB
+
+**Root cause**: migration `002_AddExternalAuthSettingsAndTwoFactor.sql` was
+edited at some point to add these two permissions (+ the tenant pair) and
+grant them to SuperAdmin/Admin, but the live DB had already run an older
+version of this file — idempotent `IF NOT EXISTS` guards only help on a
+fresh run, they don't retroactively apply a diff to an already-migrated
+database. Surfaced when `TenantLicensesController.IssueLicense` did a live
+DB permission check for `settings:system:manage` (deliberately not
+JWT-claim-based, see Fix 34) and got a silent `403` because the row simply
+didn't exist.
+**Fix**: re-ran just the permission-seeding batch from migration 002
+(with `SET QUOTED_IDENTIFIER ON`, see Fix 27's precedent) directly against
+`AuthDB`.
+**Lesson for future migrations**: editing an already-applied migration file
+to add new statements does *not* get picked up automatically — needs a new
+migration file, or a documented manual re-run step. Worth auditing other
+early migrations (001–007) for the same pattern.
+
+### Fix 34 — Issuing a tenant's first license always 500'd (FK violation)
+
+**Root cause**: `AuthDbContext`'s `OnModelCreating` defines `TenantLicense`
+and `TenantLicenseModule` as separate entities but never configures the FK
+relationship between them (no `HasOne`/`HasForeignKey`), even though the DB
+schema has a real `FK_TenantLicenseModules_TenantLicense` constraint.
+Without that relationship in the EF model, the change tracker doesn't know
+`TenantLicenseModules` inserts depend on the new `TenantLicenses` row, and
+batched the child INSERT before the parent's within the same
+`SaveChangesAsync`, hitting the FK constraint every time
+(`LicenseService.IssueLicenseAsync`, new-tenant path).
+**Fix**: added `entity.HasOne<TenantLicense>().WithMany().HasForeignKey(m
+=> m.TenantLicenseId).OnDelete(DeleteBehavior.NoAction)` to the
+`TenantLicenseModule` entity configuration (matching the migration's
+unspecified — i.e. `NO ACTION` — delete behavior).
+**File**: `src/services/IdentityService/src/ERP.Identity.Infrastructure/Persistence/AuthDbContext.cs`
+
+### Fix 35 — `ERP.Shared.Authorization.PermissionConstants`/`RoleDefinitions` was missing ~90 permission codes that controllers actually check
+
+**Root cause**: auditing every `HasPermission("...")` call site across all
+13 business services (the ones that don't check permissions against
+Identity's own DB — see the two-permission-system note from Fix 29) against
+what `PermissionConstants.GetAllPermissions()` actually contains found the
+shared catalog was missing, in full: `inventory:view`/`inventory:manage`
+(Warehouse — **entirely missing, no role could ever pass this check**),
+`logs:view`, all 5 `reports:{sales,inventory,payments,pos,hr}:view`, 7
+Accounting `:view` variants (only the `:manage` half of each pair existed),
+5 Payment codes (`view`/`authorize`/`capture`/`cancel`/`settlements:view`),
+2 POS shift codes, and all 44 `settings:{cart-checkout,currency,email,
+inventory,notification,order,payment,shipping,sms,store-product,tax}:
+{system,tenant}:{view,manage}` codes from the new per-service Settings
+features. Since `SuperAdmin` = `GetAllPermissions()` and every other role's
+list is hand-maintained from the same constants, none of this was reachable
+by any role — not just SuperAdmin — for Warehouse and half of Payment.
+**Fix**: added all ~90 missing constants to `PermissionConstants.cs`
+(grouped by module, plus a `GetTenantSettingsPermissions()` helper for the
+21 tenant-tier Settings pairs). Extended `RoleDefinitions`: `SuperAdmin`
+picks them up automatically via `GetAllPermissions()`; `Admin` gets the
+full new business set plus tenant-tier (not system-tier) Settings, mirroring
+IdentityService's own system/tenant tiering rule; `Manager`/`Viewer` get
+view-level/operational subsets consistent with their existing scope.
+**Files**: `src/Shared/Authorization/PermissionConstants.cs`,
+`src/Shared/Authorization/RoleDefinitions.cs`
+**Rebuild scope**: only `identityservice` needed rebuilding — it's the only
+service that calls `RoleDefinitions.GetPermissionsForRoles(...)` (at
+login/refresh, to build the JWT `permission` claim); every business service
+just string-compares its own hardcoded permission literals against that
+claim, so none of them needed rebuilding for this fix.
+**Caveat**: role→permission assignments for the newly-added codes
+(especially `Manager`/`Viewer`'s exact scope) were chosen to be consistent
+with the existing pattern in the file, not confirmed against a product
+spec — revisit if the actual business rules differ.
+
+### Fix 36 — `GET /po/api/purchase-orders` always 500'd (missing DB columns)
+
+**Root cause**: `PurchaseOrder.RejectionReason` and
+`PurchaseOrderItem.RejectedQuantity` exist as domain entity properties
+(backing the Reject-PO flow noted in review finding #8) but no Purchasing
+migration ever added the columns — `PurchasingDB` was created before this
+feature and never caught up. Any query touching either table failed with
+SQL error 207 (`Invalid column name`).
+**Fix**: new migration `004_AddRejectionColumns.sql` —
+`PurchaseOrders.RejectionReason NVARCHAR(500) NULL`,
+`PurchaseOrderItems.RejectedQuantity DECIMAL(18,2) NOT NULL DEFAULT 0`.
+No image rebuild needed, DB-only.
+**File**: `src/Database/Purchasing/004_AddRejectionColumns.sql`, registered in `RunAllScripts.ps1`.
+
+### Fix 37 — `GET /api/logs/api/v1/logs` always 401'd, even with a valid token
+
+**Root cause**: `deployment/k8s/deployments/logging.yaml` was created after
+Fix 28 (the JWT-signing-key rollout across "all 16 deployments") and never
+got the `Jwt__Key` env var wired in — every other service reads it from the
+`erp-secrets` / `jwt-signing-key` secret, but LoggingService fell back to
+its `appsettings.json` placeholder (`"CHANGE_ME_SET_VIA_JWT__KEY_..."`), so
+no real caller's token could ever validate against it.
+**Fix**: added the same `Jwt__Key` `secretKeyRef` block already used by
+every other deployment (e.g. `identity.yaml`, `gateway.yaml`).
+**File**: `deployment/k8s/deployments/logging.yaml`
+**No image rebuild needed** — config-only change, applied via `kubectl apply` + rollout restart.
+
+### Fix 38 — Axios `baseURL` auto-prefixing meant real browser traffic used double-prefixed paths Ocelot never routed for 7 of 10 affected services
+
+**Root cause**: every Admin API client using the `GATEWAY_ROOT` pattern
+(Fix 32) builds a root-relative path like `/shp/api/settings/shipping/system`
+and passes it to `apiClient` (axios instance, `baseURL: '/api'`). Axios's
+`combineURLs` always concatenates `baseURL` + the given path when the path
+isn't a full absolute URL — *regardless* of a leading `/` — so the actual
+request the browser sends is `/api/shp/api/settings/shipping/system`
+(double-prefixed), never the single-prefixed path Fix 32's nginx rule (or
+manual `curl` testing against the bare prefix) was checking. `ocelot.json`
+already had this exact double-prefix mirror route for 3 services (`id`,
+`mst`, `logs` — someone had clearly hit this before), but not for the other
+10. Reported directly by the user: `/api/shp/api/settings/shipping/system
+→ 404`.
+**Fix**: added the same `/api/{prefix}/api/{everything}` mirror route for
+all remaining prefixes (`po`, `so`, `wh`, `acc`, `crm`, `hrm`, `prd`, `pay`,
+`shp`, `pos`, `prm`, `rpt`) to `ocelot.json`.
+**File**: `src/Gateway/Ocelot.API/ocelot.json`
+**Rebuild scope**: `gateway` only.
+**Correction to Fix 32**: the nginx regex added in Fix 32 (matching
+single-prefixed `/id/api/...` etc.) is harmless but was verifying the wrong
+path — real Admin traffic is double-prefixed. The actual fix for real
+browser traffic is this Ocelot mirror-route addition; Fix 32's nginx change
+doesn't hurt anything but wasn't the thing actually exercised by the SPA.
+
+### Fix 39 — All 8 non-Identity Settings features were 100% unusable: 22 tables across 8 databases never existed
+
+**Root cause**: chasing Fix 38's routing down to real responses surfaced
+that every non-Identity Settings feature 500'd with `Invalid object name` —
+the migration files for every one of them (`Accounting\002_AddTaxSettings.sql`,
+`Notification\002_AddNotificationEmailSmsSettings.sql`,
+`Payment\003/004_...`, `Product\007/008/009_...`,
+`Sales\003/004/005_...`, `MasterData\002/003_...`,
+`Warehouse\003_AddInventorySettings.sql`, `Shipping\003_AddShippingSettings.sql`)
+**already existed in the repo** but were never registered in
+`RunAllScripts.ps1` — the exact same class of gap as Identity's Fix (the
+original migration-registration issue that kicked off this whole redeploy
+session), just never caught for the other 7 databases because nobody had
+exercised these endpoints through the real routing path until Fix 38.
+**Fix**: registered all 13 missing script entries in `RunAllScripts.ps1`
+(in their correct per-database order) and ran each directly against the
+live DBs. All settings tables lazily get their one row per tenant / one
+well-known-GUID row on first access (`GetOrCreate...Async` pattern in each
+service's `*SettingsService`) — no data backfill needed, just the tables.
+**File**: `src/Database/RunAllScripts.ps1`
+
+### Fix 40 — Warehouse Settings tables had a NOT NULL column the entity never sets, breaking every first-time read
+
+**Root cause**: `Warehouse\003_AddInventorySettings.sql` declared
+`UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()` on both
+`SystemInventorySettings` and `TenantInventorySettings`, but the domain
+entities (`SystemInventorySettings`/`TenantInventorySettings` — plain
+POCOs, no shared `BaseEntity`) declare `UpdatedAt` as `DateTime?`, only
+assigned inside `.Update(...)`. On the very first `CreateDefault()` insert
+(the lazy-create path from Fix 39), EF Core sends an explicit `NULL` for
+`UpdatedAt`, which overrides the column default and violates `NOT NULL`.
+**Fix**: changed the column to `DATETIME2 NULL` in the migration file, and
+`ALTER COLUMN`'d the two already-created live tables to match.
+**File**: `src/Database/Warehouse/003_AddInventorySettings.sql`
+**No image rebuild needed** — DB-only.
+
+### Fix 41 — All 21 IdentityService Settings tables were missing the `Description` column, breaking every one of them
+
+**Root cause**: reported directly by the user (`GET /api/id/api/settings/general/system → 500`). Every Settings entity in IdentityService (`System/TenantAuthSettings`, `System/TenantGeneralSettings`, `TenantCompanySettings`, and all 8 Phase-3 categories — Advanced/Api/Audit/FileStorage/Integration/Localization/Scheduler/Workflow, System+Tenant each) inherits the shared `BaseEntity`, which includes a `Description` column — but migrations 002, 008, and 010 never included it in any of their 21 `CREATE TABLE` statements. Every read hit `Invalid column name 'Description'`.
+**Fix**: `ALTER TABLE ... ADD Description NVARCHAR(MAX) NULL` on all 21 live tables, and patched the same column into all 21 `CREATE TABLE` statements across `002_AddExternalAuthSettingsAndTwoFactor.sql`, `008_AddGeneralAndCompanySettings.sql`, and `010_AddPhase3FixedSettingsCategories.sql` so a fresh deploy doesn't need this manual step.
+**No image rebuild needed** — DB-only.
+
+### Fix 42 — Every service using `ISecretProtector` (Identity's Integration Settings, Payment, Notification) 500'd with a missing-config error
+
+**Root cause**: `ERP.Shared.Security.AesSecretProtector` (encrypts VnPay keys, SMTP passwords, SMS API keys, external integration API keys at rest) reads `Security:SettingsEncryptionKey` from configuration and throws if absent — and that key was never defined anywhere: not in any `appsettings.json`, not in `secrets.yaml`, not in any deployment's env vars. Every controller action on IdentityService's Integration Settings, all of PaymentService's Settings endpoints, and all of NotificationService's Email/SMS/Notification Settings endpoints failed at DI construction time (`AesSecretProtector`'s constructor throws), regardless of whether the specific request actually touched an encrypted field.
+**Fix**: added `settings-encryption-key` to `erp-secrets`, wired `Security__SettingsEncryptionKey` (`secretKeyRef`) into the 3 affected deployments (`identity.yaml`, `notification.yaml`, `payment.yaml`).
+**Files**: `deployment/k8s/secrets.yaml`, `deployment/k8s/deployments/{identity,notification,payment}.yaml`
+**No image rebuild needed** — config-only, applied via `kubectl apply` + rollout restart.
+
+### Fix 43 — IdentityService's OutboxProcessor logged every pod shutdown as an error
+
+**Root cause**: reported by the user via a log line — `TaskCanceledException at OutboxProcessor.ExecuteAsync line 40`. Uniquely among the 12 services' `OutboxProcessor`s, Identity's has an early-exit branch (`if (!messages.Any()) { await Task.Delay(5000, stoppingToken); continue; }`) *inside* the same `try` that's wrapped by a catch-all `catch (Exception ex) { _logger.LogError(ex, "Lỗi khi xử lý Outbox"); }`. Every graceful shutdown (pod restart, rollout, `kubectl rollout restart` — which this session did dozens of times) cancels `stoppingToken`, `Task.Delay` throws `TaskCanceledException`, and the catch-all logged it as an application error even though nothing was actually wrong. The other 11 services' `OutboxProcessor`s all have their poll-interval `Task.Delay` *outside* the try/catch, so they don't have this bug.
+**Fix**: added a dedicated `catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }` before the catch-all (so real errors still log, but shutdown doesn't), and moved the loop's trailing `Task.Delay` into its own try/catch with the same handling.
+**File**: `src/services/IdentityService/src/ERP.Identity.Infrastructure/BackgroundJobs/OutboxProcessor.cs`
+**Rebuild scope**: `identityservice` only.
+
+### Fix 44 — Creating a duplicate country/province/district/ward crashed with 500 instead of a proper 409
+
+**Root cause**: reported by the user as a `401` on `POST /mst/api/v1/masterdata/geography/countries` — reproducing with a fresh token showed the endpoint actually works fine (201 Created) for genuinely new data, so the user's `401` was a stale/expired browser JWT (this session restarted `identity-service` many times), not a backend bug. But testing with an already-seeded code (`VN`) surfaced a real, separate bug: `CreateCountryCommandHandler` (and the equivalent Province/District/Ward handlers) throw a plain `InvalidOperationException` on a duplicate code, which `GeographyController`'s 4 `Create*` actions never caught — falling through to the default `UseExceptionHandler()` and returning a generic 500.
+**Fix**: wrapped all 4 `Create*` actions (`CreateCountry`, `CreateProvince`, `CreateDistrict`, `CreateWard`) in `try/catch (InvalidOperationException ex) { return Conflict(...); }`.
+**File**: `src/services/SharedMasterDataService/src/ERP.MST.API/Controllers/GeographyController.cs`
+**Rebuild scope**: `masterdataservice` only.
+**Note re: the reported 401**: if this recurs after a fresh login, it's a real bug; if it only happens after the token has been sitting in the browser for a while (esp. after any service restart), it's just token expiry — the fix there is on the client (re-login / verify the refresh-token flow actually fires on 401), not the backend.
+
+### Fix 45 — Gateway logged "Request without authentication" as a Warning for every health-check probe and public route
+
+**Root cause**: user asked about the cause of this recurring log line. `GatewayAuthorizationMiddleware` runs unconditionally for every request and unconditionally `LogWarning`s whenever `context.User.Identity.IsAuthenticated` is false — with no awareness that several routes are *deliberately* public per `ocelot.json` (`/api/auth/*`, `/api/products*`, `/logs/api/v1/logs/client` + its `/api/`-prefixed mirror) plus the Gateway's own `/health`, hit every 10-20s by every pod's K8s readiness/liveness probe. None of this indicates a problem — the middleware doesn't even block the request, it just skips adding the `X-User-*` convenience headers.
+**Fix**: added a `KnownPublicPathPrefixes` list; unauthenticated requests matching one of them now log at `Debug` (filtered out by the default `Information` minimum level, so effectively silent) instead of `Warning`. Genuinely unexpected unauthenticated requests to other paths still log at `Warning` as before.
+**File**: `src/Gateway/Ocelot.API/Authorization/GatewayAuthorizationMiddleware.cs`
+**Rebuild scope**: `gateway` only.
+
+### Fix 46 — Overnight work shifts (e.g. night shift 22:00–06:00) were rejected entirely, and the rejection crashed with 500 instead of 400
+
+**Root cause**: reported by the user while trying to enter "Ca 3" (Shift 3), 22:00 the previous day to 06:00 the next — `WorkShift.Create`/`.Update` rejected any shift where `endTime <= startTime`, treating every overnight shift as invalid, even though night shifts are completely normal in HR scheduling. On top of that, the resulting `InvalidOperationException` wasn't caught by `WorkShiftsController`, so it fell through to a generic 500 instead of a validation-appropriate 400.
+**Fix**:
+1. `WorkShift.Create`/`.Update` (`src/services/HRMService/src/ERP.HRM.Domain/Entities/WorkShift.cs`) now only reject an *exact* start/end match (ambiguous zero-length/24h shift) — `endTime <= startTime` is treated as a valid overnight shift that wraps past midnight.
+2. `ShiftHours` now adds 24h to the duration when it would otherwise be zero or negative, so an overnight shift reports its correct positive duration (22:00–06:00 → 8h, not -16h).
+3. `WorkShiftsController.Create`/`.Update` now catch `InvalidOperationException` and return `400 Bad Request` with the message, instead of an unhandled 500.
+**Files**: `src/services/HRMService/src/ERP.HRM.Domain/Entities/WorkShift.cs`, `src/services/HRMService/src/ERP.HRM.API/Controllers/WorkShiftsController.cs`
+**Rebuild scope**: `hrmservice` only.
+**Verified**: `Ca 3` (22:00–06:00) now creates successfully with `shiftHours: 8`; an actually-invalid same-time shift now returns 400 instead of 500.
+
+### Environmental note — License enforcement is new and tenants start unlicensed by design
+
+Not a bug: migration `012_AddLicenseManagement.sql` seeds the module/plan
+catalog but deliberately issues no `TenantLicenses` row to any tenant — a
+SuperAdmin must explicitly issue one via `POST
+/api/license/tenant/{tenantId}/issue`. The `SYSTEM` tenant used for testing
+throughout this document had no license until this session issued one
+(Enterprise plan, all 14 modules) — without it, `GatewayAuthorizationMiddleware`
+403s with `"Your organization is not licensed for this module"` for every
+module's routes, which looks like a regression but is the intended gate.
+
+---
+
 ## Environmental note (not a code bug)
 
 Mid-session, Docker Desktop's backend briefly returned `500 Internal Server

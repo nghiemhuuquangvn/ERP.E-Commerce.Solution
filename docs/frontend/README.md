@@ -19,6 +19,11 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
   Admin app's SharedMasterDataService CRUD pages (Departments, Positions, Employees,
   Units of Measure, Geography, Languages), for adding a new master-data entity page
   without re-deriving the shape from scratch.
+- [hrm-admin-guide.md](hrm-admin-guide.md) — the pattern used for the Admin app's
+  HRMService pages (Attendance, Leave Requests, Payroll & Pay Slips, Work Shifts).
+  A different pattern from `masterdata-admin-guide.md`: HRM is its own service with
+  its own gateway route, own `PagedResult<T>` shape, and its own read-only Employee
+  snapshot for pickers — don't reuse `mstClient.ts` for it.
 - [settings-admin-guide.md](settings-admin-guide.md) — all 22 Settings categories
   (General, Company, Auth & Security, Notification/Email/SMS, Store/Product,
   Cart/Checkout, Order, Inventory, Payment, Shipping, Tax, Currency, Localization,
