@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using MediatR;
+using ERP.Shared.Authorization;
 using ERP.WH.Application.Commands.Transfers;
 using ERP.WH.Application.Queries.Transfers;
 
@@ -7,19 +9,25 @@ namespace ERP.WH.API.Controllers;
 
 [ApiController]
 [Route("api/v1/transfer-orders")]
+[Authorize]
 public class TransferOrdersController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IUserContextService _userContextService;
 
-    public TransferOrdersController(IMediator mediator)
+    public TransferOrdersController(IMediator mediator, IUserContextService userContextService)
     {
         _mediator = mediator;
+        _userContextService = userContextService;
     }
 
     [HttpGet]
     [ProducesResponseType(typeof(List<TransferOrderDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<List<TransferOrderDto>>> List()
     {
+        if (!_userContextService.HasPermission("inventory:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new ListTransferOrdersQuery());
         return Ok(result);
     }
@@ -29,6 +37,9 @@ public class TransferOrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<TransferOrderDto>> GetById(Guid transferOrderId)
     {
+        if (!_userContextService.HasPermission("inventory:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetTransferOrderByIdQuery { TransferOrderId = transferOrderId });
         return result == null ? NotFound() : Ok(result);
     }
@@ -38,6 +49,9 @@ public class TransferOrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<TransferOrderDto>> Create([FromBody] CreateTransferOrderCommand command)
     {
+        if (!_userContextService.HasPermission("inventory:manage"))
+            return Forbid();
+
         try
         {
             var result = await _mediator.Send(command);
@@ -55,6 +69,9 @@ public class TransferOrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<TransferOrderDto>> Ship(Guid transferOrderId)
     {
+        if (!_userContextService.HasPermission("inventory:manage"))
+            return Forbid();
+
         try
         {
             var result = await _mediator.Send(new ShipTransferOrderCommand { TransferOrderId = transferOrderId });
@@ -76,6 +93,9 @@ public class TransferOrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<TransferOrderDto>> Complete(Guid transferOrderId)
     {
+        if (!_userContextService.HasPermission("inventory:manage"))
+            return Forbid();
+
         try
         {
             var result = await _mediator.Send(new CompleteTransferOrderCommand { TransferOrderId = transferOrderId });
@@ -97,6 +117,9 @@ public class TransferOrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<TransferOrderDto>> Cancel(Guid transferOrderId)
     {
+        if (!_userContextService.HasPermission("inventory:manage"))
+            return Forbid();
+
         try
         {
             var result = await _mediator.Send(new CancelTransferOrderCommand { TransferOrderId = transferOrderId });

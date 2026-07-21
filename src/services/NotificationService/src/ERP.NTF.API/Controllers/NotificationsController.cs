@@ -33,8 +33,23 @@ public class NotificationsController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("notifications:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetNotificationQuery { NotificationId = id }, ct);
-        return result == null ? NotFound() : Ok(result);
+        if (result == null)
+            return NotFound();
+
+        // Ownership check: a notification is scoped to its RecipientId. Holding
+        // notifications:view alone is not enough — without this, any caller with the
+        // view permission could read ANY other recipient's notification by guessing/
+        // enumerating NotificationId. Cross-recipient access requires the elevated,
+        // admin-scope notifications:send permission (mirrors PreferencesController).
+        var isOwnRecipient = string.Equals(result.RecipientId, _userContext.UserId, StringComparison.OrdinalIgnoreCase);
+        if (!isOwnRecipient && !_userContext.HasPermission("notifications:send"))
+            return Forbid();
+
+        return Ok(result);
     }
 
     [HttpGet("history/{recipientId}")]
@@ -44,6 +59,15 @@ public class NotificationsController : ControllerBase
         [FromQuery] int take = 20,
         CancellationToken ct = default)
     {
+        if (!_userContext.HasPermission("notifications:view"))
+            return Forbid();
+
+        // Same ownership rule as GetById: only the recipient themself, or a caller
+        // with the elevated notifications:send permission, may read this history.
+        var isOwnRecipient = string.Equals(recipientId, _userContext.UserId, StringComparison.OrdinalIgnoreCase);
+        if (!isOwnRecipient && !_userContext.HasPermission("notifications:send"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetNotificationHistoryQuery
         {
             RecipientId = recipientId,

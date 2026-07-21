@@ -60,6 +60,8 @@ public static class RoleDefinitions
                 // Shipping
                 PermissionConstants.Shipping_Create,
                 PermissionConstants.Shipping_Update,
+                PermissionConstants.Shipping_View,
+                PermissionConstants.Shipping_CarriersManage,
                 // Warehouse / Inventory
                 PermissionConstants.Inventory_View,
                 PermissionConstants.Inventory_Manage,
@@ -80,10 +82,12 @@ public static class RoleDefinitions
                 PermissionConstants.POS_ShiftsManage,
                 // Promotion
                 PermissionConstants.Promotions_Manage,
+                PermissionConstants.Promotions_View,
                 // Notifications
                 PermissionConstants.Notifications_Send,
                 PermissionConstants.Notifications_TemplatesManage,
                 PermissionConstants.Notifications_WebhooksManage,
+                PermissionConstants.Notifications_View,
                 // Reporting
                 PermissionConstants.Reports_SalesView,
                 PermissionConstants.Reports_InventoryView,
@@ -92,6 +96,38 @@ public static class RoleDefinitions
                 PermissionConstants.Reports_HrView,
                 // Logging
                 PermissionConstants.Logs_View,
+                // CRM
+                PermissionConstants.Crm_ContactsView,
+                PermissionConstants.Crm_ContactsManage,
+                PermissionConstants.Crm_LeadsView,
+                PermissionConstants.Crm_LeadsManage,
+                PermissionConstants.Crm_OpportunitiesView,
+                PermissionConstants.Crm_OpportunitiesManage,
+                PermissionConstants.Crm_CasesView,
+                PermissionConstants.Crm_CasesManage,
+                PermissionConstants.Crm_ActivitiesView,
+                PermissionConstants.Crm_ActivitiesManage,
+                // HRM
+                PermissionConstants.Hrm_EmployeesView,
+                PermissionConstants.Hrm_AttendanceView,
+                PermissionConstants.Hrm_AttendanceManage,
+                PermissionConstants.Hrm_LeaveManage,
+                PermissionConstants.Hrm_ShiftsView,
+                PermissionConstants.Hrm_ShiftsManage,
+                PermissionConstants.Hrm_PayrollManage,
+                // SharedMasterDataService
+                PermissionConstants.MasterData_DepartmentsView,
+                PermissionConstants.MasterData_DepartmentsManage,
+                PermissionConstants.MasterData_PositionsView,
+                PermissionConstants.MasterData_PositionsManage,
+                PermissionConstants.MasterData_EmployeesView,
+                PermissionConstants.MasterData_EmployeesManage,
+                PermissionConstants.MasterData_UnitsOfMeasureView,
+                PermissionConstants.MasterData_UnitsOfMeasureManage,
+                PermissionConstants.MasterData_GeographyView,
+                PermissionConstants.MasterData_GeographyManage,
+                PermissionConstants.MasterData_LanguagesView,
+                PermissionConstants.MasterData_LanguagesManage,
                 // Per-service Settings — tenant tier only (system tier stays SuperAdmin-only,
                 // same tiering rule as IdentityService's own Settings categories)
                 .. PermissionConstants.GetTenantSettingsPermissions(),
@@ -132,6 +168,7 @@ public static class RoleDefinitions
                 // Shipping
                 PermissionConstants.Shipping_Create,
                 PermissionConstants.Shipping_Update,
+                PermissionConstants.Shipping_View,
                 // Warehouse / Inventory (Manager runs day-to-day operations)
                 PermissionConstants.Inventory_View,
                 PermissionConstants.Inventory_Manage,
@@ -144,10 +181,23 @@ public static class RoleDefinitions
                 PermissionConstants.POS_ShiftsManage,
                 // Promotion
                 PermissionConstants.Promotions_Manage,
+                PermissionConstants.Promotions_View,
+                // Notifications (view only, no send/manage)
+                PermissionConstants.Notifications_View,
                 // Reporting
                 PermissionConstants.Reports_SalesView,
                 PermissionConstants.Reports_InventoryView,
                 PermissionConstants.Reports_PosView,
+                // CRM (view only, no manage)
+                PermissionConstants.Crm_ContactsView,
+                PermissionConstants.Crm_LeadsView,
+                PermissionConstants.Crm_OpportunitiesView,
+                PermissionConstants.Crm_CasesView,
+                PermissionConstants.Crm_ActivitiesView,
+                // HRM (view only, no manage)
+                PermissionConstants.Hrm_EmployeesView,
+                PermissionConstants.Hrm_AttendanceView,
+                PermissionConstants.Hrm_ShiftsView,
             ]
         },
 
@@ -188,6 +238,29 @@ public static class RoleDefinitions
                 PermissionConstants.Reports_PaymentsView,
                 PermissionConstants.Reports_PosView,
                 PermissionConstants.Reports_HrView,
+                // Shipping
+                PermissionConstants.Shipping_View,
+                // Promotion
+                PermissionConstants.Promotions_View,
+                // Notifications
+                PermissionConstants.Notifications_View,
+                // CRM
+                PermissionConstants.Crm_ContactsView,
+                PermissionConstants.Crm_LeadsView,
+                PermissionConstants.Crm_OpportunitiesView,
+                PermissionConstants.Crm_CasesView,
+                PermissionConstants.Crm_ActivitiesView,
+                // HRM
+                PermissionConstants.Hrm_EmployeesView,
+                PermissionConstants.Hrm_AttendanceView,
+                PermissionConstants.Hrm_ShiftsView,
+                // SharedMasterDataService
+                PermissionConstants.MasterData_DepartmentsView,
+                PermissionConstants.MasterData_PositionsView,
+                PermissionConstants.MasterData_EmployeesView,
+                PermissionConstants.MasterData_UnitsOfMeasureView,
+                PermissionConstants.MasterData_GeographyView,
+                PermissionConstants.MasterData_LanguagesView,
             ]
         }
     };

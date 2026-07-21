@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using MediatR;
+using ERP.Shared.Authorization;
 using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Application.Queries.Inventory;
 
@@ -7,13 +9,16 @@ namespace ERP.WH.API.Controllers;
 
 [ApiController]
 [Route("api/v1/movements")]
+[Authorize]
 public class StockMovementController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IUserContextService _userContextService;
 
-    public StockMovementController(IMediator mediator)
+    public StockMovementController(IMediator mediator, IUserContextService userContextService)
     {
         _mediator = mediator;
+        _userContextService = userContextService;
     }
 
     [HttpPost]
@@ -22,6 +27,9 @@ public class StockMovementController : ControllerBase
     public async Task<ActionResult<RecordStockMovementResponse>> RecordMovement(
         [FromBody] RecordStockMovementCommand command)
     {
+        if (!_userContextService.HasPermission("inventory:manage"))
+            return Forbid();
+
         try
         {
             var result = await _mediator.Send(command);
@@ -42,6 +50,9 @@ public class StockMovementController : ControllerBase
         [FromQuery] int skip = 0,
         [FromQuery] int take = 50)
     {
+        if (!_userContextService.HasPermission("inventory:view"))
+            return Forbid();
+
         var query = new GetMovementHistoryQuery
         {
             ProductId = productId,

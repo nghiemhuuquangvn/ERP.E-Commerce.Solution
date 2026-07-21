@@ -47,12 +47,19 @@
 - **Topics:** Attendance tracking, leave management, payroll processing, pay slip generation (Employee/Department master data now lives in SharedMasterDataService — see below)
 - **Workflows:** Attendance tracking → Leave approval → Payslip generation
 - **Entities:** LeaveRequest, PaySlip, Attendance, Shift, EmployeeSnapshot (read-only projection)
+- **Security fix (2026-07-21):** every `hrm:*` permission (attendance, leave,
+  shifts, payroll, employees) was checked in code but never defined — every
+  HRM endpoint was Forbidden for every non-SuperAdmin role. Fixed; Admin gets
+  full access, Manager/Viewer get view-only (attendance/employees/shifts).
 
 #### Shared Master Data
 - **Location:** `docs/business/MasterData/`, `src/services/SharedMasterDataService/README.md`
 - **Topics:** Department & position (job title) master data, employee master data, unit of measure, geographic hierarchy (Country → Province → District → Ward), supported languages, per-entity translations
 - **Workflows:** Employee hire → Department assignment → (HRMService) Attendance/Leave/Payroll referencing EmployeeId
 - **Entities:** Department, Position, Employee, UnitOfMeasure, Country, Province, District, Ward, SupportedLanguage, {Entity}Translation
+- **Security fix (2026-07-21):** same class of bug as HRM above — every
+  `masterdata:*` permission was checked but never defined; fixed the same way
+  (Admin full, Manager/Viewer view-only).
 
 #### Purchase Order & Procurement
 - **Location:** `src/services/PurchaseOrderService/README.md`
@@ -75,12 +82,22 @@
 - **Topics:** Inventory tracking, stock movements, reservation management, warehouse locations, reorder points
 - **Workflows:** ReceiveGoods → StockMovement → Reservation → Issue → Adjustment
 - **Entities:** Inventory, StockMovement, Reservation, WarehouseLocation, InventoryBalance
+- **Security fix (2026-07-21):** Stocktakes, TransferOrders, Serials, Lots,
+  Locations, and StockMovement controllers had zero auth check at all
+  (reachable by anyone, unauthenticated). Fixed by reusing the existing
+  `inventory:view`/`inventory:manage` permission pair uniformly across all six
+  — this service has no finer per-resource permission convention, by design.
 
 #### Shipping & Logistics
 - **Location:** `src/services/ShippingService/README.md`
 - **Topics:** Shipment management, carrier integration, shipping rate calculation, tracking, delivery confirmation
 - **Workflows:** CreateShipment → AssignCarrier → GenerateLabel → TrackingUpdates → DeliveryConfirmation
 - **Entities:** Shipment, Carrier, ShippingRate, TrackingEvent, Manifest, DeliveryProof
+- **Security fix (2026-07-21):** Shipments, ReturnShipments, and Carriers
+  controllers had unprotected actions (including write actions like
+  AddTracking/MarkPickedUp/Cancel). Added two new permissions —
+  `shipping:view` and `shipping:carriers:manage` — since this service
+  previously only had `Create`/`Update`, no view/manage granularity.
 
 ---
 
@@ -91,24 +108,47 @@
 - **Topics:** Sales order creation, customer order processing, order workflows, fulfillment tracking, order status management
 - **Workflows:** OrderCreation → Approval → InventoryReservation → Fulfillment → Shipment → Delivery
 - **Entities:** SalesOrder, Customer, OrderItem, OrderStatus, OrderLine, OrderShipment
+- **Security fix (2026-07-21):** `GetMyOrders` had no auth check (low
+  severity — verified the query already scoped correctly to the caller's own
+  `UserId`, no data leak existed, just a missing permission gate). Added
+  `sales_order:read`.
 
 #### Customer Relationship Management (CRM)
 - **Location:** `src/services/CRMService/README.md`
 - **Topics:** Contact management, lead tracking, opportunity management, case management, activity logging, customer interactions
 - **Workflows:** LeadCreation → LeadQualification → OpportunityCreation → OpportunityClosure → SalesOrder
 - **Entities:** Contact, Lead, Opportunity, Case, Activity, InteractionLog
+- **Security fix (2026-07-21):** every `crm:*` permission (contacts, leads,
+  opportunities, cases, activities) was checked in code but never defined —
+  every CRM endpoint was Forbidden for every non-SuperAdmin role. Fixed; Admin
+  gets full access, Manager/Viewer get view-only.
 
 #### Payment Processing & Reconciliation
 - **Location:** `src/services/PaymentService/README.md`
 - **Topics:** Payment transaction processing, payment method management, refund handling, settlement reconciliation, payment authorization
 - **Workflows:** PaymentInitiation → Authorization → Capture → Settlement → Reconciliation
 - **Entities:** PaymentTransaction, PaymentMethod, Refund, Settlement, PaymentGatewayResponse, Reconciliation
+- **Security fix (2026-07-21):** Installments and PaymentMethods controllers
+  (including a card-delete action) had zero auth check; fixed by reusing
+  `payments:view`/`payments:create`/`payments:capture`. Confirmed the VNPay
+  `ipn` webhook already has real checksum verification (`VerifyCallbackAsync`)
+  before processing — marked `[AllowAnonymous]` with a comment explaining why
+  (external server-to-server callback, cannot carry a user JWT), no gap found.
 
 #### Promotions & Loyalty
-- **Location:** `src/services/PromotionService/README.md`
+- **Location:** `src/services/PromotionService/README.md`,
+  `docs/business/Promotion/LoyaltyAndCouponSecurity.md`
 - **Topics:** Promotion management, coupon redemption, flash sales, loyalty program management, discount rules, eligibility
 - **Workflows:** PromotionCreation → PromotionActivation → CouponRedeem → LoyaltyPointsEarn → LoyaltyRedemption
 - **Entities:** Promotion, Coupon, FlashSale, LoyaltyProgram, LoyaltyAccount, DiscountRule
+- **Security fix (2026-07-21) — most severe finding of the platform-wide audit:**
+  `LoyaltyController.Earn`/`Redeem` accepted a caller-supplied `userId` with no
+  ownership check at all — anyone could mint or spend any other user's loyalty
+  points. Verified no frontend app calls these endpoints today, so locked them
+  to staff-only (`promotions:manage`) rather than adding a self-service
+  ownership check that nothing currently needs — see
+  `docs/business/Promotion/LoyaltyAndCouponSecurity.md` for the full model,
+  including the public/authenticated split on coupon validate-vs-redeem.
 
 ---
 
@@ -119,6 +159,12 @@
 - **Topics:** POS terminal management, retail transaction processing, line item management, cash shift management, register reconciliation
 - **Workflows:** TerminalSetup → CashShiftOpen → TransactionCreate → PaymentProcess → CashShiftClose → RegisterReconciliation
 - **Entities:** POSTerminal, POSTransaction, LineItem, CashShift, Register, PaymentTender
+- **Security fix (2026-07-21):** barcode lookup and terminal list actions had
+  no auth check. Barcode lookup now requires `pos:transactions` (same gate as
+  its sibling cashier actions); terminal list requires `pos:terminals:manage`.
+  `TerminalsController.CustomerDisplay` (the customer-facing screen mirroring
+  a terminal's current transaction) was deliberately left `[AllowAnonymous]`
+  with a comment — it's driven by in-store hardware with no staff login.
 
 ---
 
@@ -145,10 +191,18 @@
   dynamic key-value shape)
 
 #### Notification & Communication
-- **Location:** `src/services/NotificationService/README.md`
+- **Location:** `src/services/NotificationService/README.md`,
+  `docs/business/Notification/NotificationPrivacy.md`
 - **Topics:** Multi-channel notifications (email, SMS, push), notification templates, preference management, notification history
 - **Workflows:** EventOccurs → TemplateSelect → NotificationCompose → ChannelSend → DeliveryTracking
 - **Entities:** NotificationTemplate, Notification, NotificationPreference, NotificationChannel, DeliveryLog
+- **Security fix (2026-07-21):** `PreferencesController` and
+  `NotificationsController.GetById`/`GetHistory` had no auth check and no
+  ownership check — any caller could read any other recipient's notification
+  history/preferences (an IDOR). Fixed with a new `notifications:view`
+  permission plus a mandatory identity comparison (caller's own ID must match
+  the target recipient) unless the caller holds the elevated `notifications:send`
+  permission. See `docs/business/Notification/NotificationPrivacy.md`.
 
 #### Reporting & Analytics
 - **Location:** `src/services/ReportingService/README.md`
@@ -272,6 +326,24 @@ Notification (Welcome Email)
 3. **Service Isolation:** Services cannot directly access other services' databases
 4. **Event Filtering:** NotificationService respects user notification preferences
 5. **Audit Trail:** All GL entries must be traceable to source transaction
+6. **Notification privacy (clarified 2026-07-21):** a caller can only read their
+   own notification history/preferences; cross-recipient access requires the
+   elevated `notifications:send` permission (Admin only) — see
+   `docs/business/Notification/NotificationPrivacy.md`.
+7. **Loyalty points are staff-administered only (clarified 2026-07-21):** there
+   is no customer self-service loyalty earn/redeem flow today — an authenticated
+   staff member (`promotions:manage`) acts on a customer's behalf. Coupon
+   *validation* is public/pre-login (read-only, checkout-facing); coupon
+   *redemption* requires the customer to be logged in but needs no staff
+   permission (it's a real state change, but a customer's own action). See
+   `docs/business/Promotion/LoyaltyAndCouponSecurity.md`.
+8. **RBAC vocabulary completeness (2026-07-21):** a platform-wide audit found
+   CRMService, HRMService, and SharedMasterDataService's permission strings
+   (checked in every controller via `[AuthorizePermission]`) had never been
+   defined in `ERP.Shared.Authorization.PermissionConstants`/`RoleDefinitions` —
+   every endpoint in all three services was unconditionally Forbidden for every
+   role except SuperAdmin. Fixed alongside the same-class Accounting gap found
+   earlier the same day. See "Domain notes" under each affected domain below.
 
 ---
 

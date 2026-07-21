@@ -1,6 +1,8 @@
 using ERP.PAY.Application.Commands;
 using ERP.PAY.Application.Interfaces;
+using ERP.Shared.Authorization;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.PAY.API.Controllers;
@@ -15,21 +17,29 @@ public class PaymentGatewayController : ControllerBase
     private readonly IPaymentGateway _gateway;
     private readonly IMediator _mediator;
     private readonly ILogger<PaymentGatewayController> _logger;
+    private readonly UserContext _userContext;
 
-    public PaymentGatewayController(IPaymentGateway gateway, IMediator mediator, ILogger<PaymentGatewayController> logger)
+    public PaymentGatewayController(IPaymentGateway gateway, IMediator mediator, ILogger<PaymentGatewayController> logger, UserContext userContext)
     {
         _gateway = gateway;
         _mediator = mediator;
         _logger = logger;
+        _userContext = userContext;
     }
 
     /// <summary>
     /// Create VNPay payment URL for a pending payment.
     /// Returns the URL to redirect customer to VNPay checkout page.
+    /// Staff/service-initiated (no Storefront call site exists today — checkout only
+    /// calls SaleOrderService's order-creation API), so gated the same as this
+    /// service's other write actions rather than left open for an unauthenticated caller.
     /// </summary>
     [HttpPost("{paymentId:guid}/create-url")]
     public async Task<IActionResult> CreatePaymentUrl(Guid paymentId, [FromBody] CreatePaymentUrlRequest request, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("payments:create"))
+            return Forbid();
+
         var returnUrl = $"{Request.Scheme}://{Request.Host}/api/v1/payment-gateway/callback";
         var result = await _gateway.CreatePaymentUrlAsync(paymentId, request.Amount, request.Currency, returnUrl, ct);
 
@@ -83,7 +93,15 @@ public class PaymentGatewayController : ControllerBase
 
     /// <summary>
     /// VNPay IPN (Instant Payment Notification) — server-to-server, captures payment internally.
+    /// External webhook call from VNPay's servers, not a logged-in user or staff member — it
+    /// cannot carry a staff/customer JWT bearer token in a real deployment, so a HasPermission
+    /// check would break the webhook flow rather than secure it. Explicitly [AllowAnonymous]
+    /// (rather than silently unprotected-by-omission) because the real security boundary here
+    /// is VNPay's checksum, already verified below via IPaymentGateway.VerifyCallbackAsync
+    /// (same signature-verification call the "callback" action above uses) — requests that
+    /// fail checksum verification are rejected before ProcessGatewayCallbackCommand runs.
     /// </summary>
+    [AllowAnonymous]
     [HttpPost("ipn")]
     public async Task<IActionResult> VnPayIpn(CancellationToken ct)
     {

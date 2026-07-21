@@ -52,15 +52,27 @@ namespace ERP.SO.Api.Controllers
 
         /// <summary>
         /// Get all orders belonging to the currently authenticated user (storefront customers)
+        /// Requires: sales_order:read permission
         /// </summary>
         [HttpGet("my")]
         [ProducesResponseType(typeof(List<SalesOrderSummaryDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> GetMyOrders(CancellationToken cancellationToken)
         {
+            if (!_userContext.HasPermission("sales_order:read"))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:read required" });
+            }
+
             if (!Guid.TryParse(_userContext.UserId, out var userId))
                 return Unauthorized(new { message = "Invalid user ID" });
 
+            // Genuinely scoped to the caller: userId comes only from the JWT-derived
+            // UserContext, never from client input, and the handler filters by this
+            // exact CustomerId (GetOrdersByCustomerQueryHandler ->
+            // _repository.GetByCustomerIdAsync(request.CustomerId)) — confirmed no
+            // caller-supplied identity can widen the result set.
             var query = new GetOrdersByCustomerQuery(userId);
             var result = await _mediator.Send(query, cancellationToken);
             return Ok(result);

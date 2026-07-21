@@ -33,6 +33,9 @@ public class ShipmentsController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("shipping:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetShipmentQuery { ShipmentId = id }, ct);
         return result == null ? NotFound() : Ok(result);
     }
@@ -40,6 +43,9 @@ public class ShipmentsController : ControllerBase
     [HttpGet("{id:guid}/track")]
     public async Task<IActionResult> Track(Guid id, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("shipping:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new TrackShipmentQuery { ShipmentId = id }, ct);
         return Ok(result);
     }
@@ -47,6 +53,9 @@ public class ShipmentsController : ControllerBase
     [HttpGet("order/{orderId:guid}")]
     public async Task<IActionResult> GetByOrder(Guid orderId, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("shipping:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new ListShipmentsByOrderQuery { OrderId = orderId }, ct);
         return Ok(result);
     }
@@ -54,6 +63,9 @@ public class ShipmentsController : ControllerBase
     [HttpPost("{id:guid}/tracking")]
     public async Task<IActionResult> AddTracking(Guid id, [FromBody] AddTrackingEventCommand command, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("shipping:update"))
+            return Forbid();
+
         command.ShipmentId = id;
         var result = await _mediator.Send(command, ct);
         return Ok(result);
@@ -62,6 +74,9 @@ public class ShipmentsController : ControllerBase
     [HttpPost("{id:guid}/tracking-number")]
     public async Task<IActionResult> AssignTrackingNumber(Guid id, [FromBody] AssignTrackingNumberCommand command, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("shipping:update"))
+            return Forbid();
+
         command.ShipmentId = id;
         var result = await _mediator.Send(command, ct);
         return Ok(result);
@@ -112,6 +127,9 @@ public class ShipmentsController : ControllerBase
     [HttpGet("{id:guid}/label")]
     public async Task<IActionResult> GetLabel(Guid id, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("shipping:view"))
+            return Forbid();
+
         var pdfBytes = await _mediator.Send(new GenerateShippingLabelQuery { ShipmentId = id }, ct);
         return File(pdfBytes, "application/pdf", $"shipping-label-{id:N}.pdf");
     }
@@ -133,6 +151,9 @@ public class ReturnShipmentsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> List(Guid shipmentId, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("shipping:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new ListReturnsByShipmentQuery { OriginalShipmentId = shipmentId }, ct);
         return Ok(result);
     }
@@ -140,6 +161,9 @@ public class ReturnShipmentsController : ControllerBase
     [HttpGet("{returnId:guid}")]
     public async Task<IActionResult> GetById(Guid shipmentId, Guid returnId, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("shipping:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetReturnShipmentByIdQuery { ReturnShipmentId = returnId }, ct);
         return result == null ? NotFound() : Ok(result);
     }
@@ -166,6 +190,9 @@ public class ReturnShipmentsController : ControllerBase
     [HttpPost("{returnId:guid}/tracking-number")]
     public async Task<IActionResult> AssignTrackingNumber(Guid shipmentId, Guid returnId, [FromBody] AssignReturnTrackingNumberCommand command, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("shipping:update"))
+            return Forbid();
+
         command.ReturnShipmentId = returnId;
         var result = await _mediator.Send(command, ct);
         return Ok(result);
@@ -174,6 +201,9 @@ public class ReturnShipmentsController : ControllerBase
     [HttpPost("{returnId:guid}/picked-up")]
     public async Task<IActionResult> MarkPickedUp(Guid shipmentId, Guid returnId, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("shipping:update"))
+            return Forbid();
+
         var result = await _mediator.Send(new MarkReturnPickedUpCommand { ReturnShipmentId = returnId }, ct);
         return Ok(result);
     }
@@ -191,6 +221,9 @@ public class ReturnShipmentsController : ControllerBase
     [HttpPost("{returnId:guid}/cancel")]
     public async Task<IActionResult> Cancel(Guid shipmentId, Guid returnId, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("shipping:update"))
+            return Forbid();
+
         var result = await _mediator.Send(new CancelReturnCommand { ReturnShipmentId = returnId }, ct);
         return Ok(result);
     }
@@ -202,16 +235,29 @@ public class CarriersController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ICarrierClient _carrierClient;
+    private readonly UserContext _userContext;
 
-    public CarriersController(IMediator mediator, ICarrierClient carrierClient)
+    public CarriersController(IMediator mediator, ICarrierClient carrierClient, UserContext userContext)
     {
         _mediator = mediator;
         _carrierClient = carrierClient;
+        _userContext = userContext;
     }
 
+    // Carrier configuration is admin-facing (not called by any customer-facing
+    // surface in this repo) — reads use shipping:view, same as the other two
+    // controllers in this file; there is currently no create/update/delete action
+    // here (ICarrierRepository supports Add/Update but nothing wires it up yet), so
+    // shipping:carriers:manage isn't consumed by this controller today. It's still
+    // defined/granted now so the first carrier-CRUD action added later has a
+    // permission ready instead of repeating the phantom-permission bug this pass is
+    // fixing elsewhere.
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken ct)
     {
+        if (!_userContext.HasPermission("shipping:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new ListCarriersQuery(), ct);
         return Ok(result);
     }
@@ -219,6 +265,9 @@ public class CarriersController : ControllerBase
     [HttpPost("calculate-fee")]
     public async Task<IActionResult> CalculateFee([FromBody] FeeRequest request, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("shipping:view"))
+            return Forbid();
+
         var fees = await _carrierClient.CalculateFeeAsync(request, ct);
         return Ok(fees);
     }
@@ -226,6 +275,9 @@ public class CarriersController : ControllerBase
     [HttpGet("{id:guid}/quote")]
     public async Task<IActionResult> GetQuote(Guid id, [FromQuery] decimal weightKg, [FromQuery] string? destinationProvince, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("shipping:view"))
+            return Forbid();
+
         try
         {
             var result = await _mediator.Send(new GetCarrierQuoteQuery { CarrierId = id, WeightKg = weightKg, DestinationProvince = destinationProvince }, ct);

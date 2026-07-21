@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using MediatR;
+using ERP.Shared.Authorization;
 using ERP.WH.Application.Commands.Locations;
 using ERP.WH.Application.Queries.Locations;
 
@@ -7,19 +9,25 @@ namespace ERP.WH.API.Controllers;
 
 [ApiController]
 [Route("api/v1/locations")]
+[Authorize]
 public class LocationsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IUserContextService _userContextService;
 
-    public LocationsController(IMediator mediator)
+    public LocationsController(IMediator mediator, IUserContextService userContextService)
     {
         _mediator = mediator;
+        _userContextService = userContextService;
     }
 
     [HttpGet]
     [ProducesResponseType(typeof(List<LocationDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<List<LocationDto>>> GetLocations([FromQuery] bool? isActive = null)
     {
+        if (!_userContextService.HasPermission("inventory:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetLocationsQuery { IsActive = isActive });
         return Ok(result);
     }
@@ -29,6 +37,9 @@ public class LocationsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<LocationDto>> GetLocationById(Guid locationId)
     {
+        if (!_userContextService.HasPermission("inventory:view"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetLocationByIdQuery { LocationId = locationId });
         return result == null ? NotFound() : Ok(result);
     }
@@ -38,6 +49,9 @@ public class LocationsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<LocationDto>> CreateLocation([FromBody] CreateLocationCommand command)
     {
+        if (!_userContextService.HasPermission("inventory:manage"))
+            return Forbid();
+
         try
         {
             var result = await _mediator.Send(command);
@@ -54,6 +68,9 @@ public class LocationsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<LocationDto>> UpdateLocation(Guid locationId, [FromBody] UpdateLocationCommand command)
     {
+        if (!_userContextService.HasPermission("inventory:manage"))
+            return Forbid();
+
         command.LocationId = locationId;
 
         try
@@ -72,6 +89,9 @@ public class LocationsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<LocationDto>> Activate(Guid locationId)
     {
+        if (!_userContextService.HasPermission("inventory:manage"))
+            return Forbid();
+
         try
         {
             var result = await _mediator.Send(new SetLocationActiveCommand { LocationId = locationId, IsActive = true });
@@ -88,6 +108,9 @@ public class LocationsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<LocationDto>> Deactivate(Guid locationId)
     {
+        if (!_userContextService.HasPermission("inventory:manage"))
+            return Forbid();
+
         try
         {
             var result = await _mediator.Send(new SetLocationActiveCommand { LocationId = locationId, IsActive = false });

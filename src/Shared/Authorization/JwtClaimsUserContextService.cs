@@ -38,6 +38,7 @@ public class JwtClaimsUserContextService : IUserContextService
         // before this claim existed.
         var name = FindFirst(user, JwtRegisteredClaimNames.Name, ClaimTypes.Name);
         var tenantId = FindFirst(user, "tenant_id");
+        var tenantName = FindFirst(user, "tenant_name");
         var roles = user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray();
         var permissions = user.FindAll("permission").Select(c => c.Value).ToArray();
         var licensedModules = user.FindAll("licensed_module").Select(c => c.Value).ToArray();
@@ -52,6 +53,7 @@ public class JwtClaimsUserContextService : IUserContextService
             UserId = userId ?? string.Empty,
             UserName = name ?? email ?? string.Empty,
             TenantId = tenantId ?? string.Empty,
+            TenantName = tenantName ?? string.Empty,
             Roles = roles,
             Permissions = permissions,
             LicensedModules = licensedModules,

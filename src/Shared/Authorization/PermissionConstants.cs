@@ -60,6 +60,8 @@ public static class PermissionConstants
     // Shipping Permissions
     public const string Shipping_Create = "shipping:create";
     public const string Shipping_Update = "shipping:update";
+    public const string Shipping_View = "shipping:view";
+    public const string Shipping_CarriersManage = "shipping:carriers:manage";
 
     // Warehouse / Inventory Permissions
     public const string Inventory_View = "inventory:view";
@@ -84,11 +86,19 @@ public static class PermissionConstants
 
     // Promotion Permissions
     public const string Promotions_Manage = "promotions:manage";
+    public const string Promotions_View = "promotions:view";
 
     // Notification Permissions
     public const string Notifications_Send = "notifications:send";
     public const string Notifications_TemplatesManage = "notifications:templates:manage";
     public const string Notifications_WebhooksManage = "notifications:webhooks:manage";
+    // Covers "view a notification/preference" — none of the three constants above (all
+    // write-oriented) fit read-only actions like GetById/GetHistory/Preferences.Get.
+    // NOTE: granting this alone is not sufficient for IDOR-prone endpoints scoped to a
+    // specific recipient/user — callers must also pass an ownership check (see
+    // NotificationsController/PreferencesController) unless they hold an elevated,
+    // admin-scope permission (Notifications_Send) allowing cross-recipient access.
+    public const string Notifications_View = "notifications:view";
 
     // Reporting Permissions
     public const string Reports_SalesView = "reports:sales:view";
@@ -99,6 +109,46 @@ public static class PermissionConstants
 
     // Logging Permissions
     public const string Logs_View = "logs:view";
+
+    // CRM Permissions
+    // NOTE: same class of bug as Accounting's ":view" gap — CRMService's controllers
+    // already checked every one of these strings via [AuthorizePermission("...")], but
+    // none were defined here, so every CRM endpoint was Forbidden for every role except
+    // SuperAdmin (which bypasses via AuthorizePermissionAttribute's HasRole("SuperAdmin")
+    // check) until these were added.
+    public const string Crm_ContactsView = "crm:contacts:view";
+    public const string Crm_ContactsManage = "crm:contacts:manage";
+    public const string Crm_LeadsView = "crm:leads:view";
+    public const string Crm_LeadsManage = "crm:leads:manage";
+    public const string Crm_OpportunitiesView = "crm:opportunities:view";
+    public const string Crm_OpportunitiesManage = "crm:opportunities:manage";
+    public const string Crm_CasesView = "crm:cases:view";
+    public const string Crm_CasesManage = "crm:cases:manage";
+    public const string Crm_ActivitiesView = "crm:activities:view";
+    public const string Crm_ActivitiesManage = "crm:activities:manage";
+
+    // HRM Permissions (same gap/fix as CRM above)
+    public const string Hrm_EmployeesView = "hrm:employees:view";
+    public const string Hrm_AttendanceView = "hrm:attendance:view";
+    public const string Hrm_AttendanceManage = "hrm:attendance:manage";
+    public const string Hrm_LeaveManage = "hrm:leave:manage";
+    public const string Hrm_ShiftsView = "hrm:shifts:view";
+    public const string Hrm_ShiftsManage = "hrm:shifts:manage";
+    public const string Hrm_PayrollManage = "hrm:payroll:manage";
+
+    // SharedMasterDataService Permissions (same gap/fix as CRM above)
+    public const string MasterData_DepartmentsView = "masterdata:departments:view";
+    public const string MasterData_DepartmentsManage = "masterdata:departments:manage";
+    public const string MasterData_PositionsView = "masterdata:positions:view";
+    public const string MasterData_PositionsManage = "masterdata:positions:manage";
+    public const string MasterData_EmployeesView = "masterdata:employees:view";
+    public const string MasterData_EmployeesManage = "masterdata:employees:manage";
+    public const string MasterData_UnitsOfMeasureView = "masterdata:units-of-measure:view";
+    public const string MasterData_UnitsOfMeasureManage = "masterdata:units-of-measure:manage";
+    public const string MasterData_GeographyView = "masterdata:geography:view";
+    public const string MasterData_GeographyManage = "masterdata:geography:manage";
+    public const string MasterData_LanguagesView = "masterdata:languages:view";
+    public const string MasterData_LanguagesManage = "masterdata:languages:manage";
 
     // Per-service Settings categories: {system|tenant} x {view|manage}, mirroring
     // IdentityService's own Settings tiering (system = SuperAdmin-only master
@@ -176,15 +226,26 @@ public static class PermissionConstants
         Accounting_BankView, Accounting_BankManage,
         Accounting_TaxView, Accounting_TaxManage,
         Accounting_ReportsView,
-        Shipping_Create, Shipping_Update,
+        Shipping_Create, Shipping_Update, Shipping_View, Shipping_CarriersManage,
         Inventory_View, Inventory_Manage,
         Payments_View, Payments_Create, Payments_Authorize, Payments_Capture, Payments_Cancel, Payments_Refund,
         Payments_SettlementsView, Payments_SettlementsManage,
         POS_Transactions, POS_TerminalsManage, POS_ReportsView, POS_ShiftsView, POS_ShiftsManage,
-        Promotions_Manage,
-        Notifications_Send, Notifications_TemplatesManage, Notifications_WebhooksManage,
+        Promotions_Manage, Promotions_View,
+        Notifications_Send, Notifications_TemplatesManage, Notifications_WebhooksManage, Notifications_View,
         Reports_SalesView, Reports_InventoryView, Reports_PaymentsView, Reports_PosView, Reports_HrView,
         Logs_View,
+        Crm_ContactsView, Crm_ContactsManage, Crm_LeadsView, Crm_LeadsManage,
+        Crm_OpportunitiesView, Crm_OpportunitiesManage, Crm_CasesView, Crm_CasesManage,
+        Crm_ActivitiesView, Crm_ActivitiesManage,
+        Hrm_EmployeesView, Hrm_AttendanceView, Hrm_AttendanceManage, Hrm_LeaveManage,
+        Hrm_ShiftsView, Hrm_ShiftsManage, Hrm_PayrollManage,
+        MasterData_DepartmentsView, MasterData_DepartmentsManage,
+        MasterData_PositionsView, MasterData_PositionsManage,
+        MasterData_EmployeesView, MasterData_EmployeesManage,
+        MasterData_UnitsOfMeasureView, MasterData_UnitsOfMeasureManage,
+        MasterData_GeographyView, MasterData_GeographyManage,
+        MasterData_LanguagesView, MasterData_LanguagesManage,
         Settings_CartCheckout_SystemView, Settings_CartCheckout_SystemManage,
         Settings_CartCheckout_TenantView, Settings_CartCheckout_TenantManage,
         Settings_Currency_SystemView, Settings_Currency_SystemManage,

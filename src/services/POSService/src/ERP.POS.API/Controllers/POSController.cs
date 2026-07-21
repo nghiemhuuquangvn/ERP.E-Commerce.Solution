@@ -2,6 +2,7 @@ using ERP.POS.Application.Commands;
 using ERP.POS.Application.Queries;
 using ERP.Shared.Authorization;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.POS.API.Controllers;
@@ -104,11 +105,26 @@ public class TransactionsController : ControllerBase
 public class PosProductsController : ControllerBase
 {
     private readonly IMediator _mediator;
-    public PosProductsController(IMediator mediator) => _mediator = mediator;
+    private readonly UserContext _userContext;
 
+    public PosProductsController(IMediator mediator, UserContext userContext)
+    {
+        _mediator = mediator;
+        _userContext = userContext;
+    }
+
+    // Barcode lookup is a step within the cashier's authenticated checkout flow
+    // (scan -> lookup -> add item), the same as every action in
+    // TransactionsController above (all gated by "pos:transactions") — it is not
+    // called by any customer-facing surface in this repo (no storefront/admin/staff
+    // client references it outside the logged-in staff app), so it gets the same
+    // gate as its sibling checkout-flow actions rather than being left open.
     [HttpGet("lookup/{barcode}")]
     public async Task<IActionResult> LookupByBarcode(string barcode, CancellationToken ct)
     {
+        if (!_userContext.HasPermission("pos:transactions"))
+            return Forbid();
+
         var result = await _mediator.Send(new GetProductByBarcodeQuery { Barcode = barcode }, ct);
         return result == null ? NotFound() : Ok(result);
     }
@@ -128,8 +144,13 @@ public class TerminalsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] bool? isActive, CancellationToken ct) =>
-        Ok(await _mediator.Send(new ListTerminalsQuery { IsActive = isActive }, ct));
+    public async Task<IActionResult> List([FromQuery] bool? isActive, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("pos:terminals:manage"))
+            return Forbid();
+
+        return Ok(await _mediator.Send(new ListTerminalsQuery { IsActive = isActive }, ct));
+    }
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateTerminalCommand command, CancellationToken ct)
@@ -168,6 +189,14 @@ public class TerminalsController : ControllerBase
         return Ok(await _mediator.Send(command, ct));
     }
 
+    // Deliberately public: this is the secondary, customer-facing screen at a
+    // checkout counter (mirrors whatever line items/total the cashier's terminal is
+    // currently showing) — that hardware has no staff login of its own and no
+    // frontend client in this repo drives it from an authenticated staff session, so
+    // it cannot carry a JWT. It is scoped to a single known terminalId and is
+    // read-only/no side effects, so there is nothing gained by forcing staff auth
+    // here that the customer standing at the register can't already see directly.
+    [AllowAnonymous]
     [HttpGet("{id:guid}/customer-display")]
     public async Task<IActionResult> CustomerDisplay(Guid id, CancellationToken ct)
     {
