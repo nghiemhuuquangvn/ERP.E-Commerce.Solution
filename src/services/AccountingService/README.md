@@ -110,34 +110,69 @@ The Accounting Service manages all financial transactions and reporting:
 
 ## API Endpoints
 
+Verified directly against the controllers (this section previously documented
+several endpoints — `send`/`void` on invoices, a flat `/api/v1/reports/*`
+path, an `ap-aging`/`ar-aging` pair on Reports — that don't actually exist;
+corrected below). Every list/detail action requires
+`accounting:{entity}:view`, every create/status-change action requires
+`accounting:{entity}:manage` (see `docs/frontend/accounting-admin-guide.md`
+for the Admin UI built against this API and the permission-vocabulary gap
+that was fixed alongside it).
+
 ```
-GET    /api/v1/accounts                    - Chart of accounts
-POST   /api/v1/accounts                    - Create GL account
-GET    /api/v1/accounts/{id}               - Account detail
+GET    /api/v1/accounts                              - Chart of accounts (no pagination)
+POST   /api/v1/accounts                               - Create GL account
+GET    /api/v1/accounts/{id}                          - Account detail
+                                                         (no update/delete)
 
-GET    /api/v1/journal-entries             - List journal entries
-POST   /api/v1/journal-entries             - Manual journal entry
-GET    /api/v1/journal-entries/{id}        - Entry detail
+GET    /api/v1/journal-entries?fiscalPeriodId=&pageNumber=&pageSize=
+                                                       - List journal entries (plain array, no total count)
+POST   /api/v1/journal-entries                        - Create AND post an entry (one step, no draft state)
+GET    /api/v1/journal-entries/{id}                   - Entry detail (with Lines[])
+                                                         (no update/delete)
 
-GET    /api/v1/invoices                    - List AR invoices
-POST   /api/v1/invoices                    - Create invoice
-GET    /api/v1/invoices/{id}               - Invoice detail
-POST   /api/v1/invoices/{id}/send          - Mark as sent
-POST   /api/v1/invoices/{id}/void          - Void invoice
+GET    /api/v1/invoices?customerId=&status=&pageNumber=&pageSize=
+                                                       - List AR invoices (plain array, no total count)
+POST   /api/v1/invoices                                - Create invoice
+GET    /api/v1/invoices/{id}                          - Invoice detail
+POST   /api/v1/invoices/{id}/mark-paid                 - Mark paid
+GET    /api/v1/invoices/ar-aging?asOfDate=            - AR aging report
+                                                         (no update/delete/send/void)
 
-GET    /api/v1/bills                       - List AP bills
-POST   /api/v1/bills                       - Create bill
-GET    /api/v1/bills/{id}                  - Bill detail
-POST   /api/v1/bills/{id}/approve          - Approve bill
+GET    /api/v1/bills?supplierId=&status=&pageNumber=&pageSize=
+                                                       - List AP bills (plain array, no total count)
+POST   /api/v1/bills                                   - Create bill
+GET    /api/v1/bills/{id}                             - Bill detail
+POST   /api/v1/bills/{id}/approve                      - Approve bill
+POST   /api/v1/bills/{id}/mark-paid                    - Mark paid
+GET    /api/v1/bills/ap-aging?asOfDate=               - AP aging report
+                                                         (no update/delete)
 
-GET    /api/v1/fiscal-periods              - List periods
-POST   /api/v1/fiscal-periods/{id}/close   - Close period
+GET    /api/v1/fiscal-periods                         - List periods (no pagination)
+POST   /api/v1/fiscal-periods                          - Open a period
+GET    /api/v1/fiscal-periods/{id}                    - Period detail
+POST   /api/v1/fiscal-periods/{id}/close               - Close period
+                                                         (no update/delete)
 
-GET    /api/v1/reports/trial-balance       - Trial balance
-GET    /api/v1/reports/profit-loss         - P&L statement
-GET    /api/v1/reports/balance-sheet       - Balance sheet
-GET    /api/v1/reports/ar-aging            - AR aging report
-GET    /api/v1/reports/ap-aging            - AP aging report
+GET    /api/v1/tax-rates?activeOnly=                  - List tax rates (no pagination)
+POST   /api/v1/tax-rates                               - Create tax rate
+GET    /api/v1/tax-rates/{id}                         - Tax rate detail
+PUT    /api/v1/tax-rates/{id}                          - Update (the only entity with a real update endpoint)
+POST   /api/v1/tax-rates/{id}/deactivate               - Deactivate
+
+GET    /api/v1/bank-accounts?activeOnly=              - List bank accounts (no pagination)
+POST   /api/v1/bank-accounts                           - Create bank account (no update/delete)
+GET    /api/v1/bank-accounts/{id}/statements           - List statements
+POST   /api/v1/bank-accounts/{id}/statements           - Add a statement
+POST   /api/v1/bank-accounts/{id}/statements/{statementId}/reconcile
+                                                       - Reconcile a statement
+
+GET    /api/v1/accounting/reports/trial-balance?fiscalPeriodId=&fromDate=&toDate=&hideZeroBalance=
+GET    /api/v1/accounting/reports/profit-and-loss?fromDate=&toDate=   (both required)
+GET    /api/v1/accounting/reports/balance-sheet?asOfDate=
+                                                       - Read-only (accounting:reports:view only,
+                                                         no manage variant). AR/AP aging live on the
+                                                         Invoices/Bills controllers above, not here.
 ```
 
 ## Dependencies

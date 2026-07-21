@@ -30,6 +30,13 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
   File Storage, Scheduler, Integration, API, Feature Flags, Audit, Advanced): how to
   use each page in the Admin app, and how to add a new category following the same
   System/Tenant pattern. Business analysis: `docs/business/Settings/SettingsOverview.md`.
+- [accounting-admin-guide.md](accounting-admin-guide.md) — the pattern used for the
+  Admin app's AccountingService business-data pages (Chart of Accounts, Journal
+  Entries, Invoices, Bills, Fiscal Periods, Tax Rates, Bank Accounts, Reports).
+  Another different pattern: most entities are Create-only (no update endpoint),
+  and the "paginated" list endpoints for Invoices/Bills/Journal Entries actually
+  return a plain array with no total count — don't reuse the shared `Pagination`
+  component for those 3 pages.
 
 ## Auth: login, 2FA, SSO, and settings (Admin app)
 

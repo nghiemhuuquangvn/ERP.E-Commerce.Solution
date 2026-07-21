@@ -27,12 +27,20 @@
   OAuthState, ModuleDefinition, LicensePlan, TenantLicense
 
 #### Accounting & Financial Management
-- **Location:** `src/services/AccountingService/README.md`
+- **Location:** `src/services/AccountingService/README.md`,
+  `docs/frontend/accounting-admin-guide.md` (Admin UI)
 - **Topics:** General ledger (GL), accounts receivable (AR), accounts payable (AP), invoicing, journal entries
 - **Workflows:** 
   - Order-to-Invoice: SalesOrder → Invoice → JournalEntry → GLPosting
   - Bill-to-Payment: PurchaseOrder → Bill → JournalEntry → GLPosting
 - **Entities:** Account, JournalEntry, Invoice, Bill, FiscalPeriod, GLTransaction
+- **Admin UI (2026-07-21):** full business-data CRUD added — Chart of Accounts,
+  Journal Entries, Invoices, Bills, Fiscal Periods, Tax Rates, Bank Accounts,
+  read-only Reports. Fixed a pre-existing gap in the same pass: none of the 7
+  business controllers' `accounting:{entity}:view` permissions had ever been
+  defined in `ERP.Shared.Authorization.PermissionConstants`/`RoleDefinitions` —
+  every GET endpoint was unconditionally Forbidden for every role, including
+  SuperAdmin, until this was added.
 
 #### Human Resources & Payroll
 - **Location:** `src/services/HRMService/README.md`
