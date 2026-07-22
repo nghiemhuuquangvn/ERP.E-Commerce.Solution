@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.MST.Application.Commands;
 using ERP.MST.Application.DTOs;
 using ERP.MST.Application.Queries;
@@ -8,7 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.MST.API.Controllers;
 
 [ApiController]
-[Route("api/v1/masterdata/positions")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/masterdata/positions")]
 public class PositionsController : ControllerBase
 {
     private readonly IMediator _mediator;

@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.POS.Application.Commands;
 using ERP.POS.Application.Queries;
 using ERP.Shared.Authorization;
@@ -8,7 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.POS.API.Controllers;
 
 [ApiController]
-[Route("api/v1/pos/transactions")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/pos/transactions")]
 public class TransactionsController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -101,7 +103,8 @@ public class TransactionsController : ControllerBase
 }
 
 [ApiController]
-[Route("api/v1/pos/products")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/pos/products")]
 public class PosProductsController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -131,7 +134,8 @@ public class PosProductsController : ControllerBase
 }
 
 [ApiController]
-[Route("api/v1/pos/terminals")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/pos/terminals")]
 public class TerminalsController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -206,7 +210,8 @@ public class TerminalsController : ControllerBase
 }
 
 [ApiController]
-[Route("api/v1/pos/reports")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/pos/reports")]
 public class ReportsController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -229,7 +234,8 @@ public class ReportsController : ControllerBase
 }
 
 [ApiController]
-[Route("api/v1/pos/shifts")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/pos/shifts")]
 public class CashShiftsController : ControllerBase
 {
     private readonly IMediator _mediator;

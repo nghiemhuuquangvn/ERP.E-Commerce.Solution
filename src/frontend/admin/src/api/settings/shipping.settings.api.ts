@@ -3,7 +3,7 @@ import { apiClient } from '../client'
 // ShippingService's SettingsController is mounted under the Gateway's `/shp/api/...` route.
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/shp/api/settings/shipping`
+const SETTINGS_BASE = `${GATEWAY_ROOT}/shp/api/v1/settings/shipping`
 
 export interface SystemShippingSettings {
   customCarriersAllowed: boolean

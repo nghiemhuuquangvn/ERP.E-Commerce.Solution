@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using MediatR;
@@ -8,7 +9,8 @@ using ERP.WH.Application.Queries.Stocktakes;
 namespace ERP.WH.API.Controllers;
 
 [ApiController]
-[Route("api/v1/stocktakes")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/stocktakes")]
 [Authorize]
 public class StocktakesController : ControllerBase
 {

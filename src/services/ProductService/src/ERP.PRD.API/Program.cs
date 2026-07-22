@@ -3,6 +3,7 @@ using ERP.PRD.Infrastructure;
 using ERP.Shared.Authorization;
 using ERP.Shared.Extensions;
 using ERP.Shared.Localization;
+using ERP.Shared.Versioning;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,6 +41,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 builder.Services.AddControllers();
+builder.Services.AddErpApiVersioning();
 builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddCors(options =>
 {

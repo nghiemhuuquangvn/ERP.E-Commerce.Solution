@@ -1,5 +1,6 @@
 using ERP.Shared.Authorization;
 using ERP.Shared.Localization;
+using ERP.Shared.Versioning;
 using ERP.WH.Application;
 using ERP.WH.Infrastructure;
 using Serilog;
@@ -31,6 +32,7 @@ try
 
     builder.Services.AddHealthChecks();
     builder.Services.AddControllers();
+    builder.Services.AddErpApiVersioning();
     builder.Services.AddSharedLocalization(builder.Configuration);
 
     builder.Services

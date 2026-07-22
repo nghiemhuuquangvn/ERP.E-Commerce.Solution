@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.PRD.Application.Features.Products.Commands;
 using ERP.PRD.Application.Features.Products.Queries;
 using MediatR;
@@ -8,7 +9,8 @@ using System.Globalization;
 namespace ERP.PRD.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/[controller]")]
     [Authorize]
     public class ProductsController : ControllerBase
     {

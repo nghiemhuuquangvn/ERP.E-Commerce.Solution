@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.ACC.Application.Commands;
 using ERP.ACC.Application.Queries;
 using ERP.Shared.Authorization;
@@ -7,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.ACC.API.Controllers
 {
     [ApiController]
-    [Route("api/v1/journal-entries")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/journal-entries")]
     public class JournalEntriesController : ControllerBase
     {
         private readonly IMediator _mediator;

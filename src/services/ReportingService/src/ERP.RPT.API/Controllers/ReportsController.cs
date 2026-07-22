@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.RPT.Application.Interfaces;
 using ERP.RPT.Application.Queries;
 using ERP.Shared.Authorization;
@@ -8,7 +9,8 @@ using System.Text;
 namespace ERP.RPT.API.Controllers;
 
 [ApiController]
-[Route("api/v1/reports")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/reports")]
 public class ReportsController : ControllerBase
 {
     private readonly IMediator _mediator;

@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.PRM.Application.Commands;
 using ERP.PRM.Application.Queries;
 using ERP.Shared.Authorization;
@@ -7,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.PRM.API.Controllers;
 
 [ApiController]
-[Route("api/v1/flash-sales")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/flash-sales")]
 public class FlashSalesController : ControllerBase
 {
     private readonly IMediator _mediator;

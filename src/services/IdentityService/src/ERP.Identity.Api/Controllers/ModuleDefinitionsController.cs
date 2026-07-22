@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.License;
@@ -13,7 +14,8 @@ namespace ERP.Identity.Api.Controllers
     /// only upsert is SuperAdmin-gated.
     /// </summary>
     [ApiController]
-    [Route("api/license/modules")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/license/modules")]
     [Authorize]
     public class ModuleDefinitionsController : ControllerBase
     {

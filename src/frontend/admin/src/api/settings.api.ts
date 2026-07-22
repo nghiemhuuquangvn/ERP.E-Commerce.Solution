@@ -6,7 +6,7 @@ import { apiClient } from './client'
 // `src/api/masterdata/mstClient.ts` re-roots MST calls at `/mst/api/...`.
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/id/api/settings`
+const SETTINGS_BASE = `${GATEWAY_ROOT}/id/api/v1/settings`
 
 export interface SystemAuthSettings {
   googleEnabled: boolean

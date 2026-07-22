@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.PRD.Application.DTOs.Settings;
 using ERP.PRD.Application.Interfaces.Services;
 using ERP.Shared.Authorization;
@@ -14,7 +15,8 @@ namespace ERP.PRD.API.Controllers;
 /// lighter-weight pattern SaleOrdersController already uses in this codebase.
 /// </summary>
 [ApiController]
-[Route("api/settings/store-product")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/settings/store-product")]
 [Authorize]
 public class SettingsController : ControllerBase
 {

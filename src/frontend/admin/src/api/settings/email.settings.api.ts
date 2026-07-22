@@ -3,7 +3,7 @@ import { apiClient } from '../client'
 // NotificationService's SettingsController is mounted under the Gateway's `/ntf/api/...` route.
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/ntf/api/settings/email`
+const SETTINGS_BASE = `${GATEWAY_ROOT}/ntf/api/v1/settings/email`
 
 export interface SystemEmailSettings {
   customSmtpAllowed: boolean

@@ -3,7 +3,7 @@ import { apiClient } from '../client'
 // WarehouseService's SettingsController is mounted under the Gateway's `/wh/api/...` route.
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/wh/api/settings/inventory`
+const SETTINGS_BASE = `${GATEWAY_ROOT}/wh/api/v1/settings/inventory`
 
 export interface SystemInventorySettings {
   negativeStockAllowed: boolean

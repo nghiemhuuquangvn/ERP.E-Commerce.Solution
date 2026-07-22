@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.License;
@@ -19,7 +20,8 @@ namespace ERP.Identity.Api.Controllers
     /// self-service shortcut here at all.
     /// </summary>
     [ApiController]
-    [Route("api/license/tenant")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/license/tenant")]
     [Authorize]
     public class TenantLicensesController : ControllerBase
     {

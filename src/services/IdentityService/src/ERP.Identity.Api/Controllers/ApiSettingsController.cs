@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.Settings;
@@ -9,7 +10,8 @@ namespace ERP.Identity.Api.Controllers
 {
     /// <summary>API settings — System/Tenant tiers. Storage+CRUD only for now.</summary>
     [ApiController]
-    [Route("api/settings/api")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/settings/api")]
     [Authorize]
     public class ApiSettingsController : ControllerBase
     {

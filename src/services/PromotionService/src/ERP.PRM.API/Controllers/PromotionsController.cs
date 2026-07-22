@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.PRM.Application.Commands;
 using ERP.PRM.Application.Queries;
 using ERP.Shared.Authorization;
@@ -8,7 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.PRM.API.Controllers;
 
 [ApiController]
-[Route("api/v1/promotions")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/promotions")]
 public class PromotionsController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -146,7 +148,8 @@ public class PromotionsController : ControllerBase
 /// relaxation of this check.
 /// </summary>
 [ApiController]
-[Route("api/v1/loyalty")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/loyalty")]
 public class LoyaltyController : ControllerBase
 {
     private readonly IMediator _mediator;

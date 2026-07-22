@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.Security;
@@ -15,7 +16,8 @@ namespace ERP.Identity.Api.Controllers
     /// follow-up, not part of this management surface.
     /// </summary>
     [ApiController]
-    [Route("api/api-keys")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/api-keys")]
     [Authorize]
     public class ApiKeysController : ControllerBase
     {

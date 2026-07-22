@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.License;
@@ -14,7 +15,8 @@ namespace ERP.Identity.Api.Controllers
     /// already-issued tenant licenses.
     /// </summary>
     [ApiController]
-    [Route("api/license/plans")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/license/plans")]
     [Authorize]
     public class LicensePlansController : ControllerBase
     {

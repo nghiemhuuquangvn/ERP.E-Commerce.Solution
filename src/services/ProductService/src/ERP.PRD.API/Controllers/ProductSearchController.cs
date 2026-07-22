@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.PRD.Application.Features.Search.Commands;
 using ERP.PRD.Application.Features.Search.Queries;
 using MediatR;
@@ -8,12 +9,15 @@ namespace ERP.PRD.API.Controllers
 {
     /// <summary>
     /// Faceted/filterable catalog search backed by the derived Elasticsearch "products" index.
-    /// Routed under "api/products/search/advanced" (not the shorter "api/products/search")
-    /// because ProductsController already owns "GET api/products/search" for its existing,
-    /// simpler SQL LIKE name/SKU search — this is an additive, more powerful sibling, not a
-    /// replacement, so the older route/handler is left untouched.
+    /// Routed under "api/v{version}/products/search/advanced" (not the shorter
+    /// "api/v{version}/products/search") because ProductsController already owns
+    /// "GET api/v{version}/products/search" for its existing, simpler SQL LIKE name/SKU
+    /// search — this is an additive, more powerful sibling, not a replacement, so the older
+    /// route/handler is left untouched.
     /// </summary>
     [ApiController]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/products/search")]
     [Authorize]
     public class ProductSearchController : ControllerBase
     {
@@ -33,7 +37,7 @@ namespace ERP.PRD.API.Controllers
         /// (comma-separated attribute codes). Built manually from Request.Query since MediatR
         /// command binding can't auto-bind an unbounded dynamic key set.
         /// </summary>
-        [HttpGet("api/products/search/advanced")]
+        [HttpGet("advanced")]
         [AllowAnonymous]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Search(
@@ -71,7 +75,7 @@ namespace ERP.PRD.API.Controllers
         /// Enqueues every non-deleted Product for a full Elasticsearch reindex. Administrative
         /// bulk action — picked up by SearchIndexProcessor's regular polling loop.
         /// </summary>
-        [HttpPost("api/products/search/advanced/reindex-all")]
+        [HttpPost("advanced/reindex-all")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> ReindexAll()
         {

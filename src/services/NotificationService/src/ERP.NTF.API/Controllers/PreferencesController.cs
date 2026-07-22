@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.NTF.Application.Commands;
 using ERP.NTF.Application.Queries;
 using ERP.Shared.Authorization;
@@ -7,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.NTF.API.Controllers;
 
 [ApiController]
-[Route("api/v1/preferences")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/preferences")]
 public class PreferencesController : ControllerBase
 {
     private readonly IMediator _mediator;

@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ERP.PO.Application.DTOs;
@@ -8,7 +9,8 @@ using ERP.Shared.Authorization;
 namespace ERP.PO.Api.Controllers;
 
 [ApiController]
-[Route("api/suppliers")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/suppliers")]
 public class SuppliersController : ControllerBase
 {
     private readonly IMediator _mediator;

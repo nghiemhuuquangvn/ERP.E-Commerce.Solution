@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.Settings;
@@ -12,7 +13,8 @@ namespace ERP.Identity.Api.Controllers
     /// mirroring SettingsController's Auth Settings pattern. Storage+CRUD only for now.
     /// </summary>
     [ApiController]
-    [Route("api/settings/general")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/settings/general")]
     [Authorize]
     public class GeneralSettingsController : ControllerBase
     {

@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.NTF.Application.Commands;
 using ERP.NTF.Application.Queries;
 using ERP.Shared.Authorization;
@@ -7,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.NTF.API.Controllers;
 
 [ApiController]
-[Route("api/v1/templates")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/templates")]
 public class TemplatesController : ControllerBase
 {
     private readonly IMediator _mediator;

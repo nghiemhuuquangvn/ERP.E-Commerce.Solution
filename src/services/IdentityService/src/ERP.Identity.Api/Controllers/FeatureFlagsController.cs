@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.Settings;
@@ -13,7 +14,8 @@ namespace ERP.Identity.Api.Controllers
     /// only for now; nothing in the codebase reads these flags to gate behavior yet.
     /// </summary>
     [ApiController]
-    [Route("api/settings/feature-flags")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/settings/feature-flags")]
     [Authorize]
     public class FeatureFlagsController : ControllerBase
     {

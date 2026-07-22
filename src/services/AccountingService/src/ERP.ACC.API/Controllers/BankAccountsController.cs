@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.ACC.Application.Commands;
 using ERP.ACC.Application.DTOs;
 using ERP.ACC.Application.Queries;
@@ -8,7 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.ACC.API.Controllers
 {
     [ApiController]
-    [Route("api/v1/bank-accounts")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/bank-accounts")]
     public class BankAccountsController : ControllerBase
     {
         private readonly IMediator _mediator;

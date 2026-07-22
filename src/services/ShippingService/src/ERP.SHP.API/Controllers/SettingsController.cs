@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.SHP.Application.DTOs.Settings;
 using ERP.SHP.Application.Interfaces;
 using ERP.Shared.Authorization;
@@ -10,7 +11,8 @@ namespace ERP.SHP.API.Controllers;
 /// mirroring IdentityService's Auth Settings pattern. Storage+CRUD only for now.
 /// </summary>
 [ApiController]
-[Route("api/settings/shipping")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/settings/shipping")]
 public class SettingsController : ControllerBase
 {
     private readonly IShippingSettingsService _settingsService;

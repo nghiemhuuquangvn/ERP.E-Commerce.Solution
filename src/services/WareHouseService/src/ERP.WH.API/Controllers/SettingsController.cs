@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.WH.Application.DTOs.Settings;
 using ERP.WH.Application.Interfaces;
 using ERP.Shared.Authorization;
@@ -11,7 +12,8 @@ namespace ERP.WH.API.Controllers;
 /// mirroring IdentityService's Auth Settings pattern. Storage+CRUD only for now.
 /// </summary>
 [ApiController]
-[Route("api/settings/inventory")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/settings/inventory")]
 [Authorize]
 public class SettingsController : ControllerBase
 {

@@ -6,7 +6,7 @@ import { apiClient } from './client'
 // building CRUD against a broken endpoint.
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const PERMISSIONS_BASE = `${GATEWAY_ROOT}/id/api/permissions`
+const PERMISSIONS_BASE = `${GATEWAY_ROOT}/id/api/v1/permissions`
 
 // PermissionDto(Id, PermissionCode, PermissionName, Module)
 export interface Permission {

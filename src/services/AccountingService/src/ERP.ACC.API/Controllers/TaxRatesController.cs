@@ -1,6 +1,7 @@
 using ERP.ACC.Application.Commands;
 using ERP.ACC.Application.DTOs;
 using ERP.ACC.Application.Queries;
+using Asp.Versioning;
 using ERP.Shared.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.ACC.API.Controllers
 {
     [ApiController]
-    [Route("api/v1/tax-rates")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/tax-rates")]
     public class TaxRatesController : ControllerBase
     {
         private readonly IMediator _mediator;

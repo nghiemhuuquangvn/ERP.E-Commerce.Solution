@@ -3,7 +3,7 @@ import { apiClient } from '../client'
 // IdentityService's AdvancedSettingsController is mounted under the Gateway's `/id/api/...` route.
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/id/api/settings/advanced`
+const SETTINGS_BASE = `${GATEWAY_ROOT}/id/api/v1/settings/advanced`
 
 export interface SystemAdvancedSettings {
   debugModeAllowed: boolean

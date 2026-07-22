@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.HRM.Application.Commands;
 using ERP.HRM.Application.DTOs;
 using ERP.HRM.Application.Queries;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.HRM.API.Controllers;
 
 [ApiController]
+[ApiVersion("1.0")]
 public class PayrollController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -20,7 +22,7 @@ public class PayrollController : ControllerBase
     /// <summary>
     /// Process payroll for all active employees for a given year/month.
     /// </summary>
-    [HttpPost("api/v1/hrm/payroll/process")]
+    [HttpPost("api/v{version:apiVersion}/hrm/payroll/process")]
     [AuthorizePermission("hrm:payroll:manage")]
     [ProducesResponseType(typeof(List<PaySlipDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -39,7 +41,7 @@ public class PayrollController : ControllerBase
     /// <summary>
     /// Generate a single pay slip for a specific employee.
     /// </summary>
-    [HttpPost("api/v1/hrm/payroll/generate")]
+    [HttpPost("api/v{version:apiVersion}/hrm/payroll/generate")]
     [AuthorizePermission("hrm:payroll:manage")]
     [ProducesResponseType(typeof(PaySlipDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -56,7 +58,7 @@ public class PayrollController : ControllerBase
     /// <summary>
     /// List pay slips with optional filtering by employee, year, and month.
     /// </summary>
-    [HttpGet("api/v1/hrm/payslips")]
+    [HttpGet("api/v{version:apiVersion}/hrm/payslips")]
     [AuthorizePermission("hrm:payroll:manage")]
     [ProducesResponseType(typeof(PagedResult<PaySlipDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -78,7 +80,7 @@ public class PayrollController : ControllerBase
     /// <summary>
     /// Get a pay slip by ID.
     /// </summary>
-    [HttpGet("api/v1/hrm/payslips/{id:guid}")]
+    [HttpGet("api/v{version:apiVersion}/hrm/payslips/{id:guid}")]
     [AuthorizePermission("hrm:payroll:manage")]
     [ProducesResponseType(typeof(PaySlipDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

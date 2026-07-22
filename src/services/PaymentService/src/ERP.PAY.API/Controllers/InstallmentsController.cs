@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.PAY.Application.Commands;
 using ERP.PAY.Application.Queries;
 using ERP.Shared.Authorization;
@@ -7,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.PAY.API.Controllers;
 
 [ApiController]
-[Route("api/v1/installment-plans")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/installment-plans")]
 public class InstallmentsController : ControllerBase
 {
     private readonly IMediator _mediator;

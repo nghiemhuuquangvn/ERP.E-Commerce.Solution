@@ -3,7 +3,7 @@ import { apiClient } from '../client'
 // AccountingService's SettingsController is mounted under the Gateway's `/acc/api/...` route.
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/acc/api/settings/tax`
+const SETTINGS_BASE = `${GATEWAY_ROOT}/acc/api/v1/settings/tax`
 
 export interface SystemTaxSettings {
   regionalTaxConfigAllowed: boolean

@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.PAY.Application.DTOs.Settings;
 using ERP.PAY.Application.Interfaces;
 using ERP.Shared.Authorization;
@@ -11,7 +12,8 @@ namespace ERP.PAY.API.Controllers;
 /// Auth Settings pattern. Storage+CRUD only for now.
 /// </summary>
 [ApiController]
-[Route("api/settings/payment")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/settings/payment")]
 public class SettingsController : ControllerBase
 {
     private readonly IPaymentSettingsService _settingsService;

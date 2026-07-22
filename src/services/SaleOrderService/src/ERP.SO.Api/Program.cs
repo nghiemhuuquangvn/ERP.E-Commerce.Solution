@@ -17,6 +17,7 @@ using ERP.SO.Infrastructure.MessageBus;
 using ERP.SO.Infrastructure.Repositories;
 using ERP.SO.Infrastructure.Sagas;
 using ERP.SO.Infrastructure.Services;
+using ERP.Shared.Versioning;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -121,6 +122,7 @@ builder.Services.AddMiddleware();
 
 // API
 builder.Services.AddControllers();
+builder.Services.AddErpApiVersioning();
 builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

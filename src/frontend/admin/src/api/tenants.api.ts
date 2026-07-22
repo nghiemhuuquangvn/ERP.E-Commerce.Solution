@@ -5,7 +5,7 @@ import { apiClient } from './client'
 // to callers who can legitimately cross tenants (see UsersPage.tsx/RolesPermissionsPage.tsx).
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const TENANTS_BASE = `${GATEWAY_ROOT}/id/api/tenants`
+const TENANTS_BASE = `${GATEWAY_ROOT}/id/api/v1/tenants`
 
 // TenantDto(Id, TenantCode, TenantName, Status)
 export interface Tenant {

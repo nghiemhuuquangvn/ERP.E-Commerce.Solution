@@ -10,6 +10,7 @@ using ERP.Identity.Infrastructure.Services;
 using ERP.Shared.Extensions;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
+using ERP.Shared.Versioning;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -46,6 +47,7 @@ builder.Services.AddControllers(options =>
 {
     options.Filters.Add<IdentityExceptionFilter>();
 });
+builder.Services.AddErpApiVersioning();
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblies(AppDomain.CurrentDomain.GetAssemblies());
 

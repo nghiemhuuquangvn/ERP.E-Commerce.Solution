@@ -9,7 +9,7 @@ import { apiClient } from '../client'
 // only via explicitly picking a tenant — never "my own tenant" self-service.
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const LICENSE_BASE = `${GATEWAY_ROOT}/id/api/license`
+const LICENSE_BASE = `${GATEWAY_ROOT}/id/api/v1/license`
 
 export interface LicenseModule {
   moduleCode: string

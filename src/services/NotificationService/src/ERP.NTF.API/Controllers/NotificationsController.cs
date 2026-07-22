@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.NTF.Application.Commands;
 using ERP.NTF.Application.DTOs;
 using ERP.NTF.Application.Queries;
@@ -8,7 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.NTF.API.Controllers;
 
 [ApiController]
-[Route("api/v1/notifications")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/notifications")]
 public class NotificationsController : ControllerBase
 {
     private readonly IMediator _mediator;

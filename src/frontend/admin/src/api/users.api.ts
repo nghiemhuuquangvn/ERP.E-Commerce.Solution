@@ -5,7 +5,7 @@ import { apiClient } from './client'
 // differs from apiClient's default `/api` baseURL.
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const USERS_BASE = `${GATEWAY_ROOT}/id/api/users`
+const USERS_BASE = `${GATEWAY_ROOT}/id/api/v1/users`
 
 export interface EnableTwoFactorRequest {
   method: 'Sms' | 'Email'

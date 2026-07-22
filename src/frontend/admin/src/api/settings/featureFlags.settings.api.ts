@@ -4,7 +4,7 @@ import { apiClient } from '../client'
 // Dynamic key-value shape — deliberately different from every other Settings category.
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/id/api/settings/feature-flags`
+const SETTINGS_BASE = `${GATEWAY_ROOT}/id/api/v1/settings/feature-flags`
 
 export interface SystemFeatureFlag {
   key: string

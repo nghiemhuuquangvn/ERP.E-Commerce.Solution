@@ -3,7 +3,7 @@ import { apiClient } from '../client'
 // SharedMasterDataService's SettingsController is mounted under the Gateway's `/mst/api/...` route.
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/mst/api/settings/currency`
+const SETTINGS_BASE = `${GATEWAY_ROOT}/mst/api/v1/settings/currency`
 
 export interface SystemCurrencySettings {
   multiCurrencyAllowed: boolean

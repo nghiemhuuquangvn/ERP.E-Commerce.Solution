@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.Settings;
@@ -12,7 +13,8 @@ namespace ERP.Identity.Api.Controllers
     /// per-tenant). Storage+CRUD only for now.
     /// </summary>
     [ApiController]
-    [Route("api/settings/company")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/settings/company")]
     [Authorize]
     public class CompanySettingsController : ControllerBase
     {

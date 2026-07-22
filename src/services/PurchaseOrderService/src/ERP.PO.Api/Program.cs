@@ -4,6 +4,7 @@ using ERP.PO.Application.Features.Suppliers.Validators;
 using ERP.Shared.Authorization;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
+using ERP.Shared.Versioning;
 using ERP.PO.Infrastructure.Data;
 using ERP.PO.Infrastructure.BackgroundJobs;
 using ERP.PO.Infrastructure.MessageBus;
@@ -19,6 +20,7 @@ using Confluent.Kafka;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddErpApiVersioning();
 builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddOpenApi();
 

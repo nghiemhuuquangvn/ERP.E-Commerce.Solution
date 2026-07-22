@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.HRM.Application.DTOs;
 using ERP.HRM.Application.Queries;
 using ERP.Shared.Authorization;
@@ -12,7 +13,8 @@ namespace ERP.HRM.API.Controllers;
 /// this controller exposes the denormalised HRM view for attendance/payroll consumers.
 /// </summary>
 [ApiController]
-[Route("api/v1/hrm/employees")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/hrm/employees")]
 public class EmployeesController : ControllerBase
 {
     private readonly IMediator _mediator;

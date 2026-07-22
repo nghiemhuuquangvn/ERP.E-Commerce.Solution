@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.MST.Application.DTOs.Settings;
 using ERP.MST.Application.Interfaces;
 using ERP.Shared.Authorization;
@@ -11,7 +12,8 @@ namespace ERP.MST.API.Controllers;
 /// mirroring IdentityService's Auth Settings pattern. Storage+CRUD only for now.
 /// </summary>
 [ApiController]
-[Route("api/settings/currency")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/settings/currency")]
 [Authorize]
 public class SettingsController : ControllerBase
 {

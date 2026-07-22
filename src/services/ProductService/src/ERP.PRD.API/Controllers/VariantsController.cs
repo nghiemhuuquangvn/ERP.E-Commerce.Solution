@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.PRD.Application.Features.Variants.Commands;
 using ERP.PRD.Application.Features.Variants.Queries;
 using MediatR;
@@ -7,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.PRD.API.Controllers
 {
     [ApiController]
-    [Route("api/products/{productId}/variants")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/products/{productId}/variants")]
     [Authorize]
     public class VariantsController : ControllerBase
     {

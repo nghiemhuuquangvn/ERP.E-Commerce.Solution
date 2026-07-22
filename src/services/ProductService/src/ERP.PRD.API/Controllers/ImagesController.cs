@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.PRD.Application.Features.Images.Commands;
 using ERP.PRD.Application.Features.Images.Queries;
 using MediatR;
@@ -7,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.PRD.API.Controllers
 {
     [ApiController]
-    [Route("api/products/{productId}/images")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/products/{productId}/images")]
     [Authorize]
     public class ImagesController : ControllerBase
     {

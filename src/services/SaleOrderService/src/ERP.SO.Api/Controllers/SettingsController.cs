@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.SO.Application.DTOs.Settings;
 using ERP.SO.Application.Interfaces;
 using ERP.Shared.Authorization;
@@ -12,7 +13,8 @@ namespace ERP.SO.Api.Controllers;
 /// Storage+CRUD only for now, not yet wired into runtime behavior.
 /// </summary>
 [ApiController]
-[Route("api/settings")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/settings")]
 [Authorize]
 public class SettingsController : ControllerBase
 {

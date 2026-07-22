@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.ACC.Application.DTOs.Settings;
 using ERP.ACC.Application.Interfaces;
 using ERP.Shared.Authorization;
@@ -11,7 +12,8 @@ namespace ERP.ACC.API.Controllers;
 /// IdentityService's Auth Settings pattern. Storage+CRUD only for now.
 /// </summary>
 [ApiController]
-[Route("api/settings/tax")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/settings/tax")]
 [Authorize]
 public class SettingsController : ControllerBase
 {

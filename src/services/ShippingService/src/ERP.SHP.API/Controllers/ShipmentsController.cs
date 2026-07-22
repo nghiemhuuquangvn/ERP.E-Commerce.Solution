@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.SHP.Application.Commands;
 using ERP.SHP.Application.Interfaces;
 using ERP.SHP.Application.Queries;
@@ -8,7 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.SHP.API.Controllers;
 
 [ApiController]
-[Route("api/v1/shipments")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/shipments")]
 public class ShipmentsController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -136,7 +138,8 @@ public class ShipmentsController : ControllerBase
 }
 
 [ApiController]
-[Route("api/v1/shipments/{shipmentId:guid}/returns")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/shipments/{shipmentId:guid}/returns")]
 public class ReturnShipmentsController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -230,7 +233,8 @@ public class ReturnShipmentsController : ControllerBase
 }
 
 [ApiController]
-[Route("api/v1/carriers")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/carriers")]
 public class CarriersController : ControllerBase
 {
     private readonly IMediator _mediator;

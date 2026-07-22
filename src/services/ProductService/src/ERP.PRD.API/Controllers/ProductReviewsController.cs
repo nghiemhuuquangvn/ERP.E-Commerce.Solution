@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.PRD.Application.Features.Reviews.Commands;
 using ERP.PRD.Application.Features.Reviews.Queries;
 using MediatR;
@@ -7,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.PRD.API.Controllers
 {
     [ApiController]
-    [Route("api/products/{productId}/reviews")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/products/{productId}/reviews")]
     public class ProductReviewsController : ControllerBase
     {
         private readonly IMediator _mediator;

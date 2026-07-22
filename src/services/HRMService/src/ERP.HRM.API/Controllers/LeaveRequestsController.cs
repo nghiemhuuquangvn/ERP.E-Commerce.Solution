@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.HRM.Application.Commands;
 using ERP.HRM.Application.DTOs;
 using ERP.HRM.Application.Queries;
@@ -8,7 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.HRM.API.Controllers;
 
 [ApiController]
-[Route("api/v1/hrm/leave-requests")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/hrm/leave-requests")]
 public class LeaveRequestsController : ControllerBase
 {
     private readonly IMediator _mediator;

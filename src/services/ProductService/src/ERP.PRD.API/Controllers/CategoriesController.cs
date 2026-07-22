@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.PRD.Application.Features.Categories.Commands;
 using ERP.PRD.Application.Features.Categories.Queries;
 using MediatR;
@@ -8,7 +9,8 @@ using System.Globalization;
 namespace ERP.PRD.API.Controllers
 {
     [ApiController]
-    [Route("api/categories")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/categories")]
     [Authorize]
     public class CategoriesController : ControllerBase
     {

@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.CRM.Application.Commands;
 using ERP.CRM.Application.Queries;
 using ERP.Shared.Authorization;
@@ -7,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.CRM.API.Controllers;
 
 [ApiController]
-[Route("api/v1/crm/activities")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/crm/activities")]
 public class ActivitiesController : ControllerBase
 {
     private readonly IMediator _mediator;

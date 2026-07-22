@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.PAY.Application.Commands;
 using ERP.PAY.Application.Interfaces;
 using ERP.Shared.Authorization;
@@ -11,7 +12,8 @@ namespace ERP.PAY.API.Controllers;
 /// Handles VNPay payment URL creation and callback verification.
 /// </summary>
 [ApiController]
-[Route("api/v1/payment-gateway")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/payment-gateway")]
 public class PaymentGatewayController : ControllerBase
 {
     private readonly IPaymentGateway _gateway;

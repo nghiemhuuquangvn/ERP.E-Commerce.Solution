@@ -2,6 +2,7 @@ using ERP.MST.Application;
 using ERP.MST.Infrastructure;
 using ERP.Shared.Authorization;
 using ERP.Shared.Localization;
+using ERP.Shared.Versioning;
 using Serilog;
 using Serilog.Events;
 
@@ -32,6 +33,7 @@ try
     builder.Services.AddHealthChecks();
     builder.Services.AddProblemDetails();
     builder.Services.AddControllers();
+    builder.Services.AddErpApiVersioning();
     builder.Services.AddSharedLocalization(builder.Configuration);
 
     // Real JWT validation — previously trusted the Gateway's forwarded X-User-*/

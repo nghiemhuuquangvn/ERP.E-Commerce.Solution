@@ -10,6 +10,7 @@ using ERP.Shared.Authorization;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
 using ERP.Shared.Messaging;
+using ERP.Shared.Versioning;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -61,6 +62,7 @@ builder.Services.AddScoped<UserContext>();
 builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Pos));
 builder.Services.AddHealthChecks();
 builder.Services.AddControllers();
+builder.Services.AddErpApiVersioning();
 builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.PRD.Application.Features.Bundles.Commands;
 using ERP.PRD.Application.Features.Bundles.Queries;
 using MediatR;
@@ -7,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.PRD.API.Controllers
 {
     [ApiController]
-    [Route("api/products/{productId}/bundle-items")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/products/{productId}/bundle-items")]
     [Authorize]
     public class ProductBundlesController : ControllerBase
     {

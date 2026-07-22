@@ -3,7 +3,7 @@ import { apiClient } from '../client'
 // SaleOrderService's SettingsController is mounted under the Gateway's `/so/api/...` route.
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/so/api/settings/order`
+const SETTINGS_BASE = `${GATEWAY_ROOT}/so/api/v1/settings/order`
 
 export interface SystemOrderSettings {
   customOrderNumberFormatAllowed: boolean

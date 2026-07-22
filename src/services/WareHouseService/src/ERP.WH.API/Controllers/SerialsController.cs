@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using MediatR;
@@ -9,7 +10,8 @@ using ERP.WH.Domain.Aggregates.Inventory;
 namespace ERP.WH.API.Controllers;
 
 [ApiController]
-[Route("api/v1/inventory/serials")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/inventory/serials")]
 [Authorize]
 public class SerialsController : ControllerBase
 {

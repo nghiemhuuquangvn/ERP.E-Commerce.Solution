@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.NTF.Application.DTOs.Settings;
 using ERP.NTF.Application.Interfaces;
 using ERP.Shared.Authorization;
@@ -13,7 +14,8 @@ namespace ERP.NTF.API.Controllers;
 /// established pattern, e.g. WebhooksController).
 /// </summary>
 [ApiController]
-[Route("api/settings")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/settings")]
 public class SettingsController : ControllerBase
 {
     private readonly INotificationSettingsService _notificationSettings;

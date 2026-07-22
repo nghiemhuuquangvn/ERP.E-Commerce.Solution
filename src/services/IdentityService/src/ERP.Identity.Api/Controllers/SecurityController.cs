@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.Interfaces.Services;
@@ -11,7 +12,8 @@ namespace ERP.Identity.Api.Controllers
     /// 001_CreateAuthDB.sql with no corresponding C# entity or endpoint until now.
     /// </summary>
     [ApiController]
-    [Route("api/security")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/security")]
     [Authorize]
     public class SecurityController : ControllerBase
     {

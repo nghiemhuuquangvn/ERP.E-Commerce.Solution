@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.PRD.Application.Features.Relations.Commands;
 using ERP.PRD.Application.Features.Relations.Queries;
 using ERP.PRD.Domain.Enums;
@@ -9,7 +10,8 @@ namespace ERP.PRD.API.Controllers
 {
     /// <summary>Cross-sell/upsell — "customers who bought this also bought..." / "consider this instead".</summary>
     [ApiController]
-    [Route("api/products/{productId}/relations")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/products/{productId}/relations")]
     [Authorize]
     public class ProductRelationsController : ControllerBase
     {

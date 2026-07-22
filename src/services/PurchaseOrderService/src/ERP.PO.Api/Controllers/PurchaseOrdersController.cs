@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ERP.PO.Application.DTOs;
@@ -8,7 +9,8 @@ using ERP.Shared.Authorization;
 namespace ERP.PO.Api.Controllers;
 
 [ApiController]
-[Route("api/purchase-orders")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/purchase-orders")]
 public class PurchaseOrdersController : ControllerBase
 {
     private readonly IMediator _mediator;

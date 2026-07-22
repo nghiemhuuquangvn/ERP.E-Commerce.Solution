@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using ERP.PRD.Application.Features.Pricing.Commands;
 using ERP.PRD.Application.Features.Pricing.Queries;
 using MediatR;
@@ -7,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERP.PRD.API.Controllers
 {
     [ApiController]
-    [Route("api/pricing")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/pricing")]
     [Authorize]
     public class PricingController : ControllerBase
     {
