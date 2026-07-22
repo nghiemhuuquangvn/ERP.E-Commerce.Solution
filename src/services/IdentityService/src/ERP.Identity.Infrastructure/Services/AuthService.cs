@@ -158,17 +158,25 @@ namespace ERP.Identity.Infrastructure.Services
                 throw new UnauthorizedAccessException("User not found");
             }
 
-            if (user.IsLocked)
+            // IsCurrentlyLocked mutates the entity to auto-clear an expired auto-lockout —
+            // persist that regardless of which branch runs below, not just on the lock path.
+            var wasLocked = user.IsCurrentlyLocked;
+            if (wasLocked)
             {
+                await _unitOfWork.Users.UpdateAsync(user, ct);
                 await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", false, request.Email, user.Id, "Account locked", ct);
                 await _securityAuditService.LogAsync("Login", false, tenant.Id, user.Id, request.Email, ipAddress, userAgent, errorReason: "Account locked", ct: ct);
                 await _unitOfWork.SaveChangesAsync(ct);
-                throw new UnauthorizedAccessException("Account is locked. Contact an administrator to unlock it.");
+                throw new UnauthorizedAccessException("Account is locked. Please try again later or contact an administrator.");
             }
 
             if (!_passwordHasher.VerifyPassword(user.PasswordHash, request.Password))
             {
-                user.RecordLoginFail();
+                // Tenant's own configured threshold/duration, falling back to the tenant's
+                // defaults (TenantAuthSettings is always created with SystemAuthSettings'
+                // values, see CreateDefault) — never the previous hardcoded "5".
+                var tenantAuthSettings = await _settingsService.GetOrCreateTenantSettingsEntityAsync(tenant.Id, ct);
+                user.RecordLoginFail(tenantAuthSettings.MaxLoginAttempts, tenantAuthSettings.LockoutDurationMinutes);
                 await _unitOfWork.Users.UpdateAsync(user, ct);
                 await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", false, request.Email, user.Id, "Invalid credentials", ct);
                 await _securityAuditService.LogAsync("Login", false, tenant.Id, user.Id, request.Email, ipAddress, userAgent,
@@ -469,8 +477,31 @@ namespace ERP.Identity.Infrastructure.Services
             // 1) Hash token & lookup
             var session = await _unitOfWork.RefreshTokens.GetByTokenAsync(OpaqueTokenHasher.Hash(request.RefreshToken));
 
-            if (session is null || !session.IsTokenValid)
+            if (session is null)
                 throw new UnauthorizedAccessException("Invalid refresh token");
+
+            if (!session.IsTokenValid)
+            {
+                // A caller presenting an already-revoked (not merely naturally-expired)
+                // refresh token is the classic stolen-refresh-token signal — rotation
+                // means the legitimate holder already moved past this exact token, so
+                // whoever just presented it again isn't them. Revoke every other active
+                // refresh token/device session for this user as a precaution, forcing a
+                // full re-login everywhere rather than just rejecting this one request.
+                if (session.RevokedAt != null)
+                {
+                    await _unitOfWork.RefreshTokens.RevokeAllByUserIdAsync(session.UserId, ct);
+                    var activeSessions = await _unitOfWork.DeviceSessions.ListActiveByUserAsync(session.UserId, ct);
+                    foreach (var activeSession in activeSessions)
+                        activeSession.Revoke();
+
+                    await _securityAuditService.LogAsync("RefreshTokenReuseDetected", false, session.TenantId, session.UserId,
+                        errorReason: "Revoked refresh token was presented again — possible token theft; all sessions revoked", ct: ct);
+                    await _unitOfWork.SaveChangesAsync(ct);
+                }
+
+                throw new UnauthorizedAccessException("Invalid refresh token");
+            }
 
             // 2) Load context
             var user = await _unitOfWork.Users.GetByIdAsync(session.UserId, ct)

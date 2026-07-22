@@ -22,6 +22,40 @@ namespace ERP.Identity.Domain.Entities
         public int AccessFailedCount { get; private set; }
         public DateTime? LastLoginAt { get; private set; }
 
+        /// <summary>
+        /// Set only by <see cref="RecordLoginFail"/>'s auto-lockout (null for a manual
+        /// admin <see cref="Lock"/>, which stays locked until an explicit <see cref="Unlock"/>).
+        /// Callers must check <see cref="IsCurrentlyLocked"/> (which also expires this)
+        /// rather than reading <see cref="IsLocked"/> directly, or a lock past its own
+        /// expiry will incorrectly still block login.
+        /// </summary>
+        public DateTime? LockedUntil { get; private set; }
+
+        /// <summary>
+        /// True if still locked right now — auto-clears an expired auto-lockout (mutates
+        /// state, so callers must persist via UpdateAsync/SaveChangesAsync afterwards if
+        /// this returns false after having been true). A manual admin Lock() (LockedUntil
+        /// == null) never auto-expires here — only Unlock() clears that one.
+        /// </summary>
+        public bool IsCurrentlyLocked
+        {
+            get
+            {
+                if (!IsLocked)
+                    return false;
+
+                if (LockedUntil.HasValue && LockedUntil.Value <= DateTime.UtcNow)
+                {
+                    IsLocked = false;
+                    AccessFailedCount = 0;
+                    LockedUntil = null;
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
         public string? PhoneNumber { get; private set; }
         public bool TwoFactorEnabled { get; private set; }
         public string? TwoFactorMethod { get; private set; }
@@ -72,14 +106,27 @@ namespace ERP.Identity.Domain.Entities
         {
             AccessFailedCount = 0;
             IsLocked = false;
+            LockedUntil = null;
             LastLoginAt = DateTime.UtcNow;
         }
 
-        public void RecordLoginFail()
+        /// <summary>
+        /// Increments the failed-attempt counter and, once it reaches <paramref
+        /// name="maxAttempts"/>, locks the account for <paramref
+        /// name="lockoutDurationMinutes"/> (auto-expiring — see <see
+        /// cref="IsCurrentlyLocked"/> — not a permanent lock like <see cref="Lock"/>).
+        /// Callers should pass the caller-tenant's configured
+        /// TenantAuthSettings.MaxLoginAttempts/LockoutDurationMinutes (falling back to
+        /// SystemAuthSettings' values), not a hardcoded threshold.
+        /// </summary>
+        public void RecordLoginFail(int maxAttempts, int lockoutDurationMinutes)
         {
             AccessFailedCount++;
-            if (AccessFailedCount >= 5)
+            if (AccessFailedCount >= maxAttempts)
+            {
                 IsLocked = true;
+                LockedUntil = DateTime.UtcNow.AddMinutes(lockoutDurationMinutes);
+            }
         }
         public void AssignToTenant(AuthTenant tenant)
         {
@@ -161,6 +208,7 @@ namespace ERP.Identity.Domain.Entities
         {
             IsLocked = false;
             AccessFailedCount = 0;
+            LockedUntil = null;
         }
 
         public void SetPhoneNumber(string phone)

@@ -214,7 +214,19 @@ Published Events:
 - CountryCreated
 
 Consumed Events:
-- UserCreated (from IdentityService — auto-creates an Employee record)
+- UserCreated (from IdentityService — auto-creates an Employee record). The
+  transport itself (Outbox → `identity-topic` → `IdentityEventConsumer`) had
+  two independent serialization bugs fixed 2026-07-21 (missing
+  `TypeNameHandling.All` on the publish side, wrong class-name substring
+  check on the consume side) — before that fix this event silently never
+  dispatched at all. Even with transport fixed, auto-creation still won't
+  fire for a real user today: IdentityService's `UserRegisteredDomainEvent`/
+  `UserRegisteredIntegrationEvent` never carries `IsEmployee`/
+  `DefaultDepartmentId` (registration has no concept of "this new user is an
+  employee, in department X" yet), and the consumer's own guard clause
+  intentionally no-ops without them. Wiring that up is a product decision
+  (how does a user get flagged as an employee at registration?), not
+  implemented.
 - LeaveApproved (from HRMService — sets the canonical Employee to OnLeave)
 
 #### Purchase Order Service (Port 5003, Code: PO)

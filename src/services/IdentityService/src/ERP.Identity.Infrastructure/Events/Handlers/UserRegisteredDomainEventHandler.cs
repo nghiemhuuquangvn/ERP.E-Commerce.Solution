@@ -33,17 +33,22 @@ namespace ERP.Identity.infrastructure.Events.Handlers
                     
                 );
 
+                // TypeNameHandling.All is required so the serialized JSON carries a "$type"
+                // property — SharedMasterDataService's IdentityEventConsumer dispatches based
+                // on that field, and every other event handler in this codebase already
+                // serializes this way (see e.g. FeatureFlagService.cs). Without it, this
+                // event silently never dispatches on the consumer side.
                 var outboxMessage = new OutboxMessage
                 {
                     Id = Guid.NewGuid(),
                     OccurredOnUtc = DateTime.UtcNow,
                     Type = integrationEvent.GetType().Name,
-                    Content = JsonConvert.SerializeObject(integrationEvent)
+                    Content = JsonConvert.SerializeObject(integrationEvent, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All })
                 };
-                
 
-                // Publish the integration event to the message bus
-                //await _messageBus.PublishAsync("user-registered-topic", integrationEvent, cancellationToken);
+                // Actual publish to Kafka's "identity-topic" happens asynchronously via the
+                // OutboxProcessor background service draining this table — no direct
+                // messageBus.PublishAsync call belongs here.
                 await _outboxMessageRepository.AddAsync(outboxMessage, cancellationToken);
 
             }

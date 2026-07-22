@@ -17,10 +17,12 @@ namespace ERP.Identity.Domain.Entities
         public bool TwitterEnabled { get; private set; } = true;
         public bool TwoFactorEnabled { get; private set; } = true;
 
-        // User & Security Settings (Phase 2) — platform-wide baseline. Storage+CRUD
-        // only for now: PasswordPolicyService still reads PasswordPolicy:* from
-        // appsettings.json and User.RecordLoginFail() still hardcodes a 5-attempt
-        // lockout threshold — wiring those to read these fields is a follow-up.
+        // User & Security Settings (Phase 2) — platform-wide baseline.
+        // MaxLoginAttempts/LockoutDurationMinutes are read by AuthService.LoginAsync via
+        // TenantAuthSettings (fixed 2026-07-21 — previously User.RecordLoginFail()
+        // hardcoded a permanent 5-attempt lock with no auto-expiry). PasswordPolicyService
+        // still reads PasswordPolicy:* from appsettings.json rather than these fields —
+        // that part remains a follow-up.
         public int MinPasswordLength { get; private set; } = 8;
         public bool RequireUppercase { get; private set; } = true;
         public bool RequireLowercase { get; private set; } = true;

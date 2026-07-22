@@ -218,6 +218,10 @@ namespace ERP.Identity.Infrastructure.Persistence
                 entity.Property(u => u.Email).IsRequired().HasMaxLength(256);
                 entity.Property(u => u.PasswordHash).IsUnicode(false).IsRequired().HasMaxLength(500);
                 entity.Property(u => u.IsActive).IsRequired();
+                // Maps to the pre-existing "LockoutEnd" column (present since
+                // 001_CreateAuthDB.sql but never mapped to a C# property until the
+                // account-lockout auto-expiry fix, 2026-07-21).
+                entity.Property(u => u.LockedUntil).HasColumnName("LockoutEnd");
                 entity.HasMany(u => u.UserRoles)
                     .WithOne(ur => ur.User)
                     .HasForeignKey(ur => ur.UserId)

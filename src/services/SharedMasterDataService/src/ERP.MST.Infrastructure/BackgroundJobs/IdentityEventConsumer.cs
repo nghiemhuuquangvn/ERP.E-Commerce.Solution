@@ -78,8 +78,13 @@ public class IdentityEventConsumer : IHostedService
 
     private async Task DispatchAsync(string json, CancellationToken cancellationToken)
     {
+        // IdentityService publishes the C# class UserRegisteredIntegrationEvent (see
+        // ERP.Identity.Infrastructure.MessageBus.IntegrationEvents), not the domain event
+        // of the same base name — the "$type" field's class name is "...IntegrationEvent",
+        // never "...DomainEvent". Checking for "DomainEvent" here meant this dispatch could
+        // never match anything actually published on this topic.
         var typeName = JObject.Parse(json)["$type"]?.ToString() ?? string.Empty;
-        if (!typeName.Contains("UserRegisteredDomainEvent"))
+        if (!typeName.Contains("UserRegisteredIntegrationEvent"))
             return;
 
         using var scope = _serviceProvider.CreateScope();
