@@ -3,13 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ERP.Identity.API", "ERP.Identity.API\ERP.Identity.API.csproj", "{C37792F2-76C9-40F5-91E7-A3111090F424}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ERP.Identity.API", "src\ERP.Identity.Api\ERP.Identity.API.csproj", "{C37792F2-76C9-40F5-91E7-A3111090F424}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ERP.Identity.Domain", "ERP.Identity.Domain\ERP.Identity.Domain.csproj", "{B097974F-B063-4B2E-99EC-899CD7245E03}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ERP.Identity.Domain", "src\ERP.Identity.Domain\ERP.Identity.Domain.csproj", "{B097974F-B063-4B2E-99EC-899CD7245E03}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ERP.Identity.Application", "ERP.Identity.Application\ERP.Identity.Application.csproj", "{7FDBBDC4-AF54-4430-A18E-3A7C408E2152}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ERP.Identity.Application", "src\ERP.Identity.Application\ERP.Identity.Application.csproj", "{7FDBBDC4-AF54-4430-A18E-3A7C408E2152}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ERP.Identity.Infrastructure", "ERP.Identity.Infrastructure\ERP.Identity.Infrastructure.csproj", "{217092B6-CD1C-4E92-9C49-D269CD5C45A4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ERP.Identity.Infrastructure", "src\ERP.Identity.Infrastructure\ERP.Identity.Infrastructure.csproj", "{217092B6-CD1C-4E92-9C49-D269CD5C45A4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
