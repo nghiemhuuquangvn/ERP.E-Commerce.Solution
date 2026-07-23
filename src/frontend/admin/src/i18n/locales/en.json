@@ -34,8 +34,14 @@
   "nav": {
     "dashboard": "Dashboard",
     "salesOrders": "Sales Orders",
+    "purchasing": "Purchasing",
     "purchaseOrders": "Purchase Orders",
+    "suppliers": "Suppliers",
+    "productsGroup": "Products",
     "products": "Products",
+    "brands": "Brands",
+    "categories": "Categories",
+    "priceLists": "Price Lists",
     "inventory": "Inventory",
     "customers": "Customers",
     "payments": "Payments",
@@ -98,7 +104,9 @@
     "costCenters": "Cost Centers",
     "profitCenters": "Profit Centers",
     "organizationCalendars": "Organization Calendars",
-    "employeeTeamAssignments": "Team Assignments"
+    "employeeTeamAssignments": "Team Assignments",
+    "currencies": "Currencies",
+    "paymentTerms": "Payment Terms"
   },
   "auth": {
     "title": "ERP Admin",
@@ -204,6 +212,64 @@
       "requiredFields": "PO number and supplier ID are required."
     }
   },
+  "purchasing": {
+    "suppliers": {
+      "title": "Suppliers",
+      "add": "+ Add Supplier",
+      "addTitle": "Add Supplier",
+      "editTitle": "Edit Supplier",
+      "backToSuppliers": "← Suppliers",
+      "code": "Code",
+      "name": "Name",
+      "contactPerson": "Contact Person",
+      "email": "Email",
+      "phone": "Phone",
+      "taxCode": "Tax Code",
+      "currencyCode": "Currency",
+      "paymentTermDays": "Payment Term (days)",
+      "deactivate": "Deactivate",
+      "deactivateTitle": "Deactivate Supplier",
+      "deactivateMessage": "Are you sure you want to deactivate this supplier? This action cannot be undone.",
+      "filters": { "active": "Active", "inactive": "Inactive" },
+      "form": { "requiredFields": "Code and name are required." },
+      "address": {
+        "title": "Address",
+        "street": "Street",
+        "city": "City",
+        "state": "State/Province",
+        "postalCode": "Postal Code",
+        "country": "Country"
+      },
+      "paymentTerm": {
+        "title": "Payment Term",
+        "hint": "Payment term is saved separately from the main supplier details.",
+        "paymentTerm": "Payment Term",
+        "none": "— None (use days below) —",
+        "save": "Save Payment Term"
+      },
+      "tabs": { "details": "Details", "ratings": "Ratings", "items": "Supplier Items" },
+      "ratings": {
+        "totalCount": "{{count}} rating(s)",
+        "empty": "No ratings yet.",
+        "addTitle": "Add Rating",
+        "rating": "Rating",
+        "comment": "Comment",
+        "submit": "Submit Rating"
+      },
+      "items": {
+        "product": "Product",
+        "itemCode": "Supplier Item Code",
+        "lastPurchasePrice": "Last Purchase Price",
+        "leadTimeDays": "Lead Time (days)",
+        "variantId": "Variant ID",
+        "variantIdPlaceholder": "Optional variant GUID",
+        "addTitle": "Add Supplier Item",
+        "editTitle": "Edit Supplier Item",
+        "searchProductPlaceholder": "Search product by name or SKU…",
+        "selectedProduct": "Selected"
+      }
+    }
+  },
   "products": {
     "title": "Products",
     "addProduct": "+ Add Product",
@@ -211,7 +277,144 @@
     "sku": "SKU",
     "category": "Category",
     "price": "Price",
-    "stock": "Stock"
+    "stock": "Stock",
+    "brand": "Brand",
+    "name": "Product Name",
+    "productType": "Product Type",
+    "baseUom": "Base Unit of Measure",
+    "description": "Description",
+    "backToProducts": "← Back to Products",
+    "newProduct": "New Product",
+    "notFound": "Product not found.",
+    "statusFilters": {
+      "draft": "Draft",
+      "pendingReview": "Pending Review",
+      "active": "Active",
+      "discontinued": "Discontinued"
+    },
+    "types": {
+      "physical": "Physical",
+      "digital": "Digital",
+      "service": "Service",
+      "bundle": "Bundle"
+    },
+    "form": {
+      "requiredFields": "Name (min 3 chars) and SKU are required.",
+      "notEditableAfterCreate": "Cannot be changed after creation."
+    },
+    "seo": {
+      "title": "SEO",
+      "slug": "Slug",
+      "metaTitle": "Meta Title",
+      "metaDescription": "Meta Description"
+    },
+    "statusActions": {
+      "title": "Status Actions",
+      "submitForReview": "Submit for Review",
+      "publish": "Publish",
+      "publishNeedsVariant": "Publishing requires at least one variant.",
+      "discontinue": "Discontinue",
+      "discontinueTitle": "Discontinue Product",
+      "discontinueConfirm": "Are you sure you want to discontinue \"{{name}}\"? It will be removed from sale.",
+      "reactivate": "Reactivate",
+      "reactivateUnavailable": "Reactivate is not available yet (backend endpoint not implemented)."
+    },
+    "tabs": {
+      "images": "Images",
+      "variants": "Variants",
+      "uomConversions": "UoM Conversions"
+    },
+    "images": {
+      "preview": "Preview",
+      "altText": "Alt Text",
+      "sortOrder": "Sort Order",
+      "primary": "Primary",
+      "setPrimary": "Set Primary",
+      "imageUrl": "Image URL",
+      "imageUrlRequired": "Image URL is required.",
+      "upload": "Add Image",
+      "variant": "Variant (optional)",
+      "removeTitle": "Remove Image",
+      "removeConfirm": "Are you sure you want to remove this image?"
+    },
+    "variants": {
+      "add": "+ Add Variant",
+      "addTitle": "Add Variant",
+      "editTitle": "Edit Variant",
+      "barcode": "Barcode",
+      "cost": "Cost",
+      "weight": "Weight",
+      "length": "Length",
+      "width": "Width",
+      "height": "Height",
+      "dimensions": "Dimensions (L×W×H)",
+      "deleteTitle": "Delete Variant",
+      "deleteConfirm": "Are you sure you want to delete variant \"{{sku}}\"?",
+      "deleteLastError": "Failed to delete variant (a published product must keep at least one variant)."
+    },
+    "uomConversions": {
+      "add": "+ Add Conversion",
+      "addTitle": "Add UoM Conversion",
+      "editTitle": "Edit UoM Conversion",
+      "fromUom": "From Unit",
+      "toUom": "To Unit",
+      "conversionFactor": "Conversion Factor",
+      "conversionFactorInvalid": "Conversion factor must be greater than 0."
+    }
+  },
+  "brands": {
+    "title": "Brands",
+    "add": "+ Add Brand",
+    "editTitle": "Edit Brand",
+    "addTitle": "Add Brand",
+    "logoUrl": "Logo URL",
+    "active": "Active",
+    "inactive": "Inactive",
+    "deactivateTitle": "Deactivate Brand",
+    "deactivateConfirm": "Are you sure you want to deactivate \"{{name}}\"?",
+    "failedToSave": "Failed to save brand. Please try again."
+  },
+  "categories": {
+    "title": "Categories",
+    "add": "+ Add Category",
+    "editTitle": "Edit Category",
+    "addTitle": "Add Category",
+    "parentCategory": "Parent Category",
+    "parentCannotClear": "A category cannot be moved back to root once it has a parent (not supported by the API).",
+    "sortOrder": "Sort Order",
+    "failedToSave": "Failed to save category. Please try again."
+  },
+  "priceLists": {
+    "title": "Price Lists",
+    "add": "+ Add Price List",
+    "addTitle": "Add Price List",
+    "listsTab": "Price Lists",
+    "itemsTab": "Items",
+    "channel": "Channel",
+    "description": "Description",
+    "effectiveDate": "Effective Date",
+    "expiryDate": "Expiry Date",
+    "currency": "Currency",
+    "tenantDefaultCurrency": "— Tenant default currency —",
+    "items": "Items",
+    "addItem": "+ Add Item",
+    "variantIdHint": "No Variant picker exists yet — enter the Variant ID (GUID) directly.",
+    "variantId": "Variant ID",
+    "basePrice": "Base Price",
+    "discountedPrice": "Discounted Price",
+    "minQuantity": "Min Quantity",
+    "effectivePrice": "Effective Price",
+    "failedToSave": "Failed to save price list. Please try again.",
+    "lookupId": "Price List ID",
+    "lookupIdPlaceholder": "Paste a Price List ID to load it",
+    "load": "Load",
+    "recentlyViewed": "— Recently viewed —",
+    "notFound": "Price list not found.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "updateChannel": "Update Channel/Currency",
+    "pickListFirst": "Load a price list on the Price Lists tab first.",
+    "itemsReadOnlyNote": "Items can only be set when a price list is created — there is no API to add or edit items afterward."
   },
   "inventory": {
     "title": "Inventory",
@@ -536,6 +739,48 @@
       "current": "Current",
       "ended": "Ended",
       "failedToSave": "Failed to save. Please try again."
+    },
+    "currencies": {
+      "title": "Currencies",
+      "add": "+ Add Currency",
+      "editTitle": "Edit Currency",
+      "addTitle": "Add Currency",
+      "currenciesTab": "Currencies",
+      "exchangeRatesTab": "Exchange Rates",
+      "symbol": "Symbol",
+      "decimalPlaces": "Decimal Places",
+      "active": "Active",
+      "inactive": "Inactive",
+      "selectCurrency": "— Select a currency —",
+      "noExchangeRates": "No exchange rates found.",
+      "pickCurrencyFirst": "Select a currency to view its exchange rates.",
+      "addExchangeRate": "+ Add Exchange Rate",
+      "addExchangeRateTitle": "Add Exchange Rate",
+      "editExchangeRateTitle": "Edit Exchange Rate",
+      "fromCurrency": "From Currency",
+      "toCurrency": "To Currency",
+      "rate": "Rate",
+      "effectiveDate": "Effective Date",
+      "effectiveRateLookup": "Effective Rate Lookup",
+      "asOfDate": "As-Of Date",
+      "lookUp": "Look Up",
+      "noRateFound": "No rate found.",
+      "deactivateTitle": "Deactivate Currency",
+      "deactivateConfirm": "Are you sure you want to deactivate \"{{name}}\"?",
+      "failedToSave": "Failed to save currency. Please try again."
+    },
+    "paymentTerms": {
+      "title": "Payment Terms",
+      "add": "+ Add Payment Term",
+      "editTitle": "Edit Payment Term",
+      "addTitle": "Add Payment Term",
+      "netDays": "Net Days",
+      "depositPercent": "Deposit Percent",
+      "active": "Active",
+      "inactive": "Inactive",
+      "deactivateTitle": "Deactivate Payment Term",
+      "deactivateConfirm": "Are you sure you want to deactivate \"{{name}}\"?",
+      "failedToSave": "Failed to save payment term. Please try again."
     }
   },
   "hrm": {

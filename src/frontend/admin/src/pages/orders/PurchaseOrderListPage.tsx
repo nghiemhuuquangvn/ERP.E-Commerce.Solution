@@ -103,7 +103,7 @@ export function PurchaseOrderListPage() {
         label: '',
         render: (po: PurchaseOrder) => (
           <div className="flex gap-2">
-            {hasPermission('purchaseOrders:approve') && po.status === 'SUBMITTED' && (
+            {hasPermission('purchase_order:approve') && po.status === 'SUBMITTED' && (
               <button
                 onClick={() => approvePo(po.id)}
                 className="text-xs text-primary-600 hover:underline"
@@ -111,7 +111,7 @@ export function PurchaseOrderListPage() {
                 {t('orders.approve')}
               </button>
             )}
-            {hasPermission('purchaseOrders:cancel') && !['CANCELLED', 'RECEIVED'].includes(po.status) && (
+            {hasPermission('purchase_order:cancel') && !['CANCELLED', 'RECEIVED'].includes(po.status) && (
               <button
                 onClick={() => setCancelId(po.id)}
                 className="text-xs text-red-600 hover:underline"
@@ -130,7 +130,7 @@ export function PurchaseOrderListPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('purchaseOrders.title')}</h1>
-        {hasPermission('purchaseOrders:create') && (
+        {hasPermission('purchase_order:create') && (
           <Link to="/orders/purchase/new" className="btn-primary">
             {t('purchaseOrders.newPurchaseOrder')}
           </Link>

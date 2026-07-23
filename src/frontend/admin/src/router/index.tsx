@@ -12,6 +12,12 @@ import { PurchaseOrderListPage } from '@/pages/orders/PurchaseOrderListPage'
 import { PurchaseOrderDetailPage } from '@/pages/orders/PurchaseOrderDetailPage'
 import { PurchaseOrderFormPage } from '@/pages/orders/PurchaseOrderFormPage'
 import { ProductListPage } from '@/pages/products/ProductListPage'
+import { ProductFormPage } from '@/pages/products/ProductFormPage'
+import { BrandsPage } from '@/pages/products/BrandsPage'
+import { CategoriesPage } from '@/pages/products/CategoriesPage'
+import { PriceListsPage } from '@/pages/products/PriceListsPage'
+import { SupplierListPage } from '@/pages/purchasing/SupplierListPage'
+import { SupplierFormPage } from '@/pages/purchasing/SupplierFormPage'
 import { InventoryListPage } from '@/pages/inventory/InventoryListPage'
 import { PaymentsPage } from '@/pages/payments/PaymentsPage'
 import { ReportsPage } from '@/pages/reports/ReportsPage'
@@ -32,6 +38,8 @@ import { CostCentersPage } from '@/pages/masterdata/CostCentersPage'
 import { ProfitCentersPage } from '@/pages/masterdata/ProfitCentersPage'
 import { OrganizationCalendarsPage } from '@/pages/masterdata/OrganizationCalendarsPage'
 import { EmployeeTeamAssignmentsPage } from '@/pages/masterdata/EmployeeTeamAssignmentsPage'
+import { CurrenciesPage } from '@/pages/masterdata/CurrenciesPage'
+import { PaymentTermsPage } from '@/pages/masterdata/PaymentTermsPage'
 import { CustomersPage } from '@/pages/crm/CustomersPage'
 import { AuthSettingsPage } from '@/pages/settings/AuthSettingsPage'
 import { GeneralSettingsPage } from '@/pages/settings/GeneralSettingsPage'
@@ -108,6 +116,14 @@ export const router = createBrowserRouter([
       { path: 'orders/purchase/:id', element: <PurchaseOrderDetailPage /> },
       { path: 'orders/:id', element: <OrderDetailPage /> },
       { path: 'products', element: <ProductListPage /> },
+      { path: 'products/new', element: <ProductFormPage /> },
+      { path: 'products/brands', element: <BrandsPage /> },
+      { path: 'products/categories', element: <CategoriesPage /> },
+      { path: 'products/pricing', element: <PriceListsPage /> },
+      { path: 'products/:id', element: <ProductFormPage /> },
+      { path: 'purchasing/suppliers', element: <SupplierListPage /> },
+      { path: 'purchasing/suppliers/new', element: <SupplierFormPage /> },
+      { path: 'purchasing/suppliers/:id', element: <SupplierFormPage /> },
       { path: 'inventory', element: <InventoryListPage /> },
       { path: 'payments', element: <PaymentsPage /> },
       { path: 'reports', element: <ReportsPage /> },
@@ -154,6 +170,8 @@ export const router = createBrowserRouter([
       { path: 'masterdata/profit-centers', element: <ProfitCentersPage /> },
       { path: 'masterdata/organization-calendars', element: <OrganizationCalendarsPage /> },
       { path: 'masterdata/employee-team-assignments', element: <EmployeeTeamAssignmentsPage /> },
+      { path: 'masterdata/currencies', element: <CurrenciesPage /> },
+      { path: 'masterdata/payment-terms', element: <PaymentTermsPage /> },
       { path: 'identity/users', element: <UsersPage /> },
       { path: 'identity/roles', element: <RolesPermissionsPage /> },
       { path: 'accounting/accounts', element: <AccountsPage /> },

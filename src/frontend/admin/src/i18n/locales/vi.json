@@ -34,8 +34,14 @@
   "nav": {
     "dashboard": "Tổng quan",
     "salesOrders": "Đơn hàng bán",
+    "purchasing": "Mua hàng",
     "purchaseOrders": "Đơn hàng mua",
+    "suppliers": "Nhà cung cấp",
+    "productsGroup": "Sản phẩm",
     "products": "Sản phẩm",
+    "brands": "Thương hiệu",
+    "categories": "Danh mục",
+    "priceLists": "Bảng giá",
     "inventory": "Tồn kho",
     "customers": "Khách hàng",
     "payments": "Thanh toán",
@@ -98,7 +104,9 @@
     "costCenters": "Trung tâm chi phí",
     "profitCenters": "Trung tâm lợi nhuận",
     "organizationCalendars": "Lịch tổ chức",
-    "employeeTeamAssignments": "Phân công nhóm"
+    "employeeTeamAssignments": "Phân công nhóm",
+    "currencies": "Loại tiền tệ",
+    "paymentTerms": "Điều khoản thanh toán"
   },
   "auth": {
     "title": "ERP Admin",
@@ -204,6 +212,64 @@
       "requiredFields": "Vui lòng nhập số PO và mã nhà cung cấp."
     }
   },
+  "purchasing": {
+    "suppliers": {
+      "title": "Nhà cung cấp",
+      "add": "+ Thêm nhà cung cấp",
+      "addTitle": "Thêm nhà cung cấp",
+      "editTitle": "Sửa nhà cung cấp",
+      "backToSuppliers": "← Nhà cung cấp",
+      "code": "Mã",
+      "name": "Tên",
+      "contactPerson": "Người liên hệ",
+      "email": "Email",
+      "phone": "Điện thoại",
+      "taxCode": "Mã số thuế",
+      "currencyCode": "Tiền tệ",
+      "paymentTermDays": "Điều khoản thanh toán (ngày)",
+      "deactivate": "Ngừng hoạt động",
+      "deactivateTitle": "Ngừng hoạt động nhà cung cấp",
+      "deactivateMessage": "Bạn có chắc chắn muốn ngừng hoạt động nhà cung cấp này? Hành động này không thể hoàn tác.",
+      "filters": { "active": "Đang hoạt động", "inactive": "Ngừng hoạt động" },
+      "form": { "requiredFields": "Vui lòng nhập mã và tên nhà cung cấp." },
+      "address": {
+        "title": "Địa chỉ",
+        "street": "Đường",
+        "city": "Thành phố",
+        "state": "Tỉnh/Bang",
+        "postalCode": "Mã bưu điện",
+        "country": "Quốc gia"
+      },
+      "paymentTerm": {
+        "title": "Điều khoản thanh toán",
+        "hint": "Điều khoản thanh toán được lưu riêng, tách biệt với thông tin chính.",
+        "paymentTerm": "Điều khoản thanh toán",
+        "none": "— Không (dùng số ngày bên dưới) —",
+        "save": "Lưu điều khoản thanh toán"
+      },
+      "tabs": { "details": "Thông tin", "ratings": "Đánh giá", "items": "Mặt hàng cung cấp" },
+      "ratings": {
+        "totalCount": "{{count}} đánh giá",
+        "empty": "Chưa có đánh giá nào.",
+        "addTitle": "Thêm đánh giá",
+        "rating": "Điểm",
+        "comment": "Nhận xét",
+        "submit": "Gửi đánh giá"
+      },
+      "items": {
+        "product": "Sản phẩm",
+        "itemCode": "Mã mặt hàng NCC",
+        "lastPurchasePrice": "Giá mua gần nhất",
+        "leadTimeDays": "Thời gian giao (ngày)",
+        "variantId": "Mã biến thể",
+        "variantIdPlaceholder": "GUID biến thể (tùy chọn)",
+        "addTitle": "Thêm mặt hàng",
+        "editTitle": "Sửa mặt hàng",
+        "searchProductPlaceholder": "Tìm sản phẩm theo tên hoặc SKU…",
+        "selectedProduct": "Đã chọn"
+      }
+    }
+  },
   "products": {
     "title": "Sản phẩm",
     "addProduct": "+ Thêm sản phẩm",
@@ -211,7 +277,144 @@
     "sku": "SKU",
     "category": "Danh mục",
     "price": "Giá",
-    "stock": "Tồn kho"
+    "stock": "Tồn kho",
+    "brand": "Thương hiệu",
+    "name": "Tên sản phẩm",
+    "productType": "Loại sản phẩm",
+    "baseUom": "Đơn vị tính cơ bản",
+    "description": "Mô tả",
+    "backToProducts": "← Quay lại Sản phẩm",
+    "newProduct": "Sản phẩm mới",
+    "notFound": "Không tìm thấy sản phẩm.",
+    "statusFilters": {
+      "draft": "Nháp",
+      "pendingReview": "Chờ duyệt",
+      "active": "Đang bán",
+      "discontinued": "Ngừng bán"
+    },
+    "types": {
+      "physical": "Hàng hóa vật lý",
+      "digital": "Sản phẩm số",
+      "service": "Dịch vụ",
+      "bundle": "Combo"
+    },
+    "form": {
+      "requiredFields": "Tên (tối thiểu 3 ký tự) và SKU là bắt buộc.",
+      "notEditableAfterCreate": "Không thể thay đổi sau khi tạo."
+    },
+    "seo": {
+      "title": "SEO",
+      "slug": "Slug",
+      "metaTitle": "Meta Title",
+      "metaDescription": "Meta Description"
+    },
+    "statusActions": {
+      "title": "Hành động trạng thái",
+      "submitForReview": "Gửi duyệt",
+      "publish": "Xuất bản",
+      "publishNeedsVariant": "Cần ít nhất một biến thể để xuất bản.",
+      "discontinue": "Ngừng bán",
+      "discontinueTitle": "Ngừng bán sản phẩm",
+      "discontinueConfirm": "Bạn có chắc muốn ngừng bán \"{{name}}\"? Sản phẩm sẽ bị gỡ khỏi cửa hàng.",
+      "reactivate": "Kích hoạt lại",
+      "reactivateUnavailable": "Chức năng kích hoạt lại chưa khả dụng (API backend chưa hỗ trợ)."
+    },
+    "tabs": {
+      "images": "Hình ảnh",
+      "variants": "Biến thể",
+      "uomConversions": "Quy đổi đơn vị"
+    },
+    "images": {
+      "preview": "Ảnh xem trước",
+      "altText": "Văn bản thay thế",
+      "sortOrder": "Thứ tự",
+      "primary": "Ảnh chính",
+      "setPrimary": "Đặt làm ảnh chính",
+      "imageUrl": "URL hình ảnh",
+      "imageUrlRequired": "URL hình ảnh là bắt buộc.",
+      "upload": "Thêm hình ảnh",
+      "variant": "Biến thể (tùy chọn)",
+      "removeTitle": "Xóa hình ảnh",
+      "removeConfirm": "Bạn có chắc muốn xóa hình ảnh này?"
+    },
+    "variants": {
+      "add": "+ Thêm biến thể",
+      "addTitle": "Thêm biến thể",
+      "editTitle": "Sửa biến thể",
+      "barcode": "Mã vạch",
+      "cost": "Giá vốn",
+      "weight": "Khối lượng",
+      "length": "Chiều dài",
+      "width": "Chiều rộng",
+      "height": "Chiều cao",
+      "dimensions": "Kích thước (D×R×C)",
+      "deleteTitle": "Xóa biến thể",
+      "deleteConfirm": "Bạn có chắc muốn xóa biến thể \"{{sku}}\"?",
+      "deleteLastError": "Xóa biến thể thất bại (sản phẩm đã xuất bản phải còn ít nhất một biến thể)."
+    },
+    "uomConversions": {
+      "add": "+ Thêm quy đổi",
+      "addTitle": "Thêm quy đổi đơn vị",
+      "editTitle": "Sửa quy đổi đơn vị",
+      "fromUom": "Từ đơn vị",
+      "toUom": "Sang đơn vị",
+      "conversionFactor": "Hệ số quy đổi",
+      "conversionFactorInvalid": "Hệ số quy đổi phải lớn hơn 0."
+    }
+  },
+  "brands": {
+    "title": "Thương hiệu",
+    "add": "+ Thêm thương hiệu",
+    "editTitle": "Sửa thương hiệu",
+    "addTitle": "Thêm thương hiệu",
+    "logoUrl": "URL logo",
+    "active": "Đang hoạt động",
+    "inactive": "Ngừng hoạt động",
+    "deactivateTitle": "Ngừng hoạt động thương hiệu",
+    "deactivateConfirm": "Bạn có chắc muốn ngừng hoạt động \"{{name}}\"?",
+    "failedToSave": "Lưu thương hiệu thất bại. Vui lòng thử lại."
+  },
+  "categories": {
+    "title": "Danh mục",
+    "add": "+ Thêm danh mục",
+    "editTitle": "Sửa danh mục",
+    "addTitle": "Thêm danh mục",
+    "parentCategory": "Danh mục cha",
+    "parentCannotClear": "Không thể đưa danh mục về gốc sau khi đã có danh mục cha (API chưa hỗ trợ).",
+    "sortOrder": "Thứ tự sắp xếp",
+    "failedToSave": "Lưu danh mục thất bại. Vui lòng thử lại."
+  },
+  "priceLists": {
+    "title": "Bảng giá",
+    "add": "+ Thêm bảng giá",
+    "addTitle": "Thêm bảng giá",
+    "listsTab": "Bảng giá",
+    "itemsTab": "Chi tiết giá",
+    "channel": "Kênh bán",
+    "description": "Mô tả",
+    "effectiveDate": "Ngày hiệu lực",
+    "expiryDate": "Ngày hết hạn",
+    "currency": "Loại tiền",
+    "tenantDefaultCurrency": "— Loại tiền mặc định —",
+    "items": "Chi tiết giá",
+    "addItem": "+ Thêm dòng giá",
+    "variantIdHint": "Chưa có bộ chọn Variant — nhập trực tiếp Variant ID (GUID).",
+    "variantId": "Variant ID",
+    "basePrice": "Giá gốc",
+    "discountedPrice": "Giá khuyến mãi",
+    "minQuantity": "SL tối thiểu",
+    "effectivePrice": "Giá áp dụng",
+    "failedToSave": "Lưu bảng giá thất bại. Vui lòng thử lại.",
+    "lookupId": "Mã bảng giá",
+    "lookupIdPlaceholder": "Dán mã bảng giá để tải",
+    "load": "Tải",
+    "recentlyViewed": "— Đã xem gần đây —",
+    "notFound": "Không tìm thấy bảng giá.",
+    "active": "Đang áp dụng",
+    "inactive": "Ngừng áp dụng",
+    "updateChannel": "Cập nhật kênh/loại tiền",
+    "pickListFirst": "Hãy tải một bảng giá ở tab Bảng giá trước.",
+    "itemsReadOnlyNote": "Chi tiết giá chỉ có thể thiết lập lúc tạo bảng giá — chưa có API để thêm/sửa sau đó."
   },
   "inventory": {
     "title": "Tồn kho",
@@ -536,6 +739,48 @@
       "current": "Hiện tại",
       "ended": "Đã kết thúc",
       "failedToSave": "Lưu thất bại. Vui lòng thử lại."
+    },
+    "currencies": {
+      "title": "Loại tiền tệ",
+      "add": "+ Thêm loại tiền tệ",
+      "editTitle": "Sửa loại tiền tệ",
+      "addTitle": "Thêm loại tiền tệ",
+      "currenciesTab": "Loại tiền tệ",
+      "exchangeRatesTab": "Tỷ giá hối đoái",
+      "symbol": "Ký hiệu",
+      "decimalPlaces": "Số chữ số thập phân",
+      "active": "Đang hoạt động",
+      "inactive": "Ngừng hoạt động",
+      "selectCurrency": "— Chọn một loại tiền tệ —",
+      "noExchangeRates": "Không tìm thấy tỷ giá nào.",
+      "pickCurrencyFirst": "Chọn một loại tiền tệ để xem tỷ giá.",
+      "addExchangeRate": "+ Thêm tỷ giá",
+      "addExchangeRateTitle": "Thêm tỷ giá",
+      "editExchangeRateTitle": "Sửa tỷ giá",
+      "fromCurrency": "Từ loại tiền tệ",
+      "toCurrency": "Đến loại tiền tệ",
+      "rate": "Tỷ giá",
+      "effectiveDate": "Ngày hiệu lực",
+      "effectiveRateLookup": "Tra cứu tỷ giá hiệu lực",
+      "asOfDate": "Tính đến ngày",
+      "lookUp": "Tra cứu",
+      "noRateFound": "Không tìm thấy tỷ giá.",
+      "deactivateTitle": "Ngừng kích hoạt loại tiền tệ",
+      "deactivateConfirm": "Bạn có chắc chắn muốn ngừng kích hoạt \"{{name}}\"?",
+      "failedToSave": "Lưu loại tiền tệ thất bại. Vui lòng thử lại."
+    },
+    "paymentTerms": {
+      "title": "Điều khoản thanh toán",
+      "add": "+ Thêm điều khoản thanh toán",
+      "editTitle": "Sửa điều khoản thanh toán",
+      "addTitle": "Thêm điều khoản thanh toán",
+      "netDays": "Số ngày net",
+      "depositPercent": "Phần trăm đặt cọc",
+      "active": "Đang hoạt động",
+      "inactive": "Ngừng hoạt động",
+      "deactivateTitle": "Ngừng kích hoạt điều khoản thanh toán",
+      "deactivateConfirm": "Bạn có chắc chắn muốn ngừng kích hoạt \"{{name}}\"?",
+      "failedToSave": "Lưu điều khoản thanh toán thất bại. Vui lòng thử lại."
     }
   },
   "hrm": {

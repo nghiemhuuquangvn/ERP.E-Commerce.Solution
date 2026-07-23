@@ -343,13 +343,47 @@ const MASTERDATA_CHILDREN: NavItem[] = [
     permission: 'masterdata:employee-team-assignments:view',
     icon: '🔗',
   },
+  {
+    labelKey: 'nav.currencies',
+    path: '/masterdata/currencies',
+    permission: 'masterdata:currencies:view',
+    icon: '💲',
+  },
+  {
+    labelKey: 'nav.paymentTerms',
+    path: '/masterdata/payment-terms',
+    permission: 'masterdata:payment-terms:view',
+    icon: '🗒️',
+  },
+]
+
+const PRODUCTS_CHILDREN: NavItem[] = [
+  { labelKey: 'nav.products', path: '/products', permission: 'products:view', icon: '🏷️' },
+  { labelKey: 'nav.brands', path: '/products/brands', permission: 'product:brands:view', icon: '🏷️' },
+  { labelKey: 'nav.categories', path: '/products/categories', permission: 'products:view', icon: '📁' },
+  { labelKey: 'nav.priceLists', path: '/products/pricing', permission: 'products:view', icon: '💲' },
+]
+
+const PURCHASING_CHILDREN: NavItem[] = [
+  {
+    labelKey: 'nav.purchaseOrders',
+    path: '/orders/purchase',
+    permission: 'purchase_order:read',
+    icon: '🧾',
+  },
+  {
+    labelKey: 'nav.suppliers',
+    path: '/purchasing/suppliers',
+    permission: 'supplier:read',
+    icon: '🏭',
+  },
 ]
 
 const NAV_ITEMS: NavItem[] = [
   { labelKey: 'nav.dashboard', path: '/dashboard', permission: null, icon: '⊞' },
   { labelKey: 'nav.salesOrders', path: '/orders', permission: 'orders:view', icon: '📦' },
-  { labelKey: 'nav.purchaseOrders', path: '/orders/purchase', permission: 'purchaseOrders:view', icon: '🧾' },
-  { labelKey: 'nav.products', path: '/products', permission: 'products:view', icon: '🏷️' },
+  { labelKey: 'nav.purchasing', path: '/purchasing', icon: '🧾', children: PURCHASING_CHILDREN },
+  { labelKey: 'nav.productsGroup', path: '/products', icon: '🏷️', children: PRODUCTS_CHILDREN },
   { labelKey: 'nav.inventory', path: '/inventory', permission: 'inventory:view', icon: '🏭' },
   {
     labelKey: 'nav.customers',

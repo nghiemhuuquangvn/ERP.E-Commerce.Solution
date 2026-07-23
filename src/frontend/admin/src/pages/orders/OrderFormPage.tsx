@@ -23,10 +23,10 @@ export function OrderFormPage() {
 
   const { data: productsPage } = useQuery({
     queryKey: ['products', 'picker'],
-    queryFn: () => productsApi.list({ page: 1, pageSize: 100 }),
+    queryFn: () => productsApi.list({ skip: 0, take: 100 }),
     staleTime: 60_000,
   })
-  const products = productsPage?.items ?? []
+  const products = productsPage?.products ?? []
 
   const mutation = useMutation({
     mutationFn: ordersApi.create,
