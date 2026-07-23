@@ -29,6 +29,8 @@ namespace ERP.PRD.Application.Features.Products.Queries
                 Status = (int)product.Status,
                 CategoryId = product.CategoryId,
                 CategoryName = string.Empty, // populated at query level when category join is available
+                BrandId = product.BrandId,
+                BaseUomId = product.BaseUomId,
                 HasImage = product.HasImage,
                 ImageUrl = primaryImage?.ImageUrl,
                 VariantCount = product.Variants.Count,

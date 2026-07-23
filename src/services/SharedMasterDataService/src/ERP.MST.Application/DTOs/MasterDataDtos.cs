@@ -198,6 +198,35 @@ public record EmployeeTeamAssignmentDto(
     DateTime CreatedAt,
     DateTime UpdatedAt);
 
+public record CurrencyDto(
+    Guid Id,
+    string Code,
+    string Name,
+    string Symbol,
+    int DecimalPlaces,
+    bool IsActive,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
+
+public record ExchangeRateDto(
+    Guid Id,
+    Guid FromCurrencyId,
+    Guid ToCurrencyId,
+    decimal Rate,
+    DateTime EffectiveDate,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
+
+public record PaymentTermDto(
+    Guid Id,
+    string Code,
+    string Name,
+    int NetDays,
+    decimal? DepositPercent,
+    bool IsActive,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
+
 public record PagedResult<T>(
     IReadOnlyList<T> Items,
     int TotalCount,

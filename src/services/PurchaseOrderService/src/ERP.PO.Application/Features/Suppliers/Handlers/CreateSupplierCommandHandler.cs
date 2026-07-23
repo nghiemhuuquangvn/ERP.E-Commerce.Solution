@@ -50,7 +50,10 @@ public class CreateSupplierCommandHandler : IRequestHandler<CreateSupplierComman
             request.ContactPerson,
             request.Email,
             request.Phone,
-            address);
+            address,
+            request.TaxCode,
+            request.PaymentTermDays,
+            request.CurrencyCode);
 
         // Set audit trail from user context
         supplier.CreatedBy = user.UserId;

@@ -135,3 +135,11 @@ public record EmployeeTeamAssignmentChangedEvent(
 {
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
+
+public record CurrencyCreatedEvent(
+    Guid CurrencyId,
+    string Code,
+    string Name) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}

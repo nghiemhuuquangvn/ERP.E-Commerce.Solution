@@ -157,6 +157,34 @@ namespace ERP.PRD.API.Controllers
         }
 
         /// <summary>
+        /// Set (or clear) the brand for a product
+        /// </summary>
+        [HttpPut("{id}/brand")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> SetBrand(Guid id, [FromBody] SetProductBrandCommand command)
+        {
+            command.ProductId = id;
+            await _mediator.Send(command);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Set (or clear) the base unit of measure for a product
+        /// </summary>
+        [HttpPut("{id}/base-uom")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> SetBaseUom(Guid id, [FromBody] SetProductBaseUomCommand command)
+        {
+            command.ProductId = id;
+            await _mediator.Send(command);
+            return NoContent();
+        }
+
+        /// <summary>
         /// Bulk-create products from a CSV payload (header row: Sku,Name,Description,ProductType,CategoryId)
         /// </summary>
         [HttpPost("bulk-import")]

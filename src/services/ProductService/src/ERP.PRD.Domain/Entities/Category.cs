@@ -9,24 +9,32 @@ namespace ERP.PRD.Domain.Entities
     public class Category : AggregateRoot
     {
         public string Name { get; set; } = string.Empty;
+        public string? Code { get; set; }
         public Guid? ParentCategoryId { get; set; }
         public int SortOrder { get; set; }
 
         private readonly List<CategoryTranslation> _translations = new();
         public IReadOnlyList<CategoryTranslation> Translations => _translations.AsReadOnly();
 
-        public static Category Create(string name, Guid? parentCategoryId = null)
+        public static Category Create(string name, Guid? parentCategoryId = null, string? code = null)
         {
             var category = new Category
             {
                 Id = Guid.NewGuid(),
                 Name = name,
+                Code = code,
                 ParentCategoryId = parentCategoryId,
                 SortOrder = 0,
                 CreatedAt = DateTime.UtcNow
             };
 
             return category;
+        }
+
+        public void SetCode(string? code)
+        {
+            Code = code;
+            UpdatedAt = DateTime.UtcNow;
         }
 
         /// <summary>

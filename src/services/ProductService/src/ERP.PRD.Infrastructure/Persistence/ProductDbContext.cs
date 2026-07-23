@@ -32,6 +32,8 @@ namespace ERP.PRD.Infrastructure.Persistence
         public DbSet<ProductBundleItem> ProductBundleItems => Set<ProductBundleItem>();
         public DbSet<ProductRelation> ProductRelations => Set<ProductRelation>();
         public DbSet<ProductReview> ProductReviews => Set<ProductReview>();
+        public DbSet<Brand> Brands => Set<Brand>();
+        public DbSet<ProductUomConversion> ProductUomConversions => Set<ProductUomConversion>();
         public DbSet<SystemStoreProductSettings> SystemStoreProductSettings => Set<SystemStoreProductSettings>();
         public DbSet<TenantStoreProductSettings> TenantStoreProductSettings => Set<TenantStoreProductSettings>();
 
@@ -109,6 +111,25 @@ namespace ERP.PRD.Infrastructure.Persistence
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Comment).HasMaxLength(2000);
                 entity.HasIndex(e => new { e.ProductId, e.IsApproved });
+            });
+
+            modelBuilder.Entity<Brand>(entity =>
+            {
+                entity.ToTable("Brands");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Code).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+                entity.Property(e => e.LogoUrl).HasMaxLength(500);
+                entity.HasIndex(e => e.Code).IsUnique().HasFilter("[IsDeleted] = 0");
+            });
+
+            modelBuilder.Entity<ProductUomConversion>(entity =>
+            {
+                entity.ToTable("ProductUomConversions");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.ConversionFactor).HasColumnType("decimal(18,6)");
+                entity.HasIndex(e => e.ProductId);
+                entity.HasIndex(e => new { e.ProductId, e.FromUomId, e.ToUomId }).IsUnique();
             });
         }
 

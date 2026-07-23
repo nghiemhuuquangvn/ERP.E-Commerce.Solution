@@ -17,7 +17,7 @@ namespace ERP.PRD.Infrastructure.Repositories
                 .OrderBy(i => i.IsPrimary ? 0 : 1)
                 .ThenBy(i => i.SortOrder)
                 .Select(i => new ProductImageProjection(
-                    i.Id, i.ImageUrl, i.AltText, i.SortOrder, i.IsPrimary, i.CreatedAt))
+                    i.Id, i.ImageUrl, i.AltText, i.SortOrder, i.IsPrimary, i.CreatedAt, i.VariantId))
                 .ToListAsync(ct);
     }
 }

@@ -1,4 +1,5 @@
 using ERP.PRD.Application.Interfaces;
+using ERP.PRD.Domain.Enums;
 using MediatR;
 
 namespace ERP.PRD.Application.Features.Pricing.Queries
@@ -16,6 +17,8 @@ namespace ERP.PRD.Application.Features.Pricing.Queries
         public DateTime EffectiveDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
         public bool IsActive { get; set; }
+        public PriceListChannel Channel { get; set; }
+        public Guid? CurrencyId { get; set; }
         public List<PriceListItemDto> Items { get; set; } = new();
     }
 
@@ -24,6 +27,7 @@ namespace ERP.PRD.Application.Features.Pricing.Queries
         public Guid VariantId { get; set; }
         public decimal BasePrice { get; set; }
         public decimal? DiscountedPrice { get; set; }
+        public int MinQuantity { get; set; }
         public decimal EffectivePrice { get; set; }
     }
 
@@ -53,11 +57,14 @@ namespace ERP.PRD.Application.Features.Pricing.Queries
                 EffectiveDate = priceList.EffectiveDate,
                 ExpiryDate = priceList.ExpiryDate,
                 IsActive = priceList.IsActive,
+                Channel = priceList.Channel,
+                CurrencyId = priceList.CurrencyId,
                 Items = priceList.Items.Select(i => new PriceListItemDto
                 {
                     VariantId = i.VariantId,
                     BasePrice = i.BasePrice,
                     DiscountedPrice = i.DiscountedPrice,
+                    MinQuantity = i.MinQuantity,
                     EffectivePrice = i.EffectivePrice
                 }).ToList()
             };

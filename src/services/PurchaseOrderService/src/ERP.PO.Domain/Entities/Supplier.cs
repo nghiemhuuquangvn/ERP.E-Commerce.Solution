@@ -11,6 +11,22 @@ public class Supplier : BaseEntity
     public string? Email { get; private set; }
     public string? Phone { get; private set; }
     public Address? Address { get; private set; }
+    public string? TaxCode { get; private set; }
+
+    /// <summary>
+    /// Fallback net-days value used when <see cref="PaymentTermId"/> isn't set — the
+    /// SQL column has carried this since 001_CreatePurchasingDB.sql, this was just
+    /// never exposed on the domain entity until now.
+    /// </summary>
+    public int PaymentTermDays { get; private set; } = 30;
+
+    /// <summary>
+    /// Normalized reference to SharedMasterDataService's PaymentTerm by Id only
+    /// (cross-service, no database FK). Null means <see cref="PaymentTermDays"/>
+    /// applies as a plain net-days fallback.
+    /// </summary>
+    public Guid? PaymentTermId { get; private set; }
+    public string CurrencyCode { get; private set; } = "USD";
     public bool IsActive { get; private set; } = true;
 
     private Supplier() { }
@@ -22,7 +38,10 @@ public class Supplier : BaseEntity
         string? contactPerson = null,
         string? email = null,
         string? phone = null,
-        Address? address = null)
+        Address? address = null,
+        string? taxCode = null,
+        int paymentTermDays = 30,
+        string currencyCode = "USD")
     {
         if (string.IsNullOrWhiteSpace(code))
             throw new ArgumentException("Supplier Code is required", nameof(code));
@@ -42,18 +61,38 @@ public class Supplier : BaseEntity
             Email = email,
             Phone = phone,
             Address = address,
+            TaxCode = taxCode,
+            PaymentTermDays = paymentTermDays,
+            CurrencyCode = currencyCode,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
     }
 
-    public void Update(string name, string? contactPerson, string? email, string? phone, Address? address)
+    public void Update(
+        string name,
+        string? contactPerson,
+        string? email,
+        string? phone,
+        Address? address,
+        string? taxCode = null,
+        string? currencyCode = null)
     {
         Name = name;
         ContactPerson = contactPerson;
         Email = email;
         Phone = phone;
         Address = address;
+        TaxCode = taxCode;
+        if (currencyCode is not null)
+            CurrencyCode = currencyCode;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetPaymentTerm(Guid? paymentTermId, int paymentTermDays)
+    {
+        PaymentTermId = paymentTermId;
+        PaymentTermDays = paymentTermDays;
         UpdatedAt = DateTime.UtcNow;
     }
 

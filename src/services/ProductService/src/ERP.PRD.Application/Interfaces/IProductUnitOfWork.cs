@@ -13,6 +13,8 @@ namespace ERP.PRD.Application.Interfaces
         IProductRelationRepository Relations { get; }
         IProductReviewRepository Reviews { get; }
         ISearchIndexQueueRepository SearchIndexQueue { get; }
+        IBrandRepository Brands { get; }
+        IProductUomConversionRepository UomConversions { get; }
 
         Task<int> SaveChangesAsync(CancellationToken ct = default);
         Task BeginTransactionAsync(CancellationToken ct = default);

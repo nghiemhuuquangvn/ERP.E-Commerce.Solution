@@ -10,6 +10,13 @@ namespace ERP.PRD.Application.Features.Products.Commands
         public string? Description { get; set; }
         public int ProductType { get; set; }
         public Guid? CategoryId { get; set; }
+        public Guid? BrandId { get; set; }
+
+        /// <summary>
+        /// References SharedMasterDataService's UnitOfMeasure by Id only (cross-service,
+        /// no database FK — see CLAUDE.md database ownership rules).
+        /// </summary>
+        public Guid? BaseUomId { get; set; }
     }
 
     public class CreateProductResponse
@@ -40,6 +47,18 @@ namespace ERP.PRD.Application.Features.Products.Commands
 
             if (!string.IsNullOrWhiteSpace(request.Description))
                 product.UpdateDescription(request.Description);
+
+            if (request.BrandId.HasValue)
+            {
+                var brandExists = await _uow.Brands.ExistsAsync(request.BrandId.Value, cancellationToken);
+                if (!brandExists)
+                    throw new KeyNotFoundException($"Brand with ID {request.BrandId} not found");
+
+                product.SetBrand(request.BrandId);
+            }
+
+            if (request.BaseUomId.HasValue)
+                product.SetBaseUom(request.BaseUomId);
 
             await _uow.Products.AddAsync(product, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);

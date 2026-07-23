@@ -1,5 +1,6 @@
 using ERP.PRD.Application.Interfaces;
 using ERP.PRD.Domain.Entities;
+using ERP.PRD.Domain.Enums;
 using FluentValidation;
 using MediatR;
 
@@ -11,6 +12,14 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
         public string? Description { get; set; }
         public DateTime EffectiveDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
+        public PriceListChannel Channel { get; set; } = PriceListChannel.Retail;
+
+        /// <summary>
+        /// References SharedMasterDataService's Currency by Id only (cross-service,
+        /// no database FK — see CLAUDE.md database ownership rules). Null means the
+        /// tenant's default currency applies.
+        /// </summary>
+        public Guid? CurrencyId { get; set; }
         public List<PriceListItemInput> Items { get; set; } = new();
     }
 
@@ -19,6 +28,7 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
         public Guid VariantId { get; set; }
         public decimal BasePrice { get; set; }
         public decimal? DiscountedPrice { get; set; }
+        public int MinQuantity { get; set; } = 1;
     }
 
     public class CreatePriceListResponse
@@ -57,6 +67,9 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
                 .GreaterThanOrEqualTo(0).WithMessage("Base price must be >= 0")
                 .LessThan(1000000).WithMessage("Base price must be < 1,000,000");
 
+            RuleFor(x => x.MinQuantity)
+                .GreaterThanOrEqualTo(1).WithMessage("MinQuantity must be at least 1");
+
             RuleFor(x => x)
                 .Custom((x, context) =>
                 {
@@ -79,7 +92,9 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
 
         public async Task<CreatePriceListResponse> Handle(CreatePriceListCommand request, CancellationToken cancellationToken)
         {
-            var priceList = PriceList.Create(request.Name, request.EffectiveDate, isActive: true);
+            var priceList = PriceList.Create(
+                request.Name, request.EffectiveDate, isActive: true,
+                channel: request.Channel, currencyId: request.CurrencyId);
             priceList.Description = request.Description;
 
             if (request.ExpiryDate.HasValue)
@@ -91,7 +106,7 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
                 if (variant == null)
                     throw new KeyNotFoundException($"Variant with ID {item.VariantId} not found");
 
-                priceList.AddItem(item.VariantId, item.BasePrice, item.DiscountedPrice);
+                priceList.AddItem(item.VariantId, item.BasePrice, item.DiscountedPrice, item.MinQuantity);
             }
 
             await _uow.PriceLists.AddAsync(priceList, cancellationToken);

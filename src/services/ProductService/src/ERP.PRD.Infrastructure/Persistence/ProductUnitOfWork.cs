@@ -21,7 +21,9 @@ namespace ERP.PRD.Infrastructure.Persistence
             IProductBundleRepository bundles,
             IProductRelationRepository relations,
             IProductReviewRepository reviews,
-            ISearchIndexQueueRepository searchIndexQueue)
+            ISearchIndexQueueRepository searchIndexQueue,
+            IBrandRepository brands,
+            IProductUomConversionRepository uomConversions)
         {
             _db = db;
             Products = products;
@@ -35,6 +37,8 @@ namespace ERP.PRD.Infrastructure.Persistence
             Relations = relations;
             Reviews = reviews;
             SearchIndexQueue = searchIndexQueue;
+            Brands = brands;
+            UomConversions = uomConversions;
         }
 
         public IProductRepository Products { get; }
@@ -48,6 +52,8 @@ namespace ERP.PRD.Infrastructure.Persistence
         public IProductRelationRepository Relations { get; }
         public IProductReviewRepository Reviews { get; }
         public ISearchIndexQueueRepository SearchIndexQueue { get; }
+        public IBrandRepository Brands { get; }
+        public IProductUomConversionRepository UomConversions { get; }
 
         public async Task<int> SaveChangesAsync(CancellationToken ct = default)
             => await _db.SaveChangesAsync(ct);

@@ -42,6 +42,9 @@ namespace ERP.MST.Infrastructure.Persistence
         public DbSet<OrganizationCalendar> OrganizationCalendars { get; set; }
         public DbSet<Holiday> Holidays { get; set; }
         public DbSet<EmployeeTeamAssignment> EmployeeTeamAssignments { get; set; }
+        public DbSet<Currency> Currencies { get; set; }
+        public DbSet<ExchangeRate> ExchangeRates { get; set; }
+        public DbSet<PaymentTerm> PaymentTerms { get; set; }
 
         public MasterDataDbContext(DbContextOptions<MasterDataDbContext> options) : base(options)
         {

@@ -9,6 +9,7 @@ namespace ERP.PRD.Application.Features.Categories.Commands
     {
         public string Name { get; set; } = string.Empty;
         public Guid? ParentCategoryId { get; set; }
+        public string? Code { get; set; }
     }
 
     public class CreateCategoryResponse
@@ -27,6 +28,10 @@ namespace ERP.PRD.Application.Features.Categories.Commands
 
             RuleFor(x => x.ParentCategoryId)
                 .NotEqual(Guid.Empty).WithMessage("Invalid parent category ID").When(x => x.ParentCategoryId.HasValue);
+
+            RuleFor(x => x.Code)
+                .MaximumLength(50).WithMessage("Category code cannot exceed 50 characters")
+                .When(x => !string.IsNullOrEmpty(x.Code));
         }
     }
 
@@ -50,7 +55,7 @@ namespace ERP.PRD.Application.Features.Categories.Commands
                     throw new KeyNotFoundException($"Parent category with ID {request.ParentCategoryId} not found");
             }
 
-            var category = Category.Create(request.Name, request.ParentCategoryId);
+            var category = Category.Create(request.Name, request.ParentCategoryId, request.Code);
 
             await _uow.Categories.AddAsync(category, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);

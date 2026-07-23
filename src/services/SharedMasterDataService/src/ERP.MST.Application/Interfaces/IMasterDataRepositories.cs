@@ -261,3 +261,49 @@ public interface IEmployeeTeamAssignmentRepository
     void Update(EmployeeTeamAssignment assignment);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
+
+public interface ICurrencyRepository
+{
+    Task<Currency?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<Currency> Items, int TotalCount)> ListAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+    Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
+    void Add(Currency currency);
+    void Update(Currency currency);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IExchangeRateRepository
+{
+    Task<ExchangeRate?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<ExchangeRate> Items, int TotalCount)> ListAsync(
+        Guid? fromCurrencyId,
+        Guid? toCurrencyId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+    // Business rule: the record with the latest EffectiveDate <= asOfDate.
+    Task<ExchangeRate?> GetEffectiveRateAsync(
+        Guid fromCurrencyId,
+        Guid toCurrencyId,
+        DateTime asOfDate,
+        CancellationToken cancellationToken = default);
+    void Add(ExchangeRate exchangeRate);
+    void Update(ExchangeRate exchangeRate);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IPaymentTermRepository
+{
+    Task<PaymentTerm?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<PaymentTerm> Items, int TotalCount)> ListAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+    Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
+    void Add(PaymentTerm paymentTerm);
+    void Update(PaymentTerm paymentTerm);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}

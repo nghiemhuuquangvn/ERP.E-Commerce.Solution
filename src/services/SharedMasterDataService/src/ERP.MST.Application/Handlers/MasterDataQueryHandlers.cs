@@ -908,3 +908,126 @@ public class ListEmployeeTeamAssignmentsQueryHandler : IRequestHandler<ListEmplo
         return new PagedResult<EmployeeTeamAssignmentDto>(dtos, totalCount, request.Page, request.PageSize);
     }
 }
+
+// ─── Currency Query Handlers ───────────────────────────────────────────────
+
+public class GetCurrencyQueryHandler : IRequestHandler<GetCurrencyQuery, CurrencyDto?>
+{
+    private readonly ICurrencyRepository _currencyRepository;
+
+    public GetCurrencyQueryHandler(ICurrencyRepository currencyRepository)
+    {
+        _currencyRepository = currencyRepository;
+    }
+
+    public async Task<CurrencyDto?> Handle(GetCurrencyQuery request, CancellationToken cancellationToken)
+    {
+        var currency = await _currencyRepository.GetByIdAsync(request.CurrencyId, cancellationToken);
+        return currency is null ? null : CreateCurrencyCommandHandler.MapToDto(currency);
+    }
+}
+
+public class ListCurrenciesQueryHandler : IRequestHandler<ListCurrenciesQuery, PagedResult<CurrencyDto>>
+{
+    private readonly ICurrencyRepository _currencyRepository;
+
+    public ListCurrenciesQueryHandler(ICurrencyRepository currencyRepository)
+    {
+        _currencyRepository = currencyRepository;
+    }
+
+    public async Task<PagedResult<CurrencyDto>> Handle(ListCurrenciesQuery request, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _currencyRepository.ListAsync(request.Page, request.PageSize, cancellationToken);
+        var dtos = items.Select(CreateCurrencyCommandHandler.MapToDto).ToList();
+        return new PagedResult<CurrencyDto>(dtos, totalCount, request.Page, request.PageSize);
+    }
+}
+
+// ─── Exchange Rate Query Handlers ──────────────────────────────────────────
+
+public class GetExchangeRateQueryHandler : IRequestHandler<GetExchangeRateQuery, ExchangeRateDto?>
+{
+    private readonly IExchangeRateRepository _exchangeRateRepository;
+
+    public GetExchangeRateQueryHandler(IExchangeRateRepository exchangeRateRepository)
+    {
+        _exchangeRateRepository = exchangeRateRepository;
+    }
+
+    public async Task<ExchangeRateDto?> Handle(GetExchangeRateQuery request, CancellationToken cancellationToken)
+    {
+        var exchangeRate = await _exchangeRateRepository.GetByIdAsync(request.ExchangeRateId, cancellationToken);
+        return exchangeRate is null ? null : CreateExchangeRateCommandHandler.MapToDto(exchangeRate);
+    }
+}
+
+public class ListExchangeRatesQueryHandler : IRequestHandler<ListExchangeRatesQuery, PagedResult<ExchangeRateDto>>
+{
+    private readonly IExchangeRateRepository _exchangeRateRepository;
+
+    public ListExchangeRatesQueryHandler(IExchangeRateRepository exchangeRateRepository)
+    {
+        _exchangeRateRepository = exchangeRateRepository;
+    }
+
+    public async Task<PagedResult<ExchangeRateDto>> Handle(ListExchangeRatesQuery request, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _exchangeRateRepository.ListAsync(
+            request.FromCurrencyId, request.ToCurrencyId, request.Page, request.PageSize, cancellationToken);
+        var dtos = items.Select(CreateExchangeRateCommandHandler.MapToDto).ToList();
+        return new PagedResult<ExchangeRateDto>(dtos, totalCount, request.Page, request.PageSize);
+    }
+}
+
+public class GetEffectiveExchangeRateQueryHandler : IRequestHandler<GetEffectiveExchangeRateQuery, ExchangeRateDto?>
+{
+    private readonly IExchangeRateRepository _exchangeRateRepository;
+
+    public GetEffectiveExchangeRateQueryHandler(IExchangeRateRepository exchangeRateRepository)
+    {
+        _exchangeRateRepository = exchangeRateRepository;
+    }
+
+    public async Task<ExchangeRateDto?> Handle(GetEffectiveExchangeRateQuery request, CancellationToken cancellationToken)
+    {
+        var exchangeRate = await _exchangeRateRepository.GetEffectiveRateAsync(
+            request.FromCurrencyId, request.ToCurrencyId, request.AsOfDate, cancellationToken);
+        return exchangeRate is null ? null : CreateExchangeRateCommandHandler.MapToDto(exchangeRate);
+    }
+}
+
+// ─── Payment Term Query Handlers ───────────────────────────────────────────
+
+public class GetPaymentTermQueryHandler : IRequestHandler<GetPaymentTermQuery, PaymentTermDto?>
+{
+    private readonly IPaymentTermRepository _paymentTermRepository;
+
+    public GetPaymentTermQueryHandler(IPaymentTermRepository paymentTermRepository)
+    {
+        _paymentTermRepository = paymentTermRepository;
+    }
+
+    public async Task<PaymentTermDto?> Handle(GetPaymentTermQuery request, CancellationToken cancellationToken)
+    {
+        var paymentTerm = await _paymentTermRepository.GetByIdAsync(request.PaymentTermId, cancellationToken);
+        return paymentTerm is null ? null : CreatePaymentTermCommandHandler.MapToDto(paymentTerm);
+    }
+}
+
+public class ListPaymentTermsQueryHandler : IRequestHandler<ListPaymentTermsQuery, PagedResult<PaymentTermDto>>
+{
+    private readonly IPaymentTermRepository _paymentTermRepository;
+
+    public ListPaymentTermsQueryHandler(IPaymentTermRepository paymentTermRepository)
+    {
+        _paymentTermRepository = paymentTermRepository;
+    }
+
+    public async Task<PagedResult<PaymentTermDto>> Handle(ListPaymentTermsQuery request, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _paymentTermRepository.ListAsync(request.Page, request.PageSize, cancellationToken);
+        var dtos = items.Select(CreatePaymentTermCommandHandler.MapToDto).ToList();
+        return new PagedResult<PaymentTermDto>(dtos, totalCount, request.Page, request.PageSize);
+    }
+}

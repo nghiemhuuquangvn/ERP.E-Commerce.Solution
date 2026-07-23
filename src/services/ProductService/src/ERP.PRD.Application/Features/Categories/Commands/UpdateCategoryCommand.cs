@@ -9,6 +9,7 @@ namespace ERP.PRD.Application.Features.Categories.Commands
         public Guid CategoryId { get; set; }
         public string? Name { get; set; }
         public Guid? ParentCategoryId { get; set; }
+        public string? Code { get; set; }
     }
 
     public class UpdateCategoryValidator : AbstractValidator<UpdateCategoryCommand>
@@ -24,6 +25,10 @@ namespace ERP.PRD.Application.Features.Categories.Commands
 
             RuleFor(x => x.ParentCategoryId)
                 .NotEqual(Guid.Empty).WithMessage("Invalid parent category ID").When(x => x.ParentCategoryId.HasValue);
+
+            RuleFor(x => x.Code)
+                .MaximumLength(50).WithMessage("Category code cannot exceed 50 characters")
+                .When(x => !string.IsNullOrEmpty(x.Code));
         }
     }
 
@@ -55,6 +60,9 @@ namespace ERP.PRD.Application.Features.Categories.Commands
 
                 category.ParentCategoryId = request.ParentCategoryId;
             }
+
+            if (!string.IsNullOrEmpty(request.Code))
+                category.SetCode(request.Code);
 
             category.UpdatedAt = DateTime.UtcNow;
             await _uow.SaveChangesAsync(cancellationToken);

@@ -95,5 +95,25 @@ namespace ERP.PRD.API.Controllers
 
             return Ok(result);
         }
+
+        /// <summary>
+        /// Set the sales channel and currency for a price list
+        /// </summary>
+        /// <param name="priceListId">Price list ID</param>
+        /// <param name="command">Channel/currency details</param>
+        /// <returns>No content</returns>
+        [HttpPut("lists/{priceListId}/channel")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> SetPriceListChannel(Guid priceListId, [FromBody] SetPriceListChannelCommand command)
+        {
+            command.PriceListId = priceListId;
+            _logger.LogInformation("Setting channel for price list {PriceListId}: {Channel}", priceListId, command.Channel);
+
+            await _mediator.Send(command);
+
+            return NoContent();
+        }
     }
 }

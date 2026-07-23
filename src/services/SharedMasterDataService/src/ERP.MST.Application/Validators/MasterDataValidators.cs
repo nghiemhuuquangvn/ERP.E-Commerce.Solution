@@ -599,3 +599,124 @@ public class EndEmployeeTeamAssignmentCommandValidator : AbstractValidator<EndEm
             .NotEmpty().WithMessage("Effective to date is required.");
     }
 }
+
+public class CreateCurrencyCommandValidator : AbstractValidator<CreateCurrencyCommand>
+{
+    public CreateCurrencyCommandValidator()
+    {
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Currency code is required.")
+            .MaximumLength(20).WithMessage("Currency code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Currency code must contain only uppercase letters, digits, underscores, and hyphens.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Currency name is required.")
+            .MaximumLength(100).WithMessage("Currency name must not exceed 100 characters.");
+
+        RuleFor(x => x.Symbol)
+            .NotEmpty().WithMessage("Currency symbol is required.")
+            .MaximumLength(10).WithMessage("Currency symbol must not exceed 10 characters.");
+
+        RuleFor(x => x.DecimalPlaces)
+            .InclusiveBetween(0, 6).WithMessage("Decimal places must be between 0 and 6.");
+    }
+}
+
+public class UpdateCurrencyCommandValidator : AbstractValidator<UpdateCurrencyCommand>
+{
+    public UpdateCurrencyCommandValidator()
+    {
+        RuleFor(x => x.CurrencyId)
+            .NotEmpty().WithMessage("Currency ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Currency name is required.")
+            .MaximumLength(100).WithMessage("Currency name must not exceed 100 characters.");
+
+        RuleFor(x => x.Symbol)
+            .NotEmpty().WithMessage("Currency symbol is required.")
+            .MaximumLength(10).WithMessage("Currency symbol must not exceed 10 characters.");
+
+        RuleFor(x => x.DecimalPlaces)
+            .InclusiveBetween(0, 6).WithMessage("Decimal places must be between 0 and 6.");
+    }
+}
+
+public class CreateExchangeRateCommandValidator : AbstractValidator<CreateExchangeRateCommand>
+{
+    public CreateExchangeRateCommandValidator()
+    {
+        RuleFor(x => x.FromCurrencyId)
+            .NotEmpty().WithMessage("From currency ID is required.");
+
+        RuleFor(x => x.ToCurrencyId)
+            .NotEmpty().WithMessage("To currency ID is required.");
+
+        RuleFor(x => x)
+            .Must(x => x.FromCurrencyId != x.ToCurrencyId)
+            .WithMessage("From currency and to currency must be different.");
+
+        RuleFor(x => x.Rate)
+            .GreaterThan(0).WithMessage("Rate must be greater than 0.");
+
+        RuleFor(x => x.EffectiveDate)
+            .NotEmpty().WithMessage("Effective date is required.");
+    }
+}
+
+public class UpdateExchangeRateCommandValidator : AbstractValidator<UpdateExchangeRateCommand>
+{
+    public UpdateExchangeRateCommandValidator()
+    {
+        RuleFor(x => x.ExchangeRateId)
+            .NotEmpty().WithMessage("Exchange rate ID is required.");
+
+        RuleFor(x => x.Rate)
+            .GreaterThan(0).WithMessage("Rate must be greater than 0.");
+
+        RuleFor(x => x.EffectiveDate)
+            .NotEmpty().WithMessage("Effective date is required.");
+    }
+}
+
+public class CreatePaymentTermCommandValidator : AbstractValidator<CreatePaymentTermCommand>
+{
+    public CreatePaymentTermCommandValidator()
+    {
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Payment term code is required.")
+            .MaximumLength(20).WithMessage("Payment term code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Payment term code must contain only uppercase letters, digits, underscores, and hyphens.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Payment term name is required.")
+            .MaximumLength(200).WithMessage("Payment term name must not exceed 200 characters.");
+
+        RuleFor(x => x.NetDays)
+            .GreaterThanOrEqualTo(0).WithMessage("Net days cannot be negative.");
+
+        RuleFor(x => x.DepositPercent)
+            .InclusiveBetween(0, 100).WithMessage("Deposit percent must be between 0 and 100.")
+            .When(x => x.DepositPercent.HasValue);
+    }
+}
+
+public class UpdatePaymentTermCommandValidator : AbstractValidator<UpdatePaymentTermCommand>
+{
+    public UpdatePaymentTermCommandValidator()
+    {
+        RuleFor(x => x.PaymentTermId)
+            .NotEmpty().WithMessage("Payment term ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Payment term name is required.")
+            .MaximumLength(200).WithMessage("Payment term name must not exceed 200 characters.");
+
+        RuleFor(x => x.NetDays)
+            .GreaterThanOrEqualTo(0).WithMessage("Net days cannot be negative.");
+
+        RuleFor(x => x.DepositPercent)
+            .InclusiveBetween(0, 100).WithMessage("Deposit percent must be between 0 and 100.")
+            .When(x => x.DepositPercent.HasValue);
+    }
+}

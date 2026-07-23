@@ -23,5 +23,12 @@ public class UpdateSupplierCommandValidator : AbstractValidator<UpdateSupplierCo
 
         RuleFor(x => x.UpdatedBy)
             .NotEmpty().WithMessage("UpdatedBy is required.");
+
+        RuleFor(x => x.TaxCode)
+            .MaximumLength(50).WithMessage("Tax code must not exceed 50 characters.");
+
+        RuleFor(x => x.CurrencyCode)
+            .Length(3).WithMessage("Currency code must be a 3-letter ISO code.")
+            .When(x => !string.IsNullOrEmpty(x.CurrencyCode));
     }
 }

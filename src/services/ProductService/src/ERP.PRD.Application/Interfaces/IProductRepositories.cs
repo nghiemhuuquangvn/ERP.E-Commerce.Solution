@@ -80,6 +80,25 @@ namespace ERP.PRD.Application.Interfaces
         Task AddAsync(PriceList priceList, CancellationToken ct = default);
     }
 
+    public interface IBrandRepository
+    {
+        Task<Brand?> GetByIdAsync(Guid id, CancellationToken ct = default);
+        Task<bool> ExistsAsync(Guid id, CancellationToken ct = default);
+        Task<bool> CodeExistsAsync(string code, CancellationToken ct = default);
+        Task<List<Brand>> GetAllAsync(bool? isActive, CancellationToken ct = default);
+        Task AddAsync(Brand brand, CancellationToken ct = default);
+        void Update(Brand brand);
+    }
+
+    public interface IProductUomConversionRepository
+    {
+        Task<ProductUomConversion?> GetByIdAsync(Guid id, CancellationToken ct = default);
+        Task<List<ProductUomConversion>> GetByProductIdAsync(Guid productId, CancellationToken ct = default);
+        Task<bool> PairExistsAsync(Guid productId, Guid fromUomId, Guid toUomId, CancellationToken ct = default);
+        Task AddAsync(ProductUomConversion conversion, CancellationToken ct = default);
+        void Update(ProductUomConversion conversion);
+    }
+
     public interface IProductBundleRepository
     {
         Task<bool> ProductExistsAsync(Guid productId, CancellationToken ct = default);
@@ -117,7 +136,8 @@ namespace ERP.PRD.Application.Interfaces
     public record VariantPriceProjection(Guid VariantId, string Sku, decimal Cost, DateTime UpdatedAt);
 
     public record ProductImageProjection(
-        Guid Id, string ImageUrl, string? AltText, int SortOrder, bool IsPrimary, DateTime CreatedAt);
+        Guid Id, string ImageUrl, string? AltText, int SortOrder, bool IsPrimary, DateTime CreatedAt,
+        Guid? VariantId = null);
 
     public record BundleItemProjection(
         Guid Id, Guid ComponentProductId, string ComponentName, string ComponentSku, int Quantity);

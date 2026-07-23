@@ -23,5 +23,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Address, opt => opt.MapFrom(src => src.Address));
 
         CreateMap<Address, AddressDto>();
+
+        CreateMap<SupplierItem, SupplierItemDto>();
     }
 }

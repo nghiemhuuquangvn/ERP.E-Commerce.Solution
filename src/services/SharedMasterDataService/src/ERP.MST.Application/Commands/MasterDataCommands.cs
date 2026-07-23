@@ -287,3 +287,52 @@ public record CreateEmployeeTeamAssignmentCommand(
 public record EndEmployeeTeamAssignmentCommand(
     Guid AssignmentId,
     DateTime EffectiveTo) : IRequest<EmployeeTeamAssignmentDto>;
+
+// ─── Currency Commands ─────────────────────────────────────────────────────
+
+public record CreateCurrencyCommand(
+    string Code,
+    string Name,
+    string Symbol,
+    int DecimalPlaces = 2) : IRequest<CurrencyDto>;
+
+public record UpdateCurrencyCommand(
+    Guid CurrencyId,
+    string Name,
+    string Symbol,
+    int DecimalPlaces) : IRequest<CurrencyDto>;
+
+public record ActivateCurrencyCommand(Guid CurrencyId) : IRequest<CurrencyDto>;
+
+public record DeactivateCurrencyCommand(Guid CurrencyId) : IRequest<CurrencyDto>;
+
+// ─── Exchange Rate Commands ─────────────────────────────────────────────────
+
+public record CreateExchangeRateCommand(
+    Guid FromCurrencyId,
+    Guid ToCurrencyId,
+    decimal Rate,
+    DateTime EffectiveDate) : IRequest<ExchangeRateDto>;
+
+public record UpdateExchangeRateCommand(
+    Guid ExchangeRateId,
+    decimal Rate,
+    DateTime EffectiveDate) : IRequest<ExchangeRateDto>;
+
+// ─── Payment Term Commands ──────────────────────────────────────────────────
+
+public record CreatePaymentTermCommand(
+    string Code,
+    string Name,
+    int NetDays,
+    decimal? DepositPercent = null) : IRequest<PaymentTermDto>;
+
+public record UpdatePaymentTermCommand(
+    Guid PaymentTermId,
+    string Name,
+    int NetDays,
+    decimal? DepositPercent) : IRequest<PaymentTermDto>;
+
+public record ActivatePaymentTermCommand(Guid PaymentTermId) : IRequest<PaymentTermDto>;
+
+public record DeactivatePaymentTermCommand(Guid PaymentTermId) : IRequest<PaymentTermDto>;

@@ -13,6 +13,7 @@ namespace ERP.PRD.Application.Features.Categories.Queries
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
+        public string? Code { get; set; }
         public Guid? ParentCategoryId { get; set; }
         public int SortOrder { get; set; }
         public string LanguageCode { get; set; } = string.Empty;
@@ -44,6 +45,7 @@ namespace ERP.PRD.Application.Features.Categories.Queries
                 {
                     Id = c.Id,
                     Name = translation?.Name ?? c.Name,
+                    Code = c.Code,
                     ParentCategoryId = c.ParentCategoryId,
                     SortOrder = c.SortOrder,
                     LanguageCode = translation != null ? translation.LanguageCode : "default",

@@ -170,3 +170,36 @@ public record ListEmployeeTeamAssignmentsQuery(
     Guid EmployeeId,
     int Page = 1,
     int PageSize = 20) : IRequest<PagedResult<EmployeeTeamAssignmentDto>>;
+
+// ─── Currency Queries ───────────────────────────────────────────────────────
+
+public record GetCurrencyQuery(Guid CurrencyId) : IRequest<CurrencyDto?>;
+
+public record ListCurrenciesQuery(
+    int Page = 1,
+    int PageSize = 20) : IRequest<PagedResult<CurrencyDto>>;
+
+// ─── Exchange Rate Queries ──────────────────────────────────────────────────
+
+public record GetExchangeRateQuery(Guid ExchangeRateId) : IRequest<ExchangeRateDto?>;
+
+public record ListExchangeRatesQuery(
+    Guid? FromCurrencyId = null,
+    Guid? ToCurrencyId = null,
+    int Page = 1,
+    int PageSize = 20) : IRequest<PagedResult<ExchangeRateDto>>;
+
+// Business rule (docs/business/MasterData/module-03-master-data.md §8): always
+// take the exchange rate record with the latest EffectiveDate <= the given date.
+public record GetEffectiveExchangeRateQuery(
+    Guid FromCurrencyId,
+    Guid ToCurrencyId,
+    DateTime AsOfDate) : IRequest<ExchangeRateDto?>;
+
+// ─── Payment Term Queries ───────────────────────────────────────────────────
+
+public record GetPaymentTermQuery(Guid PaymentTermId) : IRequest<PaymentTermDto?>;
+
+public record ListPaymentTermsQuery(
+    int Page = 1,
+    int PageSize = 20) : IRequest<PagedResult<PaymentTermDto>>;

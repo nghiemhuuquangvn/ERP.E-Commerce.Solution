@@ -53,7 +53,10 @@ public class SuppliersController : ControllerBase
             ContactPerson = request.ContactPerson,
             Email = request.Email,
             Phone = request.Phone,
-            Address = request.Address
+            Address = request.Address,
+            TaxCode = request.TaxCode,
+            PaymentTermDays = request.PaymentTermDays,
+            CurrencyCode = request.CurrencyCode
         };
 
         var result = await _mediator.Send(command);
@@ -149,7 +152,38 @@ public class SuppliersController : ControllerBase
             Email = request.Email,
             Phone = request.Phone,
             Address = request.Address,
+            TaxCode = request.TaxCode,
+            CurrencyCode = request.CurrencyCode,
             UpdatedBy = user.UserId
+        };
+
+        var result = await _mediator.Send(command);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Set (or clear) a supplier's payment term. PaymentTermId references
+    /// SharedMasterDataService's PaymentTerm by Id only (cross-service, no DB FK);
+    /// omit it to fall back to a plain net-days value.
+    /// Yêu cầu quyền: supplier:update
+    /// </summary>
+    /// <param name="id">Supplier ID</param>
+    /// <param name="request">Payment term details</param>
+    /// <returns>Updated supplier</returns>
+    [HttpPut("{id}/payment-term")]
+    [AuthorizePermission(PermissionConstants.Supplier_Update)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> SetSupplierPaymentTerm(Guid id, [FromBody] SetSupplierPaymentTermDto request)
+    {
+        var command = new SetSupplierPaymentTermCommand
+        {
+            SupplierId = id,
+            PaymentTermId = request.PaymentTermId,
+            PaymentTermDays = request.PaymentTermDays
         };
 
         var result = await _mediator.Send(command);
@@ -213,6 +247,96 @@ public class SuppliersController : ControllerBase
     public async Task<IActionResult> GetSupplierRatings(Guid id)
     {
         var result = await _mediator.Send(new GetSupplierRatingsQuery { SupplierId = id });
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Add a SupplierItem — what this supplier can supply, at what reference price/lead time.
+    /// ProductId/VariantId reference ProductService's Product/ProductVariant by Id only
+    /// (cross-service, no DB FK).
+    /// Yêu cầu quyền: supplier:update
+    /// </summary>
+    [HttpPost("{id}/items")]
+    [AuthorizePermission(PermissionConstants.Supplier_Update)]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> CreateSupplierItem(Guid id, [FromBody] CreateSupplierItemDto request)
+    {
+        var command = new CreateSupplierItemCommand
+        {
+            SupplierId = id,
+            ProductId = request.ProductId,
+            VariantId = request.VariantId,
+            SupplierItemCode = request.SupplierItemCode,
+            LastPurchasePrice = request.LastPurchasePrice,
+            LeadTimeDays = request.LeadTimeDays
+        };
+
+        var result = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetSupplierItemById), new { id, itemId = result.Id }, result);
+    }
+
+    /// <summary>
+    /// List a supplier's items.
+    /// Yêu cầu quyền: supplier:read
+    /// </summary>
+    [HttpGet("{id}/items")]
+    [AuthorizePermission(PermissionConstants.Supplier_Read)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetSupplierItems(Guid id)
+    {
+        var result = await _mediator.Send(new GetSupplierItemsQuery { SupplierId = id });
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get a single supplier item.
+    /// Yêu cầu quyền: supplier:read
+    /// </summary>
+    [HttpGet("{id}/items/{itemId}")]
+    [AuthorizePermission(PermissionConstants.Supplier_Read)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetSupplierItemById(Guid id, Guid itemId)
+    {
+        var result = await _mediator.Send(new GetSupplierItemByIdQuery { SupplierId = id, SupplierItemId = itemId });
+
+        if (result == null)
+            return NotFound();
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Update a supplier item's price/lead time/code.
+    /// Yêu cầu quyền: supplier:update
+    /// </summary>
+    [HttpPut("{id}/items/{itemId}")]
+    [AuthorizePermission(PermissionConstants.Supplier_Update)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> UpdateSupplierItem(Guid id, Guid itemId, [FromBody] UpdateSupplierItemDto request)
+    {
+        var command = new UpdateSupplierItemCommand
+        {
+            SupplierId = id,
+            SupplierItemId = itemId,
+            LastPurchasePrice = request.LastPurchasePrice,
+            LeadTimeDays = request.LeadTimeDays,
+            SupplierItemCode = request.SupplierItemCode
+        };
+
+        var result = await _mediator.Send(command);
         return Ok(result);
     }
 }

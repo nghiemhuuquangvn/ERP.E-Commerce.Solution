@@ -16,6 +16,13 @@ namespace ERP.PRD.Domain.Entities
         public ProductType ProductType { get; set; }
         public ProductStatus Status { get; set; } = ProductStatus.Draft;
         public Guid? CategoryId { get; set; }
+        public Guid? BrandId { get; set; }
+
+        /// <summary>
+        /// References SharedMasterDataService's UnitOfMeasure by Id only (cross-service,
+        /// no database FK — see CLAUDE.md database ownership rules).
+        /// </summary>
+        public Guid? BaseUomId { get; set; }
         public bool HasImage { get; set; }
 
         // SEO fields for storefront (product detail page <title>/<meta>/canonical URL)
@@ -129,6 +136,19 @@ namespace ERP.PRD.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
             AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(Id));
             AddDomainEvent(new ProductUpdatedDomainEvent(Id, Name, Sku));
+        }
+
+        public void SetBrand(Guid? brandId)
+        {
+            BrandId = brandId;
+            UpdatedAt = DateTime.UtcNow;
+            AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(Id));
+        }
+
+        public void SetBaseUom(Guid? baseUomId)
+        {
+            BaseUomId = baseUomId;
+            UpdatedAt = DateTime.UtcNow;
         }
 
         public void SetSeoFields(string? slug, string? metaTitle, string? metaDescription)

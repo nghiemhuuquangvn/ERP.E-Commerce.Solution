@@ -15,4 +15,7 @@ public class CreateSupplierCommand : IRequest<SupplierDto>
     public string? Email { get; set; }
     public string? Phone { get; set; }
     public AddressDto? Address { get; set; }
+    public string? TaxCode { get; set; }
+    public int PaymentTermDays { get; set; } = 30;
+    public string CurrencyCode { get; set; } = "USD";
 }

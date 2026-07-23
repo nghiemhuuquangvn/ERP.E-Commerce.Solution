@@ -9,6 +9,12 @@ namespace ERP.PRD.Domain.Entities
     public class ProductImage : BaseEntity
     {
         public Guid ProductId { get; set; }
+
+        /// <summary>
+        /// Optional: scopes this image to one specific variant (e.g. a color swatch
+        /// photo) rather than the whole product. Null means it's a product-level image.
+        /// </summary>
+        public Guid? VariantId { get; set; }
         public string ImageUrl { get; set; } = string.Empty;
         public string? AltText { get; set; }
         public int SortOrder { get; set; }
@@ -16,10 +22,11 @@ namespace ERP.PRD.Domain.Entities
 
         public ProductImage() { }
 
-        public ProductImage(Guid productId, string imageUrl, string? altText = null, int sortOrder = 0, bool isPrimary = false)
+        public ProductImage(Guid productId, string imageUrl, string? altText = null, int sortOrder = 0, bool isPrimary = false, Guid? variantId = null)
         {
             Id = Guid.NewGuid();
             ProductId = productId;
+            VariantId = variantId;
             ImageUrl = imageUrl;
             AltText = altText;
             SortOrder = sortOrder;

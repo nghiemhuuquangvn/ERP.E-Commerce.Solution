@@ -169,6 +169,12 @@ public static class PermissionConstants
     public const string MasterData_OrganizationCalendarsManage = "masterdata:organization-calendars:manage";
     public const string MasterData_EmployeeTeamAssignmentsView = "masterdata:employee-team-assignments:view";
     public const string MasterData_EmployeeTeamAssignmentsManage = "masterdata:employee-team-assignments:manage";
+    // Covers both Currency and its nested ExchangeRate sub-resource — mirrors how
+    // OrganizationCalendar/Holiday already share one View/Manage pair.
+    public const string MasterData_CurrenciesView = "masterdata:currencies:view";
+    public const string MasterData_CurrenciesManage = "masterdata:currencies:manage";
+    public const string MasterData_PaymentTermsView = "masterdata:payment-terms:view";
+    public const string MasterData_PaymentTermsManage = "masterdata:payment-terms:manage";
 
     // Per-service Settings categories: {system|tenant} x {view|manage}, mirroring
     // IdentityService's own Settings tiering (system = SuperAdmin-only master
@@ -228,6 +234,18 @@ public static class PermissionConstants
     public const string Settings_Tax_TenantView = "settings:tax:tenant:view";
     public const string Settings_Tax_TenantManage = "settings:tax:tenant:manage";
 
+    // ProductService Permissions — Brand (flat reference list) and ProductUomConversion
+    // (per-product UoM conversion) are new entities gated with fine-grained
+    // permissions; ProductService's other controllers (Categories, PriceLists,
+    // Products, Variants, Images) still rely on the blanket [Authorize] attribute
+    // only, so these two are the first to use the View/Manage pairing convention
+    // here, enforced inline via IUserContextService.HasPermission(...) — the same
+    // lighter-weight pattern SettingsController already uses in this service.
+    public const string Product_BrandsView = "product:brands:view";
+    public const string Product_BrandsManage = "product:brands:manage";
+    public const string Product_UomConversionsView = "product:uom-conversions:view";
+    public const string Product_UomConversionsManage = "product:uom-conversions:manage";
+
     /// <summary>
     /// Lấy tất cả permissions
     /// </summary>
@@ -275,6 +293,8 @@ public static class PermissionConstants
         MasterData_ProfitCentersView, MasterData_ProfitCentersManage,
         MasterData_OrganizationCalendarsView, MasterData_OrganizationCalendarsManage,
         MasterData_EmployeeTeamAssignmentsView, MasterData_EmployeeTeamAssignmentsManage,
+        MasterData_CurrenciesView, MasterData_CurrenciesManage,
+        MasterData_PaymentTermsView, MasterData_PaymentTermsManage,
         Settings_CartCheckout_SystemView, Settings_CartCheckout_SystemManage,
         Settings_CartCheckout_TenantView, Settings_CartCheckout_TenantManage,
         Settings_Currency_SystemView, Settings_Currency_SystemManage,
@@ -297,6 +317,8 @@ public static class PermissionConstants
         Settings_StoreProduct_TenantView, Settings_StoreProduct_TenantManage,
         Settings_Tax_SystemView, Settings_Tax_SystemManage,
         Settings_Tax_TenantView, Settings_Tax_TenantManage,
+        Product_BrandsView, Product_BrandsManage,
+        Product_UomConversionsView, Product_UomConversionsManage,
     ];
 
     /// <summary>

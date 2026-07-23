@@ -21,5 +21,15 @@ public class CreateSupplierCommandValidator : AbstractValidator<CreateSupplierCo
 
         RuleFor(x => x.Phone)
             .MaximumLength(20).WithMessage("Phone must not exceed 20 characters.");
+
+        RuleFor(x => x.TaxCode)
+            .MaximumLength(50).WithMessage("Tax code must not exceed 50 characters.");
+
+        RuleFor(x => x.PaymentTermDays)
+            .GreaterThanOrEqualTo(0).WithMessage("Payment term days cannot be negative.");
+
+        RuleFor(x => x.CurrencyCode)
+            .NotEmpty().WithMessage("Currency code is required.")
+            .Length(3).WithMessage("Currency code must be a 3-letter ISO code.");
     }
 }

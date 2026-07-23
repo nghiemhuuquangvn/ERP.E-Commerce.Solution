@@ -41,6 +41,8 @@ namespace ERP.PRD.Infrastructure
             services.AddScoped<IProductRelationRepository, ProductRelationRepository>();
             services.AddScoped<IProductReviewRepository, ProductReviewRepository>();
             services.AddScoped<ISearchIndexQueueRepository, SearchIndexQueueRepository>();
+            services.AddScoped<IBrandRepository, BrandRepository>();
+            services.AddScoped<IProductUomConversionRepository, ProductUomConversionRepository>();
 
             // Register Unit of Work
             services.AddScoped<IProductUnitOfWork, ProductUnitOfWork>();

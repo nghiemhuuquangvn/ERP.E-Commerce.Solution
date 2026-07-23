@@ -21,6 +21,7 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
     public DbSet<PurchaseOrderItem> PurchaseOrderItems { get; set; } = null!;
     public DbSet<Supplier> Suppliers { get; set; } = null!;
     public DbSet<SupplierRating> SupplierRatings { get; set; } = null!;
+    public DbSet<SupplierItem> SupplierItems { get; set; } = null!;
     public DbSet<GoodsReceipt> GoodsReceipts { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
@@ -94,6 +95,9 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
         supplierBuilder.Property(s => s.Name).HasMaxLength(255).IsRequired();
         supplierBuilder.Property(s => s.Email).HasMaxLength(255);
         supplierBuilder.Property(s => s.Phone).HasMaxLength(20);
+        supplierBuilder.Property(s => s.TaxCode).HasMaxLength(50);
+        supplierBuilder.Property(s => s.PaymentTermDays).IsRequired();
+        supplierBuilder.Property(s => s.CurrencyCode).HasMaxLength(3).IsRequired();
         supplierBuilder.Property(s => s.IsActive).IsRequired();
         supplierBuilder.Property(s => s.CreatedAt).HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd();
         supplierBuilder.Property(s => s.UpdatedAt).HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAddOrUpdate();
@@ -115,6 +119,20 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
         ratingBuilder.Property(r => r.RatedBy).HasMaxLength(256).IsRequired();
         ratingBuilder.Property(r => r.CreatedAt).HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd();
         ratingBuilder.HasIndex(r => new { r.SupplierId, r.TenantId });
+
+        // Configure SupplierItem — ProductId/VariantId are plain columns (cross-service
+        // reference to ProductService's Product/ProductVariant by Id only, no DB FK).
+        var supplierItemBuilder = builder.Entity<SupplierItem>();
+        supplierItemBuilder.HasKey(si => new { si.Id, si.TenantId });
+        supplierItemBuilder.Property(si => si.SupplierItemCode).HasMaxLength(50);
+        supplierItemBuilder.Property(si => si.LastPurchasePrice).HasPrecision(18, 2);
+        supplierItemBuilder.Property(si => si.CreatedAt).HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd();
+        supplierItemBuilder.Property(si => si.UpdatedAt).HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAddOrUpdate();
+        supplierItemBuilder.HasIndex(si => new { si.SupplierId, si.TenantId });
+        supplierItemBuilder.HasOne<Supplier>()
+            .WithMany()
+            .HasForeignKey(si => new { si.SupplierId, si.TenantId })
+            .OnDelete(DeleteBehavior.Cascade);
 
         // Configure GoodsReceipt
         var receiptBuilder = builder.Entity<GoodsReceipt>();

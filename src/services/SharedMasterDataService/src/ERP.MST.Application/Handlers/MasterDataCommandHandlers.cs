@@ -1670,3 +1670,310 @@ public class EndEmployeeTeamAssignmentCommandHandler : IRequestHandler<EndEmploy
         return CreateEmployeeTeamAssignmentCommandHandler.MapToDto(assignment);
     }
 }
+
+// ─── Currency Command Handlers ─────────────────────────────────────────────
+
+public class CreateCurrencyCommandHandler : IRequestHandler<CreateCurrencyCommand, CurrencyDto>
+{
+    private readonly ICurrencyRepository _currencyRepository;
+    private readonly ILogger<CreateCurrencyCommandHandler> _logger;
+
+    public CreateCurrencyCommandHandler(
+        ICurrencyRepository currencyRepository,
+        ILogger<CreateCurrencyCommandHandler> logger)
+    {
+        _currencyRepository = currencyRepository;
+        _logger = logger;
+    }
+
+    public async Task<CurrencyDto> Handle(CreateCurrencyCommand request, CancellationToken cancellationToken)
+    {
+        var codeUpper = request.Code.ToUpperInvariant();
+
+        if (await _currencyRepository.ExistsByCodeAsync(codeUpper, cancellationToken))
+            throw new InvalidOperationException($"A currency with code '{codeUpper}' already exists.");
+
+        var currency = Currency.Create(codeUpper, request.Name, request.Symbol, request.DecimalPlaces);
+        _currencyRepository.Add(currency);
+        await _currencyRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Currency created: {CurrencyId} ({Code})", currency.Id, currency.Code);
+
+        return MapToDto(currency);
+    }
+
+    internal static CurrencyDto MapToDto(Currency c) =>
+        new(c.Id, c.Code, c.Name, c.Symbol, c.DecimalPlaces, c.IsActive, c.CreatedAt, c.UpdatedAt);
+}
+
+public class UpdateCurrencyCommandHandler : IRequestHandler<UpdateCurrencyCommand, CurrencyDto>
+{
+    private readonly ICurrencyRepository _currencyRepository;
+    private readonly ILogger<UpdateCurrencyCommandHandler> _logger;
+
+    public UpdateCurrencyCommandHandler(
+        ICurrencyRepository currencyRepository,
+        ILogger<UpdateCurrencyCommandHandler> logger)
+    {
+        _currencyRepository = currencyRepository;
+        _logger = logger;
+    }
+
+    public async Task<CurrencyDto> Handle(UpdateCurrencyCommand request, CancellationToken cancellationToken)
+    {
+        var currency = await _currencyRepository.GetByIdAsync(request.CurrencyId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Currency {request.CurrencyId} not found.");
+
+        currency.Update(request.Name, request.Symbol, request.DecimalPlaces);
+        _currencyRepository.Update(currency);
+        await _currencyRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Currency updated: {CurrencyId}", currency.Id);
+
+        return CreateCurrencyCommandHandler.MapToDto(currency);
+    }
+}
+
+public class ActivateCurrencyCommandHandler : IRequestHandler<ActivateCurrencyCommand, CurrencyDto>
+{
+    private readonly ICurrencyRepository _currencyRepository;
+    private readonly ILogger<ActivateCurrencyCommandHandler> _logger;
+
+    public ActivateCurrencyCommandHandler(
+        ICurrencyRepository currencyRepository,
+        ILogger<ActivateCurrencyCommandHandler> logger)
+    {
+        _currencyRepository = currencyRepository;
+        _logger = logger;
+    }
+
+    public async Task<CurrencyDto> Handle(ActivateCurrencyCommand request, CancellationToken cancellationToken)
+    {
+        var currency = await _currencyRepository.GetByIdAsync(request.CurrencyId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Currency {request.CurrencyId} not found.");
+
+        currency.Activate();
+        _currencyRepository.Update(currency);
+        await _currencyRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Currency activated: {CurrencyId}", currency.Id);
+
+        return CreateCurrencyCommandHandler.MapToDto(currency);
+    }
+}
+
+public class DeactivateCurrencyCommandHandler : IRequestHandler<DeactivateCurrencyCommand, CurrencyDto>
+{
+    private readonly ICurrencyRepository _currencyRepository;
+    private readonly ILogger<DeactivateCurrencyCommandHandler> _logger;
+
+    public DeactivateCurrencyCommandHandler(
+        ICurrencyRepository currencyRepository,
+        ILogger<DeactivateCurrencyCommandHandler> logger)
+    {
+        _currencyRepository = currencyRepository;
+        _logger = logger;
+    }
+
+    public async Task<CurrencyDto> Handle(DeactivateCurrencyCommand request, CancellationToken cancellationToken)
+    {
+        var currency = await _currencyRepository.GetByIdAsync(request.CurrencyId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Currency {request.CurrencyId} not found.");
+
+        currency.Deactivate();
+        _currencyRepository.Update(currency);
+        await _currencyRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Currency deactivated: {CurrencyId}", currency.Id);
+
+        return CreateCurrencyCommandHandler.MapToDto(currency);
+    }
+}
+
+// ─── Exchange Rate Command Handlers ────────────────────────────────────────
+
+public class CreateExchangeRateCommandHandler : IRequestHandler<CreateExchangeRateCommand, ExchangeRateDto>
+{
+    private readonly IExchangeRateRepository _exchangeRateRepository;
+    private readonly ICurrencyRepository _currencyRepository;
+    private readonly ILogger<CreateExchangeRateCommandHandler> _logger;
+
+    public CreateExchangeRateCommandHandler(
+        IExchangeRateRepository exchangeRateRepository,
+        ICurrencyRepository currencyRepository,
+        ILogger<CreateExchangeRateCommandHandler> logger)
+    {
+        _exchangeRateRepository = exchangeRateRepository;
+        _currencyRepository = currencyRepository;
+        _logger = logger;
+    }
+
+    public async Task<ExchangeRateDto> Handle(CreateExchangeRateCommand request, CancellationToken cancellationToken)
+    {
+        _ = await _currencyRepository.GetByIdAsync(request.FromCurrencyId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Currency {request.FromCurrencyId} not found.");
+
+        _ = await _currencyRepository.GetByIdAsync(request.ToCurrencyId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Currency {request.ToCurrencyId} not found.");
+
+        var exchangeRate = ExchangeRate.Create(request.FromCurrencyId, request.ToCurrencyId, request.Rate, request.EffectiveDate);
+        _exchangeRateRepository.Add(exchangeRate);
+        await _exchangeRateRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Exchange rate created: {ExchangeRateId} ({FromCurrencyId} -> {ToCurrencyId})",
+            exchangeRate.Id, exchangeRate.FromCurrencyId, exchangeRate.ToCurrencyId);
+
+        return MapToDto(exchangeRate);
+    }
+
+    internal static ExchangeRateDto MapToDto(ExchangeRate e) =>
+        new(e.Id, e.FromCurrencyId, e.ToCurrencyId, e.Rate, e.EffectiveDate, e.CreatedAt, e.UpdatedAt);
+}
+
+public class UpdateExchangeRateCommandHandler : IRequestHandler<UpdateExchangeRateCommand, ExchangeRateDto>
+{
+    private readonly IExchangeRateRepository _exchangeRateRepository;
+    private readonly ILogger<UpdateExchangeRateCommandHandler> _logger;
+
+    public UpdateExchangeRateCommandHandler(
+        IExchangeRateRepository exchangeRateRepository,
+        ILogger<UpdateExchangeRateCommandHandler> logger)
+    {
+        _exchangeRateRepository = exchangeRateRepository;
+        _logger = logger;
+    }
+
+    public async Task<ExchangeRateDto> Handle(UpdateExchangeRateCommand request, CancellationToken cancellationToken)
+    {
+        var exchangeRate = await _exchangeRateRepository.GetByIdAsync(request.ExchangeRateId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Exchange rate {request.ExchangeRateId} not found.");
+
+        exchangeRate.Update(request.Rate, request.EffectiveDate);
+        _exchangeRateRepository.Update(exchangeRate);
+        await _exchangeRateRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Exchange rate updated: {ExchangeRateId}", exchangeRate.Id);
+
+        return CreateExchangeRateCommandHandler.MapToDto(exchangeRate);
+    }
+}
+
+// ─── Payment Term Command Handlers ─────────────────────────────────────────
+
+public class CreatePaymentTermCommandHandler : IRequestHandler<CreatePaymentTermCommand, PaymentTermDto>
+{
+    private readonly IPaymentTermRepository _paymentTermRepository;
+    private readonly ILogger<CreatePaymentTermCommandHandler> _logger;
+
+    public CreatePaymentTermCommandHandler(
+        IPaymentTermRepository paymentTermRepository,
+        ILogger<CreatePaymentTermCommandHandler> logger)
+    {
+        _paymentTermRepository = paymentTermRepository;
+        _logger = logger;
+    }
+
+    public async Task<PaymentTermDto> Handle(CreatePaymentTermCommand request, CancellationToken cancellationToken)
+    {
+        var codeUpper = request.Code.ToUpperInvariant();
+
+        if (await _paymentTermRepository.ExistsByCodeAsync(codeUpper, cancellationToken))
+            throw new InvalidOperationException($"A payment term with code '{codeUpper}' already exists.");
+
+        var paymentTerm = PaymentTerm.Create(codeUpper, request.Name, request.NetDays, request.DepositPercent);
+        _paymentTermRepository.Add(paymentTerm);
+        await _paymentTermRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Payment term created: {PaymentTermId} ({Code})", paymentTerm.Id, paymentTerm.Code);
+
+        return MapToDto(paymentTerm);
+    }
+
+    internal static PaymentTermDto MapToDto(PaymentTerm p) =>
+        new(p.Id, p.Code, p.Name, p.NetDays, p.DepositPercent, p.IsActive, p.CreatedAt, p.UpdatedAt);
+}
+
+public class UpdatePaymentTermCommandHandler : IRequestHandler<UpdatePaymentTermCommand, PaymentTermDto>
+{
+    private readonly IPaymentTermRepository _paymentTermRepository;
+    private readonly ILogger<UpdatePaymentTermCommandHandler> _logger;
+
+    public UpdatePaymentTermCommandHandler(
+        IPaymentTermRepository paymentTermRepository,
+        ILogger<UpdatePaymentTermCommandHandler> logger)
+    {
+        _paymentTermRepository = paymentTermRepository;
+        _logger = logger;
+    }
+
+    public async Task<PaymentTermDto> Handle(UpdatePaymentTermCommand request, CancellationToken cancellationToken)
+    {
+        var paymentTerm = await _paymentTermRepository.GetByIdAsync(request.PaymentTermId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Payment term {request.PaymentTermId} not found.");
+
+        paymentTerm.Update(request.Name, request.NetDays, request.DepositPercent);
+        _paymentTermRepository.Update(paymentTerm);
+        await _paymentTermRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Payment term updated: {PaymentTermId}", paymentTerm.Id);
+
+        return CreatePaymentTermCommandHandler.MapToDto(paymentTerm);
+    }
+}
+
+public class ActivatePaymentTermCommandHandler : IRequestHandler<ActivatePaymentTermCommand, PaymentTermDto>
+{
+    private readonly IPaymentTermRepository _paymentTermRepository;
+    private readonly ILogger<ActivatePaymentTermCommandHandler> _logger;
+
+    public ActivatePaymentTermCommandHandler(
+        IPaymentTermRepository paymentTermRepository,
+        ILogger<ActivatePaymentTermCommandHandler> logger)
+    {
+        _paymentTermRepository = paymentTermRepository;
+        _logger = logger;
+    }
+
+    public async Task<PaymentTermDto> Handle(ActivatePaymentTermCommand request, CancellationToken cancellationToken)
+    {
+        var paymentTerm = await _paymentTermRepository.GetByIdAsync(request.PaymentTermId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Payment term {request.PaymentTermId} not found.");
+
+        paymentTerm.Activate();
+        _paymentTermRepository.Update(paymentTerm);
+        await _paymentTermRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Payment term activated: {PaymentTermId}", paymentTerm.Id);
+
+        return CreatePaymentTermCommandHandler.MapToDto(paymentTerm);
+    }
+}
+
+public class DeactivatePaymentTermCommandHandler : IRequestHandler<DeactivatePaymentTermCommand, PaymentTermDto>
+{
+    private readonly IPaymentTermRepository _paymentTermRepository;
+    private readonly ILogger<DeactivatePaymentTermCommandHandler> _logger;
+
+    public DeactivatePaymentTermCommandHandler(
+        IPaymentTermRepository paymentTermRepository,
+        ILogger<DeactivatePaymentTermCommandHandler> logger)
+    {
+        _paymentTermRepository = paymentTermRepository;
+        _logger = logger;
+    }
+
+    public async Task<PaymentTermDto> Handle(DeactivatePaymentTermCommand request, CancellationToken cancellationToken)
+    {
+        var paymentTerm = await _paymentTermRepository.GetByIdAsync(request.PaymentTermId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Payment term {request.PaymentTermId} not found.");
+
+        paymentTerm.Deactivate();
+        _paymentTermRepository.Update(paymentTerm);
+        await _paymentTermRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Payment term deactivated: {PaymentTermId}", paymentTerm.Id);
+
+        return CreatePaymentTermCommandHandler.MapToDto(paymentTerm);
+    }
+}
