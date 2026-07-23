@@ -40,7 +40,7 @@ public class CreateDepartmentCommandHandler : IRequestHandler<CreateDepartmentCo
     }
 
     internal static DepartmentDto MapToDto(Department d, string? languageCode = null) =>
-        new(d.Id, d.DepartmentName, d.Code, d.ManagerId, d.ParentDepartmentId, languageCode, d.CreatedAt, d.UpdatedAt);
+        new(d.Id, d.DepartmentName, d.Code, d.ManagerId, d.ParentDepartmentId, d.DivisionId, languageCode, d.CreatedAt, d.UpdatedAt);
 }
 
 public class UpdateDepartmentCommandHandler : IRequestHandler<UpdateDepartmentCommand, DepartmentDto>
@@ -66,6 +66,34 @@ public class UpdateDepartmentCommandHandler : IRequestHandler<UpdateDepartmentCo
         await _departmentRepository.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Department updated: {DepartmentId}", department.Id);
+
+        return CreateDepartmentCommandHandler.MapToDto(department);
+    }
+}
+
+public class SetDepartmentDivisionCommandHandler : IRequestHandler<SetDepartmentDivisionCommand, DepartmentDto>
+{
+    private readonly IDepartmentRepository _departmentRepository;
+    private readonly ILogger<SetDepartmentDivisionCommandHandler> _logger;
+
+    public SetDepartmentDivisionCommandHandler(
+        IDepartmentRepository departmentRepository,
+        ILogger<SetDepartmentDivisionCommandHandler> logger)
+    {
+        _departmentRepository = departmentRepository;
+        _logger = logger;
+    }
+
+    public async Task<DepartmentDto> Handle(SetDepartmentDivisionCommand request, CancellationToken cancellationToken)
+    {
+        var department = await _departmentRepository.GetByIdAsync(request.DepartmentId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Department {request.DepartmentId} not found.");
+
+        department.SetDivision(request.DivisionId);
+        _departmentRepository.Update(department);
+        await _departmentRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Department {DepartmentId} division set to {DivisionId}", department.Id, request.DivisionId);
 
         return CreateDepartmentCommandHandler.MapToDto(department);
     }
@@ -632,4 +660,1013 @@ public class CreateLanguageCommandHandler : IRequestHandler<CreateLanguageComman
 
     internal static SupportedLanguageDto MapToDto(SupportedLanguage l) =>
         new(l.Id, l.Code, l.Name, l.NativeName, l.IsDefault, l.IsActive, l.SortOrder, l.CreatedAt, l.UpdatedAt);
+}
+
+// ─── Company Command Handlers ──────────────────────────────────────────────
+
+public class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyCommand, CompanyDto>
+{
+    private readonly ICompanyRepository _companyRepository;
+    private readonly ILogger<CreateCompanyCommandHandler> _logger;
+
+    public CreateCompanyCommandHandler(
+        ICompanyRepository companyRepository,
+        ILogger<CreateCompanyCommandHandler> logger)
+    {
+        _companyRepository = companyRepository;
+        _logger = logger;
+    }
+
+    public async Task<CompanyDto> Handle(CreateCompanyCommand request, CancellationToken cancellationToken)
+    {
+        var codeUpper = request.Code.ToUpperInvariant();
+
+        if (await _companyRepository.ExistsByCodeAsync(codeUpper, cancellationToken))
+            throw new InvalidOperationException($"A company with code '{codeUpper}' already exists.");
+
+        var company = Company.Create(request.Name, codeUpper, request.TaxCode, request.LegalAddress, request.CurrencyCode);
+        _companyRepository.Add(company);
+        await _companyRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Company created: {CompanyId} ({Code})", company.Id, company.Code);
+
+        return MapToDto(company);
+    }
+
+    internal static CompanyDto MapToDto(Company c) =>
+        new(c.Id, c.Name, c.Code, c.TaxCode, c.LegalAddress, c.CurrencyCode, c.IsActive, c.CreatedAt, c.UpdatedAt);
+}
+
+public class UpdateCompanyCommandHandler : IRequestHandler<UpdateCompanyCommand, CompanyDto>
+{
+    private readonly ICompanyRepository _companyRepository;
+    private readonly ILogger<UpdateCompanyCommandHandler> _logger;
+
+    public UpdateCompanyCommandHandler(
+        ICompanyRepository companyRepository,
+        ILogger<UpdateCompanyCommandHandler> logger)
+    {
+        _companyRepository = companyRepository;
+        _logger = logger;
+    }
+
+    public async Task<CompanyDto> Handle(UpdateCompanyCommand request, CancellationToken cancellationToken)
+    {
+        var company = await _companyRepository.GetByIdAsync(request.CompanyId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Company {request.CompanyId} not found.");
+
+        company.Update(request.Name, request.Code.ToUpperInvariant(), request.TaxCode, request.LegalAddress, request.CurrencyCode);
+        _companyRepository.Update(company);
+        await _companyRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Company updated: {CompanyId}", company.Id);
+
+        return CreateCompanyCommandHandler.MapToDto(company);
+    }
+}
+
+public class ActivateCompanyCommandHandler : IRequestHandler<ActivateCompanyCommand, CompanyDto>
+{
+    private readonly ICompanyRepository _companyRepository;
+    private readonly ILogger<ActivateCompanyCommandHandler> _logger;
+
+    public ActivateCompanyCommandHandler(
+        ICompanyRepository companyRepository,
+        ILogger<ActivateCompanyCommandHandler> logger)
+    {
+        _companyRepository = companyRepository;
+        _logger = logger;
+    }
+
+    public async Task<CompanyDto> Handle(ActivateCompanyCommand request, CancellationToken cancellationToken)
+    {
+        var company = await _companyRepository.GetByIdAsync(request.CompanyId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Company {request.CompanyId} not found.");
+
+        company.Activate();
+        _companyRepository.Update(company);
+        await _companyRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Company activated: {CompanyId}", company.Id);
+
+        return CreateCompanyCommandHandler.MapToDto(company);
+    }
+}
+
+public class DeactivateCompanyCommandHandler : IRequestHandler<DeactivateCompanyCommand, CompanyDto>
+{
+    private readonly ICompanyRepository _companyRepository;
+    private readonly ILogger<DeactivateCompanyCommandHandler> _logger;
+
+    public DeactivateCompanyCommandHandler(
+        ICompanyRepository companyRepository,
+        ILogger<DeactivateCompanyCommandHandler> logger)
+    {
+        _companyRepository = companyRepository;
+        _logger = logger;
+    }
+
+    public async Task<CompanyDto> Handle(DeactivateCompanyCommand request, CancellationToken cancellationToken)
+    {
+        var company = await _companyRepository.GetByIdAsync(request.CompanyId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Company {request.CompanyId} not found.");
+
+        company.Deactivate();
+        _companyRepository.Update(company);
+        await _companyRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Company deactivated: {CompanyId}", company.Id);
+
+        return CreateCompanyCommandHandler.MapToDto(company);
+    }
+}
+
+// ─── Branch Command Handlers ───────────────────────────────────────────────
+
+public class CreateBranchCommandHandler : IRequestHandler<CreateBranchCommand, BranchDto>
+{
+    private readonly IBranchRepository _branchRepository;
+    private readonly ILogger<CreateBranchCommandHandler> _logger;
+
+    public CreateBranchCommandHandler(
+        IBranchRepository branchRepository,
+        ILogger<CreateBranchCommandHandler> logger)
+    {
+        _branchRepository = branchRepository;
+        _logger = logger;
+    }
+
+    public async Task<BranchDto> Handle(CreateBranchCommand request, CancellationToken cancellationToken)
+    {
+        var codeUpper = request.Code.ToUpperInvariant();
+
+        if (await _branchRepository.ExistsByCodeAsync(codeUpper, cancellationToken))
+            throw new InvalidOperationException($"A branch with code '{codeUpper}' already exists.");
+
+        var branch = Branch.Create(request.CompanyId, request.Name, codeUpper, request.Address, request.WardId, request.ManagerEmployeeId);
+        _branchRepository.Add(branch);
+        await _branchRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Branch created: {BranchId} ({Code})", branch.Id, branch.Code);
+
+        return MapToDto(branch);
+    }
+
+    internal static BranchDto MapToDto(Branch b) =>
+        new(b.Id, b.CompanyId, b.Name, b.Code, b.Address, b.WardId, b.ManagerEmployeeId, b.IsActive, b.CreatedAt, b.UpdatedAt);
+}
+
+public class UpdateBranchCommandHandler : IRequestHandler<UpdateBranchCommand, BranchDto>
+{
+    private readonly IBranchRepository _branchRepository;
+    private readonly ILogger<UpdateBranchCommandHandler> _logger;
+
+    public UpdateBranchCommandHandler(
+        IBranchRepository branchRepository,
+        ILogger<UpdateBranchCommandHandler> logger)
+    {
+        _branchRepository = branchRepository;
+        _logger = logger;
+    }
+
+    public async Task<BranchDto> Handle(UpdateBranchCommand request, CancellationToken cancellationToken)
+    {
+        var branch = await _branchRepository.GetByIdAsync(request.BranchId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Branch {request.BranchId} not found.");
+
+        branch.Update(request.Name, request.Code.ToUpperInvariant(), request.Address, request.WardId, request.ManagerEmployeeId);
+        _branchRepository.Update(branch);
+        await _branchRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Branch updated: {BranchId}", branch.Id);
+
+        return CreateBranchCommandHandler.MapToDto(branch);
+    }
+}
+
+public class ActivateBranchCommandHandler : IRequestHandler<ActivateBranchCommand, BranchDto>
+{
+    private readonly IBranchRepository _branchRepository;
+    private readonly ILogger<ActivateBranchCommandHandler> _logger;
+
+    public ActivateBranchCommandHandler(
+        IBranchRepository branchRepository,
+        ILogger<ActivateBranchCommandHandler> logger)
+    {
+        _branchRepository = branchRepository;
+        _logger = logger;
+    }
+
+    public async Task<BranchDto> Handle(ActivateBranchCommand request, CancellationToken cancellationToken)
+    {
+        var branch = await _branchRepository.GetByIdAsync(request.BranchId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Branch {request.BranchId} not found.");
+
+        branch.Activate();
+        _branchRepository.Update(branch);
+        await _branchRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Branch activated: {BranchId}", branch.Id);
+
+        return CreateBranchCommandHandler.MapToDto(branch);
+    }
+}
+
+public class DeactivateBranchCommandHandler : IRequestHandler<DeactivateBranchCommand, BranchDto>
+{
+    private readonly IBranchRepository _branchRepository;
+    private readonly ILogger<DeactivateBranchCommandHandler> _logger;
+
+    public DeactivateBranchCommandHandler(
+        IBranchRepository branchRepository,
+        ILogger<DeactivateBranchCommandHandler> logger)
+    {
+        _branchRepository = branchRepository;
+        _logger = logger;
+    }
+
+    public async Task<BranchDto> Handle(DeactivateBranchCommand request, CancellationToken cancellationToken)
+    {
+        var branch = await _branchRepository.GetByIdAsync(request.BranchId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Branch {request.BranchId} not found.");
+
+        branch.Deactivate();
+        _branchRepository.Update(branch);
+        await _branchRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Branch deactivated: {BranchId}", branch.Id);
+
+        return CreateBranchCommandHandler.MapToDto(branch);
+    }
+}
+
+// ─── Division Command Handlers ─────────────────────────────────────────────
+
+public class CreateDivisionCommandHandler : IRequestHandler<CreateDivisionCommand, DivisionDto>
+{
+    private readonly IDivisionRepository _divisionRepository;
+    private readonly ILogger<CreateDivisionCommandHandler> _logger;
+
+    public CreateDivisionCommandHandler(
+        IDivisionRepository divisionRepository,
+        ILogger<CreateDivisionCommandHandler> logger)
+    {
+        _divisionRepository = divisionRepository;
+        _logger = logger;
+    }
+
+    public async Task<DivisionDto> Handle(CreateDivisionCommand request, CancellationToken cancellationToken)
+    {
+        var codeUpper = request.Code.ToUpperInvariant();
+
+        if (await _divisionRepository.ExistsByCodeAsync(codeUpper, cancellationToken))
+            throw new InvalidOperationException($"A division with code '{codeUpper}' already exists.");
+
+        var division = Division.Create(request.BranchId, request.Name, codeUpper, request.ParentDivisionId);
+        _divisionRepository.Add(division);
+        await _divisionRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Division created: {DivisionId} ({Code})", division.Id, division.Code);
+
+        return MapToDto(division);
+    }
+
+    internal static DivisionDto MapToDto(Division d) =>
+        new(d.Id, d.BranchId, d.Name, d.Code, d.ParentDivisionId, d.IsActive, d.CreatedAt, d.UpdatedAt);
+}
+
+public class UpdateDivisionCommandHandler : IRequestHandler<UpdateDivisionCommand, DivisionDto>
+{
+    private readonly IDivisionRepository _divisionRepository;
+    private readonly ILogger<UpdateDivisionCommandHandler> _logger;
+
+    public UpdateDivisionCommandHandler(
+        IDivisionRepository divisionRepository,
+        ILogger<UpdateDivisionCommandHandler> logger)
+    {
+        _divisionRepository = divisionRepository;
+        _logger = logger;
+    }
+
+    public async Task<DivisionDto> Handle(UpdateDivisionCommand request, CancellationToken cancellationToken)
+    {
+        var division = await _divisionRepository.GetByIdAsync(request.DivisionId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Division {request.DivisionId} not found.");
+
+        division.Update(request.Name, request.Code.ToUpperInvariant(), request.ParentDivisionId);
+        _divisionRepository.Update(division);
+        await _divisionRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Division updated: {DivisionId}", division.Id);
+
+        return CreateDivisionCommandHandler.MapToDto(division);
+    }
+}
+
+public class ActivateDivisionCommandHandler : IRequestHandler<ActivateDivisionCommand, DivisionDto>
+{
+    private readonly IDivisionRepository _divisionRepository;
+    private readonly ILogger<ActivateDivisionCommandHandler> _logger;
+
+    public ActivateDivisionCommandHandler(
+        IDivisionRepository divisionRepository,
+        ILogger<ActivateDivisionCommandHandler> logger)
+    {
+        _divisionRepository = divisionRepository;
+        _logger = logger;
+    }
+
+    public async Task<DivisionDto> Handle(ActivateDivisionCommand request, CancellationToken cancellationToken)
+    {
+        var division = await _divisionRepository.GetByIdAsync(request.DivisionId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Division {request.DivisionId} not found.");
+
+        division.Activate();
+        _divisionRepository.Update(division);
+        await _divisionRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Division activated: {DivisionId}", division.Id);
+
+        return CreateDivisionCommandHandler.MapToDto(division);
+    }
+}
+
+public class DeactivateDivisionCommandHandler : IRequestHandler<DeactivateDivisionCommand, DivisionDto>
+{
+    private readonly IDivisionRepository _divisionRepository;
+    private readonly ILogger<DeactivateDivisionCommandHandler> _logger;
+
+    public DeactivateDivisionCommandHandler(
+        IDivisionRepository divisionRepository,
+        ILogger<DeactivateDivisionCommandHandler> logger)
+    {
+        _divisionRepository = divisionRepository;
+        _logger = logger;
+    }
+
+    public async Task<DivisionDto> Handle(DeactivateDivisionCommand request, CancellationToken cancellationToken)
+    {
+        var division = await _divisionRepository.GetByIdAsync(request.DivisionId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Division {request.DivisionId} not found.");
+
+        division.Deactivate();
+        _divisionRepository.Update(division);
+        await _divisionRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Division deactivated: {DivisionId}", division.Id);
+
+        return CreateDivisionCommandHandler.MapToDto(division);
+    }
+}
+
+// ─── Team Command Handlers ─────────────────────────────────────────────────
+
+public class CreateTeamCommandHandler : IRequestHandler<CreateTeamCommand, TeamDto>
+{
+    private readonly ITeamRepository _teamRepository;
+    private readonly ILogger<CreateTeamCommandHandler> _logger;
+
+    public CreateTeamCommandHandler(
+        ITeamRepository teamRepository,
+        ILogger<CreateTeamCommandHandler> logger)
+    {
+        _teamRepository = teamRepository;
+        _logger = logger;
+    }
+
+    public async Task<TeamDto> Handle(CreateTeamCommand request, CancellationToken cancellationToken)
+    {
+        var codeUpper = request.Code.ToUpperInvariant();
+
+        if (await _teamRepository.ExistsByCodeAsync(codeUpper, cancellationToken))
+            throw new InvalidOperationException($"A team with code '{codeUpper}' already exists.");
+
+        var team = Team.Create(request.DepartmentId, request.Name, codeUpper, request.LeaderEmployeeId);
+        _teamRepository.Add(team);
+        await _teamRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Team created: {TeamId} ({Code})", team.Id, team.Code);
+
+        return MapToDto(team);
+    }
+
+    internal static TeamDto MapToDto(Team t) =>
+        new(t.Id, t.DepartmentId, t.Name, t.Code, t.LeaderEmployeeId, t.IsActive, t.CreatedAt, t.UpdatedAt);
+}
+
+public class UpdateTeamCommandHandler : IRequestHandler<UpdateTeamCommand, TeamDto>
+{
+    private readonly ITeamRepository _teamRepository;
+    private readonly ILogger<UpdateTeamCommandHandler> _logger;
+
+    public UpdateTeamCommandHandler(
+        ITeamRepository teamRepository,
+        ILogger<UpdateTeamCommandHandler> logger)
+    {
+        _teamRepository = teamRepository;
+        _logger = logger;
+    }
+
+    public async Task<TeamDto> Handle(UpdateTeamCommand request, CancellationToken cancellationToken)
+    {
+        var team = await _teamRepository.GetByIdAsync(request.TeamId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Team {request.TeamId} not found.");
+
+        team.Update(request.Name, request.Code.ToUpperInvariant(), request.LeaderEmployeeId);
+        _teamRepository.Update(team);
+        await _teamRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Team updated: {TeamId}", team.Id);
+
+        return CreateTeamCommandHandler.MapToDto(team);
+    }
+}
+
+public class ActivateTeamCommandHandler : IRequestHandler<ActivateTeamCommand, TeamDto>
+{
+    private readonly ITeamRepository _teamRepository;
+    private readonly ILogger<ActivateTeamCommandHandler> _logger;
+
+    public ActivateTeamCommandHandler(
+        ITeamRepository teamRepository,
+        ILogger<ActivateTeamCommandHandler> logger)
+    {
+        _teamRepository = teamRepository;
+        _logger = logger;
+    }
+
+    public async Task<TeamDto> Handle(ActivateTeamCommand request, CancellationToken cancellationToken)
+    {
+        var team = await _teamRepository.GetByIdAsync(request.TeamId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Team {request.TeamId} not found.");
+
+        team.Activate();
+        _teamRepository.Update(team);
+        await _teamRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Team activated: {TeamId}", team.Id);
+
+        return CreateTeamCommandHandler.MapToDto(team);
+    }
+}
+
+public class DeactivateTeamCommandHandler : IRequestHandler<DeactivateTeamCommand, TeamDto>
+{
+    private readonly ITeamRepository _teamRepository;
+    private readonly ILogger<DeactivateTeamCommandHandler> _logger;
+
+    public DeactivateTeamCommandHandler(
+        ITeamRepository teamRepository,
+        ILogger<DeactivateTeamCommandHandler> logger)
+    {
+        _teamRepository = teamRepository;
+        _logger = logger;
+    }
+
+    public async Task<TeamDto> Handle(DeactivateTeamCommand request, CancellationToken cancellationToken)
+    {
+        var team = await _teamRepository.GetByIdAsync(request.TeamId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Team {request.TeamId} not found.");
+
+        team.Deactivate();
+        _teamRepository.Update(team);
+        await _teamRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Team deactivated: {TeamId}", team.Id);
+
+        return CreateTeamCommandHandler.MapToDto(team);
+    }
+}
+
+// ─── Business Unit Command Handlers ────────────────────────────────────────
+
+public class CreateBusinessUnitCommandHandler : IRequestHandler<CreateBusinessUnitCommand, BusinessUnitDto>
+{
+    private readonly IBusinessUnitRepository _businessUnitRepository;
+    private readonly ILogger<CreateBusinessUnitCommandHandler> _logger;
+
+    public CreateBusinessUnitCommandHandler(
+        IBusinessUnitRepository businessUnitRepository,
+        ILogger<CreateBusinessUnitCommandHandler> logger)
+    {
+        _businessUnitRepository = businessUnitRepository;
+        _logger = logger;
+    }
+
+    public async Task<BusinessUnitDto> Handle(CreateBusinessUnitCommand request, CancellationToken cancellationToken)
+    {
+        var codeUpper = request.Code.ToUpperInvariant();
+
+        if (await _businessUnitRepository.ExistsByCodeAsync(codeUpper, cancellationToken))
+            throw new InvalidOperationException($"A business unit with code '{codeUpper}' already exists.");
+
+        var businessUnit = BusinessUnit.Create(request.CompanyId, request.Name, codeUpper);
+        _businessUnitRepository.Add(businessUnit);
+        await _businessUnitRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Business unit created: {BusinessUnitId} ({Code})", businessUnit.Id, businessUnit.Code);
+
+        return MapToDto(businessUnit);
+    }
+
+    internal static BusinessUnitDto MapToDto(BusinessUnit b) =>
+        new(b.Id, b.CompanyId, b.Name, b.Code, b.IsActive, b.CreatedAt, b.UpdatedAt);
+}
+
+public class UpdateBusinessUnitCommandHandler : IRequestHandler<UpdateBusinessUnitCommand, BusinessUnitDto>
+{
+    private readonly IBusinessUnitRepository _businessUnitRepository;
+    private readonly ILogger<UpdateBusinessUnitCommandHandler> _logger;
+
+    public UpdateBusinessUnitCommandHandler(
+        IBusinessUnitRepository businessUnitRepository,
+        ILogger<UpdateBusinessUnitCommandHandler> logger)
+    {
+        _businessUnitRepository = businessUnitRepository;
+        _logger = logger;
+    }
+
+    public async Task<BusinessUnitDto> Handle(UpdateBusinessUnitCommand request, CancellationToken cancellationToken)
+    {
+        var businessUnit = await _businessUnitRepository.GetByIdAsync(request.BusinessUnitId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Business unit {request.BusinessUnitId} not found.");
+
+        businessUnit.Update(request.Name, request.Code.ToUpperInvariant());
+        _businessUnitRepository.Update(businessUnit);
+        await _businessUnitRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Business unit updated: {BusinessUnitId}", businessUnit.Id);
+
+        return CreateBusinessUnitCommandHandler.MapToDto(businessUnit);
+    }
+}
+
+public class ActivateBusinessUnitCommandHandler : IRequestHandler<ActivateBusinessUnitCommand, BusinessUnitDto>
+{
+    private readonly IBusinessUnitRepository _businessUnitRepository;
+    private readonly ILogger<ActivateBusinessUnitCommandHandler> _logger;
+
+    public ActivateBusinessUnitCommandHandler(
+        IBusinessUnitRepository businessUnitRepository,
+        ILogger<ActivateBusinessUnitCommandHandler> logger)
+    {
+        _businessUnitRepository = businessUnitRepository;
+        _logger = logger;
+    }
+
+    public async Task<BusinessUnitDto> Handle(ActivateBusinessUnitCommand request, CancellationToken cancellationToken)
+    {
+        var businessUnit = await _businessUnitRepository.GetByIdAsync(request.BusinessUnitId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Business unit {request.BusinessUnitId} not found.");
+
+        businessUnit.Activate();
+        _businessUnitRepository.Update(businessUnit);
+        await _businessUnitRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Business unit activated: {BusinessUnitId}", businessUnit.Id);
+
+        return CreateBusinessUnitCommandHandler.MapToDto(businessUnit);
+    }
+}
+
+public class DeactivateBusinessUnitCommandHandler : IRequestHandler<DeactivateBusinessUnitCommand, BusinessUnitDto>
+{
+    private readonly IBusinessUnitRepository _businessUnitRepository;
+    private readonly ILogger<DeactivateBusinessUnitCommandHandler> _logger;
+
+    public DeactivateBusinessUnitCommandHandler(
+        IBusinessUnitRepository businessUnitRepository,
+        ILogger<DeactivateBusinessUnitCommandHandler> logger)
+    {
+        _businessUnitRepository = businessUnitRepository;
+        _logger = logger;
+    }
+
+    public async Task<BusinessUnitDto> Handle(DeactivateBusinessUnitCommand request, CancellationToken cancellationToken)
+    {
+        var businessUnit = await _businessUnitRepository.GetByIdAsync(request.BusinessUnitId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Business unit {request.BusinessUnitId} not found.");
+
+        businessUnit.Deactivate();
+        _businessUnitRepository.Update(businessUnit);
+        await _businessUnitRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Business unit deactivated: {BusinessUnitId}", businessUnit.Id);
+
+        return CreateBusinessUnitCommandHandler.MapToDto(businessUnit);
+    }
+}
+
+// ─── Cost Center Command Handlers ──────────────────────────────────────────
+
+public class CreateCostCenterCommandHandler : IRequestHandler<CreateCostCenterCommand, CostCenterDto>
+{
+    private readonly ICostCenterRepository _costCenterRepository;
+    private readonly ILogger<CreateCostCenterCommandHandler> _logger;
+
+    public CreateCostCenterCommandHandler(
+        ICostCenterRepository costCenterRepository,
+        ILogger<CreateCostCenterCommandHandler> logger)
+    {
+        _costCenterRepository = costCenterRepository;
+        _logger = logger;
+    }
+
+    public async Task<CostCenterDto> Handle(CreateCostCenterCommand request, CancellationToken cancellationToken)
+    {
+        var codeUpper = request.Code.ToUpperInvariant();
+
+        if (await _costCenterRepository.ExistsByCodeAsync(codeUpper, cancellationToken))
+            throw new InvalidOperationException($"A cost center with code '{codeUpper}' already exists.");
+
+        var costCenter = CostCenter.Create(request.CompanyId, request.Name, codeUpper, request.BudgetAmount, request.DepartmentId);
+        _costCenterRepository.Add(costCenter);
+        await _costCenterRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Cost center created: {CostCenterId} ({Code})", costCenter.Id, costCenter.Code);
+
+        return MapToDto(costCenter);
+    }
+
+    internal static CostCenterDto MapToDto(CostCenter c) =>
+        new(c.Id, c.CompanyId, c.DepartmentId, c.Name, c.Code, c.BudgetAmount, c.IsActive, c.CreatedAt, c.UpdatedAt);
+}
+
+public class UpdateCostCenterCommandHandler : IRequestHandler<UpdateCostCenterCommand, CostCenterDto>
+{
+    private readonly ICostCenterRepository _costCenterRepository;
+    private readonly ILogger<UpdateCostCenterCommandHandler> _logger;
+
+    public UpdateCostCenterCommandHandler(
+        ICostCenterRepository costCenterRepository,
+        ILogger<UpdateCostCenterCommandHandler> logger)
+    {
+        _costCenterRepository = costCenterRepository;
+        _logger = logger;
+    }
+
+    public async Task<CostCenterDto> Handle(UpdateCostCenterCommand request, CancellationToken cancellationToken)
+    {
+        var costCenter = await _costCenterRepository.GetByIdAsync(request.CostCenterId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Cost center {request.CostCenterId} not found.");
+
+        costCenter.Update(request.Name, request.Code.ToUpperInvariant(), request.BudgetAmount, request.DepartmentId);
+        _costCenterRepository.Update(costCenter);
+        await _costCenterRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Cost center updated: {CostCenterId}", costCenter.Id);
+
+        return CreateCostCenterCommandHandler.MapToDto(costCenter);
+    }
+}
+
+public class ActivateCostCenterCommandHandler : IRequestHandler<ActivateCostCenterCommand, CostCenterDto>
+{
+    private readonly ICostCenterRepository _costCenterRepository;
+    private readonly ILogger<ActivateCostCenterCommandHandler> _logger;
+
+    public ActivateCostCenterCommandHandler(
+        ICostCenterRepository costCenterRepository,
+        ILogger<ActivateCostCenterCommandHandler> logger)
+    {
+        _costCenterRepository = costCenterRepository;
+        _logger = logger;
+    }
+
+    public async Task<CostCenterDto> Handle(ActivateCostCenterCommand request, CancellationToken cancellationToken)
+    {
+        var costCenter = await _costCenterRepository.GetByIdAsync(request.CostCenterId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Cost center {request.CostCenterId} not found.");
+
+        costCenter.Activate();
+        _costCenterRepository.Update(costCenter);
+        await _costCenterRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Cost center activated: {CostCenterId}", costCenter.Id);
+
+        return CreateCostCenterCommandHandler.MapToDto(costCenter);
+    }
+}
+
+public class DeactivateCostCenterCommandHandler : IRequestHandler<DeactivateCostCenterCommand, CostCenterDto>
+{
+    private readonly ICostCenterRepository _costCenterRepository;
+    private readonly ILogger<DeactivateCostCenterCommandHandler> _logger;
+
+    public DeactivateCostCenterCommandHandler(
+        ICostCenterRepository costCenterRepository,
+        ILogger<DeactivateCostCenterCommandHandler> logger)
+    {
+        _costCenterRepository = costCenterRepository;
+        _logger = logger;
+    }
+
+    public async Task<CostCenterDto> Handle(DeactivateCostCenterCommand request, CancellationToken cancellationToken)
+    {
+        var costCenter = await _costCenterRepository.GetByIdAsync(request.CostCenterId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Cost center {request.CostCenterId} not found.");
+
+        costCenter.Deactivate();
+        _costCenterRepository.Update(costCenter);
+        await _costCenterRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Cost center deactivated: {CostCenterId}", costCenter.Id);
+
+        return CreateCostCenterCommandHandler.MapToDto(costCenter);
+    }
+}
+
+// ─── Profit Center Command Handlers ────────────────────────────────────────
+
+public class CreateProfitCenterCommandHandler : IRequestHandler<CreateProfitCenterCommand, ProfitCenterDto>
+{
+    private readonly IProfitCenterRepository _profitCenterRepository;
+    private readonly ILogger<CreateProfitCenterCommandHandler> _logger;
+
+    public CreateProfitCenterCommandHandler(
+        IProfitCenterRepository profitCenterRepository,
+        ILogger<CreateProfitCenterCommandHandler> logger)
+    {
+        _profitCenterRepository = profitCenterRepository;
+        _logger = logger;
+    }
+
+    public async Task<ProfitCenterDto> Handle(CreateProfitCenterCommand request, CancellationToken cancellationToken)
+    {
+        var codeUpper = request.Code.ToUpperInvariant();
+
+        if (await _profitCenterRepository.ExistsByCodeAsync(codeUpper, cancellationToken))
+            throw new InvalidOperationException($"A profit center with code '{codeUpper}' already exists.");
+
+        var profitCenter = ProfitCenter.Create(request.CompanyId, request.Name, codeUpper, request.BusinessUnitId);
+        _profitCenterRepository.Add(profitCenter);
+        await _profitCenterRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Profit center created: {ProfitCenterId} ({Code})", profitCenter.Id, profitCenter.Code);
+
+        return MapToDto(profitCenter);
+    }
+
+    internal static ProfitCenterDto MapToDto(ProfitCenter p) =>
+        new(p.Id, p.CompanyId, p.BusinessUnitId, p.Name, p.Code, p.IsActive, p.CreatedAt, p.UpdatedAt);
+}
+
+public class UpdateProfitCenterCommandHandler : IRequestHandler<UpdateProfitCenterCommand, ProfitCenterDto>
+{
+    private readonly IProfitCenterRepository _profitCenterRepository;
+    private readonly ILogger<UpdateProfitCenterCommandHandler> _logger;
+
+    public UpdateProfitCenterCommandHandler(
+        IProfitCenterRepository profitCenterRepository,
+        ILogger<UpdateProfitCenterCommandHandler> logger)
+    {
+        _profitCenterRepository = profitCenterRepository;
+        _logger = logger;
+    }
+
+    public async Task<ProfitCenterDto> Handle(UpdateProfitCenterCommand request, CancellationToken cancellationToken)
+    {
+        var profitCenter = await _profitCenterRepository.GetByIdAsync(request.ProfitCenterId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Profit center {request.ProfitCenterId} not found.");
+
+        profitCenter.Update(request.Name, request.Code.ToUpperInvariant(), request.BusinessUnitId);
+        _profitCenterRepository.Update(profitCenter);
+        await _profitCenterRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Profit center updated: {ProfitCenterId}", profitCenter.Id);
+
+        return CreateProfitCenterCommandHandler.MapToDto(profitCenter);
+    }
+}
+
+public class ActivateProfitCenterCommandHandler : IRequestHandler<ActivateProfitCenterCommand, ProfitCenterDto>
+{
+    private readonly IProfitCenterRepository _profitCenterRepository;
+    private readonly ILogger<ActivateProfitCenterCommandHandler> _logger;
+
+    public ActivateProfitCenterCommandHandler(
+        IProfitCenterRepository profitCenterRepository,
+        ILogger<ActivateProfitCenterCommandHandler> logger)
+    {
+        _profitCenterRepository = profitCenterRepository;
+        _logger = logger;
+    }
+
+    public async Task<ProfitCenterDto> Handle(ActivateProfitCenterCommand request, CancellationToken cancellationToken)
+    {
+        var profitCenter = await _profitCenterRepository.GetByIdAsync(request.ProfitCenterId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Profit center {request.ProfitCenterId} not found.");
+
+        profitCenter.Activate();
+        _profitCenterRepository.Update(profitCenter);
+        await _profitCenterRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Profit center activated: {ProfitCenterId}", profitCenter.Id);
+
+        return CreateProfitCenterCommandHandler.MapToDto(profitCenter);
+    }
+}
+
+public class DeactivateProfitCenterCommandHandler : IRequestHandler<DeactivateProfitCenterCommand, ProfitCenterDto>
+{
+    private readonly IProfitCenterRepository _profitCenterRepository;
+    private readonly ILogger<DeactivateProfitCenterCommandHandler> _logger;
+
+    public DeactivateProfitCenterCommandHandler(
+        IProfitCenterRepository profitCenterRepository,
+        ILogger<DeactivateProfitCenterCommandHandler> logger)
+    {
+        _profitCenterRepository = profitCenterRepository;
+        _logger = logger;
+    }
+
+    public async Task<ProfitCenterDto> Handle(DeactivateProfitCenterCommand request, CancellationToken cancellationToken)
+    {
+        var profitCenter = await _profitCenterRepository.GetByIdAsync(request.ProfitCenterId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Profit center {request.ProfitCenterId} not found.");
+
+        profitCenter.Deactivate();
+        _profitCenterRepository.Update(profitCenter);
+        await _profitCenterRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Profit center deactivated: {ProfitCenterId}", profitCenter.Id);
+
+        return CreateProfitCenterCommandHandler.MapToDto(profitCenter);
+    }
+}
+
+// ─── Organization Calendar Command Handlers ────────────────────────────────
+
+public class CreateOrganizationCalendarCommandHandler : IRequestHandler<CreateOrganizationCalendarCommand, OrganizationCalendarDto>
+{
+    private readonly IOrganizationCalendarRepository _calendarRepository;
+    private readonly ILogger<CreateOrganizationCalendarCommandHandler> _logger;
+
+    public CreateOrganizationCalendarCommandHandler(
+        IOrganizationCalendarRepository calendarRepository,
+        ILogger<CreateOrganizationCalendarCommandHandler> logger)
+    {
+        _calendarRepository = calendarRepository;
+        _logger = logger;
+    }
+
+    public async Task<OrganizationCalendarDto> Handle(CreateOrganizationCalendarCommand request, CancellationToken cancellationToken)
+    {
+        var calendar = OrganizationCalendar.Create(request.CompanyId, request.Year, request.Name, request.IsDefault);
+        _calendarRepository.Add(calendar);
+        await _calendarRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Organization calendar created: {CalendarId} ({Year})", calendar.Id, calendar.Year);
+
+        return MapToDto(calendar);
+    }
+
+    internal static OrganizationCalendarDto MapToDto(OrganizationCalendar c) =>
+        new(c.Id, c.CompanyId, c.Year, c.Name, c.IsDefault, c.CreatedAt, c.UpdatedAt);
+}
+
+public class UpdateOrganizationCalendarCommandHandler : IRequestHandler<UpdateOrganizationCalendarCommand, OrganizationCalendarDto>
+{
+    private readonly IOrganizationCalendarRepository _calendarRepository;
+    private readonly ILogger<UpdateOrganizationCalendarCommandHandler> _logger;
+
+    public UpdateOrganizationCalendarCommandHandler(
+        IOrganizationCalendarRepository calendarRepository,
+        ILogger<UpdateOrganizationCalendarCommandHandler> logger)
+    {
+        _calendarRepository = calendarRepository;
+        _logger = logger;
+    }
+
+    public async Task<OrganizationCalendarDto> Handle(UpdateOrganizationCalendarCommand request, CancellationToken cancellationToken)
+    {
+        var calendar = await _calendarRepository.GetByIdAsync(request.CalendarId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Organization calendar {request.CalendarId} not found.");
+
+        calendar.Update(request.Name, request.IsDefault);
+        _calendarRepository.Update(calendar);
+        await _calendarRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Organization calendar updated: {CalendarId}", calendar.Id);
+
+        return CreateOrganizationCalendarCommandHandler.MapToDto(calendar);
+    }
+}
+
+// ─── Holiday Command Handlers ──────────────────────────────────────────────
+
+public class CreateHolidayCommandHandler : IRequestHandler<CreateHolidayCommand, HolidayDto>
+{
+    private readonly IHolidayRepository _holidayRepository;
+    private readonly ILogger<CreateHolidayCommandHandler> _logger;
+
+    public CreateHolidayCommandHandler(
+        IHolidayRepository holidayRepository,
+        ILogger<CreateHolidayCommandHandler> logger)
+    {
+        _holidayRepository = holidayRepository;
+        _logger = logger;
+    }
+
+    public async Task<HolidayDto> Handle(CreateHolidayCommand request, CancellationToken cancellationToken)
+    {
+        var holiday = Holiday.Create(request.CalendarId, request.Date, request.Name, request.IsRecurringYearly);
+        _holidayRepository.Add(holiday);
+        await _holidayRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Holiday created: {HolidayId} ({Name})", holiday.Id, holiday.Name);
+
+        return MapToDto(holiday);
+    }
+
+    internal static HolidayDto MapToDto(Holiday h) =>
+        new(h.Id, h.CalendarId, h.Date, h.Name, h.IsRecurringYearly, h.CreatedAt, h.UpdatedAt);
+}
+
+public class UpdateHolidayCommandHandler : IRequestHandler<UpdateHolidayCommand, HolidayDto>
+{
+    private readonly IHolidayRepository _holidayRepository;
+    private readonly ILogger<UpdateHolidayCommandHandler> _logger;
+
+    public UpdateHolidayCommandHandler(
+        IHolidayRepository holidayRepository,
+        ILogger<UpdateHolidayCommandHandler> logger)
+    {
+        _holidayRepository = holidayRepository;
+        _logger = logger;
+    }
+
+    public async Task<HolidayDto> Handle(UpdateHolidayCommand request, CancellationToken cancellationToken)
+    {
+        var holiday = await _holidayRepository.GetByIdAsync(request.HolidayId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Holiday {request.HolidayId} not found.");
+
+        holiday.Update(request.Date, request.Name, request.IsRecurringYearly);
+        _holidayRepository.Update(holiday);
+        await _holidayRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Holiday updated: {HolidayId}", holiday.Id);
+
+        return CreateHolidayCommandHandler.MapToDto(holiday);
+    }
+}
+
+// ─── Employee Team Assignment Command Handlers ─────────────────────────────
+
+public class CreateEmployeeTeamAssignmentCommandHandler : IRequestHandler<CreateEmployeeTeamAssignmentCommand, EmployeeTeamAssignmentDto>
+{
+    private readonly IEmployeeTeamAssignmentRepository _assignmentRepository;
+    private readonly ILogger<CreateEmployeeTeamAssignmentCommandHandler> _logger;
+
+    public CreateEmployeeTeamAssignmentCommandHandler(
+        IEmployeeTeamAssignmentRepository assignmentRepository,
+        ILogger<CreateEmployeeTeamAssignmentCommandHandler> logger)
+    {
+        _assignmentRepository = assignmentRepository;
+        _logger = logger;
+    }
+
+    public async Task<EmployeeTeamAssignmentDto> Handle(CreateEmployeeTeamAssignmentCommand request, CancellationToken cancellationToken)
+    {
+        var assignment = EmployeeTeamAssignment.Create(request.EmployeeId, request.TeamId, request.EffectiveFrom, request.PositionId);
+        _assignmentRepository.Add(assignment);
+        await _assignmentRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Employee team assignment created: {AssignmentId} (Employee {EmployeeId} -> Team {TeamId})",
+            assignment.Id, assignment.EmployeeId, assignment.TeamId);
+
+        return MapToDto(assignment);
+    }
+
+    internal static EmployeeTeamAssignmentDto MapToDto(EmployeeTeamAssignment a) =>
+        new(a.Id, a.EmployeeId, a.TeamId, a.PositionId, a.EffectiveFrom, a.EffectiveTo, a.CreatedAt, a.UpdatedAt);
+}
+
+public class EndEmployeeTeamAssignmentCommandHandler : IRequestHandler<EndEmployeeTeamAssignmentCommand, EmployeeTeamAssignmentDto>
+{
+    private readonly IEmployeeTeamAssignmentRepository _assignmentRepository;
+    private readonly ILogger<EndEmployeeTeamAssignmentCommandHandler> _logger;
+
+    public EndEmployeeTeamAssignmentCommandHandler(
+        IEmployeeTeamAssignmentRepository assignmentRepository,
+        ILogger<EndEmployeeTeamAssignmentCommandHandler> logger)
+    {
+        _assignmentRepository = assignmentRepository;
+        _logger = logger;
+    }
+
+    public async Task<EmployeeTeamAssignmentDto> Handle(EndEmployeeTeamAssignmentCommand request, CancellationToken cancellationToken)
+    {
+        var assignment = await _assignmentRepository.GetByIdAsync(request.AssignmentId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Employee team assignment {request.AssignmentId} not found.");
+
+        assignment.End(request.EffectiveTo);
+        _assignmentRepository.Update(assignment);
+        await _assignmentRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Employee team assignment ended: {AssignmentId}", assignment.Id);
+
+        return CreateEmployeeTeamAssignmentCommandHandler.MapToDto(assignment);
+    }
 }

@@ -12,7 +12,7 @@ namespace ERP.SO.Domain.Entities
         public DateTime OrderDate { get; private set; }
         public OrderStatus Status { get; private set; }
         public decimal TotalAmount { get; private set; }
-        public Address ShippingAddress { get; private set; }
+        public Address ShippingAddress { get; private set; } = null!;
         public string? Notes { get; private set; }
 
         public DateTime? ApprovedAt { get; private set; }

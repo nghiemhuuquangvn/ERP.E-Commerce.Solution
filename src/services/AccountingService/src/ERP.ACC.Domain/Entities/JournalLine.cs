@@ -8,7 +8,7 @@ namespace ERP.ACC.Domain.Entities
         public Guid AccountId { get; private set; }
         public decimal Debit { get; private set; }
         public decimal Credit { get; private set; }
-        public string Description { get; private set; } = string.Empty;
+        public new string Description { get; private set; } = string.Empty;
 
         private JournalLine() { }
 

@@ -7,7 +7,7 @@ namespace ERP.ACC.Domain.Entities
     {
         public string EntryNumber { get; set; } = string.Empty;
         public Guid FiscalPeriodId { get; set; }
-        public string Description { get; set; } = string.Empty;
+        public new string Description { get; set; } = string.Empty;
         public decimal TotalDebit { get; set; }
         public decimal TotalCredit { get; set; }
         public List<JournalLine> Lines { get; private set; } = new();

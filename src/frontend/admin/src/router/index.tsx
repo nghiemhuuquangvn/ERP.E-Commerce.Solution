@@ -23,6 +23,15 @@ import { EmployeesPage } from '@/pages/masterdata/EmployeesPage'
 import { UnitsOfMeasurePage } from '@/pages/masterdata/UnitsOfMeasurePage'
 import { GeographyPage } from '@/pages/masterdata/GeographyPage'
 import { LanguagesPage } from '@/pages/masterdata/LanguagesPage'
+import { CompaniesPage } from '@/pages/masterdata/CompaniesPage'
+import { BranchesPage } from '@/pages/masterdata/BranchesPage'
+import { DivisionsPage } from '@/pages/masterdata/DivisionsPage'
+import { TeamsPage } from '@/pages/masterdata/TeamsPage'
+import { BusinessUnitsPage } from '@/pages/masterdata/BusinessUnitsPage'
+import { CostCentersPage } from '@/pages/masterdata/CostCentersPage'
+import { ProfitCentersPage } from '@/pages/masterdata/ProfitCentersPage'
+import { OrganizationCalendarsPage } from '@/pages/masterdata/OrganizationCalendarsPage'
+import { EmployeeTeamAssignmentsPage } from '@/pages/masterdata/EmployeeTeamAssignmentsPage'
 import { CustomersPage } from '@/pages/crm/CustomersPage'
 import { AuthSettingsPage } from '@/pages/settings/AuthSettingsPage'
 import { GeneralSettingsPage } from '@/pages/settings/GeneralSettingsPage'
@@ -136,6 +145,15 @@ export const router = createBrowserRouter([
       { path: 'masterdata/units-of-measure', element: <UnitsOfMeasurePage /> },
       { path: 'masterdata/geography', element: <GeographyPage /> },
       { path: 'masterdata/languages', element: <LanguagesPage /> },
+      { path: 'masterdata/companies', element: <CompaniesPage /> },
+      { path: 'masterdata/branches', element: <BranchesPage /> },
+      { path: 'masterdata/divisions', element: <DivisionsPage /> },
+      { path: 'masterdata/teams', element: <TeamsPage /> },
+      { path: 'masterdata/business-units', element: <BusinessUnitsPage /> },
+      { path: 'masterdata/cost-centers', element: <CostCentersPage /> },
+      { path: 'masterdata/profit-centers', element: <ProfitCentersPage /> },
+      { path: 'masterdata/organization-calendars', element: <OrganizationCalendarsPage /> },
+      { path: 'masterdata/employee-team-assignments', element: <EmployeeTeamAssignmentsPage /> },
       { path: 'identity/users', element: <UsersPage /> },
       { path: 'identity/roles', element: <RolesPermissionsPage /> },
       { path: 'accounting/accounts', element: <AccountsPage /> },

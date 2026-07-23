@@ -17,6 +17,10 @@ public record UpdateDepartmentCommand(
     string Code,
     Guid? ManagerId) : IRequest<DepartmentDto>;
 
+public record SetDepartmentDivisionCommand(
+    Guid DepartmentId,
+    Guid? DivisionId) : IRequest<DepartmentDto>;
+
 // ─── Position Commands ─────────────────────────────────────────────────────
 
 public record CreatePositionCommand(
@@ -111,3 +115,175 @@ public record CreateLanguageCommand(
     string NativeName,
     bool IsDefault,
     int SortOrder) : IRequest<SupportedLanguageDto>;
+
+// ─── Company Commands ──────────────────────────────────────────────────────
+
+public record CreateCompanyCommand(
+    string Name,
+    string Code,
+    string? TaxCode,
+    string? LegalAddress,
+    string? CurrencyCode) : IRequest<CompanyDto>;
+
+public record UpdateCompanyCommand(
+    Guid CompanyId,
+    string Name,
+    string Code,
+    string? TaxCode,
+    string? LegalAddress,
+    string? CurrencyCode) : IRequest<CompanyDto>;
+
+public record ActivateCompanyCommand(Guid CompanyId) : IRequest<CompanyDto>;
+
+public record DeactivateCompanyCommand(Guid CompanyId) : IRequest<CompanyDto>;
+
+// ─── Branch Commands ───────────────────────────────────────────────────────
+
+public record CreateBranchCommand(
+    Guid CompanyId,
+    string Name,
+    string Code,
+    string? Address,
+    Guid? WardId,
+    Guid? ManagerEmployeeId) : IRequest<BranchDto>;
+
+public record UpdateBranchCommand(
+    Guid BranchId,
+    string Name,
+    string Code,
+    string? Address,
+    Guid? WardId,
+    Guid? ManagerEmployeeId) : IRequest<BranchDto>;
+
+public record ActivateBranchCommand(Guid BranchId) : IRequest<BranchDto>;
+
+public record DeactivateBranchCommand(Guid BranchId) : IRequest<BranchDto>;
+
+// ─── Division Commands ─────────────────────────────────────────────────────
+
+public record CreateDivisionCommand(
+    Guid BranchId,
+    string Name,
+    string Code,
+    Guid? ParentDivisionId) : IRequest<DivisionDto>;
+
+public record UpdateDivisionCommand(
+    Guid DivisionId,
+    string Name,
+    string Code,
+    Guid? ParentDivisionId) : IRequest<DivisionDto>;
+
+public record ActivateDivisionCommand(Guid DivisionId) : IRequest<DivisionDto>;
+
+public record DeactivateDivisionCommand(Guid DivisionId) : IRequest<DivisionDto>;
+
+// ─── Team Commands ─────────────────────────────────────────────────────────
+
+public record CreateTeamCommand(
+    Guid DepartmentId,
+    string Name,
+    string Code,
+    Guid? LeaderEmployeeId) : IRequest<TeamDto>;
+
+public record UpdateTeamCommand(
+    Guid TeamId,
+    string Name,
+    string Code,
+    Guid? LeaderEmployeeId) : IRequest<TeamDto>;
+
+public record ActivateTeamCommand(Guid TeamId) : IRequest<TeamDto>;
+
+public record DeactivateTeamCommand(Guid TeamId) : IRequest<TeamDto>;
+
+// ─── Business Unit Commands ────────────────────────────────────────────────
+
+public record CreateBusinessUnitCommand(
+    Guid CompanyId,
+    string Name,
+    string Code) : IRequest<BusinessUnitDto>;
+
+public record UpdateBusinessUnitCommand(
+    Guid BusinessUnitId,
+    string Name,
+    string Code) : IRequest<BusinessUnitDto>;
+
+public record ActivateBusinessUnitCommand(Guid BusinessUnitId) : IRequest<BusinessUnitDto>;
+
+public record DeactivateBusinessUnitCommand(Guid BusinessUnitId) : IRequest<BusinessUnitDto>;
+
+// ─── Cost Center Commands ──────────────────────────────────────────────────
+
+public record CreateCostCenterCommand(
+    Guid CompanyId,
+    string Name,
+    string Code,
+    decimal BudgetAmount,
+    Guid? DepartmentId = null) : IRequest<CostCenterDto>;
+
+public record UpdateCostCenterCommand(
+    Guid CostCenterId,
+    string Name,
+    string Code,
+    decimal BudgetAmount,
+    Guid? DepartmentId) : IRequest<CostCenterDto>;
+
+public record ActivateCostCenterCommand(Guid CostCenterId) : IRequest<CostCenterDto>;
+
+public record DeactivateCostCenterCommand(Guid CostCenterId) : IRequest<CostCenterDto>;
+
+// ─── Profit Center Commands ────────────────────────────────────────────────
+
+public record CreateProfitCenterCommand(
+    Guid CompanyId,
+    string Name,
+    string Code,
+    Guid? BusinessUnitId = null) : IRequest<ProfitCenterDto>;
+
+public record UpdateProfitCenterCommand(
+    Guid ProfitCenterId,
+    string Name,
+    string Code,
+    Guid? BusinessUnitId) : IRequest<ProfitCenterDto>;
+
+public record ActivateProfitCenterCommand(Guid ProfitCenterId) : IRequest<ProfitCenterDto>;
+
+public record DeactivateProfitCenterCommand(Guid ProfitCenterId) : IRequest<ProfitCenterDto>;
+
+// ─── Organization Calendar Commands ────────────────────────────────────────
+
+public record CreateOrganizationCalendarCommand(
+    Guid CompanyId,
+    int Year,
+    string Name,
+    bool IsDefault = false) : IRequest<OrganizationCalendarDto>;
+
+public record UpdateOrganizationCalendarCommand(
+    Guid CalendarId,
+    string Name,
+    bool IsDefault) : IRequest<OrganizationCalendarDto>;
+
+// ─── Holiday Commands ──────────────────────────────────────────────────────
+
+public record CreateHolidayCommand(
+    Guid CalendarId,
+    DateTime Date,
+    string Name,
+    bool IsRecurringYearly = false) : IRequest<HolidayDto>;
+
+public record UpdateHolidayCommand(
+    Guid HolidayId,
+    DateTime Date,
+    string Name,
+    bool IsRecurringYearly) : IRequest<HolidayDto>;
+
+// ─── Employee Team Assignment Commands ─────────────────────────────────────
+
+public record CreateEmployeeTeamAssignmentCommand(
+    Guid EmployeeId,
+    Guid TeamId,
+    DateTime EffectiveFrom,
+    Guid? PositionId = null) : IRequest<EmployeeTeamAssignmentDto>;
+
+public record EndEmployeeTeamAssignmentCommand(
+    Guid AssignmentId,
+    DateTime EffectiveTo) : IRequest<EmployeeTeamAssignmentDto>;

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { departmentsApi } from '@/api/masterdata/departments.api'
 import type { Department } from '@/api/masterdata/departments.api'
 import { employeesApi } from '@/api/masterdata/employees.api'
+import { divisionsApi } from '@/api/masterdata/divisions.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { Pagination } from '@/components/shared/Pagination'
 import { usePagination } from '@/hooks/usePagination'
@@ -15,6 +16,7 @@ interface DepartmentFormValues {
   code: string
   managerId: string
   parentDepartmentId: string
+  divisionId: string
 }
 
 function DepartmentModal({
@@ -36,25 +38,38 @@ function DepartmentModal({
     staleTime: 60_000,
   })
 
+  const { data: divisionsPage } = useQuery({
+    queryKey: ['masterdata', 'divisions', 'picker'],
+    queryFn: () => divisionsApi.list({ page: 1, pageSize: 200 }),
+    staleTime: 60_000,
+    enabled: isEdit,
+  })
+
   const { register, handleSubmit, formState: { errors } } = useForm<DepartmentFormValues>({
     defaultValues: {
       name: department?.departmentName ?? '',
       code: department?.code ?? '',
       managerId: department?.managerId ?? '',
       parentDepartmentId: department?.parentDepartmentId ?? '',
+      divisionId: department?.divisionId ?? '',
     },
   })
 
   const mutation = useMutation({
-    mutationFn: (values: DepartmentFormValues) => {
+    mutationFn: async (values: DepartmentFormValues) => {
       const managerId = values.managerId.trim() || null
       const parentDepartmentId = values.parentDepartmentId.trim() || null
       if (isEdit) {
-        return departmentsApi.update(department!.id, {
+        const result = await departmentsApi.update(department!.id, {
           name: values.name,
           code: values.code,
           managerId,
         })
+        const divisionId = values.divisionId.trim() || null
+        if (divisionId !== (department!.divisionId ?? null)) {
+          return departmentsApi.setDivision(department!.id, { divisionId })
+        }
+        return result
       }
       return departmentsApi.create({
         name: values.name,
@@ -112,6 +127,21 @@ function DepartmentModal({
               </select>
             </div>
           )}
+          {isEdit && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                {t('masterdata.departments.division')}
+              </label>
+              <select className="input" {...register('divisionId')}>
+                <option value="">{t('common.none')}</option>
+                {(divisionsPage?.items ?? []).map((div) => (
+                  <option key={div.id} value={div.id}>
+                    {div.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           {mutation.isError && (
             <p className="text-xs text-red-600">{t('masterdata.departments.failedToSave')}</p>
           )}
@@ -159,6 +189,11 @@ export function DepartmentsPage() {
         key: 'parentDepartmentId',
         label: t('masterdata.departments.parentDepartment'),
         render: (d: Department) => d.parentDepartmentId ?? '—',
+      },
+      {
+        key: 'divisionId',
+        label: t('masterdata.departments.division'),
+        render: (d: Department) => d.divisionId ?? '—',
       },
       {
         key: 'actions',

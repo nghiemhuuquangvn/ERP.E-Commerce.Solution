@@ -5,6 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- CS1591 (missing XML comment) suppressed: these are simple, self-describing
+         base classes/properties where a doc comment would just restate the member name. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Version>1.0.0</Version>
     <Description>Shared core domain interfaces and base classes for ERP E-Commerce Solution microservices</Description>
   </PropertyGroup>

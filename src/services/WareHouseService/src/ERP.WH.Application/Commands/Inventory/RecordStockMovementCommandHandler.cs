@@ -148,7 +148,7 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
 
 public interface IStockMovementRepository
 {
-    Task<StockMovement> GetByIdAsync(Guid movementId, CancellationToken cancellationToken);
+    Task<StockMovement?> GetByIdAsync(Guid movementId, CancellationToken cancellationToken);
     Task AddAsync(StockMovement movement, CancellationToken cancellationToken);
     Task<List<StockMovement>> GetByProductIdAsync(Guid productId, DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken);
 }

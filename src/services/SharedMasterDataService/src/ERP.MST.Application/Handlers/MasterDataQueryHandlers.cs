@@ -36,6 +36,7 @@ public class GetDepartmentQueryHandler : IRequestHandler<GetDepartmentQuery, Dep
             department.Code,
             department.ManagerId,
             department.ParentDepartmentId,
+            department.DivisionId,
             request.LanguageCode,
             department.CreatedAt,
             department.UpdatedAt);
@@ -77,6 +78,7 @@ public class ListDepartmentsQueryHandler : IRequestHandler<ListDepartmentsQuery,
             department.Code,
             department.ManagerId,
             department.ParentDepartmentId,
+            department.DivisionId,
             languageCode,
             department.CreatedAt,
             department.UpdatedAt);
@@ -554,5 +556,355 @@ public class ListLanguagesQueryHandler : IRequestHandler<ListLanguagesQuery, Pag
         var (items, totalCount) = await _languageRepository.ListAsync(request.Page, request.PageSize, cancellationToken);
         var dtos = items.Select(CreateLanguageCommandHandler.MapToDto).ToList();
         return new PagedResult<SupportedLanguageDto>(dtos, totalCount, request.Page, request.PageSize);
+    }
+}
+
+// ─── Company Query Handlers ────────────────────────────────────────────────
+
+public class GetCompanyQueryHandler : IRequestHandler<GetCompanyQuery, CompanyDto?>
+{
+    private readonly ICompanyRepository _companyRepository;
+
+    public GetCompanyQueryHandler(ICompanyRepository companyRepository)
+    {
+        _companyRepository = companyRepository;
+    }
+
+    public async Task<CompanyDto?> Handle(GetCompanyQuery request, CancellationToken cancellationToken)
+    {
+        var company = await _companyRepository.GetByIdAsync(request.CompanyId, cancellationToken);
+        return company is null ? null : CreateCompanyCommandHandler.MapToDto(company);
+    }
+}
+
+public class ListCompaniesQueryHandler : IRequestHandler<ListCompaniesQuery, PagedResult<CompanyDto>>
+{
+    private readonly ICompanyRepository _companyRepository;
+
+    public ListCompaniesQueryHandler(ICompanyRepository companyRepository)
+    {
+        _companyRepository = companyRepository;
+    }
+
+    public async Task<PagedResult<CompanyDto>> Handle(ListCompaniesQuery request, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _companyRepository.ListAsync(request.Page, request.PageSize, cancellationToken);
+        var dtos = items.Select(CreateCompanyCommandHandler.MapToDto).ToList();
+        return new PagedResult<CompanyDto>(dtos, totalCount, request.Page, request.PageSize);
+    }
+}
+
+// ─── Branch Query Handlers ─────────────────────────────────────────────────
+
+public class GetBranchQueryHandler : IRequestHandler<GetBranchQuery, BranchDto?>
+{
+    private readonly IBranchRepository _branchRepository;
+
+    public GetBranchQueryHandler(IBranchRepository branchRepository)
+    {
+        _branchRepository = branchRepository;
+    }
+
+    public async Task<BranchDto?> Handle(GetBranchQuery request, CancellationToken cancellationToken)
+    {
+        var branch = await _branchRepository.GetByIdAsync(request.BranchId, cancellationToken);
+        return branch is null ? null : CreateBranchCommandHandler.MapToDto(branch);
+    }
+}
+
+public class ListBranchesQueryHandler : IRequestHandler<ListBranchesQuery, PagedResult<BranchDto>>
+{
+    private readonly IBranchRepository _branchRepository;
+
+    public ListBranchesQueryHandler(IBranchRepository branchRepository)
+    {
+        _branchRepository = branchRepository;
+    }
+
+    public async Task<PagedResult<BranchDto>> Handle(ListBranchesQuery request, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _branchRepository.ListAsync(request.CompanyId, request.Page, request.PageSize, cancellationToken);
+        var dtos = items.Select(CreateBranchCommandHandler.MapToDto).ToList();
+        return new PagedResult<BranchDto>(dtos, totalCount, request.Page, request.PageSize);
+    }
+}
+
+// ─── Division Query Handlers ───────────────────────────────────────────────
+
+public class GetDivisionQueryHandler : IRequestHandler<GetDivisionQuery, DivisionDto?>
+{
+    private readonly IDivisionRepository _divisionRepository;
+
+    public GetDivisionQueryHandler(IDivisionRepository divisionRepository)
+    {
+        _divisionRepository = divisionRepository;
+    }
+
+    public async Task<DivisionDto?> Handle(GetDivisionQuery request, CancellationToken cancellationToken)
+    {
+        var division = await _divisionRepository.GetByIdAsync(request.DivisionId, cancellationToken);
+        return division is null ? null : CreateDivisionCommandHandler.MapToDto(division);
+    }
+}
+
+public class ListDivisionsQueryHandler : IRequestHandler<ListDivisionsQuery, PagedResult<DivisionDto>>
+{
+    private readonly IDivisionRepository _divisionRepository;
+
+    public ListDivisionsQueryHandler(IDivisionRepository divisionRepository)
+    {
+        _divisionRepository = divisionRepository;
+    }
+
+    public async Task<PagedResult<DivisionDto>> Handle(ListDivisionsQuery request, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _divisionRepository.ListAsync(request.BranchId, request.Page, request.PageSize, cancellationToken);
+        var dtos = items.Select(CreateDivisionCommandHandler.MapToDto).ToList();
+        return new PagedResult<DivisionDto>(dtos, totalCount, request.Page, request.PageSize);
+    }
+}
+
+// ─── Team Query Handlers ───────────────────────────────────────────────────
+
+public class GetTeamQueryHandler : IRequestHandler<GetTeamQuery, TeamDto?>
+{
+    private readonly ITeamRepository _teamRepository;
+
+    public GetTeamQueryHandler(ITeamRepository teamRepository)
+    {
+        _teamRepository = teamRepository;
+    }
+
+    public async Task<TeamDto?> Handle(GetTeamQuery request, CancellationToken cancellationToken)
+    {
+        var team = await _teamRepository.GetByIdAsync(request.TeamId, cancellationToken);
+        return team is null ? null : CreateTeamCommandHandler.MapToDto(team);
+    }
+}
+
+public class ListTeamsQueryHandler : IRequestHandler<ListTeamsQuery, PagedResult<TeamDto>>
+{
+    private readonly ITeamRepository _teamRepository;
+
+    public ListTeamsQueryHandler(ITeamRepository teamRepository)
+    {
+        _teamRepository = teamRepository;
+    }
+
+    public async Task<PagedResult<TeamDto>> Handle(ListTeamsQuery request, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _teamRepository.ListAsync(request.DepartmentId, request.Page, request.PageSize, cancellationToken);
+        var dtos = items.Select(CreateTeamCommandHandler.MapToDto).ToList();
+        return new PagedResult<TeamDto>(dtos, totalCount, request.Page, request.PageSize);
+    }
+}
+
+// ─── Business Unit Query Handlers ──────────────────────────────────────────
+
+public class GetBusinessUnitQueryHandler : IRequestHandler<GetBusinessUnitQuery, BusinessUnitDto?>
+{
+    private readonly IBusinessUnitRepository _businessUnitRepository;
+
+    public GetBusinessUnitQueryHandler(IBusinessUnitRepository businessUnitRepository)
+    {
+        _businessUnitRepository = businessUnitRepository;
+    }
+
+    public async Task<BusinessUnitDto?> Handle(GetBusinessUnitQuery request, CancellationToken cancellationToken)
+    {
+        var businessUnit = await _businessUnitRepository.GetByIdAsync(request.BusinessUnitId, cancellationToken);
+        return businessUnit is null ? null : CreateBusinessUnitCommandHandler.MapToDto(businessUnit);
+    }
+}
+
+public class ListBusinessUnitsQueryHandler : IRequestHandler<ListBusinessUnitsQuery, PagedResult<BusinessUnitDto>>
+{
+    private readonly IBusinessUnitRepository _businessUnitRepository;
+
+    public ListBusinessUnitsQueryHandler(IBusinessUnitRepository businessUnitRepository)
+    {
+        _businessUnitRepository = businessUnitRepository;
+    }
+
+    public async Task<PagedResult<BusinessUnitDto>> Handle(ListBusinessUnitsQuery request, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _businessUnitRepository.ListAsync(request.CompanyId, request.Page, request.PageSize, cancellationToken);
+        var dtos = items.Select(CreateBusinessUnitCommandHandler.MapToDto).ToList();
+        return new PagedResult<BusinessUnitDto>(dtos, totalCount, request.Page, request.PageSize);
+    }
+}
+
+// ─── Cost Center Query Handlers ────────────────────────────────────────────
+
+public class GetCostCenterQueryHandler : IRequestHandler<GetCostCenterQuery, CostCenterDto?>
+{
+    private readonly ICostCenterRepository _costCenterRepository;
+
+    public GetCostCenterQueryHandler(ICostCenterRepository costCenterRepository)
+    {
+        _costCenterRepository = costCenterRepository;
+    }
+
+    public async Task<CostCenterDto?> Handle(GetCostCenterQuery request, CancellationToken cancellationToken)
+    {
+        var costCenter = await _costCenterRepository.GetByIdAsync(request.CostCenterId, cancellationToken);
+        return costCenter is null ? null : CreateCostCenterCommandHandler.MapToDto(costCenter);
+    }
+}
+
+public class ListCostCentersQueryHandler : IRequestHandler<ListCostCentersQuery, PagedResult<CostCenterDto>>
+{
+    private readonly ICostCenterRepository _costCenterRepository;
+
+    public ListCostCentersQueryHandler(ICostCenterRepository costCenterRepository)
+    {
+        _costCenterRepository = costCenterRepository;
+    }
+
+    public async Task<PagedResult<CostCenterDto>> Handle(ListCostCentersQuery request, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _costCenterRepository.ListAsync(request.CompanyId, request.Page, request.PageSize, cancellationToken);
+        var dtos = items.Select(CreateCostCenterCommandHandler.MapToDto).ToList();
+        return new PagedResult<CostCenterDto>(dtos, totalCount, request.Page, request.PageSize);
+    }
+}
+
+// ─── Profit Center Query Handlers ──────────────────────────────────────────
+
+public class GetProfitCenterQueryHandler : IRequestHandler<GetProfitCenterQuery, ProfitCenterDto?>
+{
+    private readonly IProfitCenterRepository _profitCenterRepository;
+
+    public GetProfitCenterQueryHandler(IProfitCenterRepository profitCenterRepository)
+    {
+        _profitCenterRepository = profitCenterRepository;
+    }
+
+    public async Task<ProfitCenterDto?> Handle(GetProfitCenterQuery request, CancellationToken cancellationToken)
+    {
+        var profitCenter = await _profitCenterRepository.GetByIdAsync(request.ProfitCenterId, cancellationToken);
+        return profitCenter is null ? null : CreateProfitCenterCommandHandler.MapToDto(profitCenter);
+    }
+}
+
+public class ListProfitCentersQueryHandler : IRequestHandler<ListProfitCentersQuery, PagedResult<ProfitCenterDto>>
+{
+    private readonly IProfitCenterRepository _profitCenterRepository;
+
+    public ListProfitCentersQueryHandler(IProfitCenterRepository profitCenterRepository)
+    {
+        _profitCenterRepository = profitCenterRepository;
+    }
+
+    public async Task<PagedResult<ProfitCenterDto>> Handle(ListProfitCentersQuery request, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _profitCenterRepository.ListAsync(request.CompanyId, request.Page, request.PageSize, cancellationToken);
+        var dtos = items.Select(CreateProfitCenterCommandHandler.MapToDto).ToList();
+        return new PagedResult<ProfitCenterDto>(dtos, totalCount, request.Page, request.PageSize);
+    }
+}
+
+// ─── Organization Calendar Query Handlers ──────────────────────────────────
+
+public class GetOrganizationCalendarQueryHandler : IRequestHandler<GetOrganizationCalendarQuery, OrganizationCalendarDto?>
+{
+    private readonly IOrganizationCalendarRepository _calendarRepository;
+
+    public GetOrganizationCalendarQueryHandler(IOrganizationCalendarRepository calendarRepository)
+    {
+        _calendarRepository = calendarRepository;
+    }
+
+    public async Task<OrganizationCalendarDto?> Handle(GetOrganizationCalendarQuery request, CancellationToken cancellationToken)
+    {
+        var calendar = await _calendarRepository.GetByIdAsync(request.CalendarId, cancellationToken);
+        return calendar is null ? null : CreateOrganizationCalendarCommandHandler.MapToDto(calendar);
+    }
+}
+
+public class ListOrganizationCalendarsQueryHandler : IRequestHandler<ListOrganizationCalendarsQuery, PagedResult<OrganizationCalendarDto>>
+{
+    private readonly IOrganizationCalendarRepository _calendarRepository;
+
+    public ListOrganizationCalendarsQueryHandler(IOrganizationCalendarRepository calendarRepository)
+    {
+        _calendarRepository = calendarRepository;
+    }
+
+    public async Task<PagedResult<OrganizationCalendarDto>> Handle(ListOrganizationCalendarsQuery request, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _calendarRepository.ListAsync(request.CompanyId, request.Page, request.PageSize, cancellationToken);
+        var dtos = items.Select(CreateOrganizationCalendarCommandHandler.MapToDto).ToList();
+        return new PagedResult<OrganizationCalendarDto>(dtos, totalCount, request.Page, request.PageSize);
+    }
+}
+
+// ─── Holiday Query Handlers ────────────────────────────────────────────────
+
+public class GetHolidayQueryHandler : IRequestHandler<GetHolidayQuery, HolidayDto?>
+{
+    private readonly IHolidayRepository _holidayRepository;
+
+    public GetHolidayQueryHandler(IHolidayRepository holidayRepository)
+    {
+        _holidayRepository = holidayRepository;
+    }
+
+    public async Task<HolidayDto?> Handle(GetHolidayQuery request, CancellationToken cancellationToken)
+    {
+        var holiday = await _holidayRepository.GetByIdAsync(request.HolidayId, cancellationToken);
+        return holiday is null ? null : CreateHolidayCommandHandler.MapToDto(holiday);
+    }
+}
+
+public class ListHolidaysQueryHandler : IRequestHandler<ListHolidaysQuery, PagedResult<HolidayDto>>
+{
+    private readonly IHolidayRepository _holidayRepository;
+
+    public ListHolidaysQueryHandler(IHolidayRepository holidayRepository)
+    {
+        _holidayRepository = holidayRepository;
+    }
+
+    public async Task<PagedResult<HolidayDto>> Handle(ListHolidaysQuery request, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _holidayRepository.ListAsync(request.CalendarId, request.Page, request.PageSize, cancellationToken);
+        var dtos = items.Select(CreateHolidayCommandHandler.MapToDto).ToList();
+        return new PagedResult<HolidayDto>(dtos, totalCount, request.Page, request.PageSize);
+    }
+}
+
+// ─── Employee Team Assignment Query Handlers ───────────────────────────────
+
+public class GetEmployeeTeamAssignmentQueryHandler : IRequestHandler<GetEmployeeTeamAssignmentQuery, EmployeeTeamAssignmentDto?>
+{
+    private readonly IEmployeeTeamAssignmentRepository _assignmentRepository;
+
+    public GetEmployeeTeamAssignmentQueryHandler(IEmployeeTeamAssignmentRepository assignmentRepository)
+    {
+        _assignmentRepository = assignmentRepository;
+    }
+
+    public async Task<EmployeeTeamAssignmentDto?> Handle(GetEmployeeTeamAssignmentQuery request, CancellationToken cancellationToken)
+    {
+        var assignment = await _assignmentRepository.GetByIdAsync(request.AssignmentId, cancellationToken);
+        return assignment is null ? null : CreateEmployeeTeamAssignmentCommandHandler.MapToDto(assignment);
+    }
+}
+
+public class ListEmployeeTeamAssignmentsQueryHandler : IRequestHandler<ListEmployeeTeamAssignmentsQuery, PagedResult<EmployeeTeamAssignmentDto>>
+{
+    private readonly IEmployeeTeamAssignmentRepository _assignmentRepository;
+
+    public ListEmployeeTeamAssignmentsQueryHandler(IEmployeeTeamAssignmentRepository assignmentRepository)
+    {
+        _assignmentRepository = assignmentRepository;
+    }
+
+    public async Task<PagedResult<EmployeeTeamAssignmentDto>> Handle(ListEmployeeTeamAssignmentsQuery request, CancellationToken cancellationToken)
+    {
+        var (items, totalCount) = await _assignmentRepository.ListAsync(request.EmployeeId, request.Page, request.PageSize, cancellationToken);
+        var dtos = items.Select(CreateEmployeeTeamAssignmentCommandHandler.MapToDto).ToList();
+        return new PagedResult<EmployeeTeamAssignmentDto>(dtos, totalCount, request.Page, request.PageSize);
     }
 }

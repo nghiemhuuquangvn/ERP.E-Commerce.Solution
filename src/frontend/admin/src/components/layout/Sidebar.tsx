@@ -252,25 +252,7 @@ const ACCOUNTING_CHILDREN: NavItem[] = [
   },
 ]
 
-const NAV_ITEMS: NavItem[] = [
-  { labelKey: 'nav.dashboard', path: '/dashboard', permission: null, icon: '⊞' },
-  { labelKey: 'nav.salesOrders', path: '/orders', permission: 'orders:view', icon: '📦' },
-  { labelKey: 'nav.purchaseOrders', path: '/orders/purchase', permission: 'purchaseOrders:view', icon: '🧾' },
-  { labelKey: 'nav.products', path: '/products', permission: 'products:view', icon: '🏷️' },
-  { labelKey: 'nav.inventory', path: '/inventory', permission: 'inventory:view', icon: '🏭' },
-  {
-    labelKey: 'nav.customers',
-    path: '/customers',
-    permissions: [
-      'crm:contacts:view',
-      'crm:leads:view',
-      'crm:opportunities:view',
-      'crm:cases:view',
-      'crm:activities:view',
-    ],
-    icon: '👥',
-  },
-  { labelKey: 'nav.payments', path: '/payments', permission: 'payments:view', icon: '💳' },
+const MASTERDATA_CHILDREN: NavItem[] = [
   {
     labelKey: 'nav.departments',
     path: '/masterdata/departments',
@@ -295,8 +277,6 @@ const NAV_ITEMS: NavItem[] = [
     permission: 'masterdata:units-of-measure:view',
     icon: '📏',
   },
-  { labelKey: 'nav.hrm', path: '/hrm', icon: '🧑‍💼', children: HRM_CHILDREN },
-  { labelKey: 'nav.accounting', path: '/accounting', icon: '💼', children: ACCOUNTING_CHILDREN },
   {
     labelKey: 'nav.geography',
     path: '/masterdata/geography',
@@ -309,6 +289,84 @@ const NAV_ITEMS: NavItem[] = [
     permission: 'masterdata:languages:view',
     icon: '🌐',
   },
+  {
+    labelKey: 'nav.companies',
+    path: '/masterdata/companies',
+    permission: 'masterdata:companies:view',
+    icon: '🏛️',
+  },
+  {
+    labelKey: 'nav.branches',
+    path: '/masterdata/branches',
+    permission: 'masterdata:branches:view',
+    icon: '🏬',
+  },
+  {
+    labelKey: 'nav.divisions',
+    path: '/masterdata/divisions',
+    permission: 'masterdata:divisions:view',
+    icon: '🧭',
+  },
+  {
+    labelKey: 'nav.teams',
+    path: '/masterdata/teams',
+    permission: 'masterdata:teams:view',
+    icon: '🧑‍🤝‍🧑',
+  },
+  {
+    labelKey: 'nav.businessUnits',
+    path: '/masterdata/business-units',
+    permission: 'masterdata:business-units:view',
+    icon: '🏭',
+  },
+  {
+    labelKey: 'nav.costCenters',
+    path: '/masterdata/cost-centers',
+    permission: 'masterdata:cost-centers:view',
+    icon: '💰',
+  },
+  {
+    labelKey: 'nav.profitCenters',
+    path: '/masterdata/profit-centers',
+    permission: 'masterdata:profit-centers:view',
+    icon: '📈',
+  },
+  {
+    labelKey: 'nav.organizationCalendars',
+    path: '/masterdata/organization-calendars',
+    permission: 'masterdata:organization-calendars:view',
+    icon: '📅',
+  },
+  {
+    labelKey: 'nav.employeeTeamAssignments',
+    path: '/masterdata/employee-team-assignments',
+    permission: 'masterdata:employee-team-assignments:view',
+    icon: '🔗',
+  },
+]
+
+const NAV_ITEMS: NavItem[] = [
+  { labelKey: 'nav.dashboard', path: '/dashboard', permission: null, icon: '⊞' },
+  { labelKey: 'nav.salesOrders', path: '/orders', permission: 'orders:view', icon: '📦' },
+  { labelKey: 'nav.purchaseOrders', path: '/orders/purchase', permission: 'purchaseOrders:view', icon: '🧾' },
+  { labelKey: 'nav.products', path: '/products', permission: 'products:view', icon: '🏷️' },
+  { labelKey: 'nav.inventory', path: '/inventory', permission: 'inventory:view', icon: '🏭' },
+  {
+    labelKey: 'nav.customers',
+    path: '/customers',
+    permissions: [
+      'crm:contacts:view',
+      'crm:leads:view',
+      'crm:opportunities:view',
+      'crm:cases:view',
+      'crm:activities:view',
+    ],
+    icon: '👥',
+  },
+  { labelKey: 'nav.payments', path: '/payments', permission: 'payments:view', icon: '💳' },
+  { labelKey: 'nav.hrm', path: '/hrm', icon: '🧑‍💼', children: HRM_CHILDREN },
+  { labelKey: 'nav.accounting', path: '/accounting', icon: '💼', children: ACCOUNTING_CHILDREN },
+  { labelKey: 'nav.masterData', path: '/masterdata', icon: '🗂️', children: MASTERDATA_CHILDREN },
   { labelKey: 'nav.reports', path: '/reports', permission: 'reports:view', icon: '📊' },
   { labelKey: 'nav.settings', path: '/settings', icon: '⚙️', children: SETTINGS_CHILDREN },
   { labelKey: 'nav.monitoring', path: '/monitoring', permission: 'monitoring:view', icon: '🖥' },

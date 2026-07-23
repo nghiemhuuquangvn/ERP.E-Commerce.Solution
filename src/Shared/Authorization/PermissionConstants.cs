@@ -149,6 +149,26 @@ public static class PermissionConstants
     public const string MasterData_GeographyManage = "masterdata:geography:manage";
     public const string MasterData_LanguagesView = "masterdata:languages:view";
     public const string MasterData_LanguagesManage = "masterdata:languages:manage";
+    public const string MasterData_CompaniesView = "masterdata:companies:view";
+    public const string MasterData_CompaniesManage = "masterdata:companies:manage";
+    public const string MasterData_BranchesView = "masterdata:branches:view";
+    public const string MasterData_BranchesManage = "masterdata:branches:manage";
+    public const string MasterData_DivisionsView = "masterdata:divisions:view";
+    public const string MasterData_DivisionsManage = "masterdata:divisions:manage";
+    public const string MasterData_TeamsView = "masterdata:teams:view";
+    public const string MasterData_TeamsManage = "masterdata:teams:manage";
+    public const string MasterData_BusinessUnitsView = "masterdata:business-units:view";
+    public const string MasterData_BusinessUnitsManage = "masterdata:business-units:manage";
+    public const string MasterData_CostCentersView = "masterdata:cost-centers:view";
+    public const string MasterData_CostCentersManage = "masterdata:cost-centers:manage";
+    public const string MasterData_ProfitCentersView = "masterdata:profit-centers:view";
+    public const string MasterData_ProfitCentersManage = "masterdata:profit-centers:manage";
+    // Covers both OrganizationCalendar and its nested Holiday actions — mirrors how
+    // Geography's Country/Province/District/Ward already share one View/Manage pair.
+    public const string MasterData_OrganizationCalendarsView = "masterdata:organization-calendars:view";
+    public const string MasterData_OrganizationCalendarsManage = "masterdata:organization-calendars:manage";
+    public const string MasterData_EmployeeTeamAssignmentsView = "masterdata:employee-team-assignments:view";
+    public const string MasterData_EmployeeTeamAssignmentsManage = "masterdata:employee-team-assignments:manage";
 
     // Per-service Settings categories: {system|tenant} x {view|manage}, mirroring
     // IdentityService's own Settings tiering (system = SuperAdmin-only master
@@ -246,6 +266,15 @@ public static class PermissionConstants
         MasterData_UnitsOfMeasureView, MasterData_UnitsOfMeasureManage,
         MasterData_GeographyView, MasterData_GeographyManage,
         MasterData_LanguagesView, MasterData_LanguagesManage,
+        MasterData_CompaniesView, MasterData_CompaniesManage,
+        MasterData_BranchesView, MasterData_BranchesManage,
+        MasterData_DivisionsView, MasterData_DivisionsManage,
+        MasterData_TeamsView, MasterData_TeamsManage,
+        MasterData_BusinessUnitsView, MasterData_BusinessUnitsManage,
+        MasterData_CostCentersView, MasterData_CostCentersManage,
+        MasterData_ProfitCentersView, MasterData_ProfitCentersManage,
+        MasterData_OrganizationCalendarsView, MasterData_OrganizationCalendarsManage,
+        MasterData_EmployeeTeamAssignmentsView, MasterData_EmployeeTeamAssignmentsManage,
         Settings_CartCheckout_SystemView, Settings_CartCheckout_SystemManage,
         Settings_CartCheckout_TenantView, Settings_CartCheckout_TenantManage,
         Settings_Currency_SystemView, Settings_Currency_SystemManage,

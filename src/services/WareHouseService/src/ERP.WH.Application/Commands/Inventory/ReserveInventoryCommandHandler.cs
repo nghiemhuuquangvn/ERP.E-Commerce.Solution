@@ -6,7 +6,7 @@ using InventoryEntity = ERP.WH.Domain.Aggregates.Inventory.Inventory;
 
 namespace ERP.WH.Application.Commands.Inventory;
 
-public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCommand, ReserveInventoryResponse>
+public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCommand, ReserveInventoryResponse?>
 {
     private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventPublisher _eventPublisher;
@@ -118,7 +118,7 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
 
 public interface IInventoryRepository
 {
-    Task<InventoryEntity> GetByProductIdAsync(Guid productId, CancellationToken cancellationToken);
+    Task<InventoryEntity?> GetByProductIdAsync(Guid productId, CancellationToken cancellationToken);
     Task<InventoryEntity?> GetByProductSkuAsync(string sku, CancellationToken cancellationToken);
     Task UpdateAsync(InventoryEntity inventory, CancellationToken cancellationToken);
     Task AddAsync(InventoryEntity inventory, CancellationToken cancellationToken);
@@ -127,7 +127,7 @@ public interface IInventoryRepository
 
 public interface IReservationRepository
 {
-    Task<Reservation> GetByIdAsync(Guid reservationId, CancellationToken cancellationToken);
+    Task<Reservation?> GetByIdAsync(Guid reservationId, CancellationToken cancellationToken);
     Task<List<Reservation>> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken);
     Task AddAsync(Reservation reservation, CancellationToken cancellationToken);
     Task UpdateAsync(Reservation reservation, CancellationToken cancellationToken);

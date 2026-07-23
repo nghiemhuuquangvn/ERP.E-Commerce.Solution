@@ -95,6 +95,27 @@ public class DepartmentsController : ControllerBase
         var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Set (or clear) the division a department belongs to.
+    /// </summary>
+    [HttpPut("{id:guid}/division")]
+    [AuthorizePermission("masterdata:departments:manage")]
+    [ProducesResponseType(typeof(DepartmentDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> SetDivision(
+        [FromRoute] Guid id,
+        [FromBody] SetDepartmentDivisionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new SetDepartmentDivisionCommand(id, request.DivisionId);
+        var result = await _mediator.Send(command, cancellationToken);
+        return Ok(result);
+    }
 }
 
 public record UpdateDepartmentRequest(string Name, string Code, Guid? ManagerId);
+public record SetDepartmentDivisionRequest(Guid? DivisionId);

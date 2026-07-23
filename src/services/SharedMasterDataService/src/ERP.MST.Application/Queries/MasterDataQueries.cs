@@ -81,3 +81,92 @@ public record GetLanguageQuery(Guid LanguageId) : IRequest<SupportedLanguageDto?
 public record ListLanguagesQuery(
     int Page = 1,
     int PageSize = 20) : IRequest<PagedResult<SupportedLanguageDto>>;
+
+// ─── Company Queries ────────────────────────────────────────────────────────
+
+public record GetCompanyQuery(Guid CompanyId) : IRequest<CompanyDto?>;
+
+public record ListCompaniesQuery(
+    int Page = 1,
+    int PageSize = 20) : IRequest<PagedResult<CompanyDto>>;
+
+// ─── Branch Queries ─────────────────────────────────────────────────────────
+
+public record GetBranchQuery(Guid BranchId) : IRequest<BranchDto?>;
+
+public record ListBranchesQuery(
+    Guid? CompanyId = null,
+    int Page = 1,
+    int PageSize = 20) : IRequest<PagedResult<BranchDto>>;
+
+// ─── Division Queries ───────────────────────────────────────────────────────
+
+public record GetDivisionQuery(Guid DivisionId) : IRequest<DivisionDto?>;
+
+public record ListDivisionsQuery(
+    Guid? BranchId = null,
+    int Page = 1,
+    int PageSize = 20) : IRequest<PagedResult<DivisionDto>>;
+
+// ─── Team Queries ───────────────────────────────────────────────────────────
+
+public record GetTeamQuery(Guid TeamId) : IRequest<TeamDto?>;
+
+public record ListTeamsQuery(
+    Guid? DepartmentId = null,
+    int Page = 1,
+    int PageSize = 20) : IRequest<PagedResult<TeamDto>>;
+
+// ─── Business Unit Queries ──────────────────────────────────────────────────
+
+public record GetBusinessUnitQuery(Guid BusinessUnitId) : IRequest<BusinessUnitDto?>;
+
+public record ListBusinessUnitsQuery(
+    Guid? CompanyId = null,
+    int Page = 1,
+    int PageSize = 20) : IRequest<PagedResult<BusinessUnitDto>>;
+
+// ─── Cost Center Queries ────────────────────────────────────────────────────
+
+public record GetCostCenterQuery(Guid CostCenterId) : IRequest<CostCenterDto?>;
+
+public record ListCostCentersQuery(
+    Guid? CompanyId = null,
+    int Page = 1,
+    int PageSize = 20) : IRequest<PagedResult<CostCenterDto>>;
+
+// ─── Profit Center Queries ──────────────────────────────────────────────────
+
+public record GetProfitCenterQuery(Guid ProfitCenterId) : IRequest<ProfitCenterDto?>;
+
+public record ListProfitCentersQuery(
+    Guid? CompanyId = null,
+    int Page = 1,
+    int PageSize = 20) : IRequest<PagedResult<ProfitCenterDto>>;
+
+// ─── Organization Calendar Queries ──────────────────────────────────────────
+
+public record GetOrganizationCalendarQuery(Guid CalendarId) : IRequest<OrganizationCalendarDto?>;
+
+public record ListOrganizationCalendarsQuery(
+    Guid? CompanyId = null,
+    int Page = 1,
+    int PageSize = 20) : IRequest<PagedResult<OrganizationCalendarDto>>;
+
+// ─── Holiday Queries ─────────────────────────────────────────────────────────
+
+public record GetHolidayQuery(Guid HolidayId) : IRequest<HolidayDto?>;
+
+public record ListHolidaysQuery(
+    Guid CalendarId,
+    int Page = 1,
+    int PageSize = 20) : IRequest<PagedResult<HolidayDto>>;
+
+// ─── Employee Team Assignment Queries ───────────────────────────────────────
+
+public record GetEmployeeTeamAssignmentQuery(Guid AssignmentId) : IRequest<EmployeeTeamAssignmentDto?>;
+
+public record ListEmployeeTeamAssignmentsQuery(
+    Guid EmployeeId,
+    int Page = 1,
+    int PageSize = 20) : IRequest<PagedResult<EmployeeTeamAssignmentDto>>;

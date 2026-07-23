@@ -12,19 +12,19 @@ public class ReservedItem
 {
     public Guid ProductId { get; set; }
     public int Quantity { get; set; }
-    public string WarehouseLocation { get; set; }
+    public string WarehouseLocation { get; set; } = null!;
 }
 
 public class Reservation
 {
     public Guid ReservationId { get; private set; }
     public Guid OrderId { get; private set; }
-    public List<ReservedItem> ReservedItems { get; private set; }
+    public List<ReservedItem> ReservedItems { get; private set; } = null!;
     public ReservationStatus Status { get; private set; }
     public DateTime HoldUntil { get; private set; }
     public DateTime ReservedAt { get; private set; }
     public DateTime? ReleasedAt { get; private set; }
-    public string ReleaseReason { get; private set; }
+    public string? ReleaseReason { get; private set; }
 
     // Constructor parameter "items" does not name-match the ReservedItems property,
     // so EF Core's constructor-binding convention cannot resolve it; this
@@ -41,7 +41,7 @@ public class Reservation
         ReservedAt = DateTime.UtcNow;
     }
 
-    public void Release(string reason = null)
+    public void Release(string? reason = null)
     {
         Status = ReservationStatus.Released;
         ReleasedAt = DateTime.UtcNow;

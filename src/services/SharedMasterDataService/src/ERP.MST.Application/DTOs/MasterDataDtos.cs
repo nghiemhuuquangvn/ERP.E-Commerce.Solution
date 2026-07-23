@@ -6,6 +6,7 @@ public record DepartmentDto(
     string Code,
     Guid? ManagerId,
     Guid? ParentDepartmentId,
+    Guid? DivisionId,
     string? LanguageCode,
     DateTime CreatedAt,
     DateTime UpdatedAt);
@@ -93,6 +94,107 @@ public record SupportedLanguageDto(
     bool IsDefault,
     bool IsActive,
     int SortOrder,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
+
+public record CompanyDto(
+    Guid Id,
+    string Name,
+    string Code,
+    string? TaxCode,
+    string? LegalAddress,
+    string? CurrencyCode,
+    bool IsActive,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
+
+public record BranchDto(
+    Guid Id,
+    Guid CompanyId,
+    string Name,
+    string Code,
+    string? Address,
+    Guid? WardId,
+    Guid? ManagerEmployeeId,
+    bool IsActive,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
+
+public record DivisionDto(
+    Guid Id,
+    Guid BranchId,
+    string Name,
+    string Code,
+    Guid? ParentDivisionId,
+    bool IsActive,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
+
+public record TeamDto(
+    Guid Id,
+    Guid DepartmentId,
+    string Name,
+    string Code,
+    Guid? LeaderEmployeeId,
+    bool IsActive,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
+
+public record BusinessUnitDto(
+    Guid Id,
+    Guid CompanyId,
+    string Name,
+    string Code,
+    bool IsActive,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
+
+public record CostCenterDto(
+    Guid Id,
+    Guid CompanyId,
+    Guid? DepartmentId,
+    string Name,
+    string Code,
+    decimal BudgetAmount,
+    bool IsActive,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
+
+public record ProfitCenterDto(
+    Guid Id,
+    Guid CompanyId,
+    Guid? BusinessUnitId,
+    string Name,
+    string Code,
+    bool IsActive,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
+
+public record OrganizationCalendarDto(
+    Guid Id,
+    Guid CompanyId,
+    int Year,
+    string Name,
+    bool IsDefault,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
+
+public record HolidayDto(
+    Guid Id,
+    Guid CalendarId,
+    DateTime Date,
+    string Name,
+    bool IsRecurringYearly,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
+
+public record EmployeeTeamAssignmentDto(
+    Guid Id,
+    Guid EmployeeId,
+    Guid TeamId,
+    Guid? PositionId,
+    DateTime EffectiveFrom,
+    DateTime? EffectiveTo,
     DateTime CreatedAt,
     DateTime UpdatedAt);
 

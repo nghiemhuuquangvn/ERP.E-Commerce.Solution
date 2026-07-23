@@ -32,6 +32,17 @@ namespace ERP.MST.Infrastructure.Persistence
         public DbSet<SystemCurrencySettings> SystemCurrencySettings { get; set; }
         public DbSet<TenantCurrencySettings> TenantCurrencySettings { get; set; }
 
+        public DbSet<Company> Companies { get; set; }
+        public DbSet<Branch> Branches { get; set; }
+        public DbSet<Division> Divisions { get; set; }
+        public DbSet<Team> Teams { get; set; }
+        public DbSet<BusinessUnit> BusinessUnits { get; set; }
+        public DbSet<CostCenter> CostCenters { get; set; }
+        public DbSet<ProfitCenter> ProfitCenters { get; set; }
+        public DbSet<OrganizationCalendar> OrganizationCalendars { get; set; }
+        public DbSet<Holiday> Holidays { get; set; }
+        public DbSet<EmployeeTeamAssignment> EmployeeTeamAssignments { get; set; }
+
         public MasterDataDbContext(DbContextOptions<MasterDataDbContext> options) : base(options)
         {
         }

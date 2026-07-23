@@ -35,12 +35,12 @@ public class StocktakeLine
 public class Stocktake
 {
     public Guid StocktakeId { get; private set; }
-    public string StocktakeNumber { get; private set; }
+    public string StocktakeNumber { get; private set; } = null!;
     public Guid? LocationId { get; private set; }
     public StocktakeStatus Status { get; private set; }
     public List<StocktakeLine> Lines { get; private set; } = new();
     public string? Notes { get; private set; }
-    public string StartedBy { get; private set; }
+    public string StartedBy { get; private set; } = null!;
     public DateTime StartedAt { get; private set; }
     public DateTime? CompletedAt { get; private set; }
 

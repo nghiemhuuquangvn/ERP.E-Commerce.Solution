@@ -54,6 +54,16 @@ namespace ERP.MST.Infrastructure
             services.AddScoped<IDistrictRepository, DistrictRepository>();
             services.AddScoped<IWardRepository, WardRepository>();
             services.AddScoped<ISupportedLanguageRepository, SupportedLanguageRepository>();
+            services.AddScoped<ICompanyRepository, CompanyRepository>();
+            services.AddScoped<IBranchRepository, BranchRepository>();
+            services.AddScoped<IDivisionRepository, DivisionRepository>();
+            services.AddScoped<ITeamRepository, TeamRepository>();
+            services.AddScoped<IBusinessUnitRepository, BusinessUnitRepository>();
+            services.AddScoped<ICostCenterRepository, CostCenterRepository>();
+            services.AddScoped<IProfitCenterRepository, ProfitCenterRepository>();
+            services.AddScoped<IOrganizationCalendarRepository, OrganizationCalendarRepository>();
+            services.AddScoped<IHolidayRepository, HolidayRepository>();
+            services.AddScoped<IEmployeeTeamAssignmentRepository, EmployeeTeamAssignmentRepository>();
 
             // Currency Settings (System/Tenant two-tier) — storage+CRUD only for now
             services.AddScoped<ICurrencySettingsService, CurrencySettingsService>();

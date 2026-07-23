@@ -8,9 +8,9 @@ public class SalesOrderShippedEvent : INotification
 {
     public Guid OrderId { get; set; }
     public Guid CustomerId { get; set; }
-    public string TrackingNumber { get; set; }
+    public required string TrackingNumber { get; set; }
     public DateTime ShippedAt { get; set; }
-    public string CorrelationId { get; set; }
+    public required string CorrelationId { get; set; }
 }
 
 public class SalesOrderShippedEventHandler : INotificationHandler<SalesOrderShippedEvent>

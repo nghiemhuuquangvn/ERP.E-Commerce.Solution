@@ -14,18 +14,18 @@ public class GetMovementHistoryQuery : IRequest<GetMovementHistoryResponse>
 public class GetMovementHistoryResponse
 {
     public int Total { get; set; }
-    public List<StockMovementDto> Items { get; set; }
+    public required List<StockMovementDto> Items { get; set; }
 }
 
 public class StockMovementDto
 {
     public Guid MovementId { get; set; }
     public Guid ProductId { get; set; }
-    public string MovementType { get; set; }
+    public required string MovementType { get; set; }
     public int Quantity { get; set; }
-    public string FromLocation { get; set; }
-    public string ToLocation { get; set; }
-    public string Reference { get; set; }
-    public string Reason { get; set; }
+    public string? FromLocation { get; set; }
+    public string? ToLocation { get; set; }
+    public string? Reference { get; set; }
+    public string? Reason { get; set; }
     public DateTime RecordedAt { get; set; }
 }

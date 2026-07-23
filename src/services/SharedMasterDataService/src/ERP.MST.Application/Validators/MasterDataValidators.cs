@@ -224,3 +224,378 @@ public class CreateLanguageCommandValidator : AbstractValidator<CreateLanguageCo
             .MaximumLength(100).WithMessage("Language native name must not exceed 100 characters.");
     }
 }
+
+public class CreateCompanyCommandValidator : AbstractValidator<CreateCompanyCommand>
+{
+    public CreateCompanyCommandValidator()
+    {
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Company name is required.")
+            .MaximumLength(200).WithMessage("Company name must not exceed 200 characters.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Company code is required.")
+            .MaximumLength(20).WithMessage("Company code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Company code must contain only uppercase letters, digits, underscores, and hyphens.");
+
+        RuleFor(x => x.TaxCode)
+            .MaximumLength(50).WithMessage("Tax code must not exceed 50 characters.")
+            .When(x => !string.IsNullOrEmpty(x.TaxCode));
+
+        RuleFor(x => x.LegalAddress)
+            .MaximumLength(500).WithMessage("Legal address must not exceed 500 characters.")
+            .When(x => !string.IsNullOrEmpty(x.LegalAddress));
+
+        RuleFor(x => x.CurrencyCode)
+            .Length(3).WithMessage("Currency code must be a 3-letter ISO code.")
+            .When(x => !string.IsNullOrEmpty(x.CurrencyCode));
+    }
+}
+
+public class UpdateCompanyCommandValidator : AbstractValidator<UpdateCompanyCommand>
+{
+    public UpdateCompanyCommandValidator()
+    {
+        RuleFor(x => x.CompanyId)
+            .NotEmpty().WithMessage("Company ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Company name is required.")
+            .MaximumLength(200).WithMessage("Company name must not exceed 200 characters.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Company code is required.")
+            .MaximumLength(20).WithMessage("Company code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Company code must contain only uppercase letters, digits, underscores, and hyphens.");
+
+        RuleFor(x => x.TaxCode)
+            .MaximumLength(50).WithMessage("Tax code must not exceed 50 characters.")
+            .When(x => !string.IsNullOrEmpty(x.TaxCode));
+
+        RuleFor(x => x.LegalAddress)
+            .MaximumLength(500).WithMessage("Legal address must not exceed 500 characters.")
+            .When(x => !string.IsNullOrEmpty(x.LegalAddress));
+
+        RuleFor(x => x.CurrencyCode)
+            .Length(3).WithMessage("Currency code must be a 3-letter ISO code.")
+            .When(x => !string.IsNullOrEmpty(x.CurrencyCode));
+    }
+}
+
+public class CreateBranchCommandValidator : AbstractValidator<CreateBranchCommand>
+{
+    public CreateBranchCommandValidator()
+    {
+        RuleFor(x => x.CompanyId)
+            .NotEmpty().WithMessage("Company ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Branch name is required.")
+            .MaximumLength(200).WithMessage("Branch name must not exceed 200 characters.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Branch code is required.")
+            .MaximumLength(20).WithMessage("Branch code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Branch code must contain only uppercase letters, digits, underscores, and hyphens.");
+
+        RuleFor(x => x.Address)
+            .MaximumLength(500).WithMessage("Address must not exceed 500 characters.")
+            .When(x => !string.IsNullOrEmpty(x.Address));
+    }
+}
+
+public class UpdateBranchCommandValidator : AbstractValidator<UpdateBranchCommand>
+{
+    public UpdateBranchCommandValidator()
+    {
+        RuleFor(x => x.BranchId)
+            .NotEmpty().WithMessage("Branch ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Branch name is required.")
+            .MaximumLength(200).WithMessage("Branch name must not exceed 200 characters.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Branch code is required.")
+            .MaximumLength(20).WithMessage("Branch code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Branch code must contain only uppercase letters, digits, underscores, and hyphens.");
+
+        RuleFor(x => x.Address)
+            .MaximumLength(500).WithMessage("Address must not exceed 500 characters.")
+            .When(x => !string.IsNullOrEmpty(x.Address));
+    }
+}
+
+public class CreateDivisionCommandValidator : AbstractValidator<CreateDivisionCommand>
+{
+    public CreateDivisionCommandValidator()
+    {
+        RuleFor(x => x.BranchId)
+            .NotEmpty().WithMessage("Branch ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Division name is required.")
+            .MaximumLength(200).WithMessage("Division name must not exceed 200 characters.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Division code is required.")
+            .MaximumLength(20).WithMessage("Division code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Division code must contain only uppercase letters, digits, underscores, and hyphens.");
+    }
+}
+
+public class UpdateDivisionCommandValidator : AbstractValidator<UpdateDivisionCommand>
+{
+    public UpdateDivisionCommandValidator()
+    {
+        RuleFor(x => x.DivisionId)
+            .NotEmpty().WithMessage("Division ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Division name is required.")
+            .MaximumLength(200).WithMessage("Division name must not exceed 200 characters.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Division code is required.")
+            .MaximumLength(20).WithMessage("Division code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Division code must contain only uppercase letters, digits, underscores, and hyphens.");
+    }
+}
+
+public class CreateTeamCommandValidator : AbstractValidator<CreateTeamCommand>
+{
+    public CreateTeamCommandValidator()
+    {
+        RuleFor(x => x.DepartmentId)
+            .NotEmpty().WithMessage("Department ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Team name is required.")
+            .MaximumLength(200).WithMessage("Team name must not exceed 200 characters.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Team code is required.")
+            .MaximumLength(20).WithMessage("Team code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Team code must contain only uppercase letters, digits, underscores, and hyphens.");
+    }
+}
+
+public class UpdateTeamCommandValidator : AbstractValidator<UpdateTeamCommand>
+{
+    public UpdateTeamCommandValidator()
+    {
+        RuleFor(x => x.TeamId)
+            .NotEmpty().WithMessage("Team ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Team name is required.")
+            .MaximumLength(200).WithMessage("Team name must not exceed 200 characters.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Team code is required.")
+            .MaximumLength(20).WithMessage("Team code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Team code must contain only uppercase letters, digits, underscores, and hyphens.");
+    }
+}
+
+public class CreateBusinessUnitCommandValidator : AbstractValidator<CreateBusinessUnitCommand>
+{
+    public CreateBusinessUnitCommandValidator()
+    {
+        RuleFor(x => x.CompanyId)
+            .NotEmpty().WithMessage("Company ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Business unit name is required.")
+            .MaximumLength(200).WithMessage("Business unit name must not exceed 200 characters.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Business unit code is required.")
+            .MaximumLength(20).WithMessage("Business unit code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Business unit code must contain only uppercase letters, digits, underscores, and hyphens.");
+    }
+}
+
+public class UpdateBusinessUnitCommandValidator : AbstractValidator<UpdateBusinessUnitCommand>
+{
+    public UpdateBusinessUnitCommandValidator()
+    {
+        RuleFor(x => x.BusinessUnitId)
+            .NotEmpty().WithMessage("Business unit ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Business unit name is required.")
+            .MaximumLength(200).WithMessage("Business unit name must not exceed 200 characters.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Business unit code is required.")
+            .MaximumLength(20).WithMessage("Business unit code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Business unit code must contain only uppercase letters, digits, underscores, and hyphens.");
+    }
+}
+
+public class CreateCostCenterCommandValidator : AbstractValidator<CreateCostCenterCommand>
+{
+    public CreateCostCenterCommandValidator()
+    {
+        RuleFor(x => x.CompanyId)
+            .NotEmpty().WithMessage("Company ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Cost center name is required.")
+            .MaximumLength(200).WithMessage("Cost center name must not exceed 200 characters.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Cost center code is required.")
+            .MaximumLength(20).WithMessage("Cost center code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Cost center code must contain only uppercase letters, digits, underscores, and hyphens.");
+
+        RuleFor(x => x.BudgetAmount)
+            .GreaterThanOrEqualTo(0).WithMessage("Budget amount cannot be negative.");
+    }
+}
+
+public class UpdateCostCenterCommandValidator : AbstractValidator<UpdateCostCenterCommand>
+{
+    public UpdateCostCenterCommandValidator()
+    {
+        RuleFor(x => x.CostCenterId)
+            .NotEmpty().WithMessage("Cost center ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Cost center name is required.")
+            .MaximumLength(200).WithMessage("Cost center name must not exceed 200 characters.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Cost center code is required.")
+            .MaximumLength(20).WithMessage("Cost center code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Cost center code must contain only uppercase letters, digits, underscores, and hyphens.");
+
+        RuleFor(x => x.BudgetAmount)
+            .GreaterThanOrEqualTo(0).WithMessage("Budget amount cannot be negative.");
+    }
+}
+
+public class CreateProfitCenterCommandValidator : AbstractValidator<CreateProfitCenterCommand>
+{
+    public CreateProfitCenterCommandValidator()
+    {
+        RuleFor(x => x.CompanyId)
+            .NotEmpty().WithMessage("Company ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Profit center name is required.")
+            .MaximumLength(200).WithMessage("Profit center name must not exceed 200 characters.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Profit center code is required.")
+            .MaximumLength(20).WithMessage("Profit center code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Profit center code must contain only uppercase letters, digits, underscores, and hyphens.");
+    }
+}
+
+public class UpdateProfitCenterCommandValidator : AbstractValidator<UpdateProfitCenterCommand>
+{
+    public UpdateProfitCenterCommandValidator()
+    {
+        RuleFor(x => x.ProfitCenterId)
+            .NotEmpty().WithMessage("Profit center ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Profit center name is required.")
+            .MaximumLength(200).WithMessage("Profit center name must not exceed 200 characters.");
+
+        RuleFor(x => x.Code)
+            .NotEmpty().WithMessage("Profit center code is required.")
+            .MaximumLength(20).WithMessage("Profit center code must not exceed 20 characters.")
+            .Matches(@"^[A-Z0-9_\-]+$").WithMessage("Profit center code must contain only uppercase letters, digits, underscores, and hyphens.");
+    }
+}
+
+public class CreateOrganizationCalendarCommandValidator : AbstractValidator<CreateOrganizationCalendarCommand>
+{
+    public CreateOrganizationCalendarCommandValidator()
+    {
+        RuleFor(x => x.CompanyId)
+            .NotEmpty().WithMessage("Company ID is required.");
+
+        RuleFor(x => x.Year)
+            .InclusiveBetween(2000, 2100).WithMessage("Year must be between 2000 and 2100.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Calendar name is required.")
+            .MaximumLength(200).WithMessage("Calendar name must not exceed 200 characters.");
+    }
+}
+
+public class UpdateOrganizationCalendarCommandValidator : AbstractValidator<UpdateOrganizationCalendarCommand>
+{
+    public UpdateOrganizationCalendarCommandValidator()
+    {
+        RuleFor(x => x.CalendarId)
+            .NotEmpty().WithMessage("Calendar ID is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Calendar name is required.")
+            .MaximumLength(200).WithMessage("Calendar name must not exceed 200 characters.");
+    }
+}
+
+public class CreateHolidayCommandValidator : AbstractValidator<CreateHolidayCommand>
+{
+    public CreateHolidayCommandValidator()
+    {
+        RuleFor(x => x.CalendarId)
+            .NotEmpty().WithMessage("Calendar ID is required.");
+
+        RuleFor(x => x.Date)
+            .NotEmpty().WithMessage("Holiday date is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Holiday name is required.")
+            .MaximumLength(200).WithMessage("Holiday name must not exceed 200 characters.");
+    }
+}
+
+public class UpdateHolidayCommandValidator : AbstractValidator<UpdateHolidayCommand>
+{
+    public UpdateHolidayCommandValidator()
+    {
+        RuleFor(x => x.HolidayId)
+            .NotEmpty().WithMessage("Holiday ID is required.");
+
+        RuleFor(x => x.Date)
+            .NotEmpty().WithMessage("Holiday date is required.");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Holiday name is required.")
+            .MaximumLength(200).WithMessage("Holiday name must not exceed 200 characters.");
+    }
+}
+
+public class CreateEmployeeTeamAssignmentCommandValidator : AbstractValidator<CreateEmployeeTeamAssignmentCommand>
+{
+    public CreateEmployeeTeamAssignmentCommandValidator()
+    {
+        RuleFor(x => x.EmployeeId)
+            .NotEmpty().WithMessage("Employee ID is required.");
+
+        RuleFor(x => x.TeamId)
+            .NotEmpty().WithMessage("Team ID is required.");
+
+        RuleFor(x => x.EffectiveFrom)
+            .NotEmpty().WithMessage("Effective from date is required.");
+    }
+}
+
+public class EndEmployeeTeamAssignmentCommandValidator : AbstractValidator<EndEmployeeTeamAssignmentCommand>
+{
+    public EndEmployeeTeamAssignmentCommandValidator()
+    {
+        RuleFor(x => x.AssignmentId)
+            .NotEmpty().WithMessage("Assignment ID is required.");
+
+        RuleFor(x => x.EffectiveTo)
+            .NotEmpty().WithMessage("Effective to date is required.");
+    }
+}

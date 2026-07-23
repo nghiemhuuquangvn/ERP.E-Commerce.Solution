@@ -92,14 +92,14 @@ namespace ERP.PRD.Infrastructure.Search
             {
                 var text = query.Q;
                 mustClauses.Add(m => m.Bool(b => b.Should(
-                    s => s.Match(mm => mm.Field("name").Query(text)),
-                    s => s.Match(mm => mm.Field("description").Query(text)))));
+                    s => s.Match(mm => mm.Field(new Field("name")).Query(text)),
+                    s => s.Match(mm => mm.Field(new Field("description")).Query(text)))));
             }
 
             if (query.CategoryId.HasValue)
             {
                 var categoryId = query.CategoryId.Value.ToString();
-                mustClauses.Add(m => m.Term(t => t.Field("categoryId").Value(categoryId)));
+                mustClauses.Add(m => m.Term(t => t.Field(new Field("categoryId")).Value(categoryId)));
             }
 
             if (query.PriceMin.HasValue || query.PriceMax.HasValue)
@@ -109,7 +109,7 @@ namespace ERP.PRD.Infrastructure.Search
 
                 mustClauses.Add(m => m.Range(r => r.NumberRange(nr =>
                 {
-                    nr.Field("priceMin");
+                    nr.Field(new Field("priceMin"));
                     if (priceMin.HasValue) nr.Gte(priceMin);
                     if (priceMax.HasValue) nr.Lte(priceMax);
                 })));
@@ -120,7 +120,7 @@ namespace ERP.PRD.Infrastructure.Search
                 foreach (var (code, value) in query.AttributeFilters)
                 {
                     var field = $"attributes.{code}";
-                    mustClauses.Add(m => m.Term(t => t.Field(field).Value(value)));
+                    mustClauses.Add(m => m.Term(t => t.Field(new Field(field)).Value(value)));
                 }
             }
 
@@ -134,7 +134,7 @@ namespace ERP.PRD.Infrastructure.Search
 
                     mustClauses.Add(m => m.Range(r => r.NumberRange(nr =>
                     {
-                        nr.Field(field);
+                        nr.Field(new Field(field));
                         if (gte.HasValue) nr.Gte(gte);
                         if (lte.HasValue) nr.Lte(lte);
                     })));

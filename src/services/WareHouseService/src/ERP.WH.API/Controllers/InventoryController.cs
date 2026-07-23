@@ -46,7 +46,7 @@ public class InventoryController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(ListInventoryResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<ListInventoryResponse>> ListInventory(
-        [FromQuery] string search = null,
+        [FromQuery] string? search = null,
         [FromQuery] bool lowStockOnly = false,
         [FromQuery] int skip = 0,
         [FromQuery] int take = 50)
@@ -96,6 +96,9 @@ public class InventoryController : ControllerBase
         try
         {
             var result = await _mediator.Send(command);
+            if (result == null)
+                return BadRequest(new { message = "One or more line items could not be fully reserved." });
+
             return CreatedAtAction(nameof(GetInventory), new { productId = result.OrderId }, result);
         }
         catch (InvalidOperationException ex)

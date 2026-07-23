@@ -9,7 +9,7 @@ namespace ERP.PRD.Domain.Entities
     public class PriceList : AggregateRoot
     {
         public string Name { get; set; } = string.Empty;
-        public string? Description { get; set; }
+        public new string? Description { get; set; }
         public DateTime EffectiveDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
         public bool IsActive { get; set; }

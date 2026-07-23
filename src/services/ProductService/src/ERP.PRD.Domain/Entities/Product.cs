@@ -12,7 +12,7 @@ namespace ERP.PRD.Domain.Entities
     {
         public string Sku { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-        public string? Description { get; set; }
+        public new string? Description { get; set; }
         public ProductType ProductType { get; set; }
         public ProductStatus Status { get; set; } = ProductStatus.Draft;
         public Guid? CategoryId { get; set; }

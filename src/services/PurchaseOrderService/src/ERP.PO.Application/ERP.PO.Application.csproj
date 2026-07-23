@@ -8,6 +8,10 @@
 
   <ItemGroup>
     <PackageReference Include="MediatR" Version="12.2.0" />
+    <!-- NU1903: AutoMapper 12.0.1 has a known DoS advisory (GHSA-rvv3-g6hj-g44x), fixed only in
+         >=15.1.1 — but 13+ requires accepting AutoMapper's commercial license (paid above a
+         revenue threshold), unlike 12.0.1's plain MIT license. Deliberately kept at 12.0.1 per
+         a business decision (2026-07-23) pending legal/team sign-off on the license change. -->
     <PackageReference Include="AutoMapper" Version="12.0.1" />
     <PackageReference Include="FluentValidation" Version="11.8.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />

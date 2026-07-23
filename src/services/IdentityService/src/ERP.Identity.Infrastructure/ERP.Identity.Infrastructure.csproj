@@ -24,6 +24,12 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.3" />
     <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.16.0" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.16.0" />
+    <!-- Pinned above the vulnerable version transitively pulled in by Microsoft.IdentityModel.*
+         (NU1903 GHSA-23rf-6693-g89p/37gx-xxp4-5rgx/8q5v-6pqq-x66h/cvvh-rhrc-wg4q/g8r8-53c2-pm3f/
+         mmjf-rqrv-855v/w3x6-4m5h-cxqf). -->
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.10" />
+    <!-- Pinned above the vulnerable transitive version pulled in by Swashbuckle (NU1903 GHSA-v5pm-xwqc-g5wc). -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
     <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="10.1.4" />
   </ItemGroup>
 

@@ -7,7 +7,7 @@ public class TrackingEvent : BaseEntity
     public Guid ShipmentId { get; private set; }
     public string Status { get; private set; } = string.Empty;
     public string Location { get; private set; } = string.Empty;
-    public string Description { get; private set; } = string.Empty;
+    public new string Description { get; private set; } = string.Empty;
     public DateTime OccurredAt { get; private set; }
 
     private TrackingEvent() { }

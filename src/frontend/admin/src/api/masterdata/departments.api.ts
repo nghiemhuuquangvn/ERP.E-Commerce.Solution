@@ -6,6 +6,7 @@ export interface Department {
   code: string
   managerId?: string | null
   parentDepartmentId?: string | null
+  divisionId?: string | null
   languageCode?: string | null
   createdAt: string
   updatedAt: string
@@ -32,6 +33,11 @@ export interface UpdateDepartmentRequest {
   managerId?: string | null
 }
 
+// SetDepartmentDivisionRequest(DivisionId)
+export interface SetDepartmentDivisionRequest {
+  divisionId?: string | null
+}
+
 export const departmentsApi = {
   list: (params: ListDepartmentsParams) =>
     apiClient
@@ -48,4 +54,7 @@ export const departmentsApi = {
 
   update: (id: string, body: UpdateDepartmentRequest) =>
     apiClient.put<Department>(`${MST_BASE}/departments/${id}`, body).then((r) => r.data),
+
+  setDivision: (id: string, body: SetDepartmentDivisionRequest) =>
+    apiClient.put<Department>(`${MST_BASE}/departments/${id}/division`, body).then((r) => r.data),
 }

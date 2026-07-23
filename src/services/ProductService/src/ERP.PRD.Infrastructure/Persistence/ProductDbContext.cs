@@ -69,7 +69,7 @@ namespace ERP.PRD.Infrastructure.Persistence
 
                 // Index for pending messages (used by OutboxProcessor)
                 entity.HasIndex(e => e.ProcessedOnUtc)
-                    .HasName("IX_OutboxMessages_ProcessedOnUtc_Pending")
+                    .HasDatabaseName("IX_OutboxMessages_ProcessedOnUtc_Pending")
                     .HasFilter("[ProcessedOnUtc] IS NULL");
             });
 

@@ -29,7 +29,7 @@ public class TransferOrderLine
 public class TransferOrder
 {
     public Guid TransferOrderId { get; private set; }
-    public string TransferNumber { get; private set; }
+    public string TransferNumber { get; private set; } = null!;
     public Guid FromLocationId { get; private set; }
     public Guid ToLocationId { get; private set; }
     public TransferOrderStatus Status { get; private set; }

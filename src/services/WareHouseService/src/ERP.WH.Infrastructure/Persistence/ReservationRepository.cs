@@ -13,7 +13,7 @@ public class ReservationRepository : IReservationRepository
         _context = context;
     }
 
-    public async Task<Reservation> GetByIdAsync(Guid reservationId, CancellationToken cancellationToken)
+    public async Task<Reservation?> GetByIdAsync(Guid reservationId, CancellationToken cancellationToken)
     {
         return await _context.Reservations.FirstOrDefaultAsync(r => r.ReservationId == reservationId, cancellationToken);
     }

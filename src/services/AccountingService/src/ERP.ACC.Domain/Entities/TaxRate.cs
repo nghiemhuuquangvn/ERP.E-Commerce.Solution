@@ -9,7 +9,7 @@ namespace ERP.ACC.Domain.Entities
         public string Code { get; private set; } = string.Empty;
         public decimal Rate { get; private set; }
         public bool IsActive { get; private set; }
-        public string? Description { get; private set; }
+        public new string? Description { get; private set; }
 
         private TaxRate() { }
 

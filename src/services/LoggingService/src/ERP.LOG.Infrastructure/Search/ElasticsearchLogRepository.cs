@@ -40,7 +40,7 @@ public class ElasticsearchLogRepository : ILogQueryRepository
         var response = await _client.SearchAsync<LogEntry>(IndexPattern, s =>
         {
             s.Query(q => q.Bool(b => b.Must(mustClauses.ToArray())))
-             .Sort(so => so.Field("occurredAt", f => f.Order(SortOrder.Desc)))
+             .Sort(so => so.Field(new Field("occurredAt"), f => f.Order(SortOrder.Desc)))
              .From((page - 1) * pageSize)
              .Size(pageSize);
         }, cancellationToken);
@@ -64,19 +64,19 @@ public class ElasticsearchLogRepository : ILogQueryRepository
         if (!string.IsNullOrWhiteSpace(criteria.ServiceName))
         {
             var serviceName = criteria.ServiceName;
-            mustClauses.Add(m => m.Term(t => t.Field("serviceName").Value(serviceName)));
+            mustClauses.Add(m => m.Term(t => t.Field(new Field("serviceName")).Value(serviceName)));
         }
 
         if (!string.IsNullOrWhiteSpace(criteria.Level))
         {
             var level = criteria.Level;
-            mustClauses.Add(m => m.Term(t => t.Field("level").Value(level)));
+            mustClauses.Add(m => m.Term(t => t.Field(new Field("level")).Value(level)));
         }
 
         if (!string.IsNullOrWhiteSpace(criteria.Kind))
         {
             var kind = criteria.Kind;
-            mustClauses.Add(m => m.Term(t => t.Field("kind").Value(kind)));
+            mustClauses.Add(m => m.Term(t => t.Field(new Field("kind")).Value(kind)));
         }
 
         if (criteria.FromUtc.HasValue || criteria.ToUtc.HasValue)
@@ -85,7 +85,7 @@ public class ElasticsearchLogRepository : ILogQueryRepository
             var to = criteria.ToUtc;
             mustClauses.Add(m => m.Range(r => r.DateRange(dr =>
             {
-                dr.Field("occurredAt");
+                dr.Field(new Field("occurredAt"));
                 if (from.HasValue) dr.Gte(DateMath.Anchored(from.Value));
                 if (to.HasValue) dr.Lte(DateMath.Anchored(to.Value));
             })));
@@ -95,16 +95,16 @@ public class ElasticsearchLogRepository : ILogQueryRepository
         {
             var keyword = criteria.Keyword;
             mustClauses.Add(m => m.Bool(b => b.Should(
-                s => s.Match(mm => mm.Field("message").Query(keyword)),
-                s => s.Match(mm => mm.Field("exceptionType").Query(keyword)),
-                s => s.Match(mm => mm.Field("stackTrace").Query(keyword)))));
+                s => s.Match(mm => mm.Field(new Field("message")).Query(keyword)),
+                s => s.Match(mm => mm.Field(new Field("exceptionType")).Query(keyword)),
+                s => s.Match(mm => mm.Field(new Field("stackTrace")).Query(keyword)))));
         }
 
         if (!string.IsNullOrWhiteSpace(criteria.RequestId))
         {
             // Dynamically-mapped text field — exact match needs the auto-generated .keyword subfield.
             var requestId = criteria.RequestId;
-            mustClauses.Add(m => m.Term(t => t.Field("properties.RequestId.keyword").Value(requestId)));
+            mustClauses.Add(m => m.Term(t => t.Field(new Field("properties.RequestId.keyword")).Value(requestId)));
         }
 
         if (mustClauses.Count == 0)

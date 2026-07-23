@@ -4,7 +4,7 @@ public class InventoryLot
 {
     public Guid LotId { get; private set; }
     public Guid ProductId { get; private set; }
-    public string LotNumber { get; private set; }
+    public string LotNumber { get; private set; } = null!;
     public int ReceivedQuantity { get; private set; }
     public int RemainingQuantity { get; private set; }
     public decimal UnitCost { get; private set; }

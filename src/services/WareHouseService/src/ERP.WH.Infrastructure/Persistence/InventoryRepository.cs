@@ -13,7 +13,7 @@ public class InventoryRepository : IInventoryRepository
         _context = context;
     }
 
-    public async Task<Inventory> GetByProductIdAsync(Guid productId, CancellationToken cancellationToken)
+    public async Task<Inventory?> GetByProductIdAsync(Guid productId, CancellationToken cancellationToken)
     {
         return await _context.Inventories.FirstOrDefaultAsync(i => i.ProductId == productId, cancellationToken);
     }

@@ -66,3 +66,72 @@ public record CountryCreatedEvent(
 {
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
+
+public record CompanyCreatedEvent(
+    Guid CompanyId,
+    string Name,
+    string Code) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}
+
+public record CompanyUpdatedEvent(
+    Guid CompanyId,
+    string Name,
+    string Code) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}
+
+public record BranchCreatedEvent(
+    Guid BranchId,
+    Guid CompanyId,
+    string Name,
+    string Code) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}
+
+public record DivisionCreatedEvent(
+    Guid DivisionId,
+    Guid BranchId,
+    string Name,
+    string Code) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}
+
+public record TeamCreatedEvent(
+    Guid TeamId,
+    Guid DepartmentId,
+    string Name,
+    string Code) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}
+
+public record CostCenterCreatedEvent(
+    Guid CostCenterId,
+    Guid CompanyId,
+    string Name,
+    string Code) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}
+
+public record ProfitCenterCreatedEvent(
+    Guid ProfitCenterId,
+    Guid CompanyId,
+    string Name,
+    string Code) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}
+
+public record EmployeeTeamAssignmentChangedEvent(
+    Guid EmployeeId,
+    Guid TeamId,
+    Guid? PositionId) : IDomainEvent
+{
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}

@@ -125,3 +125,139 @@ public interface ISupportedLanguageRepository
     void Add(SupportedLanguage language);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
+
+public interface ICompanyRepository
+{
+    Task<Company?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<Company> Items, int TotalCount)> ListAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+    Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
+    void Add(Company company);
+    void Update(Company company);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IBranchRepository
+{
+    Task<Branch?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<Branch> Items, int TotalCount)> ListAsync(
+        Guid? companyId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+    Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
+    void Add(Branch branch);
+    void Update(Branch branch);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IDivisionRepository
+{
+    Task<Division?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<Division> Items, int TotalCount)> ListAsync(
+        Guid? branchId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+    Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
+    void Add(Division division);
+    void Update(Division division);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public interface ITeamRepository
+{
+    Task<Team?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<Team> Items, int TotalCount)> ListAsync(
+        Guid? departmentId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+    Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
+    void Add(Team team);
+    void Update(Team team);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IBusinessUnitRepository
+{
+    Task<BusinessUnit?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<BusinessUnit> Items, int TotalCount)> ListAsync(
+        Guid? companyId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+    Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
+    void Add(BusinessUnit businessUnit);
+    void Update(BusinessUnit businessUnit);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public interface ICostCenterRepository
+{
+    Task<CostCenter?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<CostCenter> Items, int TotalCount)> ListAsync(
+        Guid? companyId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+    Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
+    void Add(CostCenter costCenter);
+    void Update(CostCenter costCenter);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IProfitCenterRepository
+{
+    Task<ProfitCenter?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<ProfitCenter> Items, int TotalCount)> ListAsync(
+        Guid? companyId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+    Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
+    void Add(ProfitCenter profitCenter);
+    void Update(ProfitCenter profitCenter);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IOrganizationCalendarRepository
+{
+    Task<OrganizationCalendar?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<OrganizationCalendar> Items, int TotalCount)> ListAsync(
+        Guid? companyId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+    void Add(OrganizationCalendar calendar);
+    void Update(OrganizationCalendar calendar);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IHolidayRepository
+{
+    Task<Holiday?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<Holiday> Items, int TotalCount)> ListAsync(
+        Guid calendarId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+    void Add(Holiday holiday);
+    void Update(Holiday holiday);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IEmployeeTeamAssignmentRepository
+{
+    Task<EmployeeTeamAssignment?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<EmployeeTeamAssignment> Items, int TotalCount)> ListAsync(
+        Guid employeeId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+    void Add(EmployeeTeamAssignment assignment);
+    void Update(EmployeeTeamAssignment assignment);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}

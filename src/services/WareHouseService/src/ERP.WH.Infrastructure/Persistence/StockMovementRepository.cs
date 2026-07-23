@@ -13,7 +13,7 @@ public class StockMovementRepository : IStockMovementRepository
         _context = context;
     }
 
-    public async Task<StockMovement> GetByIdAsync(Guid movementId, CancellationToken cancellationToken)
+    public async Task<StockMovement?> GetByIdAsync(Guid movementId, CancellationToken cancellationToken)
     {
         return await _context.StockMovements.FirstOrDefaultAsync(m => m.MovementId == movementId, cancellationToken);
     }

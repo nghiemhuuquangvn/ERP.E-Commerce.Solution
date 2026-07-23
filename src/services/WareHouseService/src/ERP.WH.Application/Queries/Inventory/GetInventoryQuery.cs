@@ -10,20 +10,20 @@ public class GetInventoryQuery : IRequest<GetInventoryResponse>
 public class GetInventoryResponse
 {
     public Guid ProductId { get; set; }
-    public string ProductName { get; set; }
+    public required string ProductName { get; set; }
     public int TotalQuantity { get; set; }
     public int AvailableQuantity { get; set; }
     public int ReservedQuantity { get; set; }
     public int LockedQuantity { get; set; }
     public int ReorderPoint { get; set; }
     public int ReorderQuantity { get; set; }
-    public List<LocationStockDto> Locations { get; set; }
+    public required List<LocationStockDto> Locations { get; set; }
     public DateTime LastUpdated { get; set; }
 }
 
 public class LocationStockDto
 {
-    public string Location { get; set; }
+    public required string Location { get; set; }
     public int Quantity { get; set; }
     public int Reserved { get; set; }
 }
