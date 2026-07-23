@@ -2,6 +2,7 @@ using ERP.LOG.Application.DTOs;
 using ERP.LOG.Application.Interfaces;
 using ERP.LOG.Application.Queries;
 using ERP.LOG.Domain.Models;
+using Asp.Versioning;
 using ERP.Shared.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -26,7 +27,8 @@ public class ClientLogEntryDto
 }
 
 [ApiController]
-[Route("api/v1/logs")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/logs")]
 [Authorize]
 public class LogsController : ControllerBase
 {

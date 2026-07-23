@@ -2,6 +2,7 @@ using ERP.LOG.Application.Handlers;
 using ERP.LOG.Infrastructure;
 using ERP.Shared.Authorization;
 using ERP.Shared.Extensions;
+using ERP.Shared.Versioning;
 using Microsoft.OpenApi;
 using Serilog;
 
@@ -36,6 +37,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 builder.Services.AddControllers();
+builder.Services.AddErpApiVersioning();
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>

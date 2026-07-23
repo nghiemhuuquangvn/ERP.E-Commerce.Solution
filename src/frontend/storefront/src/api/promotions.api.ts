@@ -10,6 +10,6 @@ export interface CouponValidation {
 export const promotionsApi = {
   validateCoupon: (code: string, orderAmount: number) =>
     apiClient
-      .post<CouponValidation>('/v1/promotions/coupons/validate', { code, orderAmount })
+      .post<CouponValidation>('/v1/promotions/validate-coupon', { code, orderAmount })
       .then((r) => r.data),
 }
