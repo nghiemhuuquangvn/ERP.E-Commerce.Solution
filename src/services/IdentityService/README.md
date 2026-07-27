@@ -675,7 +675,6 @@ dotnet test --filter "Category=Integration"
 ## Related Documentation
 - [Event Catalog](../../docs/architecture/event-catalog.md) - Event contracts
 - [Coding Standards](../../docs/conventions/coding-standard.md) - Code style
-- [API Contracts](../../docs/contracts/identity-api.md) - Full API specification
 
 ---
 

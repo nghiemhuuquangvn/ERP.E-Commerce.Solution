@@ -472,7 +472,7 @@ consumers mới + CSV export.
   bất kỳ key hợp lệ nào cũng được cấp toàn quyền bất kể scope đã cấp là gì
 - JWT signing secret chuyển từ hardcode trong `appsettings.json`/`docker-compose.yml`
   sang biến môi trường (`${JWT_SIGNING_KEY}`, mẫu ở `.env.example`) — xem
-  `docs/architecture/deployment-guide.md`
+  `docs/deployment/deployment-guide.md`
 - **Cross-Service JWT Trust Boundary (thay đổi kiến trúc lớn nhất đợt này):** trước
   đây chỉ Gateway xác thực chữ ký JWT; 13 service còn lại chỉ tin header
   `X-User-Id`/`X-Tenant-Id`/`X-User-Roles`/`X-User-Permissions` do Gateway gắn vào —

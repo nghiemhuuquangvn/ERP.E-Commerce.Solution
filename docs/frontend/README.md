@@ -46,6 +46,9 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
   catch-all) — pick the client per controller, don't assume one client covers
   the whole service. Also covers the cross-service Purchase Requests page
   (PurchaseOrderService), triggered by this domain's `StockAlertEvent`.
+- [refactoring-guide.md](refactoring-guide.md) — audit/best-practices notes for
+  modernizing the Admin (React) and Storefront (Vue) apps; moved here from the
+  repo root, where it was previously misplaced.
 
 ## Auth: login, 2FA, SSO, and settings (Admin app)
 

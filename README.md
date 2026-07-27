@@ -7,7 +7,7 @@ A comprehensive .NET 10 microservices-based ERP platform designed for enterprise
 - **[CLAUDE.md](CLAUDE.md)** - Project guidelines and working rules
 - **[Service Map](docs/architecture/service-map.md)** - Service architecture and interactions
 - **[Event Catalog](docs/architecture/event-catalog.md)** - Integration events reference
-- **[API Contracts](docs/contracts/)** - REST API specifications
+- **[API Contracts](src/Shared/Contracts/README.md)** - Shared DTOs/integration event contracts
 - **[Architecture](docs/architecture/)** - System design and decisions
 - **[Coding Standards](docs/conventions/coding-standard.md)** - Development guidelines
 
@@ -204,7 +204,7 @@ docker-compose up -d
 - Docker images built and pushed to container registry
 - Helm charts for Kubernetes deployments
 
-See [Deployment Guide](docs/architecture/deployment-guide.md) for details.
+See [Deployment Guide](docs/deployment/deployment-guide.md) for details.
 
 ## Documentation
 
@@ -219,7 +219,6 @@ See [Deployment Guide](docs/architecture/deployment-guide.md) for details.
 
 ### Key Documents
 
-- **[Architecture Decisions](docs/architecture/adr/)** - ADRs for major decisions
 - **[Coding Standards](docs/conventions/coding-standard.md)** - Code style & patterns
 - **[Naming Conventions](docs/conventions/naming-convention.md)** - Naming rules
 - **[SQL Standards](docs/conventions/sql-standard.md)** - Database conventions
@@ -294,8 +293,7 @@ Each service has an isolated database:
 
 - **Issues**: GitHub Issues for bug reports and feature requests
 - **Documentation**: See `docs/` directory
-- **Architecture Decisions**: See `docs/architecture/adr/`
-- **API Documentation**: See `docs/contracts/`
+- **API Documentation**: See `src/Shared/Contracts/README.md`
 
 ## License
 

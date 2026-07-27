@@ -8,18 +8,27 @@
 
 ## Quick Navigation
 
+> **Note (2026-07-27 docs cleanup):** this file was renamed from
+> `ARCHITECTURE_REFERENCE.md` to serve as this folder's index (matching
+> `docs/frontend/README.md`'s role). The Quick Navigation links below were
+> fixed to point at the real, current filenames — the rest of this document
+> is a design-level reference dated 2026-06-13 (pre-dates
+> `SharedMasterDataService`, so it says "14 services" throughout) and may
+> drift from what's actually wired in code in places, same caveat as
+> `dependency-map.md`/`integration-map.md`.
+
 | Topic | File | Purpose |
 |-------|------|---------|
-| **Domain Organization** | domain-map.md | 4 domain groupings + event flows |
-| **Network & Ports** | port-map.md | All 14 service ports, Kubernetes topology |
-| **Service Overview** | service-map.md | 14 services with dependencies |
-| **Database Design** | database-map.md | 14 databases with SQL schemas |
-| **All Events (48)** | EVENT_CATALOG_COMPLETE.md | Event definitions, structures, handlers |
-| **Dependencies** | DEPENDENCY_MAP_COMPLETE.md | Who calls whom, REST + Kafka |
-| **Integration Flows** | INTEGRATION_MAP_COMPLETE.md | 209 event flows, 4 critical paths |
+| **Domain Organization** | domain-map.md | Domain groupings + event flows |
+| **Network & Ports** | port-map.md | Service ports, Kubernetes topology |
+| **Service Overview** | service-map.md | Services with dependencies |
+| **Database Design** | database-map.md | Databases with SQL schemas |
+| **All Events** | event-catalog.md | Event definitions, structures, handlers |
+| **Dependencies** | dependency-map.md | Who calls whom, REST + Kafka |
+| **Integration Flows** | integration-map.md | Event flows, critical paths |
 | **UI → API Request Flow** | end-to-end-request-flow.md | Traces real UI actions (Admin/Storefront/mobile) through the Gateway into each service's Controller/Command/Domain/events, with actual routes and known UI-wiring gaps |
-| **Governance** | CLAUDE.md | Service boundaries, integration rules |
-| **Implementation** | PHASE_3_IMPLEMENTATION_GUIDE.md | Code patterns, templates, examples |
+| **Governance** | ../../CLAUDE.md | Service boundaries, integration rules |
+| **Deployment** | ../deployment/deployment-guide.md | Environment setup, Docker Compose, Kubernetes |
 
 ---
 

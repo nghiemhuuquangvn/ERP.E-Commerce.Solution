@@ -89,9 +89,6 @@ docs/
         Notification/
         Reporting/
 
-    Events/
-        EventCatalog.md
-
 deployment/
     docker/
         docker-compose.yml             (All 14 services + infrastructure)
@@ -589,7 +586,7 @@ Business:
 docs/business
 
 Events:
-docs/Events
+docs/architecture/event-catalog.md
 
 Conventions:
 docs/conventions
@@ -617,7 +614,7 @@ When reviewing code:
 
 7. Review business documentation before changing business logic.
 
-8. Review EventCatalog before modifying messaging flows.
+8. Review `docs/architecture/event-catalog.md` before modifying messaging flows.
 
 9. Before adding a new frontend page, entity, or translation, review
    `docs/frontend/` — reuse the existing i18n/Master Data CRUD patterns instead of
