@@ -11,6 +11,12 @@ import { OrderFormPage } from '@/pages/orders/OrderFormPage'
 import { PurchaseOrderListPage } from '@/pages/orders/PurchaseOrderListPage'
 import { PurchaseOrderDetailPage } from '@/pages/orders/PurchaseOrderDetailPage'
 import { PurchaseOrderFormPage } from '@/pages/orders/PurchaseOrderFormPage'
+import { QuotationListPage } from '@/pages/sales/QuotationListPage'
+import { QuotationFormPage } from '@/pages/sales/QuotationFormPage'
+import { QuotationDetailPage } from '@/pages/sales/QuotationDetailPage'
+import { CustomerCreditLimitsPage } from '@/pages/sales/CustomerCreditLimitsPage'
+import { CommissionPlansPage } from '@/pages/sales/CommissionPlansPage'
+import { CommissionRecordsPage } from '@/pages/sales/CommissionRecordsPage'
 import { ProductListPage } from '@/pages/products/ProductListPage'
 import { ProductFormPage } from '@/pages/products/ProductFormPage'
 import { BrandsPage } from '@/pages/products/BrandsPage'
@@ -115,6 +121,12 @@ export const router = createBrowserRouter([
       { path: 'orders/purchase/new', element: <PurchaseOrderFormPage /> },
       { path: 'orders/purchase/:id', element: <PurchaseOrderDetailPage /> },
       { path: 'orders/:id', element: <OrderDetailPage /> },
+      { path: 'sales/quotations', element: <QuotationListPage /> },
+      { path: 'sales/quotations/new', element: <QuotationFormPage /> },
+      { path: 'sales/quotations/:id', element: <QuotationDetailPage /> },
+      { path: 'sales/credit-limits', element: <CustomerCreditLimitsPage /> },
+      { path: 'sales/commission-plans', element: <CommissionPlansPage /> },
+      { path: 'sales/commissions', element: <CommissionRecordsPage /> },
       { path: 'products', element: <ProductListPage /> },
       { path: 'products/new', element: <ProductFormPage /> },
       { path: 'products/brands', element: <BrandsPage /> },

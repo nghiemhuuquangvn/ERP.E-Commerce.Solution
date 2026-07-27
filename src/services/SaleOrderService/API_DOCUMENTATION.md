@@ -617,6 +617,80 @@ curl -X POST http://localhost:5002/api/v1/orders/770e8400-e29b-41d4-a716-4466554
 
 ---
 
+## Quotations, Credit Limit & Commission (added 2026-07-27)
+
+### Permissions
+
+Reuses the same `sales_order:*` permission strings as Orders — no dedicated Quotation/Commission/CustomerSalesProfile permission constants exist yet.
+
+| Permission | Endpoints |
+|-----------|-------------|
+| `sales_order:create` | `POST /api/v1/quotations`, `POST /api/v1/quotations/{id}/convert-to-order` |
+| `sales_order:read` | `GET /api/v1/quotations*`, `GET /api/v1/customer-sales-profiles/{customerId}`, `GET /api/v1/commission-plans`, `GET /api/v1/commissions` |
+| `sales_order:update` | `POST /api/v1/quotations/{id}/send`, `/accept`, `/reject` |
+| `sales_order:approve` | `PUT /api/v1/customer-sales-profiles/{customerId}`, `POST /api/v1/commission-plans`, `POST /api/v1/commission-plans/{id}/deactivate` |
+
+### Quotations
+
+```http
+POST /api/v1/quotations
+Authorization: Bearer <token>
+
+{
+  "customerId": "550e8400-e29b-41d4-a716-446655440000",
+  "customerName": "John Doe",
+  "customerEmail": "john@example.com",
+  "lineItems": [ { "productId": "...", "productName": "Product A", "quantity": 5, "unitPrice": 99.99 } ],
+  "validUntil": "2026-08-15T00:00:00Z"
+}
+
+Response: 201 Created — status "Draft", quotationNo "QT-202607-00001"
+```
+
+```http
+POST /api/v1/quotations/{id}/send      # Draft -> Sent
+POST /api/v1/quotations/{id}/accept    # Sent -> Accepted (409 if past validUntil)
+POST /api/v1/quotations/{id}/reject    # Sent -> Rejected
+
+POST /api/v1/quotations/{id}/convert-to-order
+{ "shippingAddress": { "street": "...", "city": "...", "state": "...", "postalCode": "...", "country": "US" } }
+
+Response: 200 OK — a real SalesOrderDto, orderSource "Manual", quotationId set to the source quotation.
+409 if the quotation is not in Accepted status.
+```
+
+### Credit Limit
+
+```http
+GET /api/v1/customer-sales-profiles/{customerId}
+Response: 200 OK { "customerId": "...", "creditLimit": 50000, "currentBalance": 12500, "updatedAt": "..." }
+Response: 404 — no profile configured, treated as "no limit enforced", not an error condition for Approve.
+
+PUT /api/v1/customer-sales-profiles/{customerId}
+{ "creditLimit": 50000 }
+Response: 200 OK — creates the profile if none exists, otherwise updates CreditLimit only (CurrentBalance is server-managed).
+```
+
+`POST /api/v1/orders/{id}/approve` now returns `409 Conflict` if `CurrentBalance + TotalAmount > CreditLimit` for a customer that has a profile:
+```json
+{ "message": "Order exceeds customer's credit limit ($50,000.00); current open balance $48,000.00 + this order $5,000.00." }
+```
+
+### Commission
+
+```http
+GET /api/v1/commission-plans
+POST /api/v1/commission-plans
+{ "name": "Standard 5%", "rateValue": 0.05 }
+POST /api/v1/commission-plans/{id}/deactivate
+
+GET /api/v1/commissions?salesRepId=&from=&to=
+```
+
+`CommissionRecord`s are created automatically — never via a direct POST — when a `PaymentProcessedEvent` (Kafka `payment-topic`) arrives for an order that has `salesRepId` set and at least one active `CommissionPlan` exists. One record per order (idempotent against redelivery).
+
+---
+
 ## Configuration
 
 ### appsettings.json
@@ -673,5 +747,5 @@ dotnet ef database drop
 
 ---
 
-**Last Updated**: 2026-06-14  
-**Version**: 1.0.0
+**Last Updated**: 2026-07-27
+**Version**: 1.1.0 — added Quotations, Credit Limit, Commission endpoints and the Outbox-based reliable event publishing retrofit.

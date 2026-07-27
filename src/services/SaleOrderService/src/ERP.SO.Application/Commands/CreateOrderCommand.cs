@@ -12,6 +12,10 @@ namespace ERP.SO.Application.Commands
         public AddressDto ShippingAddress { get; set; } = new();
         public string? Notes { get; set; }
         public string? CouponCode { get; set; }
+        public string? OrderSource { get; set; }
+        public Guid? DepartmentId { get; set; }
+        public Guid? SalesRepId { get; set; }
+        public Guid? QuotationId { get; set; }
 
         public CreateOrderCommand() { }
 
@@ -24,6 +28,9 @@ namespace ERP.SO.Application.Commands
             ShippingAddress = request.ShippingAddress;
             Notes = request.Notes;
             CouponCode = request.CouponCode;
+            OrderSource = request.OrderSource;
+            DepartmentId = request.DepartmentId;
+            SalesRepId = request.SalesRepId;
         }
     }
 

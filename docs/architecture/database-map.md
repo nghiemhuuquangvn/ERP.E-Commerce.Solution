@@ -155,46 +155,64 @@ Migration `002_AddExternalAuthSettingsAndTwoFactor.sql` also added `Users.PhoneN
 
 ### 2. SalesDB (SaleOrderService, Port 5002)
 
-**Primary Purpose:** Sales orders, customer information, order tracking.
+**Primary Purpose:** Quotations, sales orders, order tracking, per-customer credit limit, sales commission.
+
+> Corrected 2026-07-27 — there is no local `Customers` table; CustomerId/Name/
+> Email are denormalized fields captured on SalesOrders/SalesQuotations at
+> creation time (no live Customer entity exists anywhere in this system — see
+> `docs/business/Sales/module-05-sales.md` reconciliation notes).
 
 **Key Entities:**
-- Customers (100K-1M records)
-- SalesOrders (1M-10M records)
-- OrderItems (5M-50M records)
+- SalesOrders (1M-10M records), SalesOrderItems (5M-50M records)
+- SalesQuotations, SalesQuotationItems
+- CustomerSalesProfiles (one per customer with a configured credit limit)
+- CommissionPlans, CommissionRecords
+- OrderNumberSequences (per-tenant/prefix/year/month counter, not row-per-order)
 
 **Critical Tables:**
 
 ```
-Customers
-├── Id (PK)
-├── CustomerCode (Unique)
-├── Name
-├── Email, PhoneNumber
-├── CreditLimit, CreditUsed
-├── IsActive, IsDeleted
-└── Audit fields
-
 SalesOrders
 ├── Id (PK)
-├── OrderNumber (Unique)
-├── CustomerId (FK)
-├── OrderDate, RequiredDate, ShipDate
-├── TotalAmount
-├── Status (0=Draft, 1=Submitted, 2=Approved, 3=Shipped, 4=Delivered, 5=Cancelled)
+├── OrderNo (Unique, "SO-yyyyMM-00001")
+├── CustomerId, CustomerName, CustomerEmail (denormalized)
+├── OrderSource (0=Manual, 1=Ecommerce, 2=POS), DepartmentId, SalesRepId, QuotationId (all nullable)
+├── OrderDate
+├── TotalAmount, PromotionId, DiscountAmount
+├── Status (0=Draft, 1=Submitted, 2=Approved, 3=Picked, 4=Shipped, 5=Delivered,
+│           6=Rejected, 7=Cancelled, 8=PartiallyShipped, 9=ReturnRequested, 10=Returned)
 └── Audit fields
 
-OrderItems
+SalesOrderItems (owned collection)
 ├── Id (PK)
-├── SalesOrderId (FK)
+├── OrderId (FK)
 ├── ProductId (External FK → ProductService)
-├── Quantity, UnitPrice
-└── LineTotal
+├── Quantity, UnitPrice (snapshot at order creation), ShippedQuantity
+└── LineTotal (computed, not persisted)
+
+SalesQuotations
+├── Id (PK)
+├── QuotationNo (Unique, "QT-yyyyMM-00001")
+├── CustomerId, CustomerName, CustomerEmail (denormalized)
+├── Status (0=Draft, 1=Sent, 2=Accepted, 3=Rejected, 4=Expired, 5=Converted)
+├── ValidUntil, TotalAmount, ConvertedOrderId
+└── SalesQuotationItems (owned collection — ProductId, ProductName, Quantity, UnitPrice)
+
+CustomerSalesProfiles
+├── Id (PK)
+├── CustomerId (Unique) — this service is the source of truth, no external sync
+├── CreditLimit, CurrentBalance (denormalized open-order exposure)
+└── UpdatedAt
+
+CommissionPlans (Id, Name, RateType, RateValue, IsActive)
+CommissionRecords (Id, PlanId FK, SalesRepId, OrderId [Unique], Amount, Status, CalculatedAt)
 ```
 
 **Relationships:**
-- SalesOrders → Customers (many-to-one)
-- OrderItems → SalesOrders (many-to-one)
-- OrderItems → ProductService.Products (external)
+- SalesOrderItems → SalesOrders (many-to-one, owned)
+- SalesOrderItems → ProductService.Products (external, ID-only)
+- SalesOrders.QuotationId → SalesQuotations (optional, set only when converted from a quotation)
+- CommissionRecords → CommissionPlans (many-to-one), CommissionRecords.OrderId → SalesOrders (external-in-DB-terms — no FK constraint, same aggregate cluster)
 
 **Published Events:**
 - SalesOrderCreated

@@ -42,6 +42,11 @@ builder.Services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();
 builder.Services.AddScoped<IOrderFulfillmentSagaRepository, OrderFulfillmentSagaRepository>();
 builder.Services.AddScoped<ISalesOrderUnitOfWork, SalesOrderUnitOfWork>();
 builder.Services.AddScoped<IMessageBus, RabbitMqMessageBus>();
+builder.Services.AddScoped<IOrderNumberGenerator, OrderNumberGenerator>();
+builder.Services.AddScoped<ICustomerSalesProfileRepository, CustomerSalesProfileRepository>();
+builder.Services.AddScoped<ICommissionPlanRepository, CommissionPlanRepository>();
+builder.Services.AddScoped<ICommissionRecordRepository, CommissionRecordRepository>();
+builder.Services.AddScoped<ISalesQuotationRepository, SalesQuotationRepository>();
 
 // Orchestration saga — Order → Payment → Inventory Reservation → (Approval gate) →
 // Shipment. Wired up 2026-07-14: previously registered nowhere, its own state entity
@@ -85,6 +90,11 @@ var settingsProducerConfig = new ProducerConfig
 builder.Services.AddSingleton(new ProducerBuilder<string, string>(settingsProducerConfig).Build());
 builder.Services.AddScoped<ISettingsEventPublisher, KafkaSettingsEventPublisher>();
 builder.Services.AddHostedService<SettingsOutboxProcessor>();
+
+// Outbox retrofit for SalesOrder/SalesQuotation domain events (previously published
+// directly from command handlers, non-transactionally, right after SaveChanges) — see
+// DomainEventOutboxWriter/SalesOrderEventOutboxProcessor.
+builder.Services.AddHostedService<SalesOrderEventOutboxProcessor>();
 
 // RabbitMQ connection — shared single connection, matching the topic exchange model
 // PaymentService/WarehouseService/ShippingService's consumers already use. SO didn't

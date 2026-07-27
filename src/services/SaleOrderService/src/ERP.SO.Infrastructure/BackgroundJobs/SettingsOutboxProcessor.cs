@@ -18,6 +18,12 @@ namespace ERP.SO.Infrastructure.BackgroundJobs
     /// </summary>
     public class SettingsOutboxProcessor : BackgroundService
     {
+        // Distinguishes this processor's rows from the SalesOrder/SalesQuotation domain-event
+        // rows now also written to the same OutboxMessages table (see
+        // SalesOrderEventOutboxProcessor/DomainEventOutboxWriter) — without this filter,
+        // this processor would also pick up and wrongly publish those rows to Kafka.
+        private const string SettingsEventTypeName = "SettingsChangedIntegrationEvent";
+
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<SettingsOutboxProcessor> _logger;
         private readonly int _pollingIntervalMs = 5000; // 5 seconds
@@ -57,7 +63,7 @@ namespace ERP.SO.Infrastructure.BackgroundJobs
 
             // Get all unpublished messages (ProcessedOnUtc IS NULL)
             var unprocessedMessages = await dbContext.OutboxMessages
-                .Where(m => m.ProcessedOnUtc == null)
+                .Where(m => m.ProcessedOnUtc == null && m.Type == SettingsEventTypeName)
                 .OrderBy(m => m.OccurredOnUtc)
                 .ToListAsync(cancellationToken);
 

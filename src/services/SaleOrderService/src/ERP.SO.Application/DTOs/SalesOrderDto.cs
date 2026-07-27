@@ -25,6 +25,13 @@ namespace ERP.SO.Application.DTOs
         public decimal? RefundAmount { get; set; }
         public List<OrderNoteDto> InternalNotes { get; set; } = new();
         public List<OrderStatusHistoryDto> StatusHistory { get; set; } = new();
+        public string OrderNo { get; set; } = string.Empty;
+        public string OrderSource { get; set; } = string.Empty;
+        public Guid? DepartmentId { get; set; }
+        public Guid? SalesRepId { get; set; }
+        public Guid? QuotationId { get; set; }
+        public Guid? PromotionId { get; set; }
+        public decimal DiscountAmount { get; set; }
     }
 
     public class OrderNoteDto
@@ -51,5 +58,8 @@ namespace ERP.SO.Application.DTOs
         public string Status { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
         public DateTime OrderDate { get; set; }
+        public string OrderNo { get; set; } = string.Empty;
+        public Guid? SalesRepId { get; set; }
+        public Guid? DepartmentId { get; set; }
     }
 }

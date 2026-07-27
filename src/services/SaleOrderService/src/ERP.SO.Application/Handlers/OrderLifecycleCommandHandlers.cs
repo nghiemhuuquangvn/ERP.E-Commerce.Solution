@@ -1,6 +1,7 @@
 using ERP.Shared.Messaging;
 using ERP.SO.Application.Commands;
 using ERP.SO.Application.DTOs;
+using ERP.SO.Application.Interfaces;
 using MediatR;
 
 namespace ERP.SO.Application.Handlers;
@@ -41,6 +42,13 @@ public class SubmitOrderCommandHandler : IRequestHandler<SubmitOrderCommand, Sal
         DeliveredAt = order.DeliveredAt,
         CancelledAt = order.CancelledAt,
         Notes = order.Notes,
+        OrderNo = order.OrderNo,
+        OrderSource = order.OrderSource.ToString(),
+        DepartmentId = order.DepartmentId,
+        SalesRepId = order.SalesRepId,
+        QuotationId = order.QuotationId,
+        PromotionId = order.PromotionId,
+        DiscountAmount = order.DiscountAmount,
         ShippingAddress = new AddressDto
         {
             Street = order.ShippingAddress.Street,
@@ -62,12 +70,12 @@ public class SubmitOrderCommandHandler : IRequestHandler<SubmitOrderCommand, Sal
 public class MarkAsDeliveredCommandHandler : IRequestHandler<MarkAsDeliveredCommand, SalesOrderDto>
 {
     private readonly ISalesOrderRepository _repository;
-    private readonly IMessageBus _messageBus;
+    private readonly ICustomerSalesProfileRepository _profiles;
 
-    public MarkAsDeliveredCommandHandler(ISalesOrderRepository repository, IMessageBus messageBus)
+    public MarkAsDeliveredCommandHandler(ISalesOrderRepository repository, ICustomerSalesProfileRepository profiles)
     {
         _repository = repository;
-        _messageBus = messageBus;
+        _profiles = profiles;
     }
 
     public async Task<SalesOrderDto> Handle(MarkAsDeliveredCommand request, CancellationToken cancellationToken)
@@ -78,8 +86,13 @@ public class MarkAsDeliveredCommandHandler : IRequestHandler<MarkAsDeliveredComm
         order.MarkAsDelivered();
         await _repository.UpdateAsync(order, cancellationToken);
 
-        foreach (var domainEvent in order.DomainEvents)
-            await _messageBus.PublishAsync(domainEvent, cancellationToken);
+        // Order is fulfilled — no longer counts as open exposure against the credit limit.
+        var profile = await _profiles.GetByCustomerIdAsync(order.CustomerId, cancellationToken);
+        if (profile != null)
+        {
+            profile.DecreaseExposure(order.TotalAmount);
+            await _profiles.UpdateAsync(profile, cancellationToken);
+        }
 
         return MapToDto(order);
     }
@@ -98,6 +111,13 @@ public class MarkAsDeliveredCommandHandler : IRequestHandler<MarkAsDeliveredComm
         DeliveredAt = order.DeliveredAt,
         CancelledAt = order.CancelledAt,
         Notes = order.Notes,
+        OrderNo = order.OrderNo,
+        OrderSource = order.OrderSource.ToString(),
+        DepartmentId = order.DepartmentId,
+        SalesRepId = order.SalesRepId,
+        QuotationId = order.QuotationId,
+        PromotionId = order.PromotionId,
+        DiscountAmount = order.DiscountAmount,
         ShippingAddress = new AddressDto
         {
             Street = order.ShippingAddress.Street,
@@ -147,6 +167,13 @@ public class RejectOrderCommandHandler : IRequestHandler<RejectOrderCommand, Sal
         DeliveredAt = order.DeliveredAt,
         CancelledAt = order.CancelledAt,
         Notes = order.Notes,
+        OrderNo = order.OrderNo,
+        OrderSource = order.OrderSource.ToString(),
+        DepartmentId = order.DepartmentId,
+        SalesRepId = order.SalesRepId,
+        QuotationId = order.QuotationId,
+        PromotionId = order.PromotionId,
+        DiscountAmount = order.DiscountAmount,
         ShippingAddress = new AddressDto
         {
             Street = order.ShippingAddress.Street,
@@ -196,6 +223,13 @@ public class MarkAsPickedCommandHandler : IRequestHandler<MarkAsPickedCommand, S
         DeliveredAt = order.DeliveredAt,
         CancelledAt = order.CancelledAt,
         Notes = order.Notes,
+        OrderNo = order.OrderNo,
+        OrderSource = order.OrderSource.ToString(),
+        DepartmentId = order.DepartmentId,
+        SalesRepId = order.SalesRepId,
+        QuotationId = order.QuotationId,
+        PromotionId = order.PromotionId,
+        DiscountAmount = order.DiscountAmount,
         ShippingAddress = new AddressDto
         {
             Street = order.ShippingAddress.Street,

@@ -12,6 +12,11 @@ namespace ERP.SO.Infrastructure
             : base(options) { }
 
         public DbSet<SalesOrder> SalesOrders { get; set; } = null!;
+        public DbSet<OrderNumberSequence> OrderNumberSequences { get; set; } = null!;
+        public DbSet<CustomerSalesProfile> CustomerSalesProfiles { get; set; } = null!;
+        public DbSet<CommissionPlan> CommissionPlans { get; set; } = null!;
+        public DbSet<CommissionRecord> CommissionRecords { get; set; } = null!;
+        public DbSet<SalesQuotation> SalesQuotations { get; set; } = null!;
         public DbSet<OrderFulfillmentSagaState> OrderFulfillmentSagas { get; set; } = null!;
         public DbSet<SystemCartCheckoutSettings> SystemCartCheckoutSettings { get; set; } = null!;
         public DbSet<TenantCartCheckoutSettings> TenantCartCheckoutSettings { get; set; } = null!;
@@ -44,6 +49,11 @@ namespace ERP.SO.Infrastructure
                 eb.Property(e => e.Carrier).HasMaxLength(200);
                 eb.Property(e => e.ReturnReason).HasMaxLength(1000);
                 eb.Property(e => e.RefundAmount).HasPrecision(18, 2);
+                eb.Property(e => e.OrderNo).IsRequired().HasMaxLength(50);
+                eb.Property(e => e.OrderSource).IsRequired();
+                eb.Property(e => e.DiscountAmount).IsRequired().HasPrecision(18, 2);
+
+                eb.HasIndex(e => e.OrderNo).IsUnique().HasFilter("[OrderNo] <> ''");
 
                 eb.OwnsOne(e => e.ShippingAddress, address =>
                 {
@@ -93,6 +103,76 @@ namespace ERP.SO.Infrastructure
                 eb.HasIndex(e => e.CustomerId);
                 eb.HasIndex(e => e.Status);
                 eb.HasIndex(e => e.OrderDate);
+            });
+
+            modelBuilder.Entity<CustomerSalesProfile>(eb =>
+            {
+                eb.ToTable("CustomerSalesProfiles");
+                eb.HasKey(e => e.Id);
+                eb.Property(e => e.CreditLimit).IsRequired().HasPrecision(18, 2);
+                eb.Property(e => e.CurrentBalance).IsRequired().HasPrecision(18, 2);
+                eb.HasIndex(e => e.CustomerId).IsUnique();
+            });
+
+            modelBuilder.Entity<CommissionPlan>(eb =>
+            {
+                eb.ToTable("CommissionPlans");
+                eb.HasKey(e => e.Id);
+                eb.Property(e => e.Name).IsRequired().HasMaxLength(200);
+                eb.Property(e => e.RateType).IsRequired();
+                eb.Property(e => e.RateValue).IsRequired().HasPrecision(9, 6);
+                eb.Property(e => e.IsActive).IsRequired();
+            });
+
+            modelBuilder.Entity<CommissionRecord>(eb =>
+            {
+                eb.ToTable("CommissionRecords");
+                eb.HasKey(e => e.Id);
+                eb.Property(e => e.PlanId).IsRequired();
+                eb.Property(e => e.SalesRepId).IsRequired();
+                eb.Property(e => e.OrderId).IsRequired();
+                eb.Property(e => e.Amount).IsRequired().HasPrecision(18, 2);
+                eb.Property(e => e.Status).IsRequired();
+                eb.Property(e => e.CalculatedAt).IsRequired();
+
+                eb.HasIndex(e => e.SalesRepId);
+                eb.HasIndex(e => e.OrderId).IsUnique();
+            });
+
+            modelBuilder.Entity<SalesQuotation>(eb =>
+            {
+                eb.HasKey(e => e.Id);
+                eb.Property(e => e.Id).ValueGeneratedNever();
+                eb.Property(e => e.CustomerId).IsRequired();
+                eb.Property(e => e.CustomerName).IsRequired().HasMaxLength(200);
+                eb.Property(e => e.CustomerEmail).IsRequired().HasMaxLength(255);
+                eb.Property(e => e.QuotationNo).IsRequired().HasMaxLength(50);
+                eb.Property(e => e.Status).IsRequired();
+                eb.Property(e => e.ValidUntil).IsRequired();
+                eb.Property(e => e.TotalAmount).IsRequired().HasPrecision(18, 2);
+
+                eb.OwnsMany(e => e.LineItems, li =>
+                {
+                    li.ToTable("SalesQuotationItems");
+                    li.WithOwner().HasForeignKey("QuotationId");
+                    li.HasKey("Id");
+                    li.Property(p => p.ProductId).IsRequired();
+                    li.Property(p => p.ProductName).IsRequired().HasMaxLength(500);
+                    li.Property(p => p.Quantity).IsRequired();
+                    li.Property(p => p.UnitPrice).IsRequired().HasPrecision(18, 2);
+                    li.Ignore(p => p.LineTotal);
+                });
+
+                eb.HasIndex(e => e.CustomerId);
+                eb.HasIndex(e => e.QuotationNo).IsUnique();
+            });
+
+            modelBuilder.Entity<OrderNumberSequence>(eb =>
+            {
+                eb.ToTable("OrderNumberSequences");
+                eb.HasKey(e => e.Id);
+                eb.Property(e => e.Prefix).IsRequired().HasMaxLength(20);
+                eb.HasIndex(e => new { e.TenantId, e.Prefix, e.Year, e.Month }).IsUnique();
             });
 
             modelBuilder.Entity<OrderFulfillmentSagaState>(eb =>

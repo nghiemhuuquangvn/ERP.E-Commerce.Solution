@@ -329,6 +329,61 @@ public class SalesOrderReturnedEvent
 
 ---
 
+### SalesQuotationCreatedEvent
+
+> Added 2026-07-27 — part of the Module 5 (Sales) doc reconciliation that added a
+> SalesQuotation aggregate to SaleOrderService (Quotation → customer approval →
+> convert-to-order flow). No consumer confirmed yet; published for future
+> Reporting/analytics use.
+
+**Description:** Published when `SalesQuotation.Create(...)` creates a new Draft quotation.
+
+**Publisher:** Sales Service
+**Subscribers:** None confirmed today
+
+**Event Structure (actual code):**
+```csharp
+public class SalesQuotationCreatedEvent
+{
+    public Guid QuotationId { get; set; }
+    public Guid CustomerId { get; set; }
+    public decimal TotalAmount { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+```
+
+**Routing:** RabbitMQ (`sales_order_events` exchange, via the same Outbox retrofit as the SalesOrder events above — see `SalesOrderEventOutboxProcessor`)
+**Delivery:** Guaranteed
+
+---
+
+### SalesQuotationAcceptedEvent
+
+> Added 2026-07-27 — same reconciliation as SalesQuotationCreatedEvent above.
+
+**Description:** Published when `SalesQuotation.Accept()` records the customer's
+approval — the gate that must pass before `ConvertQuotationToOrderCommand` can
+turn the quotation into a real `SalesOrder`.
+
+**Publisher:** Sales Service
+**Subscribers:** None confirmed today
+
+**Event Structure (actual code):**
+```csharp
+public class SalesQuotationAcceptedEvent
+{
+    public Guid QuotationId { get; set; }
+    public Guid CustomerId { get; set; }
+    public decimal TotalAmount { get; set; }
+    public DateTime AcceptedAt { get; set; }
+}
+```
+
+**Routing:** RabbitMQ (`sales_order_events` exchange)
+**Delivery:** Guaranteed
+
+---
+
 ## Purchasing Service Events
 
 ### PurchaseOrderCreatedEvent

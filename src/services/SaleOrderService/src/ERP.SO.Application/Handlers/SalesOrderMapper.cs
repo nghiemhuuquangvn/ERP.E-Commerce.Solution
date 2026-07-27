@@ -31,6 +31,13 @@ namespace ERP.SO.Application.Handlers
             ReturnedAt = order.ReturnedAt,
             ReturnReason = order.ReturnReason,
             RefundAmount = order.RefundAmount,
+            OrderNo = order.OrderNo,
+            OrderSource = order.OrderSource.ToString(),
+            DepartmentId = order.DepartmentId,
+            SalesRepId = order.SalesRepId,
+            QuotationId = order.QuotationId,
+            PromotionId = order.PromotionId,
+            DiscountAmount = order.DiscountAmount,
             ShippingAddress = new AddressDto
             {
                 Street = order.ShippingAddress.Street,

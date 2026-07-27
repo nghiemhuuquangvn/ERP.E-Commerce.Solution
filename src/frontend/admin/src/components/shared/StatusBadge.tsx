@@ -36,8 +36,17 @@ const STATUS_COLORS: Record<string, string> = {
   Rejected: 'bg-red-100 text-red-700',
 
   Shipped: 'bg-purple-100 text-purple-700',
+  PartiallyShipped: 'bg-purple-100 text-purple-700',
   Refunded: 'bg-orange-100 text-orange-700',
   RECEIVED: 'bg-green-100 text-green-700',
+
+  Submitted: 'bg-yellow-100 text-yellow-700',
+  Picked: 'bg-blue-100 text-blue-700',
+  ReturnRequested: 'bg-orange-100 text-orange-700',
+  Returned: 'bg-orange-100 text-orange-700',
+  Accepted: 'bg-green-100 text-green-700',
+  Expired: 'bg-gray-100 text-gray-600',
+  Converted: 'bg-purple-100 text-purple-700',
 }
 
 interface StatusBadgeProps {

@@ -57,12 +57,10 @@ namespace ERP.SO.Application.Handlers
     public class ShipLineItemsCommandHandler : IRequestHandler<ShipLineItemsCommand, SalesOrderDto>
     {
         private readonly ISalesOrderRepository _repository;
-        private readonly ERP.Shared.Messaging.IMessageBus _messageBus;
 
-        public ShipLineItemsCommandHandler(ISalesOrderRepository repository, ERP.Shared.Messaging.IMessageBus messageBus)
+        public ShipLineItemsCommandHandler(ISalesOrderRepository repository)
         {
             _repository = repository;
-            _messageBus = messageBus;
         }
 
         public async Task<SalesOrderDto> Handle(ShipLineItemsCommand request, CancellationToken cancellationToken)
@@ -72,9 +70,6 @@ namespace ERP.SO.Application.Handlers
 
             order.ShipLineItems(request.Quantities, request.TrackingNumber, request.Carrier);
             await _repository.UpdateAsync(order, cancellationToken);
-
-            foreach (var domainEvent in order.DomainEvents)
-                await _messageBus.PublishAsync(domainEvent, cancellationToken);
 
             return SalesOrderMapper.MapToDto(order);
         }
@@ -104,12 +99,10 @@ namespace ERP.SO.Application.Handlers
     public class CompleteReturnCommandHandler : IRequestHandler<CompleteReturnCommand, SalesOrderDto>
     {
         private readonly ISalesOrderRepository _repository;
-        private readonly ERP.Shared.Messaging.IMessageBus _messageBus;
 
-        public CompleteReturnCommandHandler(ISalesOrderRepository repository, ERP.Shared.Messaging.IMessageBus messageBus)
+        public CompleteReturnCommandHandler(ISalesOrderRepository repository)
         {
             _repository = repository;
-            _messageBus = messageBus;
         }
 
         public async Task<SalesOrderDto> Handle(CompleteReturnCommand request, CancellationToken cancellationToken)
@@ -119,9 +112,6 @@ namespace ERP.SO.Application.Handlers
 
             order.CompleteReturn(request.RefundAmount);
             await _repository.UpdateAsync(order, cancellationToken);
-
-            foreach (var domainEvent in order.DomainEvents)
-                await _messageBus.PublishAsync(domainEvent, cancellationToken);
 
             return SalesOrderMapper.MapToDto(order);
         }

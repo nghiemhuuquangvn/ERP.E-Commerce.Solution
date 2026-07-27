@@ -1,5 +1,8 @@
 using Confluent.Kafka;
+using ERP.SO.Application.Handlers;
+using ERP.SO.Application.Interfaces;
 using ERP.SO.Application.Sagas;
+using ERP.SO.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -103,6 +106,7 @@ namespace ERP.SO.Infrastructure.EventBus
                     return;
 
                 await saga.HandlePaymentProcessedAsync(orderId, paymentId, cancellationToken);
+                await TryCreateCommissionAsync(scope.ServiceProvider, orderId, cancellationToken);
             }
             else if (typeName.Contains("PaymentFailedEvent"))
             {
@@ -115,6 +119,33 @@ namespace ERP.SO.Infrastructure.EventBus
             }
             // Other payment-topic events (PaymentInitiatedEvent, PaymentAuthorizedEvent,
             // PaymentRefundedEvent) are not yet consumed by SaleOrderService.
+        }
+
+        /// <summary>
+        /// Commission only fires on an actual payment (matches the business rule "no
+        /// commission on a merely-confirmed order") and only for orders with a SalesRepId —
+        /// most orders won't have one yet since it's optional. Idempotent: skips if a
+        /// CommissionRecord already exists for this order (Kafka consumers can redeliver).
+        /// </summary>
+        private static async Task TryCreateCommissionAsync(IServiceProvider services, Guid orderId, CancellationToken ct)
+        {
+            var orders = services.GetRequiredService<ISalesOrderRepository>();
+            var plans = services.GetRequiredService<ICommissionPlanRepository>();
+            var records = services.GetRequiredService<ICommissionRecordRepository>();
+
+            var order = await orders.GetByIdAsync(orderId, ct);
+            if (order?.SalesRepId is not Guid salesRepId)
+                return;
+
+            if (await records.ExistsForOrderAsync(orderId, ct))
+                return;
+
+            var plan = await plans.GetFirstActiveAsync(ct);
+            if (plan == null)
+                return;
+
+            var record = CommissionRecord.Create(plan.Id, salesRepId, orderId, order.TotalAmount * plan.RateValue);
+            await records.AddAsync(record, ct);
         }
     }
 }

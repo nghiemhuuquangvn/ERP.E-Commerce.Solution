@@ -9,6 +9,9 @@ namespace ERP.SO.Application.DTOs
         public AddressDto ShippingAddress { get; set; } = new();
         public string? Notes { get; set; }
         public string? CouponCode { get; set; }
+        public string? OrderSource { get; set; }
+        public Guid? DepartmentId { get; set; }
+        public Guid? SalesRepId { get; set; }
     }
 
     public class OrderLineItemDto

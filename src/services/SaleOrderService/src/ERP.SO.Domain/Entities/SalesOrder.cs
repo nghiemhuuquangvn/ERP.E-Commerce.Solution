@@ -15,6 +15,19 @@ namespace ERP.SO.Domain.Entities
         public Address ShippingAddress { get; private set; } = null!;
         public string? Notes { get; private set; }
 
+        /// <summary>Human-readable order number (e.g. SO-202607-00001), assigned once at creation via IOrderNumberGenerator.</summary>
+        public string OrderNo { get; private set; } = string.Empty;
+        public OrderSource OrderSource { get; private set; } = OrderSource.Manual;
+        /// <summary>Opaque reference for dashboard segmentation — no local Department entity/lookup.</summary>
+        public Guid? DepartmentId { get; private set; }
+        /// <summary>Opaque reference to IdentityService's User — drives Commission attribution.</summary>
+        public Guid? SalesRepId { get; private set; }
+        /// <summary>Set only when this order was created by converting a SalesQuotation.</summary>
+        public Guid? QuotationId { get; private set; }
+        /// <summary>Which promotion produced DiscountAmount, if any — was previously discarded after coupon validation.</summary>
+        public Guid? PromotionId { get; private set; }
+        public decimal DiscountAmount { get; private set; }
+
         public DateTime? ApprovedAt { get; private set; }
         public DateTime? ShippedAt { get; private set; }
         public DateTime? DeliveredAt { get; private set; }
@@ -49,7 +62,12 @@ namespace ERP.SO.Domain.Entities
             string customerEmail,
             Address shippingAddress,
             List<OrderLineItem> lineItems,
-            string? notes = null)
+            string? notes = null,
+            string orderNo = "",
+            OrderSource orderSource = OrderSource.Manual,
+            Guid? departmentId = null,
+            Guid? salesRepId = null,
+            Guid? quotationId = null)
         {
             var order = new SalesOrder
             {
@@ -61,6 +79,11 @@ namespace ERP.SO.Domain.Entities
                 Status = OrderStatus.Draft,
                 ShippingAddress = shippingAddress,
                 Notes = notes,
+                OrderNo = orderNo,
+                OrderSource = orderSource,
+                DepartmentId = departmentId,
+                SalesRepId = salesRepId,
+                QuotationId = quotationId,
                 _lineItems = lineItems
             };
 
@@ -343,12 +366,14 @@ namespace ERP.SO.Domain.Entities
             RecalculateTotal();
         }
 
-        /// <summary>Applies a flat discount amount (from a validated coupon) at order creation, before the first save — line item prices are left as-is, only TotalAmount reflects the discount.</summary>
-        public void ApplyDiscount(decimal discountAmount)
+        /// <summary>Applies a flat discount amount (from a validated coupon) at order creation, before the first save — line item prices are left as-is, only TotalAmount reflects the discount. Also persists which promotion produced it (previously discarded after validation).</summary>
+        public void ApplyDiscount(Guid promotionId, decimal discountAmount)
         {
             if (discountAmount < 0)
                 throw new ArgumentException("Discount cannot be negative", nameof(discountAmount));
 
+            PromotionId = promotionId;
+            DiscountAmount = discountAmount;
             TotalAmount = Math.Max(0, TotalAmount - discountAmount);
         }
 

@@ -1,5 +1,4 @@
 using ERP.Shared.Authorization;
-using ERP.Shared.Messaging;
 using ERP.SO.Application.Commands;
 using ERP.SO.Application.DTOs;
 using ERP.SO.Application.Interfaces;
@@ -25,23 +24,23 @@ namespace ERP.SO.Application.Handlers
     public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, SalesOrderDto>
     {
         private readonly ISalesOrderUnitOfWork _uow;
-        private readonly IMessageBus _messageBus;
         private readonly IPromotionServiceClient _promotionServiceClient;
         private readonly OrderFulfillmentSaga _saga;
         private readonly IUserContextService _userContextService;
+        private readonly IOrderNumberGenerator _orderNumberGenerator;
 
         public CreateOrderCommandHandler(
             ISalesOrderUnitOfWork uow,
-            IMessageBus messageBus,
             IPromotionServiceClient promotionServiceClient,
             OrderFulfillmentSaga saga,
-            IUserContextService userContextService)
+            IUserContextService userContextService,
+            IOrderNumberGenerator orderNumberGenerator)
         {
             _uow = uow;
-            _messageBus = messageBus;
             _promotionServiceClient = promotionServiceClient;
             _saga = saga;
             _userContextService = userContextService;
+            _orderNumberGenerator = orderNumberGenerator;
         }
 
         public async Task<SalesOrderDto> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
@@ -57,19 +56,30 @@ namespace ERP.SO.Application.Handlers
                 .Select(li => new OrderLineItem(li.ProductId, li.ProductName, li.Quantity, li.UnitPrice))
                 .ToList();
 
+            var tenantId = new Guid(_userContextService.GetCurrentUser().TenantId);
+            var orderNo = await _orderNumberGenerator.NextAsync(tenantId, "SO", cancellationToken);
+            var orderSource = string.IsNullOrWhiteSpace(request.OrderSource)
+                ? OrderSource.Manual
+                : Enum.Parse<OrderSource>(request.OrderSource, ignoreCase: true);
+
             var salesOrder = SalesOrder.Create(
                 request.CustomerId,
                 request.CustomerName,
                 request.CustomerEmail,
                 address,
                 lineItems,
-                request.Notes);
+                request.Notes,
+                orderNo,
+                orderSource,
+                request.DepartmentId,
+                request.SalesRepId,
+                request.QuotationId);
 
             if (!string.IsNullOrWhiteSpace(request.CouponCode))
             {
                 var validation = await _promotionServiceClient.ValidateCouponAsync(request.CouponCode, salesOrder.TotalAmount, cancellationToken);
-                if (validation.IsValid)
-                    salesOrder.ApplyDiscount(validation.DiscountAmount);
+                if (validation.IsValid && validation.PromotionId.HasValue)
+                    salesOrder.ApplyDiscount(validation.PromotionId.Value, validation.DiscountAmount);
                 else
                     salesOrder.AddInternalNote($"Coupon '{request.CouponCode}' not applied: {validation.ErrorMessage}", "system:promotion-validation");
             }
@@ -77,12 +87,6 @@ namespace ERP.SO.Application.Handlers
             await _uow.Orders.AddAsync(salesOrder, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
 
-            foreach (var domainEvent in salesOrder.DomainEvents)
-            {
-                await _messageBus.PublishAsync(domainEvent, cancellationToken);
-            }
-
-            var tenantId = new Guid(_userContextService.GetCurrentUser().TenantId);
             await _saga.HandleOrderCreatedAsync(salesOrder.Id, tenantId, salesOrder.TotalAmount, cancellationToken);
 
             return MapToDto(salesOrder);
@@ -104,6 +108,13 @@ namespace ERP.SO.Application.Handlers
                 DeliveredAt = order.DeliveredAt,
                 CancelledAt = order.CancelledAt,
                 Notes = order.Notes,
+                OrderNo = order.OrderNo,
+                OrderSource = order.OrderSource.ToString(),
+                DepartmentId = order.DepartmentId,
+                SalesRepId = order.SalesRepId,
+                QuotationId = order.QuotationId,
+                PromotionId = order.PromotionId,
+                DiscountAmount = order.DiscountAmount,
                 ShippingAddress = new AddressDto
                 {
                     Street = order.ShippingAddress.Street,
@@ -128,14 +139,14 @@ namespace ERP.SO.Application.Handlers
     public class ApproveOrderCommandHandler : IRequestHandler<ApproveOrderCommand, SalesOrderDto>
     {
         private readonly ISalesOrderUnitOfWork _uow;
-        private readonly IMessageBus _messageBus;
         private readonly OrderFulfillmentSaga _saga;
+        private readonly ICustomerSalesProfileRepository _profiles;
 
-        public ApproveOrderCommandHandler(ISalesOrderUnitOfWork uow, IMessageBus messageBus, OrderFulfillmentSaga saga)
+        public ApproveOrderCommandHandler(ISalesOrderUnitOfWork uow, OrderFulfillmentSaga saga, ICustomerSalesProfileRepository profiles)
         {
             _uow = uow;
-            _messageBus = messageBus;
             _saga = saga;
+            _profiles = profiles;
         }
 
         public async Task<SalesOrderDto> Handle(ApproveOrderCommand request, CancellationToken cancellationToken)
@@ -143,13 +154,21 @@ namespace ERP.SO.Application.Handlers
             var order = await _uow.Orders.GetByIdAsync(request.OrderId, cancellationToken)
                 ?? throw new InvalidOperationException($"Order {request.OrderId} not found");
 
+            // Credit-limit check: only enforced once a CustomerSalesProfile exists for this
+            // customer — no profile means "no limit configured", not "blocked".
+            var profile = await _profiles.GetByCustomerIdAsync(order.CustomerId, cancellationToken);
+            if (profile != null && profile.CurrentBalance + order.TotalAmount > profile.CreditLimit)
+                throw new InvalidOperationException(
+                    $"Order exceeds customer's credit limit ({profile.CreditLimit:C}); current open balance {profile.CurrentBalance:C} + this order {order.TotalAmount:C}.");
+
             order.Approve();
             await _uow.Orders.UpdateAsync(order, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
 
-            foreach (var domainEvent in order.DomainEvents)
+            if (profile != null)
             {
-                await _messageBus.PublishAsync(domainEvent, cancellationToken);
+                profile.IncreaseExposure(order.TotalAmount);
+                await _profiles.UpdateAsync(profile, cancellationToken);
             }
 
             await _saga.HandleOrderApprovedAsync(order.Id, cancellationToken);
@@ -173,6 +192,13 @@ namespace ERP.SO.Application.Handlers
                 DeliveredAt = order.DeliveredAt,
                 CancelledAt = order.CancelledAt,
                 Notes = order.Notes,
+                OrderNo = order.OrderNo,
+                OrderSource = order.OrderSource.ToString(),
+                DepartmentId = order.DepartmentId,
+                SalesRepId = order.SalesRepId,
+                QuotationId = order.QuotationId,
+                PromotionId = order.PromotionId,
+                DiscountAmount = order.DiscountAmount,
                 ShippingAddress = new AddressDto
                 {
                     Street = order.ShippingAddress.Street,
@@ -197,12 +223,10 @@ namespace ERP.SO.Application.Handlers
     public class ShipOrderCommandHandler : IRequestHandler<ShipOrderCommand, SalesOrderDto>
     {
         private readonly ISalesOrderUnitOfWork _uow;
-        private readonly IMessageBus _messageBus;
 
-        public ShipOrderCommandHandler(ISalesOrderUnitOfWork uow, IMessageBus messageBus)
+        public ShipOrderCommandHandler(ISalesOrderUnitOfWork uow)
         {
             _uow = uow;
-            _messageBus = messageBus;
         }
 
         public async Task<SalesOrderDto> Handle(ShipOrderCommand request, CancellationToken cancellationToken)
@@ -213,11 +237,6 @@ namespace ERP.SO.Application.Handlers
             order.Ship(request.TrackingNumber, request.Carrier);
             await _uow.Orders.UpdateAsync(order, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
-
-            foreach (var domainEvent in order.DomainEvents)
-            {
-                await _messageBus.PublishAsync(domainEvent, cancellationToken);
-            }
 
             return MapToDto(order);
         }
@@ -238,6 +257,13 @@ namespace ERP.SO.Application.Handlers
                 DeliveredAt = order.DeliveredAt,
                 CancelledAt = order.CancelledAt,
                 Notes = order.Notes,
+                OrderNo = order.OrderNo,
+                OrderSource = order.OrderSource.ToString(),
+                DepartmentId = order.DepartmentId,
+                SalesRepId = order.SalesRepId,
+                QuotationId = order.QuotationId,
+                PromotionId = order.PromotionId,
+                DiscountAmount = order.DiscountAmount,
                 ShippingAddress = new AddressDto
                 {
                     Street = order.ShippingAddress.Street,
@@ -262,12 +288,12 @@ namespace ERP.SO.Application.Handlers
     public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, SalesOrderDto>
     {
         private readonly ISalesOrderUnitOfWork _uow;
-        private readonly IMessageBus _messageBus;
+        private readonly ICustomerSalesProfileRepository _profiles;
 
-        public CancelOrderCommandHandler(ISalesOrderUnitOfWork uow, IMessageBus messageBus)
+        public CancelOrderCommandHandler(ISalesOrderUnitOfWork uow, ICustomerSalesProfileRepository profiles)
         {
             _uow = uow;
-            _messageBus = messageBus;
+            _profiles = profiles;
         }
 
         public async Task<SalesOrderDto> Handle(CancelOrderCommand request, CancellationToken cancellationToken)
@@ -275,13 +301,22 @@ namespace ERP.SO.Application.Handlers
             var order = await _uow.Orders.GetByIdAsync(request.OrderId, cancellationToken)
                 ?? throw new InvalidOperationException($"Order {request.OrderId} not found");
 
+            // Exposure was only added at Approve time — only release it if this order had
+            // actually reached Approved (ApprovedAt set) before being cancelled.
+            var wasApproved = order.ApprovedAt.HasValue;
+
             order.Cancel(request.Reason);
             await _uow.Orders.UpdateAsync(order, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
 
-            foreach (var domainEvent in order.DomainEvents)
+            if (wasApproved)
             {
-                await _messageBus.PublishAsync(domainEvent, cancellationToken);
+                var profile = await _profiles.GetByCustomerIdAsync(order.CustomerId, cancellationToken);
+                if (profile != null)
+                {
+                    profile.DecreaseExposure(order.TotalAmount);
+                    await _profiles.UpdateAsync(profile, cancellationToken);
+                }
             }
 
             return MapToDto(order);
@@ -303,6 +338,13 @@ namespace ERP.SO.Application.Handlers
                 DeliveredAt = order.DeliveredAt,
                 CancelledAt = order.CancelledAt,
                 Notes = order.Notes,
+                OrderNo = order.OrderNo,
+                OrderSource = order.OrderSource.ToString(),
+                DepartmentId = order.DepartmentId,
+                SalesRepId = order.SalesRepId,
+                QuotationId = order.QuotationId,
+                PromotionId = order.PromotionId,
+                DiscountAmount = order.DiscountAmount,
                 ShippingAddress = new AddressDto
                 {
                     Street = order.ShippingAddress.Street,
