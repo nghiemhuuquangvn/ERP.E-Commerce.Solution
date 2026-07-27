@@ -23,6 +23,7 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
     public DbSet<SupplierRating> SupplierRatings { get; set; } = null!;
     public DbSet<SupplierItem> SupplierItems { get; set; } = null!;
     public DbSet<GoodsReceipt> GoodsReceipts { get; set; } = null!;
+    public DbSet<PurchaseRequest> PurchaseRequests { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public PurchasingDbContext(DbContextOptions<PurchasingDbContext> options, IUserContextService userContextService)
@@ -142,6 +143,17 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
         receiptBuilder.Property(r => r.Notes).HasMaxLength(1000);
         receiptBuilder.Property(r => r.CreatedAt).HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd();
         receiptBuilder.HasIndex(r => new { r.PurchaseOrderId, r.TenantId });
+
+        // Configure PurchaseRequest — plain Id key, no TenantId/composite key and not
+        // covered by ConfigureTenantFilter above, since it doesn't extend BaseEntity
+        // (the upstream StockAlertEvent signal carries no tenant concept).
+        var purchaseRequestBuilder = builder.Entity<PurchaseRequest>();
+        purchaseRequestBuilder.HasKey(pr => pr.Id);
+        purchaseRequestBuilder.Property(pr => pr.ProductName).HasMaxLength(255).IsRequired();
+        purchaseRequestBuilder.Property(pr => pr.Status).IsRequired();
+        purchaseRequestBuilder.Property(pr => pr.CreatedAt).IsRequired();
+        purchaseRequestBuilder.HasIndex(pr => pr.ProductId);
+        purchaseRequestBuilder.HasIndex(pr => pr.Status);
 
         // Configure Outbox pattern table
         builder.Entity<OutboxMessage>(e =>

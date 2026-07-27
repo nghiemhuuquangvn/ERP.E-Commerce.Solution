@@ -46,6 +46,7 @@
     "purchasing": "Mua hàng",
     "purchaseOrders": "Đơn hàng mua",
     "suppliers": "Nhà cung cấp",
+    "purchaseRequests": "Đề nghị mua hàng",
     "productsGroup": "Sản phẩm",
     "products": "Sản phẩm",
     "brands": "Thương hiệu",
@@ -59,6 +60,7 @@
     "stocktakes": "Kiểm kê",
     "transfers": "Chuyển kho",
     "barcode": "Mã vạch",
+    "valuationSnapshots": "Chốt định giá tồn kho",
     "customers": "Khách hàng",
     "payments": "Thanh toán",
     "departments": "Phòng ban",
@@ -312,6 +314,19 @@
     }
   },
   "purchasing": {
+    "requests": {
+      "title": "Đề nghị mua hàng",
+      "description": "Đề nghị chỉ mang tính gợi ý, tự động tạo khi một sản phẩm chạm điểm đặt hàng lại — xem xét rồi bỏ qua hoặc chuyển thành Đơn hàng mua thật.",
+      "status": {
+        "All": "Tất cả",
+        "Suggested": "Đề xuất",
+        "Dismissed": "Đã bỏ qua",
+        "Converted": "Đã chuyển đổi"
+      },
+      "suggestedQuantity": "SL đề xuất",
+      "dismiss": "Bỏ qua",
+      "convert": "Chuyển đổi"
+    },
     "suppliers": {
       "title": "Nhà cung cấp",
       "add": "+ Thêm nhà cung cấp",
@@ -536,7 +551,30 @@
     "tabs": {
       "locations": "Vị trí",
       "lots": "Lô hàng",
-      "serials": "Serial"
+      "serials": "Serial",
+      "costHistory": "Lịch sử giá vốn"
+    },
+    "costHistory": {
+      "hint": "Lịch sử giá vốn hàng bán theo từng lần xuất — mỗi dòng ứng với một lô hàng đã dùng (hoặc một dòng theo giá vốn bình quân nếu sản phẩm không theo dõi lô) khi đơn hàng được giao.",
+      "consumedAt": "Thời điểm dùng",
+      "sourceOrder": "Đơn hàng nguồn",
+      "quantity": "Số lượng",
+      "totalCost": "Tổng giá vốn",
+      "noLot": "— (giá vốn bình quân)"
+    },
+    "valuationSnapshot": {
+      "title": "Chốt định giá tồn kho",
+      "description": "Chốt định giá tồn kho cuối kỳ — không thể sửa sau khi đã chốt. Mỗi kỳ chỉ được chốt một lần.",
+      "close": "Chốt kỳ",
+      "closeFailed": "Chốt kỳ thất bại. Kỳ này có thể đã được chốt trước đó.",
+      "periodCode": "Mã kỳ",
+      "periodCodeRequired": "Vui lòng nhập mã kỳ (ví dụ: 2026-07).",
+      "warehouseIdOptional": "Mã kho (tùy chọn)",
+      "viewByPeriod": "Xem kỳ đã chốt",
+      "snapshotDate": "Ngày chốt",
+      "totalValue": "Tổng giá trị",
+      "lineValue": "Giá trị dòng",
+      "notFound": "Không tìm thấy kỳ đã chốt nào."
     },
     "adjustment": {
       "title": "Điều chỉnh tồn kho",

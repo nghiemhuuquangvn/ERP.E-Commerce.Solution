@@ -2,6 +2,7 @@ using MediatR;
 using ERP.WH.Application.Interfaces;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
+using ERP.Shared.Infrastructure.Caching;
 
 namespace ERP.WH.Application.Commands.Inventory;
 
@@ -53,11 +54,13 @@ public class ApproveStockAdjustmentCommandHandler : IRequestHandler<ApproveStock
 {
     private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventOutboxWriter _outboxWriter;
+    private readonly ICacheService _cache;
 
-    public ApproveStockAdjustmentCommandHandler(IWarehouseUnitOfWork uow, IEventOutboxWriter outboxWriter)
+    public ApproveStockAdjustmentCommandHandler(IWarehouseUnitOfWork uow, IEventOutboxWriter outboxWriter, ICacheService cache)
     {
         _uow = uow;
         _outboxWriter = outboxWriter;
+        _cache = cache;
     }
 
     public async Task<AdjustStockResponse> Handle(ApproveStockAdjustmentCommand request, CancellationToken cancellationToken)
@@ -149,6 +152,7 @@ public class ApproveStockAdjustmentCommandHandler : IRequestHandler<ApproveStock
         }
 
         await _uow.SaveChangesAsync(cancellationToken);
+        await _cache.RemoveAsync($"wh:inventory:{adjustment.ProductId}", cancellationToken);
 
         return new AdjustStockResponse
         {

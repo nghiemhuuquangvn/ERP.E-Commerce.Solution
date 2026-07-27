@@ -34,4 +34,11 @@ public class ReservationRepository : IReservationRepository
             .Where(r => r.OrderId == orderId)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<List<Reservation>> GetExpiredAsync(DateTime asOfUtc, CancellationToken cancellationToken)
+    {
+        return await _context.Reservations
+            .Where(r => r.Status == ReservationStatus.Reserved && r.HoldUntil < asOfUtc)
+            .ToListAsync(cancellationToken);
+    }
 }

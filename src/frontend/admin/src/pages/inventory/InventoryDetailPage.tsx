@@ -9,7 +9,7 @@ import type { AdjustmentReason } from '@/api/stockAdjustments.api'
 import { usePermission } from '@/hooks/usePermission'
 import { format } from 'date-fns'
 
-type Tab = 'locations' | 'lots' | 'serials'
+type Tab = 'locations' | 'lots' | 'serials' | 'costHistory'
 
 interface AdjustmentFormValues {
   quantityDelta: number
@@ -103,6 +103,12 @@ export function InventoryDetailPage() {
     enabled: Boolean(productId) && tab === 'serials',
   })
 
+  const { data: costHistory } = useQuery({
+    queryKey: ['inventory', productId, 'costHistory'],
+    queryFn: () => inventoryApi.costConsumption(productId!),
+    enabled: Boolean(productId) && tab === 'costHistory',
+  })
+
   if (isLoading) return <div className="text-gray-400">{t('common.loading')}</div>
   if (!inventory) return <div className="text-gray-400">{t('inventory.notFound')}</div>
 
@@ -141,7 +147,7 @@ export function InventoryDetailPage() {
       )}
 
       <div className="flex gap-1 border-b border-gray-200">
-        {(['locations', 'lots', 'serials'] as Tab[]).map((tb) => (
+        {(['locations', 'lots', 'serials', 'costHistory'] as Tab[]).map((tb) => (
           <button
             key={tb}
             onClick={() => setTab(tb)}
@@ -187,6 +193,8 @@ export function InventoryDetailPage() {
               <tr className="border-b border-gray-100 text-left text-xs text-gray-400 uppercase">
                 <th className="pb-2">{t('inventory.lotNumber')}</th>
                 <th className="pb-2 text-right">{t('inventory.remaining')}</th>
+                <th className="pb-2 text-right">{t('inventory.reserved')}</th>
+                <th className="pb-2 text-right">{t('inventory.available')}</th>
                 <th className="pb-2 text-right">{t('inventory.unitCost')}</th>
                 <th className="pb-2">{t('inventory.expiryDate')}</th>
               </tr>
@@ -196,12 +204,47 @@ export function InventoryDetailPage() {
                 <tr key={lot.lotId}>
                   <td className="py-2 font-mono text-xs">{lot.lotNumber}</td>
                   <td className="py-2 text-right">{lot.remainingQuantity} / {lot.receivedQuantity}</td>
+                  <td className="py-2 text-right">{lot.reservedQuantity}</td>
+                  <td className="py-2 text-right text-green-700">{lot.availableQuantity}</td>
                   <td className="py-2 text-right">{lot.unitCost.toFixed(2)}</td>
                   <td className="py-2">{lot.expiryDate ? format(new Date(lot.expiryDate), 'dd MMM yyyy') : '—'}</td>
                 </tr>
               ))}
               {(lots ?? []).length === 0 && (
-                <tr><td colSpan={4} className="py-4 text-center text-gray-400">{t('common.noRecordsFound')}</td></tr>
+                <tr><td colSpan={6} className="py-4 text-center text-gray-400">{t('common.noRecordsFound')}</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === 'costHistory' && (
+        <div className="card p-5">
+          <p className="mb-3 text-xs text-gray-500">{t('inventory.costHistory.hint')}</p>
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 text-left text-xs text-gray-400 uppercase">
+                <th className="pb-2">{t('inventory.costHistory.consumedAt')}</th>
+                <th className="pb-2">{t('inventory.costHistory.sourceOrder')}</th>
+                <th className="pb-2">{t('inventory.lotNumber')}</th>
+                <th className="pb-2 text-right">{t('inventory.costHistory.quantity')}</th>
+                <th className="pb-2 text-right">{t('inventory.unitCost')}</th>
+                <th className="pb-2 text-right">{t('inventory.costHistory.totalCost')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {(costHistory ?? []).map((log) => (
+                <tr key={log.id}>
+                  <td className="py-2">{format(new Date(log.consumedAt), 'dd MMM yyyy HH:mm')}</td>
+                  <td className="py-2 font-mono text-xs">{log.sourceOrderId}</td>
+                  <td className="py-2 font-mono text-xs">{log.lotId ?? t('inventory.costHistory.noLot')}</td>
+                  <td className="py-2 text-right">{log.quantity}</td>
+                  <td className="py-2 text-right">{log.unitCost.toFixed(2)}</td>
+                  <td className="py-2 text-right font-medium">{log.totalCost.toFixed(2)}</td>
+                </tr>
+              ))}
+              {(costHistory ?? []).length === 0 && (
+                <tr><td colSpan={6} className="py-4 text-center text-gray-400">{t('common.noRecordsFound')}</td></tr>
               )}
             </tbody>
           </table>

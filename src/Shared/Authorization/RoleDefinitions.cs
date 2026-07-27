@@ -65,6 +65,15 @@ public static class RoleDefinitions
                 // Warehouse / Inventory
                 PermissionConstants.Inventory_View,
                 PermissionConstants.Inventory_Manage,
+                PermissionConstants.Inventory_Adjustment_Create,
+                PermissionConstants.Inventory_Adjustment_Approve,
+                PermissionConstants.Inventory_Stocktake_Approve,
+                PermissionConstants.Inventory_Barcode_View,
+                PermissionConstants.Inventory_Warehouse_Manage,
+                PermissionConstants.Inventory_Valuation_Close,
+                // Purchase Requests (StockAlertEvent-driven suggestions)
+                PermissionConstants.PurchaseRequest_View,
+                PermissionConstants.PurchaseRequest_Manage,
                 // Payment
                 PermissionConstants.Payments_View,
                 PermissionConstants.Payments_Create,
@@ -172,6 +181,14 @@ public static class RoleDefinitions
                 // Warehouse / Inventory (Manager runs day-to-day operations)
                 PermissionConstants.Inventory_View,
                 PermissionConstants.Inventory_Manage,
+                PermissionConstants.Inventory_Adjustment_Create,
+                PermissionConstants.Inventory_Adjustment_Approve,
+                PermissionConstants.Inventory_Stocktake_Approve,
+                PermissionConstants.Inventory_Barcode_View,
+                PermissionConstants.Inventory_Warehouse_Manage,
+                // Purchase Requests (no Valuation_Close — Finance/Admin-only action)
+                PermissionConstants.PurchaseRequest_View,
+                PermissionConstants.PurchaseRequest_Manage,
                 // Payment (view + shift-level actions, no settlement/auth control)
                 PermissionConstants.Payments_View,
                 // POS
@@ -211,6 +228,8 @@ public static class RoleDefinitions
                 PermissionConstants.PurchaseOrder_AddItem,
                 PermissionConstants.PurchaseOrder_RemoveItem,
                 PermissionConstants.Supplier_Read,
+                PermissionConstants.PurchaseRequest_View,
+                PermissionConstants.PurchaseRequest_Manage,
             ]
         },
 
@@ -220,6 +239,7 @@ public static class RoleDefinitions
             [
                 PermissionConstants.PurchaseOrder_Read,
                 PermissionConstants.Supplier_Read,
+                PermissionConstants.PurchaseRequest_View,
                 PermissionConstants.SalesOrder_Read,
                 PermissionConstants.Accounting_AccountsView,
                 PermissionConstants.Accounting_InvoicesView,
@@ -231,6 +251,7 @@ public static class RoleDefinitions
                 PermissionConstants.Accounting_ReportsView,
                 PermissionConstants.POS_ReportsView,
                 PermissionConstants.Inventory_View,
+                PermissionConstants.Inventory_Barcode_View,
                 PermissionConstants.Payments_View,
                 PermissionConstants.POS_ShiftsView,
                 PermissionConstants.Reports_SalesView,

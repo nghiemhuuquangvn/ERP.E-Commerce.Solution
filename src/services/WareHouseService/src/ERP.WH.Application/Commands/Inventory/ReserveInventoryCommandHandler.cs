@@ -2,6 +2,7 @@ using MediatR;
 using ERP.WH.Application.Interfaces;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
+using ERP.Shared.Infrastructure.Caching;
 using InventoryEntity = ERP.WH.Domain.Aggregates.Inventory.Inventory;
 
 namespace ERP.WH.Application.Commands.Inventory;
@@ -10,17 +11,43 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
 {
     private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventOutboxWriter _outboxWriter;
+    private readonly ICacheService _cache;
 
     public ReserveInventoryCommandHandler(
         IWarehouseUnitOfWork uow,
-        IEventOutboxWriter outboxWriter)
+        IEventOutboxWriter outboxWriter,
+        ICacheService cache)
     {
         _uow = uow;
         _outboxWriter = outboxWriter;
+        _cache = cache;
     }
 
     public async Task<ReserveInventoryResponse?> Handle(ReserveInventoryCommand request, CancellationToken cancellationToken)
     {
+        // Idempotency: a redelivered ReserveInventoryCommand for an order that already
+        // has an active reservation must not double-reserve stock. Matches the same
+        // terminal/active-state short-circuit idiom SalesOrderCancelledEventHandler/
+        // SalesOrderShippedEventHandler already use for their own redelivery safety.
+        var existingReservations = await _uow.Reservations.GetByOrderIdAsync(request.OrderId, cancellationToken);
+        var activeReservation = existingReservations.FirstOrDefault(r => r.Status == ReservationStatus.Reserved);
+        if (activeReservation != null)
+        {
+            return new ReserveInventoryResponse
+            {
+                ReservationId = activeReservation.ReservationId,
+                OrderId = activeReservation.OrderId,
+                ReservedItems = activeReservation.ReservedItems.Select(i => new ReservedItemResponse
+                {
+                    ProductId = i.ProductId,
+                    ReservedQuantity = i.Quantity,
+                    Location = i.WarehouseLocation
+                }).ToList(),
+                Status = "Reserved",
+                ReservedAt = activeReservation.ReservedAt
+            };
+        }
+
         // Two-phase: check every line's availability first. Previously this reserved
         // items one at a time and threw on the first shortfall, leaving earlier items
         // in the same request already reserved with no rollback.
@@ -68,14 +95,14 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
             await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
 
             var location = await ReserveAtLocationAsync(item.ProductId, item.Quantity, cancellationToken);
-            var lotId = await AllocateFefoLotAsync(item.ProductId, item.Quantity, cancellationToken);
+            var lotAllocations = await AllocateFefoLotAsync(item.ProductId, item.Quantity, cancellationToken);
 
             reservedItems.Add(new ReservedItem
             {
                 ProductId = item.ProductId,
                 Quantity = item.Quantity,
                 WarehouseLocation = location,
-                LotId = lotId
+                LotAllocations = lotAllocations
             });
 
             reservedItemResponses.Add(new ReservedItemResponse
@@ -109,6 +136,9 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
 
         await _uow.SaveChangesAsync(cancellationToken);
 
+        foreach (var productId in inventories.Keys)
+            await _cache.RemoveAsync($"wh:inventory:{productId}", cancellationToken);
+
         return new ReserveInventoryResponse
         {
             ReservationId = reservation.ReservationId,
@@ -139,13 +169,13 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
     }
 
     /// <summary>
-    /// FEFO: earliest ExpiryDate first (nulls last), then earliest ReceivedDate. Depletes
-    /// across lots until the requested quantity is covered, but only the FIRST lot touched
-    /// is recorded on ReservedItem.LotId — ReservedItem has no multi-lot structure, so a
-    /// reservation spanning more than one lot only traces back to the first. Returns null
-    /// for non-lot-tracked products (no lots exist).
+    /// FEFO: earliest ExpiryDate first (nulls last), then earliest ReceivedDate. Places a
+    /// soft hold (Reserve, not Deplete) across lots until the requested quantity is
+    /// covered — RemainingQuantity is untouched here; real depletion happens later, at
+    /// ship time, via IReservationFulfillmentService consuming exactly these allocations.
+    /// Returns an empty list for non-lot-tracked products (no lots exist).
     /// </summary>
-    private async Task<Guid?> AllocateFefoLotAsync(Guid productId, int quantity, CancellationToken cancellationToken)
+    private async Task<List<LotAllocation>> AllocateFefoLotAsync(Guid productId, int quantity, CancellationToken cancellationToken)
     {
         var lots = await _uow.InventoryLots.GetByProductIdAsync(productId, includeDepleted: false, cancellationToken);
         var ordered = lots
@@ -153,7 +183,7 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
             .ThenBy(l => l.ReceivedDate)
             .ToList();
 
-        Guid? firstLotId = null;
+        var allocations = new List<LotAllocation>();
         var remaining = quantity;
 
         foreach (var lot in ordered)
@@ -161,17 +191,17 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
             if (remaining <= 0)
                 break;
 
-            var take = Math.Min(lot.RemainingQuantity, remaining);
+            var take = Math.Min(lot.AvailableQuantity, remaining);
             if (take <= 0)
                 continue;
 
-            lot.Deplete(take);
+            lot.Reserve(take);
             await _uow.InventoryLots.UpdateAsync(lot, cancellationToken);
-            firstLotId ??= lot.LotId;
+            allocations.Add(new LotAllocation { LotId = lot.LotId, Quantity = take });
             remaining -= take;
         }
 
-        return firstLotId;
+        return allocations;
     }
 }
 
@@ -190,6 +220,7 @@ public interface IReservationRepository
     Task<List<Reservation>> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken);
     Task AddAsync(Reservation reservation, CancellationToken cancellationToken);
     Task UpdateAsync(Reservation reservation, CancellationToken cancellationToken);
+    Task<List<Reservation>> GetExpiredAsync(DateTime asOfUtc, CancellationToken cancellationToken);
 }
 
 public interface IEventPublisher

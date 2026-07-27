@@ -24,6 +24,9 @@ public class WarehouseDbContext : DbContext
     public DbSet<StockAdjustment> StockAdjustments { get; set; }
     public DbSet<Warehouse> Warehouses { get; set; }
     public DbSet<BarcodeMapping> BarcodeMappings { get; set; }
+    public DbSet<CostConsumptionLog> CostConsumptionLogs { get; set; }
+    public DbSet<InventoryValuationSnapshot> InventoryValuationSnapshots { get; set; }
+    public DbSet<InventoryValuationSnapshotLine> InventoryValuationSnapshotLines { get; set; }
 
     /// <summary>
     /// Isolated Outbox table used only for the new Settings-changed Kafka publish path
@@ -63,6 +66,7 @@ public class WarehouseDbContext : DbContext
         {
             entity.HasKey(e => e.LotId);
             entity.Property(e => e.LotNumber).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ReservedQuantity).IsRequired();
             entity.Property(e => e.UnitCost).HasPrecision(18, 2);
             entity.Property(e => e.ReceivedDate).IsRequired();
 
@@ -114,6 +118,16 @@ public class WarehouseDbContext : DbContext
                 items.Property<int>("Id");
                 items.HasKey("Id");
                 items.Property(i => i.WarehouseLocation).HasMaxLength(100);
+
+                // Persisted as JSON rather than a second-level owned collection — EF Core
+                // supports nested OwnsMany but it requires its own composite-key plumbing
+                // for what's really just a small value list (LotId, Quantity) per line.
+                items.Property(i => i.LotAllocations)
+                    .HasConversion(
+                        v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+                        v => System.Text.Json.JsonSerializer.Deserialize<List<LotAllocation>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<LotAllocation>())
+                    .HasColumnName("LotAllocationsJson")
+                    .HasColumnType("nvarchar(max)");
             });
 
             entity.HasIndex(e => e.OrderId);
@@ -157,6 +171,41 @@ public class WarehouseDbContext : DbContext
             entity.Property(e => e.IsActive).IsRequired();
 
             entity.HasIndex(e => e.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<CostConsumptionLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UnitCost).HasPrecision(18, 2);
+            entity.Property(e => e.TotalCost).HasPrecision(18, 2);
+            entity.Property(e => e.ConsumedAt).IsRequired();
+
+            entity.HasIndex(e => e.ProductId);
+            entity.HasIndex(e => e.SourceOrderId);
+        });
+
+        modelBuilder.Entity<InventoryValuationSnapshot>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PeriodCode).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.SnapshotDate).IsRequired();
+            entity.Property(e => e.IsClosed).IsRequired();
+
+            entity.HasMany(e => e.Lines)
+                .WithOne()
+                .HasForeignKey(l => l.SnapshotId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Navigation(e => e.Lines).AutoInclude();
+
+            entity.HasIndex(e => new { e.PeriodCode, e.WarehouseId }).IsUnique();
+        });
+
+        modelBuilder.Entity<InventoryValuationSnapshotLine>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UnitCost).HasPrecision(18, 2);
+            entity.Property(e => e.TotalValue).HasPrecision(18, 2);
         });
 
         modelBuilder.Entity<BarcodeMapping>(entity =>

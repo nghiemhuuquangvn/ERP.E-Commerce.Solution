@@ -193,6 +193,13 @@ public class SalesOrderApprovedEvent : IntegrationEvent
 **Publisher:** Sales Service  
 **Subscribers:** Warehouse Service, Accounting Service, Customer Notifications
 
+> **Fixed 2026-07-27 (Module 8 reconciliation):** WareHouseService's handler for this
+> event previously only flipped the matching `Reservation` to `Fulfilled` —
+> `Inventory.TotalQuantity` was never actually decremented, so on-hand stock silently
+> never reduced through normal order fulfillment. The handler now consumes the exact lots
+> that were reserved, reduces `Inventory`/`InventoryLocationStock`, and writes a
+> `CostConsumptionLog` row per lot (see Warehouse Service Events below).
+
 **Event Structure:**
 ```csharp
 public class SalesOrderShippedEvent : IntegrationEvent
@@ -552,7 +559,16 @@ public class ReservedItem
 
 **Handling:**
 - Sales Service: Confirm order can be fulfilled
-- Accounting Service: Update inventory valuation
+- ~~Accounting Service: Update inventory valuation~~ — unconfirmed; not corrected until
+  now. AccountingService's real warehouse-movement consumer only verifies a fiscal period
+  is open and does no actual valuation posting (deferred pending Chart-of-Accounts
+  mapping — see Warehouse Service README).
+
+> **Note (2026-07-27, Module 8 reconciliation):** reservation is now a non-destructive
+> soft hold — the FEFO-allocated lot(s) for each item are recorded internally
+> (`ReservedItem.LotAllocations`, a list — a line can span more than one lot) but do not
+> yet reduce `InventoryLot.RemainingQuantity`. Real depletion only happens at
+> `SalesOrderShippedEvent` time.
 
 ---
 
@@ -581,7 +597,9 @@ public class InventoryUpdatedEvent : IntegrationEvent
 
 **Handling:**
 - Sales Service: Check stock availability
-- Purchasing Service: Trigger reorder if low stock
+- ~~Purchasing Service: Trigger reorder if low stock~~ — **corrected 2026-07-27**: no such
+  consumer ever existed for this event. As of this pass, PurchaseOrderService does now
+  react to low stock, but via the separate `StockAlertEvent` (below), not this one.
 - Analytics: Real-time inventory metrics
 
 ---
@@ -663,9 +681,10 @@ public class StockAdjustmentRejectedEvent
 |---|---|---|
 | `InventoryInsufficientEvent` | A reservation request's line(s) couldn't be fully covered | SaleOrderService's saga (compensation path) |
 | `ReceiptCompletedEvent` | Goods received (`ReceiveStockCommand`) | None confirmed |
-| `StockAlertEvent` | Product quantity at/below reorder point | None confirmed |
+| `StockAlertEvent` | Product quantity at/below reorder point | **PurchaseOrderService** (added 2026-07-27, Module 8) — `WarehouseEventRabbitMqConsumer` creates a suggestion-only `PurchaseRequest`; was unconsumed anywhere before this pass |
 | `StocktakeCompletedEvent` | Stocktake variance approved and posted | None confirmed |
 | `TransferOrderCompletedEvent` | Transfer order completed | None confirmed |
+| `InventoryValuationSnapshotClosed` (added 2026-07-27, Module 8) | A period-end Inventory Valuation Snapshot is closed (`POST /inventory/valuation/snapshots`) | None confirmed — same reasoning as `InventoryReservedEvent`'s Accounting note above: AccountingService's GL posting is deferred until Chart-of-Accounts mapping exists |
 
 **Reliability note:** as of 2026-07-27, every event in this section is staged into an
 Outbox table (`WarehouseEventOutboxWriter`) in the same transaction as the triggering

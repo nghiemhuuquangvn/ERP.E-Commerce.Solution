@@ -2,6 +2,7 @@ using MediatR;
 using ERP.WH.Application.Interfaces;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
+using ERP.Shared.Infrastructure.Caching;
 
 namespace ERP.WH.Application.Commands.Inventory;
 
@@ -9,13 +10,16 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
 {
     private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventOutboxWriter _outboxWriter;
+    private readonly ICacheService _cache;
 
     public RecordStockMovementCommandHandler(
         IWarehouseUnitOfWork uow,
-        IEventOutboxWriter outboxWriter)
+        IEventOutboxWriter outboxWriter,
+        ICacheService cache)
     {
         _uow = uow;
         _outboxWriter = outboxWriter;
+        _cache = cache;
     }
 
     public async Task<RecordStockMovementResponse> Handle(RecordStockMovementCommand request, CancellationToken cancellationToken)
@@ -101,6 +105,7 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
         }
 
         await _uow.SaveChangesAsync(cancellationToken);
+        await _cache.RemoveAsync($"wh:inventory:{request.ProductId}", cancellationToken);
 
         return new RecordStockMovementResponse
         {
@@ -148,4 +153,5 @@ public interface IStockMovementRepository
     Task<StockMovement?> GetByIdAsync(Guid movementId, CancellationToken cancellationToken);
     Task AddAsync(StockMovement movement, CancellationToken cancellationToken);
     Task<List<StockMovement>> GetByProductIdAsync(Guid productId, DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken);
+    Task<bool> ExistsAsync(Guid productId, string? reference, MovementType movementType, CancellationToken cancellationToken);
 }

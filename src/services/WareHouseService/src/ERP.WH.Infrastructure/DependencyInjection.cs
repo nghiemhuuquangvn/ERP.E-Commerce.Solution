@@ -12,6 +12,7 @@ using ERP.WH.Application.Commands.Locations;
 using ERP.WH.Application.Commands.Transfers;
 using ERP.WH.Application.Commands.Stocktakes;
 using ERP.WH.Application.Interfaces;
+using ERP.WH.Application.Services;
 using ERP.Shared.Infrastructure.Caching;
 
 namespace ERP.WH.Infrastructure;
@@ -36,9 +37,12 @@ public static class DependencyInjection
         services.AddScoped<IStockAdjustmentRepository, StockAdjustmentRepository>();
         services.AddScoped<IWarehouseRepository, WarehouseRepository>();
         services.AddScoped<IBarcodeMappingRepository, BarcodeMappingRepository>();
+        services.AddScoped<ICostConsumptionLogRepository, CostConsumptionLogRepository>();
+        services.AddScoped<Application.Commands.Inventory.IInventoryValuationSnapshotRepository, InventoryValuationSnapshotRepository>();
         services.AddScoped<IWarehouseUnitOfWork, WarehouseUnitOfWork>();
         services.AddScoped<IEventPublisher, EventPublisher>();
         services.AddScoped<IEventOutboxWriter, WarehouseEventOutboxWriter>();
+        services.AddScoped<IReservationFulfillmentService, ReservationFulfillmentService>();
 
         // Inventory Settings (System/Tenant two-tier) — storage+CRUD only for now
         services.AddScoped<IInventorySettingsService, Services.InventorySettingsService>();
@@ -97,6 +101,10 @@ public static class DependencyInjection
         // directly from command handlers, non-transactionally, right after SaveChanges) —
         // see WarehouseEventOutboxWriter/WarehouseEventOutboxProcessor.
         services.AddHostedService<WarehouseEventOutboxProcessor>();
+
+        // Sweeps Reservations past HoldUntil and auto-releases them — previously
+        // Reservation.HoldUntil/IsExpired()/Expire() were unused dead code.
+        services.AddHostedService<ReservationExpiryProcessor>();
 
         return services;
     }

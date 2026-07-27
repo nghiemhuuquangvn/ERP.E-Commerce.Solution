@@ -131,6 +131,12 @@ Content-Type: application/json
 }
 ```
 
+**Note (2026-07-27):** reservation is a non-destructive soft hold — `InventoryLot.RemainingQuantity`
+is not touched here, only `ReservedQuantity` (at the product, location, and lot level).
+Real depletion only happens when the order ships. Re-sending the same `orderId` while an
+active reservation already exists for it is idempotent — the existing reservation is
+returned rather than a duplicate being created.
+
 #### 5. Release Reservation
 ```http
 POST /inventory/release
@@ -262,6 +268,27 @@ POST   /barcode                  { "barcode": "...", "productId": "...", "lotId"
 DELETE /barcode/{id}
 ```
 
+### Cost Consumption Log (added 2026-07-27, Module 8) — per-sale COGS audit trail
+
+```http
+GET /inventory/{productId}/cost-consumption?startDate=&endDate=
+-> [{ id, productId, lotId, quantity, unitCost, totalCost, sourceOrderId, consumedAt }]
+```
+
+One row per lot consumed at ship time (or one row at the product's average cost for
+non-lot-tracked products) — `StockMovement` alone never recorded a unit cost.
+
+### Inventory Valuation Snapshots (added 2026-07-27, Module 8) — period-end, immutable close
+
+```http
+POST /inventory/valuation/snapshots        { "periodCode": "2026-07", "warehouseId": null }
+GET  /inventory/valuation/snapshots/{period}?warehouseId=
+```
+
+`POST` is rejected (400) if the `(periodCode, warehouseId)` combination is already closed —
+a closed period is never edited, only superseded by a correcting entry in a later period.
+Requires `inventory:valuation:close`.
+
 ## Integration Events
 
 ### Published Events
@@ -285,7 +312,9 @@ Published when inventory is successfully reserved for a sales order.
 }
 ```
 
-**Subscribers:** Sales Service, Accounting Service
+**Subscribers:** Sales Service. The "Accounting Service" subscriber previously listed here
+is unconfirmed — AccountingService's real warehouse-movement consumer only checks that a
+fiscal period is open and does no actual valuation posting yet (see that service's docs).
 
 #### InventoryUpdatedEvent
 Published when inventory levels change due to stock movement.
@@ -333,6 +362,9 @@ Published when goods are received (`ReceiveStockCommand`).
 #### StockAlertEvent
 Published when a product's quantity drops to/below its reorder point.
 
+**Subscribers (as of 2026-07-27):** PurchaseOrderService — creates a suggestion-only
+`PurchaseRequest` (see that service's docs). Previously unconsumed anywhere.
+
 #### StockAdjustmentApprovedEvent / StockAdjustmentRejectedEvent (added 2026-07-27)
 Published from the approval-gated Stock Adjustment workflow — see the Stock Adjustments section above.
 
@@ -341,6 +373,16 @@ Published once a stocktake's variance is approved and posted.
 
 #### TransferOrderCompletedEvent
 Published when a transfer order completes — both source and destination `InventoryLocationStock` rows are updated.
+
+#### InventoryValuationSnapshotClosed (added 2026-07-27, Module 8)
+Published when a period-end Inventory Valuation Snapshot is closed.
+```json
+{
+  "snapshotId": "...", "periodCode": "2026-07", "warehouseId": null,
+  "snapshotDate": "2026-07-27T00:00:00Z", "totalValue": 125000.00, "lineCount": 42
+}
+```
+**Subscribers:** None yet — see the Reliability/Still-open notes in the README.
 
 **Reliability note (added 2026-07-27):** all of the above are now staged into an Outbox
 table in the same transaction as the business write and delivered by a background
@@ -360,13 +402,19 @@ directly off order creation — this binding was deliberately changed to avoid
 double-reserving stock.
 
 #### SalesOrderCancelledEvent
-When a sales order is cancelled, releases the reserved inventory (and any FEFO-allocated lot quantity/location hold).
+When a sales order is cancelled, releases the reserved inventory — reverses the soft hold
+at the product, location, and every lot level, with no change to on-hand quantity.
 
 #### SalesOrderShippedEvent
-When a sales order is shipped, marks the reservation as fulfilled and sells the stock.
+**Fixed 2026-07-27** — previously this only flipped the reservation to `Fulfilled` and
+never actually reduced stock. Now consumes the exact lots that were reserved, reduces
+`Inventory`/`InventoryLocationStock`, writes a `StockMovement` (Sold) and a
+`CostConsumptionLog` row per lot, then marks the reservation fulfilled.
 
 #### PurchaseOrderReceivedDomainEvent (Kafka `purchasing-topic`)
 Matched to a product by `ProductSku` string (the event only carries a product code, not a shared id) — triggers `ReceiveStockCommand`. There is no consumer for `PurchaseOrderCreatedEvent`/`PurchaseOrderApprovedEvent`.
+**Idempotent as of 2026-07-27:** a redelivered receipt for the same product+PO (matched by
+`StockMovement.Reference`, e.g. `"PO-{purchaseOrderId}"`) is skipped rather than applied twice.
 
 ## Error Codes
 
@@ -391,3 +439,8 @@ Authorization: Bearer <token>
 
 **Last Updated:** 2026-07-27
 **API Version:** 1.1 — added Stock Adjustments (approval-gated), Warehouses, Stocktake approval, and Barcode endpoints; corrected the Consumed Events section; documented the Outbox reliability retrofit. Removed the old direct-write `POST /inventory/{productId}/adjust` endpoint (replaced by the Stock Adjustments workflow).
+**API Version:** 1.2 (Module 8 reconciliation) — fixed `SalesOrderShippedEvent` never
+reducing stock and the related reservation/lot double-depletion bug (reservation is now a
+non-destructive soft hold); added Cost Consumption Log and Inventory Valuation Snapshot
+endpoints/events; added idempotency to `ReserveInventoryCommand`/PO-driven receiving; added
+`inventory:valuation:close` permission.

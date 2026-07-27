@@ -74,6 +74,15 @@ public static class PermissionConstants
     public const string Inventory_Stocktake_Approve = "inventory:stocktake:approve";
     public const string Inventory_Barcode_View = "inventory:barcode:view";
     public const string Inventory_Warehouse_Manage = "inventory:warehouse:manage";
+    // Module 8 reconciliation — closing a period-end valuation snapshot is a Finance-grade
+    // action (immutable once closed), gated separately from the coarse Inventory_Manage.
+    public const string Inventory_Valuation_Close = "inventory:valuation:close";
+
+    // PurchaseOrderService — StockAlertEvent-driven purchase suggestions (Module 8
+    // reconciliation). Follows this service's own purchase_order:*/supplier:* snake_case
+    // family, not the inventory:* colon-nested style above.
+    public const string PurchaseRequest_View = "purchase_request:view";
+    public const string PurchaseRequest_Manage = "purchase_request:manage";
 
     // Payment Permissions
     public const string Payments_View = "payments:view";
@@ -263,6 +272,7 @@ public static class PermissionConstants
         PurchaseOrder_Approve, PurchaseOrder_Cancel, PurchaseOrder_AddItem, PurchaseOrder_RemoveItem,
         PurchaseOrder_Receive,
         Supplier_Create, Supplier_Read, Supplier_Update, Supplier_Delete, Supplier_Deactivate, Supplier_Rate,
+        PurchaseRequest_View, PurchaseRequest_Manage,
         SalesOrder_Create, SalesOrder_Read, SalesOrder_Update, SalesOrder_Approve, SalesOrder_Cancel,
         Accounting_AccountsView, Accounting_AccountsManage,
         Accounting_InvoicesView, Accounting_InvoicesManage,
@@ -275,7 +285,7 @@ public static class PermissionConstants
         Shipping_Create, Shipping_Update, Shipping_View, Shipping_CarriersManage,
         Inventory_View, Inventory_Manage,
         Inventory_Adjustment_Create, Inventory_Adjustment_Approve, Inventory_Stocktake_Approve,
-        Inventory_Barcode_View, Inventory_Warehouse_Manage,
+        Inventory_Barcode_View, Inventory_Warehouse_Manage, Inventory_Valuation_Close,
         Payments_View, Payments_Create, Payments_Authorize, Payments_Capture, Payments_Cancel, Payments_Refund,
         Payments_SettlementsView, Payments_SettlementsManage,
         POS_Transactions, POS_TerminalsManage, POS_ReportsView, POS_ShiftsView, POS_ShiftsManage,

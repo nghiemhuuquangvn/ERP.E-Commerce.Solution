@@ -170,9 +170,23 @@ public class UserContext
 - ✓ Unit prices must be > 0
 - ✓ Shipping address required and complete
 - ✓ Total amount calculated from line items (no manipulation possible)
+- ✓ **(added 2026-07-27)** Every line's `AvailableQuantity` is checked against
+  WareHouseService (`GET /inventory/{productId}/availability`) **before** the order is
+  persisted — fails closed: an insufficient line, or an unreachable WareHouseService,
+  rejects order creation entirely (`400 Bad Request`). Previously there was no such check
+  at all; stock was only discovered to be short post-payment via the async saga.
+
+**Error Responses** (added 2026-07-27):
+```json
+// 400 Bad Request — stock pre-check failed
+{
+  "message": "Insufficient stock for product 660e8400-...: requested 5, available 2."
+}
+```
 
 **Domain Events Published**:
-- `SalesOrderCreatedEvent` → Triggers warehouse inventory reservation
+- `SalesOrderCreatedEvent` — the actual `ReserveInventoryCommand` is fired later, by
+  `OrderFulfillmentSaga` after payment is confirmed, not directly off this event
 
 ---
 
@@ -426,14 +440,18 @@ Draft, Submitted, Approved, Picked (releases inventory, issues refund)
 
 ### 1. Warehouse Service (5004)
 
-**Events Published to Warehouse**:
-- `SalesOrderCreatedEvent` → Warehouse reserves inventory
-- `SalesOrderApprovedEvent` → Warehouse confirms reservation
+**Synchronous call (added 2026-07-27)**: `GET /inventory/{productId}/availability` — the
+stock pre-check, called directly (not via event) before an order is persisted or payment
+initiated. Fails closed on any shortfall or outage. See "Create Sales Order" above.
+
+**Events Published to Warehouse** (via `OrderFulfillmentSaga`, not directly off order creation):
+- `sales_order.ReserveInventoryCommand` → fired only after payment is confirmed
 - `SalesOrderCancelledEvent` → Warehouse releases reservation
+- `SalesOrderShippedEvent` → Warehouse reduces stock and writes the COGS audit trail
 
 **Events Consumed from Warehouse**:
-- `InventoryReservedEvent` → Order can proceed
-- `InventoryReservedFailedEvent` → Order approval rejected
+- `InventoryReservedEvent` → saga proceeds
+- `InventoryInsufficientEvent` → saga refunds payment and cancels the order
 
 ---
 

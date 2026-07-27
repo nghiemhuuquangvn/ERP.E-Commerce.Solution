@@ -9,6 +9,7 @@ The Sales Order Service is responsible for the complete sales order lifecycle fr
 **Key Functions:**
 - Create quotations and convert them into sales orders
 - Create and manage customer sales orders, with a full audit trail
+- Check stock availability synchronously, before payment is ever charged (added 2026-07-27, Module 8 reconciliation — see below)
 - Track order status through fulfillment workflow (order approval → payment → inventory reservation → shipment saga)
 - Enforce a per-customer credit limit (this service owns `CreditLimit` — no other service in the system has it)
 - Calculate sales-rep commission when an order is actually paid
@@ -30,10 +31,29 @@ The Sales Order Service is responsible for the complete sales order lifecycle fr
 - Attribution fields: `OrderSource` (Manual/Ecommerce/POS), `DepartmentId`, `SalesRepId` — all optional, ID-only references (no local Department/User entity)
 
 ### Workflow Orchestration
-- Process order approval workflow (`OrderFulfillmentSaga`: Order → Payment → Inventory Reservation → Shipment)
-- Coordinate with Warehouse (inventory reservation), Payment (processed/failed), Shipping (shipment created) via Kafka/RabbitMQ consumers
+- Process order approval workflow (`OrderFulfillmentSaga`: Stock pre-check → Order created → Payment → Inventory Reservation → Shipment)
+- Coordinate with Warehouse (stock pre-check, inventory reservation), Payment (processed/failed), Shipping (shipment created) via a synchronous HTTP client (pre-check only) plus Kafka/RabbitMQ consumers (everything else)
 - Handle order cancellation, return request/completion (refund amount recorded, no local Payment/CreditNote entity — Accounting/Payment own those)
 - Track order milestones via `OrderStatusHistoryEntry`
+
+### Stock Pre-Check (added 2026-07-27, Module 8 reconciliation)
+- **Fixed a real gap**: previously this service had zero inventory awareness before
+  charging payment — an order was created and paid for, and only *afterward* did the saga
+  ask WareHouseService to reserve stock (post-payment). If stock was short, the saga
+  correctly refunded and cancelled — but only after the customer had already been charged.
+- `IWarehouseServiceClient` (mirrors `IPromotionServiceClient`'s `HttpClient` idiom) now
+  checks every line's `AvailableQuantity` against WareHouseService's
+  `GET /inventory/{productId}/availability` **before** `CreateOrderCommandHandler`
+  persists the order or the saga ever fires `InitiatePaymentCommand`. Any line that's
+  short — or an unreachable WareHouseService — rejects order creation outright.
+- Unlike the coupon-validation client (an outage there just skips the discount), this
+  client **fails closed**: it cannot treat "can't reach Warehouse" as "assume in stock"
+  without reintroducing the exact problem it exists to close.
+- This narrows the race window but does not eliminate it — the actual
+  `ReserveInventoryCommand` still fires post-payment, unchanged, and
+  `OrderFulfillmentSaga.HandleInventoryInsufficientAsync`'s refund+cancel compensation
+  stays exactly as the safety net for whatever residual race remains (e.g. a concurrent
+  order between this check and the real reservation).
 
 ### Credit Limit (CustomerSalesProfile)
 - This service is the **source of truth** for `CreditLimit` — no other service in the system has this field (CRMService has no Customer entity; IdentityService's User has none)
@@ -245,6 +265,10 @@ All published via RabbitMQ topic exchange `sales_order_events` (routing key `sal
 
 ## Consumed Events
 
+**Note:** the stock pre-check (added 2026-07-27) is a synchronous HTTP call
+(`IWarehouseServiceClient` → `GET /inventory/{productId}/availability`), not an event —
+listed here for completeness since it's the other way this service talks to Warehouse.
+
 - Warehouse (RabbitMQ `warehouse_exchange`): `InventoryReservedEvent`, `InventoryInsufficientEvent`
 - Payment (Kafka `payment-topic`): `PaymentProcessedEvent` (drives the fulfillment saga and triggers Commission), `PaymentFailedEvent`
 - Shipping (Kafka `shipping-topic`): `ShipmentCreatedEvent`
@@ -328,6 +352,9 @@ dotnet test --filter "Category=Integration"
 ## Development Notes
 
 ### Key Business Rules
+- Every line's stock availability is checked against WareHouseService before an order is
+  persisted or payment is initiated — fails closed (rejects order creation) if any line is
+  short or WareHouseService can't be reached
 - Order line prices are snapshotted at creation — never re-read from PriceList later, even if the catalog price changes (only flags `HasPriceChangeWarning`)
 - `Approve` enforces the customer's credit limit, but only if a `CustomerSalesProfile` exists for them — no profile means no limit
 - Commission is only created on an actual `PaymentProcessedEvent`, never on a merely-confirmed order

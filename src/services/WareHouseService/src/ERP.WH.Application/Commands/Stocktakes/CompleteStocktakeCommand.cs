@@ -3,6 +3,7 @@ using ERP.WH.Application.Interfaces;
 using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
+using ERP.Shared.Infrastructure.Caching;
 
 namespace ERP.WH.Application.Commands.Stocktakes;
 
@@ -49,13 +50,16 @@ public class ApproveStocktakeCommandHandler : IRequestHandler<ApproveStocktakeCo
 {
     private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventOutboxWriter _outboxWriter;
+    private readonly ICacheService _cache;
 
     public ApproveStocktakeCommandHandler(
         IWarehouseUnitOfWork uow,
-        IEventOutboxWriter outboxWriter)
+        IEventOutboxWriter outboxWriter,
+        ICacheService cache)
     {
         _uow = uow;
         _outboxWriter = outboxWriter;
+        _cache = cache;
     }
 
     public async Task<StocktakeDto> Handle(ApproveStocktakeCommand request, CancellationToken cancellationToken)
@@ -75,6 +79,7 @@ public class ApproveStocktakeCommandHandler : IRequestHandler<ApproveStocktakeCo
             var previousQuantity = inventory.TotalQuantity;
             inventory.AdjustStock(line.Variance);
             await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
+            await _cache.RemoveAsync($"wh:inventory:{line.ProductId}", cancellationToken);
 
             if (stocktake.LocationId.HasValue)
             {

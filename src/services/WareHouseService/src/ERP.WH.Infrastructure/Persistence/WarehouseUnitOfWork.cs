@@ -3,6 +3,7 @@ using ERP.WH.Application.Commands.Locations;
 using ERP.WH.Application.Commands.Stocktakes;
 using ERP.WH.Application.Commands.Transfers;
 using ERP.WH.Application.Interfaces;
+using ERP.WH.Application.Services;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace ERP.WH.Infrastructure.Persistence;
@@ -25,7 +26,8 @@ public class WarehouseUnitOfWork : IWarehouseUnitOfWork
         IInventoryLocationStockRepository inventoryLocationStocks,
         IStockAdjustmentRepository stockAdjustments,
         IWarehouseRepository warehouses,
-        IBarcodeMappingRepository barcodeMappings)
+        IBarcodeMappingRepository barcodeMappings,
+        ICostConsumptionLogRepository costConsumptionLogs)
     {
         _dbContext = dbContext;
         Inventories = inventories;
@@ -40,6 +42,7 @@ public class WarehouseUnitOfWork : IWarehouseUnitOfWork
         StockAdjustments = stockAdjustments;
         Warehouses = warehouses;
         BarcodeMappings = barcodeMappings;
+        CostConsumptionLogs = costConsumptionLogs;
     }
 
     public IInventoryRepository Inventories { get; }
@@ -54,6 +57,7 @@ public class WarehouseUnitOfWork : IWarehouseUnitOfWork
     public IStockAdjustmentRepository StockAdjustments { get; }
     public IWarehouseRepository Warehouses { get; }
     public IBarcodeMappingRepository BarcodeMappings { get; }
+    public ICostConsumptionLogRepository CostConsumptionLogs { get; }
 
     public async Task<int> SaveChangesAsync(CancellationToken ct) =>
         await _dbContext.SaveChangesAsync(ct);

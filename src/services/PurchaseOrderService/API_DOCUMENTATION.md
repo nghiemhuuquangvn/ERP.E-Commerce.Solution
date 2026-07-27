@@ -38,6 +38,9 @@ Authorization: Bearer <jwt_token>
 | `GET /suppliers` | User | List suppliers |
 | `PUT /suppliers/{id}` | **Admin, Manager** | Update supplier |
 | `POST /suppliers/{id}/deactivate` | **Admin** | Deactivate supplier |
+| `GET /purchase-requests` | Requires `purchase_request:view` (added 2026-07-27) | List suggestion-only Purchase Requests |
+| `POST /purchase-requests/{id}/dismiss` | Requires `purchase_request:manage` (added 2026-07-27) | Dismiss a suggestion |
+| `POST /purchase-requests/{id}/convert` | Requires `purchase_request:manage` (added 2026-07-27) | Mark a suggestion acted-upon |
 
 ## API Endpoints
 
@@ -404,6 +407,40 @@ Authorization: Bearer <jwt_token>
 **Errors:**
 - `404 Not Found`: Supplier not found
 - `403 Forbidden`: User lacks required role
+
+---
+
+### Purchase Requests (added 2026-07-27, Module 8 reconciliation)
+
+Suggestion-only requests auto-created by `WarehouseEventRabbitMqConsumer` when WareHouseService
+publishes `StockAlertEvent` (a product at/below its reorder point). Not a real purchase-order
+workflow — `convert` only records that the suggestion led to a real order; the actual
+`PurchaseOrder` is still created via the endpoints above.
+
+#### 1. List Purchase Requests
+**Endpoint:** `GET /purchase-requests?status=Suggested`
+**Permission:** `purchase_request:view`
+
+```json
+[
+  {
+    "id": "...", "productId": "...", "productName": "Widget A",
+    "currentQuantity": 8, "reorderPoint": 20, "suggestedQuantity": 500,
+    "status": "Suggested", "createdAt": "2026-07-27T10:00:00Z", "resolvedAt": null
+  }
+]
+```
+
+#### 2. Dismiss
+**Endpoint:** `POST /purchase-requests/{id}/dismiss`
+**Permission:** `purchase_request:manage`
+Fails (400) if the request is not currently `Suggested`.
+
+#### 3. Convert
+**Endpoint:** `POST /purchase-requests/{id}/convert`
+**Permission:** `purchase_request:manage`
+Marks the request `Converted` — does **not** create a `PurchaseOrder` automatically. Fails
+(400) if the request is not currently `Suggested`.
 
 ---
 

@@ -12,6 +12,8 @@ The Purchase Order Service handles all purchasing operations from supplier order
 - Manage supplier information and performance metrics
 - Process goods receipt and quality inspection
 - Generate purchasing reports and analytics
+- Surface suggestion-only Purchase Requests auto-created from WareHouseService's low-stock
+  signal (added 2026-07-27, Module 8 reconciliation — see below)
 
 ## Responsibilities
 
@@ -193,6 +195,29 @@ Response: 200 OK
 }
 ```
 
+### Purchase Requests (added 2026-07-27, Module 8 reconciliation)
+- First-ever inbound event consumer in this service (previously outbound-only via
+  Kafka/`KafkaMessageBus`/`OutboxProcessor`) — a new `WarehouseEventRabbitMqConsumer`
+  binds to WareHouseService's `warehouse_exchange` (RabbitMQ topic exchange, routing key
+  `warehouse.StockAlertEvent`), which was already published but had zero consumers
+  anywhere in the system before this pass
+- Creates a lightweight, suggestion-only `PurchaseRequest` (Status: Suggested/Dismissed/
+  Converted) — deliberately does **not** auto-create a real `PurchaseOrder` or pick a
+  supplier; a Purchasing user still uses the existing Create Purchase Order flow themselves
+- Idempotent against repeated low-stock alerts for the same still-low product — a second
+  alert while a `Suggested` request is already open for that product is a no-op
+- `PurchaseRequest` does **not** carry a `TenantId` and is not covered by this service's
+  usual tenant query filter — the upstream signal (WareHouseService's `Inventory`
+  aggregate) carries no tenant concept, so there is nothing correct to backfill a TenantId from
+
+```http
+GET  /api/v1/purchase-requests?status=Suggested
+POST /api/v1/purchase-requests/{id}/dismiss
+POST /api/v1/purchase-requests/{id}/convert   # marks acted-upon only, does not create a PO
+```
+
+Requires `purchase_request:view` (list) / `purchase_request:manage` (dismiss/convert).
+
 ## Published Events
 
 ### PurchaseOrderCreatedEvent
@@ -244,7 +269,11 @@ public class PurchaseOrderReceivedEvent : IntegrationEvent
 ## Consumed Events
 
 - `UserCreatedEvent` - Initialize supplier profile
-- `InventoryUpdatedEvent` - Monitor stock levels and trigger reorders
+- `StockAlertEvent` (RabbitMQ `warehouse_exchange`, routing key `warehouse.StockAlertEvent`,
+  added 2026-07-27) — creates a suggestion-only `PurchaseRequest`, see above. This is the
+  real, verified consumer as of this pass; the previously listed `InventoryUpdatedEvent`
+  "monitor stock levels and trigger reorders" claim did not correspond to any actual code
+  before this pass and has been replaced by the real binding above.
 
 ## Database Schema
 
@@ -278,6 +307,11 @@ public class PurchaseOrderReceivedEvent : IntegrationEvent
 - Address
 - PaymentTerms
 - IsActive
+
+**PurchaseRequests** (added 2026-07-27, Module 8 reconciliation)
+- Id (PK) — no TenantId/composite key, unlike every other table above (see note in Purchase Requests section)
+- ProductId, ProductName, CurrentQuantity, ReorderPoint, SuggestedQuantity
+- Status (Suggested/Dismissed/Converted), CreatedAt, ResolvedAt
 
 ## Purchase Workflow
 

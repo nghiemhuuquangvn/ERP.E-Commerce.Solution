@@ -380,6 +380,7 @@ const INVENTORY_CHILDREN: NavItem[] = [
   { labelKey: 'nav.stocktakes', path: '/inventory/stocktakes', permission: 'inventory:view', icon: '📋' },
   { labelKey: 'nav.transfers', path: '/inventory/transfers', permission: 'inventory:view', icon: '🔀' },
   { labelKey: 'nav.barcode', path: '/inventory/barcode', permission: 'inventory:barcode:view', icon: '🔖' },
+  { labelKey: 'nav.valuationSnapshots', path: '/inventory/valuation-snapshots', permission: 'inventory:view', icon: '📊' },
 ]
 
 const PURCHASING_CHILDREN: NavItem[] = [
@@ -394,6 +395,12 @@ const PURCHASING_CHILDREN: NavItem[] = [
     path: '/purchasing/suppliers',
     permission: 'supplier:read',
     icon: '🏭',
+  },
+  {
+    labelKey: 'nav.purchaseRequests',
+    path: '/purchasing/requests',
+    permission: 'purchase_request:view',
+    icon: '🔔',
   },
 ]
 

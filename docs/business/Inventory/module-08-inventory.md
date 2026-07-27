@@ -122,7 +122,16 @@ GET    /api/v1/inventory/valuation/snapshots/{period}
 
 ## 10. So sánh & Reconciliation
 
-Không có phần "đã có sẵn" ở module này (chưa build), nhưng cần lưu ý: đề xuất ban đầu liệt kê FIFO/Moving Average như hai "module con" riêng — thực tế đây là **hai chiến lược thay thế nhau** (Strategy pattern), không phải hai bộ bảng song song cần build cả hai. Chọn 1 phương pháp mặc định cho toàn hệ thống trước (khuyến nghị Moving Average — đơn giản hơn FIFO nhiều để implement đúng ngay từ đầu), có thể mở rộng hỗ trợ cấu hình theo Item Group sau nếu nghiệp vụ yêu cầu (VD: hàng có hạn dùng bắt buộc FIFO).
+> **Cập nhật 2026-07-27** — mục này ban đầu viết khi module chưa build. Sau khi đối chiếu
+> với code thật của `WareHouseService`/`SaleOrderService`/`PurchaseOrderService`, phần
+> dưới đây thay thế hoàn toàn nội dung cũ. Xem §12 để biết chi tiết đầy đủ.
+
+Đề xuất ban đầu liệt kê FIFO/Moving Average như hai "module con" riêng — thực tế đây là
+**hai chiến lược thay thế nhau** (Strategy pattern) trên cùng một field `ValuationMethod`
+của `Inventory`, không phải hai bộ bảng song song. Cả hai đã tồn tại từ Module 7
+(`Inventory.ReceiveStock` tính đúng weighted-average khi `ValuationMethod=Average`;
+`InventoryLot`/FIFO-FEFO đã có) — không cần build lại, chỉ cần vá các lỗ hổng thật được
+liệt kê ở §12.
 
 ## 11. Khuyến nghị triển khai .NET
 
@@ -130,3 +139,53 @@ Không có phần "đã có sẵn" ở module này (chưa build), nhưng cần l
 - Tính `AvailableQuantity` nên qua Redis cache (invalidate theo event) thay vì query tổng hợp mỗi lần Sales check tồn — đây là API được gọi nhiều nhất trong toàn hệ thống (mỗi lần thêm giỏ hàng Ecommerce đều có thể check).
 - Domain Event consumer nên idempotent (dùng `SourceRefId` + `TransactionType` làm unique constraint) — tránh ghi trùng ledger nếu event bị deliver lại (rất quan trọng khi chuyển sang Kafka/RabbitMQ thật, vì message broker thường "at-least-once delivery").
 - `CostConsumptionLogs` cần join hiệu quả với `Invoices`/`SalesOrderLines` để tính COGS theo từng đơn hàng — đánh index `(SourceRefId)`.
+
+## 12. Reconciliation (2026-07-27) — Inventory KHÔNG phải service riêng, đã merge vào WareHouseService từ Module 7
+
+`Inventory` **không** phải bounded context "derive-only" tách biệt như tài liệu này mô tả —
+từ Module 7, `WareHouseService` đã gộp Warehouse (di chuyển vật lý) và Inventory (số dư/giá
+vốn) làm một, và quyết định đó được giữ nguyên (permanent). Việc đối chiếu lần này không cố
+tách lại thành 2 service, mà kiểm tra xem các nghiệp vụ Inventory cốt lõi (COGS, valuation,
+reservation, idempotency) đã đúng chưa bên trong `WareHouseService`.
+
+### Bug thật đã tìm thấy và sửa (không chỉ là tính năng thiếu)
+
+1. **`SalesOrderShippedEventHandler` không hề trừ kho.** Trước bản vá này, handler chỉ đổi
+   `Reservation.Status` thành `Fulfilled` — `Inventory.TotalQuantity` không bao giờ giảm
+   qua luồng bán hàng bình thường (đặt hàng → thanh toán → giữ chỗ → giao hàng). Đây là lỗi
+   nghiêm trọng nhất tìm được, vì nó vi phạm trực tiếp lời hứa cốt lõi của module này
+   ("tồn kho hiện tại là bao nhiêu").
+2. **Double-depletion giữa Reservation (FEFO) và Sold movement (FIFO/LIFO).** FEFO lúc giữ
+   chỗ trước đây trừ thẳng `InventoryLot.RemainingQuantity` ngay lập tức; luồng "Sold"
+   thủ công lại trừ tiếp cùng lô đó lần nữa nếu cả hai đường cùng chạy cho cùng một đơn
+   hàng. Đã sửa: Reservation giờ chỉ là **soft hold** (`InventoryLot.ReservedQuantity`,
+   không đổi `RemainingQuantity`); chỉ bước giao hàng thật (ship) mới trừ `RemainingQuantity`,
+   đúng tinh thần §3 bước 4 của tài liệu này ("khi DeliveryCompleted thì Reservation được
+   release và trừ thật vào StockLedger").
+
+### Đối chiếu từng đề xuất trong tài liệu
+
+| Đề xuất trong tài liệu | Thực tế trước 2026-07-27 | Đã build lần này |
+|---|---|---|
+| `StockLedger` append-only | Tương đương `StockMovement` (đã có từ Module 7) | Không đổi — đã đủ |
+| `CostLayer` (FIFO) | `InventoryLot` đã có, FEFO cho reservation | Không đổi cấu trúc, chỉ sửa cách dùng (soft hold) |
+| `MovingAverageCost` | `Inventory.Cost` + `ValuationMethod=Average`, tính đúng khi nhận hàng | Không đổi — đã đúng |
+| `Reservation` + `ExpiresAt` | Field `HoldUntil` đã có nhưng `IsExpired()`/`Expire()` là dead code, không job nào chạy | **Mới**: `ReservationExpiryProcessor`, quét mỗi 5 phút |
+| `InventoryValuationSnapshot` | Không tồn tại — chỉ có query valuation tức thời | **Mới**: `InventoryValuationSnapshot`/`Line`, chốt 1 lần, publish `InventoryValuationSnapshotClosed` |
+| `CostConsumptionLogs` | Không tồn tại — `StockMovement` không ghi unit cost | **Mới**: `CostConsumptionLog`, ghi tại thời điểm ship |
+| Idempotent consumer (`SourceRefId`+`TransactionType`) | Không có — redelivery có thể giữ chỗ/nhận hàng trùng lặp | **Mới**: dedupe theo `OrderId` (reservation) và theo `Reference` (nhận hàng PO) — cùng tinh thần, khác khoá tự nhiên |
+| Redis cache cho `AvailableQuantity` | Đã cache 2 phút nhưng **không có invalidate khi ghi** — có thể trả dữ liệu cũ tới 2 phút sau mọi thay đổi | **Mới**: invalidate cache ở mọi handler ghi Inventory |
+| `LowStockDetected` → gợi ý Purchase Request | Sự kiện thật tên là `StockAlertEvent` (đã publish từ Module 7) nhưng **chưa ai tiêu thụ** | **Mới**: `PurchaseOrderService` tiêu thụ, tạo `PurchaseRequest` **chỉ mang tính gợi ý** (không tự tạo PO thật) |
+| Sales gọi API kiểm tra Available Quantity trước khi confirm Order | **Không có** — `SaleOrderService` tạo đơn + thu tiền xong mới nhờ Warehouse giữ chỗ (sau thanh toán); nếu thiếu hàng thì hoàn tiền + huỷ đơn (bù trừ đúng, nhưng khách đã bị trừ tiền trước) | **Mới**: pre-check đồng bộ (`IWarehouseServiceClient`) trước khi tạo đơn/thu tiền — fail-closed nếu không gọi được Warehouse |
+
+### Việc rõ ràng KHÔNG làm trong đợt này
+
+- Không tách Inventory thành service riêng — đã chấp nhận merge vĩnh viễn từ Module 7.
+- Không tự động ghi bút toán GL từ `InventoryValuationSnapshotClosed` — AccountingService
+  đã có consumer cho luồng movement nhưng tự nhận việc post GL thật còn phải chờ tính năng
+  Chart-of-Accounts mapping; publish event trước, chưa có bên tiêu thụ thật.
+- Không tự động tạo `PurchaseOrder` từ `PurchaseRequest` — người dùng Purchasing vẫn phải
+  tự tạo PO qua luồng có sẵn; `PurchaseRequest` chỉ là gợi ý.
+- Pre-check tồn kho ở Sales không thay thế bước giữ chỗ thật (vẫn chạy sau thanh toán,
+  không đổi) — chỉ thu hẹp khoảng hở race condition, luồng hoàn tiền/huỷ đơn khi thiếu hàng
+  vẫn là lưới an toàn cho phần race còn lại.

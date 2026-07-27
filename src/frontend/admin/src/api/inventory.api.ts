@@ -60,10 +60,26 @@ export interface InventoryLot {
   lotNumber: string
   receivedQuantity: number
   remainingQuantity: number
+  reservedQuantity: number
+  availableQuantity: number
   unitCost: number
   receivedDate: string
   expiryDate: string | null
   purchaseOrderId: string | null
+}
+
+// Per-sale COGS audit trail (Module 8 reconciliation) — written once per lot consumed
+// (or once at the product's average cost for non-lot-tracked products) when an order
+// ships. Read-only.
+export interface CostConsumptionLog {
+  id: string
+  productId: string
+  lotId: string | null
+  quantity: number
+  unitCost: number
+  totalCost: number
+  sourceOrderId: string
+  consumedAt: string
 }
 
 export interface InventorySerial {
@@ -95,6 +111,11 @@ export const inventoryApi = {
 
   lotsByProduct: (productId: string) =>
     apiClient.get<InventoryLot[]>(`/v1/inventory/lots/product/${productId}`).then((r) => r.data),
+
+  costConsumption: (productId: string, params?: { startDate?: string; endDate?: string }) =>
+    apiClient
+      .get<CostConsumptionLog[]>(`/v1/inventory/${productId}/cost-consumption`, { params })
+      .then((r) => r.data),
 
   expiringLots: () => apiClient.get<InventoryLot[]>('/v1/inventory/lots/expiring').then((r) => r.data),
 

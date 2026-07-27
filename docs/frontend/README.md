@@ -40,10 +40,12 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
 - [warehouse-admin-guide.md](warehouse-admin-guide.md) — the pattern used for the
   Admin app's WareHouseService pages (Inventory detail with bin-level breakdown,
   Locations, Warehouses, Stock Adjustments approval, Stocktakes approval,
-  Transfer Orders, Barcode resolve). Only WareHouseService domain split across
+  Transfer Orders, Barcode resolve, and — added 2026-07-27 — a Cost History tab
+  and Inventory Valuation Snapshots page). Only WareHouseService domain split across
   two different Gateway paths (`/api/v1/inventory` vs. the `/wh/api/v1/{everything}`
   catch-all) — pick the client per controller, don't assume one client covers
-  the whole service.
+  the whole service. Also covers the cross-service Purchase Requests page
+  (PurchaseOrderService), triggered by this domain's `StockAlertEvent`.
 
 ## Auth: login, 2FA, SSO, and settings (Admin app)
 

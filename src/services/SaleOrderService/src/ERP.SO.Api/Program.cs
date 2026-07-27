@@ -61,6 +61,13 @@ builder.Services.AddScoped<IOrderSettingsService, OrderSettingsService>();
 // PromotionService client (coupon validation at order creation)
 builder.Services.AddHttpClient<IPromotionServiceClient, PromotionServiceClient>();
 
+// WareHouseService client — synchronous stock availability pre-check before payment is
+// charged (see CreateOrderCommandHandler). Previously CreateOrderCommandHandler had no
+// inventory awareness at all: an order was created and paid for before the saga ever
+// asked WareHouseService to reserve stock, so an out-of-stock order was only caught
+// (and refunded) after the customer had already been charged.
+builder.Services.AddHttpClient<IWarehouseServiceClient, WarehouseServiceClient>();
+
 // Consumes ProductService's product-topic (Kafka) for ProductPriceChangedDomainEvent —
 // previously impossible, since that event didn't exist in ProductService until
 // 2026-07-03 (docs/business section 3.2).

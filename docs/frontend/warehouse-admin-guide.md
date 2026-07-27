@@ -2,12 +2,16 @@
 
 The Admin app's `/inventory/*` pages are the UI for **WareHouseService** (port
 5004, Gateway prefix `/wh`) — Inventory, Locations, Warehouses (sites), Stock
-Adjustments, Stocktakes, Transfer Orders, and Barcode resolve. This guide
-covers the pattern used after the 2026-07 reconciliation, which added
-bin-level stock tracking, an approval workflow for adjustments/stocktakes, a
-parent `Warehouse` site entity, FEFO lot picking, and barcode resolve to the
+Adjustments, Stocktakes, Transfer Orders, Barcode resolve, and (added
+2026-07-27) Cost History / Inventory Valuation Snapshots. This guide covers
+the pattern used after the 2026-07 reconciliation, which added bin-level
+stock tracking, an approval workflow for adjustments/stocktakes, a parent
+`Warehouse` site entity, FEFO lot picking, and barcode resolve to the
 backend — see `docs/business/Warehouse/module-07-warehouse.md` §12/the
-service's own `README.md` for the business rationale.
+service's own `README.md` for the business rationale — and the follow-up
+Module 8 reconciliation (`docs/business/Inventory/module-08-inventory.md`
+§12), which fixed the reservation soft-hold/ship-time bugs and added
+`CostConsumptionLog`/`InventoryValuationSnapshot`.
 
 ## Backend quirk: two different Gateway paths for the same service
 
@@ -67,8 +71,9 @@ new page that consumes `locations`.
 
 1. One `.api.ts` per entity under `src/api/` (`inventory.api.ts`,
    `locations.api.ts`, `warehouses.api.ts`, `stockAdjustments.api.ts`,
-   `stocktakes.api.ts`, `transferOrders.api.ts`, `barcodeMappings.api.ts`),
-   mirroring the real controller's request/response shape exactly — read
+   `stocktakes.api.ts`, `transferOrders.api.ts`, `barcodeMappings.api.ts`,
+   `valuationSnapshots.api.ts`), mirroring the real controller's
+   request/response shape exactly — read
    `src/services/WareHouseService/src/ERP.WH.API/Controllers/*.cs` first, per
    the Gateway-path quirk above.
 2. Two page shapes are used, matching entity complexity:
@@ -77,11 +82,20 @@ new page that consumes `locations`.
      above the page component).
    - **Dedicated-route detail/form pages** for anything with line items or a
      multi-step lifecycle: `InventoryDetailPage.tsx` (tab strip:
-     locations/lots/serials, plus a "Request Adjustment" modal),
-     `StocktakeDetailPage.tsx` (line table with inline count-input, gated
-     Complete/Approve/Cancel buttons), `TransferOrderFormPage.tsx` (dedicated
-     create route with from/to location pickers and a product line-item
-     table, mirrors `OrderFormPage.tsx` from the Sales module).
+     locations/lots/serials/**costHistory**, plus a "Request Adjustment"
+     modal), `StocktakeDetailPage.tsx` (line table with inline count-input,
+     gated Complete/Approve/Cancel buttons), `TransferOrderFormPage.tsx`
+     (dedicated create route with from/to location pickers and a product
+     line-item table, mirrors `OrderFormPage.tsx` from the Sales module).
+   - **Lookup + form panel** (`BarcodeResolvePage.tsx`,
+     `InventoryValuationSnapshotsPage.tsx` — added 2026-07-27): a "close/add"
+     form (permission-gated) alongside a separate "look up by key" panel that
+     handles a 404/not-found response as a normal empty state, not an error
+     — see `valuationSnapshotsApi.getByPeriod`/`barcodeMappingsApi.resolve`'s
+     shared `axios.isAxiosError(err) && err.response?.status === 404 → null`
+     idiom, and copy it for any future "does this key exist yet" lookup
+     instead of letting React Query's `isError` path handle a plain
+     not-found.
 3. `DataTable` requires `T extends {id: string}`. Several backend DTOs use a
    different PK field name (`productId`, `locationId`, `adjustmentId`, etc.)
    — map to `{...x, id: x.realIdField}` before passing rows in
@@ -112,6 +126,7 @@ don't gate an unrelated existing endpoint with one of these by mistake:
 | `inventory:stocktake:approve` | `StocktakeDetailPage` Approve action (`complete` itself stays under `inventory:manage`) |
 | `inventory:barcode:view` | `BarcodeResolvePage` (add-mapping form still needs `inventory:manage`) |
 | `inventory:warehouse:manage` | `WarehousesPage` create/update/activate/deactivate |
+| `inventory:valuation:close` (added 2026-07-27) | `InventoryValuationSnapshotsPage`'s "Close Period" form — the lookup-by-period panel next to it only needs `inventory:view` (read) |
 
 ## Conventions already established
 
@@ -127,6 +142,31 @@ don't gate an unrelated existing endpoint with one of these by mistake:
   read-only in the UI (`InventoryDetailPage`'s lots tab, `BarcodeResolvePage`'s
   lookup panel) — there is no manual lot-selection UI, the backend always
   auto-allocates earliest-expiry-first.
+- (Added 2026-07-27) Reservation is now a non-destructive soft hold on the
+  backend — the lots tab shows `Reserved`/`Available` columns per lot
+  (`InventoryLot.ReservedQuantity`/`AvailableQuantity`) alongside the existing
+  `Remaining`/`Received`, so a reader can see held-but-not-yet-shipped stock
+  distinctly from what's actually still on hand.
+- (Added 2026-07-27) `InventoryDetailPage`'s Cost History tab and the new
+  Valuation Snapshots page are both read-heavy audit views (`CostConsumptionLog`,
+  `InventoryValuationSnapshot`) — no create/edit UI beyond the single "close a
+  period" action, since both are meant to be immutable/append-only on the
+  backend. Don't add an edit affordance for either.
+
+## Cross-service: Purchase Requests (PurchaseOrderService, not this service)
+
+`StockAlertEvent` (published from this domain when a product hits its
+reorder point) is now consumed by PurchaseOrderService to create a
+suggestion-only `PurchaseRequest` — surfaced in the Admin app at
+`/purchasing/requests` (`PurchaseRequestsPage.tsx`,
+`src/api/purchaseRequests.api.ts`, gated on `purchase_request:view`/`:manage`).
+This page lives in the Purchasing nav group, not Inventory, since the data
+and permissions belong to PurchaseOrderService — but it's worth knowing about
+here since the trigger originates from this domain's event. There is no
+dedicated `purchasing-admin-guide.md` yet; the Purchasing module's pages
+(`SupplierListPage`, `PurchaseOrderListPage`, `PurchaseRequestsPage`) each
+follow whichever pattern from this folder fits their shape (flat CRUD vs.
+status-filtered list) rather than a documented convention of their own.
 
 ## When WareHouseService gains a new sub-domain or endpoint
 

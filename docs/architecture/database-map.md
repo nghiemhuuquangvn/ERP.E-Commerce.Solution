@@ -229,6 +229,8 @@ CommissionRecords (Id, PlanId FK, SalesRepId, OrderId [Unique], Amount, Status, 
 - Suppliers (1K-10K records)
 - PurchaseOrders (100K-1M records)
 - PurchaseOrderItems (500K-5M records)
+- PurchaseRequests (added 2026-07-27, Module 8 — suggestion-only, auto-created from
+  WareHouseService's `StockAlertEvent`; see Critical Tables below)
 
 **Critical Tables:**
 
@@ -257,12 +259,23 @@ PurchaseOrderItems
 ├── ProductId (External FK → ProductService)
 ├── Quantity, UnitPrice
 └── LineTotal
+
+PurchaseRequests (added 2026-07-27, Module 8 — no TenantId/composite key, unlike every
+other table above; the upstream StockAlertEvent signal carries no tenant concept)
+├── Id (PK)
+├── ProductId, ProductName, CurrentQuantity, ReorderPoint, SuggestedQuantity
+├── Status (0=Suggested/1=Dismissed/2=Converted)
+└── CreatedAt, ResolvedAt
 ```
 
 **Published Events:**
 - PurchaseOrderCreated
 - PurchaseOrderApproved
 - ReceiptScheduled
+
+**Consumed Events (added 2026-07-27, Module 8):**
+- `StockAlertEvent` (RabbitMQ `warehouse_exchange`, from WareHouseService) — first-ever
+  inbound event consumer in this service; creates a `PurchaseRequest`
 
 ---
 
@@ -283,8 +296,10 @@ reservations, stock adjustment/stocktake approval, warehouse sites, barcode reso
 - Inventories (10K-100K SKUs, PK=ProductId, the cross-location rollup)
 - InventoryLocationStocks (bin-level breakdown, additive alongside Inventories)
 - StockMovements (10M-100M transactions, append-style log)
-- Reservations / Reservation_ReservedItems (100K-1M active reservations)
-- InventoryLots, InventorySerials (lot/expiry + serial tracking)
+- Reservations / Reservation_ReservedItems (100K-1M active reservations — soft hold as of 2026-07-27, see below)
+- InventoryLots (now with a `ReservedQuantity` soft-hold column, added 2026-07-27), InventorySerials (lot/expiry + serial tracking)
+- CostConsumptionLogs (per-sale COGS audit trail, added 2026-07-27)
+- InventoryValuationSnapshots / InventoryValuationSnapshotLines (period-end, immutable close, added 2026-07-27)
 - TransferOrders / TransferOrderLines, Stocktakes / StocktakeLines
 - StockAdjustments (approval-gated — see below)
 - Warehouses (physical sites) / WarehouseLocations (zone/aisle/bin/shelf)
@@ -319,7 +334,21 @@ Reservations
 ├── ReservationId (PK), OrderId
 ├── Status (0=Reserved/1=Fulfilled/2=Released/3=Expired)
 ├── HoldUntil, ReservedAt, ReleasedAt, ReleaseReason
-└── Reservation_ReservedItems (owned collection: ProductId, Quantity, WarehouseLocation, LotId)
+└── Reservation_ReservedItems (owned collection: ProductId, Quantity, WarehouseLocation,
+    LotAllocationsJson — replaced a single nullable LotId column, 2026-07-27; JSON list of
+    every (LotId, Quantity) the line was allocated across, since a line can span >1 lot)
+
+InventoryLots (ReservedQuantity column added 2026-07-27 — a soft hold; RemainingQuantity
+is only touched at ship time now, not at reserve time)
+
+CostConsumptionLogs (added 2026-07-27 — new; StockMovement never recorded a unit cost)
+├── Id (PK), ProductId, LotId (nullable), Quantity, UnitCost, TotalCost
+└── SourceOrderId, ConsumedAt
+
+InventoryValuationSnapshots / InventoryValuationSnapshotLines (added 2026-07-27 — new)
+├── Snapshot: Id (PK), PeriodCode, WarehouseId (nullable), SnapshotDate, IsClosed
+│   (unique index on PeriodCode+WarehouseId enforces "closed once")
+└── Line: Id (PK), SnapshotId (FK, cascade), ProductId, Quantity, UnitCost, TotalValue
 
 StockAdjustments (added 2026-07-27 — did not exist before as an aggregate)
 ├── Id (PK)
@@ -347,7 +376,17 @@ BarcodeMappings (added 2026-07-27 — did not exist before)
 - ReceiptCompletedEvent, StockMovementRecordedEvent, StockAlertEvent
 - StockAdjustmentApprovedEvent / StockAdjustmentRejectedEvent (added 2026-07-27)
 - StocktakeCompletedEvent, TransferOrderCompletedEvent
+- InventoryValuationSnapshotClosed (added 2026-07-27, Module 8 — no consumer yet)
 - All staged via Outbox (added 2026-07-27) — see event-catalog.md for the retrofit note
+
+**Fixed 2026-07-27 (Module 8 reconciliation):** `SalesOrderShippedEvent`'s handler
+previously never reduced `Inventory.TotalQuantity` at all — normal order fulfillment
+silently never decremented on-hand stock. Also fixed a related double-depletion bug
+(reservation-time FEFO used to destructively deplete `InventoryLot.RemainingQuantity`
+immediately; a separate manual "Sold" movement path could deplete the same lots again).
+Reservation is now a genuine non-destructive soft hold; only ship-time consumption
+touches `RemainingQuantity`. See `docs/business/Inventory/module-08-inventory.md`'s
+reconciliation notes and the Warehouse Service README for full detail.
 
 ---
 

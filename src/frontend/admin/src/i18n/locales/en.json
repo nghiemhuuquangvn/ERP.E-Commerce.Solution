@@ -46,6 +46,7 @@
     "purchasing": "Purchasing",
     "purchaseOrders": "Purchase Orders",
     "suppliers": "Suppliers",
+    "purchaseRequests": "Purchase Requests",
     "productsGroup": "Products",
     "products": "Products",
     "brands": "Brands",
@@ -59,6 +60,7 @@
     "stocktakes": "Stocktakes",
     "transfers": "Transfers",
     "barcode": "Barcode",
+    "valuationSnapshots": "Valuation Snapshots",
     "customers": "Customers",
     "payments": "Payments",
     "departments": "Departments",
@@ -312,6 +314,19 @@
     }
   },
   "purchasing": {
+    "requests": {
+      "title": "Purchase Requests",
+      "description": "Suggestion-only requests auto-created when a product hits its reorder point — review and either dismiss or convert into a real Purchase Order.",
+      "status": {
+        "All": "All",
+        "Suggested": "Suggested",
+        "Dismissed": "Dismissed",
+        "Converted": "Converted"
+      },
+      "suggestedQuantity": "Suggested Qty",
+      "dismiss": "Dismiss",
+      "convert": "Convert"
+    },
     "suppliers": {
       "title": "Suppliers",
       "add": "+ Add Supplier",
@@ -536,7 +551,30 @@
     "tabs": {
       "locations": "Locations",
       "lots": "Lots",
-      "serials": "Serials"
+      "serials": "Serials",
+      "costHistory": "Cost History"
+    },
+    "costHistory": {
+      "hint": "Per-sale COGS audit trail — one row per lot (or one row at the product's average cost for non-lot-tracked products) consumed when an order ships.",
+      "consumedAt": "Consumed At",
+      "sourceOrder": "Source Order",
+      "quantity": "Quantity",
+      "totalCost": "Total Cost",
+      "noLot": "— (average cost)"
+    },
+    "valuationSnapshot": {
+      "title": "Inventory Valuation Snapshot",
+      "description": "Close a period-end inventory valuation — immutable once closed. A period can only be closed once.",
+      "close": "Close Period",
+      "closeFailed": "Failed to close snapshot. The period may already be closed.",
+      "periodCode": "Period Code",
+      "periodCodeRequired": "Period code is required (e.g. 2026-07).",
+      "warehouseIdOptional": "Warehouse ID (optional)",
+      "viewByPeriod": "View Closed Snapshot",
+      "snapshotDate": "Snapshot Date",
+      "totalValue": "Total Value",
+      "lineValue": "Line Value",
+      "notFound": "No closed snapshot found for this period."
     },
     "adjustment": {
       "title": "Stock Adjustments",

@@ -8,6 +8,8 @@ using ERP.Shared.Versioning;
 using ERP.PO.Infrastructure.Data;
 using ERP.PO.Infrastructure.BackgroundJobs;
 using ERP.PO.Infrastructure.MessageBus;
+using ERP.PO.Infrastructure.EventBus;
+using ERP.PO.Application.Features.PurchaseRequests;
 using ERP.PO.Domain.Entities;
 using ERP.Shared.Infrastructure.Data;
 using ERP.Shared.Messaging;
@@ -16,6 +18,7 @@ using FluentValidation.AspNetCore;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Confluent.Kafka;
+using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -64,6 +67,29 @@ builder.Services.AddDbContext<PurchasingDbContext>(options =>
 // Repository and Unit of Work
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IUnitOfWork>(sp => new UnitOfWork(sp.GetRequiredService<PurchasingDbContext>()));
+builder.Services.AddScoped<IPurchaseRequestRepository, PurchaseRequestRepository>();
+
+// RabbitMQ connection — first time this service consumes anything (previously
+// outbound-only via Kafka/KafkaMessageBus). Mirrors WareHouseService's own
+// EventPublisher/ConnectionFactory setup (ERP.WH.Infrastructure/DependencyInjection.cs)
+// since WarehouseEventRabbitMqConsumer binds to that same "warehouse_exchange".
+builder.Services.AddSingleton<IConnection>(_ =>
+{
+    var factory = new ConnectionFactory
+    {
+        HostName = builder.Configuration["RabbitMQ:HostName"] ?? "localhost",
+        Port = int.Parse(builder.Configuration["RabbitMQ:Port"] ?? "5672"),
+        UserName = builder.Configuration["RabbitMQ:UserName"] ?? "guest",
+        Password = builder.Configuration["RabbitMQ:Password"] ?? "guest",
+        VirtualHost = builder.Configuration["RabbitMQ:VirtualHost"] ?? "/",
+        DispatchConsumersAsync = true
+    };
+    return factory.CreateConnection();
+});
+
+// Consumes WareHouseService's StockAlertEvent (low-stock signal) to create
+// suggestion-only PurchaseRequests — see WarehouseEventRabbitMqConsumer.
+builder.Services.AddHostedService<WarehouseEventRabbitMqConsumer>();
 
 // Kafka producer + Outbox pattern for publishing integration events (purchasing-topic)
 var kafkaServers = builder.Configuration["KafkaSettings:BootstrapServers"] ?? "localhost:9092";

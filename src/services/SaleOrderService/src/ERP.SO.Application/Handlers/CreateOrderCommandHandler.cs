@@ -25,6 +25,7 @@ namespace ERP.SO.Application.Handlers
     {
         private readonly ISalesOrderUnitOfWork _uow;
         private readonly IPromotionServiceClient _promotionServiceClient;
+        private readonly IWarehouseServiceClient _warehouseServiceClient;
         private readonly OrderFulfillmentSaga _saga;
         private readonly IUserContextService _userContextService;
         private readonly IOrderNumberGenerator _orderNumberGenerator;
@@ -32,12 +33,14 @@ namespace ERP.SO.Application.Handlers
         public CreateOrderCommandHandler(
             ISalesOrderUnitOfWork uow,
             IPromotionServiceClient promotionServiceClient,
+            IWarehouseServiceClient warehouseServiceClient,
             OrderFulfillmentSaga saga,
             IUserContextService userContextService,
             IOrderNumberGenerator orderNumberGenerator)
         {
             _uow = uow;
             _promotionServiceClient = promotionServiceClient;
+            _warehouseServiceClient = warehouseServiceClient;
             _saga = saga;
             _userContextService = userContextService;
             _orderNumberGenerator = orderNumberGenerator;
@@ -55,6 +58,25 @@ namespace ERP.SO.Application.Handlers
             var lineItems = request.LineItems
                 .Select(li => new OrderLineItem(li.ProductId, li.ProductName, li.Quantity, li.UnitPrice))
                 .ToList();
+
+            // Stock pre-check — must run before the order is persisted and before
+            // InitiatePaymentCommand fires. Fails closed: any line we can't confirm as
+            // available (including a WareHouseService outage) rejects order creation
+            // entirely, rather than charging the customer and finding out via the async
+            // Reserve -> InventoryInsufficientEvent -> refund+cancel saga path afterward.
+            // That saga path (OrderFulfillmentSaga.HandleInventoryInsufficientAsync) stays
+            // as the safety net for the residual race between this check and the actual
+            // reservation, not as the primary detection mechanism.
+            foreach (var item in lineItems)
+            {
+                var availability = await _warehouseServiceClient.CheckAvailabilityAsync(item.ProductId, item.Quantity, cancellationToken);
+                if (!availability.IsAvailable)
+                {
+                    throw new InvalidOperationException(
+                        $"Insufficient stock for product {item.ProductId}: requested {item.Quantity}, available {availability.AvailableQuantity}." +
+                        (availability.ErrorMessage != null ? $" ({availability.ErrorMessage})" : string.Empty));
+                }
+            }
 
             var tenantId = new Guid(_userContextService.GetCurrentUser().TenantId);
             var orderNo = await _orderNumberGenerator.NextAsync(tenantId, "SO", cancellationToken);

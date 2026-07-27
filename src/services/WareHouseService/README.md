@@ -8,9 +8,12 @@ The Warehouse Service is the central hub for inventory management. It provides r
 
 **Key Functions:**
 - Real-time inventory tracking, at both a per-product rollup AND a per-location (bin-level) breakdown
-- Reserve inventory for sales orders, with FEFO lot allocation for lot/expiry-tracked products
+- Reserve inventory for sales orders, with FEFO lot allocation for lot/expiry-tracked products —
+  a soft hold that only really reduces stock once the order actually ships
 - Process goods receipt
 - Record all stock movements (receive, issue, adjust, transfer)
+- Write a per-sale cost-of-goods-sold (COGS) audit trail (`CostConsumptionLog`) at ship time
+- Close an immutable, period-end Inventory Valuation Snapshot on demand
 - Monitor reorder points and generate alerts
 - Track warehouse sites and locations/bins
 - Resolve a scanned barcode to a product for handheld scanners
@@ -34,9 +37,18 @@ ledger, updated directly by the same handlers that record the movement. See
 - Reserve inventory for pending sales orders — FEFO lot allocation (earliest expiry first)
   when the product has tracked lots, first-fit location allocation when bin-level stock
   data exists for the product, falling back to the product-level rollup otherwise
-- Release reservations when orders cancel (releases both the location-level hold and any
-  depleted lot quantity)
+- Reservation is a **non-destructive soft hold**: `InventoryLot.RemainingQuantity` is
+  untouched at reserve time — only `ReservedQuantity` (at the product, location, and lot
+  level) increases. Real depletion happens only when the order actually ships.
+- Release reservations when orders cancel (reverses the soft hold at every level — product,
+  location, and every lot the reservation allocated — with no change to on-hand quantity)
+- On ship, consume exactly the lots that were reserved (`ReservedItem.LotAllocations`,
+  a list, not a single lot — a reservation line can span more than one lot), reduce
+  `Inventory`/`InventoryLocationStock`, and write one `CostConsumptionLog` row per lot
+  consumed (or one row at the product's average cost for non-lot-tracked products)
 - Prevent overselling via a two-phase all-or-nothing check across every line in a request
+- Reservations past their `HoldUntil` are auto-released by a background sweep
+  (`ReservationExpiryProcessor`, every 5 minutes)
 
 ### Stock Adjustment (approval-gated)
 - Requesting an adjustment (`StockAdjustment`, Status Pending) never touches Inventory
@@ -52,6 +64,16 @@ ledger, updated directly by the same handlers that record the movement. See
 - `Warehouse` (physical site) as the parent of `WarehouseLocation` (zone/aisle/bin/shelf)
 - Support transfers between locations, with a source-location availability check
 - Resolve barcodes to products (cached, for scanner speed)
+
+### Cost Consumption & Valuation Snapshot
+- `CostConsumptionLog` — one immutable row per lot (or one row at the product's average
+  cost, for non-lot-tracked products) consumed by a shipment, giving Finance/audit a real
+  per-sale COGS trail that `StockMovement` alone never provided (it records quantity moved,
+  not unit cost)
+- `InventoryValuationSnapshot` — a period-end, immutable close of the current inventory
+  value across all products (per warehouse, optionally). A period can only be closed once;
+  closing publishes `InventoryValuationSnapshotClosed` for whichever service eventually
+  consumes it (none does yet — see Consumed Events note below)
 
 ## Architecture
 
@@ -283,6 +305,31 @@ POST /api/v1/barcode                    # { "barcode": "...", "productId": "..."
 DELETE /api/v1/barcode/{id}
 ```
 
+### Cost Consumption Log (`api/v1/inventory/{productId}/cost-consumption`)
+
+```http
+GET /api/v1/inventory/{productId}/cost-consumption?startDate=&endDate=
+Authorization: Bearer <token>
+
+Response: 200 OK
+[
+  {
+    "id": "...", "productId": "...", "lotId": "...", "quantity": 10,
+    "unitCost": 12.5, "totalCost": 125.0, "sourceOrderId": "...", "consumedAt": "2026-07-27T10:00:00Z"
+  }
+]
+```
+
+### Inventory Valuation Snapshots (`api/v1/inventory/valuation/snapshots`)
+
+```http
+POST /api/v1/inventory/valuation/snapshots
+{ "periodCode": "2026-07", "warehouseId": null }
+# Rejected (400) if this periodCode + warehouseId is already closed — immutable once closed.
+
+GET  /api/v1/inventory/valuation/snapshots/{period}?warehouseId=
+```
+
 ## Published Events
 
 All published via RabbitMQ topic exchange `warehouse_exchange` (routing key
@@ -292,25 +339,35 @@ command handlers (`IEventOutboxWriter.Stage(...)`) and delivered by the backgrou
 (that was the previous behavior; a crash between the DB write and the publish could
 silently drop the event).
 
-- `InventoryReservedEvent` — reservation succeeded (now includes the FEFO-allocated `LotId` per item where applicable)
+- `InventoryReservedEvent` — reservation succeeded (now includes the FEFO-allocated lot
+  breakdown per item — a line can span more than one lot, so this is a list of
+  `(LotId, Quantity)` allocations, not a single `LotId`)
 - `InventoryInsufficientEvent` — one or more lines in a reservation request couldn't be fully reserved
-- `InventoryUpdatedEvent` — balance changed (any movement type)
+- `InventoryUpdatedEvent` — balance changed (any movement type, including the now-real Sold movement on ship)
 - `ReceiptCompletedEvent` — goods received
 - `StockMovementRecordedEvent` — any movement recorded (receive/sell/adjust/transfer)
-- `StockAlertEvent` — a product dropped to/below its reorder point
+- `StockAlertEvent` — a product dropped to/below its reorder point — as of this pass, consumed by
+  PurchaseOrderService (see Consumed Events note in that service's README)
 - `StockAdjustmentApprovedEvent` / `StockAdjustmentRejectedEvent` — outcome of the approval-gated adjustment workflow
 - `StocktakeCompletedEvent` — stocktake variance approved and posted
 - `TransferOrderCompletedEvent` — transfer finished, both source and destination `InventoryLocationStock` updated
+- `InventoryValuationSnapshotClosed` — a period-end valuation was closed; no consumer exists
+  yet anywhere in the system (AccountingService's own warehouse-movement consumer already
+  defers real GL/COGS posting until Chart-of-Accounts mapping exists — see that service's notes)
 
 **Note:** these are plain classes, not `IntegrationEventBase`-derived like most other
 services' events — a pre-existing inconsistency, not something introduced by this pass.
 
 ## Consumed Events
 
-- `sales_order.ReserveInventoryCommand` (RabbitMQ, from SaleOrderService's `OrderFulfillmentSaga`, fired post-payment — not directly off `SalesOrderCreatedEvent`, to avoid double-reserving)
+- `sales_order.ReserveInventoryCommand` (RabbitMQ, from SaleOrderService's `OrderFulfillmentSaga`, fired post-payment — not directly off `SalesOrderCreatedEvent`, to avoid double-reserving). Idempotent as of this pass: a redelivered command for an order that already has an active reservation is a no-op rather than double-reserving.
 - `SalesOrderCancelledEvent` — release reservations
-- `SalesOrderShippedEvent` — update inventory (sold)
-- `PurchaseOrderReceivedDomainEvent` (Kafka `purchasing-topic`, matched by `ProductSku` string) — triggers `ReceiveStockCommand`
+- `SalesOrderShippedEvent` — **fixed 2026-07-27**: previously this only flipped the
+  `Reservation` to `Fulfilled` and never actually reduced stock — `Inventory.SellStock()`
+  was never called through the normal reserve→ship flow. Now consumes the exact lots that
+  were reserved, reduces `Inventory`/`InventoryLocationStock`, and writes the
+  `CostConsumptionLog` audit trail (see `IReservationFulfillmentService`).
+- `PurchaseOrderReceivedDomainEvent` (Kafka `purchasing-topic`, matched by `ProductSku` string) — triggers `ReceiveStockCommand`. Idempotent as of this pass: a redelivered receipt for the same PO+product (matched by `StockMovement.Reference`) is skipped rather than double-receiving.
 
 **Note:** CLAUDE.md's claimed list (`SalesOrderCreated`, `PurchaseOrderCreated`) and this
 README's previous list (`PurchaseOrderCreatedEvent`, `PurchaseOrderReceivedEvent`) were
@@ -336,9 +393,21 @@ both stale — neither matches what's actually consumed today.
 
 **Reservations** / **Reservation_ReservedItems** (owned collection)
 - ReservationId (PK), OrderId, Status (Reserved/Fulfilled/Released/Expired), HoldUntil, ReservedAt, ReleasedAt, ReleaseReason
-- Per item: ProductId, Quantity, WarehouseLocation, LotId (FEFO-allocated lot, nullable)
+- Per item: ProductId, Quantity, WarehouseLocation, `LotAllocationsJson` (JSON-serialized
+  list of every `(LotId, Quantity)` the line was allocated across — replaced a previous
+  single nullable `LotId` column that only remembered the first lot touched, making it
+  impossible to correctly reverse a multi-lot reservation on cancel)
 
-**InventoryLots** — LotId (PK), ProductId, LotNumber, ReceivedQuantity, RemainingQuantity, UnitCost, ReceivedDate, ExpiryDate, PurchaseOrderId
+**InventoryLots** — LotId (PK), ProductId, LotNumber, ReceivedQuantity, RemainingQuantity,
+`ReservedQuantity` (soft hold — added this pass; `AvailableQuantity` = RemainingQuantity −
+ReservedQuantity), UnitCost, ReceivedDate, ExpiryDate, PurchaseOrderId
+
+**CostConsumptionLogs** — Id (PK), ProductId, LotId (nullable), Quantity, UnitCost, TotalCost, SourceOrderId, ConsumedAt — append-only, one row per lot consumed per shipment
+
+**InventoryValuationSnapshots** / **InventoryValuationSnapshotLines**
+- Snapshot: Id (PK), PeriodCode, WarehouseId (nullable), SnapshotDate, IsClosed (always
+  true — unique index on `(PeriodCode, WarehouseId)` enforces "closed once")
+- Line: Id (PK), SnapshotId (FK, cascade delete), ProductId, Quantity, UnitCost, TotalValue
 
 **InventorySerials** — SerialId (PK), ProductId, SerialNumber (unique), LotId, Status (InStock/Reserved/Sold/Damaged)
 
@@ -423,9 +492,11 @@ dotnet test --filter "Category=Integration"
 ### Key Business Rules
 - Cannot reserve more than available quantity (checked two-phase, all-or-nothing across every line in a request)
 - Reservation picks FEFO lots (earliest expiry first) and, where bin-level data exists, a single location whose own stock covers the full line — never split across bins for one line
+- Reservation is a soft hold — `InventoryLot.RemainingQuantity` only changes at ship time, never at reserve time
 - A stock adjustment or stocktake variance **must be approved** before it can affect Inventory — there is no direct-write path anymore
 - A transfer's source location is checked for availability (falls back to the product-level rollup if no bin-level data exists yet for that product/location)
-- Reservations auto-expire if not fulfilled
+- Reservations past `HoldUntil` are auto-released by a background sweep every 5 minutes
+- A period-end Valuation Snapshot can only be closed once per `(PeriodCode, WarehouseId)`
 
 ### Recently added (2026-07-27) — see `docs/business/Warehouse/module-07-warehouse.md` reconciliation notes for full rationale
 - Bin-level stock breakdown (`InventoryLocationStocks`), additive alongside the product-level rollup
@@ -436,10 +507,28 @@ dotnet test --filter "Category=Integration"
 - Outbox pattern for all published events (previously synchronous, non-transactional RabbitMQ publish)
 - Granular permissions for adjustment/stocktake approval, barcode, warehouse management
 
+### Recently added (2026-07-27, Module 8 reconciliation) — see `docs/business/Inventory/module-08-inventory.md` reconciliation notes for full rationale
+- **Fixed a real correctness bug**: `SalesOrderShippedEventHandler` never reduced on-hand
+  stock — normal order fulfillment silently never decremented `Inventory.TotalQuantity`.
+- **Fixed a related double-depletion bug**: reservation-time FEFO used to destructively
+  deplete `InventoryLot.RemainingQuantity` immediately; the manual "Sold" movement path
+  could then deplete the same lots again. Reservation is now a genuine non-destructive
+  soft hold (`InventoryLot.ReservedQuantity`), and only ship-time consumption
+  (`IReservationFulfillmentService`) touches `RemainingQuantity`.
+- `CostConsumptionLog` — per-sale COGS audit trail, new (`StockMovement` never recorded a unit cost)
+- `InventoryValuationSnapshot` — period-end, immutable valuation close, new
+- `ReservationExpiryProcessor` — the pre-existing `HoldUntil`/`Expire()` fields were dead code; a background job now actually sweeps and releases expired reservations
+- Idempotency guards on `ReserveInventoryCommand` (dedup by OrderId) and PO-driven `ReceiveStockCommand` (dedup by Reference) — previously any at-least-once redelivery would double-reserve/double-receive
+- Cache invalidation on every Inventory-mutating handler (previously `GetInventoryQuery`'s 2-minute cache had no busting at all, so a mutation could be invisible to readers for up to 2 minutes)
+- New permission `inventory:valuation:close`
+
 ### Still-open items (deferred, not built this round)
 - True multi-location-per-product stock is additive/opportunistic today — not backfilled for old data, and a single reservation line still can't split across two bins
 - No deeper Zone→Aisle→Rack→Bin hierarchy under `Warehouse` (only the site level was added)
 - No consumer for `PurchaseOrderCreatedEvent`/`PurchaseOrderApprovedEvent` (only the actual-receipt event is consumed)
+- `InventoryValuationSnapshotClosed` has no consumer yet — AccountingService's own
+  warehouse-movement handler explicitly defers real GL/COGS posting until Chart-of-Accounts
+  mapping exists; revisit once that lands
 
 ## Dependencies
 - SQL Server (WarehouseDB)

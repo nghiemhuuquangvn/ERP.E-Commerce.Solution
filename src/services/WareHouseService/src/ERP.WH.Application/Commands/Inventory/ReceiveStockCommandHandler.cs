@@ -2,6 +2,7 @@ using MediatR;
 using ERP.WH.Application.Interfaces;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
+using ERP.Shared.Infrastructure.Caching;
 using InventoryEntity = ERP.WH.Domain.Aggregates.Inventory.Inventory;
 
 namespace ERP.WH.Application.Commands.Inventory;
@@ -18,19 +19,44 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
 {
     private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventOutboxWriter _outboxWriter;
+    private readonly ICacheService _cache;
 
     public ReceiveStockCommandHandler(
         IWarehouseUnitOfWork uow,
-        IEventOutboxWriter outboxWriter)
+        IEventOutboxWriter outboxWriter,
+        ICacheService cache)
     {
         _uow = uow;
         _outboxWriter = outboxWriter;
+        _cache = cache;
     }
 
     public async Task<ReceiveStockResponse> Handle(ReceiveStockCommand request, CancellationToken cancellationToken)
     {
         if (request.Quantity <= 0)
             throw new InvalidOperationException("Received quantity must be positive");
+
+        // Idempotency: a PO-driven receipt (Kafka, at-least-once delivery) must not be
+        // applied twice for the same PO line. Manual API receiving has no PurchaseOrderId
+        // and is intentionally not guarded here — an operator re-submitting the same
+        // manual receipt is a different (and rarer) concern than broker redelivery.
+        if (request.PurchaseOrderId.HasValue)
+        {
+            var alreadyReceived = await _uow.StockMovements.ExistsAsync(
+                request.ProductId, request.Reference, MovementType.Received, cancellationToken);
+            if (alreadyReceived)
+            {
+                var existingInventory = await _uow.Inventories.GetByProductIdAsync(request.ProductId, cancellationToken);
+                return new ReceiveStockResponse
+                {
+                    ProductId = request.ProductId,
+                    TotalQuantity = existingInventory?.TotalQuantity ?? 0,
+                    MovementId = Guid.Empty,
+                    LotId = null,
+                    ReceivedAt = DateTime.UtcNow
+                };
+            }
+        }
 
         var inventory = await _uow.Inventories.GetByProductIdAsync(request.ProductId, cancellationToken);
         if (inventory == null)
@@ -149,6 +175,7 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
         }
 
         await _uow.SaveChangesAsync(cancellationToken);
+        await _cache.RemoveAsync($"wh:inventory:{request.ProductId}", cancellationToken);
 
         return new ReceiveStockResponse
         {
