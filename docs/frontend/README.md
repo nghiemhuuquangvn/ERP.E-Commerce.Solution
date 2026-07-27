@@ -37,6 +37,13 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
   and the "paginated" list endpoints for Invoices/Bills/Journal Entries actually
   return a plain array with no total count — don't reuse the shared `Pagination`
   component for those 3 pages.
+- [warehouse-admin-guide.md](warehouse-admin-guide.md) — the pattern used for the
+  Admin app's WareHouseService pages (Inventory detail with bin-level breakdown,
+  Locations, Warehouses, Stock Adjustments approval, Stocktakes approval,
+  Transfer Orders, Barcode resolve). Only WareHouseService domain split across
+  two different Gateway paths (`/api/v1/inventory` vs. the `/wh/api/v1/{everything}`
+  catch-all) — pick the client per controller, don't assume one client covers
+  the whole service.
 
 ## Auth: login, 2FA, SSO, and settings (Admin app)
 

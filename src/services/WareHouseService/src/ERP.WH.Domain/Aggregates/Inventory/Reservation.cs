@@ -13,6 +13,8 @@ public class ReservedItem
     public Guid ProductId { get; set; }
     public int Quantity { get; set; }
     public string WarehouseLocation { get; set; } = null!;
+    /// <summary>Lot actually allocated by FEFO picking, if the product is lot-tracked — null for non-lot-tracked products.</summary>
+    public Guid? LotId { get; set; }
 }
 
 public class Reservation

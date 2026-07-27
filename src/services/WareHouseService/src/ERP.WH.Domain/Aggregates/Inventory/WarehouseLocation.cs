@@ -3,6 +3,8 @@ namespace ERP.WH.Domain.Aggregates.Inventory;
 public class WarehouseLocation
 {
     public Guid LocationId { get; private set; }
+    /// <summary>Which physical site this location belongs to — nullable since existing locations predate the Warehouse entity; migration backfills them onto a default "Main Warehouse".</summary>
+    public Guid? WarehouseId { get; private set; }
     public string LocationCode { get; private set; }
     public string? Name { get; private set; }
     public string? Zone { get; private set; }
@@ -47,6 +49,12 @@ public class WarehouseLocation
     public void Activate()
     {
         IsActive = true;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void AssignWarehouse(Guid? warehouseId)
+    {
+        WarehouseId = warehouseId;
         UpdatedAt = DateTime.UtcNow;
     }
 

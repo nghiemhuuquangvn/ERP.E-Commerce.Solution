@@ -612,6 +612,69 @@ public class StockMovementRecordedEvent : IntegrationEvent
 
 ---
 
+### StockAdjustmentApprovedEvent / StockAdjustmentRejectedEvent
+
+> Added 2026-07-27 — part of the Module 7 (Warehouse) doc reconciliation. Previously
+> `AdjustStockCommand` wrote straight to `Inventory` with no approval concept at all,
+> directly violating the business doc's explicit rule that an adjustment must be
+> approved before it can affect Inventory. Replaced with a `StockAdjustment` aggregate
+> (Pending → Approved/Rejected) — only the Approve path actually posts the change.
+
+**Description:** Published from the new approval-gated Stock Adjustment workflow
+(`POST /api/v1/stock-adjustments/{id}/approve` or `/reject`).
+
+**Publisher:** Warehouse Service
+**Subscribers:** None confirmed today (candidate: Accounting Service, for adjustments that affect inventory valuation)
+
+**Event Structure (actual code):**
+```csharp
+public class StockAdjustmentApprovedEvent
+{
+    public Guid AdjustmentId { get; set; }
+    public Guid ProductId { get; set; }
+    public int QuantityDelta { get; set; }
+    public string ApprovedBy { get; set; }
+    public DateTime ApprovedAt { get; set; }
+    public DateTime EventCreatedAt { get; set; }
+}
+
+public class StockAdjustmentRejectedEvent
+{
+    public Guid AdjustmentId { get; set; }
+    public Guid ProductId { get; set; }
+    public string RejectedBy { get; set; }
+    public string Reason { get; set; }
+    public DateTime RejectedAt { get; set; }
+    public DateTime EventCreatedAt { get; set; }
+}
+```
+
+**Routing:** RabbitMQ (`warehouse_exchange`, via the Outbox retrofit — see below)
+**Delivery:** Guaranteed
+
+---
+
+### Also real but previously undocumented in this catalog
+
+> Added 2026-07-27 — these existed in code before this reconciliation pass but were
+> never added here; listed for completeness, not new behavior.
+
+| Event | Trigger | Consumer |
+|---|---|---|
+| `InventoryInsufficientEvent` | A reservation request's line(s) couldn't be fully covered | SaleOrderService's saga (compensation path) |
+| `ReceiptCompletedEvent` | Goods received (`ReceiveStockCommand`) | None confirmed |
+| `StockAlertEvent` | Product quantity at/below reorder point | None confirmed |
+| `StocktakeCompletedEvent` | Stocktake variance approved and posted | None confirmed |
+| `TransferOrderCompletedEvent` | Transfer order completed | None confirmed |
+
+**Reliability note:** as of 2026-07-27, every event in this section is staged into an
+Outbox table (`WarehouseEventOutboxWriter`) in the same transaction as the triggering
+business write, and delivered by a background `WarehouseEventOutboxProcessor` — replacing
+the previous synchronous, non-transactional direct-publish from `EventPublisher`
+(mirrors the same retrofit already applied to SaleOrderService's events).
+
+---
+
 ## Accounting Service Events (Optional)
 
 ### InvoiceGeneratedEvent

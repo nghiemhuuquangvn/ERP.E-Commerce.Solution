@@ -268,59 +268,86 @@ PurchaseOrderItems
 
 ### 4. WarehouseDB (WareHouseService, Port 5004)
 
-**Primary Purpose:** Inventory tracking, stock movements, reservations.
+**Primary Purpose:** Inventory tracking (product-level AND bin-level), stock movements,
+reservations, stock adjustment/stocktake approval, warehouse sites, barcode resolve.
+
+> Corrected 2026-07-27 — the table shape below previously didn't match the real EF
+> model at all (real PK is `ProductId` not a surrogate `Id`; `StockMovements` references
+> `ProductId` directly, not an `InventoryId` FK; `Reservations` holds a list of items via
+> an owned collection, not one row per product). This service also deliberately merges
+> what a stricter design would split into "Warehouse" (movement) and "Inventory"
+> (balance) bounded contexts — see `docs/business/Warehouse/module-07-warehouse.md`'s
+> reconciliation notes.
 
 **Key Entities:**
-- Inventory (10K-100K SKUs)
-- StockMovements (10M-100M transactions)
-- Reservations (100K-1M active reservations)
-- WarehouseLocations (100-10K locations)
+- Inventories (10K-100K SKUs, PK=ProductId, the cross-location rollup)
+- InventoryLocationStocks (bin-level breakdown, additive alongside Inventories)
+- StockMovements (10M-100M transactions, append-style log)
+- Reservations / Reservation_ReservedItems (100K-1M active reservations)
+- InventoryLots, InventorySerials (lot/expiry + serial tracking)
+- TransferOrders / TransferOrderLines, Stocktakes / StocktakeLines
+- StockAdjustments (approval-gated — see below)
+- Warehouses (physical sites) / WarehouseLocations (zone/aisle/bin/shelf)
+- BarcodeMappings
 
 **Critical Tables:**
 
 ```
-Inventory
+Inventories
+├── ProductId (PK, External FK → ProductService)
+├── ProductName, ProductSku
+├── TotalQuantity, ReservedQuantity, LockedQuantity, AvailableQuantity (computed, persisted)
+├── ReorderPoint, ReorderQuantity, Cost, ValuationMethod (0=FIFO/1=LIFO/2=Average)
+├── LocationId (nullable, legacy single-location hint)
+└── LastMovementDate, UpdatedAt
+
+InventoryLocationStocks
 ├── Id (PK)
-├── ProductId (External FK → ProductService)
-├── WarehouseLocationId (FK)
-├── QuantityOnHand
-├── QuantityReserved
-├── QuantityAvailable (OnHand - Reserved)
-├── ReorderPoint, ReorderQuantity
-├── LastCountDate
+├── ProductId, LocationId (unique together)
+├── Quantity, ReservedQuantity, LockedQuantity
 └── UpdatedAt
 
 StockMovements
-├── Id (PK)
-├── InventoryId (FK)
-├── MovementType (0=Receipt, 1=Issue, 2=Adjustment, 3=Transfer)
-├── Quantity
-├── ReferenceType, ReferenceId (PurchaseOrder, SalesOrder, etc.)
-├── Notes
-└── CreatedBy, CreatedAt
+├── MovementId (PK)
+├── ProductId
+├── Quantity, MovementType (0=Received/1=Sold/2=Adjusted/3=Damaged/4=Transferred)
+├── FromLocation/ToLocation (free-text), FromLocationId/ToLocationId (unmapped in EF)
+├── Reference, ReferenceId, Reason, RecordedBy
+└── RecordedAt
 
 Reservations
+├── ReservationId (PK), OrderId
+├── Status (0=Reserved/1=Fulfilled/2=Released/3=Expired)
+├── HoldUntil, ReservedAt, ReleasedAt, ReleaseReason
+└── Reservation_ReservedItems (owned collection: ProductId, Quantity, WarehouseLocation, LotId)
+
+StockAdjustments (added 2026-07-27 — did not exist before as an aggregate)
 ├── Id (PK)
-├── InventoryId (FK)
-├── SalesOrderId (External FK → SalesService)
-├── Quantity
-├── Status (0=Pending, 1=Confirmed, 2=Released)
-├── CreatedAt
-└── ExpiresAt (auto-release after timeout)
+├── ProductId, LocationId (nullable)
+├── QuantityDelta, Reason (0=Damaged/1=Lost/2=Correction/3=Other), Notes
+├── Status (0=Pending/1=Approved/2=Rejected)
+└── RequestedBy/RequestedAt, ApprovedBy/ApprovedAt, RejectionReason
+
+Warehouses (added 2026-07-27 — did not exist anywhere in this system before)
+├── Id (PK), Code (unique), Name, Address, IsActive
 
 WarehouseLocations
-├── Id (PK)
-├── LocationCode (Unique)
-├── Zone, Aisle, Bin
-├── IsActive
-└── CreatedAt
+├── LocationId (PK)
+├── WarehouseId (nullable FK → Warehouses, added 2026-07-27)
+├── LocationCode, Zone, Aisle, Bin, Shelf, Capacity, CurrentOccupancy, IsActive
+└── CreatedAt, UpdatedAt
+
+BarcodeMappings (added 2026-07-27 — did not exist before)
+├── Id (PK), Barcode (unique)
+└── ProductId, LotId, SerialNumber
 ```
 
 **Published Events:**
-- InventoryReserved
-- StockMoved
-- InventoryAdjusted
-- ReceiptCompleted
+- InventoryReservedEvent, InventoryInsufficientEvent, InventoryUpdatedEvent
+- ReceiptCompletedEvent, StockMovementRecordedEvent, StockAlertEvent
+- StockAdjustmentApprovedEvent / StockAdjustmentRejectedEvent (added 2026-07-27)
+- StocktakeCompletedEvent, TransferOrderCompletedEvent
+- All staged via Outbox (added 2026-07-27) — see event-catalog.md for the retrofit note
 
 ---
 

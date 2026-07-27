@@ -8,14 +8,14 @@ namespace ERP.WH.Application.Commands.Inventory;
 public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMovementCommand, RecordStockMovementResponse>
 {
     private readonly IWarehouseUnitOfWork _uow;
-    private readonly IEventPublisher _eventPublisher;
+    private readonly IEventOutboxWriter _outboxWriter;
 
     public RecordStockMovementCommandHandler(
         IWarehouseUnitOfWork uow,
-        IEventPublisher eventPublisher)
+        IEventOutboxWriter outboxWriter)
     {
         _uow = uow;
-        _eventPublisher = eventPublisher;
+        _outboxWriter = outboxWriter;
     }
 
     public async Task<RecordStockMovementResponse> Handle(RecordStockMovementCommand request, CancellationToken cancellationToken)
@@ -61,9 +61,8 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
             request.SourceOrderId);
 
         await _uow.StockMovements.AddAsync(movement, cancellationToken);
-        await _uow.SaveChangesAsync(cancellationToken);
 
-        var @event = new StockMovementRecordedEvent
+        _outboxWriter.Stage(new StockMovementRecordedEvent
         {
             MovementId = movement.MovementId,
             ProductId = request.ProductId,
@@ -75,11 +74,9 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
             SourceOrderId = request.SourceOrderId,
             RecordedAt = DateTime.UtcNow,
             EventCreatedAt = DateTime.UtcNow
-        };
+        });
 
-        await _eventPublisher.PublishAsync(@event, cancellationToken);
-
-        var inventoryUpdatedEvent = new InventoryUpdatedEvent
+        _outboxWriter.Stage(new InventoryUpdatedEvent
         {
             ProductId = request.ProductId,
             PreviousQuantity = previousQuantity,
@@ -88,13 +85,11 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
             ReferenceId = request.SourceOrderId,
             UpdatedAt = DateTime.UtcNow,
             EventCreatedAt = DateTime.UtcNow
-        };
-
-        await _eventPublisher.PublishAsync(inventoryUpdatedEvent, cancellationToken);
+        });
 
         if (inventory.IsLowStock())
         {
-            await _eventPublisher.PublishAsync(new StockAlertEvent
+            _outboxWriter.Stage(new StockAlertEvent
             {
                 ProductId = inventory.ProductId,
                 ProductName = inventory.ProductName,
@@ -102,8 +97,10 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
                 ReorderPoint = inventory.ReorderPoint,
                 ReorderQuantity = inventory.ReorderQuantity,
                 EventCreatedAt = DateTime.UtcNow
-            }, cancellationToken);
+            });
         }
+
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return new RecordStockMovementResponse
         {

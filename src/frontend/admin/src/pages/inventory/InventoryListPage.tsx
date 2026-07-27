@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { inventoryApi } from '@/api/inventory.api'
 import { DataTable } from '@/components/shared/DataTable'
+import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Pagination } from '@/components/shared/Pagination'
 import { usePagination } from '@/hooks/usePagination'
-import { format } from 'date-fns'
-import type { InventoryItem } from '@/api/inventory.api'
+import type { InventoryListItem } from '@/api/inventory.api'
 
 export function InventoryListPage() {
   const { t } = useTranslation()
@@ -17,36 +18,42 @@ export function InventoryListPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['inventory', { page, pageSize, search, lowStockOnly }],
     queryFn: () =>
-      inventoryApi.list({ page, pageSize, search: search || undefined, lowStock: lowStockOnly || undefined }),
+      inventoryApi.list({ page, pageSize, search: search || undefined, lowStockOnly: lowStockOnly || undefined }),
   })
 
   const columns = [
-    { key: 'sku', label: t('products.sku'), className: 'font-mono text-xs' },
-    { key: 'productName', label: t('orders.product') },
-    { key: 'warehouseLocation', label: t('inventory.location') },
     {
-      key: 'quantityOnHand',
-      label: t('inventory.onHand'),
-      render: (i: InventoryItem) => (
-        <span className={i.quantityOnHand === 0 ? 'font-medium text-red-600' : ''}>{i.quantityOnHand}</span>
+      key: 'productName',
+      label: t('orders.product'),
+      render: (i: InventoryListItem) => (
+        <Link to={`/inventory/${i.productId}`} className="text-primary-600 hover:underline">
+          {i.productName}
+        </Link>
       ),
-      className: 'text-right',
     },
-    { key: 'quantityReserved', label: t('inventory.reserved'), className: 'text-right' },
     {
-      key: 'quantityAvailable',
+      key: 'totalQuantity',
+      label: t('inventory.onHand'),
+      className: 'text-right',
+      render: (i: InventoryListItem) => (
+        <span className={i.totalQuantity === 0 ? 'font-medium text-red-600' : ''}>{i.totalQuantity}</span>
+      ),
+    },
+    {
+      key: 'availableQuantity',
       label: t('inventory.available'),
-      render: (i: InventoryItem) => (
-        <span className={i.quantityAvailable < 5 ? 'font-medium text-yellow-600' : 'font-medium text-green-600'}>
-          {i.quantityAvailable}
+      className: 'text-right',
+      render: (i: InventoryListItem) => (
+        <span className={i.availableQuantity < 5 ? 'font-medium text-yellow-600' : 'font-medium text-green-600'}>
+          {i.availableQuantity}
         </span>
       ),
-      className: 'text-right',
     },
+    { key: 'reorderPoint', label: t('inventory.reorderPoint'), className: 'text-right' },
     {
-      key: 'lastMovementAt',
-      label: t('inventory.lastMovement'),
-      render: (i: InventoryItem) => format(new Date(i.lastMovementAt), 'dd MMM yyyy'),
+      key: 'status',
+      label: t('common.status'),
+      render: (i: InventoryListItem) => <StatusBadge status={i.status === 'OK' ? 'Active' : 'Pending'} label={i.status} />,
     },
   ]
 
@@ -74,13 +81,12 @@ export function InventoryListPage() {
         </label>
       </div>
 
-      <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />
-      <Pagination
-        page={page}
-        pageSize={pageSize}
-        totalCount={data?.totalCount ?? 0}
-        onPageChange={setPage}
+      <DataTable
+        columns={columns}
+        data={(data?.items ?? []).map((i) => ({ ...i, id: i.productId }))}
+        isLoading={isLoading}
       />
+      <Pagination page={page} pageSize={pageSize} totalCount={data?.total ?? 0} onPageChange={setPage} />
     </div>
   )
 }

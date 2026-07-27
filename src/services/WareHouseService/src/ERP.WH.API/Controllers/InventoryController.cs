@@ -146,32 +146,6 @@ public class InventoryController : ControllerBase
         }
     }
 
-    [HttpPost("{productId}/adjust")]
-    [ProducesResponseType(typeof(AdjustStockResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<AdjustStockResponse>> AdjustStock(Guid productId, [FromBody] AdjustStockCommand command)
-    {
-        if (!_userContextService.HasPermission("inventory:manage"))
-            return Forbid();
-
-        command.ProductId = productId;
-
-        try
-        {
-            var result = await _mediator.Send(command);
-            return Ok(result);
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-
     [HttpGet("{productId}/valuation")]
     [ProducesResponseType(typeof(GetInventoryValuationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

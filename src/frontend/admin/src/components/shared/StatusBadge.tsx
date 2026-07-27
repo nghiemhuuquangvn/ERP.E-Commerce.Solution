@@ -47,6 +47,9 @@ const STATUS_COLORS: Record<string, string> = {
   Accepted: 'bg-green-100 text-green-700',
   Expired: 'bg-gray-100 text-gray-600',
   Converted: 'bg-purple-100 text-purple-700',
+
+  InProgress: 'bg-blue-100 text-blue-700',
+  PendingApproval: 'bg-yellow-100 text-yellow-700',
 }
 
 interface StatusBadgeProps {

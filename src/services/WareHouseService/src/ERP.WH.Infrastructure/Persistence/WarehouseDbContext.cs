@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ERP.WH.Domain.Aggregates.Inventory;
+using ERP.WH.Domain.Aggregates.Location;
 using ERP.WH.Domain.Aggregates.Transfers;
 using ERP.WH.Domain.Aggregates.Stocktakes;
 using ERP.WH.Domain.Settings;
@@ -19,6 +20,10 @@ public class WarehouseDbContext : DbContext
     public DbSet<Stocktake> Stocktakes { get; set; }
     public DbSet<SystemInventorySettings> SystemInventorySettings { get; set; }
     public DbSet<TenantInventorySettings> TenantInventorySettings { get; set; }
+    public DbSet<InventoryLocationStock> InventoryLocationStocks { get; set; }
+    public DbSet<StockAdjustment> StockAdjustments { get; set; }
+    public DbSet<Warehouse> Warehouses { get; set; }
+    public DbSet<BarcodeMapping> BarcodeMappings { get; set; }
 
     /// <summary>
     /// Isolated Outbox table used only for the new Settings-changed Kafka publish path
@@ -116,6 +121,54 @@ public class WarehouseDbContext : DbContext
             entity.HasIndex(e => e.HoldUntil);
         });
 
+        modelBuilder.Entity<InventoryLocationStock>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Quantity).IsRequired();
+            entity.Property(e => e.ReservedQuantity).IsRequired();
+            entity.Property(e => e.LockedQuantity).IsRequired();
+            entity.Property(e => e.UpdatedAt).IsRequired();
+
+            entity.HasIndex(e => new { e.ProductId, e.LocationId }).IsUnique();
+        });
+
+        modelBuilder.Entity<StockAdjustment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.QuantityDelta).IsRequired();
+            entity.Property(e => e.Reason).IsRequired();
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.Status).IsRequired();
+            entity.Property(e => e.RequestedBy).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.RequestedAt).IsRequired();
+            entity.Property(e => e.ApprovedBy).HasMaxLength(256);
+            entity.Property(e => e.RejectionReason).HasMaxLength(1000);
+
+            entity.HasIndex(e => e.ProductId);
+            entity.HasIndex(e => e.Status);
+        });
+
+        modelBuilder.Entity<Warehouse>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Address).HasMaxLength(500);
+            entity.Property(e => e.IsActive).IsRequired();
+
+            entity.HasIndex(e => e.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<BarcodeMapping>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Barcode).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SerialNumber).HasMaxLength(100);
+
+            entity.HasIndex(e => e.Barcode).IsUnique();
+            entity.HasIndex(e => e.ProductId);
+        });
+
         modelBuilder.Entity<WarehouseLocation>(entity =>
         {
             entity.HasKey(e => e.LocationId);
@@ -132,6 +185,7 @@ public class WarehouseDbContext : DbContext
             entity.Property(e => e.UpdatedAt).IsRequired();
 
             entity.HasIndex(e => e.LocationCode);
+            entity.HasIndex(e => e.WarehouseId);
         });
 
         modelBuilder.Entity<TransferOrder>(entity =>

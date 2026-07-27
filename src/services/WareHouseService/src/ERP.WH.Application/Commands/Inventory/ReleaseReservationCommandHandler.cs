@@ -26,6 +26,26 @@ public class ReleaseReservationCommandHandler : IRequestHandler<ReleaseReservati
                 inventory.ReleaseReservation(item.Quantity);
                 await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
             }
+
+            if (Guid.TryParse(item.WarehouseLocation, out var locationId))
+            {
+                var locationStock = await _uow.InventoryLocationStocks.GetAsync(item.ProductId, locationId, cancellationToken);
+                if (locationStock != null)
+                {
+                    locationStock.ReleaseReservation(item.Quantity);
+                    await _uow.InventoryLocationStocks.UpdateAsync(locationStock, cancellationToken);
+                }
+            }
+
+            if (item.LotId.HasValue)
+            {
+                var lot = await _uow.InventoryLots.GetByIdAsync(item.LotId.Value, cancellationToken);
+                if (lot != null)
+                {
+                    lot.Replenish(item.Quantity);
+                    await _uow.InventoryLots.UpdateAsync(lot, cancellationToken);
+                }
+            }
         }
 
         reservation.Release(request.Reason);

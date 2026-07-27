@@ -32,7 +32,8 @@
     "no": "No",
     "active": "Active",
     "inactive": "Inactive",
-    "saved": "Saved."
+    "saved": "Saved.",
+    "notes": "Notes"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -51,6 +52,13 @@
     "categories": "Categories",
     "priceLists": "Price Lists",
     "inventory": "Inventory",
+    "inventoryGroup": "Inventory",
+    "locations": "Locations",
+    "warehouses": "Warehouses",
+    "stockAdjustments": "Stock Adjustments",
+    "stocktakes": "Stocktakes",
+    "transfers": "Transfers",
+    "barcode": "Barcode",
     "customers": "Customers",
     "payments": "Payments",
     "departments": "Departments",
@@ -515,7 +523,106 @@
     "onHand": "On Hand",
     "reserved": "Reserved",
     "available": "Available",
-    "lastMovement": "Last Movement"
+    "lastMovement": "Last Movement",
+    "reorderPoint": "Reorder Point",
+    "notFound": "Product not found in inventory.",
+    "backToInventory": "← Inventory",
+    "noBinLevelData": "No bin-level stock data tracked yet for this product — showing the product-level total.",
+    "lotNumber": "Lot Number",
+    "remaining": "Remaining",
+    "unitCost": "Unit Cost",
+    "expiryDate": "Expiry Date",
+    "serialNumber": "Serial Number",
+    "tabs": {
+      "locations": "Locations",
+      "lots": "Lots",
+      "serials": "Serials"
+    },
+    "adjustment": {
+      "title": "Stock Adjustments",
+      "request": "Request Adjustment",
+      "requestTitle": "Request Stock Adjustment",
+      "requestHint": "This request will not change Inventory until a Warehouse Manager approves it.",
+      "quantityDelta": "Quantity Delta",
+      "quantityDeltaRequired": "Enter a non-zero quantity delta.",
+      "reason": "Reason",
+      "reasons": {
+        "damaged": "Damaged",
+        "lost": "Lost",
+        "correction": "Correction",
+        "other": "Other"
+      },
+      "submit": "Submit Request",
+      "requestedBy": "Requested By",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectTitle": "Reject Adjustment",
+      "rejectReasonPlaceholder": "Reason for rejecting this adjustment",
+      "statuses": {
+        "Pending": "Pending",
+        "Approved": "Approved",
+        "Rejected": "Rejected"
+      }
+    },
+    "locations": {
+      "title": "Locations",
+      "add": "+ Add Location",
+      "addTitle": "Add Location",
+      "editTitle": "Edit Location",
+      "zone": "Zone",
+      "aisle": "Aisle",
+      "bin": "Bin",
+      "shelf": "Shelf",
+      "capacity": "Capacity",
+      "deactivateTitle": "Deactivate Location",
+      "deactivateConfirm": "Are you sure you want to deactivate \"{{name}}\"?"
+    },
+    "warehouses": {
+      "title": "Warehouses",
+      "add": "+ Add Warehouse",
+      "addTitle": "Add Warehouse",
+      "editTitle": "Edit Warehouse",
+      "address": "Address",
+      "deactivateTitle": "Deactivate Warehouse",
+      "deactivateConfirm": "Are you sure you want to deactivate \"{{name}}\"?"
+    },
+    "stocktakes": {
+      "title": "Stocktakes",
+      "start": "+ Start Stocktake",
+      "number": "Stocktake #",
+      "lineCount": "Lines",
+      "startedBy": "Started By",
+      "backToStocktakes": "← Stocktakes",
+      "notFound": "Stocktake not found.",
+      "systemQuantity": "System Qty",
+      "countedQuantity": "Counted Qty",
+      "variance": "Variance",
+      "recordCount": "Record",
+      "complete": "Complete Count",
+      "approve": "Approve Variance",
+      "cancel": "Cancel Stocktake"
+    },
+    "transfers": {
+      "title": "Transfer Orders",
+      "new": "+ New Transfer",
+      "number": "Transfer #",
+      "from": "From Location",
+      "to": "To Location",
+      "backToTransfers": "← Transfer Orders",
+      "locationsRequired": "Please select both a source and destination location.",
+      "sameLocationError": "Source and destination locations must differ.",
+      "ship": "Ship",
+      "complete": "Complete"
+    },
+    "barcode": {
+      "title": "Barcode",
+      "description": "Resolve a scanned barcode to a product for handheld scanners, and manage barcode-to-product mappings.",
+      "resolve": "Resolve Barcode",
+      "codePlaceholder": "Scan or enter barcode",
+      "notFound": "No product mapped to this barcode.",
+      "addMapping": "Add Mapping",
+      "productIdPlaceholder": "Product ID"
+    }
   },
   "payments": {
     "title": "Payments",

@@ -148,3 +148,40 @@ GET    /api/v1/warehouse/barcode/{code}/resolve            → tra cứu Item/Va
 - Pick logic (FEFO/FIFO gợi ý) implement ở Application layer dạng Strategy pattern — dễ đổi chiến lược theo từng Item Group sau này.
 - Barcode resolve API cần response cực nhanh (dùng cho máy quét cầm tay) — cân nhắc cache Redis cho `BarcodeMapping`.
 - Đồng bộ `GoodsIssue`/`GoodsReceipt` với Sales/Purchasing qua Domain Event (MediatR) trước, đúng hướng đã áp dụng ở Module 5.
+
+## 12. So sánh & Reconciliation với project hiện tại (2026-07-27)
+
+`WareHouseService` đã tồn tại từ trước nhưng dùng một mô hình domain hoàn
+toàn khác với đề xuất ở mục 4-6: thay vì các aggregate document riêng biệt
+(GoodsReceipt/GoodsIssue/StockAdjustment/CycleCount), service này có
+`Inventory` (số dư tồn theo sản phẩm) + `StockMovement` (log) + `Reservation`
++ `InventoryLot`/`InventorySerial` + `WarehouseLocation` (phẳng) +
+`TransferOrder` + `Stocktake`. Quan trọng nhất: **Warehouse và Inventory đã
+bị gộp chung thành một bounded context** — đúng như mục 10 của tài liệu gốc
+cho phép "gộp tạm khi áp lực thời gian" — nên các thay đổi dưới đây chấp
+nhận việc gộp này là vĩnh viễn, không cố tách lại.
+
+| Hạng mục đề xuất | Trạng thái | Ghi chú |
+|---|---|---|
+| `GoodsReceipt`/`GoodsIssue` (document riêng, nhiều dòng) | ❌ Không build | Không có bằng chứng thực tế cần multi-line-per-PO hay partial-receipt; `ReceiveStockCommand`/`SalesOrderShippedEventHandler` đã đủ dùng |
+| `BinLocation` (Zone/Aisle/Rack/Bin theo Warehouse) | ✅ Đã build một phần | Thêm entity `Warehouse` (site) làm cha của `WarehouseLocation` — không làm hierarchy Zone→Aisle→Rack→Bin sâu hơn, vì `WarehouseLocation` hiện tại đã đủ dùng ở mức 1 tầng |
+| Tồn kho theo Bin, kiểm tra khả dụng theo `BinLocationId` cụ thể khi xuất | ✅ Đã build | `InventoryLocationStock` mới (theo ProductId+LocationId), cộng thêm bên cạnh `Inventory` (không thay thế) — additive, không backfill dữ liệu cũ |
+| FEFO khi xuất kho (Lot sắp hết hạn trước) | ✅ Đã build | `ReserveInventoryCommandHandler` trước đây hardcode `"DEFAULT_LOCATION"`, không hề chọn Lot — nay chọn Lot theo ExpiryDate tăng dần, ghi lại LotId trên `Reservation` |
+| `StockAdjustment` **bắt buộc phải qua duyệt** trước khi tác động Inventory | ✅ Đã build (fix vi phạm rule) | Trước đây `AdjustStockCommand` ghi thẳng vào `Inventory`, không hề có bước duyệt — vi phạm trực tiếp rule của tài liệu gốc. Nay tách thành Request (Pending, không đổi Inventory) → Approve/Reject |
+| `CycleCount` (Stocktake) — tương tự, không ghi thẳng | ✅ Đã build (fix vi phạm rule tương tự) | `CompleteStocktakeCommand` trước đây cũng ghi thẳng biến động vào Inventory ngay khi "hoàn tất" đếm — cùng lỗi như StockAdjustment. Nay tách Complete() (khoá đếm, tính variance) → Approve() (mới thực sự ghi) |
+| `BarcodeMapping`, endpoint resolve nhanh cho máy quét | ✅ Đã build | Hoàn toàn chưa có trước đây; cache 60s qua `ICacheService` (Redis) vì cần phản hồi nhanh cho scanner |
+| `WarehouseTransactionLogs` (append-only) | ⏸ Không build riêng | `StockMovements` đã đóng vai trò tương tự dù không hoàn toàn append-only theo đúng nghĩa (coexist với bảng số dư `Inventory`) — chấp nhận hiện trạng, không tách bảng mới |
+| `StockTransfer` giữa 2 Warehouse — kiểm tra tồn kho nguồn | ✅ Đã build | `CreateTransferOrderCommand` trước đây không hề kiểm tra tồn kho tại kho nguồn — đã thêm, ưu tiên `InventoryLocationStock` nếu có dữ liệu, fallback về tồn tổng |
+| Tên event đề xuất (`GoodsReceiptConfirmed`, `DeliveryCompleted`...) | ❌ Không đổi tên | Không khớp code thật lẫn CLAUDE.md; giữ nguyên `ReceiptCompletedEvent`/`InventoryUpdatedEvent`/... đã có, chỉ thêm `StockAdjustmentApprovedEvent`/`StockAdjustmentRejectedEvent` mới |
+| Path API `/api/v1/warehouse/...` | ❌ Không đổi | Path thật là `/api/v1/inventory/...` (+ các controller mới `/stock-adjustments`, `/warehouses`, `/barcode` cùng prefix gateway `/wh/`) |
+
+**Phát hiện thêm ngoài phạm vi tài liệu gốc**: 7+ domain event của service này
+trước đây publish thẳng ra RabbitMQ ngay trong request (không transactional
+với DB write) — đã retrofit Outbox pattern (cùng pattern đã áp dụng ở
+SaleOrderService trước đó), nhưng vì các entity ở đây không kế thừa
+`AggregateRoot`/`BaseEntity` (không có `DomainEvents` collection), retrofit
+dùng cơ chế theo-từng-event (`IEventOutboxWriter.Stage(...)`) thay vì
+theo-từng-aggregate như bên Sales. Quá trình này cũng phát hiện và sửa một
+bug thật: `EventPublisher.PublishAsync<T>` tính routing key từ generic `T`
+tại compile-time thay vì runtime type — nếu không sửa, processor mới sẽ
+publish mọi event outbox với routing key sai (`warehouse.Object`).

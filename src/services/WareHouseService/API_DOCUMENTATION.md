@@ -218,6 +218,50 @@ GET /movements/{productId}?startDate=2026-06-01&endDate=2026-06-30&skip=0&take=5
 }
 ```
 
+### Stock Adjustments (added 2026-07-27) — approval-gated, replaces the old direct-write `POST /inventory/{productId}/adjust`
+
+#### 8. Request an Adjustment
+```http
+POST /stock-adjustments
+Content-Type: application/json
+
+{ "productId": "660e8400-...", "locationId": null, "quantityDelta": -5, "reason": "Damaged", "notes": "Box crushed in transit" }
+```
+**Response (201 Created):** a `StockAdjustment` with `status: "Pending"` — Inventory is unchanged at this point.
+
+#### 9. Approve / Reject
+```http
+POST /stock-adjustments/{id}/approve   -> posts the delta to Inventory, returns { productId, previousQuantity, currentQuantity, movementId, adjustedAt }
+POST /stock-adjustments/{id}/reject
+{ "reason": "Needs re-count first" }
+```
+
+### Warehouses (added 2026-07-27) — physical sites, parent of Locations
+
+```http
+GET    /warehouses
+GET    /warehouses/{id}
+POST   /warehouses            { "code": "HN", "name": "Hanoi Warehouse", "address": "..." }
+PUT    /warehouses/{id}
+POST   /warehouses/{id}/activate
+POST   /warehouses/{id}/deactivate
+```
+
+### Stocktake approval (added 2026-07-27)
+
+```http
+POST /stocktakes/{id}/complete   -> locks counts, computes variance, status becomes "PendingApproval" — Inventory unchanged
+POST /stocktakes/{id}/approve    -> the only step that posts variance to Inventory, status becomes "Completed"
+```
+
+### Barcode (added 2026-07-27)
+
+```http
+GET    /barcode/{code}/resolve   -> { productId, productName, availableQuantity, lotId, serialNumber } — cached 60s
+POST   /barcode                  { "barcode": "...", "productId": "...", "lotId": null, "serialNumber": null }
+DELETE /barcode/{id}
+```
+
 ## Integration Events
 
 ### Published Events
@@ -280,19 +324,49 @@ Published when a stock movement is recorded.
 
 **Subscribers:** Accounting Service, Analytics
 
+#### InventoryInsufficientEvent
+Published instead of InventoryReservedEvent when one or more lines in a reservation request couldn't be fully covered — feeds SaleOrderService's saga compensation path.
+
+#### ReceiptCompletedEvent
+Published when goods are received (`ReceiveStockCommand`).
+
+#### StockAlertEvent
+Published when a product's quantity drops to/below its reorder point.
+
+#### StockAdjustmentApprovedEvent / StockAdjustmentRejectedEvent (added 2026-07-27)
+Published from the approval-gated Stock Adjustment workflow — see the Stock Adjustments section above.
+
+#### StocktakeCompletedEvent
+Published once a stocktake's variance is approved and posted.
+
+#### TransferOrderCompletedEvent
+Published when a transfer order completes — both source and destination `InventoryLocationStock` rows are updated.
+
+**Reliability note (added 2026-07-27):** all of the above are now staged into an Outbox
+table in the same transaction as the business write and delivered by a background
+`WarehouseEventOutboxProcessor`, instead of being published synchronously from the
+handler — a crash between the DB write and the publish can no longer silently drop an
+event.
+
 ### Consumed Events
 
-#### SalesOrderCreatedEvent
-When a sales order is created, the Warehouse Service automatically reserves inventory.
+**Corrected 2026-07-27** — this section previously listed events that don't match what's
+actually consumed (`SalesOrderCreatedEvent` directly, `PurchaseOrderCreatedEvent`); the
+real bindings are below.
+
+#### sales_order.ReserveInventoryCommand (RabbitMQ)
+Fired by SaleOrderService's `OrderFulfillmentSaga` **after payment is confirmed**, not
+directly off order creation — this binding was deliberately changed to avoid
+double-reserving stock.
 
 #### SalesOrderCancelledEvent
-When a sales order is cancelled, the Warehouse Service releases the reserved inventory.
+When a sales order is cancelled, releases the reserved inventory (and any FEFO-allocated lot quantity/location hold).
 
 #### SalesOrderShippedEvent
-When a sales order is shipped, the Warehouse Service marks the reservation as fulfilled.
+When a sales order is shipped, marks the reservation as fulfilled and sells the stock.
 
-#### PurchaseOrderCreatedEvent
-When a purchase order is created, the Warehouse Service prepares to receive the goods.
+#### PurchaseOrderReceivedDomainEvent (Kafka `purchasing-topic`)
+Matched to a product by `ProductSku` string (the event only carries a product code, not a shared id) — triggers `ReceiveStockCommand`. There is no consumer for `PurchaseOrderCreatedEvent`/`PurchaseOrderApprovedEvent`.
 
 ## Error Codes
 
@@ -315,5 +389,5 @@ Authorization: Bearer <token>
 
 ---
 
-**Last Updated:** 2026-06-14  
-**API Version:** 1.0
+**Last Updated:** 2026-07-27
+**API Version:** 1.1 — added Stock Adjustments (approval-gated), Warehouses, Stocktake approval, and Barcode endpoints; corrected the Consumed Events section; documented the Outbox reliability retrofit. Removed the old direct-write `POST /inventory/{productId}/adjust` endpoint (replaced by the Stock Adjustments workflow).

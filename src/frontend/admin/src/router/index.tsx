@@ -25,6 +25,15 @@ import { PriceListsPage } from '@/pages/products/PriceListsPage'
 import { SupplierListPage } from '@/pages/purchasing/SupplierListPage'
 import { SupplierFormPage } from '@/pages/purchasing/SupplierFormPage'
 import { InventoryListPage } from '@/pages/inventory/InventoryListPage'
+import { InventoryDetailPage } from '@/pages/inventory/InventoryDetailPage'
+import { LocationsPage } from '@/pages/inventory/LocationsPage'
+import { WarehousesPage } from '@/pages/inventory/WarehousesPage'
+import { StockAdjustmentsPage } from '@/pages/inventory/StockAdjustmentsPage'
+import { StocktakeListPage } from '@/pages/inventory/StocktakeListPage'
+import { StocktakeDetailPage } from '@/pages/inventory/StocktakeDetailPage'
+import { TransferOrderListPage } from '@/pages/inventory/TransferOrderListPage'
+import { TransferOrderFormPage } from '@/pages/inventory/TransferOrderFormPage'
+import { BarcodeResolvePage } from '@/pages/inventory/BarcodeResolvePage'
 import { PaymentsPage } from '@/pages/payments/PaymentsPage'
 import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { MonitoringPage } from '@/pages/monitoring/MonitoringPage'
@@ -137,6 +146,15 @@ export const router = createBrowserRouter([
       { path: 'purchasing/suppliers/new', element: <SupplierFormPage /> },
       { path: 'purchasing/suppliers/:id', element: <SupplierFormPage /> },
       { path: 'inventory', element: <InventoryListPage /> },
+      { path: 'inventory/locations', element: <LocationsPage /> },
+      { path: 'inventory/warehouses', element: <WarehousesPage /> },
+      { path: 'inventory/adjustments', element: <StockAdjustmentsPage /> },
+      { path: 'inventory/stocktakes', element: <StocktakeListPage /> },
+      { path: 'inventory/stocktakes/:id', element: <StocktakeDetailPage /> },
+      { path: 'inventory/transfers', element: <TransferOrderListPage /> },
+      { path: 'inventory/transfers/new', element: <TransferOrderFormPage /> },
+      { path: 'inventory/barcode', element: <BarcodeResolvePage /> },
+      { path: 'inventory/:productId', element: <InventoryDetailPage /> },
       { path: 'payments', element: <PaymentsPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'customers', element: <CustomersPage /> },

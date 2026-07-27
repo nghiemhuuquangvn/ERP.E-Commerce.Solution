@@ -9,14 +9,14 @@ namespace ERP.WH.Application.Commands.Inventory;
 public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCommand, ReserveInventoryResponse?>
 {
     private readonly IWarehouseUnitOfWork _uow;
-    private readonly IEventPublisher _eventPublisher;
+    private readonly IEventOutboxWriter _outboxWriter;
 
     public ReserveInventoryCommandHandler(
         IWarehouseUnitOfWork uow,
-        IEventPublisher eventPublisher)
+        IEventOutboxWriter outboxWriter)
     {
         _uow = uow;
-        _eventPublisher = eventPublisher;
+        _outboxWriter = outboxWriter;
     }
 
     public async Task<ReserveInventoryResponse?> Handle(ReserveInventoryCommand request, CancellationToken cancellationToken)
@@ -46,14 +46,15 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
 
         if (insufficient.Count > 0)
         {
-            await _eventPublisher.PublishAsync(new InventoryInsufficientEvent
+            _outboxWriter.Stage(new InventoryInsufficientEvent
             {
                 OrderId = request.OrderId,
                 InsufficientItems = insufficient,
                 Reason = $"{insufficient.Count} line item(s) could not be fully reserved",
                 CorrelationId = request.CorrelationId,
                 EventCreatedAt = DateTime.UtcNow
-            }, cancellationToken);
+            });
+            await _uow.SaveChangesAsync(cancellationToken);
             return null;
         }
 
@@ -66,18 +67,22 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
             inventory.ReserveStock(item.Quantity);
             await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
 
+            var location = await ReserveAtLocationAsync(item.ProductId, item.Quantity, cancellationToken);
+            var lotId = await AllocateFefoLotAsync(item.ProductId, item.Quantity, cancellationToken);
+
             reservedItems.Add(new ReservedItem
             {
                 ProductId = item.ProductId,
                 Quantity = item.Quantity,
-                WarehouseLocation = "DEFAULT_LOCATION"
+                WarehouseLocation = location,
+                LotId = lotId
             });
 
             reservedItemResponses.Add(new ReservedItemResponse
             {
                 ProductId = item.ProductId,
                 ReservedQuantity = item.Quantity,
-                Location = "DEFAULT_LOCATION"
+                Location = location
             });
         }
 
@@ -91,9 +96,8 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
         }).ToList();
 
         await _uow.Reservations.AddAsync(reservation, cancellationToken);
-        await _uow.SaveChangesAsync(cancellationToken);
 
-        var @event = new InventoryReservedEvent
+        _outboxWriter.Stage(new InventoryReservedEvent
         {
             ReservationId = reservation.ReservationId,
             OrderId = request.OrderId,
@@ -101,9 +105,9 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
             ReservedAt = DateTime.UtcNow,
             CorrelationId = request.CorrelationId,
             EventCreatedAt = DateTime.UtcNow
-        };
+        });
 
-        await _eventPublisher.PublishAsync(@event, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return new ReserveInventoryResponse
         {
@@ -113,6 +117,61 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
             Status = "Reserved",
             ReservedAt = DateTime.UtcNow
         };
+    }
+
+    /// <summary>
+    /// First-fit: picks the first location whose own AvailableQuantity covers the full
+    /// requested quantity — does not split one line's reservation across multiple
+    /// locations. Falls back to "DEFAULT_LOCATION" (previous hardcoded behavior) when the
+    /// product has no location-level stock rows yet (bin-level tracking is additive; not
+    /// every product has been received against a specific location).
+    /// </summary>
+    private async Task<string> ReserveAtLocationAsync(Guid productId, int quantity, CancellationToken cancellationToken)
+    {
+        var locationStocks = await _uow.InventoryLocationStocks.GetByProductIdAsync(productId, cancellationToken);
+        var candidate = locationStocks.FirstOrDefault(s => s.CanReserve(quantity));
+        if (candidate == null)
+            return "DEFAULT_LOCATION";
+
+        candidate.ReserveStock(quantity);
+        await _uow.InventoryLocationStocks.UpdateAsync(candidate, cancellationToken);
+        return candidate.LocationId.ToString();
+    }
+
+    /// <summary>
+    /// FEFO: earliest ExpiryDate first (nulls last), then earliest ReceivedDate. Depletes
+    /// across lots until the requested quantity is covered, but only the FIRST lot touched
+    /// is recorded on ReservedItem.LotId — ReservedItem has no multi-lot structure, so a
+    /// reservation spanning more than one lot only traces back to the first. Returns null
+    /// for non-lot-tracked products (no lots exist).
+    /// </summary>
+    private async Task<Guid?> AllocateFefoLotAsync(Guid productId, int quantity, CancellationToken cancellationToken)
+    {
+        var lots = await _uow.InventoryLots.GetByProductIdAsync(productId, includeDepleted: false, cancellationToken);
+        var ordered = lots
+            .OrderBy(l => l.ExpiryDate ?? DateTime.MaxValue)
+            .ThenBy(l => l.ReceivedDate)
+            .ToList();
+
+        Guid? firstLotId = null;
+        var remaining = quantity;
+
+        foreach (var lot in ordered)
+        {
+            if (remaining <= 0)
+                break;
+
+            var take = Math.Min(lot.RemainingQuantity, remaining);
+            if (take <= 0)
+                continue;
+
+            lot.Deplete(take);
+            await _uow.InventoryLots.UpdateAsync(lot, cancellationToken);
+            firstLotId ??= lot.LotId;
+            remaining -= take;
+        }
+
+        return firstLotId;
     }
 }
 

@@ -1,5 +1,7 @@
 using MediatR;
 using ERP.WH.Application.Commands.Inventory;
+using ERP.WH.Application.Commands.Locations;
+using ERP.WH.Application.Interfaces;
 using ERP.Shared.Infrastructure.Caching;
 
 namespace ERP.WH.Application.Queries.Inventory;
@@ -7,11 +9,19 @@ namespace ERP.WH.Application.Queries.Inventory;
 public class GetInventoryQueryHandler : IRequestHandler<GetInventoryQuery, GetInventoryResponse>
 {
     private readonly IInventoryRepository _inventoryRepository;
+    private readonly IInventoryLocationStockRepository _locationStockRepository;
+    private readonly ILocationRepository _locationRepository;
     private readonly ICacheService _cache;
 
-    public GetInventoryQueryHandler(IInventoryRepository inventoryRepository, ICacheService cache)
+    public GetInventoryQueryHandler(
+        IInventoryRepository inventoryRepository,
+        IInventoryLocationStockRepository locationStockRepository,
+        ILocationRepository locationRepository,
+        ICacheService cache)
     {
         _inventoryRepository = inventoryRepository;
+        _locationStockRepository = locationStockRepository;
+        _locationRepository = locationRepository;
         _cache = cache;
     }
 
@@ -27,6 +37,40 @@ public class GetInventoryQueryHandler : IRequestHandler<GetInventoryQuery, GetIn
         if (inventory == null)
             throw new InvalidOperationException($"Product {request.ProductId} not found");
 
+        // Real bin-level breakdown where it exists (InventoryLocationStock, added
+        // 2026-07-27) — previously this always returned one fake "DEFAULT_LOCATION" row
+        // summing the whole product-level rollup, regardless of actual location data.
+        var locationStocks = await _locationStockRepository.GetByProductIdAsync(request.ProductId, cancellationToken);
+        List<LocationStockDto> locations;
+        if (locationStocks.Count > 0)
+        {
+            locations = new List<LocationStockDto>();
+            foreach (var stock in locationStocks)
+            {
+                var location = await _locationRepository.GetByIdAsync(stock.LocationId, cancellationToken);
+                locations.Add(new LocationStockDto
+                {
+                    Location = location?.LocationCode ?? stock.LocationId.ToString(),
+                    Quantity = stock.Quantity,
+                    Reserved = stock.ReservedQuantity
+                });
+            }
+        }
+        else
+        {
+            // No bin-level data tracked yet for this product — fall back to the
+            // product-level rollup as a single row, same as the previous behavior.
+            locations = new List<LocationStockDto>
+            {
+                new LocationStockDto
+                {
+                    Location = "DEFAULT_LOCATION",
+                    Quantity = inventory.TotalQuantity,
+                    Reserved = inventory.ReservedQuantity
+                }
+            };
+        }
+
         var response = new GetInventoryResponse
         {
             ProductId = inventory.ProductId,
@@ -37,15 +81,7 @@ public class GetInventoryQueryHandler : IRequestHandler<GetInventoryQuery, GetIn
             LockedQuantity = inventory.LockedQuantity,
             ReorderPoint = inventory.ReorderPoint,
             ReorderQuantity = inventory.ReorderQuantity,
-            Locations = new List<LocationStockDto>
-            {
-                new LocationStockDto
-                {
-                    Location = "DEFAULT_LOCATION",
-                    Quantity = inventory.TotalQuantity,
-                    Reserved = inventory.ReservedQuantity
-                }
-            },
+            Locations = locations,
             LastUpdated = inventory.UpdatedAt
         };
 

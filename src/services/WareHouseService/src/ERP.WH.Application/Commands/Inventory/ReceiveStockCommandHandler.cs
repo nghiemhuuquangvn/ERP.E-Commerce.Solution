@@ -17,14 +17,14 @@ namespace ERP.WH.Application.Commands.Inventory;
 public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, ReceiveStockResponse>
 {
     private readonly IWarehouseUnitOfWork _uow;
-    private readonly IEventPublisher _eventPublisher;
+    private readonly IEventOutboxWriter _outboxWriter;
 
     public ReceiveStockCommandHandler(
         IWarehouseUnitOfWork uow,
-        IEventPublisher eventPublisher)
+        IEventOutboxWriter outboxWriter)
     {
         _uow = uow;
-        _eventPublisher = eventPublisher;
+        _outboxWriter = outboxWriter;
     }
 
     public async Task<ReceiveStockResponse> Handle(ReceiveStockCommand request, CancellationToken cancellationToken)
@@ -50,6 +50,18 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
             inventory.AssignLocation(request.LocationId);
 
         await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
+
+        if (request.LocationId.HasValue)
+        {
+            var locationStock = await _uow.InventoryLocationStocks.GetAsync(request.ProductId, request.LocationId.Value, cancellationToken);
+            if (locationStock == null)
+            {
+                locationStock = new InventoryLocationStock(request.ProductId, request.LocationId.Value);
+                await _uow.InventoryLocationStocks.AddAsync(locationStock, cancellationToken);
+            }
+            locationStock.Receive(request.Quantity);
+            await _uow.InventoryLocationStocks.UpdateAsync(locationStock, cancellationToken);
+        }
 
         var movement = new StockMovement(
             request.ProductId,
@@ -87,9 +99,7 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
             }
         }
 
-        await _uow.SaveChangesAsync(cancellationToken);
-
-        await _eventPublisher.PublishAsync(new StockMovementRecordedEvent
+        _outboxWriter.Stage(new StockMovementRecordedEvent
         {
             MovementId = movement.MovementId,
             ProductId = request.ProductId,
@@ -101,9 +111,9 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
             SourceOrderId = request.PurchaseOrderId,
             RecordedAt = movement.RecordedAt,
             EventCreatedAt = DateTime.UtcNow
-        }, cancellationToken);
+        });
 
-        await _eventPublisher.PublishAsync(new InventoryUpdatedEvent
+        _outboxWriter.Stage(new InventoryUpdatedEvent
         {
             ProductId = request.ProductId,
             PreviousQuantity = previousQuantity,
@@ -112,9 +122,9 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
             ReferenceId = request.PurchaseOrderId,
             UpdatedAt = DateTime.UtcNow,
             EventCreatedAt = DateTime.UtcNow
-        }, cancellationToken);
+        });
 
-        await _eventPublisher.PublishAsync(new ReceiptCompletedEvent
+        _outboxWriter.Stage(new ReceiptCompletedEvent
         {
             ProductId = request.ProductId,
             QuantityReceived = request.Quantity,
@@ -123,11 +133,11 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
             Reference = request.Reference,
             ReceivedAt = movement.RecordedAt,
             EventCreatedAt = DateTime.UtcNow
-        }, cancellationToken);
+        });
 
         if (inventory.IsLowStock())
         {
-            await _eventPublisher.PublishAsync(new StockAlertEvent
+            _outboxWriter.Stage(new StockAlertEvent
             {
                 ProductId = inventory.ProductId,
                 ProductName = inventory.ProductName,
@@ -135,8 +145,10 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
                 ReorderPoint = inventory.ReorderPoint,
                 ReorderQuantity = inventory.ReorderQuantity,
                 EventCreatedAt = DateTime.UtcNow
-            }, cancellationToken);
+            });
         }
+
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return new ReceiveStockResponse
         {

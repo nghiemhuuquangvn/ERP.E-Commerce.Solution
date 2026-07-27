@@ -66,6 +66,14 @@ public static class PermissionConstants
     // Warehouse / Inventory Permissions
     public const string Inventory_View = "inventory:view";
     public const string Inventory_Manage = "inventory:manage";
+    // Granular permissions added alongside the Stock Adjustment / Stocktake approval-gate
+    // retrofit — Inventory_Manage remains for the unchanged endpoints (Locations CRUD,
+    // movement history, lots/serials read, receive/reserve/transfer) to limit blast radius.
+    public const string Inventory_Adjustment_Create = "inventory:adjustment:create";
+    public const string Inventory_Adjustment_Approve = "inventory:adjustment:approve";
+    public const string Inventory_Stocktake_Approve = "inventory:stocktake:approve";
+    public const string Inventory_Barcode_View = "inventory:barcode:view";
+    public const string Inventory_Warehouse_Manage = "inventory:warehouse:manage";
 
     // Payment Permissions
     public const string Payments_View = "payments:view";
@@ -266,6 +274,8 @@ public static class PermissionConstants
         Accounting_ReportsView,
         Shipping_Create, Shipping_Update, Shipping_View, Shipping_CarriersManage,
         Inventory_View, Inventory_Manage,
+        Inventory_Adjustment_Create, Inventory_Adjustment_Approve, Inventory_Stocktake_Approve,
+        Inventory_Barcode_View, Inventory_Warehouse_Manage,
         Payments_View, Payments_Create, Payments_Authorize, Payments_Capture, Payments_Cancel, Payments_Refund,
         Payments_SettlementsView, Payments_SettlementsManage,
         POS_Transactions, POS_TerminalsManage, POS_ReportsView, POS_ShiftsView, POS_ShiftsManage,

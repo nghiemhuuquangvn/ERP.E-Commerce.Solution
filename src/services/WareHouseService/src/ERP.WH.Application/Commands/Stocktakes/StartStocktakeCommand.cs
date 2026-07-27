@@ -11,6 +11,7 @@ public class StocktakeLineDto
     public int SystemQuantity { get; set; }
     public int? CountedQuantity { get; set; }
     public int Variance { get; set; }
+    public string? VarianceReason { get; set; }
 }
 
 public class StocktakeDto
@@ -78,7 +79,8 @@ public class StartStocktakeCommandHandler : IRequestHandler<StartStocktakeComman
             ProductId = l.ProductId,
             SystemQuantity = l.SystemQuantity,
             CountedQuantity = l.CountedQuantity,
-            Variance = l.Variance
+            Variance = l.Variance,
+            VarianceReason = l.VarianceReason
         }).ToList(),
         Notes = stocktake.Notes,
         StartedBy = stocktake.StartedBy,

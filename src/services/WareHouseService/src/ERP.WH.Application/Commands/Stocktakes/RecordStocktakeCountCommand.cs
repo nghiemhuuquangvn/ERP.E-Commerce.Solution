@@ -8,6 +8,7 @@ public class RecordStocktakeCountCommand : IRequest<StocktakeDto>
     public Guid StocktakeId { get; set; }
     public Guid ProductId { get; set; }
     public int CountedQuantity { get; set; }
+    public string? VarianceReason { get; set; }
 }
 
 public class RecordStocktakeCountCommandHandler : IRequestHandler<RecordStocktakeCountCommand, StocktakeDto>
@@ -24,7 +25,7 @@ public class RecordStocktakeCountCommandHandler : IRequestHandler<RecordStocktak
         var stocktake = await _uow.Stocktakes.GetByIdAsync(request.StocktakeId, cancellationToken)
             ?? throw new InvalidOperationException($"Stocktake {request.StocktakeId} not found");
 
-        stocktake.RecordCount(request.ProductId, request.CountedQuantity);
+        stocktake.RecordCount(request.ProductId, request.CountedQuantity, request.VarianceReason);
         await _uow.Stocktakes.UpdateAsync(stocktake, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
 

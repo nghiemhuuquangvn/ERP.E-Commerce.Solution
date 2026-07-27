@@ -17,6 +17,12 @@ namespace ERP.WH.Infrastructure.BackgroundJobs
     /// </summary>
     public class SettingsOutboxProcessor : BackgroundService
     {
+        // Distinguishes this processor's rows from the Inventory/Warehouse domain-event
+        // rows now also written to the same OutboxMessages table (see
+        // WarehouseEventOutboxProcessor/WarehouseEventOutboxWriter) — without this filter,
+        // this processor would also pick up and wrongly publish those rows to Kafka.
+        private const string SettingsEventTypeName = "SettingsChangedIntegrationEvent";
+
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<SettingsOutboxProcessor> _logger;
         private readonly int _pollingIntervalMs = 5000; // 5 seconds
@@ -55,7 +61,7 @@ namespace ERP.WH.Infrastructure.BackgroundJobs
             var publisher = scope.ServiceProvider.GetRequiredService<ISettingsEventPublisher>();
 
             var unprocessedMessages = await dbContext.OutboxMessages
-                .Where(m => m.ProcessedOnUtc == null)
+                .Where(m => m.ProcessedOnUtc == null && m.Type == SettingsEventTypeName)
                 .OrderBy(m => m.OccurredOnUtc)
                 .ToListAsync(cancellationToken);
 

@@ -20,7 +20,11 @@ public class EventPublisher : IEventPublisher
         {
             channel.ExchangeDeclare(_exchangeName, ExchangeType.Topic, durable: true);
 
-            var eventName = typeof(T).Name;
+            // Use the actual runtime type, not the compile-time generic T — callers that
+            // deserialize an event back from storage (e.g. WarehouseEventOutboxProcessor)
+            // only have it as `object`, which would otherwise produce a routing key of
+            // "warehouse.Object" instead of the real event name.
+            var eventName = @event?.GetType().Name ?? typeof(T).Name;
             var routingKey = $"warehouse.{eventName}";
 
             var message = JsonSerializer.Serialize(@event);

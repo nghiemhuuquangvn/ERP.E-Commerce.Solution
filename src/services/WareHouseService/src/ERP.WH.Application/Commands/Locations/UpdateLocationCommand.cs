@@ -6,6 +6,7 @@ namespace ERP.WH.Application.Commands.Locations;
 public class UpdateLocationCommand : IRequest<LocationDto>
 {
     public Guid LocationId { get; set; }
+    public Guid? WarehouseId { get; set; }
     public string? Name { get; set; }
     public string? Zone { get; set; }
     public string Aisle { get; set; } = string.Empty;
@@ -29,6 +30,8 @@ public class UpdateLocationCommandHandler : MediatR.IRequestHandler<UpdateLocati
             ?? throw new InvalidOperationException($"Location {request.LocationId} not found");
 
         location.Update(request.Name, request.Zone, request.Aisle, request.Bin, request.Shelf, request.Capacity);
+        if (request.WarehouseId.HasValue)
+            location.AssignWarehouse(request.WarehouseId);
         await _uow.Locations.UpdateAsync(location, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
 

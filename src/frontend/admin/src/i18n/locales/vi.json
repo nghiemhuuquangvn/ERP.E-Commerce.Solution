@@ -32,7 +32,8 @@
     "no": "Không",
     "active": "Đang hoạt động",
     "inactive": "Ngừng hoạt động",
-    "saved": "Đã lưu."
+    "saved": "Đã lưu.",
+    "notes": "Ghi chú"
   },
   "nav": {
     "dashboard": "Tổng quan",
@@ -51,6 +52,13 @@
     "categories": "Danh mục",
     "priceLists": "Bảng giá",
     "inventory": "Tồn kho",
+    "inventoryGroup": "Tồn kho",
+    "locations": "Vị trí kho",
+    "warehouses": "Kho hàng",
+    "stockAdjustments": "Điều chỉnh tồn kho",
+    "stocktakes": "Kiểm kê",
+    "transfers": "Chuyển kho",
+    "barcode": "Mã vạch",
     "customers": "Khách hàng",
     "payments": "Thanh toán",
     "departments": "Phòng ban",
@@ -515,7 +523,106 @@
     "onHand": "Tồn thực tế",
     "reserved": "Đã giữ",
     "available": "Khả dụng",
-    "lastMovement": "Biến động gần nhất"
+    "lastMovement": "Biến động gần nhất",
+    "reorderPoint": "Điểm đặt hàng lại",
+    "notFound": "Không tìm thấy sản phẩm trong tồn kho.",
+    "backToInventory": "← Tồn kho",
+    "noBinLevelData": "Chưa có dữ liệu tồn kho theo vị trí cụ thể cho sản phẩm này — hiển thị tổng tồn kho.",
+    "lotNumber": "Số lô",
+    "remaining": "Còn lại",
+    "unitCost": "Giá vốn đơn vị",
+    "expiryDate": "Hạn sử dụng",
+    "serialNumber": "Số serial",
+    "tabs": {
+      "locations": "Vị trí",
+      "lots": "Lô hàng",
+      "serials": "Serial"
+    },
+    "adjustment": {
+      "title": "Điều chỉnh tồn kho",
+      "request": "Yêu cầu điều chỉnh",
+      "requestTitle": "Yêu cầu điều chỉnh tồn kho",
+      "requestHint": "Yêu cầu này sẽ không thay đổi tồn kho cho đến khi Quản lý kho duyệt.",
+      "quantityDelta": "Số lượng thay đổi",
+      "quantityDeltaRequired": "Nhập số lượng thay đổi khác 0.",
+      "reason": "Lý do",
+      "reasons": {
+        "damaged": "Hư hỏng",
+        "lost": "Thất lạc",
+        "correction": "Điều chỉnh sai lệch",
+        "other": "Khác"
+      },
+      "submit": "Gửi yêu cầu",
+      "requestedBy": "Người yêu cầu",
+      "approve": "Duyệt",
+      "reject": "Từ chối",
+      "rejectTitle": "Từ chối điều chỉnh",
+      "rejectReasonPlaceholder": "Lý do từ chối điều chỉnh này",
+      "statuses": {
+        "Pending": "Chờ duyệt",
+        "Approved": "Đã duyệt",
+        "Rejected": "Đã từ chối"
+      }
+    },
+    "locations": {
+      "title": "Vị trí kho",
+      "add": "+ Thêm vị trí",
+      "addTitle": "Thêm vị trí",
+      "editTitle": "Sửa vị trí",
+      "zone": "Khu vực",
+      "aisle": "Dãy",
+      "bin": "Kệ",
+      "shelf": "Tầng",
+      "capacity": "Sức chứa",
+      "deactivateTitle": "Ngừng kích hoạt vị trí",
+      "deactivateConfirm": "Bạn có chắc chắn muốn ngừng kích hoạt \"{{name}}\"?"
+    },
+    "warehouses": {
+      "title": "Kho hàng",
+      "add": "+ Thêm kho hàng",
+      "addTitle": "Thêm kho hàng",
+      "editTitle": "Sửa kho hàng",
+      "address": "Địa chỉ",
+      "deactivateTitle": "Ngừng kích hoạt kho hàng",
+      "deactivateConfirm": "Bạn có chắc chắn muốn ngừng kích hoạt \"{{name}}\"?"
+    },
+    "stocktakes": {
+      "title": "Kiểm kê",
+      "start": "+ Bắt đầu kiểm kê",
+      "number": "Số phiếu kiểm kê",
+      "lineCount": "Số dòng",
+      "startedBy": "Người thực hiện",
+      "backToStocktakes": "← Kiểm kê",
+      "notFound": "Không tìm thấy phiếu kiểm kê.",
+      "systemQuantity": "SL hệ thống",
+      "countedQuantity": "SL đếm được",
+      "variance": "Chênh lệch",
+      "recordCount": "Ghi nhận",
+      "complete": "Hoàn tất đếm",
+      "approve": "Duyệt chênh lệch",
+      "cancel": "Hủy kiểm kê"
+    },
+    "transfers": {
+      "title": "Chuyển kho",
+      "new": "+ Chuyển kho mới",
+      "number": "Số phiếu chuyển",
+      "from": "Vị trí nguồn",
+      "to": "Vị trí đích",
+      "backToTransfers": "← Chuyển kho",
+      "locationsRequired": "Vui lòng chọn cả vị trí nguồn và đích.",
+      "sameLocationError": "Vị trí nguồn và đích phải khác nhau.",
+      "ship": "Xuất chuyển",
+      "complete": "Hoàn tất"
+    },
+    "barcode": {
+      "title": "Mã vạch",
+      "description": "Tra cứu mã vạch quét được ra sản phẩm cho máy quét cầm tay, và quản lý ánh xạ mã vạch với sản phẩm.",
+      "resolve": "Tra cứu mã vạch",
+      "codePlaceholder": "Quét hoặc nhập mã vạch",
+      "notFound": "Không có sản phẩm nào được ánh xạ với mã vạch này.",
+      "addMapping": "Thêm ánh xạ",
+      "productIdPlaceholder": "Mã sản phẩm"
+    }
   },
   "payments": {
     "title": "Thanh toán",

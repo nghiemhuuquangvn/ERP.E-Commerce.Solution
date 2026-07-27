@@ -107,6 +107,31 @@ public class StocktakesController : ControllerBase
         }
     }
 
+    /// <summary>Posts a stocktake's counted variance to Inventory — the approval gate the business rules require before a cycle count can affect stock.</summary>
+    [HttpPost("{stocktakeId}/approve")]
+    [ProducesResponseType(typeof(StocktakeDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<StocktakeDto>> Approve(Guid stocktakeId)
+    {
+        if (!_userContextService.HasPermission("inventory:stocktake:approve"))
+            return Forbid();
+
+        try
+        {
+            var result = await _mediator.Send(new ApproveStocktakeCommand { StocktakeId = stocktakeId });
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("{stocktakeId}/cancel")]
     [ProducesResponseType(typeof(StocktakeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

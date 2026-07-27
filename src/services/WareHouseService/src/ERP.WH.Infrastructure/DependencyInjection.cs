@@ -32,8 +32,13 @@ public static class DependencyInjection
         services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<ITransferOrderRepository, TransferOrderRepository>();
         services.AddScoped<IStocktakeRepository, StocktakeRepository>();
+        services.AddScoped<IInventoryLocationStockRepository, InventoryLocationStockRepository>();
+        services.AddScoped<IStockAdjustmentRepository, StockAdjustmentRepository>();
+        services.AddScoped<IWarehouseRepository, WarehouseRepository>();
+        services.AddScoped<IBarcodeMappingRepository, BarcodeMappingRepository>();
         services.AddScoped<IWarehouseUnitOfWork, WarehouseUnitOfWork>();
         services.AddScoped<IEventPublisher, EventPublisher>();
+        services.AddScoped<IEventOutboxWriter, WarehouseEventOutboxWriter>();
 
         // Inventory Settings (System/Tenant two-tier) — storage+CRUD only for now
         services.AddScoped<IInventorySettingsService, Services.InventorySettingsService>();
@@ -87,6 +92,11 @@ public static class DependencyInjection
         });
         services.AddScoped<ISettingsEventPublisher, KafkaSettingsEventPublisher>();
         services.AddHostedService<SettingsOutboxProcessor>();
+
+        // Outbox retrofit for Inventory/Warehouse domain events (previously published
+        // directly from command handlers, non-transactionally, right after SaveChanges) —
+        // see WarehouseEventOutboxWriter/WarehouseEventOutboxProcessor.
+        services.AddHostedService<WarehouseEventOutboxProcessor>();
 
         return services;
     }

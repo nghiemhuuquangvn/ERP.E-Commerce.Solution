@@ -372,6 +372,16 @@ const SALES_CHILDREN: NavItem[] = [
   { labelKey: 'nav.commissionRecords', path: '/sales/commissions', permission: 'sales_order:read', icon: '📈' },
 ]
 
+const INVENTORY_CHILDREN: NavItem[] = [
+  { labelKey: 'nav.inventory', path: '/inventory', permission: 'inventory:view', icon: '🏭' },
+  { labelKey: 'nav.locations', path: '/inventory/locations', permission: 'inventory:view', icon: '📍' },
+  { labelKey: 'nav.warehouses', path: '/inventory/warehouses', permission: 'inventory:view', icon: '🏢' },
+  { labelKey: 'nav.stockAdjustments', path: '/inventory/adjustments', permission: 'inventory:view', icon: '⚖️' },
+  { labelKey: 'nav.stocktakes', path: '/inventory/stocktakes', permission: 'inventory:view', icon: '📋' },
+  { labelKey: 'nav.transfers', path: '/inventory/transfers', permission: 'inventory:view', icon: '🔀' },
+  { labelKey: 'nav.barcode', path: '/inventory/barcode', permission: 'inventory:barcode:view', icon: '🔖' },
+]
+
 const PURCHASING_CHILDREN: NavItem[] = [
   {
     labelKey: 'nav.purchaseOrders',
@@ -392,7 +402,7 @@ const NAV_ITEMS: NavItem[] = [
   { labelKey: 'nav.sales', path: '/orders', icon: '📦', children: SALES_CHILDREN },
   { labelKey: 'nav.purchasing', path: '/purchasing', icon: '🧾', children: PURCHASING_CHILDREN },
   { labelKey: 'nav.productsGroup', path: '/products', icon: '🏷️', children: PRODUCTS_CHILDREN },
-  { labelKey: 'nav.inventory', path: '/inventory', permission: 'inventory:view', icon: '🏭' },
+  { labelKey: 'nav.inventoryGroup', path: '/inventory', icon: '🏭', children: INVENTORY_CHILDREN },
   {
     labelKey: 'nav.customers',
     path: '/customers',

@@ -28,6 +28,9 @@ public class CreateLocationCommandHandler : IRequestHandler<CreateLocationComman
             request.Name,
             request.Zone);
 
+        if (request.WarehouseId.HasValue)
+            location.AssignWarehouse(request.WarehouseId);
+
         await _uow.Locations.AddAsync(location, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
 
@@ -37,6 +40,7 @@ public class CreateLocationCommandHandler : IRequestHandler<CreateLocationComman
     internal static LocationDto Map(WarehouseLocation location) => new()
     {
         LocationId = location.LocationId,
+        WarehouseId = location.WarehouseId,
         LocationCode = location.LocationCode,
         Name = location.Name,
         Zone = location.Zone,

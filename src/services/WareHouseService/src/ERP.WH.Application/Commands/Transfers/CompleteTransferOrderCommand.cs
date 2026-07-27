@@ -20,14 +20,14 @@ public class CompleteTransferOrderCommand : IRequest<TransferOrderDto>
 public class CompleteTransferOrderCommandHandler : IRequestHandler<CompleteTransferOrderCommand, TransferOrderDto>
 {
     private readonly IWarehouseUnitOfWork _uow;
-    private readonly IEventPublisher _eventPublisher;
+    private readonly IEventOutboxWriter _outboxWriter;
 
     public CompleteTransferOrderCommandHandler(
         IWarehouseUnitOfWork uow,
-        IEventPublisher eventPublisher)
+        IEventOutboxWriter outboxWriter)
     {
         _uow = uow;
-        _eventPublisher = eventPublisher;
+        _outboxWriter = outboxWriter;
     }
 
     public async Task<TransferOrderDto> Handle(CompleteTransferOrderCommand request, CancellationToken cancellationToken)
@@ -57,7 +57,26 @@ public class CompleteTransferOrderCommandHandler : IRequestHandler<CompleteTrans
                 await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
             }
 
-            await _eventPublisher.PublishAsync(new StockMovementRecordedEvent
+            // Bin-level breakdown: move quantity out of the source location (if tracked
+            // there) and into the destination location, additive to the product-level
+            // rollup handled above.
+            var fromStock = await _uow.InventoryLocationStocks.GetAsync(line.ProductId, order.FromLocationId, cancellationToken);
+            if (fromStock != null)
+            {
+                fromStock.TransferOut(line.Quantity);
+                await _uow.InventoryLocationStocks.UpdateAsync(fromStock, cancellationToken);
+            }
+
+            var toStock = await _uow.InventoryLocationStocks.GetAsync(line.ProductId, order.ToLocationId, cancellationToken);
+            if (toStock == null)
+            {
+                toStock = new InventoryLocationStock(line.ProductId, order.ToLocationId);
+                await _uow.InventoryLocationStocks.AddAsync(toStock, cancellationToken);
+            }
+            toStock.TransferIn(line.Quantity);
+            await _uow.InventoryLocationStocks.UpdateAsync(toStock, cancellationToken);
+
+            _outboxWriter.Stage(new StockMovementRecordedEvent
             {
                 MovementId = movement.MovementId,
                 ProductId = line.ProductId,
@@ -68,12 +87,10 @@ public class CompleteTransferOrderCommandHandler : IRequestHandler<CompleteTrans
                 Reference = order.TransferNumber,
                 RecordedAt = movement.RecordedAt,
                 EventCreatedAt = DateTime.UtcNow
-            }, cancellationToken);
+            });
         }
 
-        await _uow.SaveChangesAsync(cancellationToken);
-
-        await _eventPublisher.PublishAsync(new TransferOrderCompletedEvent
+        _outboxWriter.Stage(new TransferOrderCompletedEvent
         {
             TransferOrderId = order.TransferOrderId,
             TransferNumber = order.TransferNumber,
@@ -81,7 +98,9 @@ public class CompleteTransferOrderCommandHandler : IRequestHandler<CompleteTrans
             ToLocationId = order.ToLocationId,
             CompletedAt = order.CompletedAt ?? DateTime.UtcNow,
             EventCreatedAt = DateTime.UtcNow
-        }, cancellationToken);
+        });
+
+        await _uow.SaveChangesAsync(cancellationToken);
 
         return CreateTransferOrderCommandHandler.Map(order);
     }
