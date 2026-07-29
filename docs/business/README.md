@@ -1,6 +1,15 @@
-# Business Domains Index - Phase 2 Complete
+# Business Domains Index
 
-**Status:** Phase 2 documentation foundation complete via service README.md files.
+> Renamed from `BUSINESS_DOMAINS_INDEX.md` during the 2026-07-27 docs
+> cleanup to serve as this folder's index (matching `docs/frontend/
+> README.md`'s role). On 2026-07-29, a Senior BA documentation pass added
+> full `module-0X-*.md` business-process docs for the 5 services that
+> previously had none (Product, CRM, Payment, Shipping, Reporting) and
+> expanded 2 that were too narrow (Promotion, Notification) — see the
+> updated per-domain entries below. A companion database review,
+> `docs/architecture/database-performance-indexing-review.md`, covers B-Tree
+> indexing correctness across all 16 databases. A generated `.docx` set of
+> all of the above lives in `docs/business/docx/`.
 
 **Reference:** All business domain specifications are documented in the comprehensive README.md files for each service. This index serves as a navigation guide.
 
@@ -72,7 +81,11 @@
 ### Supply Chain & Product Management
 
 #### Product Catalog & Pricing
-- **Location:** `src/services/ProductService/README.md`
+- **Location:** `src/services/ProductService/README.md`,
+  `docs/business/Product/module-09-product.md` (added 2026-07-29 — full Senior
+  BA reconciliation: domain model, DB design, the Cost-vs-Price naming
+  confusion that leaves `ProductDto.Price` hardcoded to 0 on standard read
+  endpoints, and inconsistent per-resource authorization)
 - **Topics:** Product catalog management, product variants (SKUs), categories, pricing, images, lifecycle management
 - **Workflows:** ProductCreation → Variant definition → Category assignment → Price setting → Publication → Discontinuation
 - **Entities:** Product, ProductVariant, Category, ProductImage, PriceList, ProductAttribute
@@ -89,7 +102,10 @@
   — this service has no finer per-resource permission convention, by design.
 
 #### Shipping & Logistics
-- **Location:** `src/services/ShippingService/README.md`
+- **Location:** `src/services/ShippingService/README.md`,
+  `docs/business/Shipping/module-13-shipping.md` (added 2026-07-29 — real GHN
+  carrier integration, POD fields, independent Return aggregate, and the
+  since-fixed `ShipmentTrackingEvents.Status` INT→NVARCHAR migration bug)
 - **Topics:** Shipment management, carrier integration, shipping rate calculation, tracking, delivery confirmation
 - **Workflows:** CreateShipment → AssignCarrier → GenerateLabel → TrackingUpdates → DeliveryConfirmation
 - **Entities:** Shipment, Carrier, ShippingRate, TrackingEvent, Manifest, DeliveryProof
@@ -114,7 +130,11 @@
   `sales_order:read`.
 
 #### Customer Relationship Management (CRM)
-- **Location:** `src/services/CRMService/README.md`
+- **Location:** `src/services/CRMService/README.md`,
+  `docs/business/CRM/module-10-crm.md` (added 2026-07-29 — Lead-qualification
+  IS the Lead→Opportunity conversion (no separate step), no Contact dedup rule,
+  and a confirmed cross-tenant data-isolation gap: no repository filters by
+  TenantId anywhere in this service)
 - **Topics:** Contact management, lead tracking, opportunity management, case management, activity logging, customer interactions
 - **Workflows:** LeadCreation → LeadQualification → OpportunityCreation → OpportunityClosure → SalesOrder
 - **Entities:** Contact, Lead, Opportunity, Case, Activity, InteractionLog
@@ -124,7 +144,12 @@
   gets full access, Manager/Viewer get view-only.
 
 #### Payment Processing & Reconciliation
-- **Location:** `src/services/PaymentService/README.md`
+- **Location:** `src/services/PaymentService/README.md`,
+  `docs/business/Payment/module-11-payment.md` (added 2026-07-29 — real VNPay
+  gateway integration confirmed, partial-refund support, OrderId-uniqueness
+  idempotency guard against double-charging, and a confirmed discrepancy:
+  `SettlementCreated` event does not exist anywhere in code despite CLAUDE.md
+  listing it)
 - **Topics:** Payment transaction processing, payment method management, refund handling, settlement reconciliation, payment authorization
 - **Workflows:** PaymentInitiation → Authorization → Capture → Settlement → Reconciliation
 - **Entities:** PaymentTransaction, PaymentMethod, Refund, Settlement, PaymentGatewayResponse, Reconciliation
@@ -137,7 +162,11 @@
 
 #### Promotions & Loyalty
 - **Location:** `src/services/PromotionService/README.md`,
-  `docs/business/Promotion/LoyaltyAndCouponSecurity.md`
+  `docs/business/Promotion/LoyaltyAndCouponSecurity.md`,
+  `docs/business/Promotion/module-20-promotion.md` (added 2026-07-29 — full
+  lifecycle: Promotion discount calculation, Coupon generation/redemption,
+  Flash Sale reservation, Loyalty tier/points math, all reconciled against
+  real domain code)
 - **Topics:** Promotion management, coupon redemption, flash sales, loyalty program management, discount rules, eligibility
 - **Workflows:** PromotionCreation → PromotionActivation → CouponRedeem → LoyaltyPointsEarn → LoyaltyRedemption
 - **Entities:** Promotion, Coupon, FlashSale, LoyaltyProgram, LoyaltyAccount, DiscountRule
@@ -192,7 +221,11 @@
 
 #### Notification & Communication
 - **Location:** `src/services/NotificationService/README.md`,
-  `docs/business/Notification/NotificationPrivacy.md`
+  `docs/business/Notification/NotificationPrivacy.md`,
+  `docs/business/Notification/module-21-notification.md` (added 2026-07-29 —
+  full lifecycle including retry/backoff and opt-out rules; corrects
+  CLAUDE.md's stale claim of "only 1 live consumer" — a second,
+  `SalesOrderRabbitMqConsumer`, is also live)
 - **Topics:** Multi-channel notifications (email, SMS, push), notification templates, preference management, notification history
 - **Workflows:** EventOccurs → TemplateSelect → NotificationCompose → ChannelSend → DeliveryTracking
 - **Entities:** NotificationTemplate, Notification, NotificationPreference, NotificationChannel, DeliveryLog
@@ -205,7 +238,14 @@
   permission. See `docs/business/Notification/NotificationPrivacy.md`.
 
 #### Reporting & Analytics
-- **Location:** `src/services/ReportingService/README.md`
+- **Location:** `src/services/ReportingService/README.md`,
+  `docs/business/Reporting/module-19-reporting.md` (added 2026-07-29 —
+  confirms a live indexing bug: the `DateKey` column actually used by all
+  fact-table writes has never had a physical index, due to an index-name
+  collision in migration 002 with the older, unused `OrderDateKey`/
+  `PaymentDateKey` columns' index from migration 001; also corrects
+  CLAUDE.md's "all events from all services" claim to the real 6-of-14
+  domains actually consumed)
 - **Topics:** Analytics and BI, dashboard population, KPI calculations, data warehouse management, BI tool integration
 - **Workflows:** EventStream → DataWarehousePopulation → FactTableUpdate → DimensionTableSync → BIQueryExecution
 - **Entities:** FactSalesOrder, FactPayment, DimProduct, DimCustomer, DimDate, Metric

@@ -84,8 +84,9 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
 - `src/pages/identity/UsersPage.tsx` and `RolesPermissionsPage.tsx` — CRUD/management
   UI for IdentityService's Users/Roles/Permissions/Tenants, gated on the hierarchical
   `identity:{resource}:{action}` permission codes (see
-  `docs/business/Identity/Permissions.md`/`docs/business/ERP-Business-Analysis.md` §3.1
-  for the backend tenant-isolation model these pages assume). File-layout convention
+  `docs/business/Identity/module-02-identity-security.md`/`docs/business/
+  ERP-Business-Analysis.md` §3.1 for the backend tenant-isolation model these
+  pages assume). File-layout convention
   borrowed from `masterdata-admin-guide.md` (one `.api.ts` per entity mirroring the real
   controller + one page combining list/modals), but the data source is IdentityService,
   not SharedMasterDataService — don't reuse `mstClient.ts`.
