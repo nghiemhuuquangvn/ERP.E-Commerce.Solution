@@ -145,3 +145,27 @@ GET    /api/v1/audit/logins?userId=&from=&to=
 - JWT: `Microsoft.AspNetCore.Authentication.JwtBearer`, ký bằng key lưu ở Key Vault.
 - Cache Permission/Menu tree ở Redis, key theo `UserId` + version, invalidate qua event `RolePermissionChanged`.
 - Audit log: cân nhắc bảng append-only riêng biệt (không chung DbContext transaction với business data) để tránh audit table phình to ảnh hưởng performance các bảng khác — có thể tách sang database riêng hoặc dùng bảng partition theo tháng.
+
+## 12. Reconciliation — Kiến trúc Permission thực tế sau đợt tái cấu trúc (2026-07-29)
+
+> Mục này ghi lại trạng thái **thật** của cơ chế permission sau khi thực hiện, khác với §4-§8 vốn là **đề xuất thiết kế ban đầu** (nhiều bảng ở đó — `Menus`, `Screens`, `Actions`, `ApiPermissions`, `DataPermissions` — chưa từng được implement; AuthDB thật chỉ có `Users`, `Roles`, `UserRoles`, `Permissions`, `RolePermissions`, `RefreshTokens`, `Tenants`, `ApiKeys` + các bảng Settings/License theo từng category).
+
+**Bối cảnh**: người dùng phát hiện pattern `[Authorize(Policy = "Permission")]` + `[RequirePermission(Permissions.X)]` trong IdentityService khó bảo trì. Rà soát cho thấy vấn đề lớn hơn: hệ thống chạy **2 cơ chế authorization song song, không nhất quán**, cộng thêm frontend giữ bản sao permission string riêng không đồng bộ.
+
+**Trước khi tái cấu trúc**:
+| | IdentityService (cũ) | 13 service còn lại |
+|---|---|---|
+| Attribute | `[Authorize(Policy="Permission")]` + `[RequirePermission(...)]` | `[AuthorizePermission("...")]` |
+| Cơ chế | ASP.NET Core policy → `PermissionRequirement` → `PermissionAuthorizationHandler` | `IAsyncAuthorizationFilter` độc lập |
+| Nơi kiểm tra | **Gọi DB mỗi request** (`IPermissionService.HasPermissionAsync` join `UserRoles→RolePermissions→Permissions`) | **Chỉ đọc JWT claim** `"permission"`, không gọi DB |
+| Kho permission string | `ERP.Identity.Application.Authorization.Permissions` (21 hằng số, riêng của Identity) | `ERP.Shared.Authorization.PermissionConstants` (~230 hằng số nghiệp vụ) |
+| Nguồn Role→Permission | Bảng DB `RolePermissions` (chỉ 2 role SuperAdmin/Admin có seed, chỉ phủ 21 permission của Identity) | Dictionary hardcode `RoleDefinitions.RolePermissions` trong `ERP.Shared`, biên dịch vào **cả 14 service** |
+
+**Sau khi tái cấu trúc (2 phase)**:
+- **Phase 1**: Gộp toàn bộ 14 class permission cục bộ của Identity (21 hằng số `Permissions.cs` + 13 class `*SettingsPermissions`/`LicensePermissions`, tổng ~90 hằng số) vào `PermissionConstants.cs` — tổng cộng còn lại **244 permission code duy nhất**, không nơi nào khác định nghĩa permission string nữa. Sửa kèm 1 bug thật: `PermissionService.CreateAsync/UpdateAsync/DeleteAsync` (tạo permission mới qua UI) không gọi `SaveChangesAsync` — thay đổi bị mất âm thầm; đã sửa bằng cách route qua `IUnitOfWork` giống `RoleService`.
+- **Phase 2**: 21 controller của Identity chuyển từ `[Authorize(Policy="Permission")]`+`[RequirePermission]` sang `[AuthorizePermission(...)]` — cùng cơ chế JWT-claims với 13 service kia, bỏ hẳn round-trip DB riêng. Xóa `PermissionRequirement`, `PermissionAuthorizationHandler`, `RequirePermissionAttribute`, policy `"Permission"`.
+- **Nguồn Role→Permission chuyển hẳn về DB**: `AuthService.IssueTokensAsync` trước đây `permissions ∪ RoleDefinitions.GetPermissionsForRoles(roles)` (union DB + hardcode) — giờ **chỉ đọc DB**. Migration một-lần `src/Database/Identity/013_SeedRoleDefinitionsIntoRolePermissions.sql` (tự sinh bằng script phân tích trực tiếp `PermissionConstants.cs`/`RoleDefinitions.cs`, không gõ tay, đã đối chiếu số lượng thủ công) seed đúng y hệt tập quyền `RoleDefinitions.cs` đang cấp cho SuperAdmin/Admin/Manager/Purchaser/Viewer vào bảng `RolePermissions`, khớp theo `RoleCode` trên **mọi tenant** (không hardcode GUID role). Kết quả: JWT permission claim sau khi chạy migration giống hệt trước — chỉ khác *nguồn*, không khác *tập quyền*. Từ nay, sửa quyền của 1 role chỉ cần sửa dữ liệu qua `RolesController` (đã hoạt động, có gọi `SaveChangesAsync`), không cần sửa code + build lại 14 service.
+- **`RoleDefinitions.cs` vẫn được giữ lại** (không xóa) — `src/Gateway/Ocelot.API/Authorization/GatewayAuthorizationMiddleware.cs` vẫn gọi trực tiếp để tính header `X-User-Permissions`. Header này thực chất là **dead weight đã có từ trước**: mọi service đọc permission từ JWT claim `"permission"` (qua `JwtClaimsUserContextService`), không đọc header Gateway forward — phát hiện này nằm ngoài phạm vi đợt tái cấu trúc, chưa xử lý.
+- **Guard test mới**: `tests/unit/ERP.Identity.UnitTests/Authorization/PermissionGuardTests.cs` — quét reflection mọi `[AuthorizePermission]`/`[AuthorizeAnyPermission]` trong assembly IdentityService, assert từng permission string tồn tại trong `PermissionConstants.GetAllPermissions()`. Chặn lại đúng lớp lỗi đã từng xảy ra ở Accounting/CRM/HRM (permission string dùng trong code nhưng thiếu hằng số → 403 âm thầm với mọi role kể cả SuperAdmin).
+- **Chưa làm (Phase 3, còn tồn đọng)**: Admin frontend (`src/frontend/admin`) hardcode 169 chuỗi permission literal rải rác ở 89 file, không dùng chung nguồn với backend — cần codegen từ `PermissionConstants.cs` sang 1 file TypeScript constants.
+- **Môi trường xác minh**: không có SQL Server chạy sẵn trong sandbox lúc thực hiện (không docker, không sqlcmd kết nối được) — migration 013 mới được kiểm tra bằng đối chiếu thủ công + script sinh tự động, **chưa chạy thử trên DB thật**. Xem `deployment/docker/README.md` (mới thêm) để bootstrap SQL Server qua Docker và chạy thử.

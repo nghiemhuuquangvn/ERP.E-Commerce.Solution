@@ -1,14 +1,14 @@
-using Asp.Versioning;
+﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.Settings;
 using ERP.Identity.Application.Interfaces.Services;
-using ERP.Identity.Application.Authorization;
 using ERP.Identity.Api.Authorization;
+using ERP.Shared.Authorization;
 
 namespace ERP.Identity.Api.Controllers
 {
-    /// <summary>Audit settings — System/Tenant tiers. Storage+CRUD only for now.</summary>
+    /// <summary>Audit settings â€” System/Tenant tiers. Storage+CRUD only for now.</summary>
     [ApiController]
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/settings/audit")]
@@ -25,8 +25,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("system")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(AuditSettingsPermissions.SystemView)]
+        [AuthorizePermission(PermissionConstants.Settings_Audit_SystemView)]
         public async Task<IActionResult> GetSystemSettings(CancellationToken ct = default)
         {
             var result = await _settingsService.GetSystemSettingsAsync(ct);
@@ -34,8 +33,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("system")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(AuditSettingsPermissions.SystemManage)]
+        [AuthorizePermission(PermissionConstants.Settings_Audit_SystemManage)]
         public async Task<IActionResult> UpdateSystemSettings([FromBody] UpdateSystemAuditSettingsRequest request, CancellationToken ct = default)
         {
             var result = await _settingsService.UpdateSystemSettingsAsync(request, ct);
@@ -43,8 +41,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("tenant/{tenantId}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(AuditSettingsPermissions.TenantView)]
+        [AuthorizePermission(PermissionConstants.Settings_Audit_TenantView)]
         public async Task<IActionResult> GetTenantSettings([FromRoute] Guid tenantId, CancellationToken ct = default)
         {
             if (!await CallerCanAccessTenantAsync(tenantId, ct))
@@ -55,8 +52,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("tenant/{tenantId}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(AuditSettingsPermissions.TenantManage)]
+        [AuthorizePermission(PermissionConstants.Settings_Audit_TenantManage)]
         public async Task<IActionResult> UpdateTenantSettings([FromRoute] Guid tenantId, [FromBody] UpdateTenantAuditSettingsRequest request, CancellationToken ct = default)
         {
             if (!await CallerCanAccessTenantAsync(tenantId, ct))
@@ -76,7 +72,7 @@ namespace ERP.Identity.Api.Controllers
             if (callerUserId is null || callerTenantId is null)
                 return false;
 
-            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { SettingsPermissions.SystemManage });
+            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { PermissionConstants.Settings_SystemManage });
         }
     }
 }

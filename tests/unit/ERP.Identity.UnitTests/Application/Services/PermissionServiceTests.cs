@@ -11,13 +11,16 @@ namespace ERP.Identity.UnitTests.Application.Services;
 
 public class PermissionServiceTests
 {
+    private readonly Mock<IUnitOfWork> _mockUnitOfWork;
     private readonly Mock<IPermissionRepository> _mockPermissionRepository;
     private readonly PermissionService _permissionService;
 
     public PermissionServiceTests()
     {
+        _mockUnitOfWork = new Mock<IUnitOfWork>();
         _mockPermissionRepository = new Mock<IPermissionRepository>();
-        _permissionService = new PermissionService(_mockPermissionRepository.Object);
+        _mockUnitOfWork.Setup(uow => uow.Permissions).Returns(_mockPermissionRepository.Object);
+        _permissionService = new PermissionService(_mockUnitOfWork.Object);
     }
 
     [Fact]
@@ -50,7 +53,7 @@ public class PermissionServiceTests
 
         _mockPermissionRepository.Setup(r => r.AddAsync(It.IsAny<Permission>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        _mockPermissionRepository.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
+        _mockUnitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
         // Act
@@ -60,6 +63,7 @@ public class PermissionServiceTests
         result.Should().NotBeNull();
         result.PermissionCode.Should().Be("view.reports");
         result.PermissionName.Should().Be("View Reports");
+        _mockUnitOfWork.Verify(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -76,7 +80,7 @@ public class PermissionServiceTests
             .ReturnsAsync(permission);
         _mockPermissionRepository.Setup(r => r.UpdateAsync(permission, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        _mockPermissionRepository.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
+        _mockUnitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
         // Act
@@ -85,6 +89,7 @@ public class PermissionServiceTests
         // Assert
         permission.PermissionName.Should().Be("View All Users");
         permission.Module.Should().Be("Users Management");
+        _mockUnitOfWork.Verify(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -99,7 +104,7 @@ public class PermissionServiceTests
             .ReturnsAsync(permission);
         _mockPermissionRepository.Setup(r => r.DeleteAsync(permission, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        _mockPermissionRepository.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
+        _mockUnitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
         // Act
@@ -107,5 +112,6 @@ public class PermissionServiceTests
 
         // Assert
         _mockPermissionRepository.Verify(r => r.DeleteAsync(permission, It.IsAny<CancellationToken>()), Times.Once);
+        _mockUnitOfWork.Verify(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }

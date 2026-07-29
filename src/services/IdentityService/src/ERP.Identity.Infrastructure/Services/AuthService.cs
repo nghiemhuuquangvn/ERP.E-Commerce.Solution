@@ -17,7 +17,6 @@ using ERP.Identity.Domain.Constants;
 using ERP.Identity.Application.Interfaces.Mapping;
 using ERP.Shared.Infrastructure.Exceptions;
 using ERP.Identity.Infrastructure.Security;
-using ERP.Shared.Authorization;
 
 namespace ERP.Identity.Infrastructure.Services
 {
@@ -79,19 +78,21 @@ namespace ERP.Identity.Infrastructure.Services
             string? platform = null, string? ipAddress = null, string? userAgent = null)
         {
             var roles = await _unitOfWork.Roles.GetRolesAsync(user.Id, tenant.Id, ct);
-            var permissions = await _unitOfWork.Permissions.GetPermissionAsync(user.Id, tenant.Id, ct);
 
-            // The business services (SalesOrder, PurchaseOrder, Accounting, ...) check
-            // UserContext.HasPermission against ERP.Shared.Authorization.RoleDefinitions'
-            // codes (e.g. "sales_order:read"), not IdentityService's own fine-grained
-            // AuthDB permission codes (e.g. "users:manage") — two separate permission
-            // vocabularies. Before the JWT-claims migration, the Gateway forwarded a
-            // header computed from RoleDefinitions and every downstream service trusted
-            // it; now that services validate the JWT directly, that header is never
-            // consulted, so business-service permission checks need this vocabulary
-            // baked into the token too, or they reject every request regardless of role.
-            var permissionSet = permissions
-                .Concat(RoleDefinitions.GetPermissionsForRoles(roles.ToArray()))
+            // Single source of truth as of the 2026-07-29 permission-architecture
+            // consolidation: AuthDB's RolePermissions table now holds every permission
+            // code — both IdentityService's own (identity:*/security:*/settings:*/
+            // license:*) and the ~230 business-domain codes (crm:*, sales_order:*,
+            // payments:*, ...) the other 13 services check via [AuthorizePermission(...)].
+            // Those business codes used to exist ONLY as a hardcoded static dictionary
+            // (ERP.Shared.Authorization.RoleDefinitions), unioned in here at every login —
+            // changing what a role could do required a code change + redeploy of every
+            // service referencing the Shared library. Migration
+            // src/Database/Identity/013_SeedRoleDefinitionsIntoRolePermissions.sql seeded
+            // RolePermissions with that dictionary's exact grants (by RoleCode, across
+            // every tenant) so this DB lookup alone reproduces the same permission set —
+            // RoleDefinitions.cs is no longer read at runtime, only by that one-time seed.
+            var permissionSet = (await _unitOfWork.Permissions.GetPermissionAsync(user.Id, tenant.Id, ct))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 

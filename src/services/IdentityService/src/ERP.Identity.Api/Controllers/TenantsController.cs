@@ -1,10 +1,10 @@
-using Asp.Versioning;
+﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.Tenant;
 using ERP.Identity.Application.Interfaces.Services;
-using ERP.Identity.Application.Authorization;
 using ERP.Identity.Api.Authorization;
+using ERP.Shared.Authorization;
 
 namespace ERP.Identity.Api.Controllers
 {
@@ -22,8 +22,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ViewTenants)]
+        [AuthorizePermission(PermissionConstants.Identity_TenantsView)]
         public async Task<IActionResult> List(CancellationToken ct = default)
         {
             var tenants = await _tenantService.ListAllAsync(ct);
@@ -31,8 +30,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("{id}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ViewTenants)]
+        [AuthorizePermission(PermissionConstants.Identity_TenantsView)]
         public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken ct = default)
         {
             var tenant = await _tenantService.GetByIdAsync(id, ct);
@@ -42,8 +40,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.CreateTenants)]
+        [AuthorizePermission(PermissionConstants.Identity_TenantsCreate)]
         public async Task<IActionResult> Create([FromBody] CreateTenantRequest request, CancellationToken ct = default)
         {
             var tenant = await _tenantService.CreateAsync(request, ct);
@@ -51,8 +48,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.EditTenants)]
+        [AuthorizePermission(PermissionConstants.Identity_TenantsEdit)]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateTenantRequest request, CancellationToken ct = default)
         {
             await _tenantService.UpdateAsync(id, request, ct);
@@ -60,8 +56,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{id}/activate")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ManageTenants)]
+        [AuthorizePermission(PermissionConstants.Identity_TenantsManage)]
         public async Task<IActionResult> Activate([FromRoute] Guid id, CancellationToken ct = default)
         {
             await _tenantService.ActivateAsync(id, ct);
@@ -69,8 +64,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{id}/deactivate")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ManageTenants)]
+        [AuthorizePermission(PermissionConstants.Identity_TenantsManage)]
         public async Task<IActionResult> Deactivate([FromRoute] Guid id, CancellationToken ct = default)
         {
             await _tenantService.DeactivateAsync(id, ct);

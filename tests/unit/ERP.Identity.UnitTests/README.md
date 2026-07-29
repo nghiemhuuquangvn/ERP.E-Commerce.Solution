@@ -20,13 +20,17 @@ ERP.Identity.UnitTests/
 │   │   └── TenantServiceTests.cs
 │   └── DTOs/                     # DTO validation tests
 │       └── DTOTests.cs
-└── Api/
-    └── Controllers/              # API controller tests
-        ├── AuthControllerTests.cs
-        ├── UsersControllerTests.cs
-        ├── RolesControllerTests.cs
-        ├── PermissionsControllerTests.cs
-        └── TenantsControllerTests.cs
+├── Api/
+│   └── Controllers/              # API controller tests
+│       ├── AuthControllerTests.cs
+│       ├── UsersControllerTests.cs
+│       ├── RolesControllerTests.cs
+│       ├── PermissionsControllerTests.cs
+│       └── TenantsControllerTests.cs
+└── Authorization/
+    └── PermissionGuardTests.cs   # Reflection guard: every [RequirePermission]/
+                                  # [AuthorizePermission] literal must exist in
+                                  # ERP.Shared.Authorization.PermissionConstants
 ```
 
 ## Running Tests

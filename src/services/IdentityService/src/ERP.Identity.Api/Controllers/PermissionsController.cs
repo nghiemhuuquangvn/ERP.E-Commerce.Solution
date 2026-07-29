@@ -1,10 +1,10 @@
-using Asp.Versioning;
+﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.Permission;
 using ERP.Identity.Application.Interfaces.Services;
-using ERP.Identity.Application.Authorization;
 using ERP.Identity.Api.Authorization;
+using ERP.Shared.Authorization;
 
 namespace ERP.Identity.Api.Controllers
 {
@@ -22,8 +22,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ViewPermissions)]
+        [AuthorizePermission(PermissionConstants.Identity_PermissionsView)]
         public async Task<IActionResult> List(CancellationToken ct = default)
         {
             var permissions = await _permissionService.ListAllAsync(ct);
@@ -31,8 +30,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ManagePermissions)]
+        [AuthorizePermission(PermissionConstants.Identity_PermissionsManage)]
         public async Task<IActionResult> Create([FromBody] CreatePermissionRequest request, CancellationToken ct = default)
         {
             var permission = await _permissionService.CreateAsync(request, ct);
@@ -40,8 +38,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ManagePermissions)]
+        [AuthorizePermission(PermissionConstants.Identity_PermissionsManage)]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdatePermissionRequest request, CancellationToken ct = default)
         {
             await _permissionService.UpdateAsync(id, request, ct);
@@ -49,8 +46,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ManagePermissions)]
+        [AuthorizePermission(PermissionConstants.Identity_PermissionsManage)]
         public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken ct = default)
         {
             await _permissionService.DeleteAsync(id, ct);

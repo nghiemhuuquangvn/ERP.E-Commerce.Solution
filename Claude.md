@@ -91,8 +91,13 @@ docs/
 
 deployment/
     docker/
-        docker-compose.yml             (All 14 services + infrastructure)
-        Dockerfile                     (Per service)
+        README.md                      (How to run the whole platform via Docker —
+                                         no host-installed SQL Server needed)
+        run-migrations.sh              (Applies every service's SQL migration against
+                                         the "sqlserver" container; used by db-migrate)
+
+    (docker-compose.yml and the shared Dockerfile actually live at the repo root,
+    not under deployment/docker/ — their build contexts are relative to repo root)
 
     k8s/
         configmap.yaml

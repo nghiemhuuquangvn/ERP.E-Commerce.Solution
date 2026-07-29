@@ -32,6 +32,7 @@ $DatabaseScripts = @(
     "Identity\010_AddPhase3FixedSettingsCategories.sql",
     "Identity\011_AddFeatureFlags.sql",
     "Identity\012_AddLicenseManagement.sql",
+    "Identity\013_SeedRoleDefinitionsIntoRolePermissions.sql",
 
     # Cross-cutting master data (Department/Position/Employee/UoM/Geography/Language —
     # seed before HRM, which now references Employees/Departments here instead of owning them)

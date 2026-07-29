@@ -1,10 +1,10 @@
-using Asp.Versioning;
+﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.License;
 using ERP.Identity.Application.Interfaces.Services;
-using ERP.Identity.Application.Authorization;
 using ERP.Identity.Api.Authorization;
+using ERP.Shared.Authorization;
 
 namespace ERP.Identity.Api.Controllers
 {
@@ -34,8 +34,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("{moduleCode}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(LicensePermissions.ModulesManage)]
+        [AuthorizePermission(PermissionConstants.License_ModulesManage)]
         public async Task<IActionResult> UpsertModule([FromRoute] string moduleCode, [FromBody] UpsertModuleRequest request, CancellationToken ct = default)
         {
             var result = await _licenseService.UpsertModuleAsync(moduleCode, request, ct);

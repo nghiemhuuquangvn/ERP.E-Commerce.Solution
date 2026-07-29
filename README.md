@@ -42,9 +42,10 @@ A comprehensive .NET 10 microservices-based ERP platform designed for enterprise
 
 ### Prerequisites
 
-- .NET 10 SDK
-- SQL Server 2019 or later
-- Docker & Docker Compose
+- .NET 10 SDK (only needed for local, non-Docker development)
+- Docker & Docker Compose — this is now the **only** requirement to run the
+  full platform; SQL Server runs in a container too, nothing needs to be
+  installed on the host (see 2026-07-29 note below)
 - Git
 
 ### Quick Start
@@ -55,29 +56,33 @@ A comprehensive .NET 10 microservices-based ERP platform designed for enterprise
    cd ERP.E-Commerce.Solution
    ```
 
-2. **Set up databases**
-   - Identity Database
-   - Sales Database
-   - Purchasing Database
-   - Warehouse Database
-
-3. **Configure message brokers**
-   - RabbitMQ (port 5672)
-   - Kafka (port 9092)
-
-4. **Run services**
+2. **Run everything**
    ```bash
    # One-time: copy .env.example to .env and set SA_PASSWORD / RABBITMQ_PASSWORD /
    # JWT_SIGNING_KEY (docker-compose.yml reads secrets from .env, which is gitignored)
    cp .env.example .env
 
-   docker-compose up -d
+   docker compose up --build -d
+   docker compose logs -f db-migrate   # watch schema + seed migrations apply, then Ctrl+C
    ```
+   No separate SQL Server / RabbitMQ / Kafka install needed — `sqlserver`,
+   `rabbitmq`, and `kafka` all run as containers, and the one-shot `db-migrate`
+   service creates every database and applies every service's SQL migration
+   file automatically before any service starts. See
+   [deployment/docker/README.md](deployment/docker/README.md) for details,
+   troubleshooting, and how to re-run migrations later.
 
-5. **Access API Gateway**
+3. **Access API Gateway**
    - Gateway URL: http://localhost:5000
 
 For detailed setup instructions, see [Setup Guide](docs/architecture/setup-guide.md).
+
+> **2026-07-29**: `docker-compose.yml` previously assumed a SQL Server instance
+> already running on the host machine (`host.docker.internal:1433`), which is
+> why this repo couldn't be spun up on a fresh machine with only Docker
+> installed. A `sqlserver` container + `db-migrate` one-shot migration runner
+> were added to close that gap — see
+> [deployment/docker/README.md](deployment/docker/README.md).
 
 ## Project Structure
 

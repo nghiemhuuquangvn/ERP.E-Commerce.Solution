@@ -1,15 +1,15 @@
-using Asp.Versioning;
+﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.Settings;
 using ERP.Identity.Application.Interfaces.Services;
-using ERP.Identity.Application.Authorization;
 using ERP.Identity.Api.Authorization;
+using ERP.Shared.Authorization;
 
 namespace ERP.Identity.Api.Controllers
 {
     /// <summary>
-    /// General settings — System (platform-wide) and Tenant (per-company) tiers,
+    /// General settings â€” System (platform-wide) and Tenant (per-company) tiers,
     /// mirroring SettingsController's Auth Settings pattern. Storage+CRUD only for now.
     /// </summary>
     [ApiController]
@@ -28,8 +28,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("system")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(GeneralSettingsPermissions.SystemView)]
+        [AuthorizePermission(PermissionConstants.Settings_General_SystemView)]
         public async Task<IActionResult> GetSystemSettings(CancellationToken ct = default)
         {
             var result = await _settingsService.GetSystemSettingsAsync(ct);
@@ -37,8 +36,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("system")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(GeneralSettingsPermissions.SystemManage)]
+        [AuthorizePermission(PermissionConstants.Settings_General_SystemManage)]
         public async Task<IActionResult> UpdateSystemSettings([FromBody] UpdateSystemGeneralSettingsRequest request, CancellationToken ct = default)
         {
             var result = await _settingsService.UpdateSystemSettingsAsync(request, ct);
@@ -46,8 +44,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("tenant/{tenantId}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(GeneralSettingsPermissions.TenantView)]
+        [AuthorizePermission(PermissionConstants.Settings_General_TenantView)]
         public async Task<IActionResult> GetTenantSettings([FromRoute] Guid tenantId, CancellationToken ct = default)
         {
             if (!await CallerCanAccessTenantAsync(tenantId, ct))
@@ -58,8 +55,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("tenant/{tenantId}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(GeneralSettingsPermissions.TenantManage)]
+        [AuthorizePermission(PermissionConstants.Settings_General_TenantManage)]
         public async Task<IActionResult> UpdateTenantSettings([FromRoute] Guid tenantId, [FromBody] UpdateTenantGeneralSettingsRequest request, CancellationToken ct = default)
         {
             if (!await CallerCanAccessTenantAsync(tenantId, ct))
@@ -72,7 +68,7 @@ namespace ERP.Identity.Api.Controllers
         /// <summary>
         /// A caller may only manage a tenant's settings if the route tenantId matches their
         /// own JWT tenant_id claim, unless they also hold settings:system:manage (the same
-        /// platform-SuperAdmin override SettingsController's Auth Settings already uses —
+        /// platform-SuperAdmin override SettingsController's Auth Settings already uses â€”
         /// deliberately not a General-specific override, so one SuperAdmin permission
         /// covers cross-tenant access to every settings category).
         /// </summary>
@@ -86,7 +82,7 @@ namespace ERP.Identity.Api.Controllers
             if (callerUserId is null || callerTenantId is null)
                 return false;
 
-            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { SettingsPermissions.SystemManage });
+            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { PermissionConstants.Settings_SystemManage });
         }
     }
 }

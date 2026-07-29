@@ -1,6 +1,5 @@
 using ERP.Identity.Api.Authorization;
 using ERP.Identity.Application;
-using ERP.Identity.Application.Authorization;
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Infrastructure;
@@ -83,8 +82,9 @@ builder.Services.AddAuthentication("Bearer")
         // Without this, ASP.NET Core's default inbound claim map silently renames
         // "sub"/"email" to the legacy ClaimTypes.* URIs, so bare
         // HttpContext.User.FindFirst("sub") calls (ControllerTenantExtensions,
-        // PermissionAuthorizationHandler, several controllers) return null even for a
-        // valid token. Off so claim types match TokenService's literal claim strings.
+        // AuthorizePermissionAttribute's IUserContextService, several controllers) return
+        // null even for a valid token. Off so claim types match TokenService's literal
+        // claim strings.
         options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -120,11 +120,11 @@ builder.Services.AddAuthentication("Bearer")
         };
     });
 
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("Permission", policy =>
-        policy.Requirements.Add(new PermissionRequirement()));
-});
+// Fine-grained permission checks are handled by ERP.Shared.Authorization's
+// [AuthorizePermission(...)] action filter (claims-based, no DB round trip) — the
+// same mechanism the other 13 services use. AddAuthorization() is still required so
+// bare [Authorize] (self-service endpoints with no specific permission) keeps working.
+builder.Services.AddAuthorization();
 
 builder.Services.AddHealthChecks();
 

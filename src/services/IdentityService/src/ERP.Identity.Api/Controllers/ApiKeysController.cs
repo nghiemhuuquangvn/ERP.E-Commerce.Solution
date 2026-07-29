@@ -1,15 +1,15 @@
-using Asp.Versioning;
+﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.Security;
 using ERP.Identity.Application.Interfaces.Services;
-using ERP.Identity.Application.Authorization;
 using ERP.Identity.Api.Authorization;
+using ERP.Shared.Authorization;
 
 namespace ERP.Identity.Api.Controllers
 {
     /// <summary>
-    /// Management for service-to-service API keys — the "API Key management" gap
+    /// Management for service-to-service API keys â€” the "API Key management" gap
     /// from the business-analysis doc. The raw key is only ever returned once, in
     /// the Create response; wiring individual services' gateway routes to accept
     /// one (instead of/alongside a user Bearer token) is a separate, per-service
@@ -31,8 +31,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ManageApiKeys)]
+        [AuthorizePermission(PermissionConstants.Security_ApiKeysManage)]
         public async Task<IActionResult> Create([FromBody] CreateApiKeyRequest request, CancellationToken ct = default)
         {
             var parsedTenantId = this.GetCallerTenantId();
@@ -45,8 +44,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ViewApiKeys)]
+        [AuthorizePermission(PermissionConstants.Security_ApiKeysView)]
         public async Task<IActionResult> List(CancellationToken ct = default)
         {
             var tenantId = User.FindFirst("tenant_id")?.Value;
@@ -58,8 +56,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{id:guid}/revoke")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ManageApiKeys)]
+        [AuthorizePermission(PermissionConstants.Security_ApiKeysManage)]
         public async Task<IActionResult> Revoke([FromRoute] Guid id, CancellationToken ct = default)
         {
             var callerTenantId = this.GetCallerTenantId();
@@ -68,7 +65,7 @@ namespace ERP.Identity.Api.Controllers
                 return Unauthorized();
 
             var bypassTenantCheck = await _permissionService.HasPermissionAsync(
-                callerUserId.Value, callerTenantId.Value, new[] { SettingsPermissions.SystemManage });
+                callerUserId.Value, callerTenantId.Value, new[] { PermissionConstants.Settings_SystemManage });
 
             try
             {

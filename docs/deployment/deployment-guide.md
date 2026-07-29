@@ -25,15 +25,23 @@
 | Tool | Version | Install |
 |------|---------|---------|
 | Docker Desktop | 4.30+ | https://www.docker.com/products/docker-desktop |
-| .NET SDK | 10.0 | https://dotnet.microsoft.com/download |
-| SQL Server | 2022 | Running on host, port 1433 |
+| .NET SDK | 10.0 | https://dotnet.microsoft.com/download (only for local, non-Docker dev) |
+| SQL Server | 2022 | **Not required as a separate install** if using Docker Compose — see 2026-07-29 note below. Only install on host if running services outside Docker. |
 | kubectl | 1.30+ | Bundled with Docker Desktop |
 | Node.js | 20 LTS | https://nodejs.org (for frontend dev only) |
+
+> **2026-07-29**: `docker-compose.yml` now runs SQL Server as a `sqlserver`
+> container (`sqlserver,1433` inside the compose network) with a one-shot
+> `db-migrate` service that bootstraps every database automatically — see
+> [deployment/docker/README.md](../../deployment/docker/README.md). The
+> `host.docker.internal,1433` / host-installed-SQL-Server setup below only
+> applies if you're running services **outside** Docker Compose (e.g. `dotnet
+> run` locally against a host SQL Server instance).
 
 ### SQL Server Credentials
 
 ```
-Server: localhost,1433  (or host.docker.internal,1433 from containers)
+Server: localhost,1433  (or sqlserver,1433 from inside the Docker Compose network)
 Username: sa
 Password: <your own SA password — see .env below, not a fixed system credential>
 ```
@@ -57,12 +65,27 @@ for `SA_PASSWORD`, `RABBITMQ_PASSWORD`, `JWT_SIGNING_KEY` before running anythin
 
 ## 2. Database Setup
 
+**Using Docker Compose (recommended)**: skip this section — the `db-migrate`
+service in §3 does this automatically against the `sqlserver` container. Only
+follow the manual steps below if running services outside Docker against a
+host-installed SQL Server.
+
 Run the SQL setup script from the repository root. It creates all 15 databases and the SuperAdmin user:
 
 ```powershell
 cd d:\Documents\ERP\Sources\ERP.E-Commerce.Solution
 .\src\Database\RunAllScripts.ps1
 ```
+
+> **Known gap (found 2026-07-29)**: this script's hand-maintained file list has
+> drifted — it's missing 16 real migration files that exist on disk across
+> CRM, HRM, MasterData, Product, Purchasing, Reporting, Sales, and Warehouse
+> (including `Reporting/002_AddMissingEntityColumns.sql`, which has its own
+> confirmed index bug — see
+> `docs/architecture/database-performance-indexing-review.md` §5). If you use
+> this script directly, your schema will be incomplete; the Docker Compose path
+> (`deployment/docker/run-migrations.sh`) globs every `*.sql` file per service
+> folder instead and does not have this gap.
 
 ### Manual verification
 
@@ -101,6 +124,10 @@ copy .env.example .env
 # First run — builds all images (~10-15 min)
 docker compose up --build -d
 
+# Watch schema + seed migrations apply (one-shot "db-migrate" service) — every
+# DB-owning service waits for this to exit 0 before it starts
+docker compose logs -f db-migrate
+
 # Subsequent runs (no code changes)
 docker compose up -d
 ```
@@ -111,7 +138,10 @@ docker compose up -d
 docker compose ps
 ```
 
-Expected: all services show `Up` or `Up (healthy)`. Infrastructure services (RabbitMQ, Kafka, Redis, Elasticsearch) must be healthy before backend services finish starting.
+Expected: all services show `Up` or `Up (healthy)`; `db-migrate` shows `Exited (0)`
+(it's a one-shot job, not a long-running service — that's success, not a crash).
+Infrastructure services (SQL Server, RabbitMQ, Kafka, Redis, Elasticsearch) must be
+healthy, and `db-migrate` must have exited 0, before backend services finish starting.
 
 ### 3.3 View logs
 
@@ -617,11 +647,17 @@ docker compose logs notification-service --tail=20
 
 Symptom: Service exits immediately, logs show `SqlException: A network-related error`.
 
-Fix:
+Fix (Docker Compose — `sqlserver` container):
+1. Confirm the `sqlserver` container is healthy: `docker compose ps sqlserver` (should show `Up (healthy)`)
+2. Confirm `db-migrate` exited 0, not still running/failed: `docker compose logs db-migrate | tail -20`
+3. If `sqlserver` never becomes healthy, check its own logs: `docker compose logs sqlserver`
+4. Confirm the database exists: `docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$SA_PASSWORD" -C -Q "SELECT name FROM sys.databases"`
+
+Fix (running a service outside Docker, against a host-installed SQL Server):
 1. Confirm SQL Server is running on host: `Test-NetConnection -ComputerName localhost -Port 1433`
-2. Confirm `host.docker.internal` resolves inside container: `docker exec -it erp-identity-service ping host.docker.internal`
+2. Confirm `host.docker.internal` resolves inside container (only relevant if you reverted to the old host-based connection strings): `docker exec -it erp-identity-service ping host.docker.internal`
 3. Ensure SQL Server accepts TCP connections (SQL Server Configuration Manager → TCP/IP → Enabled)
-4. Confirm the database exists: run `RunAllScripts.ps1`
+4. Confirm the database exists: run `RunAllScripts.ps1` (note its known gaps, §2 above)
 
 ### RabbitMQ consumer not receiving messages
 

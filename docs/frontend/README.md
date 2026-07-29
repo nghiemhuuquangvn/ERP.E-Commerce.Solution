@@ -93,10 +93,17 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
 - Tenant selector on both pages only renders for callers holding
   `identity:tenants:view` (re-verified server-side against the DB, never trusted from
   the JWT alone) — everyone else only ever sees their own tenant's data.
-- `permissions.api.ts` is deliberately **list-only** — `PermissionsController`'s
-  Create/Update/Delete never persist (a known backend bug, not yet fixed), so the
-  frontend ships a read-only permission catalog instead of CRUD against a broken
-  endpoint.
+- `permissions.api.ts` is deliberately **list-only**. Historically this was because
+  `PermissionsController`'s Create/Update/Delete never persisted (`PermissionService`
+  didn't call `SaveChangesAsync`) — that bug was fixed 2026-07-29 as part of the
+  permission-architecture consolidation (see
+  `docs/business/Identity/module-02-identity-security.md` §12), so the endpoints now
+  work. The frontend still ships read-only because the ~244-entry permission catalog
+  (`ERP.Shared.Authorization.PermissionConstants`) is meant to be a fixed vocabulary
+  every service's `[AuthorizePermission(...)]` compiles against — freely adding new
+  codes via this UI without a matching code change elsewhere would just create
+  permissions nothing ever checks. Wiring real Create/Update UI here is a product
+  decision, not just an unblocked bug.
 
 ## Conventions that apply to all 4 apps
 

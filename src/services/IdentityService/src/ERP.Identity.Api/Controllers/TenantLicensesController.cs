@@ -1,20 +1,20 @@
-using Asp.Versioning;
+﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.License;
 using ERP.Identity.Application.Interfaces.Services;
-using ERP.Identity.Application.Authorization;
 using ERP.Identity.Api.Authorization;
+using ERP.Shared.Authorization;
 
 namespace ERP.Identity.Api.Controllers
 {
     /// <summary>
-    /// Per-tenant license lifecycle (issue/renew/suspend/revoke), commercially controlled —
+    /// Per-tenant license lifecycle (issue/renew/suspend/revoke), commercially controlled â€”
     /// deliberately NOT a self-service Settings category. GET follows the usual "own tenant
     /// OR SystemManage override" rule (FeatureFlagsController/SecurityController pattern) so
     /// a tenant Admin can see their own license read-only. The lifecycle actions are
     /// SuperAdmin-only in practice: the migration grants license:tenant:issue to the
-    /// SuperAdmin role alone, and — unlike every other Settings category — even a caller
+    /// SuperAdmin role alone, and â€” unlike every other Settings category â€” even a caller
     /// who somehow holds that permission for their OWN tenant is still rejected unless they
     /// also hold the cross-tenant SystemManage override, i.e. there is no same-tenant
     /// self-service shortcut here at all.
@@ -35,8 +35,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("{tenantId}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(LicensePermissions.TenantView)]
+        [AuthorizePermission(PermissionConstants.License_TenantView)]
         public async Task<IActionResult> GetTenantLicense([FromRoute] Guid tenantId, CancellationToken ct = default)
         {
             if (!await CallerCanAccessTenantAsync(tenantId, ct))
@@ -47,8 +46,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{tenantId}/issue")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(LicensePermissions.TenantIssue)]
+        [AuthorizePermission(PermissionConstants.License_TenantIssue)]
         public async Task<IActionResult> IssueLicense([FromRoute] Guid tenantId, [FromBody] IssueLicenseRequest request, CancellationToken ct = default)
         {
             if (!await CallerHasSystemOverrideAsync(ct))
@@ -63,8 +61,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{tenantId}/renew")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(LicensePermissions.TenantIssue)]
+        [AuthorizePermission(PermissionConstants.License_TenantIssue)]
         public async Task<IActionResult> RenewLicense([FromRoute] Guid tenantId, [FromBody] RenewLicenseRequest request, CancellationToken ct = default)
         {
             if (!await CallerHasSystemOverrideAsync(ct))
@@ -75,8 +72,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{tenantId}/suspend")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(LicensePermissions.TenantIssue)]
+        [AuthorizePermission(PermissionConstants.License_TenantIssue)]
         public async Task<IActionResult> SuspendLicense([FromRoute] Guid tenantId, CancellationToken ct = default)
         {
             if (!await CallerHasSystemOverrideAsync(ct))
@@ -87,8 +83,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{tenantId}/revoke")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(LicensePermissions.TenantIssue)]
+        [AuthorizePermission(PermissionConstants.License_TenantIssue)]
         public async Task<IActionResult> RevokeLicense([FromRoute] Guid tenantId, CancellationToken ct = default)
         {
             if (!await CallerHasSystemOverrideAsync(ct))
@@ -114,7 +109,7 @@ namespace ERP.Identity.Api.Controllers
             if (callerUserId is null || callerTenantId is null)
                 return false;
 
-            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { SettingsPermissions.SystemManage });
+            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { PermissionConstants.Settings_SystemManage });
         }
     }
 }

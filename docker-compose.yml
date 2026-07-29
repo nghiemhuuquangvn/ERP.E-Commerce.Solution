@@ -2,16 +2,65 @@ version: '3.9'
 
 # ════════════════════════════════════════════════════════════════════════════════
 # ERP E-Commerce Platform — Full Docker Compose
-# SQL Server: host machine (host.docker.internal:1433)  sa / ${SA_PASSWORD}
+# SQL Server: "sqlserver" container below (self-contained — no host-installed SQL
+#             Server needed). sa / ${SA_PASSWORD}. "db-migrate" applies every
+#             service's src/Database/**/*.sql migration file once sqlserver is
+#             healthy — see deployment/docker/README.md.
 # Domains  : erp.local | shop.erp.local | api.erp.local | rabbit.erp.local | kafka.erp.local
 # Run      : docker compose up --build -d
 # ════════════════════════════════════════════════════════════════════════════════
 
-x-sql-base: &sql-base "Server=host.docker.internal,1433;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=True"
+x-sql-base: &sql-base "Server=sqlserver,1433;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=True"
 
 services:
 
   # ── Infrastructure ─────────────────────────────────────────────────────────
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: erp-sqlserver
+    hostname: sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD}
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    restart: unless-stopped
+    networks:
+      - erp-network
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${SA_PASSWORD}", "-C", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # One-shot: applies deployment/sql/init-databases.sql + every service's
+  # src/Database/{Service}/*.sql migration (numeric filename order) against
+  # "sqlserver" using its own bundled sqlcmd, then exits. Re-run anytime with
+  # `docker compose up db-migrate` -- every migration file here is written
+  # idempotent (IF NOT EXISTS guards), matching this repo's own migration
+  # governance convention (see docs/architecture/database-performance-indexing-review.md §9).
+  db-migrate:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: erp-db-migrate
+    entrypoint: ["/bin/bash", "/migrations/run-migrations.sh"]
+    environment:
+      SA_PASSWORD: ${SA_PASSWORD}
+      SQL_HOST: sqlserver
+    volumes:
+      - ./deployment/sql:/migrations/init:ro
+      - ./src/Database:/migrations/database:ro
+      - ./deployment/docker/run-migrations.sh:/migrations/run-migrations.sh:ro
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - erp-network
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
@@ -167,7 +216,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5001"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__AuthDB: "Server=host.docker.internal,1433;Database=AuthDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__AuthDB: "Server=sqlserver,1433;Database=AuthDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "identity"
@@ -175,9 +224,9 @@ services:
       Jwt__Key: "${JWT_SIGNING_KEY}"
       Jwt__Expired: "60"
       Jwt__RefreshTokenExpirationDays: "7"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       kafka:
@@ -201,7 +250,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5002"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__SalesDb: "Server=host.docker.internal,1433;Database=SalesDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__SalesDb: "Server=sqlserver,1433;Database=SalesDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "so"
@@ -211,9 +260,9 @@ services:
       RabbitMQ__UserName: admin
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -237,7 +286,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5003"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__PurchasingDb: "Server=host.docker.internal,1433;Database=PurchasingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__PurchasingDb: "Server=sqlserver,1433;Database=PurchasingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "po"
@@ -247,9 +296,9 @@ services:
       RabbitMQ__UserName: admin
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -273,7 +322,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5004"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__WarehouseDB: "Server=host.docker.internal,1433;Database=WarehouseDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__WarehouseDB: "Server=sqlserver,1433;Database=WarehouseDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "wh"
@@ -283,9 +332,9 @@ services:
       RabbitMQ__UserName: admin
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -309,7 +358,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5005"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__AccountingDB: "Server=host.docker.internal,1433;Database=AccountingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__AccountingDB: "Server=sqlserver,1433;Database=AccountingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "acc"
@@ -319,9 +368,9 @@ services:
       RabbitMQ__UserName: admin
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -345,7 +394,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5006"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__CrmDB: "Server=host.docker.internal,1433;Database=CrmDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__CrmDB: "Server=sqlserver,1433;Database=CrmDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "crm"
@@ -355,9 +404,9 @@ services:
       RabbitMQ__UserName: admin
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -381,15 +430,15 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5007"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__HrmDB: "Server=host.docker.internal,1433;Database=HrmDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__HrmDB: "Server=sqlserver,1433;Database=HrmDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "hrm"
       Jwt__Key: "${JWT_SIGNING_KEY}"
       KafkaSettings__BootstrapServers: kafka:9092
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       kafka:
@@ -413,15 +462,15 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5015"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__MasterDataDb: "Server=host.docker.internal,1433;Database=MasterDataDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__MasterDataDb: "Server=sqlserver,1433;Database=MasterDataDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "mst"
       Jwt__Key: "${JWT_SIGNING_KEY}"
       KafkaSettings__BootstrapServers: kafka:9092
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       redis:
@@ -472,7 +521,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5008"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__ProductDB: "Server=host.docker.internal,1433;Database=ProductDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__ProductDB: "Server=sqlserver,1433;Database=ProductDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "prd"
@@ -483,9 +532,9 @@ services:
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
       Elasticsearch__Uri: http://elasticsearch:9200
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       elasticsearch:
         condition: service_healthy
       redis:
@@ -511,7 +560,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5009"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__PaymentDb: "Server=host.docker.internal,1433;Database=PaymentDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__PaymentDb: "Server=sqlserver,1433;Database=PaymentDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "pay"
@@ -521,9 +570,9 @@ services:
       RabbitMQ__UserName: admin
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -547,7 +596,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5010"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__ShippingDb: "Server=host.docker.internal,1433;Database=ShippingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__ShippingDb: "Server=sqlserver,1433;Database=ShippingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "shp"
@@ -557,9 +606,9 @@ services:
       RabbitMQ__UserName: admin
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -583,7 +632,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5011"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__PosDb: "Server=host.docker.internal,1433;Database=PosDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__PosDb: "Server=sqlserver,1433;Database=PosDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "pos"
@@ -593,9 +642,9 @@ services:
       RabbitMQ__UserName: admin
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -619,7 +668,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5012"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__PromotionDb: "Server=host.docker.internal,1433;Database=PromotionDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__PromotionDb: "Server=sqlserver,1433;Database=PromotionDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "prm"
@@ -629,9 +678,9 @@ services:
       RabbitMQ__UserName: admin
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -655,7 +704,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5013"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__NotificationDb: "Server=host.docker.internal,1433;Database=NotificationDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__NotificationDb: "Server=sqlserver,1433;Database=NotificationDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "ntf"
@@ -665,9 +714,9 @@ services:
       RabbitMQ__UserName: admin
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -693,7 +742,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5014"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__ReportingDb: "Server=host.docker.internal,1433;Database=ReportingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__ReportingDb: "Server=sqlserver,1433;Database=ReportingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "rpt"
@@ -703,9 +752,9 @@ services:
       RabbitMQ__UserName: admin
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
+      db-migrate:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       rabbitmq:
@@ -768,6 +817,8 @@ services:
 # ── Volumes & Networks ────────────────────────────────────────────────────────
 
 volumes:
+  sqlserver_data:
+    driver: local
   rabbitmq_data:
     driver: local
   kafka_data:

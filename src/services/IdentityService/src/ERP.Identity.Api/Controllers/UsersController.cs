@@ -1,11 +1,11 @@
-using Asp.Versioning;
+﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.Auth;
 using ERP.Identity.Application.DTOs.Permission;
 using ERP.Identity.Application.Interfaces.Services;
-using ERP.Identity.Application.Authorization;
 using ERP.Identity.Api.Authorization;
+using ERP.Shared.Authorization;
 
 namespace ERP.Identity.Api.Controllers
 {
@@ -29,8 +29,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ViewUsers)]
+        [AuthorizePermission(PermissionConstants.Identity_UsersView)]
         public async Task<IActionResult> List([FromQuery] Guid? tenantId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
         {
             var callerTenantId = this.GetCallerTenantId();
@@ -41,7 +40,7 @@ namespace ERP.Identity.Api.Controllers
 
             if (tenantId.HasValue && tenantId.Value != callerTenantId.Value)
             {
-                // Cross-tenant override — only for callers who also hold identity:tenants:view,
+                // Cross-tenant override â€” only for callers who also hold identity:tenants:view,
                 // re-verified against the DB (not trusted from JWT claims) via the same gate
                 // TenantsController.List uses. This is what makes a real SuperAdmin
                 // cross-tenant view legitimate without reopening this for everyone else.
@@ -50,7 +49,7 @@ namespace ERP.Identity.Api.Controllers
                     return Unauthorized();
 
                 var canCrossTenant = await _permissionService.HasPermissionAsync(
-                    callerUserId.Value, callerTenantId.Value, new[] { Permissions.ViewTenants });
+                    callerUserId.Value, callerTenantId.Value, new[] { PermissionConstants.Identity_TenantsView });
                 if (!canCrossTenant)
                     return Forbid();
 
@@ -62,8 +61,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("{id}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ViewUsers)]
+        [AuthorizePermission(PermissionConstants.Identity_UsersView)]
         public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken ct = default)
         {
             var callerTenantId = this.GetCallerTenantId();
@@ -77,8 +75,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("{id}/profile")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.EditUsers)]
+        [AuthorizePermission(PermissionConstants.Identity_UsersEdit)]
         public async Task<IActionResult> UpdateProfile([FromRoute] Guid id, [FromBody] UpdateProfileRequest request, CancellationToken ct = default)
         {
             var callerTenantId = this.GetCallerTenantId();
@@ -142,8 +139,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{id}/lock")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ManageUsers)]
+        [AuthorizePermission(PermissionConstants.Identity_UsersManage)]
         public async Task<IActionResult> Lock([FromRoute] Guid id, CancellationToken ct = default)
         {
             var callerTenantId = this.GetCallerTenantId();
@@ -155,8 +151,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{id}/unlock")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ManageUsers)]
+        [AuthorizePermission(PermissionConstants.Identity_UsersManage)]
         public async Task<IActionResult> Unlock([FromRoute] Guid id, CancellationToken ct = default)
         {
             var callerTenantId = this.GetCallerTenantId();
@@ -168,8 +163,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.DeleteUsers)]
+        [AuthorizePermission(PermissionConstants.Identity_UsersDelete)]
         public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken ct = default)
         {
             var callerTenantId = this.GetCallerTenantId();
@@ -181,8 +175,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{id}/roles")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ManageUsers)]
+        [AuthorizePermission(PermissionConstants.Identity_UsersManage)]
         public async Task<IActionResult> AssignRole([FromRoute] Guid id, [FromBody] AssignRoleRequest request, CancellationToken ct = default)
         {
             var parsedTenantId = this.GetCallerTenantId();
@@ -194,8 +187,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpDelete("{id}/roles/{roleId}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ManageUsers)]
+        [AuthorizePermission(PermissionConstants.Identity_UsersManage)]
         public async Task<IActionResult> RemoveRole([FromRoute] Guid id, [FromRoute] Guid roleId, CancellationToken ct = default)
         {
             var parsedTenantId = this.GetCallerTenantId();
@@ -209,12 +201,11 @@ namespace ERP.Identity.Api.Controllers
         /// <summary>
         /// Attaches an already-existing account (found by email) to the caller's own
         /// tenant. Self-service registration deliberately does NOT do this silently
-        /// (see AuthService.RegisterAsync) — only an authenticated admin action with
+        /// (see AuthService.RegisterAsync) â€” only an authenticated admin action with
         /// manage_users may pull a known account into their tenant.
         /// </summary>
         [HttpPost("invite")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ManageUsers)]
+        [AuthorizePermission(PermissionConstants.Identity_UsersManage)]
         public async Task<IActionResult> Invite([FromBody] InviteUserToTenantRequest request, CancellationToken ct = default)
         {
             var callerTenantId = this.GetCallerTenantId();
@@ -225,7 +216,7 @@ namespace ERP.Identity.Api.Controllers
             return Ok(result);
         }
 
-        /// <summary>"Where am I logged in" — lists this user's active DeviceSessions rows.</summary>
+        /// <summary>"Where am I logged in" â€” lists this user's active DeviceSessions rows.</summary>
         [HttpGet("{id}/sessions")]
         [Authorize]
         public async Task<IActionResult> ListSessions([FromRoute] Guid id, CancellationToken ct = default)

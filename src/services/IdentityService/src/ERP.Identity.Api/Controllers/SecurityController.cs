@@ -1,14 +1,14 @@
-using Asp.Versioning;
+﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.Interfaces.Services;
-using ERP.Identity.Application.Authorization;
 using ERP.Identity.Api.Authorization;
+using ERP.Shared.Authorization;
 
 namespace ERP.Identity.Api.Controllers
 {
     /// <summary>
-    /// Read-side for SecurityAuditLogs/LoginAttempts — the two tables that existed in
+    /// Read-side for SecurityAuditLogs/LoginAttempts â€” the two tables that existed in
     /// 001_CreateAuthDB.sql with no corresponding C# entity or endpoint until now.
     /// </summary>
     [ApiController]
@@ -28,14 +28,13 @@ namespace ERP.Identity.Api.Controllers
 
         /// <summary>
         /// A caller without the platform-wide override may only ever see their own
-        /// tenant's audit logs — any `tenantId` they pass (including none, which would
+        /// tenant's audit logs â€” any `tenantId` they pass (including none, which would
         /// otherwise mean "all tenants") is overridden to their own tenant. Fixes a
         /// cross-tenant data leak: this endpoint previously trusted the query
         /// parameter as-is with no ownership check at all.
         /// </summary>
         [HttpGet("audit-logs")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ViewAuditLogs)]
+        [AuthorizePermission(PermissionConstants.Security_AuditView)]
         public async Task<IActionResult> GetAuditLogs(
             [FromQuery] Guid? tenantId, [FromQuery] Guid? userId, [FromQuery] string? eventType,
             [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
@@ -50,14 +49,13 @@ namespace ERP.Identity.Api.Controllers
 
         /// <summary>
         /// LoginAttempts carries no TenantId at all (a failed login for a non-existent
-        /// email never resolves to a tenant) — there is no per-tenant scoping possible,
+        /// email never resolves to a tenant) â€” there is no per-tenant scoping possible,
         /// so this platform-wide view requires the SuperAdmin override permission, not
         /// just ViewAuditLogs, to avoid leaking every tenant's login activity (emails,
         /// IPs) to any tenant Admin who happens to hold ViewAuditLogs.
         /// </summary>
         [HttpGet("login-attempts")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ViewAuditLogs)]
+        [AuthorizePermission(PermissionConstants.Security_AuditView)]
         public async Task<IActionResult> GetLoginAttempts(
             [FromQuery] string? ipAddress, [FromQuery] string? email,
             [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
@@ -95,7 +93,7 @@ namespace ERP.Identity.Api.Controllers
             if (callerUserId is null || callerTenantId is null)
                 return false;
 
-            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { SettingsPermissions.SystemManage });
+            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { PermissionConstants.Settings_SystemManage });
         }
     }
 }

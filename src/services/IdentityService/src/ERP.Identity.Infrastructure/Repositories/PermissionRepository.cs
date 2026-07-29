@@ -1,5 +1,4 @@
-﻿using ERP.Identity.Application.Authorization;
-using ERP.Identity.Application.Interfaces.Repositories;
+﻿using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Domain.Entities;
 using ERP.Identity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;

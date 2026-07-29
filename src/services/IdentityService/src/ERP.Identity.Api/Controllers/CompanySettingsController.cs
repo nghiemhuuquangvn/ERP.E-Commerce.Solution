@@ -1,15 +1,15 @@
-using Asp.Versioning;
+﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.Settings;
 using ERP.Identity.Application.Interfaces.Services;
-using ERP.Identity.Application.Authorization;
 using ERP.Identity.Api.Authorization;
+using ERP.Shared.Authorization;
 
 namespace ERP.Identity.Api.Controllers
 {
     /// <summary>
-    /// Company settings — Tenant-only (no System tier; a company profile is inherently
+    /// Company settings â€” Tenant-only (no System tier; a company profile is inherently
     /// per-tenant). Storage+CRUD only for now.
     /// </summary>
     [ApiController]
@@ -28,8 +28,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("tenant/{tenantId}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(CompanySettingsPermissions.TenantView)]
+        [AuthorizePermission(PermissionConstants.Settings_Company_TenantView)]
         public async Task<IActionResult> GetTenantSettings([FromRoute] Guid tenantId, CancellationToken ct = default)
         {
             if (!await CallerCanAccessTenantAsync(tenantId, ct))
@@ -40,8 +39,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("tenant/{tenantId}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(CompanySettingsPermissions.TenantManage)]
+        [AuthorizePermission(PermissionConstants.Settings_Company_TenantManage)]
         public async Task<IActionResult> UpdateTenantSettings([FromRoute] Guid tenantId, [FromBody] UpdateTenantCompanySettingsRequest request, CancellationToken ct = default)
         {
             if (!await CallerCanAccessTenantAsync(tenantId, ct))
@@ -62,7 +60,7 @@ namespace ERP.Identity.Api.Controllers
             if (callerUserId is null || callerTenantId is null)
                 return false;
 
-            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { SettingsPermissions.SystemManage });
+            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { PermissionConstants.Settings_SystemManage });
         }
     }
 }

@@ -1,15 +1,15 @@
-using Asp.Versioning;
+﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.Settings;
 using ERP.Identity.Application.Interfaces.Services;
-using ERP.Identity.Application.Authorization;
 using ERP.Identity.Api.Authorization;
+using ERP.Shared.Authorization;
 
 namespace ERP.Identity.Api.Controllers
 {
     /// <summary>
-    /// Feature Flags — dynamic key-value settings, deliberately different shape from every
+    /// Feature Flags â€” dynamic key-value settings, deliberately different shape from every
     /// other Settings category (admin-defined keys rather than fixed fields). Storage+CRUD
     /// only for now; nothing in the codebase reads these flags to gate behavior yet.
     /// </summary>
@@ -29,8 +29,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("system")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(FeatureFlagsPermissions.SystemView)]
+        [AuthorizePermission(PermissionConstants.Settings_FeatureFlags_SystemView)]
         public async Task<IActionResult> GetSystemFlags(CancellationToken ct = default)
         {
             var result = await _featureFlagService.GetSystemFlagsAsync(ct);
@@ -38,8 +37,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("system/{key}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(FeatureFlagsPermissions.SystemManage)]
+        [AuthorizePermission(PermissionConstants.Settings_FeatureFlags_SystemManage)]
         public async Task<IActionResult> UpsertSystemFlag([FromRoute] string key, [FromBody] UpsertSystemFeatureFlagRequest request, CancellationToken ct = default)
         {
             var result = await _featureFlagService.UpsertSystemFlagAsync(key, request, ct);
@@ -47,8 +45,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("tenant/{tenantId}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(FeatureFlagsPermissions.TenantView)]
+        [AuthorizePermission(PermissionConstants.Settings_FeatureFlags_TenantView)]
         public async Task<IActionResult> GetTenantFlags([FromRoute] Guid tenantId, CancellationToken ct = default)
         {
             if (!await CallerCanAccessTenantAsync(tenantId, ct))
@@ -59,8 +56,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("tenant/{tenantId}/{key}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(FeatureFlagsPermissions.TenantManage)]
+        [AuthorizePermission(PermissionConstants.Settings_FeatureFlags_TenantManage)]
         public async Task<IActionResult> SetTenantFlagOverride([FromRoute] Guid tenantId, [FromRoute] string key, [FromBody] SetTenantFeatureFlagOverrideRequest request, CancellationToken ct = default)
         {
             if (!await CallerCanAccessTenantAsync(tenantId, ct))
@@ -80,7 +76,7 @@ namespace ERP.Identity.Api.Controllers
             if (callerUserId is null || callerTenantId is null)
                 return false;
 
-            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { SettingsPermissions.SystemManage });
+            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { PermissionConstants.Settings_SystemManage });
         }
     }
 }

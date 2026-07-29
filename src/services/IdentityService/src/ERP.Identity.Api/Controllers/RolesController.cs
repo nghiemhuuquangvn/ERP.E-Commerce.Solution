@@ -1,10 +1,10 @@
-using Asp.Versioning;
+﻿using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERP.Identity.Application.DTOs.Permission;
 using ERP.Identity.Application.Interfaces.Services;
-using ERP.Identity.Application.Authorization;
 using ERP.Identity.Api.Authorization;
+using ERP.Shared.Authorization;
 
 namespace ERP.Identity.Api.Controllers
 {
@@ -24,8 +24,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ViewRoles)]
+        [AuthorizePermission(PermissionConstants.Identity_RolesView)]
         public async Task<IActionResult> List([FromQuery] Guid? tenantId, CancellationToken ct = default)
         {
             var callerTenantId = this.GetCallerTenantId();
@@ -36,7 +35,7 @@ namespace ERP.Identity.Api.Controllers
 
             if (tenantId.HasValue && tenantId.Value != callerTenantId.Value)
             {
-                // Same cross-tenant override as UsersController.List — only callers
+                // Same cross-tenant override as UsersController.List â€” only callers
                 // holding identity:tenants:view (re-verified against the DB) may view
                 // another tenant's roles.
                 var callerUserId = this.GetCallerUserId();
@@ -44,7 +43,7 @@ namespace ERP.Identity.Api.Controllers
                     return Unauthorized();
 
                 var canCrossTenant = await _permissionService.HasPermissionAsync(
-                    callerUserId.Value, callerTenantId.Value, new[] { Permissions.ViewTenants });
+                    callerUserId.Value, callerTenantId.Value, new[] { PermissionConstants.Identity_TenantsView });
                 if (!canCrossTenant)
                     return Forbid();
 
@@ -56,8 +55,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("{id}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ViewRoles)]
+        [AuthorizePermission(PermissionConstants.Identity_RolesView)]
         public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken ct = default)
         {
             var callerTenantId = this.GetCallerTenantId();
@@ -71,8 +69,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.CreateRoles)]
+        [AuthorizePermission(PermissionConstants.Identity_RolesCreate)]
         public async Task<IActionResult> Create([FromBody] CreateRoleRequest request, CancellationToken ct = default)
         {
             var tenantId = this.GetCallerTenantId();
@@ -84,8 +81,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.EditRoles)]
+        [AuthorizePermission(PermissionConstants.Identity_RolesEdit)]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateRoleRequest request, CancellationToken ct = default)
         {
             var callerTenantId = this.GetCallerTenantId();
@@ -97,8 +93,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.DeleteRoles)]
+        [AuthorizePermission(PermissionConstants.Identity_RolesDelete)]
         public async Task<IActionResult> Delete([FromRoute] Guid id, CancellationToken ct = default)
         {
             var callerTenantId = this.GetCallerTenantId();
@@ -110,8 +105,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet("{id}/permissions")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ViewRoles)]
+        [AuthorizePermission(PermissionConstants.Identity_RolesView)]
         public async Task<IActionResult> GetPermissions([FromRoute] Guid id, CancellationToken ct = default)
         {
             var callerTenantId = this.GetCallerTenantId();
@@ -123,8 +117,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{id}/permissions")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ManageRoles)]
+        [AuthorizePermission(PermissionConstants.Identity_RolesManage)]
         public async Task<IActionResult> AssignPermission([FromRoute] Guid id, [FromBody] AssignPermissionToRoleRequest request, CancellationToken ct = default)
         {
             var parsedTenantId = this.GetCallerTenantId();
@@ -136,8 +129,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpDelete("{id}/permissions/{permissionId}")]
-        [Authorize(Policy = "Permission")]
-        [RequirePermission(Permissions.ManageRoles)]
+        [AuthorizePermission(PermissionConstants.Identity_RolesManage)]
         public async Task<IActionResult> RemovePermission([FromRoute] Guid id, [FromRoute] Guid permissionId, CancellationToken ct = default)
         {
             var parsedTenantId = this.GetCallerTenantId();

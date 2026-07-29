@@ -263,6 +263,107 @@ public static class PermissionConstants
     public const string Product_UomConversionsView = "product:uom-conversions:view";
     public const string Product_UomConversionsManage = "product:uom-conversions:manage";
 
+    // IdentityService Permissions — merged in from IdentityService's own, previously
+    // separate ERP.Identity.Application.Authorization.Permissions (2026-07-29
+    // consolidation: IdentityService ran a second, DB-lookup-based authorization
+    // mechanism with its own duplicate permission-string vocabulary; this merge makes
+    // PermissionConstants the single source of truth for every service, Identity
+    // included).
+    public const string Identity_UsersView = "identity:users:view";
+    public const string Identity_UsersCreate = "identity:users:create";
+    public const string Identity_UsersEdit = "identity:users:edit";
+    public const string Identity_UsersManage = "identity:users:manage";
+    public const string Identity_UsersDelete = "identity:users:delete";
+    public const string Identity_RolesView = "identity:roles:view";
+    public const string Identity_RolesCreate = "identity:roles:create";
+    public const string Identity_RolesEdit = "identity:roles:edit";
+    public const string Identity_RolesManage = "identity:roles:manage";
+    public const string Identity_RolesDelete = "identity:roles:delete";
+    public const string Identity_PermissionsView = "identity:permissions:view";
+    public const string Identity_PermissionsManage = "identity:permissions:manage";
+    public const string Identity_TenantsView = "identity:tenants:view";
+    public const string Identity_TenantsCreate = "identity:tenants:create";
+    public const string Identity_TenantsEdit = "identity:tenants:edit";
+    public const string Identity_TenantsManage = "identity:tenants:manage";
+    public const string Identity_TenantsDelete = "identity:tenants:delete";
+
+    // Security Permissions (audit logs, API keys) — merged in alongside Identity_* above
+    public const string Security_AuditView = "security:audit:view";
+    public const string Security_ApiKeysView = "security:apikeys:view";
+    public const string Security_ApiKeysManage = "security:apikeys:manage";
+
+    // License Permissions (module catalog, plan catalog, tenant licenses) — merged in
+    // from IdentityService's own LicensePermissions
+    public const string License_ModulesManage = "license:modules:manage";
+    public const string License_PlansView = "license:plans:view";
+    public const string License_PlansManage = "license:plans:manage";
+    public const string License_TenantView = "license:tenant:view";
+    public const string License_TenantIssue = "license:tenant:issue";
+
+    // Settings Permissions — the platform/system-tier categories that, unlike the
+    // business-domain Settings_* categories above, are only ever checked inside
+    // IdentityService's own SettingsControllers. Merged in from 11 previously
+    // separate per-category *SettingsPermissions classes + the coarse umbrella
+    // SettingsPermissions, for the same single-source-of-truth reason as Identity_*.
+    public const string Settings_SystemView = "settings:system:view";
+    public const string Settings_SystemManage = "settings:system:manage";
+    public const string Settings_TenantView = "settings:tenant:view";
+    public const string Settings_TenantManage = "settings:tenant:manage";
+
+    public const string Settings_General_SystemView = "settings:general:system:view";
+    public const string Settings_General_SystemManage = "settings:general:system:manage";
+    public const string Settings_General_TenantView = "settings:general:tenant:view";
+    public const string Settings_General_TenantManage = "settings:general:tenant:manage";
+
+    // Company Settings has no System tier — tenant-only resource
+    public const string Settings_Company_TenantView = "settings:company:tenant:view";
+    public const string Settings_Company_TenantManage = "settings:company:tenant:manage";
+
+    public const string Settings_Scheduler_SystemView = "settings:scheduler:system:view";
+    public const string Settings_Scheduler_SystemManage = "settings:scheduler:system:manage";
+    public const string Settings_Scheduler_TenantView = "settings:scheduler:tenant:view";
+    public const string Settings_Scheduler_TenantManage = "settings:scheduler:tenant:manage";
+
+    public const string Settings_Integration_SystemView = "settings:integration:system:view";
+    public const string Settings_Integration_SystemManage = "settings:integration:system:manage";
+    public const string Settings_Integration_TenantView = "settings:integration:tenant:view";
+    public const string Settings_Integration_TenantManage = "settings:integration:tenant:manage";
+
+    public const string Settings_Api_SystemView = "settings:api:system:view";
+    public const string Settings_Api_SystemManage = "settings:api:system:manage";
+    public const string Settings_Api_TenantView = "settings:api:tenant:view";
+    public const string Settings_Api_TenantManage = "settings:api:tenant:manage";
+
+    public const string Settings_Localization_SystemView = "settings:localization:system:view";
+    public const string Settings_Localization_SystemManage = "settings:localization:system:manage";
+    public const string Settings_Localization_TenantView = "settings:localization:tenant:view";
+    public const string Settings_Localization_TenantManage = "settings:localization:tenant:manage";
+
+    public const string Settings_Audit_SystemView = "settings:audit:system:view";
+    public const string Settings_Audit_SystemManage = "settings:audit:system:manage";
+    public const string Settings_Audit_TenantView = "settings:audit:tenant:view";
+    public const string Settings_Audit_TenantManage = "settings:audit:tenant:manage";
+
+    public const string Settings_FileStorage_SystemView = "settings:file-storage:system:view";
+    public const string Settings_FileStorage_SystemManage = "settings:file-storage:system:manage";
+    public const string Settings_FileStorage_TenantView = "settings:file-storage:tenant:view";
+    public const string Settings_FileStorage_TenantManage = "settings:file-storage:tenant:manage";
+
+    public const string Settings_Advanced_SystemView = "settings:advanced:system:view";
+    public const string Settings_Advanced_SystemManage = "settings:advanced:system:manage";
+    public const string Settings_Advanced_TenantView = "settings:advanced:tenant:view";
+    public const string Settings_Advanced_TenantManage = "settings:advanced:tenant:manage";
+
+    public const string Settings_Workflow_SystemView = "settings:workflow:system:view";
+    public const string Settings_Workflow_SystemManage = "settings:workflow:system:manage";
+    public const string Settings_Workflow_TenantView = "settings:workflow:tenant:view";
+    public const string Settings_Workflow_TenantManage = "settings:workflow:tenant:manage";
+
+    public const string Settings_FeatureFlags_SystemView = "settings:feature-flags:system:view";
+    public const string Settings_FeatureFlags_SystemManage = "settings:feature-flags:system:manage";
+    public const string Settings_FeatureFlags_TenantView = "settings:feature-flags:tenant:view";
+    public const string Settings_FeatureFlags_TenantManage = "settings:feature-flags:tenant:manage";
+
     /// <summary>
     /// Lấy tất cả permissions
     /// </summary>
@@ -339,6 +440,34 @@ public static class PermissionConstants
         Settings_Tax_TenantView, Settings_Tax_TenantManage,
         Product_BrandsView, Product_BrandsManage,
         Product_UomConversionsView, Product_UomConversionsManage,
+        Identity_UsersView, Identity_UsersCreate, Identity_UsersEdit, Identity_UsersManage, Identity_UsersDelete,
+        Identity_RolesView, Identity_RolesCreate, Identity_RolesEdit, Identity_RolesManage, Identity_RolesDelete,
+        Identity_PermissionsView, Identity_PermissionsManage,
+        Identity_TenantsView, Identity_TenantsCreate, Identity_TenantsEdit, Identity_TenantsManage, Identity_TenantsDelete,
+        Security_AuditView, Security_ApiKeysView, Security_ApiKeysManage,
+        License_ModulesManage, License_PlansView, License_PlansManage, License_TenantView, License_TenantIssue,
+        Settings_SystemView, Settings_SystemManage, Settings_TenantView, Settings_TenantManage,
+        Settings_General_SystemView, Settings_General_SystemManage,
+        Settings_General_TenantView, Settings_General_TenantManage,
+        Settings_Company_TenantView, Settings_Company_TenantManage,
+        Settings_Scheduler_SystemView, Settings_Scheduler_SystemManage,
+        Settings_Scheduler_TenantView, Settings_Scheduler_TenantManage,
+        Settings_Integration_SystemView, Settings_Integration_SystemManage,
+        Settings_Integration_TenantView, Settings_Integration_TenantManage,
+        Settings_Api_SystemView, Settings_Api_SystemManage,
+        Settings_Api_TenantView, Settings_Api_TenantManage,
+        Settings_Localization_SystemView, Settings_Localization_SystemManage,
+        Settings_Localization_TenantView, Settings_Localization_TenantManage,
+        Settings_Audit_SystemView, Settings_Audit_SystemManage,
+        Settings_Audit_TenantView, Settings_Audit_TenantManage,
+        Settings_FileStorage_SystemView, Settings_FileStorage_SystemManage,
+        Settings_FileStorage_TenantView, Settings_FileStorage_TenantManage,
+        Settings_Advanced_SystemView, Settings_Advanced_SystemManage,
+        Settings_Advanced_TenantView, Settings_Advanced_TenantManage,
+        Settings_Workflow_SystemView, Settings_Workflow_SystemManage,
+        Settings_Workflow_TenantView, Settings_Workflow_TenantManage,
+        Settings_FeatureFlags_SystemView, Settings_FeatureFlags_SystemManage,
+        Settings_FeatureFlags_TenantView, Settings_FeatureFlags_TenantManage,
     ];
 
     /// <summary>
