@@ -26,9 +26,12 @@ flag beyond "available": `TenantAuthSettings.TwoFactorRequired` — when true, e
 user in that tenant is forced through 2FA at login regardless of their own
 `User.TwoFactorEnabled` preference; when false, 2FA is opt-in per user.
 
-`GET /api/auth/login-options?tenantCode=` exposes the resolved (System ∧ Tenant)
-booleans without requiring a JWT — this is how a login page knows which SSO buttons
-to render before the user has authenticated.
+`GET /api/auth/login-options` exposes the resolved (System ∧ Tenant) booleans without
+requiring a JWT — this is how a login page knows which SSO buttons to render before
+the user has authenticated. The tenant is resolved from the `X-Tenant-Code` header
+(injected by the Gateway from the request's subdomain, or sent directly by the
+client) rather than a `?tenantCode=` query param — see
+[MultiTenantLogin.md](MultiTenantLogin.md) for the full redesign.
 
 ## External login providers
 
@@ -93,6 +96,9 @@ route `{id}` must match the caller's own JWT `sub` claim, same check as the exis
 
 ## Related
 
+- [MultiTenantLogin.md](MultiTenantLogin.md) — how the tenant is resolved for
+  `login-options`/`external-login`/Twitter authorize-url (subdomain/header-based, no
+  manual Tenant Code field)
 - `docs/architecture/event-catalog.md` — `TwoFactorCodeGeneratedEvent` entry
 - `docs/architecture/database-map.md` — `SystemAuthSettings`/`TenantAuthSettings`/
   `TwoFactorChallenges`/`OAuthStates` table shapes

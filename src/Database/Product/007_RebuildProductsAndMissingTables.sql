@@ -70,6 +70,15 @@ IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Categories
     ALTER TABLE Categories ADD RowVersion ROWVERSION;
 GO
 
+-- Category : AggregateRoot also inherits BaseEntity's Description column, but neither
+-- 001_CreateProductDB.sql's original CREATE TABLE nor this step's RowVersion catch-up ever
+-- added it — CategoryDbContext has no explicit Entity<Category>() config, so EF maps
+-- Description by convention and every GET /api/v1/categories 500'd with
+-- "Invalid column name 'Description'".
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Categories') AND name = 'Description')
+    ALTER TABLE Categories ADD Description NVARCHAR(MAX) NULL;
+GO
+
 -- ============================================================
 -- STEP 3: ProductVariants (from 001)
 -- ============================================================

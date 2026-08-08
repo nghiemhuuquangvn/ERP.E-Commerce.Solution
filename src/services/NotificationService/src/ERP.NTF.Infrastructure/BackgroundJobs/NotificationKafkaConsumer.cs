@@ -11,7 +11,8 @@ namespace ERP.NTF.Infrastructure.BackgroundJobs;
 
 /// <summary>
 /// Consumes payment-topic (PaymentProcessed), shipping-topic (ShipmentCreated),
-/// and mst-topic (EmployeeHired) from Kafka. All three topics publish via the Outbox
+/// mst-topic (EmployeeHired), purchasing-topic (PurchaseOrder approval-chain events),
+/// and hrm-topic (Leave approval events) from Kafka. All topics publish via the Outbox
 /// pattern with Newtonsoft TypeNameHandling.All ($type discriminator). Follows
 /// IdentityEventConsumer's dispatch pattern — mediator.Publish so existing
 /// INotificationHandler implementations in IntegrationEventHandlers.cs are triggered.
@@ -21,6 +22,8 @@ public class NotificationKafkaConsumer : IHostedService
     private const string PaymentTopic = "payment-topic";
     private const string ShippingTopic = "shipping-topic";
     private const string MstTopic = "mst-topic";
+    private const string PurchasingTopic = "purchasing-topic";
+    private const string HrmTopic = "hrm-topic";
 
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<NotificationKafkaConsumer> _logger;
@@ -50,7 +53,7 @@ public class NotificationKafkaConsumer : IHostedService
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _consumer.Subscribe(new[] { PaymentTopic, ShippingTopic, MstTopic });
+        _consumer.Subscribe(new[] { PaymentTopic, ShippingTopic, MstTopic, PurchasingTopic, HrmTopic });
         _executingTask = Task.Run(() => ExecuteAsync(_cts.Token), CancellationToken.None);
         return Task.CompletedTask;
     }
@@ -81,6 +84,17 @@ public class NotificationKafkaConsumer : IHostedService
         }
     }
 
+    /// <summary>
+    /// JToken.Value&lt;Guid?&gt;() throws InvalidCastException on a plain JSON string
+    /// value in this environment (Newtonsoft's nullable-target conversion path goes
+    /// through System.Convert.ChangeType, which doesn't know how to target Guid) —
+    /// silently breaking every branch below that used it, including the pre-existing
+    /// ones, since none of their outcomes were ever verified against real flowing
+    /// data before now. Parse explicitly instead.
+    /// </summary>
+    private static Guid GuidOrEmpty(JObject raw, string key) =>
+        Guid.TryParse(raw[key]?.ToString(), out var value) ? value : Guid.Empty;
+
     private async Task DispatchAsync(string json, CancellationToken cancellationToken)
     {
         var typeName = JObject.Parse(json)["$type"]?.ToString() ?? string.Empty;
@@ -93,8 +107,8 @@ public class NotificationKafkaConsumer : IHostedService
             var raw = JObject.Parse(json);
             var evt = new PaymentProcessedIntegrationEvent
             {
-                PaymentId = raw.Value<Guid?>("PaymentId") ?? Guid.Empty,
-                OrderId = raw.Value<Guid?>("OrderId") ?? Guid.Empty,
+                PaymentId = GuidOrEmpty(raw, "PaymentId"),
+                OrderId = GuidOrEmpty(raw, "OrderId"),
                 RecipientEmail = raw.Value<string>("CustomerEmail") ?? raw.Value<string>("Email") ?? string.Empty,
                 RecipientName = raw.Value<string>("CustomerName") ?? string.Empty,
                 Amount = raw.Value<decimal?>("Amount") ?? 0m,
@@ -108,8 +122,8 @@ public class NotificationKafkaConsumer : IHostedService
             var raw = JObject.Parse(json);
             var evt = new ShipmentCreatedIntegrationEvent
             {
-                ShipmentId = raw.Value<Guid?>("ShipmentId") ?? Guid.Empty,
-                OrderId = raw.Value<Guid?>("OrderId") ?? Guid.Empty,
+                ShipmentId = GuidOrEmpty(raw, "ShipmentId"),
+                OrderId = GuidOrEmpty(raw, "OrderId"),
                 CustomerEmail = raw.Value<string>("CustomerEmail") ?? string.Empty,
                 CustomerName = raw.Value<string>("CustomerName") ?? string.Empty,
                 TrackingNumber = raw.Value<string>("TrackingNumber") ?? string.Empty,
@@ -123,11 +137,61 @@ public class NotificationKafkaConsumer : IHostedService
             var raw = JObject.Parse(json);
             var evt = new EmployeeHiredIntegrationEvent
             {
-                EmployeeId = raw.Value<Guid?>("EmployeeId") ?? Guid.Empty,
+                EmployeeId = GuidOrEmpty(raw, "EmployeeId"),
                 Email = raw.Value<string>("Email") ?? string.Empty,
                 FirstName = raw.Value<string>("FirstName") ?? string.Empty,
                 LastName = raw.Value<string>("LastName") ?? string.Empty,
                 Department = raw.Value<string>("Department") ?? raw.Value<string>("DepartmentName") ?? string.Empty
+            };
+            if (evt.EmployeeId != Guid.Empty)
+                await mediator.Publish(evt, cancellationToken);
+        }
+        else if (typeName.Contains("PurchaseOrderPendingFinanceApprovalDomainEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new PurchaseOrderPendingFinanceApprovalIntegrationEvent
+            {
+                PurchaseOrderId = GuidOrEmpty(raw, "PurchaseOrderId"),
+                PONumber = raw.Value<string>("PONumber") ?? string.Empty,
+                TotalAmount = raw.Value<decimal?>("TotalAmount") ?? 0m,
+                ManagerApprovedBy = raw.Value<string>("ManagerApprovedBy") ?? string.Empty
+            };
+            if (evt.PurchaseOrderId != Guid.Empty)
+                await mediator.Publish(evt, cancellationToken);
+        }
+        else if (typeName.Contains("PurchaseOrderApprovedDomainEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new PurchaseOrderApprovedIntegrationEvent
+            {
+                PurchaseOrderId = GuidOrEmpty(raw, "PurchaseOrderId"),
+                PONumber = raw.Value<string>("PONumber") ?? string.Empty,
+                ApprovedBy = raw.Value<string>("ApprovedBy") ?? string.Empty
+            };
+            if (evt.PurchaseOrderId != Guid.Empty)
+                await mediator.Publish(evt, cancellationToken);
+        }
+        else if (typeName.Contains("LeaveApprovedEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new LeaveApprovedIntegrationEvent
+            {
+                LeaveRequestId = GuidOrEmpty(raw, "LeaveRequestId"),
+                EmployeeId = GuidOrEmpty(raw, "EmployeeId"),
+                StartDate = raw.Value<DateTime?>("StartDate") ?? DateTime.UtcNow,
+                EndDate = raw.Value<DateTime?>("EndDate") ?? DateTime.UtcNow
+            };
+            if (evt.EmployeeId != Guid.Empty)
+                await mediator.Publish(evt, cancellationToken);
+        }
+        else if (typeName.Contains("LeaveRejectedEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new LeaveRejectedIntegrationEvent
+            {
+                LeaveRequestId = GuidOrEmpty(raw, "LeaveRequestId"),
+                EmployeeId = GuidOrEmpty(raw, "EmployeeId"),
+                Reason = raw.Value<string>("Reason") ?? string.Empty
             };
             if (evt.EmployeeId != Guid.Empty)
                 await mediator.Publish(evt, cancellationToken);

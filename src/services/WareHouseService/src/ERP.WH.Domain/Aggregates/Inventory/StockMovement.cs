@@ -12,6 +12,7 @@ public enum MovementType
 public class StockMovement
 {
     public Guid MovementId { get; private set; }
+    public Guid TenantId { get; private set; }
     public Guid ProductId { get; private set; }
     public int Quantity { get; private set; }
     public MovementType MovementType { get; private set; }
@@ -23,6 +24,7 @@ public class StockMovement
     public DateTime RecordedAt { get; private set; }
 
     public StockMovement(
+        Guid tenantId,
         Guid productId,
         int quantity,
         MovementType movementType,
@@ -33,6 +35,7 @@ public class StockMovement
         Guid? sourceOrderId = null)
     {
         MovementId = Guid.NewGuid();
+        TenantId = tenantId;
         ProductId = productId;
         Quantity = quantity;
         MovementType = movementType;

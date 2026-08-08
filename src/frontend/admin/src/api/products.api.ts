@@ -241,6 +241,46 @@ export const productsApi = {
       .post<UploadProductImageResponse>(`/v1/products/${productId}/images`, body)
       .then((r) => r.data),
 
+  // Real file upload (multipart/form-data) — the primary path from the Images tab.
+  // `apiClient` sets a default 'Content-Type: application/json' header at the
+  // instance level, and axios does NOT clear an instance-level default for FormData
+  // bodies the way it does a per-request one — without this override the request
+  // goes out as JSON and ASP.NET Core's model binder rejects it with "the file field
+  // is required" before ever reaching the controller. Explicitly unsetting it here
+  // lets the browser set the correct multipart boundary.
+  uploadImageFile: (
+    productId: string,
+    file: File,
+    options?: { variantId?: string | null; altText?: string; setAsPrimary?: boolean },
+  ) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (options?.variantId) formData.append('variantId', options.variantId)
+    if (options?.altText) formData.append('altText', options.altText)
+    if (options?.setAsPrimary) formData.append('setAsPrimary', String(options.setAsPrimary))
+    return apiClient
+      .post<UploadProductImageResponse>(`/v1/products/${productId}/images/file`, formData, {
+        headers: { 'Content-Type': undefined },
+      })
+      .then((r) => r.data)
+  },
+
+  // Edits an existing image's metadata, optionally replacing its file entirely
+  // ("Replace image") by including a new `file`.
+  updateImage: (
+    productId: string,
+    imageId: string,
+    body: { altText?: string; sortOrder: number; file?: File },
+  ) => {
+    const formData = new FormData()
+    if (body.file) formData.append('file', body.file)
+    if (body.altText) formData.append('altText', body.altText)
+    formData.append('sortOrder', String(body.sortOrder))
+    return apiClient.put(`/v1/products/${productId}/images/${imageId}`, formData, {
+      headers: { 'Content-Type': undefined },
+    })
+  },
+
   removeImage: (productId: string, imageId: string) =>
     apiClient.delete(`/v1/products/${productId}/images/${imageId}`),
 

@@ -1,0 +1,43 @@
+# ============================================================
+# Every one of the 14 .NET services' docker-compose build entries uses
+# `context: .` (repo root) with the shared root Dockerfile, which does
+# `COPY . .` then restores/publishes just that one service's project. Without
+# this file, EVERY build sends the ENTIRE monorepo as build context —
+# including all other services' bin/obj (1.8GB+ across 140+ dirs after a
+# session's worth of local `dotnet build` runs), every frontend/mobile app's
+# node_modules (~1GB), and .git history — none of which the build actually
+# needs. That multi-GB context transfer on every single build is the direct
+# cause of the repeated slow builds and Docker Desktop network/daemon
+# instability seen throughout this project's history (sustained heavy I/O +
+# memory pressure on the Desktop VM). Keep this in sync with .gitignore's
+# build-artifact patterns — this file's job is build-context size, not git
+# history, so it's deliberately broader (also excludes docs/tests/deployment
+# manifests no Dockerfile ever COPYs).
+# ============================================================
+
+# .NET build artifacts (every service, every project)
+**/bin/
+**/obj/
+**/*.user
+
+# Node — frontend (admin/storefront) and mobile (customer/staff) apps; none of
+# the 14 .NET Dockerfiles ever touch these, and admin/storefront build with
+# their own scoped context anyway (see their own .dockerignore).
+**/node_modules/
+**/dist/
+**/.expo/
+**/.next/
+
+# VCS / IDE
+.git/
+.vs/
+.vscode/
+*.suo
+
+# Not needed inside any container build
+docs/
+tests/
+deployment/
+*.md
+.dockerignore
+.gitignore

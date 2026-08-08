@@ -1,4 +1,5 @@
 using ERP.PRD.Application.Interfaces;
+using ERP.PRD.Application.Interfaces.Services;
 using FluentValidation;
 using MediatR;
 
@@ -25,11 +26,13 @@ namespace ERP.PRD.Application.Features.Images.Commands
     public class RemoveProductImageHandler : IRequestHandler<RemoveProductImageCommand>
     {
         private readonly IProductUnitOfWork _uow;
+        private readonly IFileStorageService _fileStorage;
         private readonly ILogger<RemoveProductImageHandler> _logger;
 
-        public RemoveProductImageHandler(IProductUnitOfWork uow, ILogger<RemoveProductImageHandler> logger)
+        public RemoveProductImageHandler(IProductUnitOfWork uow, IFileStorageService fileStorage, ILogger<RemoveProductImageHandler> logger)
         {
             _uow = uow;
+            _fileStorage = fileStorage;
             _logger = logger;
         }
 
@@ -45,6 +48,7 @@ namespace ERP.PRD.Application.Features.Images.Commands
                 throw new KeyNotFoundException($"Image with ID {request.ImageId} not found for product {request.ProductId}");
 
             var wasPrimary = image.IsPrimary;
+            var managedBlobPath = _fileStorage.TryGetManagedBlobPath(image.ImageUrl);
             product.RemoveImage(request.ImageId);
 
             // If removed image was primary, set the first remaining image as primary
@@ -54,6 +58,11 @@ namespace ERP.PRD.Application.Features.Images.Commands
             }
 
             await _uow.SaveChangesAsync(cancellationToken);
+
+            // Best-effort cleanup after the DB row is gone — never delete an
+            // externally-hosted URL that this service doesn't own.
+            if (managedBlobPath != null)
+                await _fileStorage.DeleteAsync(managedBlobPath, cancellationToken);
 
             _logger.LogInformation("Image removed from product {ProductId}: {ImageId}", request.ProductId, request.ImageId);
         }

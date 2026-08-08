@@ -176,6 +176,36 @@ public class PurchaseOrdersController : ControllerBase
     }
 
     /// <summary>
+    /// Step 2 of the approval chain — Finance approval, only valid for orders
+    /// Manager-approved at/above PurchaseOrder.FinanceApprovalThreshold (currently
+    /// $5,000) and currently sitting in PendingFinanceApproval.
+    /// Yêu cầu quyền: purchase_order:finance_approve
+    /// Roles: Admin, Finance
+    /// </summary>
+    /// <param name="id">Purchase order ID</param>
+    /// <returns>No content</returns>
+    [HttpPost("{id}/finance-approve")]
+    [AuthorizePermission(PermissionConstants.PurchaseOrder_FinanceApprove)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ApprovePurchaseOrderFinance(Guid id)
+    {
+        _logger.LogInformation("Finance-approving purchase order {PurchaseOrderId}", id);
+
+        var command = new ApprovePurchaseOrderFinanceCommand
+        {
+            PurchaseOrderId = id,
+            ApprovedBy = "system"
+        };
+
+        await _mediator.Send(command);
+        return NoContent();
+    }
+
+    /// <summary>
     /// Reject a submitted purchase order (distinct from Cancel — requires a reason,
     /// only valid while Submitted awaiting approval)
     /// Yêu cầu quyền: purchase_order:approve

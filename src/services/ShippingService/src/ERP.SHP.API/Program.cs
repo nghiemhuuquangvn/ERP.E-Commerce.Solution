@@ -9,6 +9,7 @@ using ERP.SHP.Infrastructure.Persistence;
 using ERP.SHP.Infrastructure.Repositories;
 using ERP.SHP.Infrastructure.Services;
 using ERP.Shared.Authorization;
+using ERP.Shared.Extensions;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
 using ERP.Shared.Messaging;
@@ -96,6 +97,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
 var app = builder.Build();
+
+app.UseGlobalExceptionHandling();
 
 app.UseSwagger();
 app.UseSwaggerUI();

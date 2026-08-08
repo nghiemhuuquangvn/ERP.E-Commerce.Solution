@@ -13,8 +13,5 @@ public class LoginRequestValidator : AbstractValidator<LoginRequest>
 
         RuleFor(x => x.Password)
             .NotEmpty().WithMessage("Password is required.");
-
-        RuleFor(x => x.TenantCode)
-            .NotEmpty().WithMessage("Tenant code is required.");
     }
 }

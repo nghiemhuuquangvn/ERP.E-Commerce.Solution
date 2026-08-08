@@ -33,12 +33,16 @@ $DatabaseScripts = @(
     "Identity\011_AddFeatureFlags.sql",
     "Identity\012_AddLicenseManagement.sql",
     "Identity\013_SeedRoleDefinitionsIntoRolePermissions.sql",
+    "Identity\014_ChangeEmailUniqueIndexToPerTenant.sql",
+    "Identity\016_SeedFinanceApprovePermission.sql",
 
     # Cross-cutting master data (Department/Position/Employee/UoM/Geography/Language —
     # seed before HRM, which now references Employees/Departments here instead of owning them)
     "MasterData\001_CreateMasterDataDB.sql",
     "MasterData\002_ProvisionMissingTablesAndColumns.sql",
     "MasterData\003_AddCurrencySettings.sql",
+    "MasterData\004_AddOrganizationEntities.sql",
+    "MasterData\005_AddCurrencyAndPaymentTerm.sql",
 
     # Core business services
     "Sales\001_CreateSalesDB.sql",
@@ -46,15 +50,26 @@ $DatabaseScripts = @(
     "Sales\003_AddBaseEntityColumns.sql",
     "Sales\004_AddOrderFulfillmentSagaState.sql",
     "Sales\005_AddCartCheckoutAndOrderSettings.sql",
+    "Sales\006_AddOrderCoreFields.sql",
+    "Sales\007_AddSalesQuotations.sql",
+    "Sales\008_AddCustomerSalesProfile.sql",
+    "Sales\009_AddCommission.sql",
     "Purchasing\001_CreatePurchasingDB.sql",
     "Purchasing\002_AddOutboxMessages.sql",
     "Purchasing\003_AddReceivingScheduleAndSupplierRatings.sql",
     "Purchasing\004_AddRejectionColumns.sql",
+    "Purchasing\005_AddSupplierItemsAndPaymentTerm.sql",
+    "Purchasing\006_AddPurchaseRequests.sql",
+    "Purchasing\008_AddMultiLevelApproval.sql",
     "Warehouse\001_CreateWarehouseDB.sql",
     "Warehouse\002_AddLotsSerialsTransfersStocktakes.sql",
     "Warehouse\003_AddInventorySettings.sql",
+    "Warehouse\004_AddBinLevelStockApprovalWarehousesBarcodes.sql",
+    "Warehouse\005_AddModule8InventoryReconciliation.sql",
     "Accounting\001_CreateAccountingDB.sql",
     "Accounting\002_AddTaxSettings.sql",
+    "Accounting\003_AddTaxRatesBankAccountsAndStatements.sql",
+    "Accounting\004_FixMissingEntityColumns.sql",
     "Product\001_CreateProductDB.sql",
     "Product\002_AddProductTranslations.sql",
     "Product\003_AddProductAttributesAndDimensions.sql",
@@ -64,9 +79,15 @@ $DatabaseScripts = @(
     "Product\007_RebuildProductsAndMissingTables.sql",
     "Product\008_FixMissingEntityColumns.sql",
     "Product\009_AddStoreProductSettings.sql",
+    "Product\010_AddBrandsUomConversionsAndPricingUpdates.sql",
+    "Product\012_FixProductAttributeTablesSchema.sql",
+    "Product\013_FixImagesAndAttributeValueOwnerTypeSchema.sql",
+    "Product\014_FixMissingProductsRowVersion.sql",
 
     # Customer-facing services
     "CRM\001_CreateCrmDB.sql",
+    "CRM\002_FixCrmEntityColumns.sql",
+    "CRM\003_AddContactTags.sql",
     "Payment\001_CreatePaymentDB.sql",
     "Payment\002_AddInvoiceLinkAndSavedMethodsAndInstallments.sql",
     "Payment\003_AddBaseEntityColumns.sql",
@@ -78,14 +99,46 @@ $DatabaseScripts = @(
     # HR & Retail
     "HRM\001_CreateHrmDB.sql",
     "HRM\002_RemoveEmployeeDepartmentOwnership.sql",
+    "HRM\003_FixHrmEntityColumns.sql",
+    "HRM\003b_FixAttendanceColumnRenames.sql",
     "POS\001_CreatePosDB.sql",
     "POS\002_AddTendersDenominationsAndTypeFixes.sql",
+    "POS\003_AddProductAndPromotionCache.sql",
 
     # Cross-cutting
     "Promotion\001_CreatePromotionDB.sql",
+    "PromotionService\002_FixPromotionEntityColumns.sql",
     "Notification\001_CreateNotificationDB.sql",
     "Notification\002_AddNotificationEmailSmsSettings.sql",
-    "Reporting\001_CreateReportingDB.sql"
+    "Notification\003_AddWebhookEndpoints.sql",
+    "Notification\005_SeedWorkflowTemplates.sql",
+    "Notification\006_FixNotificationEntityColumns.sql",
+    "Reporting\001_CreateReportingDB.sql",
+    "Reporting\002_AddMissingEntityColumns.sql",
+    "Reporting\004_FixFactPOSTransactionsCashierIdType.sql",
+    "Reporting\005_AddDimProductStockQuantity.sql",
+
+    # ============================================================
+    # Demo seed data — must run AFTER all schema above, and in this specific
+    # order per src/Database/SEED_DATA_CONVENTIONS.md's cross-service GUID
+    # registry (each step below references GUIDs seeded by an earlier step).
+    # Reporting's fact-seed is last since it reads from every other service.
+    # ============================================================
+    "Identity\015_SeedDemoUsersAndRoles.sql",
+    "MasterData\006_SeedDemoData.sql",
+    "Product\011_SeedDemoData.sql",
+    "CRM\004_SeedDemoData.sql",
+    "Sales\010_SeedDemoData.sql",
+    "Warehouse\006_SeedDemoData.sql",
+    "Purchasing\007_SeedDemoData.sql",
+    "Payment\005_SeedDemoData.sql",
+    "Shipping\004_SeedDemoData.sql",
+    "Promotion\002_SeedDemoData.sql",
+    "POS\004_SeedDemoData.sql",
+    "Accounting\005_SeedDemoData.sql",
+    "HRM\004_SeedDemoData.sql",
+    "Notification\004_SeedDemoData.sql",
+    "Reporting\003_SeedFactsFromSeedData.sql"
 )
 
 # ============================================================

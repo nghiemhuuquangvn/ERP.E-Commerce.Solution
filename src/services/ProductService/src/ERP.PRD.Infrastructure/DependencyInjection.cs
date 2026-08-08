@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Confluent.Kafka;
 using Elastic.Clients.Elasticsearch;
 using RabbitMQ.Client;
+using Azure.Storage.Blobs;
 
 namespace ERP.PRD.Infrastructure
 {
@@ -49,6 +50,14 @@ namespace ERP.PRD.Infrastructure
 
             // Store/Product Settings (System/Tenant two-tier) — storage+CRUD only for now
             services.AddScoped<Application.Interfaces.Services.IStoreProductSettingsService, Services.StoreProductSettingsService>();
+
+            // Product image uploads — Azure Blob Storage (Azurite emulator locally via
+            // ConnectionStrings:BlobStorage, real Azure Blob Storage in production).
+            // Singleton: BlobServiceClient/BlobContainerClient are thread-safe and the
+            // container-exists check only needs to run once per process lifetime.
+            var blobConnectionString = configuration.GetConnectionString("BlobStorage") ?? "UseDevelopmentStorage=true";
+            services.AddSingleton(new BlobServiceClient(blobConnectionString));
+            services.AddSingleton<Application.Interfaces.Services.IFileStorageService, Services.AzureBlobFileStorageService>();
 
             // Cache service (Memory by default, Redis when configured via Cache:Type)
             services.AddCacheService(configuration, "product");

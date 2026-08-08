@@ -16,14 +16,37 @@ IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('InventoryL
     ALTER TABLE InventoryLots ADD ReservedQuantity INT NOT NULL DEFAULT 0;
 GO
 
+-- Reservation.ReleaseReason (set when a reservation is released — see Reservation.cs's
+-- Release(reason) method) was never added to the original 001_CreateWarehouseDB.sql table,
+-- so ReservationExpiryProcessor's background poll — and any manual release — 500'd/silently
+-- errored every run with "Invalid column name 'ReleaseReason'".
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Reservations') AND name = 'ReleaseReason')
+    ALTER TABLE Reservations ADD ReleaseReason NVARCHAR(500) NULL;
+GO
+
 -- ============================================================
 -- Reservation_ReservedItems: the single nullable LotId (added in migration 004)
 -- only ever remembered the FIRST lot touched by a multi-lot FEFO reservation,
 -- making it impossible to correctly reverse every lot on cancel. Replaced by a
 -- JSON column holding every (LotId, Quantity) allocation for the line.
 -- ============================================================
+-- The FK on this column was created by EF's default naming convention (e.g.
+-- FK__Reservati__LotId__xxxxxxxx), not the explicit name assumed below — look it
+-- up dynamically by column instead of assuming a fixed constraint name, or this
+-- DROP silently no-ops (IF EXISTS on a name that never matches) and the DROP
+-- COLUMN two batches down fails because the real FK still references it.
 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Reservation_ReservedItems') AND name = 'LotId')
-    ALTER TABLE Reservation_ReservedItems DROP CONSTRAINT IF EXISTS FK_Reservation_ReservedItems_InventoryLots_LotId;
+BEGIN
+    DECLARE @lotIdFkName NVARCHAR(200);
+    SELECT @lotIdFkName = fk.name
+    FROM sys.foreign_keys fk
+    JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
+    JOIN sys.columns c ON c.object_id = fkc.parent_object_id AND c.column_id = fkc.parent_column_id
+    WHERE fk.parent_object_id = OBJECT_ID('Reservation_ReservedItems') AND c.name = 'LotId';
+
+    IF @lotIdFkName IS NOT NULL
+        EXEC('ALTER TABLE Reservation_ReservedItems DROP CONSTRAINT [' + @lotIdFkName + ']');
+END
 GO
 
 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Reservation_ReservedItems') AND name = 'LotId')

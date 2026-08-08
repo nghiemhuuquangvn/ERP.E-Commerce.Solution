@@ -1,9 +1,7 @@
-import { apiClient } from '../client'
+import { gatewayClient as apiClient } from '../client'
 
 // PaymentService's SettingsController is mounted under the Gateway's `/pay/api/...` route.
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
-const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/pay/api/v1/settings/payment`
+const SETTINGS_BASE = `/pay/api/v1/settings/payment`
 
 export interface SystemPaymentSettings {
   vnPayAvailable: boolean

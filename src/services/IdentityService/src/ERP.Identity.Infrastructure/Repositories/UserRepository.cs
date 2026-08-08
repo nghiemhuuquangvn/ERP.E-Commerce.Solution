@@ -55,8 +55,12 @@ namespace ERP.Identity.Infrastructure.Repositories
 
         public async Task<User?> GetByEmailAsync(string email, Guid tenantId, CancellationToken ct)
         {
+            // Membership-based (AuthUserTenant), not User.TenantId equality — matches
+            // GetByIdInTenantAsync/ListByTenantAsync/IsInTenantAsync below, so a user
+            // invited into a second tenant (UserService.InviteToTenantAsync) can log
+            // into that tenant too, not just their original home tenant.
             var user = await _dbContext.Users.AsNoTracking()
-                                            .FirstOrDefaultAsync(x => x.Email == email && x.TenantId.Equals(tenantId), ct);
+                                            .FirstOrDefaultAsync(x => x.Email == email && x.UserTenants.Any(ut => ut.TenantId == tenantId), ct);
             return user;
         }
 

@@ -1,10 +1,8 @@
-import { apiClient } from '../client'
+import { gatewayClient as apiClient } from '../client'
 
 // IdentityService's CompanySettingsController is mounted under the Gateway's `/id/api/...` route.
 // Company Settings has no System tier — a company profile is inherently per-tenant.
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
-const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/id/api/v1/settings/company`
+const SETTINGS_BASE = `/id/api/v1/settings/company`
 
 export interface TenantCompanySettings {
   tenantId: string

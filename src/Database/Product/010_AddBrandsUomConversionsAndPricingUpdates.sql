@@ -8,6 +8,9 @@
 USE ProductDB;
 GO
 
+SET QUOTED_IDENTIFIER ON;
+GO
+
 -- ============================================================
 -- STEP 1: Brands (flat reference list, no hierarchy — proper noun, not localized)
 -- ============================================================

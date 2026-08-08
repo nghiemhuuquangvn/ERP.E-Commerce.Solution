@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { purchaseOrdersApi, PurchaseOrderStatus } from '@/api/purchaseOrders.api'
@@ -16,12 +17,60 @@ const STATUS_FILTERS: { labelKey: string; value: PurchaseOrderStatus | '' }[] = 
   { labelKey: 'common.all', value: '' },
   { labelKey: 'purchaseOrders.statusFilters.draft', value: 'DRAFT' },
   { labelKey: 'purchaseOrders.statusFilters.submitted', value: 'SUBMITTED' },
+  { labelKey: 'purchaseOrders.statusFilters.pendingFinanceApproval', value: 'PENDING_FINANCE_APPROVAL' },
   { labelKey: 'purchaseOrders.statusFilters.approved', value: 'APPROVED' },
   { labelKey: 'purchaseOrders.statusFilters.ordered', value: 'ORDERED' },
   { labelKey: 'purchaseOrders.statusFilters.partiallyReceived', value: 'PARTIALLY_RECEIVED' },
   { labelKey: 'purchaseOrders.statusFilters.received', value: 'RECEIVED' },
+  { labelKey: 'purchaseOrders.statusFilters.rejected', value: 'REJECTED' },
   { labelKey: 'purchaseOrders.statusFilters.cancelled', value: 'CANCELLED' },
 ]
+
+interface RejectFormValues {
+  reason: string
+}
+
+function RejectPurchaseOrderModal({ po, onClose }: { po: PurchaseOrder; onClose: () => void }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const { register, handleSubmit, formState: { errors } } = useForm<RejectFormValues>({
+    defaultValues: { reason: '' },
+  })
+
+  const mutation = useMutation({
+    mutationFn: (values: RejectFormValues) => purchaseOrdersApi.reject(po.id, values.reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] })
+      onClose()
+    },
+  })
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="card w-full max-w-md p-6">
+        <h3 className="mb-4 text-base font-semibold text-gray-900">
+          {t('purchaseOrders.rejectTitle', { number: po.poNumber })}
+        </h3>
+        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('purchaseOrders.rejectReason')}</label>
+            <textarea className="input" rows={3} {...register('reason', { required: true })} />
+            {errors.reason && <p className="mt-1 text-xs text-red-600">{t('purchaseOrders.reasonRequired')}</p>}
+          </div>
+          {mutation.isError && <p className="text-xs text-red-600">{t('purchaseOrders.rejectFailed')}</p>}
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-outline">
+              {t('common.cancel')}
+            </button>
+            <button type="submit" disabled={mutation.isPending} className="btn-danger">
+              {t('orders.reject')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
 
 export function PurchaseOrderListPage() {
   const { t } = useTranslation()
@@ -29,6 +78,7 @@ export function PurchaseOrderListPage() {
   const { page, pageSize, setPage } = usePagination()
   const [status, setStatus] = useState<PurchaseOrderStatus | ''>('')
   const [cancelId, setCancelId] = useState<string | null>(null)
+  const [rejectTarget, setRejectTarget] = useState<PurchaseOrder | null>(null)
   const queryClient = useQueryClient()
 
   const { data, isLoading } = useQuery({
@@ -40,6 +90,11 @@ export function PurchaseOrderListPage() {
 
   const approveMutation = useMutation({
     mutationFn: purchaseOrdersApi.approve,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] }),
+  })
+
+  const financeApproveMutation = useMutation({
+    mutationFn: purchaseOrdersApi.approveFinance,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] }),
   })
 
@@ -64,6 +119,7 @@ export function PurchaseOrderListPage() {
   }, [cancelId, cancelMutation])
 
   const { mutate: approvePo } = approveMutation
+  const { mutate: financeApprovePo } = financeApproveMutation
   const columns = useMemo(
     () => [
       {
@@ -111,7 +167,24 @@ export function PurchaseOrderListPage() {
                 {t('orders.approve')}
               </button>
             )}
-            {hasPermission('purchase_order:cancel') && !['CANCELLED', 'RECEIVED'].includes(po.status) && (
+            {hasPermission('purchase_order:finance_approve') && po.status === 'PENDING_FINANCE_APPROVAL' && (
+              <button
+                onClick={() => financeApprovePo(po.id)}
+                className="text-xs text-primary-600 hover:underline"
+              >
+                {t('purchaseOrders.financeApprove')}
+              </button>
+            )}
+            {hasPermission('purchase_order:approve') &&
+              ['SUBMITTED', 'PENDING_FINANCE_APPROVAL'].includes(po.status) && (
+                <button
+                  onClick={() => setRejectTarget(po)}
+                  className="text-xs text-red-600 hover:underline"
+                >
+                  {t('orders.reject')}
+                </button>
+              )}
+            {hasPermission('purchase_order:cancel') && !['CANCELLED', 'RECEIVED', 'REJECTED'].includes(po.status) && (
               <button
                 onClick={() => setCancelId(po.id)}
                 className="text-xs text-red-600 hover:underline"
@@ -123,7 +196,7 @@ export function PurchaseOrderListPage() {
         ),
       },
     ],
-    [hasPermission, approvePo, t],
+    [hasPermission, approvePo, financeApprovePo, t],
   )
 
   return (
@@ -170,6 +243,10 @@ export function PurchaseOrderListPage() {
         onConfirm={handleCancelConfirm}
         onCancel={() => setCancelId(null)}
       />
+
+      {rejectTarget && (
+        <RejectPurchaseOrderModal po={rejectTarget} onClose={() => setRejectTarget(null)} />
+      )}
     </div>
   )
 }

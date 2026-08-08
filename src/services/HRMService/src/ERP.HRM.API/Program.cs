@@ -1,6 +1,7 @@
 using ERP.HRM.Application;
 using ERP.HRM.Infrastructure;
 using ERP.Shared.Authorization;
+using ERP.Shared.Extensions;
 using ERP.Shared.Localization;
 using ERP.Shared.Versioning;
 using Serilog;
@@ -55,12 +56,13 @@ try
 
     var app = builder.Build();
 
+    app.UseGlobalExceptionHandling();
+
     app.UseSerilogRequestLogging();
 
     app.UseSwagger();
     app.UseSwaggerUI();
 
-    app.UseExceptionHandler();
     app.UseStatusCodePages();
     app.UseSharedLocalization();
     app.UseCors("AllowAll");

@@ -1,10 +1,8 @@
-import { apiClient } from '../client'
+import { gatewayClient as apiClient } from '../client'
 
 // IdentityService's ApiSettingsController is mounted under the Gateway's `/id/api/...` route.
 // Config only — distinct from the existing ApiKey/ApiKeysController feature.
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
-const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/id/api/v1/settings/api`
+const SETTINGS_BASE = `/id/api/v1/settings/api`
 
 export interface SystemApiSettings {
   apiKeysAllowed: boolean

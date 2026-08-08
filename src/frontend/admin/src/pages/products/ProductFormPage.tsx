@@ -18,6 +18,7 @@ import { usePermission } from '@/hooks/usePermission'
 import { ProductImagesTab } from './ProductImagesTab'
 import { ProductVariantsTab } from './ProductVariantsTab'
 import { ProductUomConversionsTab } from './ProductUomConversionsTab'
+import { ProductAttributesTab } from './ProductAttributesTab'
 
 const PRODUCT_TYPE_OPTIONS = [
   { value: PRODUCT_TYPE.Physical, labelKey: 'products.types.physical' },
@@ -31,7 +32,7 @@ function extractErrorMessage(error: unknown): string | null {
   return axiosError?.response?.data?.message ?? null
 }
 
-type DetailTab = 'images' | 'variants' | 'uomConversions'
+type DetailTab = 'images' | 'variants' | 'specifications' | 'uomConversions'
 
 export function ProductFormPage() {
   const { t } = useTranslation()
@@ -218,8 +219,8 @@ export function ProductFormPage() {
         {isEdit && <StatusBadge status={PRODUCT_STATUS_LABELS[status!] ?? String(status)} />}
       </div>
 
-      <form onSubmit={handleSubmit} className="card max-w-3xl space-y-6 p-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <form onSubmit={handleSubmit} className="card space-y-6 p-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.name')}</label>
             <input
@@ -309,8 +310,8 @@ export function ProductFormPage() {
           <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">
             {t('products.seo.title')}
           </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="sm:col-span-2 lg:col-span-1">
               <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.seo.slug')}</label>
               <input className="input" value={slug} onChange={(e) => setSlug(e.target.value)} maxLength={256} />
             </div>
@@ -358,11 +359,14 @@ export function ProductFormPage() {
         </div>
       </form>
 
-      {isEdit && product && (
-        <div className="card max-w-3xl space-y-3 p-5">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-            {t('products.statusActions.title')}
-          </h2>
+      <div className="card space-y-3 p-5">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+          {t('products.statusActions.title')}
+        </h2>
+        {!product ? (
+          <p className="text-sm text-gray-400">{t('products.form.statusActionsUnavailable')}</p>
+        ) : (
+          <>
           <div className="flex flex-wrap gap-3">
             {canSubmitForReview && (
               <button
@@ -412,38 +416,51 @@ export function ProductFormPage() {
               ) ?? t('common.failedToSave')}
             </p>
           )}
-        </div>
-      )}
+          </>
+        )}
+      </div>
 
-      {isEdit && product && (
-        <div className="max-w-3xl space-y-4">
-          <div className="flex gap-1 border-b border-gray-200">
-            {(
-              [
-                { key: 'images', labelKey: 'products.tabs.images' },
-                { key: 'variants', labelKey: 'products.tabs.variants' },
-                { key: 'uomConversions', labelKey: 'products.tabs.uomConversions' },
-              ] as { key: DetailTab; labelKey: string }[]
-            ).map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
-                  activeTab === tab.key
-                    ? 'border-primary-600 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {t(tab.labelKey)}
-              </button>
-            ))}
+      <div className="space-y-4">
+        <div className="flex gap-1 border-b border-gray-200">
+          {(
+            [
+              { key: 'images', labelKey: 'products.tabs.images' },
+              { key: 'variants', labelKey: 'products.tabs.variants' },
+              { key: 'specifications', labelKey: 'products.tabs.specifications' },
+              { key: 'uomConversions', labelKey: 'products.tabs.uomConversions' },
+            ] as { key: DetailTab; labelKey: string }[]
+          ).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
+                activeTab === tab.key
+                  ? 'border-primary-600 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {t(tab.labelKey)}
+            </button>
+          ))}
+        </div>
+
+        {!product ? (
+          <div className="card p-8 text-center text-sm text-gray-400">
+            {t('products.form.saveFirstToUnlock')}
           </div>
-
-          {activeTab === 'images' && <ProductImagesTab productId={product.id} />}
-          {activeTab === 'variants' && <ProductVariantsTab productId={product.id} />}
-          {activeTab === 'uomConversions' && <ProductUomConversionsTab productId={product.id} />}
-        </div>
-      )}
+        ) : (
+          <>
+            {activeTab === 'images' && <ProductImagesTab productId={product.id} />}
+            {activeTab === 'variants' && (
+              <ProductVariantsTab productId={product.id} categoryId={product.categoryId} />
+            )}
+            {activeTab === 'specifications' && (
+              <ProductAttributesTab productId={product.id} categoryId={product.categoryId} />
+            )}
+            {activeTab === 'uomConversions' && <ProductUomConversionsTab productId={product.id} />}
+          </>
+        )}
+      </div>
 
       <ConfirmDialog
         open={discontinueConfirmOpen}

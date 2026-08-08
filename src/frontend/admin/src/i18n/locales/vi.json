@@ -52,6 +52,7 @@
     "brands": "Thương hiệu",
     "categories": "Danh mục",
     "priceLists": "Bảng giá",
+    "productAttributes": "Thuộc tính",
     "inventory": "Tồn kho",
     "inventoryGroup": "Tồn kho",
     "locations": "Vị trí kho",
@@ -175,6 +176,7 @@
     "orderNumber": "Số đơn",
     "total": "Tổng tiền",
     "approve": "Duyệt",
+    "reject": "Từ chối",
     "cancel": "Hủy",
     "cancelOrderTitle": "Hủy đơn hàng",
     "cancelOrderMessage": "Bạn có chắc chắn muốn hủy đơn hàng này? Hành động này không thể hoàn tác.",
@@ -193,6 +195,7 @@
     "fromQuotation": "Từ báo giá",
     "discount": "Giảm giá",
     "priceChangeWarning": "⚠ Giá sản phẩm đã thay đổi kể từ khi đặt hàng",
+    "anomalyFlag": "Đơn hàng bất thường",
     "statusHistory": "Lịch sử trạng thái",
     "statusHistoryFrom": "Từ",
     "statusHistoryTo": "Đến",
@@ -298,13 +301,20 @@
     "received": "Đã nhận",
     "cancelTitle": "Hủy đơn mua hàng",
     "cancelMessage": "Bạn có chắc chắn muốn hủy đơn mua hàng này? Hành động này không thể hoàn tác.",
+    "financeApprove": "Duyệt Tài chính",
+    "rejectTitle": "Từ chối đơn mua #{{number}}",
+    "rejectReason": "Lý do từ chối",
+    "reasonRequired": "Vui lòng nhập lý do.",
+    "rejectFailed": "Từ chối đơn mua hàng thất bại.",
     "statusFilters": {
       "draft": "Nháp",
       "submitted": "Đã gửi",
+      "pendingFinanceApproval": "Chờ Tài chính duyệt",
       "approved": "Đã duyệt",
       "ordered": "Đã đặt hàng",
       "partiallyReceived": "Nhận một phần",
       "received": "Đã nhận hàng",
+      "rejected": "Đã từ chối",
       "cancelled": "Đã hủy"
     },
     "form": {
@@ -384,6 +394,12 @@
       }
     }
   },
+  "productPicker": {
+    "title": "Chọn sản phẩm",
+    "searchPlaceholder": "Tìm theo tên hoặc SKU…",
+    "selectedCount": "Đã chọn {{count}}",
+    "confirmSelection": "Thêm đã chọn"
+  },
   "products": {
     "title": "Sản phẩm",
     "addProduct": "+ Thêm sản phẩm",
@@ -414,7 +430,9 @@
     },
     "form": {
       "requiredFields": "Tên (tối thiểu 3 ký tự) và SKU là bắt buộc.",
-      "notEditableAfterCreate": "Không thể thay đổi sau khi tạo."
+      "notEditableAfterCreate": "Không thể thay đổi sau khi tạo.",
+      "saveFirstToUnlock": "Lưu sản phẩm trước để quản lý mục này.",
+      "statusActionsUnavailable": "Khả dụng sau khi lưu."
     },
     "seo": {
       "title": "SEO",
@@ -436,6 +454,7 @@
     "tabs": {
       "images": "Hình ảnh",
       "variants": "Biến thể",
+      "specifications": "Thông số",
       "uomConversions": "Quy đổi đơn vị"
     },
     "images": {
@@ -449,7 +468,12 @@
       "upload": "Thêm hình ảnh",
       "variant": "Biến thể (tùy chọn)",
       "removeTitle": "Xóa hình ảnh",
-      "removeConfirm": "Bạn có chắc muốn xóa hình ảnh này?"
+      "removeConfirm": "Bạn có chắc muốn xóa hình ảnh này?",
+      "dragDropHint": "Kéo & thả hình ảnh vào đây, hoặc nhấn để chọn tệp",
+      "orPasteUrl": "Hoặc dán URL hình ảnh bên ngoài",
+      "replace": "Thay thế",
+      "invalidFileType": "Chỉ chấp nhận hình ảnh JPEG, PNG, WEBP hoặc GIF.",
+      "fileTooLarge": "Hình ảnh vượt quá giới hạn 5 MB."
     },
     "variants": {
       "add": "+ Thêm biến thể",
@@ -474,6 +498,35 @@
       "toUom": "Sang đơn vị",
       "conversionFactor": "Hệ số quy đổi",
       "conversionFactorInvalid": "Hệ số quy đổi phải lớn hơn 0."
+    },
+    "attributes": {
+      "title": "Thuộc tính sản phẩm",
+      "subtitle": "Định nghĩa thuộc tính mới (ví dụ: Chất liệu, Màu sắc) để gán cho sản phẩm và biến thể — không cần chỉnh sửa code hay cơ sở dữ liệu.",
+      "add": "+ Thêm thuộc tính",
+      "addTitle": "Thêm thuộc tính",
+      "editTitle": "Sửa thuộc tính",
+      "code": "Mã",
+      "codeHint": "Chỉ gồm chữ thường, số và dấu gạch dưới (ví dụ: material).",
+      "dataType": "Kiểu dữ liệu",
+      "unit": "Đơn vị (tùy chọn)",
+      "global": "Toàn cục (mọi danh mục)",
+      "isVariantOption": "Dùng để phân biệt biến thể (ví dụ: Màu sắc, Kích thước)",
+      "isRequired": "Bắt buộc",
+      "isFilterable": "Có thể lọc",
+      "options": "Giá trị lựa chọn",
+      "addOptionPlaceholder": "Thêm một giá trị lựa chọn…",
+      "optionsRequiredHint": "Cần ít nhất một giá trị lựa chọn cho thuộc tính Single/Multi Select.",
+      "deleteTitle": "Xóa thuộc tính",
+      "deleteConfirm": "Bạn có chắc muốn xóa \"{{name}}\"? Thao tác sẽ thất bại nếu đã có sản phẩm/biến thể sử dụng giá trị này.",
+      "noneDefined": "Chưa có thông số nào được định nghĩa cho sản phẩm này.",
+      "dataTypes": {
+        "text": "Văn bản",
+        "number": "Số",
+        "boolean": "Có/Không",
+        "date": "Ngày",
+        "singleSelect": "Chọn một",
+        "multiSelect": "Chọn nhiều"
+      }
     }
   },
   "brands": {
@@ -682,7 +735,18 @@
     "orders": "Đơn hàng",
     "avgOrderValue": "Giá trị đơn TB",
     "revenueByDay": "Doanh thu theo ngày",
-    "revenueByPaymentMethod": "Doanh thu theo phương thức thanh toán"
+    "revenueByPaymentMethod": "Doanh thu theo phương thức thanh toán",
+    "newCustomers": "Khách hàng mới",
+    "topProducts": "Sản phẩm bán chạy",
+    "product": "Sản phẩm",
+    "unitsSold": "SL bán",
+    "revenue": "Doanh thu",
+    "inventory": "Tồn kho",
+    "totalProducts": "Tổng sản phẩm",
+    "lowStock": "Sắp hết hàng",
+    "outOfStock": "Hết hàng",
+    "units": "sp",
+    "noData": "Chưa có dữ liệu"
   },
   "monitoring": {
     "title": "Giám sát hệ thống",

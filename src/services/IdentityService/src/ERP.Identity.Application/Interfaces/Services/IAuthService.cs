@@ -13,10 +13,10 @@ namespace ERP.Identity.Application.Interfaces.Services
 {
     public interface IAuthService
     {
-        Task<LoginResponse> LoginAsync(LoginRequest request, string? ipAddress, string? userAgent, CancellationToken ct);
+        Task<LoginResponse> LoginAsync(LoginRequest request, string tenantCode, string? ipAddress, string? userAgent, CancellationToken ct);
         Task<LoginResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default);
 
-        Task<LoginResponse> ExternalLoginAsync(ExternalLoginRequest request, CancellationToken ct = default);
+        Task<LoginResponse> ExternalLoginAsync(ExternalLoginRequest request, string tenantCode, CancellationToken ct = default);
 
         Task<RefreshTokenResponse> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default);
 

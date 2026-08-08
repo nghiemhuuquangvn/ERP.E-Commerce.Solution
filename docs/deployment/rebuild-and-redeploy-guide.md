@@ -3,7 +3,13 @@
 This guide covers the recurring workflow: **you changed code (or added a new
 service) and need to get it running again in Docker Compose and/or
 Kubernetes.** For a from-scratch environment setup, see
-[deployment-guide.md](deployment-guide.md) instead.
+[deployment-guide.md](deployment-guide.md) instead. To run one service or
+frontend app directly without Docker (e.g. for IDE debugging), see
+[manual-build-deploy-guide.md](manual-build-deploy-guide.md) instead. For the
+common case — **only 1-2 services changed, deploy just those, not all 19** —
+see [per-service-deploy-guide.md](per-service-deploy-guide.md) instead, which
+has the full compose-service/K8s-Deployment/K8s-Service name mapping table and
+a decision table for "what did you change → what actually needs rebuilding."
 
 ## Table of Contents
 
@@ -233,6 +239,21 @@ never received `KafkaSettings__BootstrapServers=kafka:9092` from the
 configmap. Always include `envFrom: - configMapRef: { name: erp-config }` on
 every service Deployment, even ones (like the Gateway) that don't have their
 own database.
+
+**A new/changed Ocelot route lives in the Gateway's own image — rebuilding the
+downstream service does nothing for it.** `ocelot.json` is baked into
+`erp/gateway:latest` at build time like any other source file, not read from a
+mounted configmap. Adding a route (e.g. this repo's `/api/v1/product-attributes`) and
+redeploying only the downstream service (ProductService) leaves the Gateway serving
+its old routing table — the downstream service works fine when hit directly on its
+own port, but every call through the Gateway 404s, which looks exactly like a typo in
+the route path rather than a stale image. Rebuild and roll the Gateway too:
+`docker build --build-arg SERVICE_PATH=src/Gateway/Ocelot.API --build-arg
+PROJECT_FILE=Ocelot.API.csproj --build-arg ASSEMBLY_NAME=Ocelot.API -t
+erp/gateway:latest -f Dockerfile .` then `kubectl rollout restart
+deployment/gateway -n erp`. This bit a real rollout in this repo (2026-08-07): the
+first post-deploy smoke test of a new attribute endpoint 404'd through the Gateway
+until this was caught.
 
 **A StatefulSet's PersistentVolumeClaim outlives credential changes.**
 `RABBITMQ_DEFAULT_USER`/`RABBITMQ_DEFAULT_PASS` (and similarly Kafka's

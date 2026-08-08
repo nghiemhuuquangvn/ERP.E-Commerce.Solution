@@ -4,6 +4,7 @@ using ERP.RPT.Infrastructure.EventConsumers;
 using ERP.RPT.Infrastructure.Persistence;
 using ERP.RPT.Infrastructure.Repositories;
 using ERP.Shared.Authorization;
+using ERP.Shared.Extensions;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
 using ERP.Shared.Versioning;
@@ -70,6 +71,8 @@ builder.Services.AddHealthChecks()
     .AddDbContextCheck<ReportingDbContext>("reporting-db");
 
 var app = builder.Build();
+
+app.UseGlobalExceptionHandling();
 
 app.UseSwagger();
 app.UseSwaggerUI();

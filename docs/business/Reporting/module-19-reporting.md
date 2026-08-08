@@ -98,3 +98,36 @@ Phát hiện chính:
 3. **`DimCustomers` là bảng chết** — tồn tại trong SQL, không có model/consumer C# nào ghi vào.
 4. **`SalesOrderEventConsumer` (Kafka) là code chết đã tự thừa nhận** trong comment — giữ lại "phòng khi SaleOrderService có Kafka Outbox trong tương lai."
 5. Không dùng EF Core Migrations — toàn bộ vá schema là thủ công qua SQL script, dễ tái diễn lỗi tương tự bug `DateKey` nếu không áp dụng quy tắc quản trị migration ở §9 của tài liệu Index Review.
+
+## 11. Dashboard/KPI + sửa lỗi báo cáo (2026-08-04)
+
+Toàn bộ 16 DB đã được seed 1000+ dòng/bảng chính (xem
+`docs/fixes/2026-08-04_ERP4Features_SeedDataAndFeatures_Summary.md` Part A) —
+`003_SeedFactsFromSeedData.sql` là ETL một lần backfill Fact table trực tiếp
+từ dữ liệu seed đó (ngoại lệ đọc chéo DB **đã ghi nhận rõ ràng, có chủ đích**:
+chỉ chạy 1 lần lúc migrate, không nằm trên đường chạy runtime của bất kỳ
+service nào).
+
+**Tính năng mới**: Admin có trang Dashboard/Reports thật, đọc từ Fact/Dimension
+đúng kiến trúc đã thiết kế (không query thẳng DB nghiệp vụ) — widget Top
+Products (`ReportingRepository.GetTopProductsAsync`, mới) + tổng hợp tồn kho.
+
+**3 bug sửa trong đợt này**:
+1. **`FactPOSTransactions.CashierId`** khai báo `NVARCHAR(100)` trong SQL
+   nhưng C# dùng `Guid` (đã ghi nhận là "lệch kiểu dữ liệu tiềm ẩn" ở §5 —
+   nay xác nhận là bug thật khi có data thật) → `ALTER COLUMN ...
+   UNIQUEIDENTIFIER NOT NULL`.
+2. **`GetInventoryReportAsync` đảo dấu số lượng 2 lần** cho các dòng
+   `Issue` — vừa dùng dấu đã lưu sẵn của movement, vừa đảo lại lần nữa trong
+   code — khiến tồn kho tính ra sai với bất kỳ sản phẩm nào có cả nhập lẫn
+   xuất. Bỏ lần đảo dấu thừa; đồng thời thêm cột `DimProducts.StockQuantity`
+   (backfill từ `WarehouseDB.Inventories.AvailableQuantity`) để báo cáo tồn
+   kho đọc trực tiếp thay vì tự dựng lại từ lịch sử movement mỗi lần truy vấn.
+3. **`admin/src/api/reports.api.ts` chưa từng khớp đúng contract backend
+   thật** — viết theo hình dạng đoán (`byDate`, thiếu `topProducts`/
+   `newCustomers`) chưa từng tồn tại trên wire. Viết lại theo đúng DTO thật
+   của `ReportingRepository`.
+
+Đã kiểm chứng trực tiếp qua API thật sau khi rebuild+redeploy
+`reporting-service`+`admin`: `/rpt/api/v1/reports/sales` và `/rpt/api/v1/
+reports/inventory` trả đúng số liệu tính từ Fact table đã seed.

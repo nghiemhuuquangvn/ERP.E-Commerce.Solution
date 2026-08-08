@@ -81,6 +81,8 @@ export interface SalesOrder {
   quotationId: string | null
   promotionId: string | null
   discountAmount: number
+  isAnomalous: boolean
+  anomalyReason: string | null
 }
 
 export interface SalesOrderSummary {
@@ -93,6 +95,8 @@ export interface SalesOrderSummary {
   orderNo: string
   salesRepId: string | null
   departmentId: string | null
+  isAnomalous: boolean
+  anomalyReason: string | null
 }
 
 export interface ListOrdersParams {

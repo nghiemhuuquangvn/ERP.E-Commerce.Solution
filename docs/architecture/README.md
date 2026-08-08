@@ -29,6 +29,7 @@
 | **UI → API Request Flow** | end-to-end-request-flow.md | Traces real UI actions (Admin/Storefront/mobile) through the Gateway into each service's Controller/Command/Domain/events, with actual routes and known UI-wiring gaps |
 | **Governance** | ../../CLAUDE.md | Service boundaries, integration rules |
 | **Deployment** | ../deployment/deployment-guide.md | Environment setup, Docker Compose, Kubernetes |
+| **Manual Build/Deploy** | ../deployment/manual-build-deploy-guide.md | Building and running one service or frontend app individually, outside Docker Compose |
 
 ---
 

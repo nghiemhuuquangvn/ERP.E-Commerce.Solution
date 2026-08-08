@@ -1,9 +1,7 @@
-import { apiClient } from '../client'
+import { gatewayClient as apiClient } from '../client'
 
 // IdentityService's IntegrationSettingsController is mounted under the Gateway's `/id/api/...` route.
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
-const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/id/api/v1/settings/integration`
+const SETTINGS_BASE = `/id/api/v1/settings/integration`
 
 export interface SystemIntegrationSettings {
   externalIntegrationsAllowed: boolean

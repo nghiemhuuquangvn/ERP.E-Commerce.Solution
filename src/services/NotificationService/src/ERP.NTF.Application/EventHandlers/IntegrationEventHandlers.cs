@@ -71,6 +71,36 @@ public class TwoFactorCodeGeneratedIntegrationEvent : INotification
     public int ExpiryMinutes { get; set; }
 }
 
+public class PurchaseOrderPendingFinanceApprovalIntegrationEvent : INotification
+{
+    public Guid PurchaseOrderId { get; set; }
+    public string PONumber { get; set; } = string.Empty;
+    public decimal TotalAmount { get; set; }
+    public string ManagerApprovedBy { get; set; } = string.Empty;
+}
+
+public class PurchaseOrderApprovedIntegrationEvent : INotification
+{
+    public Guid PurchaseOrderId { get; set; }
+    public string PONumber { get; set; } = string.Empty;
+    public string ApprovedBy { get; set; } = string.Empty;
+}
+
+public class LeaveApprovedIntegrationEvent : INotification
+{
+    public Guid LeaveRequestId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+}
+
+public class LeaveRejectedIntegrationEvent : INotification
+{
+    public Guid LeaveRequestId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}
+
 // Event handlers — dispatch SendNotificationCommand via MediatR
 
 public class UserCreatedIntegrationEventHandler : INotificationHandler<UserCreatedIntegrationEvent>
@@ -212,6 +242,102 @@ public class TwoFactorCodeGeneratedIntegrationEventHandler : INotificationHandle
                 ["expiryMinutes"] = @event.ExpiryMinutes.ToString()
             },
             Priority = NotificationPriority.High
+        }, cancellationToken);
+    }
+}
+
+// Purchasing has no local "Finance team" mailbox/roster to resolve, so these
+// route to a fixed demo address — this is enough to prove the approval-chain
+// -> Kafka -> Notification wiring end-to-end; a real deployment would resolve
+// actual approver contacts (e.g. via IdentityService) before sending.
+public class PurchaseOrderPendingFinanceApprovalIntegrationEventHandler : INotificationHandler<PurchaseOrderPendingFinanceApprovalIntegrationEvent>
+{
+    private readonly IMediator _mediator;
+    public PurchaseOrderPendingFinanceApprovalIntegrationEventHandler(IMediator mediator) => _mediator = mediator;
+
+    public async Task Handle(PurchaseOrderPendingFinanceApprovalIntegrationEvent @event, CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new SendNotificationCommand
+        {
+            RecipientId = @event.PurchaseOrderId.ToString(),
+            RecipientEmail = "finance-team@erp-demo.local",
+            Channel = NotificationChannel.Email,
+            TemplateCode = "PO_PENDING_FINANCE_APPROVAL",
+            TemplateVariables = new()
+            {
+                ["poNumber"] = @event.PONumber,
+                ["totalAmount"] = @event.TotalAmount.ToString("C"),
+                ["managerApprovedBy"] = @event.ManagerApprovedBy
+            },
+            Priority = NotificationPriority.High
+        }, cancellationToken);
+    }
+}
+
+public class PurchaseOrderApprovedIntegrationEventHandler : INotificationHandler<PurchaseOrderApprovedIntegrationEvent>
+{
+    private readonly IMediator _mediator;
+    public PurchaseOrderApprovedIntegrationEventHandler(IMediator mediator) => _mediator = mediator;
+
+    public async Task Handle(PurchaseOrderApprovedIntegrationEvent @event, CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new SendNotificationCommand
+        {
+            RecipientId = @event.PurchaseOrderId.ToString(),
+            RecipientEmail = "purchasing-team@erp-demo.local",
+            Channel = NotificationChannel.Email,
+            TemplateCode = "PO_APPROVED",
+            TemplateVariables = new()
+            {
+                ["poNumber"] = @event.PONumber,
+                ["approvedBy"] = @event.ApprovedBy
+            },
+            Priority = NotificationPriority.Normal
+        }, cancellationToken);
+    }
+}
+
+public class LeaveApprovedIntegrationEventHandler : INotificationHandler<LeaveApprovedIntegrationEvent>
+{
+    private readonly IMediator _mediator;
+    public LeaveApprovedIntegrationEventHandler(IMediator mediator) => _mediator = mediator;
+
+    public async Task Handle(LeaveApprovedIntegrationEvent @event, CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new SendNotificationCommand
+        {
+            RecipientId = @event.EmployeeId.ToString(),
+            RecipientEmail = $"employee-{@event.EmployeeId:N}@erp-demo.local",
+            Channel = NotificationChannel.Email,
+            TemplateCode = "LEAVE_APPROVED",
+            TemplateVariables = new()
+            {
+                ["startDate"] = @event.StartDate.ToString("dd/MM/yyyy"),
+                ["endDate"] = @event.EndDate.ToString("dd/MM/yyyy")
+            },
+            Priority = NotificationPriority.Normal
+        }, cancellationToken);
+    }
+}
+
+public class LeaveRejectedIntegrationEventHandler : INotificationHandler<LeaveRejectedIntegrationEvent>
+{
+    private readonly IMediator _mediator;
+    public LeaveRejectedIntegrationEventHandler(IMediator mediator) => _mediator = mediator;
+
+    public async Task Handle(LeaveRejectedIntegrationEvent @event, CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new SendNotificationCommand
+        {
+            RecipientId = @event.EmployeeId.ToString(),
+            RecipientEmail = $"employee-{@event.EmployeeId:N}@erp-demo.local",
+            Channel = NotificationChannel.Email,
+            TemplateCode = "LEAVE_REJECTED",
+            TemplateVariables = new()
+            {
+                ["reason"] = @event.Reason
+            },
+            Priority = NotificationPriority.Normal
         }, cancellationToken);
     }
 }

@@ -81,7 +81,15 @@ namespace ERP.HRM.Infrastructure.Persistence
                 var outboxMessage = new OutboxMessage
                 {
                     Id = Guid.NewGuid(),
-                    Type = domainEvent.GetType().FullName ?? domainEvent.GetType().Name,
+                    // Must be assembly-qualified: OutboxProcessor.cs's Type.GetType(message.Type)
+                    // runs in ERP.HRM.Infrastructure, a different assembly than these domain
+                    // events (ERP.HRM.Domain) — Type.GetType's simple-name lookup only searches
+                    // the calling assembly + mscorlib, so a bare FullName silently never
+                    // resolved (every HRM outbox message was logged "Event type not found" and
+                    // marked processed anyway — no HRM integration event has ever actually
+                    // published). Matches the AssemblyQualifiedName pattern PurchaseOrderService
+                    // and NotificationService's DbContexts already use correctly.
+                    Type = domainEvent.GetType().AssemblyQualifiedName ?? domainEvent.GetType().Name,
                     Content = JsonConvert.SerializeObject(domainEvent, new JsonSerializerSettings
                     {
                         TypeNameHandling = TypeNameHandling.All

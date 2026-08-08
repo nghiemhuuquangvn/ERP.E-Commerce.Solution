@@ -31,6 +31,22 @@ spec:
             name: admin
             port:
               number: 80
+  # SYSTEM tenant subdomain — GatewayAuthorizationMiddleware.ResolveTenantCodeFromHost
+  # resolves the anonymous auth endpoints' tenant from the request's subdomain (host minus
+  # ".erp.local"), and returns null for the bare base domain itself. Admin's login page no
+  # longer sends a tenant code at all (replaced by this), so the SuperAdmin/SYSTEM tenant
+  # needs its own subdomain, same backend as the bare host above, or login 400s with
+  # "Unable to resolve tenant from request host."
+  - host: system.erp.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: admin
+            port:
+              number: 80
   - host: shop.erp.local
     http:
       paths:

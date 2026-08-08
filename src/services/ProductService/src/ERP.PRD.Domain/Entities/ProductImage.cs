@@ -40,8 +40,12 @@ namespace ERP.PRD.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
         }
 
-        public void UpdateMetadata(string? altText, int sortOrder)
+        public void UpdateMetadata(string imageUrl, string? altText, int sortOrder)
         {
+            if (string.IsNullOrWhiteSpace(imageUrl))
+                throw new ArgumentException("Image URL is required", nameof(imageUrl));
+
+            ImageUrl = imageUrl;
             AltText = altText;
             SortOrder = sortOrder;
             UpdatedAt = DateTime.UtcNow;

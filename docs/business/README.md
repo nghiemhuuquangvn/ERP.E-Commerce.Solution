@@ -22,7 +22,9 @@
 #### Identity & Access Management
 - **Location:** `src/services/IdentityService/README.md`,
   `docs/business/Identity/ExternalAuthAndTwoFactor.md`,
-  `docs/business/Identity/License.md`
+  `docs/business/Identity/License.md`,
+  `docs/business/Identity/MultiTenantLogin.md` (2026-08 — subdomain/header-based
+  tenant resolution, replacing the manual Tenant Code login field)
 - **Topics:** User management, role-based access control (RBAC), permission
   management, multi-tenancy, external login/SSO (Google/Microsoft/Facebook/Twitter),
   two-factor authentication (SMS/Email), system/tenant auth settings, per-tenant

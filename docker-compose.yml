@@ -157,6 +157,19 @@ services:
       timeout: 10s
       retries: 10
 
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    container_name: erp-azurite
+    hostname: azurite
+    command: "azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --location /data"
+    ports:
+      - "10000:10000"
+    volumes:
+      - azurite_data:/data
+    restart: unless-stopped
+    networks:
+      - erp-network
+
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: erp-kafka-ui
@@ -523,6 +536,8 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__ProductDB: "Server=sqlserver,1433;Database=ProductDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
+      ConnectionStrings__BlobStorage: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+      FileStorage__PublicBlobBaseUrl: "http://localhost:10000"
       Cache__Type: "Redis"
       Cache__InstanceName: "prd"
       Jwt__Key: "${JWT_SIGNING_KEY}"
@@ -541,6 +556,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      azurite:
+        condition: service_started
     restart: unless-stopped
     networks:
       - erp-network
@@ -826,6 +843,8 @@ volumes:
   elasticsearch_data:
     driver: local
   redis_data:
+    driver: local
+  azurite_data:
     driver: local
 
 networks:

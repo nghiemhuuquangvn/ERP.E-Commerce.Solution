@@ -34,8 +34,41 @@ public class ReportingRepository : IReportingRepository
             TotalOrders = orders.Count,
             AverageOrderValue = orders.Count > 0 ? orders.Average(o => o.TotalAmount) : 0,
             NewCustomers = orders.Select(o => o.CustomerId).Distinct().Count(),
-            RevenueByDay = revenueByDay
+            RevenueByDay = revenueByDay,
+            TopProducts = await GetTopProductsAsync(from, to, ct)
         };
+    }
+
+    // FactSalesOrders is order-level only (no line-item breakdown), so "top
+    // products" is derived from outbound ("Issue") stock movements in the
+    // same period as a units-sold proxy, priced via DimProducts.
+    private async Task<List<TopProductDto>> GetTopProductsAsync(DateTime from, DateTime to, CancellationToken ct)
+    {
+        var issues = await _db.FactInventoryMovements
+            .Where(m => m.OccurredAt >= from && m.OccurredAt <= to && m.MovementType == "Issue")
+            .AsNoTracking().ToListAsync(ct);
+
+        var products = await _db.DimProducts.AsNoTracking().ToDictionaryAsync(p => p.ProductId, ct);
+
+        return issues
+            .GroupBy(m => m.ProductId)
+            .Select(g =>
+            {
+                products.TryGetValue(g.Key, out var product);
+                // Issue quantities are stored negative at the source (outbound);
+                // flip once to report a positive "units sold" count.
+                var unitsSold = -g.Sum(m => m.Quantity);
+                return new TopProductDto
+                {
+                    ProductId = g.Key,
+                    ProductName = product?.Name ?? g.Key.ToString()[..8],
+                    UnitsSold = unitsSold,
+                    Revenue = unitsSold * (product?.Price ?? 0)
+                };
+            })
+            .OrderByDescending(p => p.Revenue)
+            .Take(10)
+            .ToList();
     }
 
     public async Task<PaymentSummaryDto> GetPaymentSummaryAsync(DateTime from, DateTime to, CancellationToken ct = default)
@@ -63,36 +96,20 @@ public class ReportingRepository : IReportingRepository
 
     public async Task<InventoryReportDto> GetInventoryReportAsync(CancellationToken ct = default)
     {
-        var movements = await _db.FactInventoryMovements.AsNoTracking().ToListAsync(ct);
-        var products = await _db.DimProducts.AsNoTracking()
-            .ToDictionaryAsync(p => p.ProductId, p => p.Name, ct);
+        // Current stock comes from DimProducts.StockQuantity (mirrored from
+        // WarehouseDB.Inventories.AvailableQuantity, the actual system of
+        // record) rather than summed from FactInventoryMovements — that fact
+        // table only holds a small sample of movement events for trend
+        // purposes, not a complete ledger that reconciles to current stock.
+        var products = await _db.DimProducts.AsNoTracking().ToListAsync(ct);
 
-        var stockByProduct = movements
-            .GroupBy(m => m.ProductId)
-            .Select(g =>
-            {
-                var netQty = g.Sum(m =>
-                {
-                    var t = m.MovementType.ToLowerInvariant();
-                    if (t.Contains("receipt") || t.Contains("receive") || t == "1")
-                        return m.Quantity;
-                    if (t.Contains("shipment") || t.Contains("ship") || t.Contains("issue") || t == "2")
-                        return -m.Quantity;
-                    // adjustment or transfer: treat as signed quantity as-is
-                    return m.Quantity;
-                });
-                var name = products.TryGetValue(g.Key, out var n) ? n : g.Key.ToString()[..8];
-                return new { ProductId = g.Key, NetQty = netQty, Name = name };
-            })
-            .ToList();
-
-        var levels = stockByProduct
+        var levels = products
             .Select(s => new StockLevelDto
             {
                 ProductId = s.ProductId,
                 ProductName = s.Name,
-                AvailableQuantity = s.NetQty,
-                StockStatus = s.NetQty <= 0 ? "OutOfStock" : s.NetQty < 10 ? "LowStock" : "InStock"
+                AvailableQuantity = s.StockQuantity,
+                StockStatus = s.StockQuantity <= 0 ? "OutOfStock" : s.StockQuantity < 10 ? "LowStock" : "InStock"
             })
             .OrderBy(s => s.AvailableQuantity)
             .ToList();

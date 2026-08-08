@@ -8,6 +8,9 @@
 USE WarehouseDB;
 GO
 
+SET QUOTED_IDENTIFIER ON;
+GO
+
 -- ============================================================
 -- Bin-level stock breakdown (additive alongside Inventories' rollup)
 -- ============================================================

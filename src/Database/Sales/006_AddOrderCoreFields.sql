@@ -9,6 +9,9 @@
 USE SalesDB;
 GO
 
+SET QUOTED_IDENTIFIER ON;
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('SalesOrders') AND name = 'OrderNo')
     ALTER TABLE SalesOrders ADD OrderNo NVARCHAR(50) NOT NULL DEFAULT '';
 GO

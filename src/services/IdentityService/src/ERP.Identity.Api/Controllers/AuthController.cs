@@ -45,7 +45,8 @@ namespace ERP.Identity.Api.Controllers
         [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken = default)
         {
-            var result = await _authService.LoginAsync(request, GetClientIp(), Request.Headers.UserAgent.ToString(), cancellationToken);
+            if (!TryGetTenantCode(out var tenantCode, out var error)) return error!;
+            var result = await _authService.LoginAsync(request, tenantCode!, GetClientIp(), Request.Headers.UserAgent.ToString(), cancellationToken);
             if (!result.Succeeded) return Unauthorized(result.Errors);
             return Ok(result);
         }
@@ -55,6 +56,25 @@ namespace ERP.Identity.Api.Controllers
             Request.Headers.ContainsKey("X-Forwarded-For")
                 ? Request.Headers["X-Forwarded-For"].ToString()
                 : HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        /// <summary>
+        /// Reads the tenant code the Gateway resolved from the request's subdomain
+        /// (see GatewayAuthorizationMiddleware.ResolveTenantCodeFromHost) — replaces the old
+        /// manual "Tenant Code" login field. Missing header means the request didn't come
+        /// through a recognizable tenant subdomain (e.g. hit the bare base domain directly),
+        /// which is a hard error here rather than a silent fallback to some default tenant.
+        /// </summary>
+        private bool TryGetTenantCode(out string? tenantCode, out IActionResult? error)
+        {
+            tenantCode = Request.Headers["X-Tenant-Code"].ToString();
+            if (string.IsNullOrWhiteSpace(tenantCode))
+            {
+                error = BadRequest(new { message = "Unable to resolve tenant from request host." });
+                return false;
+            }
+            error = null;
+            return true;
+        }
 
         [HttpPost("refresh")]
         [AllowAnonymous]
@@ -119,16 +139,18 @@ namespace ERP.Identity.Api.Controllers
         [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> ExternalLogin([FromBody] ExternalLoginRequest request, CancellationToken cancellationToken = default)
         {
-            var result = await _authService.ExternalLoginAsync(request, cancellationToken);
+            if (!TryGetTenantCode(out var tenantCode, out var error)) return error!;
+            var result = await _authService.ExternalLoginAsync(request, tenantCode!, cancellationToken);
             if (!result.Succeeded) return Unauthorized(result.Errors);
             return Ok(result);
         }
 
         [HttpGet("external-login/twitter/authorize-url")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetTwitterAuthorizeUrl([FromQuery] string tenantCode, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> GetTwitterAuthorizeUrl(CancellationToken cancellationToken = default)
         {
-            var result = await _authService.GetTwitterAuthorizeUrlAsync(tenantCode, cancellationToken);
+            if (!TryGetTenantCode(out var tenantCode, out var error)) return error!;
+            var result = await _authService.GetTwitterAuthorizeUrlAsync(tenantCode!, cancellationToken);
             return Ok(result);
         }
 
@@ -164,9 +186,10 @@ namespace ERP.Identity.Api.Controllers
 
         [HttpGet("login-options")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetLoginOptions([FromQuery] string tenantCode, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> GetLoginOptions(CancellationToken cancellationToken = default)
         {
-            var result = await _settingsService.GetPublicOptionsAsync(tenantCode, cancellationToken);
+            if (!TryGetTenantCode(out var tenantCode, out var error)) return error!;
+            var result = await _settingsService.GetPublicOptionsAsync(tenantCode!, cancellationToken);
             return Ok(result);
         }
     }

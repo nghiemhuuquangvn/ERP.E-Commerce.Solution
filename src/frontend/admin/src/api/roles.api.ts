@@ -1,10 +1,8 @@
-import { apiClient } from './client'
+import { gatewayClient as apiClient } from './client'
 
 // IdentityService's RolesController — mounted under the Gateway's `/id/api/...`
 // route, same reasoning as users.api.ts.
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
-const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const ROLES_BASE = `${GATEWAY_ROOT}/id/api/v1/roles`
+const ROLES_BASE = `/id/api/v1/roles`
 
 export interface MessageResponse {
   message: string

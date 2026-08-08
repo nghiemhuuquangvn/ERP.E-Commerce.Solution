@@ -19,6 +19,11 @@
 USE AuthDB;
 GO
 
+-- Required for INSERTs into tables with filtered indexes; some sqlcmd
+-- sessions don't inherit ON even when the DB-level default is ON.
+SET QUOTED_IDENTIFIER ON;
+GO
+
 -- ============================================================
 -- Step 1: insert any PermissionConstants code not yet present as a Permissions row
 -- (the ~20 identity:*/security:* codes already exist from migrations 003/007 - this

@@ -1,9 +1,7 @@
-import { apiClient } from '../client'
+import { gatewayClient as apiClient } from '../client'
 
 // SaleOrderService's SettingsController is mounted under the Gateway's `/so/api/...` route.
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
-const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/so/api/v1/settings/cart-checkout`
+const SETTINGS_BASE = `/so/api/v1/settings/cart-checkout`
 
 export interface SystemCartCheckoutSettings {
   guestCheckoutAllowed: boolean

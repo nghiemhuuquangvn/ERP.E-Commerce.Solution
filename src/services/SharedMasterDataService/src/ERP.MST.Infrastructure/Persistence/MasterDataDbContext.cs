@@ -93,7 +93,13 @@ namespace ERP.MST.Infrastructure.Persistence
                 var outboxMessage = new OutboxMessage
                 {
                     Id = Guid.NewGuid(),
-                    Type = domainEvent.GetType().FullName ?? domainEvent.GetType().Name,
+                    // Must be assembly-qualified — see the identical fix/explanation in
+                    // HRMService's HrmDbContext.cs (same bug: Type.GetType() in the
+                    // OutboxProcessor's assembly can't resolve a bare FullName from a
+                    // different assembly, so a bare FullName here means every domain
+                    // event silently never gets published — including EmployeeHired,
+                    // which NotificationService's live mst-topic consumer expects).
+                    Type = domainEvent.GetType().AssemblyQualifiedName ?? domainEvent.GetType().Name,
                     Content = JsonConvert.SerializeObject(domainEvent, new JsonSerializerSettings
                     {
                         TypeNameHandling = TypeNameHandling.All

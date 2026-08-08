@@ -33,7 +33,11 @@ public class NotificationDbContext : DbContext
             e.Property(x => x.RecipientEmail).IsRequired().HasMaxLength(320);
             e.Property(x => x.Subject).IsRequired().HasMaxLength(500);
             e.Property(x => x.Body).IsRequired();
-            e.Property(x => x.ErrorMessage).HasMaxLength(2000);
+            // Live column is "LastError" (001_CreateNotificationDB.sql) but the C#
+            // property is "ErrorMessage" — same class of bug as NotificationPreference
+            // .OptOutAt below; unmapped, this 500'd with "Invalid column name
+            // 'ErrorMessage'" the moment any notification was actually inserted.
+            e.Property(x => x.ErrorMessage).HasColumnName("LastError").HasMaxLength(2000);
             e.HasIndex(x => x.RecipientId);
             e.HasIndex(x => x.Status);
             e.HasIndex(x => new { x.Status, x.ScheduledFor });
@@ -49,6 +53,11 @@ public class NotificationDbContext : DbContext
 
         modelBuilder.Entity<NotificationTemplate>(e =>
         {
+            // DbSet<NotificationTemplate> is exposed as "Templates" (see property above), which
+            // EF would otherwise use as the table name by convention — but the actual table
+            // (001_CreateNotificationDB.sql) is "NotificationTemplates", so every read/write
+            // 500'd with "Invalid object name 'Templates'".
+            e.ToTable("NotificationTemplates");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Code).IsRequired().HasMaxLength(100);
@@ -60,8 +69,15 @@ public class NotificationDbContext : DbContext
 
         modelBuilder.Entity<NotificationPreference>(e =>
         {
+            // Same class of bug as NotificationTemplate above: DbSet property is "Preferences",
+            // actual table is "NotificationPreferences".
+            e.ToTable("NotificationPreferences");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
+            // The live column is "OptedOutAt" (001_CreateNotificationDB.sql) but the C#
+            // property is "OptOutAt" — unmapped, this 500'd with "Invalid column name
+            // 'OptOutAt'" the moment any preference row was actually queried.
+            e.Property(x => x.OptOutAt).HasColumnName("OptedOutAt");
             e.HasIndex(x => x.UserId).IsUnique();
         });
 

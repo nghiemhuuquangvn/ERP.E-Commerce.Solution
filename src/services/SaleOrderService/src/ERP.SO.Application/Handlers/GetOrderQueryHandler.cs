@@ -27,8 +27,41 @@ namespace ERP.SO.Application.Handlers
                 ?? throw new InvalidOperationException($"Order {request.OrderId} not found");
 
             var dto = SalesOrderMapper.MapToDto(order);
+
+            var customerOrders = await _repository.GetByCustomerIdAsync(order.CustomerId, cancellationToken);
+            var (isAnomalous, reason) = OrderAnomalyDetector.Evaluate(order.Id, order.TotalAmount, customerOrders);
+            dto.IsAnomalous = isAnomalous;
+            dto.AnomalyReason = reason;
+
             await _cache.SetAsync(cacheKey, dto, TimeSpan.FromMinutes(5), cancellationToken);
             return dto;
+        }
+    }
+
+    /// <summary>
+    /// Rule-based (not ML) sales-order anomaly check: flags an order whose total
+    /// is far above what this customer normally spends, using the customer's own
+    /// OTHER orders as the baseline. Deliberately simple/explainable — a
+    /// heuristic for staff review, not a statistical model.
+    /// </summary>
+    public static class OrderAnomalyDetector
+    {
+        private const int MinHistoryCount = 3;
+        private const decimal ThresholdMultiplier = 3.0m;
+
+        public static (bool IsAnomalous, string? Reason) Evaluate(
+            Guid orderId, decimal orderTotal, IReadOnlyCollection<SalesOrder> customerOrders)
+        {
+            var history = customerOrders.Where(o => o.Id != orderId).ToList();
+            if (history.Count < MinHistoryCount)
+                return (false, null);
+
+            var average = history.Average(o => o.TotalAmount);
+            if (average <= 0 || orderTotal <= average * ThresholdMultiplier)
+                return (false, null);
+
+            var multiple = average > 0 ? orderTotal / average : 0;
+            return (true, $"Order total is {multiple:0.#}x this customer's average order (${average:N2} over {history.Count} prior orders)");
         }
     }
 
@@ -54,18 +87,31 @@ namespace ERP.SO.Application.Handlers
             if (status.HasValue)
                 orders = orders.Where(o => o.Status == status).ToList();
 
+            // One GetByCustomerIdAsync per distinct customer on this page (not per
+            // order) — a page is at most `Take` orders, so this is bounded and cheap
+            // for an admin list view, not a hot path.
+            var historyByCustomer = new Dictionary<Guid, List<SalesOrder>>();
+            foreach (var customerId in orders.Select(o => o.CustomerId).Distinct())
+                historyByCustomer[customerId] = await _repository.GetByCustomerIdAsync(customerId, cancellationToken);
+
             return new ListOrdersResponse
             {
                 Total = total,
                 Items = orders
-                    .Select(o => new SalesOrderSummaryDto
+                    .Select(o =>
                     {
-                        OrderId = o.Id,
-                        CustomerId = o.CustomerId,
-                        CustomerName = o.CustomerName,
-                        Status = o.Status.ToString(),
-                        TotalAmount = o.TotalAmount,
-                        OrderDate = o.OrderDate
+                        var (isAnomalous, reason) = OrderAnomalyDetector.Evaluate(o.Id, o.TotalAmount, historyByCustomer[o.CustomerId]);
+                        return new SalesOrderSummaryDto
+                        {
+                            OrderId = o.Id,
+                            CustomerId = o.CustomerId,
+                            CustomerName = o.CustomerName,
+                            Status = o.Status.ToString(),
+                            TotalAmount = o.TotalAmount,
+                            OrderDate = o.OrderDate,
+                            IsAnomalous = isAnomalous,
+                            AnomalyReason = reason
+                        };
                     })
                     .ToList()
             };

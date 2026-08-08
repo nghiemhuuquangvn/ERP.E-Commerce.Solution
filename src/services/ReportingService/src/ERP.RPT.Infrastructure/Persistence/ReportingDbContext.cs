@@ -60,6 +60,11 @@ public class ReportingDbContext : DbContext
 
         modelBuilder.Entity<DimDate>(e =>
         {
+            // DbSet<DimDate> is exposed as "DimDates" (plural), which EF would otherwise use
+            // as the table name by convention — but the actual table (001_CreateReportingDB.sql)
+            // is "DimDate" (singular). Currently dormant (nothing queries .DimDates yet), but
+            // fixing now rather than leaving a live landmine for the next thing that does.
+            e.ToTable("DimDate");
             e.HasKey(x => x.DateKey);
             e.HasIndex(x => x.Date).IsUnique();
         });

@@ -82,7 +82,9 @@ CREATE TABLE OutboxMessages (
 ```
 Users
 ├── Id (PK, GUID)
-├── Email (Unique)
+├── Email (Unique per (Email, TenantId) — not globally unique; changed 2026-08,
+│         migration 014_ChangeEmailUniqueIndexToPerTenant.sql, see
+│         docs/business/Identity/MultiTenantLogin.md)
 ├── PasswordHash
 ├── FirstName, LastName
 ├── TenantId (FK)

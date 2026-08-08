@@ -362,6 +362,7 @@ const PRODUCTS_CHILDREN: NavItem[] = [
   { labelKey: 'nav.brands', path: '/products/brands', permission: 'product:brands:view', icon: '🏷️' },
   { labelKey: 'nav.categories', path: '/products/categories', permission: 'products:view', icon: '📁' },
   { labelKey: 'nav.priceLists', path: '/products/pricing', permission: 'products:view', icon: '💲' },
+  { labelKey: 'nav.productAttributes', path: '/products/attributes', permission: 'products:view', icon: '🧩' },
 ]
 
 const SALES_CHILDREN: NavItem[] = [

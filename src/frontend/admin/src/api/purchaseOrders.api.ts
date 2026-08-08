@@ -9,6 +9,8 @@ export type PurchaseOrderStatus =
   | 'PARTIALLY_RECEIVED'
   | 'RECEIVED'
   | 'CANCELLED'
+  | 'REJECTED'
+  | 'PENDING_FINANCE_APPROVAL'
 
 export interface PurchaseOrderItem {
   id: string
@@ -74,6 +76,10 @@ export const purchaseOrdersApi = {
 
   approve: (id: string) =>
     apiClient.post<PurchaseOrder>(`${BASE}/${id}/approve`).then((r) => r.data),
+
+  /** Step 2 of the approval chain — only valid while status is PENDING_FINANCE_APPROVAL. */
+  approveFinance: (id: string) =>
+    apiClient.post<PurchaseOrder>(`${BASE}/${id}/finance-approve`).then((r) => r.data),
 
   reject: (id: string, reason: string) =>
     apiClient.post<PurchaseOrder>(`${BASE}/${id}/reject`, { reason }).then((r) => r.data),

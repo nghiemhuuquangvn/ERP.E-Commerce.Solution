@@ -1,14 +1,16 @@
 import { useState, useMemo } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ordersApi } from '@/api/orders.api'
 import type { OrderSource } from '@/api/orders.api'
-import { productsApi } from '@/api/products.api'
+import type { Product } from '@/api/products.api'
+import { ProductPickerModal } from '@/components/shared/ProductPickerModal'
 
 interface DraftLine {
   key: number
   productId: string
+  productName: string
   quantity: number
   unitPrice: number
 }
@@ -25,15 +27,12 @@ export function OrderFormPage() {
   const [salesRepId, setSalesRepId] = useState('')
   const [couponCode, setCouponCode] = useState('')
   const [address, setAddress] = useState({ street: '', city: '', state: '', postalCode: '', country: 'US' })
-  const [lines, setLines] = useState<DraftLine[]>([{ key: nextKey++, productId: '', quantity: 1, unitPrice: 0 }])
+  const [lines, setLines] = useState<DraftLine[]>([
+    { key: nextKey++, productId: '', productName: '', quantity: 1, unitPrice: 0 },
+  ])
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [activeRowKey, setActiveRowKey] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  const { data: productsPage } = useQuery({
-    queryKey: ['products', 'picker'],
-    queryFn: () => productsApi.list({ skip: 0, take: 100 }),
-    staleTime: 60_000,
-  })
-  const products = productsPage?.products ?? []
 
   const mutation = useMutation({
     mutationFn: ordersApi.create,
@@ -45,13 +44,21 @@ export function OrderFormPage() {
   const updateLine = (key: number, patch: Partial<DraftLine>) =>
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)))
 
-  const handleProductChange = (key: number, productId: string) => {
-    const product = products.find((p) => p.id === productId)
-    updateLine(key, { productId, unitPrice: product?.price ?? 0 })
+  const addLine = () =>
+    setLines((prev) => [...prev, { key: nextKey++, productId: '', productName: '', quantity: 1, unitPrice: 0 }])
+
+  const removeLine = (key: number) => setLines((prev) => prev.filter((l) => l.key !== key))
+
+  const openPickerForRow = (key: number) => {
+    setActiveRowKey(key)
+    setPickerOpen(true)
   }
 
-  const addLine = () => setLines((prev) => [...prev, { key: nextKey++, productId: '', quantity: 1, unitPrice: 0 }])
-  const removeLine = (key: number) => setLines((prev) => prev.filter((l) => l.key !== key))
+  const handleProductPicked = (products: Product[]) => {
+    const product = products[0]
+    if (!product || activeRowKey === null) return
+    updateLine(activeRowKey, { productId: product.id, productName: product.name, unitPrice: product.price })
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,7 +82,7 @@ export function OrderFormPage() {
       customerEmail: customerEmail.trim(),
       lineItems: validLines.map((l) => ({
         productId: l.productId,
-        productName: products.find((p) => p.id === l.productId)?.name ?? '',
+        productName: l.productName,
         quantity: l.quantity,
         unitPrice: l.unitPrice,
       })),
@@ -162,14 +169,26 @@ export function OrderFormPage() {
               {lines.map((line) => (
                 <tr key={line.key}>
                   <td className="py-2">
-                    <select className="input" value={line.productId} onChange={(e) => handleProductChange(line.key, e.target.value)}>
-                      <option value="">{t('common.select')}</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
+                    {line.productId ? (
+                      <div className="flex items-center gap-2">
+                        <span>{line.productName}</span>
+                        <button
+                          type="button"
+                          onClick={() => openPickerForRow(line.key)}
+                          className="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-50"
+                        >
+                          …
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => openPickerForRow(line.key)}
+                        className="input w-full text-left text-gray-400"
+                      >
+                        …
+                      </button>
+                    )}
                   </td>
                   <td className="py-2 text-right">
                     <input
@@ -210,6 +229,13 @@ export function OrderFormPage() {
             </tfoot>
           </table>
         </div>
+
+        <ProductPickerModal
+          open={pickerOpen}
+          multiple={false}
+          onConfirm={handleProductPicked}
+          onClose={() => setPickerOpen(false)}
+        />
 
         {error && <p className="text-sm text-red-600">{error}</p>}
         {mutation.isError && <p className="text-sm text-red-600">{t('common.failedToSave')}</p>}

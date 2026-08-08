@@ -22,6 +22,7 @@ import { ProductFormPage } from '@/pages/products/ProductFormPage'
 import { BrandsPage } from '@/pages/products/BrandsPage'
 import { CategoriesPage } from '@/pages/products/CategoriesPage'
 import { PriceListsPage } from '@/pages/products/PriceListsPage'
+import { ProductAttributesPage } from '@/pages/products/ProductAttributesPage'
 import { SupplierListPage } from '@/pages/purchasing/SupplierListPage'
 import { SupplierFormPage } from '@/pages/purchasing/SupplierFormPage'
 import { PurchaseRequestsPage } from '@/pages/purchasing/PurchaseRequestsPage'
@@ -143,6 +144,7 @@ export const router = createBrowserRouter([
       { path: 'products/brands', element: <BrandsPage /> },
       { path: 'products/categories', element: <CategoriesPage /> },
       { path: 'products/pricing', element: <PriceListsPage /> },
+      { path: 'products/attributes', element: <ProductAttributesPage /> },
       { path: 'products/:id', element: <ProductFormPage /> },
       { path: 'purchasing/suppliers', element: <SupplierListPage /> },
       { path: 'purchasing/suppliers/new', element: <SupplierFormPage /> },

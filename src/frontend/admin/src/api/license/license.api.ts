@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { apiClient } from '../client'
+import { gatewayClient as apiClient } from '../client'
 
 // IdentityService's ModuleDefinitions/LicensePlans/TenantLicenses controllers are mounted
 // under the Gateway's `/id/api/license/...` route. Kept as a sibling of `api/settings/`
@@ -7,9 +7,7 @@ import { apiClient } from '../client'
 // category: tenant admins may only VIEW their own tenant's license (read-only); only a
 // caller holding `license:tenant:issue` (SuperAdmin) may issue/renew/suspend/revoke, and
 // only via explicitly picking a tenant — never "my own tenant" self-service.
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
-const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const LICENSE_BASE = `${GATEWAY_ROOT}/id/api/v1/license`
+const LICENSE_BASE = `/id/api/v1/license`
 
 export interface LicenseModule {
   moduleCode: string

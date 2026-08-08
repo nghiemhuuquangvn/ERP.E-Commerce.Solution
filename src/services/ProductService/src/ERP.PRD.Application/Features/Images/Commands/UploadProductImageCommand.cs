@@ -84,6 +84,14 @@ namespace ERP.PRD.Application.Features.Images.Commands
             );
 
             product.AddImage(image);
+
+            // Explicit Add, not just Product.AddImage()'s navigation-fixup: ProductImage.Id
+            // is a client-assigned Guid (set in its constructor), and EF Core's DetectChanges
+            // heuristic for a graph-discovered entity whose store-generated key already has a
+            // non-default value marks it Modified rather than Added — SaveChanges then tries
+            // to UPDATE a row that doesn't exist yet (0 rows affected -> false
+            // DbUpdateConcurrencyException). AddAsync forces the correct EntityState.Added.
+            await _uow.Images.AddAsync(image, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Image uploaded for product {ProductId}: {ImageUrl}, IsPrimary: {IsPrimary}",

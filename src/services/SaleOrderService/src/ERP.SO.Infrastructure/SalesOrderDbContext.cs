@@ -68,6 +68,12 @@ namespace ERP.SO.Infrastructure
                 {
                     li.ToTable("SalesOrderItems");
                     li.WithOwner().HasForeignKey("OrderId");
+                    // Shadow "Id" key with no explicit type defaults to int by convention, but
+                    // the actual column (001_CreateSalesDB.sql) is uniqueidentifier — every read
+                    // that included this collection 500'd with "Unable to cast object of type
+                    // 'System.Guid' to type 'System.Int32'" the moment any order actually had
+                    // line items/notes/status history to include (empty tables never hit it).
+                    li.Property<Guid>("Id");
                     li.HasKey("Id");
                     li.Property(p => p.ProductId).IsRequired();
                     li.Property(p => p.ProductName).IsRequired().HasMaxLength(500);
@@ -82,6 +88,8 @@ namespace ERP.SO.Infrastructure
                 {
                     n.ToTable("OrderNotes");
                     n.WithOwner().HasForeignKey("OrderId");
+                    // Same class of bug as LineItems above — OrderNotes.Id is uniqueidentifier.
+                    n.Property<Guid>("Id");
                     n.HasKey("Id");
                     n.Property(p => p.Note).IsRequired().HasMaxLength(2000);
                     n.Property(p => p.AddedBy).HasMaxLength(200);
@@ -92,6 +100,8 @@ namespace ERP.SO.Infrastructure
                 {
                     h.ToTable("OrderStatusHistory");
                     h.WithOwner().HasForeignKey("OrderId");
+                    // Same class of bug as LineItems above — OrderStatusHistory.Id is uniqueidentifier.
+                    h.Property<Guid>("Id");
                     h.HasKey("Id");
                     h.Property(p => p.FromStatus).IsRequired();
                     h.Property(p => p.ToStatus).IsRequired();

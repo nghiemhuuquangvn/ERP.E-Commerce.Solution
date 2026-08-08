@@ -12,7 +12,9 @@ The Product Service is the foundational catalog service. It manages:
 - **Attributes** — category-scoped, EAV-lite product/variant specs (color, size,
   material, technical specs) via `ProductAttributes`/`ProductAttributeOptions`/
   `ProductAttributeValues` — see `docs/architecture/extensible-attributes-pattern.md`
-- **Images** — Product images with sort order
+- **Images** — Product images with sort order; either registered as an external URL
+  or uploaded as a real file to Azure Blob Storage (Azurite locally) — see
+  `docs/architecture/blob-file-upload-pattern.md`
 - **External Mappings** — reconciling Product/Variant IDs against third-party
   systems (marketplace SKU, supplier item code) via `ProductExternalMappings`
 
@@ -155,10 +157,24 @@ GET    /api/v1/products/by-sku/{sku}       - Lookup product variant by SKU
 GET    /api/v1/products/by-barcode/{code}  - Lookup variant by barcode (POS point-of-sale use)
 
 GET    /api/v1/products/{id}/images        - List product images
-POST   /api/v1/products/{id}/images        - Upload product image
-PUT    /api/v1/products/{id}/images/{imageId} - Update image sort order
-DELETE /api/v1/products/{id}/images/{imageId} - Delete image
+POST   /api/v1/products/{id}/images        - Register an externally-hosted image URL
+POST   /api/v1/products/{id}/images/file   - Upload a real image file (multipart/form-data) to Blob Storage
+PUT    /api/v1/products/{id}/images/{imageId} - Update alt text/sort order, or replace the file entirely
+DELETE /api/v1/products/{id}/images/{imageId} - Delete image (and its blob, if we own it)
+POST   /api/v1/products/{id}/images/{imageId}/primary - Set as the primary image
+
+GET    /api/v1/product-attributes          - List attribute definitions (optionally by category)
+POST   /api/v1/product-attributes          - Define a new attribute (e.g. Color, Material) — no code/DB change needed
+PUT    /api/v1/product-attributes/{id}     - Update an attribute definition (Code/DataType are immutable)
+DELETE /api/v1/product-attributes/{id}     - Delete an attribute definition (fails if any value is assigned)
+POST   /api/v1/product-attributes/{id}/options - Add a selectable option (SingleSelect/MultiSelect only)
+GET    /api/v1/products/{id}/attributes    - Get attribute values for a product (optionally + one variant)
+PUT    /api/v1/products/{id}/attributes/{attributeId} - Set an attribute value on the product
+PUT    /api/v1/products/{id}/variants/{variantId}/attributes/{attributeId} - Set an attribute value on a variant
 ```
+
+Admin UI for the above: `/products/attributes` (definitions), the Variants tab (per-variant values, e.g.
+Color/Size), and the Specifications tab (per-product values, e.g. Material) in the admin app.
 
 ## Dependencies
 
@@ -178,6 +194,8 @@ DELETE /api/v1/products/{id}/images/{imageId} - Delete image
 - **EF Core** — ORM, Code-First migrations
 - **SQL Server** — ProductDB database
 - **Kafka** — Integration event streaming
+- **Azure Blob Storage** — Product image file storage (`product-images` container;
+  Azurite emulator locally via `ConnectionStrings:BlobStorage`)
 - **Swagger** — API documentation
 - **MediatR** — CQRS (Commands, Queries, Handlers)
 - **FluentValidation** — Input validation
@@ -243,7 +261,8 @@ dotnet test --filter "Category=Integration"
 1. `POST /api/v1/products` with ProductType, Name
 2. `POST /api/v1/products/{id}/variants` to add SKU and barcode
 3. `POST /api/v1/price-lists/{id}/entries` to set pricing
-4. `POST /api/v1/products/{id}/images` to upload images
+4. `POST /api/v1/products/{id}/images/file` to upload image files (or
+   `POST /api/v1/products/{id}/images` to register an externally-hosted URL)
 5. `POST /api/v1/products/{id}/publish` to set status=Active → triggers ProductCreatedIntegrationEvent
 
 ### Update Pricing
@@ -261,5 +280,5 @@ dotnet test --filter "Category=Integration"
 
 ---
 
-**Last Updated:** 2026-06-13  
+**Last Updated:** 2026-08-07  
 **Version:** 1.0.0

@@ -32,7 +32,7 @@ function Fix-Table($db, $table) {
 }
 
 $serviceDBs = @{
-    "SalesDB"        = @("SalesOrders","SalesOrderItems","OrderNotes","OrderStatusHistory")
+    "SalesDB"        = @("SalesOrders","SalesOrderItems","OrderNotes","OrderStatusHistory","SalesQuotations")
     "AccountingDB"   = @("Accounts","Bills","BillLines","Invoices","InvoiceLines","JournalEntries","JournalEntryLines","FiscalPeriods","BankAccounts","TaxRates")
     "PurchasingDB"   = @("PurchaseOrders","PurchaseOrderItems","Suppliers","SupplierRatings","GoodsReceipts")
     "WarehouseDB"    = @("Inventories","InventoryLots","StockMovements","Reservations","WarehouseLocations")

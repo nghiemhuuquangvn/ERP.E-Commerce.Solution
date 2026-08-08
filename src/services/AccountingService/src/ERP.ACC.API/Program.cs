@@ -2,6 +2,7 @@ using ERP.ACC.API.Middleware;
 using ERP.ACC.Application;
 using ERP.ACC.Infrastructure;
 using ERP.Shared.Authorization;
+using ERP.Shared.Extensions;
 using ERP.Shared.Localization;
 using ERP.Shared.Versioning;
 using Serilog;
@@ -53,6 +54,8 @@ try
         c.SwaggerDoc("v1", new() { Title = "Accounting Service API", Version = "v1" }));
 
     var app = builder.Build();
+
+    app.UseGlobalExceptionHandling();
 
     app.UseSerilogRequestLogging();
 

@@ -2,6 +2,7 @@ using ERP.PO.Application.Mappings;
 using ERP.PO.Application.Features.PurchaseOrders.Validators;
 using ERP.PO.Application.Features.Suppliers.Validators;
 using ERP.Shared.Authorization;
+using ERP.Shared.Extensions;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
 using ERP.Shared.Versioning;
@@ -103,6 +104,8 @@ builder.Services.AddScoped<IMessageBus, KafkaMessageBus>();
 builder.Services.AddHostedService<OutboxProcessor>();
 
 var app = builder.Build();
+
+app.UseGlobalExceptionHandling();
 
 app.MapOpenApi();
 

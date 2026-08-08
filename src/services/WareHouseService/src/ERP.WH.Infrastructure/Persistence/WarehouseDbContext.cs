@@ -87,6 +87,7 @@ public class WarehouseDbContext : DbContext
         modelBuilder.Entity<StockMovement>(entity =>
         {
             entity.HasKey(e => e.MovementId);
+            entity.Property(e => e.TenantId).IsRequired();
             entity.Property(e => e.ProductId).IsRequired();
             entity.Property(e => e.Quantity).IsRequired();
             entity.Property(e => e.MovementType).IsRequired();
@@ -95,6 +96,11 @@ public class WarehouseDbContext : DbContext
             entity.Property(e => e.Reference).HasMaxLength(100);
             entity.Property(e => e.Reason).HasMaxLength(500);
             entity.Property(e => e.RecordedAt).IsRequired();
+            // Live column is "ReferenceId" (001_CreateWarehouseDB.sql) but the C#
+            // property is "SourceOrderId" — unmapped, this 500'd with "Invalid
+            // column name 'SourceOrderId'" the moment any movement was actually
+            // recorded through the real API (only ever seeded directly before).
+            entity.Property(e => e.SourceOrderId).HasColumnName("ReferenceId");
 
             entity.HasIndex(e => e.ProductId);
             entity.HasIndex(e => e.RecordedAt);
@@ -114,6 +120,12 @@ public class WarehouseDbContext : DbContext
             // or written. Owned collection keyed by the shadow FK EF generates.
             entity.OwnsMany(e => e.ReservedItems, items =>
             {
+                // Without this, EF defaults to the CLR class name "ReservedItem" (singular) —
+                // the actual table (002_AddLotsSerialsTransfersStocktakes.sql) is
+                // "Reservation_ReservedItems", so every reservation read/write 500'd with
+                // "Invalid object name 'ReservedItem'" (including the background
+                // ReservationExpiryProcessor, silently failing every tick).
+                items.ToTable("Reservation_ReservedItems");
                 items.WithOwner().HasForeignKey("ReservationId");
                 items.Property<int>("Id");
                 items.HasKey("Id");
@@ -257,6 +269,10 @@ public class WarehouseDbContext : DbContext
 
         modelBuilder.Entity<TransferOrderLine>(entity =>
         {
+            // TransferOrderLine has no DbSet of its own (only reachable via
+            // TransferOrder.Lines), so EF defaults to the CLR class name "TransferOrderLine"
+            // (singular) unless told otherwise — the actual table is "TransferOrderLines".
+            entity.ToTable("TransferOrderLines");
             entity.HasKey(e => e.LineId);
             entity.Property(e => e.Quantity).IsRequired();
         });
@@ -282,6 +298,10 @@ public class WarehouseDbContext : DbContext
 
         modelBuilder.Entity<StocktakeLine>(entity =>
         {
+            // StocktakeLine has no DbSet of its own (only reachable via Stocktake.Lines), so
+            // EF defaults to the CLR class name "StocktakeLine" (singular) unless told
+            // otherwise — the actual table is "StocktakeLines".
+            entity.ToTable("StocktakeLines");
             entity.HasKey(e => e.LineId);
             entity.Property(e => e.SystemQuantity).IsRequired();
         });

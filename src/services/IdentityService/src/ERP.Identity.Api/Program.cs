@@ -6,6 +6,7 @@ using ERP.Identity.Infrastructure;
 using ERP.Identity.Infrastructure.Persistence;
 using ERP.Identity.Infrastructure.Repositories;
 using ERP.Identity.Infrastructure.Services;
+using ERP.Shared.Authorization;
 using ERP.Shared.Extensions;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
@@ -42,10 +43,7 @@ catch (System.Reflection.ReflectionTypeLoadException ex)
         Console.WriteLine($"Type load error: {loaderException?.Message}");
 }
 
-builder.Services.AddControllers(options =>
-{
-    options.Filters.Add<IdentityExceptionFilter>();
-});
+builder.Services.AddControllers();
 builder.Services.AddErpApiVersioning();
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblies(AppDomain.CurrentDomain.GetAssemblies());
@@ -125,6 +123,17 @@ builder.Services.AddAuthentication("Bearer")
 // same mechanism the other 13 services use. AddAuthorization() is still required so
 // bare [Authorize] (self-service endpoints with no specific permission) keeps working.
 builder.Services.AddAuthorization();
+
+// AuthorizePermissionAttribute resolves IUserContextService from the request's DI
+// container and treats a missing registration as "not authenticated" (401, no
+// WWW-Authenticate header — easy to mistake for a JWT validation failure). Every
+// other service already registers this (+ its IHttpContextAccessor dependency) in
+// its own Program.cs; the Phase 2 migration that moved Identity's controllers onto
+// [AuthorizePermission] missed adding both here, so every migrated endpoint either
+// 401'd (missing IUserContextService) or 500'd (missing IHttpContextAccessor)
+// regardless of the caller's actual permissions.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 
 builder.Services.AddHealthChecks();
 

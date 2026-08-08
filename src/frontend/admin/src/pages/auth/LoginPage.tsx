@@ -14,13 +14,7 @@ interface GoogleIdTokenClaims {
   sub: string
 }
 
-function GoogleLoginButton({
-  tenantCode,
-  onError,
-}: {
-  tenantCode: string
-  onError: (message: string) => void
-}) {
+function GoogleLoginButton({ onError }: { onError: (message: string) => void }) {
   const { t } = useTranslation()
   const completeLogin = useCompleteLogin()
 
@@ -36,7 +30,6 @@ function GoogleLoginButton({
         provider: 'Google',
         providerKey: claims.sub,
         idToken,
-        tenantCode,
         userType: ADMIN_USER_TYPE,
       })
       if (!data.succeeded) {
@@ -56,13 +49,7 @@ function GoogleLoginButton({
   )
 }
 
-function MicrosoftLoginButton({
-  tenantCode,
-  onError,
-}: {
-  tenantCode: string
-  onError: (message: string) => void
-}) {
+function MicrosoftLoginButton({ onError }: { onError: (message: string) => void }) {
   const { t } = useTranslation()
   const completeLogin = useCompleteLogin()
 
@@ -78,7 +65,6 @@ function MicrosoftLoginButton({
         provider: 'Microsoft',
         providerKey: claims.oid ?? result.uniqueId,
         idToken: result.idToken,
-        tenantCode,
         userType: ADMIN_USER_TYPE,
       })
       if (!data.succeeded) {
@@ -98,13 +84,7 @@ function MicrosoftLoginButton({
   )
 }
 
-function FacebookLoginButton({
-  tenantCode,
-  onError,
-}: {
-  tenantCode: string
-  onError: (message: string) => void
-}) {
+function FacebookLoginButton({ onError }: { onError: (message: string) => void }) {
   const { t } = useTranslation()
   const completeLogin = useCompleteLogin()
 
@@ -122,7 +102,6 @@ function FacebookLoginButton({
               provider: 'Facebook',
               providerKey: response.authResponse.userID,
               idToken: response.authResponse.accessToken,
-              tenantCode,
               userType: ADMIN_USER_TYPE,
             })
             if (!data.succeeded) {
@@ -148,18 +127,12 @@ function FacebookLoginButton({
   )
 }
 
-function TwitterLoginButton({
-  tenantCode,
-  onError,
-}: {
-  tenantCode: string
-  onError: (message: string) => void
-}) {
+function TwitterLoginButton({ onError }: { onError: (message: string) => void }) {
   const { t } = useTranslation()
 
   const handleClick = async () => {
     try {
-      const result = await authApi.getTwitterAuthorizeUrl(tenantCode)
+      const result = await authApi.getTwitterAuthorizeUrl()
       window.location.href = result.authorizeUrl
     } catch {
       onError(t('auth.externalLogin.failed'))
@@ -177,14 +150,12 @@ function LoginForm() {
   const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [tenantCode, setTenantCode] = useState('')
   const [ssoError, setSsoError] = useState<string | null>(null)
   const login = useLogin()
 
   const loginOptions = useQuery({
-    queryKey: ['auth', 'login-options', tenantCode],
-    queryFn: () => authApi.getLoginOptions(tenantCode),
-    enabled: tenantCode.trim().length > 0,
+    queryKey: ['auth', 'login-options'],
+    queryFn: () => authApi.getLoginOptions(),
     retry: false,
     staleTime: 30_000,
   })
@@ -192,7 +163,7 @@ function LoginForm() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setSsoError(null)
-    login.mutate({ email, password, tenantCode, userType: ADMIN_USER_TYPE })
+    login.mutate({ email, password, userType: ADMIN_USER_TYPE })
   }
 
   const options = loginOptions.data
@@ -218,17 +189,6 @@ function LoginForm() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('auth.tenantCode')}</label>
-            <input
-              type="text"
-              value={tenantCode}
-              onChange={(e) => setTenantCode(e.target.value)}
-              className="input"
-              placeholder="acme"
-              required
-            />
-          </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">{t('auth.email')}</label>
             <input
@@ -262,18 +222,10 @@ function LoginForm() {
 
         {showSso && (
           <div className="mt-6 space-y-2 border-t border-gray-100 pt-6">
-            {options?.googleEnabled && (
-              <GoogleLoginButton tenantCode={tenantCode} onError={setSsoError} />
-            )}
-            {options?.microsoftEnabled && (
-              <MicrosoftLoginButton tenantCode={tenantCode} onError={setSsoError} />
-            )}
-            {options?.facebookEnabled && (
-              <FacebookLoginButton tenantCode={tenantCode} onError={setSsoError} />
-            )}
-            {options?.twitterEnabled && (
-              <TwitterLoginButton tenantCode={tenantCode} onError={setSsoError} />
-            )}
+            {options?.googleEnabled && <GoogleLoginButton onError={setSsoError} />}
+            {options?.microsoftEnabled && <MicrosoftLoginButton onError={setSsoError} />}
+            {options?.facebookEnabled && <FacebookLoginButton onError={setSsoError} />}
+            {options?.twitterEnabled && <TwitterLoginButton onError={setSsoError} />}
           </div>
         )}
       </div>

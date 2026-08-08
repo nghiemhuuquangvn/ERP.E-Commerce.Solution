@@ -8,7 +8,6 @@ export const ADMIN_USER_TYPE = 2
 export interface LoginRequest {
   email: string
   password: string
-  tenantCode: string
   userType: number
 }
 
@@ -36,7 +35,6 @@ export interface ExternalLoginRequest {
   provider: string
   providerKey: string
   idToken: string
-  tenantCode: string
   userType: number
 }
 
@@ -80,11 +78,9 @@ export const authApi = {
   externalLogin: (body: ExternalLoginRequest) =>
     apiClient.post<LoginResponse>('/v1/auth/external-login', body).then((r) => r.data),
 
-  getTwitterAuthorizeUrl: (tenantCode: string) =>
+  getTwitterAuthorizeUrl: () =>
     apiClient
-      .get<TwitterAuthorizeUrlResponse>('/v1/auth/external-login/twitter/authorize-url', {
-        params: { tenantCode },
-      })
+      .get<TwitterAuthorizeUrlResponse>('/v1/auth/external-login/twitter/authorize-url')
       .then((r) => r.data),
 
   twitterCallback: (body: TwitterCallbackRequest) =>
@@ -98,8 +94,6 @@ export const authApi = {
   resendTwoFactor: (body: ResendTwoFactorRequest) =>
     apiClient.post<LoginResponse>('/v1/auth/2fa/resend', body).then((r) => r.data),
 
-  getLoginOptions: (tenantCode: string) =>
-    apiClient
-      .get<PublicAuthOptionsDto>('/v1/auth/login-options', { params: { tenantCode } })
-      .then((r) => r.data),
+  getLoginOptions: () =>
+    apiClient.get<PublicAuthOptionsDto>('/v1/auth/login-options').then((r) => r.data),
 }

@@ -1,11 +1,9 @@
-import { apiClient } from './client'
+import { gatewayClient as apiClient } from './client'
 
 // IdentityService's UsersController is mounted under the Gateway's `/id/api/...`
 // route, same as settings.api.ts — see that file's comment for why the prefix
 // differs from apiClient's default `/api` baseURL.
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
-const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const USERS_BASE = `${GATEWAY_ROOT}/id/api/v1/users`
+const USERS_BASE = `/id/api/v1/users`
 
 export interface EnableTwoFactorRequest {
   method: 'Sms' | 'Email'

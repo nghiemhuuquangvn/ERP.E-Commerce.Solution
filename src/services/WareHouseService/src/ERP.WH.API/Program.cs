@@ -1,4 +1,5 @@
 using ERP.Shared.Authorization;
+using ERP.Shared.Extensions;
 using ERP.Shared.Localization;
 using ERP.Shared.Versioning;
 using ERP.WH.Application;
@@ -53,6 +54,8 @@ try
     builder.Services.AddSwaggerGen();
 
     var app = builder.Build();
+
+    app.UseGlobalExceptionHandling();
 
     app.UseSerilogRequestLogging();
 

@@ -51,6 +51,19 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.Amount).HasColumnName("TotalAmount").HasColumnType("decimal(18,2)");
             });
 
+            modelBuilder.Entity<Bill>(e =>
+            {
+                // Same class of mismatch as Invoice above: DB column is TotalAmount; entity
+                // property is Amount.
+                e.Property(x => x.Amount).HasColumnName("TotalAmount").HasColumnType("decimal(18,2)");
+            });
+
+            modelBuilder.Entity<FiscalPeriod>(e =>
+            {
+                // DB column is Name; entity property is PeriodName
+                e.Property(x => x.PeriodName).HasColumnName("Name");
+            });
+
             modelBuilder.Entity<JournalLine>(e =>
             {
                 // DB table is JournalEntryLines; DbSet is JournalLines
@@ -132,7 +145,12 @@ namespace ERP.ACC.Infrastructure.Persistence
                 var outboxMessage = new OutboxMessage
                 {
                     Id = Guid.NewGuid(),
-                    Type = domainEvent.GetType().FullName ?? domainEvent.GetType().Name,
+                    // Must be assembly-qualified — see the identical fix/explanation in
+                    // HRMService's HrmDbContext.cs (same bug: Type.GetType() in the
+                    // OutboxProcessor's assembly can't resolve a bare FullName from a
+                    // different assembly, so a bare FullName here means every domain
+                    // event silently never gets published).
+                    Type = domainEvent.GetType().AssemblyQualifiedName ?? domainEvent.GetType().Name,
                     Content = JsonConvert.SerializeObject(domainEvent, new JsonSerializerSettings
                     {
                         TypeNameHandling = TypeNameHandling.All

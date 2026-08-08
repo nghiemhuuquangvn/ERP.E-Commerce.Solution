@@ -214,7 +214,12 @@ namespace ERP.Identity.Infrastructure.Persistence
             {
                 entity.ToTable("Users");
                 entity.HasKey(u => u.Id);
-                entity.HasIndex(u => u.Email).IsUnique();
+                // Unique per tenant, not globally — two independent tenants (companies)
+                // are allowed to share the same email address (e.g. a generic "info@"
+                // address, or a consultant registered separately in each). Login/
+                // Register resolve the tenant first (subdomain), so this pair is
+                // sufficient to identify a user unambiguously.
+                entity.HasIndex(u => new { u.Email, u.TenantId }).IsUnique();
                 entity.Property(u => u.Email).IsRequired().HasMaxLength(256);
                 entity.Property(u => u.PasswordHash).IsUnicode(false).IsRequired().HasMaxLength(500);
                 entity.Property(u => u.IsActive).IsRequired();

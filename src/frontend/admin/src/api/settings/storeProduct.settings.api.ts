@@ -1,10 +1,8 @@
-import { apiClient } from '../client'
+import { gatewayClient as apiClient } from '../client'
 
 // ProductService's SettingsController is mounted under the Gateway's `/prd/api/...`
 // route, mirroring settings.api.ts's re-rooting for IdentityService's `/id/api/...`.
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
-const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/prd/api/v1/settings/store-product`
+const SETTINGS_BASE = `/prd/api/v1/settings/store-product`
 
 export interface SystemStoreProductSettings {
   priceDisplayIncludesTaxByDefault: boolean

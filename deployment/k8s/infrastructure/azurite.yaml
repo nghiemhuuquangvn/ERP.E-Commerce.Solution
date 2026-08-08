@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: azurite
+  namespace: erp
+spec:
+  serviceName: azurite
+  replicas: 1
+  selector:
+    matchLabels:
+      app: azurite
+  template:
+    metadata:
+      labels:
+        app: azurite
+    spec:
+      containers:
+      - name: azurite
+        image: mcr.microsoft.com/azure-storage/azurite:latest
+        args:
+          - azurite-blob
+          - --blobHost
+          - "0.0.0.0"
+          - --blobPort
+          - "10000"
+          - --location
+          - /data
+        ports:
+        - containerPort: 10000
+        volumeMounts:
+        - name: azurite-data
+          mountPath: /data
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+  volumeClaimTemplates:
+  - metadata:
+      name: azurite-data
+    spec:
+      accessModes: [ReadWriteOnce]
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: azurite
+  namespace: erp
+spec:
+  selector:
+    app: azurite
+  ports:
+  - port: 10000
+    targetPort: 10000
+  clusterIP: None
+---
+# Separate from the headless "azurite" Service above (required as the StatefulSet's
+# governing service for stable pod DNS, and can't be NodePort). Blob URLs handed back
+# to API clients get rewritten to point here (see ProductService's
+# FileStorage__PublicBlobBaseUrl) so the end user's browser — which cannot resolve the
+# in-cluster "azurite" hostname — can actually load the images it renders.
+apiVersion: v1
+kind: Service
+metadata:
+  name: azurite-nodeport
+  namespace: erp
+spec:
+  selector:
+    app: azurite
+  type: NodePort
+  ports:
+  - port: 10000
+    targetPort: 10000
+    nodePort: 30310

@@ -23,6 +23,8 @@ const STATUS_COLORS: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-600',
   SUBMITTED: 'bg-yellow-100 text-yellow-700',
   PARTIALLY_RECEIVED: 'bg-yellow-100 text-yellow-700',
+  PENDING_FINANCE_APPROVAL: 'bg-yellow-100 text-yellow-700',
+  REJECTED: 'bg-red-100 text-red-700',
   Late: 'bg-yellow-100 text-yellow-700',
   HalfDay: 'bg-yellow-100 text-yellow-700',
   Holiday: 'bg-gray-100 text-gray-600',

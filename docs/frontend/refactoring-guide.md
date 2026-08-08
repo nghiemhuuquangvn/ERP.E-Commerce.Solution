@@ -64,7 +64,6 @@ export interface ApiError {
 export interface LoginRequest {
   email: string
   password: string
-  tenantCode?: string
   userType?: number
 }
 
@@ -343,7 +342,6 @@ import { z } from 'zod'
 export const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  tenantCode: z.string().optional(),
 })
 
 export type LoginFormData = z.infer<typeof loginSchema>

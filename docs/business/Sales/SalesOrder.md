@@ -94,6 +94,41 @@ PO): `SalesOrderCreatedEvent`, `SalesOrderApprovedEvent`,
 `SalesOrderPartiallyShippedEvent`, `SalesOrderDeliveredEvent`,
 `SalesOrderReturnedEvent`. Chi tiết ai tiêu thụ event nào ở `SalesWorkflow.md`.
 
+## 4b. Phát hiện đơn hàng bất thường (Anomaly Detection, thêm 2026-08-04)
+
+Rule-based, không dùng ML — chi tiết đầy đủ ở
+`docs/fixes/2026-08-04_ERP4Features_SeedDataAndFeatures_Summary.md` §D.2.
+
+**Quy tắc**: 1 đơn bị đánh dấu bất thường nếu `TotalAmount` lớn hơn **3 lần**
+giá trị đơn trung bình của khách hàng đó (`ThresholdMultiplier`), **và** khách
+hàng đã có **tối thiểu 3 đơn trước đó** (`MinHistoryCount`) để có đủ dữ liệu
+lịch sử làm baseline — khách hàng mới (dưới 3 đơn) không bao giờ bị đánh dấu,
+tránh false-positive cho đơn đầu tiên lớn của khách mới.
+
+```csharp
+// ERP.SO.Application/Handlers/GetOrderQueryHandler.cs
+public static class OrderAnomalyDetector
+{
+    private const int MinHistoryCount = 3;
+    private const decimal ThresholdMultiplier = 3.0m;
+
+    public static (bool IsAnomalous, string? Reason) Evaluate(
+        Guid orderId, decimal orderTotal, IReadOnlyCollection<SalesOrder> customerOrders)
+    { /* ... */ }
+}
+```
+
+- Được tính cho cả chi tiết đơn (`GetOrderQueryHandler`) lẫn danh sách đơn
+  (`ListOrdersQueryHandler` — tính 1 lần cho mỗi khách hàng khác nhau trong
+  trang kết quả, không tính lại theo từng dòng, để tránh N+1 query).
+- Lộ ra ngoài API qua `isAnomalous`/`anomalyReason` trên cả `SalesOrderDto` và
+  `SalesOrderSummaryDto` — không phải field lưu trong DB, tính lại mỗi lần đọc.
+- Admin hiển thị badge đỏ "⚠ Unusual order" cạnh số đơn hàng ở cả trang danh
+  sách và chi tiết, kèm lý do đầy đủ ở tooltip.
+- **Ngưỡng 3× là hằng số cố định trong code**, chưa cấu hình theo tenant/danh
+  mục sản phẩm; tính năng cũng chỉ áp dụng cho Sales Order, chưa mở rộng sang
+  Purchase Order hay giao dịch POS.
+
 ## 5. Khoảng trống & Đề xuất
 
 1. ~~**Không kiểm tra tồn kho trước khi Approve**~~ — **Đã bổ sung 2026-07-14**

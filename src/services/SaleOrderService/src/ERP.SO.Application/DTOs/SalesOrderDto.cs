@@ -32,6 +32,15 @@ namespace ERP.SO.Application.DTOs
         public Guid? QuotationId { get; set; }
         public Guid? PromotionId { get; set; }
         public decimal DiscountAmount { get; set; }
+
+        /// <summary>
+        /// Rule-based flag (not ML): true when TotalAmount exceeds 3x this
+        /// customer's average order value, and the customer has enough order
+        /// history (4+ orders) for that average to be meaningful. Computed at
+        /// read time in the query handler — not persisted.
+        /// </summary>
+        public bool IsAnomalous { get; set; }
+        public string? AnomalyReason { get; set; }
     }
 
     public class OrderNoteDto
@@ -61,5 +70,7 @@ namespace ERP.SO.Application.DTOs
         public string OrderNo { get; set; } = string.Empty;
         public Guid? SalesRepId { get; set; }
         public Guid? DepartmentId { get; set; }
+        public bool IsAnomalous { get; set; }
+        public string? AnomalyReason { get; set; }
     }
 }

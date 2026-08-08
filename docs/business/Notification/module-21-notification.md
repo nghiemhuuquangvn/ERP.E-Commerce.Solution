@@ -92,13 +92,26 @@ POST   /api/v1/notifications/bulk                  (notifications:send, 202 Acce
 - `NotificationSentEvent(NotificationId, RecipientId, Channel)` — khi `MarkAsSent()`
 - `NotificationFailedEvent(NotificationId, RecipientId, Channel, Error)` — khi `MarkAsFailed()`
 
-**Consumed** (đã xác nhận 2 consumer thật đang chạy, không phải 1 như CLAUDE.md ghi):
+**Consumed** (đã xác nhận 4 consumer thật đang chạy — thêm 2 từ 2026-08-04, xem
+`docs/fixes/2026-08-04_ERP4Features_SeedDataAndFeatures_Summary.md` §C.2):
 | Consumer | Transport | Sự kiện | Trạng thái |
 |---|---|---|---|
 | `IdentityEventConsumer` | Kafka `identity-topic` | `TwoFactorCodeGenerated` (gửi OTP), `UserCreated`, ... | Sống |
 | `SalesOrderRabbitMqConsumer` | RabbitMQ `sales_order_events` | `sales_order.SalesOrderCreatedEvent`, `sales_order.SalesOrderApprovedEvent` | Sống — gửi email xác nhận/duyệt đơn hàng |
+| `NotificationKafkaConsumer` (`PurchasingTopic`, thêm 2026-08-04) | Kafka `purchasing-topic` | `PurchaseOrderPendingFinanceApprovalDomainEvent`, `PurchaseOrderApprovedDomainEvent` | Sống — báo người có quyền `purchase_order:finance_approve` khi PO chờ duyệt tài chính, báo xác nhận khi PO được duyệt xong |
+| `NotificationKafkaConsumer` (`HrmTopic`, thêm 2026-08-04) | Kafka `hrm-topic` | `LeaveApprovedEvent`, `LeaveRejectedEvent` | Sống — báo nhân viên kết quả duyệt đơn nghỉ phép |
 
-11 service còn lại (Warehouse, Accounting, CRM, HRM, Payment, Shipping, POS, Promotion, Purchasing, Product, Reporting) **chưa có consumer nối dây** cho Notification — thiết kế "tiêu thụ toàn bộ 39+ sự kiện" trong CLAUDE.md vẫn là mục tiêu dự kiến, không phải hiện trạng.
+**Bug chặn cả 2 consumer mới lúc mới thêm, đã sửa cùng đợt**: Newtonsoft
+`JObject.Value<Guid?>()` ném `InvalidCastException` khi giá trị JSON là chuỗi
+thuần (mọi trường GUID trong mọi event đều vậy) — lỗi này ảnh hưởng **toàn bộ**
+Kafka consumer của service này, kể cả 2 consumer cũ ở trên, không chỉ 2
+consumer mới. Thay bằng helper `GuidOrEmpty(JObject, string)` dùng
+`Guid.TryParse`.
+
+9 service còn lại (Warehouse, Accounting, CRM, Payment, Shipping, POS,
+Promotion, Product, Reporting) **chưa có consumer nối dây** cho Notification —
+thiết kế "tiêu thụ toàn bộ 39+ sự kiện" trong CLAUDE.md vẫn là mục tiêu dự
+kiến, không phải hiện trạng.
 
 ## 8. Business Rules & Validation
 
@@ -113,6 +126,8 @@ POST   /api/v1/notifications/bulk                  (notifications:send, 202 Acce
 |---|---|
 | Module 2 (Identity) | `TwoFactorCodeGenerated` → gửi OTP qua SMS/Email (duy nhất kênh giao OTP, không đồng bộ trực tiếp) |
 | Module 5 (Sales) | `SalesOrderCreatedEvent`/`SalesOrderApprovedEvent` → email xác nhận/duyệt đơn |
+| Purchasing Service (thêm 2026-08-04) | `PurchaseOrderPendingFinanceApprovalDomainEvent`/`PurchaseOrderApprovedDomainEvent` → báo người duyệt tài chính / xác nhận PO đã duyệt xong |
+| HRM Service (thêm 2026-08-04) | `LeaveApprovedEvent`/`LeaveRejectedEvent` → báo nhân viên kết quả duyệt đơn nghỉ phép |
 | Hệ thống ngoài | Webhook cho phép bên thứ ba tự đăng ký nhận `notification.sent`/`notification.failed` theo `EventTypes` filter |
 
 ## 10. So sánh & Reconciliation với project hiện tại (2026-07-29)

@@ -72,9 +72,19 @@ export function OrderListPage() {
       key: 'orderNo',
       label: t('orders.orderNumber'),
       render: (o: SalesOrderSummary) => (
-        <Link to={`/orders/${o.orderId}`} className="text-primary-600 hover:underline">
-          {o.orderNo || o.orderId.slice(0, 8)}
-        </Link>
+        <span className="inline-flex items-center gap-1.5">
+          <Link to={`/orders/${o.orderId}`} className="text-primary-600 hover:underline">
+            {o.orderNo || o.orderId.slice(0, 8)}
+          </Link>
+          {o.isAnomalous && (
+            <span
+              className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700"
+              title={o.anomalyReason ?? t('orders.anomalyFlag')}
+            >
+              ⚠ {t('orders.anomalyFlag')}
+            </span>
+          )}
+        </span>
       ),
     },
     { key: 'customerName', label: t('orders.customer') },

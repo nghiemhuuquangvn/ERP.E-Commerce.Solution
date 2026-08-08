@@ -143,9 +143,16 @@ it.
 
 ### 2.1 Standard email/password login
 
+**Tenant resolution (2026-08):** before any of the steps below, the Gateway
+(`GatewayAuthorizationMiddleware`) resolves the tenant from the request's subdomain
+(`acme.erp.local` → `acme`) — or trusts a `X-Tenant-Code` header the client already
+sent itself (Storefront, deployed one-per-tenant) — and injects `X-Tenant-Code` before
+forwarding. Neither the login form nor the request body carries a tenant code
+anymore; see `docs/business/Identity/MultiTenantLogin.md`.
+
 | Step | UI | Call | Gateway route | Controller → Handler |
 |---|---|---|---|---|
-| 1 | User submits `LoginPage` (Admin: `LoginPage.tsx`; Storefront: `auth/LoginPage.vue`; mobile: `(auth)/login.tsx`) | `POST /api/v1/auth/login` `{ email, password, tenantCode }` (Admin also sends `userType: 2`) | `/api/v1/auth/{everything}` → identityservice:5001, **no auth required** | `AuthController.Login` (`api/[controller]` → `api/Auth/login`) → `LoginCommand` |
+| 1 | User submits `LoginPage` (Admin: `LoginPage.tsx`; Storefront: `auth/LoginPage.vue`; mobile: `(auth)/login.tsx`) | `POST /api/v1/auth/login` `{ email, password }` + `X-Tenant-Code` header (Admin also sends `userType: 2`) | `/api/v1/auth/{everything}` → identityservice:5001, **no auth required** | `AuthController.Login` (`api/[controller]` → `api/Auth/login`) → `LoginCommand` |
 | 2 | — | — | — | Handler validates credentials, checks `TenantAuthSettings`/`SystemAuthSettings` — if 2FA is required for this tenant+user, returns `{ requiresTwoFactor: true, challengeId, twoFactorMethod }` **instead of** a token pair |
 | 3a (no 2FA) | Store gets `{ accessToken, refreshToken, user }` | — | — | Admin: Zustand `persist` → `localStorage` key `erp-auth`. Storefront: Pinia `persist` → `localStorage`. Mobile: Zustand + `AsyncStorage` key `erp-customer-auth` (no `localStorage` on RN) |
 | 3b (2FA required) | Admin only routes to `/login/2fa` (`TwoFactorPage.tsx`) — **Storefront and both mobile apps have no 2FA UI step today** | `POST /api/v1/auth/2fa/verify {challengeId, code}` | same | `AuthController.VerifyTwoFactor` → `VerifyTwoFactorCommand` |

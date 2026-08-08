@@ -8,6 +8,7 @@ using ERP.NTF.Infrastructure.Persistence;
 using ERP.NTF.Infrastructure.Repositories;
 using ERP.NTF.Infrastructure.Services;
 using ERP.Shared.Authorization;
+using ERP.Shared.Extensions;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
 using ERP.Shared.Messaging;
@@ -128,6 +129,8 @@ builder.Services.Configure<HostOptions>(opts =>
     opts.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
 
 var app = builder.Build();
+
+app.UseGlobalExceptionHandling();
 
 app.UseSwagger();
 app.UseSwaggerUI();

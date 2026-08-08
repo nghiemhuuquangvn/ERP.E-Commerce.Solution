@@ -91,7 +91,7 @@ export function WorkShiftsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['hrm', 'workShifts'],
-    queryFn: () => workShiftsApi.list(),
+    queryFn: ({ signal }) => workShiftsApi.list({}, signal),
     staleTime: 30_000,
   })
 

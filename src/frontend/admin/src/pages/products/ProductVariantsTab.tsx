@@ -1,12 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { productsApi } from '@/api/products.api'
 import type { ProductVariant } from '@/api/products.api'
+import { attributesApi } from '@/api/product/attributes.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { usePermission } from '@/hooks/usePermission'
+import {
+  DynamicAttributeField,
+  buildSetAttributeValueRequest,
+  mapExistingValueToAttrValue,
+} from './dynamicAttributeField'
+import type { AttrValue } from './dynamicAttributeField'
 
 interface VariantFormValues {
   sku: string
@@ -34,10 +41,12 @@ const EMPTY_FORM: VariantFormValues = {
 
 function VariantModal({
   productId,
+  categoryId,
   variant,
   onClose,
 }: {
   productId: string
+  categoryId?: string | null
   variant: ProductVariant | null
   onClose: () => void
 }) {
@@ -61,6 +70,34 @@ function VariantModal({
       : EMPTY_FORM,
   })
 
+  // Only attributes marked IsVariantOption (e.g. Color/Size) are relevant here — purely
+  // descriptive product-level specs live on the Specifications tab instead.
+  const { data: attributes } = useQuery({
+    queryKey: ['product', 'attributes', 'variantOptions', categoryId ?? null],
+    queryFn: () => attributesApi.list(categoryId ?? undefined),
+    select: (all) => all.filter((a) => a.isVariantOption),
+  })
+
+  const { data: existingValues } = useQuery({
+    queryKey: ['products', productId, 'variants', variant?.id, 'attributes'],
+    queryFn: () => attributesApi.getValues(productId, variant!.id),
+    enabled: isEdit,
+  })
+
+  const [attrValues, setAttrValues] = useState<Record<string, AttrValue>>({})
+
+  useEffect(() => {
+    if (!attributes || !existingValues) return
+
+    const initial: Record<string, AttrValue> = {}
+    for (const attr of attributes) {
+      const existing = existingValues.find((v) => v.attributeId === attr.id)
+      const mapped = mapExistingValueToAttrValue(attr, existing)
+      if (mapped !== undefined) initial[attr.id] = mapped
+    }
+    setAttrValues(initial)
+  }, [attributes, existingValues])
+
   const mutation = useMutation({
     mutationFn: async (values: VariantFormValues): Promise<void> => {
       const shared = {
@@ -73,11 +110,27 @@ function VariantModal({
         height: values.height === '' ? undefined : Number(values.height),
         dimensionUnit: values.dimensionUnit || undefined,
       }
+
+      let targetVariantId = variant?.id
       if (isEdit) {
         await productsApi.updateVariant(productId, variant!.id, shared)
-        return
+      } else {
+        const created = await productsApi.createVariant(productId, {
+          sku: values.sku.trim().toUpperCase(),
+          ...shared,
+        })
+        targetVariantId = created.variantId
       }
-      await productsApi.createVariant(productId, { sku: values.sku.trim().toUpperCase(), ...shared })
+
+      if (targetVariantId && attributes && attributes.length > 0) {
+        await Promise.all(
+          attributes.map((attr) => {
+            const request = buildSetAttributeValueRequest(attr, attrValues[attr.id])
+            if (!request) return Promise.resolve()
+            return attributesApi.setVariantValue(productId, targetVariantId!, attr.id, request)
+          }),
+        )
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products', productId, 'variants'] })
@@ -128,6 +181,27 @@ function VariantModal({
             </div>
           </div>
 
+          {attributes && attributes.length > 0 && (
+            <div className="col-span-2 space-y-3 border-t border-gray-100 pt-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                {t('products.tabs.specifications')}
+              </h4>
+              {attributes.map((attr) => (
+                <div key={attr.id}>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    {attr.name}
+                    {attr.unit ? ` (${attr.unit})` : ''}
+                  </label>
+                  <DynamicAttributeField
+                    attribute={attr}
+                    value={attrValues[attr.id]}
+                    onChange={(value) => setAttrValues((prev) => ({ ...prev, [attr.id]: value }))}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
           {mutation.isError && (
             <p className="col-span-2 text-xs text-red-600">{t('common.failedToSave')}</p>
           )}
@@ -146,7 +220,7 @@ function VariantModal({
   )
 }
 
-export function ProductVariantsTab({ productId }: { productId: string }) {
+export function ProductVariantsTab({ productId, categoryId }: { productId: string; categoryId?: string | null }) {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
@@ -227,6 +301,7 @@ export function ProductVariantsTab({ productId }: { productId: string }) {
       {modalState.open && (
         <VariantModal
           productId={productId}
+          categoryId={categoryId}
           variant={modalState.variant}
           onClose={() => setModalState({ open: false, variant: null })}
         />

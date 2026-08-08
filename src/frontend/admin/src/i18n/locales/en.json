@@ -52,6 +52,7 @@
     "brands": "Brands",
     "categories": "Categories",
     "priceLists": "Price Lists",
+    "productAttributes": "Attributes",
     "inventory": "Inventory",
     "inventoryGroup": "Inventory",
     "locations": "Locations",
@@ -175,6 +176,7 @@
     "orderNumber": "Order #",
     "total": "Total",
     "approve": "Approve",
+    "reject": "Reject",
     "cancel": "Cancel",
     "cancelOrderTitle": "Cancel Order",
     "cancelOrderMessage": "Are you sure you want to cancel this order? This action cannot be undone.",
@@ -193,6 +195,7 @@
     "fromQuotation": "From Quotation",
     "discount": "Discount",
     "priceChangeWarning": "⚠ Catalog price changed since order was placed",
+    "anomalyFlag": "Unusual order",
     "statusHistory": "Status History",
     "statusHistoryFrom": "From",
     "statusHistoryTo": "To",
@@ -298,13 +301,20 @@
     "received": "Received",
     "cancelTitle": "Cancel Purchase Order",
     "cancelMessage": "Are you sure you want to cancel this purchase order? This action cannot be undone.",
+    "financeApprove": "Finance Approve",
+    "rejectTitle": "Reject Purchase Order #{{number}}",
+    "rejectReason": "Rejection reason",
+    "reasonRequired": "A reason is required.",
+    "rejectFailed": "Failed to reject the purchase order.",
     "statusFilters": {
       "draft": "Draft",
       "submitted": "Submitted",
+      "pendingFinanceApproval": "Pending Finance Approval",
       "approved": "Approved",
       "ordered": "Ordered",
       "partiallyReceived": "Partially Received",
       "received": "Received",
+      "rejected": "Rejected",
       "cancelled": "Cancelled"
     },
     "form": {
@@ -384,6 +394,12 @@
       }
     }
   },
+  "productPicker": {
+    "title": "Select Products",
+    "searchPlaceholder": "Search by name or SKU…",
+    "selectedCount": "{{count}} selected",
+    "confirmSelection": "Add selected"
+  },
   "products": {
     "title": "Products",
     "addProduct": "+ Add Product",
@@ -414,7 +430,9 @@
     },
     "form": {
       "requiredFields": "Name (min 3 chars) and SKU are required.",
-      "notEditableAfterCreate": "Cannot be changed after creation."
+      "notEditableAfterCreate": "Cannot be changed after creation.",
+      "saveFirstToUnlock": "Save the product first to manage this section.",
+      "statusActionsUnavailable": "Available after saving."
     },
     "seo": {
       "title": "SEO",
@@ -436,6 +454,7 @@
     "tabs": {
       "images": "Images",
       "variants": "Variants",
+      "specifications": "Specifications",
       "uomConversions": "UoM Conversions"
     },
     "images": {
@@ -449,7 +468,12 @@
       "upload": "Add Image",
       "variant": "Variant (optional)",
       "removeTitle": "Remove Image",
-      "removeConfirm": "Are you sure you want to remove this image?"
+      "removeConfirm": "Are you sure you want to remove this image?",
+      "dragDropHint": "Drag & drop an image here, or click to browse",
+      "orPasteUrl": "Or paste an external image URL instead",
+      "replace": "Replace",
+      "invalidFileType": "Only JPEG, PNG, WEBP or GIF images are allowed.",
+      "fileTooLarge": "Image exceeds the 5 MB limit."
     },
     "variants": {
       "add": "+ Add Variant",
@@ -474,6 +498,35 @@
       "toUom": "To Unit",
       "conversionFactor": "Conversion Factor",
       "conversionFactorInvalid": "Conversion factor must be greater than 0."
+    },
+    "attributes": {
+      "title": "Product Attributes",
+      "subtitle": "Define new specs (e.g. Material, Color) that admins can assign to products and variants — no code or database changes needed.",
+      "add": "+ Add Attribute",
+      "addTitle": "Add Attribute",
+      "editTitle": "Edit Attribute",
+      "code": "Code",
+      "codeHint": "Lowercase letters, numbers, and underscores only (e.g. material).",
+      "dataType": "Data Type",
+      "unit": "Unit (optional)",
+      "global": "Global (all categories)",
+      "isVariantOption": "Distinguishes variants (e.g. Color, Size)",
+      "isRequired": "Required",
+      "isFilterable": "Filterable",
+      "options": "Options",
+      "addOptionPlaceholder": "Add an option value…",
+      "optionsRequiredHint": "At least one option is required for Single/Multi Select attributes.",
+      "deleteTitle": "Delete Attribute",
+      "deleteConfirm": "Are you sure you want to delete \"{{name}}\"? This fails if any product/variant already has a value for it.",
+      "noneDefined": "No specifications defined for this product yet.",
+      "dataTypes": {
+        "text": "Text",
+        "number": "Number",
+        "boolean": "Yes/No",
+        "date": "Date",
+        "singleSelect": "Single Select",
+        "multiSelect": "Multi Select"
+      }
     }
   },
   "brands": {
@@ -682,7 +735,18 @@
     "orders": "Orders",
     "avgOrderValue": "Avg Order Value",
     "revenueByDay": "Revenue by Day",
-    "revenueByPaymentMethod": "Revenue by Payment Method"
+    "revenueByPaymentMethod": "Revenue by Payment Method",
+    "newCustomers": "New Customers",
+    "topProducts": "Top Products",
+    "product": "Product",
+    "unitsSold": "Units Sold",
+    "revenue": "Revenue",
+    "inventory": "Inventory",
+    "totalProducts": "Total Products",
+    "lowStock": "Low Stock",
+    "outOfStock": "Out of Stock",
+    "units": "units",
+    "noData": "No data yet"
   },
   "monitoring": {
     "title": "System Monitoring",

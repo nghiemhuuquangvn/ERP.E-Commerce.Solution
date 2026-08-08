@@ -18,6 +18,19 @@ public class PurchaseOrder : BaseEntity
     public DateTime? ScheduledReceiptDate { get; private set; }
     public string? RejectionReason { get; private set; }
 
+    /// <summary>
+    /// Orders at or above this total require a second Finance approval after
+    /// the Manager step; smaller orders go straight to Approved on Manager
+    /// approval alone. Kept as a domain constant (not configurable per
+    /// tenant) for this first pass of the multi-level approval workflow.
+    /// </summary>
+    public const decimal FinanceApprovalThreshold = 5000m;
+
+    public string? ManagerApprovedBy { get; private set; }
+    public DateTime? ManagerApprovedAt { get; private set; }
+    public string? FinanceApprovedBy { get; private set; }
+    public DateTime? FinanceApprovedAt { get; private set; }
+
     private readonly List<PurchaseOrderItem> _items = new();
     public IReadOnlyCollection<PurchaseOrderItem> Items => _items.AsReadOnly();
 
@@ -87,11 +100,45 @@ public class PurchaseOrder : BaseEntity
         Status = PurchaseOrderStatus.Submitted;
     }
 
+    /// <summary>
+    /// Step 1 of the approval chain (Manager). Orders below
+    /// FinanceApprovalThreshold are fully approved here; orders at/above it
+    /// move to PendingFinanceApproval and require ApproveFinance() as well.
+    /// </summary>
     public void Approve(string approvedBy)
     {
         if (Status != PurchaseOrderStatus.Submitted)
             throw new InvalidOperationException("Only Submitted orders can be approved.");
 
+        ManagerApprovedBy = approvedBy;
+        ManagerApprovedAt = DateTime.UtcNow;
+        UpdatedBy = approvedBy;
+        UpdatedAt = DateTime.UtcNow;
+
+        if (TotalAmount.Amount >= FinanceApprovalThreshold)
+        {
+            Status = PurchaseOrderStatus.PendingFinanceApproval;
+            AddDomainEvent(new PurchaseOrderPendingFinanceApprovalDomainEvent(
+                Id, PONumber, SupplierId, TotalAmount.Amount, approvedBy));
+        }
+        else
+        {
+            Status = PurchaseOrderStatus.Approved;
+            AddDomainEvent(new PurchaseOrderApprovedDomainEvent(Id, PONumber, SupplierId, approvedBy));
+        }
+    }
+
+    /// <summary>
+    /// Step 2 of the approval chain (Finance) — only reachable for orders
+    /// Manager-approved at/above FinanceApprovalThreshold.
+    /// </summary>
+    public void ApproveFinance(string approvedBy)
+    {
+        if (Status != PurchaseOrderStatus.PendingFinanceApproval)
+            throw new InvalidOperationException("Only orders pending Finance approval can be Finance-approved.");
+
+        FinanceApprovedBy = approvedBy;
+        FinanceApprovedAt = DateTime.UtcNow;
         Status = PurchaseOrderStatus.Approved;
         UpdatedBy = approvedBy;
         UpdatedAt = DateTime.UtcNow;
@@ -100,15 +147,16 @@ public class PurchaseOrder : BaseEntity
     }
 
     /// <summary>
-    /// Distinct from Cancel: only valid while awaiting approval, and requires a reason —
-    /// lets the approver send a Submitted order back with feedback instead of ending it
-    /// permanently. Unlike Cancel, Rejected is terminal (matches SalesOrder.Reject()'s
-    /// behavior in SaleOrderService, kept consistent across the two services).
+    /// Distinct from Cancel: only valid while awaiting approval (Manager or Finance
+    /// step), and requires a reason — lets the approver send an order back with
+    /// feedback instead of ending it permanently. Unlike Cancel, Rejected is terminal
+    /// (matches SalesOrder.Reject()'s behavior in SaleOrderService, kept consistent
+    /// across the two services).
     /// </summary>
     public void Reject(string reason, string rejectedBy)
     {
-        if (Status != PurchaseOrderStatus.Submitted)
-            throw new InvalidOperationException("Only Submitted orders can be rejected.");
+        if (Status != PurchaseOrderStatus.Submitted && Status != PurchaseOrderStatus.PendingFinanceApproval)
+            throw new InvalidOperationException("Only Submitted or Pending-Finance-Approval orders can be rejected.");
 
         if (string.IsNullOrWhiteSpace(reason))
             throw new ArgumentException("A reason is required to reject a purchase order.", nameof(reason));

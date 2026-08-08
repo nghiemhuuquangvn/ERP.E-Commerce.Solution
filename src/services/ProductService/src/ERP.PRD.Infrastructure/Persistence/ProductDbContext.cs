@@ -131,6 +131,18 @@ namespace ERP.PRD.Infrastructure.Persistence
                 entity.HasIndex(e => e.ProductId);
                 entity.HasIndex(e => new { e.ProductId, e.FromUomId, e.ToUomId }).IsUnique();
             });
+
+            // PriceListItem has no DbSet (only reachable via PriceList.Items) and no
+            // other configuration, so by convention EF would map it to a table named
+            // after the bare CLR class name ("PriceListItem") — but the actual table
+            // is named "PriceListItems" (plural), causing "Invalid object name
+            // 'PriceListItem'" on every query that touches PriceList.Items. Every other
+            // column (including the shadow FK PriceListId) already matches convention.
+            modelBuilder.Entity<PriceListItem>(entity =>
+            {
+                entity.ToTable("PriceListItems");
+                entity.HasKey(e => e.Id);
+            });
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

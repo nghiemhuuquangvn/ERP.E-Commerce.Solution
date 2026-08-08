@@ -71,6 +71,15 @@ namespace ERP.PRD.Application.Interfaces
     public interface IProductImageRepository
     {
         Task<List<ProductImageProjection>> GetByProductIdAsync(Guid productId, CancellationToken ct = default);
+
+        // Explicit Add, rather than relying solely on Product.AddImage()'s navigation-fixup
+        // tracking: ProductImage.Id is a client-assigned Guid (set in its constructor before
+        // EF ever sees it), and EF Core's DetectChanges heuristic for a store-generated key
+        // that already has a non-default value marks graph-discovered entities as Modified,
+        // not Added — which makes SaveChanges try to UPDATE a row that doesn't exist yet
+        // (0 rows affected -> false DbUpdateConcurrencyException). DbSet.AddAsync forces the
+        // correct EntityState.Added regardless of any prior tracking state.
+        Task AddAsync(ProductImage image, CancellationToken ct = default);
     }
 
     public interface IPriceListRepository

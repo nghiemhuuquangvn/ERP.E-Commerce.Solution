@@ -12,9 +12,11 @@ namespace ERP.Identity.Application.Interfaces.Repositories
     {
         Task<User?> GetByEmailAsync(string email, Guid tenantId, CancellationToken ct);
 
-        /// <summary>Global (no tenant filter) — Users.Email is a globally-unique index;
-        /// used by registration/invite flows to detect an account that already exists
-        /// in a DIFFERENT tenant, which the tenant-scoped GetByEmailAsync cannot see.</summary>
+        /// <summary>Global (no tenant filter) — Email is unique per-(Email, TenantId), not
+        /// globally, so this can legitimately match a user registered under a different
+        /// tenant. Used only by the invite flow (UserService.InviteToTenantAsync) to find
+        /// an existing account elsewhere and attach it to a new tenant; login/register use
+        /// the tenant-scoped GetByEmailAsync instead.</summary>
         Task<User?> GetByEmailGloballyAsync(string email, CancellationToken ct);
         Task<User> GetByExternalProviderAsync(string provider, string providerKey, Guid tenantId, CancellationToken ct);
         Task<User?> GetByIdWithDetailsAsync(Guid id, CancellationToken ct);

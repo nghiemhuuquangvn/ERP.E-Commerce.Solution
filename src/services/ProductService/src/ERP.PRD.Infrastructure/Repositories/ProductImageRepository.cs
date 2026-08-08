@@ -1,4 +1,5 @@
 using ERP.PRD.Application.Interfaces;
+using ERP.PRD.Domain.Entities;
 using ERP.PRD.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +10,9 @@ namespace ERP.PRD.Infrastructure.Repositories
         private readonly ProductDbContext _db;
 
         public ProductImageRepository(ProductDbContext db) => _db = db;
+
+        public async Task AddAsync(ProductImage image, CancellationToken ct = default)
+            => await _db.ProductImages.AddAsync(image, ct);
 
         public async Task<List<ProductImageProjection>> GetByProductIdAsync(
             Guid productId, CancellationToken ct = default)

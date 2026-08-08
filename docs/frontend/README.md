@@ -52,10 +52,11 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
 
 ## Auth: login, 2FA, SSO, and settings (Admin app)
 
-- `src/pages/auth/LoginPage.tsx` collects `tenantCode` alongside email/password (a
-  pre-existing gap — the login form never collected it before, even though the
-  backend's `LoginRequest` always required it) and queries `GET
-  /v1/auth/login-options?tenantCode=` to know which SSO buttons to render.
+- `src/pages/auth/LoginPage.tsx` collects only email/password — the tenant is
+  resolved by the Gateway from the request's subdomain (`X-Tenant-Code` header), not
+  typed by the user. It queries `GET /v1/auth/login-options` (no `tenantCode` param)
+  to know which SSO buttons to render. See
+  `docs/business/Identity/MultiTenantLogin.md` for the full design.
 - `src/hooks/useAuth.ts`'s `useCompleteLogin()` is the single shared "store tokens +
   user, navigate to dashboard" step — every login path (password, 2FA-verified,
   every SSO provider) must route through it rather than duplicating the

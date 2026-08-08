@@ -62,6 +62,14 @@ export function OrderDetailPage() {
         {order.hasPriceChangeWarning && (
           <span className="text-xs text-orange-600">{t('orders.priceChangeWarning')}</span>
         )}
+        {order.isAnomalous && (
+          <span
+            className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
+            title={order.anomalyReason ?? undefined}
+          >
+            ⚠ {order.anomalyReason ?? t('orders.anomalyFlag')}
+          </span>
+        )}
       </div>
 
       {actionError && <p className="text-sm text-red-600">{actionError}</p>}

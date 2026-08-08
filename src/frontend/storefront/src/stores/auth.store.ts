@@ -29,10 +29,11 @@ export const useAuthStore = defineStore(
     const fullName = computed(() => user.value?.fullName ?? '')
 
     async function login(email: string, password: string) {
+      // Tenant no longer goes in the body — apiClient now sends it as the
+      // X-Tenant-Code header on every request (see api/client.ts).
       const { data } = await apiClient.post<AuthResponse>('/v1/auth/login', {
         email,
         password,
-        tenantCode: TENANT_CODE,
         userType: 0, // Customer
       })
       accessToken.value = data.accessToken

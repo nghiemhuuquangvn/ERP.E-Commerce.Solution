@@ -1,12 +1,10 @@
-import { apiClient } from './client'
+import { gatewayClient as apiClient } from './client'
 
 // IdentityService's SettingsController is mounted under the Gateway's `/id/api/...`
 // route (see AuthController/UsersController also living under IdentityService),
 // not under apiClient's default `/api` baseURL — mirrors how
 // `src/api/masterdata/mstClient.ts` re-roots MST calls at `/mst/api/...`.
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
-const GATEWAY_ROOT = API_BASE.replace(/\/api\/?$/, '')
-const SETTINGS_BASE = `${GATEWAY_ROOT}/id/api/v1/settings`
+const SETTINGS_BASE = `/id/api/v1/settings`
 
 export interface SystemAuthSettings {
   googleEnabled: boolean

@@ -16,6 +16,7 @@
 | **Kafka Broker 3** | 9094 | TCP | Message broker (HA) |
 | **Zookeeper** | 2181 | TCP | Kafka coordination |
 | **Redis** | 6379 | TCP | Caching, sessions, distributed locks |
+| **Azurite** | 10000 | TCP | Product image blob storage (Azurite emulator) |
 | **Nginx (Reverse Proxy)** | 80/443 | HTTP/HTTPS | API Gateway frontend |
 
 ### **API Services (Microservices)**
@@ -66,6 +67,7 @@ PaymentService:    http://payment-service:5009
 SQL Server:        sqlserver:1433
 Kafka:             kafka:9092
 Redis:             redis:6379
+Azurite:           azurite:10000
 ```
 
 ### **DNS/Service Discovery (Kubernetes)**
@@ -79,6 +81,7 @@ PaymentService:    http://payment-service.default.svc.cluster.local:5009
 SQL Server (RDS):  rds-instance.region.rds.amazonaws.com:1433
 Kafka (MSK):       kafka-brokers.region.msk.amazonaws.com:9092
 Redis (ElastiCache): redis-endpoint.region.cache.amazonaws.com:6379
+Azurite:           azurite.default.svc.cluster.local:10000
 ```
 
 ---

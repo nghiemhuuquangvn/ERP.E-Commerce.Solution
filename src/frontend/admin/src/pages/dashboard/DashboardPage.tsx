@@ -72,7 +72,7 @@ export function DashboardPage() {
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={data?.byDate ?? []}>
+            <LineChart data={data?.revenueByDay ?? []}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis
                 dataKey="date"

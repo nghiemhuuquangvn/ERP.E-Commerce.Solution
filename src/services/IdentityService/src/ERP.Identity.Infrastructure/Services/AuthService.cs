@@ -125,7 +125,7 @@ namespace ERP.Identity.Infrastructure.Services
             return new LoginResponse(accessToken, refreshToken, Succeeded: true, User: userSummary);
         }
 
-        public async Task<LoginResponse> LoginAsync(LoginRequest request, string? ipAddress, string? userAgent, CancellationToken ct)
+        public async Task<LoginResponse> LoginAsync(LoginRequest request, string tenantCode, string? ipAddress, string? userAgent, CancellationToken ct)
         {
             // Brute-force guard — checked before any tenant/user lookup so a flood of
             // credential-stuffing attempts against one (ip, email) pair gets rejected
@@ -140,7 +140,7 @@ namespace ERP.Identity.Infrastructure.Services
             AuthTenant tenant;
             try
             {
-                tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(request.TenantCode, ct)
+                tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(tenantCode, ct)
                     ?? throw new UnauthorizedAccessException("Tenant not found");
             }
             catch (UnauthorizedAccessException)
@@ -368,9 +368,9 @@ namespace ERP.Identity.Infrastructure.Services
                 : new string('*', destination.Length - 4) + destination[^4..];
         }
 
-        public async Task<LoginResponse> ExternalLoginAsync(ExternalLoginDto.ExternalLoginRequest request, CancellationToken ct = default)
+        public async Task<LoginResponse> ExternalLoginAsync(ExternalLoginDto.ExternalLoginRequest request, string tenantCode, CancellationToken ct = default)
         {
-            var tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(request.TenantCode, ct)
+            var tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(tenantCode, ct)
                 ?? throw new UnauthorizedAccessException("Tenant not found");
 
             var providerEnabled = await _settingsService.IsProviderEnabledAsync(tenant.Id, request.Provider, ct);
@@ -475,6 +475,14 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task<RefreshTokenResponse> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default)
         {
+            // A missing/empty token (e.g. a client that never actually had a session)
+            // must throw the same intentional exception as every other invalid-token
+            // case below — otherwise it falls straight into OpaqueTokenHasher.Hash's
+            // incidental ArgumentNullException, which the shared exception middleware
+            // deliberately leaves as a 500 (see GlobalExceptionMiddleware.MapException).
+            if (string.IsNullOrEmpty(request.RefreshToken))
+                throw new UnauthorizedAccessException("Invalid refresh token");
+
             // 1) Hash token & lookup
             var session = await _unitOfWork.RefreshTokens.GetByTokenAsync(OpaqueTokenHasher.Hash(request.RefreshToken));
 
@@ -532,12 +540,12 @@ namespace ERP.Identity.Infrastructure.Services
                 var tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(request.TenantCode, ct)
                     ?? throw new InvalidOperationException("Tenant not found");
 
-                // 2️⃣ Check email duplicate globally — Users.Email has a global unique index,
-                // so a tenant-scoped check alone lets a second tenant's registration slip
-                // past the app check and crash on the raw SQL constraint. An existing account
-                // must go through POST /api/users/invite (admin-gated) to join a new tenant,
-                // not silently self-attach here.
-                var existedUser = await _unitOfWork.Users.GetByEmailGloballyAsync(request.Email, ct);
+                // 2️⃣ Check email duplicate within THIS tenant only — Users.Email is now unique
+                // per (Email, TenantId), not globally (see migration 014), so two independent
+                // tenants may legitimately share the same address. An account that already
+                // exists in a DIFFERENT tenant must go through POST /api/users/invite
+                // (admin-gated) to join this one, not silently self-attach here.
+                var existedUser = await _unitOfWork.Users.GetByEmailAsync(request.Email, tenant.Id, ct);
 
                 if (existedUser != null)
                     throw new DuplicateException("Email", request.Email);

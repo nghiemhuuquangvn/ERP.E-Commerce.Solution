@@ -12,6 +12,7 @@ public static class PermissionConstants
     public const string PurchaseOrder_Update = "purchase_order:update";
     public const string PurchaseOrder_Delete = "purchase_order:delete";
     public const string PurchaseOrder_Approve = "purchase_order:approve";
+    public const string PurchaseOrder_FinanceApprove = "purchase_order:finance_approve";
     public const string PurchaseOrder_Cancel = "purchase_order:cancel";
     public const string PurchaseOrder_AddItem = "purchase_order:add_item";
     public const string PurchaseOrder_RemoveItem = "purchase_order:remove_item";
@@ -370,7 +371,7 @@ public static class PermissionConstants
     public static string[] GetAllPermissions() =>
     [
         PurchaseOrder_Create, PurchaseOrder_Read, PurchaseOrder_Update, PurchaseOrder_Delete,
-        PurchaseOrder_Approve, PurchaseOrder_Cancel, PurchaseOrder_AddItem, PurchaseOrder_RemoveItem,
+        PurchaseOrder_Approve, PurchaseOrder_FinanceApprove, PurchaseOrder_Cancel, PurchaseOrder_AddItem, PurchaseOrder_RemoveItem,
         PurchaseOrder_Receive,
         Supplier_Create, Supplier_Read, Supplier_Update, Supplier_Delete, Supplier_Deactivate, Supplier_Rate,
         PurchaseRequest_View, PurchaseRequest_Manage,

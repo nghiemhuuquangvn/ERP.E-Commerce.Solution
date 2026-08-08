@@ -4,6 +4,10 @@
 > change, or add a new service? See
 > [rebuild-and-redeploy-guide.md](rebuild-and-redeploy-guide.md) instead —
 > this guide is for setting up an environment from scratch.
+>
+> Want to run just one service or frontend app directly (`dotnet run`/`npm run
+> dev`), without Docker at all? See
+> [manual-build-deploy-guide.md](manual-build-deploy-guide.md) instead.
 
 ## Table of Contents
 
@@ -277,12 +281,14 @@ kubectl apply -f infrastructure/redis.yaml
 kubectl apply -f infrastructure/rabbitmq.yaml
 kubectl apply -f infrastructure/kafka.yaml
 kubectl apply -f infrastructure/elasticsearch.yaml
+kubectl apply -f infrastructure/azurite.yaml
 
 # Wait for infrastructure to be ready (takes 2-4 min)
 kubectl wait --for=condition=ready pod -l app=redis -n erp --timeout=120s
 kubectl wait --for=condition=ready pod -l app=rabbitmq -n erp --timeout=180s
 kubectl wait --for=condition=ready pod -l app=kafka -n erp --timeout=180s
 kubectl wait --for=condition=ready pod -l app=elasticsearch -n erp --timeout=240s
+kubectl wait --for=condition=ready pod -l app=azurite -n erp --timeout=120s
 
 # 4. All backend services and frontend
 kubectl apply -f deployments/
@@ -388,6 +394,14 @@ foreach ($port in $ports) {
 
 ### 5.2 Identity Service — Authentication (Port 5001)
 
+> **Tenant resolution (2026-08):** `login`/`external-login`/`login-options` no longer
+> take a `tenantCode` field — the tenant is normally resolved by the Gateway from the
+> request's subdomain (see
+> [`MultiTenantLogin.md`](../business/Identity/MultiTenantLogin.md)). Calling
+> IdentityService **directly on port 5001** below bypasses the Gateway entirely, so
+> you must set the `X-Tenant-Code` header yourself (`SYSTEM` for the seeded
+> SuperAdmin/default tenant) — omitting it returns `400 Bad Request`.
+
 **Register a user:**
 ```http
 POST http://localhost:5001/api/auth/register
@@ -396,6 +410,7 @@ Content-Type: application/json
 {
   "email": "test@example.com",
   "password": "Test@1234",
+  "tenantCode": "SYSTEM",
   "firstName": "Test",
   "lastName": "User"
 }
@@ -405,6 +420,7 @@ Content-Type: application/json
 ```http
 POST http://localhost:5001/api/auth/login
 Content-Type: application/json
+X-Tenant-Code: SYSTEM
 
 {
   "email": "test@example.com",
@@ -417,6 +433,7 @@ Content-Type: application/json
 ```http
 POST http://localhost:5001/api/auth/login
 Content-Type: application/json
+X-Tenant-Code: SYSTEM
 
 {
   "email": "superadmin@system.local",
@@ -520,9 +537,9 @@ http://localhost:5008/swagger
 ### 5.7 Quick API test script (PowerShell)
 
 ```powershell
-# 1. Login
+# 1. Login (X-Tenant-Code required when calling IdentityService directly, bypassing the Gateway)
 $login = Invoke-RestMethod -Uri "http://localhost:5001/api/auth/login" `
-  -Method POST -ContentType "application/json" `
+  -Method POST -ContentType "application/json" -Headers @{ "X-Tenant-Code" = "SYSTEM" } `
   -Body '{"email":"superadmin@system.local","password":"SuperAdmin@123"}'
 
 $token = $login.accessToken

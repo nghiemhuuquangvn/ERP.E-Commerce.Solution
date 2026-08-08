@@ -46,14 +46,34 @@ GO
 -- 001_CreateShippingDB.sql typed this column INT, but the EF model and the C#
 -- TrackingEvent entity have always treated Status as a string — provisioning the DB
 -- from the original script alone would break the first tracking-event write/read.
+--
+-- Originally a single BEGIN...END batch: ALTER TABLE ADD Status_New followed by an
+-- UPDATE referencing Status_New in the SAME batch. SQL Server compiles an entire
+-- ad-hoc batch before executing any of it, so the UPDATE's reference to a column
+-- the ALTER two lines above it hadn't committed yet failed at compile time with
+-- "Invalid column name 'Status_New'" — meaning this conversion has never once
+-- succeeded anywhere this migration ran, and Status stayed `int` on every DB,
+-- silently breaking every tracking-event read/write against the string-typed
+-- entity. Split into separate GO batches so each step sees the prior step's DDL.
 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ShipmentTrackingEvents') AND name = 'Status' AND system_type_id = TYPE_ID('int'))
-BEGIN
+   AND NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ShipmentTrackingEvents') AND name = 'Status_New')
     ALTER TABLE ShipmentTrackingEvents ADD Status_New NVARCHAR(50) NULL;
+GO
+
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ShipmentTrackingEvents') AND name = 'Status_New')
+   AND EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ShipmentTrackingEvents') AND name = 'Status' AND system_type_id = TYPE_ID('int'))
+BEGIN
     UPDATE ShipmentTrackingEvents SET Status_New = CAST(Status AS NVARCHAR(50));
     ALTER TABLE ShipmentTrackingEvents DROP COLUMN Status;
-    EXEC sp_rename 'ShipmentTrackingEvents.Status_New', 'Status', 'COLUMN';
-    ALTER TABLE ShipmentTrackingEvents ALTER COLUMN Status NVARCHAR(50) NOT NULL;
 END
+GO
+
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ShipmentTrackingEvents') AND name = 'Status_New')
+    EXEC sp_rename 'ShipmentTrackingEvents.Status_New', 'Status', 'COLUMN';
+GO
+
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ShipmentTrackingEvents') AND name = 'Status' AND system_type_id = TYPE_ID('nvarchar') AND is_nullable = 1)
+    ALTER TABLE ShipmentTrackingEvents ALTER COLUMN Status NVARCHAR(50) NOT NULL;
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Carriers') AND name = 'InterProvinceSurcharge')
@@ -80,6 +100,8 @@ CREATE TABLE ReturnShipments (
     CreatedAt           DATETIME2        NOT NULL DEFAULT GETUTCDATE(),
     UpdatedAt           DATETIME2        NULL
 );
-CREATE INDEX IX_ReturnShipments_OriginalShipmentId ON ReturnShipments (OriginalShipmentId);
-CREATE INDEX IX_ReturnShipments_OrderId ON ReturnShipments (OrderId);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReturnShipments_OriginalShipmentId')
+    CREATE INDEX IX_ReturnShipments_OriginalShipmentId ON ReturnShipments (OriginalShipmentId);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReturnShipments_OrderId')
+    CREATE INDEX IX_ReturnShipments_OrderId ON ReturnShipments (OrderId);
 GO

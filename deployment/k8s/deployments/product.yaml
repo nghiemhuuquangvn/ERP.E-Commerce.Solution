@@ -42,6 +42,18 @@ spec:
             secretKeyRef:
               name: erp-secrets
               key: jwt-signing-key
+        - name: ConnectionStrings__BlobStorage
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: blob-storage-connection-string
+        # The browser can't resolve the in-cluster "azurite" hostname used by
+        # ConnectionStrings__BlobStorage above — rewrite returned image URLs to the
+        # azurite-nodeport Service instead (see infrastructure/azurite.yaml). Only
+        # meaningful for the local Azurite dev setup; leave unset against a real Azure
+        # Storage account, whose connection string endpoint is already public.
+        - name: FileStorage__PublicBlobBaseUrl
+          value: "http://localhost:30310"
         readinessProbe:
           httpGet:
             path: /health

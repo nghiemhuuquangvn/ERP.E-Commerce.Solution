@@ -1,6 +1,7 @@
 using ERP.CRM.Application;
 using ERP.CRM.Infrastructure;
 using ERP.Shared.Authorization;
+using ERP.Shared.Extensions;
 using ERP.Shared.Localization;
 using ERP.Shared.Versioning;
 using Serilog;
@@ -52,6 +53,8 @@ try
     builder.Services.AddSwaggerGen();
 
     var app = builder.Build();
+
+    app.UseGlobalExceptionHandling();
 
     app.UseSerilogRequestLogging();
 

@@ -432,10 +432,17 @@ public class PurchaseLineItem
 
 ### PurchaseOrderApprovedEvent
 
-**Description:** Published when a purchase order is approved.
+**Description:** Published when a purchase order is approved. As of the
+2026-08-04 multi-level approval work (see below), this only fires directly
+from `Approve()` when the PO's total is **below** the finance-approval
+threshold (single-step approval); for POs at/above the threshold, this event
+instead fires from `ApproveFinance()` once the finance step completes — either
+way, this event means "the PO is now fully `Approved`."
 
 **Publisher:** Purchasing Service  
-**Subscribers:** Accounting Service
+**Subscribers:** Accounting Service; Notification Service (`PurchasingTopic`,
+added 2026-08-04 — sends a confirmation notification; see
+`PurchaseOrderApprovedIntegrationEventHandler`)
 
 **Event Structure:**
 ```csharp
@@ -449,6 +456,46 @@ public class PurchaseOrderApprovedEvent : IntegrationEvent
 ```
 
 **Routing:** RabbitMQ  
+**Delivery:** Guaranteed
+
+---
+
+### PurchaseOrderPendingFinanceApprovalEvent
+
+> Added 2026-08-04 — part of the Multi-level Purchase Order Approval feature
+> (Manager → Finance). See `docs/business/Purchasing/PurchasingWorkflow.md`
+> and `docs/fixes/2026-08-04_ERP4Features_SeedDataAndFeatures_Summary.md` §C.1
+> for full context.
+
+**Description:** Published by `PurchaseOrder.Approve(approvedBy)` instead of
+`PurchaseOrderApprovedEvent` when `TotalAmount >= FinanceApprovalThreshold`
+(currently a hardcoded `5000m` on the aggregate — no per-tenant/category
+override exists yet). Records the manager's approval
+(`ManagerApprovedBy`/`ManagerApprovedAt`) and moves the PO to
+`PurchaseOrderStatus.PendingFinanceApproval` (`= 8`), awaiting a second,
+separate `ApproveFinance(approvedBy)` call
+(`POST /api/v1/purchase-orders/{id}/finance-approve`, gated by the new
+`purchase_order:finance_approve` permission) before the PO reaches `Approved`
+and `PurchaseOrderApprovedEvent` fires.
+
+**Publisher:** Purchasing Service
+**Subscribers:** Notification Service (`PurchasingTopic`) — notifies whoever
+holds `purchase_order:finance_approve` that a PO is awaiting their review
+
+**Event Structure (actual code):**
+```csharp
+public class PurchaseOrderPendingFinanceApprovalDomainEvent
+{
+    public Guid PurchaseOrderId { get; set; }
+    public string PONumber { get; set; }
+    public Guid SupplierId { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string ManagerApprovedBy { get; set; }
+    public DateTime OccurredOn { get; set; }
+}
+```
+
+**Routing:** Kafka (`purchasing-topic`, Outbox Pattern)
 **Delivery:** Guaranteed
 
 ---
@@ -743,6 +790,63 @@ public class PaymentReceivedEvent : IntegrationEvent
 
 **Routing:** RabbitMQ  
 **Delivery:** Guaranteed
+
+---
+
+## HRM Service Events
+
+### LeaveApprovedEvent / LeaveRejectedEvent
+
+> Added to this catalog 2026-08-04. Both events existed in HRMService's domain
+> layer before this session, but had never successfully reached any consumer —
+> see the Outbox `Type` bug below.
+
+**Description:** Published when a Leave Request is approved or rejected
+(`docs/business/HRM/BA-Analysis/05-request-approval.md` §1.4 describes the
+target design for a generic multi-level Approval Engine; the code path that
+actually publishes these two events today is HRM's existing, simpler
+single-step Leave Request approve/reject flow — the Approval Engine has not
+been built).
+
+**Publisher:** HRM Service (Outbox → Kafka `hrm-topic`)
+**Subscribers:** Notification Service (`HrmTopic`, added 2026-08-04) — sends
+the requesting employee a confirmation/rejection notification via
+`LeaveApprovedIntegrationEventHandler`/`LeaveRejectedIntegrationEventHandler`
+
+**Event Structure (actual code):**
+```csharp
+public class LeaveApprovedEvent
+{
+    public Guid LeaveRequestId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public DateTime ApprovedAt { get; set; }
+}
+
+public class LeaveRejectedEvent
+{
+    public Guid LeaveRequestId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string Reason { get; set; }
+    public DateTime RejectedAt { get; set; }
+}
+```
+
+**Routing:** Kafka (`hrm-topic`, Outbox Pattern)
+**Delivery:** Guaranteed — **but see the fix below**: prior to 2026-08-04,
+HRMService's Outbox wrote `Type = domainEvent.GetType().FullName` instead of
+`.AssemblyQualifiedName`. `OutboxProcessor.Type.GetType(...)` can only resolve
+a bare `FullName` when the type happens to live in the *currently executing*
+assembly — for a message meant to be deserialized by a different service
+(NotificationService), this always returned `null` and the message silently
+never dispatched. This meant **HRMService had never successfully published a
+single integration event in its history**, not just these two. Fixed in
+`HrmDbContext.cs`; the identical bug (same fix needed) was also found in
+AccountingService/SharedMasterDataService/CRMService's `DbContext`s but only
+HRM has been rebuilt/redeployed so far — see
+`docs/fixes/2026-08-04_ERP4Features_SeedDataAndFeatures_Summary.md`.
+
+**Handling:**
+- Notification Service: notify the requesting employee of the outcome
 
 ---
 
@@ -1063,5 +1167,8 @@ Event Published → [Service A] → Event Consumed → [Service B] → Updated
 
 ---
 
-**Last Updated:** 2026-07-16  
-**Version:** 1.2 (added `TenantLicenseChangedIntegrationEvent`, License Management)
+**Last Updated:** 2026-08-04  
+**Version:** 1.3 (added `PurchaseOrderPendingFinanceApprovalEvent` — multi-level
+PO approval; documented `LeaveApprovedEvent`/`LeaveRejectedEvent` and their new
+NotificationService consumer; noted `PurchaseOrderApprovedEvent`'s new
+NotificationService subscriber)

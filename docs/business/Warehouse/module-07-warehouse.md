@@ -185,3 +185,29 @@ theo-từng-aggregate như bên Sales. Quá trình này cũng phát hiện và s
 bug thật: `EventPublisher.PublishAsync<T>` tính routing key từ generic `T`
 tại compile-time thay vì runtime type — nếu không sửa, processor mới sẽ
 publish mọi event outbox với routing key sai (`warehouse.Object`).
+
+## 13. Reorder-point → Purchase Request tự động (verify + fix, 2026-08-04)
+
+`StockAlertEvent` (mục 7, thêm 2026-07-27) → `WarehouseEventRabbitMqConsumer`
+bên PurchaseOrderService tạo `PurchaseRequest` gợi ý mua thêm hàng — cơ chế
+này đã có sẵn trong code từ trước nhưng **chưa từng chạy được lần nào** cho
+tới khi được kiểm chứng trực tiếp trên data thật đợt 2026-08-04 (xem
+`docs/fixes/2026-08-04_ERP4Features_SeedDataAndFeatures_Summary.md` §D.1). Hai
+bug chặn đường, cả hai đều đã tồn tại từ trước, không phải lỗi mới:
+
+1. **`StockMovements.SourceOrderId` không có mapping cột** — cột thật trong DB
+   tên là `ReferenceId`, không phải `SourceOrderId` — mọi lần ghi cột này đều
+   lỗi. Thêm `entity.Property(e => e.SourceOrderId).HasColumnName("ReferenceId")`
+   vào `WarehouseDbContext`.
+2. **`StockMovement` (và gần như toàn bộ Application layer của service này)
+   hoàn toàn không có property `TenantId`**, dù cột DB là `NOT NULL` — mọi lần
+   ghi `StockMovement` đều vi phạm ràng buộc. Thêm `TenantId` vào entity +
+   constructor, cập nhật 6 call site để truyền tenant hệ thống cố định
+   (`00000000-0000-0000-0000-000000000001`). **Đây chỉ là giải pháp tạm để mở
+   khoá pipeline, không phải fix multi-tenant thật** — WarehouseService vẫn
+   chưa có cơ chế phân vùng theo tenant cho stock movement, khoảng trống này
+   giữ nguyên, không thuộc phạm vi đợt này.
+
+Đã kiểm chứng trực tiếp: bán 20 sản phẩm khiến tồn kho giảm dưới điểm đặt
+hàng lại (reorder point) đã seed sẵn → hệ thống tự tạo đúng 1 `PurchaseRequest`
+gợi ý số lượng cần nhập.

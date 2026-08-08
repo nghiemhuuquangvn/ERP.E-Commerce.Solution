@@ -30,8 +30,8 @@ export interface UpdateWorkShiftRequest {
 
 export const workShiftsApi = {
   // Not paged — WorkShiftsController.List returns IEnumerable<WorkShiftDto>.
-  list: (params: ListWorkShiftsParams = {}) =>
-    apiClient.get<WorkShift[]>(`${HRM_BASE}/work-shifts`, { params }).then((r) => r.data),
+  list: (params: ListWorkShiftsParams = {}, signal?: AbortSignal) =>
+    apiClient.get<WorkShift[]>(`${HRM_BASE}/work-shifts`, { params, signal }).then((r) => r.data),
 
   get: (id: string) => apiClient.get<WorkShift>(`${HRM_BASE}/work-shifts/${id}`).then((r) => r.data),
 
