@@ -93,6 +93,7 @@ import { BillsPage } from '@/pages/accounting/BillsPage'
 import { ReportsPage as AccountingReportsPage } from '@/pages/accounting/ReportsPage'
 import { JournalEntriesPage } from '@/pages/accounting/JournalEntriesPage'
 import { BankAccountsPage } from '@/pages/accounting/BankAccountsPage'
+import { AssistantPanel } from '@/pages/chatbot/AssistantPanel'
 import { AttendancePage } from '@/pages/hrm/AttendancePage'
 import { LeaveRequestsPage } from '@/pages/hrm/LeaveRequestsPage'
 import { PayrollPage } from '@/pages/hrm/PayrollPage'
@@ -189,6 +190,7 @@ export const router = createBrowserRouter([
       { path: 'settings/shipping', element: <ShippingSettingsPage /> },
       { path: 'settings/tax', element: <TaxSettingsPage /> },
       { path: 'settings/currency', element: <CurrencySettingsPage /> },
+      { path: 'chatbot', element: <AssistantPanel /> },
       { path: 'monitoring', element: <MonitoringPage /> },
       { path: 'logs', element: <LogsPage /> },
       { path: 'masterdata/departments', element: <DepartmentsPage /> },

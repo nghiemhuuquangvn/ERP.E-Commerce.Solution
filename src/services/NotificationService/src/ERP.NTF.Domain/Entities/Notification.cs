@@ -24,6 +24,8 @@ public class Notification : AggregateRoot
     public DateTime? FailedAt { get; private set; }
     public int RetryCount { get; private set; }
     public string? ErrorMessage { get; private set; }
+    public bool IsRead { get; private set; }
+    public DateTime? ReadAt { get; private set; }
     public IReadOnlyCollection<NotificationLog> Logs => _logs.AsReadOnly();
 
     private Notification() { }
@@ -111,4 +113,12 @@ public class Notification : AggregateRoot
     public bool IsReadyToSend() =>
         Status == NotificationStatus.Queued &&
         (!ScheduledFor.HasValue || ScheduledFor.Value <= DateTime.UtcNow);
+
+    public void MarkAsRead()
+    {
+        if (IsRead) return;
+        IsRead = true;
+        ReadAt = DateTime.UtcNow;
+        _logs.Add(NotificationLog.Create(Id, "Read", "Marked as read by recipient"));
+    }
 }

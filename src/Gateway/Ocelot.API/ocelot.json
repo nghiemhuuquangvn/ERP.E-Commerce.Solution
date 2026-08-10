@@ -338,6 +338,21 @@
       }
     },
     {
+      "DownstreamPathTemplate": "/api/v1/chatbot/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "chatbotservice",
+          "Port": 5017
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/chatbot/{everything}",
+      "UpstreamHttpMethod": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
       "DownstreamPathTemplate": "/api/v1/reports/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [

@@ -37,6 +37,22 @@ public class ContactsController : ControllerBase
     }
 
     /// <summary>
+    /// Look up the contact linked to an IdentityService user (see GetContactByUserIdQuery —
+    /// added for ChatBotService's escalate-to-human flow, which needs a ContactId to open a
+    /// Case). Registered before "{id:guid}" so "by-user" isn't captured as a guid route value.
+    /// </summary>
+    [HttpGet("by-user/{userId:guid}")]
+    [AuthorizePermission("crm:contacts:view")]
+    public async Task<IActionResult> GetByUserId(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new GetContactByUserIdQuery(userId), cancellationToken);
+        if (result is null)
+            return NotFound(new { message = $"No CRM contact linked to user {userId}." });
+
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Get a single contact by ID.
     /// </summary>
     [HttpGet("{id:guid}")]

@@ -70,23 +70,112 @@ public class UserUpdatedEvent : IntegrationEvent
 
 ### RoleAssignedEvent
 
-**Description:** Published when a role is assigned to a user.
+**Description:** Published when a role is assigned to a user. `ChangedByUserId`/
+`ChangedByName` are null when the system made the assignment (e.g. self-registration's
+default-role assignment) rather than another user — Notification Service uses this to
+suppress a "changed by nobody" bell notification in that case.
 
-**Publisher:** Identity Service  
-**Subscribers:** Authorization cache services
+**Publisher:** Identity Service (`identity-topic`, via the Outbox pattern —
+`AuthDbContext.SaveChangesAsync` automatically drains every entity's raised domain events
+into the Outbox on save; there is no separate `IDomainEventHandler<T>`/DI registration
+step required per event — see `IDomainEventDispatcher`'s doc note below)  
+**Subscribers:** Notification Service (`IdentityEventConsumer`) — sends an InApp bell
+notification to the affected user when there's a human actor
 
-**Event Structure:**
+**Event Structure (domain event, as actually serialized):**
 ```csharp
-public class RoleAssignedEvent : IntegrationEvent
+public class RoleAssignedDomainEvent : IDomainEvent
 {
-    public Guid UserId { get; set; }
-    public string RoleName { get; set; }
-    public DateTime AssignedAt { get; set; }
+    public Guid UserId { get; }
+    public Guid TenantId { get; }
+    public Guid RoleId { get; }
+    public string RoleCode { get; }
+    public DateTime OccurredOn { get; }
+    public Guid? ChangedByUserId { get; }
+    public string? ChangedByName { get; }
 }
 ```
 
-**Routing:** RabbitMQ  
-**Delivery:** Guaranteed
+**Routing:** Kafka (`identity-topic`)  
+**Delivery:** Outbox pattern (at-least-once)
+
+**Note:** IdentityService's `IDomainEventDispatcher`/`IDomainEventHandler<T>` classes
+(e.g. `UserRegisteredDomainEventHandler`) are dead code — nothing ever calls
+`DispatchAsync`. The real, working publish path is automatic:
+`AuthDbContext.SaveChangesAsync` → `ProcessDomainEventsToOutboxAsync` serializes every
+`AddDomainEvent(...)` call straight to the Outbox with `TypeNameHandling.All`, and
+`OutboxProcessor` publishes it to Kafka. Adding a new published event to Identity only
+requires raising it via `AddDomainEvent` on an aggregate — no handler class or DI wiring
+needed.
+
+---
+
+### PermissionGrantedEvent
+
+**Description:** Published when a permission is granted to a role. Since the event is
+raised on `Role` (not `User`), every user currently holding that role is affected —
+`AffectedUserIds` is resolved by `RoleService.AssignPermissionAsync` (Identity already
+owns the `UserRoles` join) and embedded directly in the event, so the event stays fully
+self-describing and Notification Service never needs to call back into Identity.
+`ChangedByUserId`/`ChangedByName` follow the same null-means-system convention as
+`RoleAssignedEvent`.
+
+**Publisher:** Identity Service (`identity-topic`, same automatic Outbox path as
+`RoleAssignedEvent` above)  
+**Subscribers:** Notification Service (`IdentityEventConsumer`) — sends one InApp bell
+notification per user in `AffectedUserIds` when there's a human actor
+
+**Event Structure (domain event, as actually serialized):**
+```csharp
+public class PermissionGrantedDomainEvent : IDomainEvent
+{
+    public Guid RoleId { get; }
+    public Guid TenantId { get; }
+    public Guid PermissionId { get; }
+    public string PermissionCode { get; }
+    public string RoleCode { get; }
+    public DateTime OccurredOn { get; }
+    public Guid? ChangedByUserId { get; }
+    public string? ChangedByName { get; }
+    public IReadOnlyCollection<Guid> AffectedUserIds { get; }
+}
+```
+
+**Routing:** Kafka (`identity-topic`)  
+**Delivery:** Outbox pattern (at-least-once)
+
+**Known follow-up (out of scope as of this writing):** revocation
+(`RemovePermissionAsync`/`RemoveRoleAsync`) raises no domain event today — only grants
+are covered.
+
+---
+
+### Pattern: publish-on-change → NotificationService bell (reusable)
+
+The role/permission events above are the first end-to-end example of a general pattern —
+"tell the affected user their thing changed, and by whom" — that any service can reuse
+without a fresh design pass:
+
+1. Add nullable `ChangedByUserId`/`ChangedByName` fields to the relevant domain event
+   (null = system-made-the-change, which the notification handler should treat as "don't
+   notify").
+2. Raise the event via the aggregate's existing `AddDomainEvent(...)` call — most
+   services' `DbContext.SaveChangesAsync` already drains this into the Outbox
+   automatically (verify this for the specific service; IdentityService's
+   `AuthDbContext` and NotificationService's own `NotificationDbContext` both do it this
+   way already).
+3. In `NotificationService`'s consumer for that service's Kafka topic (e.g.
+   `IdentityEventConsumer`), add a `typeName.Contains("YourDomainEventName")` branch that
+   parses the raw JSON into a local integration-event DTO and `mediator.Publish`es it.
+4. Add the local `INotification` DTO + `INotificationHandler<T>` pair in
+   `IntegrationEventHandlers.cs`, guarding on `ChangedByUserId is null` to skip
+   system-made changes, and sending a `SendNotificationCommand` with
+   `Channel = NotificationChannel.InApp`.
+5. Delivery is automatic from there: `SendNotificationCommandHandler` delivers `InApp`
+   immediately (not gated on priority) via `IRealtimeNotifier` → `NotificationHub`
+   (`/hubs/notifications`), which pushes to the recipient's own SignalR group. No new
+   hub/frontend work needed per-event-type — the bell is generic once the notification
+   row exists.
 
 ---
 

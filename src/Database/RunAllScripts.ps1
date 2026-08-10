@@ -35,6 +35,8 @@ $DatabaseScripts = @(
     "Identity\013_SeedRoleDefinitionsIntoRolePermissions.sql",
     "Identity\014_ChangeEmailUniqueIndexToPerTenant.sql",
     "Identity\016_SeedFinanceApprovePermission.sql",
+    "Identity\017_AddChatBotLicenseModules.sql",
+    "Identity\018_AddChatBotAssistantPermission.sql",
 
     # Cross-cutting master data (Department/Position/Employee/UoM/Geography/Language —
     # seed before HRM, which now references Employees/Departments here instead of owning them)
@@ -113,10 +115,12 @@ $DatabaseScripts = @(
     "Notification\003_AddWebhookEndpoints.sql",
     "Notification\005_SeedWorkflowTemplates.sql",
     "Notification\006_FixNotificationEntityColumns.sql",
+    "Notification\007_AddNotificationReadState.sql",
     "Reporting\001_CreateReportingDB.sql",
     "Reporting\002_AddMissingEntityColumns.sql",
     "Reporting\004_FixFactPOSTransactionsCashierIdType.sql",
     "Reporting\005_AddDimProductStockQuantity.sql",
+    "ChatBot\001_CreateChatBotDB.sql",
 
     # ============================================================
     # Demo seed data — must run AFTER all schema above, and in this specific

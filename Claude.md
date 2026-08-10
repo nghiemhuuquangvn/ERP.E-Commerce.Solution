@@ -42,6 +42,7 @@ src/
         NotificationService/           (5013, Code: NTF)
         ReportingService/              (5014, Code: RPT)
         SharedMasterDataService/       (5015, Code: MST)
+        ChatBotService/                (5017, Code: CHB)
 
     Shared/
         Core/                          (Domain base classes: BaseEntity, AggregateRoot, ValueObject, IDomainEvent)
@@ -496,6 +497,31 @@ Consumed Events:
 
 ---
 
+#### ChatBot Service (Port 5017, Code: CHB)
+
+Responsibilities:
+- AI chat assistant for Storefront customers (incl. anonymous guests) and Admin staff
+- Answers via live tool-calling against other services' REST APIs through the Gateway,
+  forwarding the caller's own JWT — never a local copy of order/product/inventory data
+- Claude (paid) vs ChatGPT-free provider selection, driven entirely by the tenant's
+  existing LicensePlan (see `docs/business/Identity/License.md` and
+  `ERP.Shared.Authorization.ModuleCodes.ChatBotPremium`) — no new billing code
+- Streams replies over its own SignalR hub (`/hubs/chat`, port 5017 directly — bypasses
+  the Gateway, which doesn't reliably proxy SignalR's WebSocket upgrade)
+- Escalation to a human via CRMService's existing Case API, using the caller's own JWT
+
+Database: ChatBotDB
+
+Published Events: None (no Outbox in this MVP — see README.md)
+
+Consumed Events: None (answers via synchronous REST, not event consumption)
+
+**Pattern:** The one cross-cutting service that is a synchronous REST *consumer* of its
+siblings (Sales/Product/Warehouse/Shipping/Promotion/CRM) rather than an async event
+consumer like Notification/Reporting.
+
+---
+
 ## Database Ownership
 
 Each service owns its database exclusively. No cross-database queries allowed.
@@ -517,6 +543,7 @@ Each service owns its database exclusively. No cross-database queries allowed.
 | NotificationService | NotificationDB | Owned by Notification; others access via API only |
 | ReportingService | ReportingDB | Owned by Reporting; read-only via direct BI tool queries |
 | SharedMasterDataService | MasterDataDB | Owned by MasterData; others access via API/events only |
+| ChatBotService | ChatBotDB | Owned by ChatBot; others access via API only |
 
 ## Database Ownership
 

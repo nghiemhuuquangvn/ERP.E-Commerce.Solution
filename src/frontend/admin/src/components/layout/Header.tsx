@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth.store'
 import { useUiStore, type Locale } from '@/stores/ui.store'
 import { useLogout } from '@/hooks/useAuth'
+import { NotificationBell } from './NotificationBell'
 
 export function Header() {
   const { t, i18n } = useTranslation()
@@ -26,6 +27,7 @@ export function Header() {
       </button>
 
       <div className="flex items-center gap-4">
+        <NotificationBell />
         <select
           value={locale}
           onChange={handleLocaleChange}

@@ -49,6 +49,37 @@ public static class AuthenticationExtensions
                     ValidAudience = audience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
                 };
+
+                // SignalR's browser transport can't set an Authorization header on the
+                // WebSocket upgrade request, so its JS client appends "?access_token=" to
+                // the connection URL instead (standard SignalR+JWT pattern). JwtBearerHandler
+                // only reads the header by default; this reads the query string as a fallback
+                // but ONLY under "/hubs" so every other existing authenticated route on every
+                // other service keeps working exactly as before. Currently only
+                // ChatBotService's ChatHub lives under that path.
+                //
+                // The query value is expected to be a short IHubTicketStore ticket, not the
+                // raw JWT — this platform's tokens can carry 240+ permission claims (10KB+),
+                // which blows past Kestrel's own default 8KB MaxRequestLineSize before any
+                // external proxy even sees the request (a WebSocket handshake 414). If no
+                // ticket store is registered (services other than ChatBotService, or the
+                // value doesn't resolve to one — e.g. an empty token for a Storefront guest),
+                // falls back to using the query value as-is so this stays backward compatible.
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        if (!string.IsNullOrEmpty(accessToken) && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                        {
+                            var ticketStore = context.HttpContext.RequestServices.GetService<IHubTicketStore>();
+                            context.Token = ticketStore != null && ticketStore.TryConsumeTicket(accessToken!, out var realToken)
+                                ? realToken
+                                : accessToken;
+                        }
+                        return Task.CompletedTask;
+                    }
+                };
             });
 
         return services;

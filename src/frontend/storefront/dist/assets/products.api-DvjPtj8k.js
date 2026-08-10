@@ -1,1 +1,0 @@
-import{x as e}from"./index-DqPF921y.js";const s={list:t=>e.get("/v1/products",{params:t}).then(a=>a.data),get:(t,a)=>e.get(`/v1/products/${t}`,{params:{languageCode:a}}).then(p=>p.data),featured:t=>e.get("/v1/products/featured",{params:{languageCode:t}}).then(a=>a.data)};export{s as p};

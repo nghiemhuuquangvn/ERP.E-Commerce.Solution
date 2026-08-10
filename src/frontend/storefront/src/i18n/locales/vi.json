@@ -103,5 +103,27 @@
     "alreadyHaveAccount": "Đã có tài khoản?",
     "signInLink": "Đăng nhập",
     "registrationFailed": "Đăng ký không thành công. Vui lòng thử lại."
+  },
+  "chat": {
+    "title": "Hỗ trợ trực tuyến",
+    "toggle": "Mở trò chuyện",
+    "close": "Đóng",
+    "greeting": "Xin chào! Tôi có thể giúp gì cho bạn?",
+    "inputPlaceholder": "Nhập tin nhắn…",
+    "send": "Gửi",
+    "conversationClosed": "Cuộc trò chuyện đã kết thúc.",
+    "newConversation": "Bắt đầu cuộc trò chuyện mới",
+    "tool": {
+      "orders": "Đang tra cứu đơn hàng...",
+      "products": "Đang tra cứu sản phẩm...",
+      "shipping": "Đang tra cứu vận chuyển...",
+      "promotions": "Đang tra cứu khuyến mãi...",
+      "escalate": "Đang chuyển cho nhân viên hỗ trợ...",
+      "generic": "Đang tra cứu..."
+    },
+    "errors": {
+      "connectFailed": "Không thể kết nối tới hỗ trợ trực tuyến. Vui lòng thử lại.",
+      "sendFailed": "Gửi tin nhắn không thành công. Vui lòng thử lại."
+    }
   }
 }

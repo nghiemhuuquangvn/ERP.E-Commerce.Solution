@@ -16,6 +16,7 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
     private readonly IEmailSender _email;
     private readonly ISmsSender _sms;
     private readonly IPushSender _push;
+    private readonly IRealtimeNotifier _realtime;
 
     public SendNotificationCommandHandler(
         INotificationRepository notifications,
@@ -23,7 +24,8 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
         IPreferenceRepository preferences,
         IEmailSender email,
         ISmsSender sms,
-        IPushSender push)
+        IPushSender push,
+        IRealtimeNotifier realtime)
     {
         _notifications = notifications;
         _templates = templates;
@@ -31,6 +33,7 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
         _email = email;
         _sms = sms;
         _push = push;
+        _realtime = realtime;
     }
 
     public async Task<NotificationDto> Handle(SendNotificationCommand request, CancellationToken cancellationToken)
@@ -65,7 +68,11 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
 
         await _notifications.AddAsync(notification, cancellationToken);
 
-        if (request.Priority == NotificationPriority.Critical || request.Priority == NotificationPriority.High)
+        // InApp always delivers immediately, regardless of priority — a bell
+        // notification that waits for a priority flag or the batch dispatch job would
+        // defeat the point of a "real-time" bell.
+        if (request.Priority == NotificationPriority.Critical || request.Priority == NotificationPriority.High
+            || request.Channel == NotificationChannel.InApp)
             await DeliverAsync(notification, cancellationToken);
 
         return MapToDto(notification);
@@ -86,6 +93,9 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
                     break;
                 case NotificationChannel.Push when notification.RecipientDeviceToken != null:
                     await _push.SendAsync(notification.RecipientDeviceToken, notification.Subject, notification.Body, ct);
+                    break;
+                case NotificationChannel.InApp:
+                    await _realtime.NotifyAsync(notification.RecipientId, MapToDto(notification), ct);
                     break;
             }
             notification.MarkAsSent();
@@ -113,6 +123,8 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
         SentAt = n.SentAt,
         DeliveredAt = n.DeliveredAt,
         CreatedAt = n.CreatedAt,
+        IsRead = n.IsRead,
+        ReadAt = n.ReadAt,
         Logs = n.Logs.Select(l => new NotificationLogDto
         {
             EventType = l.EventType,

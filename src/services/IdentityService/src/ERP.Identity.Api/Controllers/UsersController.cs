@@ -182,7 +182,7 @@ namespace ERP.Identity.Api.Controllers
             if (parsedTenantId is null)
                 return Unauthorized();
 
-            await _userService.AssignRoleAsync(id, request.RoleCode, parsedTenantId.Value, ct);
+            await _userService.AssignRoleAsync(id, request.RoleCode, parsedTenantId.Value, this.GetCallerUserId(), this.GetCallerName(), ct);
             return Ok(new { message = "Role assigned successfully" });
         }
 

@@ -79,6 +79,43 @@ public class NotificationsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPatch("{id:guid}/read")]
+    public async Task<IActionResult> MarkAsRead(Guid id, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("notifications:view"))
+            return Forbid();
+
+        var existing = await _mediator.Send(new GetNotificationQuery { NotificationId = id }, ct);
+        if (existing == null)
+            return NotFound();
+
+        // Same ownership rule as GetById/GetHistory: only the recipient themself, or a
+        // caller with the elevated notifications:send permission, may mark it read.
+        var isOwnRecipient = string.Equals(existing.RecipientId, _userContext.UserId, StringComparison.OrdinalIgnoreCase);
+        if (!isOwnRecipient && !_userContext.HasPermission("notifications:send"))
+            return Forbid();
+
+        var updated = await _mediator.Send(new MarkNotificationReadCommand { NotificationId = id }, ct);
+        if (!updated)
+            return NotFound();
+
+        return NoContent();
+    }
+
+    [HttpGet("unread-count/{recipientId}")]
+    public async Task<IActionResult> GetUnreadCount(string recipientId, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("notifications:view"))
+            return Forbid();
+
+        var isOwnRecipient = string.Equals(recipientId, _userContext.UserId, StringComparison.OrdinalIgnoreCase);
+        if (!isOwnRecipient && !_userContext.HasPermission("notifications:send"))
+            return Forbid();
+
+        var count = await _mediator.Send(new GetUnreadCountQuery { RecipientId = recipientId }, ct);
+        return Ok(new { unreadCount = count });
+    }
+
     [HttpPost("bulk")]
     [ProducesResponseType(typeof(BulkSendResult), StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

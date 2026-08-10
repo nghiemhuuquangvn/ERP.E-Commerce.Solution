@@ -13,6 +13,7 @@ public interface INotificationRepository
     Task AddRangeAsync(IEnumerable<Notification> notifications, CancellationToken ct = default);
     Task UpdateAsync(Notification notification, CancellationToken ct = default);
     Task<int> GetCountByRecipientAsync(string recipientId, CancellationToken ct = default);
+    Task<int> GetUnreadCountByRecipientAsync(string recipientId, CancellationToken ct = default);
 }
 
 public interface IWebhookRepository

@@ -15,7 +15,7 @@ public interface IUserService
     Task LockAsync(Guid id, Guid callerTenantId, CancellationToken ct);
     Task UnlockAsync(Guid id, Guid callerTenantId, CancellationToken ct);
     Task DeactivateAsync(Guid id, Guid callerTenantId, CancellationToken ct);
-    Task AssignRoleAsync(Guid userId, string roleCode, Guid tenantId, CancellationToken ct);
+    Task AssignRoleAsync(Guid userId, string roleCode, Guid tenantId, Guid? changedByUserId, string? changedByName, CancellationToken ct);
     Task RemoveRoleAsync(Guid userId, Guid roleId, Guid tenantId, CancellationToken ct);
     Task EnableTwoFactorAsync(Guid id, string method, string? phoneNumber, CancellationToken ct);
     Task DisableTwoFactorAsync(Guid id, CancellationToken ct);

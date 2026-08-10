@@ -37,6 +37,22 @@ public class GetContactQueryHandler : IRequestHandler<GetContactQuery, ContactDt
     }
 }
 
+public class GetContactByUserIdQueryHandler : IRequestHandler<GetContactByUserIdQuery, ContactDto?>
+{
+    private readonly IContactRepository _contacts;
+
+    public GetContactByUserIdQueryHandler(IContactRepository contacts)
+    {
+        _contacts = contacts;
+    }
+
+    public async Task<ContactDto?> Handle(GetContactByUserIdQuery request, CancellationToken cancellationToken)
+    {
+        var contact = await _contacts.GetByUserIdAsync(request.UserId, cancellationToken);
+        return contact is null ? null : CreateContactCommandHandler.MapToDto(contact);
+    }
+}
+
 public class ListContactsQueryHandler : IRequestHandler<ListContactsQuery, PagedResult<ContactDto>>
 {
     private readonly IContactRepository _contacts;

@@ -101,6 +101,29 @@ public class LeaveRejectedIntegrationEvent : INotification
     public string Reason { get; set; } = string.Empty;
 }
 
+// Bell notifications for IdentityService's role/permission changes — see
+// IdentityEventConsumer for how these are populated off the raw
+// RoleAssignedDomainEvent/PermissionGrantedDomainEvent JSON. ChangedByUserId is
+// null when the system (not another user) made the change — e.g. self-registration's
+// default-role assignment — and the handlers below no-op in that case.
+public class RoleAssignedIntegrationEvent : INotification
+{
+    public Guid UserId { get; set; }
+    public string RoleCode { get; set; } = string.Empty;
+    public Guid? ChangedByUserId { get; set; }
+    public string? ChangedByName { get; set; }
+}
+
+public class PermissionGrantedIntegrationEvent : INotification
+{
+    public Guid RoleId { get; set; }
+    public string RoleCode { get; set; } = string.Empty;
+    public string PermissionCode { get; set; } = string.Empty;
+    public Guid? ChangedByUserId { get; set; }
+    public string? ChangedByName { get; set; }
+    public List<Guid> AffectedUserIds { get; set; } = new();
+}
+
 // Event handlers — dispatch SendNotificationCommand via MediatR
 
 public class UserCreatedIntegrationEventHandler : INotificationHandler<UserCreatedIntegrationEvent>
@@ -339,6 +362,53 @@ public class LeaveRejectedIntegrationEventHandler : INotificationHandler<LeaveRe
             },
             Priority = NotificationPriority.Normal
         }, cancellationToken);
+    }
+}
+
+public class RoleAssignedIntegrationEventHandler : INotificationHandler<RoleAssignedIntegrationEvent>
+{
+    private readonly IMediator _mediator;
+    public RoleAssignedIntegrationEventHandler(IMediator mediator) => _mediator = mediator;
+
+    public async Task Handle(RoleAssignedIntegrationEvent @event, CancellationToken cancellationToken)
+    {
+        // No human actor (e.g. self-registration's default-role assignment) — nothing
+        // for the recipient to be told about "who changed it," so skip the bell entirely.
+        if (@event.ChangedByUserId is null)
+            return;
+
+        await _mediator.Send(new SendNotificationCommand
+        {
+            RecipientId = @event.UserId.ToString(),
+            Channel = NotificationChannel.InApp,
+            Subject = "Role changed",
+            Body = $"Your role was changed to '{@event.RoleCode}' by {@event.ChangedByName ?? "an administrator"}.",
+            Priority = NotificationPriority.Normal
+        }, cancellationToken);
+    }
+}
+
+public class PermissionGrantedIntegrationEventHandler : INotificationHandler<PermissionGrantedIntegrationEvent>
+{
+    private readonly IMediator _mediator;
+    public PermissionGrantedIntegrationEventHandler(IMediator mediator) => _mediator = mediator;
+
+    public async Task Handle(PermissionGrantedIntegrationEvent @event, CancellationToken cancellationToken)
+    {
+        if (@event.ChangedByUserId is null)
+            return;
+
+        foreach (var userId in @event.AffectedUserIds)
+        {
+            await _mediator.Send(new SendNotificationCommand
+            {
+                RecipientId = userId.ToString(),
+                Channel = NotificationChannel.InApp,
+                Subject = "Permission changed",
+                Body = $"Your role '{@event.RoleCode}' was granted the '{@event.PermissionCode}' permission by {@event.ChangedByName ?? "an administrator"}.",
+                Priority = NotificationPriority.Normal
+            }, cancellationToken);
+        }
     }
 }
 

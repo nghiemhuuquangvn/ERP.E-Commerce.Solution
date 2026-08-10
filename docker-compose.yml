@@ -744,6 +744,44 @@ services:
     networks:
       - erp-network
 
+  chatbotservice:
+    image: erp/chatbot-service:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/ChatBotService/src/ERP.CHB.API
+        PROJECT_FILE: ERP.CHB.API.csproj
+        ASSEMBLY_NAME: ERP.CHB.API
+    container_name: erp-chatbot-service
+    ports:
+      # Exposed directly (not only reachable via the Gateway on 5000) because ChatHub's
+      # SignalR WebSocket connections bypass Ocelot — see the plan doc's "Streaming
+      # real-time" section. REST endpoints (/api/v1/chatbot/...) are still reachable both
+      # ways; the frontend clients connect the Hub straight to this port.
+      - "5017:5017"
+    environment:
+      ASPNETCORE_URLS: "http://+:5017"
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__ChatBotDb: "Server=sqlserver,1433;Database=ChatBotDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      Jwt__Key: "${JWT_SIGNING_KEY}"
+      Gateway__BaseUrl: "http://gateway:5000"
+      Anthropic__ApiKey: "${ANTHROPIC_API_KEY}"
+      OpenAi__ApiKey: "${OPENAI_API_KEY}"
+      ChatBotSettings__StorefrontModel: "claude-haiku-4-5"
+      ChatBotSettings__AdminModel: "claude-sonnet-5"
+      ChatBotSettings__FreeModel: "gpt-4o-mini"
+      Cors__AllowedOrigins__0: "http://localhost:5173"
+      Cors__AllowedOrigins__1: "http://localhost:5174"
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+      gateway:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - erp-network
+
   reportingservice:
     image: erp/reporting-service:latest
     build:

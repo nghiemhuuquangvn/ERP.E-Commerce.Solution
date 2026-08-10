@@ -111,6 +111,14 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
 - **No synchronous app-to-app or app-to-non-gateway calls.** Every app talks only to
   the Gateway; the Gateway routes to services. This mirrors the backend's own
   "no direct cross-service calls" rule (see root `CLAUDE.md`).
+  - **Two sanctioned exceptions**, both SignalR hubs: ChatBotService's `/hubs/chat`
+    (Admin/Storefront's `chatSignalR.ts`, `VITE_CHATBOT_WS_URL`) and NotificationService's
+    `/hubs/notifications` (Admin's `notificationSignalR.ts`, `VITE_NOTIFICATION_WS_URL`).
+    Both bypass the Gateway on purpose — Ocelot doesn't reliably proxy a WebSocket
+    upgrade — connecting directly to the owning service's own port/Ingress host instead.
+    Both also exchange the caller's full JWT for a short-lived `IHubTicketStore` ticket
+    (via a `hub-ticket` REST endpoint, through the Gateway) before connecting, since an
+    Admin JWT's 240+ permission claims are too large for a WebSocket URL's query string.
 - **Locale persistence**: each app has exactly one persisted store for UI preferences
   (Admin: `src/stores/ui.store.ts` Zustand; Storefront: `src/stores/locale.store.ts`
   Pinia; Mobile: `stores/locale.store.ts` Zustand + AsyncStorage in each app). Add new

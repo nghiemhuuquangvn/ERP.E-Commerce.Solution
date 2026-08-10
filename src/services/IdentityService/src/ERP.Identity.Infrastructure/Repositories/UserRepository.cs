@@ -193,5 +193,13 @@ namespace ERP.Identity.Infrastructure.Repositories
             if (userRole != null)
                 _dbContext.UserRoles.Remove(userRole);
         }
+
+        public async Task<IReadOnlyList<Guid>> GetUserIdsByRoleAsync(Guid roleId, Guid tenantId, CancellationToken ct)
+        {
+            return await _dbContext.UserRoles
+                .Where(ur => ur.RoleId == roleId && ur.TenantId == tenantId)
+                .Select(ur => ur.UserId)
+                .ToListAsync(ct);
+        }
     }
 }

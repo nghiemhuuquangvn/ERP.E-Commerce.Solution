@@ -21,6 +21,11 @@ public class NotificationHistoryResponse
     public List<NotificationDto> Items { get; set; } = new();
 }
 
+public class GetUnreadCountQuery : IRequest<int>
+{
+    public string RecipientId { get; set; } = string.Empty;
+}
+
 public class GetTemplateQuery : IRequest<NotificationTemplateDto?>
 {
     public Guid? TemplateId { get; set; }

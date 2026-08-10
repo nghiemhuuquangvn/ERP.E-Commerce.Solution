@@ -239,6 +239,23 @@
   the target recipient) unless the caller holds the elevated `notifications:send`
   permission. See `docs/business/Notification/NotificationPrivacy.md`.
 
+#### AI ChatBot
+- **Location:** `src/services/ChatBotService/README.md` (service summary),
+  `docs/business/ChatBot/README.md` (full technical reference: architecture, provider
+  selection, tool-calling mechanism, SignalR streaming, CRM escalation, API reference,
+  and step-by-step docker-compose + Kubernetes deployment)
+- **Topics:** AI chat assistant for Storefront customers (incl. anonymous guests) and
+  Admin staff, answering via live tool-calling against other services' REST APIs
+  (never a local data copy), Claude-vs-ChatGPT provider selection reusing the existing
+  License/LicensePlan mechanism (no new billing), CRM case escalation
+- **Workflows:** StartConversation → SendMessage (streamed reply, looping through
+  tool-calls as needed) → optional EscalateToHuman (opens a CRM Case)
+- **Entities:** Conversation, Message (owned collection)
+- **Added 2026-08-08:** greenfield addition — CRMService gained one small additive
+  endpoint (`GET /api/v1/crm/contacts/by-user/{userId}`) to support escalation, and the
+  shared `AddErpJwtAuthentication` gained a `/hubs`-path-only query-string JWT fallback
+  for SignalR. See `docs/business/ChatBot/README.md` §7 and §6 for why.
+
 #### Reporting & Analytics
 - **Location:** `src/services/ReportingService/README.md`,
   `docs/business/Reporting/module-19-reporting.md` (added 2026-07-29 —

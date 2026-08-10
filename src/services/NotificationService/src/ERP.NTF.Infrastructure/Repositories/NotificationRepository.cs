@@ -54,6 +54,9 @@ public class NotificationRepository : INotificationRepository
 
     public async Task<int> GetCountByRecipientAsync(string recipientId, CancellationToken ct = default) =>
         await _db.Notifications.CountAsync(n => n.RecipientId == recipientId, ct);
+
+    public async Task<int> GetUnreadCountByRecipientAsync(string recipientId, CancellationToken ct = default) =>
+        await _db.Notifications.CountAsync(n => n.RecipientId == recipientId && !n.IsRead, ct);
 }
 
 public class TemplateRepository : ITemplateRepository

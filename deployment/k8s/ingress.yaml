@@ -57,6 +57,38 @@ spec:
             name: storefront
             port:
               number: 80
+  # ChatBotService's SignalR hub, dedicated host so both Admin (erp.local/system.erp.local)
+  # and Storefront (shop.erp.local) can reach it same-shape via VITE_CHATBOT_WS_URL without
+  # going through the Ocelot Gateway (see chatbot.yaml's Service comment — Ocelot doesn't
+  # reliably proxy the WebSocket upgrade). ingress-nginx passes WebSocket upgrades through
+  # natively. (chatbotservice's Service previously set sessionAffinity: ClientIP for
+  # sticky routing, but that requires the iptables `-m recent` kernel module, which
+  # this environment's WSL2 kernel doesn't support — kube-proxy's whole ruleset sync
+  # fails atomically when any Service needs it, breaking ClusterIP routing
+  # cluster-wide. Removed; harmless since chatbot-service runs a single replica.)
+  - host: chat.erp.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: chatbotservice
+            port:
+              number: 5017
+  # NotificationService's bell SignalR hub — same reasoning/shape as chat.erp.local
+  # above (bypasses the Ocelot Gateway; ingress-nginx passes the WebSocket upgrade
+  # through natively).
+  - host: notifications.erp.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: notificationservice
+            port:
+              number: 5013
   - host: rabbit.erp.local
     http:
       paths:

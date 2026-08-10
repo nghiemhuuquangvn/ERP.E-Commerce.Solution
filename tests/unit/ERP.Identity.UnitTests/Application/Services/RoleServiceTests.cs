@@ -193,12 +193,17 @@ public class RoleServiceTests
         mockPermissionRepository.Setup(r => r.AssignToRoleAsync(roleId, permission.Id, tenantId, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
+        var mockUserRepository = new Mock<IUserRepository>();
+        mockUserRepository.Setup(r => r.GetUserIdsByRoleAsync(roleId, tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<Guid>());
+
         _mockUnitOfWork.Setup(uow => uow.Permissions).Returns(mockPermissionRepository.Object);
+        _mockUnitOfWork.Setup(uow => uow.Users).Returns(mockUserRepository.Object);
         _mockUnitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
         // Act
-        await _roleService.AssignPermissionAsync(roleId, permissionCode, tenantId, CancellationToken.None);
+        await _roleService.AssignPermissionAsync(roleId, permissionCode, tenantId, null, null, CancellationToken.None);
 
         // Assert
         mockPermissionRepository.Verify(r => r.AssignToRoleAsync(roleId, permission.Id, tenantId, It.IsAny<CancellationToken>()), Times.Once);

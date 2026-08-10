@@ -32,5 +32,9 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         Task<bool> ExistsAsync(string email, Guid tenantId, CancellationToken ct);
         Task<int> CountByTenantAsync(Guid tenantId, CancellationToken ct);
         Task RemoveRoleAsync(Guid userId, Guid roleId, Guid tenantId, CancellationToken ct);
+
+        /// <summary>All user IDs currently holding roleId within tenantId — used to fan out
+        /// a "permission granted to your role" notification to every affected user.</summary>
+        Task<IReadOnlyList<Guid>> GetUserIdsByRoleAsync(Guid roleId, Guid tenantId, CancellationToken ct);
     }
 }

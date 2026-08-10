@@ -61,5 +61,9 @@ IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = 'ReportingDB')
     CREATE DATABASE ReportingDB;
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = 'ChatBotDB')
+    CREATE DATABASE ChatBotDB;
+GO
+
 PRINT 'All 14 ERP databases created (or already exist).';
 GO

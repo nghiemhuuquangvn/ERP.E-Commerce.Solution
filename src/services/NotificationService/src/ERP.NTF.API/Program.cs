@@ -1,4 +1,5 @@
 using Confluent.Kafka;
+using ERP.NTF.API.Hubs;
 using ERP.NTF.Application.Handlers;
 using ERP.NTF.Application.Interfaces;
 using ERP.NTF.Application.Validators;
@@ -63,6 +64,15 @@ else
 
 builder.Services.AddScoped<IWebhookSender, WebhookSender>();
 
+// Bell notifications: real-time push over SignalR for Channel.InApp — mirrors
+// ChatBotService's ChatHub/SignalRChatStreamNotifier split. AddMemoryCache +
+// IHubTicketStore back the "/hubs" bearer-token-too-large workaround in
+// AuthenticationExtensions.AddErpJwtAuthentication (see that file for why).
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<IHubTicketStore, HubTicketStore>();
+builder.Services.AddScoped<IRealtimeNotifier, SignalRRealtimeNotifier>();
+builder.Services.AddSignalR();
+
 // Redis cache
 builder.Services.AddCacheService(builder.Configuration, "ntf");
 
@@ -122,6 +132,30 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
         policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+
+    // The SignalR hub needs AllowCredentials (browser WS/SSE transports require it),
+    // which can't be combined with AllowAnyOrigin — so this is a second, separate
+    // policy applied only to the hub via RequireCors, not a replacement for
+    // "AllowAll" above (which stays as-is for the REST controllers). Same allowed-origin
+    // shape as ChatBotService's "ChatBotCors": config-driven list plus any *.erp.local host.
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+        ?? new[] { "http://localhost:5173", "http://localhost:5174" };
+    var allowedOriginSet = new HashSet<string>(allowedOrigins, StringComparer.OrdinalIgnoreCase);
+    options.AddPolicy("NotificationHubCors", policy =>
+        policy.SetIsOriginAllowed(origin =>
+            {
+                if (allowedOriginSet.Contains(origin))
+                    return true;
+
+                if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                    return false;
+
+                return uri.Host.Equals("erp.local", StringComparison.OrdinalIgnoreCase)
+                    || uri.Host.EndsWith(".erp.local", StringComparison.OrdinalIgnoreCase);
+            })
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials());
 });
 builder.Services.AddHealthChecks();
 
@@ -142,6 +176,7 @@ app.UseMiddleware<LicenseEnforcementMiddleware>();
 app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications").RequireCors("NotificationHubCors");
 app.MapHealthChecks("/health");
 
 app.Run();

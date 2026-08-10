@@ -181,7 +181,7 @@ public class UsersControllerTests
         var userId = Guid.NewGuid();
         var request = new AssignRoleRequest(userId, "admin");
 
-        _mockUserService.Setup(s => s.AssignRoleAsync(userId, "admin", It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+        _mockUserService.Setup(s => s.AssignRoleAsync(userId, "admin", It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act

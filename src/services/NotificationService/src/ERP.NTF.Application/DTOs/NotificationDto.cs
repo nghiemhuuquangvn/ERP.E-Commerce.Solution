@@ -18,6 +18,8 @@ public class NotificationDto
     public DateTime? SentAt { get; set; }
     public DateTime? DeliveredAt { get; set; }
     public DateTime CreatedAt { get; set; }
+    public bool IsRead { get; set; }
+    public DateTime? ReadAt { get; set; }
     public List<NotificationLogDto> Logs { get; set; } = new();
 }
 

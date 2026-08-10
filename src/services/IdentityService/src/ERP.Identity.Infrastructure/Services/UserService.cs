@@ -162,7 +162,7 @@ namespace ERP.Identity.Infrastructure.Services
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
-        public async Task AssignRoleAsync(Guid userId, string roleCode, Guid tenantId, CancellationToken ct)
+        public async Task AssignRoleAsync(Guid userId, string roleCode, Guid tenantId, Guid? changedByUserId, string? changedByName, CancellationToken ct)
         {
             var user = await _unitOfWork.Users.GetByIdAsync(userId, ct);
             if (user == null)
@@ -172,7 +172,7 @@ namespace ERP.Identity.Infrastructure.Services
             if (role == null)
                 throw new InvalidOperationException($"Role '{roleCode}' not found for tenant");
 
-            user.AssignRole(role, tenantId);
+            user.AssignRole(role, tenantId, changedByUserId, changedByName);
             await _unitOfWork.Users.UpdateAsync(user, ct);
             await _securityAuditService.LogAsync("RoleAssigned", true, tenantId, userId, user.Email, details: $"Role={roleCode}", ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);

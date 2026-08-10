@@ -39,9 +39,14 @@ namespace ERP.Identity.Domain.Entities
         /// owned by this aggregate), but the domain event belongs on Role since it's the
         /// side everyone else's users-gain-a-permission reasoning is about.
         /// </summary>
-        public void NotifyPermissionGranted(Guid permissionId, string permissionCode)
+        public void NotifyPermissionGranted(
+            Guid permissionId,
+            string permissionCode,
+            IReadOnlyCollection<Guid>? affectedUserIds = null,
+            Guid? changedByUserId = null,
+            string? changedByName = null)
         {
-            AddDomainEvent(new PermissionGrantedDomainEvent(Id, TenantId, permissionId, permissionCode));
+            AddDomainEvent(new PermissionGrantedDomainEvent(Id, TenantId, permissionId, permissionCode, RoleCode, affectedUserIds, changedByUserId, changedByName));
         }
     }
 

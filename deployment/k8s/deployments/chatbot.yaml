@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chatbot-service
+  namespace: erp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chatbot-service
+  template:
+    metadata:
+      labels:
+        app: chatbot-service
+    spec:
+      containers:
+      - name: chatbot-service
+        image: erp/chatbot-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5017
+        envFrom:
+        - configMapRef:
+            name: erp-config
+        env:
+        - name: ASPNETCORE_URLS
+          value: "http://+:5017"
+        - name: Gateway__BaseUrl
+          value: "http://gateway:5000"
+        - name: ConnectionStrings__ChatBotDb
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: sql-chatbot-db
+        - name: Jwt__Key
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: jwt-signing-key
+        - name: Anthropic__ApiKey
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: anthropic-api-key
+        - name: OpenAi__ApiKey
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: openai-api-key
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5017
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5017
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+---
+# ClusterIP is not enough on its own for ChatHub's WebSocket connections — Ocelot's
+# reverse-proxy doesn't reliably pass through SignalR's negotiate/upgrade handshake (see
+# the plan doc's "Streaming real-time" section), so this Service needs a session-affinity
+# Ingress rule routing straight to it for the /hubs path, separate from the erp-gateway
+# Ingress used for every other service's REST traffic. Not included here since Ingress
+# class/host naming is environment-specific — add it alongside whatever Ingress resource
+# already fronts erp-gateway.
+apiVersion: v1
+kind: Service
+metadata:
+  name: chatbotservice
+  namespace: erp
+spec:
+  selector:
+    app: chatbot-service
+  ports:
+  - port: 5017
+    targetPort: 5017

@@ -32,6 +32,8 @@ public class GetNotificationQueryHandler : IRequestHandler<GetNotificationQuery,
             SentAt = notification.SentAt,
             DeliveredAt = notification.DeliveredAt,
             CreatedAt = notification.CreatedAt,
+            IsRead = notification.IsRead,
+            ReadAt = notification.ReadAt,
             Logs = notification.Logs.Select(l => new NotificationLogDto
             {
                 EventType = l.EventType,
@@ -66,10 +68,22 @@ public class GetNotificationHistoryQueryHandler : IRequestHandler<GetNotificatio
                 Status = n.Status.ToString(),
                 Priority = n.Priority.ToString(),
                 SentAt = n.SentAt,
-                CreatedAt = n.CreatedAt
+                CreatedAt = n.CreatedAt,
+                IsRead = n.IsRead,
+                ReadAt = n.ReadAt
             }).ToList()
         };
     }
+}
+
+public class GetUnreadCountQueryHandler : IRequestHandler<GetUnreadCountQuery, int>
+{
+    private readonly INotificationRepository _notifications;
+
+    public GetUnreadCountQueryHandler(INotificationRepository notifications) => _notifications = notifications;
+
+    public Task<int> Handle(GetUnreadCountQuery request, CancellationToken cancellationToken) =>
+        _notifications.GetUnreadCountByRecipientAsync(request.RecipientId, cancellationToken);
 }
 
 public class GetTemplateQueryHandler : IRequestHandler<GetTemplateQuery, NotificationTemplateDto?>

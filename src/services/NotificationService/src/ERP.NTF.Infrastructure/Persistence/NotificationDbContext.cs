@@ -38,6 +38,8 @@ public class NotificationDbContext : DbContext
             // .OptOutAt below; unmapped, this 500'd with "Invalid column name
             // 'ErrorMessage'" the moment any notification was actually inserted.
             e.Property(x => x.ErrorMessage).HasColumnName("LastError").HasMaxLength(2000);
+            e.Property(x => x.IsRead);
+            e.Property(x => x.ReadAt);
             e.HasIndex(x => x.RecipientId);
             e.HasIndex(x => x.Status);
             e.HasIndex(x => new { x.Status, x.ScheduledFor });

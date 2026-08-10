@@ -548,6 +548,93 @@ Verified login, `id/tenants`, `so/orders` (1200 rows), `po/suppliers`, `wh/stock
 `pay/payments`, `ntf/templates`, the new PO finance-approval-bearing `po/purchase-orders` list,
 and both frontend apps — all 200.
 
+## Fix 16 — reviewed and deployed ChatBotService (new microservice); a K8s networking outage traced to `sessionAffinity: ClientIP` on an unsupported kernel; three real ChatBotService bugs found once auth/DB were actually exercised
+
+Reviewed a large new batch centered on **ChatBotService** (Port 5017, Code: CHB) — a brand-new
+microservice answering via live tool-calling against other services' REST APIs through the
+Gateway, plus supporting changes to CRM (`GET /contacts/by-user/{userId}`), `ERP.Shared.Authorization`
+(SignalR query-string JWT fallback scoped to `/hubs`, new `ChatBot`/`ChatBotPremium` module
+codes), the Gateway route, both frontends' SignalR wiring, and K8s/Compose manifests. Code
+quality was high — reading through `Program.cs`, `ErpGatewayClient`, `ChatProviderResolver`,
+`CrmEscalationClient`, `ChatHub`, and `ChatBotDbContext` against `001_CreateChatBotDB.sql`
+found nothing wrong. Two environment-config gaps were fixed immediately (Admin was missing a
+real `.env` entirely — `VITE_CHATBOT_WS_URL` would have built as `undefined`; the K8s Ingress
+had no host rule for `chat.erp.local`, the dedicated non-Gateway host the plan called for).
+
+Deploying it, however, triggered a K8s networking outage that took most of this session to
+root-cause, plus surfaced three real bugs in ChatBotService's auth/DB layer that no amount of
+code review would have caught — only exercising them live did.
+
+### The outage: `kube-proxy` couldn't sync ClusterIP routing for *any* Service, cluster-wide
+First symptom was the already-known Kafka self-DNS-resolution deadlock recurring
+(`UnknownHostException: kafka`) after a routine Docker Desktop restart. Chasing it down
+revealed the real scope was much bigger: **no Service on the cluster could resolve or route**,
+including CoreDNS's own upstream call to the Kubernetes API's ClusterIP
+(`dial tcp 10.96.0.1:443: connect: connection refused`). `kube-proxy`'s logs showed the actual
+cause: `iptables-restore` failing on every sync attempt —
+`Extension recent revision 0 not supported, missing kernel module?` followed by
+`RULE_APPEND failed (No such file or directory)` for a specific, *stable* chain hash
+(`KUBE-SVC-X42DJOC3OWYTCKB4`) that reappeared identically across multiple full cluster resets —
+proof it was one deterministic Service, not random corruption.
+
+Two dead-end remediation attempts before finding the real cause (documented for next time this
+kernel/iptables combination bites): a `wsl --shutdown` + Docker Desktop restart (full WSL2 VM
+reboot) did not fix it — the identical `iptables-restore` failure reappeared immediately on a
+freshly-booted VM, ruling out "corrupted VM state." Docker Desktop's own **Reset Kubernetes
+Cluster** (full etcd wipe, all namespaces/Deployments/Secrets/PVs gone, no SQL data lost since
+that's host-based) did restore *general* ClusterIP routing and DNS — proving the cluster
+control-plane layer itself was fine — but the exact same `iptables-restore` error, with the
+exact same chain hash, came straight back once every manifest was reapplied.
+
+**Root cause**: `kube-proxy`'s iptables mode only emits `-m recent` rules (the extension the
+kernel warning names) to implement `sessionAffinity: ClientIP`. Across this whole manifest set,
+exactly one Service used it — `chatbotservice` in `deployment/k8s/deployments/chatbot.yaml`,
+added for ChatHub's SignalR sticky-routing. This WSL2 kernel build doesn't support `xt_recent`,
+so `iptables-restore` fails on that Service's rules — and because the sync is one atomic batch,
+the *entire* ruleset for *every* Service fails with it, which is why literally nothing's
+ClusterIP routing ever fully worked no matter how many times the cluster or VM was reset.
+`chatbot-service` runs a single replica, so `sessionAffinity` provided zero actual behavior
+change — removed it (`kafka.yaml` also picked up a `startupProbe` while investigating, unrelated
+but worth keeping: Kafka's boot time grows with its accumulated `__consumer_offsets` log after
+each kill, so a fixed `initialDelaySeconds` on liveness had become a self-reinforcing crash
+loop). Also found and fixed along the way: ingress-nginx's default header buffer is too small
+for this app's fully-populated SuperAdmin JWT (~10KB) — `400 Request Header Or Cookie Too Large`
+on every re-install of the ingress controller from its stock manifest; patched
+`large-client-header-buffers`/`client-header-buffer-size` onto the `ingress-nginx-controller`
+ConfigMap (this must have been custom-tuned before whatever earlier event wiped it — worth
+carrying forward into the stock manifest permanently rather than re-patching after every future
+ingress-nginx reinstall).
+
+### Three real ChatBotService bugs, found only once login + a real DB round-trip were exercised
+1. **`Jwt:Issuer` typo** — `ERP.CHB.API/appsettings.json` had `"ERP.IdentityService"`; every
+   other service (and IdentityService itself, the actual token signer) uses `"ERP.Identity"`.
+   With `ValidateIssuer = true`, every token — including a genuinely valid SuperAdmin JWT that
+   worked against every other service — failed JWT Bearer validation silently. No 401 resulted
+   because of bug 2 below, making this harder to spot than a normal auth failure.
+2. **`ConversationsController` had no `[Authorize]`** — only `Start` had an explicit
+   `[AllowAnonymous]` (intentional, for guest chat). Without a class-level `[Authorize]`,
+   `ListMine`/`GetHistory` silently accepted unauthenticated requests, and the empty
+   `UserContext` only surfaced as an unhandled `UnauthorizedAccessException` → bare 500 deep in
+   the application layer, instead of a clean 401 at the pipeline. Added `[Authorize]` at the
+   controller level (matching `Start`'s explicit override).
+3. **`ChatBotDbContext` never ignored `BaseEntity.IsDeleted`** — unlike `DomainEvents`/
+   `RowVersion` (both explicitly ignored, with a comment explaining why), `IsDeleted` was left
+   unmapped-but-not-ignored, so EF Core included it by convention. `001_CreateChatBotDB.sql`
+   never had this column (no soft-delete UX exists for conversations), so the very first real
+   query threw `Invalid column name 'IsDeleted'`. Same root-cause pattern as Fix 14 and the
+   ProductDB schema-drift bugs: invisible to review, invisible to a passing build, only ever
+   surfaces once a query actually runs against the real schema. Added `e.Ignore(x => x.IsDeleted)`
+   alongside the other two.
+
+All three only became visible once login → JWT → a real downstream query chain was actually
+exercised end-to-end — the code review alone (including a column-for-column schema comparison)
+had called this file clean.
+
+**Final verification**: `kubectl get pods -n erp` — 0 pods outside `Running`, 0 climbing restart
+counts. `GET /id/api/v1/tenants`, `/api/v1/orders`, `/api/v1/products` → 200. `GET
+/api/v1/chatbot/conversations` with a valid token → 200 `[]`; without one → clean 401 (was 500).
+`POST /hubs/chat/negotiate` → 200. `erp.local`, `system.erp.local`, `shop.erp.local` → 200.
+
 ## Outstanding / known follow-ups (not fixed, out of scope)
 
 - Admin frontend hardcodes 169 permission literal strings across 89 files instead of
@@ -560,3 +647,10 @@ and both frontend apps — all 200.
   DB-driven `RolePermissions` row counts were spot-checked instead (SuperAdmin=248,
   Admin=150, Viewer=39), which uses the identical code path as the live-verified
   SuperAdmin JWT.
+- The `large-client-header-buffers`/`client-header-buffer-size` fix from Fix 16 is a live
+  `kubectl patch` against the `ingress-nginx-controller` ConfigMap, not captured in any
+  version-controlled manifest — a future `Reset Kubernetes Cluster` or ingress-nginx
+  reinstall from its stock upstream manifest will silently lose it and reintroduce the
+  `400 Request Header Or Cookie Too Large` bug on login. Should be folded into whatever
+  process (re-)installs ingress-nginx for this repo, e.g. a values/patch file applied
+  right after the stock `deploy.yaml`, so it isn't tribal knowledge.

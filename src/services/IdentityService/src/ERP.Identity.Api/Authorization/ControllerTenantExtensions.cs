@@ -30,4 +30,11 @@ public static class ControllerTenantExtensions
             ?? controller.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         return Guid.TryParse(value, out var userId) ? userId : null;
     }
+
+    /// <summary>The caller's display name, straight off the JWT's "name" claim
+    /// (TokenService already puts user.FullName ?? user.UserName ?? user.Email there) —
+    /// used to attribute "changed by" in notifications without an extra DB lookup.</summary>
+    public static string? GetCallerName(this ControllerBase controller) =>
+        controller.User.FindFirst(JwtRegisteredClaimNames.Name)?.Value
+            ?? controller.User.FindFirst(ClaimTypes.Name)?.Value;
 }

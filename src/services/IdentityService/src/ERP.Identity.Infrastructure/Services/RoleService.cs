@@ -65,7 +65,7 @@ namespace ERP.Identity.Infrastructure.Services
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
-        public async Task AssignPermissionAsync(Guid roleId, string permissionCode, Guid tenantId, CancellationToken ct)
+        public async Task AssignPermissionAsync(Guid roleId, string permissionCode, Guid tenantId, Guid? changedByUserId, string? changedByName, CancellationToken ct)
         {
             // Previously fetched via the un-scoped GetByIdAsync and never actually
             // checked role.TenantId == tenantId — a caller could attach permissions to
@@ -80,7 +80,12 @@ namespace ERP.Identity.Infrastructure.Services
                 throw new InvalidOperationException($"Permission '{permissionCode}' not found");
 
             await _unitOfWork.Permissions.AssignToRoleAsync(roleId, permission.Id, tenantId, ct);
-            role.NotifyPermissionGranted(permission.Id, permission.PermissionCode);
+
+            // Every user holding this role is affected by the grant — resolved here since
+            // Identity already owns the UserRoles join, keeping the published domain event
+            // fully self-describing for NotificationService's bell notification.
+            var affectedUserIds = await _unitOfWork.Users.GetUserIdsByRoleAsync(roleId, tenantId, ct);
+            role.NotifyPermissionGranted(permission.Id, permission.PermissionCode, affectedUserIds, changedByUserId, changedByName);
             await _unitOfWork.SaveChangesAsync(ct);
         }
 

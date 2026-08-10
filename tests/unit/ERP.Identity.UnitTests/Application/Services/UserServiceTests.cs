@@ -264,7 +264,7 @@ public class UserServiceTests
             .ReturnsAsync(1);
 
         // Act
-        await _userService.AssignRoleAsync(userId, roleCode, tenantId, CancellationToken.None);
+        await _userService.AssignRoleAsync(userId, roleCode, tenantId, null, null, CancellationToken.None);
 
         // Assert
         mockRoleRepository.Verify(r => r.GetByCodeAsync(roleCode, tenantId, It.IsAny<CancellationToken>()), Times.Once);

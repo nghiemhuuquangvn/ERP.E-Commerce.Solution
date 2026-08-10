@@ -132,6 +132,38 @@ public class IdentityEventConsumer : IHostedService
             if (evt.UserId != Guid.Empty)
                 await mediator.Publish(evt, cancellationToken);
         }
+        else if (typeName.Contains("RoleAssignedDomainEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new RoleAssignedIntegrationEvent
+            {
+                UserId = raw.Value<Guid?>("UserId") ?? Guid.Empty,
+                RoleCode = raw.Value<string>("RoleCode") ?? string.Empty,
+                ChangedByUserId = raw.Value<Guid?>("ChangedByUserId"),
+                ChangedByName = raw.Value<string>("ChangedByName")
+            };
+
+            if (evt.UserId != Guid.Empty)
+                await mediator.Publish(evt, cancellationToken);
+        }
+        else if (typeName.Contains("PermissionGrantedDomainEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new PermissionGrantedIntegrationEvent
+            {
+                RoleId = raw.Value<Guid?>("RoleId") ?? Guid.Empty,
+                RoleCode = raw.Value<string>("RoleCode") ?? string.Empty,
+                PermissionCode = raw.Value<string>("PermissionCode") ?? string.Empty,
+                ChangedByUserId = raw.Value<Guid?>("ChangedByUserId"),
+                ChangedByName = raw.Value<string>("ChangedByName"),
+                AffectedUserIds = raw["AffectedUserIds"] is JArray arr
+                    ? arr.Select(t => t.Value<Guid>()).ToList()
+                    : new List<Guid>()
+            };
+
+            if (evt.RoleId != Guid.Empty)
+                await mediator.Publish(evt, cancellationToken);
+        }
         // Other identity-topic events are not yet consumed by Notification — no local
         // template/handler exists for them today.
     }

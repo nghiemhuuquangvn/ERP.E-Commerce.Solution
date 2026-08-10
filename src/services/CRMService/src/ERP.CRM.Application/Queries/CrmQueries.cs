@@ -6,6 +6,13 @@ namespace ERP.CRM.Application.Queries;
 // Contact queries
 public record GetContactQuery(Guid ContactId) : IRequest<ContactDto?>;
 
+/// <summary>
+/// Added for ChatBotService's escalate-to-human flow (opens a Case, which needs a
+/// ContactId — see OpenCaseCommand): IContactRepository.GetByUserIdAsync already existed
+/// for SalesOrderCreatedEventHandler's auto-provisioning, this just exposes it as a query.
+/// </summary>
+public record GetContactByUserIdQuery(Guid UserId) : IRequest<ContactDto?>;
+
 public record ListContactsQuery(
     string? Search = null,
     int Page = 1,

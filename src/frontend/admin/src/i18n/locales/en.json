@@ -104,6 +104,7 @@
     "currencySettings": "Currency Settings",
     "monitoring": "Monitoring",
     "logs": "System Logs",
+    "chatbot": "AI Assistant",
     "users": "Users",
     "rolesPermissions": "Roles & Permissions",
     "accountingAccounts": "Chart of Accounts",
@@ -1852,5 +1853,44 @@
       "reconcileConfirm": "Mark the statement dated {{statementDate}} as reconciled? This action is significant and cannot be undone.",
       "failedToSave": "Failed to save. Please try again."
     }
+  },
+  "chatbot": {
+    "title": "AI Assistant",
+    "inputPlaceholder": "Ask about orders, stock, shipments, promotions…",
+    "send": "Send",
+    "newConversation": "New conversation",
+    "conversationEnded": "This conversation has ended. Start a new one to keep chatting.",
+    "emptyState": "Ask a question to get started.",
+    "status": {
+      "connected": "Connected",
+      "connecting": "Connecting…",
+      "disconnected": "Disconnected"
+    },
+    "tools": {
+      "orders": "Looking up order data…",
+      "products": "Looking up product/stock data…",
+      "shipment": "Looking up shipment data…",
+      "promotions": "Looking up promotions…",
+      "escalate": "Opening a support case…",
+      "generic": "Working on it…"
+    },
+    "history": {
+      "toggle": "History",
+      "title": "Past conversations",
+      "status": {
+        "1": "Active",
+        "2": "Escalated",
+        "3": "Closed"
+      }
+    },
+    "errors": {
+      "startFailed": "Failed to start a conversation. Please try again.",
+      "loadFailed": "Failed to load this conversation. Please try again.",
+      "sendFailed": "Failed to send your message. Please try again."
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "emptyState": "You have no notifications yet."
   }
 }

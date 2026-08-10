@@ -55,6 +55,11 @@ public class BulkSendNotificationCommand : IRequest<BulkSendResult>
     public DateTime? ScheduledFor { get; set; }
 }
 
+public class MarkNotificationReadCommand : IRequest<bool>
+{
+    public Guid NotificationId { get; set; }
+}
+
 public class BulkRecipient
 {
     public string RecipientId { get; set; } = string.Empty;

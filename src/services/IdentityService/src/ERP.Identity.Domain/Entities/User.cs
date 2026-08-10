@@ -138,7 +138,7 @@ namespace ERP.Identity.Domain.Entities
             authUserTenant.Tenant = tenant;
             _authTenants.Add(authUserTenant);
         }
-        public void AssignRole(Role role, Guid tenantId)
+        public void AssignRole(Role role, Guid tenantId, Guid? changedByUserId = null, string? changedByName = null)
         {
             if(!_authTenants.Any(at => at.TenantId == tenantId))
                 throw new InvalidOperationException("User is not assigned to the tenant");
@@ -155,7 +155,7 @@ namespace ERP.Identity.Domain.Entities
             userRole.Role = role;
             _userRoles.Add(userRole);
 
-            AddDomainEvent(new RoleAssignedDomainEvent(Id, tenantId, role.Id, role.RoleCode));
+            AddDomainEvent(new RoleAssignedDomainEvent(Id, tenantId, role.Id, role.RoleCode, changedByUserId, changedByName));
         }
 
         public void AddExternalLogin(string provider, string providerKey, string email)

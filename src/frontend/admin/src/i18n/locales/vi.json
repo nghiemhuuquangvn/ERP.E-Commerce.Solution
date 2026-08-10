@@ -104,6 +104,7 @@
     "currencySettings": "Cài đặt Tiền tệ",
     "monitoring": "Giám sát",
     "logs": "Nhật ký hệ thống",
+    "chatbot": "Trợ lý AI",
     "users": "Người dùng",
     "rolesPermissions": "Vai trò & Phân quyền",
     "accountingAccounts": "Hệ thống tài khoản",
@@ -1852,5 +1853,44 @@
       "reconcileConfirm": "Đánh dấu sao kê ngày {{statementDate}} là đã đối chiếu? Hành động này quan trọng và không thể hoàn tác.",
       "failedToSave": "Lưu thất bại. Vui lòng thử lại."
     }
+  },
+  "chatbot": {
+    "title": "Trợ lý AI",
+    "inputPlaceholder": "Hỏi về đơn hàng, tồn kho, vận chuyển, khuyến mãi…",
+    "send": "Gửi",
+    "newConversation": "Cuộc trò chuyện mới",
+    "conversationEnded": "Cuộc trò chuyện này đã kết thúc. Hãy bắt đầu cuộc trò chuyện mới để tiếp tục.",
+    "emptyState": "Đặt câu hỏi để bắt đầu.",
+    "status": {
+      "connected": "Đã kết nối",
+      "connecting": "Đang kết nối…",
+      "disconnected": "Mất kết nối"
+    },
+    "tools": {
+      "orders": "Đang tra cứu dữ liệu đơn hàng…",
+      "products": "Đang tra cứu dữ liệu sản phẩm/tồn kho…",
+      "shipment": "Đang tra cứu dữ liệu vận chuyển…",
+      "promotions": "Đang tra cứu khuyến mãi…",
+      "escalate": "Đang mở yêu cầu hỗ trợ…",
+      "generic": "Đang xử lý…"
+    },
+    "history": {
+      "toggle": "Lịch sử",
+      "title": "Cuộc trò chuyện trước đây",
+      "status": {
+        "1": "Đang hoạt động",
+        "2": "Đã chuyển hỗ trợ",
+        "3": "Đã đóng"
+      }
+    },
+    "errors": {
+      "startFailed": "Không thể bắt đầu cuộc trò chuyện. Vui lòng thử lại.",
+      "loadFailed": "Không thể tải cuộc trò chuyện này. Vui lòng thử lại.",
+      "sendFailed": "Không thể gửi tin nhắn. Vui lòng thử lại."
+    }
+  },
+  "notifications": {
+    "title": "Thông báo",
+    "emptyState": "Bạn chưa có thông báo nào."
   }
 }

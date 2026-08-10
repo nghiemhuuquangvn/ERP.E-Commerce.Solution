@@ -40,6 +40,14 @@
 | **ReportingService** | RPT | 5014 | 7014 | /swagger | ReportingDB |
 | **SharedMasterDataService** | MST | 5015 | 7015 | /swagger | MasterDataDB |
 | **LoggingService** | LOG | 5016 | 7016 | /swagger | — (Elasticsearch `service-logs-*`, no SQL DB) |
+| **ChatBotService** | CHB | 5017 | 7017 | /swagger | ChatBotDB |
+
+Note: ChatBotService's SignalR hub (`/hubs/chat`) is deliberately exposed directly on
+port 5017 rather than only through the Gateway (port 5000) — Ocelot does not reliably
+proxy SignalR's WebSocket negotiate/upgrade handshake. REST endpoints
+(`/api/v1/chatbot/...`) are reachable both via the Gateway and directly, like any other
+service; only the Hub connection needs to bypass it. See
+docs/business/ChatBot/README.md.
 
 ---
 

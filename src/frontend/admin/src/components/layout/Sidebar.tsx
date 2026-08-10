@@ -424,6 +424,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: '👥',
   },
   { labelKey: 'nav.payments', path: '/payments', permission: 'payments:view', icon: '💳' },
+  { labelKey: 'nav.chatbot', path: '/chatbot', permission: 'chatbot:assistant:use', icon: '🤖' },
   { labelKey: 'nav.hrm', path: '/hrm', icon: '🧑‍💼', children: HRM_CHILDREN },
   { labelKey: 'nav.accounting', path: '/accounting', icon: '💼', children: ACCOUNTING_CHILDREN },
   { labelKey: 'nav.masterData', path: '/masterdata', icon: '🗂️', children: MASTERDATA_CHILDREN },

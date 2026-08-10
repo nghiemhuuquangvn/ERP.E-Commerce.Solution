@@ -162,7 +162,7 @@ public class RolesControllerTests
         var roleId = Guid.NewGuid();
         var request = new AssignPermissionToRoleRequest("view.users");
 
-        _mockRoleService.Setup(s => s.AssignPermissionAsync(roleId, "view.users", It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+        _mockRoleService.Setup(s => s.AssignPermissionAsync(roleId, "view.users", It.IsAny<Guid>(), It.IsAny<Guid?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act

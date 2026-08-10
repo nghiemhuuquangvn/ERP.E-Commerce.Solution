@@ -103,5 +103,27 @@
     "alreadyHaveAccount": "Already have an account?",
     "signInLink": "Sign in",
     "registrationFailed": "Registration failed. Please try again."
+  },
+  "chat": {
+    "title": "Live Support",
+    "toggle": "Open chat",
+    "close": "Close",
+    "greeting": "Hi! How can I help you today?",
+    "inputPlaceholder": "Type a message…",
+    "send": "Send",
+    "conversationClosed": "This conversation has ended.",
+    "newConversation": "Start a new conversation",
+    "tool": {
+      "orders": "Looking up your orders...",
+      "products": "Looking up products...",
+      "shipping": "Looking up shipping info...",
+      "promotions": "Looking up promotions...",
+      "escalate": "Connecting you to a support agent...",
+      "generic": "Looking that up..."
+    },
+    "errors": {
+      "connectFailed": "Couldn't connect to live support. Please try again.",
+      "sendFailed": "Failed to send message. Please try again."
+    }
   }
 }

@@ -124,7 +124,7 @@ namespace ERP.Identity.Api.Controllers
             if (parsedTenantId is null)
                 return Unauthorized();
 
-            await _roleService.AssignPermissionAsync(id, request.PermissionCode, parsedTenantId.Value, ct);
+            await _roleService.AssignPermissionAsync(id, request.PermissionCode, parsedTenantId.Value, this.GetCallerUserId(), this.GetCallerName(), ct);
             return Ok(new { message = "Permission assigned successfully" });
         }
 

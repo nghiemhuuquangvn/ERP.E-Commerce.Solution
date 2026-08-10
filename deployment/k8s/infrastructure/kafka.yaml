@@ -58,16 +58,25 @@ spec:
         volumeMounts:
         - name: kafka-data
           mountPath: /var/lib/kafka/data
+        # Kafka's startup time scales with how much __consumer_offsets/metadata log it has to
+        # replay (grows every time it's killed mid-boot), so a fixed initialDelaySeconds on
+        # liveness became a self-reinforcing crash loop: kubelet kills it before it finishes
+        # loading, which only grows the log further, making the next boot even slower.
+        # startupProbe gives it up to 5 minutes to open 9092 before liveness/readiness apply
+        # at all, so a slow-but-succeeding boot is never killed mid-flight.
+        startupProbe:
+          tcpSocket:
+            port: 9092
+          periodSeconds: 10
+          failureThreshold: 30
         readinessProbe:
           tcpSocket:
             port: 9092
-          initialDelaySeconds: 30
           periodSeconds: 15
           timeoutSeconds: 10
         livenessProbe:
           tcpSocket:
             port: 9092
-          initialDelaySeconds: 60
           periodSeconds: 30
           timeoutSeconds: 10
         resources:

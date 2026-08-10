@@ -22,6 +22,7 @@
 | 12 | PromotionService | PromotionDB | 1433 | Promotions, coupons, loyalty, flash sales | 10K-100K records |
 | 13 | NotificationService | NotificationDB | 1433 | Templates, notifications, preferences, history | 100M-1B records |
 | 14 | ReportingService | ReportingDB | 1433 | Fact tables, dimension tables (data warehouse) | 1B+ denormalized records |
+| 15 | ChatBotService | ChatBotDB | 1433 | Conversations, ConversationMessages only — no local copy of order/product/inventory data, always fetched live via the Gateway | 1M-10M records |
 | 15 | SharedMasterDataService | MasterDataDB | 1433 | Departments, positions, employees, UoM, geography, languages | 10K-100K records |
 | 16 | LoggingService | — (Elasticsearch, index `service-logs-*`) | 9200 | Information/Warning/Error/Exception log entries from backend services and frontend apps — no SQL Server database, deliberate exception to the one-SQL-DB-per-service convention | 1M-100M+ log entries (monthly rolling indices) |
 
