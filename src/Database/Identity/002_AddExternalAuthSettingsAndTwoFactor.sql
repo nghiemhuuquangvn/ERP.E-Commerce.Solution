@@ -129,10 +129,18 @@ GO
 DECLARE @SuperAdminRoleId UNIQUEIDENTIFIER = '10000000-0000-0000-0000-000000000001';
 DECLARE @AdminRoleId UNIQUEIDENTIFIER = '10000000-0000-0000-0000-000000000002';
 
-DECLARE @PermSettingsSystemViewId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000005';
-DECLARE @PermSettingsSystemManageId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000006';
-DECLARE @PermSettingsTenantViewId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000007';
-DECLARE @PermSettingsTenantManageId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000008';
+-- IDs 30000000-...-000005..008 were already claimed by 001_CreateAuthDB.sql's own
+-- Logging/other permissions before this file was written (copy-paste GUID reuse) —
+-- caused a PRIMARY KEY violation the first time this ever ran against a fresh
+-- database (CommonServiceRoadmap.md §7 Part B export verification; every
+-- environment that had already run 001+002 in the original order never hit this,
+-- since 001's rows already existed and 002's inserts here are otherwise guarded by
+-- PermissionCode, not Id). Using IDs past the highest already claimed anywhere in
+-- this folder (66) instead.
+DECLARE @PermSettingsSystemViewId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000101';
+DECLARE @PermSettingsSystemManageId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000102';
+DECLARE @PermSettingsTenantViewId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000103';
+DECLARE @PermSettingsTenantManageId UNIQUEIDENTIFIER = '30000000-0000-0000-0000-000000000104';
 
 IF NOT EXISTS (SELECT 1 FROM Permissions WHERE PermissionCode = 'settings:system:view')
     INSERT INTO Permissions (Id, PermissionCode, PermissionName, Module)

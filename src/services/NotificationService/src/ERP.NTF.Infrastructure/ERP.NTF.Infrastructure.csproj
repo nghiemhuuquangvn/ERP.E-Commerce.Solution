@@ -16,7 +16,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\Shared\ERP.Shared.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Core\ERP.Shared.Core.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Messaging\ERP.Shared.Messaging.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Contracts\ERP.Shared.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Infrastructure\Caching\ERP.Shared.Caching.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Security\ERP.Shared.Security.csproj" />
     <ProjectReference Include="..\ERP.NTF.Domain\ERP.NTF.Domain.csproj" />
     <ProjectReference Include="..\ERP.NTF.Application\ERP.NTF.Application.csproj" />
   </ItemGroup>

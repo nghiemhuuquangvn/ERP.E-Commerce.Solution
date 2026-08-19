@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Gives access to the full ASP.NET Core API surface (RequestLocalizationOptions,
+         IRequestCultureProvider, UseRequestLocalization, etc.) from this plain class
+         library — the old Microsoft.AspNetCore.Localization NuGet package no longer
+         ships compilable types under .NET 10. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- No designer codegen: IStringLocalizer&lt;SharedResource&gt; resolves keys by convention
+         from these embedded .resx files without a generated .Designer.cs.
+         Microsoft.Extensions.Localization's ResourceManagerStringLocalizerFactory computes
+         the expected manifest name as {AssemblyName}.{ResourcesPath}.{TypeFullName minus
+         AssemblyName prefix} — NOT via a RootNamespace assembly attribute (none gets
+         generated for a plain Microsoft.NET.Sdk classlib) and NOT via the .resx's own
+         folder path. Since this project's AssemblyName ("ERP.Shared.Localization") is
+         IDENTICAL to SharedResource's C# namespace, that subtraction leaves nothing extra —
+         so the .resx must sit directly under Resources/ (no nested Resources/Localization/
+         subfolder, unlike ERP.Identity.Infrastructure's AuthMessages, whose assembly name is
+         shorter than its type's namespace and so does need that extra segment). Verified via
+         a scratch console app; do not add a subfolder here without re-verifying. -->
+    <EmbeddedResource Update="Resources\SharedResource.vi-VN.resx">
+      <DependentUpon>SharedResource.resx</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

@@ -439,6 +439,7 @@ const NAV_ITEMS: NavItem[] = [
     permission: 'identity:roles:view',
     icon: '🛡️',
   },
+  { labelKey: 'nav.tenants', path: '/identity/tenants', permission: 'identity:tenants:view', icon: '🏢' },
 ]
 
 function isItemVisible(item: NavItem, hasPermission: (p: string) => boolean, hasAnyPermission: (...p: string[]) => boolean) {

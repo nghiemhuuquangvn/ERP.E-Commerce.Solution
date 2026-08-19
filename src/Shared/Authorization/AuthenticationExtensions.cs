@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -77,6 +78,31 @@ public static class AuthenticationExtensions
                                 ? realToken
                                 : accessToken;
                         }
+                        return Task.CompletedTask;
+                    },
+                    // TEMP DIAGNOSTIC (notification bell 401 investigation, round 2) — remove
+                    // once root-caused. Tagged distinctly ("HUBAUTH2") to filter cleanly out
+                    // of this service's very noisy background-poller logs.
+                    OnChallenge = context =>
+                    {
+                        if (!context.HttpContext.Request.Path.StartsWithSegments("/hubs")) return Task.CompletedTask;
+                        var diagLogger = context.HttpContext.RequestServices
+                            .GetService<Microsoft.Extensions.Logging.ILoggerFactory>()?
+                            .CreateLogger("HUBAUTH2");
+                        diagLogger?.LogError(
+                            "HUBAUTH2 negotiate REJECTED path={Path} error={Error} authFailure={AuthFailure}",
+                            context.HttpContext.Request.Path.Value, context.Error,
+                            context.AuthenticateFailure?.Message);
+                        return Task.CompletedTask;
+                    },
+                    OnTokenValidated = context =>
+                    {
+                        if (!context.HttpContext.Request.Path.StartsWithSegments("/hubs")) return Task.CompletedTask;
+                        var diagLogger = context.HttpContext.RequestServices
+                            .GetService<Microsoft.Extensions.Logging.ILoggerFactory>()?
+                            .CreateLogger("HUBAUTH2");
+                        diagLogger?.LogError("HUBAUTH2 negotiate ACCEPTED path={Path}",
+                            context.HttpContext.Request.Path.Value);
                         return Task.CompletedTask;
                     }
                 };

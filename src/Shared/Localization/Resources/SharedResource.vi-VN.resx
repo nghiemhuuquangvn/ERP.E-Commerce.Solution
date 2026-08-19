@@ -79,4 +79,22 @@
   <data name="Error_Concurrency" xml:space="preserve">
     <value>Bản ghi đã bị người khác thay đổi. Vui lòng tải lại và thử lại.</value>
   </data>
+  <data name="Title_Unauthorized" xml:space="preserve">
+    <value>Không có quyền truy cập.</value>
+  </data>
+  <data name="Title_NotFound" xml:space="preserve">
+    <value>Không tìm thấy tài nguyên.</value>
+  </data>
+  <data name="Title_Conflict" xml:space="preserve">
+    <value>Xung đột dữ liệu.</value>
+  </data>
+  <data name="Title_BusinessRuleViolation" xml:space="preserve">
+    <value>Vi phạm quy tắc nghiệp vụ.</value>
+  </data>
+  <data name="Title_UnexpectedError" xml:space="preserve">
+    <value>Đã xảy ra lỗi không mong muốn.</value>
+  </data>
+  <data name="Detail_UnexpectedError" xml:space="preserve">
+    <value>Không thể hoàn tất yêu cầu. Lỗi đã được ghi lại.</value>
+  </data>
 </root>

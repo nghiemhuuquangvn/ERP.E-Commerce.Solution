@@ -9,7 +9,14 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 // only applies to apps sharing one multi-tenant domain, like Admin) — see
 // GatewayAuthorizationMiddleware: a request that already carries X-Tenant-Code is trusted
 // as-is and never overridden from the host.
-const TENANT_CODE = import.meta.env.VITE_TENANT_CODE ?? 'SYSTEM'
+//
+// Deliberately no fallback here — 'SYSTEM' is the real seeded internal platform tenant
+// (001_CreateAuthDB.sql), not a safe placeholder. A build that omits VITE_TENANT_CODE must
+// fail loudly at load time rather than silently routing customer traffic into that tenant.
+const TENANT_CODE = import.meta.env.VITE_TENANT_CODE
+if (!TENANT_CODE) {
+  throw new Error('VITE_TENANT_CODE is not set — refusing to start without a configured tenant.')
+}
 
 // Maps app-level locale codes to the backend's supported culture codes
 // (see src/services/ProductService/src/ERP.PRD.API/appsettings.json → Localization:SupportedCultures)

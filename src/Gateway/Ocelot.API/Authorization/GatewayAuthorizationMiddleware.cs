@@ -45,6 +45,13 @@ public class GatewayAuthorizationMiddleware
     // these were written before that versioning pass and never updated, so this branch
     // never actually matched a single real request and tenant-from-subdomain resolution
     // was completely dead code until this fix.
+    //
+    // KNOWN FRAGILITY: this is a hand-maintained duplicate of the real route table
+    // (ocelot.json + AuthController's [Route] templates) — the exact class of bug that
+    // caused the dead-code incident above. Any future route/version change here needs the
+    // same change made in lockstep in ocelot.json, with no compiler or runtime check to
+    // catch a mismatch. Deriving this list from the route config instead of hand-listing it
+    // would remove the failure mode entirely — flagged as tech debt, not fixed here.
     private static readonly string[] TenantResolvedAuthPathPrefixes =
     [
         "/api/v1/auth/login",

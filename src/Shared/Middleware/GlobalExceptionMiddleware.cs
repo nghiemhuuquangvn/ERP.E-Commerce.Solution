@@ -1,6 +1,9 @@
 using ERP.Shared.Infrastructure.Exceptions;
+using ERP.Shared.Localization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 
 namespace ERP.Shared.Middleware
@@ -27,6 +30,12 @@ namespace ERP.Shared.Middleware
         private readonly RequestDelegate _next;
         private readonly ILogger<GlobalExceptionMiddleware> _logger;
 
+        // Resolved lazily per-request via HttpContext.RequestServices, not constructor-injected —
+        // not every service that calls UseGlobalExceptionHandling() also calls
+        // AddSharedLocalization()/AddLocalization() (Gateway and LoggingService don't), and a
+        // constructor dependency on IStringLocalizer<SharedResource> would fail DI resolution
+        // and crash those services at startup. Falls back to the same hardcoded English strings
+        // this class always returned when no localizer is registered.
         public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
         {
             _next = next;
@@ -41,7 +50,8 @@ namespace ERP.Shared.Middleware
             }
             catch (Exception ex)
             {
-                var (statusCode, title) = MapException(ex);
+                var localizer = context.RequestServices.GetService<IStringLocalizer<SharedResource>>();
+                var (statusCode, title, exposeDetail) = MapException(ex, localizer);
 
                 // Only genuine 500s are "unhandled exceptions" worth an Error-level alert with
                 // a full stack trace — a mapped 401/404/409/400 is expected control flow (e.g.
@@ -75,9 +85,11 @@ namespace ERP.Shared.Middleware
                 {
                     Status = statusCode,
                     Title = title,
-                    Detail = statusCode == StatusCodes.Status500InternalServerError
-                        ? "The request could not be completed. The error has been logged."
-                        : ex.Message,
+                    Detail = exposeDetail
+                        ? ex.Message
+                        : statusCode == StatusCodes.Status500InternalServerError
+                            ? Localize(localizer, "Detail_UnexpectedError", "The request could not be completed. The error has been logged.")
+                            : title,
                     Instance = context.Request.Path
                 };
 
@@ -89,19 +101,32 @@ namespace ERP.Shared.Middleware
         /// Deliberately does NOT map ArgumentException/InvalidOperationException — those are
         /// used throughout the domain layer as genuine invariant guards (a real bug slipped
         /// past validation), not as deliberate client-facing signals, and should stay 500.
+        ///
+        /// ExposeDetail controls whether ex.Message reaches the client at all. Most mapped
+        /// exceptions carry a message that's safe/expected to show (e.g. "Product with ID X
+        /// not found", "Email already exists" — normal, non-sensitive UX). Authentication and
+        /// cross-tenant exceptions are different: their messages are exactly the signal an
+        /// attacker wants (login enumeration via "User not found" vs "Invalid credentials" vs
+        /// "Account is locked"; TenantIsolationException's message embeds the entity/tenant
+        /// IDs it exists specifically to avoid confirming) — those always get a fixed, generic
+        /// Detail instead, regardless of the real internal reason (which is still captured by
+        /// the security-audit logging that already runs alongside every throw in AuthService).
         /// </summary>
-        private static (int StatusCode, string Title) MapException(Exception ex) => ex switch
+        private static (int StatusCode, string Title, bool ExposeDetail) MapException(Exception ex, IStringLocalizer<SharedResource>? localizer) => ex switch
         {
-            UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "Unauthorized."),
+            UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, Localize(localizer, "Title_Unauthorized", "Unauthorized."), false),
             // 404, not 403, for tenant-isolation violations — confirming "this resource exists
             // but belongs to another tenant" to an unauthorized caller is itself an information leak.
-            TenantIsolationException => (StatusCodes.Status404NotFound, "Resource not found."),
-            EntityNotFoundException => (StatusCodes.Status404NotFound, "Resource not found."),
-            KeyNotFoundException => (StatusCodes.Status404NotFound, "Resource not found."),
-            DuplicateException => (StatusCodes.Status409Conflict, "Conflict."),
-            ConcurrencyException => (StatusCodes.Status409Conflict, "Conflict."),
-            BusinessRuleException => (StatusCodes.Status400BadRequest, "Business rule violation."),
-            _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred.")
+            TenantIsolationException => (StatusCodes.Status404NotFound, Localize(localizer, "Title_NotFound", "Resource not found."), false),
+            EntityNotFoundException => (StatusCodes.Status404NotFound, Localize(localizer, "Title_NotFound", "Resource not found."), true),
+            KeyNotFoundException => (StatusCodes.Status404NotFound, Localize(localizer, "Title_NotFound", "Resource not found."), true),
+            DuplicateException => (StatusCodes.Status409Conflict, Localize(localizer, "Title_Conflict", "Conflict."), true),
+            ConcurrencyException => (StatusCodes.Status409Conflict, Localize(localizer, "Title_Conflict", "Conflict."), true),
+            BusinessRuleException => (StatusCodes.Status400BadRequest, Localize(localizer, "Title_BusinessRuleViolation", "Business rule violation."), true),
+            _ => (StatusCodes.Status500InternalServerError, Localize(localizer, "Title_UnexpectedError", "An unexpected error occurred."), false)
         };
+
+        private static string Localize(IStringLocalizer<SharedResource>? localizer, string key, string fallback) =>
+            localizer?[key].Value ?? fallback;
     }
 }

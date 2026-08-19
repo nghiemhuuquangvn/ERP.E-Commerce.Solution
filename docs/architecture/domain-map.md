@@ -2,6 +2,11 @@
 
 **Purpose:** Organize all 14 microservices into logical business domains and layers.
 
+**See also:** [common-services-roadmap.md](common-services-roadmap.md) — which of
+these services are domain-specific to this ERP (most of them) vs. genuinely generic
+infrastructure worth packaging as a standalone, reusable "common service" (Identity,
+and in progress: Notification/MasterData/ChatBot).
+
 ---
 
 ## Domain Groupings

@@ -3,7 +3,14 @@
   <ItemGroup>
     <ProjectReference Include="..\ERP.Identity.Domain\ERP.Identity.Domain.csproj" />
     <ProjectReference Include="..\ERP.Identity.Application\ERP.Identity.Application.csproj" />
-    <ProjectReference Include="..\..\..\..\Shared\ERP.Shared.csproj" />
+    <!-- References the specific ERP.Shared.* sub-projects this project actually uses
+         (CommonServiceRoadmap.md §7 / Part B1), not the umbrella. -->
+    <ProjectReference Include="..\..\..\..\Shared\Authorization\ERP.Shared.Authorization.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Contracts\ERP.Shared.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Infrastructure\Caching\ERP.Shared.Caching.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Infrastructure\Exceptions\ERP.Shared.Exceptions.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Messaging\ERP.Shared.Messaging.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Security\ERP.Shared.Security.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -19,14 +26,16 @@
     <PackageReference Include="Google.Apis.Auth" Version="1.73.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="9.0.13" />
     <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.9" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.3" />
-    <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.16.0" />
-    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.16.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
+    <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.22.0" />
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.22.0" />
     <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.10" />
     <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
     <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="10.1.4" />
+    <PackageReference Include="OpenIddict.EntityFrameworkCore" Version="7.6.0" />
+    <PackageReference Include="OpenIddict.Server" Version="7.6.0" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -34,5 +43,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- No designer codegen: IStringLocalizer&lt;AuthMessages&gt; resolves keys by convention
+         from these embedded .resx files without a generated .Designer.cs. Path mirrors the
+         AuthMessages type's namespace (ERP.Identity.Infrastructure.Localization) under
+         ResourcesPath="Resources" (configured once, service-wide, by AddSharedLocalization —
+         see ERP.Shared.Localization.SharedResource for the identical pattern). -->
+    <EmbeddedResource Update="Resources\Localization\AuthMessages.vi-VN.resx">
+      <DependentUpon>AuthMessages.resx</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
 
 </Project>

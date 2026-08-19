@@ -9,6 +9,7 @@ using ERP.Identity.Application.DTOs.Auth;
 using ERP.Identity.Application.Interfaces.Services;
 using LoginRequest = ERP.Identity.Application.DTOs.Auth.LoginDto.LoginRequest;
 using RegisterRequest = ERP.Identity.Application.DTOs.Auth.RegisterDto.RegisterRequest;
+using TenantSignupRequest = ERP.Identity.Application.DTOs.Auth.TenantSignupDto.TenantSignupRequest;
 using RefreshTokenRequest = ERP.Identity.Application.DTOs.Auth.RefreshTokenDto.RefreshTokenRequest;
 using ForgotPasswordRequestDto = ERP.Identity.Application.DTOs.Auth.ForgotPasswordRequest;
 using ResetPasswordRequestDto = ERP.Identity.Application.DTOs.Auth.ResetPasswordRequest;
@@ -36,6 +37,24 @@ namespace ERP.Identity.Api.Controllers
         public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken = default)
         {
             var result = await _authService.RegisterAsync(request, cancellationToken);
+            if (!result.Succeeded) return BadRequest(result.Errors);
+            return Ok(result); // LoginResponse: { accessToken, refreshToken, user, succeeded }
+        }
+
+        /// <summary>
+        /// Self-service "create my own tenant" — provisions a brand-new tenant + its first
+        /// Admin user + a default self-administration role, in one anonymous call. The only
+        /// way into a fresh deployment beyond the SQL-seeded SYSTEM tenant; see
+        /// docs/business/Identity/MultiTenantLogin.md and TenantSignupDto's doc comment for
+        /// how this differs from Register (needs an existing tenant) and
+        /// TenantsController.Create (admin-only, no user/roles seeded).
+        /// </summary>
+        [HttpPost("tenant-signup")]
+        [AllowAnonymous]
+        [EnableRateLimiting("auth-sensitive")]
+        public async Task<IActionResult> SignupTenant([FromBody] TenantSignupRequest request, CancellationToken cancellationToken = default)
+        {
+            var result = await _authService.SignupTenantAsync(request, cancellationToken);
             if (!result.Succeeded) return BadRequest(result.Errors);
             return Ok(result); // LoginResponse: { accessToken, refreshToken, user, succeeded }
         }

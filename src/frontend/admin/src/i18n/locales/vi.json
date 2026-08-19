@@ -107,6 +107,7 @@
     "chatbot": "Trợ lý AI",
     "users": "Người dùng",
     "rolesPermissions": "Vai trò & Phân quyền",
+    "tenants": "Đơn vị",
     "accountingAccounts": "Hệ thống tài khoản",
     "accountingJournalEntries": "Bút toán sổ cái",
     "accountingInvoices": "Hóa đơn",
@@ -1636,6 +1637,16 @@
       "permissionCatalogHint": "Danh sách tham khảo (chỉ đọc) tất cả các mã quyền hạn có trong hệ thống.",
       "deleteTitle": "Xóa vai trò",
       "deleteConfirm": "Bạn có chắc chắn muốn xóa \"{{name}}\"?"
+    },
+    "tenants": {
+      "title": "Đơn vị",
+      "add": "Thêm đơn vị",
+      "addTitle": "Thêm đơn vị",
+      "editTitle": "Chỉnh sửa đơn vị",
+      "activateTitle": "Kích hoạt đơn vị",
+      "activateConfirm": "Bạn có chắc chắn muốn kích hoạt \"{{name}}\"?",
+      "deactivateTitle": "Vô hiệu hóa đơn vị",
+      "deactivateConfirm": "Bạn có chắc chắn muốn vô hiệu hóa \"{{name}}\"?"
     }
   },
   "license": {

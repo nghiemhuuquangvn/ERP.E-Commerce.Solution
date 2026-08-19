@@ -1,8 +1,10 @@
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Domain.Entities;
+using ERP.Identity.Infrastructure.Localization;
 using ERP.Shared.Infrastructure.Exceptions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Localization;
 using System.Linq;
 
 namespace ERP.Identity.Infrastructure.Services
@@ -12,39 +14,51 @@ namespace ERP.Identity.Infrastructure.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IConfiguration _configuration;
+        private readonly ISettingsService _settingsService;
+        private readonly IStringLocalizer<AuthMessages> _localizer;
 
-        public PasswordPolicyService(IUnitOfWork unitOfWork, IPasswordHasher passwordHasher, IConfiguration configuration)
+        public PasswordPolicyService(
+            IUnitOfWork unitOfWork, IPasswordHasher passwordHasher, IConfiguration configuration,
+            ISettingsService settingsService, IStringLocalizer<AuthMessages> localizer)
         {
             _unitOfWork = unitOfWork;
             _passwordHasher = passwordHasher;
             _configuration = configuration;
+            _settingsService = settingsService;
+            _localizer = localizer;
         }
 
-        public async Task ValidateNewPasswordAsync(Guid userId, string newPlaintextPassword, CancellationToken ct)
+        public async Task ValidateNewPasswordAsync(Guid tenantId, Guid userId, string newPlaintextPassword, CancellationToken ct)
         {
-            var minLength = GetConfigInt("PasswordPolicy:MinLength", 8);
-            if (string.IsNullOrWhiteSpace(newPlaintextPassword) || newPlaintextPassword.Length < minLength)
-                throw new BusinessRuleException("PasswordTooShort", $"Password must be at least {minLength} characters long.");
+            // Complexity rules come from this tenant's own settings (System-ceiling-validated
+            // when set — see SettingsService.ValidateTenantNotWeakerThanSystemBaseline), not a
+            // single global appsettings default shared by every tenant.
+            var tenantSettings = await _settingsService.GetOrCreateTenantSettingsEntityAsync(tenantId, ct);
 
-            if (GetConfigBool("PasswordPolicy:RequireUppercase", true) && !newPlaintextPassword.Any(char.IsUpper))
-                throw new BusinessRuleException("PasswordMissingUppercase", "Password must contain at least one uppercase letter.");
+            if (string.IsNullOrWhiteSpace(newPlaintextPassword) || newPlaintextPassword.Length < tenantSettings.MinPasswordLength)
+                throw new BusinessRuleException("PasswordTooShort", _localizer["Password_TooShort", tenantSettings.MinPasswordLength].Value);
 
-            if (GetConfigBool("PasswordPolicy:RequireLowercase", true) && !newPlaintextPassword.Any(char.IsLower))
-                throw new BusinessRuleException("PasswordMissingLowercase", "Password must contain at least one lowercase letter.");
+            if (tenantSettings.RequireUppercase && !newPlaintextPassword.Any(char.IsUpper))
+                throw new BusinessRuleException("PasswordMissingUppercase", _localizer["Password_MissingUppercase"].Value);
 
-            if (GetConfigBool("PasswordPolicy:RequireDigit", true) && !newPlaintextPassword.Any(char.IsDigit))
-                throw new BusinessRuleException("PasswordMissingDigit", "Password must contain at least one digit.");
+            if (tenantSettings.RequireLowercase && !newPlaintextPassword.Any(char.IsLower))
+                throw new BusinessRuleException("PasswordMissingLowercase", _localizer["Password_MissingLowercase"].Value);
 
-            if (GetConfigBool("PasswordPolicy:RequireSymbol", true) && !newPlaintextPassword.Any(c => !char.IsLetterOrDigit(c)))
-                throw new BusinessRuleException("PasswordMissingSymbol", "Password must contain at least one symbol.");
+            if (tenantSettings.RequireDigit && !newPlaintextPassword.Any(char.IsDigit))
+                throw new BusinessRuleException("PasswordMissingDigit", _localizer["Password_MissingDigit"].Value);
 
+            if (tenantSettings.RequireSymbol && !newPlaintextPassword.Any(c => !char.IsLetterOrDigit(c)))
+                throw new BusinessRuleException("PasswordMissingSymbol", _localizer["Password_MissingSymbol"].Value);
+
+            // HistoryCount has no per-tenant equivalent (unlike the fields above) — stays a
+            // system-wide appsettings value.
             var historyCount = GetConfigInt("PasswordPolicy:HistoryCount", 5);
             if (historyCount <= 0)
                 return;
 
             var recent = await _unitOfWork.PasswordHistories.GetRecentAsync(userId, historyCount, ct);
             if (recent.Any(h => _passwordHasher.VerifyPassword(h.PasswordHash, newPlaintextPassword)))
-                throw new BusinessRuleException("PasswordRecentlyUsed", $"Password must not match any of your last {historyCount} passwords.");
+                throw new BusinessRuleException("PasswordRecentlyUsed", _localizer["Password_RecentlyUsed", historyCount].Value);
         }
 
         public async Task RecordPasswordHistoryAsync(Guid userId, string previousPasswordHash, CancellationToken ct)
@@ -65,12 +79,6 @@ namespace ERP.Identity.Infrastructure.Services
         {
             var raw = _configuration[key];
             return int.TryParse(raw, out var value) ? value : fallback;
-        }
-
-        private bool GetConfigBool(string key, bool fallback)
-        {
-            var raw = _configuration[key];
-            return bool.TryParse(raw, out var value) ? value : fallback;
         }
     }
 }

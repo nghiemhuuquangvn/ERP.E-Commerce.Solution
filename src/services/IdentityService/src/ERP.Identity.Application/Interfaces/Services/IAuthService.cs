@@ -16,6 +16,12 @@ namespace ERP.Identity.Application.Interfaces.Services
         Task<LoginResponse> LoginAsync(LoginRequest request, string tenantCode, string? ipAddress, string? userAgent, CancellationToken ct);
         Task<LoginResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default);
 
+        /// <summary>Self-service "create my own tenant" — provisions a brand-new tenant, seeds
+        /// it a default self-administration Admin role, creates its first (Admin) user, and
+        /// logs them in immediately. See TenantSignupDto for when to use this vs RegisterAsync
+        /// vs TenantsController.Create.</summary>
+        Task<LoginResponse> SignupTenantAsync(TenantSignupDto.TenantSignupRequest request, CancellationToken ct = default);
+
         Task<LoginResponse> ExternalLoginAsync(ExternalLoginRequest request, string tenantCode, CancellationToken ct = default);
 
         Task<RefreshTokenResponse> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default);

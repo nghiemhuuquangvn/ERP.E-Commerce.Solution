@@ -15,6 +15,7 @@ namespace ERP.CHB.API.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/chatbot/hub-ticket")]
+[Microsoft.AspNetCore.Authorization.Authorize]
 public class HubTicketController : ControllerBase
 {
     private readonly IHubTicketStore _ticketStore;
@@ -24,13 +25,15 @@ public class HubTicketController : ControllerBase
         _ticketStore = ticketStore;
     }
 
+    // [Authorize] above means an expired/invalid token 401s here via the standard JWT
+    // pipeline, the normal way the frontend's axios interceptor already knows how to
+    // catch and retry after a token refresh — see NotificationHubTicketController's
+    // matching fix/comment for the full "silently wrapped an expired token, only failed
+    // much later at negotiate with no recovery path" bug this closes.
     [HttpPost]
     public IActionResult IssueTicket()
     {
         var authHeader = Request.Headers.Authorization.ToString();
-        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            return Unauthorized(new { message = "A Bearer token is required to obtain a Hub ticket." });
-
         var token = authHeader["Bearer ".Length..];
         var ticket = _ticketStore.IssueTicket(token);
         return Ok(new { ticket });

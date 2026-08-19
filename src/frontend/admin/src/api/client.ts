@@ -40,7 +40,55 @@ attachAuthInterceptor(apiClient)
 attachAuthInterceptor(gatewayClient)
 
 let isRefreshing = false
-let refreshQueue: Array<(token: string) => void> = []
+let refreshQueue: Array<{ onSuccess: (token: string) => void; onError: (error: unknown) => void }> = []
+
+function settleQueue(outcome: { token: string } | { error: unknown }) {
+  const queued = refreshQueue
+  refreshQueue = []
+  for (const entry of queued) {
+    if ('token' in outcome) entry.onSuccess(outcome.token)
+    else entry.onError(outcome.error)
+  }
+}
+
+// Extracted so callers other than the 401-retry interceptor below (currently
+// notificationSignalR/chatSignalR, which need a confirmed-fresh token *before*
+// attempting a SignalR connection — a reactive 401-retry doesn't help there, since
+// SignalR's own negotiate call has no retry-after-refresh path of its own) can force
+// a refresh proactively instead of waiting to react to a 401 that already happened.
+// Shares the same in-flight dedup (isRefreshing/refreshQueue) as the interceptor, so
+// concurrent callers (e.g. two hubs connecting at once) don't fire duplicate refresh
+// requests against the same refresh token.
+export function refreshAccessToken(): Promise<string> {
+  if (isRefreshing) {
+    return new Promise((resolve, reject) => {
+      refreshQueue.push({ onSuccess: resolve, onError: reject })
+    })
+  }
+
+  const refreshToken = useAuthStore.getState().refreshToken
+  if (!refreshToken) {
+    useAuthStore.getState().logout()
+    return Promise.reject(new Error('No refresh token available.'))
+  }
+
+  isRefreshing = true
+  return axios
+    .post(`${BASE_URL}/v1/auth/refresh`, { refreshToken })
+    .then(({ data }) => {
+      useAuthStore.getState().setTokens(data.accessToken, data.refreshToken)
+      settleQueue({ token: data.accessToken })
+      return data.accessToken as string
+    })
+    .catch((refreshError) => {
+      useAuthStore.getState().logout()
+      settleQueue({ error: refreshError })
+      throw refreshError
+    })
+    .finally(() => {
+      isRefreshing = false
+    })
+}
 
 function attachRefreshInterceptor(instance: typeof apiClient) {
   instance.interceptors.response.use(
@@ -70,37 +118,13 @@ function attachRefreshInterceptor(instance: typeof apiClient) {
       return Promise.reject(error)
     }
 
-    if (isRefreshing) {
-      return new Promise((resolve) => {
-        refreshQueue.push((token) => {
-          original.headers!.Authorization = `Bearer ${token}`
-          resolve(instance(original))
-        })
-      })
-    }
-
     original._retry = true
-    isRefreshing = true
-
-    const refreshToken = useAuthStore.getState().refreshToken
-    if (!refreshToken) {
-      isRefreshing = false
-      useAuthStore.getState().logout()
-      return Promise.reject(error)
-    }
-
     try {
-      const { data } = await axios.post(`${BASE_URL}/v1/auth/refresh`, { refreshToken })
-      useAuthStore.getState().setTokens(data.accessToken, data.refreshToken)
-      refreshQueue.forEach((cb) => cb(data.accessToken))
-      refreshQueue = []
-      original.headers!.Authorization = `Bearer ${data.accessToken}`
+      const token = await refreshAccessToken()
+      original.headers!.Authorization = `Bearer ${token}`
       return instance(original)
     } catch {
-      useAuthStore.getState().logout()
       return Promise.reject(error)
-    } finally {
-      isRefreshing = false
     }
   },
   )

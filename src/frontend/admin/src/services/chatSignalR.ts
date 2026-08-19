@@ -1,7 +1,27 @@
 import * as signalR from '@microsoft/signalr'
+import { jwtDecode } from 'jwt-decode'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChatbotStore } from '@/stores/chatbot.store'
 import { chatbotApi } from '@/api/chatbot/chatbot.api'
+import { refreshAccessToken } from '@/api/client'
+
+interface AccessTokenClaims {
+  exp?: number
+}
+
+// See notificationSignalR.ts's matching helper for the full rationale — a stored token
+// can be stale by the time a hub connection is actually attempted, and unlike a normal
+// axios call, SignalR's own negotiate request has no reactive refresh-and-retry path of
+// its own, so an expired token used to silently reach the hub and fail unrecoverably.
+function isTokenExpiredOrExpiringSoon(token: string): boolean {
+  try {
+    const { exp } = jwtDecode<AccessTokenClaims>(token)
+    if (!exp) return false
+    return exp * 1000 < Date.now() + 10_000
+  } catch {
+    return true
+  }
+}
 
 const TOOL_LABEL_KEYS: Record<string, string> = {
   get_my_orders: 'chatbot.tools.orders',
@@ -29,10 +49,21 @@ function getConnection(): signalR.HubConnection {
       // with a 414 before any app code runs. Minted fresh per call since SignalR invokes
       // this on every (re)connect and a ticket is single-use/short-lived.
       accessTokenFactory: async () => {
-        if (!useAuthStore.getState().accessToken) return ''
+        let token = useAuthStore.getState().accessToken
+        if (!token) return ''
+
+        if (isTokenExpiredOrExpiringSoon(token)) {
+          try {
+            token = await refreshAccessToken()
+          } catch {
+            return ''
+          }
+        }
+
         try {
           return await chatbotApi.getHubTicket()
-        } catch {
+        } catch (err) {
+          console.error('[chatSignalR] Failed to obtain a hub ticket even with a confirmed-fresh token:', err)
           return ''
         }
       },

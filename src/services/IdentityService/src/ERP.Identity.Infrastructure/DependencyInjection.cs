@@ -28,6 +28,20 @@ namespace ERP.Identity.Infrastructure
         {
             services.AddHttpClient();
 
+            // OpenIddict OAuth2/OIDC server core — persistence-layer plumbing bound to
+            // AuthDbContext, same rationale as the repository registrations below.
+            // .AddServer(...) (endpoints, flows, signing) is configured separately in
+            // ERP.Identity.Api/Program.cs, inline, matching this service's existing
+            // convention of configuring auth schemes there rather than via a shared
+            // extension. See CommonServiceRoadmap.md §1 / Part A0.
+            services.AddOpenIddict()
+                .AddCore(options =>
+                {
+                    options.UseEntityFrameworkCore()
+                        .UseDbContext<AuthDbContext>()
+                        .ReplaceDefaultEntities<Guid>();
+                });
+
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IExternalAuthProvider, MicrosoftAuthProvider>();
             services.AddScoped<IExternalAuthProvider, GoogleAuthProvider>();
@@ -104,6 +118,7 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<ITokenBlacklistRepository, TokenBlacklistRepository>();
             services.AddScoped<IPasswordHistoryRepository, PasswordHistoryRepository>();
             services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
+            services.AddScoped<IWebhookEndpointRepository, WebhookEndpointRepository>();
 
             // New services
             services.AddScoped<IUserService, UserService>();
@@ -127,6 +142,8 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<ISecurityAuditService, SecurityAuditService>();
             services.AddScoped<ISessionService, SessionService>();
             services.AddScoped<IApiKeyService, ApiKeyService>();
+            services.AddScoped<IWebhookEndpointService, WebhookEndpointService>();
+            services.AddScoped<IWebhookSender, WebhookSender>();
             services.AddScoped<IPasswordPolicyService, PasswordPolicyService>();
 
             services.AddHostedService<OutboxProcessor>();

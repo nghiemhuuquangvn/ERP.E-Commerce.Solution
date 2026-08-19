@@ -12,15 +12,25 @@
     <PackageReference Include="Confluent.Kafka" Version="2.13.1" />
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
     <!-- Pinned above the vulnerable transitive version pulled in by Swashbuckle (NU1903 GHSA-v5pm-xwqc-g5wc). -->
     <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.1.3" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.1.3" />
+    <PackageReference Include="OpenIddict.Server.AspNetCore" Version="7.6.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\Shared\ERP.Shared.csproj" />
+    <!-- References the specific ERP.Shared.* sub-projects this project actually uses
+         (CommonServiceRoadmap.md §7 / Part B1), not the umbrella. ERP.Shared.Extensions
+         transitively brings in ERP.Shared.Middleware (UseGlobalExceptionHandling calls
+         through to it) and ERP.Shared.Observability — no direct reference to either
+         needed here. -->
+    <ProjectReference Include="..\..\..\..\Shared\Authorization\ERP.Shared.Authorization.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Extensions\ERP.Shared.Extensions.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Infrastructure\Caching\ERP.Shared.Caching.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Localization\ERP.Shared.Localization.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Versioning\ERP.Shared.Versioning.csproj" />
     <ProjectReference Include="..\ERP.Identity.Application\ERP.Identity.Application.csproj" />
     <ProjectReference Include="..\ERP.Identity.Infrastructure\ERP.Identity.Infrastructure.csproj" />
   </ItemGroup>

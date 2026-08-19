@@ -1,6 +1,14 @@
 -- Add Customer, Staff, and User roles to the SYSTEM tenant
 -- Required for storefront customer registration (UserType.Customer → role 'CUSTOMER')
 
+-- Every other migration in this folder starts with this; this one didn't, so
+-- sqlcmd (a fresh connection per file, whose login default database is "master",
+-- not AuthDB) ran it against the wrong database — "Invalid object name 'Tenants'".
+-- Confirmed by running the full migration set against a genuinely fresh database
+-- (CommonServiceRoadmap.md §7 Part B export verification).
+USE AuthDB;
+GO
+
 DECLARE @SystemTenantId UNIQUEIDENTIFIER = (SELECT TOP 1 Id FROM Tenants WHERE TenantCode = 'SYSTEM');
 
 IF @SystemTenantId IS NULL

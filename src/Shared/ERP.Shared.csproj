@@ -6,51 +6,32 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <!-- Exclude sub-project source trees (each has its own .csproj) to avoid duplicate symbol
-       errors. Extensions\ and Observability\ have no separate .csproj — they belong to this
-       root project and must stay compiled here (AddSerilogLogging/KafkaLogSink live there). -->
+  <!-- Zero-code umbrella (CommonServiceRoadmap.md §7 / Part B1): every concern below now
+       lives in its own project with its own explicit dependency list. This project just
+       aggregates them via ProjectReference so the other 14 services (which still
+       reference this one file) see zero change — everything they used to get from one
+       big assembly, they now get transitively through this umbrella instead. Do not add
+       .cs files or PackageReferences directly here again; add them to the relevant
+       sub-project. -->
   <ItemGroup>
-    <Compile Remove="Core\**\*.cs" />
-    <Compile Remove="Messaging\**\*.cs" />
-    <Compile Remove="Contracts\**\*.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Gives access to the full ASP.NET Core API surface (RequestLocalizationOptions,
-         IRequestCultureProvider, UseRequestLocalization, etc.) from this plain class
-         library — the old Microsoft.AspNetCore.Localization NuGet package no longer
-         ships compilable types under .NET 10. -->
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
-    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
-    <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
-    <PackageReference Include="Serilog.Enrichers.Thread" Version="4.0.0" />
-    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-    <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0" />
-    <PackageReference Include="StackExchange.Redis" Version="2.8.12" />
-    <PackageReference Include="Confluent.Kafka" Version="2.13.1" />
-    <PackageReference Include="Asp.Versioning.Mvc" Version="8.1.0" />
+    <Compile Remove="**\*.cs" />
+    <EmbeddedResource Remove="**\*.resx" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="Core\ERP.Shared.Core.csproj" />
     <ProjectReference Include="Messaging\ERP.Shared.Messaging.csproj" />
     <ProjectReference Include="Contracts\ERP.Shared.Contracts.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- No designer codegen: IStringLocalizer&lt;SharedResource&gt; resolves keys by convention
-         from these embedded .resx files without a generated .Designer.cs. Path mirrors the
-         SharedResource type's namespace (ERP.Shared.Localization) under ResourcesPath="Resources". -->
-    <EmbeddedResource Update="Resources\Localization\SharedResource.vi-VN.resx">
-      <DependentUpon>SharedResource.resx</DependentUpon>
-    </EmbeddedResource>
+    <ProjectReference Include="Authorization\ERP.Shared.Authorization.csproj" />
+    <ProjectReference Include="Infrastructure\Caching\ERP.Shared.Caching.csproj" />
+    <ProjectReference Include="Infrastructure\Exceptions\ERP.Shared.Exceptions.csproj" />
+    <ProjectReference Include="Infrastructure\Data\ERP.Shared.Data.csproj" />
+    <ProjectReference Include="Localization\ERP.Shared.Localization.csproj" />
+    <ProjectReference Include="Middleware\ERP.Shared.Middleware.csproj" />
+    <ProjectReference Include="Observability\ERP.Shared.Observability.csproj" />
+    <ProjectReference Include="Extensions\ERP.Shared.Extensions.csproj" />
+    <ProjectReference Include="Security\ERP.Shared.Security.csproj" />
+    <ProjectReference Include="Versioning\ERP.Shared.Versioning.csproj" />
   </ItemGroup>
 
 </Project>

@@ -3,7 +3,9 @@ using ERP.Identity.Application.DTOs.Common;
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Domain.Entities;
+using ERP.Identity.Infrastructure.Localization;
 using ERP.Shared.Infrastructure.Exceptions;
+using Microsoft.Extensions.Localization;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,17 +18,20 @@ namespace ERP.Identity.Infrastructure.Services
         private readonly IPasswordHasher _passwordHasher;
         private readonly ISecurityAuditService _securityAuditService;
         private readonly IPasswordPolicyService _passwordPolicyService;
+        private readonly IStringLocalizer<AuthMessages> _localizer;
 
         public UserService(
             IUnitOfWork unitOfWork,
             IPasswordHasher passwordHasher,
             ISecurityAuditService securityAuditService,
-            IPasswordPolicyService passwordPolicyService)
+            IPasswordPolicyService passwordPolicyService,
+            IStringLocalizer<AuthMessages> localizer)
         {
             _unitOfWork = unitOfWork;
             _passwordHasher = passwordHasher;
             _securityAuditService = securityAuditService;
             _passwordPolicyService = passwordPolicyService;
+            _localizer = localizer;
         }
 
         public async Task<UserDetailDto?> GetByIdAsync(Guid id, Guid callerTenantId, CancellationToken ct)
@@ -118,7 +123,7 @@ namespace ERP.Identity.Infrastructure.Services
                 throw new InvalidOperationException("Current password is incorrect");
             }
 
-            await _passwordPolicyService.ValidateNewPasswordAsync(id, request.NewPassword, ct);
+            await _passwordPolicyService.ValidateNewPasswordAsync(user.TenantId, id, request.NewPassword, ct);
 
             var previousHash = user.PasswordHash;
             var newPasswordHash = _passwordHasher.HashPassword(request.NewPassword);
@@ -198,8 +203,18 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task<InviteUserToTenantResponse> InviteToTenantAsync(Guid callerTenantId, InviteUserToTenantRequest request, CancellationToken ct)
         {
-            var user = await _unitOfWork.Users.GetByEmailGloballyAsync(request.Email, ct)
-                ?? throw new KeyNotFoundException($"No account found for email '{request.Email}'.");
+            // Email is only unique per-(Email, TenantId) since migration 014, so the same
+            // address can legitimately belong to more than one unrelated account across
+            // tenants — an unordered "pick one" (the old GetByEmailGloballyAsync-only
+            // lookup) could silently attach a stranger's account to this tenant instead of
+            // the intended person. Fail loudly instead of guessing.
+            var matches = await _unitOfWork.Users.FindAllByEmailGloballyAsync(request.Email, ct);
+            if (matches.Count == 0)
+                throw new KeyNotFoundException($"No account found for email '{request.Email}'.");
+            if (matches.Count > 1)
+                throw new BusinessRuleException("AmbiguousInviteEmail", _localizer["Invite_AmbiguousEmail", request.Email].Value);
+
+            var user = matches[0];
 
             if (await _unitOfWork.Users.IsInTenantAsync(user.Id, callerTenantId, ct))
                 return new InviteUserToTenantResponse(user.Id, callerTenantId, AlreadyMember: true);

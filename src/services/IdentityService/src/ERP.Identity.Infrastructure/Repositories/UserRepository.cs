@@ -69,6 +69,11 @@ namespace ERP.Identity.Infrastructure.Repositories
             return await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Email == email, ct);
         }
 
+        public async Task<IReadOnlyList<User>> FindAllByEmailGloballyAsync(string email, CancellationToken ct)
+        {
+            return await _dbContext.Users.AsNoTracking().Where(x => x.Email == email).ToListAsync(ct);
+        }
+
         public async Task<User?> GetByIdInTenantAsync(Guid id, Guid tenantId, CancellationToken ct)
         {
             return await _dbContext.Users

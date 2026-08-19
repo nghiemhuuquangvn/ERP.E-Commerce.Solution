@@ -635,6 +635,95 @@ counts. `GET /id/api/v1/tenants`, `/api/v1/orders`, `/api/v1/products` → 200. 
 /api/v1/chatbot/conversations` with a valid token → 200 `[]`; without one → clean 401 (was 500).
 `POST /hubs/chat/negotiate` → 200. `erp.local`, `system.erp.local`, `shop.erp.local` → 200.
 
+## Fix 17 — deployed the NotificationService real-time bell + the IdentityService "reusable common service" batch (OpenIddict OAuth2/OIDC, API keys, webhooks, tenant self-signup, `ERP.Shared` split into 10 per-concern projects); found and fixed two missing-route gaps for the new OIDC endpoints
+
+### Part A — NotificationService real-time bell
+
+New `NotificationHub`/`SignalRRealtimeNotifier`/`NotificationHubTicketController`, mirroring
+ChatBotService's SignalR pattern exactly, including reusing the same `IHubTicketStore` (moved
+to `ERP.Shared.Authorization` specifically so both services could share it — a normal bearer
+token is too large for a WebSocket URL's query string). Migration `007_AddNotificationReadState.sql`
+adds `IsRead`/`ReadAt` to `Notifications`. Unlike ChatBotService's `ConversationsController`
+(Fix 16's bug 2), `NotificationHub` correctly has `[Authorize]` from the start. Registered the
+migration, ran it live, rebuilt/redeployed `notification-service`, `chatbot-service` (picked up
+the shared `HubTicketStore`/`HubTicketController` changes), `identity-service`, `crm-service`,
+both frontends, applied the updated Ingress (`notifications.erp.local`, added to hosts file).
+No bugs found in this part — clean code, verified live (`hub-ticket` issuance → authenticated
+SignalR negotiate, both 200; unauthenticated negotiate correctly 401s).
+
+### Part B — IdentityService "reusable common service" batch
+
+A large, already-self-documented batch (`docs/business/Identity/CommonServiceRoadmap.md`,
+written by a prior session) making IdentityService viable as a standalone identity service for
+other, unrelated projects: OpenIddict-based OAuth2/OIDC (`client_credentials`, Authorization
+Code+PKCE, discovery/JWKS, asymmetric signing cutover), a second `X-Api-Key` auth scheme,
+webhook delivery, a tenant self-signup endpoint + Admin UI page, representative localization
+coverage, and — the highest-blast-radius change — splitting the monolithic `ERP.Shared.csproj`
+into 10 per-concern projects (`ERP.Shared.Authorization`/`.Caching`/`.Exceptions`/`.Data`/
+`.Localization`/`.Middleware`/`.Observability`/`.Extensions`/`.Security`/`.Versioning`).
+
+**Why this didn't require rebuilding all 19 services**: `ERP.Shared.csproj` became a zero-code
+umbrella (`<Compile Remove="**\*.cs" />` + `ProjectReference` to all 13 sub-projects) — every
+other service still references only that one file and sees no change, everything they used to
+get from one assembly they still get, just transitively. Confirmed via `dotnet build
+ERP.E-Commerce.Solution.sln` (0 errors — though note the `.sln` itself only wires up
+IdentityService + PurchaseOrderService, not the full service set, so this alone isn't proof for
+every service) and via the roadmap doc's own prior-session claim of having individually built
+every other service's API project against the restructured umbrella. Only `identity-service`
+(the actual consumer of the new code), `gateway`, and `admin` needed rebuilding this round.
+
+**Reviewed and found clean** (no bugs): `Program.cs`'s OpenIddict `.AddServer(...)`/dual-scheme
+`SmartAuth` policy wiring — specifically checked for Fix 6's exact bug class (missing
+`IUserContextService`/`IHttpContextAccessor` registration) since this file was heavily
+rewritten; both are present. `DependencyInjection.cs`'s new `AddOpenIddict().AddCore(...)` +
+webhook service registrations. `AuthController.SignupTenant` (clean `[AllowAnonymous]` +
+rate-limited action, same pattern as `Login`). `GatewayAuthorizationMiddleware.cs`'s diff was
+comment-only (documented existing tech debt, zero behavior change). `PermissionConstants.cs`'s
+new `Security_WebhooksView`/`Security_WebhooksManage` constants, correctly added to the `All`
+list. Migration `019_AddWebhookEndpoints.sql` (table + permission seed + cross-tenant
+SuperAdmin/Admin grant, same pattern as `013`/earlier fixes) — clean, idempotent, ran live.
+Migration `020_AddOpenIddictSchema.sql` was already applied to this session's live AuthDB from
+a prior session's own verification pass (confirmed via `OBJECT_ID('OpenIddictApplications')`);
+re-ran it to confirm idempotency (no errors) and registered it in `RunAllScripts.ps1` for
+reproducibility, since it hadn't been.
+
+**Two real gaps found — new OIDC endpoints were completely unreachable from this cluster's
+actual public entry point**, despite the roadmap doc's own extensive "verified live end-to-end"
+claims (that verification almost certainly happened via a direct port/port-forward to
+IdentityService, never through this repo's actual Ingress/Gateway/nginx chain):
+1. `ocelot.json` had no route for `/.well-known/*` or `/connect/*` at all — OpenIddict's
+   discovery/JWKS/authorize/token/userinfo endpoints live at the app root, not under any
+   `/api/` prefix, so no existing route matched them. A request to
+   `api.erp.local/.well-known/openid-configuration` fell through to Ocelot's own 404, not
+   IdentityService. Added two new routes (`GET /.well-known/{everything}`, `GET+POST
+   /connect/{everything}` → `identityservice:5001`, no `AuthenticationOptions` since these are
+   either public discovery endpoints or handle their own auth internally via OpenIddict/cookie).
+2. Even after fixing (1), `system.erp.local/.well-known/...` still returned Admin's `index.html`
+   instead of the discovery document — Admin's own `nginx.docker.conf` proxies specific known
+   path prefixes (`/api/`, and a regex for `/id/api/`, `/po/api/`, etc.) to the Gateway, and
+   anything unmatched falls through to the SPA catch-all (`try_files ... /index.html`), the
+   exact same failure mode already documented inline in that same file for the `/id/api/` block.
+   Added a matching `location ~ ^/(\.well-known|connect)/` block. `api.erp.local` (which routes
+   directly to the Gateway Service, bypassing Admin's nginx entirely) already worked correctly
+   after fix (1) alone — confirming this really is a second, independent proxy layer, not a
+   duplicate diagnosis of the same bug.
+
+**Verified live end-to-end after both fixes**: `GET /.well-known/openid-configuration` and
+`/.well-known/jwks.json` return real documents (not HTML) via both `api.erp.local` (direct
+Gateway) and `system.erp.local` (through Admin's nginx). `POST /api/v1/auth/tenant-signup`
+(anonymous) provisions a new tenant + admin user and returns a working access token.
+`GET /id/api/v1/webhooks` (authenticated) returns `200 []`. Full existing regression sweep
+(login, tenants, orders, chatbot conversations, both frontends) still 200. `kubectl get pods -n
+erp` — 0 pods outside `Running`, 0 climbing restart counts.
+
+**Not deep-tested this round** (the roadmap doc's own prior-session verification already covers
+these in detail, and re-verifying needs seeded OpenIddict client apps that only auto-seed in
+`IsDevelopment()`, which this K8s deployment doesn't run as): the full `client_credentials` and
+Authorization Code+PKCE token-issuance flows, `X-Api-Key` authentication, and actual webhook
+HTTP delivery on a real domain event. Flagged, not blocking — the endpoints are confirmed
+reachable and the code was read and found coherent; only the deepest runtime paths weren't
+re-exercised live this round.
+
 ## Outstanding / known follow-ups (not fixed, out of scope)
 
 - Admin frontend hardcodes 169 permission literal strings across 89 files instead of

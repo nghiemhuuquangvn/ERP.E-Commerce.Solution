@@ -85,6 +85,7 @@ import { TaxSettingsPage } from '@/pages/settings/TaxSettingsPage'
 import { CurrencySettingsPage } from '@/pages/settings/CurrencySettingsPage'
 import { UsersPage } from '@/pages/identity/UsersPage'
 import { RolesPermissionsPage } from '@/pages/identity/RolesPermissionsPage'
+import { TenantsPage } from '@/pages/identity/TenantsPage'
 import { AccountsPage } from '@/pages/accounting/AccountsPage'
 import { FiscalPeriodsPage } from '@/pages/accounting/FiscalPeriodsPage'
 import { TaxRatesPage } from '@/pages/accounting/TaxRatesPage'
@@ -212,6 +213,7 @@ export const router = createBrowserRouter([
       { path: 'masterdata/payment-terms', element: <PaymentTermsPage /> },
       { path: 'identity/users', element: <UsersPage /> },
       { path: 'identity/roles', element: <RolesPermissionsPage /> },
+      { path: 'identity/tenants', element: <TenantsPage /> },
       { path: 'accounting/accounts', element: <AccountsPage /> },
       { path: 'accounting/fiscal-periods', element: <FiscalPeriodsPage /> },
       { path: 'accounting/tax-rates', element: <TaxRatesPage /> },

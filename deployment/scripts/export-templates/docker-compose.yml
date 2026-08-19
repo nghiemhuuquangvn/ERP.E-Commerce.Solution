@@ -1,0 +1,109 @@
+version: '3.9'
+
+# ════════════════════════════════════════════════════════════════════════════════
+# IdentityService — standalone deployment
+# Self-contained: its own SQL Server, its own Redis. Kafka is OPTIONAL — 2FA-code
+# delivery and webhook firing both degrade gracefully (log-and-continue, not a
+# crash) when no broker is reachable, so it's only started if you opt in:
+#   docker compose --profile with-kafka up --build -d
+# Run (without Kafka):
+#   docker compose up --build -d
+# ════════════════════════════════════════════════════════════════════════════════
+
+services:
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: identity-sqlserver
+    hostname: sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD}
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    restart: unless-stopped
+    networks: [identity-network]
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${SA_PASSWORD}", "-C", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # One-shot: applies every ./Database/*.sql migration (numeric filename order)
+  # against "sqlserver", then exits. Re-run anytime with `docker compose up db-migrate`.
+  db-migrate:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: identity-db-migrate
+    entrypoint: ["/bin/bash", "/migrations/run-migrations.sh"]
+    environment:
+      SA_PASSWORD: ${SA_PASSWORD}
+      SQL_HOST: sqlserver
+    volumes:
+      - ./Database:/migrations/database:ro
+      - ./run-migrations.sh:/migrations/run-migrations.sh:ro
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: "no"
+    networks: [identity-network]
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: identity-redis
+    restart: unless-stopped
+    networks: [identity-network]
+
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: identity-kafka
+    profiles: ["with-kafka"]
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    restart: unless-stopped
+    networks: [identity-network]
+
+  identityservice:
+    image: identity-service:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: identity-service
+    ports:
+      - "5001:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__AuthDB: "Server=sqlserver,1433;Database=AuthDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Cache__Type: "Redis"
+      Cache__InstanceName: "identity"
+      KafkaSettings__BootstrapServers: kafka:9092
+      Jwt__Key: "${JWT_SIGNING_KEY}"
+      Jwt__Issuer: "IdentityService"
+      Jwt__Audience: "IdentityService.Clients"
+      Jwt__Expired: "60"
+      Jwt__RefreshTokenExpirationDays: "7"
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks: [identity-network]
+
+volumes:
+  sqlserver_data:
+
+networks:
+  identity-network:
+    driver: bridge

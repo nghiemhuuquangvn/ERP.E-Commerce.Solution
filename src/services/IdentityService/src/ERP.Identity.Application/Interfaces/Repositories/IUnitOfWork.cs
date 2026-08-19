@@ -52,6 +52,7 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         ITokenBlacklistRepository TokenBlacklist { get; }
         IPasswordHistoryRepository PasswordHistories { get; }
         IApiKeyRepository ApiKeys { get; }
+        IWebhookEndpointRepository WebhookEndpoints { get; }
         Task<int> SaveChangesAsync(CancellationToken ct);
         Task BeginTransactionAsync(CancellationToken ct);
         Task CommitTransactionAsync(CancellationToken ct);

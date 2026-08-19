@@ -18,6 +18,13 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         /// an existing account elsewhere and attach it to a new tenant; login/register use
         /// the tenant-scoped GetByEmailAsync instead.</summary>
         Task<User?> GetByEmailGloballyAsync(string email, CancellationToken ct);
+
+        /// <summary>All users sharing this email across every tenant — since email is only
+        /// unique per-(Email, TenantId), the same address can legitimately belong to more
+        /// than one unrelated account. Used by InviteToTenantAsync to detect that ambiguity
+        /// (GetByEmailGloballyAsync alone would silently pick an arbitrary one via
+        /// unordered FirstOrDefault) rather than to resolve a single user.</summary>
+        Task<IReadOnlyList<User>> FindAllByEmailGloballyAsync(string email, CancellationToken ct);
         Task<User> GetByExternalProviderAsync(string provider, string providerKey, Guid tenantId, CancellationToken ct);
         Task<User?> GetByIdWithDetailsAsync(Guid id, CancellationToken ct);
 

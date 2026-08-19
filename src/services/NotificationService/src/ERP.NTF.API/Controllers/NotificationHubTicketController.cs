@@ -15,6 +15,7 @@ namespace ERP.NTF.API.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/notifications/hub-ticket")]
+[Microsoft.AspNetCore.Authorization.Authorize]
 public class NotificationHubTicketController : ControllerBase
 {
     private readonly IHubTicketStore _ticketStore;
@@ -24,13 +25,19 @@ public class NotificationHubTicketController : ControllerBase
         _ticketStore = ticketStore;
     }
 
+    // [Authorize] above means the standard JWT pipeline (signature/expiry) already ran
+    // before this action executes — an expired/invalid token 401s here the normal way,
+    // which the frontend's axios interceptor already knows how to catch and retry after
+    // a token refresh. Previously this only checked for a "Bearer " prefix and wrapped
+    // ANY string (expired or not) into a "successful" ticket, deferring real validation
+    // to the SignalR negotiate call downstream — which has no refresh-and-retry path, so
+    // an expired token silently broke the bell with no way to recover until a full
+    // page reload. The header is still read manually (not via [FromHeader]/model binding)
+    // since it's just forwarded as an opaque string into the ticket, never parsed here.
     [HttpPost]
     public IActionResult IssueTicket()
     {
         var authHeader = Request.Headers.Authorization.ToString();
-        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            return Unauthorized(new { message = "A Bearer token is required to obtain a Hub ticket." });
-
         var token = authHeader["Bearer ".Length..];
         var ticket = _ticketStore.IssueTicket(token);
         return Ok(new { ticket });

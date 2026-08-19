@@ -24,7 +24,10 @@
   `docs/business/Identity/ExternalAuthAndTwoFactor.md`,
   `docs/business/Identity/License.md`,
   `docs/business/Identity/MultiTenantLogin.md` (2026-08 — subdomain/header-based
-  tenant resolution, replacing the manual Tenant Code login field)
+  tenant resolution, replacing the manual Tenant Code login field),
+  `docs/business/Identity/CommonServiceRoadmap.md` (2026-08 — what's needed to
+  reuse this service outside this ERP: OAuth2/OIDC provider, webhooks, API key
+  enforcement, packaging)
 - **Topics:** User management, role-based access control (RBAC), permission
   management, multi-tenancy, external login/SSO (Google/Microsoft/Facebook/Twitter),
   two-factor authentication (SMS/Email), system/tenant auth settings, per-tenant

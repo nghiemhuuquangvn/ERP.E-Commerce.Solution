@@ -100,6 +100,21 @@ same `tenant.Id` value, a user with membership in multiple tenants always receiv
 claims (`tenant_id`, roles, permissions, licensed modules) for the one tenant they actually
 signed into — never a mix of two tenants' data in the same token.
 
+## Caveat: every user needs an `AuthUserTenant` row
+
+Since login now matches via `AuthUserTenant` membership (previous section), **any**
+user row must have a corresponding `AuthUserTenant` row for the tenant they're meant
+to log into — not just `User.TenantId` set. The normal code paths
+(`AuthService.RegisterAsync`, `FindOrCreateExternalUserAsync`,
+`UserService.InviteToTenantAsync`) all call `AssignToTenant` and so do this
+correctly. The one place this must be done by hand is a **directly-SQL-seeded**
+user (e.g. a bootstrap/SuperAdmin insert in a migration script) — verified the
+existing `superadmin@system.local` seed already does this correctly
+(`001_CreateAuthDB.sql:472-474`, `INSERT INTO UserTenants ...`), but this is a trap
+for any future migration that inserts a `Users` row without also inserting the
+matching `UserTenants` row: that user would exist but be permanently unable to log
+in (`GetByEmailAsync` would never find them for that tenant).
+
 ## Related
 
 - [ExternalAuthAndTwoFactor.md](ExternalAuthAndTwoFactor.md) — SSO/2FA settings gated per tenant;

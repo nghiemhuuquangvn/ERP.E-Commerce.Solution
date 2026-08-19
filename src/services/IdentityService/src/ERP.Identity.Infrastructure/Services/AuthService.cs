@@ -553,7 +553,7 @@ namespace ERP.Identity.Infrastructure.Services
                 // 3️⃣ Enforce password policy (length/complexity) — previously only
                 // ResetPasswordAsync/ChangePasswordAsync validated this, so self-service
                 // registration could set an arbitrarily weak password.
-                await _passwordPolicyService.ValidateNewPasswordAsync(Guid.NewGuid(), request.Password, ct);
+                await _passwordPolicyService.ValidateNewPasswordAsync(tenant.Id, Guid.NewGuid(), request.Password, ct);
 
                 // 5️⃣ Hash password
                 var passwordHash = _passwordHasher.HashPassword(request.Password.Trim());
@@ -609,6 +609,75 @@ namespace ERP.Identity.Infrastructure.Services
             }
         }
 
+        public async Task<LoginResponse> SignupTenantAsync(TenantSignupDto.TenantSignupRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                await _unitOfWork.BeginTransactionAsync(ct);
+
+                // 1) Tenant code must not already exist
+                if (await _unitOfWork.Tenants.ExistsByCodeAsync(request.TenantCode, ct))
+                    throw new DuplicateException("TenantCode", request.TenantCode);
+
+                // 2) Create the tenant. Persist immediately (not just RegisterAsync's
+                // single-end-of-flow SaveChanges) — the Role/RolePermission inserts below go
+                // through IPermissionRepository.AssignToRoleAsync's raw FK columns rather than
+                // a tracked navigation collection, so this keeps the FK insert order
+                // unambiguous instead of relying on EF's dependency-graph inference for a
+                // relationship shape RegisterAsync never actually exercises.
+                var tenant = AuthTenant.Create(request.TenantCode, request.TenantName);
+                await _unitOfWork.Tenants.AddAsync(tenant, ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+
+                // 3) Seed a generic self-administration Admin role for this new tenant — every
+                // Permission whose Module is "Identity"/"System" (manage this tenant's own
+                // users/roles/settings), deliberately NOT any ERP business-domain permissions
+                // (sales_order:*/crm:*/etc.) — those don't apply to a non-ERP consumer of this
+                // service, and an ERP operator can still grant broader roles manually after.
+                var role = Role.Create(SystemRoles.Admin, "Administrator", tenant.Id);
+                await _unitOfWork.Roles.AddAsync(role, ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+
+                var allPermissions = await _unitOfWork.Permissions.ListAllAsync(ct);
+                var selfAdminPermissions = allPermissions.Where(p => p.Module == "Identity" || p.Module == "System");
+                foreach (var permission in selfAdminPermissions)
+                    await _unitOfWork.Permissions.AssignToRoleAsync(role.Id, permission.Id, tenant.Id, ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+
+                // 4) Password policy + create the first (Admin) user
+                await _passwordPolicyService.ValidateNewPasswordAsync(tenant.Id, Guid.NewGuid(), request.AdminPassword, ct);
+                var passwordHash = _passwordHasher.HashPassword(request.AdminPassword.Trim());
+                var userName = string.IsNullOrWhiteSpace(request.AdminFullName) ? request.AdminEmail : request.AdminFullName;
+
+                var user = User.Create(
+                    email: request.AdminEmail,
+                    username: userName,
+                    passwordHash: passwordHash,
+                    tenantId: tenant.Id,
+                    userType: UserType.Admin
+                );
+
+                await _unitOfWork.Users.AddAsync(user, ct);
+                user.AssignToTenant(tenant);
+                user.AssignRole(role, tenant.Id);
+
+                await _unitOfWork.SaveChangesAsync(ct);
+
+                // 5) Issue tokens so the new admin is logged in immediately, same as RegisterAsync
+                var loginResponse = await IssueTokensAsync(user, tenant, ct);
+
+                await _securityAuditService.LogAsync("TenantSignup", true, tenant.Id, user.Id, user.Email, ct: ct);
+                await _unitOfWork.CommitTransactionAsync(ct);
+
+                return loginResponse;
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync(ct);
+                throw;
+            }
+        }
+
         public async Task<ForgotPasswordResponse> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct)
         {
             var tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(request.TenantCode, ct)
@@ -644,7 +713,7 @@ namespace ERP.Identity.Infrastructure.Services
             if (user == null)
                 throw new InvalidOperationException("User not found");
 
-            await _passwordPolicyService.ValidateNewPasswordAsync(user.Id, request.NewPassword, ct);
+            await _passwordPolicyService.ValidateNewPasswordAsync(user.TenantId, user.Id, request.NewPassword, ct);
 
             var previousHash = user.PasswordHash;
             var newPasswordHash = _passwordHasher.HashPassword(request.NewPassword);

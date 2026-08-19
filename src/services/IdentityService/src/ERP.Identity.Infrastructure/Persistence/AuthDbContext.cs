@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using OpenIddict.EntityFrameworkCore;
 
 namespace ERP.Identity.Infrastructure.Persistence
 {
@@ -61,6 +62,7 @@ namespace ERP.Identity.Infrastructure.Persistence
         public DbSet<TokenBlacklistEntry> TokenBlacklist => Set<TokenBlacklistEntry>();
         public DbSet<PasswordHistoryEntry> PasswordHistories => Set<PasswordHistoryEntry>();
         public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
+        public DbSet<WebhookEndpoint> WebhookEndpoints => Set<WebhookEndpoint>();
         private readonly IDomainEventDispatcher _domainEventDispatcher;
 
         public AuthDbContext(DbContextOptions<AuthDbContext> options, IDomainEventDispatcher domainEventDispatcher) : base(options)
@@ -194,6 +196,13 @@ namespace ERP.Identity.Infrastructure.Persistence
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // OpenIddict's EF Core store (OAuth2/OIDC server — CommonServiceRoadmap.md §1).
+            // Guid-keyed to match every other table in this DB, not OpenIddict's string-key
+            // default. Table/column shape is hand-written in
+            // src/Database/Identity/020_AddOpenIddictSchema.sql (this repo doesn't use EF
+            // Core Migrations) — keep this call and that file in sync.
+            modelBuilder.UseOpenIddict<Guid>();
 
             // Ignore Description property from BaseEntity for all entity types
             modelBuilder.Entity<User>().Ignore(u => u.Description);
@@ -678,6 +687,17 @@ namespace ERP.Identity.Infrastructure.Persistence
                 entity.Property(k => k.KeyHash).IsUnicode(false).IsRequired().HasMaxLength(500);
                 entity.HasIndex(k => k.KeyPrefix).IsUnique();
                 entity.HasIndex(k => k.TenantId);
+            });
+
+            modelBuilder.Entity<WebhookEndpoint>(entity =>
+            {
+                entity.ToTable("WebhookEndpoints");
+                entity.HasKey(w => w.Id);
+                entity.Property(w => w.Name).IsRequired().HasMaxLength(200);
+                entity.Property(w => w.Url).IsRequired().HasMaxLength(2000);
+                entity.Property(w => w.Secret).HasMaxLength(200);
+                entity.Property(w => w.EventTypesRaw).HasMaxLength(2000);
+                entity.HasIndex(w => w.TenantId);
             });
         }
     }

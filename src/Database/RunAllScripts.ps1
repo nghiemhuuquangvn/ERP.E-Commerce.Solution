@@ -37,6 +37,8 @@ $DatabaseScripts = @(
     "Identity\016_SeedFinanceApprovePermission.sql",
     "Identity\017_AddChatBotLicenseModules.sql",
     "Identity\018_AddChatBotAssistantPermission.sql",
+    "Identity\019_AddWebhookEndpoints.sql",
+    "Identity\020_AddOpenIddictSchema.sql",
 
     # Cross-cutting master data (Department/Position/Employee/UoM/Geography/Language —
     # seed before HRM, which now references Employees/Departments here instead of owning them)

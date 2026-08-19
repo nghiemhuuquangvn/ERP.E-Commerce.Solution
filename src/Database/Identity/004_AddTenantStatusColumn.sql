@@ -13,7 +13,15 @@ IF NOT EXISTS (
 )
 BEGIN
     ALTER TABLE Tenants ADD Status TINYINT NOT NULL DEFAULT 1;
-    UPDATE Tenants SET Status = CAST(IsActive AS TINYINT);
+    -- sp_executesql, not a bare UPDATE: SQL Server compiles an entire GO-delimited
+    -- batch up front, so a column added by ALTER TABLE two lines above isn't yet
+    -- visible to deferred name resolution for a statement later in the SAME batch
+    -- ("Invalid column name 'Status'") — confirmed by running this migration against
+    -- a genuinely fresh database (CommonServiceRoadmap.md §7 Part B export
+    -- verification; every environment that had already run this migration before
+    -- that fix never hit it, since the column already existed). sp_executesql defers
+    -- compilation of the UPDATE to execution time, after the ALTER has committed.
+    EXEC sp_executesql N'UPDATE Tenants SET Status = CAST(IsActive AS TINYINT);';
     PRINT 'Added Status column to Tenants and migrated values from IsActive.';
 END
 ELSE

@@ -288,10 +288,12 @@ public static class PermissionConstants
     public const string Identity_TenantsManage = "identity:tenants:manage";
     public const string Identity_TenantsDelete = "identity:tenants:delete";
 
-    // Security Permissions (audit logs, API keys) — merged in alongside Identity_* above
+    // Security Permissions (audit logs, API keys, webhooks) — merged in alongside Identity_* above
     public const string Security_AuditView = "security:audit:view";
     public const string Security_ApiKeysView = "security:apikeys:view";
     public const string Security_ApiKeysManage = "security:apikeys:manage";
+    public const string Security_WebhooksView = "security:webhooks:view";
+    public const string Security_WebhooksManage = "security:webhooks:manage";
 
     // License Permissions (module catalog, plan catalog, tenant licenses) — merged in
     // from IdentityService's own LicensePermissions
@@ -445,7 +447,7 @@ public static class PermissionConstants
         Identity_RolesView, Identity_RolesCreate, Identity_RolesEdit, Identity_RolesManage, Identity_RolesDelete,
         Identity_PermissionsView, Identity_PermissionsManage,
         Identity_TenantsView, Identity_TenantsCreate, Identity_TenantsEdit, Identity_TenantsManage, Identity_TenantsDelete,
-        Security_AuditView, Security_ApiKeysView, Security_ApiKeysManage,
+        Security_AuditView, Security_ApiKeysView, Security_ApiKeysManage, Security_WebhooksView, Security_WebhooksManage,
         License_ModulesManage, License_PlansView, License_PlansManage, License_TenantView, License_TenantIssue,
         Settings_SystemView, Settings_SystemManage, Settings_TenantView, Settings_TenantManage,
         Settings_General_SystemView, Settings_General_SystemManage,

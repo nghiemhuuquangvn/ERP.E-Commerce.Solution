@@ -56,11 +56,14 @@ namespace ERP.Identity.Infrastructure.Services
             var code = moduleCode.ToUpperInvariant();
 
             // The {moduleCode} route segment can't be checked by FluentValidation (it isn't
-            // part of the body-bound UpsertModuleRequest — see that record's doc comment),
-            // so it's validated here instead of silently letting an admin create a catalog
-            // row for a code no service actually enforces.
-            if (!ERP.Shared.Authorization.ModuleCodes.All.Contains(code))
-                throw new ArgumentException($"'{moduleCode}' is not a recognized module code.", nameof(moduleCode));
+            // part of the body-bound UpsertModuleRequest — see that record's doc comment).
+            // This method IS how a module code gets registered — ModuleDefinitions is the
+            // catalog (not a hardcoded ERP-specific enum), so there's no external list to
+            // check membership against here; just reject obviously-malformed codes.
+            if (!System.Text.RegularExpressions.Regex.IsMatch(code, "^[A-Z0-9_]{2,32}$"))
+                throw new ArgumentException(
+                    $"'{moduleCode}' is not a valid module code — use 2-32 uppercase letters, digits, or underscores.",
+                    nameof(moduleCode));
 
             var module = await _unitOfWork.ModuleDefinitions.GetByCodeAsync(code, ct);
             if (module == null)

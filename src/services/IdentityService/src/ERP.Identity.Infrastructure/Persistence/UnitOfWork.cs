@@ -58,7 +58,8 @@ namespace ERP.Identity.Infrastructure.Persistence
             IDeviceSessionRepository deviceSessionRepository,
             ITokenBlacklistRepository tokenBlacklistRepository,
             IPasswordHistoryRepository passwordHistoryRepository,
-            IApiKeyRepository apiKeyRepository)
+            IApiKeyRepository apiKeyRepository,
+            IWebhookEndpointRepository webhookEndpointRepository)
         {
             _dbContext = dbContext;
             Users = userRepository;
@@ -105,6 +106,7 @@ namespace ERP.Identity.Infrastructure.Persistence
             TokenBlacklist = tokenBlacklistRepository;
             PasswordHistories = passwordHistoryRepository;
             ApiKeys = apiKeyRepository;
+            WebhookEndpoints = webhookEndpointRepository;
         }
         public IUserRepository Users { get; }
 
@@ -153,6 +155,7 @@ namespace ERP.Identity.Infrastructure.Persistence
         public ITokenBlacklistRepository TokenBlacklist { get; }
         public IPasswordHistoryRepository PasswordHistories { get; }
         public IApiKeyRepository ApiKeys { get; }
+        public IWebhookEndpointRepository WebhookEndpoints { get; }
 
         public async Task<int> SaveChangesAsync(CancellationToken ct) => await _dbContext.SaveChangesAsync(ct);
         public async Task BeginTransactionAsync(CancellationToken ct)

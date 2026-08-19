@@ -107,6 +107,7 @@
     "chatbot": "AI Assistant",
     "users": "Users",
     "rolesPermissions": "Roles & Permissions",
+    "tenants": "Tenants",
     "accountingAccounts": "Chart of Accounts",
     "accountingJournalEntries": "Journal Entries",
     "accountingInvoices": "Invoices",
@@ -1636,6 +1637,16 @@
       "permissionCatalogHint": "Read-only reference of all permission codes available in the system.",
       "deleteTitle": "Delete Role",
       "deleteConfirm": "Are you sure you want to delete \"{{name}}\"?"
+    },
+    "tenants": {
+      "title": "Tenants",
+      "add": "Add Tenant",
+      "addTitle": "Add Tenant",
+      "editTitle": "Edit Tenant",
+      "activateTitle": "Activate Tenant",
+      "activateConfirm": "Are you sure you want to activate \"{{name}}\"?",
+      "deactivateTitle": "Deactivate Tenant",
+      "deactivateConfirm": "Are you sure you want to deactivate \"{{name}}\"?"
     }
   },
   "license": {
