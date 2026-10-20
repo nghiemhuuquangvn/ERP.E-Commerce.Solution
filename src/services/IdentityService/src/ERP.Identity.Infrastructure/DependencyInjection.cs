@@ -172,6 +172,7 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<ITwoFactorCodeGenerator, TwoFactorCodeGenerator>();
             services.AddScoped<ISecurityAuditService, SecurityAuditService>();
             services.AddScoped<ISessionService, SessionService>();
+            services.AddScoped<ITenantAccessPolicy, TenantAccessPolicy>();
             services.AddScoped<IApiKeyService, ApiKeyService>();
             services.AddScoped<IWebhookEndpointService, WebhookEndpointService>();
             services.AddScoped<IWebhookSender, WebhookSender>();

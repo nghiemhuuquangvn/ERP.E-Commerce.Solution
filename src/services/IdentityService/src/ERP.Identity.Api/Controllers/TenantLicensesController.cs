@@ -23,6 +23,9 @@ namespace ERP.Identity.Api.Controllers
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/license/tenant")]
     [Authorize]
+    // Cross-tenant access (route/query tenantId ≠ caller's tenant) only for platform-tenant
+    // callers holding settings:system:manage — see ITenantAccessPolicy.
+    [TenantRouteAccess(PermissionConstants.Settings_SystemManage)]
     public class TenantLicensesController : ControllerBase
     {
         private readonly ILicenseService _licenseService;
@@ -38,9 +41,6 @@ namespace ERP.Identity.Api.Controllers
         [AuthorizePermission(PermissionConstants.License_TenantView)]
         public async Task<IActionResult> GetTenantLicense([FromRoute] Guid tenantId, CancellationToken ct = default)
         {
-            if (!await CallerCanAccessTenantAsync(tenantId, ct))
-                return Forbid();
-
             var result = await _licenseService.GetTenantLicenseAsync(tenantId, ct);
             return result is null ? NotFound() : Ok(result);
         }
@@ -93,14 +93,6 @@ namespace ERP.Identity.Api.Controllers
             return NoContent();
         }
 
-        private async Task<bool> CallerCanAccessTenantAsync(Guid tenantId, CancellationToken ct)
-        {
-            var callerTenantId = this.GetCallerTenantId();
-            if (callerTenantId == tenantId)
-                return true;
-
-            return await CallerHasSystemOverrideAsync(ct);
-        }
 
         private async Task<bool> CallerHasSystemOverrideAsync(CancellationToken ct)
         {

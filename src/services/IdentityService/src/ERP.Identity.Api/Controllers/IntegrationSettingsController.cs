@@ -13,6 +13,9 @@ namespace ERP.Identity.Api.Controllers
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/settings/integration")]
     [Authorize]
+    // Cross-tenant access (route/query tenantId ≠ caller's tenant) only for platform-tenant
+    // callers holding settings:system:manage — see ITenantAccessPolicy.
+    [TenantRouteAccess(PermissionConstants.Settings_SystemManage)]
     public class IntegrationSettingsController : ControllerBase
     {
         private readonly IIntegrationSettingsService _settingsService;
@@ -44,9 +47,6 @@ namespace ERP.Identity.Api.Controllers
         [AuthorizePermission(PermissionConstants.Settings_Integration_TenantView)]
         public async Task<IActionResult> GetTenantSettings([FromRoute] Guid tenantId, CancellationToken ct = default)
         {
-            if (!await CallerCanAccessTenantAsync(tenantId, ct))
-                return Forbid();
-
             var result = await _settingsService.GetTenantSettingsAsync(tenantId, ct);
             return Ok(result);
         }
@@ -55,24 +55,9 @@ namespace ERP.Identity.Api.Controllers
         [AuthorizePermission(PermissionConstants.Settings_Integration_TenantManage)]
         public async Task<IActionResult> UpdateTenantSettings([FromRoute] Guid tenantId, [FromBody] UpdateTenantIntegrationSettingsRequest request, CancellationToken ct = default)
         {
-            if (!await CallerCanAccessTenantAsync(tenantId, ct))
-                return Forbid();
-
             var result = await _settingsService.UpdateTenantSettingsAsync(tenantId, request, ct);
             return Ok(result);
         }
 
-        private async Task<bool> CallerCanAccessTenantAsync(Guid tenantId, CancellationToken ct)
-        {
-            var callerTenantId = this.GetCallerTenantId();
-            if (callerTenantId == tenantId)
-                return true;
-
-            var callerUserId = this.GetCallerUserId();
-            if (callerUserId is null || callerTenantId is null)
-                return false;
-
-            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { PermissionConstants.Settings_SystemManage });
-        }
     }
 }

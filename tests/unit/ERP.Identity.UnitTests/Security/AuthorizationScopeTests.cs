@@ -196,6 +196,92 @@ public class AuthorizationScopeTests
         result.Key.Scopes.Should().Be(PermissionConstants.Identity_UsersView);
     }
 
+    // ---- Cross-tenant policy ----
+
+    private TenantAccessPolicy Policy(Guid callerUser, Guid callerTenant)
+    {
+        var userContext = new Mock<IUserContextService>();
+        userContext.Setup(u => u.GetCurrentUser()).Returns(new UserContext
+        {
+            UserId = callerUser.ToString(),
+            TenantId = callerTenant.ToString(),
+            ExpiresAt = DateTime.UtcNow.AddHours(1)
+        });
+        return new TenantAccessPolicy(userContext.Object, _uow.Object);
+    }
+
+    [Fact]
+    public async Task Policy_OwnTenant_IsAllowed()
+    {
+        (await Policy(Guid.NewGuid(), TenantA).CanAccessTenantAsync(TenantA, PermissionConstants.Settings_SystemManage, CancellationToken.None))
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Policy_OtherTenantFromOrdinaryTenant_IsDenied_EvenWithPermissionInDb()
+    {
+        var caller = Guid.NewGuid();
+        UserHas(caller, TenantA, PermissionConstants.Settings_SystemManage, PermissionConstants.Identity_TenantsView);
+
+        (await Policy(caller, TenantA).CanAccessTenantAsync(TenantB, PermissionConstants.Settings_SystemManage, CancellationToken.None))
+            .Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Policy_OtherTenantFromPlatformTenant_RequiresThePermission()
+    {
+        var withPermission = Guid.NewGuid();
+        var withoutPermission = Guid.NewGuid();
+        UserHas(withPermission, Platform, PermissionConstants.Settings_SystemManage);
+        UserHas(withoutPermission, Platform, PermissionConstants.Identity_UsersView);
+
+        (await Policy(withPermission, Platform).CanAccessTenantAsync(TenantB, PermissionConstants.Settings_SystemManage, CancellationToken.None))
+            .Should().BeTrue();
+        (await Policy(withoutPermission, Platform).CanAccessTenantAsync(TenantB, PermissionConstants.Settings_SystemManage, CancellationToken.None))
+            .Should().BeFalse();
+    }
+
+    // ---- [TenantRouteAccess] ----
+
+    private static ActionExecutingContext ActionContext(Guid? routeTenant, bool policyAllows, out Mock<ITenantAccessPolicy> policy)
+    {
+        policy = new Mock<ITenantAccessPolicy>();
+        policy.Setup(p => p.CanAccessTenantAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(policyAllows);
+        var services = new ServiceCollection().AddSingleton(policy.Object).BuildServiceProvider();
+        var http = new DefaultHttpContext { RequestServices = services };
+        var routeData = new RouteData();
+        if (routeTenant is not null)
+            routeData.Values["tenantId"] = routeTenant.Value.ToString();
+        var actionContext = new ActionContext(http, routeData, new ActionDescriptor());
+        return new ActionExecutingContext(actionContext, new List<IFilterMetadata>(), new Dictionary<string, object?>(), controller: new object());
+    }
+
+    [Fact]
+    public async Task TenantRouteAccess_DeniedTenant_ShortCircuitsWithForbid()
+    {
+        var context = ActionContext(TenantB, policyAllows: false, out _);
+        var nextCalled = false;
+
+        await new TenantRouteAccessAttribute(PermissionConstants.Settings_SystemManage)
+            .OnActionExecutionAsync(context, () => { nextCalled = true; return Task.FromResult<ActionExecutedContext>(null!); });
+
+        context.Result.Should().BeOfType<ForbidResult>();
+        nextCalled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TenantRouteAccess_NoTenantInRequest_DoesNotConsultPolicy()
+    {
+        var context = ActionContext(null, policyAllows: false, out var policy);
+        var nextCalled = false;
+
+        await new TenantRouteAccessAttribute(PermissionConstants.Settings_SystemManage)
+            .OnActionExecutionAsync(context, () => { nextCalled = true; return Task.FromResult<ActionExecutedContext>(null!); });
+
+        nextCalled.Should().BeTrue();
+        policy.Verify(p => p.CanAccessTenantAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     // ---- [AuthorizePermission]: no role-name bypass ----
 
     [Fact]

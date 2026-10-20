@@ -12,6 +12,9 @@ namespace ERP.Identity.Api.Controllers
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/[controller]")]
     [Authorize]
+    // Cross-tenant access (route/query tenantId ≠ caller's tenant) only for platform-tenant
+    // callers holding settings:system:manage — see ITenantAccessPolicy.
+    [TenantRouteAccess(PermissionConstants.Settings_SystemManage)]
     public class SettingsController : ControllerBase
     {
         private readonly ISettingsService _settingsService;
@@ -43,9 +46,6 @@ namespace ERP.Identity.Api.Controllers
         [AuthorizePermission(PermissionConstants.Settings_TenantView)]
         public async Task<IActionResult> GetTenantSettings([FromRoute] Guid tenantId, CancellationToken ct = default)
         {
-            if (!await CallerCanAccessTenantAsync(tenantId, ct))
-                return Forbid();
-
             var result = await _settingsService.GetTenantSettingsAsync(tenantId, ct);
             return Ok(result);
         }
@@ -54,28 +54,9 @@ namespace ERP.Identity.Api.Controllers
         [AuthorizePermission(PermissionConstants.Settings_TenantManage)]
         public async Task<IActionResult> UpdateTenantSettings([FromRoute] Guid tenantId, [FromBody] UpdateTenantAuthSettingsRequest request, CancellationToken ct = default)
         {
-            if (!await CallerCanAccessTenantAsync(tenantId, ct))
-                return Forbid();
-
             var result = await _settingsService.UpdateTenantSettingsAsync(tenantId, request, ct);
             return Ok(result);
         }
 
-        /// <summary>
-        /// A caller may only manage a tenant's settings if the route tenantId matches their
-        /// own JWT tenant_id claim, unless they also hold settings:system:manage (cross-tenant override).
-        /// </summary>
-        private async Task<bool> CallerCanAccessTenantAsync(Guid tenantId, CancellationToken ct)
-        {
-            var callerTenantId = this.GetCallerTenantId();
-            if (callerTenantId == tenantId)
-                return true;
-
-            var callerUserId = this.GetCallerUserId();
-            if (callerUserId is null || callerTenantId is null)
-                return false;
-
-            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { PermissionConstants.Settings_SystemManage });
-        }
     }
 }
