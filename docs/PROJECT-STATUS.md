@@ -4,12 +4,27 @@
 > Keep it current: update it at the end of every work session (what changed, what's next).
 > Last updated: **2026-10-20** (tenant isolation phase 2 merged; docs 2e).
 
+## 0. Start here (new machine / new developer)
+
+1. `git fetch && git switch master && git pull` — all finished work is on `master` (§1).
+   Branches not merged yet are listed in §1; never start from them unless told to.
+2. Read, in order: `CLAUDE.md` (rules — especially "Multi-Tenant Isolation", "API
+   Authorization", "Outbox rules"), this file (§7 decisions, §8 next step), then the service
+   README / `docs/business/...` of whatever you touch.
+3. Verify the baseline (§5). If anything is red before you change code, stop and report it.
+4. Work the agreed way (§6): plan → owner approval → implement + tests + docs, one branch per
+   plan, one commit per step, never push/merge without being asked. Update this file at the
+   end of the session.
+5. Before changing a DbContext, a consumer, a background job or an event: re-read CLAUDE.md
+   "Multi-Tenant Isolation" — `tests/unit/ERP.Architecture.Tests` fails the build if a
+   tenant-owned entity is not filtered, and two-tenant tests exist for every service.
+
 ## 1. Where things stand
 
 | Branch | State | Content |
 |---|---|---|
 | `master` (origin) | includes PR #1–#6 | Outbox/EventId fixes + Identity hardening (`73970b5`); CRM tenant isolation (PR #1); user/role/permission isolation + tenant = request host (PR #2); service authorization phase 1 (PR #3); tenant isolation phase 2 for all services (PR #4 Shared+Sales/Payment/Accounting, PR #5 supply chain, PR #6 cross-cutting) |
-| `docs/tenant-isolation` | phase 2e docs (this update) | CLAUDE.md, event catalog, security review, this file |
+| `docs/tenant-isolation` | **not merged yet** — push/PR when the owner asks; phase 2e docs + this handoff update | CLAUDE.md, event catalog, security review, this file |
 
 All feature branches above are merged; start new work from `origin/master`.
 Verify the baseline first (§5) — everything below was green on 2026-10-20.
@@ -156,9 +171,52 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
   running, say so and fall back to the build/test commands above.
 - `dotnet build ERP.Identity.sln` can take >5 min on a cold machine — run it in the background.
 - Shell is zsh on macOS: use `sed -i ''`; avoid `echo ====` (zsh `=` expansion).
+- `dotnet test tests/unit/ERP.Architecture.Tests` builds every API project — 3–10 min; run it in
+  the background. It is the safety net for authorization and tenant isolation.
+- Docker was not running on the development machine during phases 1–2: migrations, consumers,
+  nginx host routing and the Elasticsearch re-index were verified by build + unit/architecture
+  tests only. The first Docker run should follow §3 and check service logs for
+  `without TenantId ignored` warnings and `TenantIsolationViolationException`.
+- New tenant-owned entity / service checklist = CLAUDE.md "Multi-Tenant Isolation" + add a
+  two-tenant case to `TenantIsolationBehaviorTests`; new migration = next number in
+  `src/Database/<Svc>/`, idempotent (`IF NOT EXISTS` / `COL_LENGTH`).
 
 ## 6. Conventions agreed with the project owner
 - Communicate in **Vietnamese**; code, comments, commit messages and docs in English.
 - One branch per plan; split commits by plan step; don't push or merge without being asked.
 - Non-trivial work: plan first (findings + approach), get approval, then implement + tests + docs.
 - Data-ownership decisions (e.g. which tenant orphaned rows belong to) are asked, not assumed.
+
+## 7. Decision log (do not re-litigate without the owner)
+
+| Date | Decision | Where it shows up |
+|---|---|---|
+| 2026-10-20 | Rows with an empty TenantId belong to the **SYSTEM** tenant (`…0001`) | Every `*_TenantIsolation*.sql` / CRM `005` |
+| 2026-10-20 | **Tenant = request host**: subdomain `<code>.erp.local` / `<code>.shop.erp.local` **and** custom domains (`TenantDomains`); platform admin = SYSTEM tenant's own domain (`admin.erp.local`) | Identity `ITenantDomainService`, Gateway, nginx/ingress |
+| 2026-10-20 | Platform permissions only in the SYSTEM tenant; no authority from role names | `PermissionScopes`, `EffectivePermissions` |
+| 2026-10-20 | Two host families (admin vs storefront); API and hubs same-origin on the tenant host; no service ports published | nginx, ingress, docker-compose |
+| 2026-10-20 | Service authz in phases; phase 1 = explicit authorization everywhere + infra; phases 2–5 one at a time | SecurityReview "Service authorization review" |
+| 2026-10-20 | **Tenant travels in the event payload** (`ITenantEvent`), not in message headers | event-catalog "Tenant in every event" |
+| 2026-10-20 | MasterData reference data = **shared SYSTEM rows + tenant additions** (only platform edits shared rows); same model reused for Notification templates | `ISharedReferenceData` |
+| 2026-10-20 | Consumers **skip** events without a tenant (fail closed), never guess | all consumers |
+| 2026-10-20 | Guest (anonymous) tenant = host's tenant; client-sent tenant ids are only cross-checked | ChatBot, Product catalog, POS customer display |
+| 2026-10-20 | Business codes unique per tenant | migrations phase 2 |
+
+## 8. Next step: service authorization phase 3 — token revocation (NOT started, needs a plan + approval)
+
+Problem (SecurityReview S5): only IdentityService honours logout / user lock / password change /
+role-permission change; the other 16 services accept the old JWT until it expires (60 min).
+Proposed design (from the approved overall plan, details to be re-planned):
+- IdentityService writes to Redis on those events: `revoked-jti:{jti}` (TTL = remaining token
+  lifetime) and `authz-ver:{tenant}:{user}` = timestamp of the last security-relevant change.
+  Hook points: `ISessionService.RevokeAllForUserAsync`, logout, `TokenBlacklistRepository`,
+  role/permission grant paths (`EffectivePermissions` callers).
+- `ERP.Shared.Authorization.AddErpJwtAuthentication` → `JwtBearerEvents.OnTokenValidated`:
+  reject if the `jti` is revoked or the token's `iat` < `authz-ver` (client refreshes to get
+  new permissions). Redis via the existing `ERP.Shared.Caching` (`ICacheService`,
+  `RedisCacheService`); a small local cache to avoid a Redis round-trip per request.
+- Open questions for the owner: fail-open or fail-closed when Redis is down; whether tokens
+  must carry `jti`/`iat` (check `TokenService`); hub connections (re-check on each call?).
+- Tests: shared unit tests for the validator; Identity tests that each change bumps the version.
+Phases 4 (RS256/JWKS) and 5 (attribute migration, ticket-only hubs) follow — see §4.
+
