@@ -1,3 +1,4 @@
+using ERP.Shared.Authorization;
 using Asp.Versioning;
 using ERP.PRD.Application.Features.Pricing.Commands;
 using ERP.PRD.Application.Features.Pricing.Queries;
@@ -31,6 +32,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> SetVariantPrice([FromBody] SetProductPriceCommand command)
         {
             _logger.LogInformation("Setting price for variant {VariantId}: Base={BasePrice}", command.VariantId, command.BasePrice);
@@ -68,6 +70,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> CreatePriceList([FromBody] CreatePriceListCommand command)
         {
             _logger.LogInformation("Creating price list: {Name} with {Count} items", command.Name, command.Items.Count);
@@ -106,6 +109,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> SetPriceListChannel(Guid priceListId, [FromBody] SetPriceListChannelCommand command)
         {
             command.PriceListId = priceListId;

@@ -18,11 +18,16 @@ export DNS_RESOLVER
 # name resolves there as before.
 SEARCH_DOMAIN=$(awk '/^search/{print $2; exit}' /etc/resolv.conf)
 case "$SEARCH_DOMAIN" in
-  *svc.cluster.local*) GATEWAY_HOST="gateway.${SEARCH_DOMAIN}" ;;
-  *) GATEWAY_HOST="gateway" ;;
+  *svc.cluster.local*) SUFFIX=".${SEARCH_DOMAIN}" ;;
+  *) SUFFIX="" ;;
 esac
-export GATEWAY_HOST
+GATEWAY_HOST="gateway${SUFFIX}"
+# SignalR hubs are proxied same-origin straight to their services (the Gateway doesn't
+# reliably proxy WebSocket upgrades), so the services' own ports never need publishing.
+NOTIFICATION_HOST="notificationservice${SUFFIX}"
+CHATBOT_HOST="chatbotservice${SUFFIX}"
+export GATEWAY_HOST NOTIFICATION_HOST CHATBOT_HOST
 
-envsubst '${DNS_RESOLVER} ${GATEWAY_HOST}' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf
+envsubst '${DNS_RESOLVER} ${GATEWAY_HOST} ${NOTIFICATION_HOST} ${CHATBOT_HOST}' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf
 
 exec nginx -g 'daemon off;'

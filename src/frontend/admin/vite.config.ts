@@ -14,7 +14,7 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
-        changeOrigin: true,
+        changeOrigin: false /* keep Host: the Gateway resolves the tenant from it */,
       },
     },
   },

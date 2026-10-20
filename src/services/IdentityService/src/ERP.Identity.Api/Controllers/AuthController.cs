@@ -123,7 +123,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("logout")]
-        [Authorize]
+        [AuthorizeAnyAuthenticatedUser]
         public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken = default)
         {
             var callerUserId = this.GetCallerUserId();

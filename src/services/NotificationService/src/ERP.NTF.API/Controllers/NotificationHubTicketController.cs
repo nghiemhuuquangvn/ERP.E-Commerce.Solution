@@ -35,6 +35,7 @@ public class NotificationHubTicketController : ControllerBase
     // page reload. The header is still read manually (not via [FromHeader]/model binding)
     // since it's just forwarded as an opaque string into the ticket, never parsed here.
     [HttpPost]
+    [AuthorizeAnyAuthenticatedUser]
     public IActionResult IssueTicket()
     {
         var authHeader = Request.Headers.Authorization.ToString();

@@ -10,6 +10,18 @@ already running via `docker-compose.yml` at the repo root — check first with
 `docker ps` before starting anything. Containers are named `erp-<service>` (e.g.
 `erp-product-service`, `erp-gateway`, `erp-admin`).
 
+## Service ports are NOT published any more (2026-10-20)
+
+Only nginx (80), the SPAs (127.0.0.1:3000/3001), the Gateway (127.0.0.1:5000) and infra
+(127.0.0.1) are reachable from the host. To call a service directly (curl, Swagger) add
+the debug override — local machine only:
+```bash
+docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d <service>
+```
+Tenant = request host: through the Gateway use a tenant host (`admin.erp.local`,
+`<tenant>.erp.local`, `<tenant>.shop.erp.local` via /etc/hosts) or `localhost`, which the
+docker-compose Identity config maps to SYSTEM (`Tenancy__FallbackTenantCode`).
+
 ## Rebuilding one service after a code change
 
 ```bash
@@ -67,7 +79,7 @@ any verification report; don't claim a visual PASS you didn't observe.
 ## LoggingService (centralized log management) — quick end-to-end check
 
 ```bash
-curl -s "http://localhost:5016/api/v1/logs?serviceName=<Name>"                 # direct, bypasses Gateway
+curl -s "http://localhost:5016/api/v1/logs?serviceName=<Name>"                 # direct (needs docker-compose.debug.yml)
 curl -s -X POST http://localhost:5016/api/v1/logs/client -d '[{"serviceName":"X","level":"Error","kind":"Exception","message":"..."}]'
 curl -s "http://localhost:5000/logs/api/v1/logs?serviceName=<Name>"           # through Gateway — needs Bearer token, else 401 (expected)
 curl -s -X POST http://localhost:5000/logs/api/v1/logs/client -d '...'        # through Gateway — unauthenticated by design

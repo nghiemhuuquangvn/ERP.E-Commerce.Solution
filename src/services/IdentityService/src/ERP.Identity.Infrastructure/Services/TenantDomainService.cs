@@ -36,9 +36,19 @@ public sealed class TenantDomainService : ITenantDomainService
         if (customDomain is not null)
             return await ByIdAsync(customDomain.Value, ct);
 
-        var baseDomain = TenantDomain.NormalizeHost(_configuration["Tenancy:BaseDomain"]);
-        if (!string.IsNullOrEmpty(baseDomain) && normalized.EndsWith("." + baseDomain, StringComparison.Ordinal))
+        // The bare storefront domain ("shop.erp.com") would otherwise look like tenant "SHOP"
+        // under BaseDomain — it never names a tenant.
+        if (normalized == TenantDomain.NormalizeHost(_configuration["Tenancy:StorefrontBaseDomain"]))
+            return null;
+
+        // Admin hosts "<code>.<BaseDomain>" and storefront hosts "<code>.<StorefrontBaseDomain>"
+        // (e.g. acme.erp.com / acme.shop.erp.com) both map to the tenant with that code.
+        foreach (var key in new[] { "Tenancy:StorefrontBaseDomain", "Tenancy:BaseDomain" })
         {
+            var baseDomain = TenantDomain.NormalizeHost(_configuration[key]);
+            if (string.IsNullOrEmpty(baseDomain) || !normalized.EndsWith("." + baseDomain, StringComparison.Ordinal))
+                continue;
+
             var label = normalized[..^(baseDomain.Length + 1)];
             // Exactly one label: "acme.erp.com" yes, "x.acme.erp.com" no.
             if (label.Length > 0 && !label.Contains('.'))

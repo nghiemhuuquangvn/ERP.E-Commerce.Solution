@@ -45,6 +45,9 @@ try
     // X-User-*/X-Tenant-* headers with no signature verification; see
     // AuthenticationExtensions.AddErpJwtAuthentication/JwtClaimsUserContextService.
     builder.Services.AddErpJwtAuthentication(builder.Configuration);
+    builder.Services.AddErpAuthorization();
+    // Tenant must hold a license for this module (claim "licensed_module"); was missing here.
+    builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Accounting));
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
     builder.Services.AddScoped<UserContext>();
@@ -65,9 +68,10 @@ try
     app.UseSharedLocalization();
     app.UseAuthentication();
     app.UseUserContextHeaderMiddleware();
+    app.UseMiddleware<LicenseEnforcementMiddleware>();
     app.UseCors("AllowAll");
     app.UseAuthorization();
-    app.MapHealthChecks("/health");
+    app.MapHealthChecks("/health").AllowAnonymous();
     app.MapControllers();
 
     app.Run();

@@ -1,3 +1,4 @@
+using ERP.Shared.Authorization;
 using Asp.Versioning;
 using ERP.PRD.Application.Features.Products.Commands;
 using ERP.PRD.Application.Features.Products.Queries;
@@ -44,6 +45,7 @@ namespace ERP.PRD.API.Controllers
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [AuthorizePermission(PermissionConstants.Products_Create)]
         public async Task<IActionResult> CreateProduct([FromBody] CreateProductCommand command)
         {
             _logger.LogInformation("Creating product: {ProductName}", command.Name);
@@ -101,6 +103,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> SetProductTranslation(Guid id, [FromBody] SetProductTranslationCommand command)
         {
             command.ProductId = id;
@@ -121,6 +124,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> UpdateProductDescription(Guid id, [FromBody] UpdateProductDescriptionCommand command)
         {
             command.ProductId = id;
@@ -137,6 +141,7 @@ namespace ERP.PRD.API.Controllers
         [HttpPost("{id}/submit-for-review")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> SubmitForReview(Guid id)
         {
             await _mediator.Send(new SubmitForReviewCommand { ProductId = id });
@@ -149,6 +154,7 @@ namespace ERP.PRD.API.Controllers
         [HttpPut("{id}/seo")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> SetSeo(Guid id, [FromBody] SetProductSeoCommand command)
         {
             command.ProductId = id;
@@ -163,6 +169,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> SetBrand(Guid id, [FromBody] SetProductBrandCommand command)
         {
             command.ProductId = id;
@@ -177,6 +184,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> SetBaseUom(Guid id, [FromBody] SetProductBaseUomCommand command)
         {
             command.ProductId = id;
@@ -189,6 +197,7 @@ namespace ERP.PRD.API.Controllers
         /// </summary>
         [HttpPost("bulk-import")]
         [ProducesResponseType(StatusCodes.Status200OK)]
+        [AuthorizePermission(PermissionConstants.Products_Manage)]
         public async Task<IActionResult> BulkImport([FromBody] BulkImportProductsCommand command)
         {
             var result = await _mediator.Send(command);
@@ -200,6 +209,7 @@ namespace ERP.PRD.API.Controllers
         /// </summary>
         [HttpGet("export")]
         [ProducesResponseType(StatusCodes.Status200OK)]
+        [AuthorizePermission(PermissionConstants.Products_Manage)]
         public async Task<IActionResult> Export([FromQuery] Guid? categoryId = null)
         {
             var csv = await _mediator.Send(new ExportProductsQuery { CategoryId = categoryId });
@@ -216,6 +226,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> PublishProduct(Guid id)
         {
             _logger.LogInformation("Publishing product: {ProductId}", id);
@@ -234,6 +245,7 @@ namespace ERP.PRD.API.Controllers
         [HttpPost("{id}/discontinue")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> DiscontinueProduct(Guid id)
         {
             _logger.LogInformation("Discontinuing product: {ProductId}", id);

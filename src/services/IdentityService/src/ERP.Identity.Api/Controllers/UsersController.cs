@@ -72,7 +72,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{id}/change-password")]
-        [Authorize]
+        [AuthorizeAnyAuthenticatedUser]
         public async Task<IActionResult> ChangePassword([FromRoute] Guid id, [FromBody] ChangePasswordRequest request, CancellationToken ct = default)
         {
             var callerUserId = this.GetCallerUserId();
@@ -84,7 +84,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{id}/2fa/enable")]
-        [Authorize]
+        [AuthorizeAnyAuthenticatedUser]
         public async Task<IActionResult> EnableTwoFactor([FromRoute] Guid id, [FromBody] EnableTwoFactorRequest request, CancellationToken ct = default)
         {
             var callerUserId = this.GetCallerUserId();
@@ -104,7 +104,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{id}/2fa/disable")]
-        [Authorize]
+        [AuthorizeAnyAuthenticatedUser]
         public async Task<IActionResult> DisableTwoFactor([FromRoute] Guid id, CancellationToken ct = default)
         {
             var callerUserId = this.GetCallerUserId();
@@ -203,7 +203,7 @@ namespace ERP.Identity.Api.Controllers
 
         /// <summary>"Where am I logged in" â€” lists this user's active DeviceSessions rows.</summary>
         [HttpGet("{id}/sessions")]
-        [Authorize]
+        [AuthorizeAnyAuthenticatedUser]
         public async Task<IActionResult> ListSessions([FromRoute] Guid id, CancellationToken ct = default)
         {
             var callerUserId = this.GetCallerUserId();
@@ -215,7 +215,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpPost("{id}/sessions/{sessionId}/revoke")]
-        [Authorize]
+        [AuthorizeAnyAuthenticatedUser]
         public async Task<IActionResult> RevokeSession([FromRoute] Guid id, [FromRoute] Guid sessionId, CancellationToken ct = default)
         {
             var callerUserId = this.GetCallerUserId();

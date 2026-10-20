@@ -127,6 +127,9 @@ public class PromotionsController : ControllerBase
     {
         if (!_userContext.IsAuthenticated)
             return Unauthorized();
+        // The redeeming user is always the caller — a body-supplied UserId used to let
+        // anyone consume a coupon on someone else's behalf.
+        command.UserId = _userContext.UserId;
         return Ok(await _mediator.Send(command, ct));
     }
 }

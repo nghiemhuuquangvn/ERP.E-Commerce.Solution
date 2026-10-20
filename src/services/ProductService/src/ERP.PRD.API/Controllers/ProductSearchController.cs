@@ -1,3 +1,4 @@
+using ERP.Shared.Authorization;
 using Asp.Versioning;
 using ERP.PRD.Application.Features.Search.Commands;
 using ERP.PRD.Application.Features.Search.Queries;
@@ -77,6 +78,7 @@ namespace ERP.PRD.API.Controllers
         /// </summary>
         [HttpPost("advanced/reindex-all")]
         [ProducesResponseType(StatusCodes.Status200OK)]
+        [AuthorizePermission(PermissionConstants.Products_Manage)]
         public async Task<IActionResult> ReindexAll()
         {
             _logger.LogInformation("Enqueuing full product search reindex");

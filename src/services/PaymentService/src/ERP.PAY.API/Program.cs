@@ -98,6 +98,7 @@ else
 // X-Tenant-* headers with no signature verification; see
 // AuthenticationExtensions.AddErpJwtAuthentication/JwtClaimsUserContextService.
 builder.Services.AddErpJwtAuthentication(builder.Configuration);
+builder.Services.AddErpAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 builder.Services.AddScoped<UserContext>();
@@ -126,7 +127,7 @@ app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
 app.UseMiddleware<LicenseEnforcementMiddleware>();
 app.UseCors("AllowAll");
 app.UseAuthorization();
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").AllowAnonymous();
 app.MapControllers();
 
 app.Run();

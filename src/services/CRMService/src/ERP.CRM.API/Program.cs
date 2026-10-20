@@ -45,6 +45,7 @@ try
     // X-User-*/X-Tenant-* headers with no signature verification; see
     // AuthenticationExtensions.AddErpJwtAuthentication/JwtClaimsUserContextService).
     builder.Services.AddErpJwtAuthentication(builder.Configuration);
+    builder.Services.AddErpAuthorization();
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
     // Tenant isolation for CrmDbContext: the caller's JWT tenant, or an explicit
@@ -71,7 +72,7 @@ try
     app.UseMiddleware<UserContextHeaderMiddleware>();
     app.UseMiddleware<LicenseEnforcementMiddleware>();
     app.UseAuthorization();
-    app.MapHealthChecks("/health");
+    app.MapHealthChecks("/health").AllowAnonymous();
     app.MapControllers();
 
     app.Run();

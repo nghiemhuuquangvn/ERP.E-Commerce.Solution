@@ -6,7 +6,8 @@ using MediatR;
 
 namespace ERP.CHB.Application.Queries;
 
-public record GetConversationHistoryQuery(Guid ConversationId) : IRequest<ConversationHistoryDto>;
+/// <param name="GuestSessionId">Required to read a guest (anonymous) conversation.</param>
+public record GetConversationHistoryQuery(Guid ConversationId, string? GuestSessionId = null) : IRequest<ConversationHistoryDto>;
 
 public class GetConversationHistoryQueryHandler : IRequestHandler<GetConversationHistoryQuery, ConversationHistoryDto>
 {
@@ -26,6 +27,16 @@ public class GetConversationHistoryQueryHandler : IRequestHandler<GetConversatio
 
         if (conversation.CreatedBy is not null &&
             (!_userContext.IsAuthenticated || _userContext.UserId != conversation.CreatedBy))
+            throw new UnauthorizedAccessException("This conversation does not belong to the current caller.");
+
+        // Guest conversations have no owner account: only the browser session that started
+        // it (its GuestSessionId) may read it — previously any signed-in user of any tenant
+        // could read every guest conversation by id.
+        if (conversation.CreatedBy is null &&
+            (string.IsNullOrEmpty(request.GuestSessionId)
+             || !System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                    System.Text.Encoding.UTF8.GetBytes(request.GuestSessionId),
+                    System.Text.Encoding.UTF8.GetBytes(conversation.GuestSessionId ?? string.Empty))))
             throw new UnauthorizedAccessException("This conversation does not belong to the current caller.");
 
         var dto = new ConversationDto(conversation.Id, conversation.Channel, conversation.Provider,
