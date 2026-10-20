@@ -8,6 +8,7 @@ using ERP.Identity.Infrastructure.OpenIddict;
 using ERP.Identity.Infrastructure.Persistence;
 using ERP.Identity.Infrastructure.Repositories;
 using ERP.Identity.Infrastructure.Services;
+using ERP.Identity.Infrastructure.Security.Signing;
 using ERP.Shared.Authorization;
 using ERP.Shared.Extensions;
 using ERP.Shared.Infrastructure.Caching;
@@ -23,7 +24,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.IdentityModel.Tokens.Jwt;
 using System.Threading.RateLimiting;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -124,16 +124,18 @@ if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
 // original string and this urn: form are accepted below.
 var oidcIssuer = new Uri($"urn:{builder.Configuration["Jwt:Issuer"]}", UriKind.Absolute);
 
-// A3: real asymmetric signing, replacing A0-A2's AddEphemeralSigningKey() stopgap
-// (which regenerated a new key — and so orphaned every previously-issued token and
-// any cached JWKS — on every process restart). Self-managed rather than OpenIddict's
-// own AddDevelopmentSigningCertificate() specifically so the SAME certificate's
-// public key can be added to the "Bearer" JwtBearer scheme's IssuerSigningKeys below —
-// OpenIddict's helper manages the certificate entirely internally with no way to get
-// it back out. Still a development/local stopgap, not production PKI (self-signed, no
-// rotation, no Key Vault/HSM) — flagged as a follow-up decision, not designed further
-// here.
-var signingCertificate = DevSigningCertificateProvider.GetOrCreate();
+// RS256 signing certificates — the private key exists only in this service (Key Vault in
+// production, a PFX on a persistent volume locally; SigningKeys:Source). The current one signs
+// login tokens (TokenService) and OpenIddict tokens; older versions stay in the JWKS
+// (/.well-known/jwks.json) that every other service validates with. Rotation and the HS256
+// cutover: docs/business/Identity/SigningKeys.md.
+using var signingLoggerFactory = LoggerFactory.Create(logging => logging.AddConsole());
+var signingCertificates = SigningCertificateLoader.Load(
+    builder.Configuration,
+    builder.Environment.ContentRootPath,
+    builder.Environment.IsDevelopment(),
+    signingLoggerFactory.CreateLogger("ERP.Identity.SigningKeys"));
+builder.Services.AddSingleton(signingCertificates);
 
 builder.Services.AddOpenIddict()
     .AddServer(options =>
@@ -150,12 +152,10 @@ builder.Services.AddOpenIddict()
 
         options.SetIssuer(oidcIssuer);
 
-        // All OpenIddict-issued tokens (access + ID) are now signed with this one
-        // asymmetric certificate — no more shared-HMAC-secret access tokens (A1/A2's
-        // flagged debt). AddDevelopmentSigningCertificate()/AddSigningCertificate()
-        // implicitly registers RS256; ID tokens already required this per the OIDC
-        // spec (unchanged from A2), access tokens are the actual cutover here.
-        options.AddSigningCertificate(signingCertificate);
+        // Current certificate first (signs), then previous versions (published in the JWKS so
+        // tokens signed before a rotation still validate everywhere).
+        foreach (var certificate in signingCertificates.All)
+            options.AddSigningCertificate(certificate);
 
         // AES encryption keys must be exactly 256 bits; Jwt:Key isn't guaranteed to be
         // (it's sized for HMAC-SHA256 signing, which accepts any length >= 128 bits) —
@@ -226,15 +226,14 @@ builder.Services.AddAuthentication(options =>
             // tokens signed with the same symmetric key, so both are accepted here.
             ValidIssuers = [builder.Configuration["Jwt:Issuer"], oidcIssuer.ToString()],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            // Two valid signing keys: the symmetric Jwt:Key (still what TokenService's
-            // proprietary /api/auth/login flow signs with — A2 explicitly kept that
-            // unchanged), and the A3 signing certificate's public key (what OpenIddict
-            // now signs every access/ID token with, per the asymmetric cutover above).
-            IssuerSigningKeys =
-            [
-                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-                new X509SecurityKey(signingCertificate)
-            ]
+            // RS256 with every published signing certificate (login + OpenIddict tokens), plus
+            // the legacy symmetric Jwt:Key while the HS256 cutover lasts (Jwt:AccessTokenSigning=Hmac
+            // and tokens issued before the switch).
+            IssuerSigningKeys = signingCertificates.All
+                .Select(certificate => (SecurityKey)new X509SecurityKey(certificate))
+                .Append(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)))
+                .ToList(),
+            ValidAlgorithms = [SecurityAlgorithms.RsaSha256, SecurityAlgorithms.HmacSha256]
         };
 
         // A token revoked via /auth/logout, or issued before its user's/tenant's last

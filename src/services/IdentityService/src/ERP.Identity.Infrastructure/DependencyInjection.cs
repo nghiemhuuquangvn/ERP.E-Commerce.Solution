@@ -107,6 +107,8 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<ITenantRepository, TenantRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<IPermissionRepository, PermissionRepository>();
+            // Signing certificates (SigningCertificateSet) are loaded once in Program.cs.
+            services.AddSingleton<ERP.Identity.Infrastructure.Security.Signing.AccessTokenSigningCredentials>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IPasswordHasher, PasswordHasher>();
             services.AddScoped<IPermissionService, PermissionService>();
