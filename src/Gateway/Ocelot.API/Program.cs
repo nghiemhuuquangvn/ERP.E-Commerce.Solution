@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using ERP.Shared.Authorization.TokenRevocation;
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
@@ -6,10 +5,8 @@ using Ocelot.API.Authorization;
 using Ocelot.API.Monitoring;
 using ERP.Shared.Authorization;
 using ERP.Shared.Extensions;
-using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Serilog.Events;
-using System.Text;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -38,44 +35,11 @@ try
     // Ocelot
     builder.Services.AddOcelot(builder.Configuration);
 
-    // Authentication — symmetric key (identity service is custom JWT, not OIDC).
-    // No hardcoded fallback: a silent default here would let anyone forge tokens
-    // against every downstream service if an environment ever forgot to set Jwt:Key.
-    var jwtKey = builder.Configuration["Jwt:Key"]
-        ?? throw new InvalidOperationException("Configuration value 'Jwt:Key' is missing.");
-    ERP.Shared.Authorization.JwtKeyGuard.EnsureUsable(jwtKey, builder.Environment.IsDevelopment());
-    var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
-
+    // Authentication — RS256 with IdentityService's public keys (JWKS), exact issuer and
+    // audience, revoked tokens refused (see GatewayJwtBearer / ErpJwtBearerOptions).
     builder.Services
         .AddAuthentication("Bearer")
-        .AddJwtBearer("Bearer", options =>
-        {
-            options.RequireHttpsMetadata = false;
-            options.MapInboundClaims = false;
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateAudience = false,
-                ValidateIssuer = false,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = signingKey,
-                ClockSkew = TimeSpan.FromSeconds(60)
-            };
-            // Reject revoked tokens at the edge as well (logout, lock, password/role/license
-            // changes) — every service checks again; fails open if Redis is unreachable.
-            options.Events = new JwtBearerEvents
-            {
-                OnTokenValidated = async context =>
-                {
-                    if (context.Principal is null)
-                        return;
-                    var validator = context.HttpContext.RequestServices
-                        .GetRequiredService<ERP.Shared.Authorization.TokenRevocation.TokenRevocationValidator>();
-                    if (await validator.IsRevokedAsync(context.Principal, context.HttpContext.RequestAborted))
-                        context.Fail("Token has been revoked.");
-                }
-            };
-        });
+        .AddJwtBearer("Bearer", options => GatewayJwtBearer.Configure(options, builder.Configuration));
 
     builder.Services.AddTokenRevocation(builder.Configuration);
     builder.Services.AddAuthorization();
