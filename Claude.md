@@ -633,6 +633,25 @@ and PurchaseOrderService (query filter; PO doesn't enforce on save yet) are isol
 other services still share data across tenants — see
 `docs/business/Identity/SecurityReview-2026-10.md`.
 
+## API Authorization (all services)
+
+- Every service: `AddErpJwtAuthentication` + `AddErpAuthorization()` (FallbackPolicy =
+  authenticated user, so a forgotten attribute never means anonymous) and
+  `MapHealthChecks("/health").AllowAnonymous()`.
+- Every HTTP action declares its authorization explicitly, on the action or controller:
+  `[AuthorizePermission(...)]` / `[AuthorizeAnyPermission(...)]` (a permission),
+  `[AuthorizeAnyAuthenticatedUser]` (deliberately any signed-in user — e.g. own reviews,
+  hub tickets; take the user id from the token, never from the body) or `[AllowAnonymous]`
+  (public catalog, payment IPN/callback with signature check). A bare `[Authorize]` is not
+  enough. Enforced by `tests/unit/ERP.Architecture.Tests` (`EndpointAuthorizationTests`).
+- Legacy controllers that check `_userContext.HasPermission(...)` inside each action are
+  listed in that test's `InActionCheckAllowlist`; migrate them to attributes (the list may
+  only shrink). Never add a new controller to it.
+- Only nginx (and, locally, the Gateway/SPAs on 127.0.0.1) are reachable from outside;
+  backend service ports are not published (`docker-compose.debug.yml` for local debugging).
+  APIs and SignalR hubs are served on the tenant's own host (`/api`, `/hubs/*` proxied by
+  the SPA containers) — never on a separate API host.
+
 ## Integration Rules
 
 Services must not access another service database directly.

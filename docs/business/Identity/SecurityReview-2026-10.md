@@ -114,3 +114,23 @@ Deployment notes:
 
 Open: ChatBotService guest chat takes its tenant from the client (`VITE_TENANT_ID`) and bypasses
 the Gateway (SignalR) — should resolve the tenant from the host like the Gateway does.
+
+## Service authorization review — all 16 services (2026-10-20)
+
+Token validation (signature/issuer/audience/lifetime, `MapInboundClaims=false`, claims-only
+user context) is correct in every service. Authorization and isolation were not.
+
+| ID | Severity | Finding | Status |
+|---|---|---|---|
+| S1 | Critical | Tenant data isolation missing in 13 services (only Identity, CRM, PurchaseOrder isolated) — by-id reads/writes cross tenants | **Open — phase 2** (CLAUDE.md "Multi-Tenant Isolation") |
+| S2 | Critical | ProductService catalog endpoints (~45) required only a signed-in user — storefront Customers could edit products, prices, images, import/export, reindex | **Fixed** — `products:view/create/edit/delete/manage` (`023_SeedProductCatalogPermissions.sql`) |
+| S3 | Critical | Hosts didn't match tenant-from-host: `api.erp.local` / `shop.erp.local` / `erp.local` hosts in nginx & ingress, hubs on separate hosts | **Fixed** — `<tenant>.erp.local` (admin), `<tenant>.shop.erp.local` / custom domain (storefront); `/api` + `/hubs/*` same-origin via SPA containers |
+| S4 | Critical | All 17 service ports published by docker-compose (bypass Gateway; Identity trusts X-Tenant-Code) | **Fixed** — ports removed (`docker-compose.debug.yml` for local), infra bound to 127.0.0.1 |
+| S5 | High | Revoked tokens (logout/lock/password/role change) still accepted by other services until expiry | Open — phase 3 (Redis revocation + authz version) |
+| S6 | High | OIDC (RS256) tokens rejected by all services | Open — phase 4 (JWKS) |
+| S7 | High | `redeem-coupon` used body UserId; product review used body CustomerId; notification templates anonymous; guest chat history readable by anyone signed in | **Fixed** |
+| S8 | High | Accounting / SaleOrder ran without `LicenseEnforcementMiddleware` | **Fixed** (tenants without ACC/SO modules now get 403) |
+| S9 | High | RabbitMQ management and kafka-ui published via nginx/ingress | **Fixed** — removed; reach via 127.0.0.1 / port-forward |
+| S10 | Medium | Three authorization styles; nothing caught a missing check | **Fixed (guard)** — FallbackPolicy + `EndpointAuthorizationTests`; 57 legacy in-action controllers allowlisted (phase 5) |
+| S11 | Medium | Hub accepts raw JWT in query string; `HUBAUTH2` logs at Error | Open — phase 5 |
+| — | Note | WareHouseService does check `inventory:*` in every action (initial scan misread) | — |

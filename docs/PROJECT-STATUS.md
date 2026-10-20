@@ -2,7 +2,7 @@
 
 > Read this right after `CLAUDE.md` when picking the work up on another machine.
 > Keep it current: update it at the end of every work session (what changed, what's next).
-> Last updated: **2026-10-20**.
+> Last updated: **2026-10-20** (service authorization phase 1).
 
 ## 1. Where things stand
 
@@ -10,11 +10,25 @@
 |---|---|---|
 | `master` (origin) | includes PR #1 | Outbox/EventId fixes + IdentityService security hardening (commit `73970b5`), CRM tenant isolation + shared tenant-isolation primitives (PR #1 = `feature/tenant-isolation`) |
 | `feature/identity-authorization-tenant-host` | committed locally (6 commits on top of master) — **push it before switching machines** | User/role/permission isolation + "tenant = request host" (see §2) |
+| `feature/service-authz-phase1` | branched from the one above; phase 1 of the service authorization plan | Product permissions, explicit authorization everywhere, same-origin hosts, closed service ports (see §2) |
 
 On a fresh clone: `git fetch && git switch feature/identity-authorization-tenant-host` (once pushed).
 Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
+
+### 2026-10-20 — Service authorization, phase 1 (`feature/service-authz-phase1`)
+Review of all 16 services: `docs/business/Identity/SecurityReview-2026-10.md` ("Service
+authorization review"). Done: ProductService permissions (`products:*`, migration
+`Identity/023`); `AddErpAuthorization()` FallbackPolicy in every service; explicit
+`[AuthorizeAnyAuthenticatedUser]`/`[AllowAnonymous]`; `tests/unit/ERP.Architecture.Tests`
+(fails on any action without explicit authorization; 57 legacy in-action-check controllers
+allowlisted); coupon/review take the user from the token; templates need a permission; guest
+chat history needs its session id; license enforcement in Accounting + SaleOrder; nginx /
+ingress host conventions (`<tenant>.erp.local` admin, `<tenant>.shop.erp.local` storefront,
+custom domains → storefront) with `/api` and `/hubs/*` same-origin; no published service
+ports (`docker-compose.debug.yml`), infra on 127.0.0.1; broker UIs no longer public;
+`Tenancy:StorefrontBaseDomain`.
 
 ### 2026-10-20 — Identity authorization & tenant-from-host (`feature/identity-authorization-tenant-host`)
 Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up review").
@@ -49,7 +63,7 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 - Outbox: `OutboxEventDeserializer`, stable `EventId`, batching, dead-lettering (CLAUDE.md "Outbox rules").
 
 ## 3. Deployment prerequisites (don't skip — behaviour depends on them)
-1. Run migrations in order: CRM `005`, Identity `021`, `022`, Notification `008`
+1. Run migrations in order: CRM `005`, Identity `021`, `022`, `023`, Notification `008`
    (`deployment/docker/run-migrations.sh` runs every `*.sql` in filename order).
 2. `.env`: fresh `JWT_SIGNING_KEY` (`openssl rand -base64 48`) — containers run as Production and
    refuse placeholder/leaked keys (`JwtKeyGuard`). **Rotate** the SA password and JWT key that
@@ -57,12 +71,20 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 3. Tenancy config: IdentityService `Tenancy:BaseDomain`, `Tenancy:PlatformHost`; Gateway
    `Tenancy:IdentityUrl`. `Tenancy:FallbackTenantCode` is `SYSTEM` only in Development /
    docker-compose (so `http://localhost` works) — **must be empty in real multi-tenant prod**.
-4. Only nginx/Gateway may be publicly reachable (services trust Gateway-set `X-Tenant-*`).
+4. Only nginx may be publicly reachable (services trust Gateway-set `X-Tenant-*`); docker-compose
+   no longer publishes service ports. Hosts: `<tenant>.erp.local` (admin, platform =
+   `admin.erp.local`), `<tenant>.shop.erp.local` (storefront), custom domains (storefront);
+   locally add them to /etc/hosts or use `localhost` (falls back to SYSTEM).
+   Tenants on plans without ACC/SO modules now get 403 from Accounting/SaleOrder.
 5. Review the API keys listed by migration 021 and revoke them.
 
 ## 4. Backlog (prioritised — from the 2026-10-20 system inventory)
 
 **P0 — security / data integrity**
+- Service authorization phases 2–5 (plan in SecurityReview "Service authorization review"):
+  2) tenant isolation below; 3) Redis-backed token revocation + authz version checked by every
+  service; 4) RS256/JWKS validation so OIDC tokens work and no service can mint tokens;
+  5) migrate the 57 allowlisted controllers to attributes, hub ticket-only, `ValidAlgorithms`.
 - Roll out tenant isolation (CLAUDE.md pattern) to: Accounting, HRM, POS, Payment, Product,
   Promotion, Reporting, SaleOrder, MasterData, Shipping, Warehouse, Notification, ChatBot.
   Per service: does it stamp TenantId on writes? do consumed events carry TenantId
