@@ -14,7 +14,7 @@ let connection: signalR.HubConnection | null = null
 
 function buildConnection(): signalR.HubConnection {
   return new signalR.HubConnectionBuilder()
-    .withUrl(`${import.meta.env.VITE_CHATBOT_WS_URL}/hubs/chat`, {
+    .withUrl(`${import.meta.env.VITE_CHATBOT_WS_URL ?? ''}/hubs/chat`, {
       // A short single-use ticket, not the raw JWT — this platform's tokens carry the
       // caller's full permission set (240+ claims for an admin-ish role, 10KB+), which
       // blows past Kestrel's default 8KB request-line limit when put on a WebSocket URL

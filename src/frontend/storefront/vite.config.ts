@@ -10,7 +10,7 @@ export default defineConfig({
   server: {
     port: 3001,
     proxy: {
-      '/api': { target: 'http://localhost:5000', changeOrigin: true },
+      '/api': { target: 'http://localhost:5000', changeOrigin: false /* keep Host: the Gateway resolves the tenant from it */ },
     },
   },
 })

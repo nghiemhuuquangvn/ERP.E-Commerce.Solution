@@ -1,53 +1,36 @@
 # Requires nginx ingress controller: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.0/deploy/static/provider/cloud/deploy.yaml
+#
+# Tenant = request host (docs/business/Identity/MultiTenantLogin.md, SecurityReview-2026-10.md):
+#   <tenant>.erp.local       -> admin       (platform/SYSTEM tenant: admin.erp.local)
+#   <tenant>.shop.erp.local  -> storefront
+#   custom tenant domains    -> storefront  (add one rule per domain, or a default backend)
+# The SPA containers proxy /api, /<svc>/api, /connect, /.well-known and the SignalR hubs
+# (/hubs/chat, /hubs/notifications) on the SAME host with the Host header intact — the
+# Gateway resolves the tenant from it. Removed on purpose (2026-10-20):
+#   api.erp.local            — a host that belongs to no tenant can't carry tenant requests;
+#   chat./notifications.     — hubs are same-origin now;
+#   rabbit./kafka.erp.local  — broker admin UIs must not be public (kubectl port-forward).
+# No rewrite-target: paths are forwarded unchanged.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: erp-ingress
   namespace: erp
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "32k"
 spec:
   ingressClassName: nginx
+  defaultBackend:
+    service:
+      name: storefront
+      port:
+        number: 80
   rules:
-  - host: api.erp.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: gateway
-            port:
-              number: 5000
-  - host: erp.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: admin
-            port:
-              number: 80
-  # SYSTEM tenant subdomain — GatewayAuthorizationMiddleware.ResolveTenantCodeFromHost
-  # resolves the anonymous auth endpoints' tenant from the request's subdomain (host minus
-  # ".erp.local"), and returns null for the bare base domain itself. Admin's login page no
-  # longer sends a tenant code at all (replaced by this), so the SuperAdmin/SYSTEM tenant
-  # needs its own subdomain, same backend as the bare host above, or login 400s with
-  # "Unable to resolve tenant from request host."
-  - host: system.erp.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: admin
-            port:
-              number: 80
-  - host: shop.erp.local
+  # Wildcard matches exactly one label, so it never swallows *.shop.erp.local.
+  - host: "*.shop.erp.local"
     http:
       paths:
       - path: /
@@ -57,55 +40,13 @@ spec:
             name: storefront
             port:
               number: 80
-  # ChatBotService's SignalR hub, dedicated host so both Admin (erp.local/system.erp.local)
-  # and Storefront (shop.erp.local) can reach it same-shape via VITE_CHATBOT_WS_URL without
-  # going through the Ocelot Gateway (see chatbot.yaml's Service comment — Ocelot doesn't
-  # reliably proxy the WebSocket upgrade). ingress-nginx passes WebSocket upgrades through
-  # natively. (chatbotservice's Service previously set sessionAffinity: ClientIP for
-  # sticky routing, but that requires the iptables `-m recent` kernel module, which
-  # this environment's WSL2 kernel doesn't support — kube-proxy's whole ruleset sync
-  # fails atomically when any Service needs it, breaking ClusterIP routing
-  # cluster-wide. Removed; harmless since chatbot-service runs a single replica.)
-  - host: chat.erp.local
+  - host: "*.erp.local"
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: chatbotservice
+            name: admin
             port:
-              number: 5017
-  # NotificationService's bell SignalR hub — same reasoning/shape as chat.erp.local
-  # above (bypasses the Ocelot Gateway; ingress-nginx passes the WebSocket upgrade
-  # through natively).
-  - host: notifications.erp.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: notificationservice
-            port:
-              number: 5013
-  - host: rabbit.erp.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: rabbitmq-ui
-            port:
-              number: 15672
-  - host: kafka.erp.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: kafka-ui
-            port:
-              number: 8080
+              number: 80

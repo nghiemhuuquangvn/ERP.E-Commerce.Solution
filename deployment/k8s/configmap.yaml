@@ -17,3 +17,13 @@ data:
   RabbitMQSettings__UserName: "admin"
   RabbitMQSettings__VirtualHost: "/"
   Elasticsearch__Uri: "http://elasticsearch:9200"
+  # Tenant = request host (IdentityService resolves, Gateway enforces). No
+  # Tenancy__FallbackTenantCode here: in a multi-tenant cluster every unknown host must 404.
+  Tenancy__BaseDomain: "erp.local"
+  Tenancy__StorefrontBaseDomain: "shop.erp.local"
+  Tenancy__PlatformHost: "admin.erp.local"
+  Tenancy__IdentityUrl: "http://identityservice:5001"
+  # Trust X-Forwarded-For only from in-cluster proxies (ingress / SPA nginx).
+  ForwardedHeaders__KnownNetworks__0: "10.0.0.0/8"
+  ForwardedHeaders__KnownNetworks__1: "172.16.0.0/12"
+  ForwardedHeaders__KnownNetworks__2: "192.168.0.0/16"

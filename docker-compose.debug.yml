@@ -1,0 +1,24 @@
+# Local debugging only — publishes every backend service's port on 127.0.0.1 so you can
+# call a service directly (Swagger, curl, `npm run dev` hub URLs):
+#   docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d
+# Never use this file in a shared/production environment: a directly reachable service
+# bypasses the Gateway's tenant-from-host binding, and IdentityService trusts the
+# Gateway-set X-Tenant-* headers.
+services:
+  identityservice:       { ports: ["127.0.0.1:5001:5001"] }
+  salesorderservice:     { ports: ["127.0.0.1:5002:5002"] }
+  purchaseorderservice:  { ports: ["127.0.0.1:5003:5003"] }
+  warehouseservice:      { ports: ["127.0.0.1:5004:5004"] }
+  accountingservice:     { ports: ["127.0.0.1:5005:5005"] }
+  crmservice:            { ports: ["127.0.0.1:5006:5006"] }
+  hrmservice:            { ports: ["127.0.0.1:5007:5007"] }
+  productservice:        { ports: ["127.0.0.1:5008:5008"] }
+  paymentservice:        { ports: ["127.0.0.1:5009:5009"] }
+  shippingservice:       { ports: ["127.0.0.1:5010:5010"] }
+  posservice:            { ports: ["127.0.0.1:5011:5011"] }
+  promotionservice:      { ports: ["127.0.0.1:5012:5012"] }
+  notificationservice:   { ports: ["127.0.0.1:5013:5013"] }
+  reportingservice:      { ports: ["127.0.0.1:5014:5014"] }
+  masterdataservice:     { ports: ["127.0.0.1:5015:5015"] }
+  loggingservice:        { ports: ["127.0.0.1:5016:5016"] }
+  chatbotservice:        { ports: ["127.0.0.1:5017:5017"] }

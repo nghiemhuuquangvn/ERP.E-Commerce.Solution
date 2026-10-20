@@ -42,7 +42,7 @@ function getConnection(): signalR.HubConnection {
   if (connection) return connection
 
   connection = new signalR.HubConnectionBuilder()
-    .withUrl(`${import.meta.env.VITE_CHATBOT_WS_URL}/hubs/chat`, {
+    .withUrl(`${import.meta.env.VITE_CHATBOT_WS_URL ?? ''}/hubs/chat`, {
       // A short single-use ticket, not the raw JWT — an admin's token carries 240+
       // permission claims (10KB+), which blows past Kestrel's default 8KB request-line
       // limit when put on a WebSocket URL (?access_token=...), failing the handshake

@@ -25,7 +25,7 @@ services:
       MSSQL_SA_PASSWORD: ${SA_PASSWORD}
       MSSQL_PID: Developer
     ports:
-      - "1433:1433"
+      - "127.0.0.1:1433:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
     restart: unless-stopped
@@ -67,8 +67,8 @@ services:
     container_name: erp-rabbitmq
     hostname: rabbitmq
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
@@ -88,7 +88,7 @@ services:
     container_name: erp-kafka
     hostname: kafka
     ports:
-      - "9092:9092"
+      - "127.0.0.1:9092:9092"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -123,7 +123,7 @@ services:
     container_name: erp-redis
     hostname: redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save 60 1
     volumes:
       - redis_data:/data
@@ -141,7 +141,7 @@ services:
     container_name: erp-elasticsearch
     hostname: elasticsearch
     ports:
-      - "9200:9200"
+      - "127.0.0.1:9200:9200"
     environment:
       discovery.type: single-node
       xpack.security.enabled: "false"
@@ -163,7 +163,7 @@ services:
     hostname: azurite
     command: "azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --location /data"
     ports:
-      - "10000:10000"
+      - "127.0.0.1:10000:10000"
     volumes:
       - azurite_data:/data
     restart: unless-stopped
@@ -174,7 +174,7 @@ services:
     image: provectuslabs/kafka-ui:latest
     container_name: erp-kafka-ui
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: erp-local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
@@ -199,7 +199,7 @@ services:
         ASSEMBLY_NAME: Ocelot.API
     container_name: erp-gateway
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     environment:
       ASPNETCORE_URLS: "http://+:5000"
       ASPNETCORE_ENVIRONMENT: Production
@@ -224,8 +224,6 @@ services:
         PROJECT_FILE: ERP.Identity.API.csproj
         ASSEMBLY_NAME: ERP.Identity.API
     container_name: erp-identity-service
-    ports:
-      - "5001:5001"
     environment:
       ASPNETCORE_URLS: "http://+:5001"
       ASPNETCORE_ENVIRONMENT: Production
@@ -246,6 +244,7 @@ services:
       # host), so fall back to SYSTEM. NEVER set FallbackTenantCode in a real multi-tenant
       # deployment — every unknown host would become that tenant.
       Tenancy__BaseDomain: "erp.local"
+      Tenancy__StorefrontBaseDomain: "shop.erp.local"
       Tenancy__PlatformHost: "admin.erp.local"
       Tenancy__FallbackTenantCode: "SYSTEM"
     depends_on:
@@ -269,8 +268,6 @@ services:
         PROJECT_FILE: ERP.SO.Api.csproj
         ASSEMBLY_NAME: ERP.SO.Api
     container_name: erp-salesorder-service
-    ports:
-      - "5002:5002"
     environment:
       ASPNETCORE_URLS: "http://+:5002"
       ASPNETCORE_ENVIRONMENT: Production
@@ -305,8 +302,6 @@ services:
         PROJECT_FILE: ERP.PO.Api.csproj
         ASSEMBLY_NAME: ERP.PO.Api
     container_name: erp-purchaseorder-service
-    ports:
-      - "5003:5003"
     environment:
       ASPNETCORE_URLS: "http://+:5003"
       ASPNETCORE_ENVIRONMENT: Production
@@ -341,8 +336,6 @@ services:
         PROJECT_FILE: ERP.WH.API.csproj
         ASSEMBLY_NAME: ERP.WH.API
     container_name: erp-warehouse-service
-    ports:
-      - "5004:5004"
     environment:
       ASPNETCORE_URLS: "http://+:5004"
       ASPNETCORE_ENVIRONMENT: Production
@@ -377,8 +370,6 @@ services:
         PROJECT_FILE: ERP.ACC.API.csproj
         ASSEMBLY_NAME: ERP.ACC.API
     container_name: erp-accounting-service
-    ports:
-      - "5005:5005"
     environment:
       ASPNETCORE_URLS: "http://+:5005"
       ASPNETCORE_ENVIRONMENT: Production
@@ -413,8 +404,6 @@ services:
         PROJECT_FILE: ERP.CRM.API.csproj
         ASSEMBLY_NAME: ERP.CRM.API
     container_name: erp-crm-service
-    ports:
-      - "5006:5006"
     environment:
       ASPNETCORE_URLS: "http://+:5006"
       ASPNETCORE_ENVIRONMENT: Production
@@ -449,8 +438,6 @@ services:
         PROJECT_FILE: ERP.HRM.API.csproj
         ASSEMBLY_NAME: ERP.HRM.API
     container_name: erp-hrm-service
-    ports:
-      - "5007:5007"
     environment:
       ASPNETCORE_URLS: "http://+:5007"
       ASPNETCORE_ENVIRONMENT: Production
@@ -481,8 +468,6 @@ services:
         PROJECT_FILE: ERP.MST.API.csproj
         ASSEMBLY_NAME: ERP.MST.API
     container_name: erp-masterdata-service
-    ports:
-      - "5015:5015"
     environment:
       ASPNETCORE_URLS: "http://+:5015"
       ASPNETCORE_ENVIRONMENT: Production
@@ -513,8 +498,6 @@ services:
         PROJECT_FILE: ERP.LOG.API.csproj
         ASSEMBLY_NAME: ERP.LOG.API
     container_name: erp-logging-service
-    ports:
-      - "5016:5016"
     environment:
       ASPNETCORE_URLS: "http://+:5016"
       ASPNETCORE_ENVIRONMENT: Production
@@ -540,8 +523,6 @@ services:
         PROJECT_FILE: ERP.PRD.API.csproj
         ASSEMBLY_NAME: ERP.PRD.API
     container_name: erp-product-service
-    ports:
-      - "5008:5008"
     environment:
       ASPNETCORE_URLS: "http://+:5008"
       ASPNETCORE_ENVIRONMENT: Production
@@ -583,8 +564,6 @@ services:
         PROJECT_FILE: ERP.PAY.API.csproj
         ASSEMBLY_NAME: ERP.PAY.API
     container_name: erp-payment-service
-    ports:
-      - "5009:5009"
     environment:
       ASPNETCORE_URLS: "http://+:5009"
       ASPNETCORE_ENVIRONMENT: Production
@@ -619,8 +598,6 @@ services:
         PROJECT_FILE: ERP.SHP.API.csproj
         ASSEMBLY_NAME: ERP.SHP.API
     container_name: erp-shipping-service
-    ports:
-      - "5010:5010"
     environment:
       ASPNETCORE_URLS: "http://+:5010"
       ASPNETCORE_ENVIRONMENT: Production
@@ -655,8 +632,6 @@ services:
         PROJECT_FILE: ERP.POS.API.csproj
         ASSEMBLY_NAME: ERP.POS.API
     container_name: erp-pos-service
-    ports:
-      - "5011:5011"
     environment:
       ASPNETCORE_URLS: "http://+:5011"
       ASPNETCORE_ENVIRONMENT: Production
@@ -691,8 +666,6 @@ services:
         PROJECT_FILE: ERP.PRM.API.csproj
         ASSEMBLY_NAME: ERP.PRM.API
     container_name: erp-promotion-service
-    ports:
-      - "5012:5012"
     environment:
       ASPNETCORE_URLS: "http://+:5012"
       ASPNETCORE_ENVIRONMENT: Production
@@ -727,8 +700,6 @@ services:
         PROJECT_FILE: ERP.NTF.API.csproj
         ASSEMBLY_NAME: ERP.NTF.API
     container_name: erp-notification-service
-    ports:
-      - "5013:5013"
     environment:
       ASPNETCORE_URLS: "http://+:5013"
       ASPNETCORE_ENVIRONMENT: Production
@@ -765,12 +736,9 @@ services:
         PROJECT_FILE: ERP.CHB.API.csproj
         ASSEMBLY_NAME: ERP.CHB.API
     container_name: erp-chatbot-service
-    ports:
-      # Exposed directly (not only reachable via the Gateway on 5000) because ChatHub's
-      # SignalR WebSocket connections bypass Ocelot — see the plan doc's "Streaming
-      # real-time" section. REST endpoints (/api/v1/chatbot/...) are still reachable both
-      # ways; the frontend clients connect the Hub straight to this port.
-      - "5017:5017"
+    # No published port: ChatHub is reached same-origin through the SPA containers'
+    # nginx (/hubs/chat -> chatbotservice:5017), REST through the Gateway. For local
+    # debugging use docker-compose.debug.yml.
     environment:
       ASPNETCORE_URLS: "http://+:5017"
       ASPNETCORE_ENVIRONMENT: Production
@@ -803,8 +771,6 @@ services:
         PROJECT_FILE: ERP.RPT.API.csproj
         ASSEMBLY_NAME: ERP.RPT.API
     container_name: erp-reporting-service
-    ports:
-      - "5014:5014"
     environment:
       ASPNETCORE_URLS: "http://+:5014"
       ASPNETCORE_ENVIRONMENT: Production
@@ -840,7 +806,7 @@ services:
       dockerfile: Dockerfile
     container_name: erp-admin
     ports:
-      - "3000:80"
+      - "127.0.0.1:3000:80"
     depends_on:
       - gateway
     restart: unless-stopped
@@ -854,7 +820,7 @@ services:
       dockerfile: Dockerfile
     container_name: erp-storefront
     ports:
-      - "3001:80"
+      - "127.0.0.1:3001:80"
     depends_on:
       - gateway
     restart: unless-stopped
@@ -874,8 +840,6 @@ services:
       - admin
       - storefront
       - gateway
-      - rabbitmq
-      - kafka-ui
     restart: unless-stopped
     networks:
       - erp-network

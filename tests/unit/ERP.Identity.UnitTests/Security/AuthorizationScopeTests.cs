@@ -344,6 +344,7 @@ public class AuthorizationScopeTests
         new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Tenancy:BaseDomain"] = "erp.com",
+            ["Tenancy:StorefrontBaseDomain"] = "shop.erp.com",
             ["Tenancy:PlatformHost"] = "admin.erp.com",
             ["Tenancy:FallbackTenantCode"] = fallback,
         }).Build());
@@ -357,6 +358,7 @@ public class AuthorizationScopeTests
         (await resolver.ResolveAsync("admin.erp.com", default))!.IsPlatform.Should().BeTrue();
         (await resolver.ResolveAsync("SHOP.acme.com:443", default))!.TenantId.Should().Be(acme.Id);
         (await resolver.ResolveAsync("acme.erp.com", default))!.TenantId.Should().Be(acme.Id);
+        (await resolver.ResolveAsync("acme.shop.erp.com", default))!.TenantId.Should().Be(acme.Id);
     }
 
     [Theory]
@@ -364,6 +366,7 @@ public class AuthorizationScopeTests
     [InlineData("x.acme.erp.com")]     // nested subdomain
     [InlineData("gone.erp.com")]       // inactive tenant
     [InlineData("erp.com")]            // bare base domain
+    [InlineData("shop.erp.com")]       // bare storefront base domain (no tenant label)
     public async Task ResolveHost_UnknownOrInactive_ResolvesNothing(string host)
     {
         var (db, _, _) = SeedTenants();

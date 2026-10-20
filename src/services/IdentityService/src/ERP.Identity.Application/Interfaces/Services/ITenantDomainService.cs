@@ -7,7 +7,8 @@ public record TenantDomainDto(Guid Id, Guid TenantId, string Host, bool IsPrimar
 
 /// <summary>
 /// Host → tenant mapping, the single source of "which tenant is this URL". Resolution order:
-/// Tenancy:PlatformHost → SYSTEM; a registered TenantDomains host; "&lt;code&gt;.&lt;Tenancy:BaseDomain&gt;";
+/// Tenancy:PlatformHost → SYSTEM; a registered TenantDomains host; "&lt;code&gt;.&lt;Tenancy:BaseDomain&gt;" (admin)
+/// or "&lt;code&gt;.&lt;Tenancy:StorefrontBaseDomain&gt;" (storefront);
 /// finally Tenancy:FallbackTenantCode (single-tenant / local development only).
 /// Only active tenants resolve.
 /// </summary>
