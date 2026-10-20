@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsTestProject>true</IsTestProject>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Every API project defines a top-level Program; we only reflect over assemblies. -->
+    <NoWarn>$(NoWarn);CS0436</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="xunit" Version="2.6.6" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.6">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.1" />
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="Moq" Version="4.20.70" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\\Gateway\\Ocelot.API\\Ocelot.API.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\AccountingService\\src\\ERP.ACC.API\\ERP.ACC.API.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\CRMService\\src\\ERP.CRM.API\\ERP.CRM.API.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\ChatBotService\\src\\ERP.CHB.API\\ERP.CHB.API.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\HRMService\\src\\ERP.HRM.API\\ERP.HRM.API.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\IdentityService\\src\\ERP.Identity.Api\\ERP.Identity.API.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\LoggingService\\src\\ERP.LOG.API\\ERP.LOG.API.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\NotificationService\\src\\ERP.NTF.API\\ERP.NTF.API.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\POSService\\src\\ERP.POS.API\\ERP.POS.API.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\PaymentService\\src\\ERP.PAY.API\\ERP.PAY.API.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\ProductService\\src\\ERP.PRD.API\\ERP.PRD.API.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\PromotionService\\src\\ERP.PRM.API\\ERP.PRM.API.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\PurchaseOrderService\\src\\ERP.PO.Api\\ERP.PO.Api.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\ReportingService\\src\\ERP.RPT.API\\ERP.RPT.API.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\SaleOrderService\\src\\ERP.SO.Api\\ERP.SO.Api.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\SharedMasterDataService\\src\\ERP.MST.API\\ERP.MST.API.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\ShippingService\\src\\ERP.SHP.API\\ERP.SHP.API.csproj" />
+    <ProjectReference Include="..\..\..\src\\services\\WareHouseService\\src\\ERP.WH.API\\ERP.WH.API.csproj" />
+  </ItemGroup>
+
+</Project>
