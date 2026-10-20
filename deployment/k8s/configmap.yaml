@@ -23,6 +23,9 @@ data:
   Tenancy__StorefrontBaseDomain: "shop.erp.local"
   Tenancy__PlatformHost: "admin.erp.local"
   Tenancy__IdentityUrl: "http://identityservice:5001"
+  # Access tokens are validated with IdentityService's public keys (JWKS over in-cluster http).
+  Jwt__Authority: "http://identityservice:5001"
+  Jwt__RequireHttpsMetadata: "false"
   # Trust X-Forwarded-For only from in-cluster proxies (ingress / SPA nginx).
   ForwardedHeaders__KnownNetworks__0: "10.0.0.0/8"
   ForwardedHeaders__KnownNetworks__1: "172.16.0.0/12"
