@@ -68,6 +68,8 @@ namespace ERP.Identity.Infrastructure.Services
             var role = await _unitOfWork.Roles.GetByIdInTenantAsync(id, callerTenantId, ct)
                 ?? throw new EntityNotFoundException("Role", id);
 
+            // Resolve holders before the delete cascades their UserRoles away.
+            _unitOfWork.Revocations.UsersChanged((await _unitOfWork.Users.GetUserIdsByRoleAsync(id, callerTenantId, ct)).ToArray());
             await _unitOfWork.Roles.DeleteAsync(role, ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
@@ -99,6 +101,7 @@ namespace ERP.Identity.Infrastructure.Services
             // Identity already owns the UserRoles join, keeping the published domain event
             // fully self-describing for NotificationService's bell notification.
             var affectedUserIds = await _unitOfWork.Users.GetUserIdsByRoleAsync(roleId, tenantId, ct);
+            _unitOfWork.Revocations.UsersChanged(affectedUserIds.ToArray()); // their tokens lack the new grant
             role.NotifyPermissionGranted(permission.Id, permission.PermissionCode, affectedUserIds, changedByUserId, changedByName);
             await _unitOfWork.SaveChangesAsync(ct);
         }
@@ -109,6 +112,8 @@ namespace ERP.Identity.Infrastructure.Services
                 ?? throw new EntityNotFoundException("Role", roleId);
 
             await _unitOfWork.Permissions.RemoveFromRoleAsync(roleId, permissionId, tenantId, ct);
+            // Holders of the role must not keep the removed permission until their token expires.
+            _unitOfWork.Revocations.UsersChanged((await _unitOfWork.Users.GetUserIdsByRoleAsync(roleId, tenantId, ct)).ToArray());
             await _unitOfWork.SaveChangesAsync(ct);
         }
 

@@ -18,6 +18,12 @@ public class RoleServiceTests
     public RoleServiceTests()
     {
         _mockUnitOfWork = new Mock<IUnitOfWork>();
+        _mockUnitOfWork.Setup(u => u.Revocations).Returns(new Mock<ERP.Identity.Application.Interfaces.Services.ITokenRevocationQueue>().Object);
+        // Role edits resolve the role holders to invalidate their tokens (none here).
+        var users = new Mock<IUserRepository>();
+        users.Setup(r => r.GetUserIdsByRoleAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<Guid>());
+        _mockUnitOfWork.Setup(u => u.Users).Returns(users.Object);
         _roleService = new RoleService(_mockUnitOfWork.Object);
     }
 

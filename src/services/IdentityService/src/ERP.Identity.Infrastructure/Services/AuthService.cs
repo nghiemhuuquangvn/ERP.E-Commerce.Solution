@@ -418,6 +418,8 @@ namespace ERP.Identity.Infrastructure.Services
             User user, AuthTenant tenant, string auditEventName, string? ipAddress, string? userAgent, CancellationToken ct)
         {
             var reason = !user.IsActive ? "Account deactivated"
+                // Admin lock only: a failed-login lockout must not end existing sessions.
+                : user.IsAdministrativelyLocked ? "Account locked"
                 : !tenant.IsActive ? "Tenant inactive"
                 : null;
             if (reason == null)

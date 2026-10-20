@@ -98,6 +98,10 @@ namespace ERP.Identity.Infrastructure
             services.AddSingleton<IMessageBus, KafkaMessageBus>();
             services.AddScoped<IDomainEventHandler<UserRegisteredDomainEvent>, UserRegisteredDomainEventHandler>();
 
+            // Per-unit-of-work queue publishing to the shared revocation store after commit —
+            // logout/lock/password/role/license changes reach every service. The store itself
+            // (AddTokenRevocation) is registered in Program.cs, which has the configuration.
+            services.AddScoped<ITokenRevocationQueue, ERP.Identity.Infrastructure.Security.TokenRevocationQueue>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<ITenantRepository, TenantRepository>();

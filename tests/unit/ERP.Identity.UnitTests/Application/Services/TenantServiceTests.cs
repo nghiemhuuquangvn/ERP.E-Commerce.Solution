@@ -17,6 +17,7 @@ public class TenantServiceTests
     public TenantServiceTests()
     {
         _mockUnitOfWork = new Mock<IUnitOfWork>();
+        _mockUnitOfWork.Setup(u => u.Revocations).Returns(new Mock<ERP.Identity.Application.Interfaces.Services.ITokenRevocationQueue>().Object);
         _tenantService = new TenantService(_mockUnitOfWork.Object);
     }
 

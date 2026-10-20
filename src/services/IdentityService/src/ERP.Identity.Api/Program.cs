@@ -1,3 +1,4 @@
+using ERP.Shared.Authorization.TokenRevocation;
 using ERP.Identity.Api.Authorization;
 using ERP.Identity.Application;
 using ERP.Identity.Application.Interfaces.Repositories;
@@ -42,6 +43,9 @@ builder.Services.AddCacheService(builder.Configuration, "identity");
 try
 {
     builder.Services.AddInfrastructure();
+    // Shared token revocation store (Redis via ConnectionStrings:Redis) — written by the
+    // revocation queue after each commit, read by the JWT check below and by every service.
+    builder.Services.AddTokenRevocation(builder.Configuration);
 }
 catch (System.Reflection.ReflectionTypeLoadException ex)
 {
@@ -233,14 +237,10 @@ builder.Services.AddAuthentication(options =>
             ]
         };
 
-        // Session-management gap: a token blacklisted via /auth/logout must stop
-        // working immediately, not just at its natural expiry. All 13 downstream
-        // services now independently validate JWT signature/expiry too (via
-        // AddErpJwtAuthentication), but none of them check TokenBlacklist — that
-        // check only runs here, on Identity's own JWT validation. A blacklisted
-        // token's signature/expiry are still valid, so it keeps working against
-        // every other service until it expires naturally (known, documented
-        // limitation — needs a shared revocation store to close fully).
+        // A token revoked via /auth/logout, or issued before its user's/tenant's last
+        // security-relevant change, must stop working immediately. Every service checks the
+        // shared revocation store (AddErpJwtAuthentication); Identity checks it here too,
+        // plus its own DB blacklist as a fallback when Redis is unavailable.
         options.Events = new JwtBearerEvents
         {
             OnTokenValidated = async context =>
@@ -248,6 +248,15 @@ builder.Services.AddAuthentication(options =>
                 var jti = context.Principal?.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
                 if (string.IsNullOrEmpty(jti))
                     return;
+
+                // Shared store first (also covers lock / password / role / license changes via
+                // iat), then the DB blacklist as a fallback when Redis is unavailable.
+                var validator = context.HttpContext.RequestServices.GetRequiredService<ERP.Shared.Authorization.TokenRevocation.TokenRevocationValidator>();
+                if (await validator.IsRevokedAsync(context.Principal!, context.HttpContext.RequestAborted))
+                {
+                    context.Fail("Token has been revoked.");
+                    return;
+                }
 
                 var sessionService = context.HttpContext.RequestServices.GetRequiredService<ISessionService>();
                 if (await sessionService.IsTokenBlacklistedAsync(jti, context.HttpContext.RequestAborted))

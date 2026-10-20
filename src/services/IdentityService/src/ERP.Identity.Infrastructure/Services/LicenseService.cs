@@ -287,6 +287,10 @@ namespace ERP.Identity.Infrastructure.Services
         /// </summary>
         private async Task AddLicenseChangedOutboxMessageAsync(Guid tenantId, string action, CancellationToken ct)
         {
+            // Tokens carry licensed_module claims: every change of the tenant's license
+            // (issue/renew/suspend/revoke) invalidates the tenant's tokens in every service.
+            _unitOfWork.Revocations.TenantChanged(tenantId);
+
             var @event = new TenantLicenseChangedIntegrationEvent { TenantId = tenantId, Action = action };
             var content = JsonConvert.SerializeObject(@event, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
             var outboxMessage = new OutboxMessage

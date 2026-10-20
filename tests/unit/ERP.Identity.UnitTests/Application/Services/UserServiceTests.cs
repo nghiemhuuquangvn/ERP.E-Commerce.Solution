@@ -26,6 +26,7 @@ public class UserServiceTests
 
     public UserServiceTests()
     {
+        _mockUnitOfWork.Setup(u => u.Revocations).Returns(new Mock<ERP.Identity.Application.Interfaces.Services.ITokenRevocationQueue>().Object);
         _mockUnitOfWork.Setup(uow => uow.Users).Returns(_mockUserRepository.Object);
         _mockUnitOfWork.Setup(uow => uow.Roles).Returns(_mockRoleRepository.Object);
 

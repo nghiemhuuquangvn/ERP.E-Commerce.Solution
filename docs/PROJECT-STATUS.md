@@ -2,7 +2,7 @@
 
 > Read this right after `CLAUDE.md` when picking the work up on another machine.
 > Keep it current: update it at the end of every work session (what changed, what's next).
-> Last updated: **2026-10-20** (tenant isolation phase 2 merged; docs 2e).
+> Last updated: **2026-10-20** (service authorization phase 3 — token revocation).
 
 ## 0. Start here (new machine / new developer)
 
@@ -24,12 +24,23 @@
 | Branch | State | Content |
 |---|---|---|
 | `master` (origin) | includes PR #1–#6 | Outbox/EventId fixes + Identity hardening (`73970b5`); CRM tenant isolation (PR #1); user/role/permission isolation + tenant = request host (PR #2); service authorization phase 1 (PR #3); tenant isolation phase 2 for all services (PR #4 Shared+Sales/Payment/Accounting, PR #5 supply chain, PR #6 cross-cutting) |
-| `docs/tenant-isolation` | **not merged yet** — push/PR when the owner asks; phase 2e docs + this handoff update | CLAUDE.md, event catalog, security review, this file |
+| `feature/token-revocation` | **not merged yet** — service authorization phase 3 (push/PR when the owner asks) | Shared revocation store, Identity signals, gateway/hub checks, docs (see §2) |
 
 All feature branches above are merged; start new work from `origin/master`.
 Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
+
+### 2026-10-20 — Service authorization phase 3: token revocation (`feature/token-revocation`)
+Logout, account lock/deactivation, password change/reset, role assign/remove, role permission
+edits, tenant deactivation and license changes now take effect in EVERY service at once (was:
+only in IdentityService; elsewhere the old JWT worked for up to 60 min). Shared
+`ERP.Shared.Authorization.TokenRevocation` (Redis, prefix `erp:authz:`): revoked `jti` + "user /
+tenant changed at" markers; `AddErpJwtAuthentication` rejects a revoked jti or a token whose `iat`
+is older than the marker (5 s local cache, fail-open when Redis is down); Gateway checks too;
+hubs re-check on every call (`RevocationHubFilter`). Identity: tokens carry `iat`;
+`IUnitOfWork.Revocations` publishes after commit; admin lock now ends sessions and blocks refresh
+(failed-login lockout does not). Clients get new permissions via their normal refresh-on-401.
 
 ### 2026-10-20 — Tenant isolation, phase 2 (PR #4–#6)
 Every service DbContext is tenant-scoped (CLAUDE.md "Multi-Tenant Isolation" — read it before
@@ -122,17 +133,22 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 10. Notification templates in the SYSTEM tenant are shared defaults: tenants can't edit them,
     they create their own template with the same code to override. ReportingDB: direct BI-tool
     queries must filter on `TenantId`.
+11. **Redis is now part of authorization**: every service, the Gateway and Identity need
+    `ConnectionStrings:Redis` (shared store `erp:authz:*`). Without it revocation only works inside
+    one process (warning at startup); if Redis is down tokens are accepted (fail-open, logged).
+    Tokens issued before this release have no `iat`: until they expire (≤ 60 min) only their `jti`
+    is checked.
 
 ## 4. Backlog (prioritised — from the 2026-10-20 system inventory)
 
 **P0 — security / data integrity**
-- Service authorization phases 3–5 (plan in SecurityReview "Service authorization review"; phase 2
-  tenant isolation is done): 3) Redis-backed token revocation + authz version checked by every
-  service; 4) RS256/JWKS validation so OIDC tokens work and no service can mint tokens;
+- Service authorization phases 4–5 (plan in SecurityReview "Service authorization review";
+  phases 2 tenant isolation and 3 token revocation are done): 4) RS256/JWKS validation so OIDC
+  tokens work and no service can mint tokens;
   5) migrate the 57 allowlisted controllers to attributes, hub ticket-only (also closes guest chat
   within one tenant: hub methods don't check the guest session), `ValidAlgorithms`.
 - NuGet: `System.Security.Cryptography.Pkcs` 9.0.4 high-severity advisory (transitive, every service).
-- Identity Phase 2: RS256/JWKS + shared token revocation; OpenIddict signing cert from a secret
+- Identity Phase 2: RS256/JWKS (token revocation done in phase 3); OpenIddict signing cert from a secret
   store; invalidate old 2FA challenge on resend & keep OTP out of `OutboxMessages`; Swagger off in
   prod; per-service SQL logins instead of `sa`, `Encrypt=True`; re-auth for 2FA changes; encrypt
   webhook secrets (needs `Security:SettingsEncryptionKey`); Gateway-level rate limiting.
@@ -165,8 +181,8 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 - Verify a change: build each touched `src/services/<Svc>/*.sln` (+ `src/Gateway/Ocelot.API`,
   `src/Shared/ERP.Shared.csproj` for shared changes), then
   `dotnet test tests/unit/ERP.Identity.UnitTests tests/unit/ERP.Shared.UnitTests tests/unit/ERP.Gateway.UnitTests tests/unit/ERP.Architecture.Tests`.
-  Last green run (2026-10-20): all service solutions + Gateway 0 errors; Shared 40, Gateway 6,
-  Architecture 46 passed (Identity 197 on the phase-1 run). Docker runtime not verified yet.
+  Last green run (2026-10-20, phase 3): all service solutions + Gateway 0 errors; Shared 48,
+  Identity 205, Gateway 6, Architecture 46 passed. Docker runtime not verified yet.
 - Repo rule: run the `/verify` skill (Docker-based) before committing code; if Docker isn't
   running, say so and fall back to the build/test commands above.
 - `dotnet build ERP.Identity.sln` can take >5 min on a cold machine — run it in the background.
@@ -201,22 +217,21 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 | 2026-10-20 | Consumers **skip** events without a tenant (fail closed), never guess | all consumers |
 | 2026-10-20 | Guest (anonymous) tenant = host's tenant; client-sent tenant ids are only cross-checked | ChatBot, Product catalog, POS customer display |
 | 2026-10-20 | Business codes unique per tenant | migrations phase 2 |
+| 2026-10-20 | Token revocation: Redis down → **fail-open** (accept + warn); role permission edit → only the role's holders refresh; **admin lock ends sessions** (failed-login lockout does not); hubs re-check on **every call** | `ERP.Shared.Authorization.TokenRevocation`, Identity `IUnitOfWork.Revocations` |
 
-## 8. Next step: service authorization phase 3 — token revocation (NOT started, needs a plan + approval)
+## 8. Next step: service authorization phase 4 — RS256 / JWKS (NOT started, needs a plan + approval)
 
-Problem (SecurityReview S5): only IdentityService honours logout / user lock / password change /
-role-permission change; the other 16 services accept the old JWT until it expires (60 min).
-Proposed design (from the approved overall plan, details to be re-planned):
-- IdentityService writes to Redis on those events: `revoked-jti:{jti}` (TTL = remaining token
-  lifetime) and `authz-ver:{tenant}:{user}` = timestamp of the last security-relevant change.
-  Hook points: `ISessionService.RevokeAllForUserAsync`, logout, `TokenBlacklistRepository`,
-  role/permission grant paths (`EffectivePermissions` callers).
-- `ERP.Shared.Authorization.AddErpJwtAuthentication` → `JwtBearerEvents.OnTokenValidated`:
-  reject if the `jti` is revoked or the token's `iat` < `authz-ver` (client refreshes to get
-  new permissions). Redis via the existing `ERP.Shared.Caching` (`ICacheService`,
-  `RedisCacheService`); a small local cache to avoid a Redis round-trip per request.
-- Open questions for the owner: fail-open or fail-closed when Redis is down; whether tokens
-  must carry `jti`/`iat` (check `TokenService`); hub connections (re-check on each call?).
-- Tests: shared unit tests for the validator; Identity tests that each change bumps the version.
-Phases 4 (RS256/JWKS) and 5 (attribute migration, ticket-only hubs) follow — see §4.
-
+Problem (SecurityReview S6, Identity M1/M2): IdentityService signs access tokens with a
+symmetric key (HS256) that every service holds — any service (or a leaked service config) can
+mint valid tokens for any user/tenant; OIDC tokens (RS256, issuer `urn:ERP.Identity`) issued by
+OpenIddict are rejected by all other services.
+Proposed direction (to be re-planned):
+- Services validate with Identity's public keys from its JWKS endpoint (OpenIddict already
+  serves `/.well-known/jwks`; fetched over the internal network and cached), accepting both
+  issuers during a transition; `ValidAlgorithms` restricted.
+- `TokenService` signs RS256 with the same certificate as OpenIddict (Identity `Program.cs`
+  already loads a signing certificate); then the symmetric key is removed from all services.
+- Keep the phase-3 `OnTokenValidated` revocation check unchanged (it only reads claims).
+- Open questions for the owner: certificate source/rotation (secret store vs file), length of the
+  dual-acceptance window, whether the Gateway keeps validating tokens itself.
+Phase 5 (attribute migration of 57 controllers, ticket-only hubs, guest chat sessions) follows.

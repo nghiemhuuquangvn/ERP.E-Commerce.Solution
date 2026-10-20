@@ -60,8 +60,10 @@ namespace ERP.Identity.Infrastructure.Persistence
             ITokenBlacklistRepository tokenBlacklistRepository,
             IPasswordHistoryRepository passwordHistoryRepository,
             IApiKeyRepository apiKeyRepository,
-            IWebhookEndpointRepository webhookEndpointRepository)
+            IWebhookEndpointRepository webhookEndpointRepository,
+            ERP.Identity.Application.Interfaces.Services.ITokenRevocationQueue revocations)
         {
+            Revocations = revocations;
             _dbContext = dbContext;
             Users = userRepository;
             Roles = roleRepository;
@@ -159,8 +161,16 @@ namespace ERP.Identity.Infrastructure.Persistence
         public IPasswordHistoryRepository PasswordHistories { get; }
         public IApiKeyRepository ApiKeys { get; }
         public IWebhookEndpointRepository WebhookEndpoints { get; }
+        public ERP.Identity.Application.Interfaces.Services.ITokenRevocationQueue Revocations { get; }
 
-        public async Task<int> SaveChangesAsync(CancellationToken ct) => await _dbContext.SaveChangesAsync(ct);
+        public async Task<int> SaveChangesAsync(CancellationToken ct)
+        {
+            var result = await _dbContext.SaveChangesAsync(ct);
+            // Outside a transaction the change is committed now; inside one, wait for Commit.
+            if (_currentTrans == null)
+                await Revocations.FlushAsync(ct);
+            return result;
+        }
         public async Task BeginTransactionAsync(CancellationToken ct)
         {
             _currentTrans = await _dbContext.Database.BeginTransactionAsync(ct);
@@ -172,6 +182,9 @@ namespace ERP.Identity.Infrastructure.Persistence
             {
                 await _dbContext.SaveChangesAsync(ct);
                 if (_currentTrans != null) await _currentTrans.CommitAsync(ct);
+                _currentTrans?.Dispose();
+                _currentTrans = null;
+                await Revocations.FlushAsync(ct);
             }
             catch
             {
@@ -190,6 +203,7 @@ namespace ERP.Identity.Infrastructure.Persistence
 
         public async Task RollbackTransactionAsync(CancellationToken ct)
         {
+            Revocations.Clear();
             if (_currentTrans != null)
             {
                 await _currentTrans.RollbackAsync(ct);

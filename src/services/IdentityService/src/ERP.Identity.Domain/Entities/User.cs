@@ -203,10 +203,19 @@ namespace ERP.Identity.Domain.Entities
             IsActive = true;
         }
 
+        /// <summary>Administrative lock: indefinite (no LockedUntil) until <see cref="Unlock"/>.</summary>
         public void Lock()
         {
             IsLocked = true;
+            LockedUntil = null;
         }
+
+        /// <summary>
+        /// Locked by an administrator (as opposed to the temporary failed-login lockout, which
+        /// has a LockedUntil). Only this kind ends existing sessions — otherwise anyone could
+        /// log a user out everywhere just by typing wrong passwords for them.
+        /// </summary>
+        public bool IsAdministrativelyLocked => IsLocked && LockedUntil == null;
 
         public void Unlock()
         {

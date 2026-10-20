@@ -51,6 +51,13 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         ILoginAttemptRepository LoginAttempts { get; }
         IDeviceSessionRepository DeviceSessions { get; }
         ITokenBlacklistRepository TokenBlacklist { get; }
+
+        /// <summary>
+        /// Token revocations caused by this unit of work; published to every service after
+        /// <see cref="SaveChangesAsync"/> / <see cref="CommitTransactionAsync"/> succeeds
+        /// (dropped on rollback). See <see cref="Services.ITokenRevocationQueue"/>.
+        /// </summary>
+        Services.ITokenRevocationQueue Revocations { get; }
         IPasswordHistoryRepository PasswordHistories { get; }
         IApiKeyRepository ApiKeys { get; }
         IWebhookEndpointRepository WebhookEndpoints { get; }
