@@ -13,6 +13,8 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Shared\Infrastructure\Data\ERP.Shared.Data.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Messaging\ERP.Shared.Messaging.csproj" />
     <ProjectReference Include="..\ERP.RPT.Domain\ERP.RPT.Domain.csproj" />
     <ProjectReference Include="..\ERP.RPT.Application\ERP.RPT.Application.csproj" />
   </ItemGroup>

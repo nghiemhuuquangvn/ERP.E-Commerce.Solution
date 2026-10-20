@@ -1,3 +1,5 @@
+using ERP.Shared.Messaging;
+using ERP.Shared.Infrastructure.Data;
 using Confluent.Kafka;
 using ERP.RPT.Domain.Models;
 using ERP.RPT.Infrastructure.Persistence;
@@ -117,6 +119,13 @@ internal abstract class ReportingConsumerBase : BackgroundService
                 await using var scope = Services.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<ReportingDbContext>();
 
+                if (!EventTenant.TryRead(result.Message.Value, out var tenantId))
+                {
+                    _logger.LogWarning("[REPORTING] Event without TenantId ignored ({Topic})", result.Topic);
+                    continue;
+                }
+                using var tenantScope = TenantScope.Begin(tenantId);
+
                 using var doc = JsonDocument.Parse(result.Message.Value);
                 await ProcessAsync(result.Topic, doc.RootElement, db, stoppingToken);
             }
@@ -185,6 +194,15 @@ public class SalesOrderEventConsumer : BackgroundService
                 using var doc = JsonDocument.Parse(result.Message.Value);
                 var root = doc.RootElement;
                 var typeName = JDoc.GetTypeName(root);
+
+                // Facts belong to the tenant of the source event (stamped by the publisher's Outbox);
+                // an event without one is skipped, never counted in some other tenant's reports.
+                if (!EventTenant.TryRead(result.Message.Value, out var tenantId))
+                {
+                    _logger.LogWarning("[REPORTING] {EventType} without TenantId ignored", typeName);
+                    continue;
+                }
+                using var tenantScope = TenantScope.Begin(tenantId);
 
                 if (result.Topic == "sales-order-created" || typeName.Contains("SalesOrderCreated"))
                 {
@@ -297,6 +315,15 @@ public class PaymentEventConsumer : BackgroundService
                 var root = doc.RootElement;
                 var typeName = JDoc.GetTypeName(root);
 
+                // Facts belong to the tenant of the source event (stamped by the publisher's Outbox);
+                // an event without one is skipped, never counted in some other tenant's reports.
+                if (!EventTenant.TryRead(result.Message.Value, out var tenantId))
+                {
+                    _logger.LogWarning("[REPORTING] {EventType} without TenantId ignored", typeName);
+                    continue;
+                }
+                using var tenantScope = TenantScope.Begin(tenantId);
+
                 if (typeName.Contains("PaymentProcessed") || typeName.Contains("PaymentAuthorized") || typeName.Contains("PaymentCaptured"))
                 {
                     var paymentId = JDoc.GetGuid(root, "PaymentId", "paymentId");
@@ -394,6 +421,15 @@ public class InventoryEventConsumer : BackgroundService
                 var root = doc.RootElement;
                 var typeName = JDoc.GetTypeName(root);
 
+                // Facts belong to the tenant of the source event (stamped by the publisher's Outbox);
+                // an event without one is skipped, never counted in some other tenant's reports.
+                if (!EventTenant.TryRead(result.Message.Value, out var tenantId))
+                {
+                    _logger.LogWarning("[REPORTING] {EventType} without TenantId ignored", typeName);
+                    continue;
+                }
+                using var tenantScope = TenantScope.Begin(tenantId);
+
                 if (typeName.Contains("StockMoved") || typeName.Contains("InventoryMoved") ||
                     typeName.Contains("InventoryAdjusted") || typeName.Contains("ReceiptCompleted") ||
                     typeName.Contains("InventoryReserved"))
@@ -479,6 +515,15 @@ public class POSEventConsumer : BackgroundService
                 var root = doc.RootElement;
                 var typeName = JDoc.GetTypeName(root);
 
+                // Facts belong to the tenant of the source event (stamped by the publisher's Outbox);
+                // an event without one is skipped, never counted in some other tenant's reports.
+                if (!EventTenant.TryRead(result.Message.Value, out var tenantId))
+                {
+                    _logger.LogWarning("[REPORTING] {EventType} without TenantId ignored", typeName);
+                    continue;
+                }
+                using var tenantScope = TenantScope.Begin(tenantId);
+
                 if (typeName.Contains("TransactionCreated"))
                 {
                     var txnId = JDoc.GetGuid(root, "TransactionId", "transactionId", "Id", "id");
@@ -563,6 +608,15 @@ public class HRMEventConsumer : BackgroundService
                 using var doc = JsonDocument.Parse(result.Message.Value);
                 var root = doc.RootElement;
                 var typeName = JDoc.GetTypeName(root);
+
+                // Facts belong to the tenant of the source event (stamped by the publisher's Outbox);
+                // an event without one is skipped, never counted in some other tenant's reports.
+                if (!EventTenant.TryRead(result.Message.Value, out var tenantId))
+                {
+                    _logger.LogWarning("[REPORTING] {EventType} without TenantId ignored", typeName);
+                    continue;
+                }
+                using var tenantScope = TenantScope.Begin(tenantId);
 
                 if (typeName.Contains("PaySlipGenerated") || typeName.Contains("PayslipGenerated"))
                 {
@@ -655,6 +709,15 @@ public class ProductEventConsumer : BackgroundService
                 using var doc = JsonDocument.Parse(result.Message.Value);
                 var root = doc.RootElement;
                 var typeName = JDoc.GetTypeName(root);
+
+                // Facts belong to the tenant of the source event (stamped by the publisher's Outbox);
+                // an event without one is skipped, never counted in some other tenant's reports.
+                if (!EventTenant.TryRead(result.Message.Value, out var tenantId))
+                {
+                    _logger.LogWarning("[REPORTING] {EventType} without TenantId ignored", typeName);
+                    continue;
+                }
+                using var tenantScope = TenantScope.Begin(tenantId);
 
                 if (typeName.Contains("ProductCreated") || typeName.Contains("ProductUpdated"))
                 {

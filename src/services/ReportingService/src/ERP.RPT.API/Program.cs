@@ -57,6 +57,9 @@ builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddErpAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+// Tenant isolation for ReportingDbContext: every report query sees only the caller's tenant;
+// the Kafka/RabbitMQ consumers write facts inside the source event's TenantScope.
+builder.Services.AddRequestTenantProvider();
 builder.Services.AddScoped<UserContext>();
 builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Reporting));
 

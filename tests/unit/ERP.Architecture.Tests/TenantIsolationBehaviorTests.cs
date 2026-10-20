@@ -195,4 +195,9 @@ public class TenantIsolationBehaviorTests
         AssertIsolated<ERP.CHB.Infrastructure.Persistence.ChatBotDbContext, ERP.CHB.Domain.Entities.Conversation>(
             ERP.CHB.Domain.Entities.Conversation.Start(Guid.Empty, ERP.CHB.Domain.Enums.ConversationChannel.Storefront,
                 ERP.CHB.Domain.Enums.AiProvider.ChatGpt, null, "guest-session"), e => e.TenantId);
+
+    [Fact]
+    public void Reporting_FactSalesOrders() =>
+        AssertIsolated<ERP.RPT.Infrastructure.Persistence.ReportingDbContext, ERP.RPT.Domain.Models.FactSalesOrder>(
+            new ERP.RPT.Domain.Models.FactSalesOrder { OrderId = Guid.NewGuid(), CustomerName = "C", Status = "Created", TotalAmount = 10m }, e => e.TenantId);
 }
