@@ -2,7 +2,7 @@
 
 > Read this right after `CLAUDE.md` when picking the work up on another machine.
 > Keep it current: update it at the end of every work session (what changed, what's next).
-> Last updated: **2026-10-20** (service authorization phase 3 — token revocation).
+> Last updated: **2026-10-20** (service authorization phase 4 — RS256/JWKS, release 1).
 
 ## 0. Start here (new machine / new developer)
 
@@ -23,15 +23,27 @@
 
 | Branch | State | Content |
 |---|---|---|
-| `master` (origin) | includes PR #1–#6 | Outbox/EventId fixes + Identity hardening (`73970b5`); CRM tenant isolation (PR #1); user/role/permission isolation + tenant = request host (PR #2); service authorization phase 1 (PR #3); tenant isolation phase 2 for all services (PR #4 Shared+Sales/Payment/Accounting, PR #5 supply chain, PR #6 cross-cutting) |
-| `feature/token-revocation` | **not merged yet** — service authorization phase 3 (push/PR when the owner asks) | Shared revocation store, Identity signals, gateway/hub checks, docs (see §2) |
+| `master` (origin) | includes PR #1–#8 | Outbox/EventId fixes + Identity hardening (`73970b5`); CRM tenant isolation (PR #1); user/role/permission isolation + tenant = request host (PR #2); service authorization phase 1 (PR #3); tenant isolation phase 2 for all services (PR #4 Shared+Sales/Payment/Accounting, PR #5 supply chain, PR #6 cross-cutting); handoff docs (PR #7); token revocation, phase 3 (PR #8) |
+| `feature/rs256-jwks` | **not merged yet** — service authorization phase 4, release 1 (push/PR when the owner asks) | RS256 signing in Identity (Key Vault / file certificates), JWKS validation in every service and the Gateway, infra, docs (see §2) |
 
 All feature branches above are merged; start new work from `origin/master`.
 Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
-### 2026-10-20 — Service authorization phase 3: token revocation (`feature/token-revocation`)
+### 2026-10-20 — Service authorization phase 4, release 1: RS256 / JWKS (`feature/rs256-jwks`)
+Only IdentityService can sign access tokens now: RS256 with a certificate from Azure Key Vault
+(production) or a PFX on a persistent volume (local/Compose) — `SigningKeys:Source`; the
+X509Store dev certificate (new key on every container re-creation) is gone. Every service and the
+Gateway validate through `ERP.Shared.Authorization.ErpJwtBearerOptions` with the public keys from
+Identity's `/.well-known/jwks.json` (`Jwt:Authority`), only `RS256` (+ `HS256` while `Jwt:Key` is
+still configured), exact issuer/audience (the Gateway skipped both before). Outside Identity only
+login tokens (issuer `ERP.Identity`) are accepted — OpenIddict `urn:` tokens stay Identity-only.
+Identity `Jwt:AccessTokenSigning` (`Hmac`/`Rsa`) makes a rolling k8s cutover 401-free. Also fixed:
+LoggingService had no Jwt settings in docker-compose (would not start outside Development).
+Runbook (cutover, rotation, emergency): `docs/business/Identity/SigningKeys.md`.
+
+### 2026-10-20 — Service authorization phase 3: token revocation (PR #8)
 Logout, account lock/deactivation, password change/reset, role assign/remove, role permission
 edits, tenant deactivation and license changes now take effect in EVERY service at once (was:
 only in IdentityService; elsewhere the old JWT worked for up to 60 min). Shared
@@ -138,18 +150,28 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
     one process (warning at startup); if Redis is down tokens are accepted (fail-open, logged).
     Tokens issued before this release have no `iat`: until they expire (≤ 60 min) only their `jti`
     is checked.
+12. **RS256 signing (phase 4)** — follow `docs/business/Identity/SigningKeys.md`:
+    - every service + Gateway: `Jwt:Authority` (internal Identity URL) and, for in-cluster http,
+      `Jwt:RequireHttpsMetadata=false` (in the k8s configmap / compose). Without it services can't
+      fetch the JWKS and answer 401;
+    - Identity: `SigningKeys:Source` is **required** (start-up fails without it). k8s: Key Vault
+      certificate `identity-token-signing`, Workload Identity client id in the `identity-service`
+      ServiceAccount, vault permissions certificates/list + secrets/get. Compose: PFX auto-created
+      on the `identity_signing` volume;
+    - k8s cutover: deploy with `Jwt__AccessTokenSigning=Hmac`, switch to `Rsa` once every pod runs
+      this release; keep `Jwt__Key` everywhere until release 2.
 
 ## 4. Backlog (prioritised — from the 2026-10-20 system inventory)
 
 **P0 — security / data integrity**
-- Service authorization phases 4–5 (plan in SecurityReview "Service authorization review";
-  phases 2 tenant isolation and 3 token revocation are done): 4) RS256/JWKS validation so OIDC
-  tokens work and no service can mint tokens;
-  5) migrate the 57 allowlisted controllers to attributes, hub ticket-only (also closes guest chat
+- Service authorization phase 4 **release 2** (§8) — remove the shared HS256 key outside
+  Identity once release 1 runs with `Rsa`. Later: accept OpenIddict (`urn:`) tokens in services
+  after client_credentials permissions go through `EffectivePermissions`.
+- Service authorization phase 5 (plan in SecurityReview "Service authorization review"):
+  migrate the 57 allowlisted controllers to attributes, hub ticket-only (also closes guest chat
   within one tenant: hub methods don't check the guest session), `ValidAlgorithms`.
 - NuGet: `System.Security.Cryptography.Pkcs` 9.0.4 high-severity advisory (transitive, every service).
-- Identity Phase 2: RS256/JWKS (token revocation done in phase 3); OpenIddict signing cert from a secret
-  store; invalidate old 2FA challenge on resend & keep OTP out of `OutboxMessages`; Swagger off in
+- Identity Phase 2: invalidate old 2FA challenge on resend & keep OTP out of `OutboxMessages`; Swagger off in
   prod; per-service SQL logins instead of `sa`, `Encrypt=True`; re-auth for 2FA changes; encrypt
   webhook secrets (needs `Security:SettingsEncryptionKey`); Gateway-level rate limiting.
 
@@ -181,8 +203,11 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 - Verify a change: build each touched `src/services/<Svc>/*.sln` (+ `src/Gateway/Ocelot.API`,
   `src/Shared/ERP.Shared.csproj` for shared changes), then
   `dotnet test tests/unit/ERP.Identity.UnitTests tests/unit/ERP.Shared.UnitTests tests/unit/ERP.Gateway.UnitTests tests/unit/ERP.Architecture.Tests`.
-  Last green run (2026-10-20, phase 3): all service solutions + Gateway 0 errors; Shared 48,
-  Identity 205, Gateway 6, Architecture 46 passed. Docker runtime not verified yet.
+  Last green run (2026-10-20, phase 4 release 1): all APIs + Gateway build with 0 errors; Shared 62,
+  Identity 218, Gateway 10, Architecture 46 passed. Docker runtime not verified yet — first run
+  must check: Identity log "Generated a new self-signed token signing certificate", login token
+  header `RS256` with a `kid` listed at `/.well-known/jwks.json`, a call through the Gateway to
+  e.g. SaleOrder answers 200, and after logout 401. The Key Vault source is untested (no Azure).
 - Repo rule: run the `/verify` skill (Docker-based) before committing code; if Docker isn't
   running, say so and fall back to the build/test commands above.
 - `dotnet build ERP.Identity.sln` can take >5 min on a cold machine — run it in the background.
@@ -218,20 +243,18 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 | 2026-10-20 | Guest (anonymous) tenant = host's tenant; client-sent tenant ids are only cross-checked | ChatBot, Product catalog, POS customer display |
 | 2026-10-20 | Business codes unique per tenant | migrations phase 2 |
 | 2026-10-20 | Token revocation: Redis down → **fail-open** (accept + warn); role permission edit → only the role's holders refresh; **admin lock ends sessions** (failed-login lockout does not); hubs re-check on **every call** | `ERP.Shared.Authorization.TokenRevocation`, Identity `IUnitOfWork.Revocations` |
+| 2026-10-20 | Token signing: certificate in **Azure Key Vault** with rotation (newest signs, previous versions stay in the JWKS); HS256 → RS256 in **two releases**; the **Gateway keeps validating** (same code as services); services accept **only login tokens** (issuer `ERP.Identity`), OpenIddict `urn:` tokens stay Identity-only for now | `docs/business/Identity/SigningKeys.md`, `ErpJwtBearerOptions` |
 
-## 8. Next step: service authorization phase 4 — RS256 / JWKS (NOT started, needs a plan + approval)
+## 8. Next step: phase 4 release 2 — remove the shared HS256 key (NOT started; only after release 1 is deployed)
 
-Problem (SecurityReview S6, Identity M1/M2): IdentityService signs access tokens with a
-symmetric key (HS256) that every service holds — any service (or a leaked service config) can
-mint valid tokens for any user/tenant; OIDC tokens (RS256, issuer `urn:ERP.Identity`) issued by
-OpenIddict are rejected by all other services.
-Proposed direction (to be re-planned):
-- Services validate with Identity's public keys from its JWKS endpoint (OpenIddict already
-  serves `/.well-known/jwks`; fetched over the internal network and cached), accepting both
-  issuers during a transition; `ValidAlgorithms` restricted.
-- `TokenService` signs RS256 with the same certificate as OpenIddict (Identity `Program.cs`
-  already loads a signing certificate); then the symmetric key is removed from all services.
-- Keep the phase-3 `OnTokenValidated` revocation check unchanged (it only reads claims).
-- Open questions for the owner: certificate source/rotation (secret store vs file), length of the
-  dual-acceptance window, whether the Gateway keeps validating tokens itself.
-Phase 5 (attribute migration of 57 controllers, ticket-only hubs, guest chat sessions) follows.
+Precondition: `feature/rs256-jwks` merged and deployed, Identity running with
+`Jwt__AccessTokenSigning=Rsa` for at least `Jwt:Expired` minutes (60). Then, on a new branch:
+- `ErpJwtBearerOptions`: drop the HS256 path (`Jwt:Key`) — RS256 only; `JwtKeyGuard` only in Identity.
+- Identity: drop `Hmac` mode and the symmetric key from its own bearer scheme (keep `Jwt:Key`
+  only as OpenIddict's encryption key — or move that to its own setting).
+- Remove `Jwt__Key` from every service/Gateway in docker-compose and `deployment/k8s/deployments/*`,
+  and the `Jwt:Key` placeholders from their `appsettings*.json` (a leftover placeholder would trip
+  nothing after the code change, but keeps the secret's footprint wide).
+- Docs: SigningKeys.md (cutover done), SecurityReview S6/M1 → fully fixed, this file.
+Plan + owner approval first, as usual. Phase 5 (attribute migration of 57 controllers,
+ticket-only hubs, guest chat sessions) follows; open item: OpenIddict `urn:` tokens in services.

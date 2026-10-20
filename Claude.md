@@ -175,6 +175,12 @@ Security invariants (2026-10-19 review — docs/business/Identity/SecurityReview
   networks), never from the raw `X-Forwarded-For` header.
 - Outbound calls to tenant-configured URLs (webhooks) go through `WebhookUrlRules`.
 - No secrets in tracked appsettings; `JwtKeyGuard` rejects known keys outside Development.
+- Access tokens are RS256: only IdentityService holds the private key (`SigningKeys:Source` —
+  Key Vault in production, a PFX on a persistent volume locally). Every service and the Gateway
+  validate via `ErpJwtBearerOptions` with the public keys from Identity's JWKS — never add a
+  signing key or a second token issuer to another service. The shared HS256 `Jwt:Key` is
+  transition-only (release 2 removes it outside Identity). Only issuer `Jwt:Issuer` (login
+  tokens) is accepted outside Identity. Rotation/cutover: docs/business/Identity/SigningKeys.md.
 
 Tenant & permission scope (2026-10-20):
 - **Tenant = request host.** The Gateway resolves host → tenant via IdentityService

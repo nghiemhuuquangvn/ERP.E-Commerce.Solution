@@ -1,6 +1,7 @@
 ﻿using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Domain.Entities;
+using ERP.Identity.Infrastructure.Security.Signing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System;
@@ -9,7 +10,6 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace ERP.Identity.Infrastructure.Services
@@ -17,11 +17,13 @@ namespace ERP.Identity.Infrastructure.Services
     public class TokenService : ITokenService
     {
         private readonly IConfiguration _configuration;
+        private readonly AccessTokenSigningCredentials _signing;
         private IRefreshTokenRepository _refreshTokenRepository;
 
-        public TokenService(IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository)
+        public TokenService(IConfiguration configuration, AccessTokenSigningCredentials signing, IRefreshTokenRepository refreshTokenRepository)
         {
             _configuration = configuration;
+            _signing = signing;
             _refreshTokenRepository = refreshTokenRepository;
         }
         public Task<string> GenerateAccessToken(User user, AuthTenant tenant, IEnumerable<string> roles, IEnumerable<string> permissions, IEnumerable<string> licensedModules)
@@ -43,16 +45,13 @@ namespace ERP.Identity.Infrastructure.Services
             claims.AddRange(permissions.Select(p => new Claim("permission", p)));
             claims.AddRange(licensedModules.Select(m => new Claim("licensed_module", m)));
 
-            var keyString = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key configuration is missing.");
             var issuer = _configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer configuration is missing.");
             var audience = _configuration["Jwt:Audience"] ?? throw new InvalidOperationException("Jwt:Audience configuration is missing.");
             var expirationString = _configuration["Jwt:Expired"] ?? throw new InvalidOperationException("Jwt:AccessTokenExpirationMinutes configuration is missing.");
 
-            var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(keyString)
-            );
-
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            // RS256 with the current signing certificate (private key only here); every service
+            // validates with its public key from the JWKS. HS256 only during the cutover.
+            var creds = _signing.Credentials;
 
             var token = new JwtSecurityToken(
                 issuer: issuer,

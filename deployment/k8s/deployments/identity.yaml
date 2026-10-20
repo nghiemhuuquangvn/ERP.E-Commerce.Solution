@@ -12,7 +12,11 @@ spec:
     metadata:
       labels:
         app: identity-service
+        # Azure Workload Identity: the pod gets a token for the ServiceAccount's managed
+        # identity — used by DefaultAzureCredential to read the signing certificate.
+        azure.workload.identity/use: "true"
     spec:
+      serviceAccountName: identity-service
       containers:
       - name: identity-service
         image: erp/identity-service:latest
@@ -37,6 +41,18 @@ spec:
             secretKeyRef:
               name: erp-secrets
               key: jwt-signing-key
+        # RS256 signing certificate from Azure Key Vault — the private key never leaves
+        # IdentityService. Rotation + HS256 cutover: docs/business/Identity/SigningKeys.md.
+        - name: SigningKeys__Source
+          value: "KeyVault"
+        - name: SigningKeys__KeyVault__VaultUri
+          value: "https://<your-key-vault>.vault.azure.net/"
+        - name: SigningKeys__KeyVault__CertificateName
+          value: "identity-token-signing"
+        # Cutover step 1: keep "Hmac" until every service runs the JWKS-capable release,
+        # then set "Rsa" (step 2). Release 2 removes the legacy key from the other services.
+        - name: Jwt__AccessTokenSigning
+          value: "Hmac"
         - name: Security__SettingsEncryptionKey
           valueFrom:
             secretKeyRef:
@@ -73,3 +89,12 @@ spec:
   ports:
   - port: 5001
     targetPort: 5001
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: identity-service
+  namespace: erp
+  annotations:
+    # Client id of the managed identity granted certificates/list + secrets/get on the vault.
+    azure.workload.identity/client-id: "<managed-identity-client-id>"
