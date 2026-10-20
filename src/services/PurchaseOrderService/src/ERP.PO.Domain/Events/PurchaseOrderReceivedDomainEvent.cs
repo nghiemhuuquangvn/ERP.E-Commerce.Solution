@@ -8,8 +8,11 @@ namespace ERP.PO.Domain.Events;
 /// MarkAsPartiallyReceived() methods at all. Consumed by WarehouseService to
 /// actually add the received quantities to stock.
 /// </summary>
-public class PurchaseOrderReceivedDomainEvent : IDomainEvent
+public class PurchaseOrderReceivedDomainEvent : IDomainEvent, ITenantEvent
 {
+    /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+    public Guid TenantId { get; set; }
+
     public Guid PurchaseOrderId { get; }
     public string PONumber { get; }
     public Guid SupplierId { get; }

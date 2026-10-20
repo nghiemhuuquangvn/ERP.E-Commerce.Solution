@@ -8,7 +8,7 @@ namespace ERP.Shared.Core.Domain
     /// audit fields (CreatedBy/At, UpdatedBy/At), optimistic locking (RowVersion),
     /// and domain event collection.
     /// </summary>
-    public abstract class BaseEntity
+    public abstract class BaseEntity : ITenantOwned
     {
         public Guid Id { get; set; } = Guid.NewGuid();
 

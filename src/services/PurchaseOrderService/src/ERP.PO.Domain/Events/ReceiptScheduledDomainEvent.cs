@@ -3,8 +3,11 @@ using ERP.Shared.Core.Domain;
 namespace ERP.PO.Domain.Events;
 
 /// <summary>Raised when a receiving dock/date is scheduled for an approved PO — lets Warehouse plan dock/labor ahead of the actual GRN.</summary>
-public class ReceiptScheduledDomainEvent : IDomainEvent
+public class ReceiptScheduledDomainEvent : IDomainEvent, ITenantEvent
 {
+    /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+    public Guid TenantId { get; set; }
+
     public Guid PurchaseOrderId { get; }
     public string PONumber { get; }
     public DateTime ScheduledDate { get; }

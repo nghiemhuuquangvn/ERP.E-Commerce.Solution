@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace ERP.Shared.Infrastructure.Data;
 
-/// <summary>A DbContext whose BaseEntity rows are isolated per tenant.</summary>
+/// <summary>A DbContext whose tenant-owned rows are isolated per tenant.</summary>
 public interface ITenantScopedDbContext
 {
     /// <summary>Tenant of the current unit of work; null = unknown (fail closed).</summary>
@@ -13,14 +13,23 @@ public interface ITenantScopedDbContext
 }
 
 /// <summary>
-/// Multi-tenant isolation for every <see cref="BaseEntity"/> in a DbContext:
-/// a global query filter (<see cref="ApplyTenantQueryFilters"/>) plus write-side stamping
-/// and validation (<see cref="EnforceTenantOnSave"/>).
+/// Multi-tenant isolation for every <see cref="ITenantOwned"/> type in a DbContext
+/// (<see cref="BaseEntity"/> and plain POCOs alike): a global query filter
+/// (<see cref="ApplyTenantQueryFilters"/>) plus write-side stamping and validation
+/// (<see cref="EnforceTenantOnSave"/>).
+/// <list type="bullet">
+/// <item><see cref="IPlatformWideEntity"/> rows (System*Settings) are not filtered; only the
+/// platform tenant — or work with no tenant (seed/jobs) — may change them.</item>
+/// <item><see cref="ISharedReferenceData"/> rows are visible to a tenant when they are its
+/// own or the platform tenant's; only the platform tenant may change the shared ones.</item>
+/// </list>
 /// </summary>
 public static class TenantFilterConfiguration
 {
+    private const string TenantIdProperty = nameof(ITenantOwned.TenantId);
+
     /// <summary>
-    /// Adds <c>e =&gt; e.TenantId == context.CurrentTenantId</c> to every BaseEntity type.
+    /// Adds <c>e =&gt; e.TenantId == context.CurrentTenantId</c> to every tenant-owned type.
     /// The filter references the DbContext INSTANCE, which EF Core turns into a query
     /// parameter re-read for every query — unlike the previous constant-valued filter,
     /// which EF baked into the once-per-process cached model, so every request was filtered
@@ -36,17 +45,25 @@ public static class TenantFilterConfiguration
 
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
-            if (!typeof(BaseEntity).IsAssignableFrom(entityType.ClrType) || entityType.BaseType != null)
-                continue; // derived types inherit the root's filter
+            var clrType = entityType.ClrType;
+            if (!typeof(ITenantOwned).IsAssignableFrom(clrType)
+                || typeof(IPlatformWideEntity).IsAssignableFrom(clrType)
+                || entityType.BaseType != null   // derived types inherit the root's filter
+                || entityType.IsOwned())         // owned types follow their owner
+                continue;
 
-            var parameter = Expression.Parameter(entityType.ClrType, "e");
-            var tenantId = Expression.Convert(
-                Expression.Property(parameter, nameof(BaseEntity.TenantId)), typeof(Guid?));
-            var tenantFilter = Expression.Equal(tenantId, currentTenant);
+            var parameter = Expression.Parameter(clrType, "e");
+            var tenantId = Expression.Convert(Expression.Property(parameter, TenantIdProperty), typeof(Guid?));
+            Expression tenantFilter = Expression.Equal(tenantId, currentTenant);
+
+            if (typeof(ISharedReferenceData).IsAssignableFrom(clrType))
+                tenantFilter = Expression.OrElse(
+                    tenantFilter,
+                    Expression.Equal(tenantId, Expression.Constant(WellKnownTenants.Platform, typeof(Guid?))));
 
             var existing = entityType.GetQueryFilter();
             var body = existing == null
-                ? (Expression)tenantFilter
+                ? tenantFilter
                 : Expression.AndAlso(
                     new ReplaceParameterVisitor(existing.Parameters[0], parameter).Visit(existing.Body)!,
                     tenantFilter);
@@ -56,32 +73,64 @@ public static class TenantFilterConfiguration
     }
 
     /// <summary>
-    /// Call at the start of SaveChanges. New BaseEntity rows without a TenantId get the
-    /// current tenant; any Added/Modified row belonging to a different tenant — or any
-    /// tenant-owned write with no tenant known at all — throws instead of being saved.
+    /// Call at the start of SaveChanges. New tenant-owned rows without a TenantId get the
+    /// current tenant; any Added/Modified/Deleted row belonging to a different tenant — or
+    /// any tenant-owned write with no tenant known at all — throws instead of being saved.
     /// </summary>
     public static void EnforceTenantOnSave(this ChangeTracker changeTracker, Guid? currentTenantId)
     {
-        foreach (var entry in changeTracker.Entries<BaseEntity>())
+        foreach (var entry in changeTracker.Entries())
         {
             if (entry.State is not (EntityState.Added or EntityState.Modified or EntityState.Deleted))
                 continue;
 
-            if (currentTenantId is null)
-                throw new TenantIsolationViolationException(
-                    $"Cannot save {entry.Entity.GetType().Name}: no tenant is associated with the current operation.");
-
-            if (entry.State == EntityState.Added && entry.Entity.TenantId == Guid.Empty)
+            switch (entry.Entity)
             {
-                entry.Entity.TenantId = currentTenantId.Value;
-                continue;
-            }
+                case IPlatformWideEntity:
+                    // Added is allowed: services lazily create the default singleton row
+                    // (well-known id) on first read, whoever reads first.
+                    if (entry.State != EntityState.Added
+                        && currentTenantId is { } tenant && tenant != WellKnownTenants.Platform)
+                        throw new TenantIsolationViolationException(
+                            $"Cannot change platform-wide {entry.Entity.GetType().Name}: only the platform tenant may.");
+                    continue;
 
-            if (entry.Entity.TenantId != currentTenantId.Value)
-                throw new TenantIsolationViolationException(
-                    $"Cannot save {entry.Entity.GetType().Name} {entry.Entity.Id}: it belongs to a different tenant.");
+                case ITenantOwned owned:
+                    EnforceOwned(entry, owned, currentTenantId);
+                    continue;
+            }
         }
     }
+
+    private static void EnforceOwned(EntityEntry entry, ITenantOwned owned, Guid? currentTenantId)
+    {
+        var name = entry.Entity.GetType().Name;
+
+        if (currentTenantId is not { } tenant)
+            throw new TenantIsolationViolationException(
+                $"Cannot save {name}: no tenant is associated with the current operation.");
+
+        if (entry.State == EntityState.Added && owned.TenantId == Guid.Empty)
+        {
+            // Through EF, so POCOs with a private setter are stamped too.
+            entry.Property(TenantIdProperty).CurrentValue = tenant;
+            return;
+        }
+
+        if (owned.TenantId == tenant)
+            return;
+
+        if (owned is ISharedReferenceData && owned.TenantId == WellKnownTenants.Platform)
+            throw new TenantIsolationViolationException(
+                $"Cannot change shared {name} {KeyOf(entry)}: shared reference data belongs to the platform tenant.");
+
+        throw new TenantIsolationViolationException(
+            $"Cannot save {name} {KeyOf(entry)}: it belongs to a different tenant.");
+    }
+
+    private static string KeyOf(EntityEntry entry) =>
+        string.Join(",", entry.Metadata.FindPrimaryKey()?.Properties
+            .Select(p => entry.Property(p.Name).CurrentValue?.ToString()) ?? []);
 
     [Obsolete("Bakes a constant tenant into EF's cached model (first caller's tenant wins for the whole process). Use ApplyTenantQueryFilters with an ITenantScopedDbContext.")]
     public static void ConfigureTenantFilter(ModelBuilder builder, Guid tenantId)

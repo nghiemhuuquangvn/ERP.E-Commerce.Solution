@@ -2,8 +2,11 @@ using ERP.Shared.Core.Domain;
 
 namespace ERP.PO.Domain.Events;
 
-public class PurchaseOrderApprovedDomainEvent : IDomainEvent
+public class PurchaseOrderApprovedDomainEvent : IDomainEvent, ITenantEvent
 {
+    /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+    public Guid TenantId { get; set; }
+
     public Guid PurchaseOrderId { get; }
     public string PONumber { get; }
     public Guid SupplierId { get; }

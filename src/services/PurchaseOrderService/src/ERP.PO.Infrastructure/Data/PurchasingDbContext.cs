@@ -183,8 +183,11 @@ public class PurchasingDbContext : DbContext, IUnitOfWork, ITenantScopedDbContex
     {
         try
         {
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+
             var domainEntities = ChangeTracker.Entries<BaseEntity>()
                 .Where(e => e.Entity.DomainEvents.Any()).ToList();
+            domainEntities.ForEach(e => EventTenant.StampFrom(e.Entity));
 
             var outboxMessages = domainEntities
                 .SelectMany(e => e.Entity.DomainEvents)

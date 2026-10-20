@@ -22,6 +22,7 @@
     <ProjectReference Include="..\..\..\src\Shared\Contracts\ERP.Shared.Contracts.csproj" />
     <ProjectReference Include="..\..\..\src\Shared\Messaging\ERP.Shared.Messaging.csproj" />
     <ProjectReference Include="..\..\..\src\Shared\Infrastructure\Data\ERP.Shared.Data.csproj" />
+    <ProjectReference Include="..\..\..\src\Shared\Authorization\ERP.Shared.Authorization.csproj" />
   </ItemGroup>
 
 </Project>

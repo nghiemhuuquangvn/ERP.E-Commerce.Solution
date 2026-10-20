@@ -78,6 +78,8 @@ namespace ERP.CRM.Infrastructure.Persistence
                 .Select(e => e.Entity)
                 .ToList();
 
+            aggregateRoots.ForEach(EventTenant.StampFrom);
+
             var domainEvents = aggregateRoots
                 .SelectMany(aggregate => aggregate.DomainEvents)
                 .ToList();
