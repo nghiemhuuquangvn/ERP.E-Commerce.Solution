@@ -1,3 +1,4 @@
+using ERP.Shared.Infrastructure.Data;
 using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Application.Interfaces;
 using ERP.Shared.Infrastructure.Caching;
@@ -49,6 +50,22 @@ namespace ERP.WH.Infrastructure.BackgroundJobs
         }
 
         private async Task ExpireReservationsAsync(CancellationToken cancellationToken)
+        {
+            // No user here: find the tenants with work across tenants, then release each
+            // tenant's reservations inside its own TenantScope (and its own DI scope).
+            List<Guid> tenants;
+            using (var lookupScope = _serviceProvider.CreateScope())
+                tenants = await lookupScope.ServiceProvider.GetRequiredService<IWarehouseUnitOfWork>()
+                    .Reservations.GetTenantsWithExpiredAsync(DateTime.UtcNow, cancellationToken);
+
+            foreach (var tenantId in tenants.Where(t => t != Guid.Empty))
+            {
+                using (TenantScope.Begin(tenantId))
+                    await ExpireTenantReservationsAsync(cancellationToken);
+            }
+        }
+
+        private async Task ExpireTenantReservationsAsync(CancellationToken cancellationToken)
         {
             using var scope = _serviceProvider.CreateScope();
             var uow = scope.ServiceProvider.GetRequiredService<IWarehouseUnitOfWork>();

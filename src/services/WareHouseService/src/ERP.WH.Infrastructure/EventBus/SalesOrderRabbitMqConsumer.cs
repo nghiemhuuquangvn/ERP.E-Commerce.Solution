@@ -1,3 +1,5 @@
+using ERP.Shared.Messaging;
+using ERP.Shared.Infrastructure.Data;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -75,6 +77,16 @@ public class SalesOrderRabbitMqConsumer : IHostedService
 
             using var scope = _serviceProvider.CreateScope();
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+            // Saga commands and Sales events carry the order's tenant; without one nothing
+            // is reserved or released (fail closed) — the message is acknowledged and logged.
+            if (!EventTenant.TryRead(json, out var tenantId))
+            {
+                _logger.LogWarning("{RoutingKey} without TenantId ignored", ea.RoutingKey);
+                _channel!.BasicAck(ea.DeliveryTag, multiple: false);
+                return;
+            }
+            using var tenantScope = TenantScope.Begin(tenantId);
 
             switch (ea.RoutingKey)
             {

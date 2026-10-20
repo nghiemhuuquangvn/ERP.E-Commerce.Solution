@@ -41,7 +41,7 @@ public class CompleteTransferOrderCommandHandler : IRequestHandler<CompleteTrans
         foreach (var line in order.Lines)
         {
             var movement = new StockMovement(
-                Guid.Parse("00000000-0000-0000-0000-000000000001"), // see RecordStockMovementCommandHandler
+                Guid.Empty, // stamped with the current tenant on save (see RecordStockMovementCommandHandler)
                 line.ProductId,
                 line.Quantity,
                 MovementType.Transferred,

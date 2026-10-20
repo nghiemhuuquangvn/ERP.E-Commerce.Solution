@@ -1,3 +1,4 @@
+using ERP.Shared.Core.Domain;
 namespace ERP.PO.Domain.Entities;
 
 public enum PurchaseRequestStatus
@@ -16,9 +17,11 @@ public enum PurchaseRequestStatus
 /// manually, into a real PurchaseOrder via the existing CreatePurchaseOrderCommand —
 /// this entity never auto-creates or auto-approves a PurchaseOrder itself.
 /// </summary>
-public class PurchaseRequest
+public class PurchaseRequest : ITenantOwned
 {
     public Guid Id { get; private set; }
+    /// <summary>Owning tenant — stamped by PurchasingDbContext on insert (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
     public Guid ProductId { get; private set; }
     public string ProductName { get; private set; } = string.Empty;
     public int CurrentQuantity { get; private set; }

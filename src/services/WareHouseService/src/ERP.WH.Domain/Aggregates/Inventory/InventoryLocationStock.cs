@@ -1,3 +1,4 @@
+using ERP.Shared.Core.Domain;
 namespace ERP.WH.Domain.Aggregates.Inventory;
 
 /// <summary>
@@ -7,9 +8,11 @@ namespace ERP.WH.Domain.Aggregates.Inventory;
 /// callers that never pass a LocationId keep working exactly as before against the
 /// product-level rollup only.
 /// </summary>
-public class InventoryLocationStock
+public class InventoryLocationStock : ITenantOwned
 {
     public Guid Id { get; private set; }
+    /// <summary>Owning tenant — stamped by WarehouseDbContext on insert (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
     public Guid ProductId { get; private set; }
     public Guid LocationId { get; private set; }
     public int Quantity { get; private set; }

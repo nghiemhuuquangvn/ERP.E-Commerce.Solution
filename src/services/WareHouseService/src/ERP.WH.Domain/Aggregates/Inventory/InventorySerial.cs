@@ -1,3 +1,4 @@
+using ERP.Shared.Core.Domain;
 namespace ERP.WH.Domain.Aggregates.Inventory;
 
 public enum SerialStatus
@@ -8,9 +9,11 @@ public enum SerialStatus
     Damaged = 3
 }
 
-public class InventorySerial
+public class InventorySerial : ITenantOwned
 {
     public Guid SerialId { get; private set; }
+    /// <summary>Owning tenant — stamped by WarehouseDbContext on insert (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
     public Guid ProductId { get; private set; }
     public string SerialNumber { get; private set; }
     public Guid? LotId { get; private set; }

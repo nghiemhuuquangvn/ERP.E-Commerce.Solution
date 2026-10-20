@@ -35,6 +35,16 @@ public class ReservationRepository : IReservationRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<Guid>> GetTenantsWithExpiredAsync(DateTime asOfUtc, CancellationToken cancellationToken)
+    {
+        return await _context.Reservations
+            .IgnoreQueryFilters() // background job: finds work in every tenant, then runs per tenant
+            .Where(r => r.Status == ReservationStatus.Reserved && r.HoldUntil < asOfUtc)
+            .Select(r => r.TenantId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<List<Reservation>> GetExpiredAsync(DateTime asOfUtc, CancellationToken cancellationToken)
     {
         return await _context.Reservations

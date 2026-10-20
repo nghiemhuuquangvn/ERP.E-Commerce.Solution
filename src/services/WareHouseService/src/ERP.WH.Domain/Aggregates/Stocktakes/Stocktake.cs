@@ -1,3 +1,4 @@
+using ERP.Shared.Core.Domain;
 namespace ERP.WH.Domain.Aggregates.Stocktakes;
 
 public enum StocktakeStatus
@@ -36,9 +37,11 @@ public class StocktakeLine
     }
 }
 
-public class Stocktake
+public class Stocktake : ITenantOwned
 {
     public Guid StocktakeId { get; private set; }
+    /// <summary>Owning tenant — stamped by WarehouseDbContext on insert (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
     public string StocktakeNumber { get; private set; } = null!;
     public Guid? LocationId { get; private set; }
     public StocktakeStatus Status { get; private set; }

@@ -1,7 +1,12 @@
+using ERP.Shared.Core.Domain;
+
 namespace ERP.WH.Domain.Events;
 
-public class TransferOrderCompletedEvent
+public class TransferOrderCompletedEvent : ITenantEvent
 {
+    /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+    public Guid TenantId { get; set; }
+
     public Guid TransferOrderId { get; set; }
     public required string TransferNumber { get; set; }
     public Guid FromLocationId { get; set; }

@@ -1,3 +1,5 @@
+using ERP.Shared.Messaging;
+using ERP.Shared.Infrastructure.Data;
 using System.Text;
 using System.Text.Json;
 using MediatR;
@@ -64,8 +66,14 @@ public class WarehouseEventRabbitMqConsumer : IHostedService
             var json = Encoding.UTF8.GetString(ea.Body.ToArray());
             var payload = JsonSerializer.Deserialize<StockAlertEventPayload>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-            if (payload != null)
+            if (payload != null && !EventTenant.TryRead(json, out _))
             {
+                // The purchase request belongs to the warehouse's tenant; never guess it.
+                _logger.LogWarning("StockAlert for product {ProductId} without TenantId ignored", payload.ProductId);
+            }
+            else if (payload != null && EventTenant.TryRead(json, out var tenantId))
+            {
+                using var tenantScope = TenantScope.Begin(tenantId);
                 using var scope = _serviceProvider.CreateScope();
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 

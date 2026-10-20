@@ -48,6 +48,9 @@ try
     builder.Services.AddErpAuthorization();
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+    // Tenant isolation for WarehouseDbContext: JWT tenant, Gateway host tenant for anonymous
+    // requests, or an explicit TenantScope set by consumers and the reservation-expiry job.
+    builder.Services.AddRequestTenantProvider();
     builder.Services.AddScoped<UserContext>();
     builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Warehouse));
 

@@ -97,7 +97,7 @@ public class ApproveStockAdjustmentCommandHandler : IRequestHandler<ApproveStock
             : $"{adjustment.Reason}: {adjustment.Notes}";
 
         var movement = new StockMovement(
-            Guid.Parse("00000000-0000-0000-0000-000000000001"), // see RecordStockMovementCommandHandler
+            Guid.Empty, // stamped with the current tenant on save (see RecordStockMovementCommandHandler)
             adjustment.ProductId,
             adjustment.QuantityDelta,
             movementType,

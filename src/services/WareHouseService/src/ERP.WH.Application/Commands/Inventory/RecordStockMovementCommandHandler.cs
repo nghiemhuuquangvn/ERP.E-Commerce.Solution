@@ -55,12 +55,9 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
         await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
 
         var movement = new StockMovement(
-            // WarehouseService's Application layer has no tenant-context plumbing
-            // anywhere yet (Inventory/StockMovement have no TenantId property at
-            // all, despite the DB columns being NOT NULL) — falls back to the
-            // fixed system tenant used throughout this repo's seed data pending a
-            // real multi-tenant pass through this service.
-            Guid.Parse("00000000-0000-0000-0000-000000000001"),
+            // Empty: WarehouseDbContext.EnforceTenantOnSave stamps the tenant of the current
+            // request / TenantScope (it used to be hard-coded to the SYSTEM tenant).
+            Guid.Empty,
             request.ProductId,
             request.Quantity,
             movementType,

@@ -81,4 +81,19 @@ public class TenantIsolationBehaviorTests
     public void Product_Categories() =>
         AssertIsolated<ERP.PRD.Infrastructure.Persistence.ProductDbContext, ERP.PRD.Domain.Entities.Category>(
             ERP.PRD.Domain.Entities.Category.Create("Shirts", code: "SHIRTS"), e => e.TenantId);
+
+    [Fact]
+    public void Warehouse_Warehouses() =>
+        AssertIsolated<ERP.WH.Infrastructure.Persistence.WarehouseDbContext, ERP.WH.Domain.Aggregates.Location.Warehouse>(
+            new ERP.WH.Domain.Aggregates.Location.Warehouse("WH01", "Main"), e => e.TenantId);
+
+    [Fact]
+    public void Warehouse_BarcodeMappings() =>
+        AssertIsolated<ERP.WH.Infrastructure.Persistence.WarehouseDbContext, ERP.WH.Domain.Aggregates.Inventory.BarcodeMapping>(
+            new ERP.WH.Domain.Aggregates.Inventory.BarcodeMapping("8930001", Guid.NewGuid()), e => e.TenantId);
+
+    [Fact]
+    public void PurchaseOrder_PurchaseRequests() =>
+        AssertIsolated<ERP.PO.Infrastructure.Data.PurchasingDbContext, ERP.PO.Domain.Entities.PurchaseRequest>(
+            ERP.PO.Domain.Entities.PurchaseRequest.Create(Guid.NewGuid(), "Widget", 1, 5, 10), e => e.TenantId);
 }

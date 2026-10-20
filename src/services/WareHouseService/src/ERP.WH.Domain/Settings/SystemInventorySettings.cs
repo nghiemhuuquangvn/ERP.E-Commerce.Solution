@@ -6,7 +6,7 @@ namespace ERP.WH.Domain.Settings;
 /// project reference to ERP.Shared.Core, consistent with this service's existing
 /// entities (e.g. Inventory), which are also plain POCOs.
 /// </summary>
-public class SystemInventorySettings
+public class SystemInventorySettings : ERP.Shared.Core.Domain.IPlatformWideEntity
 {
     public static readonly Guid WellKnownId = Guid.Parse("70000000-0000-0000-0000-000000000001");
 

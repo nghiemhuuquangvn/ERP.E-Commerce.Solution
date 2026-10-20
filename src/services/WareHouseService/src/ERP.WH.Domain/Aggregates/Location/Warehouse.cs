@@ -1,3 +1,4 @@
+using ERP.Shared.Core.Domain;
 namespace ERP.WH.Domain.Aggregates.Location;
 
 /// <summary>
@@ -6,9 +7,11 @@ namespace ERP.WH.Domain.Aggregates.Location;
 /// deeper Zone/Aisle/Rack/Bin hierarchy — that's a future item if multi-site actually
 /// needs it.
 /// </summary>
-public class Warehouse
+public class Warehouse : ITenantOwned
 {
     public Guid Id { get; private set; }
+    /// <summary>Owning tenant — stamped by WarehouseDbContext on insert (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
     public string Code { get; private set; } = null!;
     public string Name { get; private set; } = null!;
     public string? Address { get; private set; }
