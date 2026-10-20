@@ -1,3 +1,5 @@
+using ERP.Shared.Messaging;
+using ERP.Shared.Infrastructure.Data;
 using Confluent.Kafka;
 using ERP.SO.Application.Handlers;
 using ERP.SO.Application.Interfaces;
@@ -105,6 +107,10 @@ namespace ERP.SO.Infrastructure.EventBus
                 if (orderId == Guid.Empty || paymentId == Guid.Empty)
                     return;
 
+                if (await OrderTenant.ResolveAsync(scope.ServiceProvider.GetRequiredService<SalesOrderDbContext>(), orderId, json, _logger, cancellationToken) is not { } tenantId)
+                    return;
+                using var tenantScope = TenantScope.Begin(tenantId);
+
                 await saga.HandlePaymentProcessedAsync(orderId, paymentId, cancellationToken);
                 await TryCreateCommissionAsync(scope.ServiceProvider, orderId, cancellationToken);
             }
@@ -114,6 +120,10 @@ namespace ERP.SO.Infrastructure.EventBus
                 var reason = raw.Value<string?>("FailureReason") ?? "Unknown payment failure";
                 if (orderId == Guid.Empty)
                     return;
+
+                if (await OrderTenant.ResolveAsync(scope.ServiceProvider.GetRequiredService<SalesOrderDbContext>(), orderId, json, _logger, cancellationToken) is not { } tenantId)
+                    return;
+                using var tenantScope = TenantScope.Begin(tenantId);
 
                 await saga.HandlePaymentFailedAsync(orderId, reason, cancellationToken);
             }

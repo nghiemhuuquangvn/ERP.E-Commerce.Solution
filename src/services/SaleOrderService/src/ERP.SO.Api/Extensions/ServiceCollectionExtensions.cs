@@ -14,6 +14,9 @@ namespace ERP.SO.Api.Extensions
             services.AddScoped<UserContext>();
             services.AddHttpContextAccessor();
             services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+            // Tenant isolation for SalesOrderDbContext: JWT tenant, Gateway host tenant for
+            // anonymous requests, or an explicit TenantScope set by consumers/jobs.
+            services.AddRequestTenantProvider();
 
             return services;
         }

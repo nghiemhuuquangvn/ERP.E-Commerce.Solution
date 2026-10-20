@@ -1,3 +1,5 @@
+using ERP.Shared.Messaging;
+using ERP.Shared.Infrastructure.Data;
 using Confluent.Kafka;
 using ERP.SO.Application.Sagas;
 using Microsoft.Extensions.Configuration;
@@ -101,6 +103,9 @@ namespace ERP.SO.Infrastructure.EventBus
 
             using var scope = _serviceProvider.CreateScope();
             var saga = scope.ServiceProvider.GetRequiredService<OrderFulfillmentSaga>();
+            if (await OrderTenant.ResolveAsync(scope.ServiceProvider.GetRequiredService<SalesOrderDbContext>(), orderId, json, _logger, cancellationToken) is not { } tenantId)
+                return;
+            using var tenantScope = TenantScope.Begin(tenantId);
             await saga.HandleShipmentCreatedAsync(orderId, shipmentId, cancellationToken);
         }
     }

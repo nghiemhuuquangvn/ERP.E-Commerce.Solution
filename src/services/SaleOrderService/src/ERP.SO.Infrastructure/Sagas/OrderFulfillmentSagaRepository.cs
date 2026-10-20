@@ -35,7 +35,9 @@ public sealed class OrderFulfillmentSagaRepository : IOrderFulfillmentSagaReposi
     public async Task<IEnumerable<OrderFulfillmentSagaState>> GetStuckSagasAsync(TimeSpan timeout, CancellationToken ct = default)
     {
         var cutoff = DateTime.UtcNow - timeout;
+        // Monitoring job with no tenant: deliberately looks across every tenant (read-only).
         return await _dbContext.Set<OrderFulfillmentSagaState>()
+            .IgnoreQueryFilters()
             .Where(s => s.Status == SagaStatus.Running && s.LastUpdatedAt < cutoff)
             .ToListAsync(ct);
     }

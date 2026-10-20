@@ -3,7 +3,7 @@ using ERP.Shared.Core.Domain;
 namespace ERP.SO.Domain.Entities.Settings;
 
 /// <summary>Platform-wide Cart/Checkout/Customer toggles. Mirrors IdentityService's SystemAuthSettings.</summary>
-public class SystemCartCheckoutSettings : BaseEntity
+public class SystemCartCheckoutSettings : BaseEntity, IPlatformWideEntity
 {
     public static readonly Guid WellKnownId = Guid.Parse("60000000-0000-0000-0000-000000000001");
 
