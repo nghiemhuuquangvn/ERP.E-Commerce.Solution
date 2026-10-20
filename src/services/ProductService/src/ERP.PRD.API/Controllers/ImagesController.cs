@@ -1,3 +1,4 @@
+using ERP.Shared.Authorization;
 using Asp.Versioning;
 using ERP.PRD.Application.Features.Images.Commands;
 using ERP.PRD.Application.Features.Images.Queries;
@@ -33,6 +34,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> UploadImage(Guid productId, [FromBody] UploadProductImageCommand command)
         {
             command.ProductId = productId;
@@ -59,6 +61,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> UploadImageFile(
             Guid productId,
             [FromForm] IFormFile file,
@@ -101,6 +104,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> UpdateImage(
             Guid productId,
             Guid imageId,
@@ -164,6 +168,7 @@ namespace ERP.PRD.API.Controllers
         [HttpDelete("{imageId}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> RemoveImage(Guid productId, Guid imageId)
         {
             _logger.LogInformation("Removing image {ImageId} from product {ProductId}", imageId, productId);
@@ -183,6 +188,7 @@ namespace ERP.PRD.API.Controllers
         [HttpPost("{imageId}/primary")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> SetPrimaryImage(Guid productId, Guid imageId)
         {
             _logger.LogInformation("Setting image {ImageId} as primary for product {ProductId}", imageId, productId);

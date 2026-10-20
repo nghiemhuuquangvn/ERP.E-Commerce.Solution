@@ -1,3 +1,4 @@
+using ERP.Shared.Authorization;
 using Asp.Versioning;
 using ERP.PRD.Application.Features.Variants.Commands;
 using ERP.PRD.Application.Features.Variants.Queries;
@@ -32,6 +33,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Create)]
         public async Task<IActionResult> CreateVariant(Guid productId, [FromBody] CreateProductVariantCommand command)
         {
             command.ProductId = productId;
@@ -50,6 +52,7 @@ namespace ERP.PRD.API.Controllers
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_View)]
         public async Task<IActionResult> GetVariants(Guid productId)
         {
             _logger.LogInformation("Fetching variants for product {ProductId}", productId);
@@ -69,6 +72,7 @@ namespace ERP.PRD.API.Controllers
         [HttpGet("{variantId}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_View)]
         public async Task<IActionResult> GetVariant(Guid productId, Guid variantId)
         {
             _logger.LogInformation("Fetching variant {VariantId} for product {ProductId}", variantId, productId);
@@ -94,6 +98,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> UpdateVariant(Guid productId, Guid variantId, [FromBody] UpdateProductVariantCommand command)
         {
             command.ProductId = productId;
@@ -115,6 +120,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [AuthorizePermission(PermissionConstants.Products_Delete)]
         public async Task<IActionResult> DeleteVariant(Guid productId, Guid variantId)
         {
             _logger.LogInformation("Deleting variant {VariantId} from product {ProductId}", variantId, productId);

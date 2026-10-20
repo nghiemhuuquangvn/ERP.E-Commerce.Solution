@@ -1,3 +1,4 @@
+using ERP.Shared.Authorization;
 using Asp.Versioning;
 using ERP.PRD.Application.Features.Relations.Commands;
 using ERP.PRD.Application.Features.Relations.Queries;
@@ -31,6 +32,7 @@ namespace ERP.PRD.API.Controllers
         }
 
         [HttpPost]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> AddRelation(Guid productId, [FromBody] AddProductRelationCommand command)
         {
             command.ProductId = productId;
@@ -39,6 +41,7 @@ namespace ERP.PRD.API.Controllers
         }
 
         [HttpDelete("{relationId}")]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> RemoveRelation(Guid productId, Guid relationId)
         {
             await _mediator.Send(new RemoveProductRelationCommand { RelationId = relationId });

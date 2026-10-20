@@ -1,3 +1,4 @@
+using ERP.Shared.Authorization;
 using Asp.Versioning;
 using ERP.PRD.Application.Features.Attributes.Commands;
 using ERP.PRD.Application.Features.Attributes.Queries;
@@ -38,6 +39,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Create)]
         public async Task<IActionResult> CreateAttribute([FromBody] CreateProductAttributeCommand command)
         {
             _logger.LogInformation("Creating product attribute: {Code}", command.Code);
@@ -53,6 +55,7 @@ namespace ERP.PRD.API.Controllers
         /// </summary>
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
+        [AuthorizePermission(PermissionConstants.Products_View)]
         public async Task<IActionResult> GetAttributes([FromQuery] Guid? categoryId)
         {
             var query = new GetProductAttributesQuery { CategoryId = categoryId };
@@ -68,6 +71,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> UpdateAttribute(Guid id, [FromBody] UpdateProductAttributeCommand command)
         {
             command.Id = id;
@@ -85,6 +89,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> AddOption(Guid id, [FromBody] AddAttributeOptionCommand command)
         {
             command.ProductAttributeId = id;
@@ -102,6 +107,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Delete)]
         public async Task<IActionResult> DeleteAttribute(Guid id)
         {
             _logger.LogInformation("Deleting product attribute: {Id}", id);
@@ -119,6 +125,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> SetProductAttributeValue(Guid productId, Guid attributeId, [FromBody] SetProductAttributeValueCommand command)
         {
             command.ProductAttributeId = attributeId;
@@ -140,6 +147,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> SetVariantAttributeValue(Guid productId, Guid variantId, Guid attributeId, [FromBody] SetProductAttributeValueCommand command)
         {
             command.ProductAttributeId = attributeId;
@@ -160,6 +168,7 @@ namespace ERP.PRD.API.Controllers
         [HttpGet("/api/v{version:apiVersion}/products/{productId}/attributes")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_View)]
         public async Task<IActionResult> GetAttributeValues(Guid productId, [FromQuery] Guid? variantId)
         {
             var query = new GetProductAttributeValuesQuery { ProductId = productId, VariantId = variantId };

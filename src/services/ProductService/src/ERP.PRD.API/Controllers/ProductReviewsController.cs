@@ -1,3 +1,4 @@
+using ERP.Shared.Authorization;
 using Asp.Versioning;
 using ERP.PRD.Application.Features.Reviews.Commands;
 using ERP.PRD.Application.Features.Reviews.Queries;
@@ -13,9 +14,11 @@ namespace ERP.PRD.API.Controllers
     public class ProductReviewsController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly IUserContextService _userContext;
 
-        public ProductReviewsController(IMediator mediator)
+        public ProductReviewsController(IMediator mediator, IUserContextService userContext)
         {
+            _userContext = userContext;
             _mediator = mediator;
         }
 
@@ -28,10 +31,15 @@ namespace ERP.PRD.API.Controllers
         }
 
         [HttpPost]
-        [Authorize]
+        [AuthorizeAnyAuthenticatedUser]
         public async Task<IActionResult> CreateReview(Guid productId, [FromBody] CreateProductReviewCommand command)
         {
             command.ProductId = productId;
+            // The reviewer is always the caller — a body-supplied CustomerId let anyone
+            // post reviews in another customer's name.
+            if (!Guid.TryParse(_userContext.GetUserId(), out var customerId))
+                return Unauthorized();
+            command.CustomerId = customerId;
             var id = await _mediator.Send(command);
             return CreatedAtAction(nameof(GetReviews), new { productId }, new { id });
         }

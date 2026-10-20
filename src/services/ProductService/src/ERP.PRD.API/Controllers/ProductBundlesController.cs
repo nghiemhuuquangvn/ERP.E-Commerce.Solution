@@ -1,3 +1,4 @@
+using ERP.Shared.Authorization;
 using Asp.Versioning;
 using ERP.PRD.Application.Features.Bundles.Commands;
 using ERP.PRD.Application.Features.Bundles.Queries;
@@ -29,6 +30,7 @@ namespace ERP.PRD.API.Controllers
         }
 
         [HttpPost]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> AddBundleItem(Guid productId, [FromBody] AddBundleItemCommand command)
         {
             command.BundleProductId = productId;
@@ -37,6 +39,7 @@ namespace ERP.PRD.API.Controllers
         }
 
         [HttpDelete("{bundleItemId}")]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> RemoveBundleItem(Guid productId, Guid bundleItemId)
         {
             await _mediator.Send(new RemoveBundleItemCommand { BundleItemId = bundleItemId });

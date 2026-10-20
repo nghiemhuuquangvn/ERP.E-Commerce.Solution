@@ -1,3 +1,4 @@
+using ERP.Shared.Authorization;
 using Asp.Versioning;
 using ERP.PRD.Application.Features.Categories.Commands;
 using ERP.PRD.Application.Features.Categories.Queries;
@@ -45,6 +46,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Create)]
         public async Task<IActionResult> CreateCategory([FromBody] CreateCategoryCommand command)
         {
             _logger.LogInformation("Creating category: {Name}", command.Name);
@@ -82,6 +84,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> SetCategoryTranslation(Guid categoryId, [FromBody] SetCategoryTranslationCommand command)
         {
             command.CategoryId = categoryId;
@@ -102,6 +105,7 @@ namespace ERP.PRD.API.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
         public async Task<IActionResult> UpdateCategory(Guid categoryId, [FromBody] UpdateCategoryCommand command)
         {
             command.CategoryId = categoryId;
