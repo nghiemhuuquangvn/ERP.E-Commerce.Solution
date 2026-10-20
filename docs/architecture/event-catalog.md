@@ -11,6 +11,28 @@ Examples:
 - `SalesOrderApprovedEvent`
 - `InventoryReservedEvent`
 
+## Tenant in every event (2026-10-20)
+
+Every event that leaves a service carries the tenant it belongs to — decision 2026-10-20
+(tenant isolation phase 2), so a consumer never guesses:
+
+- **Contract:** the event class implements `ERP.Shared.Core.Domain.ITenantEvent`
+  (`Guid TenantId { get; set; }`). This applies to every event listed below even where the
+  C# sketch omits it; IdentityService events already declared `TenantId` explicitly.
+  `SettingsChangedIntegrationEvent` keeps its own `Guid? TenantId` (null = platform-wide).
+- **Publisher:** the Outbox writer stamps it from the entity that raised the event, or from
+  the current tenant (`EventTenant.StampFrom` / `EventTenant.Stamp`) before serializing.
+  SaleOrder saga commands (`InitiatePayment`, `ReserveInventory`, `CreateShipment`,
+  `RefundPayment`) already carried `TenantId`.
+- **Consumer:** `EventTenant.TryRead(json, out var tenantId)` → handle inside
+  `TenantScope.Begin(tenantId)`. **No tenant = the event is logged and skipped** (fail
+  closed). When the event refers to the consumer's own data (e.g. Payment/Warehouse/Shipping
+  events about a sales order), that data decides the tenant and an event naming another
+  tenant is dropped.
+- **Deployment:** events written to an Outbox before this release have no `TenantId` and
+  are skipped by upgraded consumers — deploy publishers and consumers together and let old
+  Outboxes drain first. See `docs/PROJECT-STATUS.md` §3.
+
 ## Identity Service Events
 
 ### UserCreatedEvent
