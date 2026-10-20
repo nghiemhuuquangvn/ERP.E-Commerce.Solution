@@ -163,8 +163,14 @@ Security invariants (2026-10-19 review — docs/business/Identity/SecurityReview
 - Secrets/tokens (reset, confirm, OTP) only leave the service via NotificationService
   events — never in an HTTP response (dev-only flag excepted, blocked outside Development).
 - Every token-issuing path goes through `EnsureAccountCanAuthenticateAsync`
-  (IsActive user + tenant); credential/status changes call
+  (IsActive user + tenant, not administratively locked); credential/status changes call
   `ISessionService.RevokeAllForUserAsync`.
+- Every change that affects what an issued token may do must reach the shared revocation
+  store through `IUnitOfWork.Revocations` (published after commit): logout → `RevokeToken`;
+  password, lock, deactivation, role assign/remove → `UsersChanged` (via
+  `RevokeAllForUserAsync` where sessions end too); role permission edits/deletion → the role's
+  holders; tenant status and license → `TenantChanged`. Every service, the Gateway and hubs
+  reject revoked tokens (`ERP.Shared.Authorization.TokenRevocation`, fail-open if Redis is down).
 - Client IP comes from `RemoteIpAddress` (after `UseForwardedHeaders` with trusted
   networks), never from the raw `X-Forwarded-For` header.
 - Outbound calls to tenant-configured URLs (webhooks) go through `WebhookUrlRules`.
