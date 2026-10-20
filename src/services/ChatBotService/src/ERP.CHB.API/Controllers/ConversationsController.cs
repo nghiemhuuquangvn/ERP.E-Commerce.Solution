@@ -1,3 +1,4 @@
+using ERP.Shared.Authorization;
 using Asp.Versioning;
 using ERP.CHB.Application.Commands;
 using ERP.CHB.Application.Queries;
@@ -35,6 +36,7 @@ public class ConversationsController : ControllerBase
     }
 
     [HttpGet]
+    [AuthorizeAnyAuthenticatedUser]
     public async Task<IActionResult> ListMine([FromQuery] ConversationChannel? channel, CancellationToken ct)
     {
         var result = await _mediator.Send(new ListMyConversationsQuery(channel), ct);
@@ -42,9 +44,10 @@ public class ConversationsController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetHistory(Guid id, CancellationToken ct)
+    [AuthorizeAnyAuthenticatedUser]
+    public async Task<IActionResult> GetHistory(Guid id, [FromQuery] string? guestSessionId, CancellationToken ct)
     {
-        var result = await _mediator.Send(new GetConversationHistoryQuery(id), ct);
+        var result = await _mediator.Send(new GetConversationHistoryQuery(id, guestSessionId), ct);
         return Ok(result);
     }
 }

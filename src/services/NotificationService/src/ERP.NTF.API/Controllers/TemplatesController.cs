@@ -22,6 +22,7 @@ public class TemplatesController : ControllerBase
     }
 
     [HttpGet]
+    [AuthorizePermission(PermissionConstants.Notifications_View)]
     public async Task<IActionResult> List([FromQuery] bool? isActive, CancellationToken ct)
     {
         var result = await _mediator.Send(new ListTemplatesQuery { IsActive = isActive }, ct);
@@ -29,6 +30,7 @@ public class TemplatesController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [AuthorizePermission(PermissionConstants.Notifications_View)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await _mediator.Send(new GetTemplateQuery { TemplateId = id }, ct);
