@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore;
+using ERP.CRM.Infrastructure.Persistence;
+using ERP.Shared.Infrastructure.Data;
 using System.Text;
 using System.Text.Json;
 using ERP.CRM.Application.EventHandlers;
@@ -75,6 +78,24 @@ namespace ERP.CRM.Infrastructure.EventBus
                         var created = JsonSerializer.Deserialize<SalesOrderCreatedIntegrationEvent>(json);
                         if (created != null)
                         {
+                            // SalesOrderCreatedEvent carries no TenantId, so the tenant is the
+                            // one owning the customer's Contact (UserId is globally unique) —
+                            // looked up across tenants on purpose, then everything after runs
+                            // inside that tenant's scope.
+                            var db = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
+                            var contactTenantId = await db.Contacts.IgnoreQueryFilters()
+                                .Where(c => c.UserId == created.CustomerId && !c.IsDeleted)
+                                .Select(c => (Guid?)c.TenantId)
+                                .FirstOrDefaultAsync();
+
+                            if (contactTenantId is null || contactTenantId == Guid.Empty)
+                            {
+                                _logger.LogWarning("No CRM contact for CustomerId={CustomerId}; SalesOrder {OrderId} activity not logged",
+                                    created.CustomerId, created.OrderId);
+                                break;
+                            }
+
+                            using var tenantScope = TenantScope.Begin(contactTenantId.Value);
                             var handler = scope.ServiceProvider.GetRequiredService<SalesOrderCreatedEventHandler>();
                             await handler.HandleAsync(created, CancellationToken.None);
                         }

@@ -1,6 +1,6 @@
 # Database Map: ERP E-Commerce Solution
 
-**Purpose:** Document all 14 databases, their schemas, entities, and relationships.
+**Purpose:** Document the service databases, their schemas, entities, and relationships. (Originally written for 14 databases; MasterDataDB and ChatBotDB were added later, LoggingService uses Elasticsearch only — see CLAUDE.md "Database Ownership" for the current list.)
 
 ---
 

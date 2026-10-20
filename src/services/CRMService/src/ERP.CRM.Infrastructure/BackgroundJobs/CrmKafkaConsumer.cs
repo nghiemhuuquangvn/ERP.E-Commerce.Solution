@@ -1,3 +1,4 @@
+using ERP.Shared.Infrastructure.Data;
 using Confluent.Kafka;
 using ERP.CRM.Application.EventHandlers;
 using Microsoft.Extensions.Configuration;
@@ -116,11 +117,19 @@ namespace ERP.CRM.Infrastructure.BackgroundJobs
                 // filling unavailable fields with a safe default rather than guessing.
                 var raw = JObject.Parse(json);
                 var userId = raw.Value<Guid?>("UserId") ?? Guid.Empty;
+                var tenantId = raw.Value<Guid?>("TenantId") ?? Guid.Empty;
                 var email = raw.Value<string>("Email") ?? string.Empty;
 
                 if (userId == Guid.Empty)
                     return;
+                if (tenantId == Guid.Empty)
+                {
+                    _logger.LogWarning("UserRegisteredDomainEvent for UserId={UserId} has no TenantId — Contact not created", userId);
+                    return;
+                }
 
+                // No HTTP user here: the Contact belongs to the tenant the user registered in.
+                using var tenantScope = TenantScope.Begin(tenantId);
                 var evt = new UserRegisteredIntegrationEvent(userId, email, email);
                 var handler = scope.ServiceProvider.GetRequiredService<UserCreatedEventHandler>();
                 await handler.HandleAsync(evt, cancellationToken);

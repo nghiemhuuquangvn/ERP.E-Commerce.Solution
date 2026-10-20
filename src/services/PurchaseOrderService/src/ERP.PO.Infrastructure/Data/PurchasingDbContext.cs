@@ -13,9 +13,19 @@ namespace ERP.PO.Infrastructure.Data;
 /// Manages PurchaseOrder, PurchaseOrderItem, and Supplier aggregates.
 /// Enforces tenant isolation and optimistic locking patterns.
 /// </summary>
-public class PurchasingDbContext : DbContext, IUnitOfWork
+public class PurchasingDbContext : DbContext, IUnitOfWork, ITenantScopedDbContext
 {
     private readonly IUserContextService _userContextService;
+
+    /// <summary>
+    /// Re-read by the tenant query filter on every query (see
+    /// TenantFilterConfiguration.ApplyTenantQueryFilters) — never baked into the model.
+    /// </summary>
+    public Guid? CurrentTenantId =>
+        TenantScope.Current
+        ?? (Guid.TryParse(_userContextService.GetCurrentUser().TenantId, out var tenantId) && tenantId != Guid.Empty
+            ? tenantId
+            : null);
 
     public DbSet<PurchaseOrder> PurchaseOrders { get; set; } = null!;
     public DbSet<PurchaseOrderItem> PurchaseOrderItems { get; set; } = null!;
@@ -35,13 +45,6 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
-
-        // Apply tenant filter for multi-tenant isolation
-        var userContext = _userContextService.GetCurrentUser();
-        if (!string.IsNullOrEmpty(userContext.TenantId))
-        {
-            TenantFilterConfiguration.ConfigureTenantFilter(builder, new Guid(userContext.TenantId));
-        }
 
         // Configure PurchaseOrder aggregate
         var purchaseOrderBuilder = builder.Entity<PurchaseOrder>();
@@ -145,7 +148,7 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
         receiptBuilder.HasIndex(r => new { r.PurchaseOrderId, r.TenantId });
 
         // Configure PurchaseRequest — plain Id key, no TenantId/composite key and not
-        // covered by ConfigureTenantFilter above, since it doesn't extend BaseEntity
+        // covered by the tenant query filter below, since it doesn't extend BaseEntity
         // (the upstream StockAlertEvent signal carries no tenant concept).
         var purchaseRequestBuilder = builder.Entity<PurchaseRequest>();
         purchaseRequestBuilder.HasKey(pr => pr.Id);
@@ -162,6 +165,12 @@ public class PurchasingDbContext : DbContext, IUnitOfWork
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasIndex(x => x.ProcessedOnUtc);
         });
+
+        // Multi-tenant isolation for every BaseEntity. Previously ConfigureTenantFilter baked
+        // the FIRST request's tenant into EF's once-per-process cached model, so every later
+        // request (any tenant) was filtered by that one tenant — or not at all if the model
+        // was first built without a user (background job).
+        builder.ApplyTenantQueryFilters(this);
     }
 
     public ITransaction BeginTransaction()

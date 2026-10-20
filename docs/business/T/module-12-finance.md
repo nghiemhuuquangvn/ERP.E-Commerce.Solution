@@ -144,6 +144,8 @@ GET    /api/v1/finance/budget/{departmentId}/vs-actual?periodId=
 
 ## 10. So sánh & Reconciliation với project hiện tại
 
+> **Cập nhật 2026-10-20:** đoạn dưới viết trước khi có AccountingService. Hiện đã có GL/AR/AP cơ bản (Account, JournalEntry/JournalLine, Invoice, Bill, FiscalPeriod, BankAccount/BankStatement, TaxRate); còn thiếu: COA mapping cho ghi sổ tự động (WarehouseMovement), khoá sổ/aging đầy đủ, Cash/Bank đầy đủ.
+
 Module này **hoàn toàn chưa có** trong project — không có phần tái sử dụng như các module trước. Điểm cần lưu ý duy nhất: `Currency`/`ExchangeRate` đã được thiết kế ở Module 3 (Master Data) — Finance **tái sử dụng**, không tạo lại, chỉ thêm bảng snapshot tỷ giá tại thời điểm ghi sổ (`JournalEntryLine.ExchangeRate`) để tránh phụ thuộc dữ liệu động thay đổi sau này.
 
 ## 11. Khuyến nghị triển khai .NET

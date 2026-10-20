@@ -56,6 +56,8 @@ src/
         Infrastructure/                (Caching, Data (repository/tenant filter), Exceptions)
         Localization/, Middleware/, Observability/ (Kafka log sink), Extensions/,
         Security/ (AES secret protector), Versioning/
+        Infrastructure/Data/           (ITenantProvider, TenantScope, ApplyTenantQueryFilters,
+                                        EnforceTenantOnSave — multi-tenant isolation)
 
     Database/
         (Database migration scripts per service)
@@ -110,7 +112,7 @@ deployment/
     k8s/
         configmap.yaml
         secrets.yaml
-        deployments/                   (Deployment manifests for all 14 services)
+        deployments/                   (Deployment manifests: 17 services + gateway + frontend)
         services/                      (Kubernetes service definitions)
         statefulsets/                  (For stateful services)
 
@@ -487,16 +489,20 @@ Consumed Events:
   depending on the event's `Method`)
 - (and all other significant domain events)
 
-Note: a live Kafka consumer (`IdentityEventConsumer`, `IHostedService`) exists only
-for IdentityService's `identity-topic` today — it is the only topic this service
-actually subscribes to at runtime; the other consumed-event names above describe the
-intended, not-yet-wired design for the other 12 services' topics. Follow
-`IdentityEventConsumer`'s pattern (mirrors HRMService's `MasterDataEventConsumer`,
-dispatches via `IMediator.Publish`) when wiring up the next topic — don't assume the
-`INotification` handler classes already in `IntegrationEventHandlers.cs` are live
-until a matching consumer exists for their topic.
+Live consumers today (verified 2026-10-20):
+- `IdentityEventConsumer` — `identity-topic`: TwoFactorCodeGenerated,
+  PasswordResetRequested, EmailConfirmationRequested, UserRegistered, RoleAssigned,
+  PermissionGranted
+- `NotificationKafkaConsumer` — `hrm-topic`, `mst-topic`, `payment-topic`,
+  `purchasing-topic`, `shipping-topic`: EmployeeHired, LeaveApproved/Rejected,
+  PaymentProcessed, PurchaseOrderApproved, PurchaseOrderPendingFinanceApproval,
+  ShipmentCreated
+- `SalesOrderRabbitMqConsumer` — RabbitMQ: SalesOrderCreated, SalesOrderApproved
 
-**Pattern:** Consumes from all 13 other service topics for event-driven notifications.
+Not subscribed yet: crm, accounting, pos, promotion, product, warehouse topics. Don't
+assume an `INotification` handler in `IntegrationEventHandlers.cs` is live until one of
+the consumers above dispatches to it (pattern: parse `$type`, map to the local
+integration event, `IMediator.Publish`).
 
 #### Reporting Service (Port 5014, Code: RPT)
 
@@ -588,6 +594,27 @@ Each service owns its database exclusively. No cross-database queries allowed.
 | SharedMasterDataService | MasterDataDB | Owned by MasterData; others access via API/events only |
 | ChatBotService | ChatBotDB | Owned by ChatBot; others access via API only |
 | LoggingService | Elasticsearch `service-logs*` (no SQL DB) | Owned by Logging; others write via Kafka/`/logs/client`, read via API only |
+
+## Multi-Tenant Isolation
+
+Every `BaseEntity` row belongs to exactly one tenant. A service's DbContext must:
+- implement `ITenantScopedDbContext` (`CurrentTenantId` from an injected
+  `ITenantProvider`, registered with
+  `services.AddTenantProvider(sp => sp.GetRequiredService<IUserContextService>().GetTenantId())`);
+- call `modelBuilder.ApplyTenantQueryFilters(this)` LAST in `OnModelCreating` — never a
+  constant-valued filter (EF caches the model per process, so a constant leaks the first
+  request's tenant to everyone);
+- call `ChangeTracker.EnforceTenantOnSave(CurrentTenantId)` first in `SaveChanges(Async)`.
+
+Kafka/RabbitMQ consumers and background jobs have no user — wrap each message in
+`using (TenantScope.Begin(tenantId))` with the tenant taken from the event (or derived
+from data it references). With no tenant, queries return nothing and tenant-owned saves
+throw (fail closed). `IgnoreQueryFilters()` only for deliberate cross-tenant lookups.
+
+Rollout status (2026-10-20): IdentityService (own explicit tenant predicates), CRMService
+and PurchaseOrderService (query filter; PO doesn't enforce on save yet) are isolated. All
+other services still share data across tenants — see
+`docs/business/Identity/SecurityReview-2026-10.md`.
 
 ## Integration Rules
 

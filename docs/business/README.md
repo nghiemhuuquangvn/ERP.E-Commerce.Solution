@@ -138,8 +138,10 @@
 - **Location:** `src/services/CRMService/README.md`,
   `docs/business/CRM/module-10-crm.md` (added 2026-07-29 — Lead-qualification
   IS the Lead→Opportunity conversion (no separate step), no Contact dedup rule,
-  and a confirmed cross-tenant data-isolation gap: no repository filters by
-  TenantId anywhere in this service)
+  and a cross-tenant data-isolation gap — fixed 2026-10-20: CrmDbContext now applies a
+  per-tenant query filter and stamps/validates TenantId on save; pre-existing rows
+  with an empty TenantId were assigned to the SYSTEM tenant by
+  `src/Database/CRM/005_BackfillTenantId.sql`)
 - **Topics:** Contact management, lead tracking, opportunity management, case management, activity logging, customer interactions
 - **Workflows:** LeadCreation → LeadQualification → OpportunityCreation → OpportunityClosure → SalesOrder
 - **Entities:** Contact, Lead, Opportunity, Case, Activity, InteractionLog
