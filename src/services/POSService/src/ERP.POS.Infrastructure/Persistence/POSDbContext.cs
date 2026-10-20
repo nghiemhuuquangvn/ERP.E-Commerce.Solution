@@ -1,3 +1,4 @@
+using ERP.Shared.Infrastructure.Data;
 using ERP.POS.Application.EventHandlers;
 using ERP.POS.Domain.Entities;
 using ERP.Shared.Core.Domain;
@@ -7,7 +8,7 @@ using Newtonsoft.Json;
 
 namespace ERP.POS.Infrastructure.Persistence;
 
-public class POSDbContext : DbContext
+public class POSDbContext : DbContext, ITenantScopedDbContext
 {
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<CashShift> CashShifts => Set<CashShift>();
@@ -16,7 +17,19 @@ public class POSDbContext : DbContext
     public DbSet<PosPromotionCache> PromotionCache => Set<PosPromotionCache>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
-    public POSDbContext(DbContextOptions<POSDbContext> options) : base(options) { }
+    private readonly ITenantProvider _tenantProvider;
+
+    /// <summary>
+    /// Tenant of the current request (JWT / Gateway host tenant) or consumer message
+    /// (TenantScope). Read by the tenant query filter on every query and used to
+    /// stamp/validate every save.
+    /// </summary>
+    public Guid? CurrentTenantId => _tenantProvider.CurrentTenantId;
+
+    public POSDbContext(DbContextOptions<POSDbContext> options, ITenantProvider tenantProvider) : base(options)
+    {
+        _tenantProvider = tenantProvider;
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -105,10 +118,18 @@ public class POSDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
         });
+
+        // Last, so it composes with any per-entity filter configured above.
+        modelBuilder.ApplyTenantQueryFilters(this);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        // Stamp/validate the tenant first, so the events serialized below carry it.
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+            EventTenant.StampFrom(entry.Entity);
+
         var domainEntities = ChangeTracker.Entries<BaseEntity>()
             .Where(e => e.Entity.DomainEvents.Any()).ToList();
 
@@ -131,5 +152,17 @@ public class POSDbContext : DbContext
         }
 
         return result;
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 }

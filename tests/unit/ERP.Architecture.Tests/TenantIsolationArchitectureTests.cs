@@ -35,7 +35,6 @@ public class TenantIsolationArchitectureTests
         "ERP.HRM.Infrastructure.Persistence.HrmDbContext",
         "ERP.MST.Infrastructure.Persistence.MasterDataDbContext",
         "ERP.NTF.Infrastructure.Persistence.NotificationDbContext",
-        "ERP.POS.Infrastructure.Persistence.POSDbContext",
     };
 
     internal static IEnumerable<Type> AllDbContextTypes() => DbContextTypes();

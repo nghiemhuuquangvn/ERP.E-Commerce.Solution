@@ -60,6 +60,9 @@ builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddErpAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+// Tenant isolation for POSDbContext: JWT tenant, the Gateway host tenant for the anonymous
+// customer display, or an explicit TenantScope set by the Kafka consumer.
+builder.Services.AddRequestTenantProvider();
 builder.Services.AddScoped<UserContext>();
 builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Pos));
 builder.Services.AddHealthChecks();

@@ -112,4 +112,14 @@ public class TenantIsolationBehaviorTests
     public void Promotion_ProductCache() =>
         AssertIsolated<ERP.PRM.Infrastructure.Persistence.PromotionDbContext, ERP.PRM.Infrastructure.Models.PromotionProductCache>(
             new ERP.PRM.Infrastructure.Models.PromotionProductCache { ProductId = Guid.NewGuid(), Category = "Shirts", Price = 10m }, e => e.TenantId);
+
+    [Fact]
+    public void Pos_Terminals() =>
+        AssertIsolated<ERP.POS.Infrastructure.Persistence.POSDbContext, ERP.POS.Domain.Entities.Terminal>(
+            ERP.POS.Domain.Entities.Terminal.Create("Counter 1"), e => e.TenantId);
+
+    [Fact]
+    public void Pos_ProductCache() =>
+        AssertIsolated<ERP.POS.Infrastructure.Persistence.POSDbContext, ERP.POS.Application.EventHandlers.PosProductCache>(
+            new ERP.POS.Application.EventHandlers.PosProductCache { ProductId = Guid.NewGuid(), Name = "Tee", Sku = "TEE", Price = 10m }, e => e.TenantId);
 }
