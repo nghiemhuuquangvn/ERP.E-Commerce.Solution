@@ -259,6 +259,17 @@ public static class PermissionConstants
     // only, so these two are the first to use the View/Manage pairing convention
     // here, enforced inline via IUserContextService.HasPermission(...) — the same
     // lighter-weight pattern SettingsController already uses in this service.
+    // Catalog permissions — the codes the Admin SPA already gates on (products:view /
+    // create / edit). Before 2026-10-20 none of them existed and every ProductService
+    // catalog endpoint only required [Authorize], so any signed-in user (including a
+    // storefront Customer, whose role has no permissions) could change the catalog.
+    public const string Products_View = "products:view";
+    public const string Products_Create = "products:create";
+    public const string Products_Edit = "products:edit";
+    public const string Products_Delete = "products:delete";
+    /// <summary>Bulk import/export and search reindexing.</summary>
+    public const string Products_Manage = "products:manage";
+
     public const string Product_BrandsView = "product:brands:view";
     public const string Product_BrandsManage = "product:brands:manage";
     public const string Product_UomConversionsView = "product:uom-conversions:view";
@@ -441,6 +452,7 @@ public static class PermissionConstants
         Settings_StoreProduct_TenantView, Settings_StoreProduct_TenantManage,
         Settings_Tax_SystemView, Settings_Tax_SystemManage,
         Settings_Tax_TenantView, Settings_Tax_TenantManage,
+        Products_View, Products_Create, Products_Edit, Products_Delete, Products_Manage,
         Product_BrandsView, Product_BrandsManage,
         Product_UomConversionsView, Product_UomConversionsManage,
         Identity_UsersView, Identity_UsersCreate, Identity_UsersEdit, Identity_UsersManage, Identity_UsersDelete,
