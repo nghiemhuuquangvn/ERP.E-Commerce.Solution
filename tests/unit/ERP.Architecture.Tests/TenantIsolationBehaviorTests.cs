@@ -101,4 +101,15 @@ public class TenantIsolationBehaviorTests
     public void Shipping_Carriers() =>
         AssertIsolated<ERP.SHP.Infrastructure.Persistence.ShippingDbContext, ERP.SHP.Domain.Entities.Carrier>(
             ERP.SHP.Domain.Entities.Carrier.Create("GHN", "GHN", 10000m), e => e.TenantId);
+
+    [Fact]
+    public void Promotion_Promotions() =>
+        AssertIsolated<ERP.PRM.Infrastructure.Persistence.PromotionDbContext, ERP.PRM.Domain.Entities.Promotion>(
+            ERP.PRM.Domain.Entities.Promotion.Create("Autumn sale", ERP.PRM.Domain.Enums.DiscountType.Percentage, 10m,
+                DateTime.UtcNow, DateTime.UtcNow.AddDays(7)), e => e.TenantId);
+
+    [Fact]
+    public void Promotion_ProductCache() =>
+        AssertIsolated<ERP.PRM.Infrastructure.Persistence.PromotionDbContext, ERP.PRM.Infrastructure.Models.PromotionProductCache>(
+            new ERP.PRM.Infrastructure.Models.PromotionProductCache { ProductId = Guid.NewGuid(), Category = "Shirts", Price = 10m }, e => e.TenantId);
 }

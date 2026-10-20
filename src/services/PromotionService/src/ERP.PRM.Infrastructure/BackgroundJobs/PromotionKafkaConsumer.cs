@@ -1,3 +1,5 @@
+using ERP.Shared.Infrastructure.Data;
+using ERP.Shared.Messaging;
 using Confluent.Kafka;
 using ERP.PRM.Application.EventHandlers;
 using Microsoft.Extensions.Configuration;
@@ -94,6 +96,15 @@ namespace ERP.PRM.Infrastructure.BackgroundJobs
         private async Task DispatchAsync(string json, CancellationToken cancellationToken)
         {
             var typeName = JObject.Parse(json)["$type"]?.ToString() ?? string.Empty;
+
+            // ProductCreated carries the product's tenant (stamped by ProductService); without one nothing is
+            // changed (fail closed).
+            if (!EventTenant.TryRead(json, out var tenantId))
+            {
+                _logger.LogWarning("{EventType} without TenantId ignored", typeName);
+                return;
+            }
+            using var tenantScope = TenantScope.Begin(tenantId);
 
             using var scope = _serviceProvider.CreateScope();
 
