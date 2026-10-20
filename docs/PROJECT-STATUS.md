@@ -2,20 +2,48 @@
 
 > Read this right after `CLAUDE.md` when picking the work up on another machine.
 > Keep it current: update it at the end of every work session (what changed, what's next).
-> Last updated: **2026-10-20** (service authorization phase 1).
+> Last updated: **2026-10-20** (tenant isolation phase 2 merged; docs 2e).
+
+## 0. Start here (new machine / new developer)
+
+1. `git fetch && git switch master && git pull` — all finished work is on `master` (§1).
+   Branches not merged yet are listed in §1; never start from them unless told to.
+2. Read, in order: `CLAUDE.md` (rules — especially "Multi-Tenant Isolation", "API
+   Authorization", "Outbox rules"), this file (§7 decisions, §8 next step), then the service
+   README / `docs/business/...` of whatever you touch.
+3. Verify the baseline (§5). If anything is red before you change code, stop and report it.
+4. Work the agreed way (§6): plan → owner approval → implement + tests + docs, one branch per
+   plan, one commit per step, never push/merge without being asked. Update this file at the
+   end of the session.
+5. Before changing a DbContext, a consumer, a background job or an event: re-read CLAUDE.md
+   "Multi-Tenant Isolation" — `tests/unit/ERP.Architecture.Tests` fails the build if a
+   tenant-owned entity is not filtered, and two-tenant tests exist for every service.
 
 ## 1. Where things stand
 
 | Branch | State | Content |
 |---|---|---|
-| `master` (origin) | includes PR #1 | Outbox/EventId fixes + IdentityService security hardening (commit `73970b5`), CRM tenant isolation + shared tenant-isolation primitives (PR #1 = `feature/tenant-isolation`) |
-| `feature/identity-authorization-tenant-host` | committed locally (6 commits on top of master) — **push it before switching machines** | User/role/permission isolation + "tenant = request host" (see §2) |
-| `feature/service-authz-phase1` | branched from the one above; phase 1 of the service authorization plan | Product permissions, explicit authorization everywhere, same-origin hosts, closed service ports (see §2) |
+| `master` (origin) | includes PR #1–#6 | Outbox/EventId fixes + Identity hardening (`73970b5`); CRM tenant isolation (PR #1); user/role/permission isolation + tenant = request host (PR #2); service authorization phase 1 (PR #3); tenant isolation phase 2 for all services (PR #4 Shared+Sales/Payment/Accounting, PR #5 supply chain, PR #6 cross-cutting) |
+| `docs/tenant-isolation` | **not merged yet** — push/PR when the owner asks; phase 2e docs + this handoff update | CLAUDE.md, event catalog, security review, this file |
 
-On a fresh clone: `git fetch && git switch feature/identity-authorization-tenant-host` (once pushed).
+All feature branches above are merged; start new work from `origin/master`.
 Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
+
+### 2026-10-20 — Tenant isolation, phase 2 (PR #4–#6)
+Every service DbContext is tenant-scoped (CLAUDE.md "Multi-Tenant Isolation" — read it before
+touching any DbContext, consumer or background job). Shared: `ITenantOwned`,
+`IPlatformWideEntity`, `ISharedReferenceData`, `AddRequestTenantProvider` (JWT → Gateway host
+tenant for anonymous calls), `ITenantEvent` + `EventTenant`, `TenantHostResolver` (moved from
+the Gateway). Every cross-service event carries `TenantId`; consumers skip events without one.
+Cross-tenant jobs run per tenant. Business codes are unique per tenant. Product search filters
+Elasticsearch by tenant; ChatBot guests get the storefront host's tenant (`HostTenantHubFilter`);
+MasterData reference data and Notification templates are shared SYSTEM defaults + tenant rows.
+Defects found on the way (hard-coded SYSTEM tenant in stock movements and shipping carrier,
+globally unique codes, Reporting summing all tenants, …): SecurityReview "Tenant isolation
+phase 2". Tests: `tests/unit/ERP.Architecture.Tests` (architecture, EF filter coverage,
+two-tenant behaviour per service).
 
 ### 2026-10-20 — Service authorization, phase 1 (`feature/service-authz-phase1`)
 Review of all 16 services: `docs/business/Identity/SecurityReview-2026-10.md` ("Service
@@ -77,19 +105,32 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
    locally add them to /etc/hosts or use `localhost` (falls back to SYSTEM).
    Tenants on plans without ACC/SO modules now get 403 from Accounting/SaleOrder.
 5. Review the API keys listed by migration 021 and revoke them.
+6. **Tenant isolation migrations (phase 2)** — run BEFORE deploying the new services:
+   Sales `011`, Payment `006`, Accounting `006`, Product `015`, Warehouse `007`, Purchasing
+   `009`, Shipping `005`, PromotionService `003`, POS `005`, HRM `005`, MasterData `007`,
+   Notification `009`, ChatBot `002`, Reporting `006` (all `*_TenantIsolation*.sql`). They add
+   missing TenantId columns, make codes unique per tenant and assign empty-tenant rows to SYSTEM.
+7. **Deploy publishers and consumers together.** Consumers now skip events without `TenantId`;
+   events already sitting in an Outbox from before the release have none — let Outboxes drain
+   before upgrading, or accept that those events are skipped (logged as warnings).
+8. **Elasticsearch re-index:** Product `015` queues every product; product search returns
+   nothing for a tenant until `SearchIndexProcessor` has re-indexed its products (documents now
+   carry `TenantId`; the filter uses `tenantId.keyword` from dynamic mapping).
+9. ChatBot needs `Tenancy:IdentityUrl` (default `http://identityservice:5001`, same as the
+   Gateway) to resolve guest/hub tenants from the host. The storefront no longer sends
+   `VITE_TENANT_ID`.
+10. Notification templates in the SYSTEM tenant are shared defaults: tenants can't edit them,
+    they create their own template with the same code to override. ReportingDB: direct BI-tool
+    queries must filter on `TenantId`.
 
 ## 4. Backlog (prioritised — from the 2026-10-20 system inventory)
 
 **P0 — security / data integrity**
-- Service authorization phases 2–5 (plan in SecurityReview "Service authorization review"):
-  2) tenant isolation below; 3) Redis-backed token revocation + authz version checked by every
+- Service authorization phases 3–5 (plan in SecurityReview "Service authorization review"; phase 2
+  tenant isolation is done): 3) Redis-backed token revocation + authz version checked by every
   service; 4) RS256/JWKS validation so OIDC tokens work and no service can mint tokens;
-  5) migrate the 57 allowlisted controllers to attributes, hub ticket-only, `ValidAlgorithms`.
-- Roll out tenant isolation (CLAUDE.md pattern) to: Accounting, HRM, POS, Payment, Product,
-  Promotion, Reporting, SaleOrder, MasterData, Shipping, Warehouse, Notification, ChatBot.
-  Per service: does it stamp TenantId on writes? do consumed events carry TenantId
-  (`SalesOrderCreatedEvent` does not)? PurchaseOrder still lacks `EnforceTenantOnSave`.
-- ChatBotService guest chat takes tenant from client (`VITE_TENANT_ID`) and bypasses the Gateway.
+  5) migrate the 57 allowlisted controllers to attributes, hub ticket-only (also closes guest chat
+  within one tenant: hub methods don't check the guest session), `ValidAlgorithms`.
 - NuGet: `System.Security.Cryptography.Pkcs` 9.0.4 high-severity advisory (transitive, every service).
 - Identity Phase 2: RS256/JWKS + shared token revocation; OpenIddict signing cert from a secret
   store; invalidate old 2FA challenge on resend & keep OTP out of `OutboxMessages`; Swagger off in
@@ -116,21 +157,66 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 - HRM: 7 of 11 BA sub-modules not built; Finance: closing/aging/COA mapping.
 
 **P3 — quality**
-- Tests exist only for Identity, Shared, Gateway (unit) and Product (integration). PurchaseOrder
+- Tests exist only for Identity, Shared, Gateway, Architecture (incl. two-tenant tests for every
+  service DbContext) and Product (integration, no .csproj) PurchaseOrder
   test folders have **no .csproj** (never compiled).
 
 ## 5. Working environment notes
 - Verify a change: build each touched `src/services/<Svc>/*.sln` (+ `src/Gateway/Ocelot.API`,
   `src/Shared/ERP.Shared.csproj` for shared changes), then
-  `dotnet test tests/unit/ERP.Identity.UnitTests tests/unit/ERP.Shared.UnitTests tests/unit/ERP.Gateway.UnitTests`.
-  Last green run: 17 services + Gateway 0 errors; tests 197 / 19 / 6 passed.
+  `dotnet test tests/unit/ERP.Identity.UnitTests tests/unit/ERP.Shared.UnitTests tests/unit/ERP.Gateway.UnitTests tests/unit/ERP.Architecture.Tests`.
+  Last green run (2026-10-20): all service solutions + Gateway 0 errors; Shared 40, Gateway 6,
+  Architecture 46 passed (Identity 197 on the phase-1 run). Docker runtime not verified yet.
 - Repo rule: run the `/verify` skill (Docker-based) before committing code; if Docker isn't
   running, say so and fall back to the build/test commands above.
 - `dotnet build ERP.Identity.sln` can take >5 min on a cold machine — run it in the background.
 - Shell is zsh on macOS: use `sed -i ''`; avoid `echo ====` (zsh `=` expansion).
+- `dotnet test tests/unit/ERP.Architecture.Tests` builds every API project — 3–10 min; run it in
+  the background. It is the safety net for authorization and tenant isolation.
+- Docker was not running on the development machine during phases 1–2: migrations, consumers,
+  nginx host routing and the Elasticsearch re-index were verified by build + unit/architecture
+  tests only. The first Docker run should follow §3 and check service logs for
+  `without TenantId ignored` warnings and `TenantIsolationViolationException`.
+- New tenant-owned entity / service checklist = CLAUDE.md "Multi-Tenant Isolation" + add a
+  two-tenant case to `TenantIsolationBehaviorTests`; new migration = next number in
+  `src/Database/<Svc>/`, idempotent (`IF NOT EXISTS` / `COL_LENGTH`).
 
 ## 6. Conventions agreed with the project owner
 - Communicate in **Vietnamese**; code, comments, commit messages and docs in English.
 - One branch per plan; split commits by plan step; don't push or merge without being asked.
 - Non-trivial work: plan first (findings + approach), get approval, then implement + tests + docs.
 - Data-ownership decisions (e.g. which tenant orphaned rows belong to) are asked, not assumed.
+
+## 7. Decision log (do not re-litigate without the owner)
+
+| Date | Decision | Where it shows up |
+|---|---|---|
+| 2026-10-20 | Rows with an empty TenantId belong to the **SYSTEM** tenant (`…0001`) | Every `*_TenantIsolation*.sql` / CRM `005` |
+| 2026-10-20 | **Tenant = request host**: subdomain `<code>.erp.local` / `<code>.shop.erp.local` **and** custom domains (`TenantDomains`); platform admin = SYSTEM tenant's own domain (`admin.erp.local`) | Identity `ITenantDomainService`, Gateway, nginx/ingress |
+| 2026-10-20 | Platform permissions only in the SYSTEM tenant; no authority from role names | `PermissionScopes`, `EffectivePermissions` |
+| 2026-10-20 | Two host families (admin vs storefront); API and hubs same-origin on the tenant host; no service ports published | nginx, ingress, docker-compose |
+| 2026-10-20 | Service authz in phases; phase 1 = explicit authorization everywhere + infra; phases 2–5 one at a time | SecurityReview "Service authorization review" |
+| 2026-10-20 | **Tenant travels in the event payload** (`ITenantEvent`), not in message headers | event-catalog "Tenant in every event" |
+| 2026-10-20 | MasterData reference data = **shared SYSTEM rows + tenant additions** (only platform edits shared rows); same model reused for Notification templates | `ISharedReferenceData` |
+| 2026-10-20 | Consumers **skip** events without a tenant (fail closed), never guess | all consumers |
+| 2026-10-20 | Guest (anonymous) tenant = host's tenant; client-sent tenant ids are only cross-checked | ChatBot, Product catalog, POS customer display |
+| 2026-10-20 | Business codes unique per tenant | migrations phase 2 |
+
+## 8. Next step: service authorization phase 3 — token revocation (NOT started, needs a plan + approval)
+
+Problem (SecurityReview S5): only IdentityService honours logout / user lock / password change /
+role-permission change; the other 16 services accept the old JWT until it expires (60 min).
+Proposed design (from the approved overall plan, details to be re-planned):
+- IdentityService writes to Redis on those events: `revoked-jti:{jti}` (TTL = remaining token
+  lifetime) and `authz-ver:{tenant}:{user}` = timestamp of the last security-relevant change.
+  Hook points: `ISessionService.RevokeAllForUserAsync`, logout, `TokenBlacklistRepository`,
+  role/permission grant paths (`EffectivePermissions` callers).
+- `ERP.Shared.Authorization.AddErpJwtAuthentication` → `JwtBearerEvents.OnTokenValidated`:
+  reject if the `jti` is revoked or the token's `iat` < `authz-ver` (client refreshes to get
+  new permissions). Redis via the existing `ERP.Shared.Caching` (`ICacheService`,
+  `RedisCacheService`); a small local cache to avoid a Redis round-trip per request.
+- Open questions for the owner: fail-open or fail-closed when Redis is down; whether tokens
+  must carry `jti`/`iat` (check `TokenService`); hub connections (re-check on each call?).
+- Tests: shared unit tests for the validator; Identity tests that each change bumps the version.
+Phases 4 (RS256/JWKS) and 5 (attribute migration, ticket-only hubs) follow — see §4.
+

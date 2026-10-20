@@ -540,6 +540,10 @@ Consumed Events:
 
 **Pattern:** Read-only Kafka consumer populating OLAP fact/dimension tables for BI queries.
 
+Every fact/dimension row carries `TenantId` (written in the source event's tenant; `DimDate`
+is global). The API filters per tenant automatically — **direct BI-tool queries against
+ReportingDB do not**, so they must filter on `TenantId` themselves.
+
 ---
 
 #### ChatBot Service (Port 5017, Code: CHB)
@@ -552,7 +556,11 @@ Responsibilities:
   existing LicensePlan (see `docs/business/Identity/License.md` and
   `ERP.Shared.Authorization.ModuleCodes.ChatBotPremium`) — no new billing code
 - Streams replies over its own SignalR hub (`/hubs/chat`, port 5017 directly — bypasses
-  the Gateway, which doesn't reliably proxy SignalR's WebSocket upgrade)
+  the Gateway, which doesn't reliably proxy SignalR's WebSocket upgrade). Because
+  it bypasses the Gateway, `HostTenantHubFilter` resolves the tenant from the request host
+  for every hub call (unknown host refused, token of another tenant refused)
+- Anonymous Storefront guests belong to the tenant of the storefront host — never to a
+  tenant id the client sends (`GuestTenantId` is only cross-checked)
 - Escalation to a human via CRMService's existing Case API, using the caller's own JWT
 
 Database: ChatBotDB
@@ -614,24 +622,60 @@ Each service owns its database exclusively. No cross-database queries allowed.
 
 ## Multi-Tenant Isolation
 
-Every `BaseEntity` row belongs to exactly one tenant. A service's DbContext must:
-- implement `ITenantScopedDbContext` (`CurrentTenantId` from an injected
-  `ITenantProvider`, registered with
-  `services.AddTenantProvider(sp => sp.GetRequiredService<IUserContextService>().GetTenantId())`);
+Every tenant-owned row belongs to exactly one tenant. Building blocks (all in `src/Shared`):
+`ITenantOwned` (Core — `BaseEntity` implements it; plain POCOs opt in, e.g. Warehouse
+aggregates, Reporting facts, cache tables), `ITenantScopedDbContext` /
+`ApplyTenantQueryFilters` / `EnforceTenantOnSave` / `TenantScope` (Infrastructure/Data),
+`AddRequestTenantProvider()` (Authorization), `ITenantEvent` + `EventTenant` (Core/Messaging).
+
+A service's DbContext must:
+- implement `ITenantScopedDbContext` (`CurrentTenantId` from an injected `ITenantProvider`)
+  and the API must call `builder.Services.AddRequestTenantProvider()` — tenant comes from an
+  explicit `TenantScope`, else the JWT `tenant_id`, else (anonymous requests only) the
+  `X-Tenant-Id` header the Gateway sets from the request host;
 - call `modelBuilder.ApplyTenantQueryFilters(this)` LAST in `OnModelCreating` — never a
-  constant-valued filter (EF caches the model per process, so a constant leaks the first
-  request's tenant to everyone);
-- call `ChangeTracker.EnforceTenantOnSave(CurrentTenantId)` first in `SaveChanges(Async)`.
+  constant-valued filter (EF caches the model per process);
+- call `ChangeTracker.EnforceTenantOnSave(CurrentTenantId)` in overrides of
+  `SaveChanges(bool)` AND `SaveChangesAsync(bool, CancellationToken)` (every other overload
+  ends there), and — in an Outbox-writing `SaveChangesAsync` — enforce and
+  `EventTenant.StampFrom(entity)` BEFORE serializing events, so new rows are stamped first.
 
-Kafka/RabbitMQ consumers and background jobs have no user — wrap each message in
-`using (TenantScope.Begin(tenantId))` with the tenant taken from the event (or derived
-from data it references). With no tenant, queries return nothing and tenant-owned saves
-throw (fail closed). `IgnoreQueryFilters()` only for deliberate cross-tenant lookups.
+Marker interfaces:
+- `IPlatformWideEntity` — `System*Settings` singletons (TenantId = empty): never filtered;
+  only the platform tenant (or seed/jobs with no tenant) may modify them.
+- `ISharedReferenceData` — a tenant reads the SYSTEM tenant's rows plus its own; only the
+  platform tenant may change the SYSTEM rows. Used for MasterData geography, languages,
+  currencies, units of measure (+ their translations) and Notification templates (a tenant
+  template with the same code overrides the platform default).
 
-Rollout status (2026-10-20): IdentityService (own explicit tenant predicates), CRMService
-and PurchaseOrderService (query filter; PO doesn't enforce on save yet) are isolated. All
-other services still share data across tenants — see
-`docs/business/Identity/SecurityReview-2026-10.md`.
+Messaging and jobs (no user):
+- Every event that leaves a service implements `ITenantEvent` (outbox writers stamp it).
+  Consumers: `EventTenant.TryRead(json, out var tenantId)` then
+  `using (TenantScope.Begin(tenantId))`; no tenant = log and skip (fail closed). When the
+  event refers to the consumer's own data, that data is the authority on the tenant
+  (e.g. SaleOrder's `OrderTenant`: an event naming another tenant is dropped).
+- Cross-tenant jobs: find work with `IgnoreQueryFilters()` (tenant ids only), then process
+  each tenant inside its own `TenantScope` and DI scope (see `ReservationExpiryProcessor`,
+  `PromotionSchedulerJob`, `NotificationDispatchJob`, `SearchIndexProcessor`).
+- `IgnoreQueryFilters()` only for these deliberate cross-tenant lookups (and signature-
+  verified gateway callbacks resolving their payment's tenant).
+
+Other rules:
+- Business codes/numbers are unique per `(TenantId, …)` (order/quotation numbers, SKU,
+  slug, warehouse/tax/coupon/carrier codes …) — never globally.
+- Hubs that bypass the Gateway (`/hubs/chat`) resolve the tenant from the request host with
+  `TenantHostResolver` (`AddTenantHostResolver`) — see ChatBot's `HostTenantHubFilter`; the
+  SPA nginx strips client-sent `X-Tenant-*` headers on hub paths.
+- Elasticsearch documents carry `TenantId`; every search filters on it.
+- Never hard-code a tenant id (the SYSTEM tenant is `WellKnownTenants.Platform` /
+  `PlatformTenant.Id` and only means "platform").
+
+Rollout status (2026-10-20, PR #1, #4–#6): all 16 services are isolated. IdentityService
+keeps its own explicit tenant predicates (`AuthDbContext` is the one deliberate exception).
+Enforced by `tests/unit/ERP.Architecture.Tests`: `TenantIsolationArchitectureTests` (every
+DbContext with tenant-owned rows is tenant-scoped), `TenantFilterCoverageTests` (every
+tenant-owned entity of the real EF model is filtered), `TenantIsolationBehaviorTests`
+(two-tenant read/write per service). Details: `docs/business/Identity/SecurityReview-2026-10.md`.
 
 ## API Authorization (all services)
 
@@ -722,6 +766,10 @@ src/Shared/Contracts
   clearing `Error` re-queues them. Publish failures keep `Error = ex.Message` and retry.
 - Exception: IdentityService has its own `OutboxMessage` entity and publishes the raw
   `Content` string to `identity-topic` without deserializing (batch of 20).
+- **Tenant before serialization.** Events that leave the service implement `ITenantEvent`;
+  the writer calls `EnforceTenantOnSave` and `EventTenant.StampFrom(entity)` (or
+  `EventTenant.Stamp(evt, CurrentTenantId)`) before `JsonConvert.SerializeObject`, so the
+  payload carries `TenantId` — consumers drop events without one. See "Multi-Tenant Isolation".
 - Unit tests for these rules: `tests/unit/ERP.Shared.UnitTests`.
 
 ## Documentation
