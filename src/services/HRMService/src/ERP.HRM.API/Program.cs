@@ -44,6 +44,9 @@ try
     builder.Services.AddErpAuthorization();
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+    // Tenant isolation for HrmDbContext: JWT tenant, Gateway host tenant for anonymous
+    // requests, or an explicit TenantScope set by the MasterData event consumer.
+    builder.Services.AddRequestTenantProvider();
     builder.Services.AddScoped<UserContext>();
     builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Hrm));
 

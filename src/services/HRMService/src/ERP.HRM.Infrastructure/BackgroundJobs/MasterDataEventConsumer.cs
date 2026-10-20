@@ -1,3 +1,5 @@
+using ERP.Shared.Infrastructure.Data;
+using ERP.Shared.Messaging;
 using Confluent.Kafka;
 using ERP.HRM.Application.EventHandlers;
 using Microsoft.Extensions.Configuration;
@@ -97,6 +99,15 @@ public class MasterDataEventConsumer : IHostedService
         // holding the publisher's fully-qualified CLR type name — used here only to
         // pick which local contract shape to deserialize into.
         var typeName = JObject.Parse(json)["$type"]?.ToString() ?? string.Empty;
+
+        // Employee events carry the employee's tenant (stamped by SharedMasterDataService); without one nothing is
+        // changed (fail closed).
+        if (!EventTenant.TryRead(json, out var tenantId))
+        {
+            _logger.LogWarning("{EventType} without TenantId ignored", typeName);
+            return;
+        }
+        using var tenantScope = TenantScope.Begin(tenantId);
 
         using var scope = _serviceProvider.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<EmployeeMasterDataEventHandlers>();

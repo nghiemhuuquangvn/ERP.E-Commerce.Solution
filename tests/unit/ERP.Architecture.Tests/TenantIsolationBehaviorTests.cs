@@ -122,4 +122,9 @@ public class TenantIsolationBehaviorTests
     public void Pos_ProductCache() =>
         AssertIsolated<ERP.POS.Infrastructure.Persistence.POSDbContext, ERP.POS.Application.EventHandlers.PosProductCache>(
             new ERP.POS.Application.EventHandlers.PosProductCache { ProductId = Guid.NewGuid(), Name = "Tee", Sku = "TEE", Price = 10m }, e => e.TenantId);
+
+    [Fact]
+    public void Hrm_WorkShifts() =>
+        AssertIsolated<ERP.HRM.Infrastructure.Persistence.HrmDbContext, ERP.HRM.Domain.Entities.WorkShift>(
+            ERP.HRM.Domain.Entities.WorkShift.Create("Morning", TimeSpan.FromHours(8), TimeSpan.FromHours(17)), e => e.TenantId);
 }

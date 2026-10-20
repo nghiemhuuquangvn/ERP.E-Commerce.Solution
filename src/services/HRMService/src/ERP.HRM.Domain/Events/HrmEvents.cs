@@ -9,8 +9,11 @@ public record AttendanceCheckedInEvent(
     Guid AttendanceRecordId,
     Guid EmployeeId,
     DateTime Date,
-    DateTime CheckInTime) : IDomainEvent
+    DateTime CheckInTime) : IDomainEvent, ITenantEvent
 {
+    /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+    public Guid TenantId { get; set; }
+
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
 
@@ -19,8 +22,11 @@ public record AttendanceCheckedOutEvent(
     Guid EmployeeId,
     DateTime CheckOutTime,
     decimal TotalHours,
-    decimal OvertimeHours) : IDomainEvent
+    decimal OvertimeHours) : IDomainEvent, ITenantEvent
 {
+    /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+    public Guid TenantId { get; set; }
+
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
 
@@ -28,16 +34,22 @@ public record LeaveApprovedEvent(
     Guid LeaveRequestId,
     Guid EmployeeId,
     DateTime StartDate,
-    DateTime EndDate) : IDomainEvent
+    DateTime EndDate) : IDomainEvent, ITenantEvent
 {
+    /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+    public Guid TenantId { get; set; }
+
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
 
 public record LeaveRejectedEvent(
     Guid LeaveRequestId,
     Guid EmployeeId,
-    string Reason) : IDomainEvent
+    string Reason) : IDomainEvent, ITenantEvent
 {
+    /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+    public Guid TenantId { get; set; }
+
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
 
@@ -45,7 +57,10 @@ public record PaySlipGeneratedEvent(
     Guid PaySlipId,
     Guid EmployeeId,
     decimal NetPay,
-    string PayPeriod) : IDomainEvent
+    string PayPeriod) : IDomainEvent, ITenantEvent
 {
+    /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+    public Guid TenantId { get; set; }
+
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }

@@ -1,3 +1,4 @@
+using ERP.Shared.Infrastructure.Data;
 using ERP.HRM.Domain.Entities;
 using ERP.Shared.Core.Domain;
 using ERP.Shared.Messaging;
@@ -7,7 +8,7 @@ using System.Reflection;
 
 namespace ERP.HRM.Infrastructure.Persistence
 {
-    public class HrmDbContext : DbContext
+    public class HrmDbContext : DbContext, ITenantScopedDbContext
     {
         public DbSet<EmployeeSnapshot> EmployeeSnapshots { get; set; }
         public DbSet<LeaveRequest> LeaveRequests { get; set; }
@@ -16,8 +17,18 @@ namespace ERP.HRM.Infrastructure.Persistence
         public DbSet<WorkShift> WorkShifts { get; set; }
         public DbSet<OutboxMessage> OutboxMessages { get; set; }
 
-        public HrmDbContext(DbContextOptions<HrmDbContext> options) : base(options)
+        private readonly ITenantProvider _tenantProvider;
+
+        /// <summary>
+        /// Tenant of the current request (JWT / Gateway host tenant) or consumer message
+        /// (TenantScope). Read by the tenant query filter on every query and used to
+        /// stamp/validate every save.
+        /// </summary>
+        public Guid? CurrentTenantId => _tenantProvider.CurrentTenantId;
+
+        public HrmDbContext(DbContextOptions<HrmDbContext> options, ITenantProvider tenantProvider) : base(options)
         {
+            _tenantProvider = tenantProvider;
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -48,7 +59,7 @@ namespace ERP.HRM.Infrastructure.Persistence
                 e.Property(x => x.Id).ValueGeneratedNever();
                 e.Property(x => x.Name).IsRequired().HasMaxLength(100);
                 e.Ignore(x => x.ShiftHours);
-                e.HasIndex(x => x.Name).IsUnique();
+                e.HasIndex(x => new { x.TenantId, x.Name }).IsUnique(); // shift names are per tenant
             });
 
             modelBuilder.Entity<EmployeeSnapshot>(e =>
@@ -63,10 +74,18 @@ namespace ERP.HRM.Infrastructure.Persistence
                 e.Property(x => x.OvertimeHours).HasColumnType("decimal(6,2)");
                 e.Property(x => x.OvertimePay).HasColumnType("decimal(18,2)");
             });
+
+            // Last, so it composes with any per-entity filter configured above.
+            modelBuilder.ApplyTenantQueryFilters(this);
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            // Stamp/validate the tenant first, so the events serialized below carry it.
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+            foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+                EventTenant.StampFrom(entry.Entity);
+
             var aggregateRoots = ChangeTracker.Entries<BaseEntity>()
                 .Where(e => e.Entity.DomainEvents.Count != 0)
                 .Select(e => e.Entity)
@@ -107,6 +126,18 @@ namespace ERP.HRM.Infrastructure.Persistence
                 aggregateRoot.ClearDomainEvents();
 
             return result;
+        }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
     }
 }
