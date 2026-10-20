@@ -22,6 +22,7 @@ namespace ERP.Identity.Infrastructure.Repositories
                     on ur.RoleId equals r.Id
                 where ur.UserId == userId
                     && ur.TenantId == tenantId
+                    && r.TenantId == tenantId
                     && r.IsActive
                 select r.RoleCode
             )

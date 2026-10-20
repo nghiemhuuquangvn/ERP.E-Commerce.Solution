@@ -1,3 +1,5 @@
+using ERP.Shared.Infrastructure.Exceptions;
+using ERP.Identity.Infrastructure.Security;
 using ERP.Identity.Application.DTOs.Security;
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
@@ -20,6 +22,30 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task<ApiKeyCreatedDto> CreateAsync(Guid tenantId, string name, string? scopes, int? expiresInDays, string? createdBy, CancellationToken ct)
         {
+            // Each scope becomes a "permission" claim on requests made with this key, so the
+            // same anti-escalation rule as role grants applies: only existing permissions,
+            // effective in this tenant, that the creator holds. Scopes used to be stored
+            // verbatim — a key could carry any permission, platform ones included.
+            var requestedScopes = (scopes ?? string.Empty)
+                .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var catalog = (await _unitOfWork.Permissions.ListAllAsync(ct))
+                .Select(p => p.PermissionCode)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            Guid? creatorId = Guid.TryParse(createdBy, out var parsedCreator) ? parsedCreator : null;
+
+            foreach (var scope in requestedScopes)
+            {
+                if (!catalog.Contains(scope))
+                    throw new BusinessRuleException("UnknownApiKeyScope", $"Unknown permission '{scope}'.");
+
+                var denial = await EffectivePermissions.WhyNotGrantableAsync(_unitOfWork, scope, tenantId, creatorId, ct);
+                if (denial != null)
+                    throw new BusinessRuleException("ApiKeyScopeNotGrantable", denial);
+            }
+            scopes = requestedScopes.Count == 0 ? null : string.Join(',', requestedScopes);
+
             var randomPart = Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
             var rawKey = $"{KeyPrefixTag}_{randomPart}";
             var prefix = rawKey[..12]; // "erpsk_" + 6 hex chars — enough entropy to be practically unique, short enough to display

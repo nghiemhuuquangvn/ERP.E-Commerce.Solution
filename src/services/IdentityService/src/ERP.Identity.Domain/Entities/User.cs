@@ -143,6 +143,10 @@ namespace ERP.Identity.Domain.Entities
             if(!_authTenants.Any(at => at.TenantId == tenantId))
                 throw new InvalidOperationException("User is not assigned to the tenant");
 
+            // A role only ever grants rights inside its own tenant.
+            if (role.TenantId != tenantId)
+                throw new InvalidOperationException("Role belongs to a different tenant");
+
             // Previously substituted a fixed, global, hardcoded GUID (RoleIds.FromCode)
             // in place of the real per-tenant Role.Id passed in — those constants never
             // matched any actually-seeded Roles.Id row, so every assignment violated the

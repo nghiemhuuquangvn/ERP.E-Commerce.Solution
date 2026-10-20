@@ -2,6 +2,8 @@ using ERP.Identity.Application.DTOs.Permission;
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Domain.Entities;
+using ERP.Identity.Infrastructure.Security;
+using ERP.Shared.Authorization;
 using ERP.Shared.Infrastructure.Exceptions;
 using System;
 using System.Threading;
@@ -35,6 +37,11 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task<RoleDto> CreateAsync(Guid tenantId, CreateRoleRequest request, CancellationToken ct)
         {
+            // Platform role codes (SuperAdmin, …) can't be recreated by anyone — a tenant
+            // admin with a role named "SuperAdmin" used to bypass every permission check.
+            if (PlatformRoles.IsReserved(request.RoleCode))
+                throw new BusinessRuleException("ReservedRoleCode", $"Role code '{request.RoleCode}' is reserved.");
+
             var existingRole = await _unitOfWork.Roles.GetByCodeAsync(request.RoleCode, tenantId, ct);
             if (existingRole != null)
                 throw new InvalidOperationException($"Role '{request.RoleCode}' already exists for this tenant");
@@ -78,6 +85,13 @@ namespace ERP.Identity.Infrastructure.Services
             var permission = permissions.FirstOrDefault(p => p.PermissionCode == permissionCode);
             if (permission == null)
                 throw new InvalidOperationException($"Permission '{permissionCode}' not found");
+
+            // Anti-escalation: no platform permissions outside the platform tenant, and no
+            // granting what you don't hold. A tenant admin with identity:roles:manage could
+            // previously add settings:system:manage / identity:tenants:* to their own role.
+            var denial = await EffectivePermissions.WhyNotGrantableAsync(_unitOfWork, permission.PermissionCode, tenantId, changedByUserId, ct);
+            if (denial != null)
+                throw new BusinessRuleException("PermissionNotGrantable", denial);
 
             await _unitOfWork.Permissions.AssignToRoleAsync(roleId, permission.Id, tenantId, ct);
 

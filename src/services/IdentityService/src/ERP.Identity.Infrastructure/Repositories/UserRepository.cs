@@ -76,14 +76,21 @@ namespace ERP.Identity.Infrastructure.Repositories
 
         public async Task<User?> GetByIdInTenantAsync(Guid id, Guid tenantId, CancellationToken ct)
         {
+            // Loads memberships (User.AssignRole checks them — without this Include every
+            // role assignment failed with "User is not assigned to the tenant") and this
+            // tenant's role links only (needed by AssignRole's duplicate check).
             return await _dbContext.Users
+                .Include(u => u.UserTenants)
+                .Include(u => u.UserRoles.Where(ur => ur.TenantId == tenantId))
                 .FirstOrDefaultAsync(u => u.Id == id && u.UserTenants.Any(ut => ut.TenantId == tenantId), ct);
         }
 
         public async Task<User?> GetByIdWithDetailsInTenantAsync(Guid id, Guid tenantId, CancellationToken ct)
         {
+            // Only this tenant's role links: a user who is also a member of another tenant
+            // must not have that tenant's roles/permissions shown here.
             return await _dbContext.Users
-                .Include(x => x.UserRoles)
+                .Include(x => x.UserRoles.Where(ur => ur.TenantId == tenantId && ur.Role.TenantId == tenantId))
                 .ThenInclude(x => x.Role)
                 .ThenInclude(x => x.RolePermissions)
                 .ThenInclude(x => x.Permission)

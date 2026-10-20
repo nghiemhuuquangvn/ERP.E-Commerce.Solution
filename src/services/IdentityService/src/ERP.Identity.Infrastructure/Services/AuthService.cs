@@ -15,6 +15,7 @@ using ERP.Identity.Application.Interfaces.External;
 using ERP.Identity.Infrastructure.ExternalAuthLogin;
 using ERP.Identity.Domain.Constants;
 using ERP.Identity.Application.Interfaces.Mapping;
+using ERP.Shared.Authorization;
 using ERP.Shared.Infrastructure.Exceptions;
 using ERP.Identity.Infrastructure.Security;
 
@@ -92,9 +93,7 @@ namespace ERP.Identity.Infrastructure.Services
             // RolePermissions with that dictionary's exact grants (by RoleCode, across
             // every tenant) so this DB lookup alone reproduces the same permission set —
             // RoleDefinitions.cs is no longer read at runtime, only by that one-time seed.
-            var permissionSet = (await _unitOfWork.Permissions.GetPermissionAsync(user.Id, tenant.Id, ct))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            var permissionSet = (await EffectivePermissions.ResolveAsync(_unitOfWork, user.Id, tenant.Id, roles, ct)).ToList();
 
             // Embeds the tenant's currently-licensed module codes into the JWT (parallel to
             // the "permission" claims above) so every other service can check "am I
@@ -788,8 +787,13 @@ namespace ERP.Identity.Infrastructure.Services
                 await _unitOfWork.Roles.AddAsync(role, ct);
                 await _unitOfWork.SaveChangesAsync(ct);
 
+                // Tenant-scope only: filtering by Module used to include identity:tenants:*,
+                // identity:permissions:manage and settings:system:* (all Module "Identity"),
+                // so anonymous tenant signup produced an administrator of EVERY tenant.
                 var allPermissions = await _unitOfWork.Permissions.ListAllAsync(ct);
-                var selfAdminPermissions = allPermissions.Where(p => p.Module == "Identity" || p.Module == "System");
+                var selfAdminPermissions = allPermissions.Where(p =>
+                    (p.Module == "Identity" || p.Module == "System")
+                    && PermissionScopes.IsGrantableIn(p.PermissionCode, tenant.Id));
                 foreach (var permission in selfAdminPermissions)
                     await _unitOfWork.Permissions.AssignToRoleAsync(role.Id, permission.Id, tenant.Id, ct);
                 await _unitOfWork.SaveChangesAsync(ct);
