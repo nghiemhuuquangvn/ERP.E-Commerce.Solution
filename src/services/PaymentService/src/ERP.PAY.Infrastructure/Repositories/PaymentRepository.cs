@@ -20,6 +20,13 @@ public class PaymentRepository : IPaymentRepository
     public async Task<Payment?> GetByTransactionRefAsync(string transactionRef, CancellationToken ct = default) =>
         await _db.Payments.Include(p => p.Refunds).FirstOrDefaultAsync(p => p.TransactionRef == transactionRef, ct);
 
+    public async Task<Guid?> FindTenantByTransactionRefAsync(string transactionRef, CancellationToken ct = default) =>
+        await _db.Payments
+            .IgnoreQueryFilters() // deliberate: the callback has no tenant until we know the payment
+            .Where(p => p.TransactionRef == transactionRef)
+            .Select(p => (Guid?)p.TenantId)
+            .FirstOrDefaultAsync(ct);
+
     public async Task<List<Payment>> GetByStatusAsync(PaymentStatus status, CancellationToken ct = default) =>
         await _db.Payments.Where(p => p.Status == status).AsNoTracking().ToListAsync(ct);
 

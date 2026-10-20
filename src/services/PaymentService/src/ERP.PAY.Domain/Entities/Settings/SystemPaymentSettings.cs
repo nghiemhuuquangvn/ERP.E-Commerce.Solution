@@ -3,7 +3,7 @@ using ERP.Shared.Core.Domain;
 namespace ERP.PAY.Domain.Entities.Settings;
 
 /// <summary>Platform-wide gateway availability toggles. Mirrors IdentityService's SystemAuthSettings.</summary>
-public class SystemPaymentSettings : BaseEntity
+public class SystemPaymentSettings : BaseEntity, IPlatformWideEntity
 {
     public static readonly Guid WellKnownId = Guid.Parse("80000000-0000-0000-0000-000000000001");
 

@@ -2,6 +2,7 @@ using Asp.Versioning;
 using ERP.PAY.Application.Commands;
 using ERP.PAY.Application.Interfaces;
 using ERP.Shared.Authorization;
+using ERP.Shared.Infrastructure.Data;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,9 +21,11 @@ public class PaymentGatewayController : ControllerBase
     private readonly IMediator _mediator;
     private readonly ILogger<PaymentGatewayController> _logger;
     private readonly UserContext _userContext;
+    private readonly IPaymentRepository _payments;
 
-    public PaymentGatewayController(IPaymentGateway gateway, IMediator mediator, ILogger<PaymentGatewayController> logger, UserContext userContext)
+    public PaymentGatewayController(IPaymentGateway gateway, IMediator mediator, ILogger<PaymentGatewayController> logger, UserContext userContext, IPaymentRepository payments)
     {
+        _payments = payments;
         _gateway = gateway;
         _mediator = mediator;
         _logger = logger;
@@ -76,6 +79,11 @@ public class PaymentGatewayController : ControllerBase
             return BadRequest("Invalid payment signature");
         }
 
+        // Signature verified: the payment (not the request host) decides the tenant.
+        if (await _payments.FindTenantByTransactionRefAsync(verify.TransactionRef, ct) is not { } tenantId)
+            return BadRequest("Unknown payment reference");
+        using var tenantScope = TenantScope.Begin(tenantId);
+
         var payment = await _mediator.Send(new ProcessGatewayCallbackCommand
         {
             TransactionRef = verify.TransactionRef,
@@ -115,6 +123,11 @@ public class PaymentGatewayController : ControllerBase
 
         if (!verify.Success)
             return Ok(new { RspCode = "97", Message = "Checksum failed" });
+
+        // Signature verified: the payment (not the request host) decides the tenant.
+        if (await _payments.FindTenantByTransactionRefAsync(verify.TransactionRef, ct) is not { } tenantId)
+            return Ok(new { RspCode = "01", Message = "Order not found" });
+        using var tenantScope = TenantScope.Begin(tenantId);
 
         try
         {

@@ -1,3 +1,4 @@
+using ERP.Shared.Infrastructure.Data;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -80,8 +81,10 @@ public class SalesOrderRabbitMqConsumer : IHostedService
             {
                 case "sales_order.InitiatePaymentCommand":
                     var initiate = JsonSerializer.Deserialize<SagaInitiatePaymentCommand>(json);
-                    if (initiate != null)
+                    if (initiate != null && RequireTenant(initiate.TenantId, ea.RoutingKey))
                     {
+                        // The saga command carries the order's tenant; the payment is created in it.
+                        using var tenantScope = TenantScope.Begin(initiate.TenantId);
                         await mediator.Send(new InitiatePaymentCommand
                         {
                             OrderId = initiate.OrderId,
@@ -94,8 +97,9 @@ public class SalesOrderRabbitMqConsumer : IHostedService
 
                 case "sales_order.RefundPaymentCommand":
                     var refund = JsonSerializer.Deserialize<SagaRefundPaymentCommand>(json);
-                    if (refund != null)
+                    if (refund != null && RequireTenant(refund.TenantId, ea.RoutingKey))
                     {
+                        using var tenantScope = TenantScope.Begin(refund.TenantId);
                         var uow = scope.ServiceProvider.GetRequiredService<IPaymentUnitOfWork>();
                         var payment = await uow.Payments.GetByIdAsync(refund.PaymentId);
                         if (payment != null)
@@ -126,6 +130,15 @@ public class SalesOrderRabbitMqConsumer : IHostedService
             _logger.LogError(ex, "Error handling message with routing key {RoutingKey} from {Exchange}", ea.RoutingKey, ExchangeName);
             _channel!.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
         }
+    }
+
+    /// <summary>Saga commands without a tenant are dropped (fail closed), never guessed.</summary>
+    private bool RequireTenant(Guid tenantId, string routingKey)
+    {
+        if (tenantId != Guid.Empty)
+            return true;
+        _logger.LogWarning("{RoutingKey} without TenantId ignored", routingKey);
+        return false;
     }
 
     public Task StopAsync(CancellationToken cancellationToken)

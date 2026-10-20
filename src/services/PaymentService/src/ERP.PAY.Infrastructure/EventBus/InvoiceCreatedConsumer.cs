@@ -1,3 +1,5 @@
+using ERP.Shared.Messaging;
+using ERP.Shared.Infrastructure.Data;
 using Confluent.Kafka;
 using ERP.PAY.Application.Commands;
 using ERP.PAY.Application.Interfaces;
@@ -104,6 +106,14 @@ public class InvoiceCreatedConsumer : IHostedService
         var amount = raw.Value<decimal?>("Amount") ?? 0m;
         if (invoiceId == Guid.Empty || orderId == Guid.Empty || amount <= 0)
             return;
+
+        // The invoice's tenant (stamped by AccountingService's Outbox) — never guessed.
+        if (!EventTenant.TryRead(json, out var tenantId))
+        {
+            _logger.LogWarning("InvoiceCreated {InvoiceId} has no TenantId — ignored", invoiceId);
+            return;
+        }
+        using var tenantScope = TenantScope.Begin(tenantId);
 
         using var scope = _serviceProvider.CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
