@@ -4,6 +4,22 @@
 
 ---
 
+## Tenant ownership (all databases, 2026-10-20)
+
+- Every business table has a `TenantId` column and every service filters/stamps it through EF
+  (CLAUDE.md "Multi-Tenant Isolation"; migrations `*_TenantIsolation*.sql` added the column
+  where it was missing — e.g. Warehouse, Reporting facts, POS/Promotion caches,
+  `PurchaseRequests`, Sales credit profiles/commissions).
+- Business codes/numbers are unique per `(TenantId, …)`, never globally.
+- `System*Settings` tables: one platform-wide row (`TenantId` = empty GUID).
+- Shared reference data lives in the SYSTEM tenant (`00000000-0000-0000-0000-000000000001`)
+  and is readable by every tenant: MasterData countries/provinces/districts/wards, languages,
+  currencies, units of measure (+ translations); NotificationDB templates (tenant rows with
+  the same code override them). `ReportingDB.DimDate` is global.
+- Direct SQL / BI queries bypass the EF filter — always filter on `TenantId`.
+
+---
+
 ## Database Summary
 
 | # | Service | Database | Port | Purpose | Record Volume |

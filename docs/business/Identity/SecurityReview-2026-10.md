@@ -76,9 +76,9 @@ constant tenant into EF's cached model — the first request's tenant applied to
 | Service | Status |
 |---|---|
 | IdentityService | Isolated (explicit tenant predicates in repositories) |
-| CRMService | **Isolated** — query filter + stamp/validate on save; consumers use `TenantScope`; empty-tenant rows backfilled to SYSTEM (`Database/CRM/005_BackfillTenantId.sql`) |
-| PurchaseOrderService | Query filter fixed (per-request); save-side enforcement not yet added |
-| Accounting, HRM, POS, Payment, Product, Promotion, Reporting, SaleOrder, MasterData, Shipping, Warehouse, Notification, ChatBot | **Not isolated** — roll out the CLAUDE.md "Multi-Tenant Isolation" pattern; check each service actually stamps TenantId on writes and which events carry a TenantId for its consumers (e.g. `SalesOrderCreatedEvent` does not) |
+| CRMService | Isolated (PR #1); `AddRequestTenantProvider` since phase 2 |
+| PurchaseOrderService | Isolated — save-side enforcement on every overload and `PurchaseRequest` tenant-owned (phase 2) |
+| All other 13 services | **Isolated — tenant isolation phase 2** (PR #4–#6, see below) |
 
 The old helper now throws `NotSupportedException` (marked `[Obsolete]`) so it can't be reintroduced.
 
@@ -115,6 +115,41 @@ Deployment notes:
 Open: ChatBotService guest chat takes its tenant from the client (`VITE_TENANT_ID`) and bypasses
 the Gateway (SignalR) — should resolve the tenant from the host like the Gateway does.
 
+## Tenant isolation phase 2 — all services (2026-10-20, PR #4–#6)
+
+Pattern: CLAUDE.md "Multi-Tenant Isolation". Every service DbContext is tenant-scoped
+(enforced by `tests/unit/ERP.Architecture.Tests`: architecture, real-model filter coverage,
+two-tenant behaviour per service); every cross-service event carries `TenantId`
+(`docs/architecture/event-catalog.md` "Tenant in every event").
+
+| Wave | PR | Services |
+|---|---|---|
+| 2a + 2b | #4 | Shared building blocks; SaleOrder, Payment, Accounting (+ CRM/PO alignment) |
+| 2c | #5 | Product (+ Elasticsearch), Warehouse (+ PO `PurchaseRequest`), Shipping, Promotion, POS |
+| 2d | #6 | HRM, MasterData (shared reference data), Notification (shared templates), ChatBot (host tenant), Reporting |
+
+Additional defects found and fixed while isolating:
+
+| Area | Defect | Fix |
+|---|---|---|
+| Sales, Accounting, Product, Warehouse, HRM, MasterData | Business codes unique **globally** (order/quotation numbers, tax codes, SKU, slug, brand/category/warehouse/barcode/serial/transfer/stocktake codes, shift names, country/language/company codes) — with per-tenant numbering two tenants collided on insert | Unique per `(TenantId, …)` (EF + migrations) |
+| Sales | `CustomerSalesProfiles`, `CommissionPlans`, `CommissionRecords` had no TenantId (credit limits/commissions shared) | TenantId column + per-tenant profile uniqueness |
+| Warehouse | Every `StockMovement` hard-coded to the SYSTEM tenant; 10 tables had no TenantId | Stamped with the current tenant; columns added |
+| Shipping | Saga shipments used a hard-coded SYSTEM carrier — other tenants hit "Carrier not found" and a nack/requeue loop | Tenant's own active carrier, or skip with warning |
+| Payment | VNPay callback/IPN had no tenant context | After signature verification, the payment's tenant (cross-tenant lookup by transaction ref) |
+| Product | Elasticsearch search returned every tenant's products | Documents carry TenantId; every search filters; full re-index queued by migration |
+| ChatBot | Guest conversations trusted the client's `GuestTenantId`; storefront sent an all-zero id | Tenant = storefront host (Gateway / `HostTenantHubFilter`); client value only cross-checked |
+| Reporting | Facts had no tenant — every dashboard summed all tenants | TenantId on facts/dimensions; consumers write in the event's tenant |
+| PurchaseOrder | `SaveChanges` (sync) skipped tenant enforcement; `PurchaseRequest` had no tenant | All overloads enforce; StockAlert carries the tenant |
+| Notification | Templates seeded only in SYSTEM would vanish for other tenants | Shared defaults + per-tenant override |
+
+Still open:
+- Guest chat **within** one tenant: anyone who knows a conversation id can join/post via the
+  hub (no guest-session check on hub methods) — phase 5 (ticket-only hub).
+- Direct BI-tool queries on ReportingDB bypass the EF filter — they must filter `TenantId`.
+- Runtime verification (migrations, consumers, Elasticsearch re-index) not yet done in
+  Docker — only builds and unit/architecture tests.
+
 ## Service authorization review — all 16 services (2026-10-20)
 
 Token validation (signature/issuer/audience/lifetime, `MapInboundClaims=false`, claims-only
@@ -122,7 +157,7 @@ user context) is correct in every service. Authorization and isolation were not.
 
 | ID | Severity | Finding | Status |
 |---|---|---|---|
-| S1 | Critical | Tenant data isolation missing in 13 services (only Identity, CRM, PurchaseOrder isolated) — by-id reads/writes cross tenants | **Open — phase 2** (CLAUDE.md "Multi-Tenant Isolation") |
+| S1 | Critical | Tenant data isolation missing in 13 services (only Identity, CRM, PurchaseOrder isolated) — by-id reads/writes cross tenants | **Fixed — phase 2** (PR #4–#6, see "Tenant isolation phase 2") |
 | S2 | Critical | ProductService catalog endpoints (~45) required only a signed-in user — storefront Customers could edit products, prices, images, import/export, reindex | **Fixed** — `products:view/create/edit/delete/manage` (`023_SeedProductCatalogPermissions.sql`) |
 | S3 | Critical | Hosts didn't match tenant-from-host: `api.erp.local` / `shop.erp.local` / `erp.local` hosts in nginx & ingress, hubs on separate hosts | **Fixed** — `<tenant>.erp.local` (admin), `<tenant>.shop.erp.local` / custom domain (storefront); `/api` + `/hubs/*` same-origin via SPA containers |
 | S4 | Critical | All 17 service ports published by docker-compose (bypass Gateway; Identity trusts X-Tenant-Code) | **Fixed** — ports removed (`docker-compose.debug.yml` for local), infra bound to 127.0.0.1 |
