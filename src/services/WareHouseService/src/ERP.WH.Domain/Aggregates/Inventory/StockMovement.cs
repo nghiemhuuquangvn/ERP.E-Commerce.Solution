@@ -1,3 +1,4 @@
+using ERP.Shared.Core.Domain;
 namespace ERP.WH.Domain.Aggregates.Inventory;
 
 public enum MovementType
@@ -9,7 +10,7 @@ public enum MovementType
     Transferred = 4
 }
 
-public class StockMovement
+public class StockMovement : ITenantOwned
 {
     public Guid MovementId { get; private set; }
     public Guid TenantId { get; private set; }

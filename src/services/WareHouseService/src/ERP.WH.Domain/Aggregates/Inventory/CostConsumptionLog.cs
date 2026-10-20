@@ -1,3 +1,4 @@
+using ERP.Shared.Core.Domain;
 namespace ERP.WH.Domain.Aggregates.Inventory;
 
 /// <summary>
@@ -6,9 +7,11 @@ namespace ERP.WH.Domain.Aggregates.Inventory;
 /// IReservationFulfillmentService at ship time; never mutated afterward (append-only,
 /// same discipline as StockMovement).
 /// </summary>
-public class CostConsumptionLog
+public class CostConsumptionLog : ITenantOwned
 {
     public Guid Id { get; private set; }
+    /// <summary>Owning tenant — stamped by WarehouseDbContext on insert (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
     public Guid ProductId { get; private set; }
     public Guid? LotId { get; private set; }
     public int Quantity { get; private set; }

@@ -1,3 +1,4 @@
+using ERP.Shared.Infrastructure.Data;
 using ERP.PRM.Domain.Entities;
 using ERP.PRM.Infrastructure.Models;
 using ERP.Shared.Core.Domain;
@@ -8,7 +9,7 @@ using Newtonsoft.Json;
 
 namespace ERP.PRM.Infrastructure.Persistence;
 
-public class PromotionDbContext : DbContext
+public class PromotionDbContext : DbContext, ITenantScopedDbContext
 {
     public DbSet<Promotion> Promotions => Set<Promotion>();
     public DbSet<LoyaltyAccount> LoyaltyAccounts => Set<LoyaltyAccount>();
@@ -18,7 +19,19 @@ public class PromotionDbContext : DbContext
     public DbSet<PromotionProductCache> ProductCache => Set<PromotionProductCache>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
-    public PromotionDbContext(DbContextOptions<PromotionDbContext> options) : base(options) { }
+    private readonly ITenantProvider _tenantProvider;
+
+    /// <summary>
+    /// Tenant of the current request (JWT / Gateway host tenant) or consumer message
+    /// (TenantScope). Read by the tenant query filter on every query and used to
+    /// stamp/validate every save.
+    /// </summary>
+    public Guid? CurrentTenantId => _tenantProvider.CurrentTenantId;
+
+    public PromotionDbContext(DbContextOptions<PromotionDbContext> options, ITenantProvider tenantProvider) : base(options)
+    {
+        _tenantProvider = tenantProvider;
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -57,7 +70,7 @@ public class PromotionDbContext : DbContext
                 c.HasKey(x => x.Id);
                 c.Property(x => x.Id).ValueGeneratedNever();
                 c.Property(x => x.Code).IsRequired().HasMaxLength(50);
-                c.HasIndex(x => x.Code).IsUnique();
+                c.HasIndex(x => new { x.TenantId, x.Code }).IsUnique(); // coupon codes are per tenant
                 c.ToTable("Coupons");
             });
         });
@@ -124,10 +137,18 @@ public class PromotionDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
         });
+
+        // Last, so it composes with any per-entity filter configured above.
+        modelBuilder.ApplyTenantQueryFilters(this);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        // Stamp/validate the tenant first, so the events serialized below carry it.
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+            EventTenant.StampFrom(entry.Entity);
+
         var domainEntities = ChangeTracker.Entries<BaseEntity>()
             .Where(e => e.Entity.DomainEvents.Any()).ToList();
 
@@ -150,5 +171,17 @@ public class PromotionDbContext : DbContext
         }
 
         return result;
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 }

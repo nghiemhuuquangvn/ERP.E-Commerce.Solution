@@ -4,11 +4,12 @@ using ERP.WH.Domain.Aggregates.Location;
 using ERP.WH.Domain.Aggregates.Transfers;
 using ERP.WH.Domain.Aggregates.Stocktakes;
 using ERP.WH.Domain.Settings;
+using ERP.Shared.Infrastructure.Data;
 using ERP.Shared.Messaging;
 
 namespace ERP.WH.Infrastructure.Persistence;
 
-public class WarehouseDbContext : DbContext
+public class WarehouseDbContext : DbContext, ITenantScopedDbContext
 {
     public DbSet<Inventory> Inventories { get; set; }
     public DbSet<StockMovement> StockMovements { get; set; }
@@ -35,8 +36,18 @@ public class WarehouseDbContext : DbContext
     /// </summary>
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
-    public WarehouseDbContext(DbContextOptions<WarehouseDbContext> options) : base(options)
+    private readonly ITenantProvider _tenantProvider;
+
+    /// <summary>
+    /// Tenant of the current request (JWT / Gateway host tenant) or consumer message
+    /// (TenantScope). Read by the tenant query filter on every query and used to
+    /// stamp/validate every save — the plain-POCO aggregates implement ITenantOwned.
+    /// </summary>
+    public Guid? CurrentTenantId => _tenantProvider.CurrentTenantId;
+
+    public WarehouseDbContext(DbContextOptions<WarehouseDbContext> options, ITenantProvider tenantProvider) : base(options)
     {
+        _tenantProvider = tenantProvider;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -80,7 +91,7 @@ public class WarehouseDbContext : DbContext
             entity.Property(e => e.SerialNumber).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Status).IsRequired();
 
-            entity.HasIndex(e => e.SerialNumber).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.SerialNumber }).IsUnique();
             entity.HasIndex(e => new { e.ProductId, e.Status });
         });
 
@@ -155,7 +166,7 @@ public class WarehouseDbContext : DbContext
             entity.Property(e => e.LockedQuantity).IsRequired();
             entity.Property(e => e.UpdatedAt).IsRequired();
 
-            entity.HasIndex(e => new { e.ProductId, e.LocationId }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.ProductId, e.LocationId }).IsUnique();
         });
 
         modelBuilder.Entity<StockAdjustment>(entity =>
@@ -182,7 +193,7 @@ public class WarehouseDbContext : DbContext
             entity.Property(e => e.Address).HasMaxLength(500);
             entity.Property(e => e.IsActive).IsRequired();
 
-            entity.HasIndex(e => e.Code).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.Code }).IsUnique();
         });
 
         modelBuilder.Entity<CostConsumptionLog>(entity =>
@@ -210,7 +221,7 @@ public class WarehouseDbContext : DbContext
 
             entity.Navigation(e => e.Lines).AutoInclude();
 
-            entity.HasIndex(e => new { e.PeriodCode, e.WarehouseId }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.PeriodCode, e.WarehouseId }).IsUnique();
         });
 
         modelBuilder.Entity<InventoryValuationSnapshotLine>(entity =>
@@ -226,7 +237,7 @@ public class WarehouseDbContext : DbContext
             entity.Property(e => e.Barcode).IsRequired().HasMaxLength(100);
             entity.Property(e => e.SerialNumber).HasMaxLength(100);
 
-            entity.HasIndex(e => e.Barcode).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.Barcode }).IsUnique();
             entity.HasIndex(e => e.ProductId);
         });
 
@@ -264,7 +275,7 @@ public class WarehouseDbContext : DbContext
 
             entity.Navigation(e => e.Lines).AutoInclude();
 
-            entity.HasIndex(e => e.TransferNumber).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.TransferNumber }).IsUnique();
         });
 
         modelBuilder.Entity<TransferOrderLine>(entity =>
@@ -293,7 +304,7 @@ public class WarehouseDbContext : DbContext
 
             entity.Navigation(e => e.Lines).AutoInclude();
 
-            entity.HasIndex(e => e.StocktakeNumber).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.StocktakeNumber }).IsUnique();
         });
 
         modelBuilder.Entity<StocktakeLine>(entity =>
@@ -333,5 +344,20 @@ public class WarehouseDbContext : DbContext
                 .HasDatabaseName("IX_OutboxMessages_ProcessedOnUtc_Pending")
                 .HasFilter("[ProcessedOnUtc] IS NULL");
         });
+
+        // Last, so it composes with any per-entity filter configured above.
+        modelBuilder.ApplyTenantQueryFilters(this);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 }

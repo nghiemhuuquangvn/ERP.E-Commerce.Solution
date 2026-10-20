@@ -1,3 +1,4 @@
+using ERP.Shared.Core.Domain;
 namespace ERP.WH.Domain.Aggregates.Inventory;
 
 public enum StockAdjustmentStatus
@@ -13,9 +14,11 @@ public enum StockAdjustmentStatus
 /// aggregate at all: AdjustStockCommand mutated Inventory synchronously with no request/
 /// approval step.
 /// </summary>
-public class StockAdjustment
+public class StockAdjustment : ITenantOwned
 {
     public Guid Id { get; private set; }
+    /// <summary>Owning tenant — stamped by WarehouseDbContext on insert (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
     public Guid ProductId { get; private set; }
     public Guid? LocationId { get; private set; }
     public int QuantityDelta { get; private set; }

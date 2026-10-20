@@ -1,3 +1,5 @@
+using ERP.Shared.Messaging;
+using ERP.Shared.Infrastructure.Data;
 using System.Text;
 using System.Text.Json;
 using ERP.PRD.Infrastructure.Persistence;
@@ -64,9 +66,19 @@ namespace ERP.PRD.Infrastructure.EventBus
                     using var scope = _serviceProvider.CreateScope();
                     var context = scope.ServiceProvider.GetRequiredService<ProductDbContext>();
 
-                    var product = await context.Products.FirstOrDefaultAsync(p => p.Id == payload.ProductId && !p.IsDeleted);
-                    if (product != null)
+                    // The product decides the tenant (cross-tenant lookup); an event that names a
+                    // different tenant is ignored rather than applied.
+                    var product = await context.Products
+                        .IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(p => p.Id == payload.ProductId && !p.IsDeleted);
+                    if (product != null && EventTenant.TryRead(json, out var eventTenant) && eventTenant != product.TenantId)
                     {
+                        _logger.LogWarning("InventoryUpdated for product {ProductId} carries tenant {EventTenant}, product belongs to {Tenant} — ignored",
+                            product.Id, eventTenant, product.TenantId);
+                    }
+                    else if (product != null)
+                    {
+                        using var tenantScope = TenantScope.Begin(product.TenantId);
                         product.SyncStockQuantity(payload.CurrentQuantity);
                         await context.SaveChangesAsync();
                     }

@@ -71,4 +71,55 @@ public class TenantIsolationBehaviorTests
     public void Accounting_TaxRates() =>
         AssertIsolated<ERP.ACC.Infrastructure.Persistence.AccountingDbContext, ERP.ACC.Domain.Entities.TaxRate>(
             ERP.ACC.Domain.Entities.TaxRate.Create("VAT 10%", "VAT10", 10m), e => e.TenantId);
+
+    [Fact]
+    public void Product_Brands() =>
+        AssertIsolated<ERP.PRD.Infrastructure.Persistence.ProductDbContext, ERP.PRD.Domain.Entities.Brand>(
+            ERP.PRD.Domain.Entities.Brand.Create("ACME", "Acme"), e => e.TenantId);
+
+    [Fact]
+    public void Product_Categories() =>
+        AssertIsolated<ERP.PRD.Infrastructure.Persistence.ProductDbContext, ERP.PRD.Domain.Entities.Category>(
+            ERP.PRD.Domain.Entities.Category.Create("Shirts", code: "SHIRTS"), e => e.TenantId);
+
+    [Fact]
+    public void Warehouse_Warehouses() =>
+        AssertIsolated<ERP.WH.Infrastructure.Persistence.WarehouseDbContext, ERP.WH.Domain.Aggregates.Location.Warehouse>(
+            new ERP.WH.Domain.Aggregates.Location.Warehouse("WH01", "Main"), e => e.TenantId);
+
+    [Fact]
+    public void Warehouse_BarcodeMappings() =>
+        AssertIsolated<ERP.WH.Infrastructure.Persistence.WarehouseDbContext, ERP.WH.Domain.Aggregates.Inventory.BarcodeMapping>(
+            new ERP.WH.Domain.Aggregates.Inventory.BarcodeMapping("8930001", Guid.NewGuid()), e => e.TenantId);
+
+    [Fact]
+    public void PurchaseOrder_PurchaseRequests() =>
+        AssertIsolated<ERP.PO.Infrastructure.Data.PurchasingDbContext, ERP.PO.Domain.Entities.PurchaseRequest>(
+            ERP.PO.Domain.Entities.PurchaseRequest.Create(Guid.NewGuid(), "Widget", 1, 5, 10), e => e.TenantId);
+
+    [Fact]
+    public void Shipping_Carriers() =>
+        AssertIsolated<ERP.SHP.Infrastructure.Persistence.ShippingDbContext, ERP.SHP.Domain.Entities.Carrier>(
+            ERP.SHP.Domain.Entities.Carrier.Create("GHN", "GHN", 10000m), e => e.TenantId);
+
+    [Fact]
+    public void Promotion_Promotions() =>
+        AssertIsolated<ERP.PRM.Infrastructure.Persistence.PromotionDbContext, ERP.PRM.Domain.Entities.Promotion>(
+            ERP.PRM.Domain.Entities.Promotion.Create("Autumn sale", ERP.PRM.Domain.Enums.DiscountType.Percentage, 10m,
+                DateTime.UtcNow, DateTime.UtcNow.AddDays(7)), e => e.TenantId);
+
+    [Fact]
+    public void Promotion_ProductCache() =>
+        AssertIsolated<ERP.PRM.Infrastructure.Persistence.PromotionDbContext, ERP.PRM.Infrastructure.Models.PromotionProductCache>(
+            new ERP.PRM.Infrastructure.Models.PromotionProductCache { ProductId = Guid.NewGuid(), Category = "Shirts", Price = 10m }, e => e.TenantId);
+
+    [Fact]
+    public void Pos_Terminals() =>
+        AssertIsolated<ERP.POS.Infrastructure.Persistence.POSDbContext, ERP.POS.Domain.Entities.Terminal>(
+            ERP.POS.Domain.Entities.Terminal.Create("Counter 1"), e => e.TenantId);
+
+    [Fact]
+    public void Pos_ProductCache() =>
+        AssertIsolated<ERP.POS.Infrastructure.Persistence.POSDbContext, ERP.POS.Application.EventHandlers.PosProductCache>(
+            new ERP.POS.Application.EventHandlers.PosProductCache { ProductId = Guid.NewGuid(), Name = "Tee", Sku = "TEE", Price = 10m }, e => e.TenantId);
 }

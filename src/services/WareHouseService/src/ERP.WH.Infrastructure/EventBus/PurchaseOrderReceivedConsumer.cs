@@ -1,3 +1,5 @@
+using ERP.Shared.Messaging;
+using ERP.Shared.Infrastructure.Data;
 using Confluent.Kafka;
 using MediatR;
 using Microsoft.Extensions.Configuration;
@@ -101,6 +103,14 @@ public class PurchaseOrderReceivedConsumer : IHostedService
         var receivedItems = raw["ReceivedItems"] as JArray;
         if (purchaseOrderId == Guid.Empty || receivedItems == null)
             return;
+
+        // Goods are received into the purchase order's tenant (stamped by PurchaseOrderService).
+        if (!EventTenant.TryRead(json, out var tenantId))
+        {
+            _logger.LogWarning("PurchaseOrderReceived {PurchaseOrderId} without TenantId ignored", purchaseOrderId);
+            return;
+        }
+        using var tenantScope = TenantScope.Begin(tenantId);
 
         using var scope = _serviceProvider.CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();

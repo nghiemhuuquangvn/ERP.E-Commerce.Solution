@@ -11,6 +11,8 @@ namespace ERP.PRD.Infrastructure.Search
     public class ProductSearchDocument
     {
         public Guid ProductId { get; set; }
+        /// <summary>Owning tenant — every search filters on it (one shared index for all tenants).</summary>
+        public Guid TenantId { get; set; }
         public string Sku { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }

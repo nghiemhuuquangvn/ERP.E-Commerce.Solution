@@ -6,7 +6,7 @@ namespace ERP.PRD.Domain.Entities.Settings;
 /// Single well-known-GUID row holding platform-wide Store/Product setting toggles.
 /// Mirrors IdentityService's SystemAuthSettings (System/Tenant two-tier pattern).
 /// </summary>
-public class SystemStoreProductSettings : BaseEntity
+public class SystemStoreProductSettings : BaseEntity, IPlatformWideEntity
 {
     public static readonly Guid WellKnownId = Guid.Parse("50000000-0000-0000-0000-000000000001");
 

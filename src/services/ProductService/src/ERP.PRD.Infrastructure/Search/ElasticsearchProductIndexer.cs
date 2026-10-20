@@ -123,6 +123,7 @@ namespace ERP.PRD.Infrastructure.Search
             var document = new ProductSearchDocument
             {
                 ProductId = product.Id,
+                TenantId = product.TenantId,
                 Sku = product.Sku,
                 Name = product.Name,
                 Description = product.Description,

@@ -7,8 +7,11 @@ namespace ERP.PRD.Domain.Events
     /// Promotion can refresh their local product caches — previously missing entirely,
     /// only ProductCreated/Published/Discontinued existed.
     /// </summary>
-    public class ProductUpdatedDomainEvent : IDomainEvent
+    public class ProductUpdatedDomainEvent : IDomainEvent, ITenantEvent
     {
+        /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+        public Guid TenantId { get; set; }
+
         public Guid ProductId { get; }
         public string Name { get; }
         public string Sku { get; }

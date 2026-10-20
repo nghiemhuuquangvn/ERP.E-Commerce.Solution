@@ -1,8 +1,11 @@
+using ERP.Shared.Core.Domain;
 namespace ERP.WH.Domain.Aggregates.Inventory;
 
-public class InventoryLot
+public class InventoryLot : ITenantOwned
 {
     public Guid LotId { get; private set; }
+    /// <summary>Owning tenant — stamped by WarehouseDbContext on insert (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
     public Guid ProductId { get; private set; }
     public string LotNumber { get; private set; } = null!;
     public int ReceivedQuantity { get; private set; }

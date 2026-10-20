@@ -1,3 +1,5 @@
+using ERP.Shared.Core.Domain;
+
 namespace ERP.WH.Domain.Events;
 
 /// <summary>
@@ -7,8 +9,11 @@ namespace ERP.WH.Domain.Events;
 /// nack-with-requeue loop (the stock situation never changes on redelivery) — feeds
 /// OrderFulfillmentSaga's compensation path instead.
 /// </summary>
-public class InventoryInsufficientEvent
+public class InventoryInsufficientEvent : ITenantEvent
 {
+    /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+    public Guid TenantId { get; set; }
+
     public Guid OrderId { get; set; }
     public List<InsufficientItemDto> InsufficientItems { get; set; } = new();
     public string Reason { get; set; } = string.Empty;

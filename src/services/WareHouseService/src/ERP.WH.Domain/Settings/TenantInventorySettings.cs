@@ -1,7 +1,7 @@
 namespace ERP.WH.Domain.Settings;
 
 /// <summary>Per-tenant Inventory configuration. One row per TenantId (unique). No shared BaseEntity — see SystemInventorySettings.</summary>
-public class TenantInventorySettings
+public class TenantInventorySettings : ERP.Shared.Core.Domain.ITenantOwned
 {
     public Guid Id { get; private set; }
     public Guid TenantId { get; private set; }

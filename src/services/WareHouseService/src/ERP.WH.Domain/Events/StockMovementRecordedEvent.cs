@@ -1,7 +1,12 @@
+using ERP.Shared.Core.Domain;
+
 namespace ERP.WH.Domain.Events;
 
-public class StockMovementRecordedEvent
+public class StockMovementRecordedEvent : ITenantEvent
 {
+    /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+    public Guid TenantId { get; set; }
+
     public Guid MovementId { get; set; }
     public Guid ProductId { get; set; }
     public int Quantity { get; set; }

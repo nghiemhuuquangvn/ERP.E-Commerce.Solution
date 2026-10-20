@@ -2,8 +2,11 @@ using ERP.Shared.Core.Domain;
 
 namespace ERP.PRD.Domain.Events
 {
-    public class ProductCreatedDomainEvent : IDomainEvent
+    public class ProductCreatedDomainEvent : IDomainEvent, ITenantEvent
     {
+        /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+        public Guid TenantId { get; set; }
+
         public Guid ProductId { get; }
         public string Name { get; }
         public string Sku { get; }

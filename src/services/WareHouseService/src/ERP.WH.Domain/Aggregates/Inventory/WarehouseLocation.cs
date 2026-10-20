@@ -1,8 +1,11 @@
+using ERP.Shared.Core.Domain;
 namespace ERP.WH.Domain.Aggregates.Inventory;
 
-public class WarehouseLocation
+public class WarehouseLocation : ITenantOwned
 {
     public Guid LocationId { get; private set; }
+    /// <summary>Owning tenant — stamped by WarehouseDbContext on insert (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
     /// <summary>Which physical site this location belongs to — nullable since existing locations predate the Warehouse entity; migration backfills them onto a default "Main Warehouse".</summary>
     public Guid? WarehouseId { get; private set; }
     public string LocationCode { get; private set; }

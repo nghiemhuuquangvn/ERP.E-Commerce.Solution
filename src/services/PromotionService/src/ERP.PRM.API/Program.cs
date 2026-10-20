@@ -73,6 +73,9 @@ builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddErpAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+// Tenant isolation for PromotionDbContext: JWT tenant, the Gateway host tenant for the
+// anonymous storefront (public promotions / flash sales), or an explicit TenantScope.
+builder.Services.AddRequestTenantProvider();
 builder.Services.AddScoped<UserContext>();
 builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Promotion));
 builder.Services.AddHealthChecks();

@@ -3,7 +3,7 @@ using ERP.Shared.Core.Domain;
 namespace ERP.SHP.Domain.Entities.Settings;
 
 /// <summary>Platform-wide carrier availability toggles. Mirrors IdentityService's SystemAuthSettings.</summary>
-public class SystemShippingSettings : BaseEntity
+public class SystemShippingSettings : BaseEntity, IPlatformWideEntity
 {
     public static readonly Guid WellKnownId = Guid.Parse("90000000-0000-0000-0000-000000000001");
 

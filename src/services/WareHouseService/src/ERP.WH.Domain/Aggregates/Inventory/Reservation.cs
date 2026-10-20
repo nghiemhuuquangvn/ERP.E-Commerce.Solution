@@ -1,3 +1,4 @@
+using ERP.Shared.Core.Domain;
 namespace ERP.WH.Domain.Aggregates.Inventory;
 
 public enum ReservationStatus
@@ -27,9 +28,11 @@ public class ReservedItem
     public List<LotAllocation> LotAllocations { get; set; } = new();
 }
 
-public class Reservation
+public class Reservation : ITenantOwned
 {
     public Guid ReservationId { get; private set; }
+    /// <summary>Owning tenant — stamped by WarehouseDbContext on insert (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
     public Guid OrderId { get; private set; }
     public List<ReservedItem> ReservedItems { get; private set; } = null!;
     public ReservationStatus Status { get; private set; }

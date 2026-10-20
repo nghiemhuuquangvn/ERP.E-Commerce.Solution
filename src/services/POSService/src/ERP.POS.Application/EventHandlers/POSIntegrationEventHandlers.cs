@@ -1,3 +1,4 @@
+using ERP.Shared.Core.Domain;
 using ERP.POS.Application.Interfaces;
 using Microsoft.Extensions.Logging;
 
@@ -130,9 +131,11 @@ public class PaymentProcessedForPosHandler
 
 // ── Cache DTOs for POS local sync ──────────────────────────────────────────
 
-public class PosProductCache
+public class PosProductCache : ITenantOwned
 {
     public Guid ProductId { get; set; }
+    /// <summary>Owning tenant — stamped by POSDbContext on insert, from the source event's TenantScope (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
     public string Name { get; set; } = string.Empty;
     public string Sku { get; set; } = string.Empty;
     public decimal Price { get; set; }
@@ -140,9 +143,11 @@ public class PosProductCache
     public DateTime SyncedAt { get; set; }
 }
 
-public class PosPromotionCache
+public class PosPromotionCache : ITenantOwned
 {
     public Guid PromotionId { get; set; }
+    /// <summary>Owning tenant — stamped by POSDbContext on insert, from the source event's TenantScope (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
     public string Name { get; set; } = string.Empty;
     public int DiscountType { get; set; }
     public decimal DiscountValue { get; set; }

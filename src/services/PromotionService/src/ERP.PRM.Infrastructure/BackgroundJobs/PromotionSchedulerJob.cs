@@ -1,3 +1,4 @@
+using ERP.Shared.Infrastructure.Data;
 using ERP.PRM.Domain.Enums;
 using ERP.PRM.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -57,9 +58,35 @@ public class PromotionSchedulerJob : IHostedService
 
     private async Task TickAsync(CancellationToken ct)
     {
+        // No user here: find the tenants that have something due (across tenants), then run
+        // each tenant's transitions inside its own TenantScope and DI scope.
+        var now = DateTime.UtcNow;
+        List<Guid> tenants;
+        using (var lookupScope = _serviceProvider.CreateScope())
+        {
+            var lookup = lookupScope.ServiceProvider.GetRequiredService<PromotionDbContext>();
+            var promotionTenants = await lookup.Promotions.IgnoreQueryFilters()
+                .Where(p => (p.Status == PromotionStatus.Draft && p.StartDate <= now && p.EndDate > now)
+                            || ((p.Status == PromotionStatus.Active || p.Status == PromotionStatus.Paused) && p.EndDate < now))
+                .Select(p => p.TenantId).Distinct().ToListAsync(ct);
+            var flashSaleTenants = await lookup.FlashSales.IgnoreQueryFilters()
+                .Where(fs => (fs.Status == FlashSaleStatus.Scheduled && fs.StartTime <= now && fs.EndTime > now)
+                             || (fs.Status == FlashSaleStatus.Active && fs.EndTime < now))
+                .Select(fs => fs.TenantId).Distinct().ToListAsync(ct);
+            tenants = promotionTenants.Union(flashSaleTenants).Where(t => t != Guid.Empty).ToList();
+        }
+
+        foreach (var tenantId in tenants)
+        {
+            using (TenantScope.Begin(tenantId))
+                await TickTenantAsync(now, ct);
+        }
+    }
+
+    private async Task TickTenantAsync(DateTime now, CancellationToken ct)
+    {
         using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PromotionDbContext>();
-        var now = DateTime.UtcNow;
 
         // Auto-activate Draft promotions whose start date has arrived
         var toActivate = await db.Promotions

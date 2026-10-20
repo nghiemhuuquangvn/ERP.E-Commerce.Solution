@@ -1,3 +1,6 @@
+using ERP.Shared.Infrastructure.Data;
+using ERP.Shared.Messaging;
+using ERP.SHP.Application.Interfaces;
 using System.Text;
 using System.Text.Json;
 using MediatR;
@@ -26,8 +29,6 @@ namespace ERP.SHP.Infrastructure.EventBus
     {
         private const string ExchangeName = "sales_order_events";
         private const string QueueName = "shipping-service.sales-order-events";
-
-        private static readonly Guid DefaultCarrierId = Guid.Parse("00000000-0000-0000-0000-000000000001");
 
         private readonly IConnection _connection;
         private readonly IServiceProvider _serviceProvider;
@@ -71,16 +72,38 @@ namespace ERP.SHP.Infrastructure.EventBus
                 using var scope = _serviceProvider.CreateScope();
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
+                // CreateShipmentCommand carries the saga's (order's) tenant; without one nothing is
+                // changed (fail closed) — the message is acknowledged and logged.
+                if (!EventTenant.TryRead(json, out var tenantId))
+                {
+                    _logger.LogWarning("{RoutingKey} without TenantId ignored", ea.RoutingKey);
+                    _channel!.BasicAck(ea.DeliveryTag, multiple: false);
+                    return;
+                }
+                using var tenantScope = TenantScope.Begin(tenantId);
+
                 switch (ea.RoutingKey)
                 {
                     case "sales_order.CreateShipmentCommand":
                         var evt = JsonSerializer.Deserialize<SagaCreateShipmentCommand>(json);
-                        if (evt != null)
+                        if (evt == null)
+                            break;
+
+                        // The tenant's own default carrier (first active one by name) — carriers
+                        // are per tenant; this used to be a hard-coded SYSTEM-tenant carrier id.
+                        var carriers = await scope.ServiceProvider.GetRequiredService<ICarrierRepository>().GetActiveAsync();
+                        var carrier = carriers.OrderBy(c => c.Name).FirstOrDefault();
+                        if (carrier == null)
+                        {
+                            _logger.LogWarning("No active carrier in tenant {TenantId} — shipment for order {OrderId} not created", tenantId, evt.OrderId);
+                            break;
+                        }
+
                         {
                             await mediator.Send(new CreateShipmentCommand
                             {
                                 OrderId = evt.OrderId,
-                                CarrierId = DefaultCarrierId,
+                                CarrierId = carrier.Id,
                                 Recipient = new ShipmentRecipientRequest
                                 {
                                     RecipientName = "(pending address sync)",

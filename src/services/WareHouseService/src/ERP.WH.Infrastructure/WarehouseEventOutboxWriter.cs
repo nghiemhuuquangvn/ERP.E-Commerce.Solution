@@ -25,6 +25,8 @@ public class WarehouseEventOutboxWriter : IEventOutboxWriter
 
     public void Stage(object domainEvent)
     {
+        // Events are staged by handlers that run in exactly one tenant (request or TenantScope).
+        EventTenant.Stamp(domainEvent, _context.CurrentTenantId ?? Guid.Empty);
         var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
         var content = JsonConvert.SerializeObject(domainEvent, settings);
         _context.OutboxMessages.Add(new OutboxMessage(domainEvent.GetType().Name, content));

@@ -1,3 +1,4 @@
+using ERP.Shared.Core.Domain;
 namespace ERP.WH.Domain.Aggregates.Transfers;
 
 public enum TransferOrderStatus
@@ -26,9 +27,11 @@ public class TransferOrderLine
     }
 }
 
-public class TransferOrder
+public class TransferOrder : ITenantOwned
 {
     public Guid TransferOrderId { get; private set; }
+    /// <summary>Owning tenant — stamped by WarehouseDbContext on insert (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
     public string TransferNumber { get; private set; } = null!;
     public Guid FromLocationId { get; private set; }
     public Guid ToLocationId { get; private set; }

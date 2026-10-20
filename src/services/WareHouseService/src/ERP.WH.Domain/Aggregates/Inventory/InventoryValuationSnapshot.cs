@@ -1,8 +1,11 @@
+using ERP.Shared.Core.Domain;
 namespace ERP.WH.Domain.Aggregates.Inventory;
 
-public class InventoryValuationSnapshotLine
+public class InventoryValuationSnapshotLine : ITenantOwned
 {
     public Guid Id { get; private set; }
+    /// <summary>Owning tenant — stamped by WarehouseDbContext on insert (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
     public Guid SnapshotId { get; private set; }
     public Guid ProductId { get; private set; }
     public int Quantity { get; private set; }
@@ -27,9 +30,11 @@ public class InventoryValuationSnapshotLine
 /// core "chốt kỳ" rule. Additive: does not replace GetInventoryValuationQuery's
 /// live, on-demand per-product calculation, which stays as-is for day-to-day reads.
 /// </summary>
-public class InventoryValuationSnapshot
+public class InventoryValuationSnapshot : ITenantOwned
 {
     public Guid Id { get; private set; }
+    /// <summary>Owning tenant — stamped by WarehouseDbContext on insert (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
     public string PeriodCode { get; private set; } = null!;
     public Guid? WarehouseId { get; private set; }
     public DateTime SnapshotDate { get; private set; }

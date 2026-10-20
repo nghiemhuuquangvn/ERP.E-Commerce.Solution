@@ -1,7 +1,12 @@
+using ERP.Shared.Core.Domain;
+
 namespace ERP.WH.Domain.Events;
 
-public class ReceiptCompletedEvent
+public class ReceiptCompletedEvent : ITenantEvent
 {
+    /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+    public Guid TenantId { get; set; }
+
     public Guid ProductId { get; set; }
     public int QuantityReceived { get; set; }
     public string? LotNumber { get; set; }

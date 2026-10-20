@@ -221,6 +221,8 @@ public interface IReservationRepository
     Task AddAsync(Reservation reservation, CancellationToken cancellationToken);
     Task UpdateAsync(Reservation reservation, CancellationToken cancellationToken);
     Task<List<Reservation>> GetExpiredAsync(DateTime asOfUtc, CancellationToken cancellationToken);
+    /// <summary>Tenants that have expired reservations — across tenants, for the expiry job.</summary>
+    Task<List<Guid>> GetTenantsWithExpiredAsync(DateTime asOfUtc, CancellationToken cancellationToken);
 }
 
 public interface IEventPublisher

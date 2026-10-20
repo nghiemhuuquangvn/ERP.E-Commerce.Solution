@@ -147,9 +147,9 @@ public class PurchasingDbContext : DbContext, IUnitOfWork, ITenantScopedDbContex
         receiptBuilder.Property(r => r.CreatedAt).HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd();
         receiptBuilder.HasIndex(r => new { r.PurchaseOrderId, r.TenantId });
 
-        // Configure PurchaseRequest — plain Id key, no TenantId/composite key and not
-        // covered by the tenant query filter below, since it doesn't extend BaseEntity
-        // (the upstream StockAlertEvent signal carries no tenant concept).
+        // Configure PurchaseRequest — plain Id key (not BaseEntity). Tenant-owned since
+        // 2026-10-20: StockAlertEvent now carries the warehouse's tenant, so the request is
+        // created in it and covered by the tenant query filter below (ITenantOwned).
         var purchaseRequestBuilder = builder.Entity<PurchaseRequest>();
         purchaseRequestBuilder.HasKey(pr => pr.Id);
         purchaseRequestBuilder.Property(pr => pr.ProductName).HasMaxLength(255).IsRequired();
@@ -157,6 +157,7 @@ public class PurchasingDbContext : DbContext, IUnitOfWork, ITenantScopedDbContex
         purchaseRequestBuilder.Property(pr => pr.CreatedAt).IsRequired();
         purchaseRequestBuilder.HasIndex(pr => pr.ProductId);
         purchaseRequestBuilder.HasIndex(pr => pr.Status);
+        purchaseRequestBuilder.HasIndex(pr => new { pr.TenantId, pr.Status });
 
         // Configure Outbox pattern table
         builder.Entity<OutboxMessage>(e =>
@@ -171,6 +172,18 @@ public class PurchasingDbContext : DbContext, IUnitOfWork, ITenantScopedDbContex
         // request (any tenant) was filtered by that one tenant — or not at all if the model
         // was first built without a user (background job).
         builder.ApplyTenantQueryFilters(this);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
     public ITransaction BeginTransaction()
