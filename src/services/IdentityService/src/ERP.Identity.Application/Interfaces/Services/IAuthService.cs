@@ -41,5 +41,19 @@ namespace ERP.Identity.Application.Interfaces.Services
         Task<TwitterAuthorizeUrlResponse> GetTwitterAuthorizeUrlAsync(string tenantCode, CancellationToken ct);
 
         Task<LoginResponse> TwitterCallbackAsync(TwitterCallbackRequest request, CancellationToken ct);
+
+        /// <summary>
+        /// Credential check for the interactive OIDC /connect/login form, with the same
+        /// brute-force counter, per-account lockout, IsActive check and audit trail as the
+        /// REST login. Returns the authenticated user's Id, or null on any failure.
+        /// </summary>
+        Task<Guid?> VerifyInteractiveCredentialsAsync(string email, string password, string? ipAddress, string? userAgent, CancellationToken ct);
+
+        /// <summary>
+        /// Returns why this user may not complete an interactive OIDC sign-in into this
+        /// tenant (deactivated/locked user, inactive tenant, or 2FA required — the OIDC flow
+        /// has no 2FA step, so it fails closed), or null when allowed.
+        /// </summary>
+        Task<string?> GetInteractiveLoginDenialAsync(Guid userId, Guid tenantId, CancellationToken ct);
     }
 }

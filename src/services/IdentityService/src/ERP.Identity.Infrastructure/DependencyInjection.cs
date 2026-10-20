@@ -1,3 +1,4 @@
+using ERP.Identity.Application.Security;
 using Microsoft.Extensions.DependencyInjection;
 using ERP.Identity.Application.Interfaces;
 using ERP.Identity.Application.Interfaces.Services;
@@ -27,6 +28,35 @@ namespace ERP.Identity.Infrastructure
         public static IServiceCollection AddInfrastructure(this IServiceCollection services)
         {
             services.AddHttpClient();
+
+            // Outbound webhook delivery to tenant-configured URLs (SSRF-sensitive): no
+            // redirects (a public URL can't bounce to an internal one), short timeout, and a
+            // ConnectCallback that re-checks the ACTUALLY resolved IPs at connect time, so a
+            // public-looking hostname resolving/rebinding to an internal address is refused.
+            services.AddHttpClient("webhook", client => client.Timeout = TimeSpan.FromSeconds(10))
+                .ConfigurePrimaryHttpMessageHandler(() => new System.Net.Http.SocketsHttpHandler
+                {
+                    AllowAutoRedirect = false,
+                    ConnectCallback = async (context, ct) =>
+                    {
+                        var addresses = await System.Net.Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, ct);
+                        if (addresses.Length == 0 || addresses.Any(WebhookUrlRules.IsBlockedAddress))
+                            throw new System.Net.Http.HttpRequestException(
+                                $"Webhook host '{context.DnsEndPoint.Host}' resolves to a blocked (internal/private) address.");
+
+                        var socket = new System.Net.Sockets.Socket(System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp) { NoDelay = true };
+                        try
+                        {
+                            await socket.ConnectAsync(addresses, context.DnsEndPoint.Port, ct);
+                            return new System.Net.Sockets.NetworkStream(socket, ownsSocket: true);
+                        }
+                        catch
+                        {
+                            socket.Dispose();
+                            throw;
+                        }
+                    }
+                });
 
             // OpenIddict OAuth2/OIDC server core — persistence-layer plumbing bound to
             // AuthDbContext, same rationale as the repository registrations below.
@@ -79,6 +109,7 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<IExternalLoginRepository, ExternalLoginRepository>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
+            services.AddScoped<IEmailConfirmTokenRepository, EmailConfirmTokenRepository>();
             services.AddScoped<IUserRoleResolver, UserRoleResolver>();
             services.AddScoped<IRolePermissionResolver, RolePermissionResolver>();
             services.AddScoped<IOutboxMessageRepository, OutboxMessageRepository>();

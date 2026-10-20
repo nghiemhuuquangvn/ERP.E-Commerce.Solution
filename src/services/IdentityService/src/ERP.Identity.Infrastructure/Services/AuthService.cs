@@ -208,6 +208,8 @@ namespace ERP.Identity.Infrastructure.Services
             string? platform = null, string? ipAddress = null, string? userAgent = null,
             string auditEventName = "Login")
         {
+            await EnsureAccountCanAuthenticateAsync(user, tenant, auditEventName, ipAddress, userAgent, ct);
+
             var systemSettings = await _settingsService.GetOrCreateSystemSettingsEntityAsync(ct);
             var tenantSettings = await _settingsService.GetOrCreateTenantSettingsEntityAsync(tenant.Id, ct);
 
@@ -266,6 +268,8 @@ namespace ERP.Identity.Infrastructure.Services
                 ?? throw new UnauthorizedAccessException("User not found");
             var tenant = await _unitOfWork.Tenants.GetByIdAsync(challenge.TenantId, ct)
                 ?? throw new UnauthorizedAccessException("Tenant not found");
+
+            await EnsureAccountCanAuthenticateAsync(user, tenant, "Login", ipAddress, userAgent, ct);
 
             user.RecordLoginSuccess();
             await _unitOfWork.Users.UpdateAsync(user, ct);
@@ -344,6 +348,137 @@ namespace ERP.Identity.Infrastructure.Services
             return (challenge, expiryMinutes);
         }
 
+        public async Task<Guid?> VerifyInteractiveCredentialsAsync(string email, string password, string? ipAddress, string? userAgent, CancellationToken ct)
+        {
+            var ip = ipAddress ?? "unknown";
+            var windowMinutes = GetConfigInt("PasswordPolicy:FailedAttemptsWindowMinutes", 15);
+            var maxAttempts = GetConfigInt("PasswordPolicy:MaxFailedAttemptsPerWindow", 10);
+            if (await _unitOfWork.LoginAttempts.CountRecentFailedAsync(ip, email, TimeSpan.FromMinutes(windowMinutes), ct) >= maxAttempts)
+                return null;
+
+            // No tenant context on this form: try every account sharing the email (one per
+            // tenant), skipping deactivated/locked ones exactly like the REST login would.
+            var candidates = (await _unitOfWork.Users.FindAllByEmailGloballyAsync(email, ct))
+                .Where(u => u.IsActive && !u.IsCurrentlyLocked)
+                .ToList();
+
+            foreach (var candidate in candidates)
+            {
+                if (!_passwordHasher.VerifyPassword(candidate.PasswordHash, password))
+                    continue;
+
+                candidate.RecordLoginSuccess();
+                await _unitOfWork.Users.UpdateAsync(candidate, ct);
+                await _securityAuditService.RecordLoginAttemptAsync(ip, true, email, candidate.Id, ct: ct);
+                await _securityAuditService.LogAsync("OidcLogin", true, candidate.TenantId, candidate.Id, email, ipAddress, userAgent, ct: ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+                return candidate.Id;
+            }
+
+            // Count the failure against every matching account so the per-account lockout
+            // applies here too (it previously didn't, making this form an unlimited oracle).
+            foreach (var candidate in candidates)
+            {
+                var tenantAuthSettings = await _settingsService.GetOrCreateTenantSettingsEntityAsync(candidate.TenantId, ct);
+                candidate.RecordLoginFail(tenantAuthSettings.MaxLoginAttempts, tenantAuthSettings.LockoutDurationMinutes);
+                await _unitOfWork.Users.UpdateAsync(candidate, ct);
+            }
+
+            await _securityAuditService.RecordLoginAttemptAsync(ip, false, email, null, "Invalid credentials", ct);
+            await _securityAuditService.LogAsync("OidcLogin", false, null, null, email, ipAddress, userAgent, errorReason: "Invalid credentials", ct: ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+            return null;
+        }
+
+        public async Task<string?> GetInteractiveLoginDenialAsync(Guid userId, Guid tenantId, CancellationToken ct)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(userId, ct);
+            var tenant = await _unitOfWork.Tenants.GetByIdAsync(tenantId, ct);
+            if (user == null || tenant == null)
+                return "The account or tenant no longer exists.";
+            if (!user.IsActive || user.IsCurrentlyLocked)
+                return "The account is deactivated or locked.";
+            if (!tenant.IsActive)
+                return "The tenant is inactive.";
+
+            var systemSettings = await _settingsService.GetOrCreateSystemSettingsEntityAsync(ct);
+            var tenantSettings = await _settingsService.GetOrCreateTenantSettingsEntityAsync(tenant.Id, ct);
+            if (_settingsService.IsTwoFactorRequiredForUser(user, systemSettings, tenantSettings))
+                return "Two-factor authentication is required for this account and is not supported by this sign-in flow yet.";
+
+            return null;
+        }
+
+        /// <summary>
+        /// Account-status gate for every flow that is about to issue tokens (password, 2FA,
+        /// external, Twitter, refresh). Previously User.IsActive / tenant Status were never
+        /// checked, so a deactivated user — or every user of a deactivated tenant — could
+        /// still log in and refresh. Audits the rejection before throwing.
+        /// </summary>
+        private async Task EnsureAccountCanAuthenticateAsync(
+            User user, AuthTenant tenant, string auditEventName, string? ipAddress, string? userAgent, CancellationToken ct)
+        {
+            var reason = !user.IsActive ? "Account deactivated"
+                : !tenant.IsActive ? "Tenant inactive"
+                : null;
+            if (reason == null)
+                return;
+
+            await _securityAuditService.LogAsync(auditEventName, false, tenant.Id, user.Id, user.Email, ipAddress, userAgent, errorReason: reason, ct: ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+            throw new UnauthorizedAccessException(reason);
+        }
+
+        /// <summary>
+        /// Dev/test-only escape hatch: when true, forgot-password returns the raw reset token
+        /// in its response (no email infrastructure needed to exercise the flow). Program.cs
+        /// refuses to start outside Development with this enabled.
+        /// </summary>
+        private bool ExposeTokensForTesting =>
+            bool.TryParse(_configuration["Auth:ExposeTokensInResponseForTesting"], out var expose) && expose;
+
+        private string BuildLink(string configKey, string fallbackBaseUrl, params (string Name, string Value)[] query)
+        {
+            var baseUrl = _configuration[configKey];
+            if (string.IsNullOrWhiteSpace(baseUrl))
+                baseUrl = fallbackBaseUrl;
+
+            var queryString = string.Join("&", query.Select(q => $"{q.Name}={Uri.EscapeDataString(q.Value)}"));
+            return $"{baseUrl}{(baseUrl.Contains('?') ? '&' : '?')}{queryString}";
+        }
+
+        /// <summary>
+        /// Issues a single-use email-confirmation token (only its hash is stored) and queues
+        /// the confirmation link for delivery via the Outbox → NotificationService. Does NOT
+        /// call SaveChangesAsync — callers control the transaction boundary.
+        /// </summary>
+        private async Task IssueEmailConfirmationAsync(User user, AuthTenant tenant, CancellationToken ct)
+        {
+            var expiryHours = GetConfigInt("Auth:EmailConfirmationTokenExpiryHours", 48);
+            var rawToken = OpaqueTokenHasher.GenerateToken();
+            var confirmToken = EmailConfirmToken.Create(user.Id, OpaqueTokenHasher.Hash(rawToken), DateTime.UtcNow.AddHours(expiryHours));
+            confirmToken.RaiseRequested(tenant.Id, user.Email,
+                BuildLink("Auth:EmailConfirmationUrl", "http://localhost:5173/confirm-email", ("userId", user.Id.ToString()), ("token", rawToken)),
+                expiryHours);
+            await _unitOfWork.EmailConfirmTokens.AddAsync(confirmToken, ct);
+        }
+
+        /// <summary>
+        /// ITenantRepository.GetTenantByCodeAsync throws (rather than returning null) when the
+        /// code is unknown; anonymous flows that must not reveal whether a tenant exists use this.
+        /// </summary>
+        private async Task<AuthTenant?> TryGetTenantByCodeAsync(string tenantCode, CancellationToken ct)
+        {
+            try
+            {
+                return await _unitOfWork.Tenants.GetTenantByCodeAsync(tenantCode, ct);
+            }
+            catch (InvalidOperationException)
+            {
+                return null;
+            }
+        }
+
         private int GetConfigInt(string key, int fallback)
         {
             var raw = _configuration[key];
@@ -388,7 +523,6 @@ namespace ERP.Identity.Infrastructure.Services
                 provider: request.Provider,
                 providerKey: externalUser.ProviderKey,
                 email: externalUser.Email,
-                userType: request.UserType,
                 tenant: tenant,
                 ct: ct);
 
@@ -399,12 +533,20 @@ namespace ERP.Identity.Infrastructure.Services
 
         /// <summary>
         /// Finds an existing user by (provider, providerKey) within the tenant, or
-        /// auto-registers a new one with the default roles for the given user type.
+        /// auto-registers a new one as a Customer.
         /// Shared by ExternalLoginAsync and the Twitter authorization-code-flow callback.
+        ///
+        /// Auto-provisioned accounts are ALWAYS Customer: this endpoint is anonymous, and it
+        /// used to honor the client-supplied ExternalLoginRequest.UserType — so anyone with a
+        /// Google/Microsoft account could self-provision as Admin/SuperAdmin of any tenant.
+        /// Staff/Admin accounts are created via the admin-gated POST /users/invite (and can
+        /// then link SSO); already-linked users are unaffected.
         /// </summary>
         private async Task<User> FindOrCreateExternalUserAsync(
-            string provider, string providerKey, string email, UserType userType, AuthTenant tenant, CancellationToken ct)
+            string provider, string providerKey, string email, AuthTenant tenant, CancellationToken ct)
         {
+            const UserType userType = UserType.Customer;
+
             var user = await _unitOfWork.Users.GetByExternalProviderAsync(provider, providerKey, tenant.Id, ct);
             if (user != null)
                 return user;
@@ -451,7 +593,6 @@ namespace ERP.Identity.Infrastructure.Services
                 provider: "Twitter",
                 providerKey: twitterUser.ProviderKey,
                 email: twitterUser.Email ?? $"{twitterUser.ProviderKey}@twitter.placeholder",
-                userType: UserType.Customer,
                 tenant: tenant,
                 ct: ct);
 
@@ -499,10 +640,7 @@ namespace ERP.Identity.Infrastructure.Services
                 // full re-login everywhere rather than just rejecting this one request.
                 if (session.RevokedAt != null)
                 {
-                    await _unitOfWork.RefreshTokens.RevokeAllByUserIdAsync(session.UserId, ct);
-                    var activeSessions = await _unitOfWork.DeviceSessions.ListActiveByUserAsync(session.UserId, ct);
-                    foreach (var activeSession in activeSessions)
-                        activeSession.Revoke();
+                    await _sessionService.RevokeAllForUserAsync(session.UserId, ct);
 
                     await _securityAuditService.LogAsync("RefreshTokenReuseDetected", false, session.TenantId, session.UserId,
                         errorReason: "Revoked refresh token was presented again — possible token theft; all sessions revoked", ct: ct);
@@ -518,6 +656,10 @@ namespace ERP.Identity.Infrastructure.Services
 
             var tenant = await _unitOfWork.Tenants.GetByIdAsync(session.TenantId, ct)
                 ?? throw new UnauthorizedAccessException();
+
+            // A deactivated user/tenant must not keep minting access tokens off a refresh
+            // token issued before the deactivation.
+            await EnsureAccountCanAuthenticateAsync(user, tenant, "RefreshToken", request.IpAddress, null, ct);
 
             // 3) Rotate token (revoke old)
             session.Revoke();
@@ -566,13 +708,17 @@ namespace ERP.Identity.Infrastructure.Services
                     userName = string.IsNullOrWhiteSpace(combined) ? request.Email : combined;
                 }
 
-                // 7️⃣ Create user (DOMAIN)
+                // 7️⃣ Create user (DOMAIN). Anonymous self-registration is ALWAYS a Customer —
+                //    request.UserType used to be honored here, letting anyone register as
+                //    Admin/SuperAdmin of any tenant. RegisterRequestValidator also rejects any
+                //    other value; Staff/Admin accounts go through POST /users/invite.
+                const UserType selfServiceUserType = UserType.Customer;
                 var user = User.Create(
                     email: request.Email,
                     username: userName,
                     passwordHash: passwordHash,
                     tenantId: tenant.Id,
-                    userType: request.UserType
+                    userType: selfServiceUserType
                 );
 
                 await _unitOfWork.Users.AddAsync(user, ct);
@@ -580,10 +726,10 @@ namespace ERP.Identity.Infrastructure.Services
                 // 8️⃣ Assign to tenant + default role for user type
                 user.AssignToTenant(tenant);
 
-                var roleMap = _userRoleResolver.GetRolesForUser(request.UserType);
+                var roleMap = _userRoleResolver.GetRolesForUser(selfServiceUserType);
                 var roles = await _unitOfWork.Roles.GetRolesByCodeAsync(roleMap, tenant.Id, ct);
                 if (roles == null || !roles.Any())
-                    throw new InvalidOperationException($"Default role for user type '{request.UserType}' not found in tenant '{request.TenantCode}'");
+                    throw new InvalidOperationException($"Default role for user type '{selfServiceUserType}' not found in tenant '{request.TenantCode}'");
                 foreach (var role in roles)
                 {
                     user.AssignRole(role, tenant.Id);
@@ -592,6 +738,10 @@ namespace ERP.Identity.Infrastructure.Services
                 // 9️⃣ Persist User + roles to DB before issuing tokens (RefreshTokens/DeviceSessions
                 //    FK-reference Users.Id; SaveChanges here ensures the row exists before they insert)
                 await _unitOfWork.SaveChangesAsync(ct);
+
+                // Email confirmation is token-based (H1): a single-use link is emailed via
+                // NotificationService; POST /auth/confirm-email requires that token.
+                await IssueEmailConfirmationAsync(user, tenant, ct);
 
                 // 🔟 Issue tokens so user is logged in immediately after registration
                 var loginResponse = await IssueTokensAsync(user, tenant, ct);
@@ -663,6 +813,8 @@ namespace ERP.Identity.Infrastructure.Services
 
                 await _unitOfWork.SaveChangesAsync(ct);
 
+                await IssueEmailConfirmationAsync(user, tenant, ct);
+
                 // 5) Issue tokens so the new admin is logged in immediately, same as RegisterAsync
                 var loginResponse = await IssueTokensAsync(user, tenant, ct);
 
@@ -680,38 +832,46 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task<ForgotPasswordResponse> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct)
         {
-            var tenant = await _unitOfWork.Tenants.GetTenantByCodeAsync(request.TenantCode, ct)
-                ?? throw new InvalidOperationException("Tenant not found");
+            // Identical response whether or not the tenant/account exists (no user
+            // enumeration), and the raw token is NEVER returned to the caller — it used to
+            // be, which let anyone who knew an email + tenant code reset that account's
+            // password (including SuperAdmin). The token is delivered only by email.
+            var tenant = await TryGetTenantByCodeAsync(request.TenantCode, ct);
+            var user = tenant == null ? null : await _unitOfWork.Users.GetByEmailAsync(request.Email, tenant.Id, ct);
+            if (tenant == null || user == null || !user.IsActive || !tenant.IsActive)
+                return new ForgotPasswordResponse(Succeeded: true);
 
-            var user = await _unitOfWork.Users.GetByEmailAsync(request.Email, tenant.Id, ct);
-            if (user == null)
-                throw new InvalidOperationException("User not found");
-
-            // Generate password reset token — only the SHA-256 hash is persisted
-            // (see OpaqueTokenHasher); the raw token is returned/emailed once and never
-            // stored, so DB read access alone can't be used to reset a user's password.
+            // Only the SHA-256 hash is persisted (see OpaqueTokenHasher); the raw token
+            // exists only inside the emailed link.
+            var expiryMinutes = GetConfigInt("Auth:PasswordResetTokenExpiryMinutes", 60);
             var resetToken = OpaqueTokenHasher.GenerateToken();
-            var passwordResetToken = PasswordResetToken.Create(user.Id, OpaqueTokenHasher.Hash(resetToken), DateTime.UtcNow.AddHours(24));
+            var passwordResetToken = PasswordResetToken.Create(user.Id, OpaqueTokenHasher.Hash(resetToken), DateTime.UtcNow.AddMinutes(expiryMinutes));
+            passwordResetToken.RaiseRequested(tenant.Id, user.Email,
+                BuildLink("Auth:PasswordResetUrl", "http://localhost:5173/reset-password", ("token", resetToken)),
+                expiryMinutes);
+
             await _unitOfWork.PasswordResetTokens.AddAsync(passwordResetToken, ct);
+            await _securityAuditService.LogAsync("PasswordResetRequested", true, tenant.Id, user.Id, user.Email, ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
 
-            // In production, send email with reset link
-            // For now, return the token for testing
             return new ForgotPasswordResponse(
                 Succeeded: true,
-                ResetToken: resetToken
+                ResetToken: ExposeTokensForTesting ? resetToken : null
             );
         }
 
         public async Task<ResetPasswordResponse> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken ct)
         {
+            if (string.IsNullOrWhiteSpace(request.Token))
+                throw new BusinessRuleException("InvalidResetToken", "Invalid or expired reset token");
+
             var resetToken = await _unitOfWork.PasswordResetTokens.GetByTokenAsync(OpaqueTokenHasher.Hash(request.Token), ct);
             if (resetToken == null || !resetToken.IsValid)
-                throw new InvalidOperationException("Invalid or expired reset token");
+                throw new BusinessRuleException("InvalidResetToken", "Invalid or expired reset token");
 
             var user = await _unitOfWork.Users.GetByIdAsync(resetToken.UserId, ct);
-            if (user == null)
-                throw new InvalidOperationException("User not found");
+            if (user == null || !user.IsActive)
+                throw new BusinessRuleException("InvalidResetToken", "Invalid or expired reset token");
 
             await _passwordPolicyService.ValidateNewPasswordAsync(user.TenantId, user.Id, request.NewPassword, ct);
 
@@ -723,6 +883,11 @@ namespace ERP.Identity.Infrastructure.Services
             await _passwordPolicyService.RecordPasswordHistoryAsync(user.Id, previousHash, ct);
             await _unitOfWork.Users.UpdateAsync(user, ct);
             await _unitOfWork.PasswordResetTokens.UpdateAsync(resetToken, ct);
+
+            // A password reset is the recovery path for a compromised account — every
+            // existing session (including the attacker's) must stop refreshing.
+            await _sessionService.RevokeAllForUserAsync(user.Id, ct);
+
             await _securityAuditService.LogAsync("PasswordReset", true, user.TenantId, user.Id, user.Email, ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
 
@@ -731,17 +896,24 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task<ConfirmEmailResponse> ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken ct)
         {
-            if (!Guid.TryParse(request.UserId, out var userId))
-                throw new InvalidOperationException("Invalid user ID");
+            // Requires the single-use token from the emailed link — previously any anonymous
+            // caller could confirm any account's email knowing only its UserId.
+            if (!Guid.TryParse(request.UserId, out var userId) || string.IsNullOrWhiteSpace(request.Token))
+                throw new BusinessRuleException("InvalidConfirmationToken", "Invalid or expired confirmation token");
+
+            var confirmToken = await _unitOfWork.EmailConfirmTokens.GetByTokenAsync(OpaqueTokenHasher.Hash(request.Token), ct);
+            if (confirmToken == null || confirmToken.UserId != userId || confirmToken.IsConfirmed || confirmToken.IsExpired)
+                throw new BusinessRuleException("InvalidConfirmationToken", "Invalid or expired confirmation token");
 
             var user = await _unitOfWork.Users.GetByIdAsync(userId, ct);
             if (user == null)
-                throw new InvalidOperationException("User not found");
+                throw new BusinessRuleException("InvalidConfirmationToken", "Invalid or expired confirmation token");
 
-            // TODO: Implement proper email confirmation token validation
-            // For now, just confirm the email
+            confirmToken.Confirm();
             user.ConfirmEmail();
+            await _unitOfWork.EmailConfirmTokens.UpdateAsync(confirmToken, ct);
             await _unitOfWork.Users.UpdateAsync(user, ct);
+            await _securityAuditService.LogAsync("EmailConfirmed", true, user.TenantId, user.Id, user.Email, ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
 
             return new ConfirmEmailResponse(Succeeded: true);

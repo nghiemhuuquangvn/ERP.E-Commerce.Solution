@@ -18,6 +18,11 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
             .NotEmpty().WithMessage(_ => localizer["Validation_Required", "Password"].Value)
             .MaximumLength(128).WithMessage(_ => localizer["Validation_MaxLength", "Password", 128].Value);
 
+        // Anonymous self-registration may only create Customers (AuthService also forces
+        // this) — Staff/Admin accounts are created via the admin-gated POST /users/invite.
+        RuleFor(x => x.UserType)
+            .Equal(UserType.Customer).WithMessage("Self-registration is only available for customer accounts.");
+
         RuleFor(x => x.TenantCode)
             .NotEmpty().WithMessage(_ => localizer["Validation_Required", "Tenant code"].Value);
 

@@ -65,7 +65,7 @@ public class UserTests
     public void ConfirmEmail_ShouldSetIsEmailConfirmedToTrue()
     {
         // Arrange
-        var user = new User { Id = Guid.NewGuid(), IsEmailConfirmed = false };
+        var user = new User { Id = Guid.NewGuid() };
 
         // Act
         user.ConfirmEmail();
@@ -78,7 +78,7 @@ public class UserTests
     public void Deactivate_ShouldSetIsActiveToFalse()
     {
         // Arrange
-        var user = new User { Id = Guid.NewGuid(), IsActive = true };
+        var user = new User { Id = Guid.NewGuid() };
 
         // Act
         user.Deactivate();
@@ -91,7 +91,8 @@ public class UserTests
     public void Activate_ShouldSetIsActiveToTrue()
     {
         // Arrange
-        var user = new User { Id = Guid.NewGuid(), IsActive = false };
+        var user = new User { Id = Guid.NewGuid() };
+        user.Deactivate();
 
         // Act
         user.Activate();

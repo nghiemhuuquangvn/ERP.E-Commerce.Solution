@@ -115,6 +115,32 @@ public class IdentityEventConsumer : IHostedService
             if (evt.UserId != Guid.Empty)
                 await mediator.Publish(evt, cancellationToken);
         }
+        else if (typeName.Contains("PasswordResetRequestedDomainEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new PasswordResetRequestedIntegrationEvent
+            {
+                UserId = raw.Value<Guid?>("UserId") ?? Guid.Empty,
+                Email = raw.Value<string>("Email") ?? string.Empty,
+                ResetLink = raw.Value<string>("ResetLink") ?? string.Empty,
+                ExpiryMinutes = raw.Value<int?>("ExpiryMinutes") ?? 0
+            };
+            if (evt.UserId != Guid.Empty && !string.IsNullOrWhiteSpace(evt.Email))
+                await mediator.Publish(evt, cancellationToken);
+        }
+        else if (typeName.Contains("EmailConfirmationRequestedDomainEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new EmailConfirmationRequestedIntegrationEvent
+            {
+                UserId = raw.Value<Guid?>("UserId") ?? Guid.Empty,
+                Email = raw.Value<string>("Email") ?? string.Empty,
+                ConfirmLink = raw.Value<string>("ConfirmLink") ?? string.Empty,
+                ExpiryHours = raw.Value<int?>("ExpiryHours") ?? 0
+            };
+            if (evt.UserId != Guid.Empty && !string.IsNullOrWhiteSpace(evt.Email))
+                await mediator.Publish(evt, cancellationToken);
+        }
         else if (typeName.Contains("UserRegisteredDomainEvent"))
         {
             // IdentityService's UserRegisteredDomainEvent only carries

@@ -16,6 +16,7 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         IExternalLoginRepository ExternalLogins { get; }
         IOutboxMessageRepository OutboxMessages { get; }
         IPasswordResetTokenRepository PasswordResetTokens { get; }
+        IEmailConfirmTokenRepository EmailConfirmTokens { get; }
         ISystemAuthSettingsRepository SystemAuthSettings { get; }
         ITenantAuthSettingsRepository TenantAuthSettings { get; }
         ISystemGeneralSettingsRepository SystemGeneralSettings { get; }

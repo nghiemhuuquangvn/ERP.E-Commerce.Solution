@@ -18,7 +18,7 @@ public class AuthTenantTests
 
         // Assert
         tenant.Should().NotBeNull();
-        tenant.TenantCode.Should().Be(code);
+        tenant.TenantCode.Should().Be(code.ToUpperInvariant());
         tenant.TenantName.Should().Be(name);
     }
 

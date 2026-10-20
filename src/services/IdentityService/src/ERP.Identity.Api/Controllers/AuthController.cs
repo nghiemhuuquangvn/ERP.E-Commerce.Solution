@@ -70,11 +70,13 @@ namespace ERP.Identity.Api.Controllers
             return Ok(result);
         }
 
-        /// <summary>Mirrors the X-Forwarded-For-first resolution the refresh endpoint already used, shared here for login/2FA/logout audit logging.</summary>
+        /// <summary>
+        /// Client IP for brute-force counters and audit logging. Never reads X-Forwarded-For
+        /// directly (client-controlled) — UseForwardedHeaders in Program.cs has already
+        /// resolved RemoteIpAddress from it when, and only when, the sender is a trusted proxy.
+        /// </summary>
         private string GetClientIp() =>
-            Request.Headers.ContainsKey("X-Forwarded-For")
-                ? Request.Headers["X-Forwarded-For"].ToString()
-                : HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
         /// <summary>
         /// Reads the tenant code the Gateway resolved from the request's subdomain
@@ -99,11 +101,7 @@ namespace ERP.Identity.Api.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken = default)
         {
-            string IpAddress = Request.Headers.ContainsKey("X-Forwarded-For")
-                ? Request.Headers["X-Forwarded-For"].ToString()
-                : HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-
-            var refreshTokenRequest = new RefreshTokenRequest(request.RefreshToken, request.TenantId, IpAddress);
+            var refreshTokenRequest = new RefreshTokenRequest(request.RefreshToken, request.TenantId, GetClientIp());
 
             var result = await _authService.RefreshTokenAsync(refreshTokenRequest, cancellationToken);
             if (!result.Succeeded) return BadRequest(result.Errors);

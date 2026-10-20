@@ -237,6 +237,11 @@ services:
       Jwt__Key: "${JWT_SIGNING_KEY}"
       Jwt__Expired: "60"
       Jwt__RefreshTokenExpirationDays: "7"
+      # Only these senders may set the client IP via X-Forwarded-For (nginx → gateway on
+      # erp-network); everything else is taken from the TCP peer address.
+      ForwardedHeaders__KnownNetworks__0: "172.16.0.0/12"
+      ForwardedHeaders__KnownNetworks__1: "192.168.0.0/16"
+      ForwardedHeaders__KnownNetworks__2: "10.0.0.0/8"
     depends_on:
       db-migrate:
         condition: service_completed_successfully

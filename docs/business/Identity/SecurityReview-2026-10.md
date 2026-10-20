@@ -1,0 +1,68 @@
+# IdentityService Security Review — 2026-10-19
+
+Scope: IdentityService (auth flows, tokens, OIDC, webhooks, configuration) plus the shared
+JWT validation it relies on. Method: source review + unit tests
+(`tests/unit/ERP.Identity.UnitTests/Application/Services/AuthServiceTests.cs`,
+`.../Security/SecurityHardeningTests.cs`). No live penetration test was run.
+
+## Required operator action
+
+The values below were committed to git and remain in its history. **Treat them as
+compromised and rotate them in every environment that ever used them**:
+
+| Secret | Where it leaked | Action |
+|---|---|---|
+| SQL Server `sa` password | Identity `appsettings.Development.json` / `appsettings.Docker.json` | Change the password; prefer per-service SQL logins over `sa` |
+| JWT signing key `97-prKep…` | 16 services' `appsettings.Development.json`, Gateway `appsettings.json`, Identity `appsettings.Docker.json` | Generate a new `JWT_SIGNING_KEY` (`openssl rand -base64 48`) |
+
+The leaked JWT key is still used as the shared **local Development** key; `JwtKeyGuard`
+(ERP.Shared.Authorization) makes Identity, the Gateway and every service using
+`AddErpJwtAuthentication` refuse to start with it (or with the `.env.example` /
+`CHANGE_ME` placeholders) outside Development. Because docker-compose runs as Production,
+`docker compose up` now fails until `.env` has a fresh `JWT_SIGNING_KEY`.
+
+## Findings and status
+
+| ID | Severity | Finding | Status |
+|---|---|---|---|
+| C1 | Critical | Anonymous `/auth/register` honored client `UserType` → self-registration as Admin/SuperAdmin of any tenant. Same pattern in external-login auto-provisioning (not exploitable today only because auto-provisioning currently always throws — see Known gaps) | **Fixed** — always Customer; validator rejects other values |
+| C2 | Critical | `/auth/forgot-password` returned the reset token → account takeover with only email + tenant code | **Fixed** — token only in an emailed link (Outbox → Notification); uniform 200; TTL 60 min |
+| C3 | Critical | Real SA password + JWT key committed | **Code fixed** (placeholders, `JwtKeyGuard`); **rotation required** (above) |
+| H1 | High | `/auth/confirm-email` confirmed any account by UserId alone | **Fixed** — single-use hashed `EmailConfirmToken`, issued on register/tenant signup |
+| H2 | High | OIDC `/connect/login` bypassed lockout, attempt counter, rate limit, 2FA, IsActive, audit; open redirect via ReturnUrl; no CSRF protection | **Fixed** — shared checks via `IAuthService.VerifyInteractiveCredentialsAsync`, antiforgery, ReturnUrl limited to `/connect/authorize`, 2FA-required users denied |
+| H3 | High | Deactivated users/tenants could still log in and refresh; deactivate / password reset / change didn't end sessions | **Fixed** — `EnsureAccountCanAuthenticateAsync` on every token path; `ISessionService.RevokeAllForUserAsync` |
+| H4 | High | Rate limits and brute-force counter keyed on the client-supplied `X-Forwarded-For` | **Fixed** — `UseForwardedHeaders`, trusting only `ForwardedHeaders:KnownNetworks`, `ForwardLimit = 1` |
+| H5 | High | Webhook SSRF: any http(s) URL incl. internal hosts / cloud metadata | **Fixed** — https + public host only, checked on save and on resolved IPs at connect time, no redirects |
+| M4 | Medium | `AssignRole`/`RemoveRole` looked up users without tenant scope (cross-tenant role grant) | **Fixed** |
+| — | Medium | Refresh-token reuse detection "revoked" device sessions read `AsNoTracking` → never persisted | **Fixed** (via `RevokeAllForUserAsync`) |
+| M1 | Medium | Symmetric HS256 key shared by every service; token blacklist only checked by Identity | Open — move to RS256/JWKS + shared revocation store |
+| M2 | Medium | OpenIddict signing cert self-generated in the container's user store (lost on restart, differs per replica) | Open — load from a secret store |
+| M3 | Medium | 2FA resend doesn't invalidate the previous challenge; OTP plaintext retained in `OutboxMessages` and Kafka | Open |
+| M5 | Medium | Tenant `ADMIN` role has `identity:tenants:view` → can list all tenants | Open |
+| M6 | Medium | Swagger enabled in Production; every service connects as `sa` with `Encrypt=False` | Open |
+| M7 | Medium | Enabling/disabling 2FA or changing its phone number needs no re-authentication / phone verification | Open |
+| — | Medium | Webhook `Secret` stored in plaintext (`ISecretProtector` exists but `Security:SettingsEncryptionKey` isn't configured for Identity, so wiring it now would break webhook CRUD and the outbox) | Open |
+| L1–L4 | Low | Enumeration via register 409 / timing; Microsoft external-login issuer config can't validate real tokens; `AuthorizePermission` bypass checks role `SuperAdmin` but the code is `SUPER_ADMIN` (fail-closed) | Open |
+
+## Behavior changes to be aware of
+
+- Admin-portal SSO no longer auto-creates **Admin** accounts — new SSO users become
+  Customers. Create staff/admins via `POST /users/invite`; existing linked users are unaffected.
+- Webhook endpoints pointing to `http://` or internal hosts stop receiving deliveries
+  (logged as skipped) and can't be saved anymore.
+- Changing your password or resetting it signs you out everywhere (refresh fails); the
+  current access token stays valid until it expires (Identity checks the blacklist; other
+  services don't — M1).
+- Reset/confirm links default to `http://localhost:5173/reset-password` and
+  `/confirm-email` (`Auth:PasswordResetUrl`, `Auth:EmailConfirmationUrl`). **No frontend
+  page handles them yet.**
+- Identity's own port (5001) is published to the host in docker-compose; requests
+  arriving from the Docker host network are inside `KnownNetworks`, so their
+  `X-Forwarded-For` is trusted. In production expose only nginx.
+
+## Known gaps found during the review (not security fixes)
+
+- External-login auto-provisioning always fails: `User.Create` rejects the empty
+  `PasswordHash` passed by `FindOrCreateExternalUserAsync`.
+- 2FA email codes are sent to the **masked** address (`TwoFactorCodeGeneratedDomainEvent.Destination`),
+  so email 2FA can't actually be delivered.

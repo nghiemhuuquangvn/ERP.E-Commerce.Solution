@@ -41,6 +41,7 @@ try
     // against every downstream service if an environment ever forgot to set Jwt:Key.
     var jwtKey = builder.Configuration["Jwt:Key"]
         ?? throw new InvalidOperationException("Configuration value 'Jwt:Key' is missing.");
+    ERP.Shared.Authorization.JwtKeyGuard.EnsureUsable(jwtKey, builder.Environment.IsDevelopment());
     var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
     builder.Services

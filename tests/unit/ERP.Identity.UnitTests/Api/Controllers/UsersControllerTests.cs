@@ -15,16 +15,21 @@ public class UsersControllerTests
 {
     private readonly Mock<IUserService> _mockUserService;
     private readonly UsersController _controller;
+    private readonly Guid _callerTenantId = Guid.NewGuid();
 
     public UsersControllerTests()
     {
         _mockUserService = new Mock<IUserService>();
-        _controller = new UsersController(_mockUserService.Object);
+        _controller = new UsersController(
+            _mockUserService.Object,
+            new Mock<ISettingsService>().Object,
+            new Mock<ISessionService>().Object,
+            new Mock<IPermissionService>().Object);
 
         var claims = new List<Claim>
         {
             new Claim("sub", Guid.NewGuid().ToString()),
-            new Claim("tenant_id", Guid.NewGuid().ToString())
+            new Claim("tenant_id", _callerTenantId.ToString())
         };
         var identity = new ClaimsIdentity(claims);
         var principal = new ClaimsPrincipal(identity);
@@ -38,9 +43,9 @@ public class UsersControllerTests
     public async Task List_WithValidTenantId_ShouldReturnPagedUsers()
     {
         // Arrange
-        var tenantId = Guid.NewGuid();
+        var tenantId = _callerTenantId;
         var users = new PagedResponse<UserDetailDto>(
-            new[] { new UserDetailDto(Guid.NewGuid(), "user@example.com", "user", "Test User", true, false, null, new(), new()) },
+            new[] { new UserDetailDto(Guid.NewGuid(), "user@example.com", "user", "Test User", true, false, null, new(), new(), new()) },
             1, 1, 10
         );
 
@@ -59,9 +64,9 @@ public class UsersControllerTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var user = new UserDetailDto(userId, "user@example.com", "user", "Test User", true, false, null, new(), new());
+        var user = new UserDetailDto(userId, "user@example.com", "user", "Test User", true, false, null, new(), new(), new());
 
-        _mockUserService.Setup(s => s.GetByIdAsync(userId, It.IsAny<CancellationToken>()))
+        _mockUserService.Setup(s => s.GetByIdAsync(userId, _callerTenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
 
         // Act
@@ -77,7 +82,7 @@ public class UsersControllerTests
         // Arrange
         var userId = Guid.NewGuid();
 
-        _mockUserService.Setup(s => s.GetByIdAsync(userId, It.IsAny<CancellationToken>()))
+        _mockUserService.Setup(s => s.GetByIdAsync(userId, _callerTenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((UserDetailDto?)null);
 
         // Act
@@ -94,7 +99,7 @@ public class UsersControllerTests
         var userId = Guid.NewGuid();
         var request = new UpdateProfileRequest("New Name", "newusername");
 
-        _mockUserService.Setup(s => s.UpdateProfileAsync(userId, request, It.IsAny<CancellationToken>()))
+        _mockUserService.Setup(s => s.UpdateProfileAsync(userId, _callerTenantId, request, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -132,7 +137,7 @@ public class UsersControllerTests
         // Arrange
         var userId = Guid.NewGuid();
 
-        _mockUserService.Setup(s => s.LockAsync(userId, It.IsAny<CancellationToken>()))
+        _mockUserService.Setup(s => s.LockAsync(userId, _callerTenantId, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -148,7 +153,7 @@ public class UsersControllerTests
         // Arrange
         var userId = Guid.NewGuid();
 
-        _mockUserService.Setup(s => s.UnlockAsync(userId, It.IsAny<CancellationToken>()))
+        _mockUserService.Setup(s => s.UnlockAsync(userId, _callerTenantId, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -164,7 +169,7 @@ public class UsersControllerTests
         // Arrange
         var userId = Guid.NewGuid();
 
-        _mockUserService.Setup(s => s.DeactivateAsync(userId, It.IsAny<CancellationToken>()))
+        _mockUserService.Setup(s => s.DeactivateAsync(userId, _callerTenantId, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act

@@ -42,13 +42,20 @@ src/
         NotificationService/           (5013, Code: NTF)
         ReportingService/              (5014, Code: RPT)
         SharedMasterDataService/       (5015, Code: MST)
+        LoggingService/                (5016, Code: LOG)
         ChatBotService/                (5017, Code: CHB)
 
-    Shared/
+    Shared/                            (ERP.Shared.csproj is a zero-code umbrella; each folder
+                                        below is its own ERP.Shared.* project)
         Core/                          (Domain base classes: BaseEntity, AggregateRoot, ValueObject, IDomainEvent)
-        Contracts/                     (Integration event contracts: IntegrationEventBase)
-        Infrastructure/                (Shared implementations: OutboxMessage)
-        Messaging/                     (Message bus: IMessageBus, IEventHandler, OutboxMessage)
+        Contracts/                     (Integration event contracts: IntegrationEventBase,
+                                        SettingsChanged, TenantLicenseChanged, ServiceLogEvent)
+        Messaging/                     (IMessageBus, IEventHandler, OutboxMessage,
+                                        OutboxEventDeserializer)
+        Authorization/                 (Permissions, ModuleCodes, license middleware, user context)
+        Infrastructure/                (Caching, Data (repository/tenant filter), Exceptions)
+        Localization/, Middleware/, Observability/ (Kafka log sink), Extensions/,
+        Security/ (AES secret protector), Versioning/
 
     Database/
         (Database migration scripts per service)
@@ -145,6 +152,21 @@ Published Events:
 - RoleAssigned
 - PermissionGranted
 - TwoFactorCodeGenerated (consumed only by NotificationService, to deliver the OTP)
+- PasswordResetRequested, EmailConfirmationRequested (consumed only by
+  NotificationService; carry single-use links — excluded from tenant webhooks)
+
+Security invariants (2026-10-19 review — docs/business/Identity/SecurityReview-2026-10.md):
+- Anonymous account creation (register, external-login auto-provisioning) is ALWAYS
+  Customer — never trust a client-supplied UserType/role.
+- Secrets/tokens (reset, confirm, OTP) only leave the service via NotificationService
+  events — never in an HTTP response (dev-only flag excepted, blocked outside Development).
+- Every token-issuing path goes through `EnsureAccountCanAuthenticateAsync`
+  (IsActive user + tenant); credential/status changes call
+  `ISessionService.RevokeAllForUserAsync`.
+- Client IP comes from `RemoteIpAddress` (after `UseForwardedHeaders` with trusted
+  networks), never from the raw `X-Forwarded-For` header.
+- Outbound calls to tenant-configured URLs (webhooks) go through `WebhookUrlRules`.
+- No secrets in tracked appsettings; `JwtKeyGuard` rejects known keys outside Development.
 
 Consumed Events: None
 
@@ -522,6 +544,27 @@ consumer like Notification/Reporting.
 
 ---
 
+#### Logging Service (Port 5016, Code: LOG)
+
+Responsibilities:
+- Centralized log management for all backend services and frontend apps
+- Consumes `ServiceLogEvent` (Shared/Contracts) from Kafka `system-logs-topic` — produced
+  by every service through the shared Serilog Kafka sink
+  (`ERP.Shared.Extensions.LoggingExtensions` → `Observability/KafkaLogSink`)
+- Client-side log ingestion: `POST /api/v1/logs/client` (anonymous, for frontend apps)
+- Log search/query: `GET /api/v1/logs` (authenticated), exposed through the Gateway
+
+Database: None (no SQL database) — logs are stored in Elasticsearch indices prefixed
+`service-logs`; the originating `ServiceLogEvent.EventId` is the Elasticsearch document
+`_id`, so a redelivered event overwrites rather than duplicates.
+
+Published Events: None
+
+Consumed Events:
+- ServiceLogEvent (`system-logs-topic`, consumer group `logging-service-group`)
+
+---
+
 ## Database Ownership
 
 Each service owns its database exclusively. No cross-database queries allowed.
@@ -544,20 +587,7 @@ Each service owns its database exclusively. No cross-database queries allowed.
 | ReportingService | ReportingDB | Owned by Reporting; read-only via direct BI tool queries |
 | SharedMasterDataService | MasterDataDB | Owned by MasterData; others access via API/events only |
 | ChatBotService | ChatBotDB | Owned by ChatBot; others access via API only |
-
-## Database Ownership
-
-Identity Service
-    -> Identity Database
-
-Sales Service
-    -> Sales Database
-
-Purchase Service
-    -> Purchasing Database
-
-Warehouse Service
-    -> Warehouse Database
+| LoggingService | Elasticsearch `service-logs*` (no SQL DB) | Owned by Logging; others write via Kafka/`/logs/client`, read via API only |
 
 ## Integration Rules
 
@@ -608,6 +638,28 @@ Kafka:
 
 Shared Contracts:
 src/Shared/Contracts
+
+### Outbox rules (every service's OutboxProcessor)
+
+- **EventId must survive serialization.** `IntegrationEventBase.EventId`/`OccurredAt` are
+  `init` properties so Newtonsoft/System.Text.Json restore the original values — never
+  make them get-only again (a get-only property regenerated the Guid on every
+  deserialize, which made EventId useless as a consumer dedup key). New event classes
+  that don't derive from `IntegrationEventBase` must follow the same rule.
+- **Resolve events with `ERP.Shared.Messaging.OutboxEventDeserializer.TryDeserialize`**,
+  which uses the `$type` embedded in `Content` (writers serialize with
+  `TypeNameHandling.All`). Don't resolve via `Type.GetType(message.Type)` — the `Type`
+  column is inconsistent across services (bare `Name`, `FullName` or
+  `AssemblyQualifiedName`); a bare name resolves to null, which used to silently drop
+  every `SettingsChangedIntegrationEvent` in 9 services until 2026-10-19.
+- **Poll in batches:** `.Take(OutboxEventDeserializer.DefaultBatchSize)`, and exclude
+  dead-lettered rows (`Error` starting with `OutboxEventDeserializer.DeadLetterPrefix`).
+- **Never set `ProcessedOnUtc` on a message that wasn't published.** Unrecoverable
+  messages are dead-lettered (`MarkDeadLettered`, `LogError`) and stay in the table;
+  clearing `Error` re-queues them. Publish failures keep `Error = ex.Message` and retry.
+- Exception: IdentityService has its own `OutboxMessage` entity and publishes the raw
+  `Content` string to `identity-topic` without deserializing (batch of 20).
+- Unit tests for these rules: `tests/unit/ERP.Shared.UnitTests`.
 
 ## Documentation
 

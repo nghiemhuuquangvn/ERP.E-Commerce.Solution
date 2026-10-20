@@ -1,4 +1,5 @@
 using ERP.Identity.Domain.Common;
+using ERP.Identity.Domain.Events;
 
 namespace ERP.Identity.Domain.Entities
 {
@@ -33,6 +34,15 @@ namespace ERP.Identity.Domain.Entities
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "System"
             };
+        }
+
+        /// <summary>
+        /// Queues delivery of the reset link (built by the caller from the plaintext token,
+        /// which this entity never stores) via the Outbox.
+        /// </summary>
+        public void RaiseRequested(Guid tenantId, string email, string resetLink, int expiryMinutes)
+        {
+            AddDomainEvent(new PasswordResetRequestedDomainEvent(UserId, tenantId, email, resetLink, expiryMinutes));
         }
 
         public void MarkUsed()

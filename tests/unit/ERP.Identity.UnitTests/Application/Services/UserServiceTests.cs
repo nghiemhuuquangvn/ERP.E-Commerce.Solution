@@ -1,272 +1,150 @@
 using Xunit;
 using FluentAssertions;
 using Moq;
+using Microsoft.Extensions.Localization;
 using ERP.Identity.Application.DTOs.Auth;
-using ERP.Identity.Application.DTOs.Common;
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Domain.Entities;
+using ERP.Identity.Infrastructure.Localization;
 using ERP.Identity.Infrastructure.Services;
+using ERP.Shared.Infrastructure.Exceptions;
 
 namespace ERP.Identity.UnitTests.Application.Services;
 
 public class UserServiceTests
 {
-    private readonly Mock<IUnitOfWork> _mockUnitOfWork;
-    private readonly Mock<IPasswordHasher> _mockPasswordHasher;
+    private readonly Mock<IUnitOfWork> _mockUnitOfWork = new();
+    private readonly Mock<IUserRepository> _mockUserRepository = new();
+    private readonly Mock<IRoleRepository> _mockRoleRepository = new();
+    private readonly Mock<IPasswordHasher> _mockPasswordHasher = new();
+    private readonly Mock<ISecurityAuditService> _mockAudit = new();
+    private readonly Mock<IPasswordPolicyService> _mockPasswordPolicy = new();
+    private readonly Mock<ISessionService> _mockSessionService = new();
     private readonly UserService _userService;
+    private readonly Guid _tenantId = Guid.NewGuid();
 
     public UserServiceTests()
     {
-        _mockUnitOfWork = new Mock<IUnitOfWork>();
-        _mockPasswordHasher = new Mock<IPasswordHasher>();
-        _userService = new UserService(_mockUnitOfWork.Object, _mockPasswordHasher.Object);
+        _mockUnitOfWork.Setup(uow => uow.Users).Returns(_mockUserRepository.Object);
+        _mockUnitOfWork.Setup(uow => uow.Roles).Returns(_mockRoleRepository.Object);
+
+        _userService = new UserService(
+            _mockUnitOfWork.Object,
+            _mockPasswordHasher.Object,
+            _mockAudit.Object,
+            _mockPasswordPolicy.Object,
+            new Mock<IStringLocalizer<AuthMessages>>().Object,
+            _mockSessionService.Object);
     }
 
-    [Fact]
-    public async Task GetByIdAsync_WithValidUserId_ShouldReturnUser()
-    {
-        // Arrange
-        var userId = Guid.NewGuid();
-        var user = new User
-        {
-            Id = userId,
-            Email = "test@example.com",
-            FullName = "Test User",
-            IsActive = true
-        };
+    private static User NewUser(Guid tenantId, string email = "test@example.com") =>
+        User.Create(email, email, "hash", tenantId, UserType.Customer);
 
-        var mockUserRepository = new Mock<IUserRepository>();
-        mockUserRepository.Setup(r => r.GetByIdWithDetailsAsync(userId, It.IsAny<CancellationToken>()))
+    [Fact]
+    public async Task GetByIdAsync_WithUserInCallerTenant_ShouldReturnUser()
+    {
+        var user = NewUser(_tenantId);
+        _mockUserRepository.Setup(r => r.GetByIdWithDetailsInTenantAsync(user.Id, _tenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
 
-        _mockUnitOfWork.Setup(uow => uow.Users).Returns(mockUserRepository.Object);
+        var result = await _userService.GetByIdAsync(user.Id, _tenantId, CancellationToken.None);
 
-        // Act
-        var result = await _userService.GetByIdAsync(userId, CancellationToken.None);
-
-        // Assert
         result.Should().NotBeNull();
-        result.Id.Should().Be(userId);
+        result!.Id.Should().Be(user.Id);
         result.Email.Should().Be("test@example.com");
     }
 
     [Fact]
-    public async Task GetByIdAsync_WithInvalidUserId_ShouldReturnNull()
+    public async Task GetByIdAsync_WithUserOutsideCallerTenant_ShouldReturnNull()
     {
-        // Arrange
         var userId = Guid.NewGuid();
-
-        var mockUserRepository = new Mock<IUserRepository>();
-        mockUserRepository.Setup(r => r.GetByIdWithDetailsAsync(userId, It.IsAny<CancellationToken>()))
+        _mockUserRepository.Setup(r => r.GetByIdWithDetailsInTenantAsync(userId, _tenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((User?)null);
 
-        _mockUnitOfWork.Setup(uow => uow.Users).Returns(mockUserRepository.Object);
+        var result = await _userService.GetByIdAsync(userId, _tenantId, CancellationToken.None);
 
-        // Act
-        var result = await _userService.GetByIdAsync(userId, CancellationToken.None);
-
-        // Assert
         result.Should().BeNull();
     }
 
     [Fact]
-    public async Task ListByTenantAsync_ShouldReturnPagedUsers()
+    public async Task ChangePasswordAsync_WithCorrectCurrentPassword_ShouldChangeHashAndRevokeAllSessions()
     {
-        // Arrange
-        var tenantId = Guid.NewGuid();
-        var users = new List<User>
-        {
-            new User { Id = Guid.NewGuid(), Email = "user1@example.com", FullName = "User 1" },
-            new User { Id = Guid.NewGuid(), Email = "user2@example.com", FullName = "User 2" }
-        };
+        var user = NewUser(_tenantId);
+        var request = new ChangePasswordRequest("old-password", "New-Password-123!");
+        _mockUserRepository.Setup(r => r.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        _mockPasswordHasher.Setup(h => h.VerifyPassword("hash", "old-password")).Returns(true);
+        _mockPasswordHasher.Setup(h => h.HashPassword("New-Password-123!")).Returns("new-hash");
 
-        var mockUserRepository = new Mock<IUserRepository>();
-        mockUserRepository.Setup(r => r.ListByTenantAsync(tenantId, 1, 10, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(users.AsReadOnly());
-        mockUserRepository.Setup(r => r.CountByTenantAsync(tenantId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(2);
+        await _userService.ChangePasswordAsync(user.Id, request, CancellationToken.None);
 
-        _mockUnitOfWork.Setup(uow => uow.Users).Returns(mockUserRepository.Object);
-
-        // Act
-        var result = await _userService.ListByTenantAsync(tenantId, 1, 10, CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-        result.Items.Should().HaveCount(2);
-        result.TotalCount.Should().Be(2);
-        result.Page.Should().Be(1);
-        result.PageSize.Should().Be(10);
+        user.PasswordHash.Should().Be("new-hash");
+        _mockSessionService.Verify(s => s.RevokeAllForUserAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task UpdateProfileAsync_WithValidData_ShouldUpdateUser()
+    public async Task ChangePasswordAsync_WithWrongCurrentPassword_ShouldThrowAndKeepSessions()
     {
-        // Arrange
-        var userId = Guid.NewGuid();
-        var user = new User
-        {
-            Id = userId,
-            Email = "test@example.com",
-            FullName = "Old Name",
-            UserName = "oldusername"
-        };
+        var user = NewUser(_tenantId);
+        _mockUserRepository.Setup(r => r.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        _mockPasswordHasher.Setup(h => h.VerifyPassword("hash", "wrong")).Returns(false);
 
-        var mockUserRepository = new Mock<IUserRepository>();
-        mockUserRepository.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
-        mockUserRepository.Setup(r => r.UpdateAsync(user, It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        var act = () => _userService.ChangePasswordAsync(user.Id, new ChangePasswordRequest("wrong", "x"), CancellationToken.None);
 
-        _mockUnitOfWork.Setup(uow => uow.Users).Returns(mockUserRepository.Object);
-        _mockUnitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
-
-        var request = new UpdateProfileRequest("New Name", "newusername");
-
-        // Act
-        await _userService.UpdateProfileAsync(userId, request, CancellationToken.None);
-
-        // Assert
-        user.FullName.Should().Be("New Name");
-        user.UserName.Should().Be("newusername");
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        user.PasswordHash.Should().Be("hash");
+        _mockSessionService.Verify(s => s.RevokeAllForUserAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task ChangePasswordAsync_WithValidCurrentPassword_ShouldChangePassword()
+    public async Task LockAsync_WithUserInCallerTenant_ShouldLockUser()
     {
-        // Arrange
-        var userId = Guid.NewGuid();
-        var currentPassword = "oldpassword";
-        var newPassword = "newpassword123";
-        var user = new User { Id = userId, Email = "test@example.com", PasswordHash = "oldhash" };
+        var user = NewUser(_tenantId);
+        _mockUserRepository.Setup(r => r.GetByIdInTenantAsync(user.Id, _tenantId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
-        var mockUserRepository = new Mock<IUserRepository>();
-        mockUserRepository.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
-        mockUserRepository.Setup(r => r.UpdateAsync(user, It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        await _userService.LockAsync(user.Id, _tenantId, CancellationToken.None);
 
-        _mockPasswordHasher.Setup(h => h.VerifyHashedPassword(user, user.PasswordHash, currentPassword))
-            .Returns(PasswordVerificationResult.Success);
-        _mockPasswordHasher.Setup(h => h.HashPassword(user, newPassword))
-            .Returns("newhash");
-
-        _mockUnitOfWork.Setup(uow => uow.Users).Returns(mockUserRepository.Object);
-        _mockUnitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
-
-        var request = new ChangePasswordRequest(currentPassword, newPassword);
-
-        // Act
-        await _userService.ChangePasswordAsync(userId, request, CancellationToken.None);
-
-        // Assert
-        user.PasswordHash.Should().Be("newhash");
+        user.IsLocked.Should().BeTrue();
+        _mockUserRepository.Verify(r => r.UpdateAsync(user, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task LockAsync_ShouldLockUser()
+    public async Task DeactivateAsync_ShouldDeactivateUserAndRevokeAllSessions()
     {
-        // Arrange
-        var userId = Guid.NewGuid();
-        var user = new User { Id = userId };
+        var user = NewUser(_tenantId);
+        _mockUserRepository.Setup(r => r.GetByIdInTenantAsync(user.Id, _tenantId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
-        var mockUserRepository = new Mock<IUserRepository>();
-        mockUserRepository.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
-        mockUserRepository.Setup(r => r.UpdateAsync(user, It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        await _userService.DeactivateAsync(user.Id, _tenantId, CancellationToken.None);
 
-        _mockUnitOfWork.Setup(uow => uow.Users).Returns(mockUserRepository.Object);
-        _mockUnitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
-
-        // Act
-        await _userService.LockAsync(userId, CancellationToken.None);
-
-        // Assert - Verify lock was called
-        mockUserRepository.Verify(r => r.UpdateAsync(user, It.IsAny<CancellationToken>()), Times.Once);
+        user.IsActive.Should().BeFalse();
+        _mockSessionService.Verify(s => s.RevokeAllForUserAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
+        _mockUnitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task UnlockAsync_ShouldUnlockUser()
+    public async Task AssignRoleAsync_WithUserFromAnotherTenant_ShouldThrowNotFoundAndNotAssign()
     {
-        // Arrange
-        var userId = Guid.NewGuid();
-        var user = new User { Id = userId };
+        // The user exists, but not in the caller's tenant — must look exactly like "not found".
+        var foreignUserId = Guid.NewGuid();
+        _mockUserRepository.Setup(r => r.GetByIdInTenantAsync(foreignUserId, _tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
 
-        var mockUserRepository = new Mock<IUserRepository>();
-        mockUserRepository.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
-        mockUserRepository.Setup(r => r.UpdateAsync(user, It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        var act = () => _userService.AssignRoleAsync(foreignUserId, "ADMIN", _tenantId, null, null, CancellationToken.None);
 
-        _mockUnitOfWork.Setup(uow => uow.Users).Returns(mockUserRepository.Object);
-        _mockUnitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
-
-        // Act
-        await _userService.UnlockAsync(userId, CancellationToken.None);
-
-        // Assert - Verify unlock was called
-        mockUserRepository.Verify(r => r.UpdateAsync(user, It.IsAny<CancellationToken>()), Times.Once);
+        await act.Should().ThrowAsync<EntityNotFoundException>();
+        _mockUserRepository.Verify(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockUnitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task DeactivateAsync_ShouldDeactivateUser()
+    public async Task RemoveRoleAsync_WithUserFromAnotherTenant_ShouldThrowNotFound()
     {
-        // Arrange
-        var userId = Guid.NewGuid();
-        var user = new User { Id = userId };
+        var foreignUserId = Guid.NewGuid();
+        _mockUserRepository.Setup(r => r.GetByIdInTenantAsync(foreignUserId, _tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
 
-        var mockUserRepository = new Mock<IUserRepository>();
-        mockUserRepository.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
-        mockUserRepository.Setup(r => r.DeleteAsync(user, It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        var act = () => _userService.RemoveRoleAsync(foreignUserId, Guid.NewGuid(), _tenantId, CancellationToken.None);
 
-        _mockUnitOfWork.Setup(uow => uow.Users).Returns(mockUserRepository.Object);
-        _mockUnitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
-
-        // Act
-        await _userService.DeactivateAsync(userId, CancellationToken.None);
-
-        // Assert - Verify delete was called
-        mockUserRepository.Verify(r => r.DeleteAsync(user, It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task AssignRoleAsync_WithValidRole_ShouldAssignRole()
-    {
-        // Arrange
-        var userId = Guid.NewGuid();
-        var roleCode = "admin";
-        var tenantId = Guid.NewGuid();
-        var user = new User { Id = userId, Email = "test@example.com" };
-        var role = new Role { Id = Guid.NewGuid(), RoleCode = roleCode, TenantId = tenantId };
-
-        var mockUserRepository = new Mock<IUserRepository>();
-        var mockRoleRepository = new Mock<IRoleRepository>();
-
-        mockUserRepository.Setup(r => r.GetByIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
-        mockRoleRepository.Setup(r => r.GetByCodeAsync(roleCode, tenantId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(role);
-        mockUserRepository.Setup(r => r.UpdateAsync(user, It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        _mockUnitOfWork.Setup(uow => uow.Users).Returns(mockUserRepository.Object);
-        _mockUnitOfWork.Setup(uow => uow.Roles).Returns(mockRoleRepository.Object);
-        _mockUnitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
-
-        // Act
-        await _userService.AssignRoleAsync(userId, roleCode, tenantId, null, null, CancellationToken.None);
-
-        // Assert
-        mockRoleRepository.Verify(r => r.GetByCodeAsync(roleCode, tenantId, It.IsAny<CancellationToken>()), Times.Once);
+        await act.Should().ThrowAsync<EntityNotFoundException>();
     }
 }

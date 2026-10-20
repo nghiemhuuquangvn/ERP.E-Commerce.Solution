@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 
 namespace ERP.PAY.Infrastructure.BackgroundJobs
 {
@@ -50,34 +49,29 @@ namespace ERP.PAY.Infrastructure.BackgroundJobs
                     var messageBus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
 
                     var unprocessedMessages = await dbContext.OutboxMessages
-                        .Where(m => m.ProcessedOnUtc == null)
+                        .Where(m => m.ProcessedOnUtc == null
+                            && (m.Error == null || !m.Error.StartsWith(OutboxEventDeserializer.DeadLetterPrefix)))
                         .OrderBy(m => m.OccurredOnUtc)
+                        .Take(OutboxEventDeserializer.DefaultBatchSize)
                         .ToListAsync(cancellationToken);
 
                     foreach (var message in unprocessedMessages)
                     {
                         try
                         {
-                            var eventType = Type.GetType(message.Type);
-                            if (eventType == null)
+                            // Never mark an undeserializable message as processed — it was not
+                            // published. Dead-letter it so it stays visible for replay instead.
+                            if (!OutboxEventDeserializer.TryDeserialize(message, out var @event, out var error))
                             {
-                                _logger.LogWarning("Event type {EventType} not found", message.Type);
-                                message.ProcessedOnUtc = DateTime.UtcNow;
-                                message.Error = $"Event type not found: {message.Type}";
+                                _logger.LogError("Outbox message {MessageId} dead-lettered: {Error}", message.Id, error);
+                                OutboxEventDeserializer.MarkDeadLettered(message, error!);
                                 continue;
                             }
 
-                            var @event = JsonConvert.DeserializeObject(message.Content, eventType, new JsonSerializerSettings
-                            {
-                                TypeNameHandling = TypeNameHandling.All
-                            });
-
-                            if (@event != null)
-                            {
-                                await messageBus.PublishAsync(@event, cancellationToken);
-                                message.ProcessedOnUtc = DateTime.UtcNow;
-                                _logger.LogInformation("Outbox message {MessageId} published successfully", message.Id);
-                            }
+                            await messageBus.PublishAsync(@event!, cancellationToken);
+                            message.ProcessedOnUtc = DateTime.UtcNow;
+                            message.Error = null;
+                            _logger.LogInformation("Outbox message {MessageId} published successfully", message.Id);
                         }
                         catch (Exception ex)
                         {

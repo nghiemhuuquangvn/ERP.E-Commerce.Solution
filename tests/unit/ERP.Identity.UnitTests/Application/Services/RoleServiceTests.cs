@@ -13,6 +13,7 @@ public class RoleServiceTests
 {
     private readonly Mock<IUnitOfWork> _mockUnitOfWork;
     private readonly RoleService _roleService;
+    private static readonly Guid CallerTenantId = Guid.NewGuid();
 
     public RoleServiceTests()
     {
@@ -60,13 +61,13 @@ public class RoleServiceTests
         };
 
         var mockRoleRepository = new Mock<IRoleRepository>();
-        mockRoleRepository.Setup(r => r.GetByIdAsync(roleId, It.IsAny<CancellationToken>()))
+        mockRoleRepository.Setup(r => r.GetByIdInTenantAsync(roleId, CallerTenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(role);
 
         _mockUnitOfWork.Setup(uow => uow.Roles).Returns(mockRoleRepository.Object);
 
         // Act
-        var result = await _roleService.GetByIdAsync(roleId, CancellationToken.None);
+        var result = await _roleService.GetByIdAsync(roleId, CallerTenantId, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -112,7 +113,7 @@ public class RoleServiceTests
         var request = new UpdateRoleRequest("New Administrator Name");
 
         var mockRoleRepository = new Mock<IRoleRepository>();
-        mockRoleRepository.Setup(r => r.GetByIdAsync(roleId, It.IsAny<CancellationToken>()))
+        mockRoleRepository.Setup(r => r.GetByIdInTenantAsync(roleId, CallerTenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(role);
         mockRoleRepository.Setup(r => r.UpdateAsync(role, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -122,7 +123,7 @@ public class RoleServiceTests
             .ReturnsAsync(1);
 
         // Act
-        await _roleService.UpdateAsync(roleId, request, CancellationToken.None);
+        await _roleService.UpdateAsync(roleId, CallerTenantId, request, CancellationToken.None);
 
         // Assert
         role.RoleName.Should().Be("New Administrator Name");
@@ -136,7 +137,7 @@ public class RoleServiceTests
         var role = new Role { Id = roleId, RoleCode = "admin", TenantId = Guid.NewGuid() };
 
         var mockRoleRepository = new Mock<IRoleRepository>();
-        mockRoleRepository.Setup(r => r.GetByIdAsync(roleId, It.IsAny<CancellationToken>()))
+        mockRoleRepository.Setup(r => r.GetByIdInTenantAsync(roleId, CallerTenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(role);
         mockRoleRepository.Setup(r => r.DeleteAsync(role, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -146,7 +147,7 @@ public class RoleServiceTests
             .ReturnsAsync(1);
 
         // Act
-        await _roleService.DeleteAsync(roleId, CancellationToken.None);
+        await _roleService.DeleteAsync(roleId, CallerTenantId, CancellationToken.None);
 
         // Assert
         mockRoleRepository.Verify(r => r.DeleteAsync(role, It.IsAny<CancellationToken>()), Times.Once);
@@ -165,8 +166,13 @@ public class RoleServiceTests
 
         _mockUnitOfWork.Setup(uow => uow.Permissions).Returns(mockPermissionRepository.Object);
 
+        var mockRoleRepository = new Mock<IRoleRepository>();
+        mockRoleRepository.Setup(r => r.GetByIdInTenantAsync(roleId, CallerTenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Role { Id = roleId, RoleCode = "admin", TenantId = CallerTenantId });
+        _mockUnitOfWork.Setup(uow => uow.Roles).Returns(mockRoleRepository.Object);
+
         // Act
-        var result = await _roleService.GetPermissionsAsync(roleId, CancellationToken.None);
+        var result = await _roleService.GetPermissionsAsync(roleId, CallerTenantId, CancellationToken.None);
 
         // Assert
         result.Should().HaveCount(3);
@@ -199,6 +205,7 @@ public class RoleServiceTests
 
         _mockUnitOfWork.Setup(uow => uow.Permissions).Returns(mockPermissionRepository.Object);
         _mockUnitOfWork.Setup(uow => uow.Users).Returns(mockUserRepository.Object);
+        SetupRoleInTenant(roleId, tenantId);
         _mockUnitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
@@ -224,11 +231,20 @@ public class RoleServiceTests
         _mockUnitOfWork.Setup(uow => uow.Permissions).Returns(mockPermissionRepository.Object);
         _mockUnitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
+        SetupRoleInTenant(roleId, tenantId);
 
         // Act
         await _roleService.RemovePermissionAsync(roleId, permissionId, tenantId, CancellationToken.None);
 
         // Assert
         mockPermissionRepository.Verify(r => r.RemoveFromRoleAsync(roleId, permissionId, tenantId, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private void SetupRoleInTenant(Guid roleId, Guid tenantId)
+    {
+        var mockRoleRepository = new Mock<IRoleRepository>();
+        mockRoleRepository.Setup(r => r.GetByIdInTenantAsync(roleId, tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Role { Id = roleId, RoleCode = "admin", TenantId = tenantId });
+        _mockUnitOfWork.Setup(uow => uow.Roles).Returns(mockRoleRepository.Object);
     }
 }

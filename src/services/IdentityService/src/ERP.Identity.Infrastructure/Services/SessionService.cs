@@ -56,6 +56,20 @@ namespace ERP.Identity.Infrastructure.Services
             await _unitOfWork.DeviceSessions.UpdateAsync(session, ct);
         }
 
+        public async Task RevokeAllForUserAsync(Guid userId, CancellationToken ct)
+        {
+            await _unitOfWork.RefreshTokens.RevokeAllByUserIdAsync(userId, ct);
+
+            // ListActiveByUserAsync reads AsNoTracking — the revoke must be attached via
+            // UpdateAsync or it is silently never persisted.
+            var activeSessions = await _unitOfWork.DeviceSessions.ListActiveByUserAsync(userId, ct);
+            foreach (var activeSession in activeSessions)
+            {
+                activeSession.Revoke();
+                await _unitOfWork.DeviceSessions.UpdateAsync(activeSession, ct);
+            }
+        }
+
         public async Task BlacklistTokenAsync(string jti, Guid userId, DateTime expiresAt, string? revokedBy, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(jti))

@@ -604,6 +604,26 @@ docker run -d \
 - Password reset: 3 attempts per hour
 - API calls: 1000 requests per minute per user
 
+### Account-security hardening (2026-10-19)
+See `docs/business/Identity/SecurityReview-2026-10.md` for the full review.
+- Self-registration (`/auth/register`) and external-login auto-provisioning always create
+  **Customer** accounts; Staff/Admin only via admin-gated `POST /users/invite`.
+- `/auth/forgot-password` never returns the token — the reset link is emailed via
+  `PasswordResetRequestedDomainEvent` → NotificationService. Dev-only escape hatch:
+  `Auth:ExposeTokensInResponseForTesting=true` (startup refuses it outside Development).
+- `/auth/confirm-email` requires the emailed single-use token.
+- Deactivated users / inactive tenants can't log in, verify 2FA or refresh; deactivate,
+  password reset and password change revoke every refresh token + device session.
+- Client IP (rate limits, brute-force counter, audit) = `RemoteIpAddress` after
+  `UseForwardedHeaders`, which trusts `X-Forwarded-For` only from
+  `ForwardedHeaders:KnownNetworks` — never the raw header.
+- OIDC `/connect/login`: same lockout/attempt counter/IsActive/audit as REST login,
+  antiforgery on both POSTs, ReturnUrl restricted to local `/connect/authorize`,
+  2FA-required accounts denied (fail-closed).
+- Webhooks: https + public host only, checked on save and against resolved IPs at connect
+  time, no redirects.
+- `Jwt:Key` must not be a known/leaked value outside Development (`JwtKeyGuard`).
+
 ### Audit Trail
 - All login attempts are logged
 - Role assignments are logged

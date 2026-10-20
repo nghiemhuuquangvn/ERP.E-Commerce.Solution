@@ -71,6 +71,22 @@ public class TwoFactorCodeGeneratedIntegrationEvent : INotification
     public int ExpiryMinutes { get; set; }
 }
 
+public class PasswordResetRequestedIntegrationEvent : INotification
+{
+    public Guid UserId { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string ResetLink { get; set; } = string.Empty;
+    public int ExpiryMinutes { get; set; }
+}
+
+public class EmailConfirmationRequestedIntegrationEvent : INotification
+{
+    public Guid UserId { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string ConfirmLink { get; set; } = string.Empty;
+    public int ExpiryHours { get; set; }
+}
+
 public class PurchaseOrderPendingFinanceApprovalIntegrationEvent : INotification
 {
     public Guid PurchaseOrderId { get; set; }
@@ -263,6 +279,54 @@ public class TwoFactorCodeGeneratedIntegrationEventHandler : INotificationHandle
             {
                 ["code"] = @event.Code,
                 ["expiryMinutes"] = @event.ExpiryMinutes.ToString()
+            },
+            Priority = NotificationPriority.High
+        }, cancellationToken);
+    }
+}
+
+// The reset/confirmation link embeds a single-use plaintext token — it is the only
+// copy outside the user's mailbox (IdentityService stores just its hash).
+public class PasswordResetRequestedIntegrationEventHandler : INotificationHandler<PasswordResetRequestedIntegrationEvent>
+{
+    private readonly IMediator _mediator;
+    public PasswordResetRequestedIntegrationEventHandler(IMediator mediator) => _mediator = mediator;
+
+    public async Task Handle(PasswordResetRequestedIntegrationEvent @event, CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new SendNotificationCommand
+        {
+            RecipientId = @event.UserId.ToString(),
+            RecipientEmail = @event.Email,
+            Channel = NotificationChannel.Email,
+            TemplateCode = "PASSWORD_RESET",
+            TemplateVariables = new()
+            {
+                ["resetLink"] = @event.ResetLink,
+                ["expiryMinutes"] = @event.ExpiryMinutes.ToString()
+            },
+            Priority = NotificationPriority.High
+        }, cancellationToken);
+    }
+}
+
+public class EmailConfirmationRequestedIntegrationEventHandler : INotificationHandler<EmailConfirmationRequestedIntegrationEvent>
+{
+    private readonly IMediator _mediator;
+    public EmailConfirmationRequestedIntegrationEventHandler(IMediator mediator) => _mediator = mediator;
+
+    public async Task Handle(EmailConfirmationRequestedIntegrationEvent @event, CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new SendNotificationCommand
+        {
+            RecipientId = @event.UserId.ToString(),
+            RecipientEmail = @event.Email,
+            Channel = NotificationChannel.Email,
+            TemplateCode = "EMAIL_CONFIRMATION",
+            TemplateVariables = new()
+            {
+                ["confirmLink"] = @event.ConfirmLink,
+                ["expiryHours"] = @event.ExpiryHours.ToString()
             },
             Priority = NotificationPriority.High
         }, cancellationToken);

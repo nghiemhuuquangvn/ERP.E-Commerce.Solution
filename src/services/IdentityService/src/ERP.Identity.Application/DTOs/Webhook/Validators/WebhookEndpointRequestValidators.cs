@@ -1,3 +1,4 @@
+using ERP.Identity.Application.Security;
 using FluentValidation;
 
 namespace ERP.Identity.Application.DTOs.Webhook.Validators;
@@ -12,8 +13,8 @@ public class CreateWebhookEndpointRequestValidator : AbstractValidator<CreateWeb
 
         RuleFor(x => x.Url)
             .NotEmpty().WithMessage("URL is required.")
-            .Must(url => Uri.TryCreate(url, UriKind.Absolute, out var parsed) && (parsed.Scheme == "http" || parsed.Scheme == "https"))
-            .WithMessage("URL must be a valid absolute http(s) URL.")
+            .Must(WebhookUrlRules.IsAllowedUrl)
+            .WithMessage("URL must be an absolute https URL to a public host (internal, private-network and IP-literal destinations are not allowed).")
             .MaximumLength(2000).WithMessage("URL must not exceed 2000 characters.");
 
         RuleFor(x => x.Secret)
@@ -31,8 +32,8 @@ public class UpdateWebhookEndpointRequestValidator : AbstractValidator<UpdateWeb
 
         RuleFor(x => x.Url)
             .NotEmpty().WithMessage("URL is required.")
-            .Must(url => Uri.TryCreate(url, UriKind.Absolute, out var parsed) && (parsed.Scheme == "http" || parsed.Scheme == "https"))
-            .WithMessage("URL must be a valid absolute http(s) URL.")
+            .Must(WebhookUrlRules.IsAllowedUrl)
+            .WithMessage("URL must be an absolute https URL to a public host (internal, private-network and IP-literal destinations are not allowed).")
             .MaximumLength(2000).WithMessage("URL must not exceed 2000 characters.");
 
         RuleFor(x => x.Secret)

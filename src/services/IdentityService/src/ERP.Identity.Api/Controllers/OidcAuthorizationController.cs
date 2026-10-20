@@ -6,8 +6,10 @@ using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Domain.Entities;
 using ERP.Identity.Infrastructure.Persistence;
 using Microsoft.AspNetCore; // OpenIddictServerAspNetCoreHelpers.GetOpenIddictServerRequest lives in this namespace, not OpenIddict.Server.AspNetCore
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using OpenIddict.Abstractions;
@@ -29,16 +31,15 @@ namespace ERP.Identity.Api.Controllers;
 /// belongs to exactly one tenant, else redirected to /connect/tenant to choose) before
 /// finally signing the OpenIddict-scheme principal that becomes the issued token.
 ///
-/// Deliberately NOT implemented in this pass (documented gaps, not oversights):
-/// - 2FA — the proprietary REST login enforces it via TenantAuthSettings; this
-///   interactive flow does not check for/challenge it yet. A user with 2FA enabled
-///   can log in here with password alone. Needs closing before this flow is anything
-///   more than a development-time proof of concept.
-/// - CSRF protection on the login/tenant-picker POSTs — no antiforgery token, since
-///   this project only calls AddControllers() (no view engine/antiforgery
-///   middleware wired up). Low risk today (same-origin forms, no cross-site actor
-///   benefits from forging a login), but should be added before this is exposed
-///   beyond local development.
+/// Security controls (2026-10-19 hardening): the login form goes through
+/// IAuthService.VerifyInteractiveCredentialsAsync (same brute-force counter, per-account
+/// lockout, IsActive check and audit as the REST login) under the "auth-sensitive" rate
+/// limit; both POSTs require an antiforgery token; every ReturnUrl must be a local
+/// /connect/authorize URL (no open redirect); and /connect/authorize re-checks the
+/// account via GetInteractiveLoginDenialAsync — a user who requires 2FA is DENIED here
+/// (fail-closed) since this flow has no 2FA step yet.
+///
+/// Remaining documented gap:
 /// - Ambiguous email across tenants: login resolves ONLY by password match against
 ///   every account sharing that email (FindAllByEmailGloballyAsync), taking the
 ///   first match — mirrors the REST login's own tenant-scoped-uniqueness model but
@@ -49,20 +50,23 @@ namespace ERP.Identity.Api.Controllers;
 public class OidcAuthorizationController : ControllerBase
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IPasswordHasher _passwordHasher;
+    private readonly IAuthService _authService;
     private readonly ILicenseService _licenseService;
     private readonly AuthDbContext _dbContext;
+    private readonly IAntiforgery _antiforgery;
 
     public OidcAuthorizationController(
         IUnitOfWork unitOfWork,
-        IPasswordHasher passwordHasher,
+        IAuthService authService,
         ILicenseService licenseService,
-        AuthDbContext dbContext)
+        AuthDbContext dbContext,
+        IAntiforgery antiforgery)
     {
         _unitOfWork = unitOfWork;
-        _passwordHasher = passwordHasher;
+        _authService = authService;
         _licenseService = licenseService;
         _dbContext = dbContext;
+        _antiforgery = antiforgery;
     }
 
     [HttpGet("authorize")]
@@ -92,6 +96,12 @@ public class OidcAuthorizationController : ControllerBase
         var tenant = await _unitOfWork.Tenants.GetByIdAsync(resolution.TenantId!.Value, ct);
         if (tenant is null)
             return OidcError(Errors.AccessDenied, "Tenant not found.");
+
+        // Re-checked on every authorize (not just at login): the cookie session can outlive
+        // a deactivation/lock, and 2FA-required accounts must not get a token from this flow.
+        var denial = await _authService.GetInteractiveLoginDenialAsync(user.Id, tenant.Id, ct);
+        if (denial is not null)
+            return OidcError(Errors.AccessDenied, denial);
 
         // Cache the resolved tenant on the interactive cookie so re-visiting
         // /connect/authorize later this session (e.g. a second client authorizing)
@@ -132,40 +142,48 @@ public class OidcAuthorizationController : ControllerBase
     }
 
     [HttpGet("login")]
-    public IActionResult Login(string returnUrl, string? error = null) =>
-        Content(RenderLoginPage(returnUrl, error), "text/html");
+    public IActionResult Login(string returnUrl, string? error = null)
+    {
+        if (!IsSafeReturnUrl(returnUrl))
+            return BadRequest("Invalid return URL.");
+
+        return Content(RenderLoginPage(returnUrl, error, AntiforgeryField()), "text/html");
+    }
 
     [HttpPost("login")]
+    [EnableRateLimiting("auth-sensitive")]
     public async Task<IActionResult> LoginSubmit([FromForm] string email, [FromForm] string password, [FromForm] string returnUrl, CancellationToken ct)
     {
-        User? authenticated = null;
-        foreach (var candidate in await _unitOfWork.Users.FindAllByEmailGloballyAsync(email ?? string.Empty, ct))
-        {
-            if (_passwordHasher.VerifyPassword(candidate.PasswordHash, password ?? string.Empty))
-            {
-                authenticated = candidate;
-                break;
-            }
-        }
+        if (!await IsAntiforgeryValidAsync())
+            return BadRequest("Invalid or missing antiforgery token.");
+        if (!IsSafeReturnUrl(returnUrl))
+            return BadRequest("Invalid return URL.");
 
-        if (authenticated is null)
+        var userId = await _authService.VerifyInteractiveCredentialsAsync(
+            email ?? string.Empty, password ?? string.Empty,
+            HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString(), ct);
+
+        if (userId is null)
             return Redirect($"/connect/login?ReturnUrl={WebUtility.UrlEncode(returnUrl)}&error={WebUtility.UrlEncode("Invalid email or password.")}");
 
         var identity = new ClaimsIdentity(OidcInteractiveAuthenticationDefaults.Scheme, Claims.Name, Claims.Role);
-        identity.AddClaim(new Claim(Claims.Subject, authenticated.Id.ToString()));
-        identity.AddClaim(new Claim(Claims.Email, authenticated.Email));
+        identity.AddClaim(new Claim(Claims.Subject, userId.Value.ToString()));
+        identity.AddClaim(new Claim(Claims.Email, email!));
 
         await HttpContext.SignInAsync(
             OidcInteractiveAuthenticationDefaults.Scheme,
             new ClaimsPrincipal(identity),
             new AuthenticationProperties { IsPersistent = false });
 
-        return Redirect(returnUrl);
+        return LocalRedirect(returnUrl);
     }
 
     [HttpGet("tenant")]
     public async Task<IActionResult> TenantPicker(string returnUrl, string? error, CancellationToken ct)
     {
+        if (!IsSafeReturnUrl(returnUrl))
+            return BadRequest("Invalid return URL.");
+
         var authResult = await HttpContext.AuthenticateAsync(OidcInteractiveAuthenticationDefaults.Scheme);
         var subjectClaim = authResult?.Succeeded == true ? authResult.Principal.FindFirst(Claims.Subject) : null;
         if (subjectClaim is null)
@@ -178,12 +196,17 @@ public class OidcAuthorizationController : ControllerBase
             .OrderBy(m => m.Tenant.TenantName)
             .ToListAsync(ct);
 
-        return Content(RenderTenantPickerPage(returnUrl, memberships, error), "text/html");
+        return Content(RenderTenantPickerPage(returnUrl, memberships, error, AntiforgeryField()), "text/html");
     }
 
     [HttpPost("tenant")]
     public async Task<IActionResult> TenantPickerSubmit([FromForm] string tenantId, [FromForm] string returnUrl, CancellationToken ct)
     {
+        if (!await IsAntiforgeryValidAsync())
+            return BadRequest("Invalid or missing antiforgery token.");
+        if (!IsSafeReturnUrl(returnUrl))
+            return BadRequest("Invalid return URL.");
+
         var authResult = await HttpContext.AuthenticateAsync(OidcInteractiveAuthenticationDefaults.Scheme);
         var principal = authResult?.Succeeded == true ? authResult.Principal : null;
         var subjectClaim = principal?.FindFirst(Claims.Subject);
@@ -195,7 +218,36 @@ public class OidcAuthorizationController : ControllerBase
             return Redirect($"/connect/tenant?ReturnUrl={WebUtility.UrlEncode(returnUrl)}&error={WebUtility.UrlEncode("Invalid selection.")}");
 
         await ReSignCookieWithTenantAsync(principal, parsedTenantId);
-        return Redirect(returnUrl);
+        return LocalRedirect(returnUrl);
+    }
+
+    /// <summary>
+    /// The only legitimate ReturnUrl in this flow is the /connect/authorize request that
+    /// started it (see CurrentAuthorizeUrl) — anything else (absolute URLs, //host,
+    /// other local paths) is rejected so these endpoints can't be used as an open redirect.
+    /// </summary>
+    private bool IsSafeReturnUrl(string? returnUrl) =>
+        !string.IsNullOrEmpty(returnUrl)
+        && Url.IsLocalUrl(returnUrl)
+        && returnUrl.StartsWith($"{Request.PathBase}/connect/authorize", StringComparison.OrdinalIgnoreCase);
+
+    private string AntiforgeryField()
+    {
+        var tokens = _antiforgery.GetAndStoreTokens(HttpContext);
+        return $"<input type=\"hidden\" name=\"{WebUtility.HtmlEncode(tokens.FormFieldName)}\" value=\"{WebUtility.HtmlEncode(tokens.RequestToken)}\" />";
+    }
+
+    private async Task<bool> IsAntiforgeryValidAsync()
+    {
+        try
+        {
+            await _antiforgery.ValidateRequestAsync(HttpContext);
+            return true;
+        }
+        catch (AntiforgeryValidationException)
+        {
+            return false;
+        }
     }
 
     private async Task ReSignCookieWithTenantAsync(ClaimsPrincipal principal, Guid tenantId)
@@ -272,7 +324,7 @@ public class OidcAuthorizationController : ControllerBase
         return Forbid(properties, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
 
-    private static string RenderLoginPage(string returnUrl, string? error)
+    private static string RenderLoginPage(string returnUrl, string? error, string antiforgeryField)
     {
         var errorHtml = string.IsNullOrEmpty(error)
             ? string.Empty
@@ -285,6 +337,7 @@ public class OidcAuthorizationController : ControllerBase
               <h2>Sign in</h2>
               {{errorHtml}}
               <form method="post" action="/connect/login">
+                {{antiforgeryField}}
                 <input type="hidden" name="returnUrl" value="{{WebUtility.HtmlEncode(returnUrl)}}" />
                 <p><label>Email<br/><input type="email" name="email" required autofocus /></label></p>
                 <p><label>Password<br/><input type="password" name="password" required /></label></p>
@@ -294,7 +347,7 @@ public class OidcAuthorizationController : ControllerBase
             """;
     }
 
-    private static string RenderTenantPickerPage(string returnUrl, IReadOnlyList<AuthUserTenant> memberships, string? error)
+    private static string RenderTenantPickerPage(string returnUrl, IReadOnlyList<AuthUserTenant> memberships, string? error, string antiforgeryField)
     {
         var errorHtml = string.IsNullOrEmpty(error)
             ? string.Empty
@@ -310,6 +363,7 @@ public class OidcAuthorizationController : ControllerBase
               <h2>Choose which account to continue as</h2>
               {{errorHtml}}
               <form method="post" action="/connect/tenant">
+                {{antiforgeryField}}
                 <input type="hidden" name="returnUrl" value="{{WebUtility.HtmlEncode(returnUrl)}}" />
                 <p><select name="tenantId" required>{{options}}</select></p>
                 <button type="submit">Continue</button>

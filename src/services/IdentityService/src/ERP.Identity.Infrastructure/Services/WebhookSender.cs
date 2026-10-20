@@ -1,4 +1,5 @@
 using ERP.Identity.Application.Interfaces.Services;
+using ERP.Identity.Application.Security;
 using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Text;
@@ -19,6 +20,14 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task SendAsync(string url, string? secret, string eventType, object payload, CancellationToken ct = default)
         {
+            // Re-checked at send time, not only when the endpoint was saved: rows created
+            // before the SSRF policy existed may still point at internal/http destinations.
+            if (!WebhookUrlRules.IsAllowedUrl(url))
+            {
+                _logger.LogWarning("Webhook {Url} skipped: destination violates the webhook URL policy (https + public host only)", url);
+                return;
+            }
+
             var json = JsonSerializer.Serialize(payload);
             var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
 

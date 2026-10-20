@@ -17,6 +17,10 @@ namespace ERP.Identity.Infrastructure.BackgroundJobs
         private static readonly HashSet<string> WebhookExcludedEventTypes = new(StringComparer.OrdinalIgnoreCase)
         {
             "TwoFactorCodeGeneratedDomainEvent",
+            // Carry single-use reset/confirmation links (plaintext tokens) — only
+            // NotificationService may see these, never a tenant-configured webhook URL.
+            "PasswordResetRequestedDomainEvent",
+            "EmailConfirmationRequestedDomainEvent",
         };
 
         private readonly IServiceProvider _serviceProvider;

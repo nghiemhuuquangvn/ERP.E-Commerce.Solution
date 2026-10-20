@@ -13,16 +13,17 @@ public class RolesControllerTests
 {
     private readonly Mock<IRoleService> _mockRoleService;
     private readonly RolesController _controller;
+    private readonly Guid _callerTenantId = Guid.NewGuid();
 
     public RolesControllerTests()
     {
         _mockRoleService = new Mock<IRoleService>();
-        _controller = new RolesController(_mockRoleService.Object);
+        _controller = new RolesController(_mockRoleService.Object, new Mock<IPermissionService>().Object);
 
         var claims = new List<Claim>
         {
             new Claim("sub", Guid.NewGuid().ToString()),
-            new Claim("tenant_id", Guid.NewGuid().ToString())
+            new Claim("tenant_id", _callerTenantId.ToString())
         };
         var identity = new ClaimsIdentity(claims);
         var principal = new ClaimsPrincipal(identity);
@@ -36,7 +37,7 @@ public class RolesControllerTests
     public async Task List_WithValidTenantId_ShouldReturnRoles()
     {
         // Arrange
-        var tenantId = Guid.NewGuid();
+        var tenantId = _callerTenantId;
         var roles = new List<RoleDto>
         {
             new RoleDto(Guid.NewGuid(), "admin", "Administrator", true),
@@ -60,7 +61,7 @@ public class RolesControllerTests
         var roleId = Guid.NewGuid();
         var role = new RoleDto(roleId, "admin", "Administrator", true);
 
-        _mockRoleService.Setup(s => s.GetByIdAsync(roleId, It.IsAny<CancellationToken>()))
+        _mockRoleService.Setup(s => s.GetByIdAsync(roleId, _callerTenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(role);
 
         // Act
@@ -76,7 +77,7 @@ public class RolesControllerTests
         // Arrange
         var roleId = Guid.NewGuid();
 
-        _mockRoleService.Setup(s => s.GetByIdAsync(roleId, It.IsAny<CancellationToken>()))
+        _mockRoleService.Setup(s => s.GetByIdAsync(roleId, _callerTenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((RoleDto?)null);
 
         // Act
@@ -112,7 +113,7 @@ public class RolesControllerTests
         var roleId = Guid.NewGuid();
         var request = new UpdateRoleRequest("Updated Editor");
 
-        _mockRoleService.Setup(s => s.UpdateAsync(roleId, request, It.IsAny<CancellationToken>()))
+        _mockRoleService.Setup(s => s.UpdateAsync(roleId, _callerTenantId, request, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -128,7 +129,7 @@ public class RolesControllerTests
         // Arrange
         var roleId = Guid.NewGuid();
 
-        _mockRoleService.Setup(s => s.DeleteAsync(roleId, It.IsAny<CancellationToken>()))
+        _mockRoleService.Setup(s => s.DeleteAsync(roleId, _callerTenantId, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -145,7 +146,7 @@ public class RolesControllerTests
         var roleId = Guid.NewGuid();
         var permissions = new List<string> { "view.users", "edit.users", "delete.users" };
 
-        _mockRoleService.Setup(s => s.GetPermissionsAsync(roleId, It.IsAny<CancellationToken>()))
+        _mockRoleService.Setup(s => s.GetPermissionsAsync(roleId, _callerTenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(permissions.AsReadOnly());
 
         // Act

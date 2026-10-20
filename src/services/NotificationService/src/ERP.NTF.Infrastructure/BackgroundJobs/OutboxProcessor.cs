@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 
 namespace ERP.NTF.Infrastructure.BackgroundJobs
 {
@@ -54,8 +53,10 @@ namespace ERP.NTF.Infrastructure.BackgroundJobs
 
             // Get all unpublished messages (ProcessedOnUtc IS NULL)
             var unprocessedMessages = await dbContext.OutboxMessages
-                .Where(m => m.ProcessedOnUtc == null)
+                .Where(m => m.ProcessedOnUtc == null
+                    && (m.Error == null || !m.Error.StartsWith(OutboxEventDeserializer.DeadLetterPrefix)))
                 .OrderBy(m => m.OccurredOnUtc)
+                .Take(OutboxEventDeserializer.DefaultBatchSize)
                 .ToListAsync(cancellationToken);
 
             if (!unprocessedMessages.Any())
@@ -69,20 +70,17 @@ namespace ERP.NTF.Infrastructure.BackgroundJobs
             {
                 try
                 {
-                    // Deserialize event from JSON
-                    var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
-                    var @event = JsonConvert.DeserializeObject(message.Content, settings);
-
-                    if (@event == null)
+                    // Never mark an undeserializable message as processed — it was not
+                    // published. Dead-letter it so it stays visible for replay instead.
+                    if (!OutboxEventDeserializer.TryDeserialize(message, out var @event, out var error))
                     {
-                        _logger.LogWarning("Failed to deserialize event {EventId}: {Type}", message.Id, message.Type);
-                        message.ProcessedOnUtc = DateTime.UtcNow;
-                        message.Error = "Deserialization failed";
+                        _logger.LogError("Dead-lettered event {EventId}: {Error}", message.Id, error);
+                        OutboxEventDeserializer.MarkDeadLettered(message, error!);
                         continue;
                     }
 
                     // Publish to Kafka
-                    await messageBus.PublishAsync(@event, cancellationToken);
+                    await messageBus.PublishAsync(@event!, cancellationToken);
 
                     // Mark as processed
                     message.ProcessedOnUtc = DateTime.UtcNow;

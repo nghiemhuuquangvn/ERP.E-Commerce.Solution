@@ -21,7 +21,7 @@ public class DTOTests
         var isLocked = false;
 
         // Act
-        var dto = new UserDetailDto(userId, email, userName, fullName, isActive, isLocked, null, new List<string>(), new List<string>());
+        var dto = new UserDetailDto(userId, email, userName, fullName, isActive, isLocked, null, new List<string>(), new List<string>(), new List<RoleAssignmentDto>());
 
         // Assert
         dto.Id.Should().Be(userId);

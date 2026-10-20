@@ -19,19 +19,22 @@ namespace ERP.Identity.Infrastructure.Services
         private readonly ISecurityAuditService _securityAuditService;
         private readonly IPasswordPolicyService _passwordPolicyService;
         private readonly IStringLocalizer<AuthMessages> _localizer;
+        private readonly ISessionService _sessionService;
 
         public UserService(
             IUnitOfWork unitOfWork,
             IPasswordHasher passwordHasher,
             ISecurityAuditService securityAuditService,
             IPasswordPolicyService passwordPolicyService,
-            IStringLocalizer<AuthMessages> localizer)
+            IStringLocalizer<AuthMessages> localizer,
+            ISessionService sessionService)
         {
             _unitOfWork = unitOfWork;
             _passwordHasher = passwordHasher;
             _securityAuditService = securityAuditService;
             _passwordPolicyService = passwordPolicyService;
             _localizer = localizer;
+            _sessionService = sessionService;
         }
 
         public async Task<UserDetailDto?> GetByIdAsync(Guid id, Guid callerTenantId, CancellationToken ct)
@@ -131,6 +134,10 @@ namespace ERP.Identity.Infrastructure.Services
 
             await _passwordPolicyService.RecordPasswordHistoryAsync(id, previousHash, ct);
             await _unitOfWork.Users.UpdateAsync(user, ct);
+
+            // Changing the password signs the user out everywhere (refresh tokens + device
+            // sessions); the current access token stays valid only until it expires.
+            await _sessionService.RevokeAllForUserAsync(id, ct);
             await _securityAuditService.LogAsync("PasswordChange", true, user.TenantId, id, user.Email, ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
@@ -164,14 +171,19 @@ namespace ERP.Identity.Infrastructure.Services
 
             user.Deactivate();
             await _unitOfWork.Users.UpdateAsync(user, ct);
+
+            // Deactivation must end existing sessions too — otherwise the user's refresh
+            // token keeps working until it naturally expires.
+            await _sessionService.RevokeAllForUserAsync(user.Id, ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
         public async Task AssignRoleAsync(Guid userId, string roleCode, Guid tenantId, Guid? changedByUserId, string? changedByName, CancellationToken ct)
         {
-            var user = await _unitOfWork.Users.GetByIdAsync(userId, ct);
-            if (user == null)
-                throw new InvalidOperationException($"User with id '{userId}' not found");
+            // Tenant-scoped lookup: an unscoped GetByIdAsync let a tenant admin grant one of
+            // their tenant's roles to a user of a DIFFERENT tenant just by knowing the Id.
+            var user = await _unitOfWork.Users.GetByIdInTenantAsync(userId, tenantId, ct)
+                ?? throw new EntityNotFoundException("User", userId);
 
             var role = await _unitOfWork.Roles.GetByCodeAsync(roleCode, tenantId, ct);
             if (role == null)
@@ -185,9 +197,8 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task RemoveRoleAsync(Guid userId, Guid roleId, Guid tenantId, CancellationToken ct)
         {
-            var user = await _unitOfWork.Users.GetByIdAsync(userId, ct);
-            if (user == null)
-                throw new InvalidOperationException($"User with id '{userId}' not found");
+            var user = await _unitOfWork.Users.GetByIdInTenantAsync(userId, tenantId, ct)
+                ?? throw new EntityNotFoundException("User", userId);
 
             var userRole = user.UserRoles.FirstOrDefault(ur => ur.RoleId == roleId && ur.TenantId == tenantId);
             if (userRole == null)

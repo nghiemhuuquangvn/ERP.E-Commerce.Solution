@@ -16,6 +16,7 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -49,7 +50,38 @@ catch (System.Reflection.ReflectionTypeLoadException ex)
 }
 
 builder.Services.AddControllers();
+// The interactive OIDC login/tenant-picker forms (OidcAuthorizationController) validate an
+// antiforgery token; AddControllers() alone doesn't register IAntiforgery.
+builder.Services.AddAntiforgery();
 builder.Services.AddErpApiVersioning();
+
+// Dev/test-only switch that makes forgot-password return the raw reset token in its
+// response. Refuse to start anywhere else — in production that response IS an account
+// takeover primitive (anyone knowing an email + tenant code could reset the password).
+if (!builder.Environment.IsDevelopment()
+    && bool.TryParse(builder.Configuration["Auth:ExposeTokensInResponseForTesting"], out var exposeTokens) && exposeTokens)
+{
+    throw new InvalidOperationException(
+        "Auth:ExposeTokensInResponseForTesting must not be enabled outside the Development environment.");
+}
+
+// Client IP for rate limiting / brute-force counters / audit: X-Forwarded-For is only
+// honored when the immediate sender is a trusted proxy (nginx → Gateway on the private
+// Docker network), and only its right-most hop is taken (ForwardLimit = 1) — that hop is
+// the one nginx appends from the real TCP peer. Previously the raw client-supplied header
+// was used directly, so any caller could rotate it to bypass every per-IP limit.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+
+    var trustedNetworks = builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>()
+        ?? ["127.0.0.0/8", "::1/128"];
+    foreach (var network in trustedNetworks)
+        options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
+});
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblies(AppDomain.CurrentDomain.GetAssemblies());
 
@@ -70,6 +102,7 @@ builder.Services.AddCors(options =>
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("Configuration value 'Jwt:Key' is missing.");
+ERP.Shared.Authorization.JwtKeyGuard.EnsureUsable(jwtKey, builder.Environment.IsDevelopment());
 
 // This key signs tokens accepted by every one of the 14 downstream services (see
 // ERP.Shared.Authorization.AuthenticationExtensions) — a short/weak value is
@@ -267,10 +300,10 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
+    // RemoteIpAddress has already been resolved from X-Forwarded-For by
+    // UseForwardedHeaders — but only when the request came through a trusted proxy.
     string ResolveClientIp(HttpContext context) =>
-        context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwarded) && !string.IsNullOrEmpty(forwarded)
-            ? forwarded.ToString()
-            : context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
     options.AddPolicy("auth-sensitive", context =>
         RateLimitPartition.GetFixedWindowLimiter(ResolveClientIp(context), _ => new FixedWindowRateLimiterOptions
@@ -299,6 +332,10 @@ var app = builder.Build();
 // OpenIddictClientSeeder's doc comment). Never runs unattended in Production.
 if (app.Environment.IsDevelopment())
     await OpenIddictClientSeeder.SeedAsync(app.Services);
+
+// First in the pipeline so every later component (rate limiter, audit, controllers)
+// sees the real client IP — see the ForwardedHeadersOptions comment above.
+app.UseForwardedHeaders();
 
 app.UseGlobalExceptionHandling();
 

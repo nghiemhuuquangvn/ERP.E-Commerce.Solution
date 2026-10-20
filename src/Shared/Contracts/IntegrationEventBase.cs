@@ -10,14 +10,17 @@ namespace ERP.Shared.Contracts
     public abstract class IntegrationEventBase : IDomainEvent
     {
         /// <summary>
-        /// Unique identifier for this event instance (for deduplication)
+        /// Unique identifier for this event instance (for deduplication).
+        /// <c>init</c> (not get-only) so JSON deserializers can restore the original value —
+        /// with a get-only property every Outbox re-read / Kafka consume produced a new Guid,
+        /// which made EventId useless as a dedup key.
         /// </summary>
-        public Guid EventId { get; } = Guid.NewGuid();
+        public Guid EventId { get; init; } = Guid.NewGuid();
 
         /// <summary>
-        /// When the event occurred
+        /// When the event occurred. <c>init</c> for the same round-trip reason as <see cref="EventId"/>.
         /// </summary>
-        public DateTime OccurredAt { get; } = DateTime.UtcNow;
+        public DateTime OccurredAt { get; init; } = DateTime.UtcNow;
 
         /// <inheritdoc/>
         public DateTime OccurredOn => OccurredAt;
@@ -28,7 +31,8 @@ namespace ERP.Shared.Contracts
 
         protected IntegrationEventBase(Guid eventId, DateTime occurredAt)
         {
-            // Allow setting these for deserialization from Kafka
+            EventId = eventId;
+            OccurredAt = occurredAt;
         }
     }
 }

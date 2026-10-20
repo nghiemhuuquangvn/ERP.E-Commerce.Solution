@@ -1,10 +1,10 @@
 using ERP.WH.Application.Interfaces;
 using ERP.WH.Infrastructure.Persistence;
+using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 
 namespace ERP.WH.Infrastructure.BackgroundJobs
 {
@@ -61,8 +61,10 @@ namespace ERP.WH.Infrastructure.BackgroundJobs
             var publisher = scope.ServiceProvider.GetRequiredService<ISettingsEventPublisher>();
 
             var unprocessedMessages = await dbContext.OutboxMessages
-                .Where(m => m.ProcessedOnUtc == null && m.Type == SettingsEventTypeName)
+                .Where(m => m.ProcessedOnUtc == null && m.Type == SettingsEventTypeName
+                    && (m.Error == null || !m.Error.StartsWith(OutboxEventDeserializer.DeadLetterPrefix)))
                 .OrderBy(m => m.OccurredOnUtc)
+                .Take(OutboxEventDeserializer.DefaultBatchSize)
                 .ToListAsync(cancellationToken);
 
             if (!unprocessedMessages.Any())
@@ -76,18 +78,16 @@ namespace ERP.WH.Infrastructure.BackgroundJobs
             {
                 try
                 {
-                    var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
-                    var @event = JsonConvert.DeserializeObject(message.Content, settings);
-
-                    if (@event == null)
+                    // Never mark an undeserializable message as processed — it was not
+                    // published. Dead-letter it so it stays visible for replay instead.
+                    if (!OutboxEventDeserializer.TryDeserialize(message, out var @event, out var error))
                     {
-                        _logger.LogWarning("Failed to deserialize settings event {EventId}: {Type}", message.Id, message.Type);
-                        message.ProcessedOnUtc = DateTime.UtcNow;
-                        message.Error = "Deserialization failed";
+                        _logger.LogError("Dead-lettered settings event {EventId}: {Error}", message.Id, error);
+                        OutboxEventDeserializer.MarkDeadLettered(message, error!);
                         continue;
                     }
 
-                    await publisher.PublishAsync(@event, cancellationToken);
+                    await publisher.PublishAsync(@event!, cancellationToken);
 
                     message.ProcessedOnUtc = DateTime.UtcNow;
                     message.Error = null;

@@ -209,6 +209,58 @@ public record TwoFactorCodeGeneratedDomainEvent(
 
 ---
 
+### PasswordResetRequestedEvent
+
+**Description:** Published by `POST /auth/forgot-password` when the email belongs to an
+active account of an active tenant (unknown accounts get the same `200` response and no
+event — no user enumeration). Carries the one-time reset LINK, which embeds the plaintext
+token; `PasswordResetTokens` stores only its SHA-256 hash. Since 2026-10-19 this is the
+ONLY way the token leaves IdentityService (it used to be returned in the HTTP response).
+
+**Publisher:** Identity Service (`identity-topic`, Outbox — raised by
+`PasswordResetToken.RaiseRequested`)
+**Subscribers:** Notification Service (`IdentityEventConsumer` →
+`PasswordResetRequestedIntegrationEventHandler`, template `PASSWORD_RESET`)
+**Never delivered to tenant webhooks** (`OutboxProcessor.WebhookExcludedEventTypes`).
+
+```csharp
+public class PasswordResetRequestedDomainEvent : IDomainEvent
+{
+    Guid UserId; Guid TenantId; string Email;
+    string ResetLink;     // Auth:PasswordResetUrl + ?token=<single-use token>
+    int ExpiryMinutes;    // Auth:PasswordResetTokenExpiryMinutes (default 60)
+    DateTime OccurredOn;
+}
+```
+
+---
+
+### EmailConfirmationRequestedEvent
+
+**Description:** Published on self-service registration and tenant signup. Carries the
+one-time confirmation LINK; `EmailConfirmTokens` stores only the token hash.
+`POST /auth/confirm-email` requires `{ userId, token }` from that link.
+
+**Publisher:** Identity Service (`identity-topic`, Outbox — raised by
+`EmailConfirmToken.RaiseRequested`)
+**Subscribers:** Notification Service (`IdentityEventConsumer` →
+`EmailConfirmationRequestedIntegrationEventHandler`, template `EMAIL_CONFIRMATION`)
+**Never delivered to tenant webhooks.**
+
+```csharp
+public class EmailConfirmationRequestedDomainEvent : IDomainEvent
+{
+    Guid UserId; Guid TenantId; string Email;
+    string ConfirmLink;   // Auth:EmailConfirmationUrl + ?userId=..&token=..
+    int ExpiryHours;      // Auth:EmailConfirmationTokenExpiryHours (default 48)
+    DateTime OccurredOn;
+}
+```
+
+**Routing:** Kafka (`identity-topic`) · **Delivery:** Outbox pattern (at-least-once)
+
+---
+
 ## Sales Service Events
 
 ### SalesOrderCreatedEvent

@@ -18,6 +18,14 @@ namespace ERP.Identity.Application.Interfaces.Services
 
         Task RevokeSessionAsync(Guid userId, Guid sessionId, CancellationToken ct);
 
+        /// <summary>
+        /// Revokes every refresh token and active device session of a user — used when the
+        /// account's credentials or status change (deactivate, password reset/change) so an
+        /// existing session can't keep minting new access tokens. Does NOT call
+        /// SaveChangesAsync; callers control the transaction boundary.
+        /// </summary>
+        Task RevokeAllForUserAsync(Guid userId, CancellationToken ct);
+
         Task BlacklistTokenAsync(string jti, Guid userId, DateTime expiresAt, string? revokedBy, CancellationToken ct);
 
         Task<bool> IsTokenBlacklistedAsync(string jti, CancellationToken ct);

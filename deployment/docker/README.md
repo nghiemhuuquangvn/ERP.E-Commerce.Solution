@@ -32,6 +32,8 @@ Now:
 git clone <repo-url>
 cd ERP.E-Commerce.Solution
 cp .env.example .env        # set SA_PASSWORD / RABBITMQ_PASSWORD / JWT_SIGNING_KEY
+                            # JWT_SIGNING_KEY must be a fresh random value (openssl rand -base64 48):
+                            # containers run as Production and refuse the example placeholder
 docker compose up --build -d
 docker compose logs -f db-migrate   # watch migrations apply, then Ctrl+C
 ```

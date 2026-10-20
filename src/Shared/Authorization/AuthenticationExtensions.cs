@@ -25,6 +25,7 @@ public static class AuthenticationExtensions
     {
         var jwtKey = configuration["Jwt:Key"]
             ?? throw new InvalidOperationException("Configuration value 'Jwt:Key' is missing.");
+        JwtKeyGuard.EnsureUsable(jwtKey, JwtKeyGuard.IsDevelopmentFromEnvironmentVariables());
         var issuer = configuration["Jwt:Issuer"]
             ?? throw new InvalidOperationException("Configuration value 'Jwt:Issuer' is missing.");
         var audience = configuration["Jwt:Audience"]

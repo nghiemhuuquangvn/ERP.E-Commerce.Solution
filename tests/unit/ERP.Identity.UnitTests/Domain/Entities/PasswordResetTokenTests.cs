@@ -94,9 +94,9 @@ public class PasswordResetTokenTests
     [Fact]
     public void IsExpired_WithPastExpiration_ShouldReturnTrue()
     {
-        // Arrange
-        var expiredAt = DateTime.UtcNow.AddHours(-1);
-        var resetToken = PasswordResetToken.Create(Guid.NewGuid(), "token", expiredAt);
+        // Arrange — Create() rejects past expirations, so model a token loaded from the DB
+        // whose ExpiredAt has since passed (parameterless ctor → ExpiredAt = MinValue).
+        var resetToken = new PasswordResetToken();
 
         // Act & Assert
         resetToken.IsExpired.Should().BeTrue();
@@ -116,9 +116,8 @@ public class PasswordResetTokenTests
     [Fact]
     public void IsValid_WithExpiredToken_ShouldReturnFalse()
     {
-        // Arrange
-        var expiredAt = DateTime.UtcNow.AddHours(-1);
-        var resetToken = PasswordResetToken.Create(Guid.NewGuid(), "token", expiredAt);
+        // Arrange — see IsExpired_WithPastExpiration_ShouldReturnTrue
+        var resetToken = new PasswordResetToken();
 
         // Act & Assert
         resetToken.IsValid.Should().BeFalse();

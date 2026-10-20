@@ -23,6 +23,7 @@ namespace ERP.Identity.Infrastructure.Persistence
             IExternalLoginRepository externalLoginRepository,
             IOutboxMessageRepository outboxMessageRepository,
             IPasswordResetTokenRepository passwordResetTokenRepository,
+            IEmailConfirmTokenRepository emailConfirmTokenRepository,
             ISystemAuthSettingsRepository systemAuthSettingsRepository,
             ITenantAuthSettingsRepository tenantAuthSettingsRepository,
             ISystemGeneralSettingsRepository systemGeneralSettingsRepository,
@@ -70,6 +71,7 @@ namespace ERP.Identity.Infrastructure.Persistence
             ExternalLogins = externalLoginRepository;
             OutboxMessages = outboxMessageRepository;
             PasswordResetTokens = passwordResetTokenRepository;
+            EmailConfirmTokens = emailConfirmTokenRepository;
             SystemAuthSettings = systemAuthSettingsRepository;
             TenantAuthSettings = tenantAuthSettingsRepository;
             SystemGeneralSettings = systemGeneralSettingsRepository;
@@ -119,6 +121,7 @@ namespace ERP.Identity.Infrastructure.Persistence
         public IExternalLoginRepository ExternalLogins { get; }
         public IOutboxMessageRepository OutboxMessages { get; }
         public IPasswordResetTokenRepository PasswordResetTokens { get; }
+        public IEmailConfirmTokenRepository EmailConfirmTokens { get; }
         public ISystemAuthSettingsRepository SystemAuthSettings { get; }
         public ITenantAuthSettingsRepository TenantAuthSettings { get; }
         public ISystemGeneralSettingsRepository SystemGeneralSettings { get; }

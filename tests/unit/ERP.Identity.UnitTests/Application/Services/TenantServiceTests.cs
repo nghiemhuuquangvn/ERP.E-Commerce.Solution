@@ -42,7 +42,7 @@ public class TenantServiceTests
 
         // Assert
         result.Should().HaveCount(3);
-        result.Should().Contain(t => t.TenantCode == "tenant1");
+        result.Should().Contain(t => t.TenantCode == "TENANT1");
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class TenantServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        result.TenantCode.Should().Be("tenant1");
+        result.TenantCode.Should().Be("TENANT1");
         result.TenantName.Should().Be("Tenant One");
     }
 
@@ -106,7 +106,7 @@ public class TenantServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        result.TenantCode.Should().Be("newtenant");
+        result.TenantCode.Should().Be("NEWTENANT");
         result.TenantName.Should().Be("New Tenant");
     }
 
