@@ -32,7 +32,6 @@ public class TenantIsolationArchitectureTests
         "ERP.Identity.Infrastructure.Persistence.AuthDbContext",
         // Phase 2 rollout (2026-10-20) — remove each one as its service is isolated.
         "ERP.CHB.Infrastructure.Persistence.ChatBotDbContext",
-        "ERP.MST.Infrastructure.Persistence.MasterDataDbContext",
         "ERP.NTF.Infrastructure.Persistence.NotificationDbContext",
     };
 

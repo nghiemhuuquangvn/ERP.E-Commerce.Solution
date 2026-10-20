@@ -2,7 +2,7 @@ using ERP.Shared.Core.Domain;
 
 namespace ERP.MST.Domain.Entities
 {
-    public class WardTranslation : TranslationEntity
+    public class WardTranslation : TranslationEntity, ISharedReferenceData
     {
         public string Name { get; set; } = string.Empty;
 

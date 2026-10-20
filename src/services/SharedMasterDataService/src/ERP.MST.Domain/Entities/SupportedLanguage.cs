@@ -2,7 +2,7 @@ using ERP.Shared.Core.Domain;
 
 namespace ERP.MST.Domain.Entities
 {
-    public class SupportedLanguage : AggregateRoot
+    public class SupportedLanguage : AggregateRoot, ISharedReferenceData
     {
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;

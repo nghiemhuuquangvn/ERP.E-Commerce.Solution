@@ -3,7 +3,7 @@ using ERP.Shared.Core.Domain;
 
 namespace ERP.MST.Domain.Entities
 {
-    public class Currency : AggregateRoot
+    public class Currency : AggregateRoot, ISharedReferenceData
     {
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;

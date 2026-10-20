@@ -127,4 +127,35 @@ public class TenantIsolationBehaviorTests
     public void Hrm_WorkShifts() =>
         AssertIsolated<ERP.HRM.Infrastructure.Persistence.HrmDbContext, ERP.HRM.Domain.Entities.WorkShift>(
             ERP.HRM.Domain.Entities.WorkShift.Create("Morning", TimeSpan.FromHours(8), TimeSpan.FromHours(17)), e => e.TenantId);
+
+    [Fact]
+    public void MasterData_Departments() =>
+        AssertIsolated<ERP.MST.Infrastructure.Persistence.MasterDataDbContext, ERP.MST.Domain.Entities.Department>(
+            ERP.MST.Domain.Entities.Department.Create("Sales", "SALES"), e => e.TenantId);
+
+    [Fact]
+    public void MasterData_Countries_AreSharedFromThePlatformTenant_ReadOnlyForTenants()
+    {
+        var platform = ERP.Shared.Core.Domain.WellKnownTenants.Platform;
+        var vn = ERP.MST.Domain.Entities.Country.Create("VN", "Viet Nam");
+        using (var p = Db<ERP.MST.Infrastructure.Persistence.MasterDataDbContext>(platform))
+        {
+            p.Set<ERP.MST.Domain.Entities.Country>().Add(vn);
+            p.SaveChanges();
+        }
+
+        using (var a = Db<ERP.MST.Infrastructure.Persistence.MasterDataDbContext>(TenantA))
+        {
+            a.Set<ERP.MST.Domain.Entities.Country>().Add(ERP.MST.Domain.Entities.Country.Create("XA", "Only A"));
+            a.SaveChanges();
+            a.Set<ERP.MST.Domain.Entities.Country>().Select(c => c.Code).Should().BeEquivalentTo("VN", "XA");
+        }
+
+        using var b = Db<ERP.MST.Infrastructure.Persistence.MasterDataDbContext>(TenantB);
+        b.Set<ERP.MST.Domain.Entities.Country>().Select(c => c.Code).Should().BeEquivalentTo(new[] { "VN" },
+            "a tenant sees the shared rows but never another tenant's additions");
+        b.Entry(b.Set<ERP.MST.Domain.Entities.Country>().Single()).State = EntityState.Modified;
+        var act = () => b.SaveChanges();
+        act.Should().Throw<TenantIsolationViolationException>("only the platform tenant may change shared reference data");
+    }
 }
