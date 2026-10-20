@@ -77,7 +77,6 @@ export const useChatStore = defineStore('chat', () => {
         ? await chatbotApi.startConversation({ channel: 1 })
         : await chatbotApi.startConversation({
             channel: 1,
-            guestTenantId: import.meta.env.VITE_TENANT_ID,
             guestSessionId: guestSessionId.value,
           })
 

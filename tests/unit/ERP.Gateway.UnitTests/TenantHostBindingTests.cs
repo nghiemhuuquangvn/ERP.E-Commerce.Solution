@@ -7,6 +7,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using ERP.Shared.Authorization;
 using Ocelot.API.Authorization;
 using Xunit;
 

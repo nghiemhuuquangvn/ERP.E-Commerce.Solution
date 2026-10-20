@@ -189,4 +189,10 @@ public class TenantIsolationBehaviorTests
             (await new ERP.NTF.Infrastructure.Repositories.TemplateRepository(b).GetByCodeAsync("OTP"))!.Body
                 .Should().Be("platform body", "other tenants fall back to the platform default, never to tenant A's");
     }
+
+    [Fact]
+    public void ChatBot_Conversations() =>
+        AssertIsolated<ERP.CHB.Infrastructure.Persistence.ChatBotDbContext, ERP.CHB.Domain.Entities.Conversation>(
+            ERP.CHB.Domain.Entities.Conversation.Start(Guid.Empty, ERP.CHB.Domain.Enums.ConversationChannel.Storefront,
+                ERP.CHB.Domain.Enums.AiProvider.ChatGpt, null, "guest-session"), e => e.TenantId);
 }

@@ -71,13 +71,7 @@ try
         .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(5));
 
     // Tenant-from-host resolution (IdentityService owns tenants + their domains).
-    builder.Services.AddMemoryCache();
-    builder.Services.AddSingleton<Ocelot.API.Authorization.TenantHostResolver>();
-    builder.Services.AddHttpClient(Ocelot.API.Authorization.TenantHostResolver.HttpClientName, c =>
-    {
-        c.BaseAddress = new Uri((builder.Configuration["Tenancy:IdentityUrl"] ?? "http://identityservice:5001").TrimEnd('/') + "/");
-        c.Timeout = TimeSpan.FromSeconds(3);
-    });
+    builder.Services.AddTenantHostResolver(builder.Configuration);
 
     // Health checks
     builder.Services.AddHealthChecks();

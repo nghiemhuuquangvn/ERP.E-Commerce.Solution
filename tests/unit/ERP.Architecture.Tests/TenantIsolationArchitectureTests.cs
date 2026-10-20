@@ -31,7 +31,6 @@ public class TenantIsolationArchitectureTests
     {
         "ERP.Identity.Infrastructure.Persistence.AuthDbContext",
         // Phase 2 rollout (2026-10-20) — remove each one as its service is isolated.
-        "ERP.CHB.Infrastructure.Persistence.ChatBotDbContext",
     };
 
     internal static IEnumerable<Type> AllDbContextTypes() => DbContextTypes();

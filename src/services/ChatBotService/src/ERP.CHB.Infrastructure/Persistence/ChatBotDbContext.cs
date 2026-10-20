@@ -1,13 +1,28 @@
+using ERP.Shared.Core.Domain;
+using ERP.Shared.Messaging;
+using ERP.Shared.Infrastructure.Data;
 using ERP.CHB.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace ERP.CHB.Infrastructure.Persistence;
 
-public class ChatBotDbContext : DbContext
+public class ChatBotDbContext : DbContext, ITenantScopedDbContext
 {
     public DbSet<Conversation> Conversations => Set<Conversation>();
 
-    public ChatBotDbContext(DbContextOptions<ChatBotDbContext> options) : base(options) { }
+    private readonly ITenantProvider _tenantProvider;
+
+    /// <summary>
+    /// Tenant of the current request (JWT / Gateway host tenant) or consumer message
+    /// (TenantScope). Read by the tenant query filter on every query and used to
+    /// stamp/validate every save.
+    /// </summary>
+    public Guid? CurrentTenantId => _tenantProvider.CurrentTenantId;
+
+    public ChatBotDbContext(DbContextOptions<ChatBotDbContext> options, ITenantProvider tenantProvider) : base(options)
+    {
+        _tenantProvider = tenantProvider;
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -43,5 +58,20 @@ public class ChatBotDbContext : DbContext
                 m.HasIndex(x => x.ConversationId);
             });
         });
+
+        // Last, so it composes with any per-entity filter configured above.
+        modelBuilder.ApplyTenantQueryFilters(this);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 }

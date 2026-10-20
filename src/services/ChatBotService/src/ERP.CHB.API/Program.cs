@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.SignalR;
 using ERP.CHB.API.Hubs;
 using ERP.CHB.Application.Commands;
 using ERP.CHB.Application.Interfaces;
@@ -28,6 +29,11 @@ builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddErpAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+// Tenant isolation for ChatBotDbContext: JWT tenant, Gateway host tenant for anonymous REST
+// calls (guest StartConversation), or the TenantScope HostTenantHubFilter sets for every
+// /hubs/chat call (the hub bypasses the Gateway, so it resolves the host itself).
+builder.Services.AddRequestTenantProvider();
+builder.Services.AddTenantHostResolver(builder.Configuration);
 builder.Services.AddScoped<UserContext>();
 builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.ChatBot));
 
@@ -37,7 +43,7 @@ builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.ChatBot));
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<IHubTicketStore, HubTicketStore>();
 
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(o => o.AddFilter<ERP.CHB.API.Hubs.HostTenantHubFilter>());
 
 builder.Services.AddControllers();
 builder.Services.AddErpApiVersioning();
