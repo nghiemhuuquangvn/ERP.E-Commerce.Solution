@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.SignalR;
 using Confluent.Kafka;
 using ERP.NTF.API.Hubs;
 using ERP.NTF.Application.Handlers;
@@ -71,7 +72,8 @@ builder.Services.AddScoped<IWebhookSender, WebhookSender>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<IHubTicketStore, HubTicketStore>();
 builder.Services.AddScoped<IRealtimeNotifier, SignalRRealtimeNotifier>();
-builder.Services.AddSignalR();
+// Re-check token revocation on every hub call (a connection outlives its token check).
+builder.Services.AddSignalR(o => o.AddFilter<ERP.Shared.Authorization.TokenRevocation.RevocationHubFilter>());
 
 // Redis cache
 builder.Services.AddCacheService(builder.Configuration, "ntf");

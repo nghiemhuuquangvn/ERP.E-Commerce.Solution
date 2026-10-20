@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using ERP.Shared.Authorization.TokenRevocation;
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 using Ocelot.API.Authorization;
@@ -59,8 +61,23 @@ try
                 IssuerSigningKey = signingKey,
                 ClockSkew = TimeSpan.FromSeconds(60)
             };
+            // Reject revoked tokens at the edge as well (logout, lock, password/role/license
+            // changes) — every service checks again; fails open if Redis is unreachable.
+            options.Events = new JwtBearerEvents
+            {
+                OnTokenValidated = async context =>
+                {
+                    if (context.Principal is null)
+                        return;
+                    var validator = context.HttpContext.RequestServices
+                        .GetRequiredService<ERP.Shared.Authorization.TokenRevocation.TokenRevocationValidator>();
+                    if (await validator.IsRevokedAsync(context.Principal, context.HttpContext.RequestAborted))
+                        context.Fail("Token has been revoked.");
+                }
+            };
         });
 
+    builder.Services.AddTokenRevocation(builder.Configuration);
     builder.Services.AddAuthorization();
     builder.Services.AddControllers();
 

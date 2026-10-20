@@ -203,6 +203,8 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5000"
       ASPNETCORE_ENVIRONMENT: Production
+      # Shared token revocation store (logout/lock/permission changes take effect at once).
+      ConnectionStrings__Redis: "redis:6379"
       Jwt__Key: "${JWT_SIGNING_KEY}"
       KafkaSettings__BootstrapServers: kafka:9092
     depends_on:
@@ -501,6 +503,8 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5016"
       ASPNETCORE_ENVIRONMENT: Production
+      # Shared token revocation store (logout/lock/permission changes take effect at once).
+      ConnectionStrings__Redis: "redis:6379"
       KafkaSettings__BootstrapServers: kafka:9092
       Elasticsearch__Uri: http://elasticsearch:9200
       Elasticsearch__IndexPrefix: service-logs
@@ -742,6 +746,8 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5017"
       ASPNETCORE_ENVIRONMENT: Production
+      # Shared token revocation store (logout/lock/permission changes take effect at once).
+      ConnectionStrings__Redis: "redis:6379"
       ConnectionStrings__ChatBotDb: "Server=sqlserver,1433;Database=ChatBotDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       Jwt__Key: "${JWT_SIGNING_KEY}"
       Gateway__BaseUrl: "http://gateway:5000"

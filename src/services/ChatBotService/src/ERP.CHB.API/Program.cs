@@ -43,7 +43,12 @@ builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.ChatBot));
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<IHubTicketStore, HubTicketStore>();
 
-builder.Services.AddSignalR(o => o.AddFilter<ERP.CHB.API.Hubs.HostTenantHubFilter>());
+// Every hub call: revocation re-check, then host-tenant resolution.
+builder.Services.AddSignalR(o =>
+{
+    o.AddFilter<ERP.Shared.Authorization.TokenRevocation.RevocationHubFilter>();
+    o.AddFilter<ERP.CHB.API.Hubs.HostTenantHubFilter>();
+});
 
 builder.Services.AddControllers();
 builder.Services.AddErpApiVersioning();
