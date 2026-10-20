@@ -1,3 +1,5 @@
+using ERP.Shared.Messaging;
+using ERP.Shared.Infrastructure.Data;
 using Confluent.Kafka;
 using ERP.ACC.Application.EventHandlers;
 using MediatR;
@@ -99,6 +101,15 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
         private async Task DispatchAsync(string json, CancellationToken cancellationToken)
         {
             var typeName = JObject.Parse(json)["$type"]?.ToString() ?? string.Empty;
+
+            // Ledger entries belong to the tenant of the source document; an event without
+            // one is dropped (fail closed), never posted to some other tenant's books.
+            if (!EventTenant.TryRead(json, out var tenantId))
+            {
+                _logger.LogWarning("{EventType} without TenantId ignored", typeName);
+                return;
+            }
+            using var tenantScope = TenantScope.Begin(tenantId);
 
             using var scope = _serviceProvider.CreateScope();
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();

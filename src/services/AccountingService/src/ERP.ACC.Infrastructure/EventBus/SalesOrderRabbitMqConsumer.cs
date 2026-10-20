@@ -1,3 +1,5 @@
+using ERP.Shared.Messaging;
+using ERP.Shared.Infrastructure.Data;
 using System.Text;
 using System.Text.Json;
 using MediatR;
@@ -72,7 +74,15 @@ namespace ERP.ACC.Infrastructure.EventBus
                 {
                     case "sales_order.SalesOrderCreatedEvent":
                         var evt = JsonSerializer.Deserialize<SalesOrderCreatedIntegrationEvent>(json);
-                        if (evt != null) await mediator.Publish(evt);
+                        if (evt == null)
+                            break;
+                        if (!EventTenant.TryRead(json, out var tenantId))
+                        {
+                            _logger.LogWarning("SalesOrderCreated {OrderId} without TenantId ignored", evt.OrderId);
+                            break;
+                        }
+                        using (TenantScope.Begin(tenantId))
+                            await mediator.Publish(evt);
                         break;
 
                     default:

@@ -31,12 +31,10 @@ public class TenantIsolationArchitectureTests
     {
         "ERP.Identity.Infrastructure.Persistence.AuthDbContext",
         // Phase 2 rollout (2026-10-20) — remove each one as its service is isolated.
-        "ERP.ACC.Infrastructure.Persistence.AccountingDbContext",
         "ERP.CHB.Infrastructure.Persistence.ChatBotDbContext",
         "ERP.HRM.Infrastructure.Persistence.HrmDbContext",
         "ERP.MST.Infrastructure.Persistence.MasterDataDbContext",
         "ERP.NTF.Infrastructure.Persistence.NotificationDbContext",
-        "ERP.PAY.Infrastructure.Persistence.PaymentDbContext",
         "ERP.POS.Infrastructure.Persistence.POSDbContext",
         "ERP.PRD.Infrastructure.Persistence.ProductDbContext",
         "ERP.PRM.Infrastructure.Persistence.PromotionDbContext",
