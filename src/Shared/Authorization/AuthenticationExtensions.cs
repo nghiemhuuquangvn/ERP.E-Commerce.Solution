@@ -1,3 +1,4 @@
+using ERP.Shared.Authorization.TokenRevocation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +31,10 @@ public static class AuthenticationExtensions
             ?? throw new InvalidOperationException("Configuration value 'Jwt:Issuer' is missing.");
         var audience = configuration["Jwt:Audience"]
             ?? throw new InvalidOperationException("Configuration value 'Jwt:Audience' is missing.");
+
+        // Logout / lock / password / role-permission / license changes take effect in this
+        // service immediately (shared revocation store, checked in OnTokenValidated below).
+        services.AddTokenRevocation(configuration);
 
         services.AddAuthentication("Bearer")
             .AddJwtBearer("Bearer", options =>
@@ -81,30 +86,16 @@ public static class AuthenticationExtensions
                         }
                         return Task.CompletedTask;
                     },
-                    // TEMP DIAGNOSTIC (notification bell 401 investigation, round 2) — remove
-                    // once root-caused. Tagged distinctly ("HUBAUTH2") to filter cleanly out
-                    // of this service's very noisy background-poller logs.
-                    OnChallenge = context =>
+                    // A signature-valid token can still be revoked: logout (jti), or issued before
+                    // its user's / tenant's last security-relevant change (iat). See
+                    // TokenRevocationValidator — fails open if the store is unreachable.
+                    OnTokenValidated = async context =>
                     {
-                        if (!context.HttpContext.Request.Path.StartsWithSegments("/hubs")) return Task.CompletedTask;
-                        var diagLogger = context.HttpContext.RequestServices
-                            .GetService<Microsoft.Extensions.Logging.ILoggerFactory>()?
-                            .CreateLogger("HUBAUTH2");
-                        diagLogger?.LogError(
-                            "HUBAUTH2 negotiate REJECTED path={Path} error={Error} authFailure={AuthFailure}",
-                            context.HttpContext.Request.Path.Value, context.Error,
-                            context.AuthenticateFailure?.Message);
-                        return Task.CompletedTask;
-                    },
-                    OnTokenValidated = context =>
-                    {
-                        if (!context.HttpContext.Request.Path.StartsWithSegments("/hubs")) return Task.CompletedTask;
-                        var diagLogger = context.HttpContext.RequestServices
-                            .GetService<Microsoft.Extensions.Logging.ILoggerFactory>()?
-                            .CreateLogger("HUBAUTH2");
-                        diagLogger?.LogError("HUBAUTH2 negotiate ACCEPTED path={Path}",
-                            context.HttpContext.Request.Path.Value);
-                        return Task.CompletedTask;
+                        if (context.Principal is null)
+                            return;
+                        var validator = context.HttpContext.RequestServices.GetRequiredService<TokenRevocationValidator>();
+                        if (await validator.IsRevokedAsync(context.Principal, context.HttpContext.RequestAborted))
+                            context.Fail("Token has been revoked.");
                     }
                 };
             });
