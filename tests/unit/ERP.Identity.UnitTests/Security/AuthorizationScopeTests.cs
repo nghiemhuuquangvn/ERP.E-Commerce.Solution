@@ -41,6 +41,7 @@ public class AuthorizationScopeTests
 
     public AuthorizationScopeTests()
     {
+        _uow.Setup(u => u.Revocations).Returns(new Mock<ITokenRevocationQueue>().Object);
         _uow.Setup(u => u.Permissions).Returns(_permissions.Object);
         _uow.Setup(u => u.Roles).Returns(_roles.Object);
         _uow.Setup(u => u.Users).Returns(_users.Object);

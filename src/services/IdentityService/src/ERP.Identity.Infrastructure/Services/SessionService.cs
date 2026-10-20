@@ -58,6 +58,10 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task RevokeAllForUserAsync(Guid userId, CancellationToken ct)
         {
+            // Access tokens already issued stop working in every service once committed
+            // (shared revocation store) — not only the refresh tokens below.
+            _unitOfWork.Revocations.UsersChanged(userId);
+
             await _unitOfWork.RefreshTokens.RevokeAllByUserIdAsync(userId, ct);
 
             // ListActiveByUserAsync reads AsNoTracking — the revoke must be attached via
@@ -77,6 +81,9 @@ namespace ERP.Identity.Infrastructure.Services
 
             var entry = TokenBlacklistEntry.Create(jti, userId, expiresAt, revokedBy);
             await _unitOfWork.TokenBlacklist.AddAsync(entry, ct);
+            // DB row = audit + Identity's own fallback check; the shared store makes every
+            // other service reject the token too.
+            _unitOfWork.Revocations.RevokeToken(jti, expiresAt);
         }
 
         public Task<bool> IsTokenBlacklistedAsync(string jti, CancellationToken ct)

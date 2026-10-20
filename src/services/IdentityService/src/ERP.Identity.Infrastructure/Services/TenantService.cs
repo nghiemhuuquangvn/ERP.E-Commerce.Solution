@@ -75,6 +75,8 @@ namespace ERP.Identity.Infrastructure.Services
 
             tenant.Deactivate();
             await _unitOfWork.Tenants.UpdateAsync(tenant, ct);
+            // A deactivated tenant's users must lose access in every service now.
+            _unitOfWork.Revocations.TenantChanged(tenant.Id);
             await _unitOfWork.SaveChangesAsync(ct);
         }
     }

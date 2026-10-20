@@ -33,7 +33,10 @@ namespace ERP.Identity.Infrastructure.Services
                 new Claim("tenant_name", tenant.TenantName ?? string.Empty),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
                 new Claim(JwtRegisteredClaimNames.Name, user.FullName ?? user.UserName ?? user.Email),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                // Issued-at: every service rejects a token issued before its user's / tenant's
+                // last security-relevant change (shared token revocation).
+                new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
             };
 
             claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));

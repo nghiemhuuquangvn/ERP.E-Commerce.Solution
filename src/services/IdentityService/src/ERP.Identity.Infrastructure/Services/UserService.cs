@@ -149,6 +149,9 @@ namespace ERP.Identity.Infrastructure.Services
 
             user.Lock();
             await _unitOfWork.Users.UpdateAsync(user, ct);
+            // A locked account must stop working everywhere now, not when its tokens expire
+            // (decision 2026-10-20): revoke refresh tokens/sessions and every issued token.
+            await _sessionService.RevokeAllForUserAsync(id, ct);
             await _securityAuditService.LogAsync("AccountLocked", true, user.TenantId, id, user.Email, ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
@@ -191,6 +194,7 @@ namespace ERP.Identity.Infrastructure.Services
 
             user.AssignRole(role, tenantId, changedByUserId, changedByName);
             await _unitOfWork.Users.UpdateAsync(user, ct);
+            _unitOfWork.Revocations.UsersChanged(userId); // permissions changed: refresh
             await _securityAuditService.LogAsync("RoleAssigned", true, tenantId, userId, user.Email, details: $"Role={roleCode}", ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
@@ -209,6 +213,7 @@ namespace ERP.Identity.Infrastructure.Services
             // returned 200 OK while leaving the role assigned. A direct repository
             // delete (not a collection-remove-then-hope-EF-notices) actually persists it.
             await _unitOfWork.Users.RemoveRoleAsync(userId, roleId, tenantId, ct);
+            _unitOfWork.Revocations.UsersChanged(userId); // permissions changed: refresh
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
