@@ -71,4 +71,14 @@ public class TenantIsolationBehaviorTests
     public void Accounting_TaxRates() =>
         AssertIsolated<ERP.ACC.Infrastructure.Persistence.AccountingDbContext, ERP.ACC.Domain.Entities.TaxRate>(
             ERP.ACC.Domain.Entities.TaxRate.Create("VAT 10%", "VAT10", 10m), e => e.TenantId);
+
+    [Fact]
+    public void Product_Brands() =>
+        AssertIsolated<ERP.PRD.Infrastructure.Persistence.ProductDbContext, ERP.PRD.Domain.Entities.Brand>(
+            ERP.PRD.Domain.Entities.Brand.Create("ACME", "Acme"), e => e.TenantId);
+
+    [Fact]
+    public void Product_Categories() =>
+        AssertIsolated<ERP.PRD.Infrastructure.Persistence.ProductDbContext, ERP.PRD.Domain.Entities.Category>(
+            ERP.PRD.Domain.Entities.Category.Create("Shirts", code: "SHIRTS"), e => e.TenantId);
 }

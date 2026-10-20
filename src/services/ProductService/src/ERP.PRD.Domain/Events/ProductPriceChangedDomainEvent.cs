@@ -9,8 +9,11 @@ namespace ERP.PRD.Domain.Events
     /// consumers (wired earlier this session) had to default price to 0 because this
     /// event didn't exist yet.
     /// </summary>
-    public class ProductPriceChangedDomainEvent : IDomainEvent
+    public class ProductPriceChangedDomainEvent : IDomainEvent, ITenantEvent
     {
+        /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+        public Guid TenantId { get; set; }
+
         public Guid ProductId { get; }
         public Guid VariantId { get; }
         public decimal OldPrice { get; }

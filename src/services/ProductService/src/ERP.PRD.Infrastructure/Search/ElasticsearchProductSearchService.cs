@@ -1,6 +1,7 @@
 using ERP.PRD.Domain.Search;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.QueryDsl;
+using ERP.Shared.Infrastructure.Data;
 using Microsoft.Extensions.Configuration;
 
 namespace ERP.PRD.Infrastructure.Search
@@ -16,9 +17,11 @@ namespace ERP.PRD.Infrastructure.Search
     {
         private readonly ElasticsearchClient _client;
         private readonly string _indexName;
+        private readonly ITenantProvider _tenantProvider;
 
-        public ElasticsearchProductSearchService(ElasticsearchClient client, IConfiguration configuration)
+        public ElasticsearchProductSearchService(ElasticsearchClient client, IConfiguration configuration, ITenantProvider tenantProvider)
         {
+            _tenantProvider = tenantProvider;
             _client = client;
             _indexName = configuration.GetValue<string>("Elasticsearch:IndexName") ?? "products";
         }
@@ -28,7 +31,14 @@ namespace ERP.PRD.Infrastructure.Search
             var page = Math.Max(1, query.Page);
             var pageSize = Math.Max(1, Math.Min(query.PageSize, 100));
 
+            // One index holds every tenant's products: always restrict to the caller's tenant
+            // (JWT, or the Gateway host tenant for the anonymous storefront). No tenant = nothing.
+            if (_tenantProvider.CurrentTenantId is not { } tenantId)
+                return new ProductSearchResultDto();
+
             var mustClauses = BuildMustClauses(query);
+            var tenant = tenantId.ToString();
+            mustClauses.Add(m => m.Term(t => t.Field(new Field("tenantId.keyword")).Value(tenant)));
             var facetCodes = query.FacetCodes ?? new List<string>();
 
             var response = await _client.SearchAsync<ProductSearchDocument>(_indexName, s =>

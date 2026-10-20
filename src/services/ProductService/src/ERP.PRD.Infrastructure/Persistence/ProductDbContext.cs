@@ -1,3 +1,4 @@
+using ERP.Shared.Infrastructure.Data;
 using ERP.PRD.Domain.Entities;
 using ERP.PRD.Domain.Entities.Settings;
 using ERP.PRD.Domain.Events;
@@ -10,10 +11,20 @@ using System.Reflection;
 
 namespace ERP.PRD.Infrastructure.Persistence
 {
-    public class ProductDbContext : DbContext
+    public class ProductDbContext : DbContext, ITenantScopedDbContext
     {
-        public ProductDbContext(DbContextOptions<ProductDbContext> options) : base(options)
+        private readonly ITenantProvider _tenantProvider;
+
+        /// <summary>
+        /// Tenant of the current request (JWT / Gateway host tenant) or consumer message
+        /// (TenantScope). Read by the tenant query filter on every query and used to
+        /// stamp/validate every save.
+        /// </summary>
+        public Guid? CurrentTenantId => _tenantProvider.CurrentTenantId;
+
+        public ProductDbContext(DbContextOptions<ProductDbContext> options, ITenantProvider tenantProvider) : base(options)
         {
+            _tenantProvider = tenantProvider;
         }
 
         public DbSet<Product> Products => Set<Product>();
@@ -120,7 +131,7 @@ namespace ERP.PRD.Infrastructure.Persistence
                 entity.Property(e => e.Code).HasMaxLength(50).IsRequired();
                 entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
                 entity.Property(e => e.LogoUrl).HasMaxLength(500);
-                entity.HasIndex(e => e.Code).IsUnique().HasFilter("[IsDeleted] = 0");
+                entity.HasIndex(e => new { e.TenantId, e.Code }).IsUnique().HasFilter("[IsDeleted] = 0"); // brand codes are per tenant
             });
 
             modelBuilder.Entity<ProductUomConversion>(entity =>
@@ -143,10 +154,18 @@ namespace ERP.PRD.Infrastructure.Persistence
                 entity.ToTable("PriceListItems");
                 entity.HasKey(e => e.Id);
             });
+
+            // Last, so it composes with any per-entity filter configured above.
+            modelBuilder.ApplyTenantQueryFilters(this);
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            // Stamp/validate the tenant first, so the events serialized below carry it.
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+            foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+                EventTenant.StampFrom(entry.Entity);
+
             // Capture domain events before saving
             var entries = ChangeTracker.Entries<BaseEntity>();
             var domainEvents = new List<IDomainEvent>();
@@ -225,6 +244,18 @@ namespace ERP.PRD.Infrastructure.Persistence
             }
 
             return result;
+        }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
     }
 }

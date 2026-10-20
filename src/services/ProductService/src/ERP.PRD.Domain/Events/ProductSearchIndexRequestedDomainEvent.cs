@@ -9,8 +9,11 @@ namespace ERP.PRD.Domain.Events
     /// instead of going through OutboxMessages/Kafka, it upserts/bumps a row in
     /// SearchIndexQueue (deduplicated by ProductId), which SearchIndexProcessor polls.
     /// </summary>
-    public class ProductSearchIndexRequestedDomainEvent : IDomainEvent
+    public class ProductSearchIndexRequestedDomainEvent : IDomainEvent, ITenantEvent
     {
+        /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+        public Guid TenantId { get; set; }
+
         public Guid ProductId { get; }
         public DateTime OccurredOn { get; }
 

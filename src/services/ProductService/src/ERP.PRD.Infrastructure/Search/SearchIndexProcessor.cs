@@ -1,3 +1,4 @@
+using ERP.Shared.Infrastructure.Data;
 using Elastic.Clients.Elasticsearch;
 using ERP.PRD.Domain.Search;
 using ERP.PRD.Infrastructure.Persistence;
@@ -108,7 +109,16 @@ namespace ERP.PRD.Infrastructure.Search
             {
                 try
                 {
-                    await indexer.IndexAsync(entry.ProductId, cancellationToken);
+                    // No user here: index each product inside its own tenant (looked up across
+                    // tenants). Unknown product = deleted -> no scope, the indexer removes the doc.
+                    var tenantId = await dbContext.Products
+                        .IgnoreQueryFilters()
+                        .Where(p => p.Id == entry.ProductId)
+                        .Select(p => (Guid?)p.TenantId)
+                        .FirstOrDefaultAsync(cancellationToken);
+
+                    using (tenantId is { } t && t != Guid.Empty ? TenantScope.Begin(t) : null)
+                        await indexer.IndexAsync(entry.ProductId, cancellationToken);
 
                     entry.IndexedAt = DateTime.UtcNow;
                     entry.Error = null;

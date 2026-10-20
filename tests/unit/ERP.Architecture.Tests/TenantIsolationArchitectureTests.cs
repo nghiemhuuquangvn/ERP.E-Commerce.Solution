@@ -36,7 +36,6 @@ public class TenantIsolationArchitectureTests
         "ERP.MST.Infrastructure.Persistence.MasterDataDbContext",
         "ERP.NTF.Infrastructure.Persistence.NotificationDbContext",
         "ERP.POS.Infrastructure.Persistence.POSDbContext",
-        "ERP.PRD.Infrastructure.Persistence.ProductDbContext",
         "ERP.PRM.Infrastructure.Persistence.PromotionDbContext",
         "ERP.SHP.Infrastructure.Persistence.ShippingDbContext",
     };

@@ -22,6 +22,9 @@ builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddErpAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+// Tenant isolation for ProductDbContext and search: JWT tenant, the Gateway host tenant
+// for the anonymous storefront catalog, or an explicit TenantScope (consumers, indexer).
+builder.Services.AddRequestTenantProvider();
 builder.Services.AddScoped<UserContext>();
 builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Product));
 
