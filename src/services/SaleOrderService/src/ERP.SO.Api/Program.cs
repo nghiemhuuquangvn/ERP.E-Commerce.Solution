@@ -136,6 +136,9 @@ builder.Services.AddHostedService<SagaRecoveryHostedService>();
 // the Gateway's forwarded X-User-*/X-Tenant-* headers with no signature verification;
 // see AuthenticationExtensions.AddErpJwtAuthentication/JwtClaimsUserContextService).
 builder.Services.AddErpJwtAuthentication(builder.Configuration);
+builder.Services.AddErpAuthorization();
+// Tenant must hold a license for this module (claim "licensed_module"); was missing here.
+builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.SaleOrder));
 builder.Services.AddMiddleware();
 
 // API
@@ -157,10 +160,11 @@ app.UseSwaggerUI();
 
 app.UseAuthentication();
 app.UseUserContextHeaderMiddleware();
+app.UseMiddleware<LicenseEnforcementMiddleware>();
 app.UseSharedLocalization();
 app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();

@@ -45,6 +45,7 @@ try
     // now for consistency with the rest of the platform and so any future
     // [Authorize]-gated endpoint actually works instead of silently passing through.
     builder.Services.AddErpJwtAuthentication(builder.Configuration);
+    builder.Services.AddErpAuthorization();
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
     builder.Services.AddScoped<UserContext>();
@@ -68,7 +69,7 @@ try
     app.UseMiddleware<UserContextHeaderMiddleware>();
     app.UseMiddleware<LicenseEnforcementMiddleware>();
     app.UseAuthorization();
-    app.MapHealthChecks("/health");
+    app.MapHealthChecks("/health").AllowAnonymous();
     app.MapControllers();
 
     app.Run();

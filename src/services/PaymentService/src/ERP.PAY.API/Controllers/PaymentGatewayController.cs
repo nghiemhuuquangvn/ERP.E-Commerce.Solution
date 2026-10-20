@@ -60,6 +60,9 @@ public class PaymentGatewayController : ControllerBase
     /// VNPay callback — verifies signature and captures the payment.
     /// VNPay calls this URL after customer completes payment.
     /// </summary>
+    // Browser redirect from VNPay — carries no bearer token. Authenticity comes from the
+    // VNPay signature verified below, so it must stay reachable under the FallbackPolicy.
+    [AllowAnonymous]
     [HttpGet("callback")]
     public async Task<IActionResult> VnPayCallback(CancellationToken ct)
     {

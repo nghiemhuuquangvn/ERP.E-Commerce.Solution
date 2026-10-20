@@ -27,6 +27,7 @@ namespace ERP.Identity.Api.Controllers
         }
 
         [HttpGet]
+        [AuthorizeAnyAuthenticatedUser]
         public async Task<IActionResult> GetModules(CancellationToken ct = default)
         {
             var result = await _licenseService.GetModulesAsync(ct);

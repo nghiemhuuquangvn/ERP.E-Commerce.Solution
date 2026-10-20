@@ -48,6 +48,9 @@ namespace ERP.Identity.Api.Controllers;
 ///   tenants' accounts is a genuine edge case left unresolved.
 /// </summary>
 [Route("connect")]
+// Public by design: the interactive OIDC pages authenticate via their own cookie and the
+// credential check in IAuthService.VerifyInteractiveCredentialsAsync.
+[Microsoft.AspNetCore.Authorization.AllowAnonymous]
 public class OidcAuthorizationController : ControllerBase
 {
     private readonly IUnitOfWork _unitOfWork;

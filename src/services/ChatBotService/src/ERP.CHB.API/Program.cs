@@ -25,6 +25,7 @@ builder.Services.AddScoped<IChatStreamNotifier, SignalRChatStreamNotifier>();
 // JwtClaimsUserContextService, same as every other service. The "/hubs" query-string
 // fallback it adds is what lets ChatHub's WebSocket connections authenticate.
 builder.Services.AddErpJwtAuthentication(builder.Configuration);
+builder.Services.AddErpAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 builder.Services.AddScoped<UserContext>();
@@ -101,6 +102,6 @@ app.UseMiddleware<LicenseEnforcementMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<ChatHub>("/hubs/chat");
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();

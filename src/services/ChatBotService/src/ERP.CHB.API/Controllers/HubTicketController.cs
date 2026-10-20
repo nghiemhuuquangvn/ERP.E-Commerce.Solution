@@ -31,6 +31,7 @@ public class HubTicketController : ControllerBase
     // matching fix/comment for the full "silently wrapped an expired token, only failed
     // much later at negotiate with no recovery path" bug this closes.
     [HttpPost]
+    [AuthorizeAnyAuthenticatedUser]
     public IActionResult IssueTicket()
     {
         var authHeader = Request.Headers.Authorization.ToString();

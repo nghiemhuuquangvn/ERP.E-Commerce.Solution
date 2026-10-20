@@ -115,6 +115,7 @@ builder.Services.AddHostedService<SalesOrderRabbitMqConsumer>();     // sales_or
 // X-Tenant-* headers with no signature verification; see
 // AuthenticationExtensions.AddErpJwtAuthentication/JwtClaimsUserContextService.
 builder.Services.AddErpJwtAuthentication(builder.Configuration);
+builder.Services.AddErpAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 builder.Services.AddScoped<UserContext>();
@@ -177,6 +178,6 @@ app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications").RequireCors("NotificationHubCors");
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();

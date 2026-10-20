@@ -21,6 +21,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 // fully readable with no credential; see AuthenticationExtensions.AddErpJwtAuthentication
 // / JwtClaimsUserContextService for the shared pattern every other service uses.
 builder.Services.AddErpJwtAuthentication(builder.Configuration);
+builder.Services.AddErpAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 builder.Services.AddScoped<UserContext>();
@@ -64,6 +65,6 @@ app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
 app.UseCors();
 app.UseAuthorization();
 app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();
