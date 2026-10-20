@@ -8,8 +8,11 @@ namespace ERP.ACC.Domain.Events
         Guid CustomerId,
         Guid OrderId,
         decimal Amount,
-        DateTime DueDate) : IDomainEvent
+        DateTime DueDate) : IDomainEvent, ITenantEvent
     {
+        /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+        public Guid TenantId { get; set; }
+
         public DateTime OccurredOn { get; } = DateTime.UtcNow;
     }
 
@@ -18,8 +21,11 @@ namespace ERP.ACC.Domain.Events
         string InvoiceNumber,
         Guid CustomerId,
         decimal Amount,
-        DateTime PaidAt) : IDomainEvent
+        DateTime PaidAt) : IDomainEvent, ITenantEvent
     {
+        /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+        public Guid TenantId { get; set; }
+
         public DateTime OccurredOn { get; } = DateTime.UtcNow;
     }
 
@@ -28,8 +34,11 @@ namespace ERP.ACC.Domain.Events
         string BillNumber,
         Guid SupplierId,
         Guid POId,
-        decimal Amount) : IDomainEvent
+        decimal Amount) : IDomainEvent, ITenantEvent
     {
+        /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+        public Guid TenantId { get; set; }
+
         public DateTime OccurredOn { get; } = DateTime.UtcNow;
     }
 
@@ -38,8 +47,11 @@ namespace ERP.ACC.Domain.Events
         string BillNumber,
         Guid SupplierId,
         decimal Amount,
-        DateTime PaidAt) : IDomainEvent
+        DateTime PaidAt) : IDomainEvent, ITenantEvent
     {
+        /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+        public Guid TenantId { get; set; }
+
         public DateTime OccurredOn { get; } = DateTime.UtcNow;
     }
 
@@ -49,8 +61,11 @@ namespace ERP.ACC.Domain.Events
         Guid FiscalPeriodId,
         string Description,
         decimal TotalDebit,
-        decimal TotalCredit) : IDomainEvent
+        decimal TotalCredit) : IDomainEvent, ITenantEvent
     {
+        /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+        public Guid TenantId { get; set; }
+
         public DateTime OccurredOn { get; } = DateTime.UtcNow;
     }
 
@@ -59,8 +74,11 @@ namespace ERP.ACC.Domain.Events
         string PeriodName,
         DateTime StartDate,
         DateTime EndDate,
-        DateTime ClosedAt) : IDomainEvent
+        DateTime ClosedAt) : IDomainEvent, ITenantEvent
     {
+        /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+        public Guid TenantId { get; set; }
+
         public DateTime OccurredOn { get; } = DateTime.UtcNow;
     }
 
@@ -68,8 +86,11 @@ namespace ERP.ACC.Domain.Events
         Guid TaxRateId,
         string Name,
         string Code,
-        decimal Rate) : IDomainEvent
+        decimal Rate) : IDomainEvent, ITenantEvent
     {
+        /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+        public Guid TenantId { get; set; }
+
         public DateTime OccurredOn { get; } = DateTime.UtcNow;
     }
 
@@ -77,8 +98,11 @@ namespace ERP.ACC.Domain.Events
         Guid BankAccountId,
         string AccountName,
         string BankName,
-        string AccountNumber) : IDomainEvent
+        string AccountNumber) : IDomainEvent, ITenantEvent
     {
+        /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+        public Guid TenantId { get; set; }
+
         public DateTime OccurredOn { get; } = DateTime.UtcNow;
     }
 }

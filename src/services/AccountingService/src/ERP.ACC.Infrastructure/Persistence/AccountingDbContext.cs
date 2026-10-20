@@ -1,3 +1,4 @@
+using ERP.Shared.Infrastructure.Data;
 using ERP.ACC.Domain.Entities;
 using ERP.ACC.Domain.Entities.Settings;
 using ERP.Shared.Core.Domain;
@@ -8,7 +9,7 @@ using System.Reflection;
 
 namespace ERP.ACC.Infrastructure.Persistence
 {
-    public class AccountingDbContext : DbContext
+    public class AccountingDbContext : DbContext, ITenantScopedDbContext
     {
         public DbSet<Account> Accounts { get; set; }
         public DbSet<JournalEntry> JournalEntries { get; set; }
@@ -23,8 +24,18 @@ namespace ERP.ACC.Infrastructure.Persistence
         public DbSet<SystemTaxSettings> SystemTaxSettings { get; set; }
         public DbSet<TenantTaxSettings> TenantTaxSettings { get; set; }
 
-        public AccountingDbContext(DbContextOptions<AccountingDbContext> options) : base(options)
+        private readonly ITenantProvider _tenantProvider;
+
+        /// <summary>
+        /// Tenant of the current request (JWT / Gateway host tenant) or consumer message
+        /// (TenantScope). Read by the tenant query filter on every query and used to
+        /// stamp/validate every save.
+        /// </summary>
+        public Guid? CurrentTenantId => _tenantProvider.CurrentTenantId;
+
+        public AccountingDbContext(DbContextOptions<AccountingDbContext> options, ITenantProvider tenantProvider) : base(options)
         {
+            _tenantProvider = tenantProvider;
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -86,7 +97,7 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.Code).IsRequired().HasMaxLength(20);
                 e.Property(x => x.Rate).HasColumnType("decimal(8,4)");
                 e.Property(x => x.Description).HasMaxLength(500);
-                e.HasIndex(x => x.Code).IsUnique();
+                e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique(); // tax codes are per tenant
             });
 
             modelBuilder.Entity<BankAccount>(e =>
@@ -127,10 +138,18 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.DefaultTaxRatePercent).HasColumnType("decimal(8,4)");
                 e.HasIndex(x => x.TenantId).IsUnique();
             });
+
+            // Last, so it composes with any per-entity filter configured above.
+            modelBuilder.ApplyTenantQueryFilters(this);
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            // Stamp/validate the tenant first, so the events serialized below carry it.
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+            foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+                EventTenant.StampFrom(entry.Entity);
+
             var aggregateRoots = ChangeTracker.Entries<BaseEntity>()
                 .Where(e => e.Entity.DomainEvents.Count != 0)
                 .Select(e => e.Entity)
@@ -168,6 +187,18 @@ namespace ERP.ACC.Infrastructure.Persistence
                 aggregateRoot.ClearDomainEvents();
 
             return result;
+        }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
     }
 }

@@ -1,3 +1,4 @@
+using ERP.Shared.Core.Domain;
 using ERP.Shared.Contracts;
 
 namespace ERP.SO.Domain.Events
@@ -8,8 +9,11 @@ namespace ERP.SO.Domain.Events
     /// by restocking. SaleOrderService's own job here is only to record that the
     /// return happened — it does not process the refund itself.
     /// </summary>
-    public class SalesOrderReturnedEvent : IntegrationEventBase
+    public class SalesOrderReturnedEvent : IntegrationEventBase, ITenantEvent
     {
+        /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+        public Guid TenantId { get; set; }
+
         public Guid OrderId { get; set; }
         public Guid CustomerId { get; set; }
         public string Reason { get; set; } = string.Empty;

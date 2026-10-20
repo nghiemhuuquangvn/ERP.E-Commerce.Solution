@@ -1,7 +1,7 @@
 namespace ERP.SO.Domain.Entities
 {
     /// <summary>Per-tenant, per-month counter backing OrderNo/QuotationNo generation — incremented atomically via a MERGE...OUTPUT statement, not through the EF change tracker.</summary>
-    public class OrderNumberSequence
+    public class OrderNumberSequence : ERP.Shared.Core.Domain.ITenantOwned
     {
         public Guid Id { get; set; }
         public Guid TenantId { get; set; }

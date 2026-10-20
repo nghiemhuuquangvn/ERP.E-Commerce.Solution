@@ -7,8 +7,11 @@ namespace ERP.PO.Domain.Events;
 /// reason and only applies to a Submitted order awaiting approval, whereas Cancel
 /// can end an order at any earlier-or-later stage without one.
 /// </summary>
-public class PurchaseOrderRejectedDomainEvent : IDomainEvent
+public class PurchaseOrderRejectedDomainEvent : IDomainEvent, ITenantEvent
 {
+    /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+    public Guid TenantId { get; set; }
+
     public Guid PurchaseOrderId { get; }
     public string PONumber { get; }
     public Guid SupplierId { get; }

@@ -1,3 +1,5 @@
+using ERP.Shared.Core.Domain;
+
 namespace ERP.SO.Domain.Entities
 {
     public enum CommissionStatus
@@ -13,9 +15,11 @@ namespace ERP.SO.Domain.Entities
     /// orders" using the event that actually exists in this system (there is no InvoicePaid
     /// event anywhere).
     /// </summary>
-    public class CommissionRecord
+    public class CommissionRecord : ITenantOwned
     {
         public Guid Id { get; private set; }
+        /// <summary>Owning tenant — stamped by SalesOrderDbContext on insert (EnforceTenantOnSave).</summary>
+        public Guid TenantId { get; private set; }
         public Guid PlanId { get; private set; }
         public Guid SalesRepId { get; private set; }
         public Guid OrderId { get; private set; }

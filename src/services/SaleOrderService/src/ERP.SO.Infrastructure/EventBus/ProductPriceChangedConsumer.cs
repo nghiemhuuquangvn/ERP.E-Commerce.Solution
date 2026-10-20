@@ -1,3 +1,5 @@
+using ERP.Shared.Messaging;
+using ERP.Shared.Infrastructure.Data;
 using Confluent.Kafka;
 using ERP.SO.Application.Handlers;
 using Microsoft.Extensions.Configuration;
@@ -102,9 +104,17 @@ namespace ERP.SO.Infrastructure.EventBus
             var newPrice = raw.Value<decimal?>("NewPrice") ?? 0m;
             if (productId == Guid.Empty)
                 return;
+            // Product ids are only meaningful inside the product's tenant; without one we
+            // must not touch any order (fail closed).
+            if (!EventTenant.TryRead(json, out var tenantId))
+            {
+                _logger.LogWarning("ProductPriceChanged for {ProductId} has no TenantId — ignored", productId);
+                return;
+            }
 
             using var scope = _serviceProvider.CreateScope();
             var repository = scope.ServiceProvider.GetRequiredService<ISalesOrderRepository>();
+            using var tenantScope = TenantScope.Begin(tenantId);
 
             var openOrders = await repository.GetOpenOrdersContainingProductAsync(productId, cancellationToken);
             foreach (var order in openOrders)

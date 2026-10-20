@@ -7,7 +7,7 @@ namespace ERP.Shared.Authorization;
 /// </summary>
 public static class PlatformTenant
 {
-    public static readonly Guid Id = new("00000000-0000-0000-0000-000000000001");
+    public static readonly Guid Id = ERP.Shared.Core.Domain.WellKnownTenants.Platform;
 
     public const string Code = "SYSTEM";
 

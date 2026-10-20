@@ -8,6 +8,12 @@ public interface IPaymentRepository
     Task<Payment?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Payment?> GetByOrderIdAsync(Guid orderId, CancellationToken ct = default);
     Task<Payment?> GetByTransactionRefAsync(string transactionRef, CancellationToken ct = default);
+    /// <summary>
+    /// Tenant of the payment with this gateway reference, looked up ACROSS tenants — only for
+    /// signature-verified gateway callbacks, which arrive without a user (and possibly on a
+    /// host that is not the payment's tenant). Null when unknown.
+    /// </summary>
+    Task<Guid?> FindTenantByTransactionRefAsync(string transactionRef, CancellationToken ct = default);
     Task<List<Payment>> GetByStatusAsync(PaymentStatus status, CancellationToken ct = default);
     Task<(List<Payment> Items, int Total)> GetPagedAsync(int skip, int take, PaymentStatus? status, CancellationToken ct = default);
     Task AddAsync(Payment payment, CancellationToken ct = default);

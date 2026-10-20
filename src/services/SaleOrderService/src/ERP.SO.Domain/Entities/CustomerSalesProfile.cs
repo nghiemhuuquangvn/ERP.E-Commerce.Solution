@@ -1,3 +1,5 @@
+using ERP.Shared.Core.Domain;
+
 namespace ERP.SO.Domain.Entities
 {
     /// <summary>
@@ -6,9 +8,11 @@ namespace ERP.SO.Domain.Entities
     /// has no Customer entity, IdentityService's User has none either). Unlike
     /// HRM's EmployeeSnapshot, there is no external source of truth to mirror here.
     /// </summary>
-    public class CustomerSalesProfile
+    public class CustomerSalesProfile : ITenantOwned
     {
         public Guid Id { get; private set; }
+        /// <summary>Owning tenant — stamped by SalesOrderDbContext on insert (EnforceTenantOnSave).</summary>
+        public Guid TenantId { get; private set; }
         public Guid CustomerId { get; private set; }
         public decimal CreditLimit { get; private set; }
         /// <summary>Denormalized running total of open (Approved..Delivered, not yet Cancelled) order value — not a lifetime total.</summary>

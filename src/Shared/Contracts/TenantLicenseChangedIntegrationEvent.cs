@@ -6,7 +6,7 @@ namespace ERP.Shared.Contracts
     /// and ReportingService (analytics). Deliberately does not carry the module list —
     /// a consumer that needs it calls IdentityService's license API.
     /// </summary>
-    public class TenantLicenseChangedIntegrationEvent : IntegrationEventBase
+    public class TenantLicenseChangedIntegrationEvent : IntegrationEventBase, ERP.Shared.Core.Domain.ITenantEvent
     {
         public Guid TenantId { get; set; }
 

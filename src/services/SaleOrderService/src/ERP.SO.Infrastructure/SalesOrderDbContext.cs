@@ -1,15 +1,27 @@
 using ERP.SO.Domain.Entities;
 using ERP.SO.Domain.Entities.Settings;
 using ERP.SO.Domain.Sagas;
+using ERP.Shared.Infrastructure.Data;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 
 namespace ERP.SO.Infrastructure
 {
-    public class SalesOrderDbContext : DbContext
+    public class SalesOrderDbContext : DbContext, ITenantScopedDbContext
     {
-        public SalesOrderDbContext(DbContextOptions<SalesOrderDbContext> options)
-            : base(options) { }
+        private readonly ITenantProvider _tenantProvider;
+
+        public SalesOrderDbContext(DbContextOptions<SalesOrderDbContext> options, ITenantProvider tenantProvider)
+            : base(options)
+        {
+            _tenantProvider = tenantProvider;
+        }
+
+        /// <summary>
+        /// Tenant of the current request (JWT / Gateway host) or consumer message (TenantScope).
+        /// Read by the tenant query filter on every query and used to stamp/validate every save.
+        /// </summary>
+        public Guid? CurrentTenantId => _tenantProvider.CurrentTenantId;
 
         public DbSet<SalesOrder> SalesOrders { get; set; } = null!;
         public DbSet<OrderNumberSequence> OrderNumberSequences { get; set; } = null!;
@@ -53,7 +65,7 @@ namespace ERP.SO.Infrastructure
                 eb.Property(e => e.OrderSource).IsRequired();
                 eb.Property(e => e.DiscountAmount).IsRequired().HasPrecision(18, 2);
 
-                eb.HasIndex(e => e.OrderNo).IsUnique().HasFilter("[OrderNo] <> ''");
+                eb.HasIndex(e => new { e.TenantId, e.OrderNo }).IsUnique().HasFilter("[OrderNo] <> ''"); // numbering is per tenant
 
                 eb.OwnsOne(e => e.ShippingAddress, address =>
                 {
@@ -121,7 +133,7 @@ namespace ERP.SO.Infrastructure
                 eb.HasKey(e => e.Id);
                 eb.Property(e => e.CreditLimit).IsRequired().HasPrecision(18, 2);
                 eb.Property(e => e.CurrentBalance).IsRequired().HasPrecision(18, 2);
-                eb.HasIndex(e => e.CustomerId).IsUnique();
+                eb.HasIndex(e => new { e.TenantId, e.CustomerId }).IsUnique();
             });
 
             modelBuilder.Entity<CommissionPlan>(eb =>
@@ -174,7 +186,7 @@ namespace ERP.SO.Infrastructure
                 });
 
                 eb.HasIndex(e => e.CustomerId);
-                eb.HasIndex(e => e.QuotationNo).IsUnique();
+                eb.HasIndex(e => new { e.TenantId, e.QuotationNo }).IsUnique(); // numbering is per tenant
             });
 
             modelBuilder.Entity<OrderNumberSequence>(eb =>
@@ -246,6 +258,21 @@ namespace ERP.SO.Infrastructure
                     .HasDatabaseName("IX_OutboxMessages_ProcessedOnUtc_Pending")
                     .HasFilter("[ProcessedOnUtc] IS NULL");
             });
+
+            // Last, so it composes with any per-entity filter configured above.
+            modelBuilder.ApplyTenantQueryFilters(this);
+        }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
     }
 }

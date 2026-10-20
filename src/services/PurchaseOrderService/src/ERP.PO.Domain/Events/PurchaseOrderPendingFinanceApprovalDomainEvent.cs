@@ -7,8 +7,11 @@ namespace ERP.PO.Domain.Events;
 /// PurchaseOrder.FinanceApprovalThreshold, so it now needs a second Finance
 /// approval before becoming Approved.
 /// </summary>
-public class PurchaseOrderPendingFinanceApprovalDomainEvent : IDomainEvent
+public class PurchaseOrderPendingFinanceApprovalDomainEvent : IDomainEvent, ITenantEvent
 {
+    /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+    public Guid TenantId { get; set; }
+
     public Guid PurchaseOrderId { get; }
     public string PONumber { get; }
     public Guid SupplierId { get; }

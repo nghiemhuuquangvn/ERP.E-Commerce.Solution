@@ -1,3 +1,4 @@
+using ERP.Shared.Core.Domain;
 using ERP.Shared.Contracts;
 
 namespace ERP.SO.Domain.Events
@@ -8,8 +9,11 @@ namespace ERP.SO.Domain.Events
     /// anything, so that loop always published zero events. Meant to trigger loyalty
     /// points (Promotion) and CRM purchase-history updates per the business flow docs.
     /// </summary>
-    public class SalesOrderDeliveredEvent : IntegrationEventBase
+    public class SalesOrderDeliveredEvent : IntegrationEventBase, ITenantEvent
     {
+        /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+        public Guid TenantId { get; set; }
+
         public Guid OrderId { get; set; }
         public Guid CustomerId { get; set; }
         public decimal TotalAmount { get; set; }

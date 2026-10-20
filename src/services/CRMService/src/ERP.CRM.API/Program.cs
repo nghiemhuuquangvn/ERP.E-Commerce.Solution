@@ -50,7 +50,7 @@ try
     builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
     // Tenant isolation for CrmDbContext: the caller's JWT tenant, or an explicit
     // TenantScope set by the Kafka/RabbitMQ consumers.
-    builder.Services.AddTenantProvider(sp => sp.GetRequiredService<IUserContextService>().GetTenantId());
+    builder.Services.AddRequestTenantProvider();
     builder.Services.AddScoped<UserContext>();
     builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Crm));
 

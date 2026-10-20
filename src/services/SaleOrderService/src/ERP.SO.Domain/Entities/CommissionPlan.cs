@@ -1,3 +1,5 @@
+using ERP.Shared.Core.Domain;
+
 namespace ERP.SO.Domain.Entities
 {
     public enum CommissionRateType
@@ -6,9 +8,11 @@ namespace ERP.SO.Domain.Entities
         // Tiered is a bigger rule-engine problem — add only when a real tiered use case shows up.
     }
 
-    public class CommissionPlan
+    public class CommissionPlan : ITenantOwned
     {
         public Guid Id { get; private set; }
+        /// <summary>Owning tenant — stamped by SalesOrderDbContext on insert (EnforceTenantOnSave).</summary>
+        public Guid TenantId { get; private set; }
         public string Name { get; private set; } = string.Empty;
         public CommissionRateType RateType { get; private set; }
         /// <summary>Fraction of order total, e.g. 0.05 = 5%.</summary>

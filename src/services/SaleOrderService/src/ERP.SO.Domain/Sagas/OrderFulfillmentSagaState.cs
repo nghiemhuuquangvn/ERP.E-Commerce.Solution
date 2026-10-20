@@ -22,7 +22,7 @@ public enum SagaStep
     Failed
 }
 
-public class OrderFulfillmentSagaState
+public class OrderFulfillmentSagaState : ERP.Shared.Core.Domain.ITenantOwned
 {
     public Guid Id { get; private set; }
     public Guid TenantId { get; private set; }

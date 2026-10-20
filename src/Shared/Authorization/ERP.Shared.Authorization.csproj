@@ -16,4 +16,9 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- ITenantProvider/TenantScope (AddRequestTenantProvider) and ERP.Shared.Core. -->
+    <ProjectReference Include="..\Infrastructure\Data\ERP.Shared.Data.csproj" />
+  </ItemGroup>
+
 </Project>

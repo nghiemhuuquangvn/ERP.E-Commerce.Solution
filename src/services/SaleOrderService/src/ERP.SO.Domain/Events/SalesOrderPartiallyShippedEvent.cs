@@ -1,10 +1,14 @@
+using ERP.Shared.Core.Domain;
 using ERP.Shared.Contracts;
 
 namespace ERP.SO.Domain.Events
 {
     /// <summary>Raised when some but not all line items on an order have shipped.</summary>
-    public class SalesOrderPartiallyShippedEvent : IntegrationEventBase
+    public class SalesOrderPartiallyShippedEvent : IntegrationEventBase, ITenantEvent
     {
+        /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+        public Guid TenantId { get; set; }
+
         public Guid OrderId { get; set; }
         public Guid CustomerId { get; set; }
         public string TrackingNumber { get; set; } = string.Empty;

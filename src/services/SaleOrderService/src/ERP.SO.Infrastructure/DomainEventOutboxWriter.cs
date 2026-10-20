@@ -19,9 +19,12 @@ namespace ERP.SO.Infrastructure
         public static void Stage(SalesOrderDbContext context, BaseEntity aggregate)
         {
             var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
+            // Consumers run their handling in the tenant the event carries (ITenantEvent).
+            var tenantId = aggregate.TenantId != Guid.Empty ? aggregate.TenantId : context.CurrentTenantId ?? Guid.Empty;
 
             foreach (var domainEvent in aggregate.DomainEvents)
             {
+                EventTenant.Stamp(domainEvent, tenantId);
                 var content = JsonConvert.SerializeObject(domainEvent, settings);
                 context.OutboxMessages.Add(new OutboxMessage(domainEvent.GetType().Name, content));
             }

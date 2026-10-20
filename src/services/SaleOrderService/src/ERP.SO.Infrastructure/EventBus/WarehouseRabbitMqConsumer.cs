@@ -1,3 +1,5 @@
+using ERP.Shared.Messaging;
+using ERP.Shared.Infrastructure.Data;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -69,14 +71,22 @@ namespace ERP.SO.Infrastructure.EventBus
                 {
                     case "warehouse.InventoryReservedEvent":
                         var reserved = JsonSerializer.Deserialize<InventoryReservedEventContract>(json);
-                        if (reserved != null)
-                            await saga.HandleInventoryReservedAsync(reserved.OrderId, reserved.ReservationId, default);
+                        if (reserved != null
+                            && await OrderTenant.ResolveAsync(scope.ServiceProvider.GetRequiredService<SalesOrderDbContext>(), reserved.OrderId, json, _logger, default) is { } reservedTenant)
+                        {
+                            using (TenantScope.Begin(reservedTenant))
+                                await saga.HandleInventoryReservedAsync(reserved.OrderId, reserved.ReservationId, default);
+                        }
                         break;
 
                     case "warehouse.InventoryInsufficientEvent":
                         var insufficient = JsonSerializer.Deserialize<InventoryInsufficientEventContract>(json);
-                        if (insufficient != null)
-                            await saga.HandleInventoryInsufficientAsync(insufficient.OrderId, insufficient.Reason, default);
+                        if (insufficient != null
+                            && await OrderTenant.ResolveAsync(scope.ServiceProvider.GetRequiredService<SalesOrderDbContext>(), insufficient.OrderId, json, _logger, default) is { } insufficientTenant)
+                        {
+                            using (TenantScope.Begin(insufficientTenant))
+                                await saga.HandleInventoryInsufficientAsync(insufficient.OrderId, insufficient.Reason, default);
+                        }
                         break;
 
                     default:
