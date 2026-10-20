@@ -86,14 +86,8 @@ namespace ERP.Identity.Api.Controllers
             return await CallerHasSystemOverrideAsync(ct) ? requestedTenantId : null;
         }
 
-        private async Task<bool> CallerHasSystemOverrideAsync(CancellationToken ct)
-        {
-            var callerUserId = this.GetCallerUserId();
-            var callerTenantId = this.GetCallerTenantId();
-            if (callerUserId is null || callerTenantId is null)
-                return false;
-
-            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { PermissionConstants.Settings_SystemManage });
-        }
+        private Task<bool> CallerHasSystemOverrideAsync(CancellationToken ct) =>
+            HttpContext.RequestServices.GetRequiredService<ITenantAccessPolicy>()
+                .HasPlatformPermissionAsync(PermissionConstants.Settings_SystemManage, ct);
     }
 }

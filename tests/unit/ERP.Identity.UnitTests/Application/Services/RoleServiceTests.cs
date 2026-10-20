@@ -208,9 +208,13 @@ public class RoleServiceTests
         SetupRoleInTenant(roleId, tenantId);
         _mockUnitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
+        // Anti-escalation: the granting user must hold the permission themselves.
+        var callerId = Guid.NewGuid();
+        mockPermissionRepository.Setup(r => r.GetPermissionAsync(callerId, tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<string> { permissionCode });
 
         // Act
-        await _roleService.AssignPermissionAsync(roleId, permissionCode, tenantId, null, null, CancellationToken.None);
+        await _roleService.AssignPermissionAsync(roleId, permissionCode, tenantId, callerId, "caller", CancellationToken.None);
 
         // Assert
         mockPermissionRepository.Verify(r => r.AssignToRoleAsync(roleId, permission.Id, tenantId, It.IsAny<CancellationToken>()), Times.Once);

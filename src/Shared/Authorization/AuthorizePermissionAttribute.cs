@@ -44,8 +44,11 @@ public class AuthorizePermissionAttribute : Attribute, IAsyncAuthorizationFilter
             return;
         }
 
-        // SuperAdmin role bypasses all permission checks
-        if (!user.HasRole("SuperAdmin") && !user.HasAllPermissions(_requiredPermissions))
+        // No role-name bypass: authority comes only from permission claims. A "SuperAdmin"
+        // role-name bypass used to exist here — any tenant admin could create a role with
+        // that code, assign it to themselves and skip every permission check in every
+        // service. The real SUPER_ADMIN role holds every permission explicitly.
+        if (!user.HasAllPermissions(_requiredPermissions))
         {
             context.Result = new StatusCodeResult(StatusCodes.Status403Forbidden);
             return;
@@ -146,8 +149,8 @@ public class AuthorizeRoleAttribute : Attribute, IAsyncAuthorizationFilter
             return;
         }
 
-        // SuperAdmin role bypasses all role checks
-        if (!user.HasRole("SuperAdmin") && !user.HasAllRoles(_requiredRoles))
+        // No role-name bypass (see AuthorizePermissionAttribute).
+        if (!user.HasAllRoles(_requiredRoles))
         {
             context.Result = new StatusCodeResult(StatusCodes.Status403Forbidden);
             return;

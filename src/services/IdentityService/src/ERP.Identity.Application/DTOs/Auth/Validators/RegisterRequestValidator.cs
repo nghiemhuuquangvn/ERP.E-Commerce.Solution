@@ -23,8 +23,8 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
         RuleFor(x => x.UserType)
             .Equal(UserType.Customer).WithMessage("Self-registration is only available for customer accounts.");
 
-        RuleFor(x => x.TenantCode)
-            .NotEmpty().WithMessage(_ => localizer["Validation_Required", "Tenant code"].Value);
+        // No TenantCode rule: AuthController overwrites it with the tenant of the request
+        // host (set by the Gateway) — a body value is never trusted.
 
         RuleFor(x => x.UserName)
             .MaximumLength(100).WithMessage(_ => localizer["Validation_MaxLength", "Username", 100].Value)

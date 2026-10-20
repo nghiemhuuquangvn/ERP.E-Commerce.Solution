@@ -15,11 +15,46 @@ namespace ERP.Identity.Api.Controllers
     public class TenantsController : ControllerBase
     {
         private readonly ITenantService _tenantService;
+        private readonly ITenantDomainService _tenantDomainService;
 
-        public TenantsController(ITenantService tenantService)
+        public TenantsController(ITenantService tenantService, ITenantDomainService tenantDomainService)
         {
             _tenantService = tenantService;
+            _tenantDomainService = tenantDomainService;
         }
+
+        /// <summary>
+        /// Host → tenant lookup for the Gateway (called directly on the internal network; the
+        /// public Gateway route /id/api/* requires a Bearer token, so this is not exposed
+        /// anonymously from outside). Returns only what the host itself already implies.
+        /// </summary>
+        [HttpGet("resolve")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Resolve([FromQuery] string host, CancellationToken ct = default)
+        {
+            var resolution = await _tenantDomainService.ResolveAsync(host, ct);
+            return resolution == null ? NotFound() : Ok(resolution);
+        }
+
+        [HttpGet("{id}/domains")]
+        [AuthorizePermission(PermissionConstants.Identity_TenantsView)]
+        public async Task<IActionResult> ListDomains([FromRoute] Guid id, CancellationToken ct = default) =>
+            Ok(await _tenantDomainService.ListAsync(id, ct));
+
+        [HttpPost("{id}/domains")]
+        [AuthorizePermission(PermissionConstants.Identity_TenantsManage)]
+        public async Task<IActionResult> AddDomain([FromRoute] Guid id, [FromBody] AddTenantDomainRequest request, CancellationToken ct = default) =>
+            Ok(await _tenantDomainService.AddAsync(id, request.Host, request.IsPrimary, ct));
+
+        [HttpDelete("{id}/domains/{domainId}")]
+        [AuthorizePermission(PermissionConstants.Identity_TenantsManage)]
+        public async Task<IActionResult> RemoveDomain([FromRoute] Guid id, [FromRoute] Guid domainId, CancellationToken ct = default)
+        {
+            await _tenantDomainService.RemoveAsync(id, domainId, ct);
+            return NoContent();
+        }
+
+        public record AddTenantDomainRequest(string Host, bool IsPrimary = false);
 
         [HttpGet]
         [AuthorizePermission(PermissionConstants.Identity_TenantsView)]

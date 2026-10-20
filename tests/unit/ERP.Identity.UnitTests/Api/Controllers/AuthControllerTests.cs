@@ -109,4 +109,32 @@ public class AuthControllerTests
 
         result.Should().BeOfType<OkObjectResult>();
     }
+
+    [Fact]
+    public async Task Register_UsesTenantOfHost_NotTheBody()
+    {
+        _mockAuthService.Setup(s => s.RegisterAsync(It.IsAny<RegisterDto.RegisterRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LoginDto.LoginResponse("t", "r", true));
+
+        await _controller.Register(new RegisterDto.RegisterRequest("a@b.test", null, "p", "OTHER-TENANT", UserType.Customer), CancellationToken.None);
+
+        _mockAuthService.Verify(s => s.RegisterAsync(It.Is<RegisterDto.RegisterRequest>(r => r.TenantCode == "tenant001"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SignupTenant_OutsidePlatformHost_IsForbidden()
+    {
+        var result = await _controller.SignupTenant(new TenantSignupDto.TenantSignupRequest("X", "X", "a@b.test", "p"), CancellationToken.None);
+
+        result.Should().BeOfType<ForbidResult>();
+        _mockAuthService.Verify(s => s.SignupTenantAsync(It.IsAny<TenantSignupDto.TenantSignupRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Refresh_WithoutHostTenant_IsRejected()
+    {
+        var result = await _controller.RefreshToken(new RefreshTokenDto.RefreshTokenRequest("token"), CancellationToken.None);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
 }

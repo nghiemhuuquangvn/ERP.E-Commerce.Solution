@@ -17,6 +17,9 @@ namespace ERP.Identity.Api.Controllers
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/settings/feature-flags")]
     [Authorize]
+    // Cross-tenant access (route/query tenantId ≠ caller's tenant) only for platform-tenant
+    // callers holding settings:system:manage — see ITenantAccessPolicy.
+    [TenantRouteAccess(PermissionConstants.Settings_SystemManage)]
     public class FeatureFlagsController : ControllerBase
     {
         private readonly IFeatureFlagService _featureFlagService;
@@ -48,9 +51,6 @@ namespace ERP.Identity.Api.Controllers
         [AuthorizePermission(PermissionConstants.Settings_FeatureFlags_TenantView)]
         public async Task<IActionResult> GetTenantFlags([FromRoute] Guid tenantId, CancellationToken ct = default)
         {
-            if (!await CallerCanAccessTenantAsync(tenantId, ct))
-                return Forbid();
-
             var result = await _featureFlagService.GetTenantFlagsAsync(tenantId, ct);
             return Ok(result);
         }
@@ -59,24 +59,9 @@ namespace ERP.Identity.Api.Controllers
         [AuthorizePermission(PermissionConstants.Settings_FeatureFlags_TenantManage)]
         public async Task<IActionResult> SetTenantFlagOverride([FromRoute] Guid tenantId, [FromRoute] string key, [FromBody] SetTenantFeatureFlagOverrideRequest request, CancellationToken ct = default)
         {
-            if (!await CallerCanAccessTenantAsync(tenantId, ct))
-                return Forbid();
-
             var result = await _featureFlagService.SetTenantFlagOverrideAsync(tenantId, key, request, ct);
             return Ok(result);
         }
 
-        private async Task<bool> CallerCanAccessTenantAsync(Guid tenantId, CancellationToken ct)
-        {
-            var callerTenantId = this.GetCallerTenantId();
-            if (callerTenantId == tenantId)
-                return true;
-
-            var callerUserId = this.GetCallerUserId();
-            if (callerUserId is null || callerTenantId is null)
-                return false;
-
-            return await _permissionService.HasPermissionAsync(callerUserId.Value, callerTenantId.Value, new[] { PermissionConstants.Settings_SystemManage });
-        }
     }
 }

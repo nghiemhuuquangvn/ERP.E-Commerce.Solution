@@ -10,8 +10,7 @@ public class ForgotPasswordRequestValidator : AbstractValidator<ForgotPasswordRe
             .NotEmpty().WithMessage("Email is required.")
             .EmailAddress().WithMessage("Email must be a valid email address.");
 
-        RuleFor(x => x.TenantCode)
-            .NotEmpty().WithMessage("Tenant code is required.");
+        // No TenantCode rule: taken from the request host by AuthController, not the body.
     }
 }
 

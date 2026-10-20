@@ -160,9 +160,9 @@ already-checked-in `.env` for Storefront):
 | Admin | `VITE_API_URL` | Gateway base URL (`http://localhost:5000/api`) |
 | Admin | `VITE_GOOGLE_CLIENT_ID`, `VITE_MSAL_CLIENT_ID`, `VITE_MSAL_AUTHORITY`, `VITE_FACEBOOK_APP_ID` | SSO provider client IDs (login page SSO buttons) |
 | Storefront | `VITE_API_URL` | Gateway base URL (defaults to `/api`, relative — expects the Gateway on the same origin) |
-| Storefront | `VITE_TENANT_CODE` | This deployment's fixed tenant — sent as the `X-Tenant-Code` header on every request (see §4/[MultiTenantLogin.md](../business/Identity/MultiTenantLogin.md)); Storefront doesn't rely on subdomain resolution |
+| Storefront | *(no tenant variable)* | Since 2026-10-20 the tenant is the host the app is served on (tenant domain or `<code>.<base-domain>`); the Gateway ignores any client-sent tenant header — see [MultiTenantLogin.md](../business/Identity/MultiTenantLogin.md) |
 
-Admin, by contrast, has **no** `VITE_TENANT_CODE` — it relies on the Gateway
+Admin and Storefront both rely on the Gateway
 resolving the tenant from whichever subdomain it's accessed through
 (`Tenancy:BaseDomain` config, e.g. `acme.erp.local`). When testing Admin locally
 without wildcard DNS set up, either add a `hosts` entry for a tenant subdomain

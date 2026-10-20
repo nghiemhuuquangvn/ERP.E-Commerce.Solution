@@ -5,6 +5,7 @@ using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Domain.Entities;
 using ERP.Identity.Infrastructure.Persistence;
+using ERP.Identity.Infrastructure.Security;
 using Microsoft.AspNetCore; // OpenIddictServerAspNetCoreHelpers.GetOpenIddictServerRequest lives in this namespace, not OpenIddict.Server.AspNetCore
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
@@ -110,7 +111,7 @@ public class OidcAuthorizationController : ControllerBase
             await ReSignCookieWithTenantAsync(principal, tenant.Id);
 
         var roles = await _unitOfWork.Roles.GetRolesAsync(user.Id, tenant.Id, ct);
-        var permissions = await _unitOfWork.Permissions.GetPermissionAsync(user.Id, tenant.Id, ct);
+        var permissions = await EffectivePermissions.ResolveAsync(_unitOfWork, user.Id, tenant.Id, roles, ct);
         var licensedModules = await _licenseService.GetEffectiveModulesAsync(tenant.Id, ct);
 
         var identity = new ClaimsIdentity(
@@ -272,6 +273,15 @@ public class OidcAuthorizationController : ControllerBase
 
     private async Task<TenantResolutionResult> ResolveTenantAsync(ClaimsPrincipal principal, Guid userId, CancellationToken ct)
     {
+        // Tenant-from-URL: behind the Gateway the host decides the tenant (X-Tenant-Id is set
+        // by the Gateway after stripping any client copy) — no ?tenant_id, no picker.
+        if (Guid.TryParse(Request.Headers["X-Tenant-Id"].ToString(), out var hostTenantId))
+        {
+            return await _unitOfWork.Users.IsInTenantAsync(userId, hostTenantId, ct)
+                ? TenantResolutionResult.Resolved(hostTenantId)
+                : TenantResolutionResult.Denied("The user is not a member of this tenant.");
+        }
+
         var requestedTenantId = Request.Query["tenant_id"].ToString();
         if (!string.IsNullOrWhiteSpace(requestedTenantId))
         {

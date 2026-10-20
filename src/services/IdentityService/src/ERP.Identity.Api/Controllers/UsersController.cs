@@ -30,31 +30,16 @@ namespace ERP.Identity.Api.Controllers
 
         [HttpGet]
         [AuthorizePermission(PermissionConstants.Identity_UsersView)]
+        [TenantRouteAccess(PermissionConstants.Identity_TenantsView)]
         public async Task<IActionResult> List([FromQuery] Guid? tenantId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
         {
             var callerTenantId = this.GetCallerTenantId();
             if (callerTenantId is null)
                 return Unauthorized();
 
-            var effectiveTenantId = callerTenantId.Value;
-
-            if (tenantId.HasValue && tenantId.Value != callerTenantId.Value)
-            {
-                // Cross-tenant override â€” only for callers who also hold identity:tenants:view,
-                // re-verified against the DB (not trusted from JWT claims) via the same gate
-                // TenantsController.List uses. This is what makes a real SuperAdmin
-                // cross-tenant view legitimate without reopening this for everyone else.
-                var callerUserId = this.GetCallerUserId();
-                if (callerUserId is null)
-                    return Unauthorized();
-
-                var canCrossTenant = await _permissionService.HasPermissionAsync(
-                    callerUserId.Value, callerTenantId.Value, new[] { PermissionConstants.Identity_TenantsView });
-                if (!canCrossTenant)
-                    return Forbid();
-
-                effectiveTenantId = tenantId.Value;
-            }
+            // A different tenantId only gets here past [TenantRouteAccess] on the action
+            // (platform-tenant caller holding identity:tenants:view).
+            var effectiveTenantId = tenantId ?? callerTenantId.Value;
 
             var result = await _userService.ListByTenantAsync(effectiveTenantId, page, pageSize, ct);
             return Ok(result);

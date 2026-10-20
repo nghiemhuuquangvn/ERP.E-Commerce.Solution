@@ -1,3 +1,4 @@
+using ERP.Shared.Authorization;
 ﻿using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Domain.Entities;
 using ERP.Identity.Infrastructure.Persistence;
@@ -17,12 +18,19 @@ namespace ERP.Identity.Infrastructure.Repositories
         {
             var permissions = await (
                     from ur in _dbContext.UserRoles.AsNoTracking()
+                    join r in _dbContext.Roles.AsNoTracking()
+                        on ur.RoleId equals r.Id
                     join rp in _dbContext.RolePermissions.AsNoTracking()
                         on ur.RoleId equals rp.RoleId
                     join p in _dbContext.Permissions.AsNoTracking()
                         on rp.PermissionId equals p.Id
+                    // The role itself must belong to the tenant (not only the UserRole row)
+                    // and be active — a deactivated role, or a role of another tenant linked
+                    // by bad data, must never grant anything here.
                     where ur.UserId == userId
                         && ur.TenantId == tenantId
+                        && r.TenantId == tenantId
+                        && r.IsActive
                     select p.PermissionCode
                 )
                 .Distinct()
@@ -38,14 +46,13 @@ namespace ERP.Identity.Infrastructure.Repositories
 
         public async Task<bool> HasPermissionAsync(Guid userId, Guid tenantId, IEnumerable<string> permissionCodes)
         {
-            var userPermissions = await _dbContext.UserRoles.AsNoTracking()
-                            .Where(ur => ur.UserId == userId && ur.TenantId == tenantId)
-                            .SelectMany(ur => _dbContext.RolePermissions.AsNoTracking()
-                                .Where(rp => rp.RoleId == ur.RoleId))
-                            .Select(rp => rp.Permission.PermissionCode)
-                            .ToListAsync();
+            var userPermissions = await GetPermissionAsync(userId, tenantId, CancellationToken.None);
 
-            return permissionCodes.Any(code => userPermissions.Contains(code));
+            // Same tenant-effectiveness rule as token issuance: a platform permission held
+            // outside the platform tenant (bad data) never counts.
+            return permissionCodes.Any(code =>
+                userPermissions.Contains(code, StringComparer.OrdinalIgnoreCase)
+                && PermissionScopes.IsGrantableIn(code, tenantId));
         }
 
         public async Task<IReadOnlyList<Permission>> ListAllAsync(CancellationToken ct)

@@ -322,6 +322,16 @@ namespace ERP.Identity.Infrastructure.Persistence
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
+            modelBuilder.Entity<TenantDomain>(entity =>
+            {
+                entity.ToTable("TenantDomains");
+                entity.HasKey(d => d.Id);
+                entity.Ignore(d => d.Description);
+                entity.Property(d => d.Host).IsRequired().HasMaxLength(253);
+                entity.HasIndex(d => d.Host).IsUnique();
+                entity.HasIndex(d => d.TenantId);
+            });
+
             modelBuilder.Entity<AuthTenant>(entity =>
             {
                 entity.ToTable("Tenants");

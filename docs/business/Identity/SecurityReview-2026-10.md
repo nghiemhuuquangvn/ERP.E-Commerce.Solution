@@ -81,3 +81,36 @@ constant tenant into EF's cached model — the first request's tenant applied to
 | Accounting, HRM, POS, Payment, Product, Promotion, Reporting, SaleOrder, MasterData, Shipping, Warehouse, Notification, ChatBot | **Not isolated** — roll out the CLAUDE.md "Multi-Tenant Isolation" pattern; check each service actually stamps TenantId on writes and which events carry a TenantId for its consumers (e.g. `SalesOrderCreatedEvent` does not) |
 
 The old helper now throws `NotSupportedException` (marked `[Obsolete]`) so it can't be reintroduced.
+
+## Follow-up review: user/role/permission isolation & tenant-from-host (2026-10-20)
+
+Requirement: a user of tenant A must never see or change tenant B's data; each tenant has its
+own domain and the tenant is decided by the URL.
+
+| ID | Severity | Finding | Fix |
+|---|---|---|---|
+| A1 | Critical | Anonymous `tenant-signup` gave the new tenant's ADMIN every `Module = "Identity"` permission — incl. `identity:tenants:*`, `identity:permissions:manage`, `settings:system:*` ⇒ administrator of every tenant | Signup grants tenant-scope permissions only; signup allowed only on the platform host |
+| A2 | Critical | Tenant admins could add any permission (incl. platform ones) to their own roles | `WhyNotGrantableAsync`: no platform permission outside the platform tenant, only grant what you hold |
+| A3 | Critical | `AuthorizePermission` bypassed every check for a role named "SuperAdmin"; any tenant admin could create one | Bypass removed (all services); reserved role codes rejected; platform super-admin gets the full catalog at token issuance instead |
+| A4 | Critical | API key scopes were arbitrary permission claims | Scopes validated like role grants |
+| A5 | High | `identity:tenants:view` on tenant ADMIN = list users/roles/tenants of every tenant | Now a platform permission; cross-tenant reads go through `[TenantRouteAccess]` |
+| A6 | High | User detail leaked the user's roles/permissions in other tenants; role permissions ignored `Role.TenantId`/`IsActive`; `AssignRole` didn't check the role's tenant | Filtered includes; joins on role tenant + active; domain invariant; DB FK `UserRoles(RoleId, TenantId) → Roles(Id, TenantId)` |
+| A7 | High | Gateway didn't bind tokens to the host's tenant; client `X-Tenant-Code` was trusted; register/forgot used body tenant; refresh not host-bound | Gateway tenant-from-host enforcement (404 unknown host, header stripping, 401 on tenant mismatch); Identity reads tenant only from Gateway header; refresh bound to host tenant; OIDC tenant = host |
+| A8 | Bug | Assigning a role via API always failed (`User.UserTenants` not loaded) | Repository loads memberships |
+
+Data cleanup: `Database/Identity/021_EnforcePlatformPermissionScope.sql` (removes platform
+permissions from every role except the platform SuperAdmin, neutralises look-alike platform
+roles, removes cross-tenant role links, adds the composite FK, lists API keys to revoke).
+`022_AddTenantDomains.sql` adds custom domains.
+
+Deployment notes:
+- Set `Tenancy:BaseDomain` and `Tenancy:PlatformHost` on IdentityService and
+  `Tenancy:IdentityUrl` on the Gateway. `Tenancy:FallbackTenantCode` (docker-compose: SYSTEM,
+  so `http://localhost` works) must stay empty in a real multi-tenant deployment.
+- IdentityService (5001) and other services must not be reachable from outside except through
+  the Gateway — they trust the Gateway-set `X-Tenant-*` headers.
+- Behaviour change: tenant ADMINs (incl. ADMIN of SYSTEM) lose the Tenants page / tenant
+  selector; only the platform SuperAdmin on the platform host keeps them.
+
+Open: ChatBotService guest chat takes its tenant from the client (`VITE_TENANT_ID`) and bypasses
+the Gateway (SignalR) — should resolve the tenant from the host like the Gateway does.

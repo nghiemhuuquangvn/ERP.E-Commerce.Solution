@@ -25,30 +25,16 @@ namespace ERP.Identity.Api.Controllers
 
         [HttpGet]
         [AuthorizePermission(PermissionConstants.Identity_RolesView)]
+        [TenantRouteAccess(PermissionConstants.Identity_TenantsView)]
         public async Task<IActionResult> List([FromQuery] Guid? tenantId, CancellationToken ct = default)
         {
             var callerTenantId = this.GetCallerTenantId();
             if (callerTenantId is null)
                 return Unauthorized();
 
-            var effectiveTenantId = callerTenantId.Value;
-
-            if (tenantId.HasValue && tenantId.Value != callerTenantId.Value)
-            {
-                // Same cross-tenant override as UsersController.List â€” only callers
-                // holding identity:tenants:view (re-verified against the DB) may view
-                // another tenant's roles.
-                var callerUserId = this.GetCallerUserId();
-                if (callerUserId is null)
-                    return Unauthorized();
-
-                var canCrossTenant = await _permissionService.HasPermissionAsync(
-                    callerUserId.Value, callerTenantId.Value, new[] { PermissionConstants.Identity_TenantsView });
-                if (!canCrossTenant)
-                    return Forbid();
-
-                effectiveTenantId = tenantId.Value;
-            }
+            // A different tenantId only gets here past [TenantRouteAccess] on the action
+            // (platform-tenant caller holding identity:tenants:view).
+            var effectiveTenantId = tenantId ?? callerTenantId.Value;
 
             var roles = await _roleService.ListByTenantAsync(effectiveTenantId, ct);
             return Ok(roles);
