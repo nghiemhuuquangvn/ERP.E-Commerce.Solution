@@ -1,5 +1,6 @@
 using ERP.CRM.Domain.Entities;
 using ERP.Shared.Core.Domain;
+using ERP.Shared.Infrastructure.Data;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
@@ -7,8 +8,10 @@ using System.Reflection;
 
 namespace ERP.CRM.Infrastructure.Persistence
 {
-    public class CrmDbContext : DbContext
+    public class CrmDbContext : DbContext, ITenantScopedDbContext
     {
+        private readonly ITenantProvider _tenantProvider;
+
         public DbSet<Contact> Contacts { get; set; }
         public DbSet<Lead> Leads { get; set; }
         public DbSet<Opportunity> Opportunities { get; set; }
@@ -17,9 +20,18 @@ namespace ERP.CRM.Infrastructure.Persistence
         public DbSet<ContactTag> ContactTags { get; set; }
         public DbSet<OutboxMessage> OutboxMessages { get; set; }
 
-        public CrmDbContext(DbContextOptions<CrmDbContext> options) : base(options)
+        public CrmDbContext(DbContextOptions<CrmDbContext> options, ITenantProvider tenantProvider) : base(options)
         {
+            _tenantProvider = tenantProvider;
         }
+
+        /// <summary>
+        /// Tenant of the current request (JWT) or consumer message (TenantScope). Read by the
+        /// tenant query filter on every query and used to stamp/validate every save — CRM had
+        /// no tenant isolation at all before 2026-10-20 (every tenant shared all contacts,
+        /// leads, opportunities and cases).
+        /// </summary>
+        public Guid? CurrentTenantId => _tenantProvider.CurrentTenantId;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -52,10 +64,15 @@ namespace ERP.CRM.Infrastructure.Persistence
                 e.HasIndex(x => new { x.ContactId, x.Tag }).IsUnique();
                 e.HasIndex(x => x.Tag);
             });
+
+            // Last, so it composes with any per-entity filter configured above.
+            modelBuilder.ApplyTenantQueryFilters(this);
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+
             var aggregateRoots = ChangeTracker.Entries<BaseEntity>()
                 .Where(e => e.Entity.DomainEvents.Count != 0)
                 .Select(e => e.Entity)

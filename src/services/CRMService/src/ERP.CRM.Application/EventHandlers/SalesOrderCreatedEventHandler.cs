@@ -16,15 +16,18 @@ public class SalesOrderCreatedEventHandler : IEventHandler<SalesOrderCreatedInte
 {
     private readonly IContactRepository _contacts;
     private readonly IActivityRepository _activities;
+    private readonly ICrmUnitOfWork _unitOfWork;
     private readonly ILogger<SalesOrderCreatedEventHandler> _logger;
 
     public SalesOrderCreatedEventHandler(
         IContactRepository contacts,
         IActivityRepository activities,
+        ICrmUnitOfWork unitOfWork,
         ILogger<SalesOrderCreatedEventHandler> logger)
     {
         _contacts = contacts;
         _activities = activities;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -52,6 +55,9 @@ public class SalesOrderCreatedEventHandler : IEventHandler<SalesOrderCreatedInte
             source: "SalesOrderService");
 
         await _activities.AddAsync(activity, cancellationToken);
+        // Previously missing — the activity was added to the change tracker and then
+        // discarded with the scope, so no order activity was ever persisted.
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
             "Activity {ActivityId} created for Contact={ContactId}, Order={OrderId}",
