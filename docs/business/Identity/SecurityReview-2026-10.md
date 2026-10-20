@@ -35,8 +35,8 @@ The leaked JWT key is still used as the shared **local Development** key; `JwtKe
 | H5 | High | Webhook SSRF: any http(s) URL incl. internal hosts / cloud metadata | **Fixed** — https + public host only, checked on save and on resolved IPs at connect time, no redirects |
 | M4 | Medium | `AssignRole`/`RemoveRole` looked up users without tenant scope (cross-tenant role grant) | **Fixed** |
 | — | Medium | Refresh-token reuse detection "revoked" device sessions read `AsNoTracking` → never persisted | **Fixed** (via `RevokeAllForUserAsync`) |
-| M1 | Medium | Symmetric HS256 key shared by every service; token blacklist only checked by Identity | Open — move to RS256/JWKS + shared revocation store |
-| M2 | Medium | OpenIddict signing cert self-generated in the container's user store (lost on restart, differs per replica) | Open — load from a secret store |
+| M1 | Medium | Symmetric HS256 key shared by every service; token blacklist only checked by Identity | **Fixed** — revocation store (phase 3); RS256 via JWKS (phase 4 release 1). Release 2 removes `Jwt:Key` outside Identity |
+| M2 | Medium | OpenIddict signing cert self-generated in the container's user store (lost on restart, differs per replica) | **Fixed — phase 4** — Key Vault (production) / PFX on a persistent volume (local); see `SigningKeys.md` |
 | M3 | Medium | 2FA resend doesn't invalidate the previous challenge; OTP plaintext retained in `OutboxMessages` and Kafka | Open |
 | M5 | Medium | Tenant `ADMIN` role has `identity:tenants:view` → can list all tenants | Open |
 | M6 | Medium | Swagger enabled in Production; every service connects as `sa` with `Encrypt=False` | Open |
@@ -51,8 +51,7 @@ The leaked JWT key is still used as the shared **local Development** key; `JwtKe
 - Webhook endpoints pointing to `http://` or internal hosts stop receiving deliveries
   (logged as skipped) and can't be saved anymore.
 - Changing your password or resetting it signs you out everywhere (refresh fails); the
-  current access token stays valid until it expires (Identity checks the blacklist; other
-  services don't — M1).
+  current access token is rejected by every service as well (phase 3 shared revocation store).
 - Reset/confirm links default to `http://localhost:5173/reset-password` and
   `/confirm-email` (`Auth:PasswordResetUrl`, `Auth:EmailConfirmationUrl`). **No frontend
   page handles them yet.**
@@ -162,7 +161,7 @@ user context) is correct in every service. Authorization and isolation were not.
 | S3 | Critical | Hosts didn't match tenant-from-host: `api.erp.local` / `shop.erp.local` / `erp.local` hosts in nginx & ingress, hubs on separate hosts | **Fixed** — `<tenant>.erp.local` (admin), `<tenant>.shop.erp.local` / custom domain (storefront); `/api` + `/hubs/*` same-origin via SPA containers |
 | S4 | Critical | All 17 service ports published by docker-compose (bypass Gateway; Identity trusts X-Tenant-Code) | **Fixed** — ports removed (`docker-compose.debug.yml` for local), infra bound to 127.0.0.1 |
 | S5 | High | Revoked tokens (logout/lock/password/role change) still accepted by other services until expiry | **Fixed — phase 3** (shared Redis revocation store checked by every service, the Gateway and hubs; tokens carry `iat`; admin lock ends sessions) |
-| S6 | High | OIDC (RS256) tokens rejected by all services | Open — phase 4 (JWKS) |
+| S6 | High | Every service held the token signing key (HS256) and could mint tokens; OIDC (RS256) tokens rejected by all services | **Fixed — phase 4 release 1** (RS256 signed only by Identity, validated via JWKS by every service and the Gateway, which now also checks issuer/audience). Pending: release 2 removes the shared key; OIDC (`urn:`) tokens deliberately still Identity-only (client_credentials permissions bypass `EffectivePermissions`) |
 | S7 | High | `redeem-coupon` used body UserId; product review used body CustomerId; notification templates anonymous; guest chat history readable by anyone signed in | **Fixed** |
 | S8 | High | Accounting / SaleOrder ran without `LicenseEnforcementMiddleware` | **Fixed** (tenants without ACC/SO modules now get 403) |
 | S9 | High | RabbitMQ management and kafka-ui published via nginx/ingress | **Fixed** — removed; reach via 127.0.0.1 / port-forward |
