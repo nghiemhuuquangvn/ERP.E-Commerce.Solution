@@ -170,6 +170,23 @@ Security invariants (2026-10-19 review — docs/business/Identity/SecurityReview
 - Outbound calls to tenant-configured URLs (webhooks) go through `WebhookUrlRules`.
 - No secrets in tracked appsettings; `JwtKeyGuard` rejects known keys outside Development.
 
+Tenant & permission scope (2026-10-20):
+- **Tenant = request host.** The Gateway resolves host → tenant via IdentityService
+  (`ITenantDomainService`: `Tenancy:PlatformHost` → SYSTEM, `TenantDomains` row, or
+  `<code>.<Tenancy:BaseDomain>`), strips client `X-Tenant-*`/`X-User-*` headers, and
+  rejects a JWT whose `tenant_id` ≠ the host's tenant. Never read a tenant from a request
+  body/query for authentication flows.
+- **Platform vs tenant permissions** — `ERP.Shared.Authorization.PermissionScopes` is the
+  single list of cross-tenant (platform) permissions. They are effective only in the
+  platform tenant (`PlatformTenant.Id`), stripped from every other token
+  (`EffectivePermissions.ResolveAsync` — the ONLY way to compute token permissions), and
+  not grantable elsewhere (`EffectivePermissions.WhyNotGrantableAsync`: also "only grant
+  what you hold" — used by role grants and API key scopes).
+- No authority from role NAMES: `AuthorizePermission` checks permissions only; platform
+  role codes (`PlatformRoles.IsReserved`) can't be created.
+- Cross-tenant endpoints: put `[TenantRouteAccess(<platform permission>)]` on the
+  controller (backed by `ITenantAccessPolicy`) — don't hand-write tenant checks.
+
 Consumed Events: None
 
 #### Accounting Service (Port 5005, Code: ACC)
@@ -734,6 +751,9 @@ When reviewing code:
 ## Priority Reading Order
 
 1. **CLAUDE.md** (This file — service boundaries, database ownership, coding standards)
+   → then **docs/PROJECT-STATUS.md** (current branch state, unfinished work, deployment
+   prerequisites, prioritised backlog — read before starting any task; update it at the
+   end of every session)
 2. **docs/architecture/domain-map.md** (Domain groupings, service clusters, event flows by domain)
 3. **docs/architecture/port-map.md** (Port assignments, network topology, service discovery)
 4. **docs/architecture/service-map.md** (Visual service dependency graph, communication patterns)
