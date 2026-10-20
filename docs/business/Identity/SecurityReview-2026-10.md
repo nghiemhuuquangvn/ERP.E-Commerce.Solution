@@ -66,3 +66,18 @@ The leaked JWT key is still used as the shared **local Development** key; `JwtKe
   `PasswordHash` passed by `FindOrCreateExternalUserAsync`.
 - 2FA email codes are sent to the **masked** address (`TwoFactorCodeGeneratedDomainEvent.Destination`),
   so email 2FA can't actually be delivered.
+
+## Platform-wide follow-up: multi-tenant data isolation (2026-10-20)
+
+Outside IdentityService, services did not filter by `TenantId`, and the one shared helper
+in use (`TenantFilterConfiguration.ConfigureTenantFilter`, PurchaseOrderService) baked a
+constant tenant into EF's cached model — the first request's tenant applied to everyone.
+
+| Service | Status |
+|---|---|
+| IdentityService | Isolated (explicit tenant predicates in repositories) |
+| CRMService | **Isolated** — query filter + stamp/validate on save; consumers use `TenantScope`; empty-tenant rows backfilled to SYSTEM (`Database/CRM/005_BackfillTenantId.sql`) |
+| PurchaseOrderService | Query filter fixed (per-request); save-side enforcement not yet added |
+| Accounting, HRM, POS, Payment, Product, Promotion, Reporting, SaleOrder, MasterData, Shipping, Warehouse, Notification, ChatBot | **Not isolated** — roll out the CLAUDE.md "Multi-Tenant Isolation" pattern; check each service actually stamps TenantId on writes and which events carry a TenantId for its consumers (e.g. `SalesOrderCreatedEvent` does not) |
+
+The old helper now throws `NotSupportedException` (marked `[Obsolete]`) so it can't be reintroduced.
