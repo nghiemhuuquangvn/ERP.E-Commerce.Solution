@@ -84,6 +84,9 @@ builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddErpAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+// Tenant isolation for ShippingDbContext: JWT tenant, Gateway host tenant for anonymous
+// requests, or an explicit TenantScope set by the consumers.
+builder.Services.AddRequestTenantProvider();
 builder.Services.AddScoped<UserContext>();
 builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Shipping));
 

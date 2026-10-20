@@ -96,4 +96,9 @@ public class TenantIsolationBehaviorTests
     public void PurchaseOrder_PurchaseRequests() =>
         AssertIsolated<ERP.PO.Infrastructure.Data.PurchasingDbContext, ERP.PO.Domain.Entities.PurchaseRequest>(
             ERP.PO.Domain.Entities.PurchaseRequest.Create(Guid.NewGuid(), "Widget", 1, 5, 10), e => e.TenantId);
+
+    [Fact]
+    public void Shipping_Carriers() =>
+        AssertIsolated<ERP.SHP.Infrastructure.Persistence.ShippingDbContext, ERP.SHP.Domain.Entities.Carrier>(
+            ERP.SHP.Domain.Entities.Carrier.Create("GHN", "GHN", 10000m), e => e.TenantId);
 }

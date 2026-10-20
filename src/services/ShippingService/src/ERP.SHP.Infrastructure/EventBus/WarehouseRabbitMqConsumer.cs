@@ -1,3 +1,5 @@
+using ERP.Shared.Infrastructure.Data;
+using ERP.Shared.Messaging;
 using System.Text;
 using System.Text.Json;
 using MediatR;
@@ -62,6 +64,16 @@ namespace ERP.SHP.Infrastructure.EventBus
 
                 using var scope = _serviceProvider.CreateScope();
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+                // InventoryReserved carries the reservation's tenant (stamped by WarehouseService); without one nothing is
+                // changed (fail closed) — the message is acknowledged and logged.
+                if (!EventTenant.TryRead(json, out var tenantId))
+                {
+                    _logger.LogWarning("{RoutingKey} without TenantId ignored", ea.RoutingKey);
+                    _channel!.BasicAck(ea.DeliveryTag, multiple: false);
+                    return;
+                }
+                using var tenantScope = TenantScope.Begin(tenantId);
 
                 switch (ea.RoutingKey)
                 {

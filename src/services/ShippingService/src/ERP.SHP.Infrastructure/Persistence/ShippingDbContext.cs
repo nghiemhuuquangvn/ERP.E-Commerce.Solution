@@ -1,3 +1,4 @@
+using ERP.Shared.Infrastructure.Data;
 using ERP.SHP.Domain.Entities;
 using ERP.SHP.Domain.Entities.Settings;
 using ERP.Shared.Core.Domain;
@@ -7,7 +8,7 @@ using Newtonsoft.Json;
 
 namespace ERP.SHP.Infrastructure.Persistence;
 
-public class ShippingDbContext : DbContext
+public class ShippingDbContext : DbContext, ITenantScopedDbContext
 {
     public DbSet<Shipment> Shipments => Set<Shipment>();
     public DbSet<Carrier> Carriers => Set<Carrier>();
@@ -16,7 +17,19 @@ public class ShippingDbContext : DbContext
     public DbSet<SystemShippingSettings> SystemShippingSettings => Set<SystemShippingSettings>();
     public DbSet<TenantShippingSettings> TenantShippingSettings => Set<TenantShippingSettings>();
 
-    public ShippingDbContext(DbContextOptions<ShippingDbContext> options) : base(options) { }
+    private readonly ITenantProvider _tenantProvider;
+
+    /// <summary>
+    /// Tenant of the current request (JWT / Gateway host tenant) or consumer message
+    /// (TenantScope). Read by the tenant query filter on every query and used to
+    /// stamp/validate every save.
+    /// </summary>
+    public Guid? CurrentTenantId => _tenantProvider.CurrentTenantId;
+
+    public ShippingDbContext(DbContextOptions<ShippingDbContext> options, ITenantProvider tenantProvider) : base(options)
+    {
+        _tenantProvider = tenantProvider;
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -69,7 +82,7 @@ public class ShippingDbContext : DbContext
             e.Property(x => x.BaseRatePerKg).HasPrecision(10, 4);
             e.Property(x => x.InterProvinceSurcharge).HasPrecision(10, 2);
             e.Property(x => x.OriginProvince).HasMaxLength(100);
-            e.HasIndex(x => x.Code).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique(); // carrier codes are per tenant
         });
 
         modelBuilder.Entity<ReturnShipment>(e =>
@@ -104,10 +117,18 @@ public class ShippingDbContext : DbContext
             e.Property(x => x.FreeShippingThreshold).HasPrecision(18, 2);
             e.HasIndex(x => x.TenantId).IsUnique();
         });
+
+        // Last, so it composes with any per-entity filter configured above.
+        modelBuilder.ApplyTenantQueryFilters(this);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        // Stamp/validate the tenant first, so the events serialized below carry it.
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+            EventTenant.StampFrom(entry.Entity);
+
         var domainEntities = ChangeTracker.Entries<BaseEntity>()
             .Where(e => e.Entity.DomainEvents.Any()).ToList();
 
@@ -132,5 +153,17 @@ public class ShippingDbContext : DbContext
         }
 
         return result;
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 }
