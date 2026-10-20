@@ -629,6 +629,10 @@ namespace ERP.Identity.Infrastructure.Services
             if (session is null)
                 throw new UnauthorizedAccessException("Invalid refresh token");
 
+            // Tenant-from-URL binding: the refresh must happen on the session's own tenant host.
+            if (request.TenantId == Guid.Empty || session.TenantId != request.TenantId)
+                throw new UnauthorizedAccessException("Invalid refresh token");
+
             if (!session.IsTokenValid)
             {
                 // A caller presenting an already-revoked (not merely naturally-expired)

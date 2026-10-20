@@ -17,7 +17,7 @@ public class TenantsControllerTests
     public TenantsControllerTests()
     {
         _mockTenantService = new Mock<ITenantService>();
-        _controller = new TenantsController(_mockTenantService.Object);
+        _controller = new TenantsController(_mockTenantService.Object, new Mock<ITenantDomainService>().Object);
 
         var claims = new List<Claim>
         {

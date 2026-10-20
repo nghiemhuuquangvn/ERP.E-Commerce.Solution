@@ -242,6 +242,12 @@ services:
       ForwardedHeaders__KnownNetworks__0: "172.16.0.0/12"
       ForwardedHeaders__KnownNetworks__1: "192.168.0.0/16"
       ForwardedHeaders__KnownNetworks__2: "10.0.0.0/8"
+      # Tenant = request host. Local stack is reached via http://localhost (no tenant
+      # host), so fall back to SYSTEM. NEVER set FallbackTenantCode in a real multi-tenant
+      # deployment — every unknown host would become that tenant.
+      Tenancy__BaseDomain: "erp.local"
+      Tenancy__PlatformHost: "admin.erp.local"
+      Tenancy__FallbackTenantCode: "SYSTEM"
     depends_on:
       db-migrate:
         condition: service_completed_successfully

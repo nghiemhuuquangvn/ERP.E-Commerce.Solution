@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using ERP.Identity.Api.Authorization;
+using ERP.Shared.Authorization;
 using ERP.Identity.Application.DTOs.Auth;
 using ERP.Identity.Application.Interfaces.Services;
 using LoginRequest = ERP.Identity.Application.DTOs.Auth.LoginDto.LoginRequest;
@@ -36,7 +37,10 @@ namespace ERP.Identity.Api.Controllers
         [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken = default)
         {
-            var result = await _authService.RegisterAsync(request, cancellationToken);
+            // The tenant is the one of the host the request came in on (set by the Gateway),
+            // never the client-supplied body value.
+            if (!TryGetTenantCode(out var tenantCode, out var error)) return error!;
+            var result = await _authService.RegisterAsync(request with { TenantCode = tenantCode! }, cancellationToken);
             if (!result.Succeeded) return BadRequest(result.Errors);
             return Ok(result); // LoginResponse: { accessToken, refreshToken, user, succeeded }
         }
@@ -54,6 +58,12 @@ namespace ERP.Identity.Api.Controllers
         [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> SignupTenant([FromBody] TenantSignupRequest request, CancellationToken cancellationToken = default)
         {
+            // New tenants are created only from the platform host — a tenant's own domain
+            // must never be able to spawn other tenants.
+            if (!TryGetTenantCode(out var tenantCode, out var error)) return error!;
+            if (!string.Equals(tenantCode, PlatformTenant.Code, StringComparison.OrdinalIgnoreCase))
+                return Forbid();
+
             var result = await _authService.SignupTenantAsync(request, cancellationToken);
             if (!result.Succeeded) return BadRequest(result.Errors);
             return Ok(result); // LoginResponse: { accessToken, refreshToken, user, succeeded }
@@ -101,7 +111,11 @@ namespace ERP.Identity.Api.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken = default)
         {
-            var refreshTokenRequest = new RefreshTokenRequest(request.RefreshToken, request.TenantId, GetClientIp());
+            // Bound to the host's tenant: a refresh token from tenant A is useless on tenant B's
+            // domain (AuthService rejects the mismatch). Ignores any client-supplied TenantId.
+            if (!Guid.TryParse(Request.Headers["X-Tenant-Id"].ToString(), out var hostTenantId))
+                return BadRequest(new { message = "Unable to resolve tenant from request host." });
+            var refreshTokenRequest = new RefreshTokenRequest(request.RefreshToken, hostTenantId, GetClientIp());
 
             var result = await _authService.RefreshTokenAsync(refreshTokenRequest, cancellationToken);
             if (!result.Succeeded) return BadRequest(result.Errors);
@@ -130,7 +144,8 @@ namespace ERP.Identity.Api.Controllers
         [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto request, CancellationToken cancellationToken = default)
         {
-            var result = await _authService.ForgotPasswordAsync(request, cancellationToken);
+            if (!TryGetTenantCode(out var tenantCode, out var error)) return error!;
+            var result = await _authService.ForgotPasswordAsync(request with { TenantCode = tenantCode! }, cancellationToken);
             return Ok(result);
         }
 

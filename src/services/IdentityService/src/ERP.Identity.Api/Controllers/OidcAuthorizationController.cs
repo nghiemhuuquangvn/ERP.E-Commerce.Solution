@@ -273,6 +273,14 @@ public class OidcAuthorizationController : ControllerBase
 
     private async Task<TenantResolutionResult> ResolveTenantAsync(ClaimsPrincipal principal, Guid userId, CancellationToken ct)
     {
+        // Tenant-from-URL: behind the Gateway the host decides the tenant (X-Tenant-Id is set
+        // by the Gateway after stripping any client copy) — no ?tenant_id, no picker.
+        if (Guid.TryParse(Request.Headers["X-Tenant-Id"].ToString(), out var hostTenantId))
+        {
+            return await _unitOfWork.Users.IsInTenantAsync(userId, hostTenantId, ct)
+                ? TenantResolutionResult.Resolved(hostTenantId)
+                : TenantResolutionResult.Denied("The user is not a member of this tenant.");
+        }
 
         var requestedTenantId = Request.Query["tenant_id"].ToString();
         if (!string.IsNullOrWhiteSpace(requestedTenantId))

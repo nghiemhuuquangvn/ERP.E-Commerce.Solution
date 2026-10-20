@@ -307,4 +307,75 @@ public class AuthorizationScopeTests
         context.Result.Should().BeOfType<StatusCodeResult>().Which.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
     }
 
+    // ---- Tenant from host ----
+
+    [Theory]
+    [InlineData("Shop.Acme.COM", "shop.acme.com")]
+    [InlineData("shop.acme.com:443", "shop.acme.com")]
+    [InlineData("shop.acme.com.", "shop.acme.com")]
+    public void TenantDomain_NormalizesHost(string input, string expected) =>
+        TenantDomain.NormalizeHost(input).Should().Be(expected);
+
+    [Theory]
+    [InlineData("localhost")]
+    [InlineData("10.0.0.1")]
+    [InlineData("bad host.com")]
+    public void TenantDomain_RejectsNonDnsHosts(string host) =>
+        FluentActions.Invoking(() => TenantDomain.Create(TenantA, host, false)).Should().Throw<ArgumentException>();
+
+    private static (AuthDbContext Db, AuthTenant Acme, AuthTenant Inactive) SeedTenants()
+    {
+        var db = new AuthDbContext(
+            new DbContextOptionsBuilder<AuthDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options,
+            new Mock<IDomainEventDispatcher>().Object);
+
+        var system = AuthTenant.Create(PlatformTenant.Code, "System");
+        system.Id = PlatformTenant.Id;
+        var acme = AuthTenant.Create("ACME", "Acme");
+        var inactive = AuthTenant.Create("GONE", "Gone");
+        inactive.Deactivate();
+        db.Tenants.AddRange(system, acme, inactive);
+        db.Set<TenantDomain>().Add(TenantDomain.Create(acme.Id, "shop.acme.com", true));
+        db.SaveChanges();
+        return (db, acme, inactive);
+    }
+
+    private static TenantDomainService Resolver(AuthDbContext db, string? fallback = null) => new(db,
+        new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Tenancy:BaseDomain"] = "erp.com",
+            ["Tenancy:PlatformHost"] = "admin.erp.com",
+            ["Tenancy:FallbackTenantCode"] = fallback,
+        }).Build());
+
+    [Fact]
+    public async Task ResolveHost_MapsPlatformCustomAndSubdomainHosts()
+    {
+        var (db, acme, _) = SeedTenants();
+        var resolver = Resolver(db);
+
+        (await resolver.ResolveAsync("admin.erp.com", default))!.IsPlatform.Should().BeTrue();
+        (await resolver.ResolveAsync("SHOP.acme.com:443", default))!.TenantId.Should().Be(acme.Id);
+        (await resolver.ResolveAsync("acme.erp.com", default))!.TenantId.Should().Be(acme.Id);
+    }
+
+    [Theory]
+    [InlineData("evil.com")]           // unknown host
+    [InlineData("x.acme.erp.com")]     // nested subdomain
+    [InlineData("gone.erp.com")]       // inactive tenant
+    [InlineData("erp.com")]            // bare base domain
+    public async Task ResolveHost_UnknownOrInactive_ResolvesNothing(string host)
+    {
+        var (db, _, _) = SeedTenants();
+
+        (await Resolver(db).ResolveAsync(host, default)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ResolveHost_FallbackOnlyWhenConfigured()
+    {
+        var (db, acme, _) = SeedTenants();
+
+        (await Resolver(db, fallback: "ACME").ResolveAsync("localhost", default))!.TenantId.Should().Be(acme.Id);
+    }
 }

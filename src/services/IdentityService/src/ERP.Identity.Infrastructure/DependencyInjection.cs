@@ -173,6 +173,7 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<ISecurityAuditService, SecurityAuditService>();
             services.AddScoped<ISessionService, SessionService>();
             services.AddScoped<ITenantAccessPolicy, TenantAccessPolicy>();
+            services.AddScoped<ITenantDomainService, TenantDomainService>();
             services.AddScoped<IApiKeyService, ApiKeyService>();
             services.AddScoped<IWebhookEndpointService, WebhookEndpointService>();
             services.AddScoped<IWebhookSender, WebhookSender>();

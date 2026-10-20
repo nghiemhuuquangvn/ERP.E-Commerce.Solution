@@ -16,7 +16,6 @@ interface AuthResponse {
   user?: User | null
 }
 
-const TENANT_CODE = import.meta.env.VITE_TENANT_CODE ?? 'SYSTEM'
 
 export const useAuthStore = defineStore(
   'auth',
@@ -29,8 +28,7 @@ export const useAuthStore = defineStore(
     const fullName = computed(() => user.value?.fullName ?? '')
 
     async function login(email: string, password: string) {
-      // Tenant no longer goes in the body — apiClient now sends it as the
-      // X-Tenant-Code header on every request (see api/client.ts).
+      // Tenant comes from the host (resolved by the Gateway), never from the client.
       const { data } = await apiClient.post<AuthResponse>('/v1/auth/login', {
         email,
         password,
@@ -46,7 +44,6 @@ export const useAuthStore = defineStore(
         email,
         password,
         userName: `${firstName} ${lastName}`.trim(),
-        tenantCode: TENANT_CODE,
         userType: 0, // Customer — returns LoginResponse with tokens
       })
       accessToken.value = data.accessToken

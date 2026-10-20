@@ -371,6 +371,20 @@ public class AuthServiceTests
 
     // ---- Tenant from URL / platform scope ----
 
+    [Fact]
+    public async Task RefreshTokenAsync_OnAnotherTenantsHost_IsRejected()
+    {
+        var user = ExistingUser();
+        const string rawRefresh = "tenant-a-refresh-token";
+        var session = RefreshToken.Create(user.Id, _tenant.Id, OpaqueTokenHasher.Hash(rawRefresh), DateTime.UtcNow.AddDays(1));
+        _refreshTokens.Setup(r => r.GetByTokenAsync(OpaqueTokenHasher.Hash(rawRefresh), It.IsAny<CancellationToken>())).ReturnsAsync(session);
+
+        var act = () => CreateService().RefreshTokenAsync(
+            new RefreshTokenDto.RefreshTokenRequest(rawRefresh, Guid.NewGuid()), CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        session.IsTokenValid.Should().BeTrue("a rejected cross-tenant refresh must not consume the session");
+    }
 
     [Fact]
     public async Task SignupTenantAsync_NewAdminRole_GetsNoPlatformPermissions()
