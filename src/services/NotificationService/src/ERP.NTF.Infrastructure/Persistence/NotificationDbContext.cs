@@ -1,3 +1,4 @@
+using ERP.Shared.Infrastructure.Data;
 using ERP.NTF.Domain.Entities;
 using ERP.NTF.Domain.Entities.Settings;
 using ERP.Shared.Core.Domain;
@@ -7,7 +8,7 @@ using Newtonsoft.Json;
 
 namespace ERP.NTF.Infrastructure.Persistence;
 
-public class NotificationDbContext : DbContext
+public class NotificationDbContext : DbContext, ITenantScopedDbContext
 {
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationTemplate> Templates => Set<NotificationTemplate>();
@@ -21,7 +22,19 @@ public class NotificationDbContext : DbContext
     public DbSet<SystemSmsSettings> SystemSmsSettings => Set<SystemSmsSettings>();
     public DbSet<TenantSmsSettings> TenantSmsSettings => Set<TenantSmsSettings>();
 
-    public NotificationDbContext(DbContextOptions<NotificationDbContext> options) : base(options) { }
+    private readonly ITenantProvider _tenantProvider;
+
+    /// <summary>
+    /// Tenant of the current request (JWT / Gateway host tenant) or consumer message
+    /// (TenantScope). Read by the tenant query filter on every query and used to
+    /// stamp/validate every save.
+    /// </summary>
+    public Guid? CurrentTenantId => _tenantProvider.CurrentTenantId;
+
+    public NotificationDbContext(DbContextOptions<NotificationDbContext> options, ITenantProvider tenantProvider) : base(options)
+    {
+        _tenantProvider = tenantProvider;
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -66,7 +79,7 @@ public class NotificationDbContext : DbContext
             e.Property(x => x.Name).IsRequired().HasMaxLength(200);
             e.Property(x => x.Subject).IsRequired().HasMaxLength(500);
             e.Property(x => x.Body).IsRequired();
-            e.HasIndex(x => x.Code).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique(); // tenant overrides reuse platform codes
         });
 
         modelBuilder.Entity<NotificationPreference>(e =>
@@ -151,10 +164,18 @@ public class NotificationDbContext : DbContext
             e.Property(x => x.FromNumber).HasMaxLength(32);
             e.HasIndex(x => x.TenantId).IsUnique();
         });
+
+        // Last, so it composes with any per-entity filter configured above.
+        modelBuilder.ApplyTenantQueryFilters(this);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        // Stamp/validate the tenant first, so the events serialized below carry it.
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+            EventTenant.StampFrom(entry.Entity);
+
         var domainEntities = ChangeTracker.Entries<BaseEntity>()
             .Where(e => e.Entity.DomainEvents.Any())
             .ToList();
@@ -184,5 +205,17 @@ public class NotificationDbContext : DbContext
         }
 
         return result;
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 }

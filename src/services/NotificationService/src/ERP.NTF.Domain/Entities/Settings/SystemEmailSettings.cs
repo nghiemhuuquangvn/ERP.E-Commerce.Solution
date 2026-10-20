@@ -3,7 +3,7 @@ using ERP.Shared.Core.Domain;
 namespace ERP.NTF.Domain.Entities.Settings;
 
 /// <summary>Platform-wide toggle for whether tenants may configure their own SMTP.</summary>
-public class SystemEmailSettings : BaseEntity
+public class SystemEmailSettings : BaseEntity, IPlatformWideEntity
 {
     public static readonly Guid WellKnownId = Guid.Parse("D0000000-0000-0000-0000-000000000002");
 

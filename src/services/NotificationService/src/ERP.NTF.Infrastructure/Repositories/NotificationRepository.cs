@@ -1,3 +1,4 @@
+using ERP.Shared.Core.Domain;
 using ERP.NTF.Application.Interfaces;
 using ERP.NTF.Domain.Entities;
 using ERP.NTF.Domain.Enums;
@@ -34,6 +35,16 @@ public class NotificationRepository : INotificationRepository
             .Where(n => n.Status == NotificationStatus.Failed && n.RetryCount < 3)
             .ToListAsync(ct);
 
+    public async Task<List<Guid>> GetTenantsWithWorkAsync(CancellationToken ct = default) =>
+        await _db.Notifications
+            .IgnoreQueryFilters() // dispatch job: finds work in every tenant, then sends per tenant
+            .Where(n => !n.IsDeleted && (
+                (n.Status == NotificationStatus.Queued && (!n.ScheduledFor.HasValue || n.ScheduledFor.Value <= DateTime.UtcNow))
+                || (n.Status == NotificationStatus.Failed && n.RetryCount < 3)))
+            .Select(n => n.TenantId)
+            .Distinct()
+            .ToListAsync(ct);
+
     public async Task AddAsync(Notification notification, CancellationToken ct = default)
     {
         await _db.Notifications.AddAsync(notification, ct);
@@ -68,7 +79,12 @@ public class TemplateRepository : ITemplateRepository
         await _db.Templates.FindAsync(new object[] { id }, ct);
 
     public async Task<NotificationTemplate?> GetByCodeAsync(string code, CancellationToken ct = default) =>
-        await _db.Templates.FirstOrDefaultAsync(t => t.Code == code, ct);
+        // Templates are shared defaults (platform tenant) plus tenant overrides with the same
+        // code: the tenant's own template wins.
+        await _db.Templates
+            .Where(t => t.Code == code)
+            .OrderBy(t => t.TenantId == WellKnownTenants.Platform ? 1 : 0)
+            .FirstOrDefaultAsync(ct);
 
     public async Task<List<NotificationTemplate>> GetAllAsync(bool? isActive = null, CancellationToken ct = default)
     {

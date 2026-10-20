@@ -1,3 +1,5 @@
+using ERP.Shared.Infrastructure.Data;
+using ERP.Shared.Messaging;
 using Confluent.Kafka;
 using ERP.NTF.Application.EventHandlers;
 using MediatR;
@@ -96,6 +98,15 @@ public class IdentityEventConsumer : IHostedService
     private async Task DispatchAsync(string json, CancellationToken cancellationToken)
     {
         var typeName = JObject.Parse(json)["$type"]?.ToString() ?? string.Empty;
+
+        // Identity events carry the user's tenant (OTP, reset links, welcome mails go out with that tenant's templates/settings); without one nothing is
+        // changed (fail closed).
+        if (!EventTenant.TryRead(json, out var tenantId))
+        {
+            _logger.LogWarning("{EventType} without TenantId ignored", typeName);
+            return;
+        }
+        using var tenantScope = TenantScope.Begin(tenantId);
 
         using var scope = _serviceProvider.CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();

@@ -20,6 +20,7 @@
     <ProjectReference Include="..\..\..\..\Shared\Messaging\ERP.Shared.Messaging.csproj" />
     <ProjectReference Include="..\..\..\..\Shared\Contracts\ERP.Shared.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\Shared\Infrastructure\Caching\ERP.Shared.Caching.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Infrastructure\Data\ERP.Shared.Data.csproj" />
     <ProjectReference Include="..\..\..\..\Shared\Security\ERP.Shared.Security.csproj" />
     <ProjectReference Include="..\ERP.NTF.Domain\ERP.NTF.Domain.csproj" />
     <ProjectReference Include="..\ERP.NTF.Application\ERP.NTF.Application.csproj" />

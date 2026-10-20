@@ -158,4 +158,35 @@ public class TenantIsolationBehaviorTests
         var act = () => b.SaveChanges();
         act.Should().Throw<TenantIsolationViolationException>("only the platform tenant may change shared reference data");
     }
+
+    [Fact]
+    public void Notification_Notifications() =>
+        AssertIsolated<ERP.NTF.Infrastructure.Persistence.NotificationDbContext, ERP.NTF.Domain.Entities.Notification>(
+            ERP.NTF.Domain.Entities.Notification.Create("u1", "u1@example.test", ERP.NTF.Domain.Enums.NotificationChannel.Email, "Hi", "Body"),
+            e => e.TenantId);
+
+    [Fact]
+    public async Task Notification_Templates_PlatformDefaultsWithTenantOverride()
+    {
+        var platform = ERP.Shared.Core.Domain.WellKnownTenants.Platform;
+        using (var p = Db<ERP.NTF.Infrastructure.Persistence.NotificationDbContext>(platform))
+        {
+            p.Set<ERP.NTF.Domain.Entities.NotificationTemplate>().Add(ERP.NTF.Domain.Entities.NotificationTemplate.Create(
+                "OTP", "Default OTP", ERP.NTF.Domain.Enums.NotificationChannel.Email, "Code", "platform body"));
+            p.SaveChanges();
+        }
+        using (var a = Db<ERP.NTF.Infrastructure.Persistence.NotificationDbContext>(TenantA))
+        {
+            a.Set<ERP.NTF.Domain.Entities.NotificationTemplate>().Add(ERP.NTF.Domain.Entities.NotificationTemplate.Create(
+                "OTP", "A OTP", ERP.NTF.Domain.Enums.NotificationChannel.Email, "Code", "tenant A body"));
+            a.SaveChanges();
+        }
+
+        using (var a = Db<ERP.NTF.Infrastructure.Persistence.NotificationDbContext>(TenantA))
+            (await new ERP.NTF.Infrastructure.Repositories.TemplateRepository(a).GetByCodeAsync("OTP"))!.Body
+                .Should().Be("tenant A body", "a tenant's own template overrides the platform default");
+        using (var b = Db<ERP.NTF.Infrastructure.Persistence.NotificationDbContext>(TenantB))
+            (await new ERP.NTF.Infrastructure.Repositories.TemplateRepository(b).GetByCodeAsync("OTP"))!.Body
+                .Should().Be("platform body", "other tenants fall back to the platform default, never to tenant A's");
+    }
 }
