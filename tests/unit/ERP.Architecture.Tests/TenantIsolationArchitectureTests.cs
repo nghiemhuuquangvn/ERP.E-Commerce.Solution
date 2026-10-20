@@ -23,18 +23,12 @@ public class TenantIsolationArchitectureTests
     ];
 
     /// <summary>
-    /// Contexts not tenant-scoped yet (rollout in progress — the list may only shrink).
-    /// AuthDbContext is permanent: IdentityService isolates with explicit per-query tenant
+    /// Contexts deliberately not tenant-scoped (never add one). AuthDbContext: IdentityService isolates with explicit per-query tenant
     /// predicates (login must look users up across the tenant resolved from the host).
     /// </summary>
     private static readonly HashSet<string> NotYetScoped = new(StringComparer.Ordinal)
     {
         "ERP.Identity.Infrastructure.Persistence.AuthDbContext",
-        // Phase 2 rollout (2026-10-20) — remove each one as its service is isolated.
-        "ERP.CHB.Infrastructure.Persistence.ChatBotDbContext",
-        "ERP.HRM.Infrastructure.Persistence.HrmDbContext",
-        "ERP.MST.Infrastructure.Persistence.MasterDataDbContext",
-        "ERP.NTF.Infrastructure.Persistence.NotificationDbContext",
     };
 
     internal static IEnumerable<Type> AllDbContextTypes() => DbContextTypes();

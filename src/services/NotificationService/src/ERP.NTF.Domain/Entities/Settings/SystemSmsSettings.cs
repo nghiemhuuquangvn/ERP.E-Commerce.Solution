@@ -3,7 +3,7 @@ using ERP.Shared.Core.Domain;
 namespace ERP.NTF.Domain.Entities.Settings;
 
 /// <summary>Platform-wide toggle for whether tenants may configure their own SMS gateway.</summary>
-public class SystemSmsSettings : BaseEntity
+public class SystemSmsSettings : BaseEntity, IPlatformWideEntity
 {
     public static readonly Guid WellKnownId = Guid.Parse("D0000000-0000-0000-0000-000000000003");
 

@@ -4,4 +4,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ITenantOwned (tenant isolation of facts/dimensions). -->
+    <ProjectReference Include="..\..\..\..\Shared\Core\ERP.Shared.Core.csproj" />
+  </ItemGroup>
 </Project>

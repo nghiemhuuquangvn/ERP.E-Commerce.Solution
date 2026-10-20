@@ -7,6 +7,7 @@ export type MessageRole = 1 | 2 // 1=User, 2=Assistant
 
 export interface StartConversationRequest {
   channel: typeof ChatChannel.Storefront
+  /** Not sent: the guest's tenant is the storefront host's (resolved server-side). */
   guestTenantId?: string
   guestSessionId?: string
 }

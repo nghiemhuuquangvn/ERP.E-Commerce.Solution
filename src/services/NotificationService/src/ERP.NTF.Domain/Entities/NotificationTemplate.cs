@@ -3,7 +3,7 @@ using ERP.NTF.Domain.Enums;
 
 namespace ERP.NTF.Domain.Entities;
 
-public class NotificationTemplate : AggregateRoot
+public class NotificationTemplate : AggregateRoot, ISharedReferenceData
 {
     public string Code { get; private set; } = string.Empty;
     public string Name { get; private set; } = string.Empty;

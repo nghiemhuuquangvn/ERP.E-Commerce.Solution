@@ -7,7 +7,7 @@ namespace ERP.NTF.Domain.Entities.Settings;
 /// (per-user opt-in/out) — this is the tenant-admin-configured default, mirroring
 /// PaymentService's System/Tenant Settings shape from Phase 1.
 /// </summary>
-public class SystemNotificationSettings : BaseEntity
+public class SystemNotificationSettings : BaseEntity, IPlatformWideEntity
 {
     public static readonly Guid WellKnownId = Guid.Parse("D0000000-0000-0000-0000-000000000001");
 

@@ -1,3 +1,4 @@
+using ERP.Shared.Infrastructure.Data;
 using ERP.NTF.Application.Interfaces;
 using ERP.NTF.Domain.Entities;
 using ERP.NTF.Domain.Enums;
@@ -23,8 +24,21 @@ public class NotificationDispatchJob : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await ProcessPendingAsync(stoppingToken);
-            await ProcessRetriesAsync(stoppingToken);
+            // No user here: find tenants with work across tenants, then send each tenant's
+            // notifications inside its TenantScope (so its own templates/channel settings apply).
+            List<Guid> tenants;
+            using (var lookup = _scopeFactory.CreateScope())
+                tenants = await lookup.ServiceProvider.GetRequiredService<INotificationRepository>()
+                    .GetTenantsWithWorkAsync(stoppingToken);
+
+            foreach (var tenantId in tenants.Where(t => t != Guid.Empty))
+            {
+                using (TenantScope.Begin(tenantId))
+                {
+                    await ProcessPendingAsync(stoppingToken);
+                    await ProcessRetriesAsync(stoppingToken);
+                }
+            }
             await Task.Delay(Interval, stoppingToken);
         }
     }

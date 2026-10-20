@@ -1,8 +1,12 @@
+using ERP.Shared.Core.Domain;
+
 namespace ERP.RPT.Domain.Models;
 
-public class FactSalesOrder
+public class FactSalesOrder : ITenantOwned
 {
     public Guid OrderId { get; set; }
+    /// <summary>Owning tenant — stamped by ReportingDbContext on insert from the source event's TenantScope.</summary>
+    public Guid TenantId { get; set; }
     public Guid CustomerId { get; set; }
     public string CustomerName { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
@@ -15,9 +19,11 @@ public class FactSalesOrder
     public int DateKey { get; set; }
 }
 
-public class FactPayment
+public class FactPayment : ITenantOwned
 {
     public Guid PaymentId { get; set; }
+    /// <summary>Owning tenant — stamped by ReportingDbContext on insert from the source event's TenantScope.</summary>
+    public Guid TenantId { get; set; }
     public Guid OrderId { get; set; }
     public decimal Amount { get; set; }
     public string Currency { get; set; } = string.Empty;
@@ -27,9 +33,11 @@ public class FactPayment
     public int DateKey { get; set; }
 }
 
-public class FactInventoryMovement
+public class FactInventoryMovement : ITenantOwned
 {
     public Guid MovementId { get; set; }
+    /// <summary>Owning tenant — stamped by ReportingDbContext on insert from the source event's TenantScope.</summary>
+    public Guid TenantId { get; set; }
     public Guid ProductId { get; set; }
     public string MovementType { get; set; } = string.Empty;
     public int Quantity { get; set; }
@@ -51,9 +59,11 @@ public class DimDate
     public bool IsWeekend { get; set; }
 }
 
-public class FactPOSTransaction
+public class FactPOSTransaction : ITenantOwned
 {
     public Guid TransactionId { get; set; }
+    /// <summary>Owning tenant — stamped by ReportingDbContext on insert from the source event's TenantScope.</summary>
+    public Guid TenantId { get; set; }
     public Guid StoreId { get; set; }
     public Guid CashierId { get; set; }
     public decimal TotalAmount { get; set; }
@@ -63,9 +73,11 @@ public class FactPOSTransaction
     public int DateKey { get; set; }
 }
 
-public class FactHRPayslip
+public class FactHRPayslip : ITenantOwned
 {
     public Guid PayslipId { get; set; }
+    /// <summary>Owning tenant — stamped by ReportingDbContext on insert from the source event's TenantScope.</summary>
+    public Guid TenantId { get; set; }
     public Guid EmployeeId { get; set; }
     public string EmployeeName { get; set; } = string.Empty;
     public string Period { get; set; } = string.Empty;
@@ -76,9 +88,11 @@ public class FactHRPayslip
     public int DateKey { get; set; }
 }
 
-public class DimProduct
+public class DimProduct : ITenantOwned
 {
     public Guid ProductId { get; set; }
+    /// <summary>Owning tenant — stamped by ReportingDbContext on insert from the source event's TenantScope.</summary>
+    public Guid TenantId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public decimal Price { get; set; }

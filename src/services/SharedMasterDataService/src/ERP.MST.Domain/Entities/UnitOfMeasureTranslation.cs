@@ -2,7 +2,7 @@ using ERP.Shared.Core.Domain;
 
 namespace ERP.MST.Domain.Entities
 {
-    public class UnitOfMeasureTranslation : TranslationEntity
+    public class UnitOfMeasureTranslation : TranslationEntity, ISharedReferenceData
     {
         public string Name { get; set; } = string.Empty;
         public string Symbol { get; set; } = string.Empty;

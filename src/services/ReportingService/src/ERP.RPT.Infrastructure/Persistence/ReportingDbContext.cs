@@ -1,9 +1,12 @@
+using ERP.Shared.Core.Domain;
+using ERP.Shared.Messaging;
+using ERP.Shared.Infrastructure.Data;
 using ERP.RPT.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace ERP.RPT.Infrastructure.Persistence;
 
-public class ReportingDbContext : DbContext
+public class ReportingDbContext : DbContext, ITenantScopedDbContext
 {
     public DbSet<FactSalesOrder> FactSalesOrders => Set<FactSalesOrder>();
     public DbSet<FactPayment> FactPayments => Set<FactPayment>();
@@ -13,7 +16,19 @@ public class ReportingDbContext : DbContext
     public DbSet<DimDate> DimDates => Set<DimDate>();
     public DbSet<DimProduct> DimProducts => Set<DimProduct>();
 
-    public ReportingDbContext(DbContextOptions<ReportingDbContext> options) : base(options) { }
+    private readonly ITenantProvider _tenantProvider;
+
+    /// <summary>
+    /// Tenant of the current request (JWT / Gateway host tenant) or consumer message
+    /// (TenantScope). Read by the tenant query filter on every query and used to
+    /// stamp/validate every save.
+    /// </summary>
+    public Guid? CurrentTenantId => _tenantProvider.CurrentTenantId;
+
+    public ReportingDbContext(DbContextOptions<ReportingDbContext> options, ITenantProvider tenantProvider) : base(options)
+    {
+        _tenantProvider = tenantProvider;
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -75,5 +90,20 @@ public class ReportingDbContext : DbContext
             e.Property(x => x.Price).HasPrecision(18, 2);
             e.HasIndex(x => x.Category);
         });
+
+        // Last, so it composes with any per-entity filter configured above.
+        modelBuilder.ApplyTenantQueryFilters(this);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 }

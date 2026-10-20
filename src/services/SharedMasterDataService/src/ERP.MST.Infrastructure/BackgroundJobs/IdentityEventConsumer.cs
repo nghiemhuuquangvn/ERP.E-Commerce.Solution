@@ -1,3 +1,5 @@
+using ERP.Shared.Infrastructure.Data;
+using ERP.Shared.Messaging;
 using Confluent.Kafka;
 using ERP.MST.Application.EventHandlers;
 using Microsoft.Extensions.Configuration;
@@ -84,6 +86,15 @@ public class IdentityEventConsumer : IHostedService
         // never "...DomainEvent". Checking for "DomainEvent" here meant this dispatch could
         // never match anything actually published on this topic.
         var typeName = JObject.Parse(json)["$type"]?.ToString() ?? string.Empty;
+
+        // The event carries its tenant (Identity: the user's tenant; HRM: the leave request's tenant); without one nothing is
+        // changed (fail closed).
+        if (!EventTenant.TryRead(json, out var tenantId))
+        {
+            _logger.LogWarning("{EventType} without TenantId ignored", typeName);
+            return;
+        }
+        using var tenantScope = TenantScope.Begin(tenantId);
         if (!typeName.Contains("UserRegisteredIntegrationEvent"))
             return;
 

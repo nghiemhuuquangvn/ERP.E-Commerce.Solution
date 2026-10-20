@@ -122,4 +122,82 @@ public class TenantIsolationBehaviorTests
     public void Pos_ProductCache() =>
         AssertIsolated<ERP.POS.Infrastructure.Persistence.POSDbContext, ERP.POS.Application.EventHandlers.PosProductCache>(
             new ERP.POS.Application.EventHandlers.PosProductCache { ProductId = Guid.NewGuid(), Name = "Tee", Sku = "TEE", Price = 10m }, e => e.TenantId);
+
+    [Fact]
+    public void Hrm_WorkShifts() =>
+        AssertIsolated<ERP.HRM.Infrastructure.Persistence.HrmDbContext, ERP.HRM.Domain.Entities.WorkShift>(
+            ERP.HRM.Domain.Entities.WorkShift.Create("Morning", TimeSpan.FromHours(8), TimeSpan.FromHours(17)), e => e.TenantId);
+
+    [Fact]
+    public void MasterData_Departments() =>
+        AssertIsolated<ERP.MST.Infrastructure.Persistence.MasterDataDbContext, ERP.MST.Domain.Entities.Department>(
+            ERP.MST.Domain.Entities.Department.Create("Sales", "SALES"), e => e.TenantId);
+
+    [Fact]
+    public void MasterData_Countries_AreSharedFromThePlatformTenant_ReadOnlyForTenants()
+    {
+        var platform = ERP.Shared.Core.Domain.WellKnownTenants.Platform;
+        var vn = ERP.MST.Domain.Entities.Country.Create("VN", "Viet Nam");
+        using (var p = Db<ERP.MST.Infrastructure.Persistence.MasterDataDbContext>(platform))
+        {
+            p.Set<ERP.MST.Domain.Entities.Country>().Add(vn);
+            p.SaveChanges();
+        }
+
+        using (var a = Db<ERP.MST.Infrastructure.Persistence.MasterDataDbContext>(TenantA))
+        {
+            a.Set<ERP.MST.Domain.Entities.Country>().Add(ERP.MST.Domain.Entities.Country.Create("XA", "Only A"));
+            a.SaveChanges();
+            a.Set<ERP.MST.Domain.Entities.Country>().Select(c => c.Code).Should().BeEquivalentTo("VN", "XA");
+        }
+
+        using var b = Db<ERP.MST.Infrastructure.Persistence.MasterDataDbContext>(TenantB);
+        b.Set<ERP.MST.Domain.Entities.Country>().Select(c => c.Code).Should().BeEquivalentTo(new[] { "VN" },
+            "a tenant sees the shared rows but never another tenant's additions");
+        b.Entry(b.Set<ERP.MST.Domain.Entities.Country>().Single()).State = EntityState.Modified;
+        var act = () => b.SaveChanges();
+        act.Should().Throw<TenantIsolationViolationException>("only the platform tenant may change shared reference data");
+    }
+
+    [Fact]
+    public void Notification_Notifications() =>
+        AssertIsolated<ERP.NTF.Infrastructure.Persistence.NotificationDbContext, ERP.NTF.Domain.Entities.Notification>(
+            ERP.NTF.Domain.Entities.Notification.Create("u1", "u1@example.test", ERP.NTF.Domain.Enums.NotificationChannel.Email, "Hi", "Body"),
+            e => e.TenantId);
+
+    [Fact]
+    public async Task Notification_Templates_PlatformDefaultsWithTenantOverride()
+    {
+        var platform = ERP.Shared.Core.Domain.WellKnownTenants.Platform;
+        using (var p = Db<ERP.NTF.Infrastructure.Persistence.NotificationDbContext>(platform))
+        {
+            p.Set<ERP.NTF.Domain.Entities.NotificationTemplate>().Add(ERP.NTF.Domain.Entities.NotificationTemplate.Create(
+                "OTP", "Default OTP", ERP.NTF.Domain.Enums.NotificationChannel.Email, "Code", "platform body"));
+            p.SaveChanges();
+        }
+        using (var a = Db<ERP.NTF.Infrastructure.Persistence.NotificationDbContext>(TenantA))
+        {
+            a.Set<ERP.NTF.Domain.Entities.NotificationTemplate>().Add(ERP.NTF.Domain.Entities.NotificationTemplate.Create(
+                "OTP", "A OTP", ERP.NTF.Domain.Enums.NotificationChannel.Email, "Code", "tenant A body"));
+            a.SaveChanges();
+        }
+
+        using (var a = Db<ERP.NTF.Infrastructure.Persistence.NotificationDbContext>(TenantA))
+            (await new ERP.NTF.Infrastructure.Repositories.TemplateRepository(a).GetByCodeAsync("OTP"))!.Body
+                .Should().Be("tenant A body", "a tenant's own template overrides the platform default");
+        using (var b = Db<ERP.NTF.Infrastructure.Persistence.NotificationDbContext>(TenantB))
+            (await new ERP.NTF.Infrastructure.Repositories.TemplateRepository(b).GetByCodeAsync("OTP"))!.Body
+                .Should().Be("platform body", "other tenants fall back to the platform default, never to tenant A's");
+    }
+
+    [Fact]
+    public void ChatBot_Conversations() =>
+        AssertIsolated<ERP.CHB.Infrastructure.Persistence.ChatBotDbContext, ERP.CHB.Domain.Entities.Conversation>(
+            ERP.CHB.Domain.Entities.Conversation.Start(Guid.Empty, ERP.CHB.Domain.Enums.ConversationChannel.Storefront,
+                ERP.CHB.Domain.Enums.AiProvider.ChatGpt, null, "guest-session"), e => e.TenantId);
+
+    [Fact]
+    public void Reporting_FactSalesOrders() =>
+        AssertIsolated<ERP.RPT.Infrastructure.Persistence.ReportingDbContext, ERP.RPT.Domain.Models.FactSalesOrder>(
+            new ERP.RPT.Domain.Models.FactSalesOrder { OrderId = Guid.NewGuid(), CustomerName = "C", Status = "Created", TotalAmount = 10m }, e => e.TenantId);
 }

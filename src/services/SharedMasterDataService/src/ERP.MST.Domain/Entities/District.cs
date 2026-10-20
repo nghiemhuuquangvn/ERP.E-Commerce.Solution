@@ -2,7 +2,7 @@ using ERP.Shared.Core.Domain;
 
 namespace ERP.MST.Domain.Entities
 {
-    public class District : AggregateRoot
+    public class District : AggregateRoot, ISharedReferenceData
     {
         public Guid ProvinceId { get; set; }
         public string Code { get; set; } = string.Empty;

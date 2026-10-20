@@ -1,3 +1,4 @@
+using ERP.Shared.Infrastructure.Data;
 using ERP.MST.Domain.Entities;
 using ERP.MST.Domain.Entities.Settings;
 using ERP.Shared.Core.Domain;
@@ -8,7 +9,7 @@ using System.Reflection;
 
 namespace ERP.MST.Infrastructure.Persistence
 {
-    public class MasterDataDbContext : DbContext
+    public class MasterDataDbContext : DbContext, ITenantScopedDbContext
     {
         public DbSet<Department> Departments { get; set; }
         public DbSet<Position> Positions { get; set; }
@@ -46,8 +47,18 @@ namespace ERP.MST.Infrastructure.Persistence
         public DbSet<ExchangeRate> ExchangeRates { get; set; }
         public DbSet<PaymentTerm> PaymentTerms { get; set; }
 
-        public MasterDataDbContext(DbContextOptions<MasterDataDbContext> options) : base(options)
+        private readonly ITenantProvider _tenantProvider;
+
+        /// <summary>
+        /// Tenant of the current request (JWT / Gateway host tenant) or consumer message
+        /// (TenantScope). Read by the tenant query filter on every query and used to
+        /// stamp/validate every save.
+        /// </summary>
+        public Guid? CurrentTenantId => _tenantProvider.CurrentTenantId;
+
+        public MasterDataDbContext(DbContextOptions<MasterDataDbContext> options, ITenantProvider tenantProvider) : base(options)
         {
+            _tenantProvider = tenantProvider;
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -75,10 +86,18 @@ namespace ERP.MST.Infrastructure.Persistence
                 e.Property(x => x.ExchangeRateSource).IsRequired().HasMaxLength(50);
                 e.HasIndex(x => x.TenantId).IsUnique();
             });
+
+            // Last, so it composes with any per-entity filter configured above.
+            modelBuilder.ApplyTenantQueryFilters(this);
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            // Stamp/validate the tenant first, so the events serialized below carry it.
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+            foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+                EventTenant.StampFrom(entry.Entity);
+
             var aggregateRoots = ChangeTracker.Entries<BaseEntity>()
                 .Where(e => e.Entity.DomainEvents.Count != 0)
                 .Select(e => e.Entity)
@@ -117,6 +136,18 @@ namespace ERP.MST.Infrastructure.Persistence
                 aggregateRoot.ClearDomainEvents();
 
             return result;
+        }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
     }
 }

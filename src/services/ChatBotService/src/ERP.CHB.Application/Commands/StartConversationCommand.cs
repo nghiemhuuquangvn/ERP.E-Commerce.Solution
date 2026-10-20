@@ -3,12 +3,13 @@ using ERP.CHB.Application.Interfaces;
 using ERP.CHB.Domain.Entities;
 using ERP.CHB.Domain.Enums;
 using ERP.Shared.Authorization;
+using ERP.Shared.Infrastructure.Data;
 using ERP.Shared.Infrastructure.Exceptions;
 using MediatR;
 
 namespace ERP.CHB.Application.Commands;
 
-/// <summary>TenantId/GuestSessionId only apply to an unauthenticated Storefront guest — see StartConversationCommandHandler for how they combine with UserContext.</summary>
+/// <summary>GuestTenantId/GuestSessionId only apply to an unauthenticated Storefront guest — see StartConversationCommandHandler for how they combine with UserContext. GuestTenantId is optional and only cross-checked: the guest's tenant is the request host's.</summary>
 public record StartConversationCommand(ConversationChannel Channel, Guid? GuestTenantId, string? GuestSessionId) : IRequest<ConversationDto>;
 
 public class StartConversationCommandHandler : IRequestHandler<StartConversationCommand, ConversationDto>
@@ -16,9 +17,11 @@ public class StartConversationCommandHandler : IRequestHandler<StartConversation
     private readonly IConversationRepository _repository;
     private readonly IChatProviderResolver _providerResolver;
     private readonly UserContext _userContext;
+    private readonly ITenantProvider _tenantProvider;
 
-    public StartConversationCommandHandler(IConversationRepository repository, IChatProviderResolver providerResolver, UserContext userContext)
+    public StartConversationCommandHandler(IConversationRepository repository, IChatProviderResolver providerResolver, UserContext userContext, ITenantProvider tenantProvider)
     {
+        _tenantProvider = tenantProvider;
         _repository = repository;
         _providerResolver = providerResolver;
         _userContext = userContext;
@@ -53,10 +56,18 @@ public class StartConversationCommandHandler : IRequestHandler<StartConversation
             // GuestSessionId to key the conversation.
             if (request.Channel != ConversationChannel.Storefront)
                 throw new UnauthorizedAccessException("The Admin assistant requires authentication.");
-            if (request.GuestTenantId is null || string.IsNullOrWhiteSpace(request.GuestSessionId))
-                throw new BusinessRuleException("GuestConversationRequiresIdentity", "Guest conversations require GuestTenantId and GuestSessionId.");
+            if (string.IsNullOrWhiteSpace(request.GuestSessionId))
+                throw new BusinessRuleException("GuestConversationRequiresIdentity", "Guest conversations require a GuestSessionId.");
 
-            tenantId = request.GuestTenantId.Value;
+            // The guest belongs to the tenant of the storefront host (Gateway X-Tenant-Id /
+            // ChatHub host resolution) — never to a tenant id the client sends. A client value
+            // that disagrees is rejected rather than silently overridden.
+            if (_tenantProvider.CurrentTenantId is not { } hostTenant)
+                throw new BusinessRuleException("GuestTenantUnknown", "The storefront host does not belong to a known tenant.");
+            if (request.GuestTenantId is { } claimed && claimed != hostTenant)
+                throw new UnauthorizedAccessException("GuestTenantId does not match the storefront host.");
+
+            tenantId = hostTenant;
             userId = null;
             guestSessionId = request.GuestSessionId;
             provider = AiProvider.ChatGpt;

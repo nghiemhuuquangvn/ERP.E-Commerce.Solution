@@ -1,3 +1,5 @@
+using ERP.Shared.Infrastructure.Data;
+using ERP.Shared.Messaging;
 using Confluent.Kafka;
 using ERP.NTF.Application.EventHandlers;
 using MediatR;
@@ -98,6 +100,15 @@ public class NotificationKafkaConsumer : IHostedService
     private async Task DispatchAsync(string json, CancellationToken cancellationToken)
     {
         var typeName = JObject.Parse(json)["$type"]?.ToString() ?? string.Empty;
+
+        // Every business event carries its tenant (stamped by the publishing service's Outbox); without one nothing is
+        // changed (fail closed).
+        if (!EventTenant.TryRead(json, out var tenantId))
+        {
+            _logger.LogWarning("{EventType} without TenantId ignored", typeName);
+            return;
+        }
+        using var tenantScope = TenantScope.Begin(tenantId);
 
         using var scope = _serviceProvider.CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();

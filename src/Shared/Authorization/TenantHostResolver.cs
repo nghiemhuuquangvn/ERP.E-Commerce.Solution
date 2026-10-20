@@ -1,7 +1,11 @@
 using System.Net;
+using System.Net.Http.Json;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
-namespace Ocelot.API.Authorization;
+namespace ERP.Shared.Authorization;
 
 public sealed record ResolvedTenant(Guid TenantId, string TenantCode, bool IsPlatform);
 
@@ -9,7 +13,8 @@ public sealed record ResolvedTenant(Guid TenantId, string TenantCode, bool IsPla
 /// Asks IdentityService (the owner of tenants and their domains) which tenant a request
 /// host belongs to — GET {Tenancy:IdentityUrl}/api/v1/tenants/resolve?host=… on the internal
 /// network — and caches the answer briefly. Any failure resolves to "unknown", so the
-/// Gateway fails closed instead of guessing a tenant.
+/// caller fails closed instead of guessing a tenant. Used by the Gateway (every request)
+/// and by hubs that bypass the Gateway (ChatBot guests).
 /// </summary>
 public sealed class TenantHostResolver
 {
@@ -54,5 +59,24 @@ public sealed class TenantHostResolver
         if (cacheable)
             _cache.Set(key, resolved, resolved is null ? NegativeTtl : PositiveTtl);
         return resolved;
+    }
+}
+
+public static class TenantHostResolverServiceCollectionExtensions
+{
+    /// <summary>
+    /// Registers <see cref="TenantHostResolver"/> (singleton, in-memory cache) calling
+    /// IdentityService at <c>Tenancy:IdentityUrl</c> (default http://identityservice:5001).
+    /// </summary>
+    public static IServiceCollection AddTenantHostResolver(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddMemoryCache();
+        services.AddSingleton<TenantHostResolver>();
+        services.AddHttpClient(TenantHostResolver.HttpClientName, c =>
+        {
+            c.BaseAddress = new Uri((configuration["Tenancy:IdentityUrl"] ?? "http://identityservice:5001").TrimEnd('/') + "/");
+            c.Timeout = TimeSpan.FromSeconds(3);
+        });
+        return services;
     }
 }

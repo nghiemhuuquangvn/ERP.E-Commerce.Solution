@@ -3,7 +3,7 @@ using ERP.Shared.Core.Domain;
 
 namespace ERP.MST.Domain.Entities
 {
-    public class UnitOfMeasure : AggregateRoot
+    public class UnitOfMeasure : AggregateRoot, ISharedReferenceData
     {
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;

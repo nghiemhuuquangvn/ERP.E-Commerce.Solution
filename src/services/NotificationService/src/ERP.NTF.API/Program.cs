@@ -118,6 +118,10 @@ builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddErpAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
+// Tenant isolation for NotificationDbContext: JWT tenant, Gateway host tenant for anonymous
+// requests, or an explicit TenantScope (consumers, dispatch job). Templates of the platform
+// tenant are shared defaults every tenant can read and override.
+builder.Services.AddRequestTenantProvider();
 builder.Services.AddScoped<UserContext>();
 builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Notification));
 

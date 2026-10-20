@@ -3,7 +3,7 @@ using ERP.Shared.Core.Domain;
 namespace ERP.MST.Domain.Entities.Settings;
 
 /// <summary>Platform-wide currency availability toggles. Mirrors IdentityService's SystemAuthSettings.</summary>
-public class SystemCurrencySettings : BaseEntity
+public class SystemCurrencySettings : BaseEntity, IPlatformWideEntity
 {
     public static readonly Guid WellKnownId = Guid.Parse("B0000000-0000-0000-0000-000000000001");
 
