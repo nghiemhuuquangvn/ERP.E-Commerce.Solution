@@ -1,5 +1,6 @@
 using System.Reflection;
 using ERP.Shared.Authorization;
+using ERP.Shared.Authorization.ServiceAuth;
 using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +12,8 @@ namespace ERP.Architecture.Tests;
 /// <summary>
 /// Every HTTP action in every API must state its authorization explicitly:
 /// [AuthorizePermission] / [AuthorizeAnyPermission] (a permission), [AuthorizeAnyAuthenticatedUser]
-/// (deliberately any signed-in user) or [AllowAnonymous] (deliberately public) — on the action
+/// (deliberately any signed-in user), [AllowAnonymous] (deliberately public) or
+/// [AuthorizeInternalService] (service-to-service only, see InternalEndpointTests) — on the action
 /// or its controller. A bare [Authorize] or nothing at all fails the build: that is exactly how
 /// ProductService ended up letting storefront customers edit the catalog.
 /// </summary>
@@ -97,9 +99,10 @@ public class EndpointAuthorizationTests
         typeof(AuthorizeAnyPermissionAttribute),
         typeof(AuthorizeAnyAuthenticatedUserAttribute),
         typeof(AllowAnonymousAttribute),
+        typeof(AuthorizeInternalServiceAttribute),
     ];
 
-    private static IEnumerable<(Type Controller, MethodInfo Action)> Actions() =>
+    internal static IEnumerable<(Type Controller, MethodInfo Action)> Actions() =>
         ApiAssemblies
             .Select(Assembly.Load)
             .SelectMany(a => a.GetTypes())

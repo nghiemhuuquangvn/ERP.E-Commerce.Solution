@@ -21,6 +21,8 @@
   <ItemGroup>
     <!-- ITenantProvider/TenantScope (AddRequestTenantProvider) and ERP.Shared.Core. -->
     <ProjectReference Include="..\Infrastructure\Data\ERP.Shared.Data.csproj" />
+    <!-- Service-to-service token signing certificates (ServiceAuth/). -->
+    <ProjectReference Include="..\Security\ERP.Shared.Security.csproj" />
   </ItemGroup>
 
 </Project>
