@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.Extensions.Configuration;
+using ERP.Shared.Security.Certificates;
 using Microsoft.IdentityModel.Tokens;
 
 namespace ERP.Identity.Infrastructure.Security.Signing
@@ -15,7 +16,7 @@ namespace ERP.Identity.Infrastructure.Security.Signing
     /// </summary>
     public sealed class AccessTokenSigningCredentials
     {
-        public AccessTokenSigningCredentials(SigningCertificateSet certificates, IConfiguration configuration)
+        public AccessTokenSigningCredentials(CertificateSet certificates, IConfiguration configuration)
         {
             var mode = configuration["Jwt:AccessTokenSigning"];
             if (string.IsNullOrEmpty(mode) || string.Equals(mode, "Rsa", StringComparison.OrdinalIgnoreCase))

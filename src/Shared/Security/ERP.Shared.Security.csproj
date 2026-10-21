@@ -12,4 +12,10 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Certificates/: token signing/encryption certificates from Azure Key Vault. -->
+    <PackageReference Include="Azure.Identity" Version="1.14.2" />
+    <PackageReference Include="Azure.Security.KeyVault.Certificates" Version="4.7.0" />
+  </ItemGroup>
+
 </Project>

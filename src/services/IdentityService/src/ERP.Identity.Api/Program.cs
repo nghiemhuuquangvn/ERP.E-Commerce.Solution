@@ -9,6 +9,7 @@ using ERP.Identity.Infrastructure.Persistence;
 using ERP.Identity.Infrastructure.Repositories;
 using ERP.Identity.Infrastructure.Services;
 using ERP.Identity.Infrastructure.Security.Signing;
+using ERP.Shared.Security.Certificates;
 using ERP.Shared.Authorization;
 using ERP.Shared.Extensions;
 using ERP.Shared.Infrastructure.Caching;
@@ -130,12 +131,13 @@ var oidcIssuer = new Uri($"urn:{builder.Configuration["Jwt:Issuer"]}", UriKind.A
 // (/.well-known/jwks.json) that every other service validates with. Rotation and the HS256
 // cutover: docs/business/Identity/SigningKeys.md.
 using var signingLoggerFactory = LoggerFactory.Create(logging => logging.AddConsole());
-var signingCertificates = SigningCertificateLoader.Load(
+var signingCertificates = CertificateLoader.Load(
     builder.Configuration,
+    "SigningKeys",
     builder.Environment.ContentRootPath,
     builder.Environment.IsDevelopment(),
-    signingLoggerFactory.CreateLogger("ERP.Identity.SigningKeys"));
-builder.Services.AddSingleton(signingCertificates);
+    logger: signingLoggerFactory.CreateLogger("ERP.Identity.SigningKeys"));
+builder.Services.AddSingleton(new AccessTokenSigningCredentials(signingCertificates, builder.Configuration));
 
 builder.Services.AddOpenIddict()
     .AddServer(options =>
