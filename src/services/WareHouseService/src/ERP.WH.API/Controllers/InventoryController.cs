@@ -146,31 +146,6 @@ public class InventoryController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Service-to-service availability read used by SaleOrderService's synchronous
-    /// pre-check before charging payment (see CreateOrderCommandHandler). Deliberately
-    /// [AllowAnonymous] and minimal (no product name, no reorder levels) — same
-    /// rationale as PromotionService's validate-coupon endpoint: a read-only,
-    /// non-sensitive check that another service needs to call without carrying the
-    /// original caller's JWT through the order-creation call chain.
-    /// </summary>
-    [HttpGet("{productId}/availability")]
-    [AllowAnonymous]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetAvailability(Guid productId)
-    {
-        try
-        {
-            var result = await _mediator.Send(new GetInventoryQuery { ProductId = productId });
-            return Ok(new { productId = result.ProductId, availableQuantity = result.AvailableQuantity });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-    }
-
     [HttpGet("{productId}/cost-consumption")]
     [ProducesResponseType(typeof(List<CostConsumptionLogDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<List<CostConsumptionLogDto>>> GetCostConsumption(

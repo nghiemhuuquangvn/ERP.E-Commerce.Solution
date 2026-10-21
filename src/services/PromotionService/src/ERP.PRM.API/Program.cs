@@ -16,6 +16,7 @@ using ERP.Shared.Versioning;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using RabbitMQ.Client;
+using ERP.Shared.Authorization.ServiceAuth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -70,6 +71,8 @@ builder.Services.AddScoped<SalesOrderCreatedForPromotionHandler>();
 // X-Tenant-* headers with no signature verification; see
 // AuthenticationExtensions.AddErpJwtAuthentication/JwtClaimsUserContextService.
 builder.Services.AddErpJwtAuthentication(builder.Configuration);
+// /internal endpoints: service tokens of ServiceAuth:TrustedCallers (SaleOrder).
+builder.Services.AddErpServiceAuthentication(builder.Configuration);
 builder.Services.AddErpAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();

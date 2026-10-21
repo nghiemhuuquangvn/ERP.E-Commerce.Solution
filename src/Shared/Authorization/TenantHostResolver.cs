@@ -4,6 +4,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ERP.Shared.Authorization.ServiceAuth;
 
 namespace ERP.Shared.Authorization;
 
@@ -44,7 +45,7 @@ public sealed class TenantHostResolver
         try
         {
             var client = _httpClientFactory.CreateClient(HttpClientName);
-            using var response = await client.GetAsync($"api/v1/tenants/resolve?host={Uri.EscapeDataString(host)}", ct);
+            using var response = await client.GetAsync($"internal/v1/tenants/resolve?host={Uri.EscapeDataString(host)}", ct);
             if (response.IsSuccessStatusCode)
                 resolved = await response.Content.ReadFromJsonAsync<ResolvedTenant>(cancellationToken: ct);
             else if (response.StatusCode != HttpStatusCode.NotFound)
@@ -76,7 +77,10 @@ public static class TenantHostResolverServiceCollectionExtensions
         {
             c.BaseAddress = new Uri((configuration["Tenancy:IdentityUrl"] ?? "http://identityservice:5001").TrimEnd('/') + "/");
             c.Timeout = TimeSpan.FromSeconds(3);
-        });
+        })
+            // Identity's /internal endpoint takes only service tokens; tenant-less, since this
+            // call is how the caller learns the tenant.
+            .AddServiceToken("identity", tenantless: true);
         return services;
     }
 }

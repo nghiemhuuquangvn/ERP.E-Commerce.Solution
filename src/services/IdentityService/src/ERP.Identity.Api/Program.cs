@@ -11,6 +11,7 @@ using ERP.Identity.Infrastructure.Services;
 using ERP.Identity.Infrastructure.Security.Signing;
 using ERP.Shared.Security.Certificates;
 using ERP.Shared.Authorization;
+using ERP.Shared.Authorization.ServiceAuth;
 using ERP.Shared.Extensions;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
@@ -287,6 +288,9 @@ builder.Services.AddAuthentication(options =>
 // same mechanism the other 13 services use. AddAuthorization() is still required so
 // bare [Authorize] (self-service endpoints with no specific permission) keeps working.
 builder.Services.AddAuthorization();
+// /internal endpoints (host → tenant for the Gateway and ChatBot): service tokens of
+// ServiceAuth:TrustedCallers only.
+builder.Services.AddErpServiceAuthentication(builder.Configuration);
 
 // AuthorizePermissionAttribute resolves IUserContextService from the request's DI
 // container and treats a missing registration as "not authenticated" (401, no
