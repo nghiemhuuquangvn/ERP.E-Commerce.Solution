@@ -43,7 +43,8 @@ The Sales Order Service is responsible for the complete sales order lifecycle fr
   correctly refunded and cancelled — but only after the customer had already been charged.
 - `IWarehouseServiceClient` (mirrors `IPromotionServiceClient`'s `HttpClient` idiom) now
   checks every line's `AvailableQuantity` against WareHouseService's
-  `GET /inventory/{productId}/availability` **before** `CreateOrderCommandHandler`
+  `GET /internal/v1/inventory/{productId}/availability` (service token, order's tenant —
+  since 2026-10-21) **before** `CreateOrderCommandHandler`
   persists the order or the saga ever fires `InitiatePaymentCommand`. Any line that's
   short — or an unreachable WareHouseService — rejects order creation outright.
 - Unlike the coupon-validation client (an outage there just skips the discount), this
@@ -266,7 +267,8 @@ All published via RabbitMQ topic exchange `sales_order_events` (routing key `sal
 ## Consumed Events
 
 **Note:** the stock pre-check (added 2026-07-27) is a synchronous HTTP call
-(`IWarehouseServiceClient` → `GET /inventory/{productId}/availability`), not an event —
+(`IWarehouseServiceClient` → `GET /internal/v1/inventory/{productId}/availability`, signed
+with SaleOrder's own service token), not an event —
 listed here for completeness since it's the other way this service talks to Warehouse.
 
 - Warehouse (RabbitMQ `warehouse_exchange`): `InventoryReservedEvent`, `InventoryInsufficientEvent`

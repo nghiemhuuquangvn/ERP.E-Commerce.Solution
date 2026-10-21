@@ -13,7 +13,7 @@ compromised and rotate them in every environment that ever used them**:
 | Secret | Where it leaked | Action |
 |---|---|---|
 | SQL Server `sa` password | Identity `appsettings.Development.json` / `appsettings.Docker.json` | Change the password; prefer per-service SQL logins over `sa` |
-| JWT signing key `97-prKep…` | 16 services' `appsettings.Development.json`, Gateway `appsettings.json`, Identity `appsettings.Docker.json` | Generate a new `JWT_SIGNING_KEY` (`openssl rand -base64 48`) |
+| JWT signing key `97-prKep…` | 16 services' `appsettings.Development.json`, Gateway `appsettings.json`, Identity `appsettings.Docker.json` | **No longer needed (2026-10-21)** — the shared key was removed; tokens are signed with certificates (`SigningKeys.md`). Delete `JWT_SIGNING_KEY` / the `jwt-signing-key` secret from every environment |
 
 The leaked JWT key is still used as the shared **local Development** key; `JwtKeyGuard`
 (ERP.Shared.Authorization) makes Identity, the Gateway and every service using
@@ -27,7 +27,7 @@ The leaked JWT key is still used as the shared **local Development** key; `JwtKe
 |---|---|---|---|
 | C1 | Critical | Anonymous `/auth/register` honored client `UserType` → self-registration as Admin/SuperAdmin of any tenant. Same pattern in external-login auto-provisioning (not exploitable today only because auto-provisioning currently always throws — see Known gaps) | **Fixed** — always Customer; validator rejects other values |
 | C2 | Critical | `/auth/forgot-password` returned the reset token → account takeover with only email + tenant code | **Fixed** — token only in an emailed link (Outbox → Notification); uniform 200; TTL 60 min |
-| C3 | Critical | Real SA password + JWT key committed | **Code fixed** (placeholders, `JwtKeyGuard`); **rotation required** (above) |
+| C3 | Critical | Real SA password + JWT key committed | **Code fixed**; the JWT key no longer exists (2026-10-21); **SA password rotation still required** (above) |
 | H1 | High | `/auth/confirm-email` confirmed any account by UserId alone | **Fixed** — single-use hashed `EmailConfirmToken`, issued on register/tenant signup |
 | H2 | High | OIDC `/connect/login` bypassed lockout, attempt counter, rate limit, 2FA, IsActive, audit; open redirect via ReturnUrl; no CSRF protection | **Fixed** — shared checks via `IAuthService.VerifyInteractiveCredentialsAsync`, antiforgery, ReturnUrl limited to `/connect/authorize`, 2FA-required users denied |
 | H3 | High | Deactivated users/tenants could still log in and refresh; deactivate / password reset / change didn't end sessions | **Fixed** — `EnsureAccountCanAuthenticateAsync` on every token path; `ISessionService.RevokeAllForUserAsync` |
@@ -35,7 +35,7 @@ The leaked JWT key is still used as the shared **local Development** key; `JwtKe
 | H5 | High | Webhook SSRF: any http(s) URL incl. internal hosts / cloud metadata | **Fixed** — https + public host only, checked on save and on resolved IPs at connect time, no redirects |
 | M4 | Medium | `AssignRole`/`RemoveRole` looked up users without tenant scope (cross-tenant role grant) | **Fixed** |
 | — | Medium | Refresh-token reuse detection "revoked" device sessions read `AsNoTracking` → never persisted | **Fixed** (via `RevokeAllForUserAsync`) |
-| M1 | Medium | Symmetric HS256 key shared by every service; token blacklist only checked by Identity | **Fixed** — revocation store (phase 3); RS256 via JWKS (phase 4 release 1). Release 2 removes `Jwt:Key` outside Identity |
+| M1 | Medium | Symmetric HS256 key shared by every service; token blacklist only checked by Identity | **Fixed** — revocation store (phase 3); RS256 via JWKS (phase 4); `Jwt:Key` removed everywhere (2026-10-21) |
 | M2 | Medium | OpenIddict signing cert self-generated in the container's user store (lost on restart, differs per replica) | **Fixed — phase 4** — Key Vault (production) / PFX on a persistent volume (local); see `SigningKeys.md` |
 | M3 | Medium | 2FA resend doesn't invalidate the previous challenge; OTP plaintext retained in `OutboxMessages` and Kafka | Open |
 | M5 | Medium | Tenant `ADMIN` role has `identity:tenants:view` → can list all tenants | Open |
@@ -161,7 +161,8 @@ user context) is correct in every service. Authorization and isolation were not.
 | S3 | Critical | Hosts didn't match tenant-from-host: `api.erp.local` / `shop.erp.local` / `erp.local` hosts in nginx & ingress, hubs on separate hosts | **Fixed** — `<tenant>.erp.local` (admin), `<tenant>.shop.erp.local` / custom domain (storefront); `/api` + `/hubs/*` same-origin via SPA containers |
 | S4 | Critical | All 17 service ports published by docker-compose (bypass Gateway; Identity trusts X-Tenant-Code) | **Fixed** — ports removed (`docker-compose.debug.yml` for local), infra bound to 127.0.0.1 |
 | S5 | High | Revoked tokens (logout/lock/password/role change) still accepted by other services until expiry | **Fixed — phase 3** (shared Redis revocation store checked by every service, the Gateway and hubs; tokens carry `iat`; admin lock ends sessions) |
-| S6 | High | Every service held the token signing key (HS256) and could mint tokens; OIDC (RS256) tokens rejected by all services | **Fixed — phase 4 release 1** (RS256 signed only by Identity, validated via JWKS by every service and the Gateway, which now also checks issuer/audience). Pending: release 2 removes the shared key; OIDC (`urn:`) tokens deliberately still Identity-only (client_credentials permissions bypass `EffectivePermissions`) |
+| S6 | High | Every service held the token signing key (HS256) and could mint tokens; OIDC (RS256) tokens rejected by all services | **Fixed** — RS256 signed only by Identity, validated via JWKS by every service and the Gateway (which now also checks issuer/audience); the shared `Jwt:Key` no longer exists (2026-10-21). OIDC (`urn:`) tokens deliberately still Identity-only (client_credentials permissions bypass `EffectivePermissions`) |
+| S12 | High | Service-to-service calls had no identity: SaleOrder → Warehouse/Promotion used anonymous endpoints; since phase 2 they carried no tenant (stock check answered 404, and compose pointed SaleOrder at localhost — every order was refused) | **Fixed (2026-10-21)** — `/internal` endpoints accept only short-lived RS256 tokens signed with the calling service's own key, carrying the tenant; each caller's key validates only its own tokens; compose/k8s URLs fixed |
 | S7 | High | `redeem-coupon` used body UserId; product review used body CustomerId; notification templates anonymous; guest chat history readable by anyone signed in | **Fixed** |
 | S8 | High | Accounting / SaleOrder ran without `LicenseEnforcementMiddleware` | **Fixed** (tenants without ACC/SO modules now get 403) |
 | S9 | High | RabbitMQ management and kafka-ui published via nginx/ingress | **Fixed** — removed; reach via 127.0.0.1 / port-forward |

@@ -52,7 +52,8 @@ Password: <your own SA password — see .env below, not a fixed system credentia
 
 **Since 2026-07-08:** the `sa`/RabbitMQ/JWT-signing secrets are no longer hardcoded in
 `docker-compose.yml`. Copy `.env.example` (repo root) to `.env` and set your own values
-for `SA_PASSWORD`, `RABBITMQ_PASSWORD`, `JWT_SIGNING_KEY` before running anything below
+for `SA_PASSWORD`, `RABBITMQ_PASSWORD` before running anything below (there is no JWT
+secret since 2026-10-21 — token keys are certificates, see `docs/business/Identity/SigningKeys.md`)
 — `.env` is gitignored, `docker compose` loads it automatically from the repo root.
 
 ### Hosts File Entries (Windows: C:\Windows\System32\drivers\etc\hosts)
@@ -123,7 +124,7 @@ cd d:\Documents\ERP\Sources\ERP.E-Commerce.Solution
 
 # One-time: create your local secrets file (gitignored) if you haven't already
 copy .env.example .env
-# then edit .env and set SA_PASSWORD / RABBITMQ_PASSWORD / JWT_SIGNING_KEY
+# then edit .env and set SA_PASSWORD / RABBITMQ_PASSWORD
 
 # First run — builds all images (~10-15 min)
 docker compose up --build -d

@@ -105,7 +105,8 @@ IdentityService has one, and it defaults to `5095`/`7077`, not the port below).
 ```powershell
 $env:ASPNETCORE_URLS = "http://localhost:5001"       # use the port from §3
 $env:ConnectionStrings__AuthDB = "Server=localhost,1433;Database=AuthDB;User Id=sa;Password=<your SA password>;TrustServerCertificate=True;Encrypt=False"
-$env:Jwt__Key = "<same JWT_SIGNING_KEY value everything else uses>"
+# Development settings generate the RS256 signing/encryption certificates under
+# signing/ on first start (SigningKeys / EncryptionKeys, Source=File, AutoCreate) — no JWT secret.
 $env:KafkaSettings__BootstrapServers = "localhost:9092"
 
 dotnet run --project src/services/IdentityService/src/ERP.Identity.Api/ERP.Identity.API.csproj

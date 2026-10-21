@@ -174,13 +174,15 @@ Security invariants (2026-10-19 review — docs/business/Identity/SecurityReview
 - Client IP comes from `RemoteIpAddress` (after `UseForwardedHeaders` with trusted
   networks), never from the raw `X-Forwarded-For` header.
 - Outbound calls to tenant-configured URLs (webhooks) go through `WebhookUrlRules`.
-- No secrets in tracked appsettings; `JwtKeyGuard` rejects known keys outside Development.
-- Access tokens are RS256: only IdentityService holds the private key (`SigningKeys:Source` —
-  Key Vault in production, a PFX on a persistent volume locally). Every service and the Gateway
-  validate via `ErpJwtBearerOptions` with the public keys from Identity's JWKS — never add a
-  signing key or a second token issuer to another service. The shared HS256 `Jwt:Key` is
-  transition-only (release 2 removes it outside Identity). Only issuer `Jwt:Issuer` (login
-  tokens) is accepted outside Identity. Rotation/cutover: docs/business/Identity/SigningKeys.md.
+- No secrets in tracked appsettings.
+- **No shared token key exists** (`Jwt:Key` was removed 2026-10-21; `NoSharedTokenKeyTests`
+  fails the build if it reappears). Access tokens are RS256: only IdentityService holds the
+  private key (`SigningKeys:Source` — Key Vault in production, a PFX on a persistent volume
+  locally); OpenIddict tokens are encrypted with a separate certificate (`EncryptionKeys`).
+  Every service and the Gateway validate via `ErpJwtBearerOptions` (RS256 only) with the public
+  keys from Identity's JWKS — never add a signing key or a second user-token issuer to another
+  service. Only issuer `Jwt:Issuer` (login tokens) is accepted outside Identity.
+  Keys, rotation: docs/business/Identity/SigningKeys.md.
 
 Tenant & permission scope (2026-10-20):
 - **Tenant = request host.** The Gateway resolves host → tenant via IdentityService
@@ -703,6 +705,15 @@ tenant-owned entity of the real EF model is filtered), `TenantIsolationBehaviorT
 - Legacy controllers that check `_userContext.HasPermission(...)` inside each action are
   listed in that test's `InActionCheckAllowlist`; migrate them to attributes (the list may
   only shrink). Never add a new controller to it.
+- **Service-to-service calls** go to `internal/...` routes protected by
+  `[AuthorizeInternalService("<caller>", …)]` (receiver: `AddErpServiceAuthentication`,
+  `ServiceAuth:TrustedCallers`); the caller adds its own short-lived RS256 token with
+  `AddHttpClient<…>().AddServiceToken("<target>")` and publishes `app.MapServiceJwks()`. Each
+  service signs with its own key (`ServiceAuth:SigningKeys`), the token carries the request's
+  tenant (no tenant → not sent). Never make an endpoint `[AllowAnonymous]` "because only another
+  service calls it", never reuse a user token for a call the service makes on its own, and never
+  route `/internal` in the Gateway (`InternalEndpointTests`). Acting *for* a user (ChatBot →
+  Gateway) still forwards the user's JWT.
 - Only nginx (and, locally, the Gateway/SPAs on 127.0.0.1) are reachable from outside;
   backend service ports are not published (`docker-compose.debug.yml` for local debugging).
   APIs and SignalR hubs are served on the tenant's own host (`/api`, `/hubs/*` proxied by
