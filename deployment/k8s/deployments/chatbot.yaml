@@ -46,11 +46,6 @@ spec:
             secretKeyRef:
               name: erp-secrets
               key: sql-chatbot-db
-        - name: Jwt__Key
-          valueFrom:
-            secretKeyRef:
-              name: erp-secrets
-              key: jwt-signing-key
         - name: Anthropic__ApiKey
           valueFrom:
             secretKeyRef:

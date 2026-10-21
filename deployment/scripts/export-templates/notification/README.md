@@ -29,7 +29,7 @@ below).
 
 ```bash
 cp .env.example .env
-# edit .env: set SA_PASSWORD, and JWT_SIGNING_KEY/JWT_ISSUER/JWT_AUDIENCE to match
+# edit .env: set SA_PASSWORD, and JWT_AUTHORITY/JWT_ISSUER/JWT_AUDIENCE to match
 # your identity provider's token-signing configuration
 
 docker compose up --build -d
@@ -40,12 +40,12 @@ Add `--profile with-kafka` to also start Kafka.
 
 ## Authentication
 
-**This service validates JWTs — it does not issue them.** `Jwt__Key`/`Jwt__Issuer`/
-`Jwt__Audience` (set via `.env`) must exactly match the signing key, issuer, and
-audience your separate identity/auth service used when it signed the token, or
-every authenticated request 401s. If you don't have an existing token issuer, the
-simplest option is a symmetric-key HMAC-SHA256 JWT service (see this platform's own
-IdentityService export for one worked example, or any off-the-shelf library).
+**This service validates JWTs — it does not issue them.** Tokens must be RS256; the
+public keys are fetched from `Jwt__Authority` + `/.well-known/jwks.json` (set
+`JWT_AUTHORITY` in `.env`), and `Jwt__Issuer`/`Jwt__Audience` must exactly match what
+your identity/auth service puts in the token, or every authenticated request 401s.
+Shared-secret (HS256) tokens are not accepted. This platform's own IdentityService
+export is one worked example of a compatible issuer.
 
 ### Claim shape expected on incoming tokens
 

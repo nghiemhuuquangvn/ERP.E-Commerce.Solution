@@ -28,11 +28,6 @@ spec:
           value: "http://elasticsearch:9200"
         - name: Elasticsearch__IndexPrefix
           value: "service-logs"
-        - name: Jwt__Key
-          valueFrom:
-            secretKeyRef:
-              name: erp-secrets
-              key: jwt-signing-key
         readinessProbe:
           httpGet:
             path: /health

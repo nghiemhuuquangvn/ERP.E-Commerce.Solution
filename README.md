@@ -58,8 +58,9 @@ A comprehensive .NET 10 microservices-based ERP platform designed for enterprise
 
 2. **Run everything**
    ```bash
-   # One-time: copy .env.example to .env and set SA_PASSWORD / RABBITMQ_PASSWORD /
-   # JWT_SIGNING_KEY (docker-compose.yml reads secrets from .env, which is gitignored)
+   # One-time: copy .env.example to .env and set SA_PASSWORD / RABBITMQ_PASSWORD
+   # (docker-compose.yml reads secrets from .env, which is gitignored). No JWT secret:
+   # token signing keys are generated on first start (identity_signing volume).
    cp .env.example .env
 
    docker compose up --build -d

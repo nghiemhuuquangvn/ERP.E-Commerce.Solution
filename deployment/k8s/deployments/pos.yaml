@@ -37,11 +37,6 @@ spec:
             secretKeyRef:
               name: erp-secrets
               key: rabbitmq-password
-        - name: Jwt__Key
-          valueFrom:
-            secretKeyRef:
-              name: erp-secrets
-              key: jwt-signing-key
         readinessProbe:
           httpGet:
             path: /health

@@ -22,7 +22,8 @@ public static class ServiceAuthenticationExtensions
     /// Receiving side of service-to-service calls: the <see cref="ServiceAuthDefaults.Scheme"/>
     /// scheme accepts only tokens of the callers listed in <c>ServiceAuth:TrustedCallers</c>
     /// (name → that service's JWKS URL), addressed to this service (<c>ServiceAuth:Name</c>),
-    /// RS256, at most 60 s old. Each caller's keys only validate that caller's tokens. User
+    /// RS256, at most 60 s old (none listed → every service token is refused). Each caller's
+    /// keys only validate that caller's tokens. User
     /// tokens are refused here, and service tokens are refused by the user "Bearer" scheme.
     /// Endpoints opt in with <see cref="AuthorizeInternalServiceAttribute"/>.
     /// </summary>
@@ -46,13 +47,16 @@ public static class ServiceAuthenticationExtensions
     /// <summary>Validation rules without the callers' keys (added from their JWKS). Public for tests.</summary>
     public static TokenValidationParameters CreateValidationParameters(IConfiguration configuration, out IReadOnlyDictionary<string, string> trustedCallers)
     {
-        var name = configuration["ServiceAuth:Name"]
-            ?? throw new InvalidOperationException("Configuration value 'ServiceAuth:Name' is missing.");
         var callers = configuration.GetSection("ServiceAuth:TrustedCallers").GetChildren()
             .Where(c => !string.IsNullOrWhiteSpace(c.Value))
             .ToDictionary(c => c.Key, c => c.Value!, StringComparer.Ordinal);
-        if (callers.Count == 0)
-            throw new InvalidOperationException("Configuration section 'ServiceAuth:TrustedCallers' is empty — no service may call this one.");
+        // No trusted callers (e.g. a standalone deployment): every service token is refused,
+        // so the /internal endpoints are simply unreachable.
+        var name = configuration["ServiceAuth:Name"];
+        if (string.IsNullOrWhiteSpace(name))
+            name = callers.Count == 0
+                ? "unnamed"
+                : throw new InvalidOperationException("Configuration value 'ServiceAuth:Name' is missing.");
         trustedCallers = callers;
 
         return new TokenValidationParameters

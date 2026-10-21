@@ -24,7 +24,6 @@ namespace ERP.Identity.UnitTests.Security;
 /// </summary>
 public class SigningKeyTests
 {
-    private const string LegacyKey = "a-fresh-random-test-key-of-at-least-32-bytes!";
     private static X509Certificate2 Certificate(DateTimeOffset notBefore, DateTimeOffset notAfter)
     {
         using var rsa = RSA.Create(2048);
@@ -42,7 +41,6 @@ public class SigningKeyTests
                 ["Jwt:Issuer"] = "ERP.Identity",
                 ["Jwt:Audience"] = "ERP.Services",
                 ["Jwt:Expired"] = "60",
-                ["Jwt:Key"] = LegacyKey,
             }.Concat(values.Select(v => new KeyValuePair<string, string?>(v.Key, v.Value))))
             .Build();
 
@@ -50,7 +48,7 @@ public class SigningKeyTests
 
     private static async Task<string> IssueAsync(CertificateSet certificates, IConfiguration config)
     {
-        var service = new TokenService(config, new AccessTokenSigningCredentials(certificates, config), Mock.Of<IRefreshTokenRepository>());
+        var service = new TokenService(config, new AccessTokenSigningCredentials(certificates), Mock.Of<IRefreshTokenRepository>());
         var tenant = AuthTenant.Create("ACME", "Acme");
         var user = User.Create("u@example.test", "u@example.test", "hash", tenant.Id, UserType.Customer);
         return await service.GenerateAccessToken(user, tenant, ["Admin"], ["sales.read"], ["SO"]);
@@ -92,27 +90,44 @@ public class SigningKeyTests
     }
 
     [Fact]
-    public async Task HmacMode_IsTheLegacyHs256_ForTheRollingCutoverOnly()
+    public async Task LeftoverHmacSetting_IsIgnored_TokensAreAlwaysRs256()
     {
         var certificates = CertificateSet.FromCandidates([Certificate(Now.AddDays(-1), Now.AddDays(30))], Now);
 
-        var token = await IssueAsync(certificates, Config(("Jwt:AccessTokenSigning", "Hmac")));
+        var token = await IssueAsync(certificates, Config(("Jwt:AccessTokenSigning", "Hmac"), ("Jwt:Key", "a-leftover-shared-secret-of-32-bytes-or-more")));
 
-        new JsonWebToken(token).Alg.Should().Be(SecurityAlgorithms.HmacSha256);
-        (await new JsonWebTokenHandler().ValidateTokenAsync(token, new TokenValidationParameters
-        {
-            ValidIssuer = "ERP.Identity",
-            ValidAudience = "ERP.Services",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(LegacyKey))
-        })).IsValid.Should().BeTrue();
+        new JsonWebToken(token).Alg.Should().Be(SecurityAlgorithms.RsaSha256);
+    }
+
+    // ── OpenIddict encryption (replaces the key derived from the old shared Jwt:Key) ─────
+
+    private static OpenIddictServerOptions OpenIddictWith(Action<OpenIddictServerBuilder> configure)
+    {
+        var services = new ServiceCollection();
+        services.AddOpenIddict().AddServer(configure);
+        var options = new OpenIddictServerOptions();
+        foreach (var step in services.BuildServiceProvider().GetServices<IConfigureOptions<OpenIddictServerOptions>>())
+            step.Configure(options);
+        return options;
     }
 
     [Fact]
-    public void UnknownSigningMode_StopsStartUp()
+    public void EncryptionCertificate_IsAcceptedByOpenIddict_AsAnAsymmetricEncryptionKey()
     {
-        var certificates = CertificateSet.FromCandidates([Certificate(Now.AddDays(-1), Now.AddDays(30))], Now);
+        var certificate = CertificateSet.CreateSelfSigned("test encryption", CertificatePurpose.Encryption, TimeSpan.FromDays(30));
 
-        var act = () => new AccessTokenSigningCredentials(certificates, Config(("Jwt:AccessTokenSigning", "None")));
+        var options = OpenIddictWith(o => o.AddEncryptionCertificate(certificate));
+
+        options.EncryptionCredentials.Should().ContainSingle()
+            .Which.Key.Should().BeOfType<X509SecurityKey>();
+    }
+
+    [Fact]
+    public void SigningCertificate_CannotDoubleAsTheEncryptionCertificate()
+    {
+        var signingOnly = CertificateSet.CreateSelfSigned("test signing", CertificatePurpose.Signing, TimeSpan.FromDays(30));
+
+        var act = () => OpenIddictWith(o => o.AddEncryptionCertificate(signingOnly));
 
         act.Should().Throw<InvalidOperationException>();
     }

@@ -24,8 +24,6 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using System.Security.Cryptography;
 using System.IdentityModel.Tokens.Jwt;
 using System.Threading.RateLimiting;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -105,19 +103,6 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(corsOrigins).AllowAnyMethod().AllowAnyHeader());
 });
 
-// JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"]
-    ?? throw new InvalidOperationException("Configuration value 'Jwt:Key' is missing.");
-ERP.Shared.Authorization.JwtKeyGuard.EnsureUsable(jwtKey, builder.Environment.IsDevelopment());
-
-// This key signs tokens accepted by every one of the 14 downstream services (see
-// ERP.Shared.Authorization.AuthenticationExtensions) — a short/weak value is
-// brute-forceable and would forge valid tokens platform-wide, so fail fast rather
-// than starting up with an insecure signing key. 32 bytes/UTF-8 chars = 256 bits,
-// matching HmacSha256's expected key size.
-if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
-    throw new InvalidOperationException("Configuration value 'Jwt:Key' must be at least 32 bytes (256 bits) to be a secure HMAC-SHA256 signing key.");
-
 // OpenIddict OAuth2/OIDC server — client_credentials (Part A1), Authorization
 // Code+PKCE (Part A2), and discovery/userinfo + asymmetric signing (Part A3) of
 // CommonServiceRoadmap.md §1. OpenIddict requires an absolute URI for SetIssuer;
@@ -129,8 +114,8 @@ var oidcIssuer = new Uri($"urn:{builder.Configuration["Jwt:Issuer"]}", UriKind.A
 // RS256 signing certificates — the private key exists only in this service (Key Vault in
 // production, a PFX on a persistent volume locally; SigningKeys:Source). The current one signs
 // login tokens (TokenService) and OpenIddict tokens; older versions stay in the JWKS
-// (/.well-known/jwks.json) that every other service validates with. Rotation and the HS256
-// cutover: docs/business/Identity/SigningKeys.md.
+// (/.well-known/jwks.json) that every other service validates with. Rotation:
+// docs/business/Identity/SigningKeys.md. There is no symmetric token key anywhere.
 using var signingLoggerFactory = LoggerFactory.Create(logging => logging.AddConsole());
 var signingCertificates = CertificateLoader.Load(
     builder.Configuration,
@@ -138,7 +123,18 @@ var signingCertificates = CertificateLoader.Load(
     builder.Environment.ContentRootPath,
     builder.Environment.IsDevelopment(),
     logger: signingLoggerFactory.CreateLogger("ERP.Identity.SigningKeys"));
-builder.Services.AddSingleton(new AccessTokenSigningCredentials(signingCertificates, builder.Configuration));
+builder.Services.AddSingleton(new AccessTokenSigningCredentials(signingCertificates));
+
+// RSA-OAEP certificates encrypting OpenIddict refresh tokens and authorization codes
+// (EncryptionKeys:Source — same sources as the signing keys, separate certificate). Older
+// versions stay registered so tokens encrypted before a rotation can still be read.
+var encryptionCertificates = CertificateLoader.Load(
+    builder.Configuration,
+    "EncryptionKeys",
+    builder.Environment.ContentRootPath,
+    builder.Environment.IsDevelopment(),
+    CertificatePurpose.Encryption,
+    logger: signingLoggerFactory.CreateLogger("ERP.Identity.EncryptionKeys"));
 
 builder.Services.AddOpenIddict()
     .AddServer(options =>
@@ -160,12 +156,10 @@ builder.Services.AddOpenIddict()
         foreach (var certificate in signingCertificates.All)
             options.AddSigningCertificate(certificate);
 
-        // AES encryption keys must be exactly 256 bits; Jwt:Key isn't guaranteed to be
-        // (it's sized for HMAC-SHA256 signing, which accepts any length >= 128 bits) —
-        // derive a 256-bit key from it via SHA-256 rather than adding a second config
-        // value. Only used for refresh/authorization-code tokens (encrypted by
-        // default); access tokens are exempted below.
-        options.AddEncryptionKey(new SymmetricSecurityKey(SHA256.HashData(Encoding.UTF8.GetBytes(jwtKey))));
+        // Refresh tokens / authorization codes are encrypted (OpenIddict default) with the
+        // encryption certificates — current first; access tokens are exempted below.
+        foreach (var certificate in encryptionCertificates.All)
+            options.AddEncryptionCertificate(certificate);
         // Emit a plain signed JWT access token (not OpenIddict's default encrypted
         // format) so the existing "Bearer" JwtBearer scheme below can validate it with
         // no changes.
@@ -225,18 +219,15 @@ builder.Services.AddAuthentication(options =>
             ValidateIssuerSigningKey = true,
             // Two valid issuers: the proprietary TokenService's plain-string issuer
             // ("ERP.Identity", used by /api/auth/login), and the urn: form OpenIddict
-            // emits for client_credentials tokens (see oidcIssuer above) — both mint
-            // tokens signed with the same symmetric key, so both are accepted here.
+            // emits for client_credentials tokens (see oidcIssuer above) — both are signed with
+            // the same certificates, so both are accepted here (and only here).
             ValidIssuers = [builder.Configuration["Jwt:Issuer"], oidcIssuer.ToString()],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            // RS256 with every published signing certificate (login + OpenIddict tokens), plus
-            // the legacy symmetric Jwt:Key while the HS256 cutover lasts (Jwt:AccessTokenSigning=Hmac
-            // and tokens issued before the switch).
+            // RS256 with every published signing certificate (login + OpenIddict tokens).
             IssuerSigningKeys = signingCertificates.All
                 .Select(certificate => (SecurityKey)new X509SecurityKey(certificate))
-                .Append(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)))
                 .ToList(),
-            ValidAlgorithms = [SecurityAlgorithms.RsaSha256, SecurityAlgorithms.HmacSha256]
+            ValidAlgorithms = [SecurityAlgorithms.RsaSha256]
         };
 
         // A token revoked via /auth/logout, or issued before its user's/tenant's last

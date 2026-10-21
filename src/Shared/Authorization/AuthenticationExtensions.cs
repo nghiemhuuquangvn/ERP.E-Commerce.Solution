@@ -28,8 +28,8 @@ public static class AuthenticationExtensions
         services.AddAuthentication("Bearer")
             .AddJwtBearer("Bearer", options =>
             {
-                // RS256 via Identity's JWKS (HS256 only while Jwt:Key is still configured),
-                // exact issuer/audience, revocation check — see ErpJwtBearerOptions.
+                // RS256 via Identity's JWKS, exact issuer/audience, revocation check — see
+                // ErpJwtBearerOptions.
                 ErpJwtBearerOptions.Configure(options, configuration);
 
                 // SignalR's browser transport can't set an Authorization header on the

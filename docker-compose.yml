@@ -212,8 +212,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       KafkaSettings__BootstrapServers: kafka:9092
     depends_on:
       - rabbitmq
@@ -247,14 +245,15 @@ services:
       Cache__Type: "Redis"
       Cache__InstanceName: "identity"
       KafkaSettings__BootstrapServers: kafka:9092
-      # Legacy HS256 key: transition only (validation of older tokens) + OpenIddict encryption.
-      Jwt__Key: "${JWT_SIGNING_KEY}"
-      # RS256 signing certificate (private key only here). Local stack: a PFX generated once
-      # on the identity_signing volume; production uses Key Vault (docs/business/Identity/SigningKeys.md).
+      # RS256 signing + RSA-OAEP encryption certificates (private keys only here). Local
+      # stack: PFX files generated once on the identity_signing volume; production uses Key
+      # Vault (docs/business/Identity/SigningKeys.md). No symmetric token key exists.
       SigningKeys__Source: "File"
       SigningKeys__File__Path: "/app/signing/identity-signing.pfx"
       SigningKeys__File__AutoCreate: "true"
-      Jwt__AccessTokenSigning: "Rsa"
+      EncryptionKeys__Source: "File"
+      EncryptionKeys__File__Path: "/app/signing/identity-encryption.pfx"
+      EncryptionKeys__File__AutoCreate: "true"
       Jwt__Expired: "60"
       Jwt__RefreshTokenExpirationDays: "7"
       # Only these senders may set the client IP via X-Forwarded-For (nginx → gateway on
@@ -277,8 +276,8 @@ services:
       kafka:
         condition: service_healthy
     volumes:
-      # Token signing certificate — must survive container re-creation, or every
-      # re-deploy rotates the key and invalidates every issued token.
+      # Token signing/encryption certificates — must survive container re-creation, or
+      # every re-deploy rotates the keys and invalidates every issued token.
       - identity_signing:/app/signing
     restart: unless-stopped
     networks:
@@ -310,8 +309,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -348,8 +345,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -389,8 +384,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -427,8 +420,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -465,8 +456,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -503,8 +492,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       KafkaSettings__BootstrapServers: kafka:9092
     depends_on:
       db-migrate:
@@ -537,8 +524,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       KafkaSettings__BootstrapServers: kafka:9092
     depends_on:
       db-migrate:
@@ -567,8 +552,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       # Shared token revocation store (logout/lock/permission changes take effect at once).
       ConnectionStrings__Redis: "redis:6379"
       KafkaSettings__BootstrapServers: kafka:9092
@@ -605,8 +588,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -648,8 +629,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -686,8 +665,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -724,8 +701,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -765,8 +740,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -803,8 +776,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -849,8 +820,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       Gateway__BaseUrl: "http://gateway:5000"
       Anthropic__ApiKey: "${ANTHROPIC_API_KEY}"
       OpenAi__ApiKey: "${OPENAI_API_KEY}"
@@ -888,8 +857,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin

@@ -24,7 +24,7 @@ is self-contained.
 
 ```bash
 cp .env.example .env
-# edit .env: set a real SA_PASSWORD and JWT_SIGNING_KEY
+# edit .env: set a real SA_PASSWORD (no JWT secret — see "Signing keys")
 
 docker compose up --build -d
 curl http://localhost:5001/health
@@ -57,15 +57,15 @@ curl -X POST http://localhost:5001/api/v1/auth/login \
    examples above use. Requires the `X-Tenant-Code` header (or a subdomain-based
    Gateway in front, which this export doesn't include — you're expected to route
    tenant resolution yourself, or always pass the header). Returns a JWT signed
-   with `Jwt__Key` (HMAC-SHA256).
+   RS256 with the service's signing certificate.
 
 2. **Standards-based OAuth2/OIDC** (`/connect/authorize`, `/connect/token`,
    `/connect/userinfo`, `/.well-known/openid-configuration`,
    `/.well-known/jwks.json`) — for third-party apps that want a redirect-based
    login flow (Authorization Code + PKCE) or machine-to-machine auth
    (`client_credentials`), using any off-the-shelf OIDC client library. Tokens
-   from this surface are signed with a self-signed RSA certificate (RS256),
-   published at the `jwks_uri` above — **not** the same key as surface 1.
+   from this surface are signed with the same RSA certificate (RS256), published
+   at the `jwks_uri` above.
    OpenIddict has no built-in admin UI for registering OAuth clients; you'll need
    to create `OpenIddictApplication` rows yourself via `IOpenIddictApplicationManager`
    (see `src/ERP.Identity.Infrastructure/OpenIddict/` for the pattern this service's
@@ -73,26 +73,31 @@ curl -X POST http://localhost:5001/api/v1/auth/login \
 
 ## Validating a token issued by this service (as a downstream resource server)
 
-**Surface 1 tokens (HS256)**: validate with the shared secret from `Jwt__Key`,
-issuer `Jwt__Issuer`, audience `Jwt__Audience` — same three config values you set
-in `.env`/environment for this service itself. Example ASP.NET Core setup:
+Both surfaces sign RS256 with the same certificate: validate via the public JWKS document
+at `/.well-known/jwks.json` — no shared secret exists. Login (surface 1) tokens carry issuer
+`Jwt__Issuer` and audience `Jwt__Audience`; any library with remote JWKS resolution works:
 
 ```csharp
 services.AddAuthentication().AddJwtBearer(options =>
 {
+    options.MetadataAddress = "http://<host>:5001/.well-known/openid-configuration";
+    options.RequireHttpsMetadata = false; // only on a private network
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidIssuer = "<same Jwt__Issuer value>",
         ValidAudience = "<same Jwt__Audience value>",
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("<same Jwt__Key value>"))
+        ValidAlgorithms = new[] { SecurityAlgorithms.RsaSha256 }
     };
 });
 ```
 
-**Surface 2 tokens (RS256)**: validate via the public JWKS document at
-`/.well-known/jwks.json` — no shared secret needed. Any standard OIDC/JWT library
-that supports remote JWKS resolution (nearly all of them) can point at
-`http://<host>:5001/.well-known/jwks.json` directly.
+### Signing keys
+
+`SigningKeys` (RS256 token signing) and `EncryptionKeys` (RSA-OAEP, OpenIddict refresh
+tokens / authorization codes) take `Source` = `File` (PFX; `AutoCreate` generates one on
+first start — keep it on a persistent volume) or `KeyVault` (Azure Key Vault certificate,
+`DefaultAzureCredential`). The newest valid certificate is used; previous Key Vault versions
+(or `File:PreviousPaths`) stay accepted so a rotation doesn't invalidate issued tokens.
 
 ### Claim shape (both surfaces)
 

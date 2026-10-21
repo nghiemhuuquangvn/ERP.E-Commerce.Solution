@@ -14,8 +14,8 @@ using Xunit;
 namespace ERP.Shared.UnitTests.Authorization;
 
 /// <summary>
-/// RS256/JWKS cutover: services accept Identity's RS256 tokens (public key from JWKS), HS256
-/// only while the shared Jwt:Key is still configured, and only the login token issuer.
+/// Services accept only Identity's RS256 login tokens (public key from JWKS). There is no shared
+/// symmetric key any more: HS256 is refused even if a leftover Jwt:Key setting exists.
 /// </summary>
 public class ErpJwtBearerOptionsTests
 {
@@ -58,7 +58,7 @@ public class ErpJwtBearerOptionsTests
     private static async Task<bool> IsAcceptedAsync(string token, IConfiguration config)
     {
         var parameters = ErpJwtBearerOptions.CreateValidationParameters(config);
-        parameters.IssuerSigningKeys = parameters.IssuerSigningKeys.Concat(new SecurityKey[] { PublishedJwk() }).ToList();
+        parameters.IssuerSigningKeys = (parameters.IssuerSigningKeys ?? []).Append(PublishedJwk()).ToList();
         var result = await new JsonWebTokenHandler().ValidateTokenAsync(token, parameters);
         return result.IsValid;
     }
@@ -85,12 +85,12 @@ public class ErpJwtBearerOptionsTests
     }
 
     [Fact]
-    public async Task Hs256Token_IsAcceptedOnlyWhileTheLegacyKeyIsConfigured()
+    public async Task Hs256Token_IsRejected_EvenWithALeftoverJwtKeySetting()
     {
         var token = Token(new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(LegacyKey)), SecurityAlgorithms.HmacSha256));
 
-        (await IsAcceptedAsync(token, Config(legacyKey: LegacyKey))).Should().BeTrue();
+        (await IsAcceptedAsync(token, Config(legacyKey: LegacyKey))).Should().BeFalse();
         (await IsAcceptedAsync(token, Config())).Should().BeFalse();
     }
 
@@ -122,23 +122,13 @@ public class ErpJwtBearerOptionsTests
     }
 
     [Fact]
-    public void LegacyKey_IsOptional_AndAPublicPlaceholderIsStillRefusedOutsideDevelopment()
+    public void OnlyRs256IsAllowed_AndALeftoverJwtKeyAddsNoSigningKey()
     {
-        var act = () => ErpJwtBearerOptions.CreateValidationParameters(Config());
-        act.Should().NotThrow();
+        var parameters = ErpJwtBearerOptions.CreateValidationParameters(Config(legacyKey: "ChangeMe_Minimum_256_Bits_Required!"));
 
-        var previous = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-        try
-        {
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Production");
-            var placeholder = () => ErpJwtBearerOptions.CreateValidationParameters(
-                Config(legacyKey: "ChangeMe_Minimum_256_Bits_Required!"));
-            placeholder.Should().Throw<InvalidOperationException>();
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", previous);
-        }
+        parameters.ValidAlgorithms.Should().Equal(SecurityAlgorithms.RsaSha256);
+        (parameters.IssuerSigningKeys ?? []).Should().BeEmpty();
+        parameters.IssuerSigningKey.Should().BeNull();
     }
 
     [Theory]
