@@ -203,6 +203,10 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5000"
       ASPNETCORE_ENVIRONMENT: Production
+      # Service-to-service tokens: signed with this service's own key (in-memory, single
+      # replica). Receivers fetch the public key from /internal/jwks.json.
+      ServiceAuth__Name: "gateway"
+      ServiceAuth__SigningKeys__Source: "Ephemeral"
       # Shared token revocation store (logout/lock/permission changes take effect at once).
       ConnectionStrings__Redis: "redis:6379"
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
@@ -233,6 +237,11 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5001"
       ASPNETCORE_ENVIRONMENT: Production
+      # /internal endpoints accept only these services' tokens (verified with their JWKS).
+      ServiceAuth__Name: "identity"
+      ServiceAuth__TrustedCallers__gateway: "http://gateway:5000/internal/jwks.json"
+      ServiceAuth__TrustedCallers__chatbot: "http://chatbotservice:5017/internal/jwks.json"
+      Jwt__RequireHttpsMetadata: "false"
       ConnectionStrings__AuthDB: "Server=sqlserver,1433;Database=AuthDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
@@ -288,6 +297,12 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5002"
       ASPNETCORE_ENVIRONMENT: Production
+      # Service-to-service tokens: signed with this service's own key (in-memory, single
+      # replica). Receivers fetch the public key from /internal/jwks.json.
+      ServiceAuth__Name: "salesorder"
+      ServiceAuth__SigningKeys__Source: "Ephemeral"
+      Services__WarehouseServiceBaseUrl: "http://warehouseservice:5004"
+      Services__PromotionServiceBaseUrl: "http://promotionservice:5012"
       ConnectionStrings__SalesDb: "Server=sqlserver,1433;Database=SalesDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
@@ -364,6 +379,9 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5004"
       ASPNETCORE_ENVIRONMENT: Production
+      # /internal endpoints accept only these services' tokens (verified with their JWKS).
+      ServiceAuth__Name: "warehouse"
+      ServiceAuth__TrustedCallers__salesorder: "http://salesorderservice:5002/internal/jwks.json"
       ConnectionStrings__WarehouseDB: "Server=sqlserver,1433;Database=WarehouseDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
@@ -737,6 +755,9 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5012"
       ASPNETCORE_ENVIRONMENT: Production
+      # /internal endpoints accept only these services' tokens (verified with their JWKS).
+      ServiceAuth__Name: "promotion"
+      ServiceAuth__TrustedCallers__salesorder: "http://salesorderservice:5002/internal/jwks.json"
       ConnectionStrings__PromotionDb: "Server=sqlserver,1433;Database=PromotionDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
@@ -818,6 +839,10 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5017"
       ASPNETCORE_ENVIRONMENT: Production
+      # Service-to-service tokens: signed with this service's own key (in-memory, single
+      # replica). Receivers fetch the public key from /internal/jwks.json.
+      ServiceAuth__Name: "chatbot"
+      ServiceAuth__SigningKeys__Source: "Ephemeral"
       # Shared token revocation store (logout/lock/permission changes take effect at once).
       ConnectionStrings__Redis: "redis:6379"
       ConnectionStrings__ChatBotDb: "Server=sqlserver,1433;Database=ChatBotDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"

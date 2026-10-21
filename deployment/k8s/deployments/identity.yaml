@@ -27,6 +27,13 @@ spec:
         - configMapRef:
             name: erp-config
         env:
+        # /internal endpoints: only these services' tokens (verified with their JWKS).
+        - name: ServiceAuth__Name
+          value: "identity"
+        - name: ServiceAuth__TrustedCallers__gateway
+          value: "http://gateway:5000/internal/jwks.json"
+        - name: ServiceAuth__TrustedCallers__chatbot
+          value: "http://chatbotservice:5017/internal/jwks.json"
         - name: ASPNETCORE_URLS
           value: "http://+:5001"
         - name: Cache__InstanceName

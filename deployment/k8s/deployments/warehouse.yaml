@@ -23,6 +23,11 @@ spec:
         - configMapRef:
             name: erp-config
         env:
+        # /internal endpoints: only these services' tokens (verified with their JWKS).
+        - name: ServiceAuth__Name
+          value: "warehouse"
+        - name: ServiceAuth__TrustedCallers__salesorder
+          value: "http://salesorderservice:5002/internal/jwks.json"
         - name: ASPNETCORE_URLS
           value: "http://+:5004"
         - name: Cache__InstanceName
