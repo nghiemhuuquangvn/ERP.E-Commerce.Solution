@@ -12,8 +12,8 @@ public sealed record ResolvedTenant(Guid TenantId, string TenantCode, bool IsPla
 
 /// <summary>
 /// Asks IdentityService (the owner of tenants and their domains) which tenant a request
-/// host belongs to — GET {Tenancy:IdentityUrl}/api/v1/tenants/resolve?host=… on the internal
-/// network — and caches the answer briefly. Any failure resolves to "unknown", so the
+/// host belongs to — GET {Tenancy:IdentityUrl}/internal/v1/tenants/resolve?host=… on the
+/// internal network, with this service's own service token — and caches the answer briefly. Any failure resolves to "unknown", so the
 /// caller fails closed instead of guessing a tenant. Used by the Gateway (every request)
 /// and by hubs that bypass the Gateway (ChatBot guests).
 /// </summary>

@@ -146,6 +146,30 @@ public class InventoryController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Public stock availability for one product — the Storefront ChatBot's
+    /// get_stock_availability tool calls it through the Gateway for signed-in customers and
+    /// guests alike. [AllowAnonymous] and minimal (no product name, no reorder levels); the
+    /// tenant comes from the caller's token or, for guests, the storefront host (Gateway).
+    /// Service-to-service callers use internal/v1/inventory/{id}/availability instead.
+    /// </summary>
+    [HttpGet("{productId}/availability")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetAvailability(Guid productId)
+    {
+        try
+        {
+            var result = await _mediator.Send(new GetInventoryQuery { ProductId = productId });
+            return Ok(new { productId = result.ProductId, availableQuantity = result.AvailableQuantity });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
     [HttpGet("{productId}/cost-consumption")]
     [ProducesResponseType(typeof(List<CostConsumptionLogDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<List<CostConsumptionLogDto>>> GetCostConsumption(
