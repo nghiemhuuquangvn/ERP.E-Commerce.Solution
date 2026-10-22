@@ -2,7 +2,7 @@
 
 > Read this right after `CLAUDE.md` when picking the work up on another machine.
 > Keep it current: update it at the end of every work session (what changed, what's next).
-> Last updated: **2026-10-21** (service-to-service tokens; shared `Jwt:Key` removed).
+> Last updated: **2026-10-22** (system inventory + roadmap: `docs/ROADMAP.md`; new execution order in §7/§8).
 
 ## 0. Start here (new machine / new developer)
 
@@ -25,6 +25,7 @@
 |---|---|---|
 | `master` (origin) | includes PR #1–#9 | Outbox/EventId fixes + Identity hardening (`73970b5`); CRM tenant isolation (PR #1); user/role/permission isolation + tenant = request host (PR #2); service authorization phase 1 (PR #3); tenant isolation phase 2 for all services (PR #4 Shared+Sales/Payment/Accounting, PR #5 supply chain, PR #6 cross-cutting); handoff docs (PR #7); token revocation, phase 3 (PR #8); RS256/JWKS, phase 4 release 1 (PR #9) |
 | `feature/service-tokens` | **not merged yet** (push/PR when the owner asks) | Service-to-service tokens (each service its own key), `/internal` endpoints, shared `Jwt:Key` removed everywhere, SaleOrder URL fix, docs (see §2) |
+| `docs/system-inventory-roadmap` | **not merged yet**, branched from `feature/service-tokens` (merge after it) | Docs only: `docs/ROADMAP.md`, this file, a pointer in `ERP-Business-Analysis.md` |
 
 All feature branches above are merged; start new work from `origin/master`.
 Verify the baseline first (§5) — everything below was green on 2026-10-20.
@@ -187,6 +188,11 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 
 ## 4. Backlog (prioritised — from the 2026-10-20 system inventory)
 
+> **2026-10-22:** the full, re-prioritised backlog (with IDs, evidence and the new ERP modules) is
+> `docs/ROADMAP.md` — it supersedes the list below where they differ. New P0 items found then:
+> admin build broken (`LogsPage` missing), Purchasing supplier handlers are stubs, bills from POs
+> have amount 0, saga-created shipments have a placeholder address, POS sales don't reduce stock.
+
 **P0 — security / data integrity**
 - Accept OpenIddict (`urn:`) tokens in services, after client_credentials permissions go through
   `EffectivePermissions`.
@@ -272,7 +278,16 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 | 2026-10-20 | Token signing: certificate in **Azure Key Vault** with rotation (newest signs, previous versions stay in the JWKS); HS256 → RS256 in **two releases**; the **Gateway keeps validating** (same code as services); services accept **only login tokens** (issuer `ERP.Identity`), OpenIddict `urn:` tokens stay Identity-only for now | `docs/business/Identity/SigningKeys.md`, `ErpJwtBearerOptions` |
 | 2026-10-21 | Service-to-service: **each service its own key pair** (short-lived RS256 tokens, tenant + user carried); **separate `internal/` endpoints** for service-only calls (never anonymous, never routed by the Gateway); release 2 folded in (release 1 ran only locally) and **`Jwt:Key` removed entirely**, OpenIddict encryption via its own certificate | `ServiceAuth`, `SigningKeys.md`, `NoSharedTokenKeyTests` |
 
-## 8. Next step: service authorization phase 5 (NOT started, needs a plan + approval)
+| 2026-10-22 | Execution order: **P0 → P1 business flows → authorization phase 5 → CI/CD, tests, operations → missing UI → new modules** | `docs/ROADMAP.md` Part B |
+| 2026-10-22 | In scope as new ERP modules: **fixed assets, shared workflow/approval engine, HRM extension (recruitment/training/performance), manufacturing (BOM/MRP)** — each needs an ADR first | `docs/ROADMAP.md` P2-5…P2-8 |
+
+## 8. Next step: ROADMAP P0, then P1 business flows (NOT started, needs a plan + approval)
+
+Start with `docs/ROADMAP.md` P0 (P0-2…P0-6 are small, independent fixes), then P1 beginning with
+P1-1 automatic GL posting. Service authorization phase 5 (below) moved after P1 (owner decision
+2026-10-22).
+
+### Later: service authorization phase 5
 
 - Migrate the 57 allowlisted controllers (`EndpointAuthorizationTests.InActionCheckAllowlist`) to
   `[AuthorizePermission]` attributes.
