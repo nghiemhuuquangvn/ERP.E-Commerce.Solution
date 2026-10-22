@@ -97,6 +97,21 @@ public class Inventory : ITenantOwned
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// A point-of-sale sale already happened physically — the goods left the counter — so
+    /// unlike SellStock it never refuses: stock may go negative (signals a count mismatch,
+    /// raised as a StockAlert). It doesn't consume online reservations either.
+    /// </summary>
+    public void RecordPointOfSaleSale(int quantity)
+    {
+        if (quantity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be positive.");
+
+        TotalQuantity -= quantity;
+        LastMovementDate = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void AdjustStock(int quantity)
     {
         TotalQuantity += quantity;

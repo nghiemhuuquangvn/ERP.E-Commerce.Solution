@@ -111,7 +111,7 @@ public class Transaction : AggregateRoot
         CompletedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        AddDomainEvent(new TransactionCreatedEvent(Id, TerminalId, CashierId, TotalAmount, PaymentMethod, CompletedAt.Value));
+        AddDomainEvent(new TransactionCreatedEvent(Id, TerminalId, CashierId, TotalAmount, PaymentMethod, CompletedAt.Value, SaleLines()));
     }
 
     public void ConfirmExternalPayment(Guid externalPaymentId)
@@ -125,11 +125,20 @@ public class Transaction : AggregateRoot
         if (Status == TransactionStatus.Voided)
             throw new InvalidOperationException("Transaction already voided.");
 
+        var wasCompleted = Status == TransactionStatus.Completed;
+
         Status = TransactionStatus.Voided;
         VoidReason = reason;
         VoidedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+
+        // Only a completed sale took stock out; voiding an open cart has nothing to put back.
+        if (wasCompleted)
+            AddDomainEvent(new TransactionVoidedEvent(Id, TerminalId, reason, VoidedAt.Value, SaleLines()));
     }
+
+    private List<PosSaleLine> SaleLines() =>
+        _items.Select(i => new PosSaleLine(i.ProductId, i.ProductName, i.Quantity)).ToList();
 
     private void Recalculate()
     {
