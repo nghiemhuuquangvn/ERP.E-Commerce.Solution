@@ -74,12 +74,14 @@ public class PurchaseOrder : BaseEntity
 
     public void AddItem(PurchaseOrderItem item)
     {
+        EnsureDraft();
         _items.Add(item);
         RecalculateTotal();
     }
 
     public void RemoveItem(Guid itemId)
     {
+        EnsureDraft();
         var item = _items.FirstOrDefault(i => i.Id == itemId);
         if (item is not null)
         {
@@ -124,7 +126,7 @@ public class PurchaseOrder : BaseEntity
         else
         {
             Status = PurchaseOrderStatus.Approved;
-            AddDomainEvent(new PurchaseOrderApprovedDomainEvent(Id, PONumber, SupplierId, approvedBy));
+            AddDomainEvent(new PurchaseOrderApprovedDomainEvent(Id, PONumber, SupplierId, approvedBy, TotalAmount.Amount, TotalAmount.Currency));
         }
     }
 
@@ -143,7 +145,7 @@ public class PurchaseOrder : BaseEntity
         UpdatedBy = approvedBy;
         UpdatedAt = DateTime.UtcNow;
 
-        AddDomainEvent(new PurchaseOrderApprovedDomainEvent(Id, PONumber, SupplierId, approvedBy));
+        AddDomainEvent(new PurchaseOrderApprovedDomainEvent(Id, PONumber, SupplierId, approvedBy, TotalAmount.Amount, TotalAmount.Currency));
     }
 
     /// <summary>
@@ -179,6 +181,14 @@ public class PurchaseOrder : BaseEntity
         UpdatedAt = DateTime.UtcNow;
 
         AddDomainEvent(new PurchaseOrderCancelledDomainEvent(Id, PONumber, cancelledBy));
+    }
+
+    // Lines are frozen once the order leaves Draft: the approved total is what Accounting
+    // books as the supplier bill (PurchaseOrderApprovedDomainEvent.TotalAmount).
+    private void EnsureDraft()
+    {
+        if (Status != PurchaseOrderStatus.Draft)
+            throw new InvalidOperationException($"Items can only be changed while the order is Draft (current status: {Status}).");
     }
 
     private void RecalculateTotal()
