@@ -2,7 +2,7 @@
 
 > Read this right after `CLAUDE.md` when picking the work up on another machine.
 > Keep it current: update it at the end of every work session (what changed, what's next).
-> Last updated: **2026-10-22** (system inventory + roadmap: `docs/ROADMAP.md`; new execution order in §7/§8).
+> Last updated: **2026-10-22** (ROADMAP P0-2…P0-6 fixed on `fix/roadmap-p0`; system inventory + roadmap: `docs/ROADMAP.md`).
 
 ## 0. Start here (new machine / new developer)
 
@@ -26,11 +26,32 @@
 | `master` (origin) | includes PR #1–#9 | Outbox/EventId fixes + Identity hardening (`73970b5`); CRM tenant isolation (PR #1); user/role/permission isolation + tenant = request host (PR #2); service authorization phase 1 (PR #3); tenant isolation phase 2 for all services (PR #4 Shared+Sales/Payment/Accounting, PR #5 supply chain, PR #6 cross-cutting); handoff docs (PR #7); token revocation, phase 3 (PR #8); RS256/JWKS, phase 4 release 1 (PR #9) |
 | `feature/service-tokens` | **not merged yet** (push/PR when the owner asks) | Service-to-service tokens (each service its own key), `/internal` endpoints, shared `Jwt:Key` removed everywhere, SaleOrder URL fix, docs (see §2) |
 | `docs/system-inventory-roadmap` | **not merged yet**, branched from `feature/service-tokens` (merge after it) | Docs only: `docs/ROADMAP.md`, this file, a pointer in `ERP-Business-Analysis.md` |
+| `fix/roadmap-p0` | **not merged yet**, branched from `docs/system-inventory-roadmap` (merge after it) | ROADMAP P0-2…P0-6 (see §2 2026-10-22), migration Identity `024` |
 
 All feature branches above are merged; start new work from `origin/master`.
 Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
+
+### 2026-10-22 — ROADMAP P0-2…P0-6 (`fix/roadmap-p0`)
+Owner decisions: bill on final PO approval; POS sale never refused for stock (may go negative +
+alert); logs only for platform admins. Event changes: `docs/architecture/event-catalog.md`
+"Flow fixes 2026-10-22".
+- **P0-3** Purchasing supplier list / get / deactivate handlers were stubs → implemented.
+- **P0-4** Accounting books the supplier bill from `PurchaseOrderApprovedDomainEvent` (now carries
+  `TotalAmount`/`CurrencyCode`), once per PO; PO lines frozen after Draft. Was: bill from
+  PurchaseOrderCreated → always 0.
+- **P0-5** Saga `CreateShipmentCommand` carries recipient, address and lines; Shipping maps City →
+  district, State → province and drops commands without an address. Limitation: orders have no
+  ward/phone yet (ROADMAP P2-2).
+- **P0-6** POS `TransactionCreatedEvent` carries lines, new `TransactionVoidedEvent` (completed sales
+  only); Warehouse `PosTransactionConsumer` (`pos-topic`, group `warehouse-service-pos-consumer`)
+  takes stock out / puts it back, idempotent (`POS-{tx}` / `POS-VOID-{tx}`). No terminal → bin
+  mapping: only the product's total stock moves (no location stock / lot depletion for POS yet).
+- **P0-2** Root cause of the broken admin build: `.gitignore` `[Ll]ogs/` kept `pages/logs` and
+  `api/logs` out of git (now exempted). Logs page committed; `logs:view` is a platform permission
+  (logs have no tenant) — `PermissionScopes`, migration Identity `024`, `[AuthorizePermission]`.
+- New unit test projects: `tests/unit/ERP.{PO,ACC,SO,SHP,WH,POS}.UnitTests` (not in the root .sln).
 
 ### 2026-10-21 — Service-to-service tokens; no shared token key (`feature/service-tokens`)
 Owner request: public keys between backend and frontend, a private key per API service for calls
@@ -186,6 +207,14 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
       it any more. OpenIddict refresh tokens issued before this release can't be decrypted
       (dev-seeded OIDC clients must re-authorize).
 
+13. **2026-10-22 (`fix/roadmap-p0`)**: run Identity `024_LogsViewPlatformOnly.sql` (tenant admins
+    lose `logs:view`; tokens already issued keep it until they expire ≤ 60 min; revoke the API keys
+    it lists). Deploy POSService and WarehouseService together (POS events published before have no
+    lines → Warehouse logs and skips them); deploy SaleOrderService and ShippingService together
+    (Shipping drops saga commands without an address); deploy PurchaseOrder and Accounting together
+    (Accounting no longer books bills from PurchaseOrderCreated). Bills already created with amount 0
+    are not corrected automatically.
+
 ## 4. Backlog (prioritised — from the 2026-10-20 system inventory)
 
 > **2026-10-22:** the full, re-prioritised backlog (with IDs, evidence and the new ERP modules) is
@@ -232,7 +261,10 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 - Verify a change: build each touched `src/services/<Svc>/*.sln` (+ `src/Gateway/Ocelot.API`,
   `src/Shared/ERP.Shared.csproj` for shared changes), then
   `dotnet test tests/unit/ERP.Identity.UnitTests tests/unit/ERP.Shared.UnitTests tests/unit/ERP.Gateway.UnitTests tests/unit/ERP.Architecture.Tests`.
-  Last green run (2026-10-21, service tokens + `Jwt:Key` removal): all APIs + Gateway build with
+  Last green run (2026-10-22, `fix/roadmap-p0`): touched APIs build with 0 errors, admin
+  `npm run build` OK; Architecture 50, Shared 86, Identity 211, Gateway 10, PO 8, ACC 2, SO 2,
+  SHP 2, WH 8, POS 3 passed (Docker not running — `/verify` not possible). Previous: 2026-10-21,
+  service tokens + `Jwt:Key` removal: all APIs + Gateway build with
   0 errors; Shared 86, Identity 210, Gateway 10, Architecture 50 passed. Docker runtime not
   verified yet — first run must check: Identity logs "Generated a new self-signed Signing / Encryption
   certificate"; a login token header is `RS256` with a `kid` listed at `/.well-known/jwks.json`;
@@ -281,10 +313,11 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 | 2026-10-22 | Execution order: **P0 → P1 business flows → authorization phase 5 → CI/CD, tests, operations → missing UI → new modules** | `docs/ROADMAP.md` Part B |
 | 2026-10-22 | In scope as new ERP modules: **fixed assets, shared workflow/approval engine, HRM extension (recruitment/training/performance), manufacturing (BOM/MRP)** — each needs an ADR first | `docs/ROADMAP.md` P2-5…P2-8 |
 
-## 8. Next step: ROADMAP P0, then P1 business flows (NOT started, needs a plan + approval)
+## 8. Next step: rest of ROADMAP P0, then P1 business flows (needs a plan + approval)
 
-Start with `docs/ROADMAP.md` P0 (P0-2…P0-6 are small, independent fixes), then P1 beginning with
-P1-1 automatic GL posting. Service authorization phase 5 (below) moved after P1 (owner decision
+P0-2…P0-6 are done on `fix/roadmap-p0` (unmerged). Remaining P0: P0-1 (Docker run + merge the
+branches in order), P0-7 (Identity external login / OTP), P0-8 (NuGet advisory, Identity phase 2).
+Then P1 beginning with P1-1 automatic GL posting. Service authorization phase 5 (below) moved after P1 (owner decision
 2026-10-22).
 
 ### Later: service authorization phase 5
