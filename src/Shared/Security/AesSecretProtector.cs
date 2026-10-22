@@ -5,8 +5,8 @@ using Microsoft.Extensions.Configuration;
 namespace ERP.Shared.Security;
 
 /// <summary>
-/// AES-256-CBC symmetric encryption, key read from configuration the same way
-/// AuthenticationExtensions reads "Jwt:Key" — a single shared secret, not per-user.
+/// AES-256-CBC symmetric encryption, key read from configuration
+/// ("Security:SettingsEncryptionKey") — a single per-service secret, not per-user.
 /// Ciphertext format: base64(IV || encrypted bytes), so no separate IV storage column
 /// is needed alongside the encrypted value.
 /// </summary>

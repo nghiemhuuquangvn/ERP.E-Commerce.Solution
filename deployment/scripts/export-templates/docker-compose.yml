@@ -88,7 +88,15 @@ services:
       Cache__Type: "Redis"
       Cache__InstanceName: "identity"
       KafkaSettings__BootstrapServers: kafka:9092
-      Jwt__Key: "${JWT_SIGNING_KEY}"
+      # RS256 signing / RSA-OAEP encryption certificates, generated once on a persistent
+      # volume. In production load them from Azure Key Vault instead (SigningKeys__Source=KeyVault,
+      # SigningKeys__KeyVault__VaultUri, SigningKeys__KeyVault__CertificateName; same for EncryptionKeys).
+      SigningKeys__Source: "File"
+      SigningKeys__File__Path: "/app/keys/signing.pfx"
+      SigningKeys__File__AutoCreate: "true"
+      EncryptionKeys__Source: "File"
+      EncryptionKeys__File__Path: "/app/keys/encryption.pfx"
+      EncryptionKeys__File__AutoCreate: "true"
       Jwt__Issuer: "IdentityService"
       Jwt__Audience: "IdentityService.Clients"
       Jwt__Expired: "60"
@@ -98,11 +106,14 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_started
+    volumes:
+      - identity_keys:/app/keys
     restart: unless-stopped
     networks: [identity-network]
 
 volumes:
   sqlserver_data:
+  identity_keys:
 
 networks:
   identity-network:

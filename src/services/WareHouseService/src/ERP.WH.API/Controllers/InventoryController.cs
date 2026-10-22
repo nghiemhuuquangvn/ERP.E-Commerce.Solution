@@ -147,12 +147,11 @@ public class InventoryController : ControllerBase
     }
 
     /// <summary>
-    /// Service-to-service availability read used by SaleOrderService's synchronous
-    /// pre-check before charging payment (see CreateOrderCommandHandler). Deliberately
-    /// [AllowAnonymous] and minimal (no product name, no reorder levels) — same
-    /// rationale as PromotionService's validate-coupon endpoint: a read-only,
-    /// non-sensitive check that another service needs to call without carrying the
-    /// original caller's JWT through the order-creation call chain.
+    /// Public stock availability for one product — the Storefront ChatBot's
+    /// get_stock_availability tool calls it through the Gateway for signed-in customers and
+    /// guests alike. [AllowAnonymous] and minimal (no product name, no reorder levels); the
+    /// tenant comes from the caller's token or, for guests, the storefront host (Gateway).
+    /// Service-to-service callers use internal/v1/inventory/{id}/availability instead.
     /// </summary>
     [HttpGet("{productId}/availability")]
     [AllowAnonymous]

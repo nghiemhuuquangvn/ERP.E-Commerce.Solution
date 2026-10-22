@@ -11,7 +11,7 @@ version: '3.9'
 #   docker compose up --build -d
 #
 # This service validates JWTs issued by a SEPARATE identity/auth service (it does
-# not issue tokens itself) — see README.md for what Jwt__Key/Issuer/Audience must
+# not issue tokens itself) — see README.md for what Jwt__Authority/Issuer/Audience must
 # match.
 # ════════════════════════════════════════════════════════════════════════════════
 
@@ -93,7 +93,8 @@ services:
       Cache__Type: "Redis"
       Cache__InstanceName: "ntf"
       KafkaSettings__BootstrapServers: kafka:9092
-      Jwt__Key: "${JWT_SIGNING_KEY}"
+      Jwt__Authority: "${JWT_AUTHORITY}"
+      Jwt__RequireHttpsMetadata: "false"
       Jwt__Issuer: "${JWT_ISSUER}"
       Jwt__Audience: "${JWT_AUDIENCE}"
       Security__SettingsEncryptionKey: "${SETTINGS_ENCRYPTION_KEY}"

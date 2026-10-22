@@ -1,101 +1,120 @@
-# Access token signing keys (RS256 / JWKS)
+# Token keys: RS256 user tokens, service-to-service tokens, no shared secret
 
-Since phase 4 of the service authorization work (2026-10-20), IdentityService signs every access
-token with an **RSA certificate whose private key only Identity holds**. Every other service and
-the Gateway validate with the **public** keys Identity publishes at `/.well-known/jwks.json`.
-Before this change every service held the shared HS256 key (`Jwt:Key`) and could mint tokens for
-any user or tenant (SecurityReview S6, M1, M2).
+Since 2026-10-21 the platform has **no shared symmetric token key**: `Jwt:Key` /
+`JWT_SIGNING_KEY` no longer exist. There are three kinds of RSA keys, and each private key
+lives in exactly one service:
 
-## How it fits together
+| Key | Private key held by | Used for | Public part / verified by |
+|---|---|---|---|
+| **User token signing** (`SigningKeys`) | IdentityService | RS256 access tokens for the frontends (login), OpenIddict tokens | `/.well-known/jwks.json` of Identity → every service + the Gateway (`ErpJwtBearerOptions`) |
+| **OpenIddict encryption** (`EncryptionKeys`) | IdentityService | RSA-OAEP encryption of OpenIddict refresh tokens / authorization codes | only Identity reads them |
+| **Service token signing** (`ServiceAuth:SigningKeys`) | each *calling* service (SaleOrder, Gateway, ChatBot) | 60 s RS256 tokens for another service's `/internal/...` endpoints | `/internal/jwks.json` of that caller → the services that list it in `ServiceAuth:TrustedCallers` |
 
-| Piece | Where | What it does |
+History: until 2026-10-20 every service held the HS256 `Jwt:Key` and could mint user tokens
+(SecurityReview S6/M1). Phase 4 release 1 moved user tokens to RS256 + JWKS. On 2026-10-21 the
+key was removed entirely, and service-to-service tokens were introduced.
+
+## Certificate sources
+
+All three use `ERP.Shared.Security.Certificates.CertificateLoader`, configured with
+`<section>:Source`:
+
+| Source | Where | Notes |
 |---|---|---|
-| Signing certificates | Identity `Infrastructure/Security/Signing` | `SigningKeys:Source` = `KeyVault` (production) or `File` (local / Compose). Loaded once at start-up; missing or unusable configuration stops Identity. |
-| Login tokens | Identity `TokenService` + `AccessTokenSigningCredentials` | RS256 with the **current** certificate; `kid` = the key id OpenIddict publishes. |
-| OpenIddict tokens | Identity `Program.cs` | Signed with the same certificates. The current one is registered first, and **previous** ones too, so they stay in the JWKS. |
-| Validation | `ERP.Shared.Authorization.ErpJwtBearerOptions` (every service via `AddErpJwtAuthentication`, the Gateway via `GatewayJwtBearer`) | Fetches the JWKS from `Jwt:Authority` (default `http://identityservice:5001`, internal network). The discovery document is **not** used. Keys are re-fetched on an unknown `kid` and retried every 30 s if the fetch fails. Only `RS256` is allowed (plus `HS256` while `Jwt:Key` is configured). Issuer must be exactly `Jwt:Issuer`; audience must be `Jwt:Audience`. The phase-3 revocation check is unchanged. |
+| `KeyVault` | production (k8s) | `KeyVault:VaultUri` and `KeyVault:CertificateName`, authenticated with `DefaultAzureCredential` (AKS Workload Identity: one ServiceAccount per service in `deployment/k8s/deployments/*.yaml`). The identity needs **certificates/list** and **secrets/get**, because the private key is the certificate's secret. Every enabled, currently valid version is loaded: the newest is current, older ones stay accepted. |
+| `File` | local / Docker Compose | PFX at `File:Path`, optionally `File:Password` and `File:PreviousPaths[]`. `File:AutoCreate=true` generates a self-signed RSA 2048 certificate once (2 years). It must be on a persistent volume (`identity_signing` in compose), otherwise every re-deploy rotates the key. |
+| `Ephemeral` | service keys only, **single replica** | A new in-memory key on each start. Fine for 60 s service tokens: receivers re-fetch the caller's JWKS on an unknown `kid`. Never use it with several replicas: each replica would have its own key, and receivers would only see one of them. |
 
-**Only login tokens are accepted outside Identity** (issuer `ERP.Identity`). Tokens issued by
-OpenIddict (issuer `urn:ERP.Identity`: client_credentials and authorization code) still work only
-in IdentityService. The reason: client_credentials permissions come straight from the
-application's properties and do not go through `EffectivePermissions`. Opening this up is
-follow-up work.
+Missing or unusable configuration **stops start-up**. There is never a silent throw-away key.
+Generated certificates carry the key usage of their purpose: `DigitalSignature` for signing,
+`KeyEncipherment` for encryption. OpenIddict refuses a signing-only certificate for encryption.
 
-## Configuration
+## User tokens (backend ↔ frontend)
 
-Identity:
+- `TokenService` signs RS256 with the current `SigningKeys` certificate. Its `kid` is the one
+  OpenIddict publishes in the JWKS.
+- Every service (`AddErpJwtAuthentication`) and the Gateway (`GatewayJwtBearer`) validate through
+  `ErpJwtBearerOptions`:
+  - the JWKS comes from `Jwt:Authority` (internal URL) and is re-fetched on an unknown `kid`, with a retry every 30 s;
+  - only **RS256** is allowed;
+  - the issuer must be exactly `Jwt:Issuer` and the audience `Jwt:Audience`;
+  - the phase-3 revocation check runs on every request.
+- Only login tokens are accepted outside Identity. OpenIddict (`urn:`) tokens remain Identity-only,
+  because client_credentials permissions don't go through `EffectivePermissions` yet.
 
-| Key | Production (k8s) | Local / Compose |
-|---|---|---|
-| `SigningKeys:Source` | `KeyVault` | `File` |
-| `SigningKeys:KeyVault:VaultUri` / `CertificateName` | the vault / `identity-token-signing` | — |
-| `SigningKeys:File:Path` | — | `/app/signing/identity-signing.pfx` (volume `identity_signing`); `signing/identity-signing.pfx` under the API project in Development |
-| `SigningKeys:File:AutoCreate` | — | `true`: a self-signed RSA 2048 certificate valid for 2 years is generated once. It must be on a persistent volume, otherwise every re-deploy rotates the key. |
-| `SigningKeys:File:Password`, `PreviousPaths[]` | — | optional |
-| `Jwt:AccessTokenSigning` | `Hmac` during the cutover, then `Rsa` | `Rsa` |
-| `Jwt:Key` | still required (OpenIddict encryption key, transition) | same |
+## Service-to-service tokens (API ↔ API)
 
-Every other service and the Gateway:
+- **Caller:** `services.AddHttpClient<…>().AddServiceToken("<target>")`, plus `app.MapServiceJwks()`.
+  - The token has `iss`/`sub` = `erp-svc:<own name>`, `aud` = `erp-svc:<target>`, a lifetime of 60 s, and `tenant_id` (the request's tenant).
+  - It also carries `act_sub`: the user being served, if any.
+  - **No tenant means the request is not sent**, unless the client is `tenantless: true` (the host → tenant lookup).
+- **Receiver:** `services.AddErpServiceAuthentication(configuration)` and `[AuthorizeInternalService("caller", …)]` on
+  `internal/...` routes.
+  - Each trusted caller's keys only validate that caller's tokens.
+  - User tokens are refused there, and service tokens are refused on user endpoints.
+  - The token's tenant becomes the request tenant, so tenant filters apply.
+  - The architecture tests enforce that `internal/` ⇔ the attribute, and that `ocelot.json` never routes `/internal`.
+- **Current calls:**
 
-- `Jwt:Authority`: the internal Identity URL.
-- `Jwt:RequireHttpsMetadata`: `false` for in-cluster / Compose http; `true` by default.
-- `Jwt:Issuer` and `Jwt:Audience`: unchanged.
-- `Jwt:Key`: optional. Only during the transition.
+  | Caller → receiver | Endpoint |
+  |---|---|
+  | SaleOrder → Warehouse | `GET internal/v1/inventory/{id}/availability` |
+  | SaleOrder → Promotion | `POST internal/v1/promotions/validate-coupon` |
+  | Gateway, ChatBot → Identity | `GET internal/v1/tenants/resolve` (tenant-less) |
 
-Key Vault access uses `DefaultAzureCredential`. In AKS this is Workload Identity: the
-`identity-service` ServiceAccount in `deployment/k8s/deployments/identity.yaml`. The managed
-identity needs **certificates/list** and **secrets/get** on the vault, because the private key is
-downloaded as the certificate's secret.
+- **Not a service token:** ChatBot → Gateway forwards the *user's* own JWT (acting for that user).
+- **Configuration:**
+  - `ServiceAuth:Name` on both sides;
+  - `ServiceAuth:SigningKeys:*` on callers;
+  - `ServiceAuth:TrustedCallers:<name>` = `http://<caller>:<port>/internal/jwks.json` on receivers;
+  - `Jwt:RequireHttpsMetadata=false` for in-cluster http.
+  - A service without trusted callers refuses every service token.
 
-## Cutover from HS256 (two releases)
+## Rotation
 
-Access tokens live `Jwt:Expired` minutes (60). Refresh tokens are opaque database rows, so the
-cutover does not affect them.
-
-1. **Release 1 (this change), Identity on `Hmac`.** Deploy everything. Services now accept RS256
-   *and* HS256, and Identity still signs HS256. Nothing changes for users. This order matters
-   on k8s: a service that has not been updated yet would reject RS256 tokens.
-2. **Switch Identity to `Rsa`** (`Jwt__AccessTokenSigning=Rsa`, restart Identity) once every pod
-   runs release 1. New tokens are RS256. Old HS256 tokens remain valid until they expire.
-3. **Release 2 (separate PR, not done yet)**, at least `Jwt:Expired` minutes after step 2:
-   - remove `Jwt__Key` from every service and the Gateway (compose, k8s, `appsettings*.json`
-     placeholders);
-   - remove the HS256 path from `ErpJwtBearerOptions` and the `Hmac` mode;
-   - only Identity keeps `Jwt:Key` (OpenIddict encryption key).
-
-Docker Compose runs everything at once, so it uses `Rsa` from the start.
-
-## Rotating the certificate
-
-**Key Vault.**
-1. Create a new version of the certificate, or let Key Vault auto-renew it.
-2. Restart Identity (all replicas). The newest enabled, currently valid version signs, and older
-   enabled versions stay in the JWKS.
-3. Services pick up the new `kid` automatically: an unknown `kid` triggers a JWKS refresh.
-4. After at least `Jwt:Expired` minutes, **disable** the old version and restart Identity again,
-   so it disappears from the JWKS.
+**Key Vault (any of the three keys).**
+1. Create a new certificate version, or let Key Vault auto-renew it.
+2. Restart the owning service (all replicas). Receivers pick up the new `kid` automatically.
+3. After the tokens made with the old version have expired, **disable** it and restart again:
+   - user tokens: `Jwt:Expired`, 60 min;
+   - service tokens: 60 s;
+   - encryption: the OpenIddict refresh-token lifetime.
 
 **File.**
-1. Put the new PFX at `SigningKeys:File:Path`.
-2. Add the old file to `SigningKeys:File:PreviousPaths`.
-3. Restart Identity.
-4. After `Jwt:Expired` minutes, remove the old file from `PreviousPaths` and restart again.
+1. Put the new PFX at `File:Path` and list the old file in `File:PreviousPaths`.
+2. Restart the service.
+3. Remove the old file from `PreviousPaths` later.
 
 **Emergency (private key leaked).**
 1. Disable the leaked version **and** create a new one.
-2. Restart Identity.
-3. Every token signed with the leaked key stops validating as soon as services refresh the JWKS.
-   Users silently refresh to a new token, because refresh tokens are unaffected.
+2. Restart the owning service.
+3. Tokens signed with the leaked key stop validating once receivers refresh the JWKS.
+4. A leaked *service* key only ever allowed acting as that one service, on the internal
+   endpoints that trust it. It never allowed acting as a user or as another service.
+
+## Consequences of removing `Jwt:Key` (2026-10-21)
+
+- **OpenIddict refresh tokens and authorization codes** issued before the change can no longer be
+  decrypted. Today only dev-seeded OIDC clients exist; they must re-authorize.
+- **Login refresh tokens** (opaque database rows) are unaffected.
+- **The `JWT_SIGNING_KEY` leaked in git history** (SecurityReview C3) no longer signs or validates
+  anything.
 
 ## Verifying
 
-- `curl http://identityservice:5001/.well-known/jwks.json` (inside the network) shows one key per
-  certificate.
-- Decode a login token: the header shows `"alg":"RS256"` and a `kid` that is listed in the JWKS.
-- `tests/unit/ERP.Shared.UnitTests` (`ErpJwtBearerOptionsTests`), `ERP.Identity.UnitTests`
-  (`SigningKeyTests`) and `ERP.Gateway.UnitTests` (`GatewayJwtBearerTests`) cover:
-  - algorithm confusion, unsigned tokens, foreign keys, wrong issuer and audience;
-  - the `kid` matching the JWKS;
-  - certificate selection and the File source.
-- The Key Vault source has no automated test (no Azure in CI). Verify it on the first deployment:
-  the Identity start-up log reads "Token signing certificate … current …".
+- **JWKS:**
+  - `curl http://identityservice:5001/.well-known/jwks.json` shows one key per signing certificate;
+  - `curl http://salesorderservice:5002/internal/jwks.json` shows SaleOrder's service key.
+- **Tokens:** a login token header shows `"alg":"RS256"`. Calling a `/internal` endpoint without a
+  token, or with a user token, answers 401.
+- **Automated tests:**
+  - `ERP.Shared.UnitTests`:
+    - `ErpJwtBearerOptionsTests`: HS256 refused even with a leftover `Jwt:Key`, algorithm confusion, issuer and audience;
+    - `ServiceTokenTests`: TestServer end-to-end, including a caller signing for another caller, untrusted callers, user tokens on internal routes, expiry and tenant;
+    - `CertificateSourceTests`.
+  - `ERP.Identity.UnitTests` (`SigningKeyTests`): `kid` = JWKS, encryption certificate.
+  - `ERP.Architecture.Tests`:
+    - `InternalEndpointTests`;
+    - `NoSharedTokenKeyTests`: the build fails if a `Jwt` key reappears in appsettings, compose, k8s or `.env` examples.
+- **Not testable here:** the Key Vault source (no Azure in CI). Check the start-up log on the first
+  deployment: "Certificate … current …".

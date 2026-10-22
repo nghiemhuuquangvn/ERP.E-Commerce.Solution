@@ -50,7 +50,7 @@ namespace ERP.Identity.Infrastructure.Services
             var expirationString = _configuration["Jwt:Expired"] ?? throw new InvalidOperationException("Jwt:AccessTokenExpirationMinutes configuration is missing.");
 
             // RS256 with the current signing certificate (private key only here); every service
-            // validates with its public key from the JWKS. HS256 only during the cutover.
+            // validates with its public key from the JWKS.
             var creds = _signing.Credentials;
 
             var token = new JwtSecurityToken(

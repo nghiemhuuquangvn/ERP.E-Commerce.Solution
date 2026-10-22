@@ -203,13 +203,15 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5000"
       ASPNETCORE_ENVIRONMENT: Production
+      # Service-to-service tokens: signed with this service's own key (in-memory, single
+      # replica). Receivers fetch the public key from /internal/jwks.json.
+      ServiceAuth__Name: "gateway"
+      ServiceAuth__SigningKeys__Source: "Ephemeral"
       # Shared token revocation store (logout/lock/permission changes take effect at once).
       ConnectionStrings__Redis: "redis:6379"
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       KafkaSettings__BootstrapServers: kafka:9092
     depends_on:
       - rabbitmq
@@ -233,19 +235,25 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5001"
       ASPNETCORE_ENVIRONMENT: Production
+      # /internal endpoints accept only these services' tokens (verified with their JWKS).
+      ServiceAuth__Name: "identity"
+      ServiceAuth__TrustedCallers__gateway: "http://gateway:5000/internal/jwks.json"
+      ServiceAuth__TrustedCallers__chatbot: "http://chatbotservice:5017/internal/jwks.json"
+      Jwt__RequireHttpsMetadata: "false"
       ConnectionStrings__AuthDB: "Server=sqlserver,1433;Database=AuthDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "identity"
       KafkaSettings__BootstrapServers: kafka:9092
-      # Legacy HS256 key: transition only (validation of older tokens) + OpenIddict encryption.
-      Jwt__Key: "${JWT_SIGNING_KEY}"
-      # RS256 signing certificate (private key only here). Local stack: a PFX generated once
-      # on the identity_signing volume; production uses Key Vault (docs/business/Identity/SigningKeys.md).
+      # RS256 signing + RSA-OAEP encryption certificates (private keys only here). Local
+      # stack: PFX files generated once on the identity_signing volume; production uses Key
+      # Vault (docs/business/Identity/SigningKeys.md). No symmetric token key exists.
       SigningKeys__Source: "File"
       SigningKeys__File__Path: "/app/signing/identity-signing.pfx"
       SigningKeys__File__AutoCreate: "true"
-      Jwt__AccessTokenSigning: "Rsa"
+      EncryptionKeys__Source: "File"
+      EncryptionKeys__File__Path: "/app/signing/identity-encryption.pfx"
+      EncryptionKeys__File__AutoCreate: "true"
       Jwt__Expired: "60"
       Jwt__RefreshTokenExpirationDays: "7"
       # Only these senders may set the client IP via X-Forwarded-For (nginx → gateway on
@@ -268,8 +276,8 @@ services:
       kafka:
         condition: service_healthy
     volumes:
-      # Token signing certificate — must survive container re-creation, or every
-      # re-deploy rotates the key and invalidates every issued token.
+      # Token signing/encryption certificates — must survive container re-creation, or
+      # every re-deploy rotates the keys and invalidates every issued token.
       - identity_signing:/app/signing
     restart: unless-stopped
     networks:
@@ -288,6 +296,12 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5002"
       ASPNETCORE_ENVIRONMENT: Production
+      # Service-to-service tokens: signed with this service's own key (in-memory, single
+      # replica). Receivers fetch the public key from /internal/jwks.json.
+      ServiceAuth__Name: "salesorder"
+      ServiceAuth__SigningKeys__Source: "Ephemeral"
+      Services__WarehouseServiceBaseUrl: "http://warehouseservice:5004"
+      Services__PromotionServiceBaseUrl: "http://promotionservice:5012"
       ConnectionStrings__SalesDb: "Server=sqlserver,1433;Database=SalesDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
@@ -295,8 +309,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -333,8 +345,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -364,6 +374,9 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5004"
       ASPNETCORE_ENVIRONMENT: Production
+      # /internal endpoints accept only these services' tokens (verified with their JWKS).
+      ServiceAuth__Name: "warehouse"
+      ServiceAuth__TrustedCallers__salesorder: "http://salesorderservice:5002/internal/jwks.json"
       ConnectionStrings__WarehouseDB: "Server=sqlserver,1433;Database=WarehouseDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
@@ -371,8 +384,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -409,8 +420,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -447,8 +456,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -485,8 +492,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       KafkaSettings__BootstrapServers: kafka:9092
     depends_on:
       db-migrate:
@@ -519,8 +524,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       KafkaSettings__BootstrapServers: kafka:9092
     depends_on:
       db-migrate:
@@ -549,8 +552,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       # Shared token revocation store (logout/lock/permission changes take effect at once).
       ConnectionStrings__Redis: "redis:6379"
       KafkaSettings__BootstrapServers: kafka:9092
@@ -587,8 +588,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -630,8 +629,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -668,8 +665,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -706,8 +701,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -737,6 +730,9 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5012"
       ASPNETCORE_ENVIRONMENT: Production
+      # /internal endpoints accept only these services' tokens (verified with their JWKS).
+      ServiceAuth__Name: "promotion"
+      ServiceAuth__TrustedCallers__salesorder: "http://salesorderservice:5002/internal/jwks.json"
       ConnectionStrings__PromotionDb: "Server=sqlserver,1433;Database=PromotionDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
@@ -744,8 +740,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -782,8 +776,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin
@@ -818,14 +810,16 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5017"
       ASPNETCORE_ENVIRONMENT: Production
+      # Service-to-service tokens: signed with this service's own key (in-memory, single
+      # replica). Receivers fetch the public key from /internal/jwks.json.
+      ServiceAuth__Name: "chatbot"
+      ServiceAuth__SigningKeys__Source: "Ephemeral"
       # Shared token revocation store (logout/lock/permission changes take effect at once).
       ConnectionStrings__Redis: "redis:6379"
       ConnectionStrings__ChatBotDb: "Server=sqlserver,1433;Database=ChatBotDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       Gateway__BaseUrl: "http://gateway:5000"
       Anthropic__ApiKey: "${ANTHROPIC_API_KEY}"
       OpenAi__ApiKey: "${OPENAI_API_KEY}"
@@ -863,8 +857,6 @@ services:
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
-      # Legacy HS256 key: accepted only during the RS256 transition (removed in release 2).
-      Jwt__Key: "${JWT_SIGNING_KEY}"
       RabbitMQ__HostName: rabbitmq
       RabbitMQ__Port: "5672"
       RabbitMQ__UserName: admin

@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 
 namespace ERP.Shared.Authorization;
 
@@ -17,9 +16,9 @@ namespace ERP.Shared.Authorization;
 /// keys, fetched from its JWKS endpoint (<c>Jwt:Authority</c> + <c>/.well-known/jwks.json</c>,
 /// internal network) and re-fetched when a token carries an unknown <c>kid</c> (rotation).
 ///
-/// Transition (release 1 of the RS256 cutover): while <c>Jwt:Key</c> is still configured,
-/// HS256 tokens signed with that shared key are accepted too. Release 2 removes the key —
-/// see docs/business/Identity/SigningKeys.md.
+/// RS256 only — there is no shared symmetric key anywhere any more (the HS256 transition
+/// ended 2026-10-21; a leftover <c>Jwt:Key</c> setting is ignored). See
+/// docs/business/Identity/SigningKeys.md.
 ///
 /// Only Identity's login tokens (issuer <c>Jwt:Issuer</c>) are accepted — not OpenIddict's
 /// <c>urn:</c> issuer, whose client_credentials permissions don't go through
@@ -31,7 +30,7 @@ public static class ErpJwtBearerOptions
     public const string JwksPath = "/.well-known/jwks.json";
 
     /// <summary>
-    /// Configures signature (RS256 via JWKS, HS256 only during the transition), issuer,
+    /// Configures signature (RS256 via JWKS), issuer,
     /// audience and lifetime validation, plus the shared token revocation check.
     /// Callers may add further events (e.g. hub ticket handling) afterwards.
     /// </summary>
@@ -81,19 +80,6 @@ public static class ErpJwtBearerOptions
         var audience = configuration["Jwt:Audience"]
             ?? throw new InvalidOperationException("Configuration value 'Jwt:Audience' is missing.");
 
-        var algorithms = new List<string> { SecurityAlgorithms.RsaSha256 };
-        var signingKeys = new List<SecurityKey>();
-
-        // Transition only: the shared symmetric key. Release 2 removes Jwt:Key from every
-        // service except Identity.
-        var legacyKey = configuration["Jwt:Key"];
-        if (!string.IsNullOrEmpty(legacyKey))
-        {
-            JwtKeyGuard.EnsureUsable(legacyKey, JwtKeyGuard.IsDevelopmentFromEnvironmentVariables());
-            algorithms.Add(SecurityAlgorithms.HmacSha256);
-            signingKeys.Add(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(legacyKey)));
-        }
-
         return new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -101,8 +87,7 @@ public static class ErpJwtBearerOptions
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             RequireSignedTokens = true,
-            ValidAlgorithms = algorithms,
-            IssuerSigningKeys = signingKeys,
+            ValidAlgorithms = [SecurityAlgorithms.RsaSha256],
             ValidAudience = audience,
             ValidIssuer = issuer,
             // Exact match only: the JWT handler would otherwise also trust the issuer of the

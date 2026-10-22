@@ -171,7 +171,7 @@ public class UserContext
 - ✓ Shipping address required and complete
 - ✓ Total amount calculated from line items (no manipulation possible)
 - ✓ **(added 2026-07-27)** Every line's `AvailableQuantity` is checked against
-  WareHouseService (`GET /inventory/{productId}/availability`) **before** the order is
+  WareHouseService (`GET /internal/v1/inventory/{productId}/availability`, service token) **before** the order is
   persisted — fails closed: an insufficient line, or an unreachable WareHouseService,
   rejects order creation entirely (`400 Bad Request`). Previously there was no such check
   at all; stock was only discovered to be short post-payment via the async saga.
@@ -440,7 +440,8 @@ Draft, Submitted, Approved, Picked (releases inventory, issues refund)
 
 ### 1. Warehouse Service (5004)
 
-**Synchronous call (added 2026-07-27)**: `GET /inventory/{productId}/availability` — the
+**Synchronous call (added 2026-07-27)**: `GET /internal/v1/inventory/{productId}/availability`
+(service-to-service token since 2026-10-21; coupons: `POST /internal/v1/promotions/validate-coupon`) — the
 stock pre-check, called directly (not via event) before an order is persisted or payment
 initiated. Fails closed on any shortfall or outage. See "Create Sales Order" above.
 

@@ -622,7 +622,9 @@ See `docs/business/Identity/SecurityReview-2026-10.md` for the full review.
   2FA-required accounts denied (fail-closed).
 - Webhooks: https + public host only, checked on save and against resolved IPs at connect
   time, no redirects.
-- `Jwt:Key` must not be a known/leaked value outside Development (`JwtKeyGuard`).
+- No shared token secret: access tokens are RS256 (signing certificate, Key Vault in
+  production), OpenIddict tokens encrypted with a separate certificate; every other service
+  validates via the JWKS (`docs/business/Identity/SigningKeys.md`).
 
 ### Audit Trail
 - All login attempts are logged

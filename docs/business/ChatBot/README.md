@@ -285,7 +285,8 @@ Server → client:
 | Key | Purpose |
 |---|---|
 | `ConnectionStrings:ChatBotDb` | SQL Server connection string |
-| `Jwt:Key` / `Jwt:Issuer` / `Jwt:Audience` | must match IdentityService/Gateway exactly |
+| `Jwt:Authority` / `Jwt:Issuer` / `Jwt:Audience` | IdentityService's internal URL (JWKS, RS256 only) and the login token issuer/audience |
+| `ServiceAuth:Name` / `ServiceAuth:SigningKeys:*` | this service's own key for its host → tenant lookups at Identity (`/internal`, see `docs/business/Identity/SigningKeys.md`) |
 | `Gateway:BaseUrl` | e.g. `http://gateway:5000` — every tool call and escalation goes through this |
 | `Anthropic:ApiKey`, `Anthropic:MaxTokens` | Claude provider |
 | `OpenAi:ApiKey`, `OpenAi:MaxTokens` | ChatGPT provider |
@@ -331,7 +332,7 @@ Everything needed is already wired into the root `docker-compose.yml` and
    ANTHROPIC_API_KEY=<your Anthropic key>
    OPENAI_API_KEY=<your OpenAI key>
    ```
-   (alongside the existing `SA_PASSWORD`/`RABBITMQ_PASSWORD`/`JWT_SIGNING_KEY`).
+   (alongside the existing `SA_PASSWORD`/`RABBITMQ_PASSWORD`).
 
 2. **Rebuild the services that changed.** Everything else can be left running —
    `ERP.Shared` changes were additive/path-gated and don't affect other services'

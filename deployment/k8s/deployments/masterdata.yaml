@@ -32,11 +32,6 @@ spec:
             secretKeyRef:
               name: erp-secrets
               key: sql-masterdata-db
-        - name: Jwt__Key
-          valueFrom:
-            secretKeyRef:
-              name: erp-secrets
-              key: jwt-signing-key
         readinessProbe:
           httpGet:
             path: /health

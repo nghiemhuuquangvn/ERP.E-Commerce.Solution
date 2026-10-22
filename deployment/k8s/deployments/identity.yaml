@@ -27,6 +27,13 @@ spec:
         - configMapRef:
             name: erp-config
         env:
+        # /internal endpoints: only these services' tokens (verified with their JWKS).
+        - name: ServiceAuth__Name
+          value: "identity"
+        - name: ServiceAuth__TrustedCallers__gateway
+          value: "http://gateway:5000/internal/jwks.json"
+        - name: ServiceAuth__TrustedCallers__chatbot
+          value: "http://chatbotservice:5017/internal/jwks.json"
         - name: ASPNETCORE_URLS
           value: "http://+:5001"
         - name: Cache__InstanceName
@@ -36,23 +43,21 @@ spec:
             secretKeyRef:
               name: erp-secrets
               key: sql-auth-db
-        - name: Jwt__Key
-          valueFrom:
-            secretKeyRef:
-              name: erp-secrets
-              key: jwt-signing-key
         # RS256 signing certificate from Azure Key Vault — the private key never leaves
-        # IdentityService. Rotation + HS256 cutover: docs/business/Identity/SigningKeys.md.
+        # IdentityService. Rotation: docs/business/Identity/SigningKeys.md.
         - name: SigningKeys__Source
           value: "KeyVault"
         - name: SigningKeys__KeyVault__VaultUri
           value: "https://<your-key-vault>.vault.azure.net/"
         - name: SigningKeys__KeyVault__CertificateName
           value: "identity-token-signing"
-        # Cutover step 1: keep "Hmac" until every service runs the JWKS-capable release,
-        # then set "Rsa" (step 2). Release 2 removes the legacy key from the other services.
-        - name: Jwt__AccessTokenSigning
-          value: "Hmac"
+        # RSA-OAEP certificate encrypting OpenIddict refresh tokens / authorization codes.
+        - name: EncryptionKeys__Source
+          value: "KeyVault"
+        - name: EncryptionKeys__KeyVault__VaultUri
+          value: "https://<your-key-vault>.vault.azure.net/"
+        - name: EncryptionKeys__KeyVault__CertificateName
+          value: "identity-token-encryption"
         - name: Security__SettingsEncryptionKey
           valueFrom:
             secretKeyRef:

@@ -28,7 +28,7 @@ namespace ERP.SO.Infrastructure.ExternalServices
                 using var content = new StringContent(payload, Encoding.UTF8);
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-                using var response = await _httpClient.PostAsync("api/v1/promotions/validate-coupon", content, ct);
+                using var response = await _httpClient.PostAsync("internal/v1/promotions/validate-coupon", content, ct);
                 if (!response.IsSuccessStatusCode)
                     return new CouponValidationResult { IsValid = false, ErrorMessage = $"PromotionService returned {(int)response.StatusCode}" };
 

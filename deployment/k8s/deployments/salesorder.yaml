@@ -12,7 +12,11 @@ spec:
     metadata:
       labels:
         app: salesorder-service
+        # Azure Workload Identity — DefaultAzureCredential reads this service's
+        # token signing certificate from Key Vault.
+        azure.workload.identity/use: "true"
     spec:
+      serviceAccountName: salesorder-service
       containers:
       - name: salesorder-service
         image: erp/salesorder-service:latest
@@ -23,6 +27,20 @@ spec:
         - configMapRef:
             name: erp-config
         env:
+        # Service-to-service tokens signed with this service's own Key Vault certificate
+        # (several replicas share it — never Ephemeral here).
+        - name: ServiceAuth__Name
+          value: "salesorder"
+        - name: ServiceAuth__SigningKeys__Source
+          value: "KeyVault"
+        - name: ServiceAuth__SigningKeys__KeyVault__VaultUri
+          value: "https://<your-key-vault>.vault.azure.net/"
+        - name: ServiceAuth__SigningKeys__KeyVault__CertificateName
+          value: "svc-salesorder-signing"
+        - name: Services__WarehouseServiceBaseUrl
+          value: "http://warehouseservice:5004"
+        - name: Services__PromotionServiceBaseUrl
+          value: "http://promotionservice:5012"
         - name: ASPNETCORE_URLS
           value: "http://+:5002"
         - name: Cache__InstanceName
@@ -37,11 +55,6 @@ spec:
             secretKeyRef:
               name: erp-secrets
               key: rabbitmq-password
-        - name: Jwt__Key
-          valueFrom:
-            secretKeyRef:
-              name: erp-secrets
-              key: jwt-signing-key
         readinessProbe:
           httpGet:
             path: /health
@@ -73,3 +86,12 @@ spec:
   ports:
   - port: 5002
     targetPort: 5002
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: salesorder-service
+  namespace: erp
+  annotations:
+    # Managed identity with certificates/list + secrets/get on the service-signing certificate.
+    azure.workload.identity/client-id: "<managed-identity-client-id>"

@@ -12,7 +12,11 @@ spec:
     metadata:
       labels:
         app: gateway
+        # Azure Workload Identity — DefaultAzureCredential reads this service's
+        # token signing certificate from Key Vault.
+        azure.workload.identity/use: "true"
     spec:
+      serviceAccountName: gateway
       containers:
       - name: gateway
         image: erp/gateway:latest
@@ -23,15 +27,20 @@ spec:
         - configMapRef:
             name: erp-config
         env:
+        # Service-to-service tokens signed with this service's own Key Vault certificate
+        # (several replicas share it — never Ephemeral here).
+        - name: ServiceAuth__Name
+          value: "gateway"
+        - name: ServiceAuth__SigningKeys__Source
+          value: "KeyVault"
+        - name: ServiceAuth__SigningKeys__KeyVault__VaultUri
+          value: "https://<your-key-vault>.vault.azure.net/"
+        - name: ServiceAuth__SigningKeys__KeyVault__CertificateName
+          value: "svc-gateway-signing"
         - name: ASPNETCORE_URLS
           value: "http://+:5000"
         - name: ASPNETCORE_ENVIRONMENT
           value: Production
-        - name: Jwt__Key
-          valueFrom:
-            secretKeyRef:
-              name: erp-secrets
-              key: jwt-signing-key
         readinessProbe:
           httpGet:
             path: /health
@@ -65,3 +74,12 @@ spec:
   - port: 5000
     targetPort: 5000
     nodePort: 30500
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gateway
+  namespace: erp
+  annotations:
+    # Managed identity with certificates/list + secrets/get on the service-signing certificate.
+    azure.workload.identity/client-id: "<managed-identity-client-id>"

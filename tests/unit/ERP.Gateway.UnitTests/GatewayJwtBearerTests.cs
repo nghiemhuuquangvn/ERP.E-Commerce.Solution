@@ -45,7 +45,7 @@ public class GatewayJwtBearerTests
     {
         var parameters = Options().TokenValidationParameters.Clone();
         // What JwtBearerHandler adds from the JWKS document.
-        parameters.IssuerSigningKeys = parameters.IssuerSigningKeys.Append(IdentityKey).ToList();
+        parameters.IssuerSigningKeys = (parameters.IssuerSigningKeys ?? []).Append(IdentityKey).ToList();
         return (await new JsonWebTokenHandler().ValidateTokenAsync(token, parameters)).IsValid;
     }
 

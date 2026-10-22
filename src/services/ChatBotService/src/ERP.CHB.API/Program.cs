@@ -9,6 +9,7 @@ using ERP.Shared.Extensions;
 using ERP.Shared.Versioning;
 using FluentValidation;
 using MediatR;
+using ERP.Shared.Authorization.ServiceAuth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -112,6 +113,8 @@ app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
 app.UseMiddleware<LicenseEnforcementMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
+// Public keys of this service's service-to-service tokens (Identity verifies them).
+app.MapServiceJwks();
 app.MapHub<ChatHub>("/hubs/chat");
 app.MapHealthChecks("/health").AllowAnonymous();
 

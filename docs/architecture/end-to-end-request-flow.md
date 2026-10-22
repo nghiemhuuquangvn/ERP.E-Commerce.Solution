@@ -67,11 +67,11 @@ inventory reservation, payment, and shipping haven't happened yet.
 Every route except `/api/v1/auth/*` and the GET-only public product/report routes
 requires `AuthenticationProviderKey: "Bearer"` + `RouteClaimsRequirement: {"tenant_id": ".*"}`.
 
-**JWT handling** (`src/Gateway/Ocelot.API/Program.cs`): `AddJwtBearer` sets
-`ValidateIssuerSigningKey = true` (real HMAC-SHA256 signature check against the shared
-`Jwt:Key`) and `ValidateLifetime = true`, but leaves `ValidateAudience`/`ValidateIssuer
-= false` — so the Gateway does cryptographically verify the signature, it just doesn't
-check the `iss`/`aud` claims match an expected value. `GatewayAuthorizationMiddleware`
+**JWT handling** (`src/Gateway/Ocelot.API/Program.cs` → `GatewayJwtBearer` →
+`ErpJwtBearerOptions`, since 2026-10-20): RS256 signature checked with IdentityService's public
+keys (JWKS), exact `iss`/`aud`, lifetime, and the shared revocation store — the same rules
+every service applies again. (Before: HMAC-SHA256 with a shared `Jwt:Key` and no issuer/audience
+check; that key no longer exists.) `GatewayAuthorizationMiddleware`
 then extracts claims (`sub`, `tenant_id`, roles → computed permissions via
 `RoleDefinitions.GetPermissionsForRoles`) and injects them as
 `X-User-Id`/`X-Tenant-Id`/`X-User-Roles`/`X-User-Permissions` headers onto the

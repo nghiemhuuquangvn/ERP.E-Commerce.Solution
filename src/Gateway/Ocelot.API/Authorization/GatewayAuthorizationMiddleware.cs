@@ -56,8 +56,11 @@ public class GatewayAuthorizationMiddleware
         foreach (var header in GatewayOwnedHeaders)
             context.Request.Headers.Remove(header);
 
-        // Probes hit the pod IP, not a tenant host.
-        if (path.StartsWith("/health", StringComparison.OrdinalIgnoreCase))
+        // Probes hit the pod IP, not a tenant host. The service-token JWKS is fetched by
+        // IdentityService over the internal network to verify the Gateway's own host lookups —
+        // resolving a tenant for it would call Identity again (a loop). Public keys only.
+        if (path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(path, ERP.Shared.Authorization.ServiceAuth.ServiceAuthDefaults.JwksPath, StringComparison.OrdinalIgnoreCase))
         {
             await _next(context);
             return;

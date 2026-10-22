@@ -7,6 +7,7 @@ using ERP.Shared.Authorization;
 using ERP.Shared.Extensions;
 using Serilog;
 using Serilog.Events;
+using ERP.Shared.Authorization.ServiceAuth;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -77,6 +78,8 @@ try
 
     // Monitoring + health endpoints (handled before Ocelot forwarding)
     app.MapControllers();
+    // Public keys of the Gateway's service-to-service tokens (Identity verifies them).
+    app.MapServiceJwks();
     app.MapHealthChecks("/health");
 
     // Short-circuit requests that matched a local MVC endpoint (monitoring controller,

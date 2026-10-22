@@ -6,6 +6,7 @@ using ERP.WH.Application;
 using ERP.WH.Infrastructure;
 using Serilog;
 using Serilog.Events;
+using ERP.Shared.Authorization.ServiceAuth;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -45,6 +46,8 @@ try
     // now for consistency with the rest of the platform and so any future
     // [Authorize]-gated endpoint actually works instead of silently passing through.
     builder.Services.AddErpJwtAuthentication(builder.Configuration);
+    // /internal endpoints: service tokens of ServiceAuth:TrustedCallers (SaleOrder).
+    builder.Services.AddErpServiceAuthentication(builder.Configuration);
     builder.Services.AddErpAuthorization();
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();

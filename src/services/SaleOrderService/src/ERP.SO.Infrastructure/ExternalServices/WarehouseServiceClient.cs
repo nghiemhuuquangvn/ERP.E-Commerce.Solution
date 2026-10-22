@@ -22,7 +22,7 @@ namespace ERP.SO.Infrastructure.ExternalServices
         {
             try
             {
-                using var response = await _httpClient.GetAsync($"api/v1/inventory/{productId}/availability", ct);
+                using var response = await _httpClient.GetAsync($"internal/v1/inventory/{productId}/availability", ct);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {

@@ -54,7 +54,7 @@ subdomain of whichever tenant they want to sign into.
 
 > **Superseded 2026-10-20 — tenant = request host, no exceptions.** Points 1–2 above are
 > replaced by: the Gateway resolves EVERY request's host through IdentityService
-> (`GET /api/v1/tenants/resolve?host=` — `Tenancy:PlatformHost` → SYSTEM, a registered
+> (`GET /internal/v1/tenants/resolve?host=`, with the Gateway's own service token — `Tenancy:PlatformHost` → SYSTEM, a registered
 > `TenantDomains` host, or `<code>.<Tenancy:BaseDomain>`), **removes any client-sent
 > `X-Tenant-*` / `X-User-*` header**, sets `X-Tenant-Code`/`X-Tenant-Id` itself, rejects
 > unknown hosts (404) and rejects a JWT whose `tenant_id` isn't the host's tenant (401).
