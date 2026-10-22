@@ -315,6 +315,8 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 
 ## 8. Next step: rest of ROADMAP P0, then P1 business flows (needs a plan + approval)
 
+Working checklist: `task.md` at the repo root (same IDs as `docs/ROADMAP.md`).
+
 P0-2…P0-6 are done on `fix/roadmap-p0` (unmerged). Remaining P0: P0-1 (Docker run + merge the
 branches in order), P0-7 (Identity external login / OTP), P0-8 (NuGet advisory, Identity phase 2).
 Then P1 beginning with P1-1 automatic GL posting. Service authorization phase 5 (below) moved after P1 (owner decision
@@ -322,7 +324,7 @@ Then P1 beginning with P1-1 automatic GL posting. Service authorization phase 5 
 
 ### Later: service authorization phase 5
 
-- Migrate the 57 allowlisted controllers (`EndpointAuthorizationTests.InActionCheckAllowlist`) to
+- Migrate the allowlisted controllers (56 left) (`EndpointAuthorizationTests.InActionCheckAllowlist`) to
   `[AuthorizePermission]` attributes.
 - Hubs: ticket-only (no raw JWT in the query string, SecurityReview S11); guest chat sessions
   checked within one tenant (hub methods don't verify the guest session today).
