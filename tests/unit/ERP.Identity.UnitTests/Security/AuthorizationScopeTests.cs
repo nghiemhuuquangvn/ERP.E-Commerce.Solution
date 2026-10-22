@@ -79,6 +79,21 @@ public class AuthorizationScopeTests
     }
 
     [Fact]
+    public async Task EffectivePermissions_TenantToken_NeverContainsLogsView()
+    {
+        // Centralised logs hold every tenant's data — tenant admins must not read them.
+        var user = Guid.NewGuid();
+        UserHas(user, TenantA, PermissionConstants.Identity_UsersView, PermissionConstants.Logs_View);
+
+        var tenantResult = await EffectivePermissions.ResolveAsync(_uow.Object, user, TenantA, new[] { "ADMIN" }, CancellationToken.None);
+        UserHas(user, Platform, PermissionConstants.Logs_View);
+        var platformResult = await EffectivePermissions.ResolveAsync(_uow.Object, user, Platform, new[] { "OPS" }, CancellationToken.None);
+
+        tenantResult.Should().NotContain(PermissionConstants.Logs_View);
+        platformResult.Should().Contain(PermissionConstants.Logs_View);
+    }
+
+    [Fact]
     public async Task EffectivePermissions_SuperAdminInPlatformTenant_GetsWholeCatalog()
     {
         var result = await EffectivePermissions.ResolveAsync(_uow.Object, Guid.NewGuid(), Platform, new[] { PlatformRoles.SuperAdmin }, CancellationToken.None);

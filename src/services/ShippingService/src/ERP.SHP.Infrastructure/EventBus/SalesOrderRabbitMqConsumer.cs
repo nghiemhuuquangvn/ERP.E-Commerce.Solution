@@ -89,6 +89,15 @@ namespace ERP.SHP.Infrastructure.EventBus
                         if (evt == null)
                             break;
 
+                        // Never create a shipment the carrier can't deliver: a command without
+                        // an address (sent by a SaleOrderService older than this consumer) is
+                        // logged and dropped instead of creating a placeholder shipment.
+                        if (!evt.HasDeliveryAddress)
+                        {
+                            _logger.LogWarning("CreateShipmentCommand for order {OrderId} has no delivery address — shipment not created", evt.OrderId);
+                            break;
+                        }
+
                         // The tenant's own default carrier (first active one by name) — carriers
                         // are per tenant; this used to be a hard-coded SYSTEM-tenant carrier id.
                         var carriers = await scope.ServiceProvider.GetRequiredService<ICarrierRepository>().GetActiveAsync();
@@ -99,22 +108,7 @@ namespace ERP.SHP.Infrastructure.EventBus
                             break;
                         }
 
-                        {
-                            await mediator.Send(new CreateShipmentCommand
-                            {
-                                OrderId = evt.OrderId,
-                                CarrierId = carrier.Id,
-                                Recipient = new ShipmentRecipientRequest
-                                {
-                                    RecipientName = "(pending address sync)",
-                                    AddressStreet = "(pending address sync)",
-                                    AddressDistrict = "(pending)",
-                                    AddressProvince = "(pending)"
-                                },
-                                EstimatedDelivery = DateTime.UtcNow.AddDays(5),
-                                Items = new List<ShipmentItemRequest>()
-                            });
-                        }
+                        await mediator.Send(evt.ToCreateShipmentCommand(carrier.Id));
                         break;
 
                     default:
@@ -145,5 +139,55 @@ namespace ERP.SHP.Infrastructure.EventBus
     {
         public Guid OrderId { get; set; }
         public Guid TenantId { get; set; }
+        public string RecipientName { get; set; } = string.Empty;
+        public string? RecipientEmail { get; set; }
+        public SagaShippingAddress? ShippingAddress { get; set; }
+        public List<SagaShipmentLine> Items { get; set; } = new();
+
+        public bool HasDeliveryAddress =>
+            ShippingAddress != null && !string.IsNullOrWhiteSpace(ShippingAddress.Street);
+
+        /// <summary>
+        /// Sales orders keep a generic Street/City/State address (no ward, no phone yet — see
+        /// docs/ROADMAP.md P2-2): City is the district and State the province of a Vietnamese
+        /// address, which is how the storefront checkout fills them.
+        /// </summary>
+        public CreateShipmentCommand ToCreateShipmentCommand(Guid carrierId) => new()
+        {
+            OrderId = OrderId,
+            CarrierId = carrierId,
+            Recipient = new ShipmentRecipientRequest
+            {
+                RecipientName = RecipientName,
+                AddressStreet = ShippingAddress?.Street ?? string.Empty,
+                AddressDistrict = ShippingAddress?.City ?? string.Empty,
+                AddressProvince = ShippingAddress?.State ?? string.Empty,
+                AddressPostalCode = string.IsNullOrWhiteSpace(ShippingAddress?.PostalCode) ? null : ShippingAddress.PostalCode,
+                AddressCountry = string.IsNullOrWhiteSpace(ShippingAddress?.Country) ? "Vietnam" : ShippingAddress.Country
+            },
+            EstimatedDelivery = DateTime.UtcNow.AddDays(5),
+            Items = Items.Select(i => new ShipmentItemRequest
+            {
+                ProductId = i.ProductId,
+                ProductName = i.ProductName,
+                Quantity = i.Quantity
+            }).ToList()
+        };
+    }
+
+    public class SagaShippingAddress
+    {
+        public string Street { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string State { get; set; } = string.Empty;
+        public string PostalCode { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+    }
+
+    public class SagaShipmentLine
+    {
+        public Guid ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public int Quantity { get; set; }
     }
 }

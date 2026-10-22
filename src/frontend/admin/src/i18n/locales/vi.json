@@ -782,7 +782,8 @@
     },
     "details": {
       "title": "Chi tiết nhật ký",
-      "exceptionType": "Loại Exception"
+      "exceptionType": "Loại Exception",
+      "correlationId": "Mã tương quan"
     }
   },
   "masterdata": {

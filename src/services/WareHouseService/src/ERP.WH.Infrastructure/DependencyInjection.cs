@@ -82,6 +82,7 @@ public static class DependencyInjection
         // fired (if anything had ever published it, which nothing did) on PO
         // *creation* rather than actual receipt, and wrote to a no-op stub repository.
         services.AddHostedService<PurchaseOrderReceivedConsumer>();
+        services.AddHostedService<PosTransactionConsumer>();
 
         // --- Settings-changed Kafka publish path (isolated from IEventPublisher/EventPublisher
         // RabbitMQ warehouse_exchange flow used by inventory command handlers) ---

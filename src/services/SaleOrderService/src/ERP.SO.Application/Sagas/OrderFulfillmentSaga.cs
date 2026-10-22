@@ -161,10 +161,34 @@ public sealed class OrderFulfillmentSaga
     {
         _logger.LogInformation("Saga {SagaId}: approved and inventory reserved — requesting shipment creation", saga.Id);
 
+        // Shipping has no copy of the order, so the command carries what the carrier needs:
+        // recipient, delivery address and the lines still to ship. Without this Shipping
+        // created every shipment with a "(pending address sync)" placeholder.
+        var order = await _uow.Orders.GetByIdAsync(saga.OrderId, ct);
+        if (order is null)
+        {
+            _logger.LogError("Saga {SagaId}: order {OrderId} not found — shipment not requested", saga.Id, saga.OrderId);
+            return;
+        }
+
         await _messageBus.PublishAsync(new CreateShipmentCommand
         {
             OrderId = saga.OrderId,
-            TenantId = saga.TenantId
+            TenantId = saga.TenantId,
+            RecipientName = order.CustomerName,
+            RecipientEmail = order.CustomerEmail,
+            ShippingAddress = new SagaShippingAddress
+            {
+                Street = order.ShippingAddress.Street,
+                City = order.ShippingAddress.City,
+                State = order.ShippingAddress.State,
+                PostalCode = order.ShippingAddress.PostalCode,
+                Country = order.ShippingAddress.Country
+            },
+            Items = order.LineItems
+                .Where(li => li.RemainingQuantity > 0)
+                .Select(li => new SagaShipmentLine { ProductId = li.ProductId, ProductName = li.ProductName, Quantity = li.RemainingQuantity })
+                .ToList()
         }, ct);
     }
 
@@ -277,6 +301,26 @@ public record CreateShipmentCommand
 {
     public Guid OrderId { get; init; }
     public Guid TenantId { get; init; }
+    public string RecipientName { get; init; } = string.Empty;
+    public string? RecipientEmail { get; init; }
+    public SagaShippingAddress? ShippingAddress { get; init; }
+    public List<SagaShipmentLine> Items { get; init; } = new();
+}
+
+public record SagaShippingAddress
+{
+    public string Street { get; init; } = string.Empty;
+    public string City { get; init; } = string.Empty;
+    public string State { get; init; } = string.Empty;
+    public string PostalCode { get; init; } = string.Empty;
+    public string Country { get; init; } = string.Empty;
+}
+
+public record SagaShipmentLine
+{
+    public Guid ProductId { get; init; }
+    public string ProductName { get; init; } = string.Empty;
+    public int Quantity { get; init; }
 }
 
 public record RefundPaymentCommand

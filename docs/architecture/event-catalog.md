@@ -33,6 +33,20 @@ Every event that leaves a service carries the tenant it belongs to — decision 
   are skipped by upgraded consumers — deploy publishers and consumers together and let old
   Outboxes drain first. See `docs/PROJECT-STATUS.md` §3.
 
+## Flow fixes 2026-10-22 (ROADMAP P0)
+
+These reflect the code; the per-event sections below are older and partly aspirational.
+
+| Event / message | Transport | Change | Consumer |
+|---|---|---|---|
+| `PurchaseOrderApprovedDomainEvent` | Kafka `purchasing-topic` | Now carries `TotalAmount` + `CurrencyCode` (manager approval below the threshold, or finance approval). PO lines can only change while Draft. | **AccountingService** books the supplier bill from it, once per PO (redelivery-safe). Notification unchanged. |
+| `PurchaseOrderCreatedDomainEvent` | Kafka `purchasing-topic` | — | **No longer** creates a bill (it is raised before any line exists, so every bill was 0). |
+| `CreateShipmentCommand` (saga) | RabbitMQ `sales_order_events` | Now carries `RecipientName`, `RecipientEmail`, `ShippingAddress` (Street/City/State/PostalCode/Country) and `Items` (lines still to ship). | **ShippingService**: City → district, State → province; a command without an address is logged and dropped (no placeholder shipment). |
+| `TransactionCreatedEvent` (POS) | Kafka `pos-topic` | Now carries `Lines` (ProductId, ProductName, Quantity). | **WarehouseService** (`PosTransactionConsumer`) takes the lines out of stock — never refuses, stock may go negative + `StockAlert`; reference `POS-{tx}`, idempotent. Reporting unchanged. |
+| `TransactionVoidedEvent` (POS, new) | Kafka `pos-topic` | Raised only when a **completed** sale is voided. | **WarehouseService** puts the lines back (reference `POS-VOID-{tx}`). |
+
+---
+
 ## Identity Service Events
 
 ### UserCreatedEvent
@@ -561,7 +575,7 @@ public class SalesQuotationAcceptedEvent
 **Description:** Published when a new purchase order is created.
 
 **Publisher:** Purchasing Service  
-**Subscribers:** Warehouse Service, Accounting Service
+**Subscribers:** none that act on it (Accounting books bills from `PurchaseOrderApproved` since 2026-10-22)
 
 **Event Structure:**
 ```csharp

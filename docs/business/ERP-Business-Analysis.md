@@ -285,6 +285,11 @@ Enums                 Event Handlers          Kafka Producer/Consumer
 
 ## 2. Đánh Giá Mức Độ Hoàn Thiện
 
+> **Cập nhật 2026-10-22:** con số "~95%" bên dưới chỉ đo độ phủ API/domain trong từng service.
+> Kiểm kê code 2026-10-22 cho thấy phần còn thiếu nằm ở luồng **liên service** (event không ai
+> consume, kế toán chưa tự hạch toán, payroll hard-code), **frontend**, **test** và **vận hành**.
+> Backlog hiện hành và thứ tự ưu tiên: `docs/ROADMAP.md`.
+
 > **Cập nhật 2026-07-02:** Bảng dưới đây đã được đối chiếu lại toàn bộ với code thật
 > (không chỉ dựa vào cấu trúc thư mục). Bảng cũ đánh giá SaleOrder/PurchaseOrder/
 > Accounting/CRM/HRM/Reporting thấp hơn thực tế rất nhiều — các service này thực ra

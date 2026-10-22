@@ -29,24 +29,26 @@ public class ClientLogEntryDto
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/logs")]
-[Authorize]
 public class LogsController : ControllerBase
 {
     private const int MaxClientBatchSize = 100;
 
     private readonly IMediator _mediator;
     private readonly ILogQueryRepository _repository;
-    private readonly UserContext _userContext;
 
-    public LogsController(IMediator mediator, ILogQueryRepository repository, UserContext userContext)
+    public LogsController(IMediator mediator, ILogQueryRepository repository)
     {
         _mediator = mediator;
         _repository = repository;
-        _userContext = userContext;
     }
 
-    /// <summary>Authenticated query endpoint — gated by Bearer auth at the Ocelot Gateway route.</summary>
+    /// <summary>
+    /// Log search. Logs have no tenant (every tenant's requests and stack traces), so
+    /// logs:view is a platform permission — only effective in the SYSTEM tenant
+    /// (PermissionScopes; migration Identity/024).
+    /// </summary>
     [HttpGet]
+    [AuthorizePermission(PermissionConstants.Logs_View)]
     public async Task<ActionResult<PagedResultDto<LogEntryDto>>> GetLogs(
         [FromQuery] string? serviceName,
         [FromQuery] string? level,
@@ -59,9 +61,6 @@ public class LogsController : ControllerBase
         [FromQuery] int pageSize = 25,
         CancellationToken cancellationToken = default)
     {
-        if (!_userContext.HasPermission("logs:view"))
-            return Forbid();
-
         var result = await _mediator.Send(new GetLogsQuery
         {
             ServiceName = serviceName,

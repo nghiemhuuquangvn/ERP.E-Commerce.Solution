@@ -32,6 +32,9 @@ bld/
 [Oo]ut/
 [Ll]og/
 [Ll]ogs/
+# ...but not source folders named logs (the admin Logs page and its API client were
+# silently never committed because of the rule above)
+!src/frontend/**/src/**/logs/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/

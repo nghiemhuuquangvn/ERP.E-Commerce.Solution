@@ -63,6 +63,8 @@ public static class PermissionScopes
         PermissionConstants.License_PlansView,
         PermissionConstants.License_PlansManage,
         PermissionConstants.License_TenantIssue,
+        // Centralised logs have no tenant: every tenant's requests and stack traces.
+        PermissionConstants.Logs_View,
     };
 
     public static IReadOnlyCollection<string> Platform => PlatformPermissions;

@@ -27,6 +27,7 @@ namespace ERP.ACC.Application.Interfaces
         Task<Bill?> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task<List<Bill>> GetAllAsync(CancellationToken ct = default);
         Task<List<Bill>> GetBySupplierIdAsync(Guid supplierId, CancellationToken ct = default);
+        Task<Bill?> GetByPurchaseOrderIdAsync(Guid purchaseOrderId, CancellationToken ct = default);
         Task<List<Bill>> GetByStatusAsync(int status, CancellationToken ct = default);
         Task<List<Bill>> GetUnpaidBillsAsync(CancellationToken ct = default);
         Task AddAsync(Bill bill, CancellationToken ct = default);

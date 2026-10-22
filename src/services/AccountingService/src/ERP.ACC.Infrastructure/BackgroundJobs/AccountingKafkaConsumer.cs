@@ -114,19 +114,17 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
             using var scope = _serviceProvider.CreateScope();
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-            if (typeName.Contains("PurchaseOrderCreatedDomainEvent"))
+            if (typeName.Contains("PurchaseOrderApprovedDomainEvent"))
             {
-                // PurchaseOrderCreatedDomainEvent carries (PurchaseOrderId, PONumber,
-                // SupplierId) — no TotalAmount, so the created Bill's Amount defaults to
-                // 0 rather than guessing; matches this codebase's established
-                // safe-default-for-unavailable-field pattern (e.g. CRM's identity-topic
-                // consumer defaulting Contact fields it can't resolve).
+                // Final approval (manager, or finance above the threshold) carries the order
+                // total; the bill is booked then. PurchaseOrderCreated has no lines yet.
                 var raw = JObject.Parse(json);
-                var evt = new PurchaseOrderCreatedIntegrationEvent
+                var evt = new PurchaseOrderApprovedIntegrationEvent
                 {
                     POId = raw.Value<Guid?>("PurchaseOrderId") ?? Guid.Empty,
+                    PONumber = raw.Value<string?>("PONumber") ?? string.Empty,
                     SupplierId = raw.Value<Guid?>("SupplierId") ?? Guid.Empty,
-                    TotalAmount = 0
+                    TotalAmount = raw.Value<decimal?>("TotalAmount") ?? 0m
                 };
 
                 if (evt.POId != Guid.Empty)
