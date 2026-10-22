@@ -782,7 +782,8 @@
     },
     "details": {
       "title": "Log Details",
-      "exceptionType": "Exception Type"
+      "exceptionType": "Exception Type",
+      "correlationId": "Correlation ID"
     }
   },
   "masterdata": {

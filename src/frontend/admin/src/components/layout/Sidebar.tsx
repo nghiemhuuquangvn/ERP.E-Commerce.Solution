@@ -431,7 +431,7 @@ const NAV_ITEMS: NavItem[] = [
   { labelKey: 'nav.reports', path: '/reports', permission: 'reports:view', icon: '📊' },
   { labelKey: 'nav.settings', path: '/settings', icon: '⚙️', children: SETTINGS_CHILDREN },
   { labelKey: 'nav.monitoring', path: '/monitoring', permission: 'monitoring:view', icon: '🖥' },
-  { labelKey: 'nav.logs', path: '/logs', permission: 'logging:logs:view', icon: '📜' },
+  { labelKey: 'nav.logs', path: '/logs', permission: 'logs:view', icon: '📜' },
   { labelKey: 'nav.users', path: '/identity/users', permission: 'identity:users:view', icon: '🧑‍💼' },
   {
     labelKey: 'nav.rolesPermissions',

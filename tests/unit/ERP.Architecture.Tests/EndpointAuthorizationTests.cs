@@ -43,7 +43,6 @@ public class EndpointAuthorizationTests
         "ERP.ACC.API:ERP.ACC.API.Controllers.ReportsController",
         "ERP.ACC.API:ERP.ACC.API.Controllers.SettingsController",
         "ERP.ACC.API:ERP.ACC.API.Controllers.TaxRatesController",
-        "ERP.LOG.API:ERP.LOG.API.Controllers.LogsController",
         "ERP.MST.API:ERP.MST.API.Controllers.SettingsController",
         "ERP.NTF.API:ERP.NTF.API.Controllers.NotificationsController",
         "ERP.NTF.API:ERP.NTF.API.Controllers.PreferencesController",
