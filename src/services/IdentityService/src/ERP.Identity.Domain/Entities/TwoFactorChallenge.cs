@@ -15,7 +15,7 @@ namespace ERP.Identity.Domain.Entities
         public Guid TenantId { get; private set; }
         public string CodeHash { get; private set; } = default!;
         public string Method { get; private set; } = default!; // "Sms" | "Email"
-        public string Destination { get; private set; } = default!; // masked phone/email
+        public string Destination { get; private set; } = default!; // MASKED phone/email (display only; never used for delivery)
         public DateTime ExpiredAt { get; private set; }
         public int AttemptCount { get; private set; }
         public int MaxAttempts { get; private set; }
@@ -29,6 +29,7 @@ namespace ERP.Identity.Domain.Entities
             string codeHash,
             string method,
             string destination,
+            string recipient,
             int expiryMinutes,
             int maxAttempts,
             string plaintextCode)
@@ -39,6 +40,8 @@ namespace ERP.Identity.Domain.Entities
                 throw new ArgumentException("CodeHash is required", nameof(codeHash));
             if (string.IsNullOrWhiteSpace(method))
                 throw new ArgumentException("Method is required", nameof(method));
+            if (string.IsNullOrWhiteSpace(recipient))
+                throw new ArgumentException("Recipient is required: the code must be delivered somewhere", nameof(recipient));
 
             var challenge = new TwoFactorChallenge
             {
@@ -55,8 +58,11 @@ namespace ERP.Identity.Domain.Entities
                 CreatedAt = DateTime.UtcNow
             };
 
+            // The event is what NotificationService delivers: it needs the REAL address. The masked value above is
+            // what the entity keeps and what clients may be shown (it used to be sent here too, so the code was
+            // "delivered" to j***@example.com and never arrived).
             challenge.AddDomainEvent(new TwoFactorCodeGeneratedDomainEvent(
-                userId, tenantId, method, destination, plaintextCode, expiryMinutes));
+                userId, tenantId, method, recipient, plaintextCode, expiryMinutes));
 
             return challenge;
         }

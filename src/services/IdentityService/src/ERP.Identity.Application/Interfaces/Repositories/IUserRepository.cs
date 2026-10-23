@@ -25,7 +25,8 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         /// (GetByEmailGloballyAsync alone would silently pick an arbitrary one via
         /// unordered FirstOrDefault) rather than to resolve a single user.</summary>
         Task<IReadOnlyList<User>> FindAllByEmailGloballyAsync(string email, CancellationToken ct);
-        Task<User> GetByExternalProviderAsync(string provider, string providerKey, Guid tenantId, CancellationToken ct);
+        /// <summary>The user linked to (provider, providerKey) in the tenant, or null when this external account is new.</summary>
+        Task<User?> GetByExternalProviderAsync(string provider, string providerKey, Guid tenantId, CancellationToken ct);
         Task<User?> GetByIdWithDetailsAsync(Guid id, CancellationToken ct);
 
         /// <summary>Tenant-boundary-safe fetch — returns null if the user doesn't exist

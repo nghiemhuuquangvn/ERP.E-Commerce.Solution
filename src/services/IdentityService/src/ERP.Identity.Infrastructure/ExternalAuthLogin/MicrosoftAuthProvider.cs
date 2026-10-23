@@ -54,7 +54,9 @@ namespace ERP.Identity.Infrastructure.ExternalAuthLogin
                     Provider: Provider,
                     ProviderKey: providerUserId,
                     Email: email ?? string.Empty,
-                    EmailVerified: true, // Microsoft doesn't provide a separate email verified claim, so assume it's verified
+                    // preferred_username is a mutable sign-in name (UPN), not a verified mailbox, and Microsoft's email claim is
+                    // not guaranteed verified either ("nOAuth"): never treat it as proof of ownership of an existing account.
+                    EmailVerified: false,
                     FullName: name ?? string.Empty);
             }
             catch (Exception)
