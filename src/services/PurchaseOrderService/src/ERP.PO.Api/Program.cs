@@ -108,7 +108,11 @@ var app = builder.Build();
 
 app.UseGlobalExceptionHandling();
 
-app.MapOpenApi();
+// API documentation is for developers only: never expose the endpoint list in Production.
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+}
 
 app.UseSharedLocalization();
 
