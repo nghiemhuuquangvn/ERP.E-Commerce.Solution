@@ -200,7 +200,7 @@ public class JournalPostingServiceTests
 
         var act = () => Service().PostAsync(Invoice(Guid.NewGuid(), new DateTime(2026, 7, 15)));
 
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*No open fiscal period*");
+        await act.Should().ThrowAsync<PostingConfigurationException>().WithMessage("*No open fiscal period*");
     }
 
     [Fact]

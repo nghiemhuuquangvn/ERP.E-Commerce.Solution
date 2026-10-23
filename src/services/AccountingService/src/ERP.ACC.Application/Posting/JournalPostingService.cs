@@ -215,7 +215,7 @@ namespace ERP.ACC.Application.Posting
                 period.PeriodName, day, today);
             var current = await GetOrCreateMonthAsync(today, ct);
             if (current.Status != (int)FiscalPeriodStatus.Open)
-                throw new InvalidOperationException($"No open fiscal period for {today:yyyy-MM-dd}: open one before posting.");
+                throw new PostingConfigurationException("FiscalPeriod", $"No open fiscal period for {today:yyyy-MM-dd}: open one before posting.");
             return (current, today);
         }
 
