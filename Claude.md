@@ -228,11 +228,21 @@ Published Events:
 - JournalEntryPosted
 - FiscalPeriodClosed
 
-Consumed Events:
-- SalesOrderCreated
-- PurchaseOrderCreated
-- PaymentReceived
-- WarehouseMovement
+Consumed Events (live, 2026-10-23): SalesOrderCreated and SalesOrderCancelled (RabbitMQ
+`sales_order_events`), PurchaseOrderApproved (`purchasing-topic`), PaymentProcessed (`payment-topic`).
+Warehouse, POS and HRM events are not consumed yet (ROADMAP P1-1b…d).
+
+Automatic GL posting (docs/business/Accounting/AutoPosting.md):
+- Business flows never name an account: they post **posting keys** (`PostingKeys`) through
+  `IJournalPostingService` and the tenant's posting profile (`PostingAccountMappings`) resolves them. Add a flow by building a
+  `PostingRequest` (see `PostingRules`), never by hard-coding account numbers.
+- Posting is **idempotent per source document** (`JournalEntries.SourceKey` = "<SourceType>:<SourceId>", unique per tenant) and runs
+  on the caller's unit of work, so document + entry + outbox commit together. A consumer handler for a posting event must stay
+  idempotent too (check for the entry first, like `PaymentProcessedIntegrationEventHandler`).
+- An incomplete posting profile (`PostingConfigurationException`) is logged and never blocks the document; use `TryPostAsync`.
+- Journal status: 0 Draft, 1 Posted, 2 Voided (ignored by reports), 3 Reversed (counted, offset by its reversal entry). Reports
+  filter on `EntryDate`. `AccountType` is 1-based (Asset 1 … Expense 5), `NormalBalance` Debit 1 / Credit 2.
+- Refusals in the Accounting APIs are `BusinessRuleException` (HTTP 400), not `InvalidOperationException` (500).
 
 #### Human Resources Service (Port 5007, Code: HRM)
 

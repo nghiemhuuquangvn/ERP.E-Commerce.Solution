@@ -33,6 +33,26 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-23 — ROADMAP P1-1 (phase 1): automatic GL posting (`feat/gl-auto-posting`, unmerged)
+- Accounting never wrote journal entries by itself. Now `IJournalPostingService` posts invoice (Dr AR / Cr Revenue), payment
+  (Dr Cash|Bank / Cr AR, applied to the invoice), cancelled order (invoice cancelled + entry reversed), bill approval (Dr Inventory /
+  Cr AP) and bill payment, through a per-tenant **posting profile**. Idempotent per document (`JournalEntries.SourceKey` unique
+  index); period by document date; default 14-account chart + profile created for a tenant with no accounts. Rules, keys, limits:
+  `docs/business/Accounting/AutoPosting.md`.
+- Found on the way: the seeded chart used 0-based `AccountType`/`NormalBalance`, the code and UI 1-based (P&L and trial balance misread
+  the seed — fixed by migration Accounting 009); `JournalEntry` did not map status / date / reference (all entries stayed Draft);
+  the Kafka consumer swallowed failures and auto-committed, the RabbitMQ one requeued for ever (both fixed); a redelivered
+  `SalesOrderCreated` looped on the invoice number's unique index (fixed); the manual journal API accepted unknown accounts and
+  one-sided lines (fixed); the `warehouse-topic` consumer never received anything (removed).
+- Also found, not fixed here: `POST license/tenant/{id}/issue` returns 500 (`IssueLicenseRequestValidator` has async rules but is
+  used by the synchronous ASP.NET validation); the ADMIN role created by tenant signup holds no accounting / sales / payment
+  permissions (51 permissions only), so a new tenant cannot use those modules until roles are granted.
+- Verified in Docker: new tenant → 14 accounts + 7 mappings + open month + `JE-2026-000001` on its first invoice; manual payment,
+  bill approve / pay entries; sales order → invoice + entry over RabbitMQ; order cancel → invoice cancelled + reversal; payment
+  capture → Dr 1000 / Cr 1100 and invoice paid; a duplicate `SalesOrderCreated` → one invoice; inactive mapped account and closed
+  period → document saved, error logged, no entry; trial balance balanced, P&L revenue correct.
+- Needs: Accounting migration `009`. Split off: P1-1b stock + COGS, P1-1c POS, P1-1d payroll, P1-1e refunds / returns.
+
 ### 2026-10-23 — ROADMAP P0-8: security hygiene (`fix/security-hygiene`, unmerged)
 - NuGet advisory fixed (Pkcs/Xml 10.0.13 pinned in every Infrastructure csproj).
 - Identity: resend supersedes the earlier 2FA challenge; 2FA enable/disable re-asks the current password (external-only
@@ -381,7 +401,7 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 
 ## 8. Next step: ROADMAP P0-9 (schema alignment), rest of P0, then P1 (needs a plan + approval)
 
-Update 2026-10-23: P0-1, P0-9, P0-7 and P0-8 are closed. Next: P1-1 (P0-10, least-privilege SQL access, can be scheduled any time). The text below is from 2026-10-22.
+Update 2026-10-23: P0-1, P0-9, P0-7, P0-8 and P1-1 phase 1 are closed. Next: P1-1b stock + COGS, or P1-2 (VAS chart) — P0-10 (least-privilege SQL access) can be scheduled any time. The text below is from 2026-10-22.
 
 Working checklist: `task.md` at the repo root (same IDs as `docs/ROADMAP.md`).
 

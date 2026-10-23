@@ -84,12 +84,15 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
 
 ## P1 — cross-service business flows
 
-- [ ] **P1-1 Automatic GL posting** (start here)
-  - Posting profiles (account mapping per tenant) → `JournalEntry` generated from: invoice, bill,
-    payment, refund, stock receipt/issue (inventory, COGS), POS sale, payroll.
-  - Remove the dead `warehouse-topic` consumer in Accounting (Warehouse publishes on RabbitMQ
-    `warehouse_exchange`).
-  - Files: `src/services/AccountingService/**`, `AccountingKafkaConsumer.cs`.
+- [x] **P1-1 Automatic GL posting — phase 1** closed 2026-10-23 (`feat/gl-auto-posting`)
+  - Posting engine + profile (`PostingAccountMappings`), default chart for new tenants, idempotent per source (`SourceKey`),
+    period by date, reversal, status / date / source on journal entries; seeded account enums fixed (migration Accounting 009).
+  - Flows: invoice, payment, order cancellation, bill approval / payment. Consumers retry instead of losing or looping; the dead
+    `warehouse-topic` consumer is removed. Docs: `docs/business/Accounting/AutoPosting.md`.
+- [ ] **P1-1b Stock + COGS → GL** (needs unit cost in Warehouse events, PO price to Warehouse, GRNI account)
+- [ ] **P1-1c POS → GL** (needs tax / tender split in `TransactionCreated`)
+- [ ] **P1-1d Payroll → GL** (with P1-7)
+- [ ] **P1-1e Refunds and returns → GL** (confirmed-refund event, return lines)
 - [ ] **P1-2 VAS chart of accounts**: hierarchy (Circular 200/133 — confirm the current one),
   reversing/voiding entries, period-end closing entries (911 → 421), cash-flow statement.
 - [ ] **P1-3 Tax & e-invoice**: VAT fields on invoice/bill, VAT listing/return, e-invoice provider

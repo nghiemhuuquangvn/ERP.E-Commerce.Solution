@@ -76,7 +76,11 @@ plan → approval → implement + tests + docs, one branch per plan.
 ### P1 — Cross-service business flows
 | ID | Item |
 |---|---|
-| P1-1 | **Automatic GL posting**: posting profiles (account mapping) for invoice, bill, payment, refund, stock receipt/issue (inventory, COGS), POS sale, payroll → generated `JournalEntry`. Remove the dead `warehouse-topic` consumer (Warehouse publishes on RabbitMQ). |
+| P1-1 | ✅ phase 1 2026-10-23 (`feat/gl-auto-posting`) — **Automatic GL posting**: posting engine + profile (account mapping), invoice, payment, order cancellation, bill flows; the dead `warehouse-topic` consumer is gone. See `docs/business/Accounting/AutoPosting.md`. |
+| P1-1b | Stock receipt / issue and COGS → GL: unit cost on the Warehouse events (`StockMovementRecorded`, `ReceiptCompleted`; per-order cost today only in `CostConsumptionLog`), PO unit price passed to Warehouse (PO receipts are booked at cost 0), Accounting consumer on RabbitMQ `warehouse_exchange`; the bill debit moves from Inventory to a GRNI account. |
+| P1-1c | POS sale → GL: `TransactionCreated` needs subtotal, tax, discount, tender split and unit prices; void amount; `CashShiftClosed` cash variance. |
+| P1-1d | Payroll → GL: gross, overtime, deductions split, employer costs and a paid transition in the pay slip event (with P1-7). |
+| P1-1e | Refunds and returns → GL: publish the payment refund event only when the gateway confirms; Sales return lines; credit note. |
 | P1-2 | Hierarchical VAS chart of accounts (Circular 200/133 — confirm the currently applicable replacement), reversing/voiding entries, period-end closing entries (911 → 421), cash-flow statement. |
 | P1-3 | Tax: VAT fields on invoice/bill, VAT listing/return; **e-invoice** (Decree 123/2020, Circular 78/2021) through a provider adapter (VNPT / Viettel / MISA / BKAV). |
 | P1-4 | Line-level bank reconciliation (statement line ↔ payment/bill); multi-currency with MasterData exchange rates and FX differences. |

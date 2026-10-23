@@ -215,6 +215,17 @@ without a fresh design pass:
 
 ---
 
+### Accounting: events that now write journal entries (2026-10-23, ROADMAP P1-1)
+
+Accounting turns these into ledger entries (docs/business/Accounting/AutoPosting.md): `SalesOrderCreated` → invoice + Dr AR / Cr
+Revenue; `SalesOrderCancelled` (RabbitMQ `sales_order.SalesOrderCancelledEvent`, new binding) → unpaid invoice cancelled + entry
+reversed; `PaymentProcessed` (needs `Method` as a number and `ProcessedAt`) → Dr Cash|Bank / Cr AR; `PurchaseOrderApproved` →
+bill (posted when the bill is approved / paid). Not consumed yet: Warehouse (`warehouse_exchange`), POS, HRM, `PaymentRefunded`,
+`SalesOrderReturned`. The `warehouse-topic` subscription that this catalog and the dependency map list never received anything
+(Warehouse publishes on RabbitMQ only) and has been removed.
+
+---
+
 ### TwoFactorCodeGeneratedEvent
 
 **Description:** Published when a user with 2FA enabled/required completes password
