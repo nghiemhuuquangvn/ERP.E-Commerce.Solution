@@ -1,6 +1,7 @@
 using ERP.Identity.Application.Interfaces;
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
+using ERP.Identity.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -65,6 +66,9 @@ namespace ERP.Identity.Infrastructure.BackgroundJobs
 
                                 message.ProcessedOnUtc = DateTime.UtcNow;
                                 message.Error = null; // Xóa lỗi cũ nếu có
+
+                                // Delivered: the code / link has done its job, so it must not stay in the table.
+                                message.Content = OutboxPayloadProtector.Redact(message.Type, message.Content);
 
                                 // Fire-and-forget webhook delivery alongside the Kafka publish —
                                 // mirrors NotificationService's WebhookSender pattern exactly (no

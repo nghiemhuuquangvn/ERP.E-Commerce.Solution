@@ -20,6 +20,7 @@ using ERP.Identity.Infrastructure.BackgroundJobs;
 using Confluent.Kafka;
 using Microsoft.Extensions.Options;
 using ERP.Shared.Security;
+using ERP.Identity.Infrastructure.Security;
 
 namespace ERP.Identity.Infrastructure
 {
@@ -164,6 +165,7 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<IGeneralSettingsService, GeneralSettingsService>();
             services.AddScoped<ICompanySettingsService, CompanySettingsService>();
             services.AddScoped<ISecretProtector, AesSecretProtector>();
+            services.AddScoped<OutboxPayloadProtector>();
             services.AddScoped<IWorkflowSettingsService, WorkflowSettingsService>();
             services.AddScoped<IFileStorageSettingsService, FileStorageSettingsService>();
             services.AddScoped<ISchedulerSettingsService, SchedulerSettingsService>();
