@@ -57,12 +57,18 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
     a local, git-ignored `deployment/k8s/secrets.yaml` with an obsolete `jwt-signing-key` makes
     `NoSharedTokenKeyTests.NoDeploymentConfigurationSetsASharedTokenKey` fail on this machine — delete that line.
 
-- [ ] **P0-7 Identity external login & OTP**
-  - `ExternalLoginRepository`: Delete/GetAll/GetById/Update throw `NotImplementedException`.
-  - External-login auto-provisioning fails (`User.Create` rejects an empty PasswordHash).
-  - 2FA email OTP is sent to the *masked* address.
-  - Done when: Google/Microsoft first login creates a Customer, OTP reaches the real address, tests in
-    `tests/unit/ERP.Identity.UnitTests`.
+- [x] **P0-7 Identity external login & OTP** — closed 2026-10-23 (`fix/identity-external-login`)
+  - First external login now provisions a Customer (random unusable password, provider name, confirmed email when the
+    provider verified it) and the second login finds it (the link stores its TenantId). A *verified* email that already
+    belongs to a user of the tenant links to that user; an unverified one is refused. Facebook and Microsoft report
+    `EmailVerified = false` (no proof of ownership). `ExternalLoginRepository` fully implemented.
+  - 2FA: the challenge keeps the masked address, the `TwoFactorCodeGenerated` event carries the real one; SMS without a
+    phone fails with a business rule.
+  - Found on the way: Identity's `KafkaMessageBus` double-encoded the Outbox JSON so NO Identity event reached
+    NotificationService (2FA codes, password reset, email confirmation, UserCreated); default templates stranded on the
+    empty tenant (Notification `012`).
+  - Verified in Docker up to the notification record addressed to the real email (status Failed: no SMTP server is
+    configured in the local stack). Tests: Identity 231.
 
 - [ ] **P0-8 Security hygiene**
   - NuGet `System.Security.Cryptography.Pkcs` 9.0.4 high-severity advisory (transitive, every service).

@@ -169,3 +169,15 @@ user context) is correct in every service. Authorization and isolation were not.
 | S10 | Medium | Three authorization styles; nothing caught a missing check | **Fixed (guard)** — FallbackPolicy + `EndpointAuthorizationTests`; 57 legacy in-action controllers allowlisted (phase 5) |
 | S11 | Medium | Hub accepts raw JWT in query string; `HUBAUTH2` logs at Error | Partly fixed — `HUBAUTH2` diagnostics removed (phase 3); ticket-only hubs: phase 5 |
 | — | Note | WareHouseService does check `inventory:*` in every action (initial scan misread) | — |
+
+## External login linking policy (2026-10-23, ROADMAP P0-7)
+
+- A new external account is provisioned as a **Customer** only (the client-supplied `UserType` stays ignored).
+- If the provider asserts a **verified** email and a user with that email exists in the tenant, the external account is
+  **linked** to that user (the same mailbox is the same person); 2FA and the account-status checks still apply.
+- If the email is **not verified** the sign-in is refused instead of taking the existing account over.
+- Google reports `email_verified`. Facebook (Graph API has no such flag) and Microsoft (`preferred_username` is a
+  mutable sign-in name; the `email` claim is not guaranteed verified - "nOAuth") report `EmailVerified = false`, so they
+  never link by email. Twitter/X never links.
+- The link row carries the tenant it was made in; lookups are `(provider, providerKey, tenant, active)`.
+

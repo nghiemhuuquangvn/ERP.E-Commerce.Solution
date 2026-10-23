@@ -33,6 +33,24 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-23 — ROADMAP P0-7: Identity external login and 2FA OTP (`fix/identity-external-login`, unmerged)
+- External login: `GetByExternalProviderAsync` returned an exception instead of null, so no new Google/Microsoft/
+  Facebook/Twitter user could ever be provisioned; `User.Create` rejected the empty password hash; the stored link had
+  no TenantId (the next login would not find it). Now a new Customer is provisioned (random unusable password, provider
+  name, email confirmed only if the provider verified it); a *verified* email of an existing tenant user links to it
+  (decision 2026-10-23), an unverified one is refused; Facebook and Microsoft report `EmailVerified = false`
+  (Microsoft's `preferred_username` is a mutable UPN, "nOAuth"); `ExternalLoginRepository` implemented.
+- 2FA: `TwoFactorChallenge` keeps the masked destination, the event carries the real recipient; SMS without a phone
+  number fails with `TwoFactorNoDestination`.
+- **Identity events never reached Notification**: `KafkaMessageBus` serialized the (already JSON) Outbox content again,
+  so consumers got a JSON string. Fixed; Notification `012` moves the default templates stranded on the empty tenant to
+  SYSTEM ("Template 'TWO_FACTOR_CODE' not found"). Run migration 012.
+- Verified in Docker: email 2FA login -> stored `ad***@…`, event and Notification record use the real address
+  (status Failed because no SMTP server is configured locally). Real Google/Microsoft tokens were not available, so the
+  external-login paths are covered by unit tests (AuthService + InMemory repository), not by a live call.
+- Still open (P0-8): invalidate the previous 2FA challenge on resend, keep the OTP out of `OutboxMessages`;
+  new users created by external login get no email-confirmation message.
+
 ### 2026-10-23 — ROADMAP P0-9: SQL schema aligned with the EF models (`fix/schema-alignment`, unmerged)
 Full write-up: `docs/architecture/schema-drift-2026-10-23.md` (oracle, clean-room recipe, every fix).
 - `LiveSchemaDriftTests` (opt-in `ERP_DRIFT_SQL`) now compares names, nullability blockers, column types, computed
@@ -348,8 +366,7 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 
 ## 8. Next step: ROADMAP P0-9 (schema alignment), rest of P0, then P1 (needs a plan + approval)
 
-Update 2026-10-23: P0-1 and P0-9 (SQL schema vs EF models) are closed. Next: P0-7 (Identity external login / OTP),
-P0-8 (NuGet advisory, Identity phase 2), then P1-1. The text below is from 2026-10-22.
+Update 2026-10-23: P0-1, P0-9 and P0-7 are closed. Next: P0-8 (NuGet advisory, Identity phase 2), then P1-1. The text below is from 2026-10-22.
 
 Working checklist: `task.md` at the repo root (same IDs as `docs/ROADMAP.md`).
 
