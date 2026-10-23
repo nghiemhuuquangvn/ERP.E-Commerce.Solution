@@ -98,8 +98,9 @@ here.
 
 - Only applies `*.sql` files directly inside each `src/Database/{Service}/`
   folder (`-maxdepth 1`) — it does not descend into `Functions/`, `Procedures/`,
-  `Scripts/`, or `Views/` subfolders, and skips non-`.sql` files like
-  `AllServices/004_FixMissingBaseEntityColumns.ps1`.
+  `Scripts/`, or `Views/` subfolders, and skips non-`.sql` files.
+- On a **new** database run `db-migrate` twice: the Reporting ETL seeds read other services' databases and skip (with
+  a notice) until those exist. The script ends with a count of SQL errors; "already exists" errors on a re-run are expected.
 - `Promotion/` and `PromotionService/` both target `PromotionDB` under
   inconsistent folder names (a pre-existing issue, see
   `docs/architecture/database-performance-indexing-review.md` §7) — folders are

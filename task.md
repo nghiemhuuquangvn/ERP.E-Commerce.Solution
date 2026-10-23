@@ -41,21 +41,21 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
   - Branches: PR #10–#12 were already merged (`master` contains them).
   - Verified in Docker: RS256 token + JWKS `kid`, `/internal` 401, logout → 401, tenant admin 403 / platform
     admin 200 on Logs, PO two-level approval → one Accounting bill with the PO total.
-  - NOT verified (blocked by schema drift, see P0-9): POS sale/void ↔ inventory, storefront order → shipment.
+  - POS sale/void ↔ inventory and storefront order → shipment were verified under P0-9.
   - Fixed on the way: see `docs/architecture/schema-drift-2026-10-23.md` ("Fixed").
   - How to run against the SQL Server installed on the host: `docker compose -f docker-compose.yml -f
     docker-compose.localsql.yml up -d --build` with `SQL_HOST=host.docker.internal` in `.env`; Docker Desktop
     needs ≥ 8 GB for WSL (`~/.wslconfig`), 4 GB hangs the engine.
 
-- [ ] **P0-9 Align the SQL schema with the EF models** (found by P0-1)
-  - Use `LiveSchemaDriftTests` as the oracle (`docs/architecture/schema-drift-2026-10-23.md`): 37 MISSING,
-    30 BLOCKER, plus type mismatches (POS `Transactions.PaymentMethod` INT vs string) — extend the test to
-    compare column types first.
-  - Replace the 40 remaining `JObject.Value<Guid?>(...)` calls (14 files) with `EventJson.GuidValue`, with a
-    consumer test each.
-  - Then re-run the unverified flows: POS sale/void ↔ stock, storefront order → approve → shipment.
-  - Done when: `LiveSchemaDriftTests` reports no drift on a database built from `src/Database` alone, and both
-    flows pass in Docker.
+- [x] **P0-9 Align the SQL schema with the EF models** — closed 2026-10-23 (`fix/schema-alignment`)
+  - `LiveSchemaDriftTests` (now also types, nullability, computed columns) reports no drift on the host databases
+    and on a database built from `src/Database` alone; the chain runs with 0 SQL errors on a new database.
+  - All `Value<Guid>` / `as JArray` payload reads replaced (`EventJson`), guarded by `NoValueGuidConversionTests`.
+  - Verified in Docker: POS sale 103→101, void →103; order → approve → payment captured → reservation → shipment
+    with the real recipient/address/lines; PO → bill. Details: `docs/architecture/schema-drift-2026-10-23.md`.
+  - Follow-ups: wire the drift test into CI (P3-1); run db-migrate twice on a new database (Reporting ETL seeds);
+    a local, git-ignored `deployment/k8s/secrets.yaml` with an obsolete `jwt-signing-key` makes
+    `NoSharedTokenKeyTests.NoDeploymentConfigurationSetsASharedTokenKey` fail on this machine — delete that line.
 
 - [ ] **P0-7 Identity external login & OTP**
   - `ExternalLoginRepository`: Delete/GetAll/GetById/Update throw `NotImplementedException`.

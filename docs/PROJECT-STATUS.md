@@ -33,6 +33,22 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-23 — ROADMAP P0-9: SQL schema aligned with the EF models (`fix/schema-alignment`, unmerged)
+Full write-up: `docs/architecture/schema-drift-2026-10-23.md` (oracle, clean-room recipe, every fix).
+- `LiveSchemaDriftTests` (opt-in `ERP_DRIFT_SQL`) now compares names, nullability blockers, column types, computed
+  columns. Zero drift on the host databases and on a database built from `src/Database` alone (pass 1: 0 SQL errors).
+- New migrations (run them on every database): Identity `026`, Accounting `008`, CRM `006`, HRM `006` (+ `003` reordered),
+  MasterData `008`, Notification `010`/`011`, Payment `007`, POS `007`/`008`, Product `018`, PromotionService `004`/`005`
+  (seed moved to `002a`), Purchasing `010`/`011`, Reporting `007` (ETL seeds skip until the source DBs exist), Sales `012`,
+  Shipping `006`/`007`, Warehouse `008`. `AllServices/004_*.ps1` and Identity `015_test_wrapped.sql` removed.
+  On a NEW database run `db-migrate` twice (Reporting ETL backfill).
+- Code: all `Value<Guid>` / `as JArray` event reads use `EventJson` (14 consumers; guard tests); EF mappings for
+  GoodsReceipt, Shipment, ShipmentItem, Settlement, SalesQuotationItems; SaleOrder: `/internal/jwks.json` open,
+  `OrderNumberGenerator`, tracked `GetByIdAsync`.
+- Verified in Docker: POS sale/void ↔ stock, order → approve → payment → reservation → shipment (real address/lines),
+  PO → bill. Tests: Shared 92, Identity 211, Gateway 10, PO 8, ACC 2, SO 2, SHP 2, WH 8, POS 3, Architecture 52/53 —
+  the one failure is a local git-ignored `deployment/k8s/secrets.yaml` with an obsolete `jwt-signing-key`.
+
 ### 2026-10-23 — ROADMAP P0-1: first Docker run (`fix/docker-first-run`, unmerged)
 Full write-up: `docs/architecture/schema-drift-2026-10-23.md`. PR #10–#12 were already merged into `master`
 (§1 below is stale on that point). Ran the whole stack against the SQL Server installed on the host
@@ -44,7 +60,7 @@ Full write-up: `docs/architecture/schema-drift-2026-10-23.md`. PR #10–#12 were
   `Bills.SupplierName` / `Invoices.CustomerName` NOT NULL; POS `TransactionItems.TenantId`; five legacy Product
   tables; `JObject.Value<Guid?>` throwing on GUID strings (Accounting consumer fixed, 40 calls left);
   `run-migrations.sh` hiding SQL errors; CRLF shell scripts crash-looping admin/storefront; WSL 4 GB hanging Docker.
-- **Not verified:** POS sale/void ↔ stock and storefront order → shipment — blocked by P0-9 (schema drift).
+- POS sale/void ↔ stock and storefront order → shipment were verified afterwards under P0-9 (next entry).
 - New: migrations Identity `025`, Accounting `007`, POS `006`, Product `016`/`017`; `EventJson`;
   `LiveSchemaDriftTests` (opt-in, `ERP_DRIFT_SQL`).
 - Deployment: run the new migrations; the host databases were backed up (`*_pre-p0-1_20261023.bak` in the
@@ -332,9 +348,8 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 
 ## 8. Next step: ROADMAP P0-9 (schema alignment), rest of P0, then P1 (needs a plan + approval)
 
-Update 2026-10-23: P0-1 is closed; **P0-9** (SQL schema vs EF models, `docs/architecture/schema-drift-2026-10-23.md`)
-now comes first because POS ↔ stock and storefront → shipment cannot be verified before it. The text below is
-from 2026-10-22.
+Update 2026-10-23: P0-1 and P0-9 (SQL schema vs EF models) are closed. Next: P0-7 (Identity external login / OTP),
+P0-8 (NuGet advisory, Identity phase 2), then P1-1. The text below is from 2026-10-22.
 
 Working checklist: `task.md` at the repo root (same IDs as `docs/ROADMAP.md`).
 
