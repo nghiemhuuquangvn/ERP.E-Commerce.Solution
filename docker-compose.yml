@@ -10,7 +10,7 @@ version: '3.9'
 # Run      : docker compose up --build -d
 # ════════════════════════════════════════════════════════════════════════════════
 
-x-sql-base: &sql-base "Server=sqlserver,1433;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=True"
+x-sql-base: &sql-base "Server=${SQL_HOST:-sqlserver},1433;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False;MultipleActiveResultSets=True"
 
 services:
 
@@ -50,7 +50,7 @@ services:
     entrypoint: ["/bin/bash", "/migrations/run-migrations.sh"]
     environment:
       SA_PASSWORD: ${SA_PASSWORD}
-      SQL_HOST: sqlserver
+      SQL_HOST: ${SQL_HOST:-sqlserver}
     volumes:
       - ./deployment/sql:/migrations/init:ro
       - ./src/Database:/migrations/database:ro
@@ -240,7 +240,7 @@ services:
       ServiceAuth__TrustedCallers__gateway: "http://gateway:5000/internal/jwks.json"
       ServiceAuth__TrustedCallers__chatbot: "http://chatbotservice:5017/internal/jwks.json"
       Jwt__RequireHttpsMetadata: "false"
-      ConnectionStrings__AuthDB: "Server=sqlserver,1433;Database=AuthDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__AuthDB: "Server=${SQL_HOST:-sqlserver},1433;Database=AuthDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "identity"
@@ -302,7 +302,7 @@ services:
       ServiceAuth__SigningKeys__Source: "Ephemeral"
       Services__WarehouseServiceBaseUrl: "http://warehouseservice:5004"
       Services__PromotionServiceBaseUrl: "http://promotionservice:5012"
-      ConnectionStrings__SalesDb: "Server=sqlserver,1433;Database=SalesDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__SalesDb: "Server=${SQL_HOST:-sqlserver},1433;Database=SalesDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "so"
@@ -338,7 +338,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5003"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__PurchasingDb: "Server=sqlserver,1433;Database=PurchasingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__PurchasingDb: "Server=${SQL_HOST:-sqlserver},1433;Database=PurchasingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "po"
@@ -377,7 +377,7 @@ services:
       # /internal endpoints accept only these services' tokens (verified with their JWKS).
       ServiceAuth__Name: "warehouse"
       ServiceAuth__TrustedCallers__salesorder: "http://salesorderservice:5002/internal/jwks.json"
-      ConnectionStrings__WarehouseDB: "Server=sqlserver,1433;Database=WarehouseDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__WarehouseDB: "Server=${SQL_HOST:-sqlserver},1433;Database=WarehouseDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "wh"
@@ -413,7 +413,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5005"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__AccountingDB: "Server=sqlserver,1433;Database=AccountingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__AccountingDB: "Server=${SQL_HOST:-sqlserver},1433;Database=AccountingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "acc"
@@ -449,7 +449,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5006"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__CrmDB: "Server=sqlserver,1433;Database=CrmDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__CrmDB: "Server=${SQL_HOST:-sqlserver},1433;Database=CrmDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "crm"
@@ -485,7 +485,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5007"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__HrmDB: "Server=sqlserver,1433;Database=HrmDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__HrmDB: "Server=${SQL_HOST:-sqlserver},1433;Database=HrmDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "hrm"
@@ -517,7 +517,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5015"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__MasterDataDb: "Server=sqlserver,1433;Database=MasterDataDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__MasterDataDb: "Server=${SQL_HOST:-sqlserver},1433;Database=MasterDataDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "mst"
@@ -579,7 +579,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5008"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__ProductDB: "Server=sqlserver,1433;Database=ProductDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__ProductDB: "Server=${SQL_HOST:-sqlserver},1433;Database=ProductDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       ConnectionStrings__BlobStorage: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
       FileStorage__PublicBlobBaseUrl: "http://localhost:10000"
@@ -622,7 +622,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5009"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__PaymentDb: "Server=sqlserver,1433;Database=PaymentDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__PaymentDb: "Server=${SQL_HOST:-sqlserver},1433;Database=PaymentDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "pay"
@@ -658,7 +658,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5010"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__ShippingDb: "Server=sqlserver,1433;Database=ShippingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__ShippingDb: "Server=${SQL_HOST:-sqlserver},1433;Database=ShippingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "shp"
@@ -694,7 +694,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5011"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__PosDb: "Server=sqlserver,1433;Database=PosDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__PosDb: "Server=${SQL_HOST:-sqlserver},1433;Database=PosDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "pos"
@@ -733,7 +733,7 @@ services:
       # /internal endpoints accept only these services' tokens (verified with their JWKS).
       ServiceAuth__Name: "promotion"
       ServiceAuth__TrustedCallers__salesorder: "http://salesorderservice:5002/internal/jwks.json"
-      ConnectionStrings__PromotionDb: "Server=sqlserver,1433;Database=PromotionDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__PromotionDb: "Server=${SQL_HOST:-sqlserver},1433;Database=PromotionDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "prm"
@@ -769,7 +769,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5013"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__NotificationDb: "Server=sqlserver,1433;Database=NotificationDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__NotificationDb: "Server=${SQL_HOST:-sqlserver},1433;Database=NotificationDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "ntf"
@@ -816,7 +816,7 @@ services:
       ServiceAuth__SigningKeys__Source: "Ephemeral"
       # Shared token revocation store (logout/lock/permission changes take effect at once).
       ConnectionStrings__Redis: "redis:6379"
-      ConnectionStrings__ChatBotDb: "Server=sqlserver,1433;Database=ChatBotDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__ChatBotDb: "Server=${SQL_HOST:-sqlserver},1433;Database=ChatBotDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
@@ -850,7 +850,7 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5014"
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__ReportingDb: "Server=sqlserver,1433;Database=ReportingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__ReportingDb: "Server=${SQL_HOST:-sqlserver},1433;Database=ReportingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "rpt"

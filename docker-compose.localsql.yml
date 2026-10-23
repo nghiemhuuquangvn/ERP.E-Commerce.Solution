@@ -1,0 +1,14 @@
+# Use the SQL Server installed on the host instead of the "sqlserver" container.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.localsql.yml up -d --build
+#
+# Needs in .env:  SQL_HOST=host.docker.internal   and   SA_PASSWORD=<the host's sa password>
+# The host instance must accept SQL logins and listen on TCP 1433 (and the Windows firewall must
+# allow the Docker network). Only the ERP databases are touched by db-migrate; other databases on
+# the same instance are left alone.
+services:
+  sqlserver:
+    profiles: ["docker-sql"]   # not started unless --profile docker-sql is passed
+
+  db-migrate:
+    depends_on: !reset {}
