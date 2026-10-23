@@ -7,6 +7,7 @@ using ERP.ACC.Application.Queries;
 using ERP.ACC.Domain.Entities;
 using ERP.ACC.Domain.Enums;
 using ERP.Shared.Infrastructure.Data;
+using ERP.Shared.Infrastructure.Exceptions;
 using FluentAssertions;
 using Moq;
 using Xunit;
@@ -87,11 +88,11 @@ public class PostingProfileAndJournalHandlerTests
         var sameArAp = () => UpdateHandler().Handle(
             Update((PostingKeys.AccountsReceivable, good.Id), (PostingKeys.AccountsPayable, good.Id)), default);
 
-        await unknownKey.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Unknown posting key*");
-        await missing.Should().ThrowAsync<InvalidOperationException>().WithMessage("*does not exist*");
-        await inactiveAccount.Should().ThrowAsync<InvalidOperationException>().WithMessage("*inactive*");
-        await duplicateKey.Should().ThrowAsync<InvalidOperationException>().WithMessage("*only be mapped once*");
-        await sameArAp.Should().ThrowAsync<InvalidOperationException>().WithMessage("*cannot be the same*");
+        await unknownKey.Should().ThrowAsync<BusinessRuleException>().WithMessage("*Unknown posting key*");
+        await missing.Should().ThrowAsync<BusinessRuleException>().WithMessage("*does not exist*");
+        await inactiveAccount.Should().ThrowAsync<BusinessRuleException>().WithMessage("*inactive*");
+        await duplicateKey.Should().ThrowAsync<BusinessRuleException>().WithMessage("*only be mapped once*");
+        await sameArAp.Should().ThrowAsync<BusinessRuleException>().WithMessage("*cannot be the same*");
         _uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -161,10 +162,10 @@ public class PostingProfileAndJournalHandlerTests
         }, default);
         var wrongDate = () => handler.Handle(Manual(period.Id, a.Id, b.Id, date: new DateTime(2026, 11, 2)), default);
 
-        await unknown.Should().ThrowAsync<InvalidOperationException>().WithMessage("*does not exist*");
-        await inactive.Should().ThrowAsync<InvalidOperationException>().WithMessage("*inactive*");
-        await bothSides.Should().ThrowAsync<InvalidOperationException>().WithMessage("*exactly one positive amount*");
-        await wrongDate.Should().ThrowAsync<InvalidOperationException>().WithMessage("*outside fiscal period*");
+        await unknown.Should().ThrowAsync<BusinessRuleException>().WithMessage("*does not exist*");
+        await inactive.Should().ThrowAsync<BusinessRuleException>().WithMessage("*inactive*");
+        await bothSides.Should().ThrowAsync<BusinessRuleException>().WithMessage("*exactly one positive amount*");
+        await wrongDate.Should().ThrowAsync<BusinessRuleException>().WithMessage("*outside fiscal period*");
         _entries.Verify(e => e.AddAsync(It.IsAny<JournalEntry>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -183,11 +184,11 @@ public class PostingProfileAndJournalHandlerTests
         var handler = new ReverseJournalEntryCommandHandler(_uow.Object, posting.Object);
 
         var noReason = () => handler.Handle(new ReverseJournalEntryCommand { JournalEntryId = original.Id, Reason = " " }, default);
-        await noReason.Should().ThrowAsync<InvalidOperationException>().WithMessage("*reason*");
+        await noReason.Should().ThrowAsync<BusinessRuleException>().WithMessage("*reason*");
 
         // original is Reversed now (by the stand-in call above): a second reversal is refused
         var again = () => handler.Handle(new ReverseJournalEntryCommand { JournalEntryId = original.Id, Reason = "Cancelled" }, default);
-        await again.Should().ThrowAsync<InvalidOperationException>().WithMessage("*not posted*");
+        await again.Should().ThrowAsync<BusinessRuleException>().WithMessage("*not posted*");
 
         var missing = () => handler.Handle(new ReverseJournalEntryCommand { JournalEntryId = Guid.NewGuid(), Reason = "x" }, default);
         await missing.Should().ThrowAsync<KeyNotFoundException>();

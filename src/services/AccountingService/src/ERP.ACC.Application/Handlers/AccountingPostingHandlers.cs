@@ -6,6 +6,7 @@ using ERP.ACC.Application.Queries;
 using ERP.ACC.Domain.Entities;
 using ERP.ACC.Domain.Enums;
 using ERP.Shared.Infrastructure.Data;
+using ERP.Shared.Infrastructure.Exceptions;
 using MediatR;
 
 namespace ERP.ACC.Application.Handlers
@@ -34,22 +35,22 @@ namespace ERP.ACC.Application.Handlers
 
         public async Task<PostingProfileDto> Handle(UpdatePostingProfileCommand request, CancellationToken ct)
         {
-            var tenantId = _tenant.CurrentTenantId ?? throw new InvalidOperationException("A tenant is required.");
+            var tenantId = _tenant.CurrentTenantId ?? throw new BusinessRuleException("Accounting", "A tenant is required.");
             var inputs = request.Mappings;
 
             var unknown = inputs.Select(i => i.PostingKey).Where(k => !PostingKeys.All.Contains(k)).Distinct().ToList();
             if (unknown.Count > 0)
-                throw new InvalidOperationException($"Unknown posting key(s): {string.Join(", ", unknown)}.");
+                throw new BusinessRuleException("Accounting", $"Unknown posting key(s): {string.Join(", ", unknown)}.");
             if (inputs.GroupBy(i => i.PostingKey).Any(g => g.Count() > 1))
-                throw new InvalidOperationException("A posting key can only be mapped once.");
+                throw new BusinessRuleException("Accounting", "A posting key can only be mapped once.");
 
             var accounts = await _uow.Accounts.GetByIdsAsync(inputs.Select(i => i.AccountId).Distinct(), ct);
             foreach (var input in inputs)
             {
                 var account = accounts.FirstOrDefault(a => a.Id == input.AccountId)
-                    ?? throw new InvalidOperationException($"Account {input.AccountId} does not exist.");
+                    ?? throw new BusinessRuleException("Accounting", $"Account {input.AccountId} does not exist.");
                 if (!account.IsActive)
-                    throw new InvalidOperationException($"Account {account.AccountNumber} is inactive.");
+                    throw new BusinessRuleException("Accounting", $"Account {account.AccountNumber} is inactive.");
             }
 
             var current = await _uow.PostingMappings.GetAllAsync(ct);
@@ -58,7 +59,7 @@ namespace ERP.ACC.Application.Handlers
                 resulting[input.PostingKey] = input.AccountId;
             if (resulting.TryGetValue(PostingKeys.AccountsReceivable, out var ar)
                 && resulting.TryGetValue(PostingKeys.AccountsPayable, out var ap) && ar == ap)
-                throw new InvalidOperationException("Accounts receivable and accounts payable cannot be the same account.");
+                throw new BusinessRuleException("Accounting", "Accounts receivable and accounts payable cannot be the same account.");
 
             foreach (var input in inputs)
             {
@@ -111,15 +112,15 @@ namespace ERP.ACC.Application.Handlers
         public async Task<JournalEntryDto> Handle(ReverseJournalEntryCommand request, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(request.Reason))
-                throw new InvalidOperationException("A reason is required to reverse a journal entry.");
+                throw new BusinessRuleException("Accounting", "A reason is required to reverse a journal entry.");
 
             var original = await _uow.JournalEntries.GetByIdAsync(request.JournalEntryId, ct)
                 ?? throw new KeyNotFoundException($"Journal entry {request.JournalEntryId} not found.");
             if (original.Status != (int)JournalStatus.Posted)
-                throw new InvalidOperationException($"Journal entry {original.EntryNumber} is not posted (or is already reversed).");
+                throw new BusinessRuleException("Accounting", $"Journal entry {original.EntryNumber} is not posted (or is already reversed).");
 
             var reversal = await _posting.ReverseEntryAsync(original, request.Reason, DateTime.UtcNow.Date, ct)
-                ?? throw new InvalidOperationException("Automatic posting is switched off, so the entry cannot be reversed.");
+                ?? throw new BusinessRuleException("Accounting", "Automatic posting is switched off, so the entry cannot be reversed.");
             await _uow.SaveChangesAsync(ct);
             return GetJournalEntryQueryHandler.MapJournalEntryToDto(reversal);
         }

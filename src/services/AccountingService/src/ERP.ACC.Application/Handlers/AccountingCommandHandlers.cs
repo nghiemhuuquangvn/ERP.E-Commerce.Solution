@@ -4,6 +4,7 @@ using ERP.ACC.Application.Interfaces;
 using ERP.ACC.Application.Posting;
 using ERP.ACC.Domain.Entities;
 using ERP.ACC.Domain.Enums;
+using ERP.Shared.Infrastructure.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -212,22 +213,22 @@ namespace ERP.ACC.Application.Handlers
 
             // The database CHECK would reject these with a generic error; say what is wrong instead.
             if (request.Lines.Count < 2)
-                throw new InvalidOperationException("A journal entry needs at least two lines.");
+                throw new BusinessRuleException("Accounting", "A journal entry needs at least two lines.");
             if (request.Lines.Any(l => l.Debit < 0 || l.Credit < 0 || (l.Debit > 0) == (l.Credit > 0)))
-                throw new InvalidOperationException("Each journal line needs exactly one positive amount, either a debit or a credit.");
+                throw new BusinessRuleException("Accounting", "Each journal line needs exactly one positive amount, either a debit or a credit.");
 
             var accounts = await _uow.Accounts.GetByIdsAsync(request.Lines.Select(l => l.AccountId).Distinct(), cancellationToken);
             foreach (var accountId in request.Lines.Select(l => l.AccountId).Distinct())
             {
                 var account = accounts.FirstOrDefault(a => a.Id == accountId)
-                    ?? throw new InvalidOperationException($"Account {accountId} does not exist.");
+                    ?? throw new BusinessRuleException("Accounting", $"Account {accountId} does not exist.");
                 if (!account.IsActive)
-                    throw new InvalidOperationException($"Account {account.AccountNumber} is inactive and takes no postings.");
+                    throw new BusinessRuleException("Accounting", $"Account {account.AccountNumber} is inactive and takes no postings.");
             }
 
             var entryDate = (request.EntryDate ?? DateTime.UtcNow).Date;
             if (entryDate < fiscalPeriod.StartDate.Date || entryDate > fiscalPeriod.EndDate.Date)
-                throw new InvalidOperationException($"Entry date {entryDate:yyyy-MM-dd} is outside fiscal period {fiscalPeriod.PeriodName}.");
+                throw new BusinessRuleException("Accounting", $"Entry date {entryDate:yyyy-MM-dd} is outside fiscal period {fiscalPeriod.PeriodName}.");
 
             var entry = JournalEntry.Create(request.EntryNumber, request.FiscalPeriodId, request.Description);
             entry.EntryDate = entryDate;
