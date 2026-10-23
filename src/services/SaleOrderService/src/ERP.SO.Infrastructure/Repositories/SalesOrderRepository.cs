@@ -15,8 +15,11 @@ namespace ERP.SO.Infrastructure.Repositories
 
         public async Task<SalesOrder?> GetByIdAsync(Guid id, CancellationToken ct = default)
         {
+            // Tracked on purpose: handlers load the order, change it and call UpdateAsync. The line items are an
+            // owned collection with a shadow key, whose value EF cannot keep for an untracked entity ("The value of
+            // shadow key property 'OrderLineItem.Id' is unknown when attempting to save changes"), so submit,
+            // approve, cancel ... all failed. The list/query methods below stay AsNoTracking.
             return await _context.SalesOrders
-                .AsNoTracking()
                 .FirstOrDefaultAsync(o => o.Id == id, ct);
         }
 
