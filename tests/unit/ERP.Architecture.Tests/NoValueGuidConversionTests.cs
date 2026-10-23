@@ -39,4 +39,27 @@ public class NoValueGuidConversionTests
 
         offenders.Should().BeEmpty("JToken.Value<Guid> throws on a GUID string — use EventJson.GuidValue:\n" + string.Join("\n", offenders));
     }
+
+    private static readonly Regex AsJArray = new(@"\]\s+as\s+JArray\b", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Events leave the Outbox serialized with TypeNameHandling.All, so a list is
+    /// <c>{"$type": ..., "$values": [...]}</c> and <c>payload["Lines"] as JArray</c> is null — the consumer then
+    /// treats the collection as empty and drops the work (stock never moved for a POS sale). Use
+    /// <c>EventJson.ArrayValue</c>.
+    /// </summary>
+    [Fact]
+    public void NoSourceFileReadsAPayloadListWithAsJArray()
+    {
+        var root = RepositoryRoot();
+        var offenders = Directory.EnumerateFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(f => !IsBuildOutput(f))
+            .Where(f => !f.EndsWith("EventJson.cs", StringComparison.Ordinal))
+            .SelectMany(f => File.ReadLines(f).Select((line, i) => (File: f, Line: i + 1, Text: line)))
+            .Where(x => AsJArray.IsMatch(x.Text))
+            .Select(x => $"{Path.GetRelativePath(root, x.File)}:{x.Line}: {x.Text.Trim()}")
+            .ToList();
+
+        offenders.Should().BeEmpty("`payload[\"X\"] as JArray` is null for an Outbox list — use EventJson.ArrayValue:\n" + string.Join("\n", offenders));
+    }
 }

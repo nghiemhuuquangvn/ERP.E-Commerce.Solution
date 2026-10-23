@@ -104,7 +104,7 @@ public class PosTransactionConsumer : IHostedService
         if (transactionId == Guid.Empty)
             return null;
 
-        var lines = (raw["Lines"] as JArray)?.Select(l => new PointOfSaleLine
+        var lines = raw.ArrayValue("Lines")?.Select(l => new PointOfSaleLine
         {
             ProductId = l.GuidValue("ProductId") ?? Guid.Empty,
             ProductName = l.Value<string?>("ProductName") ?? string.Empty,

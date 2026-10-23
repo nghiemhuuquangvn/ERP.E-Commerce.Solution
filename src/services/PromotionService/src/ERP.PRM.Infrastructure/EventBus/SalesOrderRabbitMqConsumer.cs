@@ -83,7 +83,7 @@ namespace ERP.PRM.Infrastructure.EventBus
                 {
                     case "sales_order.SalesOrderCreatedEvent":
                         var raw = JObject.Parse(json);
-                        var lines = (raw["LineItems"] as JArray)?.Select(li => new OrderLineDto(
+                        var lines = raw.ArrayValue("LineItems")?.Select(li => new OrderLineDto(
                             (li.GuidValue("ProductId") ?? Guid.Empty),
                             li.Value<int>("Quantity"),
                             li.Value<decimal>("UnitPrice"))).ToList() ?? new List<OrderLineDto>();

@@ -100,7 +100,7 @@ public class PurchaseOrderReceivedConsumer : IHostedService
             return; // Other purchasing-topic events are not yet consumed by WarehouseService.
 
         var purchaseOrderId = raw.GuidValue("PurchaseOrderId") ?? Guid.Empty;
-        var receivedItems = raw["ReceivedItems"] as JArray;
+        var receivedItems = raw.ArrayValue("ReceivedItems");
         if (purchaseOrderId == Guid.Empty || receivedItems == null)
             return;
 

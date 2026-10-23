@@ -40,6 +40,29 @@ public class EventJsonTests
     }
 
     [Fact]
+    public void ArrayValue_ReadsTheListOfAnOutboxPayload_WrittenWithTypeNameHandling()
+    {
+        // Real POS TransactionCreatedEvent content: the list is wrapped in {"$type", "$values"}.
+        var payload = JObject.Parse(
+            "{\"$type\":\"ERP.POS.Domain.Events.TransactionCreatedEvent, ERP.POS.Domain\",\"Lines\":{\"$type\":\"System.Collections.Generic.List`1[[X, Y]], System.Private.CoreLib\"," +
+            "\"$values\":[{\"$type\":\"ERP.POS.Domain.Events.PosSaleLine, ERP.POS.Domain\",\"Quantity\":2}]}}");
+
+        (payload["Lines"] as JArray).Should().BeNull("this is why `token as JArray` loses the collection");
+        payload.ArrayValue("Lines").Should().ContainSingle().Which["Quantity"]!.Value<int>().Should().Be(2);
+    }
+
+    [Fact]
+    public void ArrayValue_ReadsAPlainArray_AndReturnsNullWhenMissing()
+    {
+        var payload = JObject.Parse("{\"Items\":[{\"A\":1},{\"A\":2}],\"Name\":\"x\"}");
+
+        payload.ArrayValue("Items").Should().HaveCount(2);
+        payload.ArrayValue("Name").Should().BeNull();
+        payload.ArrayValue("Missing").Should().BeNull();
+        ((JToken?)null).ArrayValue("Items").Should().BeNull();
+    }
+
+    [Fact]
     public void GuidValue_ReadsAGuidTokenCreatedInCode()
     {
         var payload = new JObject { ["Id"] = new JValue(Id) };

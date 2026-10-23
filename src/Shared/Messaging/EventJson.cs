@@ -13,6 +13,19 @@ namespace ERP.Shared.Messaging
         /// which throws "Invalid cast from 'System.String' to 'System.Guid'" — the whole message
         /// is then lost. Returns null when the property is missing, null or not a GUID.
         /// </summary>
+        public static JArray? ArrayValue(this JToken? payload, string propertyName)
+        {
+            // Outbox writers serialize with TypeNameHandling.All, which turns a list into
+            // {"$type": "...List`1...", "$values": [ ... ]}; a plain `token as JArray` is then null and the
+            // collection is silently treated as empty. Plain arrays (other publishers) are returned as they are.
+            return payload?[propertyName] switch
+            {
+                JArray array => array,
+                JObject wrapper when wrapper["$values"] is JArray values => values,
+                _ => null,
+            };
+        }
+
         public static Guid? GuidValue(this JToken? payload, string propertyName)
         {
             var token = payload?[propertyName];
