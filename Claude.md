@@ -793,6 +793,12 @@ src/Shared/Contracts
   the writer calls `EnforceTenantOnSave` and `EventTenant.StampFrom(entity)` (or
   `EventTenant.Stamp(evt, CurrentTenantId)`) before `JsonConvert.SerializeObject`, so the
   payload carries `TenantId` — consumers drop events without one. See "Multi-Tenant Isolation".
+- **Read event payloads with `ERP.Shared.Messaging.EventJson`**: `GuidValue` for ids (`JToken.Value<Guid>` throws
+  on a GUID string and the whole message is lost) and `ArrayValue` for lists (writers use `TypeNameHandling.All`, so a
+  list is `{"$type","$values":[…]}` and `as JArray` is null). `NoValueGuidConversionTests` fails the build otherwise.
+- **SQL migrations must match the EF models**: after adding or changing an entity/column, run
+  `LiveSchemaDriftTests` (`ERP_DRIFT_SQL`, see `docs/architecture/schema-drift-2026-10-23.md`) against a database built
+  from `src/Database` — InMemory tests cannot see a missing column. New migrations are append-only and idempotent.
 - Unit tests for these rules: `tests/unit/ERP.Shared.UnitTests`.
 
 ## Documentation
