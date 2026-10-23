@@ -100,13 +100,13 @@ public class PosTransactionConsumer : IHostedService
         else
             return null; // CashShiftClosed etc. don't move stock.
 
-        var transactionId = raw.Value<Guid?>("TransactionId") ?? Guid.Empty;
+        var transactionId = raw.GuidValue("TransactionId") ?? Guid.Empty;
         if (transactionId == Guid.Empty)
             return null;
 
         var lines = (raw["Lines"] as JArray)?.Select(l => new PointOfSaleLine
         {
-            ProductId = l.Value<Guid?>("ProductId") ?? Guid.Empty,
+            ProductId = l.GuidValue("ProductId") ?? Guid.Empty,
             ProductName = l.Value<string?>("ProductName") ?? string.Empty,
             Quantity = l.Value<int?>("Quantity") ?? 0
         }).ToList() ?? new List<PointOfSaleLine>();

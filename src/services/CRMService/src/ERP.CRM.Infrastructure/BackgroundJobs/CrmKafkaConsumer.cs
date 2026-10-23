@@ -1,3 +1,4 @@
+using ERP.Shared.Messaging;
 using ERP.Shared.Infrastructure.Data;
 using Confluent.Kafka;
 using ERP.CRM.Application.EventHandlers;
@@ -116,8 +117,8 @@ namespace ERP.CRM.Infrastructure.BackgroundJobs
                 // matching NotificationService's IdentityEventConsumer precedent of
                 // filling unavailable fields with a safe default rather than guessing.
                 var raw = JObject.Parse(json);
-                var userId = raw.Value<Guid?>("UserId") ?? Guid.Empty;
-                var tenantId = raw.Value<Guid?>("TenantId") ?? Guid.Empty;
+                var userId = raw.GuidValue("UserId") ?? Guid.Empty;
+                var tenantId = raw.GuidValue("TenantId") ?? Guid.Empty;
                 var email = raw.Value<string>("Email") ?? string.Empty;
 
                 if (userId == Guid.Empty)

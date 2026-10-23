@@ -1,3 +1,4 @@
+using ERP.Shared.Messaging;
 using Confluent.Kafka;
 using ERP.Shared.Infrastructure.Caching;
 using Microsoft.Extensions.Configuration;
@@ -108,7 +109,7 @@ namespace ERP.PRD.Infrastructure.EventBus
                 return;
 
             var scope = raw.Value<string?>("Scope");
-            var tenantId = raw.Value<Guid?>("TenantId");
+            var tenantId = raw.GuidValue("TenantId");
 
             using var scopeProvider = _serviceProvider.CreateScope();
             var cacheService = scopeProvider.ServiceProvider.GetRequiredService<ICacheService>();

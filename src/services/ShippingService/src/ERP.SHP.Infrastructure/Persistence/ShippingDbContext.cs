@@ -51,7 +51,9 @@ public class ShippingDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.ReceivedByName).HasMaxLength(200);
             e.Property(x => x.SignatureUrl).HasMaxLength(1000);
             e.Property(x => x.PhotoUrl).HasMaxLength(1000);
-            e.Property(x => x.TotalWeight).HasPrecision(10, 3);
+            // Columns created by 001_CreateShippingDB.sql carry the unit / older name.
+            e.Property(x => x.TotalWeight).HasPrecision(10, 3).HasColumnName("TotalWeightKg");
+            e.Property(x => x.DeliveredAt).HasColumnName("ActualDelivery");
             e.HasIndex(x => x.OrderId);
             e.HasIndex(x => x.Status);
             e.OwnsMany(x => x.Items, item =>
@@ -61,6 +63,7 @@ public class ShippingDbContext : DbContext, ITenantScopedDbContext
                 item.Property(i => i.ProductName).IsRequired().HasMaxLength(300);
                 item.Property(i => i.Weight).HasPrecision(10, 3);
                 item.ToTable("ShipmentItems");
+                item.Property(i => i.Weight).HasPrecision(10, 3).HasColumnName("WeightKg");
             });
             e.OwnsMany(x => x.TrackingEvents, ev =>
             {

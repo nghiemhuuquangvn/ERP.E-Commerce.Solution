@@ -177,6 +177,9 @@ namespace ERP.SO.Infrastructure
                 {
                     li.ToTable("SalesQuotationItems");
                     li.WithOwner().HasForeignKey("QuotationId");
+                    // The column is uniqueidentifier; an undeclared shadow key would default to int
+                    // (same fix as SalesOrderItems above).
+                    li.Property<Guid>("Id");
                     li.HasKey("Id");
                     li.Property(p => p.ProductId).IsRequired();
                     li.Property(p => p.ProductName).IsRequired().HasMaxLength(500);

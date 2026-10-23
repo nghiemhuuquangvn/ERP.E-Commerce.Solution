@@ -84,13 +84,13 @@ namespace ERP.PRM.Infrastructure.EventBus
                     case "sales_order.SalesOrderCreatedEvent":
                         var raw = JObject.Parse(json);
                         var lines = (raw["LineItems"] as JArray)?.Select(li => new OrderLineDto(
-                            li.Value<Guid>("ProductId"),
+                            (li.GuidValue("ProductId") ?? Guid.Empty),
                             li.Value<int>("Quantity"),
                             li.Value<decimal>("UnitPrice"))).ToList() ?? new List<OrderLineDto>();
 
                         var evt = new SalesOrderCreatedIntegrationEvent(
-                            raw.Value<Guid>("OrderId"),
-                            raw.Value<Guid>("CustomerId"),
+                            (raw.GuidValue("OrderId") ?? Guid.Empty),
+                            (raw.GuidValue("CustomerId") ?? Guid.Empty),
                             raw.Value<decimal>("TotalAmount"),
                             lines);
 

@@ -116,7 +116,7 @@ namespace ERP.PRM.Infrastructure.BackgroundJobs
                 // data; ProductPriceChangedEvent consumption (a further gap) would be
                 // the natural place to backfill Price once wired.
                 var raw = JObject.Parse(json);
-                var productId = raw.Value<Guid?>("ProductId") ?? Guid.Empty;
+                var productId = raw.GuidValue("ProductId") ?? Guid.Empty;
                 var name = raw.Value<string>("Name") ?? string.Empty;
 
                 if (productId == Guid.Empty)

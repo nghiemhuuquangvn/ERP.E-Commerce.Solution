@@ -102,8 +102,8 @@ namespace ERP.SO.Infrastructure.EventBus
 
             if (typeName.Contains("PaymentProcessedEvent"))
             {
-                var orderId = raw.Value<Guid?>("OrderId") ?? Guid.Empty;
-                var paymentId = raw.Value<Guid?>("PaymentId") ?? Guid.Empty;
+                var orderId = raw.GuidValue("OrderId") ?? Guid.Empty;
+                var paymentId = raw.GuidValue("PaymentId") ?? Guid.Empty;
                 if (orderId == Guid.Empty || paymentId == Guid.Empty)
                     return;
 
@@ -116,7 +116,7 @@ namespace ERP.SO.Infrastructure.EventBus
             }
             else if (typeName.Contains("PaymentFailedEvent"))
             {
-                var orderId = raw.Value<Guid?>("OrderId") ?? Guid.Empty;
+                var orderId = raw.GuidValue("OrderId") ?? Guid.Empty;
                 var reason = raw.Value<string?>("FailureReason") ?? "Unknown payment failure";
                 if (orderId == Guid.Empty)
                     return;

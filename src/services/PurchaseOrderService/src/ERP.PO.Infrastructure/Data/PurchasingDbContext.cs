@@ -145,6 +145,9 @@ public class PurchasingDbContext : DbContext, IUnitOfWork, ITenantScopedDbContex
         receiptBuilder.Property(r => r.ReceivedBy).HasMaxLength(256).IsRequired();
         receiptBuilder.Property(r => r.Notes).HasMaxLength(1000);
         receiptBuilder.Property(r => r.CreatedAt).HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd();
+        // The column has always been POId (001_CreatePurchasingDB.sql, seed data, indexes); mapping the
+        // default name made every goods receipt insert fail with "Invalid column name 'PurchaseOrderId'".
+        receiptBuilder.Property(r => r.PurchaseOrderId).HasColumnName("POId");
         receiptBuilder.HasIndex(r => new { r.PurchaseOrderId, r.TenantId });
 
         // Configure PurchaseRequest — plain Id key (not BaseEntity). Tenant-owned since
