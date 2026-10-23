@@ -101,6 +101,35 @@ public class LiveSchemaDriftTests(ITestOutputHelper output)
 
                 foreach (var blocker in columns.Where(c => !modelColumns.Contains(c.Key) && c.Value.BlocksInsert).Select(c => c.Key).OrderBy(c => c))
                     report.AppendLine($"BLOCKER  {database}.{table}.{blocker}: NOT NULL, no default, not written by {names}");
+
+                foreach (var entity in group)
+                {
+                    var storeObject = StoreObjectIdentifier.Table(table, entity.GetSchema());
+                    foreach (var property in entity.GetProperties())
+                    {
+                        var name = property.GetColumnName(storeObject);
+                        if (name == null || !columns.TryGetValue(name, out var live_))
+                            continue;
+
+                        // The model inserts/updates this column but the database computes it: SQL Server refuses.
+                        if (live_.Computed)
+                        {
+                            if (property.ValueGenerated == ValueGenerated.Never)
+                                report.AppendLine($"COMPUTED {database}.{table}.{name}: database column is computed, model writes it ({entity.ClrType.Name}.{property.Name})");
+                            continue;
+                        }
+
+                        var modelType = property.GetColumnType(storeObject);
+                        if (modelType != null && Family(modelType) != Family(live_.Type))
+                            report.AppendLine($"TYPE     {database}.{table}.{name}: model {modelType}, database {live_.Type} ({entity.ClrType.Name}.{property.Name})");
+
+                        // Only Nullable<T> is judged: a `string` is "nullable" to EF whenever the file has no
+                        // nullable-reference annotations, which would flag every text column.
+                        if (Nullable.GetUnderlyingType(property.ClrType) != null && !property.IsShadowProperty() && !property.IsForeignKey()
+                            && !live_.Nullable && !live_.HasDefault && !live_.Identity)
+                            report.AppendLine($"NULLABLE {database}.{table}.{name}: model may write NULL, column is NOT NULL ({entity.ClrType.Name}.{property.Name})");
+                    }
+                }
             }
         }
 
@@ -108,14 +137,35 @@ public class LiveSchemaDriftTests(ITestOutputHelper output)
         Assert.True(report.Length == 0, report.ToString());
     }
 
-    private sealed record Column(bool BlocksInsert);
+    // Provider types that hold the same kind of value are treated as equal (length/precision are not compared).
+    private static string Family(string type)
+    {
+        var name = type.Trim().ToLowerInvariant();
+        var paren = name.IndexOf('(');
+        if (paren > 0)
+            name = name[..paren].Trim();
+
+        return name switch
+        {
+            "rowversion" => "timestamp",
+            "varchar" or "char" or "nchar" or "ntext" or "text" => "nvarchar",
+            "numeric" or "money" or "smallmoney" => "decimal",
+            // A DateTime property round-trips through `date` (time of day is dropped, which is what a date column means).
+            "date" or "datetime" or "datetime2" or "smalldatetime" => "datetime",
+            _ => name,
+        };
+    }
+
+    private sealed record Column(bool BlocksInsert, string Type, bool Nullable, bool HasDefault, bool Computed, bool Identity);
 
     private static Dictionary<string, Dictionary<string, Column>> ReadColumns(SqlConnection connection)
     {
         const string sql = """
             SELECT t.name, c.name,
                    CAST(CASE WHEN c.is_nullable = 0 AND dc.object_id IS NULL AND c.is_identity = 0
-                             AND c.is_computed = 0 AND TYPE_NAME(c.user_type_id) <> 'timestamp' THEN 1 ELSE 0 END AS bit)
+                             AND c.is_computed = 0 AND TYPE_NAME(c.user_type_id) <> 'timestamp' THEN 1 ELSE 0 END AS bit),
+                   TYPE_NAME(c.user_type_id), c.is_nullable,
+                   CAST(CASE WHEN dc.object_id IS NULL THEN 0 ELSE 1 END AS bit), c.is_computed, c.is_identity
             FROM sys.tables t
             JOIN sys.columns c ON c.object_id = t.object_id
             LEFT JOIN sys.default_constraints dc ON dc.parent_object_id = c.object_id AND dc.parent_column_id = c.column_id
@@ -128,7 +178,8 @@ public class LiveSchemaDriftTests(ITestOutputHelper output)
         {
             if (!result.TryGetValue(reader.GetString(0), out var columns))
                 result[reader.GetString(0)] = columns = new Dictionary<string, Column>(StringComparer.OrdinalIgnoreCase);
-            columns[reader.GetString(1)] = new Column(reader.GetBoolean(2));
+            columns[reader.GetString(1)] = new Column(
+                reader.GetBoolean(2), reader.GetString(3), reader.GetBoolean(4), reader.GetBoolean(5), reader.GetBoolean(6), reader.GetBoolean(7));
         }
 
         return result;
