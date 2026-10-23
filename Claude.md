@@ -172,7 +172,14 @@ Security invariants (2026-10-19 review — docs/business/Identity/SecurityReview
   holders; tenant status and license → `TenantChanged`. Every service, the Gateway and hubs
   reject revoked tokens (`ERP.Shared.Authorization.TokenRevocation`, fail-open if Redis is down).
 - Client IP comes from `RemoteIpAddress` (after `UseForwardedHeaders` with trusted
-  networks), never from the raw `X-Forwarded-For` header.
+  networks and `ForwardedHeaders:TrustedHops` = the number of proxies in front, 2 in the local
+  stack), never from the raw `X-Forwarded-For` header. The Gateway rate-limits sign-in / token /
+  chat endpoints per client IP (`GatewayRateLimiter`).
+- One-time secrets never rest in plaintext: the 2FA code and reset / confirmation links are
+  encrypted in the Identity outbox (`OutboxPayloadProtector`, `SecretEnvelope` `enc:v1:`) and
+  overwritten after delivery; webhook secrets are encrypted at rest. Identity and Notification
+  share `Security:SettingsEncryptionKey`. 2FA enable/disable re-asks the current password.
+- Swagger/OpenAPI only inside `IsDevelopment()` (`SwaggerOnlyInDevelopmentTests`).
 - Outbound calls to tenant-configured URLs (webhooks) go through `WebhookUrlRules`.
 - No secrets in tracked appsettings.
 - **No shared token key exists** (`Jwt:Key` was removed 2026-10-21; `NoSharedTokenKeyTests`

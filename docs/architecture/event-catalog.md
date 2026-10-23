@@ -218,9 +218,12 @@ without a fresh design pass:
 ### TwoFactorCodeGeneratedEvent
 
 **Description:** Published when a user with 2FA enabled/required completes password
-verification during login — carries the plaintext OTP for delivery. The DB only ever
-stores the hash (`TwoFactorChallenge.CodeHash`); this event is the one place the
-plaintext code exists outside memory, and only transiently, in flight to Kafka.
+verification during login — carries the OTP for delivery. The DB only ever stores the
+hash (`TwoFactorChallenge.CodeHash`). In the Outbox row and on `identity-topic` the `Code`
+field is encrypted (`enc:v1:` + AES, `SecretEnvelope`; Notification opens it with the shared
+`Security:SettingsEncryptionKey`) and the Outbox row is overwritten with `[redacted]` once
+published. `PasswordResetRequested` (`ResetLink`) and `EmailConfirmationRequested`
+(`ConfirmLink`) are protected the same way.
 
 **Publisher:** Identity Service (`identity-topic`, via the Outbox pattern —
 `AuthDbContext.SaveChangesAsync` serializes the raw domain event, not a wrapped
@@ -234,8 +237,8 @@ public record TwoFactorCodeGeneratedDomainEvent(
     Guid UserId,
     Guid TenantId,
     string Method,        // "Sms" | "Email"
-    string Destination,   // masked phone/email for display
-    string Code,          // plaintext OTP, one-shot
+    string Destination,   // the real phone/email to deliver to (the challenge entity keeps a masked copy)
+    string Code,          // one-shot OTP; "enc:v1:…" on the wire and in the Outbox, "[redacted]" after delivery
     int ExpiryMinutes,
     DateTime OccurredOn) : IDomainEvent;
 ```

@@ -70,11 +70,17 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
   - Verified in Docker up to the notification record addressed to the real email (status Failed: no SMTP server is
     configured in the local stack). Tests: Identity 231.
 
-- [ ] **P0-8 Security hygiene**
-  - NuGet `System.Security.Cryptography.Pkcs` 9.0.4 high-severity advisory (transitive, every service).
-  - Identity phase 2: invalidate the old 2FA challenge on resend, keep OTP out of `OutboxMessages`,
-    Swagger off in production, per-service SQL logins (`Encrypt=True`), re-auth for 2FA changes,
-    encrypt webhook secrets, Gateway rate limiting.
+- [x] **P0-8 Security hygiene** — closed 2026-10-23 (`fix/security-hygiene`)
+  - NuGet Pkcs / Xml pinned to 10.0.13 in every Infrastructure project.
+  - Identity: a 2FA resend ends the earlier challenge; enabling/disabling 2FA needs the current password; the 2FA
+    code and reset / confirmation links are encrypted in the outbox and overwritten after delivery; webhook secrets
+    encrypted at rest; Swagger only in Development (guard test); Gateway rate limiting; client IP via
+    `ForwardedHeaders:TrustedHops` (Identity recorded the first nginx as every user's address).
+  - Verified in Docker (see PROJECT-STATUS). Tests: Identity 255, Gateway 44, Shared 97.
+- [ ] **P0-10 Least-privilege database access** (split off P0-8)
+  - Per-service SQL logins instead of `sa` + `Encrypt=True` with a trusted certificate (compose, k8s secrets,
+    appsettings; the migration runner stays privileged).
+  - Notification's own webhook secrets (plaintext), phone-number verification before an SMS 2FA number is accepted.
 
 ## P1 — cross-service business flows
 

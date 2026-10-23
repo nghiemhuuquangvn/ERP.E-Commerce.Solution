@@ -31,7 +31,8 @@ Now:
 ```bash
 git clone <repo-url>
 cd ERP.E-Commerce.Solution
-cp .env.example .env        # set SA_PASSWORD / RABBITMQ_PASSWORD (no JWT secret: IdentityService
+cp .env.example .env        # set SA_PASSWORD / RABBITMQ_PASSWORD / SETTINGS_ENCRYPTION_KEY (identity + notification must share it;
+                            # no JWT secret: IdentityService
                             # generates its RS256 signing / encryption certificates on first start,
                             # on the identity_signing volume — docs/business/Identity/SigningKeys.md)
 docker compose up --build -d
