@@ -106,6 +106,19 @@ BEGIN
 END
 GO
 
+-- The persisted computed column WorkHours (from CheckInAt/CheckOutAt) and the two indexes on CheckInAt block
+-- sp_rename ("participates in enforced dependencies"), which used to stop this script here on a new database so
+-- none of the later steps ran (003b then only repaired the renames). Drop them first; TotalHours is a plain column.
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Attendance_Employee' AND object_id = OBJECT_ID('AttendanceRecords'))
+    DROP INDEX IX_Attendance_Employee ON AttendanceRecords;
+GO
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Attendance_TenantId' AND object_id = OBJECT_ID('AttendanceRecords'))
+    DROP INDEX IX_Attendance_TenantId ON AttendanceRecords;
+GO
+IF EXISTS (SELECT 1 FROM sys.computed_columns WHERE object_id = OBJECT_ID('AttendanceRecords') AND name = 'WorkHours')
+    ALTER TABLE AttendanceRecords DROP COLUMN WorkHours;
+GO
+
 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('AttendanceRecords') AND name = 'CheckInAt')
     EXEC sp_rename 'AttendanceRecords.CheckInAt', 'CheckInTime', 'COLUMN';
 GO
@@ -116,6 +129,10 @@ GO
 
 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('AttendanceRecords') AND name = 'WorkHours')
     EXEC sp_rename 'AttendanceRecords.WorkHours', 'TotalHours', 'COLUMN';
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('AttendanceRecords') AND name = 'TotalHours')
+    ALTER TABLE AttendanceRecords ADD TotalHours DECIMAL(6, 2) NOT NULL DEFAULT 0;
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('AttendanceRecords') AND name = 'Date')

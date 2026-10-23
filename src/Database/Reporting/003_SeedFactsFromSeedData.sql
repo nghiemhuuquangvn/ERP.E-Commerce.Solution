@@ -50,6 +50,16 @@
 USE ReportingDB;
 GO
 
+-- This script reads other services' databases (documented one-time ETL exception). On a database being built
+-- from scratch they do not exist yet (folders run alphabetically): skip instead of failing; run db-migrate again
+-- once every service database has been provisioned and this backfill is applied.
+IF OBJECT_ID('HrmDB.dbo.PaySlips') IS NULL OR OBJECT_ID('MasterDataDB.dbo.Employees') IS NULL OR OBJECT_ID('PaymentDB.dbo.PaymentRefunds') IS NULL OR OBJECT_ID('PaymentDB.dbo.Payments') IS NULL OR OBJECT_ID('PosDB.dbo.TransactionItems') IS NULL OR OBJECT_ID('PosDB.dbo.Transactions') IS NULL OR OBJECT_ID('ProductDB.dbo.Categories') IS NULL OR OBJECT_ID('ProductDB.dbo.PriceListItems') IS NULL OR OBJECT_ID('ProductDB.dbo.ProductVariants') IS NULL OR OBJECT_ID('ProductDB.dbo.Products') IS NULL OR OBJECT_ID('SalesDB.dbo.SalesOrderItems') IS NULL OR OBJECT_ID('SalesDB.dbo.SalesOrders') IS NULL OR OBJECT_ID('WarehouseDB.dbo.Inventories') IS NULL OR OBJECT_ID('WarehouseDB.dbo.StockMovements') IS NULL
+BEGIN
+    PRINT 'Reporting 003 skipped: a source database is not provisioned yet - re-run db-migrate later.';
+    SET NOEXEC ON;
+END
+GO
+
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -329,4 +339,7 @@ UNION ALL SELECT 'FactPayments', COUNT(*) FROM dbo.FactPayments
 UNION ALL SELECT 'FactInventoryMovements', COUNT(*) FROM dbo.FactInventoryMovements
 UNION ALL SELECT 'FactPOSTransactions', COUNT(*) FROM dbo.FactPOSTransactions
 UNION ALL SELECT 'FactHRPayslips', COUNT(*) FROM dbo.FactHRPayslips;
+GO
+
+SET NOEXEC OFF;
 GO
