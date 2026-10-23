@@ -47,5 +47,12 @@ namespace ERP.ACC.Application.Posting
         /// nothing to reverse (never posted, already reversed, or automatic posting is off).
         /// </summary>
         Task<JournalEntry?> ReverseAsync(string sourceType, Guid sourceId, string reason, DateTime date, CancellationToken ct = default);
+
+        /// <summary>
+        /// Reverses a specific posted entry (the manual "reverse" action; entries without a source reverse under
+        /// "ManualReversal:&lt;entry id&gt;"). <paramref name="original"/> must have its lines loaded. Null when it is not
+        /// posted, or posting is off.
+        /// </summary>
+        Task<JournalEntry?> ReverseEntryAsync(JournalEntry original, string reason, DateTime date, CancellationToken ct = default);
     }
 }

@@ -77,8 +77,6 @@ namespace ERP.ACC.Application.Posting
             if (!Enabled)
                 return null;
 
-            var tenantId = _tenant.CurrentTenantId
-                ?? throw new InvalidOperationException("Posting needs a tenant (TenantScope or an authenticated request).");
             var original = _stagedEntries.GetValueOrDefault(JournalEntry.BuildSourceKey(sourceType, sourceId))
                 ?? await _uow.JournalEntries.GetBySourceKeyAsync(JournalEntry.BuildSourceKey(sourceType, sourceId), ct);
             if (original == null)
@@ -87,7 +85,18 @@ namespace ERP.ACC.Application.Posting
                 return null;
             }
 
-            var reversalKey = JournalEntry.BuildSourceKey(sourceType + "Reversal", sourceId);
+            return await ReverseEntryAsync(original, reason, date, ct);
+        }
+
+        public async Task<JournalEntry?> ReverseEntryAsync(JournalEntry original, string reason, DateTime date, CancellationToken ct = default)
+        {
+            if (!Enabled)
+                return null;
+
+            var tenantId = _tenant.CurrentTenantId
+                ?? throw new InvalidOperationException("Posting needs a tenant (TenantScope or an authenticated request).");
+
+            var reversalKey = JournalEntry.BuildSourceKey((original.ReferenceType ?? "Manual") + "Reversal", original.ReferenceId ?? original.Id);
             if (_stagedEntries.TryGetValue(reversalKey, out var stagedReversal))
                 return stagedReversal;
             var already = await _uow.JournalEntries.GetBySourceKeyAsync(reversalKey, ct);

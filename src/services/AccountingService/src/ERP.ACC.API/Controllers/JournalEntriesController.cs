@@ -50,6 +50,17 @@ namespace ERP.ACC.API.Controllers
             return result == null ? NotFound() : Ok(result);
         }
 
+        [HttpPost("{id:guid}/reverse")]
+        public async Task<IActionResult> Reverse(Guid id, [FromBody] ReverseJournalEntryCommand command, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:journals:manage"))
+                return Forbid();
+
+            command.JournalEntryId = id;
+            var result = await _mediator.Send(command, ct);
+            return Ok(result);
+        }
+
         [HttpPost]
         public async Task<IActionResult> Post([FromBody] PostJournalEntryCommand command, CancellationToken ct)
         {

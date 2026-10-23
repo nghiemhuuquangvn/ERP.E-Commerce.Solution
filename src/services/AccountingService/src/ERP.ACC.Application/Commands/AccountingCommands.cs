@@ -44,8 +44,21 @@ namespace ERP.ACC.Application.Commands
         public Guid BillId { get; set; }
     }
 
+    public class ReverseJournalEntryCommand : IRequest<JournalEntryDto>
+    {
+        public Guid JournalEntryId { get; set; }
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    public class UpdatePostingProfileCommand : IRequest<PostingProfileDto>
+    {
+        public List<PostingMappingInput> Mappings { get; set; } = new();
+    }
+
     public class PostJournalEntryCommand : IRequest<JournalEntryDto>
     {
+        /// <summary>Accounting date; defaults to today. Must fall inside the fiscal period.</summary>
+        public DateTime? EntryDate { get; set; }
         public string EntryNumber { get; set; } = string.Empty;
         public Guid FiscalPeriodId { get; set; }
         public string Description { get; set; } = string.Empty;
