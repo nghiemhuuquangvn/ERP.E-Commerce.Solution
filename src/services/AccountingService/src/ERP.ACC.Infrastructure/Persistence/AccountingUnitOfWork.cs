@@ -16,6 +16,7 @@ namespace ERP.ACC.Infrastructure.Persistence
             IJournalEntryRepository journalEntries,
             IJournalLineRepository journalLines,
             IFiscalPeriodRepository fiscalPeriods,
+            IPostingAccountMappingRepository postingMappings,
             ITaxRateRepository taxRates,
             IBankAccountRepository bankAccounts,
             IBankStatementRepository bankStatements)
@@ -27,6 +28,7 @@ namespace ERP.ACC.Infrastructure.Persistence
             JournalEntries = journalEntries;
             JournalLines = journalLines;
             FiscalPeriods = fiscalPeriods;
+            PostingMappings = postingMappings;
             TaxRates = taxRates;
             BankAccounts = bankAccounts;
             BankStatements = bankStatements;
@@ -38,6 +40,7 @@ namespace ERP.ACC.Infrastructure.Persistence
         public IJournalEntryRepository JournalEntries { get; }
         public IJournalLineRepository JournalLines { get; }
         public IFiscalPeriodRepository FiscalPeriods { get; }
+        public IPostingAccountMappingRepository PostingMappings { get; }
         public ITaxRateRepository TaxRates { get; }
         public IBankAccountRepository BankAccounts { get; }
         public IBankStatementRepository BankStatements { get; }

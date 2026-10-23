@@ -14,6 +14,8 @@ namespace ERP.ACC.Application
 
             services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
+            services.AddScoped<ERP.ACC.Application.Posting.IJournalPostingService, ERP.ACC.Application.Posting.JournalPostingService>();
+
             return services;
         }
     }

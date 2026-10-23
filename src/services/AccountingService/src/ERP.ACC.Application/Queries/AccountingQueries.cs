@@ -36,6 +36,10 @@ namespace ERP.ACC.Application.Queries
         public int PageSize { get; set; } = 20;
     }
 
+    public class GetPostingProfileQuery : IRequest<PostingProfileDto>
+    {
+    }
+
     public class GetJournalEntryQuery : IRequest<JournalEntryDto?>
     {
         public Guid JournalEntryId { get; set; }

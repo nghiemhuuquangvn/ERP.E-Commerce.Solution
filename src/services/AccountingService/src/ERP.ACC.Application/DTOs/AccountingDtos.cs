@@ -51,7 +51,31 @@ namespace ERP.ACC.Application.DTOs
         public decimal TotalDebit { get; set; }
         public decimal TotalCredit { get; set; }
         public DateTime CreatedAt { get; set; }
+        public DateTime EntryDate { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string? ReferenceType { get; set; }
+        public Guid? ReferenceId { get; set; }
+        public string? VoidReason { get; set; }
         public List<JournalLineDto> Lines { get; set; } = new();
+    }
+
+    public class PostingMappingDto
+    {
+        public string PostingKey { get; set; } = string.Empty;
+        public Guid AccountId { get; set; }
+        public string AccountNumber { get; set; } = string.Empty;
+        public string AccountName { get; set; } = string.Empty;
+    }
+
+    public class PostingProfileDto
+    {
+        public List<PostingMappingDto> Mappings { get; set; } = new();
+    }
+
+    public class PostingMappingInput
+    {
+        public string PostingKey { get; set; } = string.Empty;
+        public Guid AccountId { get; set; }
     }
 
     public class FiscalPeriodDto

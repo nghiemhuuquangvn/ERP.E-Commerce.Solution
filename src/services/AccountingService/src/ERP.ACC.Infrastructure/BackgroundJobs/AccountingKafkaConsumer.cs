@@ -24,7 +24,9 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
     {
         private const string PurchasingTopic = "purchasing-topic";
         private const string PaymentTopic = "payment-topic";
-        private const string WarehouseTopic = "warehouse-topic";
+
+        /// <summary>Attempts per message before it is given up on (logged as an error with its position).</summary>
+        private const int MaxAttempts = 3;
 
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<AccountingKafkaConsumer> _logger;
@@ -45,7 +47,8 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
                 BootstrapServers = configuration["KafkaSettings:BootstrapServers"] ?? "localhost:9092",
                 GroupId = "accounting-service-consumer",
                 AutoOffsetReset = AutoOffsetReset.Earliest,
-                EnableAutoCommit = true
+                // The offset is committed only after the message was handled: with auto-commit a failed posting was lost.
+                EnableAutoCommit = false
             };
 
             _consumer = new ConsumerBuilder<string, string>(config).Build();
@@ -54,7 +57,7 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _consumer.Subscribe(new[] { PurchasingTopic, PaymentTopic, WarehouseTopic });
+            _consumer.Subscribe(new[] { PurchasingTopic, PaymentTopic });
             _executingTask = Task.Run(() => ExecuteAsync(_cancellationTokenSource.Token), CancellationToken.None);
 
             return Task.CompletedTask;
@@ -81,7 +84,8 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
                     if (result?.Message?.Value == null)
                         continue;
 
-                    await DispatchAsync(result.Message.Value, cancellationToken);
+                    await HandleWithRetryAsync(result, cancellationToken);
+                    _consumer.Commit(result);
                 }
                 catch (OperationCanceledException)
                 {
@@ -96,6 +100,59 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
                     _logger.LogError(ex, "Error handling message from purchasing-topic/payment-topic");
                 }
             }
+        }
+
+        /// <summary>
+        /// Handlers are idempotent (entries are keyed by source document), so a message that fails is simply tried again. After
+        /// <see cref="MaxAttempts"/> failures it is logged with its topic / partition / offset and skipped, so one poison
+        /// message cannot block the partition for ever.
+        /// </summary>
+        private async Task HandleWithRetryAsync(ConsumeResult<string, string> result, CancellationToken cancellationToken)
+        {
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    await DispatchAsync(result.Message.Value, cancellationToken);
+                    return;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex) when (attempt < MaxAttempts)
+                {
+                    _logger.LogWarning(ex, "Attempt {Attempt} of {Max} failed for {TopicPartitionOffset}; retrying", attempt, MaxAttempts, result.TopicPartitionOffset);
+                    await Task.Delay(TimeSpan.FromSeconds(attempt), cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Giving up on {TopicPartitionOffset} after {Max} attempts; the message is skipped. Payload: {Payload}",
+                        result.TopicPartitionOffset, MaxAttempts, Truncate(result.Message.Value));
+                    return;
+                }
+            }
+        }
+
+        private static string Truncate(string value) => value.Length <= 1000 ? value : value[..1000] + "...";
+
+        /// <summary>PaymentService serialises its PaymentMethod enum as a number (CreditCard 0 ... Cash 4); accept the name too.</summary>
+        public static int ParsePaymentMethod(JToken? token)
+        {
+            if (token == null || token.Type == JTokenType.Null)
+                return 0;
+            if (token.Type == JTokenType.Integer)
+                return token.Value<int>();
+            return token.ToString().ToLowerInvariant() switch
+            {
+                "creditcard" => 0,
+                "debitcard" => 1,
+                "banktransfer" => 2,
+                "ewallet" => 3,
+                "cash" => 4,
+                "cryptopayment" or "crypto" => 5,
+                _ => 0
+            };
         }
 
         private async Task DispatchAsync(string json, CancellationToken cancellationToken)
@@ -139,26 +196,12 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
                 {
                     PaymentId = raw.GuidValue("PaymentId") ?? Guid.Empty,
                     OrderId = raw.GuidValue("OrderId") ?? Guid.Empty,
-                    Amount = raw.Value<decimal?>("Amount") ?? 0m
+                    Amount = raw.Value<decimal?>("Amount") ?? 0m,
+                    Method = ParsePaymentMethod(raw["Method"]),
+                    ProcessedAt = raw["ProcessedAt"]?.Type == JTokenType.Null ? null : raw.Value<DateTime?>("ProcessedAt")
                 };
 
                 if (evt.PaymentId != Guid.Empty)
-                    await mediator.Publish(evt, cancellationToken);
-            }
-            else if (typeName.Contains("StockMoved") || typeName.Contains("InventoryMoved") || typeName.Contains("WarehouseMovement"))
-            {
-                var raw = JObject.Parse(json);
-                var evt = new WarehouseMovementIntegrationEvent
-                {
-                    MovementId = raw.GuidValue("MovementId") ?? raw.GuidValue("Id") ?? Guid.Empty,
-                    MovementType = raw.Value<string?>("MovementType") ?? "Unknown",
-                    ItemId = raw.GuidValue("ItemId") ?? raw.GuidValue("ProductId") ?? Guid.Empty,
-                    Quantity = raw.Value<int?>("Quantity") ?? 0,
-                    UnitCost = raw.Value<decimal?>("UnitCost") ?? 0m,
-                    TotalValue = raw.Value<decimal?>("TotalValue") ?? raw.Value<decimal?>("TotalAmount") ?? 0m
-                };
-
-                if (evt.MovementId != Guid.Empty)
                     await mediator.Publish(evt, cancellationToken);
             }
             // Other topic events are not yet consumed by Accounting.

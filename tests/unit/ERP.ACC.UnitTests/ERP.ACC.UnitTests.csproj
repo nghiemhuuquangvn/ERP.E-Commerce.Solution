@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\services\AccountingService\src\ERP.ACC.Application\ERP.ACC.Application.csproj" />
+    <ProjectReference Include="..\..\..\src\services\AccountingService\src\ERP.ACC.Domain\ERP.ACC.Domain.csproj" />
+    <ProjectReference Include="..\..\..\src\services\AccountingService\src\ERP.ACC.Infrastructure\ERP.ACC.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

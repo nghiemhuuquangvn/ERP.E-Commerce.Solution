@@ -20,6 +20,15 @@ namespace ERP.ACC.Infrastructure.Repositories
         public async Task<FiscalPeriod?> GetOpenPeriodAsync(CancellationToken ct = default) =>
             await _db.FiscalPeriods.Where(p => p.Status == 0).OrderByDescending(p => p.StartDate).FirstOrDefaultAsync(ct);
 
+        public async Task<FiscalPeriod?> GetContainingAsync(DateTime date, CancellationToken ct = default)
+        {
+            var day = date.Date;
+            return await _db.FiscalPeriods
+                .Where(p => p.StartDate <= day && p.EndDate >= day)
+                .OrderBy(p => p.StartDate)
+                .FirstOrDefaultAsync(ct);
+        }
+
         public async Task AddAsync(FiscalPeriod period, CancellationToken ct = default)
         {
             await _db.FiscalPeriods.AddAsync(period, ct);

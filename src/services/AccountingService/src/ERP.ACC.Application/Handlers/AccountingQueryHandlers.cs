@@ -152,7 +152,19 @@ namespace ERP.ACC.Application.Handlers
             Description = e.Description,
             TotalDebit = e.TotalDebit,
             TotalCredit = e.TotalCredit,
-            CreatedAt = e.CreatedAt
+            CreatedAt = e.CreatedAt,
+            EntryDate = e.EntryDate,
+            Status = ((Domain.Enums.JournalStatus)e.Status).ToString(),
+            ReferenceType = e.ReferenceType,
+            ReferenceId = e.ReferenceId,
+            VoidReason = e.VoidReason,
+            Lines = e.Lines.Select(l => new JournalLineDto
+            {
+                AccountId = l.AccountId,
+                Debit = l.Debit,
+                Credit = l.Credit,
+                Description = l.Description
+            }).ToList()
         };
     }
 
