@@ -74,6 +74,8 @@ namespace ERP.ACC.Domain.Entities
                 throw new InvalidOperationException($"Invoice {InvoiceNumber} is cancelled.");
 
             Status = 1;
+            if (AmountPaid < Amount)
+                AmountPaid = Amount;
             UpdatedAt = DateTime.UtcNow;
 
             AddDomainEvent(new InvoicePaidEvent(

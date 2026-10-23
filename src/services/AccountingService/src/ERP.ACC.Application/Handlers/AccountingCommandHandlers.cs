@@ -1,9 +1,11 @@
 using ERP.ACC.Application.Commands;
 using ERP.ACC.Application.DTOs;
 using ERP.ACC.Application.Interfaces;
+using ERP.ACC.Application.Posting;
 using ERP.ACC.Domain.Entities;
 using ERP.ACC.Domain.Enums;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace ERP.ACC.Application.Handlers
 {
@@ -35,8 +37,15 @@ namespace ERP.ACC.Application.Handlers
     public class CreateInvoiceCommandHandler : IRequestHandler<CreateInvoiceCommand, InvoiceDto>
     {
         private readonly IAccountingUnitOfWork _uow;
+        private readonly IJournalPostingService _posting;
+        private readonly ILogger<CreateInvoiceCommandHandler> _logger;
 
-        public CreateInvoiceCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
+        public CreateInvoiceCommandHandler(IAccountingUnitOfWork uow, IJournalPostingService posting, ILogger<CreateInvoiceCommandHandler> logger)
+        {
+            _uow = uow;
+            _posting = posting;
+            _logger = logger;
+        }
 
         public async Task<InvoiceDto> Handle(CreateInvoiceCommand request, CancellationToken cancellationToken)
         {
@@ -48,6 +57,8 @@ namespace ERP.ACC.Application.Handlers
                 request.DueDate);
 
             await _uow.Invoices.AddAsync(invoice, cancellationToken);
+            // Revenue is recognised when the invoice is created; the entry commits with the invoice.
+            await _posting.TryPostAsync(_logger, PostingRules.ForInvoice(invoice), cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
             return MapInvoiceToDto(invoice);
         }
@@ -68,16 +79,27 @@ namespace ERP.ACC.Application.Handlers
     public class MarkInvoicePaidCommandHandler : IRequestHandler<MarkInvoicePaidCommand, InvoiceDto>
     {
         private readonly IAccountingUnitOfWork _uow;
+        private readonly IJournalPostingService _posting;
+        private readonly ILogger<MarkInvoicePaidCommandHandler> _logger;
 
-        public MarkInvoicePaidCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
+        public MarkInvoicePaidCommandHandler(IAccountingUnitOfWork uow, IJournalPostingService posting, ILogger<MarkInvoicePaidCommandHandler> logger)
+        {
+            _uow = uow;
+            _posting = posting;
+            _logger = logger;
+        }
 
         public async Task<InvoiceDto> Handle(MarkInvoicePaidCommand request, CancellationToken cancellationToken)
         {
             var invoice = await _uow.Invoices.GetByIdAsync(request.InvoiceId, cancellationToken)
                 ?? throw new InvalidOperationException($"Invoice {request.InvoiceId} not found.");
 
+            // Recorded by hand, without gateway data: what is still outstanding is treated as received into the bank.
+            var outstanding = invoice.Amount - invoice.AmountPaid;
             invoice.MarkPaid();
             await _uow.Invoices.UpdateAsync(invoice, cancellationToken);
+            if (outstanding > 0)
+                await _posting.TryPostAsync(_logger, PostingRules.ForManualInvoicePayment(invoice, outstanding, DateTime.UtcNow), cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
             return CreateInvoiceCommandHandler.MapInvoiceToDto(invoice);
         }
@@ -119,8 +141,15 @@ namespace ERP.ACC.Application.Handlers
     public class ApproveBillCommandHandler : IRequestHandler<ApproveBillCommand, BillDto>
     {
         private readonly IAccountingUnitOfWork _uow;
+        private readonly IJournalPostingService _posting;
+        private readonly ILogger<ApproveBillCommandHandler> _logger;
 
-        public ApproveBillCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
+        public ApproveBillCommandHandler(IAccountingUnitOfWork uow, IJournalPostingService posting, ILogger<ApproveBillCommandHandler> logger)
+        {
+            _uow = uow;
+            _posting = posting;
+            _logger = logger;
+        }
 
         public async Task<BillDto> Handle(ApproveBillCommand request, CancellationToken cancellationToken)
         {
@@ -129,6 +158,7 @@ namespace ERP.ACC.Application.Handlers
 
             bill.Approve();
             await _uow.Bills.UpdateAsync(bill, cancellationToken);
+            await _posting.TryPostAsync(_logger, PostingRules.ForBillApproval(bill, DateTime.UtcNow), cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
             return CreateBillCommandHandler.MapBillToDto(bill);
         }
@@ -137,8 +167,15 @@ namespace ERP.ACC.Application.Handlers
     public class MarkBillPaidCommandHandler : IRequestHandler<MarkBillPaidCommand, BillDto>
     {
         private readonly IAccountingUnitOfWork _uow;
+        private readonly IJournalPostingService _posting;
+        private readonly ILogger<MarkBillPaidCommandHandler> _logger;
 
-        public MarkBillPaidCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
+        public MarkBillPaidCommandHandler(IAccountingUnitOfWork uow, IJournalPostingService posting, ILogger<MarkBillPaidCommandHandler> logger)
+        {
+            _uow = uow;
+            _posting = posting;
+            _logger = logger;
+        }
 
         public async Task<BillDto> Handle(MarkBillPaidCommand request, CancellationToken cancellationToken)
         {
@@ -147,6 +184,7 @@ namespace ERP.ACC.Application.Handlers
 
             bill.MarkPaid();
             await _uow.Bills.UpdateAsync(bill, cancellationToken);
+            await _posting.TryPostAsync(_logger, PostingRules.ForBillPayment(bill, DateTime.UtcNow), cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
             return CreateBillCommandHandler.MapBillToDto(bill);
         }

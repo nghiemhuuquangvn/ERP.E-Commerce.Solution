@@ -1,6 +1,7 @@
-using ERP.ACC.Application.Commands;
 using ERP.ACC.Application.Interfaces;
+using ERP.ACC.Application.Posting;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace ERP.ACC.Application.EventHandlers
 {
@@ -9,32 +10,54 @@ namespace ERP.ACC.Application.EventHandlers
         public Guid PaymentId { get; set; }
         public Guid OrderId { get; set; }
         public decimal Amount { get; set; }
+
+        /// <summary>PaymentService's PaymentMethod value (Cash = 4); decides cash or bank.</summary>
+        public int Method { get; set; }
+        public DateTime? ProcessedAt { get; set; }
     }
 
+    /// <summary>
+    /// A captured payment: the money is booked (Dr Cash / Bank, Cr Accounts receivable) and applied to the order's invoice.
+    /// The entry is the idempotency record: a redelivered event finds it and does nothing, so the invoice is not credited twice.
+    /// </summary>
     public class PaymentProcessedIntegrationEventHandler : INotificationHandler<PaymentProcessedIntegrationEvent>
     {
-        private readonly IMediator _mediator;
-        private readonly IInvoiceRepository _invoices;
+        private readonly IAccountingUnitOfWork _uow;
+        private readonly IJournalPostingService _posting;
+        private readonly ILogger<PaymentProcessedIntegrationEventHandler> _logger;
 
-        public PaymentProcessedIntegrationEventHandler(IMediator mediator, IInvoiceRepository invoices)
+        public PaymentProcessedIntegrationEventHandler(
+            IAccountingUnitOfWork uow, IJournalPostingService posting, ILogger<PaymentProcessedIntegrationEventHandler> logger)
         {
-            _mediator = mediator;
-            _invoices = invoices;
+            _uow = uow;
+            _posting = posting;
+            _logger = logger;
         }
 
         public async Task Handle(PaymentProcessedIntegrationEvent @event, CancellationToken cancellationToken)
         {
-            var invoices = await _invoices.GetAllAsync(cancellationToken);
-            var invoice = invoices.FirstOrDefault(i => i.OrderId == @event.OrderId && i.Status == 0);
-
-            if (invoice == null)
+            if (@event.Amount <= 0)
                 return;
 
-            await _mediator.Send(new MarkInvoicePaidCommand
+            var sourceKey = Domain.Entities.JournalEntry.BuildSourceKey(PostingRules.Payment, @event.PaymentId);
+            if (await _uow.JournalEntries.GetBySourceKeyAsync(sourceKey, cancellationToken) != null)
             {
-                InvoiceId = invoice.Id
-            }, cancellationToken);
+                _logger.LogInformation("Payment {PaymentId} is already in the ledger; redelivered event ignored", @event.PaymentId);
+                return;
+            }
+
+            var invoice = await _uow.Invoices.GetByOrderIdAsync(@event.OrderId, cancellationToken);
+            if (invoice != null && invoice.ApplyPayment(@event.Amount))
+                await _uow.Invoices.UpdateAsync(invoice, cancellationToken);
+            else if (invoice == null)
+                _logger.LogWarning("Payment {PaymentId} for order {OrderId} has no invoice yet; the cash is booked against receivables anyway",
+                    @event.PaymentId, @event.OrderId);
+
+            // The cash really arrived whatever the invoice looks like, so it is booked regardless.
+            await _posting.TryPostAsync(_logger,
+                PostingRules.ForPayment(@event.PaymentId, @event.OrderId, @event.Amount, @event.Method, @event.ProcessedAt ?? DateTime.UtcNow),
+                cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
         }
     }
 }
-

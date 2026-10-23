@@ -98,6 +98,25 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
             }
         }
 
+        /// <summary>PaymentService serialises its PaymentMethod enum as a number (CreditCard 0 ... Cash 4); accept the name too.</summary>
+        public static int ParsePaymentMethod(JToken? token)
+        {
+            if (token == null || token.Type == JTokenType.Null)
+                return 0;
+            if (token.Type == JTokenType.Integer)
+                return token.Value<int>();
+            return token.ToString().ToLowerInvariant() switch
+            {
+                "creditcard" => 0,
+                "debitcard" => 1,
+                "banktransfer" => 2,
+                "ewallet" => 3,
+                "cash" => 4,
+                "cryptopayment" or "crypto" => 5,
+                _ => 0
+            };
+        }
+
         private async Task DispatchAsync(string json, CancellationToken cancellationToken)
         {
             var typeName = JObject.Parse(json)["$type"]?.ToString() ?? string.Empty;
@@ -139,7 +158,9 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
                 {
                     PaymentId = raw.GuidValue("PaymentId") ?? Guid.Empty,
                     OrderId = raw.GuidValue("OrderId") ?? Guid.Empty,
-                    Amount = raw.Value<decimal?>("Amount") ?? 0m
+                    Amount = raw.Value<decimal?>("Amount") ?? 0m,
+                    Method = ParsePaymentMethod(raw["Method"]),
+                    ProcessedAt = raw["ProcessedAt"]?.Type == JTokenType.Null ? null : raw.Value<DateTime?>("ProcessedAt")
                 };
 
                 if (evt.PaymentId != Guid.Empty)
