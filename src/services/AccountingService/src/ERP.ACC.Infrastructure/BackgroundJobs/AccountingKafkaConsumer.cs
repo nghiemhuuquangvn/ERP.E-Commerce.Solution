@@ -121,9 +121,9 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
                 var raw = JObject.Parse(json);
                 var evt = new PurchaseOrderApprovedIntegrationEvent
                 {
-                    POId = raw.Value<Guid?>("PurchaseOrderId") ?? Guid.Empty,
+                    POId = raw.GuidValue("PurchaseOrderId") ?? Guid.Empty,
                     PONumber = raw.Value<string?>("PONumber") ?? string.Empty,
-                    SupplierId = raw.Value<Guid?>("SupplierId") ?? Guid.Empty,
+                    SupplierId = raw.GuidValue("SupplierId") ?? Guid.Empty,
                     TotalAmount = raw.Value<decimal?>("TotalAmount") ?? 0m
                 };
 
@@ -137,8 +137,8 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
                 var raw = JObject.Parse(json);
                 var evt = new PaymentProcessedIntegrationEvent
                 {
-                    PaymentId = raw.Value<Guid?>("PaymentId") ?? Guid.Empty,
-                    OrderId = raw.Value<Guid?>("OrderId") ?? Guid.Empty,
+                    PaymentId = raw.GuidValue("PaymentId") ?? Guid.Empty,
+                    OrderId = raw.GuidValue("OrderId") ?? Guid.Empty,
                     Amount = raw.Value<decimal?>("Amount") ?? 0m
                 };
 
@@ -150,9 +150,9 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
                 var raw = JObject.Parse(json);
                 var evt = new WarehouseMovementIntegrationEvent
                 {
-                    MovementId = raw.Value<Guid?>("MovementId") ?? raw.Value<Guid?>("Id") ?? Guid.Empty,
+                    MovementId = raw.GuidValue("MovementId") ?? raw.GuidValue("Id") ?? Guid.Empty,
                     MovementType = raw.Value<string?>("MovementType") ?? "Unknown",
-                    ItemId = raw.Value<Guid?>("ItemId") ?? raw.Value<Guid?>("ProductId") ?? Guid.Empty,
+                    ItemId = raw.GuidValue("ItemId") ?? raw.GuidValue("ProductId") ?? Guid.Empty,
                     Quantity = raw.Value<int?>("Quantity") ?? 0,
                     UnitCost = raw.Value<decimal?>("UnitCost") ?? 0m,
                     TotalValue = raw.Value<decimal?>("TotalValue") ?? raw.Value<decimal?>("TotalAmount") ?? 0m
