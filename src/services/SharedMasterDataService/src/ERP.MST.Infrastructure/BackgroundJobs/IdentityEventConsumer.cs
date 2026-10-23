@@ -108,11 +108,11 @@ public class IdentityEventConsumer : IHostedService
         var raw = JObject.Parse(json);
         var evt = new UserRegisteredIntegrationEvent
         {
-            UserId = raw.Value<Guid?>("UserId") ?? Guid.Empty,
+            UserId = raw.GuidValue("UserId") ?? Guid.Empty,
             Email = raw.Value<string>("Email") ?? string.Empty,
             Name = raw.Value<string>("Name") ?? raw.Value<string>("Email") ?? string.Empty,
             IsEmployee = raw.Value<bool?>("IsEmployee") ?? false,
-            DefaultDepartmentId = raw.Value<Guid?>("DefaultDepartmentId")
+            DefaultDepartmentId = raw.GuidValue("DefaultDepartmentId")
         };
 
         if (evt.UserId != Guid.Empty)

@@ -99,8 +99,8 @@ public class PurchaseOrderReceivedConsumer : IHostedService
         if (!typeName.Contains("PurchaseOrderReceivedDomainEvent"))
             return; // Other purchasing-topic events are not yet consumed by WarehouseService.
 
-        var purchaseOrderId = raw.Value<Guid?>("PurchaseOrderId") ?? Guid.Empty;
-        var receivedItems = raw["ReceivedItems"] as JArray;
+        var purchaseOrderId = raw.GuidValue("PurchaseOrderId") ?? Guid.Empty;
+        var receivedItems = raw.ArrayValue("ReceivedItems");
         if (purchaseOrderId == Guid.Empty || receivedItems == null)
             return;
 

@@ -37,24 +37,38 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
 
 ## P0 — finish first
 
-- [ ] **P0-1 First Docker run + merge the open branches**
-  - Start Docker, `docker compose up -d --build`, run migrations (`deployment/docker/run-migrations.sh`,
-    includes Identity `024`).
-  - Walk the checklist in `docs/PROJECT-STATUS.md` §5 (RS256 token, `/internal` calls, logout → 401)
-    plus the 2026-10-22 flows:
-    - approve a PO → Accounting bill has the PO total;
-    - storefront order → approve → shipment has the real address and lines;
-    - POS sale → inventory decreases; void it → inventory restored;
-    - tenant admin does not see **Logs**; platform admin (`admin.erp.local`) does.
-  - Merge in order: `feature/service-tokens` → `docs/system-inventory-roadmap` → `fix/roadmap-p0`.
-  - Done when: all checks pass in Docker and the branches are on `master` (PRs on the owner's go).
+- [x] **P0-1 First Docker run + merge the open branches** — closed 2026-10-23 (`fix/docker-first-run`)
+  - Branches: PR #10–#12 were already merged (`master` contains them).
+  - Verified in Docker: RS256 token + JWKS `kid`, `/internal` 401, logout → 401, tenant admin 403 / platform
+    admin 200 on Logs, PO two-level approval → one Accounting bill with the PO total.
+  - POS sale/void ↔ inventory and storefront order → shipment were verified under P0-9.
+  - Fixed on the way: see `docs/architecture/schema-drift-2026-10-23.md` ("Fixed").
+  - How to run against the SQL Server installed on the host: `docker compose -f docker-compose.yml -f
+    docker-compose.localsql.yml up -d --build` with `SQL_HOST=host.docker.internal` in `.env`; Docker Desktop
+    needs ≥ 8 GB for WSL (`~/.wslconfig`), 4 GB hangs the engine.
 
-- [ ] **P0-7 Identity external login & OTP**
-  - `ExternalLoginRepository`: Delete/GetAll/GetById/Update throw `NotImplementedException`.
-  - External-login auto-provisioning fails (`User.Create` rejects an empty PasswordHash).
-  - 2FA email OTP is sent to the *masked* address.
-  - Done when: Google/Microsoft first login creates a Customer, OTP reaches the real address, tests in
-    `tests/unit/ERP.Identity.UnitTests`.
+- [x] **P0-9 Align the SQL schema with the EF models** — closed 2026-10-23 (`fix/schema-alignment`)
+  - `LiveSchemaDriftTests` (now also types, nullability, computed columns) reports no drift on the host databases
+    and on a database built from `src/Database` alone; the chain runs with 0 SQL errors on a new database.
+  - All `Value<Guid>` / `as JArray` payload reads replaced (`EventJson`), guarded by `NoValueGuidConversionTests`.
+  - Verified in Docker: POS sale 103→101, void →103; order → approve → payment captured → reservation → shipment
+    with the real recipient/address/lines; PO → bill. Details: `docs/architecture/schema-drift-2026-10-23.md`.
+  - Follow-ups: wire the drift test into CI (P3-1); run db-migrate twice on a new database (Reporting ETL seeds);
+    a local, git-ignored `deployment/k8s/secrets.yaml` with an obsolete `jwt-signing-key` makes
+    `NoSharedTokenKeyTests.NoDeploymentConfigurationSetsASharedTokenKey` fail on this machine — delete that line.
+
+- [x] **P0-7 Identity external login & OTP** — closed 2026-10-23 (`fix/identity-external-login`)
+  - First external login now provisions a Customer (random unusable password, provider name, confirmed email when the
+    provider verified it) and the second login finds it (the link stores its TenantId). A *verified* email that already
+    belongs to a user of the tenant links to that user; an unverified one is refused. Facebook and Microsoft report
+    `EmailVerified = false` (no proof of ownership). `ExternalLoginRepository` fully implemented.
+  - 2FA: the challenge keeps the masked address, the `TwoFactorCodeGenerated` event carries the real one; SMS without a
+    phone fails with a business rule.
+  - Found on the way: Identity's `KafkaMessageBus` double-encoded the Outbox JSON so NO Identity event reached
+    NotificationService (2FA codes, password reset, email confirmation, UserCreated); default templates stranded on the
+    empty tenant (Notification `012`).
+  - Verified in Docker up to the notification record addressed to the real email (status Failed: no SMTP server is
+    configured in the local stack). Tests: Identity 231.
 
 - [ ] **P0-8 Security hygiene**
   - NuGet `System.Security.Cryptography.Pkcs` 9.0.4 high-severity advisory (transitive, every service).

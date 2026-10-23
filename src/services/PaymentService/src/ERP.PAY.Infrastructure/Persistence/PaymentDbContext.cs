@@ -66,6 +66,7 @@ public class PaymentDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.TotalAmount).HasPrecision(18, 2);
             e.Property(x => x.Notes).HasMaxLength(1000);
+            e.Property(x => x.SettledAt).HasColumnName("CompletedAt"); // existing column (001/002 scripts)
         });
 
         modelBuilder.Entity<SavedPaymentMethod>(e =>

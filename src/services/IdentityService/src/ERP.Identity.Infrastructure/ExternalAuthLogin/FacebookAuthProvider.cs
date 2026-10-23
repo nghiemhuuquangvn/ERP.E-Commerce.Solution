@@ -75,7 +75,9 @@ namespace ERP.Identity.Infrastructure.ExternalAuthLogin
                 Provider: Provider,
                 ProviderKey: profile.Id,
                 Email: profile.Email ?? string.Empty,
-                EmailVerified: !string.IsNullOrEmpty(profile.Email),
+                // The Graph API says nothing about verification: having an address does not prove the user owns it, and
+                // an unverified address must never be used to take over an existing account.
+                EmailVerified: false,
                 FullName: profile.Name);
         }
 

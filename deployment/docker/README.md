@@ -98,8 +98,9 @@ here.
 
 - Only applies `*.sql` files directly inside each `src/Database/{Service}/`
   folder (`-maxdepth 1`) — it does not descend into `Functions/`, `Procedures/`,
-  `Scripts/`, or `Views/` subfolders, and skips non-`.sql` files like
-  `AllServices/004_FixMissingBaseEntityColumns.ps1`.
+  `Scripts/`, or `Views/` subfolders, and skips non-`.sql` files.
+- On a **new** database run `db-migrate` twice: the Reporting ETL seeds read other services' databases and skip (with
+  a notice) until those exist. The script ends with a count of SQL errors; "already exists" errors on a re-run are expected.
 - `Promotion/` and `PromotionService/` both target `PromotionDB` under
   inconsistent folder names (a pre-existing issue, see
   `docs/architecture/database-performance-indexing-review.md` §7) — folders are
@@ -110,3 +111,21 @@ here.
   the run (so one folder's pre-existing issue doesn't block every other
   service's schema from being created) — always scroll the full `db-migrate`
   log, not just the last line, before assuming a clean run.
+
+## Using the SQL Server installed on the host (2026-10-23)
+
+If port 1433 is already taken by a host SQL Server, or you want to keep its data, skip the `sqlserver`
+container:
+
+```bash
+# .env:  SQL_HOST=host.docker.internal   SA_PASSWORD=<the host's sa password>
+docker compose -f docker-compose.yml -f docker-compose.localsql.yml up -d --build
+```
+
+- The host instance must accept SQL logins and listen on TCP 1433; the Windows firewall must allow Docker.
+- `db-migrate` then runs against your existing databases: back them up first. Their schema may have drifted from
+  the code (`docs/architecture/schema-drift-2026-10-23.md`), and `db-migrate` now prints how many SQL errors it saw
+  — "already exists" errors (1913/2714) are expected on an existing database.
+- Docker Desktop on Windows: give WSL at least 8 GB (`~/.wslconfig`, `memory=12GB`). The default 4 GB makes the
+  engine stop answering during the first build.
+- Shell scripts must stay LF (`.gitattributes`); a CRLF checkout makes admin/storefront crash-loop.

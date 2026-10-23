@@ -23,7 +23,9 @@ public class OrderNumberGenerator : IOrderNumberGenerator
     {
         var now = DateTime.UtcNow;
 
-        var nextValue = await _context.Database.SqlQueryRaw<int>(
+        // ToListAsync, not SingleAsync: Single adds TOP(2) around the statement, and MERGE ... OUTPUT cannot be
+        // composed over ("'FromSql' or 'SqlQuery' was called with non-composable SQL"), so no order could be created.
+        var values = await _context.Database.SqlQueryRaw<int>(
             @"MERGE OrderNumberSequences AS target
               USING (SELECT @tenantId AS TenantId, @prefix AS Prefix, @year AS Year, @month AS Month) AS src
               ON target.TenantId = src.TenantId AND target.Prefix = src.Prefix AND target.Year = src.Year AND target.Month = src.Month
@@ -34,8 +36,8 @@ public class OrderNumberGenerator : IOrderNumberGenerator
             new SqlParameter("@prefix", prefix),
             new SqlParameter("@year", now.Year),
             new SqlParameter("@month", now.Month))
-            .SingleAsync(ct);
+            .ToListAsync(ct);
 
-        return $"{prefix}-{now:yyyyMM}-{nextValue:D5}";
+        return $"{prefix}-{now:yyyyMM}-{values.Single():D5}";
     }
 }

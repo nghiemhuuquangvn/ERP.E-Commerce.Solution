@@ -24,9 +24,21 @@ IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('DimProduct
 GO
 
 -- Backfill from WarehouseDB (same SQL Server instance) — same one-time ETL
--- exception documented in 003_SeedFactsFromSeedData.sql's header.
+-- exception documented in 003_SeedFactsFromSeedData.sql's header. On a database being built from scratch
+-- WarehouseDB has no tables yet (folders run alphabetically): skip the backfill instead of failing and
+-- re-run db-migrate once it is provisioned. The column above is always added.
+IF OBJECT_ID('WarehouseDB.dbo.Inventories') IS NULL
+BEGIN
+    PRINT 'Reporting 005 backfill skipped: WarehouseDB is not provisioned yet - re-run db-migrate later.';
+    SET NOEXEC ON;
+END
+GO
+
 UPDATE dp
 SET dp.StockQuantity = inv.AvailableQuantity
 FROM DimProducts dp
 JOIN WarehouseDB.dbo.Inventories inv ON inv.ProductId = dp.ProductId;
+GO
+
+SET NOEXEC OFF;
 GO

@@ -17,17 +17,27 @@ namespace ERP.Identity.Domain.Entities
         public bool IsActive { get; set; } = true;
 
         protected ExternalLogin() { }
-        private ExternalLogin(Guid userId, string provider, string providerKey, string email)
+        private ExternalLogin(Guid userId, Guid tenantId, string provider, string providerKey, string email)
         {
             UserId = userId;
+            TenantId = tenantId;
             Provider = provider;
             ProviderKey = providerKey;
             Email = email;
+            CreatedBy = "System";
+            CreatedAt = DateTime.UtcNow;
         }
 
-        public static ExternalLogin Create(Guid userId, string provider, string providerKey, string email)
+        /// <summary>
+        /// The link belongs to the tenant it was made in: lookups filter by (provider, key, tenant), so a link
+        /// created with an empty tenant id could never be found again and the next login would create a duplicate user.
+        /// </summary>
+        public static ExternalLogin Create(Guid userId, Guid tenantId, string provider, string providerKey, string email)
         {
-            return new ExternalLogin(userId, provider, providerKey, email);
+            if (tenantId == Guid.Empty)
+                throw new ArgumentException("TenantId is required", nameof(tenantId));
+
+            return new ExternalLogin(userId, tenantId, provider, providerKey, email);
         }
 
         public void Disable() => IsActive = false;

@@ -19,7 +19,11 @@ public class KafkaMessageBus : IMessageBus
 
     public async Task PublishAsync<TEvent>(string topic, TEvent @event, CancellationToken cancellationToken = default)
     {
-        var messageValue = JsonConvert.SerializeObject(@event);
+        // The Outbox stores each event already serialized (with its $type) and passes that string through: serializing
+        // it again wrapped the JSON in a JSON string, which no consumer could parse ("Current JsonReader item is not an
+        // object: String") - so no Identity event (2FA code, password reset, email confirmation, UserCreated ...) was
+        // ever delivered.
+        var messageValue = @event is string alreadySerialized ? alreadySerialized : JsonConvert.SerializeObject(@event);
         var kafkaMessage = new Message<string, string> { Value = messageValue };
         
         await _producer.ProduceAsync(topic, kafkaMessage, cancellationToken);

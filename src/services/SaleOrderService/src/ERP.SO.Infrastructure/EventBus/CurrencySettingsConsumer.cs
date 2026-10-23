@@ -1,3 +1,4 @@
+using ERP.Shared.Messaging;
 using Confluent.Kafka;
 using ERP.Shared.Infrastructure.Caching;
 using Microsoft.Extensions.Configuration;
@@ -105,7 +106,7 @@ namespace ERP.SO.Infrastructure.EventBus
             var serviceName = raw.Value<string>("ServiceName");
             var category = raw.Value<string>("Category");
             var settingsScope = raw.Value<string>("Scope");
-            var tenantId = raw.Value<Guid?>("TenantId");
+            var tenantId = raw.GuidValue("TenantId");
 
             if (serviceName != "SharedMasterDataService" || category != "Currency")
                 return; // Only Currency Settings from SharedMasterDataService are relevant here.

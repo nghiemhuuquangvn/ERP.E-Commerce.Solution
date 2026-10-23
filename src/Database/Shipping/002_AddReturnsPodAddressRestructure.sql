@@ -63,7 +63,9 @@ GO
 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ShipmentTrackingEvents') AND name = 'Status_New')
    AND EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ShipmentTrackingEvents') AND name = 'Status' AND system_type_id = TYPE_ID('int'))
 BEGIN
-    UPDATE ShipmentTrackingEvents SET Status_New = CAST(Status AS NVARCHAR(50));
+    -- Dynamic SQL: when Status_New does not exist the batch is still compiled, and a plain
+    -- UPDATE would raise "Invalid column name 'Status_New'" on every re-run.
+    EXEC (N'UPDATE ShipmentTrackingEvents SET Status_New = CAST(Status AS NVARCHAR(50))');
     ALTER TABLE ShipmentTrackingEvents DROP COLUMN Status;
 END
 GO

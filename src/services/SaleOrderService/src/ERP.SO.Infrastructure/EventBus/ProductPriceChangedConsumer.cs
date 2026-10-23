@@ -99,7 +99,7 @@ namespace ERP.SO.Infrastructure.EventBus
                 return; // Other product-topic events are not yet consumed by SaleOrderService.
 
             var raw = JObject.Parse(json);
-            var productId = raw.Value<Guid?>("ProductId") ?? Guid.Empty;
+            var productId = raw.GuidValue("ProductId") ?? Guid.Empty;
             var oldPrice = raw.Value<decimal?>("OldPrice") ?? 0m;
             var newPrice = raw.Value<decimal?>("NewPrice") ?? 0m;
             if (productId == Guid.Empty)

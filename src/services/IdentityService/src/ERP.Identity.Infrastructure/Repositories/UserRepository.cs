@@ -120,17 +120,20 @@ namespace ERP.Identity.Infrastructure.Repositories
             _dbContext.Users.Update(user);
         }
 
-        public async Task<User> GetByExternalProviderAsync(string provider, string providerKey,
+        public async Task<User?> GetByExternalProviderAsync(string provider, string providerKey,
              Guid tenantId, CancellationToken ct)
         {
-            var logins = await _dbContext.ExternalLogins
-                .Where(x => x.Provider == provider && x.ProviderKey == providerKey && x.TenantId == tenantId)
+            // Null (not an exception) when the external account has never signed in here: the caller
+            // auto-provisions or links in that case. A disabled link (IsActive = false) is not a match.
+            var userIds = await _dbContext.ExternalLogins
+                .Where(x => x.Provider == provider && x.ProviderKey == providerKey && x.TenantId == tenantId && x.IsActive)
+                .Select(x => x.UserId)
                 .ToListAsync(ct);
 
-            var userIds = logins.Select(x => x.UserId);
+            if (userIds.Count == 0)
+                return null;
 
-            return await _dbContext.Users.FirstOrDefaultAsync(x => userIds.Contains(x.Id), ct)
-                ?? throw new InvalidOperationException("User not found for the given external provider.");
+            return await _dbContext.Users.FirstOrDefaultAsync(x => userIds.Contains(x.Id), ct);
         }
 
         public async Task<IEnumerable<UserDto>> GetAllUsersAsync(CancellationToken ct)

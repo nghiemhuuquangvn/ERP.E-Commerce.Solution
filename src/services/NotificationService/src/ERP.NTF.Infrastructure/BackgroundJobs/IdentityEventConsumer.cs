@@ -116,7 +116,7 @@ public class IdentityEventConsumer : IHostedService
             var raw = JObject.Parse(json);
             var evt = new TwoFactorCodeGeneratedIntegrationEvent
             {
-                UserId = raw.Value<Guid?>("UserId") ?? Guid.Empty,
+                UserId = raw.GuidValue("UserId") ?? Guid.Empty,
                 Method = raw.Value<string>("Method") ?? string.Empty,
                 Destination = raw.Value<string>("Destination") ?? string.Empty,
                 Code = raw.Value<string>("Code") ?? string.Empty,
@@ -131,7 +131,7 @@ public class IdentityEventConsumer : IHostedService
             var raw = JObject.Parse(json);
             var evt = new PasswordResetRequestedIntegrationEvent
             {
-                UserId = raw.Value<Guid?>("UserId") ?? Guid.Empty,
+                UserId = raw.GuidValue("UserId") ?? Guid.Empty,
                 Email = raw.Value<string>("Email") ?? string.Empty,
                 ResetLink = raw.Value<string>("ResetLink") ?? string.Empty,
                 ExpiryMinutes = raw.Value<int?>("ExpiryMinutes") ?? 0
@@ -144,7 +144,7 @@ public class IdentityEventConsumer : IHostedService
             var raw = JObject.Parse(json);
             var evt = new EmailConfirmationRequestedIntegrationEvent
             {
-                UserId = raw.Value<Guid?>("UserId") ?? Guid.Empty,
+                UserId = raw.GuidValue("UserId") ?? Guid.Empty,
                 Email = raw.Value<string>("Email") ?? string.Empty,
                 ConfirmLink = raw.Value<string>("ConfirmLink") ?? string.Empty,
                 ExpiryHours = raw.Value<int?>("ExpiryHours") ?? 0
@@ -160,7 +160,7 @@ public class IdentityEventConsumer : IHostedService
             var raw = JObject.Parse(json);
             var evt = new UserCreatedIntegrationEvent
             {
-                UserId = raw.Value<Guid?>("UserId") ?? Guid.Empty,
+                UserId = raw.GuidValue("UserId") ?? Guid.Empty,
                 Email = raw.Value<string>("Email") ?? string.Empty,
                 FirstName = string.Empty,
                 LastName = string.Empty
@@ -174,9 +174,9 @@ public class IdentityEventConsumer : IHostedService
             var raw = JObject.Parse(json);
             var evt = new RoleAssignedIntegrationEvent
             {
-                UserId = raw.Value<Guid?>("UserId") ?? Guid.Empty,
+                UserId = raw.GuidValue("UserId") ?? Guid.Empty,
                 RoleCode = raw.Value<string>("RoleCode") ?? string.Empty,
-                ChangedByUserId = raw.Value<Guid?>("ChangedByUserId"),
+                ChangedByUserId = raw.GuidValue("ChangedByUserId"),
                 ChangedByName = raw.Value<string>("ChangedByName")
             };
 
@@ -188,13 +188,13 @@ public class IdentityEventConsumer : IHostedService
             var raw = JObject.Parse(json);
             var evt = new PermissionGrantedIntegrationEvent
             {
-                RoleId = raw.Value<Guid?>("RoleId") ?? Guid.Empty,
+                RoleId = raw.GuidValue("RoleId") ?? Guid.Empty,
                 RoleCode = raw.Value<string>("RoleCode") ?? string.Empty,
                 PermissionCode = raw.Value<string>("PermissionCode") ?? string.Empty,
-                ChangedByUserId = raw.Value<Guid?>("ChangedByUserId"),
+                ChangedByUserId = raw.GuidValue("ChangedByUserId"),
                 ChangedByName = raw.Value<string>("ChangedByName"),
                 AffectedUserIds = raw["AffectedUserIds"] is JArray arr
-                    ? arr.Select(t => t.Value<Guid>()).ToList()
+                    ? arr.Select(t => t.ToObject<Guid>()).ToList()
                     : new List<Guid>()
             };
 

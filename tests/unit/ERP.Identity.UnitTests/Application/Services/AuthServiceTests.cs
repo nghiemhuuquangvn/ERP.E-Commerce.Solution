@@ -43,6 +43,8 @@ public class AuthServiceTests
     private readonly Mock<IPasswordPolicyService> _passwordPolicy = new();
     private readonly Mock<ILicenseService> _license = new();
     private readonly Mock<IExternalAuthProvider> _googleProvider = new();
+    private readonly Mock<IExternalLoginRepository> _externalLogins = new();
+    private readonly Mock<ITwoFactorChallengeRepository> _twoFactorChallenges = new();
     private readonly AuthTenant _tenant = AuthTenant.Create(TenantCode, "Acme Corp");
 
     public AuthServiceTests()
@@ -54,6 +56,8 @@ public class AuthServiceTests
         _uow.Setup(u => u.EmailConfirmTokens).Returns(_confirmTokens.Object);
         _uow.Setup(u => u.RefreshTokens).Returns(_refreshTokens.Object);
         _uow.Setup(u => u.LoginAttempts).Returns(_loginAttempts.Object);
+        _uow.Setup(u => u.ExternalLogins).Returns(_externalLogins.Object);
+        _uow.Setup(u => u.TwoFactorChallenges).Returns(_twoFactorChallenges.Object);
 
         _tenants.Setup(t => t.GetTenantByCodeAsync(TenantCode, It.IsAny<CancellationToken>())).ReturnsAsync(_tenant);
         _tenants.Setup(t => t.GetByIdAsync(_tenant.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_tenant);
@@ -410,4 +414,169 @@ public class AuthServiceTests
             .ToList();
         granted.Should().ContainSingle().Which.Should().Be(catalog[0].Id);
     }
+
+    // ---- P0-7: external login (Google / Microsoft / Facebook) ----
+
+    private static ExternalLoginDto.ExternalLoginRequest GoogleRequest() => new("Google", "g-1", "id-token", UserType.Admin);
+
+    private void GoogleReturns(string email, bool emailVerified, string? fullName = "New Person") =>
+        _googleProvider.Setup(p => p.VerifyAsync(It.IsAny<ExternalLoginDto.ExternalLoginRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ExternalLoginDto.ExternalLoginResponse("Google", "g-1", email, emailVerified, fullName));
+
+    [Fact]
+    public async Task ExternalLoginAsync_FirstLogin_ProvisionsACustomer_WithConfirmedEmailAndATenantScopedLink()
+    {
+        GoogleReturns("New.Person@Acme.test", emailVerified: true);
+        User? created = null;
+        _users.Setup(u => u.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
+            .Callback<User, CancellationToken>((u, _) => created = u);
+
+        var response = await CreateService().ExternalLoginAsync(GoogleRequest(), TenantCode, CancellationToken.None);
+
+        response.Succeeded.Should().BeTrue();
+        response.AccessToken.Should().Be("access-token");
+        created.Should().NotBeNull();
+        created!.UserTypeCode.Should().Be(nameof(UserType.Customer), "the client-supplied UserType is ignored");
+        created.Email.Should().Be("new.person@acme.test");
+        created.FullName.Should().Be("New Person");
+        created.IsEmailConfirmed.Should().BeTrue("Google vouched for the address");
+        created.PasswordHash.Should().NotBeNullOrWhiteSpace("User.Create refuses an empty hash; the account gets a random one nobody knows");
+        var link = created.ExternalLogins.Should().ContainSingle().Which;
+        link.Provider.Should().Be("Google");
+        link.ProviderKey.Should().Be("g-1");
+        link.TenantId.Should().Be(_tenant.Id, "lookups filter by tenant, so a link without it could never be found again");
+        _uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_SecondLogin_UsesTheLinkedUser_AndCreatesNothing()
+    {
+        GoogleReturns("new.person@acme.test", emailVerified: true);
+        var linked = User.Create("new.person@acme.test", "new.person@acme.test", "hashed:x", _tenant.Id, UserType.Customer);
+        _users.Setup(u => u.GetByExternalProviderAsync("Google", "g-1", _tenant.Id, It.IsAny<CancellationToken>())).ReturnsAsync(linked);
+
+        var response = await CreateService().ExternalLoginAsync(GoogleRequest(), TenantCode, CancellationToken.None);
+
+        response.Succeeded.Should().BeTrue();
+        _users.Verify(u => u.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+        _externalLogins.Verify(l => l.AddAsync(It.IsAny<ExternalLogin>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_VerifiedEmailOfAnExistingAccount_LinksIt_InsteadOfCreatingADuplicate()
+    {
+        var existing = ExistingUser(); // victim@acme.test, signs in with a password today
+        GoogleReturns(existing.Email, emailVerified: true);
+        ExternalLogin? link = null;
+        _externalLogins.Setup(l => l.AddAsync(It.IsAny<ExternalLogin>(), It.IsAny<CancellationToken>()))
+            .Callback<ExternalLogin, CancellationToken>((l, _) => link = l);
+
+        var response = await CreateService().ExternalLoginAsync(GoogleRequest(), TenantCode, CancellationToken.None);
+
+        response.Succeeded.Should().BeTrue();
+        _users.Verify(u => u.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+        link.Should().NotBeNull();
+        link!.UserId.Should().Be(existing.Id);
+        link.TenantId.Should().Be(_tenant.Id);
+        existing.IsEmailConfirmed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_UnverifiedEmailOfAnExistingAccount_IsRefused_NotTakenOver()
+    {
+        var existing = ExistingUser();
+        GoogleReturns(existing.Email, emailVerified: false);
+
+        var act = () => CreateService().ExternalLoginAsync(GoogleRequest(), TenantCode, CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        _externalLogins.Verify(l => l.AddAsync(It.IsAny<ExternalLogin>(), It.IsAny<CancellationToken>()), Times.Never);
+        _users.Verify(u => u.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_UnverifiedEmailOfANewPerson_StillCreatesACustomer_WithAnUnconfirmedEmail()
+    {
+        GoogleReturns("fresh@acme.test", emailVerified: false);
+        User? created = null;
+        _users.Setup(u => u.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
+            .Callback<User, CancellationToken>((u, _) => created = u);
+
+        var response = await CreateService().ExternalLoginAsync(GoogleRequest(), TenantCode, CancellationToken.None);
+
+        response.Succeeded.Should().BeTrue();
+        created!.IsEmailConfirmed.Should().NotBe(true);
+        created.UserTypeCode.Should().Be(nameof(UserType.Customer));
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_AccountWithoutAnEmail_IsRefused()
+    {
+        GoogleReturns("", emailVerified: false);
+
+        var act = () => CreateService().ExternalLoginAsync(GoogleRequest(), TenantCode, CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+    }
+
+    // ---- P0-7: the 2FA code must be sent to the real address ----
+
+    private static void RequireTwoFactor(Mock<ISettingsService> settings, User user) =>
+        settings.Setup(s => s.IsTwoFactorRequiredForUser(user, It.IsAny<SystemAuthSettings>(), It.IsAny<TenantAuthSettings>())).Returns(true);
+
+    [Fact]
+    public async Task TwoFactor_ByEmail_TheEventCarriesTheRealAddress_WhileTheChallengeKeepsAMaskedOne()
+    {
+        var user = ExistingUser();
+        user.EnableTwoFactor("Email");
+        GoogleReturns(user.Email, emailVerified: true);
+        _users.Setup(u => u.GetByExternalProviderAsync("Google", "g-1", _tenant.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        RequireTwoFactor(_settings, user);
+        TwoFactorChallenge? challenge = null;
+        _twoFactorChallenges.Setup(c => c.AddAsync(It.IsAny<TwoFactorChallenge>(), It.IsAny<CancellationToken>()))
+            .Callback<TwoFactorChallenge, CancellationToken>((c, _) => challenge = c);
+
+        var response = await CreateService().ExternalLoginAsync(GoogleRequest(), TenantCode, CancellationToken.None);
+
+        response.RequiresTwoFactor.Should().BeTrue();
+        challenge.Should().NotBeNull();
+        challenge!.Destination.Should().Contain("*").And.NotBe(user.Email, "what is stored / shown is masked");
+        var evt = challenge.DomainEvents.OfType<TwoFactorCodeGeneratedDomainEvent>().Single();
+        evt.Destination.Should().Be(user.Email, "NotificationService delivers to this value");
+        evt.Method.Should().Be("Email");
+    }
+
+    [Fact]
+    public async Task TwoFactor_BySms_TheEventCarriesTheRealPhoneNumber()
+    {
+        var user = ExistingUser();
+        user.EnableTwoFactor("Sms", "+84901234567");
+        GoogleReturns(user.Email, emailVerified: true);
+        _users.Setup(u => u.GetByExternalProviderAsync("Google", "g-1", _tenant.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        RequireTwoFactor(_settings, user);
+        TwoFactorChallenge? challenge = null;
+        _twoFactorChallenges.Setup(c => c.AddAsync(It.IsAny<TwoFactorChallenge>(), It.IsAny<CancellationToken>()))
+            .Callback<TwoFactorChallenge, CancellationToken>((c, _) => challenge = c);
+
+        await CreateService().ExternalLoginAsync(GoogleRequest(), TenantCode, CancellationToken.None);
+
+        challenge!.Destination.Should().EndWith("4567").And.Contain("*");
+        challenge.DomainEvents.OfType<TwoFactorCodeGeneratedDomainEvent>().Single().Destination.Should().Be("+84901234567");
+    }
+
+    [Fact]
+    public async Task TwoFactor_BySmsWithoutAPhoneNumber_FailsInsteadOfCreatingACodeNobodyCanReceive()
+    {
+        var user = ExistingUser();
+        user.EnableTwoFactor("Sms"); // no phone number on file
+        GoogleReturns(user.Email, emailVerified: true);
+        _users.Setup(u => u.GetByExternalProviderAsync("Google", "g-1", _tenant.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        RequireTwoFactor(_settings, user);
+
+        var act = () => CreateService().ExternalLoginAsync(GoogleRequest(), TenantCode, CancellationToken.None);
+
+        await act.Should().ThrowAsync<BusinessRuleException>().Where(e => e.RuleName == "TwoFactorNoDestination");
+        _twoFactorChallenges.Verify(c => c.AddAsync(It.IsAny<TwoFactorChallenge>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
 }

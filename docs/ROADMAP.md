@@ -62,13 +62,14 @@ plan → approval → implement + tests + docs, one branch per plan.
 ### P0 — Broken behaviour, wrong data, security
 | ID | Item | Evidence / where |
 |---|---|---|
-| P0-1 | Merge `feature/service-tokens` after the first Docker run (PROJECT-STATUS §5 checklist) | PROJECT-STATUS §1 |
+| P0-1 | ✅ 2026-10-23 (`fix/docker-first-run`) — first Docker run done, PR #10–#12 already merged. Auth, tenant/Logs and PO → bill verified; POS ↔ stock and storefront → shipment blocked by P0-9 | PROJECT-STATUS §2, `docs/architecture/schema-drift-2026-10-23.md` |
+| P0-9 | ✅ 2026-10-23 (`fix/schema-alignment`) — closed, see `docs/architecture/schema-drift-2026-10-23.md`. Was: **SQL schema does not match the EF models** (37 missing columns/tables, 30 NOT NULL blockers, type mismatches such as POS `PaymentMethod` INT vs string) and 40 `JObject.Value<Guid?>` calls lose Kafka messages. Found by P0-1; oracle = `LiveSchemaDriftTests` | `docs/architecture/schema-drift-2026-10-23.md` |
 | P0-2 | ✅ 2026-10-22 (`fix/roadmap-p0`) — Admin build is broken: `LogsPage` imported but missing → build the log viewer (`GET /api/v1/logs`). Root cause: `.gitignore` `[Ll]ogs/` hid `pages/logs` and `api/logs`; `logs:view` is now a platform permission (logs have no tenant) | `src/frontend/admin/src/router/index.tsx:43` |
 | P0-3 | ✅ 2026-10-22 — Supplier handlers are stubs (list returns empty, get maps `new object()`, deactivate is a no-op) | `src/services/PurchaseOrderService/src/ERP.PO.Application/Features/Suppliers/Handlers/` |
 | P0-4 | ✅ 2026-10-22 — Bills created from POs always have amount 0 (event has no total) → bill booked on final approval with the PO total | `src/services/AccountingService/src/ERP.ACC.Infrastructure/BackgroundJobs/AccountingKafkaConsumer.cs` |
 | P0-5 | ✅ 2026-10-22 — Saga-created shipments have placeholder recipient/address — `CreateShipmentCommand` must carry the delivery address | `src/services/ShippingService/src/ERP.SHP.Infrastructure/EventBus/SalesOrderRabbitMqConsumer.cs` |
 | P0-6 | ✅ 2026-10-22 — POS sales never reduce stock (voided completed sales now restock too) — Warehouse must consume `pos-topic` `TransactionCreated` | POS `Program.cs` comment |
-| P0-7 | Identity: `ExternalLoginRepository` throws `NotImplementedException`; external auto-provisioning fails; 2FA email OTP goes to the masked address | PROJECT-STATUS §4 P1 |
+| P0-7 | ✅ 2026-10-23 (`fix/identity-external-login`) — was: Identity: `ExternalLoginRepository` throws `NotImplementedException`; external auto-provisioning fails; 2FA email OTP goes to the masked address | PROJECT-STATUS §4 P1 |
 | P0-8 | NuGet `System.Security.Cryptography.Pkcs` advisory; Identity phase 2 hardening | PROJECT-STATUS §4 P0 |
 
 ### P1 — Cross-service business flows

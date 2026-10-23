@@ -2,7 +2,7 @@
 
 > Read this right after `CLAUDE.md` when picking the work up on another machine.
 > Keep it current: update it at the end of every work session (what changed, what's next).
-> Last updated: **2026-10-22** (ROADMAP P0-2…P0-6 fixed on `fix/roadmap-p0`; system inventory + roadmap: `docs/ROADMAP.md`).
+> Last updated: **2026-10-23** (ROADMAP P0-1 first Docker run on `fix/docker-first-run`; new P0-9 schema drift; system inventory + roadmap: `docs/ROADMAP.md`).
 
 ## 0. Start here (new machine / new developer)
 
@@ -32,6 +32,57 @@ All feature branches above are merged; start new work from `origin/master`.
 Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
+
+### 2026-10-23 — ROADMAP P0-7: Identity external login and 2FA OTP (`fix/identity-external-login`, unmerged)
+- External login: `GetByExternalProviderAsync` returned an exception instead of null, so no new Google/Microsoft/
+  Facebook/Twitter user could ever be provisioned; `User.Create` rejected the empty password hash; the stored link had
+  no TenantId (the next login would not find it). Now a new Customer is provisioned (random unusable password, provider
+  name, email confirmed only if the provider verified it); a *verified* email of an existing tenant user links to it
+  (decision 2026-10-23), an unverified one is refused; Facebook and Microsoft report `EmailVerified = false`
+  (Microsoft's `preferred_username` is a mutable UPN, "nOAuth"); `ExternalLoginRepository` implemented.
+- 2FA: `TwoFactorChallenge` keeps the masked destination, the event carries the real recipient; SMS without a phone
+  number fails with `TwoFactorNoDestination`.
+- **Identity events never reached Notification**: `KafkaMessageBus` serialized the (already JSON) Outbox content again,
+  so consumers got a JSON string. Fixed; Notification `012` moves the default templates stranded on the empty tenant to
+  SYSTEM ("Template 'TWO_FACTOR_CODE' not found"). Run migration 012.
+- Verified in Docker: email 2FA login -> stored `ad***@…`, event and Notification record use the real address
+  (status Failed because no SMTP server is configured locally). Real Google/Microsoft tokens were not available, so the
+  external-login paths are covered by unit tests (AuthService + InMemory repository), not by a live call.
+- Still open (P0-8): invalidate the previous 2FA challenge on resend, keep the OTP out of `OutboxMessages`;
+  new users created by external login get no email-confirmation message.
+
+### 2026-10-23 — ROADMAP P0-9: SQL schema aligned with the EF models (`fix/schema-alignment`, unmerged)
+Full write-up: `docs/architecture/schema-drift-2026-10-23.md` (oracle, clean-room recipe, every fix).
+- `LiveSchemaDriftTests` (opt-in `ERP_DRIFT_SQL`) now compares names, nullability blockers, column types, computed
+  columns. Zero drift on the host databases and on a database built from `src/Database` alone (pass 1: 0 SQL errors).
+- New migrations (run them on every database): Identity `026`, Accounting `008`, CRM `006`, HRM `006` (+ `003` reordered),
+  MasterData `008`, Notification `010`/`011`, Payment `007`, POS `007`/`008`, Product `018`, PromotionService `004`/`005`
+  (seed moved to `002a`), Purchasing `010`/`011`, Reporting `007` (ETL seeds skip until the source DBs exist), Sales `012`,
+  Shipping `006`/`007`, Warehouse `008`. `AllServices/004_*.ps1` and Identity `015_test_wrapped.sql` removed.
+  On a NEW database run `db-migrate` twice (Reporting ETL backfill).
+- Code: all `Value<Guid>` / `as JArray` event reads use `EventJson` (14 consumers; guard tests); EF mappings for
+  GoodsReceipt, Shipment, ShipmentItem, Settlement, SalesQuotationItems; SaleOrder: `/internal/jwks.json` open,
+  `OrderNumberGenerator`, tracked `GetByIdAsync`.
+- Verified in Docker: POS sale/void ↔ stock, order → approve → payment → reservation → shipment (real address/lines),
+  PO → bill. Tests: Shared 92, Identity 211, Gateway 10, PO 8, ACC 2, SO 2, SHP 2, WH 8, POS 3, Architecture 52/53 —
+  the one failure is a local git-ignored `deployment/k8s/secrets.yaml` with an obsolete `jwt-signing-key`.
+
+### 2026-10-23 — ROADMAP P0-1: first Docker run (`fix/docker-first-run`, unmerged)
+Full write-up: `docs/architecture/schema-drift-2026-10-23.md`. PR #10–#12 were already merged into `master`
+(§1 below is stale on that point). Ran the whole stack against the SQL Server installed on the host
+(`docker-compose.localsql.yml`, `SQL_HOST` in `.env`; the container SQL stays the default).
+- **Verified:** build of all images; Identity generates the RS256 signing/encryption certificates; token header
+  `RS256` with the `kid` listed in JWKS; `/internal/...` → 401 with no token and with a user token; logout → 401;
+  `logs:view` → tenant admin 403, platform admin 200; PO two-level approval → one Accounting bill with the PO total.
+- **Bugs found and fixed:** token tables without `UpdatedAt`/`IsDeleted` (register / tenant-signup 500);
+  `Bills.SupplierName` / `Invoices.CustomerName` NOT NULL; POS `TransactionItems.TenantId`; five legacy Product
+  tables; `JObject.Value<Guid?>` throwing on GUID strings (Accounting consumer fixed, 40 calls left);
+  `run-migrations.sh` hiding SQL errors; CRLF shell scripts crash-looping admin/storefront; WSL 4 GB hanging Docker.
+- POS sale/void ↔ stock and storefront order → shipment were verified afterwards under P0-9 (next entry).
+- New: migrations Identity `025`, Accounting `007`, POS `006`, Product `016`/`017`; `EventJson`;
+  `LiveSchemaDriftTests` (opt-in, `ERP_DRIFT_SQL`).
+- Deployment: run the new migrations; the host databases were backed up (`*_pre-p0-1_20261023.bak` in the
+  instance's default backup folder) before the migrations ran.
 
 ### 2026-10-22 — ROADMAP P0-2…P0-6 (`fix/roadmap-p0`)
 Owner decisions: bill on final PO approval; POS sale never refused for stock (may go negative +
@@ -313,7 +364,9 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 | 2026-10-22 | Execution order: **P0 → P1 business flows → authorization phase 5 → CI/CD, tests, operations → missing UI → new modules** | `docs/ROADMAP.md` Part B |
 | 2026-10-22 | In scope as new ERP modules: **fixed assets, shared workflow/approval engine, HRM extension (recruitment/training/performance), manufacturing (BOM/MRP)** — each needs an ADR first | `docs/ROADMAP.md` P2-5…P2-8 |
 
-## 8. Next step: rest of ROADMAP P0, then P1 business flows (needs a plan + approval)
+## 8. Next step: ROADMAP P0-9 (schema alignment), rest of P0, then P1 (needs a plan + approval)
+
+Update 2026-10-23: P0-1, P0-9 and P0-7 are closed. Next: P0-8 (NuGet advisory, Identity phase 2), then P1-1. The text below is from 2026-10-22.
 
 Working checklist: `task.md` at the repo root (same IDs as `docs/ROADMAP.md`).
 

@@ -29,7 +29,9 @@ namespace ERP.SO.Api.Middleware
             _logger = logger;
         }
 
-        private static readonly string[] _openPaths = ["/health", "/swagger", "/openapi"];
+        // /internal/jwks.json publishes this service's own public key (MapServiceJwks): the receivers of its
+        // service-to-service calls (Warehouse, Promotion) fetch it without any user or gateway headers.
+        private static readonly string[] _openPaths = ["/health", "/swagger", "/openapi", "/internal/jwks.json"];
 
         public async Task InvokeAsync(HttpContext context, UserContext userContext, IUserContextService userContextService)
         {

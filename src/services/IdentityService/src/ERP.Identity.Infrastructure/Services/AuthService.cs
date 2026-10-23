@@ -325,9 +325,15 @@ namespace ERP.Identity.Infrastructure.Services
             var maxAttempts = GetConfigInt("TwoFactorAuthentication:MaxAttempts", 3);
 
             var resolvedMethod = method ?? (!string.IsNullOrWhiteSpace(user.TwoFactorMethod) ? user.TwoFactorMethod! : "Email");
-            var destination = resolvedMethod.Equals("Sms", StringComparison.OrdinalIgnoreCase)
-                ? MaskDestination(user.PhoneNumber ?? string.Empty)
-                : MaskDestination(user.Email);
+            var isSms = resolvedMethod.Equals("Sms", StringComparison.OrdinalIgnoreCase);
+            var recipient = (isSms ? user.PhoneNumber : user.Email)?.Trim();
+            if (string.IsNullOrWhiteSpace(recipient))
+                throw new BusinessRuleException(
+                    "TwoFactorNoDestination",
+                    isSms
+                        ? "Two-factor authentication by SMS is enabled but the account has no phone number."
+                        : "Two-factor authentication by email is enabled but the account has no email address.");
+            var destination = MaskDestination(recipient);
 
             var plaintextCode = _twoFactorCodeGenerator.GenerateCode(codeLength);
             var codeHash = _passwordHasher.HashPassword(plaintextCode);
@@ -338,6 +344,7 @@ namespace ERP.Identity.Infrastructure.Services
                 codeHash: codeHash,
                 method: resolvedMethod,
                 destination: destination,
+                recipient: recipient,
                 expiryMinutes: expiryMinutes,
                 maxAttempts: maxAttempts,
                 plaintextCode: plaintextCode);
@@ -524,6 +531,8 @@ namespace ERP.Identity.Infrastructure.Services
                 provider: request.Provider,
                 providerKey: externalUser.ProviderKey,
                 email: externalUser.Email,
+                emailVerified: externalUser.EmailVerified,
+                fullName: externalUser.FullName,
                 tenant: tenant,
                 ct: ct);
 
@@ -533,18 +542,23 @@ namespace ERP.Identity.Infrastructure.Services
         }
 
         /// <summary>
-        /// Finds an existing user by (provider, providerKey) within the tenant, or
-        /// auto-registers a new one as a Customer.
-        /// Shared by ExternalLoginAsync and the Twitter authorization-code-flow callback.
+        /// Resolves the local user for an external identity within the tenant:
+        ///   1. already linked (provider, providerKey, tenant) -> that user;
+        ///   2. the provider VERIFIED the email and a user with that email exists in the tenant -> link to it (an
+        ///      unverified address is never proof of ownership, so it is refused instead of taking the account over);
+        ///   3. otherwise auto-register a new Customer.
+        /// Shared by ExternalLoginAsync and the Twitter authorization-code-flow callback (which never verifies emails).
         ///
         /// Auto-provisioned accounts are ALWAYS Customer: this endpoint is anonymous, and it
         /// used to honor the client-supplied ExternalLoginRequest.UserType — so anyone with a
         /// Google/Microsoft account could self-provision as Admin/SuperAdmin of any tenant.
         /// Staff/Admin accounts are created via the admin-gated POST /users/invite (and can
         /// then link SSO); already-linked users are unaffected.
+        /// Does NOT call SaveChangesAsync — the caller commits user and link together.
         /// </summary>
         private async Task<User> FindOrCreateExternalUserAsync(
-            string provider, string providerKey, string email, AuthTenant tenant, CancellationToken ct)
+            string provider, string providerKey, string email, bool emailVerified, string? fullName,
+            AuthTenant tenant, CancellationToken ct)
         {
             const UserType userType = UserType.Customer;
 
@@ -552,14 +566,44 @@ namespace ERP.Identity.Infrastructure.Services
             if (user != null)
                 return user;
 
+            if (string.IsNullOrWhiteSpace(email))
+                throw new UnauthorizedAccessException("The external account did not provide an email address.");
+
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+
+            var existing = await _unitOfWork.Users.GetByEmailAsync(normalizedEmail, tenant.Id, ct);
+            if (existing != null)
+            {
+                if (!emailVerified)
+                    throw new UnauthorizedAccessException(
+                        "An account with this email already exists. Sign in with your password to continue.");
+
+                // Same verified mailbox -> same person. The account's own status (active, locked, tenant) is checked
+                // by IssueTokensOrChallengeAsync like for any other sign-in, and 2FA still applies.
+                if (existing.IsEmailConfirmed != true)
+                    existing.ConfirmEmail();
+                await _unitOfWork.ExternalLogins.AddAsync(
+                    ExternalLogin.Create(existing.Id, tenant.Id, provider, providerKey, normalizedEmail), ct);
+                return existing;
+            }
+
+            // The account has no password of its own: a random one nobody knows keeps PasswordHash valid while
+            // password sign-in stays impossible (the user can set one through "forgot password").
+            var unusablePasswordHash = _passwordHasher.HashPassword(
+                Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)));
+
             user = User.Create(
-                email: email,
-                username: email,
-                passwordHash: string.Empty,
+                email: normalizedEmail,
+                username: normalizedEmail,
+                passwordHash: unusablePasswordHash,
                 tenantId: tenant.Id,
                 userType: userType
             );
-            user.AddExternalLogin(provider, providerKey, email);
+            if (!string.IsNullOrWhiteSpace(fullName))
+                user.UpdateProfile(fullName.Trim(), null);
+            if (emailVerified)
+                user.ConfirmEmail();
+            user.AddExternalLogin(provider, providerKey, normalizedEmail, tenant.Id);
             user.AssignToTenant(tenant);
 
             var roleCodes = _userRoleResolver.GetRolesForUser(userType);
@@ -594,6 +638,8 @@ namespace ERP.Identity.Infrastructure.Services
                 provider: "Twitter",
                 providerKey: twitterUser.ProviderKey,
                 email: twitterUser.Email ?? $"{twitterUser.ProviderKey}@twitter.placeholder",
+                emailVerified: false,
+                fullName: null,
                 tenant: tenant,
                 ct: ct);
 

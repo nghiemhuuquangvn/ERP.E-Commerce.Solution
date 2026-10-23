@@ -96,8 +96,8 @@ namespace ERP.SO.Infrastructure.EventBus
             if (!typeName.Contains("ShipmentCreatedEvent"))
                 return; // Other shipping-topic events are not yet consumed by SaleOrderService.
 
-            var orderId = raw.Value<Guid?>("OrderId") ?? Guid.Empty;
-            var shipmentId = raw.Value<Guid?>("ShipmentId") ?? Guid.Empty;
+            var orderId = raw.GuidValue("OrderId") ?? Guid.Empty;
+            var shipmentId = raw.GuidValue("ShipmentId") ?? Guid.Empty;
             if (orderId == Guid.Empty || shipmentId == Guid.Empty)
                 return;
 

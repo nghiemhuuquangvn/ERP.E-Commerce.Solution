@@ -101,8 +101,8 @@ public class InvoiceCreatedConsumer : IHostedService
         if (!typeName.Contains("InvoiceCreatedEvent"))
             return; // Other accounting-topic events are not yet consumed by PaymentService.
 
-        var invoiceId = raw.Value<Guid?>("InvoiceId") ?? Guid.Empty;
-        var orderId = raw.Value<Guid?>("OrderId") ?? Guid.Empty;
+        var invoiceId = raw.GuidValue("InvoiceId") ?? Guid.Empty;
+        var orderId = raw.GuidValue("OrderId") ?? Guid.Empty;
         var amount = raw.Value<decimal?>("Amount") ?? 0m;
         if (invoiceId == Guid.Empty || orderId == Guid.Empty || amount <= 0)
             return;

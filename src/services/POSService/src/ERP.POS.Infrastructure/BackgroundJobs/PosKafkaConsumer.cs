@@ -118,7 +118,7 @@ namespace ERP.POS.Infrastructure.BackgroundJobs
                 // than being guessed; the real price arrives via
                 // ProductPriceChangedDomainEvent, handled below.
                 var raw = JObject.Parse(json);
-                var productId = raw.Value<Guid?>("ProductId") ?? Guid.Empty;
+                var productId = raw.GuidValue("ProductId") ?? Guid.Empty;
                 var name = raw.Value<string>("Name") ?? string.Empty;
                 var sku = raw.Value<string>("Sku") ?? string.Empty;
 
@@ -137,7 +137,7 @@ namespace ERP.POS.Infrastructure.BackgroundJobs
                 // publish at the time. ProductService added it in section 3.2
                 // (ProductVariant.RecordPriceChange), so this is now reachable.
                 var raw = JObject.Parse(json);
-                var productId = raw.Value<Guid?>("ProductId") ?? Guid.Empty;
+                var productId = raw.GuidValue("ProductId") ?? Guid.Empty;
                 var newPrice = raw.Value<decimal?>("NewPrice") ?? 0m;
                 if (productId == Guid.Empty)
                     return;
@@ -154,7 +154,7 @@ namespace ERP.POS.Infrastructure.BackgroundJobs
                 // int field directly.
                 var raw = JObject.Parse(json);
                 var evt = new PromotionCreatedIntegrationEvent(
-                    raw.Value<Guid?>("PromotionId") ?? Guid.Empty,
+                    raw.GuidValue("PromotionId") ?? Guid.Empty,
                     raw.Value<string>("Name") ?? string.Empty,
                     raw.Value<int?>("DiscountType") ?? 0,
                     raw.Value<decimal?>("DiscountValue") ?? 0m,
@@ -174,8 +174,8 @@ namespace ERP.POS.Infrastructure.BackgroundJobs
                 // its underlying int; POS's local contract just carries it as a
                 // string for display/logging, so ToString() the raw int is enough.
                 var raw = JObject.Parse(json);
-                var paymentId = raw.Value<Guid?>("PaymentId") ?? Guid.Empty;
-                var orderId = raw.Value<Guid?>("OrderId") ?? Guid.Empty;
+                var paymentId = raw.GuidValue("PaymentId") ?? Guid.Empty;
+                var orderId = raw.GuidValue("OrderId") ?? Guid.Empty;
                 if (paymentId == Guid.Empty || orderId == Guid.Empty)
                     return;
 

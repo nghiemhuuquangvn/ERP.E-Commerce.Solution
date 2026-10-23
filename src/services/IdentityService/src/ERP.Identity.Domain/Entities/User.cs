@@ -162,12 +162,15 @@ namespace ERP.Identity.Domain.Entities
             AddDomainEvent(new RoleAssignedDomainEvent(Id, tenantId, role.Id, role.RoleCode, changedByUserId, changedByName));
         }
 
-        public void AddExternalLogin(string provider, string providerKey, string email)
+        /// <param name="tenantId">Tenant the link is made in (defaults to the user's home tenant; a user invited into a
+        /// second tenant links there).</param>
+        public void AddExternalLogin(string provider, string providerKey, string email, Guid? tenantId = null)
         {
-            if (_externalLogins.Any(el => el.Provider == provider && el.ProviderKey == providerKey && el.IsActive))
+            var linkTenant = tenantId ?? TenantId;
+            if (_externalLogins.Any(el => el.Provider == provider && el.ProviderKey == providerKey && el.TenantId == linkTenant && el.IsActive))
                 return;
 
-            var externalLogin = ExternalLogin.Create(this.Id, provider, providerKey, email);
+            var externalLogin = ExternalLogin.Create(this.Id, linkTenant, provider, providerKey, email);
             _externalLogins.Add(externalLogin);
         }
 
