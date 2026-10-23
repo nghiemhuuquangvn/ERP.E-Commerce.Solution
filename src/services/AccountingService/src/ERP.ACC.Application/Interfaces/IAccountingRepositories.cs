@@ -7,6 +7,8 @@ namespace ERP.ACC.Application.Interfaces
     {
         Task<Account?> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task<List<Account>> GetAllAsync(CancellationToken ct = default);
+        Task<List<Account>> GetByNumbersAsync(IEnumerable<string> accountNumbers, CancellationToken ct = default);
+        Task<List<Account>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default);
         Task AddAsync(Account account, CancellationToken ct = default);
         Task UpdateAsync(Account account, CancellationToken ct = default);
     }
@@ -16,6 +18,7 @@ namespace ERP.ACC.Application.Interfaces
         Task<Invoice?> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task<List<Invoice>> GetAllAsync(CancellationToken ct = default);
         Task<List<Invoice>> GetByCustomerIdAsync(Guid customerId, CancellationToken ct = default);
+        Task<Invoice?> GetByOrderIdAsync(Guid orderId, CancellationToken ct = default);
         Task<List<Invoice>> GetByStatusAsync(int status, CancellationToken ct = default);
         Task<List<Invoice>> GetUnpaidInvoicesAsync(CancellationToken ct = default);
         Task AddAsync(Invoice invoice, CancellationToken ct = default);
@@ -39,6 +42,8 @@ namespace ERP.ACC.Application.Interfaces
         Task<JournalEntry?> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task<List<JournalEntry>> GetAllAsync(CancellationToken ct = default);
         Task<List<JournalEntry>> GetByFiscalPeriodIdAsync(Guid fiscalPeriodId, CancellationToken ct = default);
+        /// <summary>The entry posted for a document ("Invoice:&lt;id&gt;"), with its lines; null when none (tracked).</summary>
+        Task<JournalEntry?> GetBySourceKeyAsync(string sourceKey, CancellationToken ct = default);
         Task AddAsync(JournalEntry entry, CancellationToken ct = default);
         Task UpdateAsync(JournalEntry entry, CancellationToken ct = default);
     }
@@ -48,6 +53,8 @@ namespace ERP.ACC.Application.Interfaces
         Task<FiscalPeriod?> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task<List<FiscalPeriod>> GetAllAsync(CancellationToken ct = default);
         Task<FiscalPeriod?> GetOpenPeriodAsync(CancellationToken ct = default);
+        /// <summary>The period whose date range contains <paramref name="date"/> (any status), or null.</summary>
+        Task<FiscalPeriod?> GetContainingAsync(DateTime date, CancellationToken ct = default);
         Task AddAsync(FiscalPeriod period, CancellationToken ct = default);
         Task UpdateAsync(FiscalPeriod period, CancellationToken ct = default);
     }
@@ -58,6 +65,13 @@ namespace ERP.ACC.Application.Interfaces
         Task<List<AccountBalanceSummary>> GetAccountBalancesAsync(
             DateTime? fromDate, DateTime? toDate, Guid? fiscalPeriodId, CancellationToken ct = default);
         Task AddRangeAsync(IEnumerable<JournalLine> lines, CancellationToken ct = default);
+    }
+
+    public interface IPostingAccountMappingRepository
+    {
+        /// <summary>Tracked, so a changed mapping is saved by the unit of work.</summary>
+        Task<List<PostingAccountMapping>> GetAllAsync(CancellationToken ct = default);
+        Task AddAsync(PostingAccountMapping mapping, CancellationToken ct = default);
     }
 
     public interface ITaxRateRepository

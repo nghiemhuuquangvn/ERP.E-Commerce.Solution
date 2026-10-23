@@ -65,6 +65,7 @@ namespace ERP.ACC.Infrastructure
             services.AddScoped<IJournalEntryRepository, JournalEntryRepository>();
             services.AddScoped<IJournalLineRepository, JournalLineRepository>();
             services.AddScoped<IFiscalPeriodRepository, FiscalPeriodRepository>();
+            services.AddScoped<IPostingAccountMappingRepository, PostingAccountMappingRepository>();
             services.AddScoped<ITaxRateRepository, TaxRateRepository>();
             services.AddScoped<IBankAccountRepository, BankAccountRepository>();
             services.AddScoped<IBankStatementRepository, BankStatementRepository>();

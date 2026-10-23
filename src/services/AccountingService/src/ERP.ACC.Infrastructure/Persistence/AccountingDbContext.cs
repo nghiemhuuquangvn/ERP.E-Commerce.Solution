@@ -20,6 +20,7 @@ namespace ERP.ACC.Infrastructure.Persistence
         public DbSet<TaxRate> TaxRates { get; set; }
         public DbSet<BankAccount> BankAccounts { get; set; }
         public DbSet<BankStatement> BankStatements { get; set; }
+        public DbSet<PostingAccountMapping> PostingAccountMappings { get; set; }
         public DbSet<OutboxMessage> OutboxMessages { get; set; }
         public DbSet<SystemTaxSettings> SystemTaxSettings { get; set; }
         public DbSet<TenantTaxSettings> TenantTaxSettings { get; set; }
@@ -50,6 +51,16 @@ namespace ERP.ACC.Infrastructure.Persistence
 
             modelBuilder.Entity<JournalEntry>(e =>
             {
+                e.Property(x => x.EntryDate).HasColumnType("date");
+                e.Property(x => x.TotalDebit).HasColumnType("decimal(18,2)");
+                e.Property(x => x.TotalCredit).HasColumnType("decimal(18,2)");
+                e.Property(x => x.ReferenceType).HasMaxLength(100);
+                e.Property(x => x.SourceKey).HasMaxLength(150);
+                e.Property(x => x.PostedBy).HasMaxLength(256);
+                e.Property(x => x.VoidedBy).HasMaxLength(256);
+                e.Property(x => x.VoidReason).HasMaxLength(500);
+                // The idempotency key: the same business document can never be posted twice for a tenant.
+                e.HasIndex(x => new { x.TenantId, x.SourceKey }).IsUnique().HasFilter("[SourceKey] IS NOT NULL");
                 e.HasMany(j => j.Lines)
                     .WithOne()
                     .HasForeignKey(l => l.JournalEntryId)
@@ -60,6 +71,16 @@ namespace ERP.ACC.Infrastructure.Persistence
             {
                 // DB column is TotalAmount; entity property is Amount
                 e.Property(x => x.Amount).HasColumnName("TotalAmount").HasColumnType("decimal(18,2)");
+                e.Property(x => x.AmountPaid).HasColumnType("decimal(18,2)");
+            });
+
+            modelBuilder.Entity<PostingAccountMapping>(e =>
+            {
+                e.ToTable("PostingAccountMappings");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.PostingKey).IsRequired().HasMaxLength(50);
+                e.HasIndex(x => new { x.TenantId, x.PostingKey }).IsUnique().HasFilter("[IsDeleted] = 0");
             });
 
             modelBuilder.Entity<Bill>(e =>

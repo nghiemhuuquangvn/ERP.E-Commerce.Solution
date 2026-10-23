@@ -19,7 +19,9 @@ namespace ERP.ACC.Domain.Enums
     {
         Unpaid = 0,
         Paid = 1,
-        Overdue = 2
+        Overdue = 2,
+        /// <summary>Void (5 in the SQL comment): the order was cancelled before the invoice was paid.</summary>
+        Cancelled = 5
     }
 
     public enum BillStatus
@@ -33,7 +35,10 @@ namespace ERP.ACC.Domain.Enums
     {
         Draft = 0,
         Posted = 1,
-        Reversed = 2
+        /// <summary>Voided: ignored by every report (the demo data uses it).</summary>
+        Voided = 2,
+        /// <summary>Reversed by a mirror entry: still counted, the reversal entry offsets it.</summary>
+        Reversed = 3
     }
 
     public enum FiscalPeriodStatus

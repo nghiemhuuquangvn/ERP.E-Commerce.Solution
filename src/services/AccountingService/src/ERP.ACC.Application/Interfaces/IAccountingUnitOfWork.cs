@@ -8,6 +8,7 @@ namespace ERP.ACC.Application.Interfaces
         IJournalEntryRepository JournalEntries { get; }
         IJournalLineRepository JournalLines { get; }
         IFiscalPeriodRepository FiscalPeriods { get; }
+        IPostingAccountMappingRepository PostingMappings { get; }
         ITaxRateRepository TaxRates { get; }
         IBankAccountRepository BankAccounts { get; }
         IBankStatementRepository BankStatements { get; }

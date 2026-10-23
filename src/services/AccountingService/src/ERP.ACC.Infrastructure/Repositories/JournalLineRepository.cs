@@ -24,8 +24,10 @@ namespace ERP.ACC.Infrastructure.Repositories
             Guid? fiscalPeriodId,
             CancellationToken ct = default)
         {
+            // Only entries that are in the books: Posted, and Reversed (their reversal entry offsets them). Drafts and voided
+            // entries are not part of any balance.
             var query = _db.JournalLines
-                .Join(_db.JournalEntries,
+                .Join(_db.JournalEntries.Where(e => e.Status == 1 || e.Status == 3),
                     line => line.JournalEntryId,
                     entry => entry.Id,
                     (line, entry) => new { Line = line, Entry = entry });
@@ -34,10 +36,10 @@ namespace ERP.ACC.Infrastructure.Repositories
                 query = query.Where(x => x.Entry.FiscalPeriodId == fiscalPeriodId.Value);
 
             if (fromDate.HasValue)
-                query = query.Where(x => x.Entry.CreatedAt >= fromDate.Value);
+                query = query.Where(x => x.Entry.EntryDate >= fromDate.Value.Date);
 
             if (toDate.HasValue)
-                query = query.Where(x => x.Entry.CreatedAt <= toDate.Value);
+                query = query.Where(x => x.Entry.EntryDate <= toDate.Value.Date);
 
             return await query
                 .GroupBy(x => x.Line.AccountId)

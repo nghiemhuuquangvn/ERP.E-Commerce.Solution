@@ -20,6 +20,9 @@ namespace ERP.ACC.Infrastructure.Repositories
         public async Task<List<Invoice>> GetByCustomerIdAsync(Guid customerId, CancellationToken ct = default) =>
             await _db.Invoices.Where(i => i.CustomerId == customerId).OrderByDescending(i => i.CreatedAt).AsNoTracking().ToListAsync(ct);
 
+        public async Task<Invoice?> GetByOrderIdAsync(Guid orderId, CancellationToken ct = default) =>
+            await _db.Invoices.Where(i => i.OrderId == orderId).OrderByDescending(i => i.CreatedAt).FirstOrDefaultAsync(ct);
+
         public async Task<List<Invoice>> GetByStatusAsync(int status, CancellationToken ct = default) =>
             await _db.Invoices.Where(i => i.Status == status).OrderByDescending(i => i.CreatedAt).AsNoTracking().ToListAsync(ct);
 
