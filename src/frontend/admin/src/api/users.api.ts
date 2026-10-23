@@ -8,6 +8,12 @@ const USERS_BASE = `/id/api/v1/users`
 export interface EnableTwoFactorRequest {
   method: 'Sms' | 'Email'
   phoneNumber?: string | null
+  /** Re-confirms the caller. Omit only for accounts that sign in through an external provider only. */
+  currentPassword?: string | null
+}
+
+export interface DisableTwoFactorRequest {
+  currentPassword?: string | null
 }
 
 export interface MessageResponse {
@@ -101,6 +107,6 @@ export const usersApi = {
   enableTwoFactor: (userId: string, body: EnableTwoFactorRequest) =>
     apiClient.post<MessageResponse>(`${USERS_BASE}/${userId}/2fa/enable`, body).then((r) => r.data),
 
-  disableTwoFactor: (userId: string) =>
-    apiClient.post<MessageResponse>(`${USERS_BASE}/${userId}/2fa/disable`).then((r) => r.data),
+  disableTwoFactor: (userId: string, body: DisableTwoFactorRequest = {}) =>
+    apiClient.post<MessageResponse>(`${USERS_BASE}/${userId}/2fa/disable`, body).then((r) => r.data),
 }

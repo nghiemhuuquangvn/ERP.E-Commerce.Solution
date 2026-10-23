@@ -1,5 +1,6 @@
 using ERP.Shared.Infrastructure.Data;
 using ERP.Shared.Messaging;
+using ERP.Shared.Security;
 using Confluent.Kafka;
 using ERP.NTF.Application.EventHandlers;
 using MediatR;
@@ -111,6 +112,16 @@ public class IdentityEventConsumer : IHostedService
         using var scope = _serviceProvider.CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
+        // Identity encrypts the code / links before they reach its outbox (SecretEnvelope); an unprefixed value is a
+        // message written before that change and is used as it is.
+        string Open(JObject payload, string field)
+        {
+            var value = payload.Value<string>(field) ?? string.Empty;
+            return SecretEnvelope.IsSealed(value)
+                ? SecretEnvelope.Open(scope.ServiceProvider.GetRequiredService<ISecretProtector>(), value)
+                : value;
+        }
+
         if (typeName.Contains("TwoFactorCodeGeneratedDomainEvent"))
         {
             var raw = JObject.Parse(json);
@@ -119,7 +130,7 @@ public class IdentityEventConsumer : IHostedService
                 UserId = raw.GuidValue("UserId") ?? Guid.Empty,
                 Method = raw.Value<string>("Method") ?? string.Empty,
                 Destination = raw.Value<string>("Destination") ?? string.Empty,
-                Code = raw.Value<string>("Code") ?? string.Empty,
+                Code = Open(raw, "Code"),
                 ExpiryMinutes = raw.Value<int?>("ExpiryMinutes") ?? 0
             };
 
@@ -133,7 +144,7 @@ public class IdentityEventConsumer : IHostedService
             {
                 UserId = raw.GuidValue("UserId") ?? Guid.Empty,
                 Email = raw.Value<string>("Email") ?? string.Empty,
-                ResetLink = raw.Value<string>("ResetLink") ?? string.Empty,
+                ResetLink = Open(raw, "ResetLink"),
                 ExpiryMinutes = raw.Value<int?>("ExpiryMinutes") ?? 0
             };
             if (evt.UserId != Guid.Empty && !string.IsNullOrWhiteSpace(evt.Email))
@@ -146,7 +157,7 @@ public class IdentityEventConsumer : IHostedService
             {
                 UserId = raw.GuidValue("UserId") ?? Guid.Empty,
                 Email = raw.Value<string>("Email") ?? string.Empty,
-                ConfirmLink = raw.Value<string>("ConfirmLink") ?? string.Empty,
+                ConfirmLink = Open(raw, "ConfirmLink"),
                 ExpiryHours = raw.Value<int?>("ExpiryHours") ?? 0
             };
             if (evt.UserId != Guid.Empty && !string.IsNullOrWhiteSpace(evt.Email))

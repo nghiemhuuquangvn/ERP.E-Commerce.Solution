@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using ERP.Identity.Application.Interfaces;
 using ERP.Identity.Domain.Common;
+using ERP.Identity.Infrastructure.Security;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -64,10 +65,13 @@ namespace ERP.Identity.Infrastructure.Persistence
         public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
         public DbSet<WebhookEndpoint> WebhookEndpoints => Set<WebhookEndpoint>();
         private readonly IDomainEventDispatcher _domainEventDispatcher;
+        private readonly OutboxPayloadProtector? _outboxPayloadProtector;
 
-        public AuthDbContext(DbContextOptions<AuthDbContext> options, IDomainEventDispatcher domainEventDispatcher) : base(options)
+        public AuthDbContext(DbContextOptions<AuthDbContext> options, IDomainEventDispatcher domainEventDispatcher,
+            OutboxPayloadProtector? outboxPayloadProtector = null) : base(options)
         {
             _domainEventDispatcher = domainEventDispatcher;
+            _outboxPayloadProtector = outboxPayloadProtector;
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -155,15 +159,31 @@ namespace ERP.Identity.Infrastructure.Persistence
                     x.ClearDomainEvents();
                     return events;
                 })
-                .Select(domainEvent => new OutboxMessage
+                .Select(domainEvent =>
                 {
-                    Id = Guid.NewGuid(),
-                    OccurredOnUtc = DateTime.UtcNow,
-                    Type = domainEvent.GetType().Name,
-                    Content = JsonConvert.SerializeObject(domainEvent, new JsonSerializerSettings
+                    var type = domainEvent.GetType().Name;
+                    var content = JsonConvert.SerializeObject(domainEvent, new JsonSerializerSettings
                     {
                         TypeNameHandling = TypeNameHandling.All
-                    })
+                    });
+
+                    // A 2FA code / reset link / confirmation link never sits in the table in plaintext. Without the
+                    // protector (its key is missing) the write fails instead of quietly storing the secret.
+                    if (OutboxPayloadProtector.CarriesSecret(type))
+                    {
+                        content = (_outboxPayloadProtector
+                            ?? throw new InvalidOperationException(
+                                $"{type} carries a secret but no OutboxPayloadProtector is configured (Security:SettingsEncryptionKey)."))
+                            .Seal(type, content);
+                    }
+
+                    return new OutboxMessage
+                    {
+                        Id = Guid.NewGuid(),
+                        OccurredOnUtc = DateTime.UtcNow,
+                        Type = type,
+                        Content = content
+                    };
                 })
                 .ToList();
 
@@ -705,7 +725,7 @@ namespace ERP.Identity.Infrastructure.Persistence
                 entity.HasKey(w => w.Id);
                 entity.Property(w => w.Name).IsRequired().HasMaxLength(200);
                 entity.Property(w => w.Url).IsRequired().HasMaxLength(2000);
-                entity.Property(w => w.Secret).HasMaxLength(200);
+                entity.Property(w => w.Secret).HasMaxLength(1000); // ciphertext of a <=200 character secret
                 entity.Property(w => w.EventTypesRaw).HasMaxLength(2000);
                 entity.HasIndex(w => w.TenantId);
             });

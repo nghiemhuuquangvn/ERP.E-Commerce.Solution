@@ -70,7 +70,8 @@ plan → approval → implement + tests + docs, one branch per plan.
 | P0-5 | ✅ 2026-10-22 — Saga-created shipments have placeholder recipient/address — `CreateShipmentCommand` must carry the delivery address | `src/services/ShippingService/src/ERP.SHP.Infrastructure/EventBus/SalesOrderRabbitMqConsumer.cs` |
 | P0-6 | ✅ 2026-10-22 — POS sales never reduce stock (voided completed sales now restock too) — Warehouse must consume `pos-topic` `TransactionCreated` | POS `Program.cs` comment |
 | P0-7 | ✅ 2026-10-23 (`fix/identity-external-login`) — was: Identity: `ExternalLoginRepository` throws `NotImplementedException`; external auto-provisioning fails; 2FA email OTP goes to the masked address | PROJECT-STATUS §4 P1 |
-| P0-8 | NuGet `System.Security.Cryptography.Pkcs` advisory; Identity phase 2 hardening | PROJECT-STATUS §4 P0 |
+| P0-8 | ✅ 2026-10-23 (`fix/security-hygiene`) — was: NuGet `System.Security.Cryptography.Pkcs` advisory; Identity phase 2 hardening | PROJECT-STATUS §4 P0 |
+| P0-10 | Per-service SQL logins (least privilege) instead of `sa`, `Encrypt=True` with a trusted certificate; Notification's own webhook secrets; phone-number verification for SMS 2FA (split off P0-8) | SecurityReview M6 / M7 |
 
 ### P1 — Cross-service business flows
 | ID | Item |

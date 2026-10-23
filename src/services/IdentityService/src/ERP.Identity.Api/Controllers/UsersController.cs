@@ -83,6 +83,9 @@ namespace ERP.Identity.Api.Controllers
             return Ok(new { message = "Password changed successfully" });
         }
 
+        private DateTimeOffset? TokenIssuedAt() =>
+            long.TryParse(User.FindFirst("iat")?.Value, out var seconds) ? DateTimeOffset.FromUnixTimeSeconds(seconds) : null;
+
         [HttpPost("{id}/2fa/enable")]
         [AuthorizeAnyAuthenticatedUser]
         public async Task<IActionResult> EnableTwoFactor([FromRoute] Guid id, [FromBody] EnableTwoFactorRequest request, CancellationToken ct = default)
@@ -99,13 +102,13 @@ namespace ERP.Identity.Api.Controllers
             if (!tenantSettings.TwoFactorEnabled)
                 return BadRequest(new { message = "Two-factor authentication is disabled for this tenant." });
 
-            await _userService.EnableTwoFactorAsync(id, request.Method, request.PhoneNumber, ct);
+            await _userService.EnableTwoFactorAsync(id, request.Method, request.PhoneNumber, request.CurrentPassword, TokenIssuedAt(), ct);
             return Ok(new { message = "Two-factor authentication enabled successfully" });
         }
 
         [HttpPost("{id}/2fa/disable")]
         [AuthorizeAnyAuthenticatedUser]
-        public async Task<IActionResult> DisableTwoFactor([FromRoute] Guid id, CancellationToken ct = default)
+        public async Task<IActionResult> DisableTwoFactor([FromRoute] Guid id, [FromBody] DisableTwoFactorRequest? request = null, CancellationToken ct = default)
         {
             var callerUserId = this.GetCallerUserId();
             if (callerUserId is null || callerUserId.Value != id)
@@ -119,7 +122,7 @@ namespace ERP.Identity.Api.Controllers
             if (tenantSettings.TwoFactorRequired)
                 return BadRequest(new { message = "Two-factor authentication is mandatory for this tenant and cannot be disabled." });
 
-            await _userService.DisableTwoFactorAsync(id, ct);
+            await _userService.DisableTwoFactorAsync(id, request?.CurrentPassword, TokenIssuedAt(), ct);
             return Ok(new { message = "Two-factor authentication disabled successfully" });
         }
 

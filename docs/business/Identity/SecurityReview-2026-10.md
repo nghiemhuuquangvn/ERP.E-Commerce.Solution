@@ -31,18 +31,55 @@ The leaked JWT key is still used as the shared **local Development** key; `JwtKe
 | H1 | High | `/auth/confirm-email` confirmed any account by UserId alone | **Fixed** — single-use hashed `EmailConfirmToken`, issued on register/tenant signup |
 | H2 | High | OIDC `/connect/login` bypassed lockout, attempt counter, rate limit, 2FA, IsActive, audit; open redirect via ReturnUrl; no CSRF protection | **Fixed** — shared checks via `IAuthService.VerifyInteractiveCredentialsAsync`, antiforgery, ReturnUrl limited to `/connect/authorize`, 2FA-required users denied |
 | H3 | High | Deactivated users/tenants could still log in and refresh; deactivate / password reset / change didn't end sessions | **Fixed** — `EnsureAccountCanAuthenticateAsync` on every token path; `ISessionService.RevokeAllForUserAsync` |
-| H4 | High | Rate limits and brute-force counter keyed on the client-supplied `X-Forwarded-For` | **Fixed** — `UseForwardedHeaders`, trusting only `ForwardedHeaders:KnownNetworks`, `ForwardLimit = 1` |
+| H4 | High | Rate limits and brute-force counter keyed on the client-supplied `X-Forwarded-For` | **Fixed** — `UseForwardedHeaders`, trusting only `ForwardedHeaders:KnownNetworks`; the client is the entry `ForwardedHeaders:TrustedHops` places from the right (was a fixed 1, which behind two nginx hops put every user in one bucket — fixed 2026-10-23) |
 | H5 | High | Webhook SSRF: any http(s) URL incl. internal hosts / cloud metadata | **Fixed** — https + public host only, checked on save and on resolved IPs at connect time, no redirects |
 | M4 | Medium | `AssignRole`/`RemoveRole` looked up users without tenant scope (cross-tenant role grant) | **Fixed** |
 | — | Medium | Refresh-token reuse detection "revoked" device sessions read `AsNoTracking` → never persisted | **Fixed** (via `RevokeAllForUserAsync`) |
 | M1 | Medium | Symmetric HS256 key shared by every service; token blacklist only checked by Identity | **Fixed** — revocation store (phase 3); RS256 via JWKS (phase 4); `Jwt:Key` removed everywhere (2026-10-21) |
 | M2 | Medium | OpenIddict signing cert self-generated in the container's user store (lost on restart, differs per replica) | **Fixed — phase 4** — Key Vault (production) / PFX on a persistent volume (local); see `SigningKeys.md` |
-| M3 | Medium | 2FA resend doesn't invalidate the previous challenge; OTP plaintext retained in `OutboxMessages` and Kafka | Open |
+| M3 | Medium | 2FA resend doesn't invalidate the previous challenge; OTP plaintext retained in `OutboxMessages` and Kafka | **Fixed 2026-10-23** (P0-8) — every new challenge supersedes the user's open ones; the code and the reset / confirmation links are encrypted in the outbox row (`enc:v1:`) and overwritten with `[redacted]` once published |
 | M5 | Medium | Tenant `ADMIN` role has `identity:tenants:view` → can list all tenants | Open |
-| M6 | Medium | Swagger enabled in Production; every service connects as `sa` with `Encrypt=False` | Open |
-| M7 | Medium | Enabling/disabling 2FA or changing its phone number needs no re-authentication / phone verification | Open |
-| — | Medium | Webhook `Secret` stored in plaintext (`ISecretProtector` exists but `Security:SettingsEncryptionKey` isn't configured for Identity, so wiring it now would break webhook CRUD and the outbox) | Open |
+| M6 | Medium | Swagger enabled in Production; every service connects as `sa` with `Encrypt=False` | **Swagger fixed 2026-10-23** (P0-8; 17 services, guard test). `sa` / `Encrypt=False` still open → ROADMAP P0-10 |
+| M7 | Medium | Enabling/disabling 2FA or changing its phone number needs no re-authentication / phone verification | **Re-authentication fixed 2026-10-23** (P0-8) — the current password is required. Phone-number verification still open |
+| — | Medium | Webhook `Secret` stored in plaintext | **Fixed 2026-10-23** (P0-8) — encrypted at rest (`enc:v1:`); a startup job encrypts older rows |
 | L1–L4 | Low | Enumeration via register 409 / timing; Microsoft external-login issuer config can't validate real tokens; `AuthorizePermission` bypass checks role `SuperAdmin` but the code is `SUPER_ADMIN` (fail-closed) | Open |
+
+
+## Phase 2 hardening (2026-10-23, ROADMAP P0-8)
+
+- **NuGet:** `System.Security.Cryptography.Pkcs` (GHSA-846f-f764-76mx High, GHSA-2fmv-rv2c-59x7) came in through
+  `Microsoft.Data.SqlClient`; every `*.Infrastructure` project now pins 10.0.13, as does `System.Security.Cryptography.Xml`
+  in Identity and Product. (AutoMapper in PurchaseOrder keeps its separate, documented NU1903.)
+- **2FA resend:** `TwoFactorChallenge.Supersede()`; `CreateTwoFactorChallengeAsync` ends the user's open challenges
+  before issuing the next, and a verified challenge cannot be resent.
+- **Re-authentication:** `POST users/{id}/2fa/enable|disable` take `currentPassword`. An account that only signs in
+  through an external provider has no usable password, so it may send none while its access token is at most
+  `Auth:ReauthenticationWindowMinutes` (5) old; a refresh renews the token's `iat`, so this bounds a stolen access token,
+  not a stolen refresh token. Failures are audited (`TwoFactorEnable` / `TwoFactorDisable`).
+- **Secrets in messages:** `OutboxPayloadProtector` encrypts `Code` / `ResetLink` / `ConfirmLink` with `ISecretProtector`
+  (`SecretEnvelope`, prefix `enc:v1:`) when the outbox row is written; `OutboxProcessor` overwrites them with `[redacted]`
+  after the publish; NotificationService opens sealed values and still accepts plaintext from older messages. Identity
+  refuses to write such an event without the key. **Identity and NotificationService must share
+  `Security:SettingsEncryptionKey`** (compose: `SETTINGS_ENCRYPTION_KEY` in `.env`, required). Changing the key makes
+  undelivered messages and stored webhook secrets unreadable (codes live 5 minutes; webhook secrets would need re-entering).
+  The Kafka topic keeps the sealed value, never the plaintext.
+- **Webhook secrets:** encrypted on save (`WebhookEndpointService`), decrypted by `OutboxProcessor` to sign; saving a form
+  without a secret keeps the stored one. `WebhookSecretEncryptionJob` encrypts rows written earlier at startup.
+  NotificationService's own webhook table still stores plaintext (follow-up).
+- **Swagger / OpenAPI** only when `IsDevelopment()` (`SwaggerOnlyInDevelopmentTests`). For local debugging use the
+  `docker-compose.debug.yml` override with Development.
+- **Gateway rate limiting** (`GatewayRateLimiter`): 30 requests per client IP per minute on sign-in / sign-up / password
+  reset / refresh / 2FA / external login / `/connect/token` / `/connect/authorize`, and 30 on non-GET chatbot calls
+  (`RateLimiting:AuthPermitPerMinute`, `ChatPermitPerMinute`, `Enabled`), 429 with `Retry-After`. Counters are per Gateway
+  replica. Identity keeps its finer per-IP limits and the per-account lockout.
+- **Client IP:** `ForwardedHeaders:TrustedHops` (default 1) is the number of proxies in front of the service that append
+  to `X-Forwarded-For`. The local stack is nginx → SPA nginx → Gateway → Identity = **2** (set in `docker-compose.yml`
+  for the Gateway and Identity). A value that is too low puts users in one bucket; too high makes the header spoofable.
+  **Set it to match the real ingress chain on Kubernetes** (the configmap keeps the default 1).
+
+Behaviour changes: 2FA enable / disable fail without the password; Swagger URLs are gone outside Development; the Gateway
+answers 429 beyond the limits; compose needs `SETTINGS_ENCRYPTION_KEY`; run Identity migrations `027` (blanks delivered
+secrets in old outbox rows) and `028` (wider `WebhookEndpoints.Secret`).
 
 ## Behavior changes to be aware of
 

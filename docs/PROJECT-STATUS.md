@@ -33,6 +33,23 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-23 — ROADMAP P0-8: security hygiene (`fix/security-hygiene`, unmerged)
+- NuGet advisory fixed (Pkcs/Xml 10.0.13 pinned in every Infrastructure csproj).
+- Identity: resend supersedes the earlier 2FA challenge; 2FA enable/disable re-asks the current password (external-only
+  accounts: token ≤ 5 min old); the code and reset / confirmation links are encrypted in `OutboxMessages` (`enc:v1:`) and
+  overwritten with `[redacted]` after the publish; webhook secrets encrypted at rest. Details and key handling:
+  SecurityReview "Phase 2 hardening". **Needs `SETTINGS_ENCRYPTION_KEY` (same value for Identity and Notification) and
+  Identity migrations 027, 028.**
+- Swagger / OpenAPI only in Development in 17 services (`SwaggerOnlyInDevelopmentTests`).
+- Gateway: per-IP rate limit (30/min) on sign-in, token and chat endpoints.
+- Found on the way: Identity recorded the first nginx (not the client) as the caller's IP behind the two nginx hops, so the
+  per-IP limits and the failed-login window were shared by all users. `ForwardedHeaders:TrustedHops` fixes it
+  (compose: 2; **set it for the real ingress chain on Kubernetes**).
+- Verified in Docker: password re-ask on 2FA enable/disable, old code rejected after a resend, delivered outbox rows
+  redacted while Notification still got the real code, webhook secret stored as `enc:v1:` and kept on a secret-less
+  update, Identity Swagger 404, 429 from the 31st request even with rotating `X-Forwarded-For`.
+- Split off as ROADMAP P0-10: per-service SQL logins + `Encrypt=True`, Notification webhook secrets, SMS number verification.
+
 ### 2026-10-23 — ROADMAP P0-7: Identity external login and 2FA OTP (`fix/identity-external-login`, unmerged)
 - External login: `GetByExternalProviderAsync` returned an exception instead of null, so no new Google/Microsoft/
   Facebook/Twitter user could ever be provisioned; `User.Create` rejected the empty password hash; the stored link had
@@ -279,10 +296,8 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 - Service authorization phase 5 (plan in SecurityReview "Service authorization review"):
   migrate the 57 allowlisted controllers to attributes, hub ticket-only (also closes guest chat
   within one tenant: hub methods don't check the guest session), `ValidAlgorithms`.
-- NuGet: `System.Security.Cryptography.Pkcs` 9.0.4 high-severity advisory (transitive, every service).
-- Identity Phase 2: invalidate old 2FA challenge on resend & keep OTP out of `OutboxMessages`; Swagger off in
-  prod; per-service SQL logins instead of `sa`, `Encrypt=True`; re-auth for 2FA changes; encrypt
-  webhook secrets (needs `Security:SettingsEncryptionKey`); Gateway-level rate limiting.
+- (P0-8 closed 2026-10-23: NuGet advisory, Identity phase 2, Swagger, Gateway rate limiting.) Still open: per-service SQL logins +
+  `Encrypt=True` (ROADMAP P0-10).
 
 **P1 — broken / unfinished**
 - External-login auto-provisioning always fails (`User.Create` rejects empty PasswordHash).
@@ -366,7 +381,7 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 
 ## 8. Next step: ROADMAP P0-9 (schema alignment), rest of P0, then P1 (needs a plan + approval)
 
-Update 2026-10-23: P0-1, P0-9 and P0-7 are closed. Next: P0-8 (NuGet advisory, Identity phase 2), then P1-1. The text below is from 2026-10-22.
+Update 2026-10-23: P0-1, P0-9, P0-7 and P0-8 are closed. Next: P1-1 (P0-10, least-privilege SQL access, can be scheduled any time). The text below is from 2026-10-22.
 
 Working checklist: `task.md` at the repo root (same IDs as `docs/ROADMAP.md`).
 

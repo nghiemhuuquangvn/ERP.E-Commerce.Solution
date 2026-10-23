@@ -19,7 +19,9 @@ namespace ERP.Identity.Domain.Entities
         public string Url { get; private set; } = default!;
 
         /// <summary>Used to HMAC-SHA256-sign each delivered payload (X-Hub-Signature header)
-        /// so the receiver can verify authenticity — null means unsigned deliveries.</summary>
+        /// so the receiver can verify authenticity — null means unsigned deliveries. Stored ENCRYPTED
+        /// (<c>enc:v1:</c>, see SecretEnvelope); rows written before that hold the plaintext until the startup job
+        /// re-encrypts them.</summary>
         public string? Secret { get; private set; }
 
         public bool IsActive { get; private set; }
@@ -60,10 +62,15 @@ namespace ERP.Identity.Domain.Entities
         {
             Name = name;
             Url = url;
-            Secret = secret;
+            // The secret is never shown back to the client, so a form that is saved again without one must not wipe it.
+            if (!string.IsNullOrEmpty(secret))
+                Secret = secret;
             EventTypesRaw = string.Join(",", eventTypes);
             UpdatedAt = DateTime.UtcNow;
         }
+
+        /// <summary>Replaces the stored form of the secret (encrypting it) without touching anything else.</summary>
+        public void SetStoredSecret(string? secret) => Secret = secret;
 
         public void Activate()
         {

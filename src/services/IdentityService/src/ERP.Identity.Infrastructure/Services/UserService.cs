@@ -5,7 +5,9 @@ using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Domain.Entities;
 using ERP.Identity.Infrastructure.Localization;
 using ERP.Shared.Infrastructure.Exceptions;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Localization;
+using System.Linq;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,6 +22,7 @@ namespace ERP.Identity.Infrastructure.Services
         private readonly IPasswordPolicyService _passwordPolicyService;
         private readonly IStringLocalizer<AuthMessages> _localizer;
         private readonly ISessionService _sessionService;
+        private readonly IConfiguration _configuration;
 
         public UserService(
             IUnitOfWork unitOfWork,
@@ -27,8 +30,10 @@ namespace ERP.Identity.Infrastructure.Services
             ISecurityAuditService securityAuditService,
             IPasswordPolicyService passwordPolicyService,
             IStringLocalizer<AuthMessages> localizer,
-            ISessionService sessionService)
+            ISessionService sessionService,
+            IConfiguration configuration)
         {
+            _configuration = configuration;
             _unitOfWork = unitOfWork;
             _passwordHasher = passwordHasher;
             _securityAuditService = securityAuditService;
@@ -254,26 +259,66 @@ namespace ERP.Identity.Infrastructure.Services
             return new InviteUserToTenantResponse(user.Id, callerTenantId, AlreadyMember: false);
         }
 
-        public async Task EnableTwoFactorAsync(Guid id, string method, string? phoneNumber, CancellationToken ct)
+        public async Task EnableTwoFactorAsync(Guid id, string method, string? phoneNumber, string? currentPassword, DateTimeOffset? tokenIssuedAt, CancellationToken ct)
         {
             var user = await _unitOfWork.Users.GetByIdAsync(id, ct);
             if (user == null)
                 throw new InvalidOperationException($"User with id '{id}' not found");
+
+            await ConfirmCallerAsync(user, "TwoFactorEnable", currentPassword, tokenIssuedAt, ct);
 
             user.EnableTwoFactor(method, phoneNumber);
             await _unitOfWork.Users.UpdateAsync(user, ct);
+            await _securityAuditService.LogAsync("TwoFactorEnable", true, user.TenantId, id, user.Email, details: method, ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
-        public async Task DisableTwoFactorAsync(Guid id, CancellationToken ct)
+        public async Task DisableTwoFactorAsync(Guid id, string? currentPassword, DateTimeOffset? tokenIssuedAt, CancellationToken ct)
         {
             var user = await _unitOfWork.Users.GetByIdAsync(id, ct);
             if (user == null)
                 throw new InvalidOperationException($"User with id '{id}' not found");
 
+            await ConfirmCallerAsync(user, "TwoFactorDisable", currentPassword, tokenIssuedAt, ct);
+
             user.DisableTwoFactor();
             await _unitOfWork.Users.UpdateAsync(user, ct);
+            await _securityAuditService.LogAsync("TwoFactorDisable", true, user.TenantId, id, user.Email, ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
+        }
+
+        /// <summary>
+        /// A stolen access token must not be enough to switch the second factor off (or to point it at the thief's phone):
+        /// the caller proves they know the account password, like <see cref="ChangePasswordAsync"/>. An account that only
+        /// ever signed in through an external provider has no password of its own, so it may instead present a token
+        /// issued within the last few minutes.
+        /// </summary>
+        private async Task ConfirmCallerAsync(User user, string auditEvent, string? currentPassword, DateTimeOffset? tokenIssuedAt, CancellationToken ct)
+        {
+            if (!string.IsNullOrEmpty(currentPassword))
+            {
+                if (_passwordHasher.VerifyPassword(user.PasswordHash, currentPassword))
+                    return;
+
+                await _securityAuditService.LogAsync(auditEvent, false, user.TenantId, user.Id, user.Email, errorReason: "Current password incorrect", ct: ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+                throw new BusinessRuleException("CurrentPasswordIncorrect", "Current password is incorrect.");
+            }
+
+            var links = await _unitOfWork.ExternalLogins.GetAllAsync(l => l.UserId == user.Id && l.IsActive, ct: ct);
+            var signsInExternally = links != null && links.Any();
+            var windowMinutes = _configuration.GetValue("Auth:ReauthenticationWindowMinutes", 5);
+            var isFresh = tokenIssuedAt != null && DateTimeOffset.UtcNow - tokenIssuedAt.Value <= TimeSpan.FromMinutes(windowMinutes);
+
+            if (signsInExternally && isFresh)
+                return;
+
+            await _securityAuditService.LogAsync(auditEvent, false, user.TenantId, user.Id, user.Email, errorReason: "Re-authentication required", ct: ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+            throw new BusinessRuleException("ReauthenticationRequired",
+                signsInExternally
+                    ? "Sign in again, then retry within a few minutes."
+                    : "Enter your current password to change two-factor authentication.");
         }
     }
 }

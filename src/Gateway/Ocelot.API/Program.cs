@@ -3,6 +3,7 @@ using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 using Ocelot.API.Authorization;
 using Ocelot.API.Monitoring;
+using Ocelot.API.RateLimiting;
 using ERP.Shared.Authorization;
 using ERP.Shared.Extensions;
 using Serilog;
@@ -52,6 +53,9 @@ try
     builder.Services.AddHttpClient("health")
         .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(5));
 
+    // Outer per-client-IP limit on sign-in / token / chat endpoints (see GatewayRateLimiter).
+    builder.Services.AddGatewayRateLimiting(builder.Configuration);
+
     // Tenant-from-host resolution (IdentityService owns tenants + their domains).
     builder.Services.AddTenantHostResolver(builder.Configuration);
 
@@ -71,6 +75,9 @@ try
 
     // Metrics tracking middleware — before Ocelot so we track all requests
     app.UseMiddleware<RequestMetricsMiddleware>();
+
+    // Before authentication so a flood of bad credentials costs the Gateway as little as possible.
+    app.UseGatewayRateLimiting();
 
     app.UseAuthentication();
     app.UseAuthorization();

@@ -1,6 +1,8 @@
 using ERP.Identity.Application.Interfaces;
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
+using ERP.Identity.Infrastructure.Security;
+using ERP.Shared.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -66,12 +68,15 @@ namespace ERP.Identity.Infrastructure.BackgroundJobs
                                 message.ProcessedOnUtc = DateTime.UtcNow;
                                 message.Error = null; // Xóa lỗi cũ nếu có
 
+                                // Delivered: the code / link has done its job, so it must not stay in the table.
+                                message.Content = OutboxPayloadProtector.Redact(message.Type, message.Content);
+
                                 // Fire-and-forget webhook delivery alongside the Kafka publish —
                                 // mirrors NotificationService's WebhookSender pattern exactly (no
                                 // persisted retry queue). A webhook failure never affects the
                                 // OutboxMessage's own processed/error state — Kafka delivery is
                                 // the durable guarantee, webhooks are best-effort.
-                                await DeliverWebhooksAsync(unitOfWork, webhookSender, message.Type, message.Content, stoppingToken);
+                                await DeliverWebhooksAsync(unitOfWork, webhookSender, scope.ServiceProvider, message.Type, message.Content, stoppingToken);
                             }
                             catch (Exception ex)
                             {
@@ -118,7 +123,7 @@ namespace ERP.Identity.Infrastructure.BackgroundJobs
         /// dedicated OutboxMessage column, since that table has no tenant concept today.
         /// </summary>
         private async Task DeliverWebhooksAsync(
-            IUnitOfWork unitOfWork, IWebhookSender webhookSender, string? eventType, string? content, CancellationToken ct)
+            IUnitOfWork unitOfWork, IWebhookSender webhookSender, IServiceProvider scopeServices, string? eventType, string? content, CancellationToken ct)
         {
             if (string.IsNullOrEmpty(eventType) || string.IsNullOrEmpty(content))
                 return;
@@ -145,7 +150,12 @@ namespace ERP.Identity.Infrastructure.BackgroundJobs
                 if (!endpoint.Matches(eventType))
                     continue;
 
-                await webhookSender.SendAsync(endpoint.Url, endpoint.Secret, eventType, new { eventType, tenantId, data = JObject.Parse(content) }, ct);
+                // Stored encrypted; a value without the marker is a secret saved before encryption was introduced.
+                var secret = endpoint.Secret;
+                if (SecretEnvelope.IsSealed(secret))
+                    secret = SecretEnvelope.Open(scopeServices.GetRequiredService<ISecretProtector>(), secret!);
+
+                await webhookSender.SendAsync(endpoint.Url, secret, eventType, new { eventType, tenantId, data = JObject.Parse(content) }, ct);
             }
         }
     }

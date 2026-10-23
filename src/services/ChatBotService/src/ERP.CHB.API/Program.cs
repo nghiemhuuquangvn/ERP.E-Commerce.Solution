@@ -104,8 +104,12 @@ var app = builder.Build();
 // "Request failed with status code 500" instead of a diagnosable error.
 app.UseGlobalExceptionHandling();
 
-app.UseSwagger();
-app.UseSwaggerUI();
+// API documentation is for developers only: never expose the endpoint list in Production.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseCors("ChatBotCors");
 app.UseAuthentication();

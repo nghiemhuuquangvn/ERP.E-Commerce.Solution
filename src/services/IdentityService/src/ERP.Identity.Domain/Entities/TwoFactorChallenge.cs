@@ -88,5 +88,17 @@ namespace ERP.Identity.Domain.Entities
         {
             VerifiedAt = DateTime.UtcNow;
         }
+
+        /// <summary>
+        /// Ends this challenge because a newer one replaced it: its code can no longer be used. Without this every
+        /// resend left the earlier codes valid, each with its own set of attempts (more guesses for an attacker).
+        /// </summary>
+        public void Supersede()
+        {
+            if (VerifiedAt == null && DateTime.UtcNow < ExpiredAt)
+                ExpiredAt = DateTime.UtcNow;
+        }
+
+        public bool IsVerified => VerifiedAt != null;
     }
 }

@@ -579,4 +579,47 @@ public class AuthServiceTests
         _twoFactorChallenges.Verify(c => c.AddAsync(It.IsAny<TwoFactorChallenge>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+
+    // ---- P0-8: a resend replaces the earlier code ----
+
+    private static TwoFactorChallenge OpenChallenge(User user, Guid tenantId, string code) =>
+        TwoFactorChallenge.Create(user.Id, tenantId, "hashed:" + code, "Email", "vi***@acme.test", user.Email, 5, 3, code);
+
+    private static readonly Dictionary<string, string?> NoCooldown = new() { ["TwoFactorAuthentication:ResendCooldownSeconds"] = "0" };
+
+    [Fact]
+    public async Task ResendTwoFactor_EndsTheEarlierChallenge_SoOnlyTheNewCodeWorks()
+    {
+        var user = ExistingUser();
+        var first = OpenChallenge(user, _tenant.Id, "111111");
+        _twoFactorChallenges.Setup(c => c.GetByIdAsync(first.Id, It.IsAny<CancellationToken>())).ReturnsAsync(first);
+        _twoFactorChallenges.Setup(c => c.GetActiveForUserAsync(user.Id, _tenant.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<TwoFactorChallenge> { first });
+        TwoFactorChallenge? second = null;
+        _twoFactorChallenges.Setup(c => c.AddAsync(It.IsAny<TwoFactorChallenge>(), It.IsAny<CancellationToken>()))
+            .Callback<TwoFactorChallenge, CancellationToken>((c, _) => second = c);
+
+        var response = await CreateService(NoCooldown).ResendTwoFactorAsync(new ResendTwoFactorRequest(first.Id), CancellationToken.None);
+
+        response.Succeeded.Should().BeTrue();
+        second.Should().NotBeNull();
+        second!.Id.Should().NotBe(first.Id);
+        first.VerifyCode(_passwordHasher.Object.VerifyPassword, "111111").Should().BeFalse("the old code must stop working");
+        _twoFactorChallenges.Verify(c => c.UpdateAsync(first, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ResendTwoFactor_ForAChallengeThatAlreadySignedSomeoneIn_IsRefused()
+    {
+        var user = ExistingUser();
+        var done = OpenChallenge(user, _tenant.Id, "111111");
+        done.MarkVerified();
+        _twoFactorChallenges.Setup(c => c.GetByIdAsync(done.Id, It.IsAny<CancellationToken>())).ReturnsAsync(done);
+
+        var act = () => CreateService(NoCooldown).ResendTwoFactorAsync(new ResendTwoFactorRequest(done.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        _twoFactorChallenges.Verify(c => c.AddAsync(It.IsAny<TwoFactorChallenge>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
 }

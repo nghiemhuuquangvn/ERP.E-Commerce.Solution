@@ -209,6 +209,12 @@ services:
       ServiceAuth__SigningKeys__Source: "Ephemeral"
       # Shared token revocation store (logout/lock/permission changes take effect at once).
       ConnectionStrings__Redis: "redis:6379"
+      # Hops whose X-Forwarded-For the rate limiter believes (nginx, the SPA nginx containers).
+      ForwardedHeaders__KnownNetworks__0: "172.16.0.0/12"
+      ForwardedHeaders__KnownNetworks__1: "192.168.0.0/16"
+      ForwardedHeaders__KnownNetworks__2: "10.0.0.0/8"
+      # nginx → SPA nginx → Gateway: two proxies append to X-Forwarded-For in front of this service.
+      ForwardedHeaders__TrustedHops: "2"
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
@@ -235,6 +241,8 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5001"
       ASPNETCORE_ENVIRONMENT: Production
+      # Encrypts one-time secrets in messages / settings (SecretEnvelope). Identity and notification MUST share the value.
+      Security__SettingsEncryptionKey: "${SETTINGS_ENCRYPTION_KEY:?set SETTINGS_ENCRYPTION_KEY in .env (see .env.example)}"
       # /internal endpoints accept only these services' tokens (verified with their JWKS).
       ServiceAuth__Name: "identity"
       ServiceAuth__TrustedCallers__gateway: "http://gateway:5000/internal/jwks.json"
@@ -261,6 +269,8 @@ services:
       ForwardedHeaders__KnownNetworks__0: "172.16.0.0/12"
       ForwardedHeaders__KnownNetworks__1: "192.168.0.0/16"
       ForwardedHeaders__KnownNetworks__2: "10.0.0.0/8"
+      # nginx → SPA nginx → Gateway: two proxies append to X-Forwarded-For in front of this service.
+      ForwardedHeaders__TrustedHops: "2"
       # Tenant = request host. Local stack is reached via http://localhost (no tenant
       # host), so fall back to SYSTEM. NEVER set FallbackTenantCode in a real multi-tenant
       # deployment — every unknown host would become that tenant.
@@ -769,6 +779,8 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5013"
       ASPNETCORE_ENVIRONMENT: Production
+      # Encrypts one-time secrets in messages / settings (SecretEnvelope). Identity and notification MUST share the value.
+      Security__SettingsEncryptionKey: "${SETTINGS_ENCRYPTION_KEY:?set SETTINGS_ENCRYPTION_KEY in .env (see .env.example)}"
       ConnectionStrings__NotificationDb: "Server=${SQL_HOST:-sqlserver},1433;Database=NotificationDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"

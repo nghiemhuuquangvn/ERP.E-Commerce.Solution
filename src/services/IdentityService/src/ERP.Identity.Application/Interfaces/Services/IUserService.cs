@@ -17,8 +17,10 @@ public interface IUserService
     Task DeactivateAsync(Guid id, Guid callerTenantId, CancellationToken ct);
     Task AssignRoleAsync(Guid userId, string roleCode, Guid tenantId, Guid? changedByUserId, string? changedByName, CancellationToken ct);
     Task RemoveRoleAsync(Guid userId, Guid roleId, Guid tenantId, CancellationToken ct);
-    Task EnableTwoFactorAsync(Guid id, string method, string? phoneNumber, CancellationToken ct);
-    Task DisableTwoFactorAsync(Guid id, CancellationToken ct);
+    /// <summary>Changing 2FA re-asks for the current password (or, for an account that only signs in through an external
+    /// provider, needs an access token issued within <c>Auth:ReauthenticationWindowMinutes</c>).</summary>
+    Task EnableTwoFactorAsync(Guid id, string method, string? phoneNumber, string? currentPassword, DateTimeOffset? tokenIssuedAt, CancellationToken ct);
+    Task DisableTwoFactorAsync(Guid id, string? currentPassword, DateTimeOffset? tokenIssuedAt, CancellationToken ct);
 
     /// <summary>Attaches an already-existing account (by email) to callerTenantId as a
     /// new AuthUserTenant membership — does not create new accounts. Idempotent:

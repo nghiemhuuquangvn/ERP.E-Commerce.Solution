@@ -2,17 +2,23 @@ using ERP.Identity.Application.DTOs.Webhook;
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
 using ERP.Identity.Domain.Entities;
+using ERP.Shared.Security;
 
 namespace ERP.Identity.Infrastructure.Services
 {
     public class WebhookEndpointService : IWebhookEndpointService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ISecretProtector _secretProtector;
 
-        public WebhookEndpointService(IUnitOfWork unitOfWork)
+        public WebhookEndpointService(IUnitOfWork unitOfWork, ISecretProtector secretProtector)
         {
             _unitOfWork = unitOfWork;
+            _secretProtector = secretProtector;
         }
+
+        private string? Protect(string? secret) =>
+            string.IsNullOrEmpty(secret) ? null : SecretEnvelope.Seal(_secretProtector, secret);
 
         public async Task<IReadOnlyList<WebhookEndpointDto>> ListByTenantAsync(Guid tenantId, CancellationToken ct)
         {
@@ -22,7 +28,7 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task<WebhookEndpointDto> CreateAsync(Guid tenantId, CreateWebhookEndpointRequest request, CancellationToken ct)
         {
-            var endpoint = WebhookEndpoint.Create(tenantId, request.Name, request.Url, request.Secret, request.EventTypes ?? new List<string>());
+            var endpoint = WebhookEndpoint.Create(tenantId, request.Name, request.Url, Protect(request.Secret), request.EventTypes ?? new List<string>());
             await _unitOfWork.WebhookEndpoints.AddAsync(endpoint, ct);
             await _unitOfWork.SaveChangesAsync(ct);
             return ToDto(endpoint);
@@ -31,7 +37,7 @@ namespace ERP.Identity.Infrastructure.Services
         public async Task UpdateAsync(Guid id, Guid callerTenantId, UpdateWebhookEndpointRequest request, CancellationToken ct)
         {
             var endpoint = await GetOwnedAsync(id, callerTenantId, ct);
-            endpoint.Update(request.Name, request.Url, request.Secret, request.EventTypes ?? new List<string>());
+            endpoint.Update(request.Name, request.Url, Protect(request.Secret), request.EventTypes ?? new List<string>());
             await _unitOfWork.WebhookEndpoints.UpdateAsync(endpoint, ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
