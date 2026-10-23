@@ -59,4 +59,31 @@ public class ExternalLoginAndTwoFactorTests
 
         act.Should().Throw<ArgumentException>();
     }
+
+    private static TwoFactorChallenge NewChallenge(int expiryMinutes = 5) =>
+        TwoFactorChallenge.Create(Guid.NewGuid(), Tenant, "hash", "Email", "ab***@acme.test", "abcdef@acme.test", expiryMinutes, 3, "123456");
+
+    [Fact]
+    public void Supersede_EndsAnOpenChallenge_SoItsCodeNoLongerWorks()
+    {
+        var challenge = NewChallenge();
+        challenge.VerifyCode((_, _) => true, "123456").Should().BeTrue("sanity: the code works before it is superseded");
+
+        challenge.Supersede();
+
+        challenge.VerifyCode((_, _) => true, "123456").Should().BeFalse();
+    }
+
+    [Fact]
+    public void Supersede_LeavesAVerifiedChallengeAlone()
+    {
+        var challenge = NewChallenge();
+        challenge.MarkVerified();
+        var expiry = challenge.ExpiredAt;
+
+        challenge.Supersede();
+
+        challenge.ExpiredAt.Should().Be(expiry);
+        challenge.IsVerified.Should().BeTrue();
+    }
 }

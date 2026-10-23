@@ -286,6 +286,9 @@ namespace ERP.Identity.Infrastructure.Services
             var existing = await _unitOfWork.TwoFactorChallenges.GetByIdAsync(request.ChallengeId, ct);
             if (existing == null)
                 throw new UnauthorizedAccessException("Two-factor challenge not found");
+            // A challenge that already signed someone in is finished: it cannot be used to mint more codes.
+            if (existing.IsVerified)
+                throw new UnauthorizedAccessException("Two-factor challenge not found");
 
             var cooldownSeconds = GetConfigInt("TwoFactorAuthentication:ResendCooldownSeconds", 60);
             var createdAt = existing.CreatedAt ?? DateTime.UtcNow;
@@ -334,6 +337,14 @@ namespace ERP.Identity.Infrastructure.Services
                         ? "Two-factor authentication by SMS is enabled but the account has no phone number."
                         : "Two-factor authentication by email is enabled but the account has no email address.");
             var destination = MaskDestination(recipient);
+
+            // Only the newest code may be used: end every earlier challenge of this user before issuing the new one.
+            var previous = await _unitOfWork.TwoFactorChallenges.GetActiveForUserAsync(user.Id, tenantId, ct);
+            foreach (var old in previous ?? [])
+            {
+                old.Supersede();
+                await _unitOfWork.TwoFactorChallenges.UpdateAsync(old, ct);
+            }
 
             var plaintextCode = _twoFactorCodeGenerator.GenerateCode(codeLength);
             var codeHash = _passwordHasher.HashPassword(plaintextCode);
