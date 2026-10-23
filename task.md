@@ -37,17 +37,25 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
 
 ## P0 — finish first
 
-- [ ] **P0-1 First Docker run + merge the open branches**
-  - Start Docker, `docker compose up -d --build`, run migrations (`deployment/docker/run-migrations.sh`,
-    includes Identity `024`).
-  - Walk the checklist in `docs/PROJECT-STATUS.md` §5 (RS256 token, `/internal` calls, logout → 401)
-    plus the 2026-10-22 flows:
-    - approve a PO → Accounting bill has the PO total;
-    - storefront order → approve → shipment has the real address and lines;
-    - POS sale → inventory decreases; void it → inventory restored;
-    - tenant admin does not see **Logs**; platform admin (`admin.erp.local`) does.
-  - Merge in order: `feature/service-tokens` → `docs/system-inventory-roadmap` → `fix/roadmap-p0`.
-  - Done when: all checks pass in Docker and the branches are on `master` (PRs on the owner's go).
+- [x] **P0-1 First Docker run + merge the open branches** — closed 2026-10-23 (`fix/docker-first-run`)
+  - Branches: PR #10–#12 were already merged (`master` contains them).
+  - Verified in Docker: RS256 token + JWKS `kid`, `/internal` 401, logout → 401, tenant admin 403 / platform
+    admin 200 on Logs, PO two-level approval → one Accounting bill with the PO total.
+  - NOT verified (blocked by schema drift, see P0-9): POS sale/void ↔ inventory, storefront order → shipment.
+  - Fixed on the way: see `docs/architecture/schema-drift-2026-10-23.md` ("Fixed").
+  - How to run against the SQL Server installed on the host: `docker compose -f docker-compose.yml -f
+    docker-compose.localsql.yml up -d --build` with `SQL_HOST=host.docker.internal` in `.env`; Docker Desktop
+    needs ≥ 8 GB for WSL (`~/.wslconfig`), 4 GB hangs the engine.
+
+- [ ] **P0-9 Align the SQL schema with the EF models** (found by P0-1)
+  - Use `LiveSchemaDriftTests` as the oracle (`docs/architecture/schema-drift-2026-10-23.md`): 37 MISSING,
+    30 BLOCKER, plus type mismatches (POS `Transactions.PaymentMethod` INT vs string) — extend the test to
+    compare column types first.
+  - Replace the 40 remaining `JObject.Value<Guid?>(...)` calls (14 files) with `EventJson.GuidValue`, with a
+    consumer test each.
+  - Then re-run the unverified flows: POS sale/void ↔ stock, storefront order → approve → shipment.
+  - Done when: `LiveSchemaDriftTests` reports no drift on a database built from `src/Database` alone, and both
+    flows pass in Docker.
 
 - [ ] **P0-7 Identity external login & OTP**
   - `ExternalLoginRepository`: Delete/GetAll/GetById/Update throw `NotImplementedException`.

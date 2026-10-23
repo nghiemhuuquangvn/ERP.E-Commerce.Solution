@@ -2,7 +2,7 @@
 
 > Read this right after `CLAUDE.md` when picking the work up on another machine.
 > Keep it current: update it at the end of every work session (what changed, what's next).
-> Last updated: **2026-10-22** (ROADMAP P0-2…P0-6 fixed on `fix/roadmap-p0`; system inventory + roadmap: `docs/ROADMAP.md`).
+> Last updated: **2026-10-23** (ROADMAP P0-1 first Docker run on `fix/docker-first-run`; new P0-9 schema drift; system inventory + roadmap: `docs/ROADMAP.md`).
 
 ## 0. Start here (new machine / new developer)
 
@@ -32,6 +32,23 @@ All feature branches above are merged; start new work from `origin/master`.
 Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
+
+### 2026-10-23 — ROADMAP P0-1: first Docker run (`fix/docker-first-run`, unmerged)
+Full write-up: `docs/architecture/schema-drift-2026-10-23.md`. PR #10–#12 were already merged into `master`
+(§1 below is stale on that point). Ran the whole stack against the SQL Server installed on the host
+(`docker-compose.localsql.yml`, `SQL_HOST` in `.env`; the container SQL stays the default).
+- **Verified:** build of all images; Identity generates the RS256 signing/encryption certificates; token header
+  `RS256` with the `kid` listed in JWKS; `/internal/...` → 401 with no token and with a user token; logout → 401;
+  `logs:view` → tenant admin 403, platform admin 200; PO two-level approval → one Accounting bill with the PO total.
+- **Bugs found and fixed:** token tables without `UpdatedAt`/`IsDeleted` (register / tenant-signup 500);
+  `Bills.SupplierName` / `Invoices.CustomerName` NOT NULL; POS `TransactionItems.TenantId`; five legacy Product
+  tables; `JObject.Value<Guid?>` throwing on GUID strings (Accounting consumer fixed, 40 calls left);
+  `run-migrations.sh` hiding SQL errors; CRLF shell scripts crash-looping admin/storefront; WSL 4 GB hanging Docker.
+- **Not verified:** POS sale/void ↔ stock and storefront order → shipment — blocked by P0-9 (schema drift).
+- New: migrations Identity `025`, Accounting `007`, POS `006`, Product `016`/`017`; `EventJson`;
+  `LiveSchemaDriftTests` (opt-in, `ERP_DRIFT_SQL`).
+- Deployment: run the new migrations; the host databases were backed up (`*_pre-p0-1_20261023.bak` in the
+  instance's default backup folder) before the migrations ran.
 
 ### 2026-10-22 — ROADMAP P0-2…P0-6 (`fix/roadmap-p0`)
 Owner decisions: bill on final PO approval; POS sale never refused for stock (may go negative +
@@ -313,7 +330,11 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 | 2026-10-22 | Execution order: **P0 → P1 business flows → authorization phase 5 → CI/CD, tests, operations → missing UI → new modules** | `docs/ROADMAP.md` Part B |
 | 2026-10-22 | In scope as new ERP modules: **fixed assets, shared workflow/approval engine, HRM extension (recruitment/training/performance), manufacturing (BOM/MRP)** — each needs an ADR first | `docs/ROADMAP.md` P2-5…P2-8 |
 
-## 8. Next step: rest of ROADMAP P0, then P1 business flows (needs a plan + approval)
+## 8. Next step: ROADMAP P0-9 (schema alignment), rest of P0, then P1 (needs a plan + approval)
+
+Update 2026-10-23: P0-1 is closed; **P0-9** (SQL schema vs EF models, `docs/architecture/schema-drift-2026-10-23.md`)
+now comes first because POS ↔ stock and storefront → shipment cannot be verified before it. The text below is
+from 2026-10-22.
 
 Working checklist: `task.md` at the repo root (same IDs as `docs/ROADMAP.md`).
 
