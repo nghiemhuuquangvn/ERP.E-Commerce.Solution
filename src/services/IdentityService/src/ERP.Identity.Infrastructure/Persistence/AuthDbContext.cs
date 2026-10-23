@@ -725,7 +725,7 @@ namespace ERP.Identity.Infrastructure.Persistence
                 entity.HasKey(w => w.Id);
                 entity.Property(w => w.Name).IsRequired().HasMaxLength(200);
                 entity.Property(w => w.Url).IsRequired().HasMaxLength(2000);
-                entity.Property(w => w.Secret).HasMaxLength(200);
+                entity.Property(w => w.Secret).HasMaxLength(1000); // ciphertext of a <=200 character secret
                 entity.Property(w => w.EventTypesRaw).HasMaxLength(2000);
                 entity.HasIndex(w => w.TenantId);
             });

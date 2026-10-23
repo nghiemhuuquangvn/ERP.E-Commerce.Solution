@@ -187,6 +187,7 @@ namespace ERP.Identity.Infrastructure
             services.AddScoped<IPasswordPolicyService, PasswordPolicyService>();
 
             services.AddHostedService<OutboxProcessor>();
+            services.AddHostedService<WebhookSecretEncryptionJob>();
 
             return services;
         }
