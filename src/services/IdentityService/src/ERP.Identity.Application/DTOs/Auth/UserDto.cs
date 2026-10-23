@@ -24,4 +24,8 @@ public record UpdateProfileRequest(string? FullName, string? UserName);
 
 public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 
-public record EnableTwoFactorRequest(string Method, string? PhoneNumber);
+/// <summary>CurrentPassword re-confirms the caller (ROADMAP P0-8). Accounts that only ever signed in through an external
+/// provider have no password of their own; they may omit it while their access token is still fresh.</summary>
+public record EnableTwoFactorRequest(string Method, string? PhoneNumber, string? CurrentPassword = null);
+
+public record DisableTwoFactorRequest(string? CurrentPassword = null);

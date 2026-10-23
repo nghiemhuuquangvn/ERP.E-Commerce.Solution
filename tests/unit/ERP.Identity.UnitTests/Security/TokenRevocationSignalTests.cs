@@ -31,7 +31,8 @@ public class TokenRevocationSignalTests
 
     private UserService UserService() => new(
         _uow.Object, new Mock<IPasswordHasher>().Object, new Mock<ISecurityAuditService>().Object,
-        new Mock<IPasswordPolicyService>().Object, new Mock<IStringLocalizer<AuthMessages>>().Object, _sessions.Object);
+        new Mock<IPasswordPolicyService>().Object, new Mock<IStringLocalizer<AuthMessages>>().Object, _sessions.Object,
+        new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
 
     private User NewUser() => User.Create("u@example.test", "u@example.test", "hash", _tenantId, UserType.Customer);
 

@@ -1,6 +1,7 @@
 using Xunit;
 using FluentAssertions;
 using Moq;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Localization;
 using ERP.Identity.Application.DTOs.Auth;
 using ERP.Identity.Application.Interfaces.Repositories;
@@ -21,6 +22,7 @@ public class UserServiceTests
     private readonly Mock<ISecurityAuditService> _mockAudit = new();
     private readonly Mock<IPasswordPolicyService> _mockPasswordPolicy = new();
     private readonly Mock<ISessionService> _mockSessionService = new();
+    private readonly Mock<IExternalLoginRepository> _mockExternalLogins = new();
     private readonly UserService _userService;
     private readonly Guid _tenantId = Guid.NewGuid();
 
@@ -29,6 +31,9 @@ public class UserServiceTests
         _mockUnitOfWork.Setup(u => u.Revocations).Returns(new Mock<ERP.Identity.Application.Interfaces.Services.ITokenRevocationQueue>().Object);
         _mockUnitOfWork.Setup(uow => uow.Users).Returns(_mockUserRepository.Object);
         _mockUnitOfWork.Setup(uow => uow.Roles).Returns(_mockRoleRepository.Object);
+        _mockUnitOfWork.Setup(uow => uow.ExternalLogins).Returns(_mockExternalLogins.Object);
+        _mockPasswordHasher.Setup(h => h.VerifyPassword(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns<string, string>((hash, provided) => hash == "hashed:" + provided);
 
         _userService = new UserService(
             _mockUnitOfWork.Object,
@@ -36,7 +41,8 @@ public class UserServiceTests
             _mockAudit.Object,
             _mockPasswordPolicy.Object,
             new Mock<IStringLocalizer<AuthMessages>>().Object,
-            _mockSessionService.Object);
+            _mockSessionService.Object,
+            new ConfigurationBuilder().Build());
     }
 
     private static User NewUser(Guid tenantId, string email = "test@example.com") =>
@@ -147,5 +153,96 @@ public class UserServiceTests
         var act = () => _userService.RemoveRoleAsync(foreignUserId, Guid.NewGuid(), _tenantId, CancellationToken.None);
 
         await act.Should().ThrowAsync<EntityNotFoundException>();
+    }
+
+    // ---- P0-8: enabling / disabling 2FA re-asks for the password ----
+
+    private User UserWithPassword(string password = "Correct-Password-1")
+    {
+        var user = User.Create("owner@example.com", "owner", "hashed:" + password, _tenantId, UserType.Customer);
+        _mockUserRepository.Setup(r => r.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        _mockExternalLogins.Setup(r => r.GetAllAsync(It.IsAny<System.Linq.Expressions.Expression<Func<ExternalLogin, bool>>>(), null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ExternalLogin>().AsQueryable());
+        return user;
+    }
+
+    private void LinkedToGoogle(User user) =>
+        _mockExternalLogins.Setup(r => r.GetAllAsync(It.IsAny<System.Linq.Expressions.Expression<Func<ExternalLogin, bool>>>(), null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ExternalLogin> { ExternalLogin.Create(user.Id, _tenantId, "Google", "g-1", user.Email) }.AsQueryable());
+
+    [Fact]
+    public async Task EnableTwoFactor_WithTheRightPassword_Works_AndIsAudited()
+    {
+        var user = UserWithPassword();
+
+        await _userService.EnableTwoFactorAsync(user.Id, "Email", null, "Correct-Password-1", null, CancellationToken.None);
+
+        user.TwoFactorEnabled.Should().BeTrue();
+        _mockAudit.Verify(a => a.LogAsync("TwoFactorEnable", true, _tenantId, user.Id, user.Email, It.IsAny<string?>(), It.IsAny<string?>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("wrong-password")]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task EnableTwoFactor_WithAWrongOrMissingPassword_IsRefused_AndNothingChanges(string? password)
+    {
+        var user = UserWithPassword();
+
+        var act = () => _userService.EnableTwoFactorAsync(user.Id, "Sms", "+84901234567", password, DateTimeOffset.UtcNow, CancellationToken.None);
+
+        await act.Should().ThrowAsync<BusinessRuleException>();
+        user.TwoFactorEnabled.Should().BeFalse();
+        user.PhoneNumber.Should().NotBe("+84901234567", "a thief must not be able to point the second factor at their own phone");
+    }
+
+    [Fact]
+    public async Task DisableTwoFactor_WithAStolenAccessTokenAndNoPassword_IsRefused()
+    {
+        var user = UserWithPassword();
+        user.EnableTwoFactor("Email");
+
+        var act = () => _userService.DisableTwoFactorAsync(user.Id, null, DateTimeOffset.UtcNow, CancellationToken.None);
+
+        await act.Should().ThrowAsync<BusinessRuleException>().Where(e => e.RuleName == "ReauthenticationRequired");
+        user.TwoFactorEnabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DisableTwoFactor_WithTheRightPassword_Works()
+    {
+        var user = UserWithPassword();
+        user.EnableTwoFactor("Email");
+
+        await _userService.DisableTwoFactorAsync(user.Id, "Correct-Password-1", null, CancellationToken.None);
+
+        user.TwoFactorEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DisableTwoFactor_ExternalOnlyAccount_NeedsAFreshToken_NotAPassword()
+    {
+        var user = UserWithPassword();
+        LinkedToGoogle(user);
+        user.EnableTwoFactor("Email");
+
+        var stale = () => _userService.DisableTwoFactorAsync(user.Id, null, DateTimeOffset.UtcNow.AddMinutes(-30), CancellationToken.None);
+        await stale.Should().ThrowAsync<BusinessRuleException>();
+        user.TwoFactorEnabled.Should().BeTrue();
+
+        await _userService.DisableTwoFactorAsync(user.Id, null, DateTimeOffset.UtcNow.AddMinutes(-1), CancellationToken.None);
+        user.TwoFactorEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DisableTwoFactor_AFreshTokenAloneDoesNotCountForAnAccountWithAPassword()
+    {
+        var user = UserWithPassword();
+        user.EnableTwoFactor("Email");
+
+        var act = () => _userService.DisableTwoFactorAsync(user.Id, null, DateTimeOffset.UtcNow, CancellationToken.None);
+
+        await act.Should().ThrowAsync<BusinessRuleException>();
     }
 }
