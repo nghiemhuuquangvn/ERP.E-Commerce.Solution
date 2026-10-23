@@ -213,6 +213,8 @@ services:
       ForwardedHeaders__KnownNetworks__0: "172.16.0.0/12"
       ForwardedHeaders__KnownNetworks__1: "192.168.0.0/16"
       ForwardedHeaders__KnownNetworks__2: "10.0.0.0/8"
+      # nginx → SPA nginx → Gateway: two proxies append to X-Forwarded-For in front of this service.
+      ForwardedHeaders__TrustedHops: "2"
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
@@ -267,6 +269,8 @@ services:
       ForwardedHeaders__KnownNetworks__0: "172.16.0.0/12"
       ForwardedHeaders__KnownNetworks__1: "192.168.0.0/16"
       ForwardedHeaders__KnownNetworks__2: "10.0.0.0/8"
+      # nginx → SPA nginx → Gateway: two proxies append to X-Forwarded-For in front of this service.
+      ForwardedHeaders__TrustedHops: "2"
       # Tenant = request host. Local stack is reached via http://localhost (no tenant
       # host), so fall back to SYSTEM. NEVER set FallbackTenantCode in a real multi-tenant
       # deployment — every unknown host would become that tenant.

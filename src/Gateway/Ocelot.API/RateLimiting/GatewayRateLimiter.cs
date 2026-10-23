@@ -44,11 +44,13 @@ public sealed class GatewayRateLimiter : IDisposable
         RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private readonly IPNetwork[] _trustedProxies;
+    private readonly int _trustedHops;
     private readonly PartitionedRateLimiter<HttpContext> _limiter;
 
-    public GatewayRateLimiter(GatewayRateLimitOptions options, IEnumerable<string> trustedNetworks)
+    public GatewayRateLimiter(GatewayRateLimitOptions options, IEnumerable<string> trustedNetworks, int trustedHops = 1)
     {
         Options = options;
+        _trustedHops = Math.Max(1, trustedHops);
         _trustedProxies = trustedNetworks.Select(IPNetwork.Parse).ToArray();
         _limiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
         {
@@ -86,30 +88,31 @@ public sealed class GatewayRateLimiter : IDisposable
 
     /// <summary>
     /// The caller's address without changing the request (downstream services read X-Forwarded-For themselves).
-    /// Walks X-Forwarded-For from the right, skipping hops that are our own trusted proxies (nginx, the SPA nginx, ingress):
-    /// the first address that is not one of them is the client. Entries further left are client-supplied and ignored. A
-    /// request that did not come through a trusted proxy ignores the header altogether, so it cannot pick its own address.
+    /// Same rule as ASP.NET's ForwardedHeaders with ForwardLimit = TrustedHops (ForwardedHeaders:TrustedHops, the number of
+    /// proxies in front of the Gateway that append to the header): starting at the TCP peer, while the current address is
+    /// a trusted proxy and entries remain, move one entry left. Entries further left are client-supplied and ignored, and a
+    /// request that did not come from a trusted proxy ignores the header altogether, so a caller cannot pick its address.
     /// </summary>
     public string ClientIp(HttpContext context)
     {
         var peer = Normalize(context.Connection.RemoteIpAddress);
         if (peer is null)
             return "unknown";
-        if (!IsTrusted(peer) || !context.Request.Headers.TryGetValue("X-Forwarded-For", out var header))
+        if (!context.Request.Headers.TryGetValue("X-Forwarded-For", out var header))
             return peer.ToString();
 
-        var hops = header.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        IPAddress? client = null;
-        for (var i = hops.Length - 1; i >= 0; i--)
+        var entries = header.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var current = peer;
+        for (var step = 1; step <= _trustedHops && step <= entries.Length; step++)
         {
-            if (!IPAddress.TryParse(hops[i], out var hop))
-                break; // garbage from here left is not an address we can reason about
-            client = Normalize(hop);
-            if (!IsTrusted(client!))
+            if (!IsTrusted(current))
                 break;
+            if (!IPAddress.TryParse(entries[^step], out var hop))
+                break; // not an address we can reason about
+            current = Normalize(hop)!;
         }
 
-        return (client ?? peer).ToString();
+        return current.ToString();
     }
 
     private bool IsTrusted(IPAddress address) => _trustedProxies.Any(n => n.Contains(address));
@@ -159,7 +162,8 @@ public static class GatewayRateLimitingExtensions
         var options = configuration.GetSection(GatewayRateLimitOptions.SectionName).Get<GatewayRateLimitOptions>() ?? new GatewayRateLimitOptions();
         // Same setting Identity trusts for X-Forwarded-For; default: only a local proxy.
         var trusted = configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? ["127.0.0.0/8", "::1/128"];
-        return services.AddSingleton(new GatewayRateLimiter(options, trusted));
+        var hops = configuration.GetValue("ForwardedHeaders:TrustedHops", 1);
+        return services.AddSingleton(new GatewayRateLimiter(options, trusted, hops));
     }
 
     public static IApplicationBuilder UseGatewayRateLimiting(this IApplicationBuilder app) =>

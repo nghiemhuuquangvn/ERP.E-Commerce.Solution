@@ -12,8 +12,8 @@ public class GatewayRateLimitingTests
 {
     private static readonly string[] Trusted = ["172.16.0.0/12", "10.0.0.0/8"];
 
-    private static GatewayRateLimiter NewLimiter(int auth = 3, int chat = 2, bool enabled = true) =>
-        new(new GatewayRateLimitOptions { AuthPermitPerMinute = auth, ChatPermitPerMinute = chat, Enabled = enabled }, Trusted);
+    private static GatewayRateLimiter NewLimiter(int auth = 3, int chat = 2, bool enabled = true, int hops = 2) =>
+        new(new GatewayRateLimitOptions { AuthPermitPerMinute = auth, ChatPermitPerMinute = chat, Enabled = enabled }, Trusted, hops);
 
     private static DefaultHttpContext Request(string method, string path, string peer = "172.18.0.5", string? forwardedFor = null)
     {
@@ -118,12 +118,12 @@ public class GatewayRateLimitingTests
             (await SendAsync(limiter, Request("POST", "/api/v1/auth/login", forwardedFor: "203.0.113.7"))).Passed.Should().BeTrue();
     }
 
-    // ---- which address is "the client" ----
+    // ---- which address is "the client" (ForwardedHeaders:TrustedHops proxies append to X-Forwarded-For) ----
 
     [Fact]
-    public void ClientIp_IsTheFirstAddressFromTheRight_ThatIsNotATrustedProxy()
+    public void ClientIp_IsTheEntryTrustedHopsFromTheRight()
     {
-        using var limiter = NewLimiter();
+        using var limiter = NewLimiter(hops: 2);
 
         // client → nginx → SPA nginx → Gateway: "client, nginx" with the SPA nginx as the TCP peer.
         limiter.ClientIp(Request("POST", "/x", peer: "172.18.0.9", forwardedFor: "203.0.113.7, 172.18.0.4")).Should().Be("203.0.113.7");
@@ -132,9 +132,27 @@ public class GatewayRateLimitingTests
     [Fact]
     public void ClientIp_IgnoresWhatTheClientPutOnTheLeftOfTheHeader()
     {
-        using var limiter = NewLimiter();
+        using var limiter = NewLimiter(hops: 2);
 
         limiter.ClientIp(Request("POST", "/x", peer: "172.18.0.9", forwardedFor: "1.2.3.4, 198.51.100.20, 172.18.0.4")).Should().Be("198.51.100.20");
+    }
+
+    [Fact]
+    public void ClientIp_WithOneHop_IsTheLastEntry()
+    {
+        using var limiter = NewLimiter(hops: 1);
+
+        limiter.ClientIp(Request("POST", "/x", peer: "172.18.0.9", forwardedFor: "1.2.3.4, 198.51.100.20")).Should().Be("198.51.100.20");
+    }
+
+    [Fact]
+    public void ClientIp_WhenTheClientItselfLooksLikeAPrivateAddress_IsStillNotSpoofable()
+    {
+        using var limiter = NewLimiter(hops: 2);
+
+        // local Docker: the browser reaches nginx as the bridge address 172.18.0.1, inside a trusted range. A fake leftmost
+        // entry must still not win, because only two entries are read.
+        limiter.ClientIp(Request("POST", "/x", peer: "172.18.0.9", forwardedFor: "9.9.9.9, 172.18.0.1, 172.18.0.4")).Should().Be("172.18.0.1");
     }
 
     [Fact]
@@ -146,18 +164,17 @@ public class GatewayRateLimitingTests
     }
 
     [Fact]
-    public void ClientIp_WhenEveryHopIsTrusted_IsTheLeftmost()
+    public void ClientIp_WithFewerEntriesThanHops_StopsAtTheLeftmost()
     {
-        using var limiter = NewLimiter();
+        using var limiter = NewLimiter(hops: 3);
 
-        // local run: the browser reaches nginx as the Docker bridge address, which is inside a trusted range
-        limiter.ClientIp(Request("POST", "/x", peer: "172.18.0.9", forwardedFor: "172.18.0.1, 172.18.0.4")).Should().Be("172.18.0.1");
+        limiter.ClientIp(Request("POST", "/x", peer: "172.18.0.9", forwardedFor: "203.0.113.7")).Should().Be("203.0.113.7");
     }
 
     [Fact]
     public async Task ASpoofedHeader_CannotBuyAFreshBucket()
     {
-        using var limiter = NewLimiter(auth: 2);
+        using var limiter = NewLimiter(auth: 2, hops: 2);
         for (var i = 0; i < 2; i++)
             await SendAsync(limiter, Request("POST", "/api/v1/auth/login", forwardedFor: $"10.9.9.{i}, 203.0.113.7, 172.18.0.4"));
 
@@ -169,7 +186,7 @@ public class GatewayRateLimitingTests
     [Fact]
     public void ClientIp_MalformedHeader_FallsBackToThePeer()
     {
-        using var limiter = NewLimiter();
+        using var limiter = NewLimiter(hops: 2);
 
         limiter.ClientIp(Request("POST", "/x", peer: "172.18.0.9", forwardedFor: "not-an-ip")).Should().Be("172.18.0.9");
     }

@@ -71,13 +71,15 @@ if (!builder.Environment.IsDevelopment()
 
 // Client IP for rate limiting / brute-force counters / audit: X-Forwarded-For is only
 // honored when the immediate sender is a trusted proxy (nginx → Gateway on the private
-// Docker network), and only its right-most hop is taken (ForwardLimit = 1) — that hop is
-// the one nginx appends from the real TCP peer. Previously the raw client-supplied header
-// was used directly, so any caller could rotate it to bypass every per-IP limit.
+// Docker network). ForwardedHeaders:TrustedHops is the number of proxy hops that append to the header in front of
+// this service (1 = one nginx; the local compose stack has nginx → SPA nginx → Gateway = 2): the client is the entry
+// that many places from the right. A fixed 1 behind two hops took the first nginx as "the client", so every user
+// shared one bucket for the per-IP limits and the failed-login window; entries further left are client-supplied and
+// ignored, so rotating them cannot bypass a limit.
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.ForwardLimit = 1;
+    options.ForwardLimit = builder.Configuration.GetValue("ForwardedHeaders:TrustedHops", 1);
     options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
 
