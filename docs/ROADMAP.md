@@ -9,6 +9,9 @@
 > figure measures API/domain coverage per service. The code shows the gaps are **between**
 > services (events nobody consumes, no automatic GL posting, hard-coded payroll), in the
 > **frontends**, in **tests** and in **operations**.
+>
+> Problems found while doing the roadmap and left unfixed on purpose are tracked in
+> [DEFERRED-ISSUES.md](DEFERRED-ISSUES.md) — handle them after the main tasks.
 
 ## Part A — Completed
 

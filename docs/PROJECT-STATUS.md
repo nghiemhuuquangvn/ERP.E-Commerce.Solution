@@ -4,6 +4,8 @@
 > Keep it current: update it at the end of every work session (what changed, what's next).
 > Last updated: **2026-10-23** (ROADMAP P0-1 first Docker run on `fix/docker-first-run`; new P0-9 schema drift; system inventory + roadmap: `docs/ROADMAP.md`).
 
+> Open problems that were deliberately left unfixed: **docs/DEFERRED-ISSUES.md** (read it before picking the next task).
+
 ## 0. Start here (new machine / new developer)
 
 1. `git fetch && git switch master && git pull` — all finished work is on `master` (§1).
