@@ -47,11 +47,12 @@ public class ReceiveGoodsCommandHandler : IRequestHandler<ReceiveGoodsCommand, P
             kv => kv.Key,
             kv => new GoodsReceiptLineInput { QuantityAccepted = kv.Value.QuantityAccepted, QuantityRejected = kv.Value.QuantityRejected });
 
-        order.ReceiveGoods(receivedLines);
+        var receiptId = Guid.NewGuid();
+        order.ReceiveGoods(receivedLines, receiptId);
         order.UpdatedBy = user.UserId;
 
         var receiptNumber = $"GRN-{order.PONumber}-{DateTime.UtcNow:yyyyMMddHHmmss}";
-        var receipt = GoodsReceipt.Create(order.Id, tenantId, receiptNumber, user.UserId);
+        var receipt = GoodsReceipt.Create(order.Id, tenantId, receiptNumber, user.UserId, id: receiptId);
         _receiptRepository.Add(receipt);
 
         _repository.Update(order);
