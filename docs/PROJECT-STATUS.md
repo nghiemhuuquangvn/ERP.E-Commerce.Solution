@@ -33,6 +33,18 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-24 — ROADMAP P1-1e: refunds and returns → GL (`feat/gl-refunds`, unmerged) — closes P1-1
+- Payment: `PaymentRefundedEvent` is raised by `Payment.CompleteRefund` only after the gateway confirmed (it used to be raised when the refund was requested, so declined
+  refunds were published too); it carries `RefundId`, `Currency`, `Method`, `ProcessedAt`, `GatewayRefundId`. Payment events are Kafka-keyed by payment id. Over-refund → 409 (was 500).
+  New `tests/unit/ERP.PAY.UnitTests`.
+- Sales: `CompleteReturn` refuses a refund ≤ 0 or above the order total.
+- Accounting: refund → Dr 1100 / Cr 1000|bank and the invoice's `AmountPaid` goes down; `SalesOrderReturned` → Dr 4000 (key `SalesReturns`) / Cr 1100; cancelling a paid order now
+  cancels the invoice and reverses the revenue (cash stays as a receivable credit until the refund is booked). No migration.
+- Not done: restock + COGS reversal of returned goods, refund triggered by a return, return lines (all P1-5); refund idempotency key / gateway timeout reconciliation.
+- Verified live in Docker (SYSTEM tenant): invoice 1000 + captured payment; refund 400 → entry Dr 1100 / Cr 1000 and invoice `AmountPaid` 600, status reopened; over-refund refused;
+  `SalesOrderReturned` published to RabbitMQ → Dr 4000 / Cr 1100 1000; refund of the remaining 600 → AR of the order nets to 0. Cancel-after-payment is covered by unit tests only.
+- Tests: PAY 7 (new project), SO 6, ACC 88.
+
 ### 2026-10-24 — ROADMAP P1-1d: payroll → GL (`feat/gl-payroll`, unmerged)
 - HRM: a pay slip can now be paid (`POST hrm/payslips/{id}/pay`) or cancelled while pending (`…/cancel`); `PaySlipPaidEvent` / `PaySlipVoidedEvent` are new,
   `PaySlipGeneratedEvent` carries gross, overtime, deductions and the period end. A cancelled slip no longer blocks its month (HRM migration `007`, filtered
