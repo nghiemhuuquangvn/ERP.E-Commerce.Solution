@@ -33,6 +33,18 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-24 — ROADMAP P1-1d: payroll → GL (`feat/gl-payroll`, unmerged)
+- HRM: a pay slip can now be paid (`POST hrm/payslips/{id}/pay`) or cancelled while pending (`…/cancel`); `PaySlipPaidEvent` / `PaySlipVoidedEvent` are new,
+  `PaySlipGeneratedEvent` carries gross, overtime, deductions and the period end. A cancelled slip no longer blocks its month (HRM migration `007`, filtered
+  unique index; HRM 005–007 were also missing from `RunAllScripts.ps1`). Pay slip events are Kafka-keyed by pay slip id.
+- Accounting consumes `hrm-topic`: Dr 5200 / Cr 2100 (net) + Cr 2100 (deductions) dated the end of the pay period (at most today); payment Dr 2100 / Cr bank;
+  cancellation reverses. Keys `SalaryExpense`, `SalariesPayable`, `PayrollWithholdingsPayable` are added lazily. The consumer refreshes topic metadata every
+  30 s (a not-yet-created `hrm-topic` otherwise left the subscription idle for 5 minutes).
+- Still stubbed: payroll figures (5000 gross, 30 % lump deduction) — ROADMAP P1-7 brings insurance, PIT, employer cost.
+- Verified live in Docker (SYSTEM tenant): 3 slips 2025-04 → 3 salary entries; pay → Dr 2100 / Cr 1000 3600; second pay and cancel-after-pay → 400; cancel + regenerate →
+  entry Reversed + reversal + new entry. A first run showed the cancel overtaking its generation with random Kafka keys — fixed by keying on the pay slip.
+- Tests: HRM 8 (new project), ACC 81. Needs HRM migration `007`.
+
 ### 2026-10-24 — ROADMAP P1-1c: POS sale → GL (`feat/gl-pos`, on top of `feat/gl-stock-cogs`, unmerged)
 - POS events now carry the money: `TransactionCreated/Voided` → `Amounts` (subtotal, discount, tax, tenders), shift id, external payment id;
   `CashShiftClosed` → opening, counted, expected cash and variance. Accounting consumes `pos-topic` and posts Dr Cash / Bank, Cr Revenue

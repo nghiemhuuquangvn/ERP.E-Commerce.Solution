@@ -1,9 +1,8 @@
 # Automatic general-ledger posting
 
 Status: phase 1 (ROADMAP P1-1, 2026-10-23) — foundation plus the invoice, payment, order-cancellation and bill flows; P1-1b
-(2026-10-24) adds stock receipt / issue / adjustment and COGS; P1-1c (2026-10-24) adds POS sales, voids and cash-shift variance. Payroll and
-refunds are separate plans (P1-1d, P1-1e)
-and are **not** posted yet.
+(2026-10-24) adds stock receipt / issue / adjustment and COGS; P1-1c (2026-10-24) adds POS sales, voids and cash-shift variance; P1-1d (2026-10-24) adds payroll
+(pay slips, their payment and cancellation). Refunds and returns are a separate plan (P1-1e) and are **not** posted yet.
 
 ## How it works
 
@@ -28,6 +27,9 @@ The entry is staged on the caller's unit of work, so the document, its journal e
 | `CostOfGoodsSold` | 5000 | stock issues (ship, POS sale) |
 | `InventoryAdjustment` | 5000 (a separate key so a VAS chart can use a shrinkage account) | stock gains / losses |
 | `CashOverShort` | 5100 Operating Expenses | POS shift cash difference |
+| `SalaryExpense` | 5200 Salaries & Benefits | pay slips (gross + overtime) |
+| `SalariesPayable` | 2100 Accrued Liabilities | pay slips (net pay), their payment |
+| `PayrollWithholdingsPayable` | 2100 (VAS, P1-2, splits insurance and personal income tax) | pay slips (deductions) |
 | `VatOutput` | 2200 Tax Payable | reserved: no flow posts VAT yet (P1-3) |
 
 A tenant with **no accounts at all** gets the default chart and profile the first time something has to be posted. A tenant that
@@ -43,6 +45,9 @@ already has its own chart is never given extra accounts: if a key has no account
 | `PaymentProcessed` | Dr Cash (method Cash = 4) or Bank / Cr AR; applied to the order's invoice, which is paid once `AmountPaid ≥ Amount` | `Payment:<paymentId>` |
 | Invoice marked paid by hand | Dr Bank / Cr AR for the outstanding amount | `InvoicePayment:<invoiceId>` |
 | Bill approved | Dr GRNI / Cr AP | `Bill:<billId>` |
+| Pay slip generated (Kafka `hrm-topic`) | Dr SalaryExpense (gross + overtime) / Cr SalariesPayable (net) and Cr PayrollWithholdingsPayable (deductions); dated the end of the pay period, at most today | `PaySlip:<paySlipId>` |
+| Pay slip paid | Dr SalariesPayable / Cr Bank, net pay; only if the slip's salary entry exists | `PaySlipPayment:<paySlipId>` |
+| Pay slip cancelled (unpaid only) | mirror of the slip entry | `PaySlipReversal:<paySlipId>` |
 | POS sale completed (Kafka `pos-topic`) | Dr Cash (cash tenders) and Dr Bank (all other tenders) / Cr SalesRevenue (subtotal − discount) and Cr VatOutput (tax) | `PosSale:<transactionId>` |
 | POS sale voided | mirror of the sale entry | `PosSaleReversal:<transactionId>` |
 | POS shift closed, counted ≠ expected cash | shortage: Dr CashOverShort / Cr Cash; overage the reverse | `PosShift:<shiftId>` |
@@ -92,6 +97,17 @@ tenders = (subtotal − discount) + tax. A tender is cash when its method is `Ca
 * Expected cash = opening float + cash tenders of the shift's completed (not voided) sales. A sale voided or synced after the shift was
   closed reverses its ledger entry but is not part of the shift variance already booked (the closed event is final).
 
+### Payroll (P1-1d)
+
+HRMService's `PaySlipGeneratedEvent` now carries `GrossSalary`, `OvertimePay`, `Deductions` and `PeriodEnd` next to `NetPay`; a pay slip can be
+paid (`POST hrm/payslips/{id}/pay` → `PaySlipPaidEvent`) or, while still pending, cancelled (`…/cancel` → `PaySlipVoidedEvent`). A cancelled slip
+frees its period (filtered unique index, HRM migration 007), so the month can be generated again. Events of one slip share a Kafka key so a cancel
+cannot overtake its generation.
+* HRM's figures are still the stub of ROADMAP P1-7 (5000 gross, 30 % lump deduction, no insurance / PIT split, no employer contributions), so the
+  ledger shows whatever HRM computes; the lump deduction goes to one account until P1-7 splits it. Events published before this release have no
+  amounts and are skipped (no back-posting); paying such a slip books nothing because its salary entry does not exist.
+* A paid slip cannot be cancelled (it needs a payroll correction, not built yet). No cost centre / department dimension: all expense is one account.
+
 ### Dates and periods
 
 * The entry date is the document date. Its fiscal period is the one containing the date; if there is none, a calendar-month
@@ -119,9 +135,8 @@ the log service. Fix the profile; entries for documents already saved are not ba
 * Stock that was in the warehouse before the release has no entries, so account 1200 starts below the Warehouse valuation until an
   opening-balance entry is booked by hand. Movements before the release are not back-posted.
 * **No VAT split** (P1-3): Sales, Purchasing and Payment carry no tax fields. The engine and `VatOutput` key are ready for it.
-* **Not posted yet:** POS returns / refunds with refund tenders and cash paid-in / paid-out (P1-1e),
-  payroll (P1-1d; the event has only NetPay), refunds and returns (P1-1e; Payment publishes the refund event before the gateway
-  confirms, Sales returns carry no lines).
+* **Not posted yet:** POS returns / refunds with refund tenders and cash paid-in / paid-out, payment refunds and sales returns (P1-1e: Payment
+  publishes the refund event before the gateway confirms, Sales returns carry no lines), employer payroll contributions (P1-7).
 * Existing invoices and bills (before this release) are not back-posted; demo data keeps its own legacy entries (`SourceKey` empty).
 
 ## Operations
