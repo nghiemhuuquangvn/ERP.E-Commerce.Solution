@@ -11,6 +11,9 @@ namespace ERP.ACC.Application.Reports
     {
         public DateTime AsOfDate { get; set; }
         public DateTime? CompareAsOfDate { get; set; }
+
+        /// <summary>"Vnd", "Thousand" or "Million"; empty = the report profile's unit.</summary>
+        public string? Unit { get; set; }
     }
 
     /// <summary>The income statement B02-DN for a range, optionally next to a comparison range. Period-closing entries are left out.</summary>
@@ -20,6 +23,9 @@ namespace ERP.ACC.Application.Reports
         public DateTime ToDate { get; set; }
         public DateTime? CompareFromDate { get; set; }
         public DateTime? CompareToDate { get; set; }
+
+        /// <summary>"Vnd", "Thousand" or "Million"; empty = the report profile's unit.</summary>
+        public string? Unit { get; set; }
     }
 
     /// <summary>The cash-flow statement B03-DN (direct method) for a range, optionally next to a comparison range.</summary>
@@ -29,17 +35,22 @@ namespace ERP.ACC.Application.Reports
         public DateTime ToDate { get; set; }
         public DateTime? CompareFromDate { get; set; }
         public DateTime? CompareToDate { get; set; }
+
+        /// <summary>"Vnd", "Thousand" or "Million"; empty = the report profile's unit.</summary>
+        public string? Unit { get; set; }
     }
 
     public class GetCashFlowStatementQueryHandler : IRequestHandler<GetCashFlowStatementQuery, FinancialStatementDto>
     {
         private readonly IAccountRepository _accounts;
         private readonly IJournalLineRepository _lines;
+        private readonly IReportProfileRepository _profiles;
 
-        public GetCashFlowStatementQueryHandler(IAccountRepository accounts, IJournalLineRepository lines)
+        public GetCashFlowStatementQueryHandler(IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles)
         {
             _accounts = accounts;
             _lines = lines;
+            _profiles = profiles;
         }
 
         public async Task<FinancialStatementDto> Handle(GetCashFlowStatementQuery request, CancellationToken cancellationToken)
@@ -59,7 +70,9 @@ namespace ERP.ACC.Application.Reports
                 ? await ColumnAsync(accounts, cashIds, request.CompareFromDate.Value.Date, request.CompareToDate!.Value.Date, cancellationToken)
                 : null;
 
-            var statement = CashFlowStatementEngine.Evaluate(CashFlowLayouts.Layout, current, prior);
+            var profile = await _profiles.GetAsync(cancellationToken);
+            var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
+            var statement = CashFlowStatementEngine.Evaluate(CashFlowLayouts.Layout, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
             if (cashIds.Count == 0)
                 statement.Notes.Add("No account is flagged as cash (IsCash): flag the cash and bank accounts to get a cash-flow statement.");
             statement.FromDate = request.FromDate.Date;
@@ -95,11 +108,13 @@ namespace ERP.ACC.Application.Reports
     {
         private readonly IAccountRepository _accounts;
         private readonly IJournalLineRepository _lines;
+        private readonly IReportProfileRepository _profiles;
 
-        public GetBalanceSheetStatementQueryHandler(IAccountRepository accounts, IJournalLineRepository lines)
+        public GetBalanceSheetStatementQueryHandler(IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles)
         {
             _accounts = accounts;
             _lines = lines;
+            _profiles = profiles;
         }
 
         public async Task<FinancialStatementDto> Handle(GetBalanceSheetStatementQuery request, CancellationToken cancellationToken)
@@ -110,7 +125,9 @@ namespace ERP.ACC.Application.Reports
             if (request.CompareAsOfDate.HasValue)
                 prior = (await _lines.GetAccountBalancesAsync(null, request.CompareAsOfDate.Value.Date, null, cancellationToken)).ToDictionary(b => b.AccountId);
 
-            var statement = StatementEngine.Evaluate(StatementLayouts.Find(StatementLayouts.BalanceSheet)!, accounts, current, prior);
+            var profile = await _profiles.GetAsync(cancellationToken);
+            var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
+            var statement = StatementEngine.Evaluate(StatementLayouts.Find(StatementLayouts.BalanceSheet)!, accounts, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
             statement.ToDate = request.AsOfDate.Date;
             statement.CompareToDate = request.CompareAsOfDate?.Date;
             return statement;
@@ -121,11 +138,13 @@ namespace ERP.ACC.Application.Reports
     {
         private readonly IAccountRepository _accounts;
         private readonly IJournalLineRepository _lines;
+        private readonly IReportProfileRepository _profiles;
 
-        public GetIncomeStatementQueryHandler(IAccountRepository accounts, IJournalLineRepository lines)
+        public GetIncomeStatementQueryHandler(IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles)
         {
             _accounts = accounts;
             _lines = lines;
+            _profiles = profiles;
         }
 
         public async Task<FinancialStatementDto> Handle(GetIncomeStatementQuery request, CancellationToken cancellationToken)
@@ -145,7 +164,9 @@ namespace ERP.ACC.Application.Reports
                 prior = (await _lines.GetActivityBalancesAsync(request.CompareFromDate, request.CompareToDate, JournalEntry.PeriodClosingType, cancellationToken))
                     .ToDictionary(b => b.AccountId);
 
-            var statement = StatementEngine.Evaluate(StatementLayouts.Find(StatementLayouts.IncomeStatement)!, accounts, current, prior);
+            var profile = await _profiles.GetAsync(cancellationToken);
+            var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
+            var statement = StatementEngine.Evaluate(StatementLayouts.Find(StatementLayouts.IncomeStatement)!, accounts, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
             statement.FromDate = request.FromDate.Date;
             statement.ToDate = request.ToDate.Date;
             statement.CompareFromDate = request.CompareFromDate?.Date;

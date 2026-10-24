@@ -44,6 +44,13 @@ namespace ERP.ACC.Application.Reports
 
         /// <summary>Balance sheet only: total assets (270) equal total sources (440) in every column; null for other statements.</summary>
         public bool? IsBalanced { get; set; }
+
+        /// <summary>"VND", "thousand VND" or "million VND": the unit of every amount in <see cref="Rows"/> (unmapped accounts stay in VND).</summary>
+        public string Unit { get; set; } = "VND";
+        public decimal UnitDivisor { get; set; } = 1m;
+
+        /// <summary>The company block and signatories; null when the tenant has not filled in its report profile.</summary>
+        public ReportHeaderDto? Header { get; set; }
     }
 
     /// <summary>Evaluates a <see cref="StatementLayout"/> over the account balances of one or two periods.</summary>
@@ -53,10 +60,16 @@ namespace ERP.ACC.Application.Reports
             StatementLayout layout,
             IReadOnlyCollection<Account> accounts,
             IReadOnlyDictionary<Guid, AccountBalanceSummary> current,
-            IReadOnlyDictionary<Guid, AccountBalanceSummary>? prior)
+            IReadOnlyDictionary<Guid, AccountBalanceSummary>? prior,
+            decimal divisor = 1m,
+            ReportHeaderDto? header = null)
         {
-            var amounts = Compute(layout, accounts, current);
-            var priorAmounts = prior != null ? Compute(layout, accounts, prior) : null;
+            // amounts are rounded per account row in the chosen unit and the formula rows add the rounded rows (the printed form foots);
+            // the integrity checks use the exact amounts
+            var amounts = Compute(layout, accounts, current, divisor);
+            var priorAmounts = prior != null ? Compute(layout, accounts, prior, divisor) : null;
+            var exact = divisor == 1m ? amounts : Compute(layout, accounts, current, 1m);
+            var priorExact = prior == null ? null : divisor == 1m ? priorAmounts : Compute(layout, accounts, prior, 1m);
 
             var statement = new FinancialStatementDto
             {
@@ -73,13 +86,18 @@ namespace ERP.ACC.Application.Reports
                     PriorAmount = priorAmounts?[r.Code],
                 }).ToList(),
                 Unmapped = Unmapped(layout, accounts, current, prior),
+                UnitDivisor = divisor,
+                Unit = divisor == 1_000m ? "thousand VND" : divisor == 1_000_000m ? "million VND" : "VND",
+                Header = header,
             };
 
             if (layout.Id == StatementLayouts.BalanceSheet)
             {
-                statement.IsBalanced = amounts["270"] == amounts["440"] && (priorAmounts == null || priorAmounts["270"] == priorAmounts["440"]);
+                statement.IsBalanced = exact["270"] == exact["440"] && (priorExact == null || priorExact["270"] == priorExact["440"]);
                 if (!statement.IsBalanced.Value)
                     statement.Notes.Add("Total assets (270) differ from total sources (440): see the unmapped accounts below.");
+                else if (amounts["270"] != amounts["440"] || (priorAmounts != null && priorAmounts["270"] != priorAmounts["440"]))
+                    statement.Notes.Add($"Rounding difference of {amounts["270"] - amounts["440"]} {statement.Unit} between total assets (270) and total sources (440): the exact amounts agree.");
             }
 
             if (statement.Unmapped.Count > 0)
@@ -89,7 +107,7 @@ namespace ERP.ACC.Application.Reports
         }
 
         private static Dictionary<string, decimal> Compute(
-            StatementLayout layout, IReadOnlyCollection<Account> accounts, IReadOnlyDictionary<Guid, AccountBalanceSummary> balances)
+            StatementLayout layout, IReadOnlyCollection<Account> accounts, IReadOnlyDictionary<Guid, AccountBalanceSummary> balances, decimal divisor)
         {
             var byCode = layout.Rows.ToDictionary(r => r.Code);
             var memo = new Dictionary<string, decimal>();
@@ -134,6 +152,8 @@ namespace ERP.ACC.Application.Reports
                             .Where(a => a.AccountType is (int)AccountType.Revenue or (int)AccountType.Expense)
                             .Sum(a => balances.TryGetValue(a.Id, out var b) ? b.TotalCredit - b.TotalDebit : 0m);
                     }
+
+                    amount = RoundTo(amount, divisor);
                 }
 
                 inProgress.Remove(code);
@@ -145,6 +165,10 @@ namespace ERP.ACC.Application.Reports
                 Value(row.Code);
             return memo;
         }
+
+        /// <summary>Amount in the chosen unit, half away from zero (1.5 thousand → 2, −1.5 → −2).</summary>
+        public static decimal RoundTo(decimal amount, decimal divisor) =>
+            divisor == 1m ? amount : Math.Round(amount / divisor, 0, MidpointRounding.AwayFromZero);
 
         private static bool Accepts(BalanceSide side, decimal debitMinusCredit) => side switch
         {

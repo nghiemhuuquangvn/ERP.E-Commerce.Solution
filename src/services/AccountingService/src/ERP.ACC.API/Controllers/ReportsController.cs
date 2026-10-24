@@ -141,6 +141,7 @@ namespace ERP.ACC.API.Controllers
         public async Task<IActionResult> BalanceSheetStatement(
             [FromQuery] DateTime? asOfDate,
             [FromQuery] DateTime? compareAsOfDate,
+            [FromQuery] string? unit = null,
             [FromQuery] string? format = null,
             CancellationToken ct = default)
         {
@@ -150,7 +151,8 @@ namespace ERP.ACC.API.Controllers
             var result = await _mediator.Send(new GetBalanceSheetStatementQuery
             {
                 AsOfDate = asOfDate ?? DateTime.UtcNow,
-                CompareAsOfDate = compareAsOfDate
+                CompareAsOfDate = compareAsOfDate,
+                Unit = unit
             }, ct);
             return IsExport(format) ? Export(format, ReportTables.Statement(result), "balance-sheet-b01") : Ok(result);
         }
@@ -163,6 +165,7 @@ namespace ERP.ACC.API.Controllers
             [FromQuery] DateTime toDate,
             [FromQuery] DateTime? compareFromDate,
             [FromQuery] DateTime? compareToDate,
+            [FromQuery] string? unit = null,
             [FromQuery] string? format = null,
             CancellationToken ct = default)
         {
@@ -174,7 +177,8 @@ namespace ERP.ACC.API.Controllers
                 FromDate = fromDate,
                 ToDate = toDate,
                 CompareFromDate = compareFromDate,
-                CompareToDate = compareToDate
+                CompareToDate = compareToDate,
+                Unit = unit
             }, ct);
             return IsExport(format) ? Export(format, ReportTables.Statement(result), "income-statement-b02") : Ok(result);
         }
@@ -190,6 +194,7 @@ namespace ERP.ACC.API.Controllers
             [FromQuery] DateTime toDate,
             [FromQuery] DateTime? compareFromDate,
             [FromQuery] DateTime? compareToDate,
+            [FromQuery] string? unit = null,
             [FromQuery] string? format = null,
             CancellationToken ct = default)
         {
@@ -201,7 +206,8 @@ namespace ERP.ACC.API.Controllers
                 FromDate = fromDate,
                 ToDate = toDate,
                 CompareFromDate = compareFromDate,
-                CompareToDate = compareToDate
+                CompareToDate = compareToDate,
+                Unit = unit
             }, ct);
             return IsExport(format) ? Export(format, ReportTables.Statement(result), "cash-flow-b03") : Ok(result);
         }

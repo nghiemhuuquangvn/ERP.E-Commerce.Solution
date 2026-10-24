@@ -21,6 +21,17 @@ namespace ERP.ACC.Application.Reports
         public string AmountUnit { get; set; } = nameof(Domain.Enums.AmountUnit.Vnd);
     }
 
+    /// <summary>The company block printed above and the signatories below a statement.</summary>
+    public class ReportHeaderDto
+    {
+        public string CompanyName { get; set; } = string.Empty;
+        public string TaxCode { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+        public string PreparedBy { get; set; } = string.Empty;
+        public string ChiefAccountant { get; set; } = string.Empty;
+        public string Director { get; set; } = string.Empty;
+    }
+
     public class GetReportProfileQuery : IRequest<ReportProfileDto> { }
 
     public class UpdateReportProfileCommand : IRequest<ReportProfileDto>
@@ -50,6 +61,32 @@ namespace ERP.ACC.Application.Reports
                 Director = profile.Director,
                 AmountUnit = ((AmountUnit)profile.AmountUnit).ToString(),
             };
+
+        /// <summary>The unit a statement is shown in: the requested one (query `unit`), else the profile's, else VND. An unknown request is refused.</summary>
+        public static AmountUnit ResolveUnit(string? requested, ReportProfile? profile)
+        {
+            if (!string.IsNullOrWhiteSpace(requested))
+                return ParseUnit(requested) ?? throw new BusinessRuleException("Accounting", "The amount unit must be Vnd, Thousand or Million.");
+            return profile != null ? (AmountUnit)profile.AmountUnit : AmountUnit.Vnd;
+        }
+
+        public static decimal Divisor(AmountUnit unit) => unit switch { AmountUnit.Thousand => 1_000m, AmountUnit.Million => 1_000_000m, _ => 1m };
+
+        public static string Label(AmountUnit unit) => unit switch { AmountUnit.Thousand => "thousand VND", AmountUnit.Million => "million VND", _ => "VND" };
+
+        /// <summary>Null when the profile is missing or has no text at all (nothing to print).</summary>
+        public static ReportHeaderDto? Header(ReportProfile? profile) =>
+            profile == null || string.IsNullOrEmpty(profile.CompanyName + profile.TaxCode + profile.Address + profile.PreparedBy + profile.ChiefAccountant + profile.Director)
+                ? null
+                : new ReportHeaderDto
+                {
+                    CompanyName = profile.CompanyName,
+                    TaxCode = profile.TaxCode,
+                    Address = profile.Address,
+                    PreparedBy = profile.PreparedBy,
+                    ChiefAccountant = profile.ChiefAccountant,
+                    Director = profile.Director,
+                };
 
         /// <summary>"vnd", "thousand", "million" (any case); null when unknown.</summary>
         public static AmountUnit? ParseUnit(string? text) =>
