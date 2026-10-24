@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using ERP.ACC.Application.Commands;
+using ERP.ACC.Application.Handlers;
 using ERP.ACC.Application.Queries;
 using ERP.Shared.Authorization;
 using MediatR;
@@ -29,6 +30,26 @@ namespace ERP.ACC.API.Controllers
 
             var result = await _mediator.Send(new ListFiscalPeriodsQuery(), ct);
             return Ok(result);
+        }
+
+        /// <summary>How the tenant closes its books: Monthly (default) or YearEnd, and the month the fiscal year ends.</summary>
+        [HttpGet("closing-policy")]
+        public async Task<IActionResult> GetClosingPolicy(CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:periods:view"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(new GetClosingPolicyQuery(), ct));
+        }
+
+        /// <summary>Changes the closing policy; refused while the current fiscal year is partly closed.</summary>
+        [HttpPut("closing-policy")]
+        public async Task<IActionResult> UpdateClosingPolicy([FromBody] UpdateClosingPolicyCommand command, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:periods:manage"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(command, ct));
         }
 
         [HttpGet("{id:guid}")]

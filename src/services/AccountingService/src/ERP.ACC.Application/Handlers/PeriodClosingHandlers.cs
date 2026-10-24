@@ -13,7 +13,7 @@ namespace ERP.ACC.Application.Handlers
     /// <summary>
     /// Closes a fiscal period (ROADMAP P1-2): checks the books, writes the period-end transfer (every revenue / expense account to the income summary
     /// account, the summary to retained earnings: VAS 911 -> 421) in the period itself, then locks the period. One unit of work, so the entry and the
-    /// lock commit together.
+    /// lock commit together. With the YearEnd closing policy (P1-2d) only the last period of the fiscal year writes the entry.
     /// </summary>
     public class CloseFiscalPeriodCommandHandler : IRequestHandler<CloseFiscalPeriodCommand, FiscalPeriodDto>
     {
@@ -48,9 +48,18 @@ namespace ERP.ACC.Application.Handlers
             if (balances.Sum(b => b.TotalDebit) != balances.Sum(b => b.TotalCredit))
                 throw new BusinessRuleException("Accounting", $"The trial balance of {period.PeriodName} does not balance; it cannot be closed.");
 
-            if (request.PostClosingEntries)
+            // Monthly (the default): every period writes its closing entry. YearEnd: only the last period of the fiscal year does, and it closes
+            // everything not yet closed, so the balance it reads is the cumulative one up to the period end (months closed earlier are already zero).
+            var policy = await _uow.ClosingPolicies.GetAsync(cancellationToken);
+            var yearEndMode = policy != null && policy.ClosingMode == (int)ClosingMode.YearEnd;
+            var closesYear = yearEndMode && ClosingPolicy.EndsFiscalYear(period, policy!.FiscalYearEndMonth);
+
+            if (request.PostClosingEntries && (!yearEndMode || closesYear))
             {
-                var closing = await BuildClosingRequestAsync(period, balances, cancellationToken);
+                var closingBalances = closesYear
+                    ? await _uow.JournalLines.GetAccountBalancesAsync(null, period.EndDate.Date, null, cancellationToken)
+                    : balances;
+                var closing = await BuildClosingRequestAsync(period, closingBalances, closesYear, cancellationToken);
                 if (closing != null)
                 {
                     try
@@ -73,7 +82,7 @@ namespace ERP.ACC.Application.Handlers
         }
 
         /// <summary>Null when no revenue or expense account moved in the period.</summary>
-        private async Task<PostingRequest?> BuildClosingRequestAsync(FiscalPeriod period, List<AccountBalanceSummary> balances, CancellationToken ct)
+        private async Task<PostingRequest?> BuildClosingRequestAsync(FiscalPeriod period, List<AccountBalanceSummary> balances, bool yearEnd, CancellationToken ct)
         {
             var accounts = await _uow.Accounts.GetAllAsync(ct);
             var parentIds = await AccountRules.ParentIdsAsync(_uow.Accounts, ct);
@@ -91,7 +100,7 @@ namespace ERP.ACC.Application.Handlers
                     continue;
 
                 total += net;
-                var description = $"Closing {period.PeriodName}";
+                var description = yearEnd ? $"Year-end closing {period.PeriodName}" : $"Closing {period.PeriodName}";
                 lines.Add(net > 0m
                     ? new PostingLine(null, account.Id, 0m, net, description)
                     : new PostingLine(null, account.Id, -net, 0m, description));
@@ -117,7 +126,7 @@ namespace ERP.ACC.Application.Handlers
                     : PostingLine.Cr(PostingKeys.RetainedEarnings, summary, "Profit carried forward"));
             }
 
-            return new PostingRequest(JournalEntry.PeriodClosingType, period.Id, period.EndDate.Date, $"Period-end closing {period.PeriodName}", lines);
+            return new PostingRequest(JournalEntry.PeriodClosingType, period.Id, period.EndDate.Date, yearEnd ? $"Year-end closing {period.PeriodName}" : $"Period-end closing {period.PeriodName}", lines);
         }
 
         private async Task<bool> SameAccountAsync(CancellationToken ct)

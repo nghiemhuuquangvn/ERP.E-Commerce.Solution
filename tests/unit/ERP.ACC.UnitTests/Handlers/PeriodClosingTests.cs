@@ -65,6 +65,9 @@ public class PeriodClosingTests
         _uow.SetupGet(u => u.JournalEntries).Returns(entries.Object);
         _uow.SetupGet(u => u.JournalLines).Returns(lines.Object);
         _uow.SetupGet(u => u.PostingMappings).Returns(mappings.Object);
+        var policies = new Mock<IClosingPolicyRepository>(); // no policy = Monthly
+        policies.Setup(r => r.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync((ClosingPolicy?)null);
+        _uow.SetupGet(u => u.ClosingPolicies).Returns(policies.Object);
 
         _posting.Setup(p => p.PostAsync(It.IsAny<PostingRequest>(), It.IsAny<CancellationToken>()))
             .Callback<PostingRequest, CancellationToken>((r, _) => _posted.Add(r))

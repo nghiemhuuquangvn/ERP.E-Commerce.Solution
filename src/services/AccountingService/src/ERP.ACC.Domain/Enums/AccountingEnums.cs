@@ -17,6 +17,13 @@ namespace ERP.ACC.Domain.Enums
         Financing = 3
     }
 
+    /// <summary>When a tenant writes its closing entries (ROADMAP P1-2d): every period, or only at the end of the fiscal year.</summary>
+    public enum ClosingMode
+    {
+        Monthly = 1,
+        YearEnd = 2
+    }
+
     public enum NormalBalance
     {
         Debit = 1,
