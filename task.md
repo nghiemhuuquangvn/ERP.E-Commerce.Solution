@@ -93,8 +93,8 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
 - [x] **P1-1c POS → GL** closed 2026-10-24 (`feat/gl-pos`): amounts on POS events, sale / void / shift variance posting
 - [x] **P1-1d Payroll → GL** closed 2026-10-24 (`feat/gl-payroll`): pay / cancel pay slip, events with amounts, slip / payment / reversal posting (real calculation stays in P1-7)
 - [x] **P1-1e Refunds and returns → GL** closed 2026-10-24 (`feat/gl-refunds`): money side; restock / COGS reversal / refund trigger remain in P1-5
-- [ ] **P1-2 VAS chart of accounts**: hierarchy (Circular 200/133 — confirm the current one),
-  reversing/voiding entries, period-end closing entries (911 → 421), cash-flow statement.
+- [x] **P1-2 Chart of accounts, void / reverse, period closing** closed 2026-10-24 (`feat/vas-chart`): account tree, templates Simple14 / Vas99 (Circular 99/2025), apply-template, void + reverse, closing 911→421 + reopen, admin UI
+- [ ] **P1-2b** Cash-flow statement, general ledger report, trial balance opening/closing columns, B01/B02/B03 layouts
 - [ ] **P1-3 Tax & e-invoice**: VAT fields on invoice/bill, VAT listing/return, e-invoice provider
   adapter (VNPT / Viettel / MISA / BKAV — owner picks the provider).
 - [ ] **P1-4 Bank reconciliation per line + multi-currency** (MasterData exchange rates, FX differences).
