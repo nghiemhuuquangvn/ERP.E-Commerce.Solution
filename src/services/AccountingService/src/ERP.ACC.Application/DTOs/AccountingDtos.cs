@@ -246,6 +246,52 @@ namespace ERP.ACC.Application.DTOs
         public List<LedgerLineDto> Lines { get; set; } = new();
     }
 
+    /// <summary>One journal line of an entry that touches a cash account (repository projection for the cash-flow statement).</summary>
+    public class CashEntryLine
+    {
+        public Guid EntryId { get; set; }
+        public Guid AccountId { get; set; }
+        public decimal Debit { get; set; }
+        public decimal Credit { get; set; }
+    }
+
+    public class CashFlowLineDto
+    {
+        public Guid AccountId { get; set; }
+        public string AccountNumber { get; set; } = string.Empty;
+        public string AccountName { get; set; } = string.Empty;
+        public decimal Inflow { get; set; }
+        public decimal Outflow { get; set; }
+        public decimal Net { get; set; }
+    }
+
+    public class CashFlowSectionDto
+    {
+        public string Category { get; set; } = string.Empty;
+        public List<CashFlowLineDto> Lines { get; set; } = new();
+        public decimal TotalInflow { get; set; }
+        public decimal TotalOutflow { get; set; }
+        public decimal Net { get; set; }
+    }
+
+    /// <summary>Cash-flow statement, direct method, classified by the counter-account of each cash movement.</summary>
+    public class CashFlowStatementDto
+    {
+        public DateTime FromDate { get; set; }
+        public DateTime ToDate { get; set; }
+        public int CashAccountCount { get; set; }
+        public decimal OpeningCash { get; set; }
+        public CashFlowSectionDto Operating { get; set; } = new() { Category = "Operating" };
+        public CashFlowSectionDto Investing { get; set; } = new() { Category = "Investing" };
+        public CashFlowSectionDto Financing { get; set; } = new() { Category = "Financing" };
+        public decimal NetChange { get; set; }
+        public decimal ClosingCash { get; set; }
+
+        /// <summary>Opening cash + net change - closing cash; 0 when the statement agrees with the balance sheet.</summary>
+        public decimal Difference { get; set; }
+        public bool IsReconciled { get; set; }
+    }
+
     public class ProfitAndLossDto
     {
         public DateTime FromDate { get; set; }

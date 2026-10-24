@@ -111,6 +111,30 @@ namespace ERP.ACC.Infrastructure.Repositories
                 .ToListAsync(ct);
         }
 
+        public async Task<List<CashEntryLine>> GetCashEntryLinesAsync(
+            IReadOnlyCollection<Guid> cashAccountIds,
+            DateTime from,
+            DateTime to,
+            CancellationToken ct = default)
+        {
+            var cashIds = cashAccountIds.ToList();
+            var fromDate = from.Date;
+            var toDate = to.Date;
+            var closing = Domain.Entities.JournalEntry.PeriodClosingType;
+
+            var entries = _db.JournalEntries.Where(e =>
+                (e.Status == 1 || e.Status == 3) && e.EntryDate >= fromDate && e.EntryDate <= toDate
+                && (e.ReferenceType == null || e.ReferenceType != closing));
+
+            var cashEntryIds = _db.JournalLines.Where(l => cashIds.Contains(l.AccountId)).Select(l => l.JournalEntryId);
+
+            return await _db.JournalLines
+                .Join(entries.Where(e => cashEntryIds.Contains(e.Id)), l => l.JournalEntryId, e => e.Id, (l, e) => l)
+                .Select(l => new CashEntryLine { EntryId = l.JournalEntryId, AccountId = l.AccountId, Debit = l.Debit, Credit = l.Credit })
+                .AsNoTracking()
+                .ToListAsync(ct);
+        }
+
         public async Task<List<EntryAccountRef>> GetEntryAccountsAsync(IReadOnlyCollection<Guid> entryIds, CancellationToken ct = default)
         {
             var ids = entryIds.ToList();

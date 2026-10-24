@@ -77,6 +77,24 @@ namespace ERP.ACC.API.Controllers
         }
 
         /// <summary>
+        /// Cash-flow statement, direct method: cash received and paid in the range, by the counter-account of each movement and grouped into
+        /// operating, investing and financing activities (the account's cash-flow category), with opening and closing cash and a reconciliation check.
+        /// Cash accounts are those flagged IsCash; transfers between them are not shown.
+        /// </summary>
+        [HttpGet("cash-flow")]
+        [ProducesResponseType(typeof(CashFlowStatementDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> CashFlow(
+            [FromQuery] DateTime fromDate,
+            [FromQuery] DateTime toDate,
+            CancellationToken ct = default)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(new GetCashFlowQuery { FromDate = fromDate, ToDate = toDate }, ct));
+        }
+
+        /// <summary>
         /// Account ledger (sổ cái / sổ chi tiết): opening balance, the journal lines of the range with counter-accounts and a running balance,
         /// closing balance. A parent account includes its sub-accounts (includeSubAccounts, default true). Paged.
         /// </summary>

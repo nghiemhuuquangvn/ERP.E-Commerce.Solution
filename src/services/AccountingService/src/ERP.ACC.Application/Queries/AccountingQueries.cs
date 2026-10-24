@@ -92,6 +92,12 @@ namespace ERP.ACC.Application.Queries
         public bool RollUp { get; set; } = true;
     }
 
+    public class GetCashFlowQuery : IRequest<CashFlowStatementDto>
+    {
+        public DateTime FromDate { get; set; }
+        public DateTime ToDate { get; set; }
+    }
+
     public class GetAccountLedgerQuery : IRequest<AccountLedgerDto>
     {
         public Guid AccountId { get; set; }
