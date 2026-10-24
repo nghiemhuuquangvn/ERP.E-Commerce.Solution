@@ -55,6 +55,8 @@ namespace ERP.ACC.Application.Posting
         public const string PosShift = "PosShift";
         public const string PaySlip = "PaySlip";
         public const string PaySlipPayment = "PaySlipPayment";
+        public const string PaymentRefund = "PaymentRefund";
+        public const string SalesReturn = "SalesReturn";
 
         /// <summary>Dr Accounts receivable / Cr Sales revenue (gross; VAT is split by P1-3).</summary>
         public static PostingRequest ForInvoice(Domain.Entities.Invoice invoice) =>
@@ -198,6 +200,19 @@ namespace ERP.ACC.Application.Posting
             return new(PaySlipPayment, paySlipId, paidOn, $"Payroll {payPeriod} paid",
                 new[] { PostingLine.Dr(PostingKeys.SalariesPayable, amount), PostingLine.Cr(PostingKeys.Bank, amount) });
         }
+
+        /// <summary>Money returned to the customer for a confirmed refund: Dr Accounts receivable / Cr Cash (cash) or Bank (every other method).</summary>
+        public static PostingRequest ForPaymentRefund(Guid refundId, Guid orderId, decimal amount, int paymentMethod, DateTime date)
+        {
+            var key = paymentMethod == CashMethod ? PostingKeys.Cash : PostingKeys.Bank;
+            return new(PaymentRefund, refundId, date, $"Refund for order {orderId:N}",
+                new[] { PostingLine.Dr(PostingKeys.AccountsReceivable, amount), PostingLine.Cr(key, amount) });
+        }
+
+        /// <summary>A completed return (credit note): Dr Sales returns / Cr Accounts receivable. Keyed by the order: Sales allows one return per order.</summary>
+        public static PostingRequest ForSalesReturn(Guid orderId, string invoiceNumber, decimal amount, DateTime date) =>
+            new(SalesReturn, orderId, date, $"Return of invoice {invoiceNumber}",
+                new[] { PostingLine.Dr(PostingKeys.SalesReturns, amount, invoiceNumber), PostingLine.Cr(PostingKeys.AccountsReceivable, amount, invoiceNumber) });
 
         /// <summary>PaymentService's PaymentMethod enum: CreditCard 0, DebitCard 1, BankTransfer 2, EWallet 3, Cash 4, Crypto 5.</summary>
         public const int CashMethod = 4;

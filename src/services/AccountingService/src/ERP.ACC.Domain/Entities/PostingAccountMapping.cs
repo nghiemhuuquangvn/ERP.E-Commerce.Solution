@@ -29,12 +29,15 @@ namespace ERP.ACC.Domain.Entities
         public const string SalariesPayable = "SalariesPayable";
         /// <summary>Deductions withheld from pay (insurance, tax, other): HRM sends one lump until real payroll (P1-7) splits it.</summary>
         public const string PayrollWithholdingsPayable = "PayrollWithholdingsPayable";
+        /// <summary>Revenue given back for returned goods (contra-revenue). Defaults to the revenue account; a VAS chart gives it its own.</summary>
+        public const string SalesReturns = "SalesReturns";
 
         public static readonly IReadOnlyList<string> All = new[]
         {
             Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, Inventory, VatOutput,
             GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment, CashOverShort,
-            SalaryExpense, SalariesPayable, PayrollWithholdingsPayable
+            SalaryExpense, SalariesPayable, PayrollWithholdingsPayable,
+            SalesReturns
         };
 
         /// <summary>Account numbers of the seeded 14-account chart, used when a tenant has no mapping yet.</summary>
@@ -54,6 +57,7 @@ namespace ERP.ACC.Domain.Entities
             [SalaryExpense] = "5200",              // Salaries & Benefits
             [SalariesPayable] = "2100",            // Accrued Liabilities
             [PayrollWithholdingsPayable] = "2100", // VAS (P1-2) splits insurance and personal income tax
+            [SalesReturns] = "4000",               // the default chart has no contra-revenue account
         };
     }
 

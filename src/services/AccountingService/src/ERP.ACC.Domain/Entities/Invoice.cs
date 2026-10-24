@@ -55,10 +55,27 @@ namespace ERP.ACC.Domain.Entities
             return true;
         }
 
+        /// <summary>
+        /// Money paid for this invoice went back to the customer (a confirmed Payment refund): the paid amount goes down and a paid invoice
+        /// that is no longer covered is open again. A cancelled invoice keeps its status.
+        /// </summary>
+        public void ApplyRefund(decimal amount)
+        {
+            if (amount <= 0)
+                return;
+
+            AmountPaid = Math.Max(0m, AmountPaid - amount);
+            if (Status == (int)Enums.InvoiceStatus.Paid && AmountPaid < Amount)
+                Status = (int)Enums.InvoiceStatus.Unpaid;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        /// <summary>
+        /// The order was cancelled. A paid invoice can be cancelled too: its cash stays in the ledger as a credit owed to the customer
+        /// (AmountPaid is kept) until the Payment refund is booked.
+        /// </summary>
         public void Cancel()
         {
-            if (Status == (int)Enums.InvoiceStatus.Paid)
-                throw new InvalidOperationException($"Invoice {InvoiceNumber} is paid and cannot be cancelled.");
             if (Status == (int)Enums.InvoiceStatus.Cancelled)
                 return;
 

@@ -26,6 +26,7 @@ namespace ERP.ACC.Infrastructure.EventBus
         private const string QueueName = "accounting-service.sales-order-events";
         private const string CreatedKey = "sales_order.SalesOrderCreatedEvent";
         private const string CancelledKey = "sales_order.SalesOrderCancelledEvent";
+        private const string ReturnedKey = "sales_order.SalesOrderReturnedEvent";
         private const string AttemptHeader = "x-attempt";
         private const int MaxAttempts = 5;
 
@@ -52,6 +53,7 @@ namespace ERP.ACC.Infrastructure.EventBus
             _channel.QueueDeclare(QueueName, durable: true, exclusive: false, autoDelete: false);
             _channel.QueueBind(QueueName, ExchangeName, CreatedKey);
             _channel.QueueBind(QueueName, ExchangeName, CancelledKey);
+            _channel.QueueBind(QueueName, ExchangeName, ReturnedKey);
 
             var consumer = new AsyncEventingBasicConsumer(_channel);
             consumer.Received += OnMessageReceivedAsync;
@@ -136,10 +138,40 @@ namespace ERP.ACC.Infrastructure.EventBus
                     }
                     break;
 
+                case ReturnedKey:
+                    var returned = ParseReturned(json);
+                    if (returned == null)
+                        break;
+                    if (!EventTenant.TryRead(json, out var returnedTenant))
+                    {
+                        _logger.LogWarning("SalesOrderReturned {OrderId} without TenantId ignored", returned.OrderId);
+                        break;
+                    }
+                    using (TenantScope.Begin(returnedTenant))
+                        await mediator.Publish(returned);
+                    break;
+
                 default:
                     _logger.LogWarning("Unhandled routing key {RoutingKey} on {Exchange}", routingKey, ExchangeName);
                     break;
             }
+        }
+
+        /// <summary>SaleOrderService's SalesOrderReturnedEvent (plain JSON); null when it has no order id.</summary>
+        public static SalesOrderReturnedIntegrationEvent? ParseReturned(string json)
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("OrderId", out var orderId) || !orderId.TryGetGuid(out var id))
+                return null;
+
+            return new SalesOrderReturnedIntegrationEvent
+            {
+                OrderId = id,
+                RefundAmount = root.TryGetProperty("RefundAmount", out var amount) && amount.ValueKind == JsonValueKind.Number ? amount.GetDecimal() : 0m,
+                Reason = root.TryGetProperty("Reason", out var reason) && reason.ValueKind == JsonValueKind.String ? reason.GetString() : null,
+                ReturnedAt = root.TryGetProperty("ReturnedAt", out var at) && at.TryGetDateTime(out var returnedAt) ? returnedAt : default,
+            };
         }
 
         private static int ReadAttempt(IBasicProperties? properties) =>

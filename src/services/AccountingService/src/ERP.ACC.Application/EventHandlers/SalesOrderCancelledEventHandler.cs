@@ -13,8 +13,8 @@ namespace ERP.ACC.Application.EventHandlers
     }
 
     /// <summary>
-    /// A cancelled order takes its invoice back: the invoice is cancelled and the revenue entry reversed. An invoice that has
-    /// been paid (even in part) is left alone: it needs a refund, which has its own flow (ROADMAP P1-1e).
+    /// A cancelled order takes its invoice back: the invoice is cancelled and the revenue entry reversed. When the invoice was already
+    /// paid, the cash stays booked and the customer's refund arrives as a Payment refund entry (ROADMAP P1-1e).
     /// </summary>
     public class SalesOrderCancelledIntegrationEventHandler : INotificationHandler<SalesOrderCancelledIntegrationEvent>
     {
@@ -42,12 +42,9 @@ namespace ERP.ACC.Application.EventHandlers
             if (invoice.Status == (int)InvoiceStatus.Cancelled)
                 return; // redelivered
 
-            if (invoice.Status == (int)InvoiceStatus.Paid || invoice.AmountPaid > 0)
-            {
-                _logger.LogWarning("Order {OrderId} was cancelled but invoice {Invoice} is paid ({Paid} of {Amount}); it needs a refund, nothing was changed",
-                    @event.OrderId, invoice.InvoiceNumber, invoice.AmountPaid, invoice.Amount);
-                return;
-            }
+            if (invoice.AmountPaid > 0)
+                _logger.LogWarning("Order {OrderId} was cancelled after {Paid} of invoice {Invoice} was paid; the revenue is reversed and the customer's money stays as a credit until the payment refund is booked",
+                    @event.OrderId, invoice.AmountPaid, invoice.InvoiceNumber);
 
             invoice.Cancel();
             await _uow.Invoices.UpdateAsync(invoice, cancellationToken);
