@@ -6,6 +6,8 @@ import { journalEntriesApi } from '@/api/accounting/journal-entries.api'
 import type { JournalEntry } from '@/api/accounting/journal-entries.api'
 import { apiClient, ACC_BASE } from '@/api/accounting/accClient'
 import { DataTable } from '@/components/shared/DataTable'
+import { ReasonDialog } from '@/components/shared/ReasonDialog'
+import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
 
 const PAGE_SIZE = 20
@@ -338,6 +340,9 @@ export function JournalEntriesPage() {
   const [fiscalPeriodId, setFiscalPeriodId] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [viewEntry, setViewEntry] = useState<JournalEntry | null>(null)
+  const [reverseTarget, setReverseTarget] = useState<JournalEntry | null>(null)
+  const [voidTarget, setVoidTarget] = useState<JournalEntry | null>(null)
+  const queryClient = useQueryClient()
 
   const canView = hasPermission('accounting:journals:view')
   const canManage = hasPermission('accounting:journals:manage')
@@ -372,6 +377,27 @@ export function JournalEntriesPage() {
 
   const entries = data ?? []
 
+  const reverseMutation = useMutation({
+    mutationFn: ({ entry, reason, date }: { entry: JournalEntry; reason: string; date: string }) =>
+      journalEntriesApi.reverse(entry.id, reason, date),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounting'] })
+      setReverseTarget(null)
+    },
+  })
+
+  const voidMutation = useMutation({
+    mutationFn: ({ entry, reason }: { entry: JournalEntry; reason: string }) => journalEntriesApi.void(entry.id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounting'] })
+      setVoidTarget(null)
+    },
+  })
+
+  // The API explains refusals (a closed period, an entry that belongs to a document, a closing entry ...).
+  const detail = (e: unknown) =>
+    (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? t('accounting.journalEntries.actionFailed')
+
   const columns = useMemo(
     () => [
       { key: 'entryNumber', label: t('accounting.journalEntries.entryNumber'), className: 'font-mono text-xs' },
@@ -392,16 +418,33 @@ export function JournalEntriesPage() {
         render: (e: JournalEntry) => new Date(e.createdAt).toLocaleString(),
       },
       {
+        key: 'status',
+        label: t('common.status'),
+        render: (e: JournalEntry) => (e.status ? <StatusBadge status={e.status} /> : null),
+      },
+      {
         key: 'actions',
         label: '',
         render: (e: JournalEntry) => (
-          <button className="text-xs text-primary-600 hover:underline" onClick={() => setViewEntry(e)}>
-            {t('accounting.journalEntries.view')}
-          </button>
+          <span className="flex gap-3">
+            <button className="text-xs text-primary-600 hover:underline" onClick={() => setViewEntry(e)}>
+              {t('accounting.journalEntries.view')}
+            </button>
+            {canManage && e.status === 'Posted' && e.referenceType !== 'PeriodClosing' && (
+              <button className="text-xs text-gray-600 hover:underline" onClick={() => setReverseTarget(e)}>
+                {t('accounting.journalEntries.reverse')}
+              </button>
+            )}
+            {canManage && e.status === 'Posted' && !e.referenceType && (
+              <button className="text-xs text-red-600 hover:underline" onClick={() => setVoidTarget(e)}>
+                {t('accounting.journalEntries.void')}
+              </button>
+            )}
+          </span>
         ),
       },
     ],
-    [t],
+    [canManage, t],
   )
 
   if (!canView) {
@@ -472,6 +515,37 @@ export function JournalEntriesPage() {
       {viewEntry && (
         <JournalEntryViewModal entry={viewEntry} accounts={accounts ?? []} onClose={() => setViewEntry(null)} />
       )}
+
+      <ReasonDialog
+        open={!!reverseTarget}
+        title={t('accounting.journalEntries.reverseTitle', { entryNumber: reverseTarget?.entryNumber })}
+        message={t('accounting.journalEntries.reverseHint')}
+        confirmLabel={t('accounting.journalEntries.reverse')}
+        withDate
+        dateLabel={t('accounting.journalEntries.reversalDate')}
+        busy={reverseMutation.isPending}
+        error={reverseMutation.isError ? detail(reverseMutation.error) : null}
+        onConfirm={(reason, date) => reverseTarget && reverseMutation.mutate({ entry: reverseTarget, reason, date })}
+        onCancel={() => {
+          setReverseTarget(null)
+          reverseMutation.reset()
+        }}
+      />
+
+      <ReasonDialog
+        open={!!voidTarget}
+        title={t('accounting.journalEntries.voidTitle', { entryNumber: voidTarget?.entryNumber })}
+        message={t('accounting.journalEntries.voidHint')}
+        confirmLabel={t('accounting.journalEntries.void')}
+        danger
+        busy={voidMutation.isPending}
+        error={voidMutation.isError ? detail(voidMutation.error) : null}
+        onConfirm={(reason) => voidTarget && voidMutation.mutate({ entry: voidTarget, reason })}
+        onCancel={() => {
+          setVoidTarget(null)
+          voidMutation.reset()
+        }}
+      />
     </div>
   )
 }

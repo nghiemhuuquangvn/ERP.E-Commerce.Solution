@@ -8,7 +8,8 @@ export interface JournalLine {
   description: string
 }
 
-// JournalEntryDto(Id, EntryNumber, FiscalPeriodId, Description, TotalDebit, TotalCredit, CreatedAt, Lines[])
+// JournalEntryDto(Id, EntryNumber, FiscalPeriodId, Description, TotalDebit, TotalCredit, CreatedAt, EntryDate, Status, ReferenceType, ...)
+// status: Draft | Posted | Voided | Reversed. A hand-written entry of an open period can be voided; any posted entry can be reversed.
 export interface JournalEntry {
   id: string
   entryNumber: string
@@ -17,6 +18,11 @@ export interface JournalEntry {
   totalDebit: number
   totalCredit: number
   createdAt: string
+  entryDate?: string
+  status?: string
+  referenceType?: string | null
+  referenceId?: string | null
+  voidReason?: string | null
   lines: JournalLine[]
 }
 
@@ -55,4 +61,14 @@ export const journalEntriesApi = {
 
   create: (body: PostJournalEntryRequest) =>
     apiClient.post<JournalEntry>(`${ACC_BASE}/journal-entries`, body).then((r) => r.data),
+
+  // A mirror entry at reversalDate (default today); the original becomes Reversed.
+  reverse: (id: string, reason: string, reversalDate?: string) =>
+    apiClient
+      .post<JournalEntry>(`${ACC_BASE}/journal-entries/${id}/reverse`, { reason, reversalDate: reversalDate || null })
+      .then((r) => r.data),
+
+  // Only a hand-written entry of an open period (status Voided, ignored by every report).
+  void: (id: string, reason: string) =>
+    apiClient.post<JournalEntry>(`${ACC_BASE}/journal-entries/${id}/void`, { reason }).then((r) => r.data),
 }

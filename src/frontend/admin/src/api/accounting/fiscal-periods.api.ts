@@ -31,6 +31,11 @@ export const fiscalPeriodsApi = {
   open: (body: OpenFiscalPeriodRequest) =>
     apiClient.post<FiscalPeriod>(`${ACC_BASE}/fiscal-periods`, body).then((r) => r.data),
 
+  // Checks the books, writes the period-end transfer (revenue / expenses -> income summary -> retained earnings) and locks the period.
   close: (id: string) =>
     apiClient.post<FiscalPeriod>(`${ACC_BASE}/fiscal-periods/${id}/close`).then((r) => r.data),
+
+  // Only the latest closed period; its closing entry is voided.
+  reopen: (id: string, reason: string) =>
+    apiClient.post<FiscalPeriod>(`${ACC_BASE}/fiscal-periods/${id}/reopen`, { reason }).then((r) => r.data),
 }

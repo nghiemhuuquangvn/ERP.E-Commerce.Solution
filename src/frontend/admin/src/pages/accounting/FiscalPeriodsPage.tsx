@@ -6,6 +6,7 @@ import { fiscalPeriodsApi } from '@/api/accounting/fiscal-periods.api'
 import type { FiscalPeriod } from '@/api/accounting/fiscal-periods.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { ReasonDialog } from '@/components/shared/ReasonDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
 
@@ -103,6 +104,7 @@ export function FiscalPeriodsPage() {
   const queryClient = useQueryClient()
   const [modalOpen, setModalOpen] = useState(false)
   const [confirmTarget, setConfirmTarget] = useState<FiscalPeriod | null>(null)
+  const [reopenTarget, setReopenTarget] = useState<FiscalPeriod | null>(null)
 
   // No pagination — FiscalPeriodsController.List (ListFiscalPeriodsQuery) returns the full List<FiscalPeriodDto>.
   const { data, isLoading } = useQuery({
@@ -114,10 +116,22 @@ export function FiscalPeriodsPage() {
   const closeMutation = useMutation({
     mutationFn: (p: FiscalPeriod) => fiscalPeriodsApi.close(p.id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounting', 'fiscalPeriods'] })
+      queryClient.invalidateQueries({ queryKey: ['accounting'] })
       setConfirmTarget(null)
     },
   })
+
+  const reopenMutation = useMutation({
+    mutationFn: ({ period, reason }: { period: FiscalPeriod; reason: string }) => fiscalPeriodsApi.reopen(period.id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounting'] })
+      setReopenTarget(null)
+    },
+  })
+
+  // The API explains refusals (an earlier open period, draft entries, an unbalanced trial balance ...).
+  const detail = (e: unknown) =>
+    (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? t('accounting.fiscalPeriods.failedToSave')
 
   const columns = useMemo(
     () => [
@@ -133,14 +147,18 @@ export function FiscalPeriodsPage() {
         key: 'actions',
         label: '',
         render: (p: FiscalPeriod) =>
-          canManage && p.status === 'Open' ? (
+          !canManage ? null : p.status === 'Open' ? (
             <button
               className="text-xs text-red-600 hover:underline"
               onClick={() => setConfirmTarget(p)}
             >
               {t('accounting.fiscalPeriods.close')}
             </button>
-          ) : null,
+          ) : (
+            <button className="text-xs text-primary-600 hover:underline" onClick={() => setReopenTarget(p)}>
+              {t('accounting.fiscalPeriods.reopen')}
+            </button>
+          ),
       },
     ],
     [canManage, t],
@@ -171,6 +189,21 @@ export function FiscalPeriodsPage() {
         danger
         onConfirm={() => confirmTarget && closeMutation.mutate(confirmTarget)}
         onCancel={() => setConfirmTarget(null)}
+      />
+      {closeMutation.isError && <p className="text-sm text-red-600">{detail(closeMutation.error)}</p>}
+
+      <ReasonDialog
+        open={!!reopenTarget}
+        title={t('accounting.fiscalPeriods.reopenTitle')}
+        message={t('accounting.fiscalPeriods.reopenHint', { periodName: reopenTarget?.periodName })}
+        confirmLabel={t('accounting.fiscalPeriods.reopen')}
+        busy={reopenMutation.isPending}
+        error={reopenMutation.isError ? detail(reopenMutation.error) : null}
+        onConfirm={(reason) => reopenTarget && reopenMutation.mutate({ period: reopenTarget, reason })}
+        onCancel={() => {
+          setReopenTarget(null)
+          reopenMutation.reset()
+        }}
       />
     </div>
   )
