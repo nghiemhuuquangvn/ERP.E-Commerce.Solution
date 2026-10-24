@@ -115,6 +115,8 @@ public class ApproveStockAdjustmentCommandHandler : IRequestHandler<ApproveStock
             Quantity = adjustment.QuantityDelta,
             MovementType = movementType.ToString(),
             Reason = reasonText,
+            UnitCost = inventory.Cost,
+            ValueDelta = Math.Round(adjustment.QuantityDelta * inventory.Cost, 2),
             RecordedAt = movement.RecordedAt,
             EventCreatedAt = DateTime.UtcNow
         });

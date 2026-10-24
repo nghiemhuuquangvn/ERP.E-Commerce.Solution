@@ -136,6 +136,8 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
             ToLocation = movement.ToLocation,
             Reason = movement.Reason,
             SourceOrderId = request.PurchaseOrderId,
+            UnitCost = request.UnitCost,
+            ValueDelta = Math.Round(request.Quantity * request.UnitCost, 2),
             RecordedAt = movement.RecordedAt,
             EventCreatedAt = DateTime.UtcNow
         });

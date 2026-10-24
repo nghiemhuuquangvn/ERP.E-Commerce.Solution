@@ -79,6 +79,15 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
             ToLocation = request.ToLocation,
             Reason = request.Reason,
             SourceOrderId = request.SourceOrderId,
+            UnitCost = inventory.Cost,
+            // a manual receipt carries no price (ReceiveStock(qty, 0) above), so it adds no value; the others move at the current cost
+            ValueDelta = Math.Round(movementType switch
+            {
+                MovementType.Sold => -request.Quantity * inventory.Cost,
+                MovementType.Adjusted => request.Quantity * inventory.Cost,
+                MovementType.Damaged => -request.Quantity * inventory.Cost,
+                _ => 0m,
+            }, 2),
             RecordedAt = DateTime.UtcNow,
             EventCreatedAt = DateTime.UtcNow
         });
