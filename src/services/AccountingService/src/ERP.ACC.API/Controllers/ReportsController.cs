@@ -76,7 +76,7 @@ namespace ERP.ACC.API.Controllers
                 HideZeroBalance = hideZeroBalance,
                 RollUp = rollUp
             }, ct);
-            return IsCsv(format) ? Csv(CsvWriter.FromTrialBalance(result), "trial-balance") : Ok(result);
+            return IsExport(format) ? Export(format, ReportTables.TrialBalance(result), "trial-balance") : Ok(result);
         }
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace ERP.ACC.API.Controllers
                 return Forbid();
 
             var result = await _mediator.Send(new GetCashFlowQuery { FromDate = fromDate, ToDate = toDate }, ct);
-            return IsCsv(format) ? Csv(CsvWriter.FromCashFlow(result), "cash-flow") : Ok(result);
+            return IsExport(format) ? Export(format, ReportTables.CashFlow(result), "cash-flow") : Ok(result);
         }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace ERP.ACC.API.Controllers
             if (!_userContext.HasPermission("accounting:reports:view"))
                 return Forbid();
 
-            var csv = IsCsv(format);
+            var export = IsExport(format);
             var result = await _mediator.Send(new GetAccountLedgerQuery
             {
                 AccountId = accountId,
@@ -127,9 +127,9 @@ namespace ERP.ACC.API.Controllers
                 IncludeSubAccounts = includeSubAccounts,
                 PageNumber = pageNumber,
                 PageSize = pageSize,
-                All = csv // an export has every row, not one page
+                All = export // an export has every row, not one page
             }, ct);
-            return csv ? Csv(CsvWriter.FromLedger(result), "account-ledger") : Ok(result);
+            return export ? Export(format, ReportTables.Ledger(result), "account-ledger") : Ok(result);
         }
 
         /// <summary>
@@ -152,7 +152,7 @@ namespace ERP.ACC.API.Controllers
                 AsOfDate = asOfDate ?? DateTime.UtcNow,
                 CompareAsOfDate = compareAsOfDate
             }, ct);
-            return IsCsv(format) ? Csv(CsvWriter.FromStatement(result), "balance-sheet-b01") : Ok(result);
+            return IsExport(format) ? Export(format, ReportTables.Statement(result), "balance-sheet-b01") : Ok(result);
         }
 
         /// <summary>Income statement B02-DN by indicator code (see balance-sheet). Period-closing entries are left out; compareFromDate / compareToDate add a prior column.</summary>
@@ -176,7 +176,7 @@ namespace ERP.ACC.API.Controllers
                 CompareFromDate = compareFromDate,
                 CompareToDate = compareToDate
             }, ct);
-            return IsCsv(format) ? Csv(CsvWriter.FromStatement(result), "income-statement-b02") : Ok(result);
+            return IsExport(format) ? Export(format, ReportTables.Statement(result), "income-statement-b02") : Ok(result);
         }
 
         /// <summary>
@@ -203,13 +203,17 @@ namespace ERP.ACC.API.Controllers
                 CompareFromDate = compareFromDate,
                 CompareToDate = compareToDate
             }, ct);
-            return IsCsv(format) ? Csv(CsvWriter.FromStatement(result), "cash-flow-b03") : Ok(result);
+            return IsExport(format) ? Export(format, ReportTables.Statement(result), "cash-flow-b03") : Ok(result);
         }
 
-        private static bool IsCsv(string? format) => string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase);
+        private static bool IsXlsx(string? format) => string.Equals(format, "xlsx", StringComparison.OrdinalIgnoreCase);
 
-        private FileContentResult Csv(byte[] bytes, string name) =>
-            File(bytes, "text/csv; charset=utf-8", $"{name}-{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
+        /// <summary>format=csv or format=xlsx asks for a file instead of JSON.</summary>
+        private static bool IsExport(string? format) => IsXlsx(format) || string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase);
+
+        private FileContentResult Export(string? format, ReportTable table, string name) => IsXlsx(format)
+            ? File(XlsxWriter.ToBytes(table), XlsxWriter.ContentType, $"{name}-{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx")
+            : File(CsvWriter.ToBytes(table.Rows), "text/csv; charset=utf-8", $"{name}-{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
 
         /// <summary>
         /// Profit and Loss statement — revenue and expense account balances for a date range.
