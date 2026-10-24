@@ -7,6 +7,10 @@ namespace ERP.ACC.Application.Interfaces
     {
         Task<Account?> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task<List<Account>> GetAllAsync(CancellationToken ct = default);
+        /// <summary>Every account, tracked, so changes made by the caller are saved by the unit of work.</summary>
+        Task<List<Account>> GetAllTrackedAsync(CancellationToken ct = default);
+        /// <summary>Ids of the accounts that have at least one active sub-account (they take no postings).</summary>
+        Task<HashSet<Guid>> GetParentAccountIdsAsync(CancellationToken ct = default);
         Task<List<Account>> GetByNumbersAsync(IEnumerable<string> accountNumbers, CancellationToken ct = default);
         Task<List<Account>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default);
         Task AddAsync(Account account, CancellationToken ct = default);

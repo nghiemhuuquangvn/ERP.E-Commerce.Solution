@@ -45,12 +45,12 @@ namespace ERP.ACC.Application.Handlers
                 throw new BusinessRuleException("Accounting", "A posting key can only be mapped once.");
 
             var accounts = await _uow.Accounts.GetByIdsAsync(inputs.Select(i => i.AccountId).Distinct(), ct);
+            var parentIds = await AccountRules.ParentIdsAsync(_uow.Accounts, ct);
             foreach (var input in inputs)
             {
                 var account = accounts.FirstOrDefault(a => a.Id == input.AccountId)
                     ?? throw new BusinessRuleException("Accounting", $"Account {input.AccountId} does not exist.");
-                if (!account.IsActive)
-                    throw new BusinessRuleException("Accounting", $"Account {account.AccountNumber} is inactive.");
+                AccountRules.EnsurePostable(account, parentIds);
             }
 
             var current = await _uow.PostingMappings.GetAllAsync(ct);

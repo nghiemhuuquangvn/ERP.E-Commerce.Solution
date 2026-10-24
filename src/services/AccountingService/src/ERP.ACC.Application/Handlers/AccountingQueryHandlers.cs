@@ -9,50 +9,32 @@ namespace ERP.ACC.Application.Handlers
     public class GetAccountQueryHandler : IRequestHandler<GetAccountQuery, AccountDto?>
     {
         private readonly IAccountRepository _accounts;
-        private readonly ICacheService _cache;
 
-        public GetAccountQueryHandler(IAccountRepository accounts, ICacheService cache)
-        {
-            _accounts = accounts;
-            _cache = cache;
-        }
+        // Not cached: ICacheService keys carry no tenant, and an account changes with every management action (ROADMAP P1-2).
+        public GetAccountQueryHandler(IAccountRepository accounts) => _accounts = accounts;
 
         public async Task<AccountDto?> Handle(GetAccountQuery request, CancellationToken cancellationToken)
         {
-            var cacheKey = $"acc:account:{request.AccountId}";
-            var cached = await _cache.GetAsync<AccountDto>(cacheKey, cancellationToken);
-            if (cached != null) return cached;
-
             var account = await _accounts.GetByIdAsync(request.AccountId, cancellationToken);
             if (account == null) return null;
 
-            var dto = CreateAccountCommandHandler.MapAccountToDto(account);
-            await _cache.SetAsync(cacheKey, dto, TimeSpan.FromMinutes(5), cancellationToken);
-            return dto;
+            var parentIds = await _accounts.GetParentAccountIdsAsync(cancellationToken) ?? new HashSet<Guid>();
+            return CreateAccountCommandHandler.MapAccountToDto(account, parentIds.Contains(account.Id));
         }
     }
 
     public class ListAccountsQueryHandler : IRequestHandler<ListAccountsQuery, List<AccountDto>>
     {
         private readonly IAccountRepository _accounts;
-        private readonly ICacheService _cache;
 
-        public ListAccountsQueryHandler(IAccountRepository accounts, ICacheService cache)
-        {
-            _accounts = accounts;
-            _cache = cache;
-        }
+        // Not cached: the old key "acc:accounts:all" had no tenant, so one tenant could be served another's chart for 5 minutes.
+        public ListAccountsQueryHandler(IAccountRepository accounts) => _accounts = accounts;
 
         public async Task<List<AccountDto>> Handle(ListAccountsQuery request, CancellationToken cancellationToken)
         {
-            const string cacheKey = "acc:accounts:all";
-            var cached = await _cache.GetAsync<List<AccountDto>>(cacheKey, cancellationToken);
-            if (cached != null) return cached;
-
             var accounts = await _accounts.GetAllAsync(cancellationToken);
-            var dtos = accounts.Select(CreateAccountCommandHandler.MapAccountToDto).ToList();
-            await _cache.SetAsync(cacheKey, dtos, TimeSpan.FromMinutes(5), cancellationToken);
-            return dtos;
+            var parentIds = new HashSet<Guid>(accounts.Where(a => a.IsActive && a.ParentAccountId.HasValue).Select(a => a.ParentAccountId!.Value));
+            return accounts.Select(a => CreateAccountCommandHandler.MapAccountToDto(a, parentIds.Contains(a.Id))).ToList();
         }
     }
 

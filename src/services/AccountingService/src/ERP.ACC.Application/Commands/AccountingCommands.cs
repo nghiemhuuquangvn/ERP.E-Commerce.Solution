@@ -9,6 +9,23 @@ namespace ERP.ACC.Application.Commands
         public string Name { get; set; } = string.Empty;
         public int AccountType { get; set; }
         public int NormalBalance { get; set; }
+
+        /// <summary>Optional parent: the new account is its sub-account (same account type).</summary>
+        public Guid? ParentAccountId { get; set; }
+    }
+
+    /// <summary>Renames an account and/or moves it under another parent (null = top level). The number, type and normal balance never change.</summary>
+    public class UpdateAccountCommand : IRequest<AccountDto>
+    {
+        public Guid AccountId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public Guid? ParentAccountId { get; set; }
+    }
+
+    public class SetAccountActiveCommand : IRequest<AccountDto>
+    {
+        public Guid AccountId { get; set; }
+        public bool Active { get; set; }
     }
 
     public class CreateInvoiceCommand : IRequest<InvoiceDto>

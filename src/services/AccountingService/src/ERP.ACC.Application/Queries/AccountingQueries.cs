@@ -10,6 +10,8 @@ namespace ERP.ACC.Application.Queries
 
     public class ListAccountsQuery : IRequest<List<AccountDto>> { }
 
+    public class GetAccountTreeQuery : IRequest<List<AccountTreeNodeDto>> { }
+
     public class GetInvoiceQuery : IRequest<InvoiceDto?>
     {
         public Guid InvoiceId { get; set; }

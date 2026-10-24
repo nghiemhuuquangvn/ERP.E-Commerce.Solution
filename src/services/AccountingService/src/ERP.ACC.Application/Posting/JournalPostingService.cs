@@ -133,6 +133,8 @@ namespace ERP.ACC.Application.Posting
             foreach (var staged in _provisionedAccounts.Values)
                 accounts.TryAdd(staged.Id, staged);
 
+            _parentIds = await _uow.Accounts.GetParentAccountIdsAsync(ct) ?? new HashSet<Guid>();
+
             var profile = new Dictionary<string, Account>();
             foreach (var mapping in mappings)
             {
@@ -146,6 +148,7 @@ namespace ERP.ACC.Application.Posting
         }
 
         private readonly Dictionary<string, Account> _provisionedAccounts = new();
+        private HashSet<Guid>? _parentIds;
 
         /// <summary>
         /// A key with no mapping gets its default account (by number in the shipped chart). A tenant with no accounts at all
@@ -190,13 +193,16 @@ namespace ERP.ACC.Application.Posting
             return created;
         }
 
-        private static Account Resolve(Dictionary<string, Account> profile, string? postingKey)
+        private Account Resolve(Dictionary<string, Account> profile, string? postingKey)
         {
             if (string.IsNullOrEmpty(postingKey) || !profile.TryGetValue(postingKey, out var account))
                 throw new PostingConfigurationException(postingKey ?? "(none)", $"Posting key '{postingKey}' has no account.");
             if (!account.IsActive)
                 throw new PostingConfigurationException(postingKey,
                     $"Posting key '{postingKey}' points to account {account.AccountNumber}, which is inactive.");
+            if (_parentIds != null && _parentIds.Contains(account.Id))
+                throw new PostingConfigurationException(postingKey,
+                    $"Posting key '{postingKey}' points to account {account.AccountNumber}, which groups sub-accounts; map it to a sub-account.");
             return account;
         }
 
