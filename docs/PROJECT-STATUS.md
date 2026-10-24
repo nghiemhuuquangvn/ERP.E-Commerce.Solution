@@ -35,6 +35,17 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-24 — ROADMAP P1-2b: ledger, trial balance, cash flow (`feat/reports-ledger-cashflow`, unmerged)
+- New reports (docs/business/Accounting/Reports.md): `account-ledger` (opening, lines with counter-accounts and running balance, sub-accounts rolled in, paged), `trial-balance/full` (opening / period /
+  closing columns, roll-up to parents, totals + balanced check; the old list route keeps working), `cash-flow` (direct method by counter-account: operating / investing / financing, opening and closing
+  cash, reconciliation check; cash↔bank transfers ignored, closing and voided entries excluded). Accounts get `IsCash` and `CashFlowCategory` (editable; defaults in the templates).
+- **Needs Accounting migration `010_CashFlowAndLedger.sql`** (two columns + back-fill of the standard cash / investing / financing numbers). Drift test clean.
+- Admin: Reports page tabs Ledger and Cash Flow, six-column trial balance, account modal fields. en / vi.
+- Verified live (tenant glcheck, Vas99): loan, equipment, rent, customer payment, bank→cash transfer, sale on credit → cash flow operating / investing / financing, reconciled; trial balance totals balanced
+  and parent 111 / 112 rolled up; ledger of the parent and of 131; closing October left the cash flow unchanged and showed the closing entry in the ledger of 5111.
+- **New file docs/DEFERRED-ISSUES.md**: every problem left unfixed on purpose so far (security / ops, GL posting, verification gaps, chart) — read it before picking the next task.
+- Tests: ACC 137, admin `tsc -b` clean.
+
 ### 2026-10-24 — ROADMAP P1-2: chart of accounts, void / reverse, period-end closing (`feat/vas-chart`, unmerged)
 - Accounts: parent / sub-account tree (`GET accounts/tree`, `PUT accounts/{id}`, activate / deactivate with safety checks); a parent takes no postings (manual entries, posting-profile PUT and the
   engine refuse it). **Found and fixed:** the account list / get used a cache key without a tenant (`acc:accounts:all`), so one tenant could be served another's chart for 5 minutes — the

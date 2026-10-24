@@ -1,7 +1,7 @@
 # Deferred issues
 
 Problems found while working through the ROADMAP that were **not fixed on purpose** (out of the plan's scope, needs a decision, or needs another roadmap item first).
-Handle them after the main roadmap tasks; each plan that touches one of them should update its row. Last updated: 2026-10-24 (P1-2b).
+Handle them after the main roadmap tasks; each plan that touches one of them should update its row. Last updated: 2026-10-24 (P1-2b done).
 
 How to read: **Source** = where it was found; **Home** = the roadmap item or kind of work that should pick it up; **Impact** = why it matters.
 
@@ -55,6 +55,16 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | C4 | Closing runs every period (monthly) and moves the result to retained earnings each time; year-end-only closing is not offered. | P1-2c |
 | C5 | `FiscalPeriodClosed` has no consumer. | When a consumer needs it |
 | C6 | Class 0 (off-balance) accounts are not supported. | P1-2c |
+
+## 4b. Reports (P1-2b follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| R1 | The cash-flow statement is not the official B03-DN form (no indicator codes, no foreign-currency effect, interest and tax paid follow the account's category). Default categories are suggestions. | P1-2c, accountant review |
+| R2 | The account ledger computes the running balance in memory over the whole range before paging; a very busy account over a very long range should use date-bounded snapshots. | Performance, if a tenant needs it |
+| R3 | The cash-flow report needs accounts flagged `IsCash`; a tenant with its own chart must flag its cash / bank accounts (the screen says so when none is flagged). | Onboarding |
+| R4 | The trial-balance list route changed content (roll-up on by default, opening-only accounts now appear); clients that sum the list would double count parents — they should use `trial-balance/full`. | API notes |
+| R5 | Local DB `glcheck` now holds P1-2 / P1-2b verification entries on top of a clean Vas99 chart (October 2026 closed). | Local clean-up |
 
 ## 5. Roadmap items these issues are waiting for
 
