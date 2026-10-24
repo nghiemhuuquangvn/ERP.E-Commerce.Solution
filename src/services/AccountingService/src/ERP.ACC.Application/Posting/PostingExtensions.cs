@@ -1,3 +1,4 @@
+using ERP.ACC.Application.EventHandlers;
 using ERP.ACC.Domain;
 using ERP.ACC.Domain.Entities;
 using Microsoft.Extensions.Logging;
@@ -50,6 +51,8 @@ namespace ERP.ACC.Application.Posting
         public const string Bill = "Bill";
         public const string BillPayment = "BillPayment";
         public const string StockMovement = "StockMovement";
+        public const string PosSale = "PosSale";
+        public const string PosShift = "PosShift";
 
         /// <summary>Dr Accounts receivable / Cr Sales revenue (gross; VAT is split by P1-3).</summary>
         public static PostingRequest ForInvoice(Domain.Entities.Invoice invoice) =>
@@ -117,6 +120,48 @@ namespace ERP.ACC.Application.Posting
                 ? new[] { PostingLine.Dr(PostingKeys.Inventory, amount), PostingLine.Cr(counterKey, amount) }
                 : new[] { PostingLine.Dr(counterKey, amount), PostingLine.Cr(PostingKeys.Inventory, amount) };
             return new(StockMovement, movementId, date, description, lines);
+        }
+
+        /// <summary>
+        /// A POS sale: Dr Cash (cash tenders) and Dr Bank (every other tender) / Cr Sales revenue (subtotal - discount) and Cr VAT (the
+        /// tax POS charged). Null when the amounts are inconsistent (tenders do not add up to the sale total, negative figures), so a
+        /// malformed event never books an unbalanced entry.
+        /// </summary>
+        public static PostingRequest? ForPosSale(
+            Guid transactionId, decimal subTotal, decimal discount, decimal tax, IReadOnlyList<PosTenderLine> tenders, DateTime date)
+        {
+            var revenue = Math.Round(subTotal - discount, 2);
+            var vat = Math.Round(tax, 2);
+            var total = revenue + vat;
+            if (revenue < 0m || vat < 0m || total <= 0m || tenders == null || tenders.Count == 0 || tenders.Any(t => t.Amount < 0m))
+                return null;
+            if (Math.Round(tenders.Sum(t => t.Amount), 2) != total)
+                return null;
+
+            var lines = new List<PostingLine>();
+            var cash = Math.Round(tenders.Where(t => string.Equals(t.Method?.Trim(), "Cash", StringComparison.OrdinalIgnoreCase)).Sum(t => t.Amount), 2);
+            var bank = total - cash;
+            if (cash > 0m) lines.Add(PostingLine.Dr(PostingKeys.Cash, cash));
+            if (bank > 0m) lines.Add(PostingLine.Dr(PostingKeys.Bank, bank));
+            if (revenue > 0m) lines.Add(PostingLine.Cr(PostingKeys.SalesRevenue, revenue));
+            if (vat > 0m) lines.Add(PostingLine.Cr(PostingKeys.VatOutput, vat));
+            return new(PosSale, transactionId, date, $"POS sale {transactionId:N}", lines);
+        }
+
+        /// <summary>
+        /// Counted cash minus expected cash of a closed POS shift: a shortage (negative) is Dr Cash over / short / Cr Cash, an overage the
+        /// reverse. Null when the drawer balanced.
+        /// </summary>
+        public static PostingRequest? ForPosShiftVariance(Guid shiftId, decimal variance, DateTime date)
+        {
+            var amount = Math.Abs(Math.Round(variance, 2));
+            if (amount == 0m)
+                return null;
+
+            var lines = variance < 0m
+                ? new[] { PostingLine.Dr(PostingKeys.CashOverShort, amount), PostingLine.Cr(PostingKeys.Cash, amount) }
+                : new[] { PostingLine.Dr(PostingKeys.Cash, amount), PostingLine.Cr(PostingKeys.CashOverShort, amount) };
+            return new(PosShift, shiftId, date, $"POS shift {shiftId:N} cash {(variance < 0m ? "short" : "over")}", lines);
         }
 
         /// <summary>PaymentService's PaymentMethod enum: CreditCard 0, DebitCard 1, BankTransfer 2, EWallet 3, Cash 4, Crypto 5.</summary>

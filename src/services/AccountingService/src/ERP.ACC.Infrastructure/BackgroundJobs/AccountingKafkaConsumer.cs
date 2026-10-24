@@ -24,6 +24,7 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
     {
         private const string PurchasingTopic = "purchasing-topic";
         private const string PaymentTopic = "payment-topic";
+        private const string PosTopic = "pos-topic";
 
         /// <summary>Attempts per message before it is given up on (logged as an error with its position).</summary>
         private const int MaxAttempts = 3;
@@ -57,7 +58,7 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _consumer.Subscribe(new[] { PurchasingTopic, PaymentTopic });
+            _consumer.Subscribe(new[] { PurchasingTopic, PaymentTopic, PosTopic });
             _executingTask = Task.Run(() => ExecuteAsync(_cancellationTokenSource.Token), CancellationToken.None);
 
             return Task.CompletedTask;
@@ -155,6 +156,42 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
             };
         }
 
+        /// <summary>POSService's TransactionCreatedEvent. Amounts is null on events published before ROADMAP P1-1c.</summary>
+        public static PosSaleCompletedIntegrationEvent ParsePosSale(JObject raw)
+        {
+            var amounts = raw["Amounts"] as JObject;
+            var tenders = amounts?.ArrayValue("Tenders")?
+                .Select(t => new PosTenderLine(t.Value<string>("Method") ?? string.Empty, t.Value<decimal?>("Amount") ?? 0m))
+                .ToList() ?? new List<PosTenderLine>();
+
+            return new PosSaleCompletedIntegrationEvent
+            {
+                TransactionId = raw.GuidValue("TransactionId") ?? Guid.Empty,
+                HasAmounts = amounts != null,
+                SubTotal = amounts?.Value<decimal?>("SubTotal") ?? 0m,
+                DiscountAmount = amounts?.Value<decimal?>("DiscountAmount") ?? 0m,
+                TaxAmount = amounts?.Value<decimal?>("TaxAmount") ?? 0m,
+                TotalAmount = raw.Value<decimal?>("TotalAmount") ?? 0m,
+                Tenders = tenders,
+                CompletedAt = raw.Value<DateTime?>("CompletedAt") ?? default,
+                ExternalPaymentId = raw.GuidValue("ExternalPaymentId"),
+            };
+        }
+
+        public static PosSaleVoidedIntegrationEvent ParsePosVoid(JObject raw) => new()
+        {
+            TransactionId = raw.GuidValue("TransactionId") ?? Guid.Empty,
+            Reason = raw.Value<string?>("Reason"),
+            VoidedAt = raw.Value<DateTime?>("VoidedAt") ?? default,
+        };
+
+        public static PosShiftClosedIntegrationEvent ParsePosShift(JObject raw) => new()
+        {
+            ShiftId = raw.GuidValue("ShiftId") ?? Guid.Empty,
+            CashVariance = raw["CashVariance"]?.Type is JTokenType.Null or null ? null : raw.Value<decimal?>("CashVariance"),
+            ClosedAt = raw.Value<DateTime?>("ClosedAt") ?? default,
+        };
+
         private async Task DispatchAsync(string json, CancellationToken cancellationToken)
         {
             var typeName = JObject.Parse(json)["$type"]?.ToString() ?? string.Empty;
@@ -202,6 +239,24 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
                 };
 
                 if (evt.PaymentId != Guid.Empty)
+                    await mediator.Publish(evt, cancellationToken);
+            }
+            else if (typeName.Contains("TransactionCreatedEvent"))
+            {
+                var evt = ParsePosSale(JObject.Parse(json));
+                if (evt.TransactionId != Guid.Empty)
+                    await mediator.Publish(evt, cancellationToken);
+            }
+            else if (typeName.Contains("TransactionVoidedEvent"))
+            {
+                var evt = ParsePosVoid(JObject.Parse(json));
+                if (evt.TransactionId != Guid.Empty)
+                    await mediator.Publish(evt, cancellationToken);
+            }
+            else if (typeName.Contains("CashShiftClosedEvent"))
+            {
+                var evt = ParsePosShift(JObject.Parse(json));
+                if (evt.ShiftId != Guid.Empty)
                     await mediator.Publish(evt, cancellationToken);
             }
             // Other topic events are not yet consumed by Accounting.

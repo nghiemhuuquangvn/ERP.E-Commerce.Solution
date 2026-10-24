@@ -21,11 +21,13 @@ namespace ERP.ACC.Domain.Entities
         public const string CostOfGoodsSold = "CostOfGoodsSold";
         /// <summary>Stock gains and losses (stocktake, damage, POS void). Its own key so VAS can give it a separate account.</summary>
         public const string InventoryAdjustment = "InventoryAdjustment";
+        /// <summary>Counted cash that differs from the expected cash of a POS shift (ROADMAP P1-1c).</summary>
+        public const string CashOverShort = "CashOverShort";
 
         public static readonly IReadOnlyList<string> All = new[]
         {
             Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, Inventory, VatOutput,
-            GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment
+            GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment, CashOverShort
         };
 
         /// <summary>Account numbers of the seeded 14-account chart, used when a tenant has no mapping yet.</summary>
@@ -41,6 +43,7 @@ namespace ERP.ACC.Domain.Entities
             [GoodsReceivedNotInvoiced] = "2100",   // Accrued Liabilities
             [CostOfGoodsSold] = "5000",
             [InventoryAdjustment] = "5000",
+            [CashOverShort] = "5100",              // Operating Expenses
         };
     }
 
