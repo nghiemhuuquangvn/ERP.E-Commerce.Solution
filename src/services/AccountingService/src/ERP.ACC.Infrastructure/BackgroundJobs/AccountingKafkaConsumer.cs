@@ -12,8 +12,8 @@ using Newtonsoft.Json.Linq;
 namespace ERP.ACC.Infrastructure.BackgroundJobs
 {
     /// <summary>
-    /// Consumes PurchaseOrderService's "purchasing-topic" and PaymentService's
-    /// "payment-topic" — both publish via the Outbox pattern with Newtonsoft
+    /// Consumes PurchaseOrderService's "purchasing-topic", PaymentService's "payment-topic", POSService's "pos-topic"
+    /// and HRMService's "hrm-topic" — all publish via the Outbox pattern with Newtonsoft
     /// TypeNameHandling.All, so the "$type" discriminator holds the publisher's fully
     /// qualified CLR type name. Dispatch is by substring match against that, mirroring
     /// HRMService's MasterDataEventConsumer. Accounting's existing event handlers are
@@ -25,6 +25,7 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
         private const string PurchasingTopic = "purchasing-topic";
         private const string PaymentTopic = "payment-topic";
         private const string PosTopic = "pos-topic";
+        private const string HrmTopic = "hrm-topic";
 
         /// <summary>Attempts per message before it is given up on (logged as an error with its position).</summary>
         private const int MaxAttempts = 3;
@@ -58,7 +59,7 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _consumer.Subscribe(new[] { PurchasingTopic, PaymentTopic, PosTopic });
+            _consumer.Subscribe(new[] { PurchasingTopic, PaymentTopic, PosTopic, HrmTopic });
             _executingTask = Task.Run(() => ExecuteAsync(_cancellationTokenSource.Token), CancellationToken.None);
 
             return Task.CompletedTask;
@@ -94,11 +95,11 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
                 }
                 catch (ConsumeException ex)
                 {
-                    _logger.LogError(ex, "Error consuming from purchasing-topic/payment-topic");
+                    _logger.LogError(ex, "Error consuming from the subscribed topics");
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error handling message from purchasing-topic/payment-topic");
+                    _logger.LogError(ex, "Error handling a message from the subscribed topics");
                 }
             }
         }
@@ -192,6 +193,34 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
             ClosedAt = raw.Value<DateTime?>("ClosedAt") ?? default,
         };
 
+        /// <summary>HRMService's PaySlipGeneratedEvent. The amounts are 0 on events published before ROADMAP P1-1d.</summary>
+        public static PaySlipGeneratedIntegrationEvent ParsePaySlipGenerated(JObject raw) => new()
+        {
+            PaySlipId = raw.GuidValue("PaySlipId") ?? Guid.Empty,
+            PayPeriod = raw.Value<string?>("PayPeriod") ?? string.Empty,
+            GrossSalary = raw.Value<decimal?>("GrossSalary") ?? 0m,
+            OvertimePay = raw.Value<decimal?>("OvertimePay") ?? 0m,
+            Deductions = raw.Value<decimal?>("Deductions") ?? 0m,
+            NetPay = raw.Value<decimal?>("NetPay") ?? 0m,
+            PeriodEnd = raw["PeriodEnd"]?.Type is JTokenType.Null or null ? null : raw.Value<DateTime?>("PeriodEnd"),
+            OccurredAt = raw.Value<DateTime?>("OccurredOn") ?? default,
+        };
+
+        public static PaySlipPaidIntegrationEvent ParsePaySlipPaid(JObject raw) => new()
+        {
+            PaySlipId = raw.GuidValue("PaySlipId") ?? Guid.Empty,
+            PayPeriod = raw.Value<string?>("PayPeriod") ?? string.Empty,
+            NetPay = raw.Value<decimal?>("NetPay") ?? 0m,
+            PaidOn = raw.Value<DateTime?>("PaidOn") ?? default,
+        };
+
+        public static PaySlipVoidedIntegrationEvent ParsePaySlipVoided(JObject raw) => new()
+        {
+            PaySlipId = raw.GuidValue("PaySlipId") ?? Guid.Empty,
+            Reason = raw.Value<string?>("Reason"),
+            OccurredAt = raw.Value<DateTime?>("OccurredOn") ?? default,
+        };
+
         private async Task DispatchAsync(string json, CancellationToken cancellationToken)
         {
             var typeName = JObject.Parse(json)["$type"]?.ToString() ?? string.Empty;
@@ -257,6 +286,24 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
             {
                 var evt = ParsePosShift(JObject.Parse(json));
                 if (evt.ShiftId != Guid.Empty)
+                    await mediator.Publish(evt, cancellationToken);
+            }
+            else if (typeName.Contains("PaySlipGeneratedEvent"))
+            {
+                var evt = ParsePaySlipGenerated(JObject.Parse(json));
+                if (evt.PaySlipId != Guid.Empty)
+                    await mediator.Publish(evt, cancellationToken);
+            }
+            else if (typeName.Contains("PaySlipPaidEvent"))
+            {
+                var evt = ParsePaySlipPaid(JObject.Parse(json));
+                if (evt.PaySlipId != Guid.Empty)
+                    await mediator.Publish(evt, cancellationToken);
+            }
+            else if (typeName.Contains("PaySlipVoidedEvent"))
+            {
+                var evt = ParsePaySlipVoided(JObject.Parse(json));
+                if (evt.PaySlipId != Guid.Empty)
                     await mediator.Publish(evt, cancellationToken);
             }
             // Other topic events are not yet consumed by Accounting.

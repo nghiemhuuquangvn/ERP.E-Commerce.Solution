@@ -23,11 +23,18 @@ namespace ERP.ACC.Domain.Entities
         public const string InventoryAdjustment = "InventoryAdjustment";
         /// <summary>Counted cash that differs from the expected cash of a POS shift (ROADMAP P1-1c).</summary>
         public const string CashOverShort = "CashOverShort";
+        /// <summary>Wages and overtime of the pay slips (ROADMAP P1-1d).</summary>
+        public const string SalaryExpense = "SalaryExpense";
+        /// <summary>Net pay owed to employees until it is paid out.</summary>
+        public const string SalariesPayable = "SalariesPayable";
+        /// <summary>Deductions withheld from pay (insurance, tax, other): HRM sends one lump until real payroll (P1-7) splits it.</summary>
+        public const string PayrollWithholdingsPayable = "PayrollWithholdingsPayable";
 
         public static readonly IReadOnlyList<string> All = new[]
         {
             Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, Inventory, VatOutput,
-            GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment, CashOverShort
+            GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment, CashOverShort,
+            SalaryExpense, SalariesPayable, PayrollWithholdingsPayable
         };
 
         /// <summary>Account numbers of the seeded 14-account chart, used when a tenant has no mapping yet.</summary>
@@ -44,6 +51,9 @@ namespace ERP.ACC.Domain.Entities
             [CostOfGoodsSold] = "5000",
             [InventoryAdjustment] = "5000",
             [CashOverShort] = "5100",              // Operating Expenses
+            [SalaryExpense] = "5200",              // Salaries & Benefits
+            [SalariesPayable] = "2100",            // Accrued Liabilities
+            [PayrollWithholdingsPayable] = "2100", // VAS (P1-2) splits insurance and personal income tax
         };
     }
 

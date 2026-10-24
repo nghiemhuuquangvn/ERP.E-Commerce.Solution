@@ -53,6 +53,8 @@ namespace ERP.ACC.Application.Posting
         public const string StockMovement = "StockMovement";
         public const string PosSale = "PosSale";
         public const string PosShift = "PosShift";
+        public const string PaySlip = "PaySlip";
+        public const string PaySlipPayment = "PaySlipPayment";
 
         /// <summary>Dr Accounts receivable / Cr Sales revenue (gross; VAT is split by P1-3).</summary>
         public static PostingRequest ForInvoice(Domain.Entities.Invoice invoice) =>
@@ -162,6 +164,39 @@ namespace ERP.ACC.Application.Posting
                 ? new[] { PostingLine.Dr(PostingKeys.CashOverShort, amount), PostingLine.Cr(PostingKeys.Cash, amount) }
                 : new[] { PostingLine.Dr(PostingKeys.Cash, amount), PostingLine.Cr(PostingKeys.CashOverShort, amount) };
             return new(PosShift, shiftId, date, $"POS shift {shiftId:N} cash {(variance < 0m ? "short" : "over")}", lines);
+        }
+
+        /// <summary>
+        /// A pay slip: Dr Salary expense (gross + overtime) / Cr Salaries payable (net) and Cr Payroll withholdings payable (deductions). Dated
+        /// the end of the pay period, at most <paramref name="today"/>, so the expense falls in the month worked. Null when the deductions
+        /// exceed the pay.
+        /// </summary>
+        public static PostingRequest? ForPaySlip(
+            Guid paySlipId, string payPeriod, decimal gross, decimal overtime, decimal deductions, DateTime? periodEnd, DateTime today)
+        {
+            var expense = Math.Round(gross + overtime, 2);
+            var withheld = Math.Round(deductions, 2);
+            var net = expense - withheld;
+            if (expense <= 0m || withheld < 0m || net < 0m)
+                return null;
+
+            var lines = new List<PostingLine> { PostingLine.Dr(PostingKeys.SalaryExpense, expense) };
+            if (net > 0m) lines.Add(PostingLine.Cr(PostingKeys.SalariesPayable, net));
+            if (withheld > 0m) lines.Add(PostingLine.Cr(PostingKeys.PayrollWithholdingsPayable, withheld));
+
+            var date = periodEnd.HasValue && periodEnd.Value.Date < today.Date ? periodEnd.Value.Date : today.Date;
+            return new(PaySlip, paySlipId, date, $"Payroll {payPeriod}", lines);
+        }
+
+        /// <summary>The net pay was paid out: Dr Salaries payable / Cr Bank. Null for a zero amount.</summary>
+        public static PostingRequest? ForPaySlipPayment(Guid paySlipId, string payPeriod, decimal netPay, DateTime paidOn)
+        {
+            var amount = Math.Round(netPay, 2);
+            if (amount <= 0m)
+                return null;
+
+            return new(PaySlipPayment, paySlipId, paidOn, $"Payroll {payPeriod} paid",
+                new[] { PostingLine.Dr(PostingKeys.SalariesPayable, amount), PostingLine.Cr(PostingKeys.Bank, amount) });
         }
 
         /// <summary>PaymentService's PaymentMethod enum: CreditCard 0, DebitCard 1, BankTransfer 2, EWallet 3, Cash 4, Crypto 5.</summary>
