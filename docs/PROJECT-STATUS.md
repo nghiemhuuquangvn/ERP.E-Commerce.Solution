@@ -36,7 +36,15 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
-### 2026-10-24 — ROADMAP P1-2d: B03, closing policy, Excel (`feat/b03-yearend-xlsx`, unmerged)
+### 2026-10-24 — ROADMAP P1-2e: amount unit and company header (`feat/report-profile`, unmerged)
+- Table `ReportProfiles` (migration `012_ReportProfile.sql`, applied to the local DB), `GET/PUT accounting/reports/profile` (write needs `accounting:accounts:manage`): company name, tax code, address, three signatories, default unit.
+- B01 / B02 / B03 take `unit=vnd|thousand|million` (else the profile's unit, else VND): rows rounded half away from zero, totals added from the rounded rows, integrity checks on the exact amounts with a rounding-difference note; DTO has `unit`, `unitDivisor`, `header`.
+  CSV / Excel print the company block above and the signatories below. Admin: unit selector, report-profile panel, header on screen.
+- Verified live on `glcheck`: profile saved with Vietnamese text; B01 in thousand shows assets 4 vs sources 3 with `isBalanced` true and the note; `unit=vnd` exact; `unit=foo` → 400; CSV starts with the company block and ends with the signatories; xlsx 200.
+  Tests: ACC 216, Architecture 53/54 (known `NoSharedTokenKeyTests`), admin `tsc -b` clean. BA: `BA-Accounting.md` (UAT-40 … 45).
+- Not done (P1-2f): indirect method, B09, off-balance accounts, maturity split, PDF, other charts.
+
+### 2026-10-24 — ROADMAP P1-2d: B03, closing policy, Excel (`feat/b03-yearend-xlsx`, merged)
 - `statements/cash-flow` (B03-DN, direct method, rows by mã số via `CashFlowLayouts` / `CashFlowStatementEngine`, movement placed by counter-account prefix + direction, `unmapped` + closing-cash check, prior column). Draft layout.
 - Closing policy: table `ClosingPolicies` (migration `011_ClosingPolicy.sql`, applied to the local DB), `GET/PUT fiscal-periods/closing-policy`; YearEnd = months only lock, the last period of the fiscal year writes one entry
   from the remaining cumulative balances. Switching allowed only between years.

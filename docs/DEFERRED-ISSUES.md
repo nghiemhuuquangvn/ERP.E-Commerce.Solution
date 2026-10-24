@@ -1,7 +1,7 @@
 # Deferred issues
 
 Problems found while working through the ROADMAP that were **not fixed on purpose** (out of the plan's scope, needs a decision, or needs another roadmap item first).
-Handle them after the main roadmap tasks; each plan that touches one of them should update its row. Last updated: 2026-10-24 (P1-2d done).
+Handle them after the main roadmap tasks; each plan that touches one of them should update its row. Last updated: 2026-10-24 (P1-2e done).
 
 How to read: **Source** = where it was found; **Home** = the roadmap item or kind of work that should pick it up; **Impact** = why it matters.
 
@@ -73,11 +73,11 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 |---|---|---|
 | T1 | The B01 / B02 rows and account groups are a **draft** written from the Circular 200 forms; they are not checked against the official Circular 99/2025 forms and need an accountant's review before filing. | Accountant review |
 | T2 | B01 has no maturity data: short- vs long-term is decided by the account (341 short, 343 / 344 long, 242 long). | P1-2e (due dates on receivables / payables / loans) |
-| T3 | Layouts (B01, B02, B03) exist for the `Vas99` chart only; a tenant on another chart sees every account under "unmapped". Layouts are code, not editable per tenant. | P1-2e |
-| T4 | B03 exists by indicator code (direct method) but there is no indirect method; B09 notes are missing. | P1-2e |
-| T5 |$1| P1-2e |
-| T6 | CSV numbers use a dot decimal separator (Excel export has real numbers). No PDF export. | P1-2e |
-| T7 | Off-balance accounts (class 0) are not built (single-entry postings break the 2-line rule). | P1-2e |
+| T3 | Layouts (B01, B02, B03) exist for the `Vas99` chart only; a tenant on another chart sees every account under "unmapped". Layouts are code, not editable per tenant. | P1-2f |
+| T4 | B03 exists by indicator code (direct method) but there is no indirect method; B09 notes are missing. | P1-2f |
+| T5 | The comparison column is whatever date the user picks (no automatic same-period-last-year). Amounts can now be shown in thousand / million VND (P1-2e). | P1-2f |
+| T6 | CSV numbers use a dot decimal separator (Excel export has real numbers). No PDF export. | P1-2f |
+| T7 | Off-balance accounts (class 0) are not built (single-entry postings break the 2-line rule). | P1-2f |
 | T8 | Production-cost accounts 621 / 622 / 627 are not on B01 / B02 by design; a tenant that posts to them directly sees them under "unmapped" until the cost flow to 154 / 632 exists. | Manufacturing, if ever |
 
 ## 4d. B03, closing policy, Excel (P1-2d follow-ups)
@@ -85,12 +85,20 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | # | Issue | Home |
 |---|---|---|
 | U1 | The B03 row mapping (prefix → row) is a draft: e.g. withholdings paid (3382 … 3384, 3388) and VAT remitted (3331 out) land in "other payments" (07); salary paid straight from expense accounts lands in row 02. Needs the accountant's review. | Accountant review |
-| U2 | No preview of what the year-end entry will close, no warning when a month of the year has no fiscal period (the SYSTEM demo tenant has no September 2026). The year-end entry simply closes whatever is still open. | P1-2e |
+| U2 | No preview of what the year-end entry will close, no warning when a month of the year has no fiscal period (the SYSTEM demo tenant has no September 2026). The year-end entry simply closes whatever is still open. | P1-2f |
 | U3 | The closing policy has no change history (only the row's updated timestamp); the policy is per tenant, not per legal entity. | Audit, if needed |
 | U4 | The year-end entry is built from cumulative balances up to the period end; backdated prior-year corrections in a closed year are impossible (periods are locked) — they must be booked in the current year. | Policy decision |
-| U5 | The Excel export has no company header (name, tax code, signatures) as filed statements do. | P1-2e |
+
+## 4e. Amount unit and header (P1-2e follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| V1 | Rounding is per statement row with totals added from the rounded rows; a one-unit rounding difference between totals (e.g. 270 vs 440) is normal and reported in a note, but the filed form may need the difference pushed onto a chosen row — the accountant decides the convention. | Accountant review |
+| V2 | The unit applies to B01 / B02 / B03 only; the trial balance, ledger, profit and loss and the older cash-flow report stay in exact VND. | Decision, if needed |
+| V3 | The report profile is edited with `accounting:accounts:manage` (no dedicated permission); one profile per tenant (one legal entity); no history of changes. | Permissions work |
+| V4 | The header has no logo, no filing date / place line ("Lập, ngày … tháng … năm …") and no signature images. | P1-2f, if wanted |
 
 ## 5. Roadmap items these issues are waiting for
 
-P0-10 least-privilege SQL · P1-2e indirect cash flow, B09, off-balance accounts, maturity split, PDF, company header on exports · P1-3 VAT and e-invoice · P1-4 foreign currency and bank reconciliation ·
+P0-10 least-privilege SQL · P1-2f indirect cash flow, B09, off-balance accounts, maturity split, PDF · P1-3 VAT and e-invoice · P1-4 foreign currency and bank reconciliation ·
 P1-5 saga completion and returns · P1-6 notifications · P1-7 real payroll.
