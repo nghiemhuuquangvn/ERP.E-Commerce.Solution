@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { reportsApi, downloadReport } from '@/api/accounting/reports.api'
-import type { FinancialStatement } from '@/api/accounting/reports.api'
+import type { AmountUnit, FinancialStatement, ReportProfile } from '@/api/accounting/reports.api'
 import type { FinancialAccountLineDto, CashFlowSection } from '@/api/accounting/reports.api'
 import { accountsApi } from '@/api/accounting/accounts.api'
 import { DataTable } from '@/components/shared/DataTable'
@@ -41,8 +41,76 @@ function ExportButton({ path, params, name, disabled }: { path: string; params: 
   )
 }
 
+const EMPTY_PROFILE: ReportProfile = {
+  companyName: '',
+  taxCode: '',
+  address: '',
+  preparedBy: '',
+  chiefAccountant: '',
+  director: '',
+  amountUnit: 'Vnd',
+}
+
+/** The company header, signatories and default amount unit printed on B01 / B02 / B03 and their exports. */
+function ReportProfilePanel({ canEdit }: { canEdit: boolean }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const { data } = useQuery({ queryKey: ['accounting', 'reportProfile'], queryFn: () => reportsApi.reportProfile(), staleTime: 30_000 })
+  const [draft, setDraft] = useState<ReportProfile | null>(null)
+  const value = draft ?? data ?? EMPTY_PROFILE
+  const set = (patch: Partial<ReportProfile>) => setDraft({ ...value, ...patch })
+
+  const save = useMutation({
+    mutationFn: () => reportsApi.updateReportProfile(value),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounting', 'reportProfile'] })
+      queryClient.invalidateQueries({ queryKey: ['accounting', 'reports', 'statement'] })
+      setDraft(null)
+    },
+  })
+  const error = (save.error as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail
+
+  const field = (key: 'companyName' | 'taxCode' | 'address' | 'preparedBy' | 'chiefAccountant' | 'director', label: string, max: number) => (
+    <div>
+      <label className="mb-1 block text-sm font-medium text-gray-700">{label}</label>
+      <input className="input" maxLength={max} disabled={!canEdit} value={value[key]} onChange={(e) => set({ [key]: e.target.value })} />
+    </div>
+  )
+
+  return (
+    <details className="card p-3">
+      <summary className="cursor-pointer text-sm font-semibold text-gray-900">{t('accounting.reports.profileTitle')}</summary>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        {field('companyName', t('accounting.reports.companyName'), 200)}
+        {field('taxCode', t('accounting.reports.taxCode'), 20)}
+        {field('address', t('accounting.reports.address'), 300)}
+        {field('preparedBy', t('accounting.reports.preparedBy'), 300)}
+        {field('chiefAccountant', t('accounting.reports.chiefAccountant'), 300)}
+        {field('director', t('accounting.reports.director'), 300)}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.defaultUnit')}</label>
+          <select className="input" disabled={!canEdit} value={value.amountUnit} onChange={(e) => set({ amountUnit: e.target.value as AmountUnit })}>
+            <option value="Vnd">{t('accounting.reports.unitVnd')}</option>
+            <option value="Thousand">{t('accounting.reports.unitThousand')}</option>
+            <option value="Million">{t('accounting.reports.unitMillion')}</option>
+          </select>
+        </div>
+      </div>
+      {canEdit && (
+        <div className="mt-3 flex items-center gap-3">
+          <button className="btn-primary" disabled={!draft || save.isPending} onClick={() => save.mutate()}>
+            {t('common.save')}
+          </button>
+          {save.isError && <span className="text-sm text-red-600">{error ?? t('accounting.reports.profileFailed')}</span>}
+        </div>
+      )}
+    </details>
+  )
+}
+
 function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' | 'cash-flow' }) {
   const { t } = useTranslation()
+  const [unit, setUnit] = useState<AmountUnit | ''>('') // '' = the report profile's unit
   const isBalanceSheet = kind === 'balance-sheet'
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState(todayISODate())
@@ -53,8 +121,8 @@ function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' |
   const ready = isBalanceSheet ? !!toDate : !!fromDate && !!toDate
   const compareReady = compare && (isBalanceSheet ? !!compareTo : !!compareFrom && !!compareTo)
   const params: Record<string, unknown> = isBalanceSheet
-    ? { asOfDate: toDate, compareAsOfDate: compareReady ? compareTo : undefined }
-    : { fromDate, toDate, compareFromDate: compareReady ? compareFrom : undefined, compareToDate: compareReady ? compareTo : undefined }
+    ? { asOfDate: toDate, compareAsOfDate: compareReady ? compareTo : undefined, unit: unit || undefined }
+    : { fromDate, toDate, compareFromDate: compareReady ? compareFrom : undefined, compareToDate: compareReady ? compareTo : undefined, unit: unit || undefined }
 
   const { data, isLoading } = useQuery<FinancialStatement>({
     queryKey: ['accounting', 'reports', 'statement', kind, params],
@@ -128,6 +196,15 @@ function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' |
             <input type="date" className="input" value={compareTo} onChange={(e) => setCompareTo(e.target.value)} />
           </div>
         )}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.unit')}</label>
+          <select className="input" value={unit} onChange={(e) => setUnit(e.target.value as AmountUnit | '')}>
+            <option value="">{t('accounting.reports.unitProfile')}</option>
+            <option value="Vnd">{t('accounting.reports.unitVnd')}</option>
+            <option value="Thousand">{t('accounting.reports.unitThousand')}</option>
+            <option value="Million">{t('accounting.reports.unitMillion')}</option>
+          </select>
+        </div>
         <ExportButton
           path={`statements/${kind}`}
           params={params}
@@ -135,6 +212,20 @@ function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' |
           disabled={!ready}
         />
       </div>
+
+      {data?.header && (
+        <div className="text-sm text-gray-700">
+          <p className="font-semibold">{data.header.companyName}</p>
+          {data.header.taxCode && <p>{t('accounting.reports.taxCode')}: {data.header.taxCode}</p>}
+          {data.header.address && <p>{data.header.address}</p>}
+        </div>
+      )}
+
+      {data && (
+        <p className="text-xs text-gray-500">
+          {t('accounting.reports.unit')}: {data.unit}
+        </p>
+      )}
 
       {data && (
         <p className="text-xs text-amber-700">
@@ -165,6 +256,14 @@ function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' |
               {u.accountNumber} {u.accountName}: {u.balance.toLocaleString()}
             </p>
           ))}
+        </div>
+      )}
+
+      {data?.header && (data.header.preparedBy || data.header.chiefAccountant || data.header.director) && (
+        <div className="grid grid-cols-3 gap-4 pt-4 text-center text-sm">
+          <div><p className="text-xs text-gray-500">{t('accounting.reports.preparedBy')}</p><p>{data.header.preparedBy}</p></div>
+          <div><p className="text-xs text-gray-500">{t('accounting.reports.chiefAccountant')}</p><p>{data.header.chiefAccountant}</p></div>
+          <div><p className="text-xs text-gray-500">{t('accounting.reports.director')}</p><p>{data.header.director}</p></div>
         </div>
       )}
 
@@ -659,6 +758,7 @@ export function ReportsPage() {
       {tab === 'profit-and-loss' && <ProfitAndLossPanel />}
       {tab === 'balance-sheet' && <BalanceSheetPanel />}
       {tab === 'cash-flow' && <CashFlowPanel />}
+      {(tab === 'b01' || tab === 'b02' || tab === 'b03') && <ReportProfilePanel canEdit={hasPermission('accounting:accounts:manage')} />}
       {tab === 'b01' && <StatementPanel kind="balance-sheet" />}
       {tab === 'b02' && <StatementPanel kind="income-statement" />}
       {tab === 'b03' && <StatementPanel kind="cash-flow" />}

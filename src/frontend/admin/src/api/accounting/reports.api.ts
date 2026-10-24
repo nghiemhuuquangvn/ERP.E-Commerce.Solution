@@ -182,11 +182,32 @@ export interface FinancialStatement {
   unmapped: UnmappedAccount[]
   notes: string[]
   isBalanced: boolean | null
+  /** "VND", "thousand VND" or "million VND": the unit of every amount in rows (unmapped accounts stay in VND). */
+  unit: string
+  unitDivisor: number
+  header: ReportHeader | null
+}
+
+export interface ReportHeader {
+  companyName: string
+  taxCode: string
+  address: string
+  preparedBy: string
+  chiefAccountant: string
+  director: string
+}
+
+export type AmountUnit = 'Vnd' | 'Thousand' | 'Million'
+
+// ReportProfileDto — the company header, signatories and default unit of the statements.
+export interface ReportProfile extends ReportHeader {
+  amountUnit: AmountUnit
 }
 
 export interface BalanceSheetStatementParams {
   asOfDate?: string
   compareAsOfDate?: string
+  unit?: AmountUnit
 }
 
 export interface IncomeStatementParams {
@@ -194,6 +215,7 @@ export interface IncomeStatementParams {
   toDate: string
   compareFromDate?: string
   compareToDate?: string
+  unit?: AmountUnit
 }
 
 /** Downloads a report as a file: CSV (UTF-8 with a BOM, Excel opens it correctly) or Excel (.xlsx with numeric cells). */
@@ -223,6 +245,11 @@ export const downloadReportCsv = (path: string, params: Record<string, unknown>,
   downloadReport(path, params, fallbackName, 'csv')
 
 export const reportsApi = {
+  reportProfile: () => apiClient.get<ReportProfile>(`${ACC_BASE}/accounting/reports/profile`).then((r) => r.data),
+
+  updateReportProfile: (body: ReportProfile) =>
+    apiClient.put<ReportProfile>(`${ACC_BASE}/accounting/reports/profile`, body).then((r) => r.data),
+
   // B03-DN, direct method, by indicator code.
   cashFlowStatement: (params: IncomeStatementParams) =>
     apiClient
