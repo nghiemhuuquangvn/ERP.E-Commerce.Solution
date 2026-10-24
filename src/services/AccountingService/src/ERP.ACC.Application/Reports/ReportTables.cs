@@ -13,12 +13,24 @@ namespace ERP.ACC.Application.Reports
         public static ReportTable Statement(FinancialStatementDto s)
         {
             var compare = s.Rows.Any(r => r.PriorAmount.HasValue);
-            var rows = new List<IReadOnlyList<object?>>
+            var rows = new List<IReadOnlyList<object?>>();
+
+            // the company block above the title, as on the filed forms (only the lines the tenant filled in)
+            if (s.Header != null)
             {
-                new object?[] { s.Title },
-                new object?[] { "Period", s.FromDate.HasValue ? Date(s.FromDate.Value) : "", s.ToDate.HasValue ? Date(s.ToDate.Value) : "" },
-                compare ? new object?[] { "Code", "Item", "Amount", "Prior" } : new object?[] { "Code", "Item", "Amount" },
-            };
+                if (s.Header.CompanyName.Length > 0)
+                    rows.Add(new object?[] { s.Header.CompanyName });
+                if (s.Header.TaxCode.Length > 0)
+                    rows.Add(new object?[] { "Tax code", s.Header.TaxCode });
+                if (s.Header.Address.Length > 0)
+                    rows.Add(new object?[] { "Address", s.Header.Address });
+            }
+
+            rows.Add(new object?[] { s.Title });
+            rows.Add(new object?[] { "Period", s.FromDate.HasValue ? Date(s.FromDate.Value) : "", s.ToDate.HasValue ? Date(s.ToDate.Value) : "", "Unit", s.Unit });
+            rows.Add(compare ? new object?[] { "Code", "Item", "Amount", "Prior" } : new object?[] { "Code", "Item", "Amount" });
+            var headerRow = rows.Count;
+
             rows.AddRange(s.Rows.Select(r => compare
                 ? new object?[] { r.Code, new string(' ', r.Indent * 2) + r.Name, r.Amount, r.PriorAmount }
                 : new object?[] { r.Code, new string(' ', r.Indent * 2) + r.Name, r.Amount }));
@@ -28,7 +40,16 @@ namespace ERP.ACC.Application.Reports
                 rows.Add(new object?[] { "unmapped", u.AccountNumber + " " + u.AccountName, u.Balance });
             foreach (var note in s.Notes)
                 rows.Add(new object?[] { "note", note });
-            return new ReportTable(s.LayoutId, rows, 3);
+
+            // the signatories under the table
+            if (s.Header != null && (s.Header.PreparedBy + s.Header.ChiefAccountant + s.Header.Director).Length > 0)
+            {
+                rows.Add(new object?[] { "" });
+                rows.Add(new object?[] { "", "Prepared by", "Chief accountant", "Director" });
+                rows.Add(new object?[] { "", s.Header.PreparedBy, s.Header.ChiefAccountant, s.Header.Director });
+            }
+
+            return new ReportTable(s.LayoutId, rows, headerRow);
         }
 
         public static ReportTable TrialBalance(TrialBalanceDto t)
