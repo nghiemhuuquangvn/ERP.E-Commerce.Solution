@@ -206,6 +206,28 @@ namespace ERP.ACC.API.Controllers
             return IsExport(format) ? Export(format, ReportTables.Statement(result), "cash-flow-b03") : Ok(result);
         }
 
+        /// <summary>The header, signatories and amount unit of the statements.</summary>
+        [HttpGet("profile")]
+        [ProducesResponseType(typeof(ReportProfileDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetProfile(CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(new GetReportProfileQuery(), ct));
+        }
+
+        /// <summary>Sets the company header, the signatories and the amount unit (VND, thousand, million) used by B01 / B02 / B03.</summary>
+        [HttpPut("profile")]
+        [ProducesResponseType(typeof(ReportProfileDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateReportProfileCommand command, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:accounts:manage"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(command, ct));
+        }
+
         private static bool IsXlsx(string? format) => string.Equals(format, "xlsx", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>format=csv or format=xlsx asks for a file instead of JSON.</summary>
