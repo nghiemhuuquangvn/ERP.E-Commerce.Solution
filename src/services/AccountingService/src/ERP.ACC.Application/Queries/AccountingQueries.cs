@@ -106,6 +106,9 @@ namespace ERP.ACC.Application.Queries
         public bool IncludeSubAccounts { get; set; } = true;
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 100;
+
+        /// <summary>Return every row of the range, ignoring the paging (used by the CSV export).</summary>
+        public bool All { get; set; }
     }
 
     public class GetProfitAndLossQuery : IRequest<ProfitAndLossDto>

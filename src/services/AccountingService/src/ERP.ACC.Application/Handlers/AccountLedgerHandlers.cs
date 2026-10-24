@@ -85,8 +85,8 @@ namespace ERP.ACC.Application.Handlers
                 balances.Add(running);
             }
 
-            var pageSize = Math.Clamp(request.PageSize, 1, MaxPageSize);
-            var pageNumber = Math.Max(1, request.PageNumber);
+            var pageSize = request.All ? Math.Max(1, rows.Count) : Math.Clamp(request.PageSize, 1, MaxPageSize);
+            var pageNumber = request.All ? 1 : Math.Max(1, request.PageNumber);
             var pageRows = rows.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
 
             // Counter-accounts only for the page that is shown.
