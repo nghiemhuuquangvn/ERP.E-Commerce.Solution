@@ -60,13 +60,23 @@ in a closed period is booked today. Period-closing entries are never reversed or
 3. locks the period (and raises `FiscalPeriodClosed`). A period with no revenue or expense activity is closed without an entry.
 
 `POST fiscal-periods/{id}/reopen {reason}` works for the latest closed period only: its closing entry is voided (its key is renamed so a new one can be posted)
-and the period is open again. Closing happens **every period** (monthly), which moves the result to retained earnings each month; year-end-only closing is a later option.
+and the period is open again.
+
+### Closing policy (P1-2d)
+
+`GET / PUT fiscal-periods/closing-policy` (`accounting:periods:view|manage`), table `ClosingPolicies` (migration 011): `ClosingMode` **Monthly** (default, everything above) or **YearEnd**, and `FiscalYearEndMonth` (default 12).
+
+* **Monthly:** every close writes its closing entry (moves the result to retained earnings each month).
+* **YearEnd:** a close that is not the last period of the fiscal year runs the checks and **only locks**; the last period (it ends on the last day of the year-end month) writes **one** `PeriodClosing` entry built from the
+  **remaining cumulative balance** of every revenue / expense account up to the period end ("Year-end closing …"). Because it reads what is still open, switching modes never closes a month twice.
+* The mode can change only between years (refused while the latest closed period is not the last of a year). Reopening the year-end period voids its entry as before.
+* **Carry-forward:** balances are cumulative, so after the year-end entry revenue / expense accounts open the next year at zero and balance-sheet accounts keep their balance — no opening entry exists. Details and rules:
+  [BA-Accounting.md](BA-Accounting.md) §4.6, UC-11, UC-12, BR-70 … BR-78.
 
 Reports: the **profit and loss** leaves out `PeriodClosing` entries, so a closed period still shows its result; the **balance sheet** adds the result that has
 not been closed yet to equity (assets = liabilities + equity before and after closing); the trial balance counts the closing entry (the summary account nets to 0).
 
 ## Known limits
 
-The B01/B02/B03 layouts, indirect-method cash flow (P1-2c); off-balance accounts;
-year-end carry-forward beyond the monthly transfer; migrating a tenant that already has entries to another chart (re-map the profile by hand); the SYSTEM tenant
+B09 notes, indirect-method cash flow, off-balance accounts (P1-2e); migrating a tenant that already has entries to another chart (re-map the profile by hand); the SYSTEM tenant
 and the demo data stay on the 14-account chart.

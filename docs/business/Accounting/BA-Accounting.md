@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Domain** | Accounting (AccountingService, port 5005, code ACC) |
-| **Covers** | ROADMAP P1-1 … P1-1e (automatic posting), P1-2 (chart of accounts, void / reverse, closing), P1-2b (ledger, trial balance, cash flow), P1-2c (B01 / B02 statements, CSV) |
+| **Covers** | ROADMAP P1-1 … P1-1e (automatic posting), P1-2 (chart of accounts, void / reverse, closing), P1-2b (ledger, trial balance, cash flow), P1-2c (B01 / B02 statements, CSV), **P1-2d (B03 cash-flow statement by indicator code, year-end closing policy, Excel export)** |
 | **Status** | Implemented and verified on the local Docker stack, 2026-10-24. Items still open are in [DEFERRED-ISSUES.md](../../DEFERRED-ISSUES.md). |
 | **Audience** | Product owner, chief accountant, QA, developers |
 | **Companion documents** | [AutoPosting.md](AutoPosting.md) (posting rules in detail), [ChartOfAccounts.md](ChartOfAccounts.md), [Reports.md](Reports.md), [event-catalog](../../architecture/event-catalog.md) |
@@ -29,11 +29,15 @@ A Vietnamese company must keep its books under the Vietnamese accounting standar
 | O4 | A month can be closed in a controlled way and the books reconciled. | FR-33 … FR-36. |
 | O5 | The accountant gets the standard books and statements. | FR-40 … FR-47. |
 | O6 | A problem in the posting set-up never blocks the business document (sale, bill, payment). | BR-12. |
+| O7 | The accountant gets the third statutory statement, the cash-flow statement B03-DN, in the official row layout, and can trust that it agrees with the cash on the books. | FR-48 … FR-51; row 70 = closing cash. |
+| O8 | A company that closes its books once a year (not every month) can do so without writing twelve closing entries, and carry its balances into the new year without manual work. | FR-53 … FR-57. |
+| O9 | Reports can be handed to an auditor or a manager as a spreadsheet whose amounts are real numbers. | FR-52. |
 
 ### 1.3 Scope
 **In scope:** posting from sales, payment, purchasing, warehouse, POS, payroll, refunds and returns; chart of accounts and templates; manual entries, void, reverse; fiscal periods and closing;
-trial balance, ledger, profit and loss, balance sheet, cash flow, B01 / B02 by indicator code; CSV export; admin screens for all of it.
-**Out of scope (see section 15):** VAT, e-invoice, foreign currency, bank reconciliation, real payroll calculation (insurance, personal income tax), restocking of returned goods, B03 / B09, Excel / PDF.
+trial balance, ledger, profit and loss, balance sheet, cash flow, B01 / B02 / **B03** by indicator code; CSV and **Excel** export; **a closing policy (monthly or at year end)**; admin screens for all of it.
+**Out of scope (see section 15):** VAT, e-invoice, foreign currency, bank reconciliation, real payroll calculation (insurance, personal income tax), restocking of returned goods, B09 notes, indirect-method cash flow,
+off-balance (class 0) accounts, short- / long-term split by due date, PDF.
 
 ---
 
@@ -61,14 +65,20 @@ trial balance, ledger, profit and loss, balance sheet, cash flow, B01 / B02 by i
 | Chart template | A ready-made chart plus its posting map: `Simple14` (the platform's 14 accounts) or `Vas99` (Vietnamese chart, Circular 99/2025/TT-BTC). |
 | Parent / leaf account | A parent groups sub-accounts and takes no postings; only leaves are postable. |
 | Contra account | An account whose normal side is opposite to its group (accumulated depreciation, provisions, sales deductions). |
-| Fiscal period | A calendar month in which entries are booked; open or closed. |
-| Closing entry (bút toán kết chuyển) | The entry written when a period is closed: revenue and expenses → profit determination (VAS 911) → retained earnings (VAS 421). |
+| Fiscal period | A date range (normally a calendar month) in which entries are booked; open or closed. |
+| Closing entry (bút toán kết chuyển) | The entry written when a period (Monthly policy) or the last period of the year (YearEnd policy) is closed: revenue and expenses → profit determination (VAS 911) → retained earnings (VAS 421). |
 | Void | Takes a hand-written entry of an open period out of the books (status Voided). |
 | Reverse | Posts a mirror entry; the original stays as Reversed. |
 | GRNI | Goods received, not invoiced: the liability account credited by a stock receipt and debited by the supplier bill. |
 | Cash-flow category | Operating, investing or financing — how a cash movement is classified by the account on the other side of the entry. |
 | Indicator code (mã số) | The row number on the statutory forms B01-DN, B02-DN. |
 | Draft layout | A statement layout the accountant has not yet reviewed against the official form. |
+| B03-DN | The cash-flow statement of the Vietnamese forms: three activities (operating, investing, financing) with numbered rows 01 … 70. This platform produces it by the **direct method** (cash received and paid). |
+| Direct / indirect method | Direct: list the cash actually received and paid. Indirect: start from profit and adjust for non-cash items. Only the direct method exists today. |
+| Counter-account | For a cash line of an entry, the account on the other side (e.g. cash received for sales: the counter-account is revenue or receivables). It tells what the money was for. |
+| Fiscal year | The twelve months ending in the *fiscal-year end month* of the closing policy (December by default). A period is the **last of the year** when it ends on the last day of that month. |
+| Closing policy | A tenant setting: **Monthly** (every period writes a closing entry — the original behaviour) or **YearEnd** (a period only locks; the last period of the year writes one closing entry). |
+| Carry-forward (kết chuyển số dư) | Balance-sheet accounts keep their balance into the next year; revenue and expense accounts start the new year at zero because the closing entry cleared them. Balances here are cumulative, so no separate "opening entry" is written. |
 
 ---
 
@@ -95,6 +105,26 @@ Pay slip paid → *Dr Salaries payable / Cr Bank*. Unpaid slip cancelled → ent
 
 ### 4.5 Month end
 Review posting problems (logs) → post/correct manual entries (void or reverse) → run the trial balance → close the period (checks, closing entry, lock) → produce statements → reopen only if a correction is needed.
+Under the **YearEnd** policy (4.6) "close the period" only locks the month; the closing entry is written once, by the last period of the year.
+
+### 4.6 Year end and the choice of closing policy
+The tenant chooses **how often the profit is determined** (Fiscal Periods → *Closing policy*):
+
+| | Monthly (default) | YearEnd |
+|---|---|---|
+| Closing January … November | Each writes its closing entry; the month's revenue and expenses go to retained earnings | Only checks and locks the month — **no entry**; revenue and expenses stay on their accounts |
+| Closing the last period of the year (December when the year ends in December) | Writes December's entry like any other month | Writes **one** entry for everything not yet moved to retained earnings (the whole year) |
+| Profit and loss / B02 for a month | Unchanged by closing | Unchanged by closing |
+| Balance sheet / B01 before the year is closed | Result of the open months in row 421b | Result of the whole year to date in row 421b |
+| Start of the next year | Revenue and expense accounts are at zero | Same — the year-end entry cleared them; balance-sheet accounts carry over |
+
+Flow of a year under YearEnd: 1. the accountant sets the policy before the first period of the year is closed → 2. each month is closed in order (locks) → 3. the last month is closed → the closing entry is written, dated the last
+day of the year → 4. statements for the year are produced (B01 shows the profit in retained earnings, B02 shows the year's result) → 5. the new year starts with revenue / expenses at zero and balance-sheet balances carried over.
+The policy can be changed only **between** years (BR-75): a year closed half one way and half the other would be closed twice or not at all.
+
+### 4.7 Producing the cash-flow statement (B03-DN)
+Accountant opens Reports → B03 → picks the range (and optionally a prior range) → the system reads every posted entry of the range that touches a cash account, attributes each non-cash line to a numbered row by its account and
+direction (BR-64 … 66, table in 6.8), adds opening cash (row 60) → row 70 must equal the cash on the books; if not, the statement says so and lists the movements it could not place → the accountant reviews the draft rows → exports to Excel / CSV.
 
 ---
 
@@ -151,6 +181,32 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | FR-45 | B01-DN and B02-DN by indicator code, with an optional prior-period column, a list of accounts the layout does not take, and a draft label. | M | P1-2c |
 | FR-46 | CSV export of the trial balance, ledger (all rows), cash flow, B01 and B02, safe for Excel and Vietnamese text. | S | P1-2c |
 | FR-47 | The admin app has screens for the accounts tree, journal entries (reverse / void), fiscal periods (close / reopen) and every report. | M | P1-2 … P1-2c |
+| FR-48 | **B03-DN** (cash flow, direct method) by indicator code: rows 01 … 07, 20, 21 … 27, 30, 31 … 36, 40, 50, 60, 61, 70, with an optional prior-period column. | M | P1-2d |
+| FR-49 | Each cash movement is placed on a B03 row by the counter-account's number and by direction (received / paid); outflows are negative; an operating movement no row names goes to "other receipts" (06) or "other payments" (07). | M | P1-2d |
+| FR-50 | Closing cash (row 70) is checked against the cash on the books in every column; a movement that no row takes (investing / financing accounts outside the layout) is listed and makes the check fail visibly. | M | P1-2d |
+| FR-51 | B03 shows a draft label and notes (outflows negative, no foreign currency yet) and exports like the other statements. | M | P1-2d |
+| FR-52 | Every report route can export **Excel (.xlsx)** (`format=xlsx`) as well as CSV: amounts are numeric cells, text is never evaluated as a formula, the header row is bold and frozen, the ledger export holds every row. | S | P1-2d |
+| FR-53 | The accountant can read and set the tenant's **closing policy** (Monthly or YearEnd) and the month the fiscal year ends. | M | P1-2d |
+| FR-54 | Under YearEnd, closing a period that is not the last of the year checks and locks it and writes no entry. | M | P1-2d |
+| FR-55 | Under YearEnd, closing the last period of the year writes one closing entry for everything not yet closed, dated the period end. | M | P1-2d |
+| FR-56 | Balance-sheet accounts carry into the new year and revenue / expense accounts start it at zero, without a separate opening entry. | M | P1-2d |
+| FR-57 | The admin app shows the closing policy on the Fiscal Periods page, the B03 tab and "Export Excel" next to "Export CSV" on every report. | M | P1-2d |
+
+### 5.5 Acceptance criteria of the P1-2d requirements
+(Scenarios are in section 12; the *UAT* column points at them.)
+
+| ID | Acceptance criteria | UAT |
+|---|---|---|
+| FR-48 | Given a tenant on the Vietnamese chart with cash movements in October, when B03 is run for October, then every row code listed in FR-48 is present in order, the total rows are the signed sums of their members (20 = 01 … 07, 30, 40, 50 = 20 + 30 + 40, 70 = 50 + 60 + 61), and with a prior range each row also has a prior amount. | UAT-25, 26 |
+| FR-49 | Given receipts of 400 for sales, payments of 600 to suppliers, a loan of 2,000 and equipment of 1,500, then 01 = 400, 02 = −600, 33 = 2,000, 21 = −1,500; a payment on an account no row names is shown in 07; 341 received → 33 and 341 paid → 34. | UAT-27, 28 |
+| FR-50 | Given a cash movement whose counter-account is an investing account the layout leaves out, then the movement appears under "unmapped", the closing-cash check is false and a note explains it. | UAT-29 |
+| FR-51 | When B03 is opened, then it shows its title, the "draft" flag and the notes; a CSV / Excel export carries the same. | UAT-25, 31 |
+| FR-52 | Given any report, when `format=xlsx` is requested, then the answer is an `.xlsx` file (content type `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`), amounts are numeric cells, a description starting with `=`, `+`, `-` or `@` is stored as text, Vietnamese text is intact, the header row is frozen. | UAT-30, 31 |
+| FR-53 | Given a tenant that never set a policy, then GET returns Monthly and December; PUT with an unknown mode or a month outside 1 … 12 is refused (HTTP 400). | UAT-32, 38 |
+| FR-54 | Given YearEnd with December as year end, when January … November are closed in order, then each becomes Closed, no closing entry exists and revenue / expense balances are unchanged. | UAT-34 |
+| FR-55 | Given the same tenant, when December is closed, then exactly one Posted entry of type PeriodClosing exists, dated 31 December, whose lines clear every revenue / expense account by its cumulative balance and book the result to retained earnings; reopening December voids it. | UAT-35, 37 |
+| FR-56 | Given that year is closed, then the trial balance of January shows revenue and expense accounts with a zero opening balance, retained earnings with the year's result and the other accounts with their year-end balance; B01 is balanced before and after. | UAT-36 |
+| FR-57 | Given a user with `accounting:periods:manage`, then the policy panel can be saved; a user with only `accounting:periods:view` sees it read-only. | manual |
 
 ---
 
@@ -220,6 +276,54 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | BR-62 | B01: total assets (270) = total sources (440) in every column, else the statement says so. |
 | BR-63 | The layouts are **drafts** until the accountant has reviewed them; the API, the screen and the CSV say so. |
 
+### 6.8 Cash-flow statement B03-DN (direct method)
+| ID | Rule |
+|---|---|
+| BR-64 | A cash movement is a non-cash line of an entry that touches a cash account (`IsCash`). Its amount is *credit − debit*: positive = cash received, negative = cash paid. The **first row of the layout** (top to bottom) whose account prefix matches the counter-account **and** whose direction matches takes it — a movement is counted once. |
+| BR-65 | A movement no row names falls back by the account's cash-flow category: operating → 06 (received) or 07 (paid). |
+| BR-66 | An investing or financing movement that no row names is **not** moved to another activity: it is listed as *unmapped* and the closing-cash check fails, so the accountant sees the gap (fix by extending the layout or the account's category). |
+| BR-67 | Outflows are shown negative; total rows are signed sums (20 = 01 … 07; 30 = 21 … 27; 40 = 31 … 36; 50 = 20 + 30 + 40; 70 = 50 + 60 + 61). Row 60 is the cash at the day before the range starts. |
+| BR-68 | Row 70 must equal the cash on the books at the end of the range, in every column (current and prior); otherwise the statement is flagged and says why. |
+| BR-69 | Row 61 (foreign-exchange effect) is 0 until foreign currency exists (P1-4). The layout is a **draft** like B01 / B02 (BR-63). Entries between cash accounts, closing entries and voided entries never count (BR-51). |
+
+Row mapping (account prefix → row; "In" = cash received, "Out" = cash paid):
+
+| Row | Meaning | Counter-account prefix |
+|---|---|---|
+| 01 | Cash from sales and services | In: 511, 131, 3331, 3387 |
+| 02 | Paid to suppliers for goods and services | Out: 331, 151 … 158, 133, 611, 621, 627, 641, 642 |
+| 03 | Paid to employees | Out: 334 |
+| 04 | Interest paid | Out: 635, 335 |
+| 05 | Income tax paid | Out: 3334, 8211 |
+| 06 / 07 | Other receipts / payments from operations | Fallback: any operating movement not above |
+| 21 / 22 | Fixed assets bought / sold | Out: 211, 213, 217, 241 / In: 211, 213, 217 |
+| 23 / 24 | Loans given and debt instruments bought / collected | Out / In: 128 |
+| 25 / 26 | Equity investments made / recovered | Out / In: 221, 222, 228 |
+| 27 | Interest and dividends received | In: 515 |
+| 31 / 32 | Capital received / capital returned and shares bought back | In: 411 / Out: 411, 419 |
+| 33 / 34 | Borrowings received / principal repaid | In / Out: 341, 343, 344 |
+| 35 | Finance-lease principal paid | Out: 342 |
+| 36 | Dividends and profit paid | Out: 421 |
+| 60 / 61 / 70 | Opening cash / exchange-rate effect (0) / closing cash | formulas |
+
+### 6.9 Closing policy and year end
+| ID | Rule |
+|---|---|
+| BR-70 | A tenant with no policy is **Monthly** with a **December** year end; the behaviour of BR-41 then applies unchanged. |
+| BR-71 | The policy has two settings: the mode (Monthly, YearEnd) and the fiscal-year end month (1 … 12). Anything else is refused (HTTP 400). |
+| BR-72 | Under **YearEnd**, closing a period that is not the last of the year runs the checks of BR-40, writes **no** closing entry and locks the period. |
+| BR-73 | Under YearEnd, closing the **last period of the year** writes one closing entry that clears every leaf revenue / expense account by its **remaining cumulative balance up to the period end** (not by the period's own activity) into the income-summary key, then retained earnings. Months closed earlier under Monthly are already at zero, so mixing the modes never closes anything twice. The entry is dated the period end and described "Year-end closing …". |
+| BR-74 | A period is the **last of the year** when its end date is the last day of the fiscal-year end month (a quarterly period ending 31 December also qualifies; a period ending 15 December does not). |
+| BR-75 | The policy may be changed only **between years**: refused while the most recently closed period is not the last period of a year ("the fiscal year is in progress"). Saving the same values is always allowed. Reopen the closed periods first if a change is really needed. |
+| BR-76 | Reopening works as before (BR-42): only the latest closed period, with a reason; if that period holds the closing entry, the entry is voided. |
+| BR-77 | **Carry-forward.** Account balances are cumulative over all dates. After the year-end entry revenue and expense accounts therefore open the next year at zero, retained earnings holds the year's result and every balance-sheet account keeps its balance — no opening entry is written, and the trial balance of the new year opens with the closing balances of the old one. |
+| BR-78 | The option "close without closing entries" (`postClosingEntries=false`) stays available in both modes; it locks the period only. |
+
+### 6.10 Export
+| ID | Rule |
+|---|---|
+| BR-79 | `format=csv` and `format=xlsx` are built from the same table of cells, so a column added to a report shows in both. Amounts are numbers in Excel (`#,##0.00`, negatives red) and plain invariant numbers in CSV; any other `format` value returns the normal JSON. Text cells starting with `=`, `+`, `-` or `@` are stored as text with Excel's quote prefix. |
+
 ---
 
 ## 7. Use cases
@@ -249,17 +353,40 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 ### UC-06 Close a fiscal period
 *Actor:* accountant (`accounting:periods:manage`). *Pre:* the previous periods are closed.
 *Main flow:* Fiscal Periods → Close → the system checks (BR-40), writes the closing entry (BR-41), locks the period. *Exceptions:* an earlier open period, draft entries or an unbalanced trial balance → refused with the reason.
-*Post:* no entry can be posted into the period; the profit and loss still shows its result; the balance sheet shows the result in retained earnings.
+*Alternative:* under the YearEnd policy only the locking happens until the last period of the year (UC-12). *Post:* no entry can be posted into the period; the profit and loss still shows its result; the balance sheet shows the result in retained earnings.
 
 ### UC-07 Reopen a fiscal period
 *Main flow:* Reopen → reason → the closing entry is voided and the period is open. *Refused:* a later period is closed; the period is not closed. After corrections the period is closed again (a new closing entry).
 
 ### UC-08 Produce the books and statements
-*Actor:* accountant / auditor. *Main flow:* Reports → choose the tab (trial balance, ledger, profit and loss, balance sheet, cash flow, B01, B02) → dates (and a prior period) → read → Export CSV.
+*Actor:* accountant / auditor. *Main flow:* Reports → choose the tab (trial balance, ledger, profit and loss, balance sheet, cash flow, B01, B02, **B03**) → dates (and a prior period) → read → Export CSV or **Export Excel**.
 *Alternatives:* a tenant on another chart opens B01 / B02 → every account is listed as unmapped with a note; no cash account flagged → the cash-flow tab says to flag cash and bank accounts.
 
 ### UC-09 Handle a posting problem
 *Trigger:* a document was saved but its entry is missing (log: "No journal entry was posted for … : reason"). *Flow:* the accountant reads the reason (key without an account, inactive or parent account, no open period today), fixes the posting profile or opens the period, and books the missing entry by hand (UC-04). *Note:* there is no automatic back-posting (section 15).
+
+### UC-10 Produce the cash-flow statement B03-DN
+*Actor:* accountant / auditor (`accounting:reports:view`). *Pre:* the cash and bank accounts are flagged *cash* (accounts screen); the tenant is on the Vietnamese chart.
+*Main flow:* 1. Reports → **B03** → enter *from* and *to* → 2. (optional) tick *Compare with a prior period* and enter its range → 3. the table shows code, indicator, amount and prior amount; totals are bold → 4. check the line "closing cash agrees with the books" → 5. review the notes (draft, outflows negative) → 6. Export CSV / Excel.
+*Alternative flows:* A1 — the statement is not balanced: read the *unmapped* list (movements whose counter-account no row takes), correct the account's cash-flow category or ask for the layout to be extended. A2 — no account flagged as cash: all rows are 0 and a note says to flag the accounts.
+*Exceptions:* from after to → "The start date is after the end date" (400); a prior range with only one date → "A comparison needs both its start and its end date" (400); no permission → 403.
+*Post:* nothing is written to the books.
+
+### UC-11 Configure the closing policy
+*Actor:* accountant (`accounting:periods:manage`; view needs `accounting:periods:view`). *Pre:* none.
+*Main flow:* Fiscal Periods → *Closing policy* panel → choose **Monthly** or **Year end** and the month the fiscal year ends → Save → the panel shows the saved values and a hint what the mode does.
+*Exceptions:* the most recent closed period is in the middle of a year → refused: "The fiscal year is in progress … change the closing mode after the year is closed, or reopen the closed periods first" (BR-75). Unknown mode / month outside 1 … 12 → refused. *Post:* later closings follow the policy; entries already written are untouched.
+
+### UC-12 Close the fiscal year (YearEnd policy)
+*Actor:* accountant. *Pre:* policy YearEnd; periods of the year exist (e.g. one per month); each earlier period is closed or is being closed in order.
+*Main flow:* 1. Close January … November one after another: each is checked and locked, **no entry** → 2. close the last period (December) → the system runs the checks, reads the cumulative balance of every revenue and expense account up to 31 December, writes **one** entry (revenue Dr, expenses Cr, difference through the income-summary account to retained earnings), locks the period → 3. produce B01 / B02 for the year → 4. open the next year's periods and start posting.
+*Alternative flows:* A1 — no revenue or expense balance remains: no entry, the period only locks. A2 — a correction is needed: reopen December (reason) → the year-end entry is voided → correct → close again. A3 — "close without closing entries": locks only.
+*Exceptions:* an earlier period is open, there are draft entries or the trial balance does not balance → refused with the reason (BR-40); the posting keys *income summary* / *retained earnings* are not usable → refused with the reason.
+*Post:* B01 of 31 December shows the year's result in retained earnings (row 421b) with 270 = 440; the trial balance of 1 January opens revenue / expense accounts at 0 (BR-77).
+
+### UC-13 Export a report to Excel
+*Actor:* any user with `accounting:reports:view`. *Main flow:* on any report tab press **Export Excel** → the browser downloads `<report>-<timestamp>.xlsx` → open it: amounts are numbers (sortable, summable), the header row is frozen.
+*Alternative:* **Export CSV** gives the UTF-8 file (BR-79). *Exceptions:* the export fails (no permission, invalid range) → the screen shows "Export failed". *Note:* the ledger export contains every row, not one page.
 
 ---
 
@@ -275,13 +402,15 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | FiscalPeriod | name, start, end, status (Open, Closed) | Months are auto-created. |
 | Invoice | number, customer, order, amount, paid amount, status (Unpaid, Paid, Overdue, Cancelled) | `AmountPaid` goes down on refunds. |
 | Bill | number, supplier, purchase order, amount, status | Header only (no lines). |
+| **ClosingPolicy** (table `ClosingPolicies`, migration `011_ClosingPolicy.sql`) | tenant (unique), closing mode (1 Monthly, 2 YearEnd), fiscal-year end month (1 … 12) | One row per tenant; no row = Monthly / December. Checked by database constraints. |
 
 ### 8.2 Posting keys and default accounts
 `Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, Inventory, VatOutput, GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment, CashOverShort, SalaryExpense, SalariesPayable,
 PayrollWithholdingsPayable, SalesReturns, IncomeSummary, RetainedEarnings`. The defaults per template are listed in AutoPosting.md (14-account chart) and ChartOfAccounts.md (Vietnamese chart).
 
 ### 8.3 State models
-- **Fiscal period:** Open → (close) → Closed → (reopen, latest only) → Open.
+- **Fiscal period:** Open → (close) → Closed → (reopen, latest only) → Open. Whether *close* writes an entry depends on the policy: Monthly — always; YearEnd — only the last period of the year.
+- **Closing policy:** (none) = Monthly/December → set (Monthly ⇄ YearEnd, any month) — a change is allowed only when no year is partly closed (BR-75).
 - **Journal entry:** Posted → Reversed (by reverse) / Voided (by void or reopen of a closing entry).
 - **Invoice:** Unpaid → Paid (covered) → Unpaid again (refund lowers the paid amount); any → Cancelled (order cancelled).
 - **Pay slip:** Pending → Paid | Cancelled (only from Pending).
@@ -318,7 +447,9 @@ so they arrive in order. Events without a tenant are dropped.
 | Cash flow (`cash-flow`) | dates | Operating / investing / financing lines by counter-account, net change, opening and closing cash | Opening + net = closing |
 | B01-DN (`statements/balance-sheet`) | as-of date, optional prior date | Indicator code, name, amount, prior amount; unmapped; balanced flag | 270 = 440 |
 | B02-DN (`statements/income-statement`) | dates, optional prior range | Same | 60 = 50 − 51 − 52 |
-All reports accept `format=csv`.
+| **B03-DN** (`statements/cash-flow`) | dates, optional prior range | Indicator code, name, amount (outflows negative), prior amount; unmapped movements; balanced flag; notes | 70 = closing cash on the books |
+| Closing policy (`fiscal-periods/closing-policy`) | — | Mode, fiscal-year end month | — |
+All reports accept `format=csv` and `format=xlsx`.
 
 ---
 
@@ -330,8 +461,9 @@ All reports accept `format=csv`.
 | **Tenant isolation** | Every row belongs to one tenant; consumers drop events without a tenant; the account queries are not cached (a tenant-less cache key once leaked another tenant's chart). |
 | **Audit** | Entries keep created / posted / voided timestamps and reasons; reversals and voids keep both entries visible; closing entries are flagged. |
 | **Consistency** | The document, its entry and its outbox rows commit together; idempotent consumers; no double posting. |
-| **Performance** | The ledger and cash flow read journal lines by account and date through an index; the ledger pages in memory (fine for normal volumes — DEFERRED R2). |
-| **Localisation** | Admin screens in English and Vietnamese; statutory rows in Vietnamese; CSV is UTF-8 with a byte-order mark. |
+| **Performance** | The ledger and cash flow read journal lines by account and date through an index; the ledger pages in memory (fine for normal volumes — DEFERRED R2). Excel files are built in memory (a full ledger of very many rows is large — DEFERRED R6). |
+| **Localisation** | Admin screens in English and Vietnamese; statutory rows in Vietnamese; CSV is UTF-8 with a byte-order mark; Excel is Unicode. |
+| **Safety of exports** | Text that starts with `= + - @` can never run as a formula (CSV apostrophe, Excel quote prefix). |
 | **Currency** | VND only; documents in another currency are not converted. |
 
 ---
@@ -366,6 +498,25 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 | UAT-22 | When a report is exported with `format=csv`, then the file starts with the UTF-8 byte-order mark and the ledger export holds every row. | FR-46 | Passed |
 | UAT-23 | When a document is dated in a closed period, then it is booked today. | FR-36, BR-04 | Unit test only |
 | UAT-24 | When a posting key has no usable account, then the document is saved and an error is logged. | BR-12 | Passed (closed period / inactive account scenarios) |
+| UAT-25 | Given tenant `glcheck` (Vietnamese chart, October 2026: sales receipt 400, supplier payment 600, equipment −1,500, loan +2,000), when B03 is run for October, then 01 = 400, 02 = −600, 20 = −200, 30 = −1,500, 40 = 2,000, 50 = 300, 60 = 0, 70 = 300, nothing is unmapped, the check says balanced, and 50 equals the net change of the older `cash-flow` report. | FR-48, 50, 51 | Passed |
+| UAT-26 | When a prior range (September) is added, then every row also has a prior amount (0 for September). | FR-48 | Passed |
+| UAT-27 | Given movements 5111 +600, 131 +300, 331 −300, 334 −200, 635 −50, 8211 −30, then rows 01 = 900, 02 = −300, 03 = −200, 04 = −50, 05 = −30, 20 = 320. | FR-49 | Unit test only |
+| UAT-28 | Given 341 +300 and 341 −100, then 33 = 300 and 34 = −100; given 711 +100 and 3388 −30, then 06 = 100 and 07 = −30; investing (211, 128, 515) and financing (411, 421) movements land on 21 … 36. | FR-49 | Unit test only |
+| UAT-29 | Given an investing-category account the layout does not name (242), when it moves 50 of cash, then it is listed as unmapped, the check is false and the note "Closing cash (70) differs …" is shown. | FR-50 | Unit test only |
+| UAT-30 | When a workbook contains `=1+1`, `+84 9`, `-cmd`, then each cell is text with the quote prefix, not a formula; amounts are numeric cells; the header row is bold and frozen; a sheet name with `: \ / ? * [ ]` is cleaned and cut to 31 characters. | FR-52 | Unit test only (workbook read back) |
+| UAT-31 | When B03, B01 and the trial balance are requested with `format=xlsx`, then each answer is an `.xlsx` (zip, content type `…spreadsheetml.sheet`, file name with the report and timestamp) and the Vietnamese row text is intact. | FR-52 | Passed |
+| UAT-32 | Given a tenant with no policy, then GET returns Monthly / 12; given October closed (mid-year) then PUT YearEnd is refused with "The fiscal year is in progress …". | FR-53, BR-75 | Passed |
+| UAT-33 | When October is reopened (its closing entry becomes Voided), then PUT YearEnd / 12 is accepted. | FR-53 | Passed |
+| UAT-34 | Given YearEnd, October (revenue 1,900, expenses 600) and November (revenue 500 posted by hand) are closed in order, then both are Closed and **no** PeriodClosing entry exists; B02 of October still shows 1,900 / 1,300. | FR-54 | Passed |
+| UAT-35 | When December is closed, then exactly one Posted PeriodClosing entry exists, dated 31 December, description "Year-end closing December 2026": Dr 5111 2,400, Cr expenses 600, through 911 to Cr 4212 1,800. | FR-55 | Passed |
+| UAT-36 | Then B01 at 31 December has 270 = 440 = 3,800 with 1,800 in row 421b, and the January 2027 trial balance opens 5111 and 632 at 0, 4212 at Cr 1,800, 1111 at Dr 400, and balances. | FR-56, BR-77 | Passed |
+| UAT-37 | When December is reopened, then the year-end entry is Voided; given a fiscal year ending in June, then only the period ending 30 June writes the entry. | FR-55, BR-74 | Passed (reopen) / unit test (June) |
+| UAT-38 | When the mode is `Weekly` or empty, or the month is 0 or 13, then PUT is refused with HTTP 400. | FR-53, BR-71 | Unit test only |
+| UAT-39 | Given November is closed mid-year, then switching back to Monthly is refused; saving the same values is accepted. | BR-75 | Passed (refusal) / unit test (same values) |
+
+**How QA reproduces UAT-32 … 36** (gateway `/acc/api/v1`, tenant host, token with `accounting:periods:manage` and `accounting:journals:manage`):
+`GET /fiscal-periods/closing-policy` → `PUT /fiscal-periods/closing-policy {"closingMode":"YearEnd","fiscalYearEndMonth":12}` → `POST /fiscal-periods` for the months → `POST /journal-entries` (hand-written entry in November, e.g. Dr 1111 / Cr 5111 500)
+→ `POST /fiscal-periods/{id}/close` for each month in order → check `JournalEntries` where `ReferenceType='PeriodClosing'` (SQL) → `GET /accounting/reports/trial-balance/full?fromDate=2027-01-01&toDate=2027-01-31&rollUp=false&hideZeroBalance=false`.
 
 ---
 
@@ -379,7 +530,9 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 | Post manual entry, void, reverse | | manage | | | |
 | View periods | | | view | | |
 | Close / reopen period | | | manage | | |
-| Any report and CSV export | | | | view | |
+| View the closing policy | | | view | | |
+| Change the closing policy | | | manage | | |
+| Any report (incl. B03) and CSV / Excel export | | | | view | |
 | Pay / cancel a pay slip | | | | | `hrm:payroll:manage` |
 | Refund a payment | | | | | `payments:refund` |
 | Complete a return | | | | | `sales_order:approve` |
@@ -391,7 +544,8 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 1. One currency (VND) and one legal entity per tenant.
 2. The Vietnamese chart and the statement layouts are **suggested drafts** based on Circular 200's numbering (largely kept by Circular 99/2025/TT-BTC); the accountant reviews them before real use.
 3. The SYSTEM tenant and the demo data stay on the 14-account chart.
-4. Months are the fiscal periods; closing is monthly.
+4. Fiscal periods are normally months and are opened by the accountant (or automatically for posting); closing is monthly unless the tenant chose YearEnd. The fiscal year is the twelve months ending in the policy's year-end month; periods of one year are assumed to be contiguous.
+4a. The B03 row mapping (6.8) is a draft by account prefix; salary payments are recognised by the payroll-payable account (334), so a salary paid straight from expense accounts lands in row 02, and withholdings paid to the authorities (3388, 3382 … 3384) land in row 07.
 5. Warehouse owns costing; Accounting never computes a cost.
 6. A tenant that already has journal entries cannot change its chart template.
 
@@ -401,8 +555,10 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 
 Full list with owners and impact: [DEFERRED-ISSUES.md](../../DEFERRED-ISSUES.md). The business-relevant ones:
 VAT split and e-invoice (P1-3); foreign currency and bank reconciliation (P1-4); restocking of returned goods and reversing their cost, and triggering the refund from a return (P1-5); real payroll with insurance, personal income tax and employer
-contributions (P1-7); B03 by indicator code, indirect cash flow, B09 notes, off-balance accounts, year-end closing, maturity split, Excel / PDF (P1-2d); no automatic back-posting of documents that were saved without an entry; accountant review
-of the Vietnamese chart and statement layouts.
+contributions (P1-7); indirect-method cash flow, B09 notes, off-balance (class 0) accounts, short- / long-term split by due date, PDF export, layouts for charts other than `Vas99`, rounding to thousand / million (P1-2e);
+no automatic back-posting of documents that were saved without an entry; accountant review of the Vietnamese chart and the B01 / B02 / B03 layouts.
+Open questions for the chief accountant: (1) is the B03 row mapping right for the company's usual transactions (VAT paid, withholdings, deposits)? (2) does the company want the fiscal year to end in December? (3) should a year-end preview
+(what would be closed) be shown before closing December?
 
 ---
 
@@ -419,3 +575,4 @@ of the Vietnamese chart and statement layouts.
 | P1-2b ledger, trial balance, cash flow | 2026-10-24 | FR-24, 40, 41, 44; BR-50 … 52 | Reports.md | `LedgerAndTrialBalanceTests`, `CashFlowTests` |
 | P1-2c B01 / B02, CSV | 2026-10-24 | FR-45, 46; BR-60 … 63 | Reports.md | `StatementTests`, `StatementHandlerAndCsvTests` |
 | BA baseline (this document) | 2026-10-24 | All | — | — |
+| P1-2d B03, year-end closing policy, Excel | 2026-10-24 | FR-48 … 57; BR-64 … 79; UC-10 … 13; UAT-25 … 39 | Reports.md, ChartOfAccounts.md | `CashFlowStatementTests`, `XlsxWriterTests`, `YearEndClosingTests`, `PeriodClosingTests`, `LiveSchemaDriftTests` (migration 011) |

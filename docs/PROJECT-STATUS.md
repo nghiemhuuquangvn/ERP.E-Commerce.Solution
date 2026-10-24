@@ -36,6 +36,15 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-24 — ROADMAP P1-2d: B03, closing policy, Excel (`feat/b03-yearend-xlsx`, unmerged)
+- `statements/cash-flow` (B03-DN, direct method, rows by mã số via `CashFlowLayouts` / `CashFlowStatementEngine`, movement placed by counter-account prefix + direction, `unmapped` + closing-cash check, prior column). Draft layout.
+- Closing policy: table `ClosingPolicies` (migration `011_ClosingPolicy.sql`, applied to the local DB), `GET/PUT fiscal-periods/closing-policy`; YearEnd = months only lock, the last period of the fiscal year writes one entry
+  from the remaining cumulative balances. Switching allowed only between years.
+- `format=xlsx` on every report (ClosedXML; `ReportTables` shared with CSV). Admin: B03 tab, "Export Excel", closing-policy panel on Fiscal Periods.
+- Verified live on `glcheck`: B03 October 70 = 300 = cash-flow net change; YearEnd Oct + Nov lock without entry, December writes one entry (Dr 5111 2,400 / Cr expenses 600 / Cr 4212 1,800); January 2027 opens P&L accounts at 0; xlsx downloads.
+  Tests: ACC 190, Architecture 53/54 (only the known `NoSharedTokenKeyTests`), admin `tsc -b` clean. BA document: `docs/business/Accounting/BA-Accounting.md` (UAT-25 … 39).
+- Not done (P1-2e): indirect method, B09, off-balance accounts, maturity split, PDF, other charts, rounding.
+
 ### 2026-10-24 — ROADMAP P1-2c: B01 / B02 by indicator code (`feat/vas-statements`, unmerged)
 - `statements/balance-sheet` (B01-DN) and `statements/income-statement` (B02-DN): rows by mã số built from account-prefix groups and formulas (`StatementLayouts`, `StatementEngine`), contra accounts
   signed by their natural side, 131 / 331 split by balance side, not-yet-closed result in row 421b, prior-period column, `unmapped` accounts + `isBalanced`. **Draft layout (Vas99 only) — accountant review needed.**
