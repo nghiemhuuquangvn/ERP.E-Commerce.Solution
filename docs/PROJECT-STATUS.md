@@ -4,6 +4,7 @@
 > Keep it current: update it at the end of every work session (what changed, what's next).
 > Last updated: **2026-10-23** (ROADMAP P0-1 first Docker run on `fix/docker-first-run`; new P0-9 schema drift; system inventory + roadmap: `docs/ROADMAP.md`).
 
+> Business documentation (BA level) per domain: start with `docs/business/Accounting/BA-Accounting.md`; every task must update it (rule 10 in `Claude.md`).
 > Open problems that were deliberately left unfixed: **docs/DEFERRED-ISSUES.md** (read it before picking the next task).
 
 ## 0. Start here (new machine / new developer)
@@ -34,6 +35,14 @@ All feature branches above are merged; start new work from `origin/master`.
 Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
+
+### 2026-10-24 — ROADMAP P1-2c: B01 / B02 by indicator code (`feat/vas-statements`, unmerged)
+- `statements/balance-sheet` (B01-DN) and `statements/income-statement` (B02-DN): rows by mã số built from account-prefix groups and formulas (`StatementLayouts`, `StatementEngine`), contra accounts
+  signed by their natural side, 131 / 331 split by balance side, not-yet-closed result in row 421b, prior-period column, `unmapped` accounts + `isBalanced`. **Draft layout (Vas99 only) — accountant review needed.**
+  The Vas99 template gained 2291–2294 and 2147. No schema change, no migration.
+- `format=csv` on trial-balance/full, account-ledger (all rows), cash-flow and both statements (UTF-8 BOM, RFC 4180, formula-injection safe). Admin: tabs B01 / B02 with comparison, "Export CSV" buttons.
+- Verified live (glcheck): B02 October 1900 / 1300 = the flat profit-and-loss; B01 270 = 440 = 3300 after closing (421b = 1300), prior column filled; CSV starts with the BOM; SYSTEM (14 accounts) shows everything unmapped.
+- Not done (P1-2d, listed in DEFERRED-ISSUES): B03 by code / indirect method, B09, off-balance accounts, year-end closing, maturity split, Excel / PDF. Tests: ACC 164, admin `tsc -b` clean.
 
 ### 2026-10-24 — ROADMAP P1-2b: ledger, trial balance, cash flow (`feat/reports-ledger-cashflow`, unmerged)
 - New reports (docs/business/Accounting/Reports.md): `account-ledger` (opening, lines with counter-accounts and running balance, sub-accounts rolled in, paged), `trial-balance/full` (opening / period /

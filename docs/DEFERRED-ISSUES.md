@@ -1,7 +1,7 @@
 # Deferred issues
 
 Problems found while working through the ROADMAP that were **not fixed on purpose** (out of the plan's scope, needs a decision, or needs another roadmap item first).
-Handle them after the main roadmap tasks; each plan that touches one of them should update its row. Last updated: 2026-10-24 (P1-2b done).
+Handle them after the main roadmap tasks; each plan that touches one of them should update its row. Last updated: 2026-10-24 (P1-2c done).
 
 How to read: **Source** = where it was found; **Home** = the roadmap item or kind of work that should pick it up; **Impact** = why it matters.
 
@@ -66,7 +66,20 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | R4 | The trial-balance list route changed content (roll-up on by default, opening-only accounts now appear); clients that sum the list would double count parents — they should use `trial-balance/full`. | API notes |
 | R5 | Local DB `glcheck` now holds P1-2 / P1-2b verification entries on top of a clean Vas99 chart (October 2026 closed). | Local clean-up |
 
+## 4c. Statements (P1-2c follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| T1 | The B01 / B02 rows and account groups are a **draft** written from the Circular 200 forms; they are not checked against the official Circular 99/2025 forms and need an accountant's review before filing. | Accountant review |
+| T2 | B01 has no maturity data: short- vs long-term is decided by the account (341 short, 343 / 344 long, 242 long). | P1-2d (due dates on receivables / payables / loans) |
+| T3 | Layouts exist for the `Vas99` chart only; a tenant on another chart sees every account under "unmapped". Layouts are code, not editable per tenant. | P1-2d |
+| T4 | B03 (cash flow) is not by indicator code and has no indirect method; B09 notes are missing. | P1-2d |
+| T5 | Amounts are in VND with no rounding to thousand / million as filed forms use; the comparison column is whatever date the user picks (no automatic same-period-last-year). | P1-2d |
+| T6 | CSV numbers use a dot decimal separator; Excel with a Vietnamese regional setting may need the import wizard. No Excel / PDF export. | P1-2d |
+| T7 | Off-balance accounts (class 0) and year-end-only closing / opening carry-forward are not built. | P1-2d |
+| T8 | Production-cost accounts 621 / 622 / 627 are not on B01 / B02 by design; a tenant that posts to them directly sees them under "unmapped" until the cost flow to 154 / 632 exists. | Manufacturing, if ever |
+
 ## 5. Roadmap items these issues are waiting for
 
-P0-10 least-privilege SQL · P1-2c B01 / B02 layouts, off-balance accounts, year-end carry-forward, indirect-method cash flow · P1-3 VAT and e-invoice · P1-4 foreign currency and bank reconciliation ·
+P0-10 least-privilege SQL · P1-2d B03 by code and the indirect cash flow, B09, off-balance accounts, year-end closing, maturity split, Excel / PDF · P1-3 VAT and e-invoice · P1-4 foreign currency and bank reconciliation ·
 P1-5 saga completion and returns · P1-6 notifications · P1-7 real payroll.

@@ -233,6 +233,9 @@ Consumed Events (live, 2026-10-23): SalesOrderCreated and SalesOrderCancelled (R
 Warehouse `StockMovementRecordedEvent` (RabbitMQ `warehouse_exchange`, ROADMAP P1-1b) is consumed and posted from its `ValueDelta`;
 POS `TransactionCreated/Voided/CashShiftClosed` (Kafka `pos-topic`, ROADMAP P1-1c) are consumed too; Payment `PaymentRefunded` (only gateway-confirmed refunds, P1-1e) and Sales `SalesOrderReturned` (RabbitMQ) too; HRM `PaySlipGenerated/Paid/Voided` (Kafka `hrm-topic`, P1-1d) too. New pay-slip event names must not contain the substring `PaySlipGenerated` (Reporting matches on it).
 
+Statements B01 / B02 are layouts as data (`StatementLayouts`, Vas99 only, DRAFT until an accountant reviews them) evaluated by `StatementEngine`; a template test requires every Vas99 account to be on a
+statement or in the documented exclusion list — extend the layout when you add accounts to the template. Reports export CSV with `format=csv`.
+
 Reports (docs/business/Accounting/Reports.md): ledger, trial balance (opening / period / closing, roll-up) and a direct-method cash flow that classifies each cash movement by the counter-account's
 `CashFlowCategory` (accounts carry `IsCash` / `CashFlowCategory`). Unresolved problems are tracked in docs/DEFERRED-ISSUES.md.
 
@@ -869,6 +872,15 @@ When reviewing code:
 9. Before adding a new frontend page, entity, or translation, review
    `docs/frontend/` — reuse the existing i18n/Master Data CRUD patterns instead of
    creating a parallel mechanism.
+
+10. **After every task, update the business documentation in detail, like a real business
+    analyst** (owner's rule, 2026-10-24): actors, process, requirements with acceptance criteria,
+    business rules, use cases (main / alternative / exception flows), data and state models,
+    integrations, permissions, reports, assumptions, open issues and UAT scenarios — in the
+    matching `docs/business/<Domain>/` document (baseline for Accounting:
+    `docs/business/Accounting/BA-Accounting.md`, with its traceability table). Technical notes
+    (ROADMAP, PROJECT-STATUS, task.md, DEFERRED-ISSUES) come on top of it, not instead. Put this
+    as the last step of every plan.
 
 ## Priority Reading Order
 

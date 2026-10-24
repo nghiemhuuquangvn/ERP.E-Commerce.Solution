@@ -111,11 +111,16 @@ namespace ERP.ACC.Application.Posting
             Add("2141", "Hao mòn TSCĐ hữu hình", A, Cr, "214");
             Add("2142", "Hao mòn TSCĐ thuê tài chính", A, Cr, "214");
             Add("2143", "Hao mòn TSCĐ vô hình", A, Cr, "214");
+            Add("2147", "Hao mòn bất động sản đầu tư", A, Cr, "214");
             Add("217", "Bất động sản đầu tư", A, Dr);
             Add("221", "Đầu tư vào công ty con", A, Dr);
             Add("222", "Đầu tư vào công ty liên doanh, liên kết", A, Dr);
             Add("228", "Đầu tư khác", A, Dr);
             Add("229", "Dự phòng tổn thất tài sản", A, Cr);
+            Add("2291", "Dự phòng giảm giá chứng khoán kinh doanh", A, Cr, "229");
+            Add("2292", "Dự phòng tổn thất đầu tư vào đơn vị khác", A, Cr, "229");
+            Add("2293", "Dự phòng phải thu khó đòi", A, Cr, "229");
+            Add("2294", "Dự phòng giảm giá hàng tồn kho", A, Cr, "229");
             Add("241", "Xây dựng cơ bản dở dang", A, Dr);
             Add("242", "Chi phí trả trước", A, Dr);
             Add("243", "Tài sản thuế thu nhập hoãn lại", A, Dr);

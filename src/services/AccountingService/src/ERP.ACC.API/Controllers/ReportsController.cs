@@ -1,6 +1,7 @@
 using Asp.Versioning;
 using ERP.ACC.Application.DTOs;
 using ERP.ACC.Application.Queries;
+using ERP.ACC.Application.Reports;
 using ERP.Shared.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -61,19 +62,21 @@ namespace ERP.ACC.API.Controllers
             [FromQuery] DateTime? toDate,
             [FromQuery] bool hideZeroBalance = true,
             [FromQuery] bool rollUp = true,
+            [FromQuery] string? format = null,
             CancellationToken ct = default)
         {
             if (!_userContext.HasPermission("accounting:reports:view"))
                 return Forbid();
 
-            return Ok(await _mediator.Send(new GetTrialBalanceFullQuery
+            var result = await _mediator.Send(new GetTrialBalanceFullQuery
             {
                 FiscalPeriodId = fiscalPeriodId,
                 FromDate = fromDate,
                 ToDate = toDate,
                 HideZeroBalance = hideZeroBalance,
                 RollUp = rollUp
-            }, ct));
+            }, ct);
+            return IsCsv(format) ? Csv(CsvWriter.FromTrialBalance(result), "trial-balance") : Ok(result);
         }
 
         /// <summary>
@@ -86,12 +89,14 @@ namespace ERP.ACC.API.Controllers
         public async Task<IActionResult> CashFlow(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
+            [FromQuery] string? format = null,
             CancellationToken ct = default)
         {
             if (!_userContext.HasPermission("accounting:reports:view"))
                 return Forbid();
 
-            return Ok(await _mediator.Send(new GetCashFlowQuery { FromDate = fromDate, ToDate = toDate }, ct));
+            var result = await _mediator.Send(new GetCashFlowQuery { FromDate = fromDate, ToDate = toDate }, ct);
+            return IsCsv(format) ? Csv(CsvWriter.FromCashFlow(result), "cash-flow") : Ok(result);
         }
 
         /// <summary>
@@ -107,21 +112,77 @@ namespace ERP.ACC.API.Controllers
             [FromQuery] bool includeSubAccounts = true,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 100,
+            [FromQuery] string? format = null,
             CancellationToken ct = default)
         {
             if (!_userContext.HasPermission("accounting:reports:view"))
                 return Forbid();
 
-            return Ok(await _mediator.Send(new GetAccountLedgerQuery
+            var csv = IsCsv(format);
+            var result = await _mediator.Send(new GetAccountLedgerQuery
             {
                 AccountId = accountId,
                 FromDate = fromDate,
                 ToDate = toDate,
                 IncludeSubAccounts = includeSubAccounts,
                 PageNumber = pageNumber,
-                PageSize = pageSize
-            }, ct));
+                PageSize = pageSize,
+                All = csv // an export has every row, not one page
+            }, ct);
+            return csv ? Csv(CsvWriter.FromLedger(result), "account-ledger") : Ok(result);
         }
+
+        /// <summary>
+        /// Balance sheet B01-DN by indicator code (Vietnamese chart Vas99; a DRAFT layout to be reviewed by the accountant). compareAsOfDate adds a prior column;
+        /// format=csv downloads it. Accounts with a balance that the layout does not take are listed under "unmapped".
+        /// </summary>
+        [HttpGet("statements/balance-sheet")]
+        [ProducesResponseType(typeof(FinancialStatementDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> BalanceSheetStatement(
+            [FromQuery] DateTime? asOfDate,
+            [FromQuery] DateTime? compareAsOfDate,
+            [FromQuery] string? format = null,
+            CancellationToken ct = default)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+
+            var result = await _mediator.Send(new GetBalanceSheetStatementQuery
+            {
+                AsOfDate = asOfDate ?? DateTime.UtcNow,
+                CompareAsOfDate = compareAsOfDate
+            }, ct);
+            return IsCsv(format) ? Csv(CsvWriter.FromStatement(result), "balance-sheet-b01") : Ok(result);
+        }
+
+        /// <summary>Income statement B02-DN by indicator code (see balance-sheet). Period-closing entries are left out; compareFromDate / compareToDate add a prior column.</summary>
+        [HttpGet("statements/income-statement")]
+        [ProducesResponseType(typeof(FinancialStatementDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> IncomeStatement(
+            [FromQuery] DateTime fromDate,
+            [FromQuery] DateTime toDate,
+            [FromQuery] DateTime? compareFromDate,
+            [FromQuery] DateTime? compareToDate,
+            [FromQuery] string? format = null,
+            CancellationToken ct = default)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+
+            var result = await _mediator.Send(new GetIncomeStatementQuery
+            {
+                FromDate = fromDate,
+                ToDate = toDate,
+                CompareFromDate = compareFromDate,
+                CompareToDate = compareToDate
+            }, ct);
+            return IsCsv(format) ? Csv(CsvWriter.FromStatement(result), "income-statement-b02") : Ok(result);
+        }
+
+        private static bool IsCsv(string? format) => string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase);
+
+        private FileContentResult Csv(byte[] bytes, string name) =>
+            File(bytes, "text/csv; charset=utf-8", $"{name}-{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
 
         /// <summary>
         /// Profit and Loss statement — revenue and expense account balances for a date range.
