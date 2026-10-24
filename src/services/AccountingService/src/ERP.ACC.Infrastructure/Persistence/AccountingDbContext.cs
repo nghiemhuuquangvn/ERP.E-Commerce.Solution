@@ -22,6 +22,7 @@ namespace ERP.ACC.Infrastructure.Persistence
         public DbSet<BankStatement> BankStatements { get; set; }
         public DbSet<PostingAccountMapping> PostingAccountMappings { get; set; }
         public DbSet<ClosingPolicy> ClosingPolicies { get; set; }
+        public DbSet<ReportProfile> ReportProfiles { get; set; }
         public DbSet<OutboxMessage> OutboxMessages { get; set; }
         public DbSet<SystemTaxSettings> SystemTaxSettings { get; set; }
         public DbSet<TenantTaxSettings> TenantTaxSettings { get; set; }
@@ -87,6 +88,14 @@ namespace ERP.ACC.Infrastructure.Persistence
             modelBuilder.Entity<ClosingPolicy>(e =>
             {
                 e.ToTable("ClosingPolicies");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.HasIndex(x => x.TenantId).IsUnique().HasFilter("[IsDeleted] = 0");
+            });
+
+            modelBuilder.Entity<ReportProfile>(e =>
+            {
+                e.ToTable("ReportProfiles");
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Id).ValueGeneratedNever();
                 e.HasIndex(x => x.TenantId).IsUnique().HasFilter("[IsDeleted] = 0");

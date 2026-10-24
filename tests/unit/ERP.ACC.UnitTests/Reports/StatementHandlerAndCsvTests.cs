@@ -18,6 +18,8 @@ public class StatementHandlerAndCsvTests
 
     private Account A(string number) => _chart.Single(a => a.AccountNumber == number);
 
+    private static IReportProfileRepository NoProfile() => new Mock<IReportProfileRepository>().Object;
+
     private (IAccountRepository Accounts, Mock<IJournalLineRepository> Lines) Repos()
     {
         var accounts = new Mock<IAccountRepository>();
@@ -36,7 +38,7 @@ public class StatementHandlerAndCsvTests
         lines.Setup(l => l.GetAccountBalancesAsync(null, compare, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<AccountBalanceSummary> { new() { AccountId = A("1111").Id, TotalDebit = 400m }, new() { AccountId = A("4111").Id, TotalCredit = 400m } });
 
-        var s = await new GetBalanceSheetStatementQueryHandler(accounts, lines.Object)
+        var s = await new GetBalanceSheetStatementQueryHandler(accounts, lines.Object, NoProfile())
             .Handle(new GetBalanceSheetStatementQuery { AsOfDate = asOf, CompareAsOfDate = compare }, default);
 
         s.Rows.Single(r => r.Code == "270").Amount.Should().Be(900m);
@@ -54,7 +56,7 @@ public class StatementHandlerAndCsvTests
         lines.Setup(l => l.GetActivityBalancesAsync(It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .Callback<DateTime?, DateTime?, string?, CancellationToken>((_, _, x, _) => excluded = x)
             .ReturnsAsync(new List<AccountBalanceSummary> { new() { AccountId = A("5111").Id, TotalCredit = 500m } });
-        var handler = new GetIncomeStatementQueryHandler(accounts, lines.Object);
+        var handler = new GetIncomeStatementQueryHandler(accounts, lines.Object, NoProfile());
 
         var s = await handler.Handle(new GetIncomeStatementQuery { FromDate = new DateTime(2026, 10, 1), ToDate = new DateTime(2026, 10, 31) }, default);
 

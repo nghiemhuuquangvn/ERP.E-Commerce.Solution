@@ -24,6 +24,14 @@ namespace ERP.ACC.Domain.Enums
         YearEnd = 2
     }
 
+    /// <summary>The unit statements are shown in (ROADMAP P1-2e): VND, thousand VND or million VND.</summary>
+    public enum AmountUnit
+    {
+        Vnd = 1,
+        Thousand = 2,
+        Million = 3
+    }
+
     public enum NormalBalance
     {
         Debit = 1,

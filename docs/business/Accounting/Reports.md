@@ -82,6 +82,13 @@ prefix → row table are in [BA-Accounting.md](BA-Accounting.md) §6.8.
 * **Check.** Row 70 (50 + opening cash 60 + FX effect 61 = 0) must equal the cash on the books at the end of the range, in every column — `isBalanced`.
 * **Draft.** Like B01 / B02 the rows come from the Circular 200 form and need the accountant's review. The older `cash-flow` route (by account, with its own reconciliation) stays.
 
+## Amount unit and company header (P1-2e)
+
+B01 / B02 / B03 accept `unit=vnd|thousand|million` (default: the tenant's report profile, else VND) and answer with `unit`, `unitDivisor` and `header`. **Rounding** is per statement row (account-driven rows: exact sum ÷ unit, half away from zero);
+total rows add the rounded rows so the form foots; `isBalanced` (270 = 440, 70 = closing cash) is decided on the exact amounts and a note reports any rounding difference. Unmapped accounts stay in VND; the trial balance and ledger are never rounded.
+The **report profile** (`GET/PUT accounting/reports/profile`, table `ReportProfiles`) holds the company name, tax code, address, the three signatories and the default unit; CSV and Excel print the company block above the title, the unit in the
+period line and the signatories below. Rules BR-80 … BR-86 and a worked example: [BA-Accounting.md](BA-Accounting.md) §6.10.
+
 ## Excel and CSV export (P1-2c / P1-2d)
 
 Every report route accepts `format=csv` and `format=xlsx`. `ReportTables` turns each report into rows of cells (text or decimal); `CsvWriter` and `XlsxWriter` (ClosedXML, MIT) serialize the same table.
@@ -91,4 +98,4 @@ starts with `= + - @` is stored as text with Excel's quote prefix. Content type 
 ## Known limits (see docs/DEFERRED-ISSUES.md)
 
 The ledger and the cash flow read journal lines by account and range (index `IX_JELines_AccountId`); the ledger pages in memory after computing the running balance, which is fine
-for normal volumes but a very busy account over a very long range should use date-bounded snapshots later. B09 notes, off-balance accounts, indirect-method cash flow, PDF export and layouts for charts other than Vas99 are not built (ROADMAP P1-2e). Excel files are built in memory.
+for normal volumes but a very busy account over a very long range should use date-bounded snapshots later. B09 notes, off-balance accounts, indirect-method cash flow, PDF export and layouts for charts other than Vas99 are not built (ROADMAP P1-2f). Excel files are built in memory.

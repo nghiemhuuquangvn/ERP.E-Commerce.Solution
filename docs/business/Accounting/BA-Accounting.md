@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Domain** | Accounting (AccountingService, port 5005, code ACC) |
-| **Covers** | ROADMAP P1-1 … P1-1e (automatic posting), P1-2 (chart of accounts, void / reverse, closing), P1-2b (ledger, trial balance, cash flow), P1-2c (B01 / B02 statements, CSV), **P1-2d (B03 cash-flow statement by indicator code, year-end closing policy, Excel export)** |
+| **Covers** | ROADMAP P1-1 … P1-1e (automatic posting), P1-2 (chart of accounts, void / reverse, closing), P1-2b (ledger, trial balance, cash flow), P1-2c (B01 / B02 statements, CSV), P1-2d (B03 cash-flow statement by indicator code, year-end closing policy, Excel export), **P1-2e (amount unit VND / thousand / million and company header on the statements)** |
 | **Status** | Implemented and verified on the local Docker stack, 2026-10-24. Items still open are in [DEFERRED-ISSUES.md](../../DEFERRED-ISSUES.md). |
 | **Audience** | Product owner, chief accountant, QA, developers |
 | **Companion documents** | [AutoPosting.md](AutoPosting.md) (posting rules in detail), [ChartOfAccounts.md](ChartOfAccounts.md), [Reports.md](Reports.md), [event-catalog](../../architecture/event-catalog.md) |
@@ -32,12 +32,13 @@ A Vietnamese company must keep its books under the Vietnamese accounting standar
 | O7 | The accountant gets the third statutory statement, the cash-flow statement B03-DN, in the official row layout, and can trust that it agrees with the cash on the books. | FR-48 … FR-51; row 70 = closing cash. |
 | O8 | A company that closes its books once a year (not every month) can do so without writing twelve closing entries, and carry its balances into the new year without manual work. | FR-53 … FR-57. |
 | O9 | Reports can be handed to an auditor or a manager as a spreadsheet whose amounts are real numbers. | FR-52. |
+| O10 | The statements look like the filed forms: in thousand or million VND where the company files that way, headed by the company's name, tax code and address, with the signatories below. | FR-58 … FR-62. |
 
 ### 1.3 Scope
 **In scope:** posting from sales, payment, purchasing, warehouse, POS, payroll, refunds and returns; chart of accounts and templates; manual entries, void, reverse; fiscal periods and closing;
 trial balance, ledger, profit and loss, balance sheet, cash flow, B01 / B02 / **B03** by indicator code; CSV and **Excel** export; **a closing policy (monthly or at year end)**; admin screens for all of it.
 **Out of scope (see section 15):** VAT, e-invoice, foreign currency, bank reconciliation, real payroll calculation (insurance, personal income tax), restocking of returned goods, B09 notes, indirect-method cash flow,
-off-balance (class 0) accounts, short- / long-term split by due date, PDF.
+off-balance (class 0) accounts, short- / long-term split by due date, PDF. Rounding and the header apply to B01 / B02 / B03 only; the trial balance and the ledger stay exact in VND.
 
 ---
 
@@ -78,6 +79,9 @@ off-balance (class 0) accounts, short- / long-term split by due date, PDF.
 | Counter-account | For a cash line of an entry, the account on the other side (e.g. cash received for sales: the counter-account is revenue or receivables). It tells what the money was for. |
 | Fiscal year | The twelve months ending in the *fiscal-year end month* of the closing policy (December by default). A period is the **last of the year** when it ends on the last day of that month. |
 | Closing policy | A tenant setting: **Monthly** (every period writes a closing entry — the original behaviour) or **YearEnd** (a period only locks; the last period of the year writes one closing entry). |
+| Report profile | A tenant setting holding the company block of the statements (name, tax code, address), the signatories (người lập biểu, kế toán trưởng, giám đốc) and the default amount unit. |
+| Amount unit (đơn vị tính) | VND, thousand VND or million VND. A statement shows every amount divided by the unit and rounded; the exact books are unchanged. |
+| Rounding difference | The gap of one or a few units that appears when the rounded rows of two totals that are equal in exact VND (e.g. assets and sources) do not add to the same number. Normal on filed statements; reported in a note. |
 | Carry-forward (kết chuyển số dư) | Balance-sheet accounts keep their balance into the next year; revenue and expense accounts start the new year at zero because the closing entry cleared them. Balances here are cumulative, so no separate "opening entry" is written. |
 
 ---
@@ -191,6 +195,11 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | FR-55 | Under YearEnd, closing the last period of the year writes one closing entry for everything not yet closed, dated the period end. | M | P1-2d |
 | FR-56 | Balance-sheet accounts carry into the new year and revenue / expense accounts start it at zero, without a separate opening entry. | M | P1-2d |
 | FR-57 | The admin app shows the closing policy on the Fiscal Periods page, the B03 tab and "Export Excel" next to "Export CSV" on every report. | M | P1-2d |
+| FR-58 | The accountant can read and set the tenant's **report profile**: company name, tax code, address, the three signatories and the default amount unit. | M | P1-2e |
+| FR-59 | B01, B02 and B03 can be shown in VND, thousand VND or million VND: the tenant's default, overridable per request (`unit`). | M | P1-2e |
+| FR-60 | Rounding is per statement row; total rows add the rounded rows; the integrity checks (270 = 440, 70 = closing cash) are made on the exact amounts and a rounding difference is reported, not hidden. | M | P1-2e |
+| FR-61 | The statements and their CSV / Excel exports carry the company block above the title and the signatories below, and say the unit. | M | P1-2e |
+| FR-62 | The admin app has a *Unit* selector on the B01 / B02 / B03 tabs and a *Report profile* panel (editable only with `accounting:accounts:manage`). | M | P1-2e |
 
 ### 5.5 Acceptance criteria of the P1-2d requirements
 (Scenarios are in section 12; the *UAT* column points at them.)
@@ -207,6 +216,11 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | FR-55 | Given the same tenant, when December is closed, then exactly one Posted entry of type PeriodClosing exists, dated 31 December, whose lines clear every revenue / expense account by its cumulative balance and book the result to retained earnings; reopening December voids it. | UAT-35, 37 |
 | FR-56 | Given that year is closed, then the trial balance of January shows revenue and expense accounts with a zero opening balance, retained earnings with the year's result and the other accounts with their year-end balance; B01 is balanced before and after. | UAT-36 |
 | FR-57 | Given a user with `accounting:periods:manage`, then the policy panel can be saved; a user with only `accounting:periods:view` sees it read-only. | manual |
+| FR-58 | Given a tenant that never saved a profile, then GET returns empty texts and unit Vnd; after PUT the values are returned and kept per tenant; text longer than the limits (name 200, tax code 20, others 300) or a unit other than Vnd / Thousand / Million is refused (HTTP 400); a user without `accounting:accounts:manage` gets 403 on PUT. | UAT-40, 44 |
+| FR-59 | Given a profile with unit Thousand, then B01 / B02 / B03 are in thousand VND and say so; `unit=vnd` returns exact VND; `unit=foo` is refused (400); with no profile and no `unit` the amounts are plain VND. | UAT-41, 42 |
+| FR-60 | Given cash 1,400 and inventory 1,400 against equity 2,800 in thousands, then rows are 1 + 1 = 2 assets and 3 sources, `isBalanced` is still true and a note says "Rounding difference of −1 thousand VND …"; a sheet that is really unbalanced stays unbalanced; half amounts round away from zero (1,500 → 2; −1,500 → −2). | UAT-43 |
+| FR-61 | Given a filled profile, then the first lines of the CSV / sheet are the company name, tax code and address, the period line names the unit, and the last two lines are the signatory titles and names; a profile with only a name prints only the name and no signature block. | UAT-45 |
+| FR-62 | Given a manager, then the profile panel saves; given a viewer, then its fields are read-only. | manual |
 
 ---
 
@@ -319,7 +333,21 @@ Row mapping (account prefix → row; "In" = cash received, "Out" = cash paid):
 | BR-77 | **Carry-forward.** Account balances are cumulative over all dates. After the year-end entry revenue and expense accounts therefore open the next year at zero, retained earnings holds the year's result and every balance-sheet account keeps its balance — no opening entry is written, and the trial balance of the new year opens with the closing balances of the old one. |
 | BR-78 | The option "close without closing entries" (`postClosingEntries=false`) stays available in both modes; it locks the period only. |
 
-### 6.10 Export
+### 6.10 Amount unit and report header (P1-2e)
+| ID | Rule |
+|---|---|
+| BR-80 | The unit of a statement is the request's `unit` if given, else the tenant's profile unit, else VND. An unknown value is refused (400). |
+| BR-81 | **Rounding applies to the statement rows only** (B01, B02, B03), never to the books: an account-driven row is the exact sum of its accounts divided by the unit and rounded **half away from zero**. The trial balance, the ledger and the older flat reports stay exact. |
+| BR-82 | **Total rows are the signed sum of the rounded rows**, so the printed form foots. A total can therefore differ by a few units from the rounded exact total (example below). |
+| BR-83 | The integrity checks are made on the **exact** amounts: B01 270 = 440 and B03 70 = cash on the books. When they hold but the rounded totals differ, `isBalanced` stays true and a note reports the rounding difference in the chosen unit. |
+| BR-84 | Unmapped accounts and movements are always listed in VND, whatever the unit. |
+| BR-85 | The header (company block, signatories) is printed only if the profile has text; empty lines are omitted, and the signature block is omitted when no signatory is filled in. The header never changes an amount. |
+| BR-86 | Reading the profile needs `accounting:reports:view`; saving it needs `accounting:accounts:manage` (chart / settings level). A save replaces the whole profile. Text is trimmed. |
+
+*Worked example (thousand VND).* Cash 1,400 and inventory 1,400 are assets; equity is 2,800. Exact: 2,800 = 2,800. Rounded rows: cash 1, inventory 1 → total assets 2; equity 3 → total sources 3. The statement shows 2 and 3, says
+"Rounding difference of −1 thousand VND between total assets (270) and total sources (440): the exact amounts agree" and `isBalanced` is true. On the local test tenant, 3,300 VND of assets split over several rows showed 4 against 3 the same way.
+
+### 6.11 Export
 | ID | Rule |
 |---|---|
 | BR-79 | `format=csv` and `format=xlsx` are built from the same table of cells, so a column added to a report shows in both. Amounts are numbers in Excel (`#,##0.00`, negatives red) and plain invariant numbers in CSV; any other `format` value returns the normal JSON. Text cells starting with `=`, `+`, `-` or `@` are stored as text with Excel's quote prefix. |
@@ -384,9 +412,15 @@ Row mapping (account prefix → row; "In" = cash received, "Out" = cash paid):
 *Exceptions:* an earlier period is open, there are draft entries or the trial balance does not balance → refused with the reason (BR-40); the posting keys *income summary* / *retained earnings* are not usable → refused with the reason.
 *Post:* B01 of 31 December shows the year's result in retained earnings (row 421b) with 270 = 440; the trial balance of 1 January opens revenue / expense accounts at 0 (BR-77).
 
+### UC-14 Set the report profile (header, signatories, unit)
+*Actor:* accountant / chief accountant (`accounting:accounts:manage`; reading needs `accounting:reports:view`). *Pre:* none.
+*Main flow:* 1. Reports → B01, B02 or B03 → open *Report profile* → 2. enter company name, tax code, address, người lập biểu, kế toán trưởng, giám đốc and the default unit → 3. Save → 4. the statements now show the company block, the unit and the signatories, and the exports carry them.
+*Alternative flows:* A1 — pick another unit for one look without changing the profile: use the *Unit* selector of the tab (it sends `unit`). A2 — leave texts empty: those lines are not printed.
+*Exceptions:* a text above its limit or an unknown unit → refused with the reason (400); no permission → 403 (the fields are read-only on screen). *Post:* only the presentation of later reports changes; no amount in the books changes.
+
 ### UC-13 Export a report to Excel
 *Actor:* any user with `accounting:reports:view`. *Main flow:* on any report tab press **Export Excel** → the browser downloads `<report>-<timestamp>.xlsx` → open it: amounts are numbers (sortable, summable), the header row is frozen.
-*Alternative:* **Export CSV** gives the UTF-8 file (BR-79). *Exceptions:* the export fails (no permission, invalid range) → the screen shows "Export failed". *Note:* the ledger export contains every row, not one page.
+*Alternative:* **Export CSV** gives the UTF-8 file (BR-79). B01 / B02 / B03 exports are in the selected unit and carry the company block and signatories (BR-85). *Exceptions:* the export fails (no permission, invalid range) → the screen shows "Export failed". *Note:* the ledger export contains every row, not one page.
 
 ---
 
@@ -402,6 +436,7 @@ Row mapping (account prefix → row; "In" = cash received, "Out" = cash paid):
 | FiscalPeriod | name, start, end, status (Open, Closed) | Months are auto-created. |
 | Invoice | number, customer, order, amount, paid amount, status (Unpaid, Paid, Overdue, Cancelled) | `AmountPaid` goes down on refunds. |
 | Bill | number, supplier, purchase order, amount, status | Header only (no lines). |
+| **ReportProfile** (table `ReportProfiles`, migration `012_ReportProfile.sql`) | tenant (unique), company name (≤ 200), tax code (≤ 20), address, prepared by, chief accountant, director (each ≤ 300), amount unit (1 VND, 2 thousand, 3 million) | One row per tenant; no row = empty texts and VND. |
 | **ClosingPolicy** (table `ClosingPolicies`, migration `011_ClosingPolicy.sql`) | tenant (unique), closing mode (1 Monthly, 2 YearEnd), fiscal-year end month (1 … 12) | One row per tenant; no row = Monthly / December. Checked by database constraints. |
 
 ### 8.2 Posting keys and default accounts
@@ -449,6 +484,8 @@ so they arrive in order. Events without a tenant are dropped.
 | B02-DN (`statements/income-statement`) | dates, optional prior range | Same | 60 = 50 − 51 − 52 |
 | **B03-DN** (`statements/cash-flow`) | dates, optional prior range | Indicator code, name, amount (outflows negative), prior amount; unmapped movements; balanced flag; notes | 70 = closing cash on the books |
 | Closing policy (`fiscal-periods/closing-policy`) | — | Mode, fiscal-year end month | — |
+| Report profile (`accounting/reports/profile`) | — | Company block, signatories, default unit | — |
+B01 / B02 / B03 take an optional `unit` (`vnd`, `thousand`, `million`) and answer with `unit`, `unitDivisor` and `header`.
 All reports accept `format=csv` and `format=xlsx`.
 
 ---
@@ -512,6 +549,12 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 | UAT-36 | Then B01 at 31 December has 270 = 440 = 3,800 with 1,800 in row 421b, and the January 2027 trial balance opens 5111 and 632 at 0, 4212 at Cr 1,800, 1111 at Dr 400, and balances. | FR-56, BR-77 | Passed |
 | UAT-37 | When December is reopened, then the year-end entry is Voided; given a fiscal year ending in June, then only the period ending 30 June writes the entry. | FR-55, BR-74 | Passed (reopen) / unit test (June) |
 | UAT-38 | When the mode is `Weekly` or empty, or the month is 0 or 13, then PUT is refused with HTTP 400. | FR-53, BR-71 | Unit test only |
+| UAT-40 | Given a tenant with no profile, then GET returns empty texts and Vnd; PUT with company, tax code, address, the three names and unit Thousand returns them and later GETs return the same; an unknown unit is refused (400). | FR-58 | Passed |
+| UAT-41 | Given that profile, then B01 at 31 Oct answers `unit` "thousand VND", `unitDivisor` 1000 and the header; `unit=vnd` returns exact VND (cash 300, assets 3,300) and `unit=million` rounds to millions. | FR-59 | Passed |
+| UAT-42 | When `unit=foo` is requested, then the answer is 400 "The amount unit must be Vnd, Thousand or Million."; with no profile and no `unit` the statement is plain VND with no header. | FR-59, BR-80 | Passed |
+| UAT-43 | When B01 rows are rounded in thousands, then the form shows assets 4 and sources 3 for the same exact 3,300 VND with a rounding-difference note and `isBalanced` true; the unit-test example (1 + 1 against 3) and half-away-from-zero cases (1,500 → 2, −1,500 → −2) pass; a really unbalanced sheet stays unbalanced. | FR-60 | Passed (live) / unit tests |
+| UAT-44 | When a user without `accounting:accounts:manage` saves the profile, then 403; text above the limits is refused (400). | FR-58, BR-86 | Unit test only (limits); 403 by code path |
+| UAT-45 | When B01 is exported as CSV, then the file starts with the BOM, the company name, `Tax code,0312345678`, `Address,"1 Lê Lợi, Quận 1"`, the title, a period line ending `Unit,thousand VND`, and ends with the signatory titles and names; the xlsx download succeeds. | FR-61 | Passed |
 | UAT-39 | Given November is closed mid-year, then switching back to Monthly is refused; saving the same values is accepted. | BR-75 | Passed (refusal) / unit test (same values) |
 
 **How QA reproduces UAT-32 … 36** (gateway `/acc/api/v1`, tenant host, token with `accounting:periods:manage` and `accounting:journals:manage`):
@@ -533,6 +576,8 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 | View the closing policy | | | view | | |
 | Change the closing policy | | | manage | | |
 | Any report (incl. B03) and CSV / Excel export | | | | view | |
+| View the report profile | | | | view | |
+| Change the report profile (header, signatories, unit) | manage | | | | |
 | Pay / cancel a pay slip | | | | | `hrm:payroll:manage` |
 | Refund a payment | | | | | `payments:refund` |
 | Complete a return | | | | | `sales_order:approve` |
@@ -545,6 +590,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 2. The Vietnamese chart and the statement layouts are **suggested drafts** based on Circular 200's numbering (largely kept by Circular 99/2025/TT-BTC); the accountant reviews them before real use.
 3. The SYSTEM tenant and the demo data stay on the 14-account chart.
 4. Fiscal periods are normally months and are opened by the accountant (or automatically for posting); closing is monthly unless the tenant chose YearEnd. The fiscal year is the twelve months ending in the policy's year-end month; periods of one year are assumed to be contiguous.
+4b. Rounding is half away from zero per statement row and totals follow the rounded rows (the common practice on filed forms); the profile is edited with the chart-level permission `accounting:accounts:manage` because no dedicated permission exists yet; one profile per tenant (one legal entity).
 4a. The B03 row mapping (6.8) is a draft by account prefix; salary payments are recognised by the payroll-payable account (334), so a salary paid straight from expense accounts lands in row 02, and withholdings paid to the authorities (3388, 3382 … 3384) land in row 07.
 5. Warehouse owns costing; Accounting never computes a cost.
 6. A tenant that already has journal entries cannot change its chart template.
@@ -555,7 +601,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 
 Full list with owners and impact: [DEFERRED-ISSUES.md](../../DEFERRED-ISSUES.md). The business-relevant ones:
 VAT split and e-invoice (P1-3); foreign currency and bank reconciliation (P1-4); restocking of returned goods and reversing their cost, and triggering the refund from a return (P1-5); real payroll with insurance, personal income tax and employer
-contributions (P1-7); indirect-method cash flow, B09 notes, off-balance (class 0) accounts, short- / long-term split by due date, PDF export, layouts for charts other than `Vas99`, rounding to thousand / million (P1-2e);
+contributions (P1-7); indirect-method cash flow, B09 notes, off-balance (class 0) accounts, short- / long-term split by due date, PDF export, layouts for charts other than `Vas99` (P1-2f);
 no automatic back-posting of documents that were saved without an entry; accountant review of the Vietnamese chart and the B01 / B02 / B03 layouts.
 Open questions for the chief accountant: (1) is the B03 row mapping right for the company's usual transactions (VAT paid, withholdings, deposits)? (2) does the company want the fiscal year to end in December? (3) should a year-end preview
 (what would be closed) be shown before closing December?
@@ -575,4 +621,5 @@ Open questions for the chief accountant: (1) is the B03 row mapping right for th
 | P1-2b ledger, trial balance, cash flow | 2026-10-24 | FR-24, 40, 41, 44; BR-50 … 52 | Reports.md | `LedgerAndTrialBalanceTests`, `CashFlowTests` |
 | P1-2c B01 / B02, CSV | 2026-10-24 | FR-45, 46; BR-60 … 63 | Reports.md | `StatementTests`, `StatementHandlerAndCsvTests` |
 | BA baseline (this document) | 2026-10-24 | All | — | — |
+| P1-2e amount unit, company header | 2026-10-24 | FR-58 … 62; BR-80 … 86; UC-14; UAT-40 … 45 | Reports.md | `RoundingTests`, `ReportProfileTests`, `XlsxWriterTests`, `LiveSchemaDriftTests` (migration 012) |
 | P1-2d B03, year-end closing policy, Excel | 2026-10-24 | FR-48 … 57; BR-64 … 79; UC-10 … 13; UAT-25 … 39 | Reports.md, ChartOfAccounts.md | `CashFlowStatementTests`, `XlsxWriterTests`, `YearEndClosingTests`, `PeriodClosingTests`, `LiveSchemaDriftTests` (migration 011) |

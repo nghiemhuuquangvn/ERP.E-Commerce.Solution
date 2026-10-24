@@ -80,4 +80,52 @@ public class XlsxWriterTests
         using var book = Open(XlsxWriter.ToBytes(table));
         book.Worksheet(1).LastRowUsed()!.RowNumber().Should().Be(table.Rows.Count);
     }
+
+    private static FinancialStatementDto WithHeader(ReportHeaderDto? header)
+    {
+        var s = Statement();
+        s.Header = header;
+        s.Unit = "thousand VND";
+        return s;
+    }
+
+    [Fact]
+    public void The_company_block_and_the_signatories_are_printed_around_the_table()
+    {
+        var table = ReportTables.Statement(WithHeader(new ReportHeaderDto
+        {
+            CompanyName = "Công ty TNHH Mẫu", TaxCode = "0312345678", Address = "1 Lê Lợi", PreparedBy = "Nguyễn A", ChiefAccountant = "Trần B", Director = "Lê C",
+        }));
+
+        table.Rows[0].Should().Equal("Công ty TNHH Mẫu");
+        table.Rows[1].Should().Equal("Tax code", "0312345678");
+        table.Rows[2].Should().Equal("Address", "1 Lê Lợi");
+        table.Rows[3][0].Should().Be("Income statement");
+        table.Rows[4].Should().Contain("thousand VND");
+        table.HeaderRow.Should().Be(6); // the column titles: code / item / amount / prior
+        table.Rows[5].Should().Equal("Code", "Item", "Amount", "Prior");
+        table.Rows[^1].Should().Equal("", "Nguyễn A", "Trần B", "Lê C");
+        table.Rows[^2].Should().Equal("", "Prepared by", "Chief accountant", "Director");
+
+        using var book = Open(XlsxWriter.ToBytes(table));
+        var sheet = book.Worksheet(1);
+        sheet.Cell(1, 1).GetString().Should().Be("Công ty TNHH Mẫu");
+        sheet.Row(6).Style.Font.Bold.Should().BeTrue();
+        sheet.SheetView.SplitRow.Should().Be(6);
+        System.Text.Encoding.UTF8.GetString(CsvWriter.ToBytes(table.Rows)).Should().Contain("Tax code,0312345678").And.Contain(",Nguyễn A,Trần B,Lê C");
+    }
+
+    [Fact]
+    public void Without_a_header_the_table_is_unchanged_and_only_filled_lines_are_printed()
+    {
+        var plain = ReportTables.Statement(WithHeader(null));
+        plain.Rows[0][0].Should().Be("Income statement");
+        plain.HeaderRow.Should().Be(3);
+        plain.Rows.Should().NotContain(r => r.Count > 1 && (string?)r[1] == "Prepared by");
+
+        var onlyName = ReportTables.Statement(WithHeader(new ReportHeaderDto { CompanyName = "ACME" }));
+        onlyName.Rows[0].Should().Equal("ACME");
+        onlyName.Rows[1][0].Should().Be("Income statement"); // no empty tax-code / address lines, no signatory block
+        onlyName.Rows.Should().NotContain(r => r.Count > 1 && (string?)r[1] == "Prepared by");
+    }
 }

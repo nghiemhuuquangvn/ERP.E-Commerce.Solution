@@ -18,6 +18,7 @@ namespace ERP.ACC.Infrastructure.Persistence
             IFiscalPeriodRepository fiscalPeriods,
             IPostingAccountMappingRepository postingMappings,
             IClosingPolicyRepository closingPolicies,
+            IReportProfileRepository reportProfiles,
             ITaxRateRepository taxRates,
             IBankAccountRepository bankAccounts,
             IBankStatementRepository bankStatements)
@@ -31,6 +32,7 @@ namespace ERP.ACC.Infrastructure.Persistence
             FiscalPeriods = fiscalPeriods;
             PostingMappings = postingMappings;
             ClosingPolicies = closingPolicies;
+            ReportProfiles = reportProfiles;
             TaxRates = taxRates;
             BankAccounts = bankAccounts;
             BankStatements = bankStatements;
@@ -44,6 +46,7 @@ namespace ERP.ACC.Infrastructure.Persistence
         public IFiscalPeriodRepository FiscalPeriods { get; }
         public IPostingAccountMappingRepository PostingMappings { get; }
         public IClosingPolicyRepository ClosingPolicies { get; }
+        public IReportProfileRepository ReportProfiles { get; }
         public ITaxRateRepository TaxRates { get; }
         public IBankAccountRepository BankAccounts { get; }
         public IBankStatementRepository BankStatements { get; }

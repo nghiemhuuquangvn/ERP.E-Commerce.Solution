@@ -15,6 +15,8 @@ public class CashFlowStatementTests
 {
     private readonly List<Account> _chart = ChartTemplates.Find(ChartTemplates.Vas99)!.BuildAccounts();
 
+    private static IReportProfileRepository NoProfile() => new Mock<IReportProfileRepository>().Object;
+
     private Account A(string number) => _chart.Single(a => a.AccountNumber == number);
 
     private CashMovement M(string counter, decimal cash) => new(A(counter), cash);
@@ -152,7 +154,7 @@ public class CashFlowStatementTests
                 new() { EntryId = transfer, AccountId = cash.Id, Debit = 40m },   // cash <-> bank: no counter-line outside cash
                 new() { EntryId = transfer, AccountId = A("1121").Id, Credit = 40m },
             });
-        var handler = new GetCashFlowStatementQueryHandler(accounts.Object, lines.Object);
+        var handler = new GetCashFlowStatementQueryHandler(accounts.Object, lines.Object, NoProfile());
 
         var s = await handler.Handle(new GetCashFlowStatementQuery { FromDate = from, ToDate = to }, default);
 

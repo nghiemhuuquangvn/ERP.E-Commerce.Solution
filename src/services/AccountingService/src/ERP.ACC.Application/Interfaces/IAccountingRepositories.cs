@@ -94,6 +94,13 @@ namespace ERP.ACC.Application.Interfaces
         Task AddAsync(ClosingPolicy policy, CancellationToken ct = default);
     }
 
+    public interface IReportProfileRepository
+    {
+        /// <summary>The tenant's report profile (tracked), or null when it never set one (= plain VND, no header).</summary>
+        Task<ReportProfile?> GetAsync(CancellationToken ct = default);
+        Task AddAsync(ReportProfile profile, CancellationToken ct = default);
+    }
+
     public interface IPostingAccountMappingRepository
     {
         /// <summary>Tracked, so a changed mapping is saved by the unit of work.</summary>
