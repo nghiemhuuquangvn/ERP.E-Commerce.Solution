@@ -179,6 +179,33 @@ namespace ERP.ACC.API.Controllers
             return IsCsv(format) ? Csv(CsvWriter.FromStatement(result), "income-statement-b02") : Ok(result);
         }
 
+        /// <summary>
+        /// Cash-flow statement B03-DN by indicator code, direct method (Vas99; a DRAFT layout to be reviewed by the accountant). Each cash movement is
+        /// classified by the counter-account of its entry; compareFromDate / compareToDate add a prior column; format=csv downloads it.
+        /// </summary>
+        [HttpGet("statements/cash-flow")]
+        [ProducesResponseType(typeof(FinancialStatementDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> CashFlowStatement(
+            [FromQuery] DateTime fromDate,
+            [FromQuery] DateTime toDate,
+            [FromQuery] DateTime? compareFromDate,
+            [FromQuery] DateTime? compareToDate,
+            [FromQuery] string? format = null,
+            CancellationToken ct = default)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+
+            var result = await _mediator.Send(new GetCashFlowStatementQuery
+            {
+                FromDate = fromDate,
+                ToDate = toDate,
+                CompareFromDate = compareFromDate,
+                CompareToDate = compareToDate
+            }, ct);
+            return IsCsv(format) ? Csv(CsvWriter.FromStatement(result), "cash-flow-b03") : Ok(result);
+        }
+
         private static bool IsCsv(string? format) => string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase);
 
         private FileContentResult Csv(byte[] bytes, string name) =>
