@@ -6,6 +6,7 @@ import {
   accountsApi,
   ACCOUNT_TYPE_OPTIONS,
   NORMAL_BALANCE_OPTIONS,
+  CASH_FLOW_CATEGORY_OPTIONS,
 } from '@/api/accounting/accounts.api'
 import type { Account } from '@/api/accounting/accounts.api'
 import { DataTable } from '@/components/shared/DataTable'
@@ -18,6 +19,8 @@ interface AccountFormValues {
   accountType: number
   normalBalance: number
   parentAccountId: string
+  isCash: boolean
+  cashFlowCategory: number // 0 = default
 }
 
 /** The API answers refusals as ProblemDetails with a readable `detail` (duplicate number, parent rules ...). */
@@ -51,6 +54,8 @@ function AccountModal({
       accountType: ACCOUNT_TYPE_OPTIONS.find((o) => o.label === account?.accountType)?.value ?? 1,
       normalBalance: NORMAL_BALANCE_OPTIONS.find((o) => o.label === account?.normalBalance)?.value ?? 1,
       parentAccountId: account?.parentAccountId ?? '',
+      isCash: account?.isCash ?? false,
+      cashFlowCategory: 0,
     },
   })
 
@@ -63,13 +68,20 @@ function AccountModal({
   const mutation = useMutation({
     mutationFn: (v: AccountFormValues) =>
       editing
-        ? accountsApi.update(account.id, { name: v.name, parentAccountId: v.parentAccountId || null })
+        ? accountsApi.update(account.id, {
+            name: v.name,
+            parentAccountId: v.parentAccountId || null,
+            isCash: v.isCash,
+            cashFlowCategory: Number(v.cashFlowCategory),
+          })
         : accountsApi.create({
             accountNumber: v.accountNumber,
             name: v.name,
             accountType: Number(v.accountType),
             normalBalance: Number(v.normalBalance),
             parentAccountId: v.parentAccountId || null,
+            isCash: v.isCash,
+            cashFlowCategory: Number(v.cashFlowCategory) || null,
           }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting', 'accounts'] })
@@ -133,6 +145,26 @@ function AccountModal({
               {parentChoices.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.accountNumber} — {a.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" {...register('isCash')} />
+            {t('accounting.accounts.isCash')}
+          </label>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t('accounting.accounts.cashFlowCategory')}
+            </label>
+            <select className="input" {...register('cashFlowCategory', { valueAsNumber: true })}>
+              <option value={0}>
+                {t('accounting.accounts.cashFlowDefault')}
+                {editing ? ` (${account?.cashFlowCategory})` : ''}
+              </option>
+              {CASH_FLOW_CATEGORY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
                 </option>
               ))}
             </select>

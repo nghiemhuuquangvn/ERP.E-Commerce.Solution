@@ -1,6 +1,6 @@
 # Chart of accounts, void / reverse and period-end closing
 
-Status: ROADMAP P1-2 (2026-10-24). Cash-flow statement, general ledger report and the B01/B02/B03 layouts are P1-2b.
+Status: ROADMAP P1-2 (2026-10-24). The ledger, trial balance and cash-flow reports are described in Reports.md (P1-2b); the B01/B02/B03 layouts are P1-2c.
 
 ## Read this first: the Vietnamese chart is a starting point, not legal advice
 
@@ -67,6 +67,6 @@ not been closed yet to equity (assets = liabilities + equity before and after cl
 
 ## Known limits
 
-Cash-flow statement, general-ledger (account ledger) report, opening/closing columns of the trial balance and the B01/B02/B03 layouts (P1-2b); off-balance accounts;
+The B01/B02/B03 layouts, indirect-method cash flow (P1-2c); off-balance accounts;
 year-end carry-forward beyond the monthly transfer; migrating a tenant that already has entries to another chart (re-map the profile by hand); the SYSTEM tenant
 and the demo data stay on the 14-account chart.

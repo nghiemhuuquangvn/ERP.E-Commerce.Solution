@@ -77,6 +77,35 @@ namespace ERP.ACC.Application.Queries
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
         public bool HideZeroBalance { get; set; } = true;
+
+        /// <summary>Each parent account also carries the sum of its sub-accounts.</summary>
+        public bool RollUp { get; set; } = true;
+    }
+
+    /// <summary>The same trial balance with its grand totals and the balanced check.</summary>
+    public class GetTrialBalanceFullQuery : IRequest<TrialBalanceDto>
+    {
+        public Guid? FiscalPeriodId { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public bool HideZeroBalance { get; set; } = true;
+        public bool RollUp { get; set; } = true;
+    }
+
+    public class GetCashFlowQuery : IRequest<CashFlowStatementDto>
+    {
+        public DateTime FromDate { get; set; }
+        public DateTime ToDate { get; set; }
+    }
+
+    public class GetAccountLedgerQuery : IRequest<AccountLedgerDto>
+    {
+        public Guid AccountId { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public bool IncludeSubAccounts { get; set; } = true;
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 100;
     }
 
     public class GetProfitAndLossQuery : IRequest<ProfitAndLossDto>

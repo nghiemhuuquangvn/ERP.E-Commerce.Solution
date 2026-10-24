@@ -60,6 +60,7 @@ namespace ERP.ACC.Application.Handlers
                     var parent = entry.ParentNumber != null ? byNumber[entry.ParentNumber] : null;
                     var account = Account.Create(entry.Number, entry.Name, (int)entry.Type, (int)entry.Normal, parent);
                     account.IsControl = entry.IsControl;
+                    account.SetCashFlow(entry.IsCash, entry.CashFlow.HasValue ? (int)entry.CashFlow.Value : null);
                     await _uow.Accounts.AddAsync(account, cancellationToken);
                     byNumber[entry.Number] = account;
                     created++;

@@ -17,6 +17,28 @@ namespace ERP.ACC.Domain.Entities
         /// <summary>Control account (receivables, payables, cash): normally posted by the system, not by hand.</summary>
         public bool IsControl { get; set; }
 
+        /// <summary>The account holds cash or bank money: the cash-flow statement tracks its movements.</summary>
+        public bool IsCash { get; set; }
+
+        /// <summary>Category of a cash movement whose counter-account this is; null = the default (<see cref="EffectiveCashFlowCategory"/>).</summary>
+        public int? CashFlowCategory { get; set; }
+
+        /// <summary>Operating unless set; equity accounts (capital, funds, retained earnings) are financing.</summary>
+        public Enums.CashFlowCategory EffectiveCashFlowCategory =>
+            CashFlowCategory.HasValue && Enum.IsDefined(typeof(Enums.CashFlowCategory), CashFlowCategory.Value)
+                ? (Enums.CashFlowCategory)CashFlowCategory.Value
+                : AccountType == (int)Enums.AccountType.Equity ? Enums.CashFlowCategory.Financing : Enums.CashFlowCategory.Operating;
+
+        /// <summary>Sets the cash-flow attributes; a null category goes back to the default.</summary>
+        public void SetCashFlow(bool isCash, int? category)
+        {
+            if (category.HasValue && !Enum.IsDefined(typeof(Enums.CashFlowCategory), category.Value))
+                throw new ArgumentOutOfRangeException(nameof(category), "The cash-flow category is 1 (operating), 2 (investing) or 3 (financing).");
+            IsCash = isCash;
+            CashFlowCategory = category;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         /// <summary>
         /// The Vietnamese chart's class = the first digit of the number (1-2 assets, 3 liabilities, 4 equity, 5-8 revenue / expense, 9 profit
         /// determination); 0 when the number does not start with a digit. Derived, never stored.

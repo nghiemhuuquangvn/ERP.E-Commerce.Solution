@@ -18,6 +18,12 @@ namespace ERP.ACC.Application.DTOs
 
         /// <summary>Active and without active sub-accounts: the only kind of account that takes postings.</summary>
         public bool IsPostable { get; set; } = true;
+
+        /// <summary>Cash or bank account: tracked by the cash-flow statement.</summary>
+        public bool IsCash { get; set; }
+
+        /// <summary>Operating | Investing | Financing: how a cash movement against this account is classified (the default applies when none was set).</summary>
+        public string CashFlowCategory { get; set; } = "Operating";
     }
 
     public class AccountTreeNodeDto
@@ -149,6 +155,141 @@ namespace ERP.ACC.Application.DTOs
         public decimal TotalDebit { get; set; }
         public decimal TotalCredit { get; set; }
         public decimal Balance { get; set; }
+
+        // Vietnamese trial balance (ROADMAP P1-2b): opening and closing balances as a debit or a credit amount, plus the period's movement.
+        public int Level { get; set; } = 1;
+        public Guid? ParentAccountId { get; set; }
+
+        /// <summary>The account has sub-accounts; with roll-up its figures are the sum of theirs.</summary>
+        public bool IsParent { get; set; }
+        public decimal OpeningDebit { get; set; }
+        public decimal OpeningCredit { get; set; }
+        public decimal PeriodDebit { get; set; }
+        public decimal PeriodCredit { get; set; }
+        public decimal ClosingDebit { get; set; }
+        public decimal ClosingCredit { get; set; }
+    }
+
+    public class TrialBalanceTotalsDto
+    {
+        public decimal OpeningDebit { get; set; }
+        public decimal OpeningCredit { get; set; }
+        public decimal PeriodDebit { get; set; }
+        public decimal PeriodCredit { get; set; }
+        public decimal ClosingDebit { get; set; }
+        public decimal ClosingCredit { get; set; }
+
+        /// <summary>Debits equal credits in the opening, period and closing columns.</summary>
+        public bool IsBalanced { get; set; }
+    }
+
+    public class TrialBalanceDto
+    {
+        public List<TrialBalanceLineDto> Lines { get; set; } = new();
+        public TrialBalanceTotalsDto Totals { get; set; } = new();
+    }
+
+    /// <summary>One journal line as the ledger reads it (repository projection).</summary>
+    public class LedgerRow
+    {
+        public Guid EntryId { get; set; }
+        public string EntryNumber { get; set; } = string.Empty;
+        public DateTime EntryDate { get; set; }
+        public string EntryDescription { get; set; } = string.Empty;
+        public string LineDescription { get; set; } = string.Empty;
+        public string? ReferenceType { get; set; }
+        public int Status { get; set; }
+        public Guid AccountId { get; set; }
+        public decimal Debit { get; set; }
+        public decimal Credit { get; set; }
+    }
+
+    public record EntryAccountRef(Guid EntryId, Guid AccountId);
+
+    public class LedgerLineDto
+    {
+        public Guid EntryId { get; set; }
+        public string EntryNumber { get; set; } = string.Empty;
+        public DateTime EntryDate { get; set; }
+        public string Description { get; set; } = string.Empty;
+
+        /// <summary>The account of this line (differs from the ledger's account for a parent that includes sub-accounts).</summary>
+        public string AccountNumber { get; set; } = string.Empty;
+
+        /// <summary>The other accounts of the entry, e.g. "131, 3331".</summary>
+        public string CounterAccounts { get; set; } = string.Empty;
+        public decimal Debit { get; set; }
+        public decimal Credit { get; set; }
+
+        /// <summary>Running balance on the account's normal side after this line.</summary>
+        public decimal Balance { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public bool IsClosingEntry { get; set; }
+    }
+
+    public class AccountLedgerDto
+    {
+        public Guid AccountId { get; set; }
+        public string AccountNumber { get; set; } = string.Empty;
+        public string AccountName { get; set; } = string.Empty;
+        public string NormalBalance { get; set; } = string.Empty;
+        public bool IncludesSubAccounts { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public decimal OpeningBalance { get; set; }
+        public decimal TotalDebit { get; set; }
+        public decimal TotalCredit { get; set; }
+        public decimal ClosingBalance { get; set; }
+        public int TotalRows { get; set; }
+        public int PageNumber { get; set; }
+        public int PageSize { get; set; }
+        public List<LedgerLineDto> Lines { get; set; } = new();
+    }
+
+    /// <summary>One journal line of an entry that touches a cash account (repository projection for the cash-flow statement).</summary>
+    public class CashEntryLine
+    {
+        public Guid EntryId { get; set; }
+        public Guid AccountId { get; set; }
+        public decimal Debit { get; set; }
+        public decimal Credit { get; set; }
+    }
+
+    public class CashFlowLineDto
+    {
+        public Guid AccountId { get; set; }
+        public string AccountNumber { get; set; } = string.Empty;
+        public string AccountName { get; set; } = string.Empty;
+        public decimal Inflow { get; set; }
+        public decimal Outflow { get; set; }
+        public decimal Net { get; set; }
+    }
+
+    public class CashFlowSectionDto
+    {
+        public string Category { get; set; } = string.Empty;
+        public List<CashFlowLineDto> Lines { get; set; } = new();
+        public decimal TotalInflow { get; set; }
+        public decimal TotalOutflow { get; set; }
+        public decimal Net { get; set; }
+    }
+
+    /// <summary>Cash-flow statement, direct method, classified by the counter-account of each cash movement.</summary>
+    public class CashFlowStatementDto
+    {
+        public DateTime FromDate { get; set; }
+        public DateTime ToDate { get; set; }
+        public int CashAccountCount { get; set; }
+        public decimal OpeningCash { get; set; }
+        public CashFlowSectionDto Operating { get; set; } = new() { Category = "Operating" };
+        public CashFlowSectionDto Investing { get; set; } = new() { Category = "Investing" };
+        public CashFlowSectionDto Financing { get; set; } = new() { Category = "Financing" };
+        public decimal NetChange { get; set; }
+        public decimal ClosingCash { get; set; }
+
+        /// <summary>Opening cash + net change - closing cash; 0 when the statement agrees with the balance sheet.</summary>
+        public decimal Difference { get; set; }
+        public bool IsReconciled { get; set; }
     }
 
     public class ProfitAndLossDto

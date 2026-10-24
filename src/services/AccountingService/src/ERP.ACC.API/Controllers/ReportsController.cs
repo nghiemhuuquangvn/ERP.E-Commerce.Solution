@@ -32,6 +32,7 @@ namespace ERP.ACC.API.Controllers
             [FromQuery] DateTime? fromDate,
             [FromQuery] DateTime? toDate,
             [FromQuery] bool hideZeroBalance = true,
+            [FromQuery] bool rollUp = true,
             CancellationToken ct = default)
         {
             if (!_userContext.HasPermission("accounting:reports:view"))
@@ -42,9 +43,84 @@ namespace ERP.ACC.API.Controllers
                 FiscalPeriodId = fiscalPeriodId,
                 FromDate = fromDate,
                 ToDate = toDate,
-                HideZeroBalance = hideZeroBalance
+                HideZeroBalance = hideZeroBalance,
+                RollUp = rollUp
             }, ct);
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Trial balance with opening, period and closing columns (bảng cân đối số phát sinh) and the grand totals with a balanced check.
+        /// Opening = everything before fromDate. rollUp adds each sub-account into its parents.
+        /// </summary>
+        [HttpGet("trial-balance/full")]
+        [ProducesResponseType(typeof(TrialBalanceDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> TrialBalanceFull(
+            [FromQuery] Guid? fiscalPeriodId,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
+            [FromQuery] bool hideZeroBalance = true,
+            [FromQuery] bool rollUp = true,
+            CancellationToken ct = default)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(new GetTrialBalanceFullQuery
+            {
+                FiscalPeriodId = fiscalPeriodId,
+                FromDate = fromDate,
+                ToDate = toDate,
+                HideZeroBalance = hideZeroBalance,
+                RollUp = rollUp
+            }, ct));
+        }
+
+        /// <summary>
+        /// Cash-flow statement, direct method: cash received and paid in the range, by the counter-account of each movement and grouped into
+        /// operating, investing and financing activities (the account's cash-flow category), with opening and closing cash and a reconciliation check.
+        /// Cash accounts are those flagged IsCash; transfers between them are not shown.
+        /// </summary>
+        [HttpGet("cash-flow")]
+        [ProducesResponseType(typeof(CashFlowStatementDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> CashFlow(
+            [FromQuery] DateTime fromDate,
+            [FromQuery] DateTime toDate,
+            CancellationToken ct = default)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(new GetCashFlowQuery { FromDate = fromDate, ToDate = toDate }, ct));
+        }
+
+        /// <summary>
+        /// Account ledger (sổ cái / sổ chi tiết): opening balance, the journal lines of the range with counter-accounts and a running balance,
+        /// closing balance. A parent account includes its sub-accounts (includeSubAccounts, default true). Paged.
+        /// </summary>
+        [HttpGet("account-ledger")]
+        [ProducesResponseType(typeof(AccountLedgerDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> AccountLedger(
+            [FromQuery] Guid accountId,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
+            [FromQuery] bool includeSubAccounts = true,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 100,
+            CancellationToken ct = default)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(new GetAccountLedgerQuery
+            {
+                AccountId = accountId,
+                FromDate = fromDate,
+                ToDate = toDate,
+                IncludeSubAccounts = includeSubAccounts,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            }, ct));
         }
 
         /// <summary>

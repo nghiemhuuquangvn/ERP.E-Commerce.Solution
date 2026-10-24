@@ -73,6 +73,17 @@ namespace ERP.ACC.Application.Interfaces
         /// <summary>Like <see cref="GetAccountBalancesAsync"/> but leaves out the entries of one reference type (the P&amp;L leaves out the period-closing entries).</summary>
         Task<List<AccountBalanceSummary>> GetActivityBalancesAsync(
             DateTime? fromDate, DateTime? toDate, string? excludeReferenceType, CancellationToken ct = default);
+        /// <summary>The journal lines of the given accounts in the date range (Posted and Reversed entries), oldest first: by entry date, entry number, line.</summary>
+        Task<List<LedgerRow>> GetLedgerLinesAsync(
+            IReadOnlyCollection<Guid> accountIds, DateTime? fromDate, DateTime? toDate, CancellationToken ct = default);
+        /// <summary>
+        /// Every line of the entries (Posted and Reversed, closing entries left out) dated in the range that have at least one line on one of the
+        /// given cash accounts: the cash lines and their counter-lines.
+        /// </summary>
+        Task<List<CashEntryLine>> GetCashEntryLinesAsync(
+            IReadOnlyCollection<Guid> cashAccountIds, DateTime from, DateTime to, CancellationToken ct = default);
+        /// <summary>The (entry, account) pairs of the given entries: the counter-accounts shown next to a ledger line.</summary>
+        Task<List<EntryAccountRef>> GetEntryAccountsAsync(IReadOnlyCollection<Guid> entryIds, CancellationToken ct = default);
         Task AddRangeAsync(IEnumerable<JournalLine> lines, CancellationToken ct = default);
     }
 
