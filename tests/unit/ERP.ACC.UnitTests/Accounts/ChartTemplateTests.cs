@@ -77,6 +77,48 @@ public class ChartTemplateTests
         vnd.Level.Should().Be(2);
     }
 
+    [Theory, MemberData(nameof(Templates))]
+    public void Every_template_has_cash_accounts_and_the_cash_flow_defaults_are_sensible(string id)
+    {
+        var template = ChartTemplates.Find(id)!;
+        var accounts = template.BuildAccounts();
+
+        accounts.Where(a => a.IsCash).Should().NotBeEmpty($"{template.Id} needs cash accounts for the cash-flow statement");
+        accounts.Where(a => a.IsCash).Should().OnlyContain(a => a.AccountType == (int)AccountType.Asset && a.NormalBalance == (int)NormalBalance.Debit);
+        // the posting keys Cash and Bank point at flagged cash accounts
+        foreach (var key in new[] { PostingKeys.Cash, PostingKeys.Bank })
+            accounts.Single(a => a.AccountNumber == template.PostingMap[key]).IsCash.Should().BeTrue($"{key} must be a cash account");
+        // equity is financing unless overridden; revenue / expense accounts are operating by default
+        accounts.Where(a => a.AccountType == (int)AccountType.Equity && a.CashFlowCategory == null)
+            .Should().OnlyContain(a => a.EffectiveCashFlowCategory == CashFlowCategory.Financing);
+        accounts.Where(a => a.AccountType is (int)AccountType.Revenue or (int)AccountType.Expense)
+            .Should().OnlyContain(a => a.EffectiveCashFlowCategory == CashFlowCategory.Operating);
+    }
+
+    [Fact]
+    public void The_vietnamese_template_classifies_fixed_assets_as_investing_and_borrowings_as_financing()
+    {
+        var accounts = ChartTemplates.Find(ChartTemplates.Vas99)!.BuildAccounts();
+
+        accounts.Single(a => a.AccountNumber == "211").EffectiveCashFlowCategory.Should().Be(CashFlowCategory.Investing);
+        accounts.Single(a => a.AccountNumber == "341").EffectiveCashFlowCategory.Should().Be(CashFlowCategory.Financing);
+        accounts.Single(a => a.AccountNumber == "4111").EffectiveCashFlowCategory.Should().Be(CashFlowCategory.Financing);
+        accounts.Single(a => a.AccountNumber == "131").EffectiveCashFlowCategory.Should().Be(CashFlowCategory.Operating);
+        accounts.Single(a => a.AccountNumber == "1121").IsCash.Should().BeTrue();
+    }
+
+    [Fact]
+    public void An_unknown_cash_flow_category_is_refused_and_null_goes_back_to_the_default()
+    {
+        var account = Account.Create("131", "Receivables", (int)AccountType.Asset, (int)NormalBalance.Debit);
+
+        account.Invoking(a => a.SetCashFlow(false, 9)).Should().Throw<ArgumentOutOfRangeException>();
+        account.SetCashFlow(false, 2);
+        account.EffectiveCashFlowCategory.Should().Be(CashFlowCategory.Investing);
+        account.SetCashFlow(false, null);
+        account.EffectiveCashFlowCategory.Should().Be(CashFlowCategory.Operating);
+    }
+
     [Fact]
     public void Template_lookup_ignores_case_and_returns_null_for_unknown_ids()
     {

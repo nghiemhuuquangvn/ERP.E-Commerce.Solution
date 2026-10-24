@@ -12,6 +12,11 @@ namespace ERP.ACC.Application.Commands
 
         /// <summary>Optional parent: the new account is its sub-account (same account type).</summary>
         public Guid? ParentAccountId { get; set; }
+
+        public bool IsCash { get; set; }
+
+        /// <summary>1 operating, 2 investing, 3 financing; null = the default.</summary>
+        public int? CashFlowCategory { get; set; }
     }
 
     /// <summary>Renames an account and/or moves it under another parent (null = top level). The number, type and normal balance never change.</summary>
@@ -20,6 +25,12 @@ namespace ERP.ACC.Application.Commands
         public Guid AccountId { get; set; }
         public string Name { get; set; } = string.Empty;
         public Guid? ParentAccountId { get; set; }
+
+        /// <summary>null = unchanged.</summary>
+        public bool? IsCash { get; set; }
+
+        /// <summary>null = unchanged; 0 = back to the default; 1 operating, 2 investing, 3 financing.</summary>
+        public int? CashFlowCategory { get; set; }
     }
 
     public class SetAccountActiveCommand : IRequest<AccountDto>

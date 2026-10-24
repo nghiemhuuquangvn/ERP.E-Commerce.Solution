@@ -9,6 +9,14 @@ namespace ERP.ACC.Domain.Enums
         Expense = 5
     }
 
+    /// <summary>How a cash movement is classified in the cash-flow statement, by the counter-account (ROADMAP P1-2b).</summary>
+    public enum CashFlowCategory
+    {
+        Operating = 1,
+        Investing = 2,
+        Financing = 3
+    }
+
     public enum NormalBalance
     {
         Debit = 1,

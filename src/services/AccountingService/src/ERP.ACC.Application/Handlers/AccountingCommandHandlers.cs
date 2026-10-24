@@ -35,8 +35,9 @@ namespace ERP.ACC.Application.Handlers
             try
             {
                 account = Account.Create(number, request.Name.Trim(), request.AccountType, request.NormalBalance, parent);
+                account.SetCashFlow(request.IsCash, request.CashFlowCategory);
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex) when (ex is InvalidOperationException or ArgumentOutOfRangeException)
             {
                 throw new BusinessRuleException("Accounting", ex.Message);
             }
@@ -60,6 +61,8 @@ namespace ERP.ACC.Application.Handlers
             IsControl = a.IsControl,
             AccountClass = a.AccountClass,
             IsPostable = a.IsActive && !isParent,
+            IsCash = a.IsCash,
+            CashFlowCategory = a.EffectiveCashFlowCategory.ToString(),
         };
     }
 

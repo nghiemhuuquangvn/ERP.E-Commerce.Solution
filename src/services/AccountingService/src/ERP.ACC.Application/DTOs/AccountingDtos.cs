@@ -18,6 +18,12 @@ namespace ERP.ACC.Application.DTOs
 
         /// <summary>Active and without active sub-accounts: the only kind of account that takes postings.</summary>
         public bool IsPostable { get; set; } = true;
+
+        /// <summary>Cash or bank account: tracked by the cash-flow statement.</summary>
+        public bool IsCash { get; set; }
+
+        /// <summary>Operating | Investing | Financing: how a cash movement against this account is classified (the default applies when none was set).</summary>
+        public string CashFlowCategory { get; set; } = "Operating";
     }
 
     public class AccountTreeNodeDto

@@ -16,7 +16,9 @@ namespace ERP.ACC.Application.Posting
         IReadOnlyDictionary<string, string> PostingMap)
     {
         /// <param name="ParentNumber">null = top level; the parent must be listed before its children.</param>
-        public sealed record Entry(string Number, string Name, AccountType Type, NormalBalance Normal, string? ParentNumber = null, bool IsControl = false);
+        public sealed record Entry(
+            string Number, string Name, AccountType Type, NormalBalance Normal, string? ParentNumber = null, bool IsControl = false,
+            bool IsCash = false, CashFlowCategory? CashFlow = null);
 
         /// <summary>Builds the accounts of the template, parents first, with parent links and levels set.</summary>
         public List<Account> BuildAccounts()
@@ -28,6 +30,7 @@ namespace ERP.ACC.Application.Posting
                 Account? parent = entry.ParentNumber != null ? byNumber[entry.ParentNumber] : null;
                 var account = Account.Create(entry.Number, entry.Name, (int)entry.Type, (int)entry.Normal, parent);
                 account.IsControl = entry.IsControl;
+                account.SetCashFlow(entry.IsCash, entry.CashFlow.HasValue ? (int)entry.CashFlow.Value : null);
                 byNumber[entry.Number] = account;
                 list.Add(account);
             }
@@ -52,7 +55,9 @@ namespace ERP.ACC.Application.Posting
             "Simple chart (14 accounts)",
             "The platform's original flat chart: cash, receivables, inventory, payables, tax, equity, revenue and a few expense accounts.",
             DefaultChartOfAccounts.Accounts
-                .Select(e => new ChartTemplate.Entry(e.Number, e.Name, e.Type, e.Normal, null, e.IsControl))
+                .Select(e => new ChartTemplate.Entry(e.Number, e.Name, e.Type, e.Normal, null, e.IsControl,
+                    IsCash: e.Number == "1000",
+                    CashFlow: e.Number == "1500" ? CashFlowCategory.Investing : null))
                 .ToList(),
             PostingKeys.DefaultAccountNumbers);
 
@@ -187,6 +192,20 @@ namespace ERP.ACC.Application.Posting
             Add("8212", "Chi phí thuế TNDN hoãn lại", X, Dr, "821");
             // Class 9 - profit determination (temporary: closing entries leave it at zero)
             Add("911", "Xác định kết quả kinh doanh", E, Cr);
+
+            // Cash-flow attributes (suggested; editable per account): cash and bank accounts, and the counter-accounts that are investing / financing.
+            var cash = new HashSet<string> { "111", "1111", "1112", "112", "1121", "1122", "113" };
+            var investing = new HashSet<string> { "121", "128", "211", "212", "213", "217", "221", "222", "228", "241" };
+            var financing = new HashSet<string> { "341", "343", "344" };
+            for (var i = 0; i < accounts.Count; i++)
+            {
+                var a = accounts[i];
+                accounts[i] = a with
+                {
+                    IsCash = cash.Contains(a.Number),
+                    CashFlow = investing.Contains(a.Number) ? CashFlowCategory.Investing : financing.Contains(a.Number) ? CashFlowCategory.Financing : null,
+                };
+            }
 
             var map = new Dictionary<string, string>
             {

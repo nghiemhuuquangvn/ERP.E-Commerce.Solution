@@ -78,6 +78,7 @@ $DatabaseScripts = @(
     "Accounting\007_PartyNameDefaults.sql",
     "Accounting\008_FiscalPeriodDerivedColumns.sql",
     "Accounting\009_AutoPostingFoundation.sql",
+    "Accounting\010_CashFlowAndLedger.sql",
     "Product\001_CreateProductDB.sql",
     "Product\002_AddProductTranslations.sql",
     "Product\003_AddProductAttributesAndDimensions.sql",

@@ -41,6 +41,11 @@ namespace ERP.ACC.Application.Handlers
             {
                 account.Rename(request.Name);
 
+                if (request.IsCash.HasValue || request.CashFlowCategory.HasValue)
+                    account.SetCashFlow(
+                        request.IsCash ?? account.IsCash,
+                        request.CashFlowCategory.HasValue ? (request.CashFlowCategory.Value == 0 ? null : request.CashFlowCategory) : account.CashFlowCategory);
+
                 if (request.ParentAccountId != account.ParentAccountId)
                 {
                     if (request.ParentAccountId is not { } parentId)
