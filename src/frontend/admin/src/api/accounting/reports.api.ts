@@ -196,10 +196,15 @@ export interface IncomeStatementParams {
   compareToDate?: string
 }
 
-/** Downloads a report as CSV (the server answers format=csv with a UTF-8 file that Excel opens correctly). */
-export async function downloadReportCsv(path: string, params: Record<string, unknown>, fallbackName: string): Promise<void> {
+/** Downloads a report as a file: CSV (UTF-8 with a BOM, Excel opens it correctly) or Excel (.xlsx with numeric cells). */
+export async function downloadReport(
+  path: string,
+  params: Record<string, unknown>,
+  fallbackName: string,
+  format: 'csv' | 'xlsx' = 'csv',
+): Promise<void> {
   const res = await apiClient.get<Blob>(`${ACC_BASE}/accounting/reports/${path}`, {
-    params: { ...params, format: 'csv' },
+    params: { ...params, format },
     responseType: 'blob',
   })
   const header = String(res.headers['content-disposition'] ?? '')
@@ -214,7 +219,16 @@ export async function downloadReportCsv(path: string, params: Record<string, unk
   URL.revokeObjectURL(url)
 }
 
+export const downloadReportCsv = (path: string, params: Record<string, unknown>, fallbackName: string) =>
+  downloadReport(path, params, fallbackName, 'csv')
+
 export const reportsApi = {
+  // B03-DN, direct method, by indicator code.
+  cashFlowStatement: (params: IncomeStatementParams) =>
+    apiClient
+      .get<FinancialStatement>(`${ACC_BASE}/accounting/reports/statements/cash-flow`, { params })
+      .then((r) => r.data),
+
   balanceSheetStatement: (params: BalanceSheetStatementParams) =>
     apiClient
       .get<FinancialStatement>(`${ACC_BASE}/accounting/reports/statements/balance-sheet`, { params })
