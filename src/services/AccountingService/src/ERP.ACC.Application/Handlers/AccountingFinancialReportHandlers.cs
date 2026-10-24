@@ -22,14 +22,40 @@ namespace ERP.ACC.Application.Handlers
             _fiscalPeriods = fiscalPeriods;
         }
 
-        public async Task<List<TrialBalanceLineDto>> Handle(GetTrialBalanceQuery request, CancellationToken cancellationToken)
-        {
-            DateTime? fromDate = request.FromDate;
-            DateTime? toDate = request.ToDate;
+        public async Task<List<TrialBalanceLineDto>> Handle(GetTrialBalanceQuery request, CancellationToken cancellationToken) =>
+            (await TrialBalanceLoader.LoadAsync(_accounts, _journalLines, _fiscalPeriods,
+                request.FiscalPeriodId, request.FromDate, request.ToDate, request.RollUp, request.HideZeroBalance, cancellationToken)).Lines;
+    }
 
-            if (request.FiscalPeriodId.HasValue)
+    public class GetTrialBalanceFullQueryHandler : IRequestHandler<GetTrialBalanceFullQuery, TrialBalanceDto>
+    {
+        private readonly IAccountRepository _accounts;
+        private readonly IJournalLineRepository _journalLines;
+        private readonly IFiscalPeriodRepository _fiscalPeriods;
+
+        public GetTrialBalanceFullQueryHandler(
+            IAccountRepository accounts, IJournalLineRepository journalLines, IFiscalPeriodRepository fiscalPeriods)
+        {
+            _accounts = accounts;
+            _journalLines = journalLines;
+            _fiscalPeriods = fiscalPeriods;
+        }
+
+        public Task<TrialBalanceDto> Handle(GetTrialBalanceFullQuery request, CancellationToken cancellationToken) =>
+            TrialBalanceLoader.LoadAsync(_accounts, _journalLines, _fiscalPeriods,
+                request.FiscalPeriodId, request.FromDate, request.ToDate, request.RollUp, request.HideZeroBalance, cancellationToken);
+    }
+
+    internal static class TrialBalanceLoader
+    {
+        /// <summary>Opening = everything before the range, period = the range, closing = both; a fiscal period stands for its dates.</summary>
+        public static async Task<TrialBalanceDto> LoadAsync(
+            IAccountRepository accountsRepo, IJournalLineRepository lines, IFiscalPeriodRepository periods,
+            Guid? fiscalPeriodId, DateTime? fromDate, DateTime? toDate, bool rollUp, bool hideZero, CancellationToken ct)
+        {
+            if (fiscalPeriodId.HasValue)
             {
-                var period = await _fiscalPeriods.GetByIdAsync(request.FiscalPeriodId.Value, cancellationToken);
+                var period = await periods.GetByIdAsync(fiscalPeriodId.Value, ct);
                 if (period != null)
                 {
                     fromDate = period.StartDate;
@@ -37,34 +63,13 @@ namespace ERP.ACC.Application.Handlers
                 }
             }
 
-            var accounts = await _accounts.GetAllAsync(cancellationToken);
-            var balances = await _journalLines.GetAccountBalancesAsync(fromDate, toDate, null, cancellationToken);
-            var balanceMap = balances.ToDictionary(b => b.AccountId);
+            var accounts = await accountsRepo.GetAllAsync(ct);
+            var movement = await lines.GetAccountBalancesAsync(fromDate, toDate, null, ct);
+            var before = fromDate.HasValue
+                ? await lines.GetAccountBalancesAsync(null, fromDate.Value.Date.AddDays(-1), null, ct)
+                : new List<AccountBalanceSummary>();
 
-            return accounts
-                .Select(a =>
-                {
-                    balanceMap.TryGetValue(a.Id, out var bal);
-                    var debit = bal?.TotalDebit ?? 0m;
-                    var credit = bal?.TotalCredit ?? 0m;
-                    var isDebitNormal = a.NormalBalance == (int)NormalBalance.Debit;
-                    var balance = isDebitNormal ? debit - credit : credit - debit;
-
-                    return new TrialBalanceLineDto
-                    {
-                        AccountId = a.Id,
-                        AccountNumber = a.AccountNumber,
-                        AccountName = a.Name,
-                        AccountType = ((AccountType)a.AccountType).ToString(),
-                        NormalBalance = ((NormalBalance)a.NormalBalance).ToString(),
-                        TotalDebit = debit,
-                        TotalCredit = credit,
-                        Balance = balance
-                    };
-                })
-                .Where(l => !request.HideZeroBalance || l.TotalDebit != 0 || l.TotalCredit != 0)
-                .OrderBy(l => l.AccountNumber)
-                .ToList();
+            return TrialBalanceBuilder.Build(accounts, before.ToDictionary(b => b.AccountId), movement.ToDictionary(b => b.AccountId), rollUp, hideZero);
         }
     }
 

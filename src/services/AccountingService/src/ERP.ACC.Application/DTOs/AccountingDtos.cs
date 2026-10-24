@@ -155,6 +155,95 @@ namespace ERP.ACC.Application.DTOs
         public decimal TotalDebit { get; set; }
         public decimal TotalCredit { get; set; }
         public decimal Balance { get; set; }
+
+        // Vietnamese trial balance (ROADMAP P1-2b): opening and closing balances as a debit or a credit amount, plus the period's movement.
+        public int Level { get; set; } = 1;
+        public Guid? ParentAccountId { get; set; }
+
+        /// <summary>The account has sub-accounts; with roll-up its figures are the sum of theirs.</summary>
+        public bool IsParent { get; set; }
+        public decimal OpeningDebit { get; set; }
+        public decimal OpeningCredit { get; set; }
+        public decimal PeriodDebit { get; set; }
+        public decimal PeriodCredit { get; set; }
+        public decimal ClosingDebit { get; set; }
+        public decimal ClosingCredit { get; set; }
+    }
+
+    public class TrialBalanceTotalsDto
+    {
+        public decimal OpeningDebit { get; set; }
+        public decimal OpeningCredit { get; set; }
+        public decimal PeriodDebit { get; set; }
+        public decimal PeriodCredit { get; set; }
+        public decimal ClosingDebit { get; set; }
+        public decimal ClosingCredit { get; set; }
+
+        /// <summary>Debits equal credits in the opening, period and closing columns.</summary>
+        public bool IsBalanced { get; set; }
+    }
+
+    public class TrialBalanceDto
+    {
+        public List<TrialBalanceLineDto> Lines { get; set; } = new();
+        public TrialBalanceTotalsDto Totals { get; set; } = new();
+    }
+
+    /// <summary>One journal line as the ledger reads it (repository projection).</summary>
+    public class LedgerRow
+    {
+        public Guid EntryId { get; set; }
+        public string EntryNumber { get; set; } = string.Empty;
+        public DateTime EntryDate { get; set; }
+        public string EntryDescription { get; set; } = string.Empty;
+        public string LineDescription { get; set; } = string.Empty;
+        public string? ReferenceType { get; set; }
+        public int Status { get; set; }
+        public Guid AccountId { get; set; }
+        public decimal Debit { get; set; }
+        public decimal Credit { get; set; }
+    }
+
+    public record EntryAccountRef(Guid EntryId, Guid AccountId);
+
+    public class LedgerLineDto
+    {
+        public Guid EntryId { get; set; }
+        public string EntryNumber { get; set; } = string.Empty;
+        public DateTime EntryDate { get; set; }
+        public string Description { get; set; } = string.Empty;
+
+        /// <summary>The account of this line (differs from the ledger's account for a parent that includes sub-accounts).</summary>
+        public string AccountNumber { get; set; } = string.Empty;
+
+        /// <summary>The other accounts of the entry, e.g. "131, 3331".</summary>
+        public string CounterAccounts { get; set; } = string.Empty;
+        public decimal Debit { get; set; }
+        public decimal Credit { get; set; }
+
+        /// <summary>Running balance on the account's normal side after this line.</summary>
+        public decimal Balance { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public bool IsClosingEntry { get; set; }
+    }
+
+    public class AccountLedgerDto
+    {
+        public Guid AccountId { get; set; }
+        public string AccountNumber { get; set; } = string.Empty;
+        public string AccountName { get; set; } = string.Empty;
+        public string NormalBalance { get; set; } = string.Empty;
+        public bool IncludesSubAccounts { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public decimal OpeningBalance { get; set; }
+        public decimal TotalDebit { get; set; }
+        public decimal TotalCredit { get; set; }
+        public decimal ClosingBalance { get; set; }
+        public int TotalRows { get; set; }
+        public int PageNumber { get; set; }
+        public int PageSize { get; set; }
+        public List<LedgerLineDto> Lines { get; set; } = new();
     }
 
     public class ProfitAndLossDto
