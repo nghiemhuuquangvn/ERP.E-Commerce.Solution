@@ -20,6 +20,9 @@ namespace ERP.ACC.Infrastructure.Repositories
         public async Task<List<JournalEntry>> GetByFiscalPeriodIdAsync(Guid fiscalPeriodId, CancellationToken ct = default) =>
             await _db.JournalEntries.Include(j => j.Lines).Where(j => j.FiscalPeriodId == fiscalPeriodId).OrderByDescending(j => j.CreatedAt).AsNoTracking().ToListAsync(ct);
 
+        public async Task<bool> AnyAsync(CancellationToken ct = default) =>
+            await _db.JournalEntries.AnyAsync(ct);
+
         public async Task<JournalEntry?> GetBySourceKeyAsync(string sourceKey, CancellationToken ct = default) =>
             await _db.JournalEntries.Include(j => j.Lines).FirstOrDefaultAsync(j => j.SourceKey == sourceKey, ct);
 

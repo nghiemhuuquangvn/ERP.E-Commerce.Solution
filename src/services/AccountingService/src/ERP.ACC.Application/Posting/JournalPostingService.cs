@@ -160,22 +160,26 @@ namespace ERP.ACC.Application.Posting
             var existingAccounts = await _uow.Accounts.GetAllAsync(ct);
             var byNumber = existingAccounts.ToDictionary(a => a.AccountNumber);
 
+            var template = ChartTemplates.Find(_configuration["Accounting:DefaultChartTemplate"]) ?? ChartTemplates.Find(ChartTemplates.Simple14)!;
             if (existingAccounts.Count == 0)
             {
-                foreach (var entry in DefaultChartOfAccounts.Accounts)
+                foreach (var account in template.BuildAccounts())
                 {
-                    var account = DefaultChartOfAccounts.ToAccount(entry);
                     await _uow.Accounts.AddAsync(account, ct);
                     byNumber[account.AccountNumber] = account;
                     _provisionedAccounts[account.AccountNumber] = account;
                 }
-                _logger.LogInformation("Tenant {TenantId}: created the default chart of accounts", tenantId);
+                _logger.LogInformation("Tenant {TenantId}: created the {Template} chart of accounts", tenantId, template.Id);
             }
 
             var created = new List<PostingAccountMapping>();
             foreach (var key in keys)
             {
-                var number = PostingKeys.DefaultAccountNumbers[key];
+                // The configured template's account first, then the other templates' (a tenant that already has its own chart may match one of them).
+                var number = new[] { template }.Concat(ChartTemplates.All.Where(t => t.Id != template.Id))
+                    .Select(t => t.PostingMap.GetValueOrDefault(key))
+                    .FirstOrDefault(n => n != null && byNumber.ContainsKey(n))
+                    ?? template.PostingMap.GetValueOrDefault(key) ?? PostingKeys.DefaultAccountNumbers[key];
                 if (!byNumber.TryGetValue(number, out var account))
                 {
                     // Not fatal here: the flows that do not use this key must keep posting. A flow that needs it fails in Resolve.

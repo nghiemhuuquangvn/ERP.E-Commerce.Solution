@@ -48,6 +48,8 @@ namespace ERP.ACC.Application.Interfaces
         Task<List<JournalEntry>> GetByFiscalPeriodIdAsync(Guid fiscalPeriodId, CancellationToken ct = default);
         /// <summary>The entry posted for a document ("Invoice:&lt;id&gt;"), with its lines; null when none (tracked).</summary>
         Task<JournalEntry?> GetBySourceKeyAsync(string sourceKey, CancellationToken ct = default);
+        /// <summary>True when the tenant has at least one journal entry of any status.</summary>
+        Task<bool> AnyAsync(CancellationToken ct = default);
         Task AddAsync(JournalEntry entry, CancellationToken ct = default);
         Task UpdateAsync(JournalEntry entry, CancellationToken ct = default);
     }
