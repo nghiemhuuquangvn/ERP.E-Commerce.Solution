@@ -873,6 +873,15 @@ When reviewing code:
    `docs/frontend/` — reuse the existing i18n/Master Data CRUD patterns instead of
    creating a parallel mechanism.
 
+10. **After every task, update the business documentation in detail, like a real business
+    analyst** (owner's rule, 2026-10-24): actors, process, requirements with acceptance criteria,
+    business rules, use cases (main / alternative / exception flows), data and state models,
+    integrations, permissions, reports, assumptions, open issues and UAT scenarios — in the
+    matching `docs/business/<Domain>/` document (baseline for Accounting:
+    `docs/business/Accounting/BA-Accounting.md`, with its traceability table). Technical notes
+    (ROADMAP, PROJECT-STATUS, task.md, DEFERRED-ISSUES) come on top of it, not instead. Put this
+    as the last step of every plan.
+
 ## Priority Reading Order
 
 1. **CLAUDE.md** (This file — service boundaries, database ownership, coding standards)

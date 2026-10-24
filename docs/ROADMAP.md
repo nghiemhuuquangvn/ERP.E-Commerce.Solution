@@ -10,6 +10,8 @@
 > services (events nobody consumes, no automatic GL posting, hard-coded payroll), in the
 > **frontends**, in **tests** and in **operations**.
 >
+> Each finished task also updates the BA-level business document of its domain (see `docs/business/Accounting/BA-Accounting.md` for the format).
+>
 > Problems found while doing the roadmap and left unfixed on purpose are tracked in
 > [DEFERRED-ISSUES.md](DEFERRED-ISSUES.md) — handle them after the main tasks.
 
