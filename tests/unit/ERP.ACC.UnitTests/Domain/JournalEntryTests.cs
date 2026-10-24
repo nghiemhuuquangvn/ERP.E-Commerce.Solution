@@ -138,7 +138,9 @@ public class JournalEntryTests
         cancelled.Cancel();
         cancelled.ApplyPayment(100m).Should().BeFalse();
         cancelled.Status.Should().Be((int)InvoiceStatus.Cancelled);
-        invoice.Invoking(i => i.Cancel()).Should().Throw<InvalidOperationException>("a paid invoice cannot be cancelled");
+        invoice.Cancel(); // the order was cancelled after payment: the cash stays as a credit until the refund is booked
+        invoice.Status.Should().Be((int)InvoiceStatus.Cancelled);
+        invoice.AmountPaid.Should().Be(100m);
     }
 
     [Fact]

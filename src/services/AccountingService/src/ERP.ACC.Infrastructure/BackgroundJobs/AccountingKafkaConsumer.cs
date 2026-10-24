@@ -224,6 +224,17 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
             OccurredAt = raw.Value<DateTime?>("OccurredOn") ?? default,
         };
 
+        /// <summary>PaymentService's PaymentRefundedEvent. RefundId is empty on events published before the gateway-confirmation fix (ROADMAP P1-1e).</summary>
+        public static PaymentRefundedIntegrationEvent ParsePaymentRefunded(JObject raw) => new()
+        {
+            RefundId = raw.GuidValue("RefundId") ?? Guid.Empty,
+            PaymentId = raw.GuidValue("PaymentId") ?? Guid.Empty,
+            OrderId = raw.GuidValue("OrderId") ?? Guid.Empty,
+            Amount = raw.Value<decimal?>("RefundAmount") ?? 0m,
+            Method = ParsePaymentMethod(raw["Method"]),
+            ProcessedAt = raw["ProcessedAt"]?.Type is JTokenType.Null or null ? null : raw.Value<DateTime?>("ProcessedAt"),
+        };
+
         private async Task DispatchAsync(string json, CancellationToken cancellationToken)
         {
             var typeName = JObject.Parse(json)["$type"]?.ToString() ?? string.Empty;
@@ -254,6 +265,12 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
                 };
 
                 if (evt.POId != Guid.Empty)
+                    await mediator.Publish(evt, cancellationToken);
+            }
+            else if (typeName.Contains("PaymentRefundedEvent"))
+            {
+                var evt = ParsePaymentRefunded(JObject.Parse(json));
+                if (evt.PaymentId != Guid.Empty)
                     await mediator.Publish(evt, cancellationToken);
             }
             else if (typeName.Contains("PaymentProcessedEvent"))

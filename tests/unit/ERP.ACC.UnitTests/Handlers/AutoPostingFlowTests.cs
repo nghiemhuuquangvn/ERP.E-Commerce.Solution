@@ -123,7 +123,7 @@ public class AutoPostingFlowTests
     }
 
     [Fact]
-    public async Task ACancelledOrder_WithAPaidOrPartlyPaidInvoice_ChangesNothing()
+    public async Task ACancelledOrder_WithAPaidOrPartlyPaidInvoice_CancelsItAndReversesTheRevenue_KeepingThePaidAmount()
     {
         var paid = NewInvoice(100m);
         paid.ApplyPayment(100m);
@@ -135,10 +135,12 @@ public class AutoPostingFlowTests
         await CancelHandler().Handle(new SalesOrderCancelledIntegrationEvent { OrderId = paid.OrderId }, default);
         await CancelHandler().Handle(new SalesOrderCancelledIntegrationEvent { OrderId = partly.OrderId }, default);
 
-        paid.Status.Should().Be((int)InvoiceStatus.Paid);
-        partly.Status.Should().Be((int)InvoiceStatus.Unpaid);
-        _reversed.Should().BeEmpty();
-        _uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        paid.Status.Should().Be((int)InvoiceStatus.Cancelled);
+        partly.Status.Should().Be((int)InvoiceStatus.Cancelled);
+        paid.AmountPaid.Should().Be(100m);
+        partly.AmountPaid.Should().Be(30m);
+        _reversed.Select(r => r.Id).Should().BeEquivalentTo(new[] { paid.Id, partly.Id });
+        _uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]

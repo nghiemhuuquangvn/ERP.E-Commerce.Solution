@@ -2,7 +2,8 @@
 
 Status: phase 1 (ROADMAP P1-1, 2026-10-23) — foundation plus the invoice, payment, order-cancellation and bill flows; P1-1b
 (2026-10-24) adds stock receipt / issue / adjustment and COGS; P1-1c (2026-10-24) adds POS sales, voids and cash-shift variance; P1-1d (2026-10-24) adds payroll
-(pay slips, their payment and cancellation). Refunds and returns are a separate plan (P1-1e) and are **not** posted yet.
+(pay slips, their payment and cancellation); P1-1e (2026-10-24) adds payment refunds and completed returns (the money side). Returned goods are
+not restocked or costed back yet (P1-5).
 
 ## How it works
 
@@ -27,6 +28,7 @@ The entry is staged on the caller's unit of work, so the document, its journal e
 | `CostOfGoodsSold` | 5000 | stock issues (ship, POS sale) |
 | `InventoryAdjustment` | 5000 (a separate key so a VAS chart can use a shrinkage account) | stock gains / losses |
 | `CashOverShort` | 5100 Operating Expenses | POS shift cash difference |
+| `SalesReturns` | 4000 (the default chart has no contra-revenue account; VAS 521 later) | completed returns |
 | `SalaryExpense` | 5200 Salaries & Benefits | pay slips (gross + overtime) |
 | `SalariesPayable` | 2100 Accrued Liabilities | pay slips (net pay), their payment |
 | `PayrollWithholdingsPayable` | 2100 (VAS, P1-2, splits insurance and personal income tax) | pay slips (deductions) |
@@ -45,6 +47,8 @@ already has its own chart is never given extra accounts: if a key has no account
 | `PaymentProcessed` | Dr Cash (method Cash = 4) or Bank / Cr AR; applied to the order's invoice, which is paid once `AmountPaid ≥ Amount` | `Payment:<paymentId>` |
 | Invoice marked paid by hand | Dr Bank / Cr AR for the outstanding amount | `InvoicePayment:<invoiceId>` |
 | Bill approved | Dr GRNI / Cr AP | `Bill:<billId>` |
+| Payment refunded (Kafka `payment-topic`, only a gateway-confirmed refund) | Dr AccountsReceivable / Cr Cash (method Cash) or Bank; the invoice's `AmountPaid` goes down and a paid invoice is open again | `PaymentRefund:<refundId>` |
+| Sales return completed (`SalesOrderReturned`) | Dr SalesReturns / Cr AccountsReceivable = the refund amount (credit note against the order's invoice) | `SalesReturn:<orderId>` |
 | Pay slip generated (Kafka `hrm-topic`) | Dr SalaryExpense (gross + overtime) / Cr SalariesPayable (net) and Cr PayrollWithholdingsPayable (deductions); dated the end of the pay period, at most today | `PaySlip:<paySlipId>` |
 | Pay slip paid | Dr SalariesPayable / Cr Bank, net pay; only if the slip's salary entry exists | `PaySlipPayment:<paySlipId>` |
 | Pay slip cancelled (unpaid only) | mirror of the slip entry | `PaySlipReversal:<paySlipId>` |
@@ -97,6 +101,22 @@ tenders = (subtotal − discount) + tax. A tender is cash when its method is `Ca
 * Expected cash = opening float + cash tenders of the shift's completed (not voided) sales. A sale voided or synced after the shift was
   closed reverses its ledger entry but is not part of the shift variance already booked (the closed event is final).
 
+### Refunds and returns (P1-1e)
+
+PaymentService now raises `PaymentRefundedEvent` only when the gateway confirmed the refund (`Payment.CompleteRefund`); before, it was raised when the
+refund was *requested*, so a declined refund still published it. The event carries the `RefundId` (the ledger's idempotency key), the method, currency and
+the confirmation time; events published earlier have no `RefundId` and are not booked. Payment events share a Kafka key per payment, so a refund cannot
+overtake its capture.
+* The three entries are order-independent. Example for an order of 1000: invoice (AR +1000), payment (AR −1000), return 1000 (AR −1000, i.e. the customer
+  is owed 1000), refund 1000 (AR +1000) → 0. Cancelling an order **after** payment now cancels the invoice and reverses the revenue like an unpaid one; the
+  cash stays booked and the refund entry arrives with the Payment refund, in either order.
+* A return is posted only when the order has an invoice and the refund amount is within the invoice amount (`CompleteReturn` also refuses a refund above the
+  order total). Sales allows one return per order, so `SalesReturn:<orderId>` is unique. No VAT is reversed (P1-3).
+* **Not done (P1-5):** nothing triggers a Payment refund from `SalesOrderReturned` (a refund is requested by hand through `POST payments/{id}/refund`), returned
+  goods are not put back into stock and their cost is not reversed (revenue is reversed, COGS stays), and Sales has no return lines.
+* The gateway's refund answer is synchronous (VNPay); a timeout is recorded as a failed refund even if the gateway processed it, and there is no refund IPN.
+  An over-refund is now answered with 409 instead of 500.
+
 ### Payroll (P1-1d)
 
 HRMService's `PaySlipGeneratedEvent` now carries `GrossSalary`, `OvertimePay`, `Deductions` and `PeriodEnd` next to `NetPay`; a pay slip can be
@@ -135,8 +155,8 @@ the log service. Fix the profile; entries for documents already saved are not ba
 * Stock that was in the warehouse before the release has no entries, so account 1200 starts below the Warehouse valuation until an
   opening-balance entry is booked by hand. Movements before the release are not back-posted.
 * **No VAT split** (P1-3): Sales, Purchasing and Payment carry no tax fields. The engine and `VatOutput` key are ready for it.
-* **Not posted yet:** POS returns / refunds with refund tenders and cash paid-in / paid-out, payment refunds and sales returns (P1-1e: Payment
-  publishes the refund event before the gateway confirms, Sales returns carry no lines), employer payroll contributions (P1-7).
+* **Not posted yet:** restock and cost of returned goods and the payment refund triggered by a return (P1-5), POS refund tenders and cash paid-in / paid-out,
+  employer payroll contributions (P1-7).
 * Existing invoices and bills (before this release) are not back-posted; demo data keeps its own legacy entries (`SourceKey` empty).
 
 ## Operations

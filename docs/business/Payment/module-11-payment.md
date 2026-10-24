@@ -87,7 +87,7 @@ GET/POST   /installment-plans/payment/{paymentId}, /{id}/installments/{seq}/pay 
 **Published** (Outbox → Kafka topic `payment-topic`):
 - `PaymentInitiatedEvent`, `PaymentAuthorizedEvent`
 - `PaymentProcessedEvent(PaymentId, OrderId, Amount, Currency, Method, ProcessedAt)` — phát khi `Capture()`
-- `PaymentFailedEvent`, `PaymentRefundedEvent`
+- `PaymentFailedEvent`, `PaymentRefundedEvent` (since 2026-10-24 raised only after the gateway confirmed the refund; carries RefundId, Method, Currency, ProcessedAt; consumed by Accounting)
 - **`SettlementCreated` — KHÔNG tồn tại trong code**, mặc dù CLAUDE.md ghi có. `Settlement` không phát domain event nào cả — cần sửa lại tài liệu kiến trúc.
 
 **Consumed** (đã xác nhận, sửa lại phần CLAUDE.md ghi lỗi thời):

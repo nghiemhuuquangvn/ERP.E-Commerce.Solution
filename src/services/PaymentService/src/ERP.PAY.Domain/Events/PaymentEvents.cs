@@ -40,8 +40,15 @@ public record PaymentFailedEvent(
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
 
+/// <summary>
+/// A refund the payment gateway CONFIRMED (ROADMAP P1-1e): raised by <c>Payment.CompleteRefund</c> only, never for a pending or failed refund.
+/// <c>RefundId</c> is the idempotency key of the ledger entry; it is null on events published before this change, which were also raised
+/// before the gateway answered and must not be booked. Reporting reads PaymentId / OrderId / RefundAmount / Reason: keep those names.
+/// </summary>
 public record PaymentRefundedEvent(
-    Guid PaymentId, Guid OrderId, decimal RefundAmount, string Reason) : IDomainEvent, ITenantEvent
+    Guid PaymentId, Guid OrderId, decimal RefundAmount, string Reason,
+    Guid? RefundId = null, string? Currency = null, PaymentMethod? Method = null,
+    DateTime? ProcessedAt = null, string? GatewayRefundId = null) : IDomainEvent, ITenantEvent
 {
     /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
     public Guid TenantId { get; set; }

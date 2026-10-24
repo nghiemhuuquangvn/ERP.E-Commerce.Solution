@@ -89,8 +89,16 @@ public class PaymentsController : ControllerBase
             return Forbid();
 
         command.PaymentId = id;
-        var result = await _mediator.Send(command, ct);
-        return Ok(result);
+        try
+        {
+            var result = await _mediator.Send(command, ct);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // e.g. refund above the captured amount, or a payment that is not captured: a refusal, not a server error
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     [HttpPost("{id:guid}/cancel")]

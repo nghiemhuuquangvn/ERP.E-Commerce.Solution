@@ -220,8 +220,7 @@ without a fresh design pass:
 Accounting turns these into ledger entries (docs/business/Accounting/AutoPosting.md): `SalesOrderCreated` → invoice + Dr AR / Cr
 Revenue; `SalesOrderCancelled` (RabbitMQ `sales_order.SalesOrderCancelledEvent`, new binding) → unpaid invoice cancelled + entry
 reversed; `PaymentProcessed` (needs `Method` as a number and `ProcessedAt`) → Dr Cash|Bank / Cr AR; `PurchaseOrderApproved` →
-bill (posted when the bill is approved / paid). Not consumed yet: Warehouse (`warehouse_exchange`), POS, HRM, `PaymentRefunded`,
-`SalesOrderReturned`. The `warehouse-topic` subscription that this catalog and the dependency map list never received anything
+bill (posted when the bill is approved / paid). Consumed since 2026-10-24 (P1-1e): `PaymentRefunded` (only with a `RefundId`, i.e. gateway-confirmed) and `SalesOrderReturned` (RabbitMQ binding `sales_order.SalesOrderReturnedEvent`). The `warehouse-topic` subscription that this catalog and the dependency map list never received anything
 (Warehouse publishes on RabbitMQ only) and has been removed.
 
 ---
@@ -508,7 +507,7 @@ refund/reverse the journal entry, but no consumer for it has been confirmed
 yet (see `docs/business/Sales/SalesWorkflow.md`).
 
 **Publisher:** Sales Service  
-**Subscribers:** None confirmed today (intended: Payment Service, Accounting Service)
+**Subscribers:** **AccountingService** since 2026-10-24 (credit note: Dr Sales returns / Cr Receivables). Not yet: Payment (refund), Warehouse (restock) — ROADMAP P1-5.
 
 **Event Structure (actual code):**
 ```csharp
