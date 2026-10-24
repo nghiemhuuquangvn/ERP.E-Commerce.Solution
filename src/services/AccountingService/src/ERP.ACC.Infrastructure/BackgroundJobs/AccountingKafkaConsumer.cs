@@ -50,7 +50,10 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
                 GroupId = "accounting-service-consumer",
                 AutoOffsetReset = AutoOffsetReset.Earliest,
                 // The offset is committed only after the message was handled: with auto-commit a failed posting was lost.
-                EnableAutoCommit = false
+                EnableAutoCommit = false,
+                // A topic nobody has published to yet (hrm-topic on a fresh stack) is created by its first message; the default 5-minute
+                // metadata refresh would leave the subscription idle until then.
+                TopicMetadataRefreshIntervalMs = 30000
             };
 
             _consumer = new ConsumerBuilder<string, string>(config).Build();

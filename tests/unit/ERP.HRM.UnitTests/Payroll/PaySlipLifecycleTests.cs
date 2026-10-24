@@ -81,6 +81,18 @@ public class PaySlipLifecycleTests
         typeof(PaySlipVoidedEvent).Name.Should().NotContain("PaySlipGenerated");
     }
 
+    [Fact]
+    public void The_events_of_one_slip_share_a_kafka_key_so_a_cancel_cannot_overtake_its_generation()
+    {
+        var slip = Slip();
+        slip.Cancel("x");
+        var generated = slip.DomainEvents.OfType<PaySlipGeneratedEvent>().Single();
+        var voided = slip.DomainEvents.OfType<PaySlipVoidedEvent>().Single();
+
+        ERP.HRM.Infrastructure.MessageBus.KafkaMessageBus.PartitionKey(generated).Should().Be(slip.Id.ToString());
+        ERP.HRM.Infrastructure.MessageBus.KafkaMessageBus.PartitionKey(voided).Should().Be(slip.Id.ToString());
+    }
+
     private static (Mock<IHrmUnitOfWork> Uow, PaySlip Slip) UowWith(PaySlip? slip)
     {
         var repo = new Mock<IPaySlipRepository>();
