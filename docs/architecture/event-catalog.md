@@ -860,10 +860,13 @@ public class StockMovementRecordedEvent : IntegrationEvent
     public string Reason { get; set; }
     public Guid? SourceOrderId { get; set; }
     public DateTime RecordedAt { get; set; }
+    public decimal UnitCost { get; set; }   // 2026-10-24 (P1-1b); 0 = unknown
+    public decimal ValueDelta { get; set; } // signed change of the stock value: receipt +, issue -, gain +, loss -
 }
 ```
 
-**Routing:** RabbitMQ  
+**Routing:** RabbitMQ `warehouse_exchange`, key `warehouse.StockMovementRecordedEvent`  
+**Accounting:** `WarehouseRabbitMqConsumer` (queue `accounting-service.warehouse-events`) posts it; see docs/business/Accounting/AutoPosting.md. `PurchaseOrderReceivedDomainEvent` lines now carry `UnitPrice`, `CurrencyCode`, `GoodsReceiptId`.  
 **Delivery:** Guaranteed
 
 ---

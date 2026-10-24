@@ -89,7 +89,7 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
     period by date, reversal, status / date / source on journal entries; seeded account enums fixed (migration Accounting 009).
   - Flows: invoice, payment, order cancellation, bill approval / payment. Consumers retry instead of losing or looping; the dead
     `warehouse-topic` consumer is removed. Docs: `docs/business/Accounting/AutoPosting.md`.
-- [ ] **P1-1b Stock + COGS → GL** (needs unit cost in Warehouse events, PO price to Warehouse, GRNI account)
+- [x] **P1-1b Stock + COGS → GL** closed 2026-10-24 (`feat/gl-stock-cogs`): cost on Warehouse events, PO price to Warehouse, GRNI, COGS, adjustments
 - [ ] **P1-1c POS → GL** (needs tax / tender split in `TransactionCreated`)
 - [ ] **P1-1d Payroll → GL** (with P1-7)
 - [ ] **P1-1e Refunds and returns → GL** (confirmed-refund event, return lines)

@@ -33,7 +33,18 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
-### 2026-10-23 — ROADMAP P1-1 (phase 1): automatic GL posting (`feat/gl-auto-posting`, unmerged)
+### 2026-10-24 — ROADMAP P1-1b: stock receipt / issue and COGS → GL (`feat/gl-stock-cogs`, unmerged)
+- Warehouse's `StockMovementRecordedEvent` now carries `UnitCost` and a signed `ValueDelta` (receipt, ship COGS, POS sale / void,
+  approved adjustment, stocktake variance). Accounting consumes it from RabbitMQ `warehouse_exchange` and posts: receipt Dr Inventory /
+  Cr GRNI (2100), issue Dr COGS (5000) / Cr Inventory, gain / loss against the new `InventoryAdjustment` key; the bill now debits GRNI.
+- Fixed on the way: PO receipts were booked at cost 0 (the PO event had no price) and a second partial receipt of the same product on
+  the same PO was dropped as a "redelivery" (movement keyed on `PO-<id>`; now on the goods receipt). `PurchaseOrderReceivedDomainEvent`
+  lines carry `UnitPrice`, `CurrencyCode`, `GoodsReceiptId`.
+- No migration: the three new posting keys are added to a tenant's mapping on first use from the default accounts. Stock before
+  the release is not back-posted (1200 starts below the Warehouse valuation until an opening entry is booked).
+- Tests: PO 9, WH 13, ACC 60. Live Docker verification: see the session report (Docker Desktop was not running when this was written).
+
+### 2026-10-23 — ROADMAP P1-1 (phase 1): automatic GL posting (`feat/gl-auto-posting`, merged as PR #15)
 - Accounting never wrote journal entries by itself. Now `IJournalPostingService` posts invoice (Dr AR / Cr Revenue), payment
   (Dr Cash|Bank / Cr AR, applied to the invoice), cancelled order (invoice cancelled + entry reversed), bill approval (Dr Inventory /
   Cr AP) and bill payment, through a per-tenant **posting profile**. Idempotent per document (`JournalEntries.SourceKey` unique
@@ -401,7 +412,7 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 
 ## 8. Next step: ROADMAP P0-9 (schema alignment), rest of P0, then P1 (needs a plan + approval)
 
-Update 2026-10-23: P0-1, P0-9, P0-7, P0-8 and P1-1 phase 1 are closed. Next: P1-1b stock + COGS, or P1-2 (VAS chart) — P0-10 (least-privilege SQL access) can be scheduled any time. The text below is from 2026-10-22.
+Update 2026-10-23: P0-1, P0-9, P0-7, P0-8 and P1-1 phase 1 are closed, P1-1b (stock + COGS) is implemented on `feat/gl-stock-cogs`. Next: P1-1c POS, or P1-2 (VAS chart) — P0-10 (least-privilege SQL access) can be scheduled any time. The text below is from 2026-10-22.
 
 Working checklist: `task.md` at the repo root (same IDs as `docs/ROADMAP.md`).
 
