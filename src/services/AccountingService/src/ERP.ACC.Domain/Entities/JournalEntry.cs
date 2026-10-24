@@ -150,6 +150,24 @@ namespace ERP.ACC.Domain.Entities
         }
 
         /// <summary>
+        /// Takes a period-closing entry out of the books when its period is reopened. Its source key is renamed so that closing the period
+        /// again can post a new one (the old key would otherwise make the engine return the voided entry).
+        /// </summary>
+        public void VoidForReopen(string reason)
+        {
+            if (!IsSystemClosingEntry)
+                throw new InvalidOperationException($"Journal entry {EntryNumber} is not a period-closing entry.");
+            if (Status != (int)JournalStatus.Posted)
+                throw new InvalidOperationException($"Journal entry {EntryNumber} is not posted.");
+
+            Status = (int)JournalStatus.Voided;
+            VoidedAt = DateTime.UtcNow;
+            VoidReason = reason.Length > 500 ? reason[..500] : reason;
+            SourceKey = $"{SourceKey}:voided:{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        /// <summary>
         /// Cancels the effect of this posted entry by a new entry with every line mirrored. The original stays in the books
         /// (status Reversed) so the history is complete and both entries are counted by the reports. The reversal is itself
         /// idempotent: its key is "&lt;ReferenceType&gt;Reversal:&lt;ReferenceId&gt;". <see cref="Lines"/> must be loaded.

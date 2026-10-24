@@ -70,6 +70,9 @@ namespace ERP.ACC.Application.Interfaces
         Task<List<JournalLine>> GetByJournalEntryIdAsync(Guid journalEntryId, CancellationToken ct = default);
         Task<List<AccountBalanceSummary>> GetAccountBalancesAsync(
             DateTime? fromDate, DateTime? toDate, Guid? fiscalPeriodId, CancellationToken ct = default);
+        /// <summary>Like <see cref="GetAccountBalancesAsync"/> but leaves out the entries of one reference type (the P&amp;L leaves out the period-closing entries).</summary>
+        Task<List<AccountBalanceSummary>> GetActivityBalancesAsync(
+            DateTime? fromDate, DateTime? toDate, string? excludeReferenceType, CancellationToken ct = default);
         Task AddRangeAsync(IEnumerable<JournalLine> lines, CancellationToken ct = default);
     }
 

@@ -315,21 +315,4 @@ namespace ERP.ACC.Application.Handlers
         };
     }
 
-    public class CloseFiscalPeriodCommandHandler : IRequestHandler<CloseFiscalPeriodCommand, FiscalPeriodDto>
-    {
-        private readonly IAccountingUnitOfWork _uow;
-
-        public CloseFiscalPeriodCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
-
-        public async Task<FiscalPeriodDto> Handle(CloseFiscalPeriodCommand request, CancellationToken cancellationToken)
-        {
-            var period = await _uow.FiscalPeriods.GetByIdAsync(request.FiscalPeriodId, cancellationToken)
-                ?? throw new InvalidOperationException($"Fiscal period {request.FiscalPeriodId} not found.");
-
-            period.Close();
-            await _uow.FiscalPeriods.UpdateAsync(period, cancellationToken);
-            await _uow.SaveChangesAsync(cancellationToken);
-            return OpenFiscalPeriodCommandHandler.MapFiscalPeriodToDto(period);
-        }
-    }
 }

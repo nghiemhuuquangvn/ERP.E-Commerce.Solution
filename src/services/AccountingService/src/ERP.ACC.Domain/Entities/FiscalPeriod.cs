@@ -25,6 +25,15 @@ namespace ERP.ACC.Domain.Entities
             return period;
         }
 
+        public void Reopen()
+        {
+            if (Status == 0)
+                throw new InvalidOperationException($"Fiscal period {PeriodName} is not closed.");
+
+            Status = 0;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         public void Close()
         {
             if (Status == 1)

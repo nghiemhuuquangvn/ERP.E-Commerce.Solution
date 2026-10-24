@@ -82,8 +82,9 @@ namespace ERP.ACC.Application.Handlers
         public async Task<ProfitAndLossDto> Handle(GetProfitAndLossQuery request, CancellationToken cancellationToken)
         {
             var accounts = await _accounts.GetAllAsync(cancellationToken);
-            var balances = await _journalLines.GetAccountBalancesAsync(
-                request.FromDate, request.ToDate, null, cancellationToken);
+            // The period-end transfer zeroes every revenue and expense account; the profit and loss statement shows the period's activity, so it leaves it out.
+            var balances = await _journalLines.GetActivityBalancesAsync(
+                request.FromDate, request.ToDate, Domain.Entities.JournalEntry.PeriodClosingType, cancellationToken);
             var balanceMap = balances.ToDictionary(b => b.AccountId);
 
             var revenueLines = accounts
@@ -179,6 +180,14 @@ namespace ERP.ACC.Application.Handlers
             var assetLines = GetLines(AccountType.Asset, debitNormal: true);
             var liabilityLines = GetLines(AccountType.Liability, debitNormal: false);
             var equityLines = GetLines(AccountType.Equity, debitNormal: false);
+
+            // Revenue and expense accounts that the period-end transfer has not closed yet are still open: their result is part of equity, so
+            // assets = liabilities + equity holds before closing too (after closing they net to zero and this line disappears).
+            var unclosedResult = accounts
+                .Where(a => a.AccountType is (int)AccountType.Revenue or (int)AccountType.Expense)
+                .Sum(a => balanceMap.TryGetValue(a.Id, out var bal) ? bal.TotalCredit - bal.TotalDebit : 0m);
+            if (unclosedResult != 0m)
+                equityLines.Add(new FinancialAccountLineDto { AccountId = Guid.Empty, AccountNumber = "", AccountName = "Current result (not yet closed)", Amount = unclosedResult });
 
             return new BalanceSheetDto
             {

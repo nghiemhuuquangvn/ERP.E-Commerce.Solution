@@ -102,6 +102,15 @@ namespace ERP.ACC.Application.Commands
     public class CloseFiscalPeriodCommand : IRequest<FiscalPeriodDto>
     {
         public Guid FiscalPeriodId { get; set; }
+
+        /// <summary>Write the period-end transfer (revenue and expenses to the income summary, then to retained earnings). Default true.</summary>
+        public bool PostClosingEntries { get; set; } = true;
+    }
+
+    public class ReopenFiscalPeriodCommand : IRequest<FiscalPeriodDto>
+    {
+        public Guid FiscalPeriodId { get; set; }
+        public string Reason { get; set; } = string.Empty;
     }
 
     public class CreateTaxRateCommand : IRequest<TaxRateDto>

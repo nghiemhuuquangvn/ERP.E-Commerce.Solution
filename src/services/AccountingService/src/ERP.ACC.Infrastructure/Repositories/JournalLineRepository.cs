@@ -52,6 +52,29 @@ namespace ERP.ACC.Infrastructure.Repositories
                 .ToListAsync(ct);
         }
 
+        public async Task<List<AccountBalanceSummary>> GetActivityBalancesAsync(
+            DateTime? fromDate,
+            DateTime? toDate,
+            string? excludeReferenceType,
+            CancellationToken ct = default)
+        {
+            var entries = _db.JournalEntries.Where(e => e.Status == 1 || e.Status == 3);
+            if (excludeReferenceType != null)
+                entries = entries.Where(e => e.ReferenceType != excludeReferenceType || e.ReferenceType == null);
+
+            var query = _db.JournalLines.Join(entries, line => line.JournalEntryId, entry => entry.Id, (line, entry) => new { Line = line, Entry = entry });
+
+            if (fromDate.HasValue)
+                query = query.Where(x => x.Entry.EntryDate >= fromDate.Value.Date);
+            if (toDate.HasValue)
+                query = query.Where(x => x.Entry.EntryDate <= toDate.Value.Date);
+
+            return await query
+                .GroupBy(x => x.Line.AccountId)
+                .Select(g => new AccountBalanceSummary { AccountId = g.Key, TotalDebit = g.Sum(x => x.Line.Debit), TotalCredit = g.Sum(x => x.Line.Credit) })
+                .ToListAsync(ct);
+        }
+
         public async Task AddRangeAsync(IEnumerable<JournalLine> lines, CancellationToken ct = default)
         {
             await _db.JournalLines.AddRangeAsync(lines, ct);
