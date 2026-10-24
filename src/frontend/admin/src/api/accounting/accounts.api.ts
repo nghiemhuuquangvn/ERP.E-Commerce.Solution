@@ -39,7 +39,17 @@ export interface Account {
   /** First digit of the number: the class of the Vietnamese chart (0 = number does not start with a digit). */
   accountClass: number
   isPostable: boolean
+  /** Cash or bank account: tracked by the cash-flow statement. */
+  isCash: boolean
+  /** How a cash movement against this account is classified (the default applies when none was set). */
+  cashFlowCategory: 'Operating' | 'Investing' | 'Financing'
 }
+
+export const CASH_FLOW_CATEGORY_OPTIONS: { value: number; label: 'Operating' | 'Investing' | 'Financing' }[] = [
+  { value: 1, label: 'Operating' },
+  { value: 2, label: 'Investing' },
+  { value: 3, label: 'Financing' },
+]
 
 // CreateAccountCommand(AccountNumber, Name, AccountType:int, NormalBalance:int, ParentAccountId?)
 export interface CreateAccountRequest {
@@ -48,12 +58,18 @@ export interface CreateAccountRequest {
   accountType: number
   normalBalance: number
   parentAccountId?: string | null
+  isCash?: boolean
+  cashFlowCategory?: number | null
 }
 
 // UpdateAccountCommand: renames and/or moves under another parent (null = top level)
 export interface UpdateAccountRequest {
   name: string
   parentAccountId: string | null
+  /** omitted = unchanged */
+  isCash?: boolean
+  /** omitted = unchanged; 0 = back to the default; 1 operating, 2 investing, 3 financing */
+  cashFlowCategory?: number
 }
 
 // GET accounting/chart/templates
