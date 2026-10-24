@@ -3,6 +3,7 @@ using ERP.HRM.Application.DTOs;
 using ERP.HRM.Application.Interfaces;
 using ERP.HRM.Domain.Entities;
 using ERP.HRM.Domain.Enums;
+using ERP.Shared.Infrastructure.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -238,6 +239,42 @@ public class GeneratePaySlipCommandHandler : IRequestHandler<GeneratePaySlipComm
             ps.PaymentDate,
             ((Domain.Enums.PaymentStatus)ps.PaymentStatus).ToString(),
             ps.CreatedAt);
+}
+
+public class PayPaySlipCommandHandler : IRequestHandler<PayPaySlipCommand, PaySlipDto>
+{
+    private readonly IHrmUnitOfWork _uow;
+    public PayPaySlipCommandHandler(IHrmUnitOfWork uow) => _uow = uow;
+
+    public async Task<PaySlipDto> Handle(PayPaySlipCommand request, CancellationToken cancellationToken)
+    {
+        var paySlip = await _uow.PaySlips.GetByIdAsync(request.PaySlipId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Pay slip {request.PaySlipId} not found.");
+
+        try { paySlip.MarkPaid(request.PaidOn ?? DateTime.UtcNow, request.PaymentMethod); }
+        catch (InvalidOperationException ex) { throw new BusinessRuleException("HRM", ex.Message); }
+
+        await _uow.SaveChangesAsync(cancellationToken);
+        return GeneratePaySlipCommandHandler.MapToDto(paySlip);
+    }
+}
+
+public class CancelPaySlipCommandHandler : IRequestHandler<CancelPaySlipCommand, PaySlipDto>
+{
+    private readonly IHrmUnitOfWork _uow;
+    public CancelPaySlipCommandHandler(IHrmUnitOfWork uow) => _uow = uow;
+
+    public async Task<PaySlipDto> Handle(CancelPaySlipCommand request, CancellationToken cancellationToken)
+    {
+        var paySlip = await _uow.PaySlips.GetByIdAsync(request.PaySlipId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Pay slip {request.PaySlipId} not found.");
+
+        try { paySlip.Cancel(request.Reason); }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException) { throw new BusinessRuleException("HRM", ex.Message); }
+
+        await _uow.SaveChangesAsync(cancellationToken);
+        return GeneratePaySlipCommandHandler.MapToDto(paySlip);
+    }
 }
 
 public class ProcessPayrollCommandHandler : IRequestHandler<ProcessPayrollCommand, List<PaySlipDto>>

@@ -51,9 +51,40 @@ namespace ERP.HRM.Domain.Entities
                 paySlip.Id,
                 paySlip.EmployeeId,
                 paySlip.NetSalary,
-                paySlip.PayPeriod));
+                paySlip.PayPeriod,
+                paySlip.GrossSalary,
+                paySlip.OvertimePay,
+                paySlip.Deductions,
+                paySlip.PaymentDate));
 
             return paySlip;
+        }
+
+        /// <summary>Net pay was paid out. Only a pending slip can be paid, once.</summary>
+        public void MarkPaid(DateTime paidOn, string? paymentMethod = null)
+        {
+            if (PaymentStatus != (int)Enums.PaymentStatus.Pending)
+                throw new InvalidOperationException($"Pay slip {PaySlipNumber} is {(Enums.PaymentStatus)PaymentStatus}; only a pending pay slip can be paid.");
+
+            PaymentStatus = (int)Enums.PaymentStatus.Paid;
+            PaymentDate = paidOn;
+            UpdatedAt = DateTime.UtcNow;
+
+            AddDomainEvent(new PaySlipPaidEvent(Id, EmployeeId, NetSalary, PayPeriod, paidOn, paymentMethod));
+        }
+
+        /// <summary>An unpaid pay slip is withdrawn (wrong figures): a paid one needs a payroll correction, not a cancellation.</summary>
+        public void Cancel(string reason)
+        {
+            if (PaymentStatus != (int)Enums.PaymentStatus.Pending)
+                throw new InvalidOperationException($"Pay slip {PaySlipNumber} is {(Enums.PaymentStatus)PaymentStatus}; only a pending pay slip can be cancelled.");
+            if (string.IsNullOrWhiteSpace(reason))
+                throw new ArgumentException("A reason is required to cancel a pay slip.", nameof(reason));
+
+            PaymentStatus = (int)Enums.PaymentStatus.Cancelled;
+            UpdatedAt = DateTime.UtcNow;
+
+            AddDomainEvent(new PaySlipVoidedEvent(Id, EmployeeId, PayPeriod, reason.Trim()));
         }
     }
 }

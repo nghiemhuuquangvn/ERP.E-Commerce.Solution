@@ -63,7 +63,8 @@ public class PaySlipRepository : IPaySlipRepository
             .AnyAsync(ps => !ps.IsDeleted &&
                             ps.EmployeeId == employeeId &&
                             ps.Year == year &&
-                            ps.Month == month,
+                            ps.Month == month &&
+                            ps.PaymentStatus != (int)Domain.Enums.PaymentStatus.Cancelled,
                       cancellationToken);
     }
 
