@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { reportsApi, downloadReportCsv } from '@/api/accounting/reports.api'
+import { reportsApi, downloadReport } from '@/api/accounting/reports.api'
 import type { FinancialStatement } from '@/api/accounting/reports.api'
 import type { FinancialAccountLineDto, CashFlowSection } from '@/api/accounting/reports.api'
 import { accountsApi } from '@/api/accounting/accounts.api'
@@ -12,37 +12,36 @@ function todayISODate(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-/** "Export CSV" button: asks the server for the same report as a file. */
+/** "Export CSV" and "Export Excel" buttons: ask the server for the same report as a file. */
 function ExportButton({ path, params, name, disabled }: { path: string; params: Record<string, unknown>; name: string; disabled?: boolean }) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
+  const run = async (format: 'csv' | 'xlsx') => {
+    setBusy(true)
+    setFailed(false)
+    try {
+      await downloadReport(path, params, `${name.replace(/\.csv$/, '')}.${format}`, format)
+    } catch {
+      setFailed(true)
+    } finally {
+      setBusy(false)
+    }
+  }
   return (
     <span className="flex items-center gap-2">
-      <button
-        type="button"
-        className="btn-outline"
-        disabled={disabled || busy}
-        onClick={async () => {
-          setBusy(true)
-          setFailed(false)
-          try {
-            await downloadReportCsv(path, params, name)
-          } catch {
-            setFailed(true)
-          } finally {
-            setBusy(false)
-          }
-        }}
-      >
+      <button type="button" className="btn-outline" disabled={disabled || busy} onClick={() => run('csv')}>
         {t('accounting.reports.exportCsv')}
+      </button>
+      <button type="button" className="btn-outline" disabled={disabled || busy} onClick={() => run('xlsx')}>
+        {t('accounting.reports.exportExcel')}
       </button>
       {failed && <span className="text-xs text-red-600">{t('accounting.reports.exportFailed')}</span>}
     </span>
   )
 }
 
-function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' }) {
+function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' | 'cash-flow' }) {
   const { t } = useTranslation()
   const isBalanceSheet = kind === 'balance-sheet'
   const [fromDate, setFromDate] = useState('')
@@ -62,7 +61,9 @@ function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' }
     queryFn: () =>
       isBalanceSheet
         ? reportsApi.balanceSheetStatement(params)
-        : reportsApi.incomeStatement(params as { fromDate: string; toDate: string }),
+        : kind === 'cash-flow'
+          ? reportsApi.cashFlowStatement(params as { fromDate: string; toDate: string })
+          : reportsApi.incomeStatement(params as { fromDate: string; toDate: string }),
     enabled: ready,
     staleTime: 15_000,
   })
@@ -617,7 +618,7 @@ export function ReportsPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const canView = hasPermission('accounting:reports:view')
-  const [tab, setTab] = useState<'trial-balance' | 'ledger' | 'profit-and-loss' | 'balance-sheet' | 'cash-flow' | 'b01' | 'b02'>('trial-balance')
+  const [tab, setTab] = useState<'trial-balance' | 'ledger' | 'profit-and-loss' | 'balance-sheet' | 'cash-flow' | 'b01' | 'b02' | 'b03'>('trial-balance')
 
   if (!canView) {
     return <p className="text-sm text-gray-400">{t('common.noPermission')}</p>
@@ -631,6 +632,7 @@ export function ReportsPage() {
     { key: 'cash-flow', label: t('accounting.reports.tabCashFlow') },
     { key: 'b01', label: t('accounting.reports.tabB01') },
     { key: 'b02', label: t('accounting.reports.tabB02') },
+    { key: 'b03', label: t('accounting.reports.tabB03') },
   ]
 
   return (
@@ -659,6 +661,7 @@ export function ReportsPage() {
       {tab === 'cash-flow' && <CashFlowPanel />}
       {tab === 'b01' && <StatementPanel kind="balance-sheet" />}
       {tab === 'b02' && <StatementPanel kind="income-statement" />}
+      {tab === 'b03' && <StatementPanel kind="cash-flow" />}
     </div>
   )
 }

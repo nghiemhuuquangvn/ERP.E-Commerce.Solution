@@ -1742,6 +1742,13 @@
       "reopen": "Mở lại",
       "reopenTitle": "Mở lại kỳ kế toán",
       "reopenHint": "Mở lại kỳ \"{{periodName}}\"? Bút toán kết chuyển của kỳ bị hủy và được ghi sổ trở lại; đóng kỳ lại sau khi chỉnh xong.",
+      "policyTitle": "Chính sách khóa sổ",
+      "policyMode": "Chế độ kết chuyển",
+      "policyMonthly": "Hàng tháng (mỗi kỳ)",
+      "policyYearEnd": "Cuối năm (một bút toán kết chuyển mỗi năm)",
+      "policyMonth": "Năm tài chính kết thúc vào tháng",
+      "policyMonthlyHint": "Khóa kỳ sẽ ghi bút toán kết chuyển của kỳ đó (doanh thu, chi phí sang tài khoản xác định kết quả).",
+      "policyYearEndHint": "Khóa kỳ chỉ khóa sổ; kỳ cuối của năm tài chính ghi một bút toán kết chuyển cho mọi khoản chưa kết chuyển. Chỉ đổi chế độ giữa hai năm tài chính.",
       "failedToSave": "Mở kỳ kế toán thất bại."
     },
     "taxRates": {
@@ -1814,6 +1821,8 @@
       "tabCashFlow": "Lưu chuyển tiền tệ",
       "tabB01": "B01 Bảng cân đối kế toán",
       "tabB02": "B02 Kết quả kinh doanh",
+      "tabB03": "B03 Lưu chuyển tiền tệ",
+      "exportExcel": "Xuất Excel",
       "exportCsv": "Xuất CSV",
       "exportFailed": "Xuất file thất bại.",
       "indicatorCode": "Mã số",

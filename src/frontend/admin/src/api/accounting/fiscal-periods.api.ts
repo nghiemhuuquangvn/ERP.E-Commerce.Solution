@@ -21,7 +21,20 @@ export interface OpenFiscalPeriodRequest {
   endDate: string
 }
 
+// ClosingPolicyDto — Monthly: every period writes its closing entry; YearEnd: only the last period of the fiscal year does.
+export type ClosingMode = 'Monthly' | 'YearEnd'
+
+export interface ClosingPolicy {
+  closingMode: ClosingMode
+  fiscalYearEndMonth: number
+}
+
 export const fiscalPeriodsApi = {
+  closingPolicy: () => apiClient.get<ClosingPolicy>(`${ACC_BASE}/fiscal-periods/closing-policy`).then((r) => r.data),
+
+  updateClosingPolicy: (body: ClosingPolicy) =>
+    apiClient.put<ClosingPolicy>(`${ACC_BASE}/fiscal-periods/closing-policy`, body).then((r) => r.data),
+
   // ListFiscalPeriodsQuery takes no filters; controller returns a plain List<FiscalPeriodDto> (no pagination wrapper).
   list: () => apiClient.get<FiscalPeriod[]>(`${ACC_BASE}/fiscal-periods`).then((r) => r.data),
 

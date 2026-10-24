@@ -1742,6 +1742,13 @@
       "reopen": "Reopen",
       "reopenTitle": "Reopen Fiscal Period",
       "reopenHint": "Reopen \"{{periodName}}\"? Its closing entry is voided and posting is allowed again; close the period once the corrections are made.",
+      "policyTitle": "Closing policy",
+      "policyMode": "Closing mode",
+      "policyMonthly": "Monthly (every period)",
+      "policyYearEnd": "Year end (one closing entry a year)",
+      "policyMonth": "Fiscal year ends in month",
+      "policyMonthlyHint": "Closing a period writes its own closing entry (revenue and expenses to the result account).",
+      "policyYearEndHint": "Closing a period only locks it; the last period of the fiscal year writes one closing entry for everything not yet closed. Change the mode only between fiscal years.",
       "failedToSave": "Failed to open fiscal period."
     },
     "taxRates": {
@@ -1814,6 +1821,8 @@
       "tabCashFlow": "Cash Flow",
       "tabB01": "B01 Balance Sheet (VAS)",
       "tabB02": "B02 Income Statement (VAS)",
+      "tabB03": "B03 Cash Flow (VAS)",
+      "exportExcel": "Export Excel",
       "exportCsv": "Export CSV",
       "exportFailed": "Export failed.",
       "indicatorCode": "Code",

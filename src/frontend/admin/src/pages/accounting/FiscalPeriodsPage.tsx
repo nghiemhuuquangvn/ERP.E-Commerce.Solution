@@ -3,12 +3,68 @@ import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { fiscalPeriodsApi } from '@/api/accounting/fiscal-periods.api'
-import type { FiscalPeriod } from '@/api/accounting/fiscal-periods.api'
+import type { ClosingMode, FiscalPeriod } from '@/api/accounting/fiscal-periods.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { ReasonDialog } from '@/components/shared/ReasonDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
+
+/** How the tenant closes its books: a closing entry every period, or one at the end of the fiscal year. */
+function ClosingPolicyPanel({ canManage }: { canManage: boolean }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const { data } = useQuery({ queryKey: ['accounting', 'closingPolicy'], queryFn: () => fiscalPeriodsApi.closingPolicy(), staleTime: 30_000 })
+  const [mode, setMode] = useState<ClosingMode | null>(null)
+  const [month, setMonth] = useState<number | null>(null)
+  const effectiveMode = mode ?? data?.closingMode ?? 'Monthly'
+  const effectiveMonth = month ?? data?.fiscalYearEndMonth ?? 12
+  const dirty = !!data && (effectiveMode !== data.closingMode || effectiveMonth !== data.fiscalYearEndMonth)
+
+  const save = useMutation({
+    mutationFn: () => fiscalPeriodsApi.updateClosingPolicy({ closingMode: effectiveMode, fiscalYearEndMonth: effectiveMonth }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounting', 'closingPolicy'] })
+      setMode(null)
+      setMonth(null)
+    },
+  })
+  const error = (save.error as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail
+
+  return (
+    <div className="card space-y-3 p-4">
+      <h2 className="text-sm font-semibold text-gray-900">{t('accounting.fiscalPeriods.policyTitle')}</h2>
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.fiscalPeriods.policyMode')}</label>
+          <select className="input" disabled={!canManage} value={effectiveMode} onChange={(e) => setMode(e.target.value as ClosingMode)}>
+            <option value="Monthly">{t('accounting.fiscalPeriods.policyMonthly')}</option>
+            <option value="YearEnd">{t('accounting.fiscalPeriods.policyYearEnd')}</option>
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.fiscalPeriods.policyMonth')}</label>
+          <select className="input" disabled={!canManage} value={effectiveMonth} onChange={(e) => setMonth(Number(e.target.value))}>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </div>
+        {canManage && (
+          <button className="btn-primary" disabled={!dirty || save.isPending} onClick={() => save.mutate()}>
+            {t('common.save')}
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-gray-500">
+        {effectiveMode === 'YearEnd' ? t('accounting.fiscalPeriods.policyYearEndHint') : t('accounting.fiscalPeriods.policyMonthlyHint')}
+      </p>
+      {save.isError && <p className="text-sm text-red-600">{error ?? t('accounting.fiscalPeriods.failedToSave')}</p>}
+    </div>
+  )
+}
 
 interface FiscalPeriodFormValues {
   periodName: string
@@ -174,6 +230,8 @@ export function FiscalPeriodsPage() {
           </button>
         )}
       </div>
+
+      <ClosingPolicyPanel canManage={canManage} />
 
       <DataTable columns={columns} data={data ?? []} isLoading={isLoading} />
 

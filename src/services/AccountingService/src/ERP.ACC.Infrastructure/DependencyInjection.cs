@@ -67,6 +67,7 @@ namespace ERP.ACC.Infrastructure
             services.AddScoped<IJournalLineRepository, JournalLineRepository>();
             services.AddScoped<IFiscalPeriodRepository, FiscalPeriodRepository>();
             services.AddScoped<IPostingAccountMappingRepository, PostingAccountMappingRepository>();
+            services.AddScoped<IClosingPolicyRepository, ClosingPolicyRepository>();
             services.AddScoped<ERP.ACC.Application.Posting.IJournalNumberGenerator, ERP.ACC.Infrastructure.Services.JournalNumberGenerator>();
             services.AddScoped<ITaxRateRepository, TaxRateRepository>();
             services.AddScoped<IBankAccountRepository, BankAccountRepository>();

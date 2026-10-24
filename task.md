@@ -96,7 +96,8 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
 - [x] **P1-2 Chart of accounts, void / reverse, period closing** closed 2026-10-24 (`feat/vas-chart`): account tree, templates Simple14 / Vas99 (Circular 99/2025), apply-template, void + reverse, closing 911→421 + reopen, admin UI
 - [x] **P1-2b Reports** closed 2026-10-24 (`feat/reports-ledger-cashflow`): account ledger, trial balance opening/period/closing + roll-up, direct cash-flow statement; Accounting migration 010
 - [x] **P1-2c B01 / B02 by indicator code** closed 2026-10-24 (`feat/vas-statements`): layouts as data, prior-period column, CSV export, unmapped report
-- [ ] **P1-2d** B03 by code + indirect method, B09, off-balance accounts, year-end closing, maturity split, Excel/PDF
+- [x] **P1-2d B03 by code, year-end closing policy, Excel export** closed 2026-10-24 (`feat/b03-yearend-xlsx`): `statements/cash-flow`, `fiscal-periods/closing-policy`, `format=xlsx`, migration 011, BA doc updated
+- [ ] **P1-2e** indirect-method cash flow, B09, off-balance accounts, maturity split, PDF
 - [ ] **P1-3 Tax & e-invoice**: VAT fields on invoice/bill, VAT listing/return, e-invoice provider
   adapter (VNPT / Viettel / MISA / BKAV — owner picks the provider).
 - [ ] **P1-4 Bank reconciliation per line + multi-currency** (MasterData exchange rates, FX differences).

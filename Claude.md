@@ -236,6 +236,9 @@ POS `TransactionCreated/Voided/CashShiftClosed` (Kafka `pos-topic`, ROADMAP P1-1
 Statements B01 / B02 are layouts as data (`StatementLayouts`, Vas99 only, DRAFT until an accountant reviews them) evaluated by `StatementEngine`; a template test requires every Vas99 account to be on a
 statement or in the documented exclusion list — extend the layout when you add accounts to the template. Reports export CSV with `format=csv`.
 
+B03-DN (cash flow by indicator code) works the same way (`CashFlowLayouts` + `CashFlowStatementEngine`); reports export `format=csv|xlsx` from one `ReportTables` table. The tenant's **closing policy** (`ClosingPolicies`, Monthly / YearEnd)
+decides whether closing a period writes its entry or only the last period of the fiscal year does.
+
 Reports (docs/business/Accounting/Reports.md): ledger, trial balance (opening / period / closing, roll-up) and a direct-method cash flow that classifies each cash movement by the counter-account's
 `CashFlowCategory` (accounts carry `IsCash` / `CashFlowCategory`). Unresolved problems are tracked in docs/DEFERRED-ISSUES.md.
 

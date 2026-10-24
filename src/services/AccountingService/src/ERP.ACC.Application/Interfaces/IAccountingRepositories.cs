@@ -87,6 +87,13 @@ namespace ERP.ACC.Application.Interfaces
         Task AddRangeAsync(IEnumerable<JournalLine> lines, CancellationToken ct = default);
     }
 
+    public interface IClosingPolicyRepository
+    {
+        /// <summary>The tenant's policy (tracked), or null when it never set one (= Monthly, December year end).</summary>
+        Task<ClosingPolicy?> GetAsync(CancellationToken ct = default);
+        Task AddAsync(ClosingPolicy policy, CancellationToken ct = default);
+    }
+
     public interface IPostingAccountMappingRepository
     {
         /// <summary>Tracked, so a changed mapping is saved by the unit of work.</summary>

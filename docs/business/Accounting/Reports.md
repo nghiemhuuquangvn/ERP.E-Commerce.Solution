@@ -1,6 +1,6 @@
 # Accounting reports
 
-Status: ROADMAP P1-2b and P1-2c (2026-10-24). Endpoints are under `api/v1/accounting/reports/…` (permission `accounting:reports:view`); the admin app has a tab for each.
+Status: ROADMAP P1-2b, P1-2c and P1-2d (2026-10-24). Endpoints are under `api/v1/accounting/reports/…` (permission `accounting:reports:view`); the admin app has a tab for each.
 Every report counts **Posted** and **Reversed** entries only (a reversed entry is offset by its reversal entry); Draft and Voided entries never count.
 
 | Report | Route | What it shows |
@@ -12,6 +12,7 @@ Every report counts **Posted** and **Reversed** entries only (a reversed entry i
 | Cash flow | `cash-flow` | Direct method, by counter-account, with opening / closing cash |
 | **B01-DN** balance sheet by indicator code | `statements/balance-sheet` | Vietnamese form, prior-period column, CSV (draft layout) |
 | **B02-DN** income statement by indicator code | `statements/income-statement` | Vietnamese form, prior-period column, CSV (draft layout) |
+| **B03-DN** cash-flow statement by indicator code | `statements/cash-flow` | Direct method, outflows negative, prior-period column, CSV / Excel (draft layout) |
 
 ## Trial balance (bảng cân đối số phát sinh)
 
@@ -68,7 +69,26 @@ of the balances of every account whose number starts with one of its prefixes, a
   Short- versus long-term is decided by the account (no maturity data): borrowings 341 are short-term, bonds 343 and deposits 344 long-term, prepaid 242 long-term. The accountant must review the
   layout before the statements are filed. The Vas99 template gained the sub-accounts 2291–2294 (provisions) and 2147 for this.
 
+## B03-DN by indicator code (P1-2d)
+
+`GET statements/cash-flow?fromDate&toDate&compareFromDate&compareToDate&format` returns the same shape as B01 / B02 (`rows` with code, name, amount, priorAmount; `unmapped`; `isBalanced`; `notes`; `isDraft`).
+The layout (`CashFlowLayouts`, data like `StatementLayouts`) numbers the rows 01 … 07, 20, 21 … 27, 30, 31 … 36, 40, 50, 60, 61, 70 of the Vietnamese form. Business rules BR-64 … BR-69 and the full
+prefix → row table are in [BA-Accounting.md](BA-Accounting.md) §6.8.
+
+* **Source.** The same cash movements as the older `cash-flow` report (`IJournalLineRepository.GetCashEntryLinesAsync`: lines of posted / reversed entries that touch an `IsCash` account, closing entries left out;
+  transfers between cash accounts dropped). Each non-cash line contributes *credit − debit* (received positive, paid negative).
+* **Placement.** `CashFlowStatementEngine` walks the layout top to bottom and gives each movement to the first row whose prefix **and direction** match its counter-account (a movement counts once). Operating movements no row
+  names go to 06 / 07 by the account's category; investing / financing ones no row names are listed in `unmapped` and make the check fail (they are never pushed into another activity).
+* **Check.** Row 70 (50 + opening cash 60 + FX effect 61 = 0) must equal the cash on the books at the end of the range, in every column — `isBalanced`.
+* **Draft.** Like B01 / B02 the rows come from the Circular 200 form and need the accountant's review. The older `cash-flow` route (by account, with its own reconciliation) stays.
+
+## Excel and CSV export (P1-2c / P1-2d)
+
+Every report route accepts `format=csv` and `format=xlsx`. `ReportTables` turns each report into rows of cells (text or decimal); `CsvWriter` and `XlsxWriter` (ClosedXML, MIT) serialize the same table.
+In Excel amounts are numeric cells (`#,##0.00`, negatives red), codes and names are text, the header row is bold and frozen, the sheet name is the report code (cleaned to Excel's rules, ≤ 31 characters), and text that
+starts with `= + - @` is stored as text with Excel's quote prefix. Content type `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`. PDF is not built.
+
 ## Known limits (see docs/DEFERRED-ISSUES.md)
 
 The ledger and the cash flow read journal lines by account and range (index `IX_JELines_AccountId`); the ledger pages in memory after computing the running balance, which is fine
-for normal volumes but a very busy account over a very long range should use date-bounded snapshots later. B03 by indicator code, B09 notes, off-balance accounts, indirect-method cash flow and Excel / PDF export are not built (ROADMAP P1-2d).
+for normal volumes but a very busy account over a very long range should use date-bounded snapshots later. B09 notes, off-balance accounts, indirect-method cash flow, PDF export and layouts for charts other than Vas99 are not built (ROADMAP P1-2e). Excel files are built in memory.
