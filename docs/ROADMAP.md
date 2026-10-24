@@ -78,7 +78,7 @@ plan → approval → implement + tests + docs, one branch per plan.
 |---|---|
 | P1-1 | ✅ phase 1 2026-10-23 (`feat/gl-auto-posting`) — **Automatic GL posting**: posting engine + profile (account mapping), invoice, payment, order cancellation, bill flows; the dead `warehouse-topic` consumer is gone. See `docs/business/Accounting/AutoPosting.md`. |
 | P1-1b | ✅ 2026-10-24 (`feat/gl-stock-cogs`) — **Stock + COGS → GL**: `StockMovementRecordedEvent` carries `UnitCost` / `ValueDelta`, PO receipts use the PO price (and partial receipts of one product are no longer dropped), Accounting posts receipt (Dr Inventory / Cr GRNI), issue (Dr COGS / Cr Inventory) and adjustments; bills debit GRNI. POS stock cost is included; POS revenue is P1-1c. |
-| P1-1c | POS sale → GL: `TransactionCreated` needs subtotal, tax, discount, tender split and unit prices; void amount; `CashShiftClosed` cash variance. |
+| P1-1c | ✅ 2026-10-24 (`feat/gl-pos`) — **POS → GL**: `pos-topic` events carry subtotal / discount / tax / tenders / shift and the shift's counted, expected cash and variance; Accounting posts sale (Dr Cash/Bank, Cr Revenue + VAT), void (reversal) and cash over/short. Shift totals now exclude voided sales. |
 | P1-1d | Payroll → GL: gross, overtime, deductions split, employer costs and a paid transition in the pay slip event (with P1-7). |
 | P1-1e | Refunds and returns → GL: publish the payment refund event only when the gateway confirms; Sales return lines; credit note. |
 | P1-2 | Hierarchical VAS chart of accounts (Circular 200/133 — confirm the currently applicable replacement), reversing/voiding entries, period-end closing entries (911 → 421), cash-flow statement. |

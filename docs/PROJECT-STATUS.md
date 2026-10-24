@@ -33,6 +33,17 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-24 — ROADMAP P1-1c: POS sale → GL (`feat/gl-pos`, on top of `feat/gl-stock-cogs`, unmerged)
+- POS events now carry the money: `TransactionCreated/Voided` → `Amounts` (subtotal, discount, tax, tenders), shift id, external payment id;
+  `CashShiftClosed` → opening, counted, expected cash and variance. Accounting consumes `pos-topic` and posts Dr Cash / Bank, Cr Revenue
+  (net of discount) + Cr VAT; a void reverses it; a cash difference goes to the new `CashOverShort` key (5100). COGS stays with Warehouse.
+- Fixed in POS: the shift's `TotalSales`/`TransactionCount` ignored voids; `ExpectedCashBalance`/`CashVariance` were never used (now computed at
+  close from the shift's completed sales); `pos-topic` keys were random (now the transaction / shift id so a void cannot overtake its sale).
+- Known, not fixed: POS tax ignores the discount (POS pricing rule); voids / offline sync after a shift is closed are not in the shift figures.
+- Verified live in Docker (SYSTEM tenant): split cash 100 + card 100 sale with 20 discount and 20 tax → Dr 1000 100 + 100 / Cr 4000 180 / Cr 2200 20;
+  a voided cash sale → entry Reversed + reversal entry; shift counted 195 vs expected 200 → Dr 5100 / Cr 1000 5; shift totals 200 / 1 sale.
+- Tests: POS 10, ACC 73. No migration.
+
 ### 2026-10-24 — ROADMAP P1-1b: stock receipt / issue and COGS → GL (`feat/gl-stock-cogs`, unmerged)
 - Warehouse's `StockMovementRecordedEvent` now carries `UnitCost` and a signed `ValueDelta` (receipt, ship COGS, POS sale / void,
   approved adjustment, stocktake variance). Accounting consumes it from RabbitMQ `warehouse_exchange` and posts: receipt Dr Inventory /

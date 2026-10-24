@@ -231,7 +231,7 @@ Published Events:
 Consumed Events (live, 2026-10-23): SalesOrderCreated and SalesOrderCancelled (RabbitMQ
 `sales_order_events`), PurchaseOrderApproved (`purchasing-topic`), PaymentProcessed (`payment-topic`).
 Warehouse `StockMovementRecordedEvent` (RabbitMQ `warehouse_exchange`, ROADMAP P1-1b) is consumed and posted from its `ValueDelta`;
-POS and HRM events are not consumed yet (ROADMAP P1-1c, d).
+POS `TransactionCreated/Voided/CashShiftClosed` (Kafka `pos-topic`, ROADMAP P1-1c) are consumed too; HRM events are not (P1-1d).
 
 Automatic GL posting (docs/business/Accounting/AutoPosting.md):
 - Business flows never name an account: they post **posting keys** (`PostingKeys`) through
