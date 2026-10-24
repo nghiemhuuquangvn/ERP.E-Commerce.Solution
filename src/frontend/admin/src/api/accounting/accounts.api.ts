@@ -24,7 +24,7 @@ export const NORMAL_BALANCE_OPTIONS: { value: number; label: NormalBalance }[] =
   { value: 2, label: 'Credit' },
 ]
 
-// AccountDto — no parentAccountId; chart of accounts is flat in this codebase.
+// AccountDto. A chart is a tree: parentAccountId / level; a parent groups sub-accounts and takes no postings (isPostable = false).
 export interface Account {
   id: string
   accountNumber: string
@@ -32,22 +32,68 @@ export interface Account {
   accountType: AccountType
   normalBalance: NormalBalance
   createdAt: string
+  isActive: boolean
+  parentAccountId: string | null
+  level: number
+  isControl: boolean
+  /** First digit of the number: the class of the Vietnamese chart (0 = number does not start with a digit). */
+  accountClass: number
+  isPostable: boolean
 }
 
-// CreateAccountCommand(AccountNumber, Name, AccountType:int, NormalBalance:int)
+// CreateAccountCommand(AccountNumber, Name, AccountType:int, NormalBalance:int, ParentAccountId?)
 export interface CreateAccountRequest {
   accountNumber: string
   name: string
   accountType: number
   normalBalance: number
+  parentAccountId?: string | null
+}
+
+// UpdateAccountCommand: renames and/or moves under another parent (null = top level)
+export interface UpdateAccountRequest {
+  name: string
+  parentAccountId: string | null
+}
+
+// GET accounting/chart/templates
+export interface ChartTemplate {
+  id: string
+  name: string
+  description: string
+  accountCount: number
+}
+
+export interface ApplyChartTemplateResult {
+  templateId: string
+  accountsCreated: number
+  postingKeysMapped: number
 }
 
 export const accountsApi = {
-  // ListAccountsQuery takes no filters; controller returns a plain List<AccountDto> (no pagination wrapper).
+  // ListAccountsQuery takes no filters; controller returns a plain List<AccountDto> (no pagination wrapper), ordered by number.
   list: () => apiClient.get<Account[]>(`${ACC_BASE}/accounts`).then((r) => r.data),
 
   get: (id: string) => apiClient.get<Account>(`${ACC_BASE}/accounts/${id}`).then((r) => r.data),
 
   create: (body: CreateAccountRequest) =>
     apiClient.post<Account>(`${ACC_BASE}/accounts`, body).then((r) => r.data),
+
+  update: (id: string, body: UpdateAccountRequest) =>
+    apiClient.put<Account>(`${ACC_BASE}/accounts/${id}`, body).then((r) => r.data),
+
+  activate: (id: string) =>
+    apiClient.post<Account>(`${ACC_BASE}/accounts/${id}/activate`).then((r) => r.data),
+
+  deactivate: (id: string) =>
+    apiClient.post<Account>(`${ACC_BASE}/accounts/${id}/deactivate`).then((r) => r.data),
+
+  templates: () =>
+    apiClient.get<ChartTemplate[]>(`${ACC_BASE}/accounting/chart/templates`).then((r) => r.data),
+
+  // Only for a tenant with no journal entries; the API answers 400 otherwise.
+  applyTemplate: (templateId: string) =>
+    apiClient
+      .post<ApplyChartTemplateResult>(`${ACC_BASE}/accounting/chart/apply-template`, { templateId })
+      .then((r) => r.data),
 }

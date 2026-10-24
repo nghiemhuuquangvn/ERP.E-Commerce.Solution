@@ -17,7 +17,14 @@ namespace ERP.ACC.Domain.Entities
         /// <summary>Control account (receivables, payables, cash): normally posted by the system, not by hand.</summary>
         public bool IsControl { get; set; }
 
-        public static Account Create(string accountNumber, string name, int accountType, int normalBalance)
+        /// <summary>
+        /// The Vietnamese chart's class = the first digit of the number (1-2 assets, 3 liabilities, 4 equity, 5-8 revenue / expense, 9 profit
+        /// determination); 0 when the number does not start with a digit. Derived, never stored.
+        /// </summary>
+        public int AccountClass => AccountNumber.Length > 0 && char.IsDigit(AccountNumber[0]) ? AccountNumber[0] - '0' : 0;
+
+        /// <param name="parent">A child has the same type as its parent and sits one level below it.</param>
+        public static Account Create(string accountNumber, string name, int accountType, int normalBalance, Account? parent = null)
         {
             var account = new Account
             {
@@ -29,7 +36,90 @@ namespace ERP.ACC.Domain.Entities
                 CreatedAt = DateTime.UtcNow
             };
 
+            if (parent != null)
+                account.AttachTo(parent);
+
             return account;
+        }
+
+        public void Rename(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("An account needs a name.", nameof(name));
+            Name = name.Trim();
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        /// <summary>Puts the account under <paramref name="parent"/> (same type); the level follows the parent.</summary>
+        public void AttachTo(Account parent)
+        {
+            if (parent.Id == Id)
+                throw new InvalidOperationException("An account cannot be its own parent.");
+            if (parent.AccountType != AccountType)
+                throw new InvalidOperationException(
+                    $"Account {AccountNumber} cannot sit under {parent.AccountNumber}: a child has the same account type as its parent.");
+
+            ParentAccountId = parent.Id;
+            Level = parent.Level + 1;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void MakeTopLevel()
+        {
+            ParentAccountId = null;
+            Level = 1;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void Activate()
+        {
+            IsActive = true;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void Deactivate()
+        {
+            IsActive = false;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        /// <summary>
+        /// Walks the parent chain of <paramref name="candidateParent"/>: true when <paramref name="account"/> is among its ancestors (or is it),
+        /// i.e. moving the account under the candidate would create a cycle.
+        /// </summary>
+        public static bool WouldCreateCycle(Account account, Account candidateParent, IReadOnlyDictionary<Guid, Account> all)
+        {
+            var current = candidateParent;
+            var guard = 0;
+            while (current != null && guard++ <= all.Count)
+            {
+                if (current.Id == account.Id)
+                    return true;
+                current = current.ParentAccountId.HasValue && all.TryGetValue(current.ParentAccountId.Value, out var next) ? next : null;
+            }
+            return false;
+        }
+
+        /// <summary>Recomputes the level of every account from the parent links (after a move).</summary>
+        public static void RecalculateLevels(IReadOnlyCollection<Account> accounts)
+        {
+            var byId = accounts.ToDictionary(a => a.Id);
+            foreach (var account in accounts)
+            {
+                var level = 1;
+                var current = account;
+                var guard = 0;
+                while (current.ParentAccountId.HasValue && byId.TryGetValue(current.ParentAccountId.Value, out var parent) && guard++ <= accounts.Count)
+                {
+                    level++;
+                    current = parent;
+                }
+                if (account.Level != level)
+                {
+                    account.Level = level;
+                    account.UpdatedAt = DateTime.UtcNow;
+                }
+            }
         }
     }
 }

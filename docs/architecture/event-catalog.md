@@ -215,6 +215,8 @@ without a fresh design pass:
 
 ---
 
+> 2026-10-24 (P1-2): `FiscalPeriodClosed` is raised when a period is closed (after the period-end transfer entry is written); closing and reopening are described in docs/business/Accounting/ChartOfAccounts.md. Nobody consumes it yet.
+
 ### Accounting: events that now write journal entries (2026-10-23, ROADMAP P1-1)
 
 Accounting turns these into ledger entries (docs/business/Accounting/AutoPosting.md): `SalesOrderCreated` → invoice + Dr AR / Cr

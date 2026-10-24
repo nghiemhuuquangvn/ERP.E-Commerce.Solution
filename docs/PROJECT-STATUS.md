@@ -33,6 +33,19 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-24 — ROADMAP P1-2: chart of accounts, void / reverse, period-end closing (`feat/vas-chart`, unmerged)
+- Accounts: parent / sub-account tree (`GET accounts/tree`, `PUT accounts/{id}`, activate / deactivate with safety checks); a parent takes no postings (manual entries, posting-profile PUT and the
+  engine refuse it). **Found and fixed:** the account list / get used a cache key without a tenant (`acc:accounts:all`), so one tenant could be served another's chart for 5 minutes — the
+  account queries are no longer cached. Other services may use tenant-less cache keys too (not audited).
+- Templates: `Simple14` (default, unchanged) and `Vas99` (~110 accounts, Circular 99/2025/TT-BTC which replaced Circular 200 from 2026-01-01; **suggested chart, accountant review required**);
+  `POST accounting/chart/apply-template` only for a tenant without journal entries; new posting keys IncomeSummary / RetainedEarnings (added lazily, no migration);
+  `Accounting:DefaultChartTemplate` for new tenants. SYSTEM / demo stay on the 14 accounts.
+- Void (hand-written entry, open period) and reverse (optional date, no longer tied to the auto-posting switch); closing: checks + one `PeriodClosing` entry (revenue / expenses → 911 → 421) and
+  reopen (voids it); P&L leaves out closing entries; the balance sheet adds the unclosed result so it balances before closing. Admin UI: accounts tree, reopen period, reverse / void buttons.
+- Verified live in Docker (tenant glcheck, reset to a clean state): apply Vas99 refused while entries exist, then 109 accounts + 17 keys; 111 refused as a posting target, 1111 accepted; void, reverse
+  at a date; BS balanced before closing via the unclosed result; close → 5111 / 6421 cleared into 911 and 4212 (700); P&L still 1000 / 300; reopen voids the entry; close again posts a new one.
+- Not done (P1-2b): cash-flow statement, general ledger report, B01–B03 layouts, off-balance accounts. Tests: ACC 117, admin `tsc -b` clean (no eslint config in the repo).
+
 ### 2026-10-24 — ROADMAP P1-1e: refunds and returns → GL (`feat/gl-refunds`, unmerged) — closes P1-1
 - Payment: `PaymentRefundedEvent` is raised by `Payment.CompleteRefund` only after the gateway confirmed (it used to be raised when the refund was requested, so declined
   refunds were published too); it carries `RefundId`, `Currency`, `Method`, `ProcessedAt`, `GatewayRefundId`. Payment events are Kafka-keyed by payment id. Over-refund → 409 (was 500).

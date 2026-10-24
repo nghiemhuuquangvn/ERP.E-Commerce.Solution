@@ -41,6 +41,43 @@ namespace ERP.ACC.API.Controllers
             return result == null ? NotFound() : Ok(result);
         }
 
+        [HttpGet("tree")]
+        public async Task<IActionResult> Tree(CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:accounts:view"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(new GetAccountTreeQuery(), ct));
+        }
+
+        [HttpPut("{id:guid}")]
+        public async Task<IActionResult> Update(Guid id, [FromBody] UpdateAccountCommand command, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:accounts:manage"))
+                return Forbid();
+
+            command.AccountId = id;
+            return Ok(await _mediator.Send(command, ct));
+        }
+
+        [HttpPost("{id:guid}/deactivate")]
+        public async Task<IActionResult> Deactivate(Guid id, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:accounts:manage"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(new SetAccountActiveCommand { AccountId = id, Active = false }, ct));
+        }
+
+        [HttpPost("{id:guid}/activate")]
+        public async Task<IActionResult> Activate(Guid id, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:accounts:manage"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(new SetAccountActiveCommand { AccountId = id, Active = true }, ct));
+        }
+
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateAccountCommand command, CancellationToken ct)
         {

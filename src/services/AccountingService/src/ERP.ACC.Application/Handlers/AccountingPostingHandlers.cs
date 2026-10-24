@@ -45,12 +45,12 @@ namespace ERP.ACC.Application.Handlers
                 throw new BusinessRuleException("Accounting", "A posting key can only be mapped once.");
 
             var accounts = await _uow.Accounts.GetByIdsAsync(inputs.Select(i => i.AccountId).Distinct(), ct);
+            var parentIds = await AccountRules.ParentIdsAsync(_uow.Accounts, ct);
             foreach (var input in inputs)
             {
                 var account = accounts.FirstOrDefault(a => a.Id == input.AccountId)
                     ?? throw new BusinessRuleException("Accounting", $"Account {input.AccountId} does not exist.");
-                if (!account.IsActive)
-                    throw new BusinessRuleException("Accounting", $"Account {account.AccountNumber} is inactive.");
+                AccountRules.EnsurePostable(account, parentIds);
             }
 
             var current = await _uow.PostingMappings.GetAllAsync(ct);
@@ -119,10 +119,46 @@ namespace ERP.ACC.Application.Handlers
             if (original.Status != (int)JournalStatus.Posted)
                 throw new BusinessRuleException("Accounting", $"Journal entry {original.EntryNumber} is not posted (or is already reversed).");
 
-            var reversal = await _posting.ReverseEntryAsync(original, request.Reason, DateTime.UtcNow.Date, ct)
-                ?? throw new BusinessRuleException("Accounting", "Automatic posting is switched off, so the entry cannot be reversed.");
+            if (original.IsSystemClosingEntry)
+                throw new BusinessRuleException("Accounting", "A period-closing entry cannot be reversed by hand; reopen the fiscal period instead.");
+
+            var reversal = await _posting.ReverseEntryAsync(original, request.Reason, (request.ReversalDate ?? DateTime.UtcNow).Date, ct)
+                ?? throw new BusinessRuleException("Accounting", $"Journal entry {original.EntryNumber} cannot be reversed.");
             await _uow.SaveChangesAsync(ct);
             return GetJournalEntryQueryHandler.MapJournalEntryToDto(reversal);
+        }
+    }
+
+    public class VoidJournalEntryCommandHandler : IRequestHandler<VoidJournalEntryCommand, JournalEntryDto>
+    {
+        private readonly IAccountingUnitOfWork _uow;
+
+        public VoidJournalEntryCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
+
+        public async Task<JournalEntryDto> Handle(VoidJournalEntryCommand request, CancellationToken ct)
+        {
+            var entry = await _uow.JournalEntries.GetByIdAsync(request.JournalEntryId, ct)
+                ?? throw new KeyNotFoundException($"Journal entry {request.JournalEntryId} not found.");
+
+            if (entry.IsSystemClosingEntry)
+                throw new BusinessRuleException("Accounting", "A period-closing entry cannot be voided by hand; reopen the fiscal period instead.");
+
+            var period = await _uow.FiscalPeriods.GetByIdAsync(entry.FiscalPeriodId, ct);
+            if (period != null && period.Status != (int)FiscalPeriodStatus.Open)
+                throw new BusinessRuleException("Accounting", $"Fiscal period {period.PeriodName} is closed; reverse the entry instead of voiding it.");
+
+            try
+            {
+                entry.Void(request.Reason);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+            {
+                throw new BusinessRuleException("Accounting", ex.Message);
+            }
+
+            await _uow.JournalEntries.UpdateAsync(entry, ct);
+            await _uow.SaveChangesAsync(ct);
+            return GetJournalEntryQueryHandler.MapJournalEntryToDto(entry);
         }
     }
 }

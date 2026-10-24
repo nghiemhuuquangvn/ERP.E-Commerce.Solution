@@ -31,13 +31,17 @@ namespace ERP.ACC.Domain.Entities
         public const string PayrollWithholdingsPayable = "PayrollWithholdingsPayable";
         /// <summary>Revenue given back for returned goods (contra-revenue). Defaults to the revenue account; a VAS chart gives it its own.</summary>
         public const string SalesReturns = "SalesReturns";
+        /// <summary>Temporary account the period-end closing moves revenue and expenses into (VAS 911). The simple chart has none and uses retained earnings.</summary>
+        public const string IncomeSummary = "IncomeSummary";
+        /// <summary>Where the result of a closed period lands (VAS 421).</summary>
+        public const string RetainedEarnings = "RetainedEarnings";
 
         public static readonly IReadOnlyList<string> All = new[]
         {
             Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, Inventory, VatOutput,
             GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment, CashOverShort,
             SalaryExpense, SalariesPayable, PayrollWithholdingsPayable,
-            SalesReturns
+            SalesReturns, IncomeSummary, RetainedEarnings
         };
 
         /// <summary>Account numbers of the seeded 14-account chart, used when a tenant has no mapping yet.</summary>
@@ -58,6 +62,8 @@ namespace ERP.ACC.Domain.Entities
             [SalariesPayable] = "2100",            // Accrued Liabilities
             [PayrollWithholdingsPayable] = "2100", // VAS (P1-2) splits insurance and personal income tax
             [SalesReturns] = "4000",               // the default chart has no contra-revenue account
+            [IncomeSummary] = "3100",              // the simple chart closes straight into retained earnings
+            [RetainedEarnings] = "3100",
         };
     }
 

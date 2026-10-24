@@ -17,6 +17,16 @@ namespace ERP.ACC.Infrastructure.Repositories
         public async Task<List<Account>> GetAllAsync(CancellationToken ct = default) =>
             await _db.Accounts.OrderBy(a => a.AccountNumber).AsNoTracking().ToListAsync(ct);
 
+        public async Task<List<Account>> GetAllTrackedAsync(CancellationToken ct = default) =>
+            await _db.Accounts.OrderBy(a => a.AccountNumber).ToListAsync(ct);
+
+        public async Task<HashSet<Guid>> GetParentAccountIdsAsync(CancellationToken ct = default) =>
+            (await _db.Accounts.AsNoTracking()
+                .Where(a => a.IsActive && a.ParentAccountId != null)
+                .Select(a => a.ParentAccountId!.Value)
+                .Distinct()
+                .ToListAsync(ct)).ToHashSet();
+
         public async Task<List<Account>> GetByNumbersAsync(IEnumerable<string> accountNumbers, CancellationToken ct = default)
         {
             var numbers = accountNumbers.ToList();

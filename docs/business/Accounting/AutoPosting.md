@@ -10,7 +10,7 @@ not restocked or costed back yet (P1-5).
 Business documents create journal entries through one service, `IJournalPostingService`
 (`AccountingService/src/ERP.ACC.Application/Posting`). A flow never names an account: it posts *posting keys* and the tenant's
 **posting profile** (`PostingAccountMappings`) says which account each key is. Moving a tenant to another chart of accounts
-(the Vietnamese VAS chart, ROADMAP P1-2) means editing the profile, not the code.
+(the Vietnamese VAS chart, ROADMAP P1-2) means editing the profile, not the code — or applying a template (docs/business/Accounting/ChartOfAccounts.md).
 
 The entry is staged on the caller's unit of work, so the document, its journal entry and the outbox rows commit together.
 
@@ -147,7 +147,7 @@ Reverse an entry with `POST api/v1/accounting/journal-entries/{id}/reverse` (rea
 An incomplete posting profile (a key with no account, an inactive account, no open period today) **never blocks the document**:
 the invoice / bill / payment is saved and an error is logged (`No journal entry was posted for Invoice <id>: <reason>`), visible in
 the log service. Fix the profile; entries for documents already saved are not back-filled automatically.
-`Accounting:AutoPosting:Enabled = false` switches automatic posting off.
+`Accounting:AutoPosting:Enabled = false` switches automatic posting off (documents only: a person's manual reversal and the period-end closing entry still need the engine, see ChartOfAccounts.md).
 
 ## Known simplifications (follow-up plans)
 

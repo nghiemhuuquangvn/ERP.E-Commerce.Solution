@@ -7,6 +7,10 @@ namespace ERP.ACC.Application.Interfaces
     {
         Task<Account?> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task<List<Account>> GetAllAsync(CancellationToken ct = default);
+        /// <summary>Every account, tracked, so changes made by the caller are saved by the unit of work.</summary>
+        Task<List<Account>> GetAllTrackedAsync(CancellationToken ct = default);
+        /// <summary>Ids of the accounts that have at least one active sub-account (they take no postings).</summary>
+        Task<HashSet<Guid>> GetParentAccountIdsAsync(CancellationToken ct = default);
         Task<List<Account>> GetByNumbersAsync(IEnumerable<string> accountNumbers, CancellationToken ct = default);
         Task<List<Account>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default);
         Task AddAsync(Account account, CancellationToken ct = default);
@@ -44,6 +48,8 @@ namespace ERP.ACC.Application.Interfaces
         Task<List<JournalEntry>> GetByFiscalPeriodIdAsync(Guid fiscalPeriodId, CancellationToken ct = default);
         /// <summary>The entry posted for a document ("Invoice:&lt;id&gt;"), with its lines; null when none (tracked).</summary>
         Task<JournalEntry?> GetBySourceKeyAsync(string sourceKey, CancellationToken ct = default);
+        /// <summary>True when the tenant has at least one journal entry of any status.</summary>
+        Task<bool> AnyAsync(CancellationToken ct = default);
         Task AddAsync(JournalEntry entry, CancellationToken ct = default);
         Task UpdateAsync(JournalEntry entry, CancellationToken ct = default);
     }
@@ -64,6 +70,9 @@ namespace ERP.ACC.Application.Interfaces
         Task<List<JournalLine>> GetByJournalEntryIdAsync(Guid journalEntryId, CancellationToken ct = default);
         Task<List<AccountBalanceSummary>> GetAccountBalancesAsync(
             DateTime? fromDate, DateTime? toDate, Guid? fiscalPeriodId, CancellationToken ct = default);
+        /// <summary>Like <see cref="GetAccountBalancesAsync"/> but leaves out the entries of one reference type (the P&amp;L leaves out the period-closing entries).</summary>
+        Task<List<AccountBalanceSummary>> GetActivityBalancesAsync(
+            DateTime? fromDate, DateTime? toDate, string? excludeReferenceType, CancellationToken ct = default);
         Task AddRangeAsync(IEnumerable<JournalLine> lines, CancellationToken ct = default);
     }
 

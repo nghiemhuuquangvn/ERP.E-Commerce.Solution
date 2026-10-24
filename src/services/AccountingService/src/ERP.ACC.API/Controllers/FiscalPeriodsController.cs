@@ -51,14 +51,26 @@ namespace ERP.ACC.API.Controllers
             return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
         }
 
+        /// <summary>Closes the period: checks the books, writes the period-end transfer (unless postClosingEntries is false) and locks the period.</summary>
         [HttpPost("{id:guid}/close")]
-        public async Task<IActionResult> Close(Guid id, CancellationToken ct)
+        public async Task<IActionResult> Close(Guid id, [FromQuery] bool postClosingEntries = true, CancellationToken ct = default)
         {
             if (!_userContext.HasPermission("accounting:periods:manage"))
                 return Forbid();
 
-            var result = await _mediator.Send(new CloseFiscalPeriodCommand { FiscalPeriodId = id }, ct);
+            var result = await _mediator.Send(new CloseFiscalPeriodCommand { FiscalPeriodId = id, PostClosingEntries = postClosingEntries }, ct);
             return Ok(result);
+        }
+
+        /// <summary>Reopens the latest closed period; its closing entry is voided.</summary>
+        [HttpPost("{id:guid}/reopen")]
+        public async Task<IActionResult> Reopen(Guid id, [FromBody] ReopenFiscalPeriodCommand command, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:periods:manage"))
+                return Forbid();
+
+            command.FiscalPeriodId = id;
+            return Ok(await _mediator.Send(command, ct));
         }
     }
 }

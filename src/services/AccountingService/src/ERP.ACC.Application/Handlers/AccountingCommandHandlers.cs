@@ -18,20 +18,48 @@ namespace ERP.ACC.Application.Handlers
 
         public async Task<AccountDto> Handle(CreateAccountCommand request, CancellationToken cancellationToken)
         {
-            var account = Account.Create(request.AccountNumber, request.Name, request.AccountType, request.NormalBalance);
+            var number = request.AccountNumber.Trim();
+            if ((await _uow.Accounts.GetByNumbersAsync(new[] { number }, cancellationToken)).Count > 0)
+                throw new BusinessRuleException("Accounting", $"Account number {number} already exists.");
+
+            Account? parent = null;
+            if (request.ParentAccountId is { } parentId)
+            {
+                parent = await _uow.Accounts.GetByIdAsync(parentId, cancellationToken)
+                    ?? throw new BusinessRuleException("Accounting", $"Parent account {parentId} does not exist.");
+                if (!parent.IsActive)
+                    throw new BusinessRuleException("Accounting", $"Parent account {parent.AccountNumber} is inactive.");
+            }
+
+            Account account;
+            try
+            {
+                account = Account.Create(number, request.Name.Trim(), request.AccountType, request.NormalBalance, parent);
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw new BusinessRuleException("Accounting", ex.Message);
+            }
+
             await _uow.Accounts.AddAsync(account, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
             return MapAccountToDto(account);
         }
 
-        internal static AccountDto MapAccountToDto(Account a) => new()
+        internal static AccountDto MapAccountToDto(Account a, bool isParent = false) => new()
         {
             Id = a.Id,
             AccountNumber = a.AccountNumber,
             Name = a.Name,
             AccountType = ((AccountType)a.AccountType).ToString(),
             NormalBalance = ((NormalBalance)a.NormalBalance).ToString(),
-            CreatedAt = a.CreatedAt
+            CreatedAt = a.CreatedAt,
+            IsActive = a.IsActive,
+            ParentAccountId = a.ParentAccountId,
+            Level = a.Level,
+            IsControl = a.IsControl,
+            AccountClass = a.AccountClass,
+            IsPostable = a.IsActive && !isParent,
         };
     }
 
@@ -218,12 +246,12 @@ namespace ERP.ACC.Application.Handlers
                 throw new BusinessRuleException("Accounting", "Each journal line needs exactly one positive amount, either a debit or a credit.");
 
             var accounts = await _uow.Accounts.GetByIdsAsync(request.Lines.Select(l => l.AccountId).Distinct(), cancellationToken);
+            var parentIds = await AccountRules.ParentIdsAsync(_uow.Accounts, cancellationToken);
             foreach (var accountId in request.Lines.Select(l => l.AccountId).Distinct())
             {
                 var account = accounts.FirstOrDefault(a => a.Id == accountId)
                     ?? throw new BusinessRuleException("Accounting", $"Account {accountId} does not exist.");
-                if (!account.IsActive)
-                    throw new BusinessRuleException("Accounting", $"Account {account.AccountNumber} is inactive and takes no postings.");
+                AccountRules.EnsurePostable(account, parentIds);
             }
 
             var entryDate = (request.EntryDate ?? DateTime.UtcNow).Date;
@@ -287,21 +315,4 @@ namespace ERP.ACC.Application.Handlers
         };
     }
 
-    public class CloseFiscalPeriodCommandHandler : IRequestHandler<CloseFiscalPeriodCommand, FiscalPeriodDto>
-    {
-        private readonly IAccountingUnitOfWork _uow;
-
-        public CloseFiscalPeriodCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
-
-        public async Task<FiscalPeriodDto> Handle(CloseFiscalPeriodCommand request, CancellationToken cancellationToken)
-        {
-            var period = await _uow.FiscalPeriods.GetByIdAsync(request.FiscalPeriodId, cancellationToken)
-                ?? throw new InvalidOperationException($"Fiscal period {request.FiscalPeriodId} not found.");
-
-            period.Close();
-            await _uow.FiscalPeriods.UpdateAsync(period, cancellationToken);
-            await _uow.SaveChangesAsync(cancellationToken);
-            return OpenFiscalPeriodCommandHandler.MapFiscalPeriodToDto(period);
-        }
-    }
 }

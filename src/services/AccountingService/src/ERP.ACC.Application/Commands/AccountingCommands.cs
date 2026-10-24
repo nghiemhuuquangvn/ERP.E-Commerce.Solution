@@ -9,6 +9,23 @@ namespace ERP.ACC.Application.Commands
         public string Name { get; set; } = string.Empty;
         public int AccountType { get; set; }
         public int NormalBalance { get; set; }
+
+        /// <summary>Optional parent: the new account is its sub-account (same account type).</summary>
+        public Guid? ParentAccountId { get; set; }
+    }
+
+    /// <summary>Renames an account and/or moves it under another parent (null = top level). The number, type and normal balance never change.</summary>
+    public class UpdateAccountCommand : IRequest<AccountDto>
+    {
+        public Guid AccountId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public Guid? ParentAccountId { get; set; }
+    }
+
+    public class SetAccountActiveCommand : IRequest<AccountDto>
+    {
+        public Guid AccountId { get; set; }
+        public bool Active { get; set; }
     }
 
     public class CreateInvoiceCommand : IRequest<InvoiceDto>
@@ -48,6 +65,16 @@ namespace ERP.ACC.Application.Commands
     {
         public Guid JournalEntryId { get; set; }
         public string Reason { get; set; } = string.Empty;
+
+        /// <summary>Date of the mirror entry; defaults to today. A date in a closed period falls back to today (the closed books do not change).</summary>
+        public DateTime? ReversalDate { get; set; }
+    }
+
+    /// <summary>Takes a hand-written entry of an open period out of the books (status Voided).</summary>
+    public class VoidJournalEntryCommand : IRequest<JournalEntryDto>
+    {
+        public Guid JournalEntryId { get; set; }
+        public string Reason { get; set; } = string.Empty;
     }
 
     public class UpdatePostingProfileCommand : IRequest<PostingProfileDto>
@@ -75,6 +102,15 @@ namespace ERP.ACC.Application.Commands
     public class CloseFiscalPeriodCommand : IRequest<FiscalPeriodDto>
     {
         public Guid FiscalPeriodId { get; set; }
+
+        /// <summary>Write the period-end transfer (revenue and expenses to the income summary, then to retained earnings). Default true.</summary>
+        public bool PostClosingEntries { get; set; } = true;
+    }
+
+    public class ReopenFiscalPeriodCommand : IRequest<FiscalPeriodDto>
+    {
+        public Guid FiscalPeriodId { get; set; }
+        public string Reason { get; set; } = string.Empty;
     }
 
     public class CreateTaxRateCommand : IRequest<TaxRateDto>

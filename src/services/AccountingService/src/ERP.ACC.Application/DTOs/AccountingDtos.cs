@@ -8,6 +8,22 @@ namespace ERP.ACC.Application.DTOs
         public string AccountType { get; set; } = string.Empty;
         public string NormalBalance { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
+        public bool IsActive { get; set; } = true;
+        public Guid? ParentAccountId { get; set; }
+        public int Level { get; set; } = 1;
+        public bool IsControl { get; set; }
+
+        /// <summary>First digit of the number: the class of the Vietnamese chart (0 when the number does not start with a digit).</summary>
+        public int AccountClass { get; set; }
+
+        /// <summary>Active and without active sub-accounts: the only kind of account that takes postings.</summary>
+        public bool IsPostable { get; set; } = true;
+    }
+
+    public class AccountTreeNodeDto
+    {
+        public AccountDto Account { get; set; } = new();
+        public List<AccountTreeNodeDto> Children { get; set; } = new();
     }
 
     public class InvoiceDto

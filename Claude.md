@@ -233,6 +233,11 @@ Consumed Events (live, 2026-10-23): SalesOrderCreated and SalesOrderCancelled (R
 Warehouse `StockMovementRecordedEvent` (RabbitMQ `warehouse_exchange`, ROADMAP P1-1b) is consumed and posted from its `ValueDelta`;
 POS `TransactionCreated/Voided/CashShiftClosed` (Kafka `pos-topic`, ROADMAP P1-1c) are consumed too; Payment `PaymentRefunded` (only gateway-confirmed refunds, P1-1e) and Sales `SalesOrderReturned` (RabbitMQ) too; HRM `PaySlipGenerated/Paid/Voided` (Kafka `hrm-topic`, P1-1d) too. New pay-slip event names must not contain the substring `PaySlipGenerated` (Reporting matches on it).
 
+Chart of accounts and closing (docs/business/Accounting/ChartOfAccounts.md): accounts form a tree and a parent takes no postings; charts come from templates
+(`ChartTemplates`: Simple14 default, Vas99 suggested — needs accountant review); a tenant with journal entries cannot switch charts (re-map the posting profile). Closing a fiscal
+period writes one `PeriodClosing` entry (revenue / expenses → IncomeSummary → RetainedEarnings) and locks the period; P&L excludes those entries; reopen voids it. A hand-written
+entry is voided, any posted entry is reversed. Do not cache tenant-owned data under a key without the tenant (ICacheService keys are global).
+
 Automatic GL posting (docs/business/Accounting/AutoPosting.md):
 - Business flows never name an account: they post **posting keys** (`PostingKeys`) through
   `IJournalPostingService` and the tenant's posting profile (`PostingAccountMappings`) resolves them. Add a flow by building a
