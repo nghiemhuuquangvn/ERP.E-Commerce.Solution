@@ -16,10 +16,16 @@ namespace ERP.ACC.Domain.Entities
         public const string SalesRevenue = "SalesRevenue";
         public const string Inventory = "Inventory";
         public const string VatOutput = "VatOutput";
+        /// <summary>Goods received, not yet invoiced: credited by a stock receipt, debited by the supplier bill (ROADMAP P1-1b).</summary>
+        public const string GoodsReceivedNotInvoiced = "GoodsReceivedNotInvoiced";
+        public const string CostOfGoodsSold = "CostOfGoodsSold";
+        /// <summary>Stock gains and losses (stocktake, damage, POS void). Its own key so VAS can give it a separate account.</summary>
+        public const string InventoryAdjustment = "InventoryAdjustment";
 
         public static readonly IReadOnlyList<string> All = new[]
         {
-            Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, Inventory, VatOutput
+            Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, Inventory, VatOutput,
+            GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment
         };
 
         /// <summary>Account numbers of the seeded 14-account chart, used when a tenant has no mapping yet.</summary>
@@ -32,6 +38,9 @@ namespace ERP.ACC.Domain.Entities
             [SalesRevenue] = "4000",
             [Inventory] = "1200",
             [VatOutput] = "2200",
+            [GoodsReceivedNotInvoiced] = "2100",   // Accrued Liabilities
+            [CostOfGoodsSold] = "5000",
+            [InventoryAdjustment] = "5000",
         };
     }
 

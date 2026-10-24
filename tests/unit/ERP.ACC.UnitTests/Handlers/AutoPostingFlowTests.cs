@@ -252,7 +252,7 @@ public class AutoPostingFlowTests
     }
 
     [Fact]
-    public async Task ApprovingAndPayingABill_PostsInventoryAgainstPayables_ThenPayablesAgainstBank()
+    public async Task ApprovingAndPayingABill_PostsGoodsReceivedNotInvoicedAgainstPayables_ThenPayablesAgainstBank()
     {
         var bill = Bill.Create("BILL-1", Guid.NewGuid(), Guid.NewGuid(), 2000m, DateTime.UtcNow.AddDays(30));
         _bills.Setup(b => b.GetByIdAsync(bill.Id, It.IsAny<CancellationToken>())).ReturnsAsync(bill);
@@ -264,7 +264,7 @@ public class AutoPostingFlowTests
 
         _posted.Should().HaveCount(2);
         _posted[0].SourceType.Should().Be("Bill");
-        Lines(_posted[0], PostingKeys.Inventory, PostingKeys.AccountsPayable, 2000m);
+        Lines(_posted[0], PostingKeys.GoodsReceivedNotInvoiced, PostingKeys.AccountsPayable, 2000m);
         _posted[1].SourceType.Should().Be("BillPayment");
         Lines(_posted[1], PostingKeys.AccountsPayable, PostingKeys.Bank, 2000m);
         _posted.Select(p => p.SourceId).Should().AllBeEquivalentTo(bill.Id);
