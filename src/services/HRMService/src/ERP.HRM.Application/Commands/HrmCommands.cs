@@ -58,6 +58,15 @@ public record GeneratePaySlipCommand(
     decimal OvertimeHours = 0m,
     decimal OvertimePay = 0m) : IRequest<PaySlipDto>;
 
+public record PayPaySlipCommand(
+    Guid PaySlipId,
+    DateTime? PaidOn = null,
+    string? PaymentMethod = null) : IRequest<PaySlipDto>;
+
+public record CancelPaySlipCommand(
+    Guid PaySlipId,
+    string Reason) : IRequest<PaySlipDto>;
+
 // ─── Attendance Commands ───────────────────────────────────────────────────
 
 public record CheckInCommand(

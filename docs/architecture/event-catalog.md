@@ -1002,7 +1002,7 @@ actually publishes these two events today is HRM's existing, simpler
 single-step Leave Request approve/reject flow — the Approval Engine has not
 been built).
 
-**Publisher:** HRM Service (Outbox → Kafka `hrm-topic`)
+**Publisher:** HRM Service (Outbox → Kafka `hrm-topic`). 2026-10-24 (P1-1d): `PaySlipGeneratedEvent` also carries `GrossSalary`, `OvertimePay`, `Deductions`, `PeriodEnd`; new `PaySlipPaidEvent(PaySlipId, EmployeeId, NetPay, PayPeriod, PaidOn, PaymentMethod)` and `PaySlipVoidedEvent(PaySlipId, EmployeeId, PayPeriod, Reason)`; keyed by pay slip id; consumed by **AccountingService** (`AccountingKafkaConsumer`, payroll posting).
 **Subscribers:** Notification Service (`HrmTopic`, added 2026-08-04) — sends
 the requesting employee a confirmation/rejection notification via
 `LeaveApprovedIntegrationEventHandler`/`LeaveRejectedIntegrationEventHandler`

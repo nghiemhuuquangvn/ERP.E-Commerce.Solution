@@ -16,6 +16,18 @@ namespace ERP.HRM.Infrastructure.MessageBus
             _logger = logger;
         }
 
+        /// <summary>
+        /// The events of one pay slip (generated, paid, cancelled) must reach the ledger in that order, so they share a Kafka key and
+        /// therefore a partition. Anything else keeps a random key.
+        /// </summary>
+        public static string PartitionKey(object message) => message switch
+        {
+            Domain.Events.PaySlipGeneratedEvent e => e.PaySlipId.ToString(),
+            Domain.Events.PaySlipPaidEvent e => e.PaySlipId.ToString(),
+            Domain.Events.PaySlipVoidedEvent e => e.PaySlipId.ToString(),
+            _ => Guid.NewGuid().ToString(),
+        };
+
         public async Task PublishAsync<T>(T message, CancellationToken cancellationToken) where T : class
         {
             try
@@ -27,7 +39,7 @@ namespace ERP.HRM.Infrastructure.MessageBus
 
                 var kafkaMessage = new Message<string, string>
                 {
-                    Key = Guid.NewGuid().ToString(),
+                    Key = PartitionKey(message),
                     Value = messageJson
                 };
 

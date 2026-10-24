@@ -56,6 +56,40 @@ public class PayrollController : ControllerBase
     }
 
     /// <summary>
+    /// Record that the net pay of a pending pay slip was paid out (the ledger clears the salaries payable against the bank).
+    /// </summary>
+    [HttpPost("api/v{version:apiVersion}/hrm/payslips/{id:guid}/pay")]
+    [AuthorizePermission("hrm:payroll:manage")]
+    [ProducesResponseType(typeof(PaySlipDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> PayPaySlip(
+        [FromRoute] Guid id,
+        [FromBody] PayPaySlipRequest? request,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new PayPaySlipCommand(id, request?.PaidOn, request?.PaymentMethod), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Cancel an unpaid pay slip (wrong figures). The period can be generated again afterwards.
+    /// </summary>
+    [HttpPost("api/v{version:apiVersion}/hrm/payslips/{id:guid}/cancel")]
+    [AuthorizePermission("hrm:payroll:manage")]
+    [ProducesResponseType(typeof(PaySlipDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CancelPaySlip(
+        [FromRoute] Guid id,
+        [FromBody] CancelPaySlipRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new CancelPaySlipCommand(id, request.Reason), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// List pay slips with optional filtering by employee, year, and month.
     /// </summary>
     [HttpGet("api/v{version:apiVersion}/hrm/payslips")]
@@ -99,3 +133,7 @@ public class PayrollController : ControllerBase
 }
 
 public record ProcessPayrollRequest(int Year, int Month);
+
+public record PayPaySlipRequest(DateTime? PaidOn, string? PaymentMethod);
+
+public record CancelPaySlipRequest(string Reason);
