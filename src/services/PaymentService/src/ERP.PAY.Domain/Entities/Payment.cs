@@ -137,8 +137,24 @@ public class Payment : AggregateRoot
             : PaymentStatus.PartiallyRefunded;
 
         UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new PaymentRefundedEvent(Id, OrderId, refundAmount, reason));
         return refund;
+    }
+
+    /// <summary>
+    /// The gateway confirmed the refund: mark it completed, bring the status in line with the confirmed refunds and publish
+    /// <see cref="PaymentRefundedEvent"/>. This is the only place the event is raised — a declined or failed refund publishes nothing.
+    /// </summary>
+    public void CompleteRefund(Refund refund, string gatewayRefundId)
+    {
+        if (!_refunds.Contains(refund))
+            throw new InvalidOperationException("The refund does not belong to this payment.");
+
+        refund.MarkAsCompleted(gatewayRefundId);
+        ReconcileStatusWithConfirmedRefunds();
+
+        AddDomainEvent(new PaymentRefundedEvent(
+            Id, OrderId, refund.Amount, refund.Reason,
+            refund.Id, Currency, Method, refund.CompletedAt, refund.GatewayRefundId));
     }
 
     /// <summary>

@@ -200,12 +200,14 @@ public class RefundPaymentCommandHandler : IRequestHandler<RefundPaymentCommand,
             request.Reason,
             cancellationToken);
 
+        // The refund event (and with it the ledger entry) exists only for a refund the gateway confirmed.
         if (gatewayResult.Success)
-            refund.MarkAsCompleted(gatewayResult.GatewayRefundId ?? string.Empty);
+            payment.CompleteRefund(refund, gatewayResult.GatewayRefundId ?? string.Empty);
         else
+        {
             refund.MarkAsFailed(gatewayResult.Error ?? "Gateway refund failed");
-
-        payment.ReconcileStatusWithConfirmedRefunds();
+            payment.ReconcileStatusWithConfirmedRefunds();
+        }
 
         await _uow.Payments.UpdateAsync(payment, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);

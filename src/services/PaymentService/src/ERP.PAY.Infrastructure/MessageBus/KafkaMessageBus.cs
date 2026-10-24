@@ -16,6 +16,20 @@ namespace ERP.PAY.Infrastructure.MessageBus
             _logger = logger;
         }
 
+        /// <summary>
+        /// The events of one payment (captured, refunded ...) must reach consumers in order — the ledger books the refund against the
+        /// capture — so they share a Kafka key and therefore a partition. Anything else keeps a random key.
+        /// </summary>
+        public static string PartitionKey(object message) => message switch
+        {
+            Domain.Events.PaymentInitiatedEvent e => e.PaymentId.ToString(),
+            Domain.Events.PaymentAuthorizedEvent e => e.PaymentId.ToString(),
+            Domain.Events.PaymentProcessedEvent e => e.PaymentId.ToString(),
+            Domain.Events.PaymentFailedEvent e => e.PaymentId.ToString(),
+            Domain.Events.PaymentRefundedEvent e => e.PaymentId.ToString(),
+            _ => Guid.NewGuid().ToString(),
+        };
+
         public async Task PublishAsync<T>(T message, CancellationToken cancellationToken) where T : class
         {
             try
@@ -27,7 +41,7 @@ namespace ERP.PAY.Infrastructure.MessageBus
 
                 var kafkaMessage = new Message<string, string>
                 {
-                    Key = Guid.NewGuid().ToString(),
+                    Key = PartitionKey(message),
                     Value = messageJson
                 };
 
