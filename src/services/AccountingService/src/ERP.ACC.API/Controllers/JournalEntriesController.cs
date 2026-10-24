@@ -61,6 +61,16 @@ namespace ERP.ACC.API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("{id:guid}/void")]
+        public async Task<IActionResult> Void(Guid id, [FromBody] VoidJournalEntryCommand command, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:journals:manage"))
+                return Forbid();
+
+            command.JournalEntryId = id;
+            return Ok(await _mediator.Send(command, ct));
+        }
+
         [HttpPost]
         public async Task<IActionResult> Post([FromBody] PostJournalEntryCommand command, CancellationToken ct)
         {

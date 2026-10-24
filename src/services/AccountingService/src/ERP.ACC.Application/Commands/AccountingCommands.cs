@@ -65,6 +65,16 @@ namespace ERP.ACC.Application.Commands
     {
         public Guid JournalEntryId { get; set; }
         public string Reason { get; set; } = string.Empty;
+
+        /// <summary>Date of the mirror entry; defaults to today. A date in a closed period falls back to today (the closed books do not change).</summary>
+        public DateTime? ReversalDate { get; set; }
+    }
+
+    /// <summary>Takes a hand-written entry of an open period out of the books (status Voided).</summary>
+    public class VoidJournalEntryCommand : IRequest<JournalEntryDto>
+    {
+        public Guid JournalEntryId { get; set; }
+        public string Reason { get; set; } = string.Empty;
     }
 
     public class UpdatePostingProfileCommand : IRequest<PostingProfileDto>

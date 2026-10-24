@@ -88,11 +88,9 @@ namespace ERP.ACC.Application.Posting
             return await ReverseEntryAsync(original, reason, date, ct);
         }
 
+        /// <summary>Reverses one entry. Not gated by the auto-posting switch (that switch is for documents posting by themselves): a person asked for it.</summary>
         public async Task<JournalEntry?> ReverseEntryAsync(JournalEntry original, string reason, DateTime date, CancellationToken ct = default)
         {
-            if (!Enabled)
-                return null;
-
             var tenantId = _tenant.CurrentTenantId
                 ?? throw new InvalidOperationException("Posting needs a tenant (TenantScope or an authenticated request).");
 

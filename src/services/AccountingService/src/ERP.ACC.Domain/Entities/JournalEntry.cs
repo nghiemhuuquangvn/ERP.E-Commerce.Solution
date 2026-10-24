@@ -123,6 +123,32 @@ namespace ERP.ACC.Domain.Entities
             return entry;
         }
 
+        /// <summary>ReferenceType of the entries the period-end closing writes (ROADMAP P1-2); they are never voided or reversed by hand: reopen the period instead.</summary>
+        public const string PeriodClosingType = "PeriodClosing";
+
+        public bool IsSystemClosingEntry => ReferenceType == PeriodClosingType;
+
+        /// <summary>
+        /// Takes a hand-written entry out of the books: status Voided, ignored by every report. Only for a posted entry that no document
+        /// owns (no source key, so nothing is waiting to re-post it); the caller checks that its period is still open. An entry that
+        /// belongs to a document, or whose period is closed, is reversed instead (a mirror entry keeps the audit trail).
+        /// </summary>
+        public void Void(string reason, string? voidedBy = null)
+        {
+            if (Status != (int)JournalStatus.Posted)
+                throw new InvalidOperationException($"Journal entry {EntryNumber} is not posted, so it cannot be voided.");
+            if (!string.IsNullOrEmpty(SourceKey))
+                throw new InvalidOperationException($"Journal entry {EntryNumber} belongs to a document ({ReferenceType}); reverse it instead of voiding it.");
+            if (string.IsNullOrWhiteSpace(reason))
+                throw new ArgumentException("A reason is required to void an entry", nameof(reason));
+
+            Status = (int)JournalStatus.Voided;
+            VoidedAt = DateTime.UtcNow;
+            VoidedBy = voidedBy;
+            VoidReason = reason.Length > 500 ? reason[..500] : reason;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         /// <summary>
         /// Cancels the effect of this posted entry by a new entry with every line mirrored. The original stays in the books
         /// (status Reversed) so the history is complete and both entries are counted by the reports. The reversal is itself
