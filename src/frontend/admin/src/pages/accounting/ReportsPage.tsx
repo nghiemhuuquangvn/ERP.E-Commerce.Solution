@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { reportsApi } from '@/api/accounting/reports.api'
+import { reportsApi, downloadReportCsv } from '@/api/accounting/reports.api'
+import type { FinancialStatement } from '@/api/accounting/reports.api'
 import type { FinancialAccountLineDto, CashFlowSection } from '@/api/accounting/reports.api'
 import { accountsApi } from '@/api/accounting/accounts.api'
 import { DataTable } from '@/components/shared/DataTable'
@@ -9,6 +10,172 @@ import { usePermission } from '@/hooks/usePermission'
 
 function todayISODate(): string {
   return new Date().toISOString().slice(0, 10)
+}
+
+/** "Export CSV" button: asks the server for the same report as a file. */
+function ExportButton({ path, params, name, disabled }: { path: string; params: Record<string, unknown>; name: string; disabled?: boolean }) {
+  const { t } = useTranslation()
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
+  return (
+    <span className="flex items-center gap-2">
+      <button
+        type="button"
+        className="btn-outline"
+        disabled={disabled || busy}
+        onClick={async () => {
+          setBusy(true)
+          setFailed(false)
+          try {
+            await downloadReportCsv(path, params, name)
+          } catch {
+            setFailed(true)
+          } finally {
+            setBusy(false)
+          }
+        }}
+      >
+        {t('accounting.reports.exportCsv')}
+      </button>
+      {failed && <span className="text-xs text-red-600">{t('accounting.reports.exportFailed')}</span>}
+    </span>
+  )
+}
+
+function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' }) {
+  const { t } = useTranslation()
+  const isBalanceSheet = kind === 'balance-sheet'
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState(todayISODate())
+  const [compare, setCompare] = useState(false)
+  const [compareFrom, setCompareFrom] = useState('')
+  const [compareTo, setCompareTo] = useState('')
+
+  const ready = isBalanceSheet ? !!toDate : !!fromDate && !!toDate
+  const compareReady = compare && (isBalanceSheet ? !!compareTo : !!compareFrom && !!compareTo)
+  const params: Record<string, unknown> = isBalanceSheet
+    ? { asOfDate: toDate, compareAsOfDate: compareReady ? compareTo : undefined }
+    : { fromDate, toDate, compareFromDate: compareReady ? compareFrom : undefined, compareToDate: compareReady ? compareTo : undefined }
+
+  const { data, isLoading } = useQuery<FinancialStatement>({
+    queryKey: ['accounting', 'reports', 'statement', kind, params],
+    queryFn: () =>
+      isBalanceSheet
+        ? reportsApi.balanceSheetStatement(params)
+        : reportsApi.incomeStatement(params as { fromDate: string; toDate: string }),
+    enabled: ready,
+    staleTime: 15_000,
+  })
+
+  const showPrior = !!data && data.rows.some((r) => r.priorAmount !== null)
+  const columns = useMemo(
+    () => [
+      { key: 'code', label: t('accounting.reports.indicatorCode'), className: 'font-mono text-xs' },
+      {
+        key: 'name',
+        label: t('accounting.reports.indicator'),
+        render: (r: { name: string; indent: number; isTotal: boolean }) => (
+          <span style={{ paddingLeft: `${(r.indent - 1) * 14}px` }} className={r.isTotal ? 'font-semibold' : ''}>
+            {r.name}
+          </span>
+        ),
+      },
+      {
+        key: 'amount',
+        label: t('accounting.reports.amount'),
+        render: (r: { amount: number; isTotal: boolean }) => (
+          <span className={r.isTotal ? 'font-semibold' : ''}>{r.amount.toLocaleString()}</span>
+        ),
+      },
+      ...(showPrior
+        ? [{ key: 'priorAmount', label: t('accounting.reports.prior'), render: (r: { priorAmount: number | null }) => (r.priorAmount ?? 0).toLocaleString() }]
+        : []),
+    ],
+    [t, showPrior],
+  )
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        {!isBalanceSheet && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.fromDate')}</label>
+            <input type="date" className="input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          </div>
+        )}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {isBalanceSheet ? t('accounting.reports.asOfDate') : t('accounting.reports.toDate')}
+          </label>
+          <input type="date" className="input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        </div>
+        <label className="flex items-center gap-2 pb-2 text-sm text-gray-700">
+          <input type="checkbox" checked={compare} onChange={(e) => setCompare(e.target.checked)} />
+          {t('accounting.reports.compare')}
+        </label>
+        {compare && !isBalanceSheet && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.compareFrom')}</label>
+            <input type="date" className="input" value={compareFrom} onChange={(e) => setCompareFrom(e.target.value)} />
+          </div>
+        )}
+        {compare && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {isBalanceSheet ? t('accounting.reports.compareAsOf') : t('accounting.reports.compareTo')}
+            </label>
+            <input type="date" className="input" value={compareTo} onChange={(e) => setCompareTo(e.target.value)} />
+          </div>
+        )}
+        <ExportButton
+          path={`statements/${kind}`}
+          params={params}
+          name={`${kind}.csv`}
+          disabled={!ready}
+        />
+      </div>
+
+      {data && (
+        <p className="text-xs text-amber-700">
+          {data.title}
+          {data.isDraft ? ` — ${t('accounting.reports.draftWarning')}` : ''}
+        </p>
+      )}
+
+      {ready && (
+        <DataTable
+          columns={columns}
+          data={(data?.rows ?? []).map((r) => ({ id: r.code, ...r }))}
+          isLoading={isLoading}
+        />
+      )}
+
+      {data?.isBalanced !== null && data?.isBalanced !== undefined && (
+        <p className={data.isBalanced ? 'text-sm text-green-700' : 'text-sm font-semibold text-red-700'}>
+          {data.isBalanced ? t('accounting.reports.balanced') : t('accounting.reports.notBalanced')}
+        </p>
+      )}
+
+      {data && data.unmapped.length > 0 && (
+        <div className="card space-y-1 border border-amber-300 p-3 text-sm">
+          <p className="font-semibold text-amber-800">{t('accounting.reports.unmappedTitle')}</p>
+          {data.unmapped.map((u) => (
+            <p key={u.accountNumber} className="font-mono text-xs">
+              {u.accountNumber} {u.accountName}: {u.balance.toLocaleString()}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {data && data.notes.length > 0 && (
+        <ul className="list-disc space-y-1 pl-5 text-xs text-gray-500">
+          {data.notes.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 function TrialBalancePanel() {
@@ -88,6 +255,17 @@ function TrialBalancePanel() {
           <input type="checkbox" checked={rollUp} onChange={(e) => setRollUp(e.target.checked)} />
           {t('accounting.reports.rollUp')}
         </label>
+        <ExportButton
+          path="trial-balance/full"
+          params={{
+            fiscalPeriodId: fiscalPeriodId.trim() || undefined,
+            fromDate: fromDate || undefined,
+            toDate: toDate || undefined,
+            hideZeroBalance,
+            rollUp,
+          }}
+          name="trial-balance.csv"
+        />
       </div>
 
       {(isLoading || isFetched) && <DataTable columns={columns} data={rows} isLoading={isLoading} />}
@@ -182,6 +360,12 @@ function LedgerPanel() {
           <input type="checkbox" checked={includeSubAccounts} onChange={(e) => setIncludeSubAccounts(e.target.checked)} />
           {t('accounting.reports.includeSubAccounts')}
         </label>
+        <ExportButton
+          path="account-ledger"
+          params={{ accountId, fromDate: fromDate || undefined, toDate: toDate || undefined, includeSubAccounts }}
+          name="account-ledger.csv"
+          disabled={!accountId}
+        />
       </div>
 
       {data && (
@@ -253,6 +437,7 @@ function CashFlowPanel() {
           <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.toDate')}</label>
           <input type="date" className="input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
+        <ExportButton path="cash-flow" params={{ fromDate, toDate }} name="cash-flow.csv" disabled={!fromDate || !toDate} />
       </div>
 
       {isLoading && <p className="text-sm text-gray-400">{t('common.loading')}</p>}
@@ -432,7 +617,7 @@ export function ReportsPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const canView = hasPermission('accounting:reports:view')
-  const [tab, setTab] = useState<'trial-balance' | 'ledger' | 'profit-and-loss' | 'balance-sheet' | 'cash-flow'>('trial-balance')
+  const [tab, setTab] = useState<'trial-balance' | 'ledger' | 'profit-and-loss' | 'balance-sheet' | 'cash-flow' | 'b01' | 'b02'>('trial-balance')
 
   if (!canView) {
     return <p className="text-sm text-gray-400">{t('common.noPermission')}</p>
@@ -444,6 +629,8 @@ export function ReportsPage() {
     { key: 'profit-and-loss', label: t('accounting.reports.tabProfitAndLoss') },
     { key: 'balance-sheet', label: t('accounting.reports.tabBalanceSheet') },
     { key: 'cash-flow', label: t('accounting.reports.tabCashFlow') },
+    { key: 'b01', label: t('accounting.reports.tabB01') },
+    { key: 'b02', label: t('accounting.reports.tabB02') },
   ]
 
   return (
@@ -470,6 +657,8 @@ export function ReportsPage() {
       {tab === 'profit-and-loss' && <ProfitAndLossPanel />}
       {tab === 'balance-sheet' && <BalanceSheetPanel />}
       {tab === 'cash-flow' && <CashFlowPanel />}
+      {tab === 'b01' && <StatementPanel kind="balance-sheet" />}
+      {tab === 'b02' && <StatementPanel kind="income-statement" />}
     </div>
   )
 }

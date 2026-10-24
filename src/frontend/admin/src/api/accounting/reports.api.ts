@@ -153,7 +153,78 @@ export interface BalanceSheetParams {
   asOfDate?: string
 }
 
+// B01-DN / B02-DN by indicator code (Vietnamese chart, draft layout)
+export interface StatementRow {
+  code: string
+  name: string
+  indent: number
+  isTotal: boolean
+  amount: number
+  priorAmount: number | null
+}
+
+export interface UnmappedAccount {
+  accountNumber: string
+  accountName: string
+  balance: number
+}
+
+export interface FinancialStatement {
+  layoutId: string
+  title: string
+  isDraft: boolean
+  currency: string
+  fromDate: string | null
+  toDate: string | null
+  compareFromDate: string | null
+  compareToDate: string | null
+  rows: StatementRow[]
+  unmapped: UnmappedAccount[]
+  notes: string[]
+  isBalanced: boolean | null
+}
+
+export interface BalanceSheetStatementParams {
+  asOfDate?: string
+  compareAsOfDate?: string
+}
+
+export interface IncomeStatementParams {
+  fromDate: string
+  toDate: string
+  compareFromDate?: string
+  compareToDate?: string
+}
+
+/** Downloads a report as CSV (the server answers format=csv with a UTF-8 file that Excel opens correctly). */
+export async function downloadReportCsv(path: string, params: Record<string, unknown>, fallbackName: string): Promise<void> {
+  const res = await apiClient.get<Blob>(`${ACC_BASE}/accounting/reports/${path}`, {
+    params: { ...params, format: 'csv' },
+    responseType: 'blob',
+  })
+  const header = String(res.headers['content-disposition'] ?? '')
+  const name = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(header)?.[1] ?? fallbackName
+  const url = URL.createObjectURL(res.data)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = decodeURIComponent(name)
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 export const reportsApi = {
+  balanceSheetStatement: (params: BalanceSheetStatementParams) =>
+    apiClient
+      .get<FinancialStatement>(`${ACC_BASE}/accounting/reports/statements/balance-sheet`, { params })
+      .then((r) => r.data),
+
+  incomeStatement: (params: IncomeStatementParams) =>
+    apiClient
+      .get<FinancialStatement>(`${ACC_BASE}/accounting/reports/statements/income-statement`, { params })
+      .then((r) => r.data),
+
   trialBalance: (params: TrialBalanceParams) =>
     apiClient
       .get<TrialBalanceLineDto[]>(`${ACC_BASE}/accounting/reports/trial-balance`, { params })
