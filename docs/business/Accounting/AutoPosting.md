@@ -1,7 +1,9 @@
 # Automatic general-ledger posting
 
-Status: phase 1 (ROADMAP P1-1, 2026-10-23) — foundation plus the invoice, payment, order-cancellation and bill flows.
-Stock / COGS, POS, payroll and refunds are separate plans (P1-1b … P1-1e) and are **not** posted yet.
+Status: phase 1 (ROADMAP P1-1, 2026-10-23) — foundation plus the invoice, payment, order-cancellation and bill flows; P1-1b
+(2026-10-24) adds stock receipt / issue / adjustment and COGS; P1-1c (2026-10-24) adds POS sales, voids and cash-shift variance. Payroll and
+refunds are separate plans (P1-1d, P1-1e)
+and are **not** posted yet.
 
 ## How it works
 
@@ -21,7 +23,11 @@ The entry is staged on the caller's unit of work, so the document, its journal e
 | `AccountsReceivable` | 1100 | invoice, payments |
 | `AccountsPayable` | 2000 | bills |
 | `SalesRevenue` | 4000 | invoice |
-| `Inventory` | 1200 | bill (see "Known simplification") |
+| `Inventory` | 1200 | stock receipts, issues, adjustments |
+| `GoodsReceivedNotInvoiced` (GRNI) | 2100 Accrued Liabilities | stock receipts (credit), bills (debit) |
+| `CostOfGoodsSold` | 5000 | stock issues (ship, POS sale) |
+| `InventoryAdjustment` | 5000 (a separate key so a VAS chart can use a shrinkage account) | stock gains / losses |
+| `CashOverShort` | 5100 Operating Expenses | POS shift cash difference |
 | `VatOutput` | 2200 Tax Payable | reserved: no flow posts VAT yet (P1-3) |
 
 A tenant with **no accounts at all** gets the default chart and profile the first time something has to be posted. A tenant that
@@ -36,7 +42,13 @@ already has its own chart is never given extra accounts: if a key has no account
 | `SalesOrderCancelled`, invoice unpaid | invoice → Cancelled, the entry above is reversed (mirror entry) | `InvoiceReversal:<invoiceId>` |
 | `PaymentProcessed` | Dr Cash (method Cash = 4) or Bank / Cr AR; applied to the order's invoice, which is paid once `AmountPaid ≥ Amount` | `Payment:<paymentId>` |
 | Invoice marked paid by hand | Dr Bank / Cr AR for the outstanding amount | `InvoicePayment:<invoiceId>` |
-| Bill approved | Dr Inventory / Cr AP | `Bill:<billId>` |
+| Bill approved | Dr GRNI / Cr AP | `Bill:<billId>` |
+| POS sale completed (Kafka `pos-topic`) | Dr Cash (cash tenders) and Dr Bank (all other tenders) / Cr SalesRevenue (subtotal − discount) and Cr VatOutput (tax) | `PosSale:<transactionId>` |
+| POS sale voided | mirror of the sale entry | `PosSaleReversal:<transactionId>` |
+| POS shift closed, counted ≠ expected cash | shortage: Dr CashOverShort / Cr Cash; overage the reverse | `PosShift:<shiftId>` |
+| Stock received (PO goods receipt or manual receipt with a cost) | Dr Inventory / Cr GRNI, qty × unit cost | `StockMovement:<movementId>` |
+| Stock issued (`Sold`: order shipped, POS sale) | Dr COGS / Cr Inventory, the cost Warehouse took the stock out at | `StockMovement:<movementId>` |
+| Stock adjusted / damaged (approved adjustment, stocktake variance, POS void) | loss: Dr InventoryAdjustment / Cr Inventory; gain: the reverse, at the current cost | `StockMovement:<movementId>` |
 | Bill marked paid | Dr AP / Cr Bank | `BillPayment:<billId>` |
 
 * **Idempotent.** The key is stored in `JournalEntries.SourceKey` under a unique index per tenant. A redelivered event finds the
@@ -45,6 +57,40 @@ already has its own chart is never given extra accounts: if a key has no account
 * The payment's `Method` is PaymentService's enum, a **number** on the Kafka wire (CreditCard 0 … Cash 4). Payments created by the
   order saga always say CreditCard, so they are booked to Bank.
 * Single currency (VND). The document currency is not converted (P1-4).
+
+### Stock movements (P1-1b)
+
+Warehouse publishes one `StockMovementRecordedEvent` per movement on RabbitMQ `warehouse_exchange`
+(`warehouse.StockMovementRecordedEvent`, queue `accounting-service.warehouse-events`). Two fields were added for the ledger:
+`UnitCost` and **`ValueDelta`**, the signed change of the stock value that Warehouse computed (receipt +, issue −, gain +,
+loss −). Accounting posts from `MovementType` + `ValueDelta` only, because the sign of `Quantity` differs between the movement
+sources. `ValueDelta = 0` (transfer, a manual receipt without a price, a product with no cost yet) books nothing.
+* A PO goods receipt is valued at the PO line's unit price (the `PurchaseOrderReceivedDomainEvent` line now carries
+  `UnitPrice`, `CurrencyCode` and `GoodsReceiptId`). Warehouse keys the movement on the goods receipt, so a second partial
+  receipt of the same product on the same order is stocked and posted (it used to be dropped as a redelivery).
+* An issue is valued from the `CostConsumptionLog` rows of that movement (lot cost, or `Inventory.Cost` for products without
+  lots); POS sales use `Inventory.Cost`. FIFO / LIFO products without lots therefore cost at the last receipt price; Average is
+  weighted.
+* GRNI nets out when the receipt and the bill match; its balance is "received, not billed" (credit) or "billed, not received"
+  (debit). A manual receipt has no bill, so it leaves a credit on GRNI that accounting clears.
+* New posting keys are added to existing tenants lazily: the first posting that finds a key without a mapping row creates it
+  from the default account number (no migration). A tenant whose own chart lacks the default account only fails the flow that
+  needs that key (`PostingConfigurationException`): the error is logged and the stock movement is acknowledged, not retried — fix the profile; nothing is back-posted.
+
+### POS (P1-1c)
+
+POSService owns the money of a sale (it does not call PaymentService), so the `pos-topic` events carry it: `TransactionCreated` /
+`TransactionVoided` have `Amounts` (subtotal, discount, tax, tenders), the shift id and `ExternalPaymentId`; `CashShiftClosed` has the
+opening float, counted cash, expected cash and variance. POS tax is exclusive and is **not** reduced by the discount, so the entry is
+tenders = (subtotal − discount) + tax. A tender is cash when its method is `Cash` (case-insensitive); every other method name is Bank.
+* An event whose tenders do not add up to the total books nothing and logs an error; an event published before the amounts existed
+  is skipped, so replaying `pos-topic` from the beginning does not back-post old sales.
+* A sale with `ExternalPaymentId` (click-and-collect, paid online) is skipped: the payment flow already booked that money.
+* The cost of goods is **not** posted here: Warehouse's `Sold` movement books Dr COGS / Cr Inventory, and a void's stock return books the
+  offsetting adjustment. Do not add COGS to the POS entry.
+* POS keys `pos-topic` messages by transaction / shift id, so a sale and its void reach Accounting in order.
+* Expected cash = opening float + cash tenders of the shift's completed (not voided) sales. A sale voided or synced after the shift was
+  closed reverses its ledger entry but is not part of the shift variance already booked (the closed event is final).
 
 ### Dates and periods
 
@@ -69,11 +115,11 @@ the log service. Fix the profile; entries for documents already saved are not ba
 
 ## Known simplifications (follow-up plans)
 
-* The bill debits **Inventory** when approved. When warehouse receipts post (P1-1b, needs unit cost in the Warehouse events and the
-  PO price passed to Warehouse — receipts from POs are booked at cost 0 today) the debit key moves to a goods-received-not-invoiced
-  account.
+* Bills for goods received before this release stay on the old Dr Inventory rule; new bills debit GRNI.
+* Stock that was in the warehouse before the release has no entries, so account 1200 starts below the Warehouse valuation until an
+  opening-balance entry is booked by hand. Movements before the release are not back-posted.
 * **No VAT split** (P1-3): Sales, Purchasing and Payment carry no tax fields. The engine and `VatOutput` key are ready for it.
-* **Not posted yet:** stock receipt / issue and COGS (P1-1b), POS sales (P1-1c; the event lacks subtotal / tax / tender split),
+* **Not posted yet:** POS returns / refunds with refund tenders and cash paid-in / paid-out (P1-1e),
   payroll (P1-1d; the event has only NetPay), refunds and returns (P1-1e; Payment publishes the refund event before the gateway
   confirms, Sales returns carry no lines).
 * Existing invoices and bills (before this release) are not back-posted; demo data keeps its own legacy entries (`SourceKey` empty).

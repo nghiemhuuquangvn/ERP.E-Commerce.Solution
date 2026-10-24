@@ -118,7 +118,19 @@ public class VoidTransactionCommandHandler : IRequestHandler<VoidTransactionComm
         var t = await _uow.Transactions.GetByIdAsync(request.TransactionId, cancellationToken)
             ?? throw new InvalidOperationException("Transaction not found.");
 
+        var wasCompleted = t.Status == TransactionStatus.Completed;
         t.Void(request.Reason);
+
+        if (wasCompleted && t.CashShiftId.HasValue)
+        {
+            var shift = await _uow.CashShifts.GetByIdAsync(t.CashShiftId.Value, cancellationToken);
+            if (shift != null)
+            {
+                shift.UndoTransaction(t.TotalAmount);
+                await _uow.CashShifts.UpdateAsync(shift, cancellationToken);
+            }
+        }
+
         await _uow.Transactions.UpdateAsync(t, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
         return OpenTransactionCommandHandler.MapToDto(t);
@@ -167,7 +179,9 @@ public class CloseCashShiftCommandHandler : IRequestHandler<CloseCashShiftComman
             ?? throw new InvalidOperationException("Shift not found.");
 
         var closingCounts = request.ClosingCounts?.Select(c => (c.Denomination, c.Count)).ToList();
-        shift.Close(request.ClosingBalance, request.Notes, closingCounts);
+        var sales = await _uow.Transactions.GetByShiftAsync(shift.Id, cancellationToken);
+        var cashSales = sales.Where(x => x.Status == TransactionStatus.Completed).Sum(x => x.CashTendered);
+        shift.Close(request.ClosingBalance, request.Notes, closingCounts, cashSales);
         await _uow.CashShifts.UpdateAsync(shift, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
         return OpenCashShiftCommandHandler.MapShiftToDto(shift);

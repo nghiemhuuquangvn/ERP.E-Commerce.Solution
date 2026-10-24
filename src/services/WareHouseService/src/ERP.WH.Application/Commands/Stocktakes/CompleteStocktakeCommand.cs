@@ -113,6 +113,8 @@ public class ApproveStocktakeCommandHandler : IRequestHandler<ApproveStocktakeCo
                 MovementType = nameof(MovementType.Adjusted),
                 Reference = stocktake.StocktakeNumber,
                 Reason = movement.Reason,
+                UnitCost = inventory.Cost,
+                ValueDelta = Math.Round(line.Variance * inventory.Cost, 2),
                 RecordedAt = movement.RecordedAt,
                 EventCreatedAt = DateTime.UtcNow
             });

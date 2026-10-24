@@ -111,7 +111,8 @@ public class Transaction : AggregateRoot
         CompletedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        AddDomainEvent(new TransactionCreatedEvent(Id, TerminalId, CashierId, TotalAmount, PaymentMethod, CompletedAt.Value, SaleLines()));
+        AddDomainEvent(new TransactionCreatedEvent(Id, TerminalId, CashierId, TotalAmount, PaymentMethod, CompletedAt.Value, SaleLines(),
+            SaleAmounts(), CashShiftId, ExternalPaymentId));
     }
 
     public void ConfirmExternalPayment(Guid externalPaymentId)
@@ -134,8 +135,18 @@ public class Transaction : AggregateRoot
 
         // Only a completed sale took stock out; voiding an open cart has nothing to put back.
         if (wasCompleted)
-            AddDomainEvent(new TransactionVoidedEvent(Id, TerminalId, reason, VoidedAt.Value, SaleLines()));
+            AddDomainEvent(new TransactionVoidedEvent(Id, TerminalId, reason, VoidedAt.Value, SaleLines(), SaleAmounts(), CashShiftId));
     }
+
+    /// <summary>What the drawer received for this sale: its cash tenders (a sale without tender rows is paid by <see cref="PaymentMethod"/>).</summary>
+    public decimal CashTendered => _tenders.Count > 0
+        ? _tenders.Where(x => IsCash(x.PaymentMethod)).Sum(x => x.Amount)
+        : IsCash(PaymentMethod) ? TotalAmount : 0m;
+
+    public static bool IsCash(string? method) => string.Equals(method?.Trim(), "Cash", StringComparison.OrdinalIgnoreCase);
+
+    private PosSaleAmounts SaleAmounts() =>
+        new(SubTotal, DiscountAmount, TaxAmount, _tenders.Select(x => new PosTender(x.PaymentMethod, x.Amount)).ToList());
 
     private List<PosSaleLine> SaleLines() =>
         _items.Select(i => new PosSaleLine(i.ProductId, i.ProductName, i.Quantity)).ToList();

@@ -54,6 +54,7 @@ public class ReservationFulfillmentService : IReservationFulfillmentService
                 }
             }
 
+            var issuedCost = 0m;
             if (item.LotAllocations.Count > 0)
             {
                 foreach (var allocation in item.LotAllocations)
@@ -67,6 +68,7 @@ public class ReservationFulfillmentService : IReservationFulfillmentService
 
                     var log = new CostConsumptionLog(item.ProductId, lot.LotId, allocation.Quantity, lot.UnitCost, reservation.OrderId);
                     await _uow.CostConsumptionLogs.AddAsync(log, cancellationToken);
+                    issuedCost += allocation.Quantity * lot.UnitCost;
                 }
             }
             else
@@ -75,6 +77,7 @@ public class ReservationFulfillmentService : IReservationFulfillmentService
                 // breakdown exists, so log one row against the product's current average cost.
                 var log = new CostConsumptionLog(item.ProductId, lotId: null, item.Quantity, inventory.Cost, reservation.OrderId);
                 await _uow.CostConsumptionLogs.AddAsync(log, cancellationToken);
+                issuedCost = item.Quantity * inventory.Cost;
             }
 
             var movement = new StockMovement(
@@ -98,6 +101,8 @@ public class ReservationFulfillmentService : IReservationFulfillmentService
                 MovementType = nameof(MovementType.Sold),
                 FromLocation = item.WarehouseLocation,
                 SourceOrderId = reservation.OrderId,
+                UnitCost = item.Quantity > 0 ? Math.Round(issuedCost / item.Quantity, 4) : 0m,
+                ValueDelta = -Math.Round(issuedCost, 2),
                 RecordedAt = movement.RecordedAt,
                 EventCreatedAt = DateTime.UtcNow
             });

@@ -216,7 +216,7 @@ public class PurchaseOrder : BaseEntity
     /// ever called them, and PurchaseOrderStatus.Received/PartiallyReceived were
     /// unreachable enum values.
     /// </summary>
-    public PurchaseOrderReceivedDomainEvent ReceiveGoods(IReadOnlyDictionary<Guid, GoodsReceiptLineInput> receivedQuantities)
+    public PurchaseOrderReceivedDomainEvent ReceiveGoods(IReadOnlyDictionary<Guid, GoodsReceiptLineInput> receivedQuantities, Guid? goodsReceiptId = null)
     {
         if (Status != PurchaseOrderStatus.Approved && Status != PurchaseOrderStatus.Ordered && Status != PurchaseOrderStatus.PartiallyReceived)
             throw new InvalidOperationException($"Cannot receive goods for a purchase order in {Status} status");
@@ -236,7 +236,10 @@ public class PurchaseOrder : BaseEntity
             {
                 ProductCode = item.ProductCode,
                 QuantityReceived = line.QuantityAccepted,
-                QuantityRejected = line.QuantityRejected
+                QuantityRejected = line.QuantityRejected,
+                UnitPrice = item.UnitPrice.Amount,
+                CurrencyCode = item.UnitPrice.Currency,
+                GoodsReceiptId = goodsReceiptId
             });
         }
 

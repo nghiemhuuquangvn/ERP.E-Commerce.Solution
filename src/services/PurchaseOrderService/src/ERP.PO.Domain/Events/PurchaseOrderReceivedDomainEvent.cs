@@ -42,5 +42,15 @@ public class PurchaseOrderReceivedDomainEvent : IDomainEvent, ITenantEvent
         /// <summary>Added 2026-07-10. No consumer reads this field yet — Warehouse
         /// only reacts to QuantityReceived (accepted) today.</summary>
         public decimal QuantityRejected { get; set; }
+
+        /// <summary>PO unit price of the line (ROADMAP P1-1b). WarehouseService books the receipt at this cost; 0 on events
+        /// published before 2026-10-24.</summary>
+        public decimal UnitPrice { get; set; }
+
+        public string CurrencyCode { get; set; } = string.Empty;
+
+        /// <summary>The goods receipt (GRN) this line belongs to. Warehouse keys the stock movement on it so a second partial
+        /// receipt of the same product on the same order is not mistaken for a redelivery. Null on older events.</summary>
+        public Guid? GoodsReceiptId { get; set; }
     }
 }

@@ -58,7 +58,18 @@ public class CashShift : AggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void Close(decimal closingBalance, string? notes = null, List<(decimal denomination, int count)>? closingCounts = null)
+    /// <summary>A completed sale of this shift was voided while the shift is still open: it no longer counts as a sale.</summary>
+    public void UndoTransaction(decimal amount)
+    {
+        if (Status != CashShiftStatus.Open)
+            return; // the closed event already went out; the void itself reverses the sale in the ledger
+        TotalSales -= amount;
+        TransactionCount = Math.Max(0, TransactionCount - 1);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <param name="cashSalesTotal">Cash tenders of the shift's completed (not voided) sales, for the expected-cash figure on the event.</param>
+    public void Close(decimal closingBalance, string? notes = null, List<(decimal denomination, int count)>? closingCounts = null, decimal cashSalesTotal = 0m)
     {
         if (Status != CashShiftStatus.Open)
             throw new InvalidOperationException("Shift is not open.");
@@ -79,7 +90,8 @@ public class CashShift : AggregateRoot
         ClosedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        AddDomainEvent(new CashShiftClosedEvent(Id, TerminalId, CashierId, TotalSales, TransactionCount, ClosedAt.Value));
+        AddDomainEvent(new CashShiftClosedEvent(Id, TerminalId, CashierId, TotalSales, TransactionCount, ClosedAt.Value,
+            OpeningBalance, closingBalance, ExpectedCashBalance(cashSalesTotal), closingBalance - ExpectedCashBalance(cashSalesTotal)));
     }
 
     /// <summary>Expected cash on hand: opening float + cash-tendered sales this shift.</summary>

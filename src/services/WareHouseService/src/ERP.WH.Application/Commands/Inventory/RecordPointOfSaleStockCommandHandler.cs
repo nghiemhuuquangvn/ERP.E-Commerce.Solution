@@ -102,6 +102,9 @@ public class RecordPointOfSaleStockCommandHandler : IRequestHandler<RecordPointO
                 Reference = reference,
                 Reason = movement.Reason,
                 SourceOrderId = request.TransactionId,
+                UnitCost = inventory.Cost,
+                // sale: stock value leaves at the current cost; void: it comes back at the current cost
+                ValueDelta = Math.Round((request.IsReturn ? 1 : -1) * line.Quantity * inventory.Cost, 2),
                 RecordedAt = movement.RecordedAt,
                 EventCreatedAt = DateTime.UtcNow
             });

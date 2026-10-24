@@ -58,6 +58,7 @@ namespace ERP.ACC.Infrastructure
             // sales_order_events (RabbitMQ) — previously dead MediatR handler classes.
             services.AddHostedService<AccountingKafkaConsumer>();
             services.AddHostedService<SalesOrderRabbitMqConsumer>();
+            services.AddHostedService<WarehouseRabbitMqConsumer>();
 
             services.AddScoped<IAccountRepository, AccountRepository>();
             services.AddScoped<IInvoiceRepository, InvoiceRepository>();

@@ -131,6 +131,45 @@ public class JournalPostingServiceTests
     }
 
     [Fact]
+    public async Task AMappingFromBeforeTheStockKeys_IsToppedUpFromTheDefaultAccounts_WithoutTouchingTheExistingKeys()
+    {
+        // The SYSTEM tenant after P1-1 phase 1: default chart, mapping rows for the first seven keys only.
+        foreach (var entry in DefaultChartOfAccounts.Accounts)
+            _accounts.Add(DefaultChartOfAccounts.ToAccount(entry));
+        var oldKeys = new[] { PostingKeys.Cash, PostingKeys.Bank, PostingKeys.AccountsReceivable, PostingKeys.AccountsPayable,
+            PostingKeys.SalesRevenue, PostingKeys.Inventory, PostingKeys.VatOutput };
+        foreach (var key in oldKeys)
+            _mappings.Add(PostingAccountMapping.Create(Tenant, key,
+                _accounts.Single(a => a.AccountNumber == PostingKeys.DefaultAccountNumbers[key]).Id));
+
+        var stock = PostingRules.ForStockMovement(Guid.NewGuid(), "Sold", -120m, new DateTime(2026, 10, 23), null)!;
+        var posted = await Service().PostAsync(stock);
+
+        _addedMappings.Select(m => m.PostingKey).Should().BeEquivalentTo(
+            new[] { PostingKeys.GoodsReceivedNotInvoiced, PostingKeys.CostOfGoodsSold, PostingKeys.InventoryAdjustment, PostingKeys.CashOverShort });
+        posted!.Lines.Single(l => l.Debit > 0).AccountId.Should().Be(_accounts.Single(a => a.AccountNumber == "5000").Id);
+        posted.Lines.Single(l => l.Credit > 0).AccountId.Should().Be(_accounts.Single(a => a.AccountNumber == "1200").Id);
+    }
+
+    [Fact]
+    public async Task ATenantWhoseChartLacksTheStockAccounts_StillPostsInvoices_AndOnlyStockPostingFails()
+    {
+        _accounts.Add(NewAccount("111"));
+        _accounts.Add(NewAccount("131"));
+        _accounts.Add(NewAccount("511"));
+        _mappings.Add(PostingAccountMapping.Create(Tenant, PostingKeys.AccountsReceivable, _accounts[1].Id));
+        _mappings.Add(PostingAccountMapping.Create(Tenant, PostingKeys.SalesRevenue, _accounts[2].Id));
+        OpenPeriod(new DateTime(2026, 10, 1));
+
+        var invoice = await Service().PostAsync(Invoice(Guid.NewGuid(), new DateTime(2026, 10, 23)));
+        invoice.Should().NotBeNull();
+
+        var stock = PostingRules.ForStockMovement(Guid.NewGuid(), "Received", 500m, new DateTime(2026, 10, 23), null)!;
+        var act = () => Service().PostAsync(stock);
+        await act.Should().ThrowAsync<PostingConfigurationException>();
+    }
+
+    [Fact]
     public async Task ATenantWithItsOwnMapping_UsesIt_AndGetsNoExtraAccounts()
     {
         OwnChartWithMapping();

@@ -117,7 +117,7 @@ GET    /api/v1/inventory/valuation/snapshots/{period}
 |---|---|
 | Module 7 (Warehouse) | Nguồn event chính — Inventory hoàn toàn phụ thuộc, không có logic nghiệp vụ nhập/xuất riêng |
 | Module 5 (Sales) | Hai chiều: Sales query Available Quantity, Sales publish event tạo/huỷ Reservation |
-| Module 12 (Finance) | Publish `InventoryValuationSnapshotClosed` để Finance ghi bút toán tồn kho vào GL — Inventory không tự ghi sổ kế toán |
+| Module 12 (Finance) | Publish `InventoryValuationSnapshotClosed` để Finance ghi bút toán tồn kho vào GL — Inventory không tự ghi sổ kế toán. Từ 2026-10-24 (P1-1b) mỗi `StockMovementRecordedEvent` mang `UnitCost` + `ValueDelta` và AccountingService tự ghi bút toán nhập/xuất/điều chỉnh (xem docs/business/Accounting/AutoPosting.md) |
 | Module 6 (Purchasing) | `LowStockDetected` gợi ý tạo Purchase Request |
 
 ## 10. So sánh & Reconciliation

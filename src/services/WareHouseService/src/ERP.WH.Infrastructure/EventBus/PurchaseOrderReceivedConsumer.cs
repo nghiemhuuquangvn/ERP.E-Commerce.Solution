@@ -120,6 +120,7 @@ public class PurchaseOrderReceivedConsumer : IHostedService
         {
             var productCode = item.Value<string>("ProductCode");
             var quantityReceived = item.Value<decimal?>("QuantityReceived") ?? 0m;
+            var receiptId = item.GuidValue("GoodsReceiptId");
             if (string.IsNullOrWhiteSpace(productCode) || quantityReceived <= 0)
                 continue;
 
@@ -137,8 +138,10 @@ public class PurchaseOrderReceivedConsumer : IHostedService
             {
                 ProductId = inventory.ProductId,
                 Quantity = (int)quantityReceived,
-                UnitCost = 0,
-                Reference = $"PO-{purchaseOrderId}",
+                UnitCost = item.Value<decimal?>("UnitPrice") ?? 0m,
+                // One receipt (GRN) per delivery: a second partial receipt of the same product on the same order is new stock,
+                // not a redelivery. Events from before the GRN id existed keep the old per-order reference.
+                Reference = receiptId.HasValue ? $"PO-{purchaseOrderId}-{receiptId.Value:N}" : $"PO-{purchaseOrderId}",
                 PurchaseOrderId = purchaseOrderId
             }, cancellationToken);
         }

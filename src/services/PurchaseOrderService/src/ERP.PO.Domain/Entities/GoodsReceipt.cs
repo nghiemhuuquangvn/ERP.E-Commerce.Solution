@@ -19,7 +19,7 @@ public class GoodsReceipt : BaseEntity
 
     private GoodsReceipt() { }
 
-    public static GoodsReceipt Create(Guid purchaseOrderId, Guid tenantId, string receiptNumber, string receivedBy, string? notes = null)
+    public static GoodsReceipt Create(Guid purchaseOrderId, Guid tenantId, string receiptNumber, string receivedBy, string? notes = null, Guid? id = null)
     {
         if (purchaseOrderId == Guid.Empty)
             throw new ArgumentException("Purchase order ID is required", nameof(purchaseOrderId));
@@ -29,6 +29,7 @@ public class GoodsReceipt : BaseEntity
 
         return new GoodsReceipt
         {
+            Id = id ?? Guid.NewGuid(),
             PurchaseOrderId = purchaseOrderId,
             TenantId = tenantId,
             ReceiptNumber = receiptNumber,

@@ -174,8 +174,12 @@ namespace ERP.ACC.Application.Posting
             {
                 var number = PostingKeys.DefaultAccountNumbers[key];
                 if (!byNumber.TryGetValue(number, out var account))
-                    throw new PostingConfigurationException(key,
-                        $"Posting key '{key}' has no account: map it to one of the tenant's accounts (default would be {number}).");
+                {
+                    // Not fatal here: the flows that do not use this key must keep posting. A flow that needs it fails in Resolve.
+                    _logger.LogWarning("Tenant {TenantId}: posting key '{Key}' has no account; map it (default would be {Number})",
+                        tenantId, key, number);
+                    continue;
+                }
 
                 var mapping = PostingAccountMapping.Create(tenantId, key, account.Id);
                 await _uow.PostingMappings.AddAsync(mapping, ct);

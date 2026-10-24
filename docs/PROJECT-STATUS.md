@@ -33,7 +33,30 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
-### 2026-10-23 — ROADMAP P1-1 (phase 1): automatic GL posting (`feat/gl-auto-posting`, unmerged)
+### 2026-10-24 — ROADMAP P1-1c: POS sale → GL (`feat/gl-pos`, on top of `feat/gl-stock-cogs`, unmerged)
+- POS events now carry the money: `TransactionCreated/Voided` → `Amounts` (subtotal, discount, tax, tenders), shift id, external payment id;
+  `CashShiftClosed` → opening, counted, expected cash and variance. Accounting consumes `pos-topic` and posts Dr Cash / Bank, Cr Revenue
+  (net of discount) + Cr VAT; a void reverses it; a cash difference goes to the new `CashOverShort` key (5100). COGS stays with Warehouse.
+- Fixed in POS: the shift's `TotalSales`/`TransactionCount` ignored voids; `ExpectedCashBalance`/`CashVariance` were never used (now computed at
+  close from the shift's completed sales); `pos-topic` keys were random (now the transaction / shift id so a void cannot overtake its sale).
+- Known, not fixed: POS tax ignores the discount (POS pricing rule); voids / offline sync after a shift is closed are not in the shift figures.
+- Verified live in Docker (SYSTEM tenant): split cash 100 + card 100 sale with 20 discount and 20 tax → Dr 1000 100 + 100 / Cr 4000 180 / Cr 2200 20;
+  a voided cash sale → entry Reversed + reversal entry; shift counted 195 vs expected 200 → Dr 5100 / Cr 1000 5; shift totals 200 / 1 sale.
+- Tests: POS 10, ACC 73. No migration.
+
+### 2026-10-24 — ROADMAP P1-1b: stock receipt / issue and COGS → GL (`feat/gl-stock-cogs`, unmerged)
+- Warehouse's `StockMovementRecordedEvent` now carries `UnitCost` and a signed `ValueDelta` (receipt, ship COGS, POS sale / void,
+  approved adjustment, stocktake variance). Accounting consumes it from RabbitMQ `warehouse_exchange` and posts: receipt Dr Inventory /
+  Cr GRNI (2100), issue Dr COGS (5000) / Cr Inventory, gain / loss against the new `InventoryAdjustment` key; the bill now debits GRNI.
+- Fixed on the way: PO receipts were booked at cost 0 (the PO event had no price) and a second partial receipt of the same product on
+  the same PO was dropped as a "redelivery" (movement keyed on `PO-<id>`; now on the goods receipt). `PurchaseOrderReceivedDomainEvent`
+  lines carry `UnitPrice`, `CurrencyCode`, `GoodsReceiptId`.
+- No migration: the three new posting keys are added to a tenant's mapping on first use from the default accounts. Stock before
+  the release is not back-posted (1200 starts below the Warehouse valuation until an opening entry is booked).
+- Also fixed: receiving a product for the first time (`POST inventory/receive` for a new product) failed with "belongs to a different tenant" (Update() on a just-added row); this also blocked the PO-driven receipt, which needs an Inventory row per SKU.
+- Tests: PO 9, WH 13, ACC 60. Verified live in Docker (SYSTEM tenant): manual receipt 10 x 40 -> Dr 1200 / Cr 2100 400; PO 20 x 50 received 12 then 8 -> both stocked at cost 50, entries 600 and 400; Sold 3 -> Dr 5000 / Cr 1200 150; Damaged 2 -> loss 100; Adjusted +4 -> gain 200; bill approval -> Dr 2100 / Cr 2000 1000. Not run live: ship-time COGS through a sales order, POS sale, redelivery (unit-tested only).
+
+### 2026-10-23 — ROADMAP P1-1 (phase 1): automatic GL posting (`feat/gl-auto-posting`, merged as PR #15)
 - Accounting never wrote journal entries by itself. Now `IJournalPostingService` posts invoice (Dr AR / Cr Revenue), payment
   (Dr Cash|Bank / Cr AR, applied to the invoice), cancelled order (invoice cancelled + entry reversed), bill approval (Dr Inventory /
   Cr AP) and bill payment, through a per-tenant **posting profile**. Idempotent per document (`JournalEntries.SourceKey` unique
@@ -401,7 +424,7 @@ Full write-up: `docs/business/Identity/SecurityReview-2026-10.md` ("Follow-up re
 
 ## 8. Next step: ROADMAP P0-9 (schema alignment), rest of P0, then P1 (needs a plan + approval)
 
-Update 2026-10-23: P0-1, P0-9, P0-7, P0-8 and P1-1 phase 1 are closed. Next: P1-1b stock + COGS, or P1-2 (VAS chart) — P0-10 (least-privilege SQL access) can be scheduled any time. The text below is from 2026-10-22.
+Update 2026-10-23: P0-1, P0-9, P0-7, P0-8 and P1-1 phase 1 are closed, P1-1b (stock + COGS) is implemented on `feat/gl-stock-cogs`. Next: P1-1c POS, or P1-2 (VAS chart) — P0-10 (least-privilege SQL access) can be scheduled any time. The text below is from 2026-10-22.
 
 Working checklist: `task.md` at the repo root (same IDs as `docs/ROADMAP.md`).
 
