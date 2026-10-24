@@ -332,6 +332,10 @@ namespace ERP.SO.Domain.Entities
             if (Status != OrderStatus.ReturnRequested)
                 throw new InvalidOperationException($"Cannot complete a return for an order in {Status} status");
 
+            // The amount is typed by the approver; the ledger credits the customer with exactly this figure (ROADMAP P1-1e).
+            if (refundAmount <= 0m || refundAmount > TotalAmount)
+                throw new InvalidOperationException($"The refund amount must be greater than 0 and at most the order total ({TotalAmount}).");
+
             var from = Status;
             Status = OrderStatus.Returned;
             ReturnedAt = DateTime.UtcNow;
