@@ -1,6 +1,6 @@
 # Accounting reports
 
-Status: ROADMAP P1-2b (2026-10-24). Endpoints are under `api/v1/accounting/reports/…` (permission `accounting:reports:view`); the admin app has a tab for each.
+Status: ROADMAP P1-2b and P1-2c (2026-10-24). Endpoints are under `api/v1/accounting/reports/…` (permission `accounting:reports:view`); the admin app has a tab for each.
 Every report counts **Posted** and **Reversed** entries only (a reversed entry is offset by its reversal entry); Draft and Voided entries never count.
 
 | Report | Route | What it shows |
@@ -10,6 +10,8 @@ Every report counts **Posted** and **Reversed** entries only (a reversed entry i
 | Profit and loss | `profit-and-loss` | Revenue and expenses of a range (closing entries left out) |
 | Balance sheet | `balance-sheet` | Assets, liabilities, equity as of a date (adds the not-yet-closed result to equity) |
 | Cash flow | `cash-flow` | Direct method, by counter-account, with opening / closing cash |
+| **B01-DN** balance sheet by indicator code | `statements/balance-sheet` | Vietnamese form, prior-period column, CSV (draft layout) |
+| **B02-DN** income statement by indicator code | `statements/income-statement` | Vietnamese form, prior-period column, CSV (draft layout) |
 
 ## Trial balance (bảng cân đối số phát sinh)
 
@@ -46,8 +48,27 @@ Every report counts **Posted** and **Reversed** entries only (a reversed entry i
 * **Not** the official B03-DN form: it has no indicator codes, no foreign-currency effect and does not apply the circular's rules for interest and tax paid (they follow the account's
   category). The default categories are suggestions to be reviewed with the accountant.
 
+## B01-DN and B02-DN by indicator code (P1-2c)
+
+`GET statements/balance-sheet?asOfDate&compareAsOfDate&format` and `GET statements/income-statement?fromDate&toDate&compareFromDate&compareToDate&format`
+(`format=csv` downloads the file). The rows — indicator code (mã số), name, amount, prior amount — come from a **layout stored as data** (`StatementLayouts`): an *account row* is the sum
+of the balances of every account whose number starts with one of its prefixes, a *formula row* is a signed sum of other rows (`10 = 01 − 02`, `270 = 100 + 200`).
+
+* **Signs.** A balance is taken on the row's natural side, so a contra account (214 accumulated depreciation, 229 provisions, 419 treasury shares, 521 sales deductions) reduces its group by
+  itself. Parent accounts carry no postings of their own, so prefix sums never count a posting twice (a test checks that no account is taken by two terms of one statement).
+* **Balance side.** B01 splits 131 and 331 by the side of each account's balance: a credit balance on 131 is *customers' advances* (312), a debit balance on 331 is *advances to suppliers* (132).
+* **B02** uses period activity **without** the period-closing entries; **B01** uses cumulative balances as of the date (closing entries included) and puts the result not yet moved to retained
+  earnings into row 421b, so total assets (270) equal total sources (440) before and after closing. `isBalanced` says so for every column.
+* **Nothing silently missing.** `unmapped` lists accounts with a balance that no row takes (production-cost accounts 621 / 622 / 627, or every account of a tenant on another chart, e.g. `Simple14`).
+  A test checks that every account of the `Vas99` template is on a statement except those documented exclusions (and the temporary account 911).
+* **Prior-period column:** each row returns `amount` and `priorAmount` when a comparison date (B01) or range (B02) is given.
+* **CSV** (all report routes with `format=csv`): UTF-8 with a byte-order mark so Excel shows Vietnamese correctly, CRLF, RFC 4180 quoting, numbers with a dot decimal and no thousands separator
+  (a Vietnamese-locale Excel may need the import wizard for decimals), and text cells starting with `= + @ -` prefixed with an apostrophe against formula injection. The ledger export has every row.
+* **Draft.** The rows and account groups were written from the Circular 200 forms (numbering largely kept by Circular 99/2025/TT-BTC) and **have not been checked against the official forms**.
+  Short- versus long-term is decided by the account (no maturity data): borrowings 341 are short-term, bonds 343 and deposits 344 long-term, prepaid 242 long-term. The accountant must review the
+  layout before the statements are filed. The Vas99 template gained the sub-accounts 2291–2294 (provisions) and 2147 for this.
+
 ## Known limits (see docs/DEFERRED-ISSUES.md)
 
 The ledger and the cash flow read journal lines by account and range (index `IX_JELines_AccountId`); the ledger pages in memory after computing the running balance, which is fine
-for normal volumes but a very busy account over a very long range should use date-bounded snapshots later. B01 / B02 / B03 layouts by indicator code, off-balance accounts,
-indirect-method cash flow, comparative periods and export to Excel / PDF are not built (ROADMAP P1-2c).
+for normal volumes but a very busy account over a very long range should use date-bounded snapshots later. B03 by indicator code, B09 notes, off-balance accounts, indirect-method cash flow and Excel / PDF export are not built (ROADMAP P1-2d).
