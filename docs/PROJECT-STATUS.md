@@ -42,7 +42,8 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
   lines carry `UnitPrice`, `CurrencyCode`, `GoodsReceiptId`.
 - No migration: the three new posting keys are added to a tenant's mapping on first use from the default accounts. Stock before
   the release is not back-posted (1200 starts below the Warehouse valuation until an opening entry is booked).
-- Tests: PO 9, WH 13, ACC 60. Live Docker verification: see the session report (Docker Desktop was not running when this was written).
+- Also fixed: receiving a product for the first time (`POST inventory/receive` for a new product) failed with "belongs to a different tenant" (Update() on a just-added row); this also blocked the PO-driven receipt, which needs an Inventory row per SKU.
+- Tests: PO 9, WH 13, ACC 60. Verified live in Docker (SYSTEM tenant): manual receipt 10 x 40 -> Dr 1200 / Cr 2100 400; PO 20 x 50 received 12 then 8 -> both stocked at cost 50, entries 600 and 400; Sold 3 -> Dr 5000 / Cr 1200 150; Damaged 2 -> loss 100; Adjusted +4 -> gain 200; bill approval -> Dr 2100 / Cr 2000 1000. Not run live: ship-time COGS through a sales order, POS sale, redelivery (unit-tested only).
 
 ### 2026-10-23 — ROADMAP P1-1 (phase 1): automatic GL posting (`feat/gl-auto-posting`, merged as PR #15)
 - Accounting never wrote journal entries by itself. Now `IJournalPostingService` posts invoice (Dr AR / Cr Revenue), payment

@@ -59,6 +59,7 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
         }
 
         var inventory = await _uow.Inventories.GetByProductIdAsync(request.ProductId, cancellationToken);
+        var isNewInventory = inventory == null;
         if (inventory == null)
         {
             inventory = new InventoryEntity(
@@ -75,7 +76,10 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
         if (request.LocationId.HasValue && inventory.LocationId == null)
             inventory.AssignLocation(request.LocationId);
 
-        await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
+        // A row added a moment ago is already tracked as Added; Update() would turn it into Modified, and the tenant guard
+        // (EnforceTenantOnSave) refuses a Modified row that has no tenant yet. Receiving a product for the first time failed on this.
+        if (!isNewInventory)
+            await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
 
         if (request.LocationId.HasValue)
         {
@@ -85,8 +89,10 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
                 locationStock = new InventoryLocationStock(request.ProductId, request.LocationId.Value);
                 await _uow.InventoryLocationStocks.AddAsync(locationStock, cancellationToken);
             }
+            var isNewLocationStock = locationStock.TenantId == Guid.Empty;
             locationStock.Receive(request.Quantity);
-            await _uow.InventoryLocationStocks.UpdateAsync(locationStock, cancellationToken);
+            if (!isNewLocationStock)
+                await _uow.InventoryLocationStocks.UpdateAsync(locationStock, cancellationToken);
         }
 
         var movement = new StockMovement(
