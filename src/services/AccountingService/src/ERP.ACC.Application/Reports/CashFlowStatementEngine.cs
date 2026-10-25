@@ -64,9 +64,9 @@ namespace ERP.ACC.Application.Reports
             return statement;
         }
 
-        private sealed record Computed(Dictionary<string, decimal> Amounts, List<CashMovement> Unmapped);
+        internal sealed record Computed(Dictionary<string, decimal> Amounts, List<CashMovement> Unmapped);
 
-        private static Computed Compute(CashFlowLayout layout, CashFlowColumn column, decimal divisor)
+        internal static Computed Compute(CashFlowLayout layout, CashFlowColumn column, decimal divisor)
         {
             var sums = layout.Rows.Where(r => r.Formula.Count == 0).ToDictionary(r => r.Code, _ => 0m);
             var unmapped = new List<CashMovement>();

@@ -38,6 +38,9 @@ namespace ERP.ACC.Application.Reports
 
         /// <summary>"Vnd", "Thousand" or "Million"; empty = the report profile's unit.</summary>
         public string? Unit { get; set; }
+
+        /// <summary>"direct" (default) or "indirect" (ROADMAP P1-2g).</summary>
+        public string? Method { get; set; }
     }
 
     public class GetCashFlowStatementQueryHandler : IRequestHandler<GetCashFlowStatementQuery, FinancialStatementDto>
@@ -62,8 +65,17 @@ namespace ERP.ACC.Application.Reports
             if (request.CompareFromDate.HasValue && request.CompareFromDate.Value.Date > request.CompareToDate!.Value.Date)
                 throw new BusinessRuleException("Accounting", "The comparison start date is after its end date.");
 
+            var indirect = string.IsNullOrWhiteSpace(request.Method) || request.Method.Equals("direct", StringComparison.OrdinalIgnoreCase)
+                ? false
+                : request.Method.Equals("indirect", StringComparison.OrdinalIgnoreCase)
+                    ? true
+                    : throw new BusinessRuleException("Accounting", "The cash-flow method must be direct or indirect.");
+
             var accounts = await _accounts.GetAllAsync(cancellationToken);
             var cashIds = accounts.Where(a => a.IsCash).Select(a => a.Id).ToHashSet();
+
+            if (indirect)
+                return await HandleIndirectAsync(request, accounts, cashIds, cancellationToken);
 
             var current = await ColumnAsync(accounts, cashIds, request.FromDate.Date, request.ToDate.Date, cancellationToken);
             CashFlowColumn? prior = request.CompareFromDate.HasValue
@@ -73,6 +85,34 @@ namespace ERP.ACC.Application.Reports
             var profile = await _profiles.GetAsync(cancellationToken);
             var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
             var statement = CashFlowStatementEngine.Evaluate(CashFlowLayouts.Layout, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
+            if (cashIds.Count == 0)
+                statement.Notes.Add("No account is flagged as cash (IsCash): flag the cash and bank accounts to get a cash-flow statement.");
+            statement.FromDate = request.FromDate.Date;
+            statement.ToDate = request.ToDate.Date;
+            statement.CompareFromDate = request.CompareFromDate?.Date;
+            statement.CompareToDate = request.CompareToDate?.Date;
+            return statement;
+        }
+
+        /// <summary>The indirect method: the direct cash rows plus balance changes and the activity of each range (ROADMAP P1-2g).</summary>
+        private async Task<FinancialStatementDto> HandleIndirectAsync(
+            GetCashFlowStatementQuery request, List<Account> accounts, HashSet<Guid> cashIds, CancellationToken ct)
+        {
+            async Task<IndirectColumn> Column(DateTime from, DateTime to)
+            {
+                var direct = await ColumnAsync(accounts, cashIds, from, to, ct);
+                var before = (await _lines.GetAccountBalancesAsync(null, from.AddDays(-1), null, ct)).ToDictionary(b => b.AccountId);
+                var after = (await _lines.GetAccountBalancesAsync(null, to, null, ct)).ToDictionary(b => b.AccountId);
+                var activity = (await _lines.GetActivityBalancesAsync(from, to, JournalEntry.PeriodClosingType, ct)).ToDictionary(b => b.AccountId);
+                return new IndirectColumn(direct, before, after, activity);
+            }
+
+            var current = await Column(request.FromDate.Date, request.ToDate.Date);
+            var prior = request.CompareFromDate.HasValue ? await Column(request.CompareFromDate.Value.Date, request.CompareToDate!.Value.Date) : null;
+
+            var profile = await _profiles.GetAsync(ct);
+            var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
+            var statement = IndirectCashFlowEngine.Evaluate(IndirectCashFlowLayouts.Layout, accounts, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
             if (cashIds.Count == 0)
                 statement.Notes.Add("No account is flagged as cash (IsCash): flag the cash and bank accounts to get a cash-flow statement.");
             statement.FromDate = request.FromDate.Date;
