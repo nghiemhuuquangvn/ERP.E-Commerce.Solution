@@ -733,13 +733,13 @@ function BalanceSheetPanel() {
 }
 
 /** The text sections of the notes the accountant writes (policies, standards, non-cash transactions …). */
-function NoteTextsEditor({ canEdit, language }: { canEdit: boolean; language: NoteLanguage }) {
+function NoteTextsEditor({ canEdit, language, fiscalYear }: { canEdit: boolean; language: NoteLanguage; fiscalYear: number }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { data } = useQuery({ queryKey: ['accounting', 'noteTexts', language], queryFn: () => reportsApi.noteTexts(language), staleTime: 30_000 })
+  const { data } = useQuery({ queryKey: ['accounting', 'noteTexts', language, fiscalYear], queryFn: () => reportsApi.noteTexts(language, fiscalYear), staleTime: 30_000 })
   const [draft, setDraft] = useState<Record<string, string>>({})
   const save = useMutation({
-    mutationFn: () => reportsApi.updateNoteTexts(draft, language),
+    mutationFn: () => reportsApi.updateNoteTexts(draft, language, fiscalYear),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting', 'noteTexts'] })
       queryClient.invalidateQueries({ queryKey: ['accounting', 'reports', 'notes'] })
@@ -756,6 +756,11 @@ function NoteTextsEditor({ canEdit, language }: { canEdit: boolean; language: No
           <div key={s.key}>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               {s.number}. {s.title}
+              {s.inherited && s.text && (
+                <span className="ml-2 text-xs font-normal text-amber-700">
+                  {s.sourceYear === 0 ? t('accounting.reports.notesInheritedAll') : t('accounting.reports.notesInherited', { year: s.sourceYear })}
+                </span>
+              )}
             </label>
             <textarea
               className="input min-h-[70px]"
@@ -832,6 +837,9 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
   const [toDate, setToDate] = useState(todayISODate())
   const [unit, setUnit] = useState<AmountUnit | ''>('')
   const [language, setLanguage] = useState<NoteLanguage>('vi')
+  const [yearOverride, setYearOverride] = useState('')
+  // the fiscal year of the texts: the year of the period end unless chosen (0 = the texts for every year)
+  const fiscalYear = yearOverride !== '' ? Number(yearOverride) || 0 : Number(toDate.slice(0, 4)) || 0
   const [compareFrom, setCompareFrom] = useState('')
   const [compareTo, setCompareTo] = useState('')
   const ready = !!fromDate && !!toDate
@@ -867,6 +875,10 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
           </select>
         </div>
         <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesYear')}</label>
+          <input type="number" min="0" max="9999" className="input w-28" value={yearOverride !== '' ? yearOverride : String(fiscalYear)} onChange={(e) => setYearOverride(e.target.value)} />
+        </div>
+        <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesLanguage')}</label>
           <select className="input" value={language} onChange={(e) => setLanguage(e.target.value as NoteLanguage)}>
             <option value="vi">Tiếng Việt</option>
@@ -884,7 +896,7 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
         <ExportButton path="statements/notes" params={params} name="notes-b09.csv" disabled={!ready || (!!compareFrom !== !!compareTo)} pdf />
       </div>
 
-      <NoteTextsEditor canEdit={canEdit} language={language} />
+      <NoteTextsEditor canEdit={canEdit} language={language} fiscalYear={fiscalYear} />
 
       {ready && isLoading && <p className="text-sm text-gray-400">{t('common.loading')}</p>}
       {data && (

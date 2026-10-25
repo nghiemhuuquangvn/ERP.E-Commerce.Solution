@@ -266,6 +266,7 @@ export type NoteLanguage = 'vi' | 'en'
 
 export interface Notes {
   language: NoteLanguage
+  fiscalYear: number
   compareFromDate: string | null
   compareToDate: string | null
   title: string
@@ -284,17 +285,21 @@ export interface NoteTextEntry {
   title: string
   hint: string
   text: string
+  /** The fiscal year asked for (0 = the texts for every year) and the year the shown text was written for. */
+  fiscalYear: number
+  sourceYear: number
+  inherited: boolean
 }
 
 export const reportsApi = {
   notes: (params: { fromDate: string; toDate: string; unit?: AmountUnit; lang?: NoteLanguage; compareFromDate?: string; compareToDate?: string }) =>
     apiClient.get<Notes>(`${ACC_BASE}/accounting/reports/statements/notes`, { params }).then((r) => r.data),
 
-  noteTexts: (lang: NoteLanguage = 'vi') =>
-    apiClient.get<NoteTextEntry[]>(`${ACC_BASE}/accounting/reports/notes/text`, { params: { lang } }).then((r) => r.data),
+  noteTexts: (lang: NoteLanguage = 'vi', fiscalYear = 0) =>
+    apiClient.get<NoteTextEntry[]>(`${ACC_BASE}/accounting/reports/notes/text`, { params: { lang, fiscalYear } }).then((r) => r.data),
 
-  updateNoteTexts: (texts: Record<string, string>, language: NoteLanguage = 'vi') =>
-    apiClient.put<NoteTextEntry[]>(`${ACC_BASE}/accounting/reports/notes/text`, { texts, language }).then((r) => r.data),
+  updateNoteTexts: (texts: Record<string, string>, language: NoteLanguage = 'vi', fiscalYear = 0) =>
+    apiClient.put<NoteTextEntry[]>(`${ACC_BASE}/accounting/reports/notes/text`, { texts, language, fiscalYear }).then((r) => r.data),
 
   reportProfile: () => apiClient.get<ReportProfile>(`${ACC_BASE}/accounting/reports/profile`).then((r) => r.data),
 

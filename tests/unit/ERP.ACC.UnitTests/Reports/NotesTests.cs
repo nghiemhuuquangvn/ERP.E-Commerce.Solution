@@ -508,4 +508,76 @@ public class NotesTests
         PdfWriter.ToBytes(notes).Length.Should().BeGreaterThan(1000);
         ReportTables.Notes(notes).Rows.SelectMany(r => r).OfType<string>().Should().Contain("en");
     }
+
+    // ---- ROADMAP P1-2k: texts per fiscal year ----
+
+    private static NoteText Txt(string key, string text, int year, string lang = "vi") => NoteText.Create(Guid.NewGuid(), key, text, lang, year);
+
+    [Fact]
+    public void A_report_reads_the_text_of_its_year_else_the_latest_earlier_year_else_the_texts_for_every_year()
+    {
+        var stored = new[] { Txt("policy.cash", "every year", 0), Txt("policy.cash", "2025", 2025), Txt("policy.cash", "2027", 2027), Txt("policy.fx", "only 2026", 2026) };
+
+        NoteTextVersions.Resolve(stored, "vi", 2027)["policy.cash"].Should().Be(("2027", 2027));
+        NoteTextVersions.Resolve(stored, "vi", 2026)["policy.cash"].Should().Be(("2025", 2025));      // carried forward
+        NoteTextVersions.Resolve(stored, "vi", 2024)["policy.cash"].Should().Be(("every year", 0));    // before any version
+        NoteTextVersions.Resolve(stored, "vi", 2025).Should().NotContainKey("policy.fx");             // written for a later year
+        NoteTextVersions.Resolve(stored, "en", 2027).Should().BeEmpty();                               // another language
+    }
+
+    [Fact]
+    public void A_cleared_year_falls_back_to_the_earlier_text()
+    {
+        var cleared = Txt("policy.cash", "2026", 2026);
+        cleared.Set("");
+
+        NoteTextVersions.Resolve(new[] { Txt("policy.cash", "2025", 2025), cleared }, "vi", 2026)["policy.cash"].Should().Be(("2025", 2025));
+    }
+
+    [Theory]
+    [InlineData("2026-12-31", 12, 2026)]
+    [InlineData("2026-06-30", 12, 2026)]
+    [InlineData("2026-03-31", 3, 2026)]    // a year ending in March: the year that ends 31 Mar 2026
+    [InlineData("2026-04-01", 3, 2027)]
+    [InlineData("2026-10-15", 6, 2027)]
+    public void The_fiscal_year_is_the_year_in_which_it_ends(string date, int yearEndMonth, int expected)
+    {
+        NoteTextVersions.FiscalYearOf(DateTime.Parse(date, System.Globalization.CultureInfo.InvariantCulture), yearEndMonth).Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task Saving_a_year_does_not_touch_another_and_the_listing_marks_inherited_texts()
+    {
+        var (handler, stored, uow) = Texts();
+
+        await handler.Handle(new UpdateNoteTextsCommand { FiscalYear = 2025, Texts = new() { ["policy.cash"] = "Policy 2025" } }, default);
+        await handler.Handle(new UpdateNoteTextsCommand { FiscalYear = 2027, Texts = new() { ["policy.cash"] = "Policy 2027" } }, default);
+
+        stored.Select(n => (n.FiscalYear, n.Text)).Should().BeEquivalentTo(new[] { (2025, "Policy 2025"), (2027, "Policy 2027") });
+        var list = new GetNoteTextsQueryHandler(uow.Object.NoteTexts);
+        var y2026 = (await list.Handle(new GetNoteTextsQuery { FiscalYear = 2026 }, default)).Single(x => x.Key == "policy.cash");
+        y2026.Text.Should().Be("Policy 2025");
+        y2026.Inherited.Should().BeTrue();
+        y2026.SourceYear.Should().Be(2025);
+        var y2027 = (await list.Handle(new GetNoteTextsQuery { FiscalYear = 2027 }, default)).Single(x => x.Key == "policy.cash");
+        y2027.Inherited.Should().BeFalse();
+
+        await handler.Handle(new UpdateNoteTextsCommand { FiscalYear = 2027, Texts = new() { ["policy.cash"] = "" } }, default);   // clear 2027
+        (await list.Handle(new GetNoteTextsQuery { FiscalYear = 2027 }, default)).Single(x => x.Key == "policy.cash").Text.Should().Be("Policy 2025");
+        await FluentActions.Awaiting(() => handler.Handle(new UpdateNoteTextsCommand { FiscalYear = -1, Texts = new() }, default)).Should().ThrowAsync<BusinessRuleException>();
+    }
+
+    [Fact]
+    public async Task The_notes_use_the_texts_of_the_fiscal_year_of_the_end_date()
+    {
+        var texts = new[] { Txt("policy.cash", "Policy 2025", 2025), Txt("policy.cash", "Policy 2026", 2026), Txt("policy.cash", "Policy 2027", 2027) };
+        var h = Handler(_chart, Ledger(), texts: texts).Handler;
+
+        var notes = await h.Handle(Query(), default);                                                                // October 2026 → fiscal year 2026
+        var earlier = await h.Handle(new GetNotesQuery { FromDate = new DateTime(2025, 10, 1), ToDate = new DateTime(2025, 10, 31) }, default);
+
+        notes.FiscalYear.Should().Be(2026);
+        Section(notes, "IV.1").Text.Should().Be("Policy 2026");
+        Section(earlier, "IV.1").Text.Should().Be("Policy 2025");
+    }
 }
