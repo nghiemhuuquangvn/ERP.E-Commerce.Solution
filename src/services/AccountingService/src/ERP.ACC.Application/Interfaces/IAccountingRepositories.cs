@@ -113,6 +113,16 @@ namespace ERP.ACC.Application.Interfaces
         Task<List<NoteTextRevision>> GetRevisionsAsync(string sectionKey, string language, int fiscalYear, int take, CancellationToken ct = default);
     }
 
+    public interface IEInvoiceRepository
+    {
+        /// <summary>The e-invoice of an invoice that is not cancelled (issued or failed), tracked; null when none.</summary>
+        Task<EInvoice?> GetActiveByInvoiceAsync(Guid invoiceId, CancellationToken ct = default);
+
+        /// <summary>The latest e-invoice of an invoice whatever its status (no tracking); null when none.</summary>
+        Task<EInvoice?> GetLatestByInvoiceAsync(Guid invoiceId, CancellationToken ct = default);
+        Task AddAsync(EInvoice einvoice, CancellationToken ct = default);
+    }
+
     public interface ILoanRepository
     {
         /// <summary>The loan with its installments (tracked, so a repayment is saved by the unit of work).</summary>

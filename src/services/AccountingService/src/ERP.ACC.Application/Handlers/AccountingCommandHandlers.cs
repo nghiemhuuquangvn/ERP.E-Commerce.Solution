@@ -131,12 +131,14 @@ namespace ERP.ACC.Application.Handlers
         private readonly IAccountingUnitOfWork _uow;
         private readonly IJournalPostingService _posting;
         private readonly ILogger<AdjustInvoiceVatCommandHandler> _logger;
+        private readonly IEInvoiceRepository? _einvoices;
 
-        public AdjustInvoiceVatCommandHandler(IAccountingUnitOfWork uow, IJournalPostingService posting, ILogger<AdjustInvoiceVatCommandHandler> logger)
+        public AdjustInvoiceVatCommandHandler(IAccountingUnitOfWork uow, IJournalPostingService posting, ILogger<AdjustInvoiceVatCommandHandler> logger, IEInvoiceRepository? einvoices = null)
         {
             _uow = uow;
             _posting = posting;
             _logger = logger;
+            _einvoices = einvoices;
         }
 
         public async Task<InvoiceDto> Handle(AdjustInvoiceVatCommand request, CancellationToken cancellationToken)
@@ -147,6 +149,9 @@ namespace ERP.ACC.Application.Handlers
                 throw new BusinessRuleException("Accounting", $"Invoice {invoice.InvoiceNumber} is cancelled: its VAT cannot be adjusted.");
             if (request.TaxRatePercent < 0m || request.TaxRatePercent > 100m)
                 throw new BusinessRuleException("Accounting", "The VAT rate must be between 0 and 100.");
+            // an issued e-invoice declares the VAT to the tax authority: cancel it before the split can change
+            if (_einvoices != null && await _einvoices.GetActiveByInvoiceAsync(invoice.Id, cancellationToken) is { Status: (int)EInvoiceStatus.Issued })
+                throw new BusinessRuleException("Accounting", $"Invoice {invoice.InvoiceNumber} has an issued e-invoice: cancel it before changing the VAT.");
 
             // the gross is what the customer owes and may already be paid: only the split changes
             var split = VatCalculator.Split(invoice.Amount, request.TaxRatePercent, pricesIncludeTax: true);

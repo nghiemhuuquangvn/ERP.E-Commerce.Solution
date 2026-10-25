@@ -9,6 +9,12 @@ public class TenantTaxSettings : BaseEntity
     public decimal DefaultTaxRatePercent { get; private set; } = 0m;
     public bool PricesIncludeTax { get; private set; } = true;
 
+    /// <summary>Code of the e-invoice provider (e.g. "sandbox"); empty = e-invoices are off (ROADMAP P1-3).</summary>
+    public string? EInvoiceProvider { get; private set; }
+
+    /// <summary>The invoice series printed on the e-invoices (e.g. "C26TAA").</summary>
+    public string? EInvoiceSeries { get; private set; }
+
     protected TenantTaxSettings() { }
 
     public static TenantTaxSettings CreateDefault(Guid tenantId)
@@ -27,10 +33,12 @@ public class TenantTaxSettings : BaseEntity
         };
     }
 
-    public void Update(string? companyTaxCode, decimal defaultTaxRatePercent, bool pricesIncludeTax)
+    public void Update(string? companyTaxCode, decimal defaultTaxRatePercent, bool pricesIncludeTax, string? eInvoiceProvider = null, string? eInvoiceSeries = null)
     {
         CompanyTaxCode = companyTaxCode;
         DefaultTaxRatePercent = defaultTaxRatePercent;
         PricesIncludeTax = pricesIncludeTax;
+        EInvoiceProvider = string.IsNullOrWhiteSpace(eInvoiceProvider) ? null : eInvoiceProvider.Trim().ToLowerInvariant();
+        EInvoiceSeries = string.IsNullOrWhiteSpace(eInvoiceSeries) ? null : eInvoiceSeries.Trim().ToUpperInvariant();
     }
 }

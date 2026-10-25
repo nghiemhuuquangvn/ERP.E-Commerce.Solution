@@ -29,6 +29,7 @@ namespace ERP.ACC.Infrastructure.Persistence
         public DbSet<Loan> Loans { get; set; }
         public DbSet<NoteText> NoteTexts { get; set; }
         public DbSet<NoteTextRevision> NoteTextRevisions { get; set; }
+        public DbSet<EInvoice> EInvoices { get; set; }
         public DbSet<LoanInstallment> LoanInstallments { get; set; }
         public DbSet<OutboxMessage> OutboxMessages { get; set; }
         public DbSet<SystemTaxSettings> SystemTaxSettings { get; set; }
@@ -124,6 +125,24 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.Text).IsRequired().HasMaxLength(4000);
                 e.Property(x => x.Language).IsRequired().HasMaxLength(5);
                 e.HasIndex(x => new { x.TenantId, x.SectionKey, x.Language, x.FiscalYear, x.CreatedAt });
+            });
+
+            modelBuilder.Entity<EInvoice>(e =>
+            {
+                e.ToTable("EInvoices");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.Provider).IsRequired().HasMaxLength(30);
+                e.Property(x => x.Series).IsRequired().HasMaxLength(20);
+                e.Property(x => x.Number).HasMaxLength(20);
+                e.Property(x => x.LookupCode).HasMaxLength(40);
+                e.Property(x => x.ProviderReference).HasMaxLength(100);
+                e.Property(x => x.BuyerName).IsRequired().HasMaxLength(200);
+                e.Property(x => x.BuyerTaxCode).HasMaxLength(20);
+                e.Property(x => x.BuyerAddress).HasMaxLength(300);
+                e.Property(x => x.Error).HasMaxLength(1000);
+                e.Property(x => x.CancelReason).HasMaxLength(500);
+                e.HasIndex(x => new { x.TenantId, x.InvoiceId }).IsUnique().HasFilter("[IsDeleted] = 0 AND [Status] <> 2");
             });
 
             modelBuilder.Entity<Loan>(e =>
@@ -275,6 +294,8 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.HasKey(x => x.Id);
                 e.Property(x => x.CompanyTaxCode).HasMaxLength(50);
                 e.Property(x => x.DefaultTaxRatePercent).HasColumnType("decimal(8,4)");
+                e.Property(x => x.EInvoiceProvider).HasMaxLength(30);
+                e.Property(x => x.EInvoiceSeries).HasMaxLength(20);
                 e.HasIndex(x => x.TenantId).IsUnique();
             });
 
