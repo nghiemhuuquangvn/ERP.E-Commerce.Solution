@@ -1896,6 +1896,7 @@
       "notesHistoryCleared": "(đã xóa)",
       "notesHistoryUse": "Dùng văn bản này",
       "notesLanguage": "Ngôn ngữ thuyết minh",
+      "notesNoPdf": "Ngôn ngữ này chưa xuất được PDF (chưa có font CJK); dùng Excel hoặc CSV.",
       "notesCompareFrom": "So sánh từ",
       "notesCompareTo": "So sánh đến",
       "notesEdit": "Soạn nội dung thuyết minh (chính sách kế toán, chuẩn mực …)",

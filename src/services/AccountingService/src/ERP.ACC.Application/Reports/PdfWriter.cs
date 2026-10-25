@@ -46,6 +46,9 @@ namespace ERP.ACC.Application.Reports
         /// <summary>The notes B09-DN as a PDF: company block, title, period and unit, then every section with its text and its table, the signatories at the end.</summary>
         public static byte[] ToBytes(NotesDto notes)
         {
+            if (!NoteStrings.SupportsPdf(notes.Language))
+                throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("Accounting",
+                    "The PDF of the notes is not available in this language (it needs a Japanese / Chinese font): use format=xlsx or csv.");
             PdfFonts.Ensure();
             var renderer = new PdfDocumentRenderer { Document = Build(notes) };
             renderer.RenderDocument();
@@ -191,7 +194,7 @@ namespace ERP.ACC.Application.Reports
                 row.Format.Font.Bold = r.IsTotal;
                 Cell(row, 0, r.Label, ParagraphAlignment.Left);
                 for (var i = 0; i < numeric; i++)
-                    Cell(row, i + 1, i < r.Cells.Count ? FormatAmount(r.Cells[i], s.Language == NoteStrings.English) : "", ParagraphAlignment.Right);
+                    Cell(row, i + 1, i < r.Cells.Count ? FormatAmount(r.Cells[i], NoteStrings.UsesPointDecimal(s.Language)) : "", ParagraphAlignment.Right);
             }
         }
 

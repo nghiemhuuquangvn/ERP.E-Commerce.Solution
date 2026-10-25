@@ -419,7 +419,7 @@ public class NotesTests
         var en = await new GetNoteTextsQueryHandler(repo).Handle(new GetNoteTextsQuery { Language = "en" }, default);
         en.Single(x => x.Key == "policy.fx").Text.Should().Be("Rates of the State Bank.");
         en.Single(x => x.Key == "policy.fx").Title.Should().Be("Accounting policy: foreign currency");
-        await FluentActions.Awaiting(() => handler.Handle(new UpdateNoteTextsCommand { Language = "fr", Texts = new() }, default)).Should().ThrowAsync<BusinessRuleException>().WithMessage("*Unsupported language*");
+        await FluentActions.Awaiting(() => handler.Handle(new UpdateNoteTextsCommand { Language = "de", Texts = new() }, default)).Should().ThrowAsync<BusinessRuleException>().WithMessage("*Unsupported language*");
         await FluentActions.Awaiting(() => Handler(_chart, Ledger()).Handler.Handle(new GetNotesQuery { FromDate = From, ToDate = To, Language = "de" }, default)).Should().ThrowAsync<BusinessRuleException>();
     }
 
@@ -507,6 +507,89 @@ public class NotesTests
         text.Should().Contain(t => t.StartsWith("(Not written yet"));
         PdfWriter.ToBytes(notes).Length.Should().BeGreaterThan(1000);
         ReportTables.Notes(notes).Rows.SelectMany(r => r).OfType<string>().Should().Contain("en");
+    }
+
+    // ---- ROADMAP P1-2l: Japanese, Chinese, French ----
+
+    [Fact]
+    public void Every_language_has_every_wording_and_every_note_section_a_title_and_a_hint()
+    {
+        foreach (var language in NoteStrings.Supported)
+        {
+            var strings = NoteStrings.For(language);
+            strings.Language.Should().Be(language);
+            foreach (var property in typeof(NoteStrings).GetProperties().Where(p => p.PropertyType == typeof(string)))
+                ((string?)property.GetValue(strings)).Should().NotBeNullOrWhiteSpace($"{language} needs {property.Name}");
+            foreach (var section in NoteTextSections.All)
+            {
+                section.TitleFor(language).Should().NotBeNullOrWhiteSpace($"{language} title of {section.Key}");
+                section.HintFor(language).Should().NotBeNullOrWhiteSpace($"{language} hint of {section.Key}");
+                if (language != NoteStrings.Vietnamese)
+                    section.TitleFor(language).Should().NotBe(section.TitleFor(NoteStrings.Vietnamese));
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(null, "vi")]
+    [InlineData("vi-VN", "vi")]
+    [InlineData("EN", "en")]
+    [InlineData("ja-JP", "ja")]
+    [InlineData("zh-CN", "zh")]
+    [InlineData("fr", "fr")]
+    public void Languages_are_matched_by_their_code_and_a_regional_form_counts(string? input, string expected)
+    {
+        NoteStrings.Normalize(input).Should().Be(expected);
+    }
+
+    [Fact]
+    public void An_unsupported_language_is_refused_and_only_japanese_and_chinese_lack_a_pdf()
+    {
+        var act = () => NoteStrings.Normalize("de");
+
+        act.Should().Throw<ERP.Shared.Infrastructure.Exceptions.BusinessRuleException>().WithMessage("*vi, en, ja, zh or fr*");
+        NoteStrings.Supported.Where(l => !NoteStrings.SupportsPdf(l)).Should().BeEquivalentTo(new[] { "ja", "zh" });
+    }
+
+    [Theory]
+    [InlineData("fr", "Trésorerie et équivalents de trésorerie", "Total")]
+    [InlineData("ja", "現金及び現金同等物", "合計")]
+    [InlineData("zh", "货币资金及现金等价物", "合计")]
+    public async Task The_notes_are_produced_in_the_language_asked_for(string language, string cash, string total)
+    {
+        var notes = await Handler(_chart, Ledger()).Handler.Handle(new GetNotesQuery { FromDate = From, ToDate = To, Language = language }, default);
+
+        notes.Language.Should().Be(language);
+        notes.Sections.Select(s => s.Title).Should().Contain(cash);
+        Section(notes, "V.1").Table!.Rows.Select(r => r.Label).Should().Contain(total);
+        ERP.ACC.Application.Reports.XlsxWriter.ToBytes(ReportTables.Notes(notes)).Length.Should().BeGreaterThan(1000);
+    }
+
+    [Fact]
+    public async Task French_notes_export_a_pdf_and_japanese_and_chinese_refuse_it_clearly()
+    {
+        var french = await Handler(_chart, Ledger()).Handler.Handle(new GetNotesQuery { FromDate = From, ToDate = To, Language = "fr" }, default);
+        PdfWriter.ToBytes(french).Length.Should().BeGreaterThan(1000);
+        PdfWriter.Build(french).Sections.Cast<Section>().SelectMany(s => Texts(s)).Should().Contain(x => x.StartsWith("Du 01/10/2026 au 31/10/2026"));
+
+        foreach (var language in new[] { "ja", "zh" })
+        {
+            var notes = await Handler(_chart, Ledger()).Handler.Handle(new GetNotesQuery { FromDate = From, ToDate = To, Language = language }, default);
+            var act = () => PdfWriter.ToBytes(notes);
+            act.Should().Throw<ERP.Shared.Infrastructure.Exceptions.BusinessRuleException>().WithMessage("*format=xlsx or csv*");
+        }
+    }
+
+    [Fact]
+    public async Task Texts_are_kept_per_language_so_a_french_report_does_not_show_the_vietnamese_text()
+    {
+        var (handler, texts) = Handler(_chart, Ledger());
+        texts.Add(NoteText.Create(Guid.NewGuid(), "policy.cash", "Chính sách tiền", "vi", 0));
+        texts.Add(NoteText.Create(Guid.NewGuid(), "policy.cash", "Politique de trésorerie.", "fr", 0));
+
+        var french = await handler.Handle(new GetNotesQuery { FromDate = From, ToDate = To, Language = "fr" }, default);
+
+        Section(french, "IV.1").Text.Should().Be("Politique de trésorerie.");
     }
 
     // ---- ROADMAP P1-2k: texts per fiscal year ----

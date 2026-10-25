@@ -262,7 +262,7 @@ export interface NoteSection {
   table: NoteTable | null
 }
 
-export type NoteLanguage = 'vi' | 'en'
+export type NoteLanguage = 'vi' | 'en' | 'ja' | 'zh' | 'fr'
 
 /** One change of a note text: who saved it, when, and the text it got (empty = cleared). */
 export interface NoteTextRevision {

@@ -919,7 +919,11 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
           <select className="input" value={language} onChange={(e) => setLanguage(e.target.value as NoteLanguage)}>
             <option value="vi">Tiếng Việt</option>
             <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="zh">中文</option>
+            <option value="fr">Français</option>
           </select>
+          {(language === 'ja' || language === 'zh') && <p className="mt-1 text-xs text-amber-700">{t('accounting.reports.notesNoPdf')}</p>}
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesCompareFrom')}</label>
@@ -929,7 +933,7 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
           <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesCompareTo')}</label>
           <input type="date" className="input" value={compareTo} onChange={(e) => setCompareTo(e.target.value)} />
         </div>
-        <ExportButton path="statements/notes" params={params} name="notes-b09.csv" disabled={!ready || (!!compareFrom !== !!compareTo)} pdf />
+        <ExportButton path="statements/notes" params={params} name="notes-b09.csv" disabled={!ready || (!!compareFrom !== !!compareTo)} pdf={language !== 'ja' && language !== 'zh'} />
       </div>
 
       <NoteTextsEditor canEdit={canEdit} language={language} fiscalYear={fiscalYear} />

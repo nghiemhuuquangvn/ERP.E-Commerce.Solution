@@ -1896,6 +1896,7 @@
       "notesHistoryCleared": "(cleared)",
       "notesHistoryUse": "Use this text",
       "notesLanguage": "Language of the notes",
+      "notesNoPdf": "PDF is not available in this language yet (no CJK font); use Excel or CSV.",
       "notesCompareFrom": "Compare from",
       "notesCompareTo": "Compare to",
       "notesEdit": "Edit the texts of the notes (policies, standards …)",

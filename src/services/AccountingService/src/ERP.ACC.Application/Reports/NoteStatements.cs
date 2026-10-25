@@ -43,7 +43,7 @@ namespace ERP.ACC.Application.Reports
     {
         public string LayoutId { get; set; } = "B09-DN";
 
-        /// <summary>"vi" or "en": the language of the fixed wording (see <see cref="NoteStrings"/>).</summary>
+        /// <summary>"vi", "en", "ja", "zh" or "fr": the language of the fixed wording (see <see cref="NoteStrings"/>).</summary>
         public string Language { get; set; } = NoteStrings.Vietnamese;
 
         /// <summary>The fiscal year (the year in which it ends) whose texts the notes show.</summary>
@@ -68,8 +68,11 @@ namespace ERP.ACC.Application.Reports
     {
         public sealed record Section(string Key, string Number, string Title, string Hint, string TitleEn, string HintEn)
         {
-            public string TitleFor(string language) => language == NoteStrings.English ? TitleEn : Title;
-            public string HintFor(string language) => language == NoteStrings.English ? HintEn : Hint;
+            public string TitleFor(string language) =>
+                language == NoteStrings.Vietnamese ? Title : language == NoteStrings.English ? TitleEn : NoteSectionTranslations.Find(Key, language)?.Title ?? TitleEn;
+
+            public string HintFor(string language) =>
+                language == NoteStrings.Vietnamese ? Hint : language == NoteStrings.English ? HintEn : NoteSectionTranslations.Find(Key, language)?.Hint ?? HintEn;
         }
 
         public static IReadOnlyList<Section> All { get; } = new[]

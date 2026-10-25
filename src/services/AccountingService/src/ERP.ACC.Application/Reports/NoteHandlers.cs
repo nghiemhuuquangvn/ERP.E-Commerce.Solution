@@ -21,7 +21,7 @@ namespace ERP.ACC.Application.Reports
         /// <summary>"Vnd", "Thousand" or "Million"; empty = the report profile's unit.</summary>
         public string? Unit { get; set; }
 
-        /// <summary>"vi" (default) or "en": the fixed wording and the accountant's texts of that language (ROADMAP P1-2j).</summary>
+        /// <summary>"vi" (default), "en", "ja", "zh" or "fr": the fixed wording and the accountant's texts of that language (ROADMAP P1-2j, P1-2l).</summary>
         public string? Language { get; set; }
 
         /// <summary>The prior period compared with: the tables get a column with its figures. Both dates or none.</summary>

@@ -7,7 +7,7 @@ namespace ERP.ACC.Application.Reports
     /// labels of the PDF. Vietnamese is the form the Circular prescribes; English is for tenants that file or share the notes in English. The accountant's own texts are
     /// stored per language (<c>NoteText.Language</c>). The report header comes from the report profile and is not translated.
     /// </summary>
-    public sealed class NoteStrings
+    public sealed partial class NoteStrings
     {
         public const string Vietnamese = "vi";
         public const string English = "en";
@@ -85,7 +85,7 @@ namespace ERP.ACC.Application.Reports
 
         public string UnitText(string unit) => unit.StartsWith("thousand", StringComparison.Ordinal) ? UnitThousand : unit.StartsWith("million", StringComparison.Ordinal) ? UnitMillion : UnitDong;
 
-        /// <summary>"vi" (default, also for an empty value) or "en"; anything else is refused.</summary>
+        /// <summary>"vi" (default, also for an empty value), "en", "ja", "zh" or "fr" (a regional form such as zh-CN counts); anything else is refused.</summary>
         public static string Normalize(string? language)
         {
             if (string.IsNullOrWhiteSpace(language))
@@ -95,10 +95,23 @@ namespace ERP.ACC.Application.Reports
                 return Vietnamese;
             if (code.StartsWith("en", StringComparison.Ordinal))
                 return English;
-            throw new BusinessRuleException("Accounting", $"Unsupported language '{language}'. Use vi or en.");
+            if (code.StartsWith("ja", StringComparison.Ordinal))
+                return Japanese;
+            if (code.StartsWith("zh", StringComparison.Ordinal))
+                return Chinese;
+            if (code.StartsWith("fr", StringComparison.Ordinal))
+                return French;
+            throw new BusinessRuleException("Accounting", $"Unsupported language '{language}'. Use vi, en, ja, zh or fr.");
         }
 
-        public static NoteStrings For(string? language) => Normalize(language) == English ? En : Vi;
+        public static NoteStrings For(string? language) => Normalize(language) switch
+        {
+            English => En,
+            Japanese => Ja,
+            Chinese => Zh,
+            French => Fr,
+            _ => Vi,
+        };
 
         public static readonly NoteStrings Vi = new()
         {
