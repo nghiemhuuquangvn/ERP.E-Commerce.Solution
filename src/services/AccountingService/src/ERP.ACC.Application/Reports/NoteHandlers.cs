@@ -2,6 +2,7 @@ using ERP.ACC.Application.DTOs;
 using System.Globalization;
 using ERP.ACC.Application.Handlers;
 using ERP.ACC.Application.Interfaces;
+using ERP.Shared.Authorization;
 using ERP.ACC.Application.Posting;
 using ERP.ACC.Domain.Entities;
 using ERP.ACC.Domain.Enums;
@@ -67,6 +68,41 @@ namespace ERP.ACC.Application.Reports
                 .ToDictionary(g => g.Key, g => { var best = g.OrderByDescending(n => n.FiscalYear).First(); return (best.Text, best.FiscalYear); });
     }
 
+    public class NoteTextRevisionDto
+    {
+        public DateTime ChangedAt { get; set; }
+        public string? ChangedBy { get; set; }
+
+        /// <summary>The text the section got with this change; empty = the text was cleared.</summary>
+        public string Text { get; set; } = string.Empty;
+    }
+
+    /// <summary>The history of one text (section, language, fiscal year), newest first; at most 50 changes.</summary>
+    public class GetNoteTextHistoryQuery : IRequest<List<NoteTextRevisionDto>>
+    {
+        public string Key { get; set; } = string.Empty;
+        public string? Language { get; set; }
+        public int FiscalYear { get; set; }
+    }
+
+    public class GetNoteTextHistoryQueryHandler : IRequestHandler<GetNoteTextHistoryQuery, List<NoteTextRevisionDto>>
+    {
+        public const int MaxRevisions = 50;
+        private readonly INoteTextRepository _texts;
+
+        public GetNoteTextHistoryQueryHandler(INoteTextRepository texts) => _texts = texts;
+
+        public async Task<List<NoteTextRevisionDto>> Handle(GetNoteTextHistoryQuery request, CancellationToken cancellationToken)
+        {
+            if (NoteTextSections.Find(request.Key) == null)
+                throw new BusinessRuleException("Accounting", $"Unknown note section: {request.Key}.");
+            if (request.FiscalYear < 0 || request.FiscalYear > 9999)
+                throw new BusinessRuleException("Accounting", "The fiscal year must be 0 (every year) or a year.");
+            var revisions = await _texts.GetRevisionsAsync(request.Key, NoteStrings.Normalize(request.Language), request.FiscalYear, MaxRevisions, cancellationToken);
+            return revisions.Select(r => new NoteTextRevisionDto { ChangedAt = r.CreatedAt, ChangedBy = r.CreatedBy, Text = r.Text }).ToList();
+        }
+    }
+
     /// <summary>Saves the texts of the given keys; an empty text clears it. Keys that are not note sections are refused.</summary>
     public class UpdateNoteTextsCommand : IRequest<List<NoteTextEntryDto>>
     {
@@ -109,11 +145,13 @@ namespace ERP.ACC.Application.Reports
     {
         private readonly IAccountingUnitOfWork _uow;
         private readonly ITenantProvider _tenant;
+        private readonly UserContext? _user;
 
-        public UpdateNoteTextsCommandHandler(IAccountingUnitOfWork uow, ITenantProvider tenant)
+        public UpdateNoteTextsCommandHandler(IAccountingUnitOfWork uow, ITenantProvider tenant, UserContext? user = null)
         {
             _uow = uow;
             _tenant = tenant;
+            _user = user;
         }
 
         public async Task<List<NoteTextEntryDto>> Handle(UpdateNoteTextsCommand request, CancellationToken cancellationToken)
@@ -126,18 +164,26 @@ namespace ERP.ACC.Application.Reports
                 throw new BusinessRuleException("Accounting", $"Unknown note section(s): {string.Join(", ", unknown)}.");
 
             var stored = await _uow.NoteTexts.GetAllAsync(cancellationToken);
+            var changedBy = _user == null ? null : (string.IsNullOrWhiteSpace(_user.UserName) ? _user.UserId : _user.UserName);
             foreach (var (key, text) in request.Texts)
             {
                 var existing = stored.FirstOrDefault(n => n.SectionKey == key && n.Language == language && n.FiscalYear == request.FiscalYear);
+                var clean = (text ?? string.Empty).Trim();
                 try
                 {
                     if (existing != null)
-                        existing.Set(text);
+                    {
+                        // the history keeps every change of the text, a clearing included; an unchanged save adds nothing
+                        if (existing.Text != clean)
+                            await _uow.NoteTexts.AddRevisionAsync(NoteTextRevision.Record(existing.TenantId, key, language, request.FiscalYear, clean, changedBy), cancellationToken);
+                        existing.Set(text ?? string.Empty);
+                    }
                     else if (!string.IsNullOrWhiteSpace(text))
                     {
                         var tenantId = _tenant.CurrentTenantId ?? throw new BusinessRuleException("Accounting", "No tenant in the request.");
                         var created = NoteText.Create(tenantId, key, text, language, request.FiscalYear);
                         await _uow.NoteTexts.AddAsync(created, cancellationToken);
+                        await _uow.NoteTexts.AddRevisionAsync(NoteTextRevision.Record(tenantId, key, language, request.FiscalYear, created.Text, changedBy), cancellationToken);
                         stored.Add(created);
                     }
                 }

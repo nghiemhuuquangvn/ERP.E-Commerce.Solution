@@ -19,3 +19,28 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ClosingPolicies') AND name = 'AutoAccrueLoanInterest')
     ALTER TABLE ClosingPolicies ADD AutoAccrueLoanInterest BIT NOT NULL CONSTRAINT DF_ClosingPolicies_AutoAccrue DEFAULT 0;
 GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'NoteTextRevisions')
+BEGIN
+    CREATE TABLE NoteTextRevisions
+    (
+        Id          UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+        TenantId    UNIQUEIDENTIFIER NOT NULL,
+        SectionKey  NVARCHAR(50)     NOT NULL,
+        Language    NVARCHAR(5)      NOT NULL,
+        FiscalYear  INT              NOT NULL,
+        [Text]      NVARCHAR(4000)   NOT NULL CONSTRAINT DF_NoteTextRevisions_Text DEFAULT N'',
+        Description NVARCHAR(MAX)    NULL,
+        IsDeleted   BIT              NOT NULL DEFAULT 0,
+        CreatedBy   NVARCHAR(256)    NULL,
+        CreatedAt   DATETIME2        NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedBy   NVARCHAR(256)    NULL,
+        UpdatedAt   DATETIME2        NOT NULL DEFAULT SYSUTCDATETIME(),
+        RowVersion  ROWVERSION
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_NoteTextRevisions_Key' AND object_id = OBJECT_ID('NoteTextRevisions'))
+    CREATE INDEX IX_NoteTextRevisions_Key ON NoteTextRevisions (TenantId, SectionKey, Language, FiscalYear, CreatedAt);
+GO

@@ -105,6 +105,12 @@ namespace ERP.ACC.Application.Interfaces
         /// <summary>Every note text of the tenant (tracked, so a changed text is saved by the unit of work).</summary>
         Task<List<NoteText>> GetAllAsync(CancellationToken ct = default);
         Task AddAsync(NoteText text, CancellationToken ct = default);
+
+        /// <summary>Appends a revision (the history of a text, ROADMAP P1-2l).</summary>
+        Task AddRevisionAsync(NoteTextRevision revision, CancellationToken ct = default);
+
+        /// <summary>The revisions of one text, newest first.</summary>
+        Task<List<NoteTextRevision>> GetRevisionsAsync(string sectionKey, string language, int fiscalYear, int take, CancellationToken ct = default);
     }
 
     public interface ILoanRepository

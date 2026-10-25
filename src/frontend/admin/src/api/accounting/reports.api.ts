@@ -264,6 +264,13 @@ export interface NoteSection {
 
 export type NoteLanguage = 'vi' | 'en'
 
+/** One change of a note text: who saved it, when, and the text it got (empty = cleared). */
+export interface NoteTextRevision {
+  changedAt: string
+  changedBy: string | null
+  text: string
+}
+
 export interface Notes {
   language: NoteLanguage
   fiscalYear: number
@@ -297,6 +304,9 @@ export const reportsApi = {
 
   noteTexts: (lang: NoteLanguage = 'vi', fiscalYear = 0) =>
     apiClient.get<NoteTextEntry[]>(`${ACC_BASE}/accounting/reports/notes/text`, { params: { lang, fiscalYear } }).then((r) => r.data),
+
+  noteTextHistory: (key: string, lang: NoteLanguage = 'vi', fiscalYear = 0) =>
+    apiClient.get<NoteTextRevision[]>(`${ACC_BASE}/accounting/reports/notes/text/history`, { params: { key, lang, fiscalYear } }).then((r) => r.data),
 
   updateNoteTexts: (texts: Record<string, string>, language: NoteLanguage = 'vi', fiscalYear = 0) =>
     apiClient.put<NoteTextEntry[]>(`${ACC_BASE}/accounting/reports/notes/text`, { texts, language, fiscalYear }).then((r) => r.data),

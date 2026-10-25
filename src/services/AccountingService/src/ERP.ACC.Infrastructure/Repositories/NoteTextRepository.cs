@@ -16,5 +16,13 @@ namespace ERP.ACC.Infrastructure.Repositories
 
         public async Task AddAsync(NoteText text, CancellationToken ct = default) =>
             await _db.NoteTexts.AddAsync(text, ct);
+
+        public async Task AddRevisionAsync(NoteTextRevision revision, CancellationToken ct = default) =>
+            await _db.NoteTextRevisions.AddAsync(revision, ct);
+
+        public async Task<List<NoteTextRevision>> GetRevisionsAsync(string sectionKey, string language, int fiscalYear, int take, CancellationToken ct = default) =>
+            await _db.NoteTextRevisions.AsNoTracking()
+                .Where(r => r.SectionKey == sectionKey && r.Language == language && r.FiscalYear == fiscalYear)
+                .OrderByDescending(r => r.CreatedAt).Take(take).ToListAsync(ct);
     }
 }

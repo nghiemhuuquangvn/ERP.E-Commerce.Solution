@@ -28,6 +28,7 @@ namespace ERP.ACC.Infrastructure.Persistence
         public DbSet<StatementAccountMapping> StatementAccountMappings { get; set; }
         public DbSet<Loan> Loans { get; set; }
         public DbSet<NoteText> NoteTexts { get; set; }
+        public DbSet<NoteTextRevision> NoteTextRevisions { get; set; }
         public DbSet<LoanInstallment> LoanInstallments { get; set; }
         public DbSet<OutboxMessage> OutboxMessages { get; set; }
         public DbSet<SystemTaxSettings> SystemTaxSettings { get; set; }
@@ -109,6 +110,17 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.Text).IsRequired().HasMaxLength(4000);
                 e.Property(x => x.Language).IsRequired().HasMaxLength(5);
                 e.HasIndex(x => new { x.TenantId, x.SectionKey, x.Language, x.FiscalYear }).IsUnique().HasFilter("[IsDeleted] = 0");
+            });
+
+            modelBuilder.Entity<NoteTextRevision>(e =>
+            {
+                e.ToTable("NoteTextRevisions");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.SectionKey).IsRequired().HasMaxLength(50);
+                e.Property(x => x.Text).IsRequired().HasMaxLength(4000);
+                e.Property(x => x.Language).IsRequired().HasMaxLength(5);
+                e.HasIndex(x => new { x.TenantId, x.SectionKey, x.Language, x.FiscalYear, x.CreatedAt });
             });
 
             modelBuilder.Entity<Loan>(e =>
