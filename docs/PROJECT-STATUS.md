@@ -36,10 +36,6 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
-<<<<<<< HEAD
-### 2026-10-25 — BA documentation for the other domains (`docs/ba-other-domains`, unmerged)
-- Five BA-level documents written afterwards for work done before rule 10, same structure as BA-Accounting (objectives, actors, glossary, processes, FR with acceptance criteria, BR, use cases, data and states, integrations, permissions, UAT with real results, assumptions, open issues, traceability): `Warehouse/BA-Warehouse.md` (P1-1b), `POS/BA-POS.md` (P1-1c), `HRM/BA-Payslip-Lifecycle.md` (P1-1d), `Payment/BA-Refunds-and-Returns.md` (P1-1e, Payment + Sales), `Identity/BA-Authentication-Hardening.md` (P0-7, P0-8). UAT results are copied from the verified runs of those tasks; items covered by unit tests only say so. No code change.
-=======
 ### 2026-10-25 — ROADMAP P1-2i: 14-account layouts, off-balance accounts, loan ledger, B09 notes (`feat/notes-loans-offbalance`, unmerged)
 - B01 / B02 / B03 (direct, indirect) and the notes choose their layout from the tenant's accounts (`ChartTemplates.Detect`): Simple14 layouts added. Found and fixed on the demo tenant: 421b took account 3100 twice.
 - Off-balance: account type 6, accounts 001 – 008 in the Vietnamese template, register `OffBalanceEntries` (migration 013), `accounting/off-balance`, report `reports/off-balance`; journal and posting refuse class 0.
@@ -47,7 +43,9 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 - B09: `NoteTexts` (015), `statements/notes` (28 sections, tables from the books, loans, off-balance), `notes/text`, PDF / Excel / CSV. Admin: Loans page, Off-balance page, report tabs Off-balance and B09 (with the text editor).
 - Verified live on `glcheck` and SYSTEM; throw-away loan / off-balance / invoice data removed (the 001 test account is inactive, the profile is back to VND, note texts saved for the check remain). Tests: ACC 301 (+47), Architecture 53/54 (known), admin `tsc -b` clean. Migrations 013 – 015 applied to the host DB.
 - Not done (P1-2j): posting link for loans, payment history, own-chart layouts, notes in English.
->>>>>>> origin/master
+
+### 2026-10-25 — BA documentation for the other domains (`docs/ba-other-domains`, unmerged)
+- Five BA-level documents written afterwards for work done before rule 10, same structure as BA-Accounting (objectives, actors, glossary, processes, FR with acceptance criteria, BR, use cases, data and states, integrations, permissions, UAT with real results, assumptions, open issues, traceability): `Warehouse/BA-Warehouse.md` (P1-1b), `POS/BA-POS.md` (P1-1c), `HRM/BA-Payslip-Lifecycle.md` (P1-1d), `Payment/BA-Refunds-and-Returns.md` (P1-1e, Payment + Sales), `Identity/BA-Authentication-Hardening.md` (P0-7, P0-8). UAT results are copied from the verified runs of those tasks; items covered by unit tests only say so. No code change.
 
 ### 2026-10-25 — ROADMAP P1-2h: B01 maturity split (`feat/b01-maturity`, unmerged)
 - B01 splits trade receivables (131 → rows 131 / 211, new group 210) and payables (331 → rows 311 / 331) by the due date of open invoices and approved bills (`MaturitySplit`, 12-month rule, capped by the ledger, totals unchanged); note on past dates. `StatementEngine` got a `StatementMaturity` input; the B01 handler reads the open documents. No schema change.
