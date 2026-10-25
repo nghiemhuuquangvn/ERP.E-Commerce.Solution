@@ -89,6 +89,13 @@ total rows add the rounded rows so the form foots; `isBalanced` (270 = 440, 70 =
 The **report profile** (`GET/PUT accounting/reports/profile`, table `ReportProfiles`) holds the company name, tax code, address, the three signatories and the default unit; CSV and Excel print the company block above the title, the unit in the
 period line and the signatories below. Rules BR-80 … BR-86 and a worked example: [BA-Accounting.md](BA-Accounting.md) §6.10.
 
+## PDF export of B01 / B02 / B03 (P1-2f)
+
+`format=pdf` on `statements/balance-sheet`, `income-statement` and `cash-flow` returns `application/pdf` (`<report>-<timestamp>.pdf`); every other report answers 400. `PdfWriter` (PDFsharp-MigraDoc 6, MIT) turns the same
+`FinancialStatementDto` as the other exports into an A4 portrait file: company block, title, period + unit line, indicator table (header repeated per page, totals bold, negatives in parentheses, dots as thousands separator), balanced check,
+unmapped accounts and notes in small print, signature block, "Trang x/y". Noto Sans (SIL OFL, `Reports/Fonts/OFL.txt`) is embedded as an assembly resource and registered through `PdfFonts` (a font resolver), so Vietnamese prints
+correctly in a container without fonts. Rules BR-87 … BR-93 and the use case: [BA-Accounting.md](BA-Accounting.md) §6.12, UC-15. No digital signature, not PDF/A.
+
 ## Excel and CSV export (P1-2c / P1-2d)
 
 Every report route accepts `format=csv` and `format=xlsx`. `ReportTables` turns each report into rows of cells (text or decimal); `CsvWriter` and `XlsxWriter` (ClosedXML, MIT) serialize the same table.
@@ -98,4 +105,4 @@ starts with `= + - @` is stored as text with Excel's quote prefix. Content type 
 ## Known limits (see docs/DEFERRED-ISSUES.md)
 
 The ledger and the cash flow read journal lines by account and range (index `IX_JELines_AccountId`); the ledger pages in memory after computing the running balance, which is fine
-for normal volumes but a very busy account over a very long range should use date-bounded snapshots later. B09 notes, off-balance accounts, indirect-method cash flow, PDF export and layouts for charts other than Vas99 are not built (ROADMAP P1-2f). Excel files are built in memory.
+for normal volumes but a very busy account over a very long range should use date-bounded snapshots later. B09 notes, off-balance accounts, indirect-method cash flow, PDF export and layouts for charts other than Vas99 are not built (ROADMAP P1-2g). Excel files are built in memory.
