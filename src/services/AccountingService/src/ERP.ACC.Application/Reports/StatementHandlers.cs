@@ -152,10 +152,12 @@ namespace ERP.ACC.Application.Reports
         private readonly IReportProfileRepository _profiles;
         private readonly IInvoiceRepository _invoices;
         private readonly IBillRepository _bills;
+        private readonly ILoanRepository _loans;
 
         public GetBalanceSheetStatementQueryHandler(
-            IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles, IInvoiceRepository invoices, IBillRepository bills)
+            IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles, IInvoiceRepository invoices, IBillRepository bills, ILoanRepository loans)
         {
+            _loans = loans;
             _invoices = invoices;
             _bills = bills;
             _accounts = accounts;
@@ -174,15 +176,16 @@ namespace ERP.ACC.Application.Reports
             // the long-term part of trade receivables / payables comes from the due dates of the open documents (ROADMAP P1-2h)
             var invoices = await _invoices.GetUnpaidInvoicesAsync(cancellationToken);
             var bills = await _bills.GetUnpaidBillsAsync(cancellationToken);
-            var maturity = MaturityFor(request.AsOfDate, accounts, current, invoices, bills);
-            var priorMaturity = prior != null ? MaturityFor(request.CompareAsOfDate!.Value, accounts, prior, invoices, bills) : null;
+            var loans = await _loans.ListAsync(cancellationToken);
+            var maturity = MaturityFor(request.AsOfDate, accounts, current, invoices, bills, loans);
+            var priorMaturity = prior != null ? MaturityFor(request.CompareAsOfDate!.Value, accounts, prior, invoices, bills, loans) : null;
 
             var profile = await _profiles.GetAsync(cancellationToken);
             var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
             var statement = StatementEngine.Evaluate(StatementLayouts.For(StatementLayouts.BalanceSheet, accounts)!, accounts, current, prior,
                 ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile), maturity, priorMaturity);
             var today = DateTime.UtcNow.Date;
-            if ((maturity is { IsEmpty: false } && request.AsOfDate.Date < today) || (priorMaturity is { IsEmpty: false } && request.CompareAsOfDate!.Value.Date < today))
+            if ((maturity is { HasDocumentParts: true } && request.AsOfDate.Date < today) || (priorMaturity is { HasDocumentParts: true } && request.CompareAsOfDate!.Value.Date < today))
                 statement.Notes.Add("The date is in the past: the open amount of each invoice and bill is its current open amount (payments are not kept by date), so the long-term split of an earlier date is approximate.");
             statement.ToDate = request.AsOfDate.Date;
             statement.CompareToDate = request.CompareAsOfDate?.Date;
@@ -191,7 +194,7 @@ namespace ERP.ACC.Application.Reports
 
         private static StatementMaturity MaturityFor(
             DateTime asOf, IReadOnlyCollection<Account> accounts,
-            IReadOnlyDictionary<Guid, AccountBalanceSummary> balances, List<Invoice> invoices, List<Bill> bills)
+            IReadOnlyDictionary<Guid, AccountBalanceSummary> balances, List<Invoice> invoices, List<Bill> bills, List<Loan> loans)
         {
             // the ledger caps the split: debit balances of 131, credit balances of 331 (account by account, as the rows take them)
             decimal Side(string prefix, bool debit) => accounts.Where(a => a.AccountNumber.StartsWith(prefix, StringComparison.Ordinal))
@@ -199,7 +202,7 @@ namespace ERP.ACC.Application.Reports
             var layout = StatementLayouts.For(StatementLayouts.BalanceSheet, accounts)!;
             string[] Prefixes(string special) => layout.Rows.Where(r => r.Special == special).SelectMany(r => r.Terms).Select(x => x.Prefix).Distinct().ToArray();
             decimal Cap(string special, bool debit) => Prefixes(special).Sum(p => Side(p, debit));
-            return MaturitySplit.Compute(invoices, bills, asOf, Cap("ShortLessLongReceivable", debit: true), Cap("ShortLessLongPayable", debit: false));
+            return MaturitySplit.Compute(invoices, bills, loans, asOf, Cap("ShortLessLongReceivable", debit: true), Cap("ShortLessLongPayable", debit: false), Cap("ShortLessLongLoan", debit: false));
         }
     }
 

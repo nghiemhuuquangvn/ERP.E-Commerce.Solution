@@ -219,7 +219,7 @@ namespace ERP.ACC.Application.Reports
 
             // 421b = the retained-earnings account of this year + the result not yet closed (computed)
             var rows = b.Rows.ToList();
-            foreach (var (code, special) in new[] { ("131", "ShortLessLongReceivable"), ("311", "ShortLessLongPayable") })
+            foreach (var (code, special) in new[] { ("131", "ShortLessLongReceivable"), ("311", "ShortLessLongPayable"), ("320", "ShortLessLongLoan"), ("338", "AddLongLoan") })
             {
                 var at = rows.FindIndex(r => r.Code == code);
                 rows[at] = rows[at] with { Special = special }; // the account total, less what falls due after 12 months (see MaturitySplit)
@@ -237,7 +237,7 @@ namespace ERP.ACC.Application.Reports
                 new[]
                 {
                     "Draft: the rows and account groups follow the Circular 200 form (numbering largely kept by Circular 99/2025); the accountant must review them before filing.",
-                    "Trade receivables (131) and payables (331) are split by the due date of the open invoices and approved bills: more than 12 months after the balance-sheet date = long-term. The other items are decided by the account (no due dates exist): borrowings 341 are short-term, bonds 343 and deposits received 344 long-term; prepaid expenses 242 are long-term.",
+                    "Trade receivables (131) and payables (331) are split by the due date of the open invoices and approved bills, and borrowings (341) by the repayment schedule of the loan ledger: more than 12 months after the balance-sheet date = long-term. The other items are decided by the account (no due dates exist): bonds 343 and deposits received 344 long-term, prepaid expenses 242 long-term.",
                     "Receivables and payables are split by the side of each account's balance: a credit balance on 131 is shown under customers' advances (312), a debit balance on 331 under advances to suppliers (132).",
                     "Row 421b includes the result of revenue and expense accounts that no closing entry has moved yet, so the sheet balances before the period is closed.",
                 });

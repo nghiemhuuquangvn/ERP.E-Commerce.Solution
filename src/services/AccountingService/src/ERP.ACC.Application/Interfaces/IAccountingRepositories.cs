@@ -94,6 +94,14 @@ namespace ERP.ACC.Application.Interfaces
         Task AddAsync(ClosingPolicy policy, CancellationToken ct = default);
     }
 
+    public interface ILoanRepository
+    {
+        /// <summary>The loan with its installments (tracked, so a repayment is saved by the unit of work).</summary>
+        Task<Loan?> GetByIdAsync(Guid id, CancellationToken ct = default);
+        Task<List<Loan>> ListAsync(CancellationToken ct = default);
+        Task AddAsync(Loan loan, CancellationToken ct = default);
+    }
+
     public interface IOffBalanceRepository
     {
         Task<OffBalanceEntry?> GetByIdAsync(Guid id, CancellationToken ct = default);

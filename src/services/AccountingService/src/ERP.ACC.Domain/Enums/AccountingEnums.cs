@@ -47,6 +47,13 @@ namespace ERP.ACC.Domain.Enums
         Voided = 2
     }
 
+    public enum LoanStatus
+    {
+        Active = 1,
+        Repaid = 2,
+        Cancelled = 3
+    }
+
     public enum NormalBalance
     {
         Debit = 1,

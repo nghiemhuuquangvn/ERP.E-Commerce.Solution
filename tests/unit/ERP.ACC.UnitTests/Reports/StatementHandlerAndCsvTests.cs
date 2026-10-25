@@ -25,6 +25,13 @@ public class StatementHandlerAndCsvTests
         return m.Object;
     }
 
+    private static ILoanRepository NoLoans()
+    {
+        var m = new Mock<ILoanRepository>();
+        m.Setup(r => r.ListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Loan>());
+        return m.Object;
+    }
+
     private static IBillRepository NoBills()
     {
         var m = new Mock<IBillRepository>();
@@ -52,7 +59,7 @@ public class StatementHandlerAndCsvTests
         lines.Setup(l => l.GetAccountBalancesAsync(null, compare, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<AccountBalanceSummary> { new() { AccountId = A("1111").Id, TotalDebit = 400m }, new() { AccountId = A("4111").Id, TotalCredit = 400m } });
 
-        var s = await new GetBalanceSheetStatementQueryHandler(accounts, lines.Object, NoProfile(), NoInvoices(), NoBills())
+        var s = await new GetBalanceSheetStatementQueryHandler(accounts, lines.Object, NoProfile(), NoInvoices(), NoBills(), NoLoans())
             .Handle(new GetBalanceSheetStatementQuery { AsOfDate = asOf, CompareAsOfDate = compare }, default);
 
         s.Rows.Single(r => r.Code == "270").Amount.Should().Be(900m);

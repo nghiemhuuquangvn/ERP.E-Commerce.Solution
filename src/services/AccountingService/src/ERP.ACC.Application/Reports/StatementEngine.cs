@@ -103,7 +103,7 @@ namespace ERP.ACC.Application.Reports
             }
 
             if (maturity is { IsEmpty: false } || priorMaturity is { IsEmpty: false })
-                statement.Notes.Add("Trade receivables and payables due after more than 12 months (by the due date of the open invoices and approved bills) are shown as long-term; the rest stays short-term.");
+                statement.Notes.Add("Trade receivables, trade payables and borrowings due after more than 12 months (by the due date of the open invoices and approved bills, and by the repayment schedule of the loans) are shown as long-term; the rest stays short-term.");
             if (statement.Unmapped.Count > 0)
                 statement.Notes.Add("Some accounts with a balance are not part of this statement's layout; the layout is written for the Vietnamese chart (Vas99). Map them or extend the layout.");
 
@@ -165,6 +165,8 @@ namespace ERP.ACC.Application.Reports
                             "ShortLessLongPayable" => amount - maturity.Payable,
                             "LongReceivable" => maturity.Receivable,
                             "LongPayable" => maturity.Payable,
+                            "ShortLessLongLoan" => amount - maturity.Loan,
+                            "AddLongLoan" => amount + maturity.Loan,
                             _ => amount,
                         };
 

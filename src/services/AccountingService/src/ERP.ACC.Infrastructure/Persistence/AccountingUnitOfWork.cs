@@ -20,6 +20,7 @@ namespace ERP.ACC.Infrastructure.Persistence
             IClosingPolicyRepository closingPolicies,
             IReportProfileRepository reportProfiles,
             IOffBalanceRepository offBalanceEntries,
+            ILoanRepository loans,
             ITaxRateRepository taxRates,
             IBankAccountRepository bankAccounts,
             IBankStatementRepository bankStatements)
@@ -35,6 +36,7 @@ namespace ERP.ACC.Infrastructure.Persistence
             ClosingPolicies = closingPolicies;
             ReportProfiles = reportProfiles;
             OffBalanceEntries = offBalanceEntries;
+            Loans = loans;
             TaxRates = taxRates;
             BankAccounts = bankAccounts;
             BankStatements = bankStatements;
@@ -50,6 +52,7 @@ namespace ERP.ACC.Infrastructure.Persistence
         public IClosingPolicyRepository ClosingPolicies { get; }
         public IReportProfileRepository ReportProfiles { get; }
         public IOffBalanceRepository OffBalanceEntries { get; }
+        public ILoanRepository Loans { get; }
         public ITaxRateRepository TaxRates { get; }
         public IBankAccountRepository BankAccounts { get; }
         public IBankStatementRepository BankStatements { get; }
