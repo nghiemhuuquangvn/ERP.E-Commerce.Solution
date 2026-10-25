@@ -73,8 +73,8 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 |---|---|---|
 | T1 | The B01 / B02 rows and account groups are a **draft** written from the Circular 200 forms; they are not checked against the official Circular 99/2025 forms and need an accountant's review before filing. | Accountant review |
 | T2 | B01 splits trade receivables / payables by due date (P1-2h) and borrowings by the loan ledger (P1-2i); bonds (343), deposits (344) and prepaid expenses (242) stay classified by account. | P1-2j |
-| T3 | Layouts exist for the Vietnamese and the 14-account chart; a tenant on its own chart still sees what the layouts cannot place under "unmapped". Layouts are code, not editable per tenant. | P1-2j |
-| T4 | B03 exists by indicator code, direct and indirect; B09 notes exist (P1-2i) but the non-cash-transactions table is a text the accountant writes, not generated. | P1-2j |
+| T3 | Layouts exist for the Vietnamese and the 14-account chart; a tenant on its own chart still sees what the layouts cannot place under "unmapped". (P1-2j: the tenant can map accounts to the rows of B01 / B02; B03 and the notes still use code layouts, AA4.) | P1-2k |
+| T4 | B03 exists by indicator code, direct and indirect; B09 notes exist (P1-2i) but the non-cash-transactions table is a text the accountant writes, not generated (P1-2j generates part of it from the journal, AA5). | Accountant review |
 | T5 | The comparison column is whatever date the user picks (no automatic same-period-last-year). Amounts can now be shown in thousand / million VND (P1-2e). | P1-2j |
 | T8 | Production-cost accounts 621 / 622 / 627 are not on B01 / B02 by design; a tenant that posts to them directly sees them under "unmapped" until the cost flow to 154 / 632 exists. | Manufacturing, if ever |
 
@@ -128,14 +128,26 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 
 | # | Issue | Home |
 |---|---|---|
-| Z1 | The loan ledger posts nothing: drawing, repayment and interest are still journal entries, so the ledger and the books can disagree (B01 caps at the 341 balance; a check report "loans vs account 341" does not exist). Interest rate is information only. | P1-2j |
+| Z1 | ~~The loan ledger posts nothing~~ **Closed in P1-2j** (drawdown and repayments post, reconciliation report). Remaining: loans created before P1-2j are "by hand"; the interest rate is information only (no accrual, see §4j). | — |
 | Z2 | Off-balance accounts exist in the Vietnamese template only; a tenant that already has entries creates them by hand; foreign currency (007) is a register amount in VND with no exchange-rate logic (P1-4). | P1-4 |
 | Z3 | The 14-account layouts are a simplification (no VAT, income tax, interest, depreciation); B09 for such a tenant has fewer tables. | Accountant decision |
-| Z4 | B09: texts are not versioned, one set per tenant for all periods; the note headings and hints are Vietnamese only; the table of non-cash transactions (VII) and the comparison with the prior period are not generated. | P1-2j |
+| Z4 | B09: texts are not versioned, one set per tenant and language for all periods. (Headings in English, the non-cash table and the prior-period column were added in P1-2j.) | P1-2k |
 | Z5 | B09 structure and wording follow Circular 200 and are a draft for the accountant's review; section V.2 / V.7 use the invoice / bill split, so a past-date notes have the same approximation as B01 for trade items. | Accountant review |
 | Z6 | `glcheck` test data: account 001 (inactive) with voided entries, saved note texts and company profile; `LoanInstallments` / `Loans` rows of the check were deleted. | Local clean-up |
 
+## 4j. Loan posting, payment history, mapping, English notes (P1-2j follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| AA1 | Interest is booked when paid, from the scheduled amount; no accrual between payments, the loan's interest rate is information only, and the repayment posts the schedule's amounts (a different amount actually paid is booked by hand). | P1-2k |
+| AA2 | Drawdown and repayments always go through the Bank key; a cash loan or a specific bank account per loan is not modelled. On the 14-account chart LoanPayable shares account 2100 with accrued liabilities (the reconciliation says so). | P1-2k |
+| AA3 | Payment dates are exact for payments recorded after migration 017; earlier ones are estimated (the last update of the document). Cancelled bills do not exist as a status. The register is not shown on any screen yet. | Accountant decision |
+| AA4 | The account mapping covers B01 / B02 only; B03 (both methods), the notes B09 and the maturity caps keep their prefix sets, so an account mapped on B01 is not automatically in the notes. | P1-2k |
+| AA5 | The non-cash table is derived from the accounts of the entries (fixed assets bought on a liability, a liability moved into equity); other non-cash transactions are still written by the accountant. | Accountant review |
+| AA6 | Notes exist in Vietnamese and English; the language is explicit (`lang`), not taken from Accept-Language. The admin screens added in P1-2j were type-checked, not clicked through in a browser. | — |
+| AA7 | `glcheck` test data left: the 2,000 credit on account 341 from the P1-2i check (so the loan reconciliation there shows a 2,000 difference), the 9001 account was removed, estimated payment applications created by the migration. | Local clean-up |
+
 ## 5. Roadmap items these issues are waiting for
 
-P0-10 least-privilege SQL · P1-2j posting link for loans, payment history, own-chart layouts, notes in English · P1-3 VAT and e-invoice · P1-4 foreign currency and bank reconciliation ·
+P0-10 least-privilege SQL · P1-2k accrued loan interest, receiving account per loan, mapping for B03 / notes, versioned texts · P1-3 VAT and e-invoice · P1-4 foreign currency and bank reconciliation ·
 P1-5 saga completion and returns · P1-6 notifications · P1-7 real payroll.
