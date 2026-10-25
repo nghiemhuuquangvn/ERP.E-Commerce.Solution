@@ -225,7 +225,7 @@ export async function downloadReport(
   path: string,
   params: Record<string, unknown>,
   fallbackName: string,
-  format: 'csv' | 'xlsx' | 'pdf' = 'csv',
+  format: 'csv' | 'xlsx' | 'pdf' | 'xml' = 'csv',
 ): Promise<void> {
   const res = await apiClient.get<Blob>(`${ACC_BASE}/accounting/reports/${path}`, {
     params: { ...params, format },
@@ -280,6 +280,7 @@ export interface VatListingRow {
   net: number
   ratePercent: number | null
   tax: number
+  category?: 'Taxable' | 'NotTaxable'
 }
 
 export interface VatListing {
@@ -287,13 +288,29 @@ export interface VatListing {
   fromDate: string
   toDate: string
   rows: VatListingRow[]
-  byRate: { ratePercent: number | null; net: number; tax: number }[]
+  byRate: { category?: string; ratePercent: number | null; net: number; tax: number }[]
   totalNet: number
   totalTax: number
   ledgerAccountNumber: string | null
   ledgerTax: number
   difference: number
   isReconciled: boolean
+  notes: string[]
+}
+
+/** The settlement of a period's VAT: Dr VAT output / Cr VAT input for the smaller balance (ROADMAP P1-3b). */
+export interface VatSettlement {
+  fiscalPeriodId: string
+  periodName: string
+  asOfDate: string
+  outputVat: number
+  inputVat: number
+  amount: number
+  payableAfter: number
+  carryForwardAfter: number
+  sharedAccount: boolean
+  settled: boolean
+  entryNumber: string | null
   notes: string[]
 }
 
@@ -330,6 +347,12 @@ export const reportsApi = {
 
   vatListing: (params: { fromDate: string; toDate: string; direction: 'output' | 'input' }) =>
     apiClient.get<VatListing>(`${ACC_BASE}/accounting/reports/vat/listing`, { params }).then((r) => r.data),
+
+  vatSettlement: (fiscalPeriodId: string) =>
+    apiClient.get<VatSettlement>(`${ACC_BASE}/accounting/vat/settlement`, { params: { fiscalPeriodId } }).then((r) => r.data),
+
+  settleVat: (fiscalPeriodId: string) =>
+    apiClient.post<VatSettlement>(`${ACC_BASE}/accounting/vat/settle`, { fiscalPeriodId }).then((r) => r.data),
 
   vatReturn: (params: { fromDate: string; toDate: string; unit?: string }) =>
     apiClient.get<FinancialStatement>(`${ACC_BASE}/accounting/reports/vat/return`, { params }).then((r) => r.data),

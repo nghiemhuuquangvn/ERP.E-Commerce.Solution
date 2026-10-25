@@ -173,13 +173,24 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 
 | # | Issue | Home |
 |---|---|---|
-| AD1 | One VAT rate per document, taken from the tenant's settings (Sales / Purchasing send no tax); no per-line rates, exempt or non-taxable lines; with "prices exclude tax" the invoice exceeds the order total paid via Payment. | P1-3b |
+| AD1 | ~~One VAT rate per document~~ **Closed in P1-3b** (VAT lines, goods not subject to VAT); the lines still come from a person, Sales / Purchasing send no tax (§4n). Was: One VAT rate per document, taken from the tenant's settings (Sales / Purchasing send no tax); no per-line rates, exempt or non-taxable lines; with "prices exclude tax" the invoice exceeds the order total paid via Payment. | P1-3b |
 | AD2 | The e-invoice provider is a sandbox: no real connector (VNPT / Viettel / MISA / BKAV), no tax-authority code, no signing, no adjustment / replacement e-invoices, no auto-issue on order. | P1-3b |
 | AD3 | The VAT return 01/GTGT is a simplified draft (codes 22–25, 35, 40, 43 and rate groups), not the HTKK filing file; there is no VAT settlement entry (Dr 3331 / Cr 133) and a closed fiscal period is not reopened by it. | P1-3b / Accountant review |
 | AD4 | The listing and the ledger can differ when a document is cancelled after the period, an entry is dated differently from its document, or VAT is booked by hand; the difference is reported, not corrected. | Accountant decision |
-| AD5 | A return takes the VAT at the invoice's rate; a partial return of mixed-rate goods is not possible. The live check did not cover a return (unit tests do). | P1-3b |
-| AD6 | A document created while no fiscal period is open exists without a journal entry (logged, as before P1-3); the invoice and bill screens do not warn. | P1-5 |
+| AD5 | ~~Return at one rate~~ **Closed in P1-3b** (the invoice's VAT share). Was: A return takes the VAT at the invoice's rate; a partial return of mixed-rate goods is not possible. The live check did not cover a return (unit tests do). | P1-3b |
+| AD6 | ~~No warning~~ **Closed in P1-3b** (`postedToLedger` / warning, posting gaps and repost). Was: A document created while no fiscal period is open exists without a journal entry (logged, as before P1-3); the invoice and bill screens do not warn. | P1-5 |
 | AD7 | The new admin pieces (VAT columns, Adjust VAT, e-invoice dialog, VAT tab, provider in Settings → Tax) were type-checked, not clicked through in a browser. | — |
+
+## 4n. VAT lines, settlement, e-invoice kinds (P1-3b follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| AE1 | The e-invoice provider is still the sandbox (the real VNPT / Viettel / MISA / BKAV connector needs the owner's provider account and API documents); no authority invoice code, no signing; replacements keep the original's series. | P1-3c |
+| AE2 | The XML of the return is a reconstruction of the HTKK layout with this application's simplified indicator codes; it must be validated against the tax authority's current schema before filing. | P1-3c / Accountant |
+| AE3 | The settlement does not post the payment of the VAT payable (Dr VAT output / Cr bank) and does not cope with a document dated later except through a reversal and a new round. | P1-3c |
+| AE4 | VAT lines come from a person; orders and purchase orders still carry no tax (a per-line tax in the Sales / Purchasing events would remove the manual step). Auto-issue sends every invoice to a retail customer (no buyer tax code). | P1-3c |
+| AE5 | If the provider fails after `Replace` applied a new VAT split, the invoice VAT is already changed and the replacement must be retried (no new split). The failing e-invoice of an adjustment / replacement is not stored. | Accepted |
+| AE6 | The return pro rata, the auto-issue event path and the settlement of a period with late documents were covered by unit tests, not run live; the new admin pieces (lines editor, adjust dialog, e-invoice chain, gaps bar, settlement panel, XML button, auto-issue switch) were type-checked, not clicked through in a browser. | — |
 
 ## 5. Roadmap items these issues are waiting for
 

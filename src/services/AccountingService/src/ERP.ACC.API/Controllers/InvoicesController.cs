@@ -66,6 +66,15 @@ namespace ERP.ACC.API.Controllers
         public class AdjustVatRequest
         {
             public decimal TaxRatePercent { get; set; }
+            public List<ERP.ACC.Application.Posting.VatLineInput> Lines { get; set; } = new();
+        }
+
+        [HttpGet("{id:guid}/vat-lines")]
+        public async Task<IActionResult> VatLines(Guid id, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:invoices:view"))
+                return Forbid();
+            return Ok(await _mediator.Send(new GetVatLinesQuery { DocumentType = 1, DocumentId = id }, ct));
         }
 
         /// <summary>Re-splits the invoice's gross at another VAT rate and posts the difference (ROADMAP P1-3).</summary>
@@ -75,7 +84,7 @@ namespace ERP.ACC.API.Controllers
             if (!_userContext.HasPermission("accounting:invoices:manage"))
                 return Forbid();
 
-            return Ok(await _mediator.Send(new AdjustInvoiceVatCommand { InvoiceId = id, TaxRatePercent = request.TaxRatePercent }, ct));
+            return Ok(await _mediator.Send(new AdjustInvoiceVatCommand { InvoiceId = id, TaxRatePercent = request.TaxRatePercent, Lines = request.Lines ?? new() }, ct));
         }
 
         public class CancelEInvoiceRequest
@@ -115,6 +124,54 @@ namespace ERP.ACC.API.Controllers
                 return Forbid();
             var result = await _mediator.Send(new GetEInvoiceQuery { InvoiceId = id }, ct);
             return result == null ? NotFound() : Ok(result);
+        }
+
+        public class ReplaceEInvoiceRequest
+        {
+            public string Reason { get; set; } = string.Empty;
+            public string? BuyerName { get; set; }
+            public string? BuyerTaxCode { get; set; }
+            public string? BuyerAddress { get; set; }
+            public decimal? TaxRatePercent { get; set; }
+            public List<ERP.ACC.Application.Posting.VatLineInput> Lines { get; set; } = new();
+        }
+
+        public class AdjustEInvoiceRequest
+        {
+            public decimal AdjustNet { get; set; }
+            public decimal AdjustTax { get; set; }
+            public string Reason { get; set; } = string.Empty;
+        }
+
+        /// <summary>Every e-invoice of the invoice: original, replacements, adjustments.</summary>
+        [HttpGet("{id:guid}/e-invoices")]
+        public async Task<IActionResult> EInvoices(Guid id, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:invoices:view"))
+                return Forbid();
+            return Ok(await _mediator.Send(new ListEInvoicesQuery { InvoiceId = id }, ct));
+        }
+
+        /// <summary>Replaces the issued e-invoice (a corrected VAT split can be given) — ROADMAP P1-3b.</summary>
+        [HttpPost("{id:guid}/e-invoice/replace")]
+        public async Task<IActionResult> ReplaceEInvoice(Guid id, [FromBody] ReplaceEInvoiceRequest request, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:invoices:manage"))
+                return Forbid();
+            return Ok(await _mediator.Send(new ReplaceEInvoiceCommand
+            {
+                InvoiceId = id, Reason = request.Reason, BuyerName = request.BuyerName, BuyerTaxCode = request.BuyerTaxCode, BuyerAddress = request.BuyerAddress,
+                TaxRatePercent = request.TaxRatePercent, Lines = request.Lines ?? new(),
+            }, ct));
+        }
+
+        /// <summary>Issues an adjustment e-invoice (signed change of net and VAT) referring to the issued one — ROADMAP P1-3b.</summary>
+        [HttpPost("{id:guid}/e-invoice/adjust")]
+        public async Task<IActionResult> AdjustEInvoice(Guid id, [FromBody] AdjustEInvoiceRequest request, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:invoices:manage"))
+                return Forbid();
+            return Ok(await _mediator.Send(new AdjustEInvoiceCommand { InvoiceId = id, AdjustNet = request.AdjustNet, AdjustTax = request.AdjustTax, Reason = request.Reason }, ct));
         }
 
         [HttpPost("{id:guid}/e-invoice/cancel")]

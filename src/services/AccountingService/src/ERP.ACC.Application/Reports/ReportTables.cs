@@ -70,7 +70,7 @@ namespace ERP.ACC.Application.Reports
             rows.AddRange(v.Rows.Select(r => (IReadOnlyList<object?>)new object?[] { r.Kind, r.Number, Date(r.Date), r.PartyId?.ToString() ?? "", r.Description, r.Net, r.RatePercent, r.Tax }));
             rows.Add(new object?[] { "" });
             foreach (var g in v.ByRate)
-                rows.Add(new object?[] { "Subtotal", "", "", "", g.RatePercent.HasValue ? "Rate " + g.RatePercent.Value.ToString("0.##") + "%" : "No rate (entries)", g.Net, g.RatePercent, g.Tax });
+                rows.Add(new object?[] { "Subtotal", "", "", "", g.Category == "NotTaxable" ? "Not subject to VAT" : g.RatePercent.HasValue ? "Rate " + g.RatePercent.Value.ToString("0.##") + "%" : "No rate (entries)", g.Net, g.RatePercent, g.Tax });
             rows.Add(new object?[] { "Total", "", "", "", "", v.TotalNet, "", v.TotalTax });
             rows.Add(new object?[] { "Ledger", v.LedgerAccountNumber ?? "", "", "", "VAT account movement", "", "", v.LedgerTax });
             rows.Add(new object?[] { "Difference", "", "", "", v.IsReconciled ? "reconciled" : "NOT reconciled", "", "", v.Difference });

@@ -25,6 +25,9 @@ namespace ERP.ACC.Application.Reports
 
         /// <summary>Negative for a return or any movement that reduces the VAT.</summary>
         public decimal Tax { get; set; }
+
+        /// <summary>"Taxable" or "NotTaxable" (goods not subject to VAT, KCT); entries count as taxable.</summary>
+        public string Category { get; set; } = "Taxable";
     }
 
     public class VatRateTotalDto
@@ -33,6 +36,7 @@ namespace ERP.ACC.Application.Reports
         public decimal? RatePercent { get; set; }
         public decimal Net { get; set; }
         public decimal Tax { get; set; }
+        public string Category { get; set; } = "Taxable";
     }
 
     public class VatListingDto
@@ -89,7 +93,7 @@ namespace ERP.ACC.Application.Reports
             account == null ? new List<Guid>() : accounts.Where(a => a.AccountNumber.StartsWith(account.AccountNumber, StringComparison.Ordinal)).Select(a => a.Id).ToList();
     }
 
-    public class GetVatListingQueryHandler : IRequestHandler<GetVatListingQuery, VatListingDto>
+    public partial class GetVatListingQueryHandler : IRequestHandler<GetVatListingQuery, VatListingDto>
     {
         private readonly IAccountRepository _accounts;
         private readonly IPostingAccountMappingRepository _mappings;
@@ -97,11 +101,13 @@ namespace ERP.ACC.Application.Reports
         private readonly IBillRepository _bills;
         private readonly IJournalLineRepository _lines;
         private readonly IReportProfileRepository _profiles;
+        private readonly IVatLineRepository? _vatLines;
 
         public GetVatListingQueryHandler(
             IAccountRepository accounts, IPostingAccountMappingRepository mappings, IInvoiceRepository invoices, IBillRepository bills,
-            IJournalLineRepository lines, IReportProfileRepository profiles)
+            IJournalLineRepository lines, IReportProfileRepository profiles, IVatLineRepository? vatLines = null)
         {
+            _vatLines = vatLines;
             _accounts = accounts;
             _mappings = mappings;
             _invoices = invoices;
@@ -128,26 +134,18 @@ namespace ERP.ACC.Application.Reports
 
             if (output)
             {
-                foreach (var i in (await _invoices.GetAllAsync(ct)).Where(i => i.Status != (int)InvoiceStatus.Cancelled && i.CreatedAt.Date >= from && i.CreatedAt.Date <= to).OrderBy(i => i.CreatedAt))
-                    result.Rows.Add(new VatListingRowDto
-                    {
-                        Kind = "Invoice", Number = i.InvoiceNumber, Date = i.CreatedAt.Date, PartyId = i.CustomerId, Description = $"Order {i.OrderId:N}".Substring(0, 14),
-                        Net = i.EffectiveNet, RatePercent = i.TaxRatePercent, Tax = i.TaxAmount,
-                    });
+                var invoices = (await _invoices.GetAllAsync(ct)).Where(i => i.Status != (int)InvoiceStatus.Cancelled && i.CreatedAt.Date >= from && i.CreatedAt.Date <= to).OrderBy(i => i.CreatedAt).ToList();
+                var lineMap = await LinesOf(VatLine.InvoiceDocument, invoices.Select(i => i.Id).ToList(), ct);
+                foreach (var i in invoices)
+                    AddRows(result.Rows, "Invoice", i.InvoiceNumber, i.CreatedAt.Date, i.CustomerId, $"Order {i.OrderId:N}".Substring(0, 14), i.EffectiveNet, i.TaxRatePercent, i.TaxAmount, lineMap.GetValueOrDefault(i.Id));
             }
             else
             {
-                foreach (var b in (await _bills.GetAllAsync(ct)).Where(b => b.Status is (int)BillStatus.Approved or (int)BillStatus.Paid).OrderBy(b => b.ApprovedOn ?? b.CreatedAt))
-                {
-                    var date = (b.ApprovedOn ?? b.CreatedAt).Date;
-                    if (date < from || date > to)
-                        continue;
-                    result.Rows.Add(new VatListingRowDto
-                    {
-                        Kind = "Bill", Number = b.BillNumber, Date = date, PartyId = b.SupplierId, Description = $"Purchase order {b.POId:N}".Substring(0, 20),
-                        Net = b.EffectiveNet, RatePercent = b.TaxRatePercent, Tax = b.TaxAmount,
-                    });
-                }
+                var bills = (await _bills.GetAllAsync(ct)).Where(b => b.Status is (int)BillStatus.Approved or (int)BillStatus.Paid)
+                    .Where(b => (b.ApprovedOn ?? b.CreatedAt).Date >= from && (b.ApprovedOn ?? b.CreatedAt).Date <= to).OrderBy(b => b.ApprovedOn ?? b.CreatedAt).ToList();
+                var lineMap = await LinesOf(VatLine.BillDocument, bills.Select(b => b.Id).ToList(), ct);
+                foreach (var b in bills)
+                    AddRows(result.Rows, "Bill", b.BillNumber, (b.ApprovedOn ?? b.CreatedAt).Date, b.SupplierId, $"Purchase order {b.POId:N}".Substring(0, 20), b.EffectiveNet, b.TaxRatePercent, b.TaxAmount, lineMap.GetValueOrDefault(b.Id));
             }
 
             // what the journal holds on the VAT account that is not an invoice or a bill: returns, adjustments, POS sales, manual entries
@@ -169,8 +167,8 @@ namespace ERP.ACC.Application.Reports
                 }
             }
 
-            result.ByRate = result.Rows.GroupBy(r => r.RatePercent).OrderBy(g => g.Key ?? decimal.MaxValue)
-                .Select(g => new VatRateTotalDto { RatePercent = g.Key, Net = g.Sum(r => r.Net), Tax = g.Sum(r => r.Tax) }).ToList();
+            result.ByRate = result.Rows.GroupBy(r => (r.Category, r.RatePercent)).OrderBy(g => g.Key.Category).ThenBy(g => g.Key.RatePercent ?? decimal.MaxValue)
+                .Select(g => new VatRateTotalDto { Category = g.Key.Category, RatePercent = g.Key.RatePercent, Net = g.Sum(r => r.Net), Tax = g.Sum(r => r.Tax) }).ToList();
             result.TotalNet = result.Rows.Sum(r => r.Net);
             result.TotalTax = result.Rows.Sum(r => r.Tax);
             result.LedgerTax = ledgerTax;
@@ -184,6 +182,30 @@ namespace ERP.ACC.Application.Reports
             if (accounts.Count > 0 && vatAccount == null)
                 result.Notes.Add("No account is mapped to the VAT key: map it in the posting profile.");
             return result;
+        }
+    }
+
+    public partial class GetVatListingQueryHandler
+    {
+        private async Task<Dictionary<Guid, List<VatLine>>> LinesOf(int documentType, List<Guid> ids, CancellationToken ct) =>
+            _vatLines == null || ids.Count == 0
+                ? new Dictionary<Guid, List<VatLine>>()
+                : (await _vatLines.ListAsync(documentType, ids, ct)).GroupBy(l => l.DocumentId).ToDictionary(g => g.Key, g => g.ToList());
+
+        /// <summary>One row per VAT line of the document; a document without stored lines is one row from its own split.</summary>
+        private static void AddRows(List<VatListingRowDto> rows, string kind, string number, DateTime date, Guid party, string description, decimal net, decimal rate, decimal tax, List<VatLine>? lines)
+        {
+            if (lines is { Count: > 0 })
+            {
+                foreach (var l in lines)
+                    rows.Add(new VatListingRowDto
+                    {
+                        Kind = kind, Number = number, Date = date, PartyId = party, Description = l.Text ?? description, Net = l.Net,
+                        RatePercent = l.Category == VatLine.NotTaxable ? null : l.RatePercent, Tax = l.Tax, Category = l.Category == VatLine.NotTaxable ? "NotTaxable" : "Taxable",
+                    });
+                return;
+            }
+            rows.Add(new VatListingRowDto { Kind = kind, Number = number, Date = date, PartyId = party, Description = description, Net = net, RatePercent = rate, Tax = tax });
         }
     }
 
@@ -243,14 +265,19 @@ namespace ERP.ACC.Application.Reports
                 rows.Add(new StatementRowDto { Code = code, Name = name, Amount = U(amount), Indent = indent, IsTotal = total });
 
             Row("22", "VAT carried over from the previous period", carried);
-            Row("23", "Value of goods and services purchased in the period", purchases.TotalNet);
+            Row("23", "Value of goods and services purchased in the period", purchases.ByRate.Where(g => g.Category == "Taxable").Sum(g => g.Net));
             Row("24", "Input VAT of the period", inputTax);
             Row("25", "Total deductible input VAT [22 + 24]", deductible, total: true);
-            foreach (var group in sales.ByRate.Where(g => g.RatePercent.HasValue))
-                Row($"S{group.RatePercent:0.##}", $"Sales at {group.RatePercent:0.##}%: value", group.Net, 1);
-            foreach (var group in sales.ByRate.Where(g => g.RatePercent.HasValue))
-                Row($"T{group.RatePercent:0.##}", $"Sales at {group.RatePercent:0.##}%: output VAT", group.Tax, 1);
-            var others = sales.ByRate.FirstOrDefault(g => !g.RatePercent.HasValue);
+            // rows of one rate add up across invoices (the listing groups by category and rate)
+            var taxable = sales.ByRate.Where(g => g.Category == "Taxable" && g.RatePercent.HasValue).GroupBy(g => g.RatePercent!.Value).OrderBy(g => g.Key).ToList();
+            var notTaxable = sales.ByRate.Where(g => g.Category == "NotTaxable").Sum(g => g.Net);
+            if (notTaxable != 0m)
+                Row("26", "Goods and services sold not subject to VAT", notTaxable);
+            foreach (var group in taxable)
+                Row($"S{group.Key:0.##}", $"Sales at {group.Key:0.##}%: value", group.Sum(g => g.Net), 1);
+            foreach (var group in taxable)
+                Row($"T{group.Key:0.##}", $"Sales at {group.Key:0.##}%: output VAT", group.Sum(g => g.Tax), 1);
+            var others = sales.ByRate.FirstOrDefault(g => g.Category == "Taxable" && !g.RatePercent.HasValue);
             if (others != null)
                 Row("TX", "Output VAT from returns, adjustments, POS and manual entries (no rate)", others.Tax, 1);
             Row("35", "Total output VAT of the period", outputTax, total: true);

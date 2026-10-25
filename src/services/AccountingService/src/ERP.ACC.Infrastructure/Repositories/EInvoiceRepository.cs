@@ -12,7 +12,11 @@ namespace ERP.ACC.Infrastructure.Repositories
         public EInvoiceRepository(AccountingDbContext db) => _db = db;
 
         public async Task<EInvoice?> GetActiveByInvoiceAsync(Guid invoiceId, CancellationToken ct = default) =>
-            await _db.EInvoices.FirstOrDefaultAsync(e => e.InvoiceId == invoiceId && e.Status != (int)EInvoiceStatus.Cancelled, ct);
+            await _db.EInvoices.FirstOrDefaultAsync(e => e.InvoiceId == invoiceId && e.Kind != (int)EInvoiceKind.Adjustment
+                && e.Status != (int)EInvoiceStatus.Cancelled && e.Status != (int)EInvoiceStatus.Replaced, ct);
+
+        public async Task<List<EInvoice>> ListByInvoiceAsync(Guid invoiceId, CancellationToken ct = default) =>
+            await _db.EInvoices.AsNoTracking().Where(e => e.InvoiceId == invoiceId).OrderBy(e => e.CreatedAt).ToListAsync(ct);
 
         public async Task<EInvoice?> GetLatestByInvoiceAsync(Guid invoiceId, CancellationToken ct = default) =>
             await _db.EInvoices.AsNoTracking().Where(e => e.InvoiceId == invoiceId).OrderByDescending(e => e.CreatedAt).FirstOrDefaultAsync(ct);

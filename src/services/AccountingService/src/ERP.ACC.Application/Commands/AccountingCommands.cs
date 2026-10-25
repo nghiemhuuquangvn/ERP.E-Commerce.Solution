@@ -1,3 +1,4 @@
+using ERP.ACC.Application.Posting;
 using ERP.ACC.Application.DTOs;
 using MediatR;
 
@@ -51,6 +52,9 @@ namespace ERP.ACC.Application.Commands
 
         /// <summary>Overrides the tenant's default VAT rate (percent) for this invoice; empty = the default.</summary>
         public decimal? TaxRatePercent { get; set; }
+
+        /// <summary>VAT lines (rates 0 / 5 / 8 / 10 %, goods not subject to VAT); when given they replace <see cref="Amount"/> and the rate: the document is the sum of its lines (ROADMAP P1-3b).</summary>
+        public List<VatLineInput> Lines { get; set; } = new();
     }
 
     /// <summary>Re-splits the invoice's gross at another VAT rate and posts the difference (Dr / Cr sales revenue against VAT output). The amount owed does not change.</summary>
@@ -58,6 +62,12 @@ namespace ERP.ACC.Application.Commands
     {
         public Guid InvoiceId { get; set; }
         public decimal TaxRatePercent { get; set; }
+
+        /// <summary>VAT lines whose gross amounts add up to the invoice amount; when given the rate is ignored.</summary>
+        public List<VatLineInput> Lines { get; set; } = new();
+
+        /// <summary>Set only by the replacement of an e-invoice (ROADMAP P1-3b): the VAT may change although an e-invoice is issued, because that e-invoice is replaced next.</summary>
+        public bool ForReplacement { get; set; }
     }
 
     public class MarkInvoicePaidCommand : IRequest<InvoiceDto>
@@ -77,6 +87,9 @@ namespace ERP.ACC.Application.Commands
 
         /// <summary>Overrides the tenant's default VAT rate (percent) for this bill; empty = the default.</summary>
         public decimal? TaxRatePercent { get; set; }
+
+        /// <summary>VAT lines; when given they replace <see cref="Amount"/> and the rate (ROADMAP P1-3b).</summary>
+        public List<VatLineInput> Lines { get; set; } = new();
     }
 
     public class ApproveBillCommand : IRequest<BillDto>
@@ -85,6 +98,16 @@ namespace ERP.ACC.Application.Commands
 
         /// <summary>Re-splits the bill's gross at this VAT rate before it is posted (the supplier's invoice shows the real rate); empty keeps the split made at creation.</summary>
         public decimal? TaxRatePercent { get; set; }
+
+        /// <summary>VAT lines whose gross amounts add up to the bill amount; when given the rate is ignored.</summary>
+        public List<VatLineInput> Lines { get; set; } = new();
+    }
+
+    /// <summary>The VAT lines of an invoice or a bill (document type 1 / 2); a document without stored lines shows its single implicit line.</summary>
+    public class GetVatLinesQuery : IRequest<List<VatLineDto>>
+    {
+        public int DocumentType { get; set; }
+        public Guid DocumentId { get; set; }
     }
 
     public class MarkBillPaidCommand : IRequest<BillDto>

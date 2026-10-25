@@ -16,6 +16,8 @@ export interface BillDto {
   dueDate: string
   status: string
   createdAt: string
+  postedToLedger?: boolean
+  postingWarning?: string | null
 }
 
 // BillStatus enum (ERP.ACC.Domain.Enums.BillStatus): Pending=0, Approved=1, Paid=2
@@ -39,6 +41,8 @@ export interface CreateBillRequest {
   poId: string
   amount: number
   dueDate: string
+  /** VAT lines (rates, goods not subject to VAT); when given they replace the amount. */
+  lines?: { category: number; ratePercent: number; amount: number; description?: string }[]
 }
 
 export interface APAgingDto {
@@ -60,8 +64,8 @@ export const billsApi = {
   create: (body: CreateBillRequest) =>
     apiClient.post<BillDto>(`${ACC_BASE}/bills`, body).then((r) => r.data),
 
-  approve: (id: string) =>
-    apiClient.post<BillDto>(`${ACC_BASE}/bills/${id}/approve`).then((r) => r.data),
+  approve: (id: string, taxRatePercent?: number) =>
+    apiClient.post<BillDto>(`${ACC_BASE}/bills/${id}/approve`, { taxRatePercent }).then((r) => r.data),
 
   markPaid: (id: string) =>
     apiClient.post<BillDto>(`${ACC_BASE}/bills/${id}/mark-paid`).then((r) => r.data),

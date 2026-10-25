@@ -23,6 +23,15 @@ namespace ERP.ACC.Infrastructure.Repositories
         public async Task<bool> AnyAsync(CancellationToken ct = default) =>
             await _db.JournalEntries.AnyAsync(ct);
 
+        public async Task<HashSet<string>> ExistingSourceKeysAsync(IReadOnlyCollection<string> sourceKeys, CancellationToken ct = default)
+        {
+            var found = new HashSet<string>(StringComparer.Ordinal);
+            // in chunks: the list goes into an IN clause
+            foreach (var chunk in sourceKeys.Chunk(500))
+                found.UnionWith(await _db.JournalEntries.Where(e => e.SourceKey != null && chunk.Contains(e.SourceKey)).Select(e => e.SourceKey!).ToListAsync(ct));
+            return found;
+        }
+
         public async Task<JournalEntry?> GetBySourceKeyAsync(string sourceKey, CancellationToken ct = default) =>
             await _db.JournalEntries.Include(j => j.Lines).FirstOrDefaultAsync(j => j.SourceKey == sourceKey, ct);
 

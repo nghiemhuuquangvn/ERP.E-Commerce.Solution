@@ -5,6 +5,7 @@ import { reportsApi, downloadReport } from '@/api/accounting/reports.api'
 import type { AmountUnit, FinancialStatement, NoteLanguage, NoteSection, ReportProfile } from '@/api/accounting/reports.api'
 import type { FinancialAccountLineDto, CashFlowSection } from '@/api/accounting/reports.api'
 import { accountsApi } from '@/api/accounting/accounts.api'
+import { fiscalPeriodsApi } from '@/api/accounting/fiscal-periods.api'
 import { offBalanceApi } from '@/api/accounting/off-balance.api'
 import type { OffBalanceLine } from '@/api/accounting/off-balance.api'
 import { DataTable } from '@/components/shared/DataTable'
@@ -16,11 +17,11 @@ function todayISODate(): string {
 }
 
 /** "Export CSV" and "Export Excel" buttons: ask the server for the same report as a file. */
-function ExportButton({ path, params, name, disabled, pdf }: { path: string; params: Record<string, unknown>; name: string; disabled?: boolean; pdf?: boolean }) {
+function ExportButton({ path, params, name, disabled, pdf, xml }: { path: string; params: Record<string, unknown>; name: string; disabled?: boolean; pdf?: boolean; xml?: boolean }) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
-  const run = async (format: 'csv' | 'xlsx' | 'pdf') => {
+  const run = async (format: 'csv' | 'xlsx' | 'pdf' | 'xml') => {
     setBusy(true)
     setFailed(false)
     try {
@@ -42,6 +43,11 @@ function ExportButton({ path, params, name, disabled, pdf }: { path: string; par
       {pdf && (
         <button type="button" className="btn-outline" disabled={disabled || busy} onClick={() => run('pdf')}>
           {t('accounting.reports.exportPdf')}
+        </button>
+      )}
+      {xml && (
+        <button type="button" className="btn-outline" disabled={disabled || busy} onClick={() => run('xml')}>
+          {t('accounting.vat.exportXml')}
         </button>
       )}
       {failed && <span className="text-xs text-red-600">{t('accounting.reports.exportFailed')}</span>}
@@ -966,8 +972,58 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
 }
 
 /** The off-balance register per account for a range (class 0 accounts; not part of the balance sheet). */
+/** The settlement of the VAT of one fiscal period: the figures and the button that posts Dr VAT output / Cr VAT input. */
+function VatSettlementPanel({ canManage }: { canManage: boolean }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [periodId, setPeriodId] = useState('')
+  const { data: periods } = useQuery({ queryKey: ['accounting', 'fiscal-periods'], queryFn: () => fiscalPeriodsApi.list(), staleTime: 30_000 })
+  const settlement = useQuery({ queryKey: ['accounting', 'vat', 'settlement', periodId], queryFn: () => reportsApi.vatSettlement(periodId), enabled: !!periodId, staleTime: 10_000 })
+  const settle = useMutation({
+    mutationFn: () => reportsApi.settleVat(periodId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['accounting'] }),
+  })
+  const error = (settle.error as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail
+  const s = settlement.data
+  return (
+    <div className="card space-y-2 p-3">
+      <h3 className="text-sm font-semibold text-gray-900">{t('accounting.vat.settlementTitle')}</h3>
+      <select className="input w-60" value={periodId} onChange={(e) => setPeriodId(e.target.value)}>
+        <option value="">{t('accounting.vat.pickPeriod')}</option>
+        {(periods ?? []).map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.periodName}
+          </option>
+        ))}
+      </select>
+      {s && (
+        <div className="space-y-1 text-sm text-gray-700">
+          <p>
+            {t('accounting.vat.outputVat')}: <b>{s.outputVat.toLocaleString()}</b> · {t('accounting.vat.inputVat')}: <b>{s.inputVat.toLocaleString()}</b> · {t('accounting.vat.settledAmount')}: <b>{s.amount.toLocaleString()}</b>
+          </p>
+          <p>
+            {t('accounting.vat.payableAfter')}: {s.payableAfter.toLocaleString()} · {t('accounting.vat.carryAfter')}: {s.carryForwardAfter.toLocaleString()}
+          </p>
+          {s.settled && <p className="text-green-700">{t('accounting.vat.settledBy', { entry: s.entryNumber })}</p>}
+          {s.notes.map((n) => (
+            <p key={n} className="text-xs text-amber-700">
+              {n}
+            </p>
+          ))}
+          {canManage && !s.settled && s.amount > 0 && (
+            <button className="btn-primary" disabled={settle.isPending} onClick={() => settle.mutate()}>
+              {t('accounting.vat.settle')}
+            </button>
+          )}
+          {settle.isError && <p className="text-xs text-red-600">{error ?? t('accounting.vat.failed')}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** The VAT listing (sales or purchases) with its subtotals per rate and the check against the VAT account, and the simplified return 01/GTGT (ROADMAP P1-3). */
-function VatPanel() {
+function VatPanel({ canSettle }: { canSettle: boolean }) {
   const { t } = useTranslation()
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState(todayISODate())
@@ -1006,8 +1062,10 @@ function VatPanel() {
             <option value="return">{t('accounting.vat.return')}</option>
           </select>
         </div>
-        <ExportButton path={direction === 'return' ? 'vat/return' : 'vat/listing'} params={exportParams} name={direction === 'return' ? 'vat-return.csv' : `vat-listing-${direction}.csv`} disabled={!ready} pdf={direction === 'return'} />
+        <ExportButton path={direction === 'return' ? 'vat/return' : 'vat/listing'} params={exportParams} name={direction === 'return' ? 'vat-return.csv' : `vat-listing-${direction}.csv`} disabled={!ready} pdf={direction === 'return'} xml={direction === 'return'} />
       </div>
+
+      <VatSettlementPanel canManage={canSettle} />
 
       {direction !== 'return' && listing.data && (
         <div className="space-y-3">
@@ -1026,7 +1084,10 @@ function VatPanel() {
               <tbody>
                 {listing.data.rows.map((r, i) => (
                   <tr key={i} className="border-b" title={r.description}>
-                    <td className="p-2">{r.kind}</td>
+                    <td className="p-2">
+                      {r.kind}
+                      {r.category === 'NotTaxable' && <span className="ml-1 text-xs text-gray-500">{t('accounting.vat.notTaxableShort')}</span>}
+                    </td>
                     <td className="p-2 font-mono text-xs">{r.number}</td>
                     <td className="p-2">{r.date.slice(0, 10)}</td>
                     <td className="p-2 text-right">{r.net ? r.net.toLocaleString() : ''}</td>
@@ -1037,7 +1098,7 @@ function VatPanel() {
                 {listing.data.byRate.map((g, i) => (
                   <tr key={'g' + i} className="bg-gray-50 font-medium">
                     <td className="p-2" colSpan={3}>
-                      {t('accounting.vat.subtotal')} {g.ratePercent === null ? t('accounting.vat.noRate') : `${g.ratePercent}%`}
+                      {t('accounting.vat.subtotal')} {g.category === 'NotTaxable' ? t('accounting.vat.notTaxable') : g.ratePercent === null ? t('accounting.vat.noRate') : `${g.ratePercent}%`}
                     </td>
                     <td className="p-2 text-right">{g.net.toLocaleString()}</td>
                     <td />
@@ -1204,7 +1265,7 @@ export function ReportsPage() {
       {tab === 'b09' && <NotesPanel canEdit={hasPermission('accounting:accounts:manage')} />}
       {tab === 'mapping' && <StatementMappingPanel canEdit={hasPermission('accounting:accounts:manage')} />}
       {tab === 'off-balance' && <OffBalancePanel />}
-      {tab === 'vat' && <VatPanel />}
+      {tab === 'vat' && <VatPanel canSettle={hasPermission('accounting:journals:manage')} />}
     </div>
   )
 }

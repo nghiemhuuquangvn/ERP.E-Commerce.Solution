@@ -58,6 +58,7 @@ namespace ERP.ACC.Application.Posting
         public const string PaymentRefund = "PaymentRefund";
         public const string SalesReturn = "SalesReturn";
         public const string InvoiceVatAdjustment = "InvoiceVatAdjust";
+        public const string VatSettlement = "VatSettlement";
         public const string Loan = "Loan";
         public const string LoanRepayment = "LoanRepayment";
         public const string LoanAccrual = "LoanAccrual";
@@ -166,6 +167,17 @@ namespace ERP.ACC.Application.Posting
                     PostingLine.Dr(PostingKeys.InterestExpense, amount, loan.LoanNumber),
                     PostingLine.Cr(PostingKeys.InterestPayable, amount, loan.LoanNumber),
                 });
+
+        /// <summary>
+        /// The VAT of a period settled (ROADMAP P1-3b): Dr VAT output / Cr VAT input for the part of the input VAT that can be deducted from the output VAT. The VAT payable is
+        /// what stays on the output account, the input VAT not used stays on the input account. <paramref name="round"/> numbers a new settlement after the earlier one was reversed.
+        /// </summary>
+        public static PostingRequest ForVatSettlement(Guid fiscalPeriodId, int round, decimal amount, string periodName, DateTime date)
+        {
+            var bytes = System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes($"vat-settlement:{fiscalPeriodId:N}:{round}"));
+            return new(VatSettlement, new Guid(bytes), date.Date, $"VAT settlement {periodName}",
+                new[] { PostingLine.Dr(PostingKeys.VatOutput, amount, periodName), PostingLine.Cr(PostingKeys.VatInput, amount, periodName) });
+        }
 
         /// <summary>A stable id for "this installment accrued up to this date".</summary>
         public static Guid AccrualSourceId(Guid installmentId, DateTime asOf)
@@ -295,10 +307,11 @@ namespace ERP.ACC.Application.Posting
         }
 
         /// <summary>A completed return (credit note): Dr Sales returns / Cr Accounts receivable. Keyed by the order: Sales allows one return per order.</summary>
-        public static PostingRequest ForSalesReturn(Guid orderId, string invoiceNumber, decimal amount, DateTime date, decimal taxRatePercent = 0m)
+        public static PostingRequest ForSalesReturn(Guid orderId, string invoiceNumber, decimal amount, DateTime date, decimal taxRatePercent = 0m, decimal? taxAmount = null)
         {
-            // the refund is gross: the VAT inside it (at the invoice's rate) comes off the VAT output, the rest off the revenue (ROADMAP P1-3)
-            var tax = taxRatePercent > 0m ? VatCalculator.TaxInGross(amount, taxRatePercent) : 0m;
+            // the refund is gross: the VAT inside it comes off the VAT output, the rest off the revenue (ROADMAP P1-3). `taxAmount` is the invoice's own VAT share of the
+            // refund (pro rata over all its lines, so a mix of rates is exact, P1-3b); without it the VAT is taken at `taxRatePercent`.
+            var tax = taxAmount ?? (taxRatePercent > 0m ? VatCalculator.TaxInGross(amount, taxRatePercent) : 0m);
             var lines = new List<PostingLine> { PostingLine.Dr(PostingKeys.SalesReturns, amount - tax, invoiceNumber) };
             if (tax > 0m)
                 lines.Add(PostingLine.Dr(PostingKeys.VatOutput, tax, invoiceNumber));

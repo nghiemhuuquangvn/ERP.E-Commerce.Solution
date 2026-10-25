@@ -16,6 +16,17 @@ export interface InvoiceDto {
   dueDate: string
   status: string
   createdAt: string
+  /** False when the journal entry could not be posted (no open fiscal period …); see the posting gaps. */
+  postedToLedger?: boolean
+  postingWarning?: string | null
+}
+
+/** A VAT line as the API takes it (ROADMAP P1-3b): category 0 taxable / 1 not subject to VAT. */
+export interface VatLineInput {
+  category: number
+  ratePercent: number
+  amount: number
+  description?: string
 }
 
 /** The e-invoice of an invoice as the provider answered (ROADMAP P1-3). */
@@ -23,7 +34,11 @@ export interface EInvoiceDto {
   id: string
   invoiceId: string
   provider: string
-  status: 'Issued' | 'Cancelled' | 'Failed'
+  status: 'Issued' | 'Cancelled' | 'Failed' | 'Replaced'
+  kind: 'Original' | 'Replacement' | 'Adjustment'
+  reason: string | null
+  adjustNet: number | null
+  adjustTax: number | null
   series: string
   number: string | null
   lookupCode: string | null
@@ -57,6 +72,8 @@ export interface CreateInvoiceRequest {
   orderId: string
   amount: number
   dueDate: string
+  taxRatePercent?: number
+  lines?: VatLineInput[]
 }
 
 export interface ARAgingDto {
@@ -78,8 +95,16 @@ export const invoicesApi = {
   create: (body: CreateInvoiceRequest) =>
     apiClient.post<InvoiceDto>(`${ACC_BASE}/invoices`, body).then((r) => r.data),
 
-  adjustVat: (id: string, taxRatePercent: number) =>
-    apiClient.post<InvoiceDto>(`${ACC_BASE}/invoices/${id}/adjust-vat`, { taxRatePercent }).then((r) => r.data),
+  adjustVat: (id: string, taxRatePercent: number, lines?: VatLineInput[]) =>
+    apiClient.post<InvoiceDto>(`${ACC_BASE}/invoices/${id}/adjust-vat`, { taxRatePercent, lines: lines ?? [] }).then((r) => r.data),
+
+  eInvoices: (id: string) => apiClient.get<EInvoiceDto[]>(`${ACC_BASE}/invoices/${id}/e-invoices`).then((r) => r.data),
+
+  replaceEInvoice: (id: string, body: { reason: string; buyerName?: string; buyerTaxCode?: string; buyerAddress?: string; taxRatePercent?: number }) =>
+    apiClient.post<EInvoiceDto>(`${ACC_BASE}/invoices/${id}/e-invoice/replace`, body).then((r) => r.data),
+
+  adjustEInvoice: (id: string, body: { adjustNet: number; adjustTax: number; reason: string }) =>
+    apiClient.post<EInvoiceDto>(`${ACC_BASE}/invoices/${id}/e-invoice/adjust`, body).then((r) => r.data),
 
   eInvoiceProviders: () => apiClient.get<string[]>(`${ACC_BASE}/invoices/e-invoice-providers`).then((r) => r.data),
 

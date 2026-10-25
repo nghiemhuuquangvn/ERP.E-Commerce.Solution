@@ -28,11 +28,19 @@ namespace ERP.ACC.Application.EInvoicing
         public string? CancelReason { get; set; }
         public DateTime? CancelledAt { get; set; }
 
+        /// <summary>"Original", "Replacement" or "Adjustment".</summary>
+        public string Kind { get; set; } = "Original";
+        public Guid? RelatedEInvoiceId { get; set; }
+        public string? Reason { get; set; }
+        public decimal? AdjustNet { get; set; }
+        public decimal? AdjustTax { get; set; }
+
         internal static EInvoiceDto From(EInvoice e) => new()
         {
             Id = e.Id, InvoiceId = e.InvoiceId, Provider = e.Provider, Status = ((EInvoiceStatus)e.Status).ToString(), Series = e.Series, Number = e.Number,
             LookupCode = e.LookupCode, IssuedAt = e.IssuedAt, BuyerName = e.BuyerName, BuyerTaxCode = e.BuyerTaxCode, BuyerAddress = e.BuyerAddress,
             Error = e.Error, CancelReason = e.CancelReason, CancelledAt = e.CancelledAt,
+            Kind = ((EInvoiceKind)e.Kind).ToString(), RelatedEInvoiceId = e.RelatedEInvoiceId, Reason = e.Reason, AdjustNet = e.AdjustNet, AdjustTax = e.AdjustTax,
         };
     }
 
@@ -59,6 +67,22 @@ namespace ERP.ACC.Application.EInvoicing
     }
 
     public class ListEInvoiceProvidersQuery : IRequest<List<string>> { }
+
+    /// <summary>Every e-invoice of an invoice: the original, its replacements and its adjustments (ROADMAP P1-3b).</summary>
+    public class ListEInvoicesQuery : IRequest<List<EInvoiceDto>>
+    {
+        public Guid InvoiceId { get; set; }
+    }
+
+    public class ListEInvoicesQueryHandler : IRequestHandler<ListEInvoicesQuery, List<EInvoiceDto>>
+    {
+        private readonly IEInvoiceRepository _einvoices;
+
+        public ListEInvoicesQueryHandler(IEInvoiceRepository einvoices) => _einvoices = einvoices;
+
+        public async Task<List<EInvoiceDto>> Handle(ListEInvoicesQuery request, CancellationToken cancellationToken) =>
+            (await _einvoices.ListByInvoiceAsync(request.InvoiceId, cancellationToken)).Select(EInvoiceDto.From).ToList();
+    }
 
     public class ListEInvoiceProvidersQueryHandler : IRequestHandler<ListEInvoiceProvidersQuery, List<string>>
     {
@@ -90,11 +114,13 @@ namespace ERP.ACC.Application.EInvoicing
         private readonly ITaxSettingsService _settings;
         private readonly ITenantProvider _tenant;
         private readonly ILogger<IssueEInvoiceCommandHandler> _logger;
+        private readonly IVatLineRepository? _vatLines;
 
         public IssueEInvoiceCommandHandler(
             IAccountingUnitOfWork uow, IEInvoiceRepository einvoices, IEInvoiceProviderFactory providers, ITaxSettingsService settings, ITenantProvider tenant,
-            ILogger<IssueEInvoiceCommandHandler> logger)
+            ILogger<IssueEInvoiceCommandHandler> logger, IVatLineRepository? vatLines = null)
         {
+            _vatLines = vatLines;
             _uow = uow;
             _einvoices = einvoices;
             _providers = providers;
@@ -131,7 +157,12 @@ namespace ERP.ACC.Application.EInvoicing
                 settings.EInvoiceSeries!, invoice.InvoiceNumber, DateTime.UtcNow.Date,
                 new EInvoiceParty(profile?.CompanyName ?? string.Empty, settings.CompanyTaxCode!, profile?.Address ?? string.Empty),
                 new EInvoiceParty(buyerName, request.BuyerTaxCode?.Trim() ?? string.Empty, request.BuyerAddress?.Trim() ?? string.Empty),
-                "VND", $"Order {invoice.OrderId:N}", invoice.EffectiveNet, invoice.TaxRatePercent, invoice.TaxAmount, invoice.Amount);
+                "VND", $"Order {invoice.OrderId:N}", invoice.EffectiveNet, invoice.TaxRatePercent, invoice.TaxAmount, invoice.Amount)
+            {
+                Lines = _vatLines == null ? Array.Empty<EInvoiceLine>()
+                    : (await _vatLines.ListAsync(VatLine.InvoiceDocument, new[] { invoice.Id }, cancellationToken))
+                        .Select(l => new EInvoiceLine(l.Text ?? $"Order {invoice.OrderId:N}", l.Category == VatLine.NotTaxable, l.RatePercent, l.Net, l.Tax)).ToList(),
+            };
             var json = JsonSerializer.Serialize(payload);
 
             EInvoice e;

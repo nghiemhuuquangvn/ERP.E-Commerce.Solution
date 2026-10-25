@@ -121,7 +121,8 @@ namespace ERP.ACC.Application.EventHandlers
 
             await _posting.TryPostAsync(_logger,
                 PostingRules.ForSalesReturn(@event.OrderId, invoice.InvoiceNumber, @event.RefundAmount,
-                    @event.ReturnedAt == default ? DateTime.UtcNow : @event.ReturnedAt, invoice.TaxRatePercent),
+                    @event.ReturnedAt == default ? DateTime.UtcNow : @event.ReturnedAt, invoice.TaxRatePercent,
+                    invoice.TaxAmount > 0m && invoice.Amount > 0m ? Math.Round(invoice.TaxAmount * @event.RefundAmount / invoice.Amount, 2, MidpointRounding.AwayFromZero) : null),
                 cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
         }

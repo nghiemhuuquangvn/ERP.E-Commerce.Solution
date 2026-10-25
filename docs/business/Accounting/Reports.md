@@ -124,6 +124,8 @@ closing on the natural side; fixed assets with accumulated depreciation and net 
 
 ## VAT listing and return 01/GTGT (P1-3)
 
+P1-3b: the listing has one row per VAT line (`Category`: Taxable / NotTaxable), the return has row 26 for goods not subject to VAT, `GET reports/vat/return?format=xml` gives an HTKK-style XML (`VatReturnXml`, draft), `GET accounting/vat/settlement` / `POST accounting/vat/settle` settle a period (`VatSettlementHandlers`), `GET accounting/posting-gaps` and `POST .../repost` find and post documents without an entry.
+
 `GET reports/vat/listing?direction=output|input` (`GetVatListingQueryHandler`): documents of the period plus the other lines on the VAT account(s), subtotals per rate, the account movement and the difference; csv / xlsx (`ReportTables.VatListing`). `GET reports/vat/return` builds a `FinancialStatementDto` (code 22–25, S / T by rate, 35, 40, 43) so the unit, header, signatories, csv / xlsx and PDF are the statements' own. Simplified draft, not the authority's filing file.
 
 ## Day count, history of note texts and languages (P1-2l)
