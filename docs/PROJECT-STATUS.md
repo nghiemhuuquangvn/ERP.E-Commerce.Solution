@@ -36,6 +36,14 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-26 — ROADMAP P1-3b: VAT lines, settlement, e-invoice kinds, posting gaps, XML (`feat/p1-3b-vat-lines-settlement`, unmerged)
+- **VAT lines** on invoices and bills (rates 0 / 5 / 8 / 10 %, goods not subject to VAT; table `VatLines`, migration 024), *Adjust VAT* by lines, bill approval with the supplier's rate, return by the invoice's VAT share, listing rows per line, return row 26.
+- **VAT settlement** (`accounting/vat/settlement`, `settle`): Dr VAT output / Cr VAT input for the smaller balance, once per period (reverse to redo).
+- **E-invoice**: replacement (original → Replaced, optional new rate applied first), adjustment (signed amounts, any number), **auto-issue** switch for invoices from orders.
+- **Unposted documents**: `postedToLedger` / warning on invoices and bills, `posting-gaps` list and repost, bar + ⚠ in the admin. **XML** of the return (HTKK-style draft).
+- Verified live on `glcheck` (October 2026 closed → warning, gaps, repost after opening; mixed-lines invoice 1,940,000 / VAT 140,000 and bill; listing and return incl. row 26; settlement Dr 3331 / Cr 1331 140,000, second settle 400; e-invoice issue → replace at 8 % (invoice VAT 143,703.70) → adjust −100,000 / −8,000; XML head). October 2026 was reopened for the check and closed again, settings restored, test data removed. Tests: ACC 495 (+40), drift test passes (migration 024), Architecture 53/54 (known failure), admin `tsc -b` clean. Migration 024 applied to the host DB; accountingservice and admin rebuilt from the branch.
+- Not done (P1-3c): see ROADMAP; the return/pro-rata and auto-issue event paths are unit-tested only, admin screens type-checked not clicked.
+
 ### 2026-10-25 — ROADMAP P1-3: VAT, VAT listing / return, e-invoice adapter (`feat/p1-3-vat-einvoice`, unmerged)
 - **VAT** on invoices (net / VAT / gross from the tenant's rate and price convention, override, *Adjust VAT*), returns (VAT inside the refund) and bills (new key `VatInput`, rate fixed at approval). Rate 0 (default) = behaviour as before. Migration 023 (`Invoices` / `Bills`.`TaxRatePercent`; `SubTotal` / `TaxAmount` already existed).
 - **Reports → VAT**: sales / purchase listing with the check against the VAT account; simplified return 01/GTGT (csv / xlsx / pdf).
