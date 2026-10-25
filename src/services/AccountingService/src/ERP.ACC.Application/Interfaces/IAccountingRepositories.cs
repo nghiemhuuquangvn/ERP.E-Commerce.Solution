@@ -211,6 +211,22 @@ namespace ERP.ACC.Application.Interfaces
         Task UpdateAsync(BankAccount bankAccount, CancellationToken ct = default);
     }
 
+    public interface IBankStatementLineRepository
+    {
+        Task<BankStatementLine?> GetByIdAsync(Guid id, CancellationToken ct = default);
+
+        /// <summary>The lines of a statement, oldest first (tracked, so a match is saved by the unit of work).</summary>
+        Task<List<BankStatementLine>> ListByStatementAsync(Guid bankStatementId, CancellationToken ct = default);
+
+        /// <summary>Every line of the bank account dated up to <paramref name="to"/>, whichever statement it belongs to.</summary>
+        Task<List<BankStatementLine>> ListByBankAccountAsync(Guid bankAccountId, DateTime to, CancellationToken ct = default);
+
+        /// <summary>The ledger lines already matched to a statement line (any bank account of the tenant).</summary>
+        Task<HashSet<Guid>> MatchedJournalLineIdsAsync(CancellationToken ct = default);
+        Task AddRangeAsync(IEnumerable<BankStatementLine> lines, CancellationToken ct = default);
+        void Remove(BankStatementLine line);
+    }
+
     public interface IBankStatementRepository
     {
         Task<BankStatement?> GetByIdAsync(Guid id, CancellationToken ct = default);

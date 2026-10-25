@@ -20,6 +20,7 @@ namespace ERP.ACC.Infrastructure.Persistence
         public DbSet<TaxRate> TaxRates { get; set; }
         public DbSet<BankAccount> BankAccounts { get; set; }
         public DbSet<BankStatement> BankStatements { get; set; }
+        public DbSet<BankStatementLine> BankStatementLines { get; set; }
         public DbSet<PostingAccountMapping> PostingAccountMappings { get; set; }
         public DbSet<ClosingPolicy> ClosingPolicies { get; set; }
         public DbSet<ReportProfile> ReportProfiles { get; set; }
@@ -294,6 +295,21 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.CurrencyCode).IsRequired().HasMaxLength(10);
                 e.Property(x => x.CurrentBalance).HasColumnType("decimal(18,2)");
                 e.HasIndex(x => x.AccountNumber);
+            });
+
+            modelBuilder.Entity<BankStatementLine>(e =>
+            {
+                e.ToTable("BankStatementLines");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.LineDate).HasColumnType("date");
+                e.Property(x => x.Reference).HasMaxLength(100);
+                e.Property(x => x.Description).HasMaxLength(500);
+                e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+                e.Property(x => x.Balance).HasColumnType("decimal(18,2)");
+                e.HasIndex(x => new { x.TenantId, x.BankStatementId });
+                e.HasIndex(x => new { x.TenantId, x.BankAccountId, x.LineDate });
+                e.HasIndex(x => new { x.TenantId, x.MatchedJournalLineId }).IsUnique().HasFilter("[MatchedJournalLineId] IS NOT NULL AND [IsDeleted] = 0");
             });
 
             modelBuilder.Entity<BankStatement>(e =>

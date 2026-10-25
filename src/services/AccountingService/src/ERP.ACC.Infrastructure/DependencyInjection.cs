@@ -84,6 +84,7 @@ namespace ERP.ACC.Infrastructure
             services.AddScoped<ITaxRateRepository, TaxRateRepository>();
             services.AddScoped<IBankAccountRepository, BankAccountRepository>();
             services.AddScoped<IBankStatementRepository, BankStatementRepository>();
+            services.AddScoped<IBankStatementLineRepository, BankStatementLineRepository>();
             services.AddScoped<IAccountingUnitOfWork, AccountingUnitOfWork>();
 
             // Tax Settings (System/Tenant two-tier) — storage+CRUD only for now

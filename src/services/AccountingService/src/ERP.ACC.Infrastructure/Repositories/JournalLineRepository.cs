@@ -96,6 +96,8 @@ namespace ERP.ACC.Infrastructure.Repositories
                 .OrderBy(x => x.Entry.EntryDate).ThenBy(x => x.Entry.EntryNumber).ThenBy(x => x.Line.CreatedAt)
                 .Select(x => new LedgerRow
                 {
+                    LineId = x.Line.Id,
+                    ReferenceId = x.Entry.ReferenceId,
                     EntryId = x.Entry.Id,
                     EntryNumber = x.Entry.EntryNumber,
                     EntryDate = x.Entry.EntryDate,

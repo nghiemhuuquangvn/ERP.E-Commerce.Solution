@@ -1,9 +1,11 @@
+using ERP.ACC.Application.Bank;
 using ERP.ACC.Application.Commands;
 using ERP.ACC.Application.DTOs;
 using ERP.ACC.Application.Interfaces;
 using ERP.ACC.Application.Queries;
 using ERP.ACC.Domain.Entities;
 using ERP.ACC.Domain.Enums;
+using ERP.Shared.Infrastructure.Exceptions;
 using MediatR;
 
 namespace ERP.ACC.Application.Handlers
@@ -122,7 +124,30 @@ namespace ERP.ACC.Application.Handlers
             var statement = await _uow.BankStatements.GetByIdAsync(request.BankStatementId, cancellationToken)
                 ?? throw new InvalidOperationException($"Bank statement {request.BankStatementId} not found.");
 
-            statement.Reconcile(request.Notes);
+            // A statement with lines is reconciled line by line (ROADMAP P1-4): every line matched or posted and the books explain the closing balance. One typed without lines
+            // keeps the old behaviour (a status flag), since there is nothing to compare.
+            var lines = await _uow.BankStatementLines.ListByStatementAsync(statement.Id, cancellationToken);
+            if (lines.Count > 0)
+            {
+                var account = await _uow.BankAccounts.GetByIdAsync(statement.BankAccountId, cancellationToken)
+                    ?? throw new KeyNotFoundException($"Bank account {statement.BankAccountId} not found.");
+                var recon = await BankReconciliationSupport.BuildAsync(_uow, statement, account, cancellationToken);
+                if (!account.GlAccountId.HasValue)
+                    throw new BusinessRuleException("Accounting", "The bank account has no ledger account: link it before reconciling.");
+                if (recon.UnmatchedStatementLines > 0)
+                    throw new BusinessRuleException("Accounting", $"{recon.UnmatchedStatementLines} statement line(s) are not matched to the books: match them or post them first.");
+                if (Math.Abs(recon.Difference) > 0.005m)
+                    throw new BusinessRuleException("Accounting", $"The books do not explain the closing balance: the difference is {recon.Difference:N2}.");
+            }
+
+            try
+            {
+                statement.Reconcile(request.Notes);
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw new BusinessRuleException("Accounting", ex.Message);
+            }
             await _uow.BankStatements.UpdateAsync(statement, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
             return CreateBankStatementCommandHandler.MapToDto(statement);

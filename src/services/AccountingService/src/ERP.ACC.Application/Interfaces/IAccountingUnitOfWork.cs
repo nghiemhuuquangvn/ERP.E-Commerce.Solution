@@ -19,6 +19,7 @@ namespace ERP.ACC.Application.Interfaces
         ITaxRateRepository TaxRates { get; }
         IBankAccountRepository BankAccounts { get; }
         IBankStatementRepository BankStatements { get; }
+        IBankStatementLineRepository BankStatementLines { get; }
         Task<int> SaveChangesAsync(CancellationToken ct = default);
         Task BeginTransactionAsync(CancellationToken ct = default);
         Task CommitTransactionAsync(CancellationToken ct = default);

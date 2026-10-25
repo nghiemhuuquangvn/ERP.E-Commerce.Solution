@@ -231,6 +231,9 @@ namespace ERP.ACC.Application.DTOs
     /// <summary>One journal line as the ledger reads it (repository projection).</summary>
     public class LedgerRow
     {
+        /// <summary>The journal line itself (what a bank statement line is matched to) and the document that made the entry.</summary>
+        public Guid LineId { get; set; }
+        public Guid? ReferenceId { get; set; }
         public Guid EntryId { get; set; }
         public string EntryNumber { get; set; } = string.Empty;
         public DateTime EntryDate { get; set; }
