@@ -1,4 +1,5 @@
 using ERP.ACC.Application.Interfaces;
+using ERP.ACC.Application.Posting;
 using ERP.ACC.Domain.Entities;
 using ERP.ACC.Domain.Enums;
 using MediatR;
@@ -56,8 +57,13 @@ namespace ERP.ACC.Application.Reports
             var accounts = await _accounts.GetAllAsync(ct);
             var mapping = (await _mappings.GetAllAsync(ct)).FirstOrDefault(m => m.PostingKey == PostingKeys.LoanPayable);
             Account? account = mapping != null ? accounts.FirstOrDefault(a => a.Id == mapping.AccountId) : null;
-            if (account == null && PostingKeys.DefaultAccountNumbers.TryGetValue(PostingKeys.LoanPayable, out var number))
+            if (account == null)
+            {
+                // the key is mapped by the first posting; until then it is the default of the tenant's chart
+                var number = ChartTemplates.Find(ChartTemplates.Detect(accounts))?.PostingMap.GetValueOrDefault(PostingKeys.LoanPayable)
+                    ?? PostingKeys.DefaultAccountNumbers.GetValueOrDefault(PostingKeys.LoanPayable);
                 account = accounts.FirstOrDefault(a => a.AccountNumber == number);
+            }
 
             var result = new LoanReconciliationDto { AsOfDate = day };
             var loans = (await _loans.ListAsync(ct)).Where(l => l.Status != (int)LoanStatus.Cancelled && l.StartDate.Date <= day).ToList();
