@@ -218,12 +218,12 @@ export interface IncomeStatementParams {
   unit?: AmountUnit
 }
 
-/** Downloads a report as a file: CSV (UTF-8 with a BOM, Excel opens it correctly) or Excel (.xlsx with numeric cells). */
+/** Downloads a report as a file: CSV (UTF-8 with a BOM, Excel opens it correctly), Excel (.xlsx with numeric cells) or PDF (B01 / B02 / B03 only). */
 export async function downloadReport(
   path: string,
   params: Record<string, unknown>,
   fallbackName: string,
-  format: 'csv' | 'xlsx' = 'csv',
+  format: 'csv' | 'xlsx' | 'pdf' = 'csv',
 ): Promise<void> {
   const res = await apiClient.get<Blob>(`${ACC_BASE}/accounting/reports/${path}`, {
     params: { ...params, format },

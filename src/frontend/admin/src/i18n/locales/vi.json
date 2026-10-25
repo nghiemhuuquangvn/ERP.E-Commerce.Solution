@@ -1823,6 +1823,7 @@
       "tabB02": "B02 Kết quả kinh doanh",
       "tabB03": "B03 Lưu chuyển tiền tệ",
       "exportExcel": "Xuất Excel",
+      "exportPdf": "Xuất PDF",
       "unit": "Đơn vị tính",
       "unitProfile": "Theo hồ sơ báo cáo",
       "unitVnd": "Đồng",

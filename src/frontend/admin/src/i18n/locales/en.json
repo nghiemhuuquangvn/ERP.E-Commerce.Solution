@@ -1823,6 +1823,7 @@
       "tabB02": "B02 Income Statement (VAS)",
       "tabB03": "B03 Cash Flow (VAS)",
       "exportExcel": "Export Excel",
+      "exportPdf": "Export PDF",
       "unit": "Unit",
       "unitProfile": "Per report profile",
       "unitVnd": "VND",

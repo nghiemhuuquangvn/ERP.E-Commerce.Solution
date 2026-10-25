@@ -13,11 +13,11 @@ function todayISODate(): string {
 }
 
 /** "Export CSV" and "Export Excel" buttons: ask the server for the same report as a file. */
-function ExportButton({ path, params, name, disabled }: { path: string; params: Record<string, unknown>; name: string; disabled?: boolean }) {
+function ExportButton({ path, params, name, disabled, pdf }: { path: string; params: Record<string, unknown>; name: string; disabled?: boolean; pdf?: boolean }) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
-  const run = async (format: 'csv' | 'xlsx') => {
+  const run = async (format: 'csv' | 'xlsx' | 'pdf') => {
     setBusy(true)
     setFailed(false)
     try {
@@ -36,6 +36,11 @@ function ExportButton({ path, params, name, disabled }: { path: string; params: 
       <button type="button" className="btn-outline" disabled={disabled || busy} onClick={() => run('xlsx')}>
         {t('accounting.reports.exportExcel')}
       </button>
+      {pdf && (
+        <button type="button" className="btn-outline" disabled={disabled || busy} onClick={() => run('pdf')}>
+          {t('accounting.reports.exportPdf')}
+        </button>
+      )}
       {failed && <span className="text-xs text-red-600">{t('accounting.reports.exportFailed')}</span>}
     </span>
   )
@@ -210,6 +215,7 @@ function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' |
           params={params}
           name={`${kind}.csv`}
           disabled={!ready}
+          pdf
         />
       </div>
 

@@ -68,6 +68,9 @@ namespace ERP.ACC.API.Controllers
             if (!_userContext.HasPermission("accounting:reports:view"))
                 return Forbid();
 
+            if (IsPdf(format))
+                return PdfNotAvailable();
+
             var result = await _mediator.Send(new GetTrialBalanceFullQuery
             {
                 FiscalPeriodId = fiscalPeriodId,
@@ -95,6 +98,9 @@ namespace ERP.ACC.API.Controllers
             if (!_userContext.HasPermission("accounting:reports:view"))
                 return Forbid();
 
+            if (IsPdf(format))
+                return PdfNotAvailable();
+
             var result = await _mediator.Send(new GetCashFlowQuery { FromDate = fromDate, ToDate = toDate }, ct);
             return IsExport(format) ? Export(format, ReportTables.CashFlow(result), "cash-flow") : Ok(result);
         }
@@ -117,6 +123,9 @@ namespace ERP.ACC.API.Controllers
         {
             if (!_userContext.HasPermission("accounting:reports:view"))
                 return Forbid();
+
+            if (IsPdf(format))
+                return PdfNotAvailable();
 
             var export = IsExport(format);
             var result = await _mediator.Send(new GetAccountLedgerQuery
@@ -154,7 +163,7 @@ namespace ERP.ACC.API.Controllers
                 CompareAsOfDate = compareAsOfDate,
                 Unit = unit
             }, ct);
-            return IsExport(format) ? Export(format, ReportTables.Statement(result), "balance-sheet-b01") : Ok(result);
+            return IsExport(format) ? StatementExport(format, result, "balance-sheet-b01") : Ok(result);
         }
 
         /// <summary>Income statement B02-DN by indicator code (see balance-sheet). Period-closing entries are left out; compareFromDate / compareToDate add a prior column.</summary>
@@ -180,7 +189,7 @@ namespace ERP.ACC.API.Controllers
                 CompareToDate = compareToDate,
                 Unit = unit
             }, ct);
-            return IsExport(format) ? Export(format, ReportTables.Statement(result), "income-statement-b02") : Ok(result);
+            return IsExport(format) ? StatementExport(format, result, "income-statement-b02") : Ok(result);
         }
 
         /// <summary>
@@ -209,7 +218,7 @@ namespace ERP.ACC.API.Controllers
                 CompareToDate = compareToDate,
                 Unit = unit
             }, ct);
-            return IsExport(format) ? Export(format, ReportTables.Statement(result), "cash-flow-b03") : Ok(result);
+            return IsExport(format) ? StatementExport(format, result, "cash-flow-b03") : Ok(result);
         }
 
         /// <summary>The header, signatories and amount unit of the statements.</summary>
@@ -234,10 +243,24 @@ namespace ERP.ACC.API.Controllers
             return Ok(await _mediator.Send(command, ct));
         }
 
+        private static bool IsPdf(string? format) => string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase);
+
+        private IActionResult PdfNotAvailable() => BadRequest(new ProblemDetails
+        {
+            Title = "Business rule violation.",
+            Status = StatusCodes.Status400BadRequest,
+            Detail = "PDF is available for the statements B01, B02 and B03 only; use csv or xlsx for this report.",
+        });
+
+        /// <summary>CSV, Excel or PDF of a statement (B01 / B02 / B03).</summary>
+        private IActionResult StatementExport(string? format, FinancialStatementDto statement, string name) => IsPdf(format)
+            ? File(PdfWriter.ToBytes(statement), "application/pdf", $"{name}-{DateTime.UtcNow:yyyyMMddHHmmss}.pdf")
+            : Export(format, ReportTables.Statement(statement), name);
+
         private static bool IsXlsx(string? format) => string.Equals(format, "xlsx", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>format=csv or format=xlsx asks for a file instead of JSON.</summary>
-        private static bool IsExport(string? format) => IsXlsx(format) || string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase);
+        private static bool IsExport(string? format) => IsXlsx(format) || IsPdf(format) || string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase);
 
         private FileContentResult Export(string? format, ReportTable table, string name) => IsXlsx(format)
             ? File(XlsxWriter.ToBytes(table), XlsxWriter.ContentType, $"{name}-{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx")
