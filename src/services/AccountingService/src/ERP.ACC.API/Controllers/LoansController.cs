@@ -54,6 +54,12 @@ namespace ERP.ACC.API.Controllers
             return Ok(await _mediator.Send(command, ct));
         }
 
+        /// <summary>Posts the drawdown of a loan that was entered without it (Dr Bank / Cr Loan payable); later repayments are then posted too. Refused once anything was repaid.</summary>
+        [HttpPost("{id:guid}/post-drawdown")]
+        [AuthorizePermission(PermissionConstants.Accounting_BankManage)]
+        [ProducesResponseType(typeof(LoanDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> PostDrawdown(Guid id, CancellationToken ct) => Ok(await _mediator.Send(new PostLoanDrawdownCommand { LoanId = id }, ct));
+
         /// <summary>Cancels a loan entered by mistake (reason required); refused once anything has been repaid.</summary>
         [HttpPost("{id:guid}/cancel")]
         [AuthorizePermission(PermissionConstants.Accounting_BankManage)]

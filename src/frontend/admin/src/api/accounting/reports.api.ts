@@ -262,7 +262,12 @@ export interface NoteSection {
   table: NoteTable | null
 }
 
+export type NoteLanguage = 'vi' | 'en'
+
 export interface Notes {
+  language: NoteLanguage
+  compareFromDate: string | null
+  compareToDate: string | null
   title: string
   isDraft: boolean
   fromDate: string
@@ -282,13 +287,14 @@ export interface NoteTextEntry {
 }
 
 export const reportsApi = {
-  notes: (params: { fromDate: string; toDate: string; unit?: AmountUnit }) =>
+  notes: (params: { fromDate: string; toDate: string; unit?: AmountUnit; lang?: NoteLanguage; compareFromDate?: string; compareToDate?: string }) =>
     apiClient.get<Notes>(`${ACC_BASE}/accounting/reports/statements/notes`, { params }).then((r) => r.data),
 
-  noteTexts: () => apiClient.get<NoteTextEntry[]>(`${ACC_BASE}/accounting/reports/notes/text`).then((r) => r.data),
+  noteTexts: (lang: NoteLanguage = 'vi') =>
+    apiClient.get<NoteTextEntry[]>(`${ACC_BASE}/accounting/reports/notes/text`, { params: { lang } }).then((r) => r.data),
 
-  updateNoteTexts: (texts: Record<string, string>) =>
-    apiClient.put<NoteTextEntry[]>(`${ACC_BASE}/accounting/reports/notes/text`, { texts }).then((r) => r.data),
+  updateNoteTexts: (texts: Record<string, string>, language: NoteLanguage = 'vi') =>
+    apiClient.put<NoteTextEntry[]>(`${ACC_BASE}/accounting/reports/notes/text`, { texts, language }).then((r) => r.data),
 
   reportProfile: () => apiClient.get<ReportProfile>(`${ACC_BASE}/accounting/reports/profile`).then((r) => r.data),
 

@@ -25,6 +25,9 @@ namespace ERP.ACC.Application.Interfaces
         Task<Invoice?> GetByOrderIdAsync(Guid orderId, CancellationToken ct = default);
         Task<List<Invoice>> GetByStatusAsync(int status, CancellationToken ct = default);
         Task<List<Invoice>> GetUnpaidInvoicesAsync(CancellationToken ct = default);
+
+        /// <summary>Invoices that could be long-term on a date: due later than <paramref name="dueAfter"/>, created by <paramref name="asOf"/>, whatever their status today.</summary>
+        Task<List<Invoice>> GetMaturityCandidatesAsync(DateTime asOf, DateTime dueAfter, CancellationToken ct = default);
         Task AddAsync(Invoice invoice, CancellationToken ct = default);
         Task UpdateAsync(Invoice invoice, CancellationToken ct = default);
     }
@@ -37,6 +40,9 @@ namespace ERP.ACC.Application.Interfaces
         Task<Bill?> GetByPurchaseOrderIdAsync(Guid purchaseOrderId, CancellationToken ct = default);
         Task<List<Bill>> GetByStatusAsync(int status, CancellationToken ct = default);
         Task<List<Bill>> GetUnpaidBillsAsync(CancellationToken ct = default);
+
+        /// <summary>Approved or paid bills due later than <paramref name="dueAfter"/> that existed on <paramref name="asOf"/>, whatever their status today.</summary>
+        Task<List<Bill>> GetMaturityCandidatesAsync(DateTime asOf, DateTime dueAfter, CancellationToken ct = default);
         Task AddAsync(Bill bill, CancellationToken ct = default);
         Task UpdateAsync(Bill bill, CancellationToken ct = default);
     }
@@ -122,6 +128,26 @@ namespace ERP.ACC.Application.Interfaces
         /// <summary>The tenant's report profile (tracked), or null when it never set one (= plain VND, no header).</summary>
         Task<ReportProfile?> GetAsync(CancellationToken ct = default);
         Task AddAsync(ReportProfile profile, CancellationToken ct = default);
+    }
+
+    public interface IStatementMappingRepository
+    {
+        /// <summary>Tracked, so a changed or removed mapping is saved by the unit of work.</summary>
+        Task<List<StatementAccountMapping>> GetAllAsync(CancellationToken ct = default);
+        Task AddAsync(StatementAccountMapping mapping, CancellationToken ct = default);
+        void Remove(StatementAccountMapping mapping);
+    }
+
+    public interface IPaymentApplicationRepository
+    {
+        Task AddAsync(PaymentApplication application, CancellationToken ct = default);
+
+
+        /// <summary>
+        /// Every application (whatever its date) of the documents <see cref="IInvoiceRepository.GetMaturityCandidatesAsync"/> / <see cref="IBillRepository.GetMaturityCandidatesAsync"/>
+        /// return for the same arguments. Payments after the date are needed too: a document with no row at all is told apart from one paid later.
+        /// </summary>
+        Task<List<PaymentApplication>> ListForMaturityAsync(DateTime asOf, DateTime dueAfter, CancellationToken ct = default);
     }
 
     public interface IPostingAccountMappingRepository

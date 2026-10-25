@@ -1,8 +1,10 @@
 using ERP.ACC.Application.Interfaces;
+using ERP.ACC.Application.Posting;
 using ERP.ACC.Domain.Entities;
 using ERP.ACC.Domain.Enums;
 using ERP.Shared.Infrastructure.Exceptions;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace ERP.ACC.Application.Handlers
 {
@@ -28,6 +30,9 @@ namespace ERP.ACC.Application.Handlers
         public string Status { get; set; } = string.Empty;
         public string? Notes { get; set; }
         public string? CancelReason { get; set; }
+
+        /// <summary>True when the drawdown is in the journal, so repayments are posted too; false for a loan booked by hand.</summary>
+        public bool PostedToLedger { get; set; }
 
         /// <summary>Principal still owed today, and the parts due within 12 months and later.</summary>
         public decimal Outstanding { get; set; }
@@ -55,6 +60,14 @@ namespace ERP.ACC.Application.Handlers
         public DateTime? MaturityDate { get; set; }
         public List<LoanInstallmentInput> Schedule { get; set; } = new();
         public string? Notes { get; set; }
+
+        /// <summary>Post the drawdown (Dr Bank / Cr Loan payable). Set false for a loan already booked by hand: it then stays out of the ledger postings.</summary>
+        public bool PostDrawdown { get; set; } = true;
+    }
+
+    public class PostLoanDrawdownCommand : IRequest<LoanDto>
+    {
+        public Guid LoanId { get; set; }
     }
 
     public class RecordLoanRepaymentCommand : IRequest<LoanDto>
@@ -92,6 +105,7 @@ namespace ERP.ACC.Application.Handlers
             Status = ((LoanStatus)loan.Status).ToString(),
             Notes = loan.Description,
             CancelReason = loan.CancelReason,
+            PostedToLedger = loan.PostedToLedger,
             Outstanding = loan.OutstandingAt(today),
             DueLater = loan.LongTermAt(today),
             DueWithinTwelveMonths = loan.OutstandingAt(today) - loan.LongTermAt(today),
@@ -105,8 +119,15 @@ namespace ERP.ACC.Application.Handlers
     public class CreateLoanCommandHandler : IRequestHandler<CreateLoanCommand, LoanDto>
     {
         private readonly IAccountingUnitOfWork _uow;
+        private readonly IJournalPostingService _posting;
+        private readonly ILogger<CreateLoanCommandHandler> _logger;
 
-        public CreateLoanCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
+        public CreateLoanCommandHandler(IAccountingUnitOfWork uow, IJournalPostingService posting, ILogger<CreateLoanCommandHandler> logger)
+        {
+            _uow = uow;
+            _posting = posting;
+            _logger = logger;
+        }
 
         public async Task<LoanDto> Handle(CreateLoanCommand request, CancellationToken cancellationToken)
         {
@@ -126,6 +147,8 @@ namespace ERP.ACC.Application.Handlers
             }
 
             await _uow.Loans.AddAsync(loan, cancellationToken);
+            if (request.PostDrawdown)
+                await LoanPosting.PostDrawdownAsync(_posting, _logger, loan, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
             return LoanMapper.Map(loan, DateTime.UtcNow.Date);
         }
@@ -134,22 +157,34 @@ namespace ERP.ACC.Application.Handlers
     public class RecordLoanRepaymentCommandHandler : IRequestHandler<RecordLoanRepaymentCommand, LoanDto>
     {
         private readonly IAccountingUnitOfWork _uow;
+        private readonly IJournalPostingService _posting;
+        private readonly ILogger<RecordLoanRepaymentCommandHandler> _logger;
 
-        public RecordLoanRepaymentCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
+        public RecordLoanRepaymentCommandHandler(IAccountingUnitOfWork uow, IJournalPostingService posting, ILogger<RecordLoanRepaymentCommandHandler> logger)
+        {
+            _uow = uow;
+            _posting = posting;
+            _logger = logger;
+        }
 
         public async Task<LoanDto> Handle(RecordLoanRepaymentCommand request, CancellationToken cancellationToken)
         {
             var loan = await _uow.Loans.GetByIdAsync(request.LoanId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Loan {request.LoanId} not found.");
+            LoanInstallment installment;
             try
             {
-                loan.RecordRepayment(request.InstallmentId, request.PaidOn ?? DateTime.UtcNow);
+                installment = loan.RecordRepayment(request.InstallmentId, request.PaidOn ?? DateTime.UtcNow);
             }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
             {
                 throw new BusinessRuleException("Accounting", ex.Message);
             }
 
+            // a loan booked by hand keeps its repayments by hand too
+            var repayment = loan.PostedToLedger ? PostingRules.ForLoanRepayment(loan, installment, installment.PaidOn ?? DateTime.UtcNow) : null;
+            if (repayment != null)
+                await _posting.TryPostAsync(_logger, repayment, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
             return LoanMapper.Map(loan, DateTime.UtcNow.Date);
         }
@@ -158,8 +193,15 @@ namespace ERP.ACC.Application.Handlers
     public class CancelLoanCommandHandler : IRequestHandler<CancelLoanCommand, LoanDto>
     {
         private readonly IAccountingUnitOfWork _uow;
+        private readonly IJournalPostingService _posting;
+        private readonly ILogger<CancelLoanCommandHandler> _logger;
 
-        public CancelLoanCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
+        public CancelLoanCommandHandler(IAccountingUnitOfWork uow, IJournalPostingService posting, ILogger<CancelLoanCommandHandler> logger)
+        {
+            _uow = uow;
+            _posting = posting;
+            _logger = logger;
+        }
 
         public async Task<LoanDto> Handle(CancelLoanCommand request, CancellationToken cancellationToken)
         {
@@ -174,8 +216,54 @@ namespace ERP.ACC.Application.Handlers
                 throw new BusinessRuleException("Accounting", ex.Message);
             }
 
+            // nothing was repaid (Cancel refuses otherwise), so the drawdown is the only entry to take back
+            if (loan.PostedToLedger)
+                await _posting.TryReverseAsync(_logger, PostingRules.Loan, loan.Id, $"Loan {loan.LoanNumber} cancelled: {request.Reason}", DateTime.UtcNow.Date, cancellationToken);
+
             await _uow.SaveChangesAsync(cancellationToken);
             return LoanMapper.Map(loan, DateTime.UtcNow.Date);
+        }
+    }
+
+    public class PostLoanDrawdownCommandHandler : IRequestHandler<PostLoanDrawdownCommand, LoanDto>
+    {
+        private readonly IAccountingUnitOfWork _uow;
+        private readonly IJournalPostingService _posting;
+        private readonly ILogger<PostLoanDrawdownCommandHandler> _logger;
+
+        public PostLoanDrawdownCommandHandler(IAccountingUnitOfWork uow, IJournalPostingService posting, ILogger<PostLoanDrawdownCommandHandler> logger)
+        {
+            _uow = uow;
+            _posting = posting;
+            _logger = logger;
+        }
+
+        public async Task<LoanDto> Handle(PostLoanDrawdownCommand request, CancellationToken cancellationToken)
+        {
+            var loan = await _uow.Loans.GetByIdAsync(request.LoanId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Loan {request.LoanId} not found.");
+            if (loan.Status != (int)LoanStatus.Active || loan.Installments.Any(i => i.PaidOn.HasValue))
+                throw new BusinessRuleException("Accounting", "Only an active loan with no repayment can be posted: book the repayments of an older loan by hand.");
+            if (loan.PostedToLedger)
+                throw new BusinessRuleException("Accounting", "The drawdown of this loan is already posted.");
+
+            if (!await LoanPosting.PostDrawdownAsync(_posting, _logger, loan, cancellationToken))
+                throw new BusinessRuleException("Accounting", "The drawdown could not be posted: complete the posting profile (Bank and Loan payable accounts).");
+            await _uow.SaveChangesAsync(cancellationToken);
+            return LoanMapper.Map(loan, DateTime.UtcNow.Date);
+        }
+    }
+
+    internal static class LoanPosting
+    {
+        /// <summary>Posts the drawdown and marks the loan; false when the posting profile is incomplete (the loan is then left unposted).</summary>
+        public static async Task<bool> PostDrawdownAsync(IJournalPostingService posting, ILogger logger, Loan loan, CancellationToken ct)
+        {
+            var entry = await posting.TryPostAsync(logger, PostingRules.ForLoanDrawdown(loan), ct);
+            if (entry == null)
+                return false;
+            loan.MarkPosted();
+            return true;
         }
     }
 

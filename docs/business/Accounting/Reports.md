@@ -112,6 +112,20 @@ due later than D + 12 months (`Loan.LongTermAt`), capped by the credit balance o
 closing on the natural side; fixed assets with accumulated depreciation and net book value; borrowings from the loan ledger; off-balance register), and the accountant's texts from `NoteTexts` (`GET / PUT accounting/reports/notes/text`; keys `general`, `standards`, `policy.*`, `noncash`, `subsequent`,
 `other`). PDF: `PdfWriter.ToBytes(NotesDto)`. Rules BR-127 … BR-133, use case UC-18 in [BA-Accounting.md](BA-Accounting.md).
 
+**P1-2j:** `lang=vi|en` (all fixed wording from `NoteStrings`; texts stored per language in `NoteTexts.Language`), `compareFromDate / compareToDate` (a "Prior closing" / "Prior period" column, `NoteLedger.AddPriorColumn`), and section VII with a table of non-cash transactions from the journal (`NonCashTransactions`). Rules BR-152 … 155, UC-25.
+
+## Loans posted to the books and the check against account 341 (P1-2j)
+
+`CreateLoanCommand` posts the drawdown (`PostingRules.ForLoanDrawdown`, option `postDrawdown`), `RecordLoanRepaymentCommand` posts principal + scheduled interest for a loan with `PostedToLedger` (`ForLoanRepayment`), `CancelLoanCommand` reverses the drawdown, `POST accounting/loans/{id}/post-drawdown` posts an older loan. `GET accounting/reports/loans-reconciliation?asOfDate[&format=csv|xlsx]` (`LoanReconciliation`): ledger total vs the credit balance of the LoanPayable account (prefix, so sub-accounts count), difference, notes. Rules BR-134 … 141, UC-22, UC-23.
+
+## Payment history and the as-of maturity split (P1-2j)
+
+`PaymentApplications` (payments and refunds per invoice / bill with their day), `Bills.ApprovedOn`, `Invoices.CancelledOn`. `MaturityData.LoadAsync` reads the candidate documents (due later than the earliest date + 12 months, existing by the latest date) with all their applications; `MaturitySplit.Compute(invoices, bills, payments, loans, …)` computes the open amount on the date; `StatementMaturity.Estimated` drives the note "some payments have no recorded date". The two older overloads keep the "state today" behaviour. Rules BR-142 … 147.
+
+## Account mapping on B01 / B02 (P1-2j)
+
+`GET / PUT accounting/statement-mappings` (`StatementMappingHandlers`), table `StatementAccountMappings`; `StatementLayouts.WithMappings` adds the tenant's terms to the rows of the layout chosen by `StatementLayouts.For` before the engine runs (B01 and B02 handlers). Rules BR-148 … 151, UC-24.
+
 ## B01 maturity split of trade receivables and payables (P1-2h)
 
 B01 reads the open invoices (`IInvoiceRepository.GetUnpaidInvoicesAsync`) and approved bills (`IBillRepository.GetUnpaidBillsAsync`) and `MaturitySplit.Compute` finds the part due **later than the date + 12 months**, capped by the ledger (debit balance of 131, credit

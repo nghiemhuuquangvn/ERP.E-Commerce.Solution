@@ -19,6 +19,8 @@ export interface Loan {
   status: 'Active' | 'Repaid' | 'Cancelled'
   notes: string | null
   cancelReason: string | null
+  /** True once the drawdown is in the journal, so repayments are posted too; false for a loan booked by hand. */
+  postedToLedger: boolean
   outstanding: number
   dueWithinTwelveMonths: number
   dueLater: number
@@ -34,6 +36,20 @@ export interface CreateLoanRequest {
   maturityDate?: string
   schedule: { dueDate: string; principalAmount: number; interestAmount: number }[]
   notes?: string
+  /** Post the drawdown (Dr Bank / Cr Loan payable). False for a loan already booked by hand. */
+  postDrawdown?: boolean
+}
+
+export interface LoanReconciliation {
+  asOfDate: string
+  accountNumber: string
+  accountName: string
+  ledgerTotal: number
+  bookBalance: number
+  difference: number
+  isReconciled: boolean
+  loans: { loanId: string; loanNumber: string; lender: string; postedToLedger: boolean; outstanding: number }[]
+  notes: string[]
 }
 
 export const loansApi = {
@@ -43,6 +59,11 @@ export const loansApi = {
 
   repay: (loanId: string, installmentId: string, paidOn?: string) =>
     apiClient.post<Loan>(`${ACC_BASE}/accounting/loans/${loanId}/installments/${installmentId}/repay`, { paidOn }).then((r) => r.data),
+
+  postDrawdown: (loanId: string) => apiClient.post<Loan>(`${ACC_BASE}/accounting/loans/${loanId}/post-drawdown`).then((r) => r.data),
+
+  reconciliation: (asOfDate: string) =>
+    apiClient.get<LoanReconciliation>(`${ACC_BASE}/accounting/reports/loans-reconciliation`, { params: { asOfDate } }).then((r) => r.data),
 
   cancel: (loanId: string, reason: string) =>
     apiClient.post<Loan>(`${ACC_BASE}/accounting/loans/${loanId}/cancel`, { reason }).then((r) => r.data),

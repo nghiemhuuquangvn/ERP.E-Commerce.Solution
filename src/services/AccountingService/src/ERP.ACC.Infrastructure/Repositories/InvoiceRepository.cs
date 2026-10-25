@@ -29,6 +29,9 @@ namespace ERP.ACC.Infrastructure.Repositories
         public async Task<List<Invoice>> GetUnpaidInvoicesAsync(CancellationToken ct = default) =>
             await _db.Invoices.Where(i => i.Status == 0 || i.Status == 2).AsNoTracking().ToListAsync(ct);
 
+        public async Task<List<Invoice>> GetMaturityCandidatesAsync(DateTime asOf, DateTime dueAfter, CancellationToken ct = default) =>
+            await _db.Invoices.Where(i => i.DueDate > dueAfter && i.CreatedAt < asOf.Date.AddDays(1)).AsNoTracking().ToListAsync(ct);
+
         public async Task AddAsync(Invoice invoice, CancellationToken ct = default)
         {
             await _db.Invoices.AddAsync(invoice, ct);

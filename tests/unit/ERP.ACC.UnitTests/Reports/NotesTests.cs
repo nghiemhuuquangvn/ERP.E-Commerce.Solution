@@ -102,7 +102,7 @@ public class NotesTests
 
     private (GetNotesQueryHandler Handler, List<NoteText> Texts) Handler(
         List<Account> chart, (Dictionary<Guid, AccountBalanceSummary> Before, Dictionary<Guid, AccountBalanceSummary> After, Dictionary<Guid, AccountBalanceSummary> Activity, Dictionary<Guid, AccountBalanceSummary> Result) ledger,
-        ReportProfile? profile = null, IEnumerable<Loan>? loans = null, IEnumerable<OffBalanceEntry>? offBalance = null, IEnumerable<NoteText>? texts = null)
+        ReportProfile? profile = null, IEnumerable<Loan>? loans = null, IEnumerable<OffBalanceEntry>? offBalance = null, IEnumerable<NoteText>? texts = null, IEnumerable<LedgerRow>? journal = null)
     {
         var accounts = new Mock<IAccountRepository>();
         accounts.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(() => chart.ToList());
@@ -111,6 +111,8 @@ public class NotesTests
             .ReturnsAsync((DateTime? f, DateTime? t, Guid? p, CancellationToken _) => (t == From.AddDays(-1) ? ledger.Before : ledger.After).Values.ToList());
         lines.Setup(l => l.GetActivityBalancesAsync(It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((DateTime? f, DateTime? t, string? exclude, CancellationToken _) => (exclude == null ? ledger.Activity : ledger.Result).Values.ToList());
+        lines.Setup(l => l.GetLedgerLinesAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((journal ?? Array.Empty<LedgerRow>()).ToList());
         var profiles = new Mock<IReportProfileRepository>();
         profiles.Setup(p => p.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(profile);
         var policies = new Mock<IClosingPolicyRepository>();
@@ -125,7 +127,7 @@ public class NotesTests
         var stored = (texts ?? Array.Empty<NoteText>()).ToList();
         var nt = new Mock<INoteTextRepository>();
         nt.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(() => stored.ToList());
-        return (new GetNotesQueryHandler(accounts.Object, lines.Object, profiles.Object, policies.Object, inv.Object, bl.Object, ln.Object, off.Object, nt.Object), stored);
+        return (new GetNotesQueryHandler(accounts.Object, lines.Object, profiles.Object, policies.Object, inv.Object, bl.Object, ln.Object, off.Object, nt.Object, new Mock<IPaymentApplicationRepository>().Object), stored);
     }
 
     private static GetNotesQuery Query(string? unit = null) => new() { FromDate = From, ToDate = To, Unit = unit };
@@ -358,5 +360,152 @@ public class NotesTests
         System.Text.Encoding.ASCII.GetString(bytes, 0, 5).Should().Be("%PDF-");
         using var stream = new MemoryStream(bytes);
         PdfReader.Open(stream, PdfDocumentOpenMode.Import).PageCount.Should().BeGreaterThanOrEqualTo(2);
+    }
+
+    // ---- ROADMAP P1-2j: English, per-language texts, non-cash transactions, the prior period ----
+
+    private static readonly System.Text.RegularExpressions.Regex Vietnamese = new("[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    private static GetNotesQuery EnglishQuery() => new() { FromDate = From, ToDate = To, Language = "en" };
+
+    [Fact]
+    public async Task The_english_notes_use_english_titles_columns_and_labels_everywhere_the_fixed_wording_appears()
+    {
+        var notes = await Handler(_chart, Ledger()).Handler.Handle(EnglishQuery(), default);
+
+        notes.Language.Should().Be("en");
+        notes.Title.Should().StartWith("Notes to the financial statements");
+        Section(notes, "I").Title.Should().Be("Nature of operations");
+        Section(notes, "V.4").Title.Should().Contain("Fixed assets");
+        Section(notes, "V.1").Table!.Columns.Should().Equal("Opening", "Increase", "Decrease", "Closing");
+        Cell(Section(notes, "V.1").Table!, "Total", 3).Should().Be(1300m);
+        Cell(Section(notes, "V.4").Table!, "Net book value", 3).Should().Be(650m);
+        Cell(Section(notes, "VI.1").Table!, "Total revenue", 0).Should().Be(1000m);
+        Section(notes, "II").Text.Should().Contain("Reporting period").And.Contain("Unit of the report: dong");
+
+        // no Vietnamese in the fixed wording (account names come from the chart and stay as they are)
+        var wording = notes.Sections.SelectMany(s => new[] { s.Title, s.Hint, s.Text }.Concat(s.Table?.Columns ?? new List<string>())
+            .Concat((s.Table?.Rows ?? new()).Where(r => r.IsTotal || r.Label.StartsWith("Of which") || r.Label.StartsWith("Net")).Select(r => r.Label)))
+            .Where(x => x != null).ToList();
+        wording.Should().NotContain(x => Vietnamese.IsMatch(x!));
+    }
+
+    [Fact]
+    public async Task The_texts_are_kept_per_language_and_the_other_language_shows_its_hint()
+    {
+        var texts = new[] { NoteText.Create(Guid.NewGuid(), "policy.cash", "Tiền gồm tiền mặt."), NoteText.Create(Guid.NewGuid(), "policy.cash", "Cash is cash on hand.", "en") };
+        var h = Handler(_chart, Ledger(), texts: texts).Handler;
+
+        var vi = await h.Handle(Query(), default);
+        var en = await h.Handle(EnglishQuery(), default);
+
+        Section(vi, "IV.1").Text.Should().Be("Tiền gồm tiền mặt.");
+        Section(en, "IV.1").Text.Should().Be("Cash is cash on hand.");
+        Section(en, "IV.2").Text.Should().BeNull();
+        Section(en, "IV.2").Hint.Should().Contain("provision for doubtful debts");
+    }
+
+    [Fact]
+    public async Task Saving_and_listing_the_texts_work_per_language_and_an_unknown_language_is_refused()
+    {
+        var (handler, stored, uow) = Texts();
+
+        await handler.Handle(new UpdateNoteTextsCommand { Language = "en", Texts = new() { ["policy.fx"] = "Rates of the State Bank." } }, default);
+        await handler.Handle(new UpdateNoteTextsCommand { Texts = new() { ["policy.fx"] = "Tỷ giá Ngân hàng Nhà nước." } }, default);
+
+        stored.Should().HaveCount(2);
+        stored.Select(n => n.Language).Should().BeEquivalentTo("en", "vi");
+        var repo = uow.Object.NoteTexts;
+        var en = await new GetNoteTextsQueryHandler(repo).Handle(new GetNoteTextsQuery { Language = "en" }, default);
+        en.Single(x => x.Key == "policy.fx").Text.Should().Be("Rates of the State Bank.");
+        en.Single(x => x.Key == "policy.fx").Title.Should().Be("Accounting policy: foreign currency");
+        await FluentActions.Awaiting(() => handler.Handle(new UpdateNoteTextsCommand { Language = "fr", Texts = new() }, default)).Should().ThrowAsync<BusinessRuleException>().WithMessage("*Unsupported language*");
+        await FluentActions.Awaiting(() => Handler(_chart, Ledger()).Handler.Handle(new GetNotesQuery { FromDate = From, ToDate = To, Language = "de" }, default)).Should().ThrowAsync<BusinessRuleException>();
+    }
+
+    [Fact]
+    public async Task A_comparison_period_adds_a_prior_column_to_the_movement_and_result_tables()
+    {
+        var q = Query();
+        q.CompareFromDate = new DateTime(2026, 9, 1);
+        q.CompareToDate = new DateTime(2026, 9, 30);
+
+        var notes = await Handler(_chart, Ledger()).Handler.Handle(q, default);
+
+        var cash = Section(notes, "V.1").Table!;
+        cash.Columns.Should().HaveCount(5).And.EndWith("Số cuối kỳ trước");
+        cash.Rows.Single(r => r.IsTotal).Cells.Should().HaveCount(5);
+        cash.Rows.Single(r => r.IsTotal).Cells[3].Should().Be(1300m);   // closing now
+        cash.Rows.Single(r => r.IsTotal).Cells[4].Should().Be(1000m);   // closing of the prior period (the ledger the day before October)
+        var revenue = Section(notes, "VI.1").Table!;
+        revenue.Columns.Should().Equal("Số tiền", "Kỳ trước");
+        notes.CompareFromDate.Should().Be(new DateTime(2026, 9, 1));
+    }
+
+    [Fact]
+    public async Task A_half_given_or_reversed_comparison_period_is_refused()
+    {
+        var h = Handler(_chart, Ledger()).Handler;
+        var half = Query();
+        half.CompareFromDate = new DateTime(2026, 9, 1);
+        var reversed = Query();
+        reversed.CompareFromDate = new DateTime(2026, 9, 30);
+        reversed.CompareToDate = new DateTime(2026, 9, 1);
+
+        await FluentActions.Awaiting(() => h.Handle(half, default)).Should().ThrowAsync<BusinessRuleException>().WithMessage("*both dates*");
+        await FluentActions.Awaiting(() => h.Handle(reversed, default)).Should().ThrowAsync<BusinessRuleException>().WithMessage("*after*");
+    }
+
+    private LedgerRow Row(Guid entry, string account, decimal debit, decimal credit, string? type = null) =>
+        new() { EntryId = entry, EntryNumber = "E", EntryDate = From.AddDays(3), AccountId = A(account).Id, Debit = debit, Credit = credit, ReferenceType = type };
+
+    [Fact]
+    public async Task Non_cash_transactions_are_found_in_the_journal_and_cash_entries_and_closing_entries_are_left_out()
+    {
+        _chart.Single(a => a.AccountNumber == "1111").SetCashFlow(true, null);
+        var onCredit = Guid.NewGuid();
+        var toEquity = Guid.NewGuid();
+        var paid = Guid.NewGuid();
+        var closing = Guid.NewGuid();
+        var journal = new[]
+        {
+            Row(onCredit, "211", 300m, 0m), Row(onCredit, "331", 0m, 300m),                       // equipment bought on credit
+            Row(toEquity, "331", 200m, 0m), Row(toEquity, "4111", 0m, 200m),                       // supplier debt turned into capital
+            Row(paid, "211", 100m, 0m), Row(paid, "1111", 0m, 100m),                               // paid in cash: not here
+            Row(closing, "331", 900m, 0m, JournalEntry.PeriodClosingType), Row(closing, "4111", 0m, 900m, JournalEntry.PeriodClosingType),
+        };
+
+        var notes = await Handler(_chart, Ledger(), journal: journal).Handler.Handle(EnglishQuery(), default);
+
+        var table = Section(notes, "VII").Table!;
+        table.Rows.Select(r => r.Label).Should().Equal("Fixed assets acquired on credit", "Debt converted into equity", "Total");
+        table.Rows.Select(r => r.Cells[0]).Should().Equal(300m, 200m, 500m);
+        notes.Notes.Should().Contain(n => n.Contains("non-cash table"));
+    }
+
+    [Fact]
+    public async Task Without_non_cash_entries_section_VII_stays_a_text_with_its_hint()
+    {
+        var notes = await Handler(_chart, Ledger()).Handler.Handle(Query(), default);
+
+        Section(notes, "VII").Table.Should().BeNull();
+        Section(notes, "VII").Hint.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task The_english_pdf_and_export_use_english_labels_and_number_format()
+    {
+        var profile = ReportProfile.Create(Guid.NewGuid());
+        profile.Set("Mau Co Ltd", "0312345678", "1 Le Loi", "Nguyen A", "Tran B", "Le C", AmountUnit.Vnd);
+        var notes = await Handler(_chart, Ledger(), profile).Handler.Handle(EnglishQuery(), default);
+
+        var text = PdfWriter.Build(notes).Sections.Cast<Section>().SelectMany(s => Texts(s)).ToList();
+
+        text.Should().Contain("Tax code: 0312345678").And.Contain("I. Nature of operations").And.Contain("Item").And.Contain("Chief accountant").And.Contain("Tran B");
+        text.Should().Contain("1,300");
+        text.Should().Contain(t => t.StartsWith("From 01/10/2026 to 31/10/2026") && t.Contains("Unit: dong"));
+        text.Should().Contain(t => t.StartsWith("(Not written yet"));
+        PdfWriter.ToBytes(notes).Length.Should().BeGreaterThan(1000);
+        ReportTables.Notes(notes).Rows.SelectMany(r => r).OfType<string>().Should().Contain("en");
     }
 }

@@ -35,13 +35,17 @@ namespace ERP.ACC.Domain.Entities
         public const string IncomeSummary = "IncomeSummary";
         /// <summary>Where the result of a closed period lands (VAS 421).</summary>
         public const string RetainedEarnings = "RetainedEarnings";
+        /// <summary>Borrowings owed to lenders: credited when a loan is drawn, debited by the principal of each repayment (ROADMAP P1-2j).</summary>
+        public const string LoanPayable = "LoanPayable";
+        /// <summary>Interest paid on loans, debited by the interest part of each repayment (no accrual before it is paid).</summary>
+        public const string InterestExpense = "InterestExpense";
 
         public static readonly IReadOnlyList<string> All = new[]
         {
             Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, Inventory, VatOutput,
             GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment, CashOverShort,
             SalaryExpense, SalariesPayable, PayrollWithholdingsPayable,
-            SalesReturns, IncomeSummary, RetainedEarnings
+            SalesReturns, IncomeSummary, RetainedEarnings, LoanPayable, InterestExpense
         };
 
         /// <summary>Account numbers of the seeded 14-account chart, used when a tenant has no mapping yet.</summary>
@@ -64,6 +68,8 @@ namespace ERP.ACC.Domain.Entities
             [SalesReturns] = "4000",               // the default chart has no contra-revenue account
             [IncomeSummary] = "3100",              // the simple chart closes straight into retained earnings
             [RetainedEarnings] = "3100",
+            [LoanPayable] = "2100",                // the simple chart has no borrowings account; Accrued Liabilities holds them
+            [InterestExpense] = "5100",            // Operating Expenses
         };
     }
 

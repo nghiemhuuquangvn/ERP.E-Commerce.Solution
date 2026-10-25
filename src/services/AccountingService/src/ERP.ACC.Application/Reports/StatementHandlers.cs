@@ -153,11 +153,16 @@ namespace ERP.ACC.Application.Reports
         private readonly IInvoiceRepository _invoices;
         private readonly IBillRepository _bills;
         private readonly ILoanRepository _loans;
+        private readonly IPaymentApplicationRepository _payments;
+        private readonly IStatementMappingRepository _mappings;
 
         public GetBalanceSheetStatementQueryHandler(
-            IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles, IInvoiceRepository invoices, IBillRepository bills, ILoanRepository loans)
+            IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles, IInvoiceRepository invoices, IBillRepository bills, ILoanRepository loans,
+            IPaymentApplicationRepository payments, IStatementMappingRepository mappings)
         {
             _loans = loans;
+            _payments = payments;
+            _mappings = mappings;
             _invoices = invoices;
             _bills = bills;
             _accounts = accounts;
@@ -174,19 +179,20 @@ namespace ERP.ACC.Application.Reports
                 prior = (await _lines.GetAccountBalancesAsync(null, request.CompareAsOfDate.Value.Date, null, cancellationToken)).ToDictionary(b => b.AccountId);
 
             // the long-term part of trade receivables / payables comes from the due dates of the open documents (ROADMAP P1-2h)
-            var invoices = await _invoices.GetUnpaidInvoicesAsync(cancellationToken);
-            var bills = await _bills.GetUnpaidBillsAsync(cancellationToken);
+            var dates = new List<DateTime> { request.AsOfDate };
+            if (request.CompareAsOfDate.HasValue)
+                dates.Add(request.CompareAsOfDate.Value);
+            var documents = await MaturityData.LoadAsync(_invoices, _bills, _payments, dates, cancellationToken);
             var loans = await _loans.ListAsync(cancellationToken);
-            var maturity = MaturityFor(request.AsOfDate, accounts, current, invoices, bills, loans);
-            var priorMaturity = prior != null ? MaturityFor(request.CompareAsOfDate!.Value, accounts, prior, invoices, bills, loans) : null;
+            var maturity = MaturityFor(request.AsOfDate, accounts, current, documents, loans);
+            var priorMaturity = prior != null ? MaturityFor(request.CompareAsOfDate!.Value, accounts, prior, documents, loans) : null;
 
             var profile = await _profiles.GetAsync(cancellationToken);
             var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
-            var statement = StatementEngine.Evaluate(StatementLayouts.For(StatementLayouts.BalanceSheet, accounts)!, accounts, current, prior,
+            var statement = StatementEngine.Evaluate(StatementLayouts.WithMappings(StatementLayouts.For(StatementLayouts.BalanceSheet, accounts)!, await _mappings.GetAllAsync(cancellationToken)), accounts, current, prior,
                 ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile), maturity, priorMaturity);
-            var today = DateTime.UtcNow.Date;
-            if ((maturity is { HasDocumentParts: true } && request.AsOfDate.Date < today) || (priorMaturity is { HasDocumentParts: true } && request.CompareAsOfDate!.Value.Date < today))
-                statement.Notes.Add("The date is in the past: the open amount of each invoice and bill is its current open amount (payments are not kept by date), so the long-term split of an earlier date is approximate.");
+            if (maturity is { Estimated: true } || priorMaturity is { Estimated: true })
+                statement.Notes.Add("The date is in the past and some payments have no recorded date (they were made before the payment register existed, or their date was estimated), so the long-term split of trade receivables and payables is approximate.");
             statement.ToDate = request.AsOfDate.Date;
             statement.CompareToDate = request.CompareAsOfDate?.Date;
             return statement;
@@ -194,8 +200,8 @@ namespace ERP.ACC.Application.Reports
 
         private static StatementMaturity MaturityFor(
             DateTime asOf, IReadOnlyCollection<Account> accounts,
-            IReadOnlyDictionary<Guid, AccountBalanceSummary> balances, List<Invoice> invoices, List<Bill> bills, List<Loan> loans) =>
-            MaturityLedger.For(asOf, accounts, balances, invoices, bills, loans);
+            IReadOnlyDictionary<Guid, AccountBalanceSummary> balances, MaturityData documents, List<Loan> loans) =>
+            MaturityLedger.For(asOf, accounts, balances, documents.Invoices, documents.Bills, loans, documents.Payments);
     }
 
     public class GetIncomeStatementQueryHandler : IRequestHandler<GetIncomeStatementQuery, FinancialStatementDto>
@@ -203,9 +209,11 @@ namespace ERP.ACC.Application.Reports
         private readonly IAccountRepository _accounts;
         private readonly IJournalLineRepository _lines;
         private readonly IReportProfileRepository _profiles;
+        private readonly IStatementMappingRepository _mappings;
 
-        public GetIncomeStatementQueryHandler(IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles)
+        public GetIncomeStatementQueryHandler(IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles, IStatementMappingRepository mappings)
         {
+            _mappings = mappings;
             _accounts = accounts;
             _lines = lines;
             _profiles = profiles;
@@ -230,7 +238,7 @@ namespace ERP.ACC.Application.Reports
 
             var profile = await _profiles.GetAsync(cancellationToken);
             var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
-            var statement = StatementEngine.Evaluate(StatementLayouts.For(StatementLayouts.IncomeStatement, accounts)!, accounts, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
+            var statement = StatementEngine.Evaluate(StatementLayouts.WithMappings(StatementLayouts.For(StatementLayouts.IncomeStatement, accounts)!, await _mappings.GetAllAsync(cancellationToken)), accounts, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
             statement.FromDate = request.FromDate.Date;
             statement.ToDate = request.ToDate.Date;
             statement.CompareFromDate = request.CompareFromDate?.Date;

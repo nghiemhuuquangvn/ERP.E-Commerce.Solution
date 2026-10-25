@@ -131,6 +131,9 @@ namespace ERP.ACC.Application.Handlers
             invoice.MarkPaid();
             await _uow.Invoices.UpdateAsync(invoice, cancellationToken);
             if (outstanding > 0)
+                await _uow.PaymentApplications.AddAsync(PaymentApplication.Create(
+                    PaymentApplication.InvoiceDocument, invoice.Id, DateTime.UtcNow, outstanding, $"manual:{invoice.Id:N}"), cancellationToken);
+            if (outstanding > 0)
                 await _posting.TryPostAsync(_logger, PostingRules.ForManualInvoicePayment(invoice, outstanding, DateTime.UtcNow), cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
             return CreateInvoiceCommandHandler.MapInvoiceToDto(invoice);
@@ -216,6 +219,8 @@ namespace ERP.ACC.Application.Handlers
 
             bill.MarkPaid();
             await _uow.Bills.UpdateAsync(bill, cancellationToken);
+            await _uow.PaymentApplications.AddAsync(PaymentApplication.Create(
+                PaymentApplication.BillDocument, bill.Id, DateTime.UtcNow, bill.Amount, $"manual:{bill.Id:N}"), cancellationToken);
             await _posting.TryPostAsync(_logger, PostingRules.ForBillPayment(bill, DateTime.UtcNow), cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
             return CreateBillCommandHandler.MapBillToDto(bill);

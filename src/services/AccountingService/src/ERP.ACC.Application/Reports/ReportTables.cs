@@ -67,7 +67,7 @@ namespace ERP.ACC.Application.Reports
             }
 
             rows.Add(new object?[] { n.Title });
-            rows.Add(new object?[] { "Period", Date(n.FromDate), Date(n.ToDate), "Unit", n.Unit });
+            rows.Add(new object?[] { "Period", Date(n.FromDate), Date(n.ToDate), "Unit", n.Unit, "Language", n.Language });
             foreach (var s in n.Sections)
             {
                 rows.Add(new object?[] { "" });
@@ -97,6 +97,22 @@ namespace ERP.ACC.Application.Reports
             }
 
             return new ReportTable("B09-DN", rows, 0);
+        }
+
+        public static ReportTable LoanReconciliation(LoanReconciliationDto r)
+        {
+            var rows = new List<IReadOnlyList<object?>>
+            {
+                new object?[] { "Loan ledger vs books", Date(r.AsOfDate), r.AccountNumber, r.AccountName },
+                new object?[] { "Loan", "Lender", "Posted", "Outstanding" },
+            };
+            rows.AddRange(r.Loans.Select(l => (IReadOnlyList<object?>)new object?[] { l.LoanNumber, l.Lender, l.PostedToLedger ? "yes" : "no", l.Outstanding }));
+            rows.Add(new object?[] { "Ledger total", "", "", r.LedgerTotal });
+            rows.Add(new object?[] { "Book balance", "", "", r.BookBalance });
+            rows.Add(new object?[] { "Difference", "", r.IsReconciled ? "reconciled" : "NOT reconciled", r.Difference });
+            foreach (var note in r.Notes)
+                rows.Add(new object?[] { "note", note });
+            return new ReportTable("Loans", rows, 3);
         }
 
         public static ReportTable OffBalance(ERP.ACC.Application.Handlers.OffBalanceReportDto r)

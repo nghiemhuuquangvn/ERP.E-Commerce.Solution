@@ -2,12 +2,13 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { reportsApi, downloadReport } from '@/api/accounting/reports.api'
-import type { AmountUnit, FinancialStatement, NoteSection, ReportProfile } from '@/api/accounting/reports.api'
+import type { AmountUnit, FinancialStatement, NoteLanguage, NoteSection, ReportProfile } from '@/api/accounting/reports.api'
 import type { FinancialAccountLineDto, CashFlowSection } from '@/api/accounting/reports.api'
 import { accountsApi } from '@/api/accounting/accounts.api'
 import { offBalanceApi } from '@/api/accounting/off-balance.api'
 import type { OffBalanceLine } from '@/api/accounting/off-balance.api'
 import { DataTable } from '@/components/shared/DataTable'
+import { StatementMappingPanel } from './StatementMappingPanel'
 import { usePermission } from '@/hooks/usePermission'
 
 function todayISODate(): string {
@@ -732,13 +733,13 @@ function BalanceSheetPanel() {
 }
 
 /** The text sections of the notes the accountant writes (policies, standards, non-cash transactions …). */
-function NoteTextsEditor({ canEdit }: { canEdit: boolean }) {
+function NoteTextsEditor({ canEdit, language }: { canEdit: boolean; language: NoteLanguage }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { data } = useQuery({ queryKey: ['accounting', 'noteTexts'], queryFn: () => reportsApi.noteTexts(), staleTime: 30_000 })
+  const { data } = useQuery({ queryKey: ['accounting', 'noteTexts', language], queryFn: () => reportsApi.noteTexts(language), staleTime: 30_000 })
   const [draft, setDraft] = useState<Record<string, string>>({})
   const save = useMutation({
-    mutationFn: () => reportsApi.updateNoteTexts(draft),
+    mutationFn: () => reportsApi.updateNoteTexts(draft, language),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting', 'noteTexts'] })
       queryClient.invalidateQueries({ queryKey: ['accounting', 'reports', 'notes'] })
@@ -830,10 +831,17 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState(todayISODate())
   const [unit, setUnit] = useState<AmountUnit | ''>('')
+  const [language, setLanguage] = useState<NoteLanguage>('vi')
+  const [compareFrom, setCompareFrom] = useState('')
+  const [compareTo, setCompareTo] = useState('')
   const ready = !!fromDate && !!toDate
-  const params = { fromDate, toDate, unit: unit || undefined }
+  const compare = !!compareFrom && !!compareTo
+  const params = {
+    fromDate, toDate, unit: unit || undefined, lang: language,
+    compareFromDate: compare ? compareFrom : undefined, compareToDate: compare ? compareTo : undefined,
+  }
   const { data, isLoading } = useQuery({
-    queryKey: ['accounting', 'reports', 'notes', fromDate, toDate, unit],
+    queryKey: ['accounting', 'reports', 'notes', fromDate, toDate, unit, language, compare ? compareFrom : '', compare ? compareTo : ''],
     queryFn: () => reportsApi.notes(params),
     enabled: ready,
     staleTime: 15_000,
@@ -858,10 +866,25 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
             <option value="Million">{t('accounting.reports.unitMillion')}</option>
           </select>
         </div>
-        <ExportButton path="statements/notes" params={params} name="notes-b09.csv" disabled={!ready} pdf />
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesLanguage')}</label>
+          <select className="input" value={language} onChange={(e) => setLanguage(e.target.value as NoteLanguage)}>
+            <option value="vi">Tiếng Việt</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesCompareFrom')}</label>
+          <input type="date" className="input" value={compareFrom} onChange={(e) => setCompareFrom(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesCompareTo')}</label>
+          <input type="date" className="input" value={compareTo} onChange={(e) => setCompareTo(e.target.value)} />
+        </div>
+        <ExportButton path="statements/notes" params={params} name="notes-b09.csv" disabled={!ready || (!!compareFrom !== !!compareTo)} pdf />
       </div>
 
-      <NoteTextsEditor canEdit={canEdit} />
+      <NoteTextsEditor canEdit={canEdit} language={language} />
 
       {ready && isLoading && <p className="text-sm text-gray-400">{t('common.loading')}</p>}
       {data && (
@@ -945,7 +968,7 @@ export function ReportsPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const canView = hasPermission('accounting:reports:view')
-  const [tab, setTab] = useState<'trial-balance' | 'ledger' | 'profit-and-loss' | 'balance-sheet' | 'cash-flow' | 'b01' | 'b02' | 'b03' | 'b09' | 'off-balance'>('trial-balance')
+  const [tab, setTab] = useState<'trial-balance' | 'ledger' | 'profit-and-loss' | 'balance-sheet' | 'cash-flow' | 'b01' | 'b02' | 'b03' | 'b09' | 'mapping' | 'off-balance'>('trial-balance')
 
   if (!canView) {
     return <p className="text-sm text-gray-400">{t('common.noPermission')}</p>
@@ -961,6 +984,7 @@ export function ReportsPage() {
     { key: 'b02', label: t('accounting.reports.tabB02') },
     { key: 'b03', label: t('accounting.reports.tabB03') },
     { key: 'b09', label: t('accounting.reports.tabB09') },
+    { key: 'mapping', label: t('accounting.mapping.tab') },
     { key: 'off-balance', label: t('accounting.offBalance.tab') },
   ]
 
@@ -993,6 +1017,7 @@ export function ReportsPage() {
       {tab === 'b02' && <StatementPanel kind="income-statement" />}
       {tab === 'b03' && <StatementPanel kind="cash-flow" />}
       {tab === 'b09' && <NotesPanel canEdit={hasPermission('accounting:accounts:manage')} />}
+      {tab === 'mapping' && <StatementMappingPanel canEdit={hasPermission('accounting:accounts:manage')} />}
       {tab === 'off-balance' && <OffBalancePanel />}
     </div>
   )

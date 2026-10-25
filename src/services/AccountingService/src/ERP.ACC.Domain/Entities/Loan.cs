@@ -36,7 +36,7 @@ namespace ERP.ACC.Domain.Entities
     /// <summary>
     /// A borrowing with its repayment schedule (ROADMAP P1-2i). The schedule gives B01 the real due dates, and because each repayment is stored with the date
     /// it was made, the amount outstanding — and the part due after 12 months — is exact for any past date, unlike invoices. The notes are
-    /// <see cref="BaseEntity.Description"/>. Drawing the loan and repaying it are still booked as journal entries; the ledger caps what B01 takes from here.
+    /// <see cref="BaseEntity.Description"/>. Drawing and repaying a loan are posted to the journal (ROADMAP P1-2j) unless the loan was booked by hand; B01 is still capped by the ledger.
     /// </summary>
     public class Loan : AggregateRoot
     {
@@ -44,14 +44,23 @@ namespace ERP.ACC.Domain.Entities
         public string Lender { get; private set; } = string.Empty;
         public decimal Principal { get; private set; }
 
-        /// <summary>Annual rate in percent; information only (no interest is accrued or posted from it).</summary>
+        /// <summary>Annual rate in percent; information only — the interest that is posted is the interest of each scheduled installment.</summary>
         public decimal InterestRatePercent { get; private set; }
         public DateTime StartDate { get; private set; }
         public int Status { get; private set; } = (int)LoanStatus.Active;
         public string? CancelReason { get; private set; }
+
+        /// <summary>True once the drawdown is in the journal: from then on repayments are posted by the ledger too (ROADMAP P1-2j). False for a loan booked by hand.</summary>
+        public bool PostedToLedger { get; private set; }
         public List<LoanInstallment> Installments { get; private set; } = new();
 
         private Loan() { }
+
+        public void MarkPosted()
+        {
+            PostedToLedger = true;
+            UpdatedAt = DateTime.UtcNow;
+        }
 
         /// <summary>
         /// The schedule is a list of (due date, principal, interest); its principals must add up to the loan principal and fall after the start date.

@@ -102,7 +102,8 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
 - [x] **P1-2g B03 indirect method** closed 2026-10-25 (`feat/cashflow-indirect`): `method=indirect`, reconciliation with the direct method, BA doc updated
 - [x] **P1-2h B01 maturity split** closed 2026-10-25 (`feat/b01-maturity`): rows 131 / 211 / 311 / 331 by due date, BA doc updated
 - [x] **P1-2i 14-account layouts, off-balance, loans, B09** closed 2026-10-25 (`feat/notes-loans-offbalance`): migrations 013 – 015, BA doc updated
-- [ ] **P1-2j** posting link for loans, payment history, own-chart layouts, notes in English
+- [x] **P1-2j loan posting, payment history, own-chart mapping, notes in English** closed 2026-10-25 (`feat/p1-2j-loans-history-mapping-english`): migrations 016 – 019, BA doc updated (FR-86…101, BR-134…155, UC-22…25, UAT-75…91)
+- [ ] **P1-2k** accrued loan interest, receiving account per loan, mapping for B03 / notes, versioned note texts
 - [ ] **P1-3 Tax & e-invoice**: VAT fields on invoice/bill, VAT listing/return, e-invoice provider
   adapter (VNPT / Viettel / MISA / BKAV — owner picks the provider).
 - [ ] **P1-4 Bank reconciliation per line + multi-currency** (MasterData exchange rates, FX differences).

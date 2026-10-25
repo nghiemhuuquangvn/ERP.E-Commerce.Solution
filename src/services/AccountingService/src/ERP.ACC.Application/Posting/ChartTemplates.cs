@@ -251,6 +251,8 @@ namespace ERP.ACC.Application.Posting
                 [PostingKeys.SalesReturns] = "5212",
                 [PostingKeys.IncomeSummary] = "911",
                 [PostingKeys.RetainedEarnings] = "4212",
+                [PostingKeys.LoanPayable] = "341",
+                [PostingKeys.InterestExpense] = "635",
             };
 
             return new ChartTemplate(

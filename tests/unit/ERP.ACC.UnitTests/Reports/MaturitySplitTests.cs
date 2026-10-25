@@ -176,7 +176,7 @@ public class MaturitySplitTests
 
     // ---- the handler ----
 
-    private GetBalanceSheetStatementQueryHandler Handler(DateTime date, IEnumerable<Invoice> invoices, IEnumerable<Bill> bills, out DateTime asOf)
+    private GetBalanceSheetStatementQueryHandler Handler(DateTime date, IEnumerable<Invoice> invoices, IEnumerable<Bill> bills, out DateTime asOf, IEnumerable<PaymentApplication>? payments = null)
     {
         asOf = date;
         var accounts = new Mock<IAccountRepository>();
@@ -186,11 +186,21 @@ public class MaturitySplitTests
             .ReturnsAsync(Balances(("131", 1000m, 0m), ("1111", 500m, 0m), ("331", 0m, 800m), ("4111", 0m, 700m)).Values.ToList());
         var inv = new Mock<IInvoiceRepository>();
         inv.Setup(r => r.GetUnpaidInvoicesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(invoices.ToList());
+        inv.Setup(r => r.GetMaturityCandidatesAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(invoices.ToList());
         var bl = new Mock<IBillRepository>();
         bl.Setup(r => r.GetUnpaidBillsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(bills.ToList());
+        bl.Setup(r => r.GetMaturityCandidatesAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(bills.ToList());
         var ln = new Mock<ILoanRepository>();
         ln.Setup(r => r.ListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Loan>());
-        return new GetBalanceSheetStatementQueryHandler(accounts.Object, lines.Object, new Mock<IReportProfileRepository>().Object, inv.Object, bl.Object, ln.Object);
+        return new GetBalanceSheetStatementQueryHandler(accounts.Object, lines.Object, new Mock<IReportProfileRepository>().Object, inv.Object, bl.Object, ln.Object, Payments(payments), new Mock<IStatementMappingRepository>().Object);
+    }
+
+    private static IPaymentApplicationRepository Payments(IEnumerable<PaymentApplication>? payments)
+    {
+        var repo = new Mock<IPaymentApplicationRepository>();
+        repo.Setup(r => r.ListForMaturityAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((payments ?? Array.Empty<PaymentApplication>()).ToList());
+        return repo.Object;
     }
 
     [Fact]
@@ -206,19 +216,109 @@ public class MaturitySplitTests
         Row(s, "331").Should().Be(200m);
         Row(s, "131").Should().Be(700m);
         s.IsBalanced.Should().BeTrue();
-        s.Notes.Should().NotContain(n => n.StartsWith("The date is in the past"));
+        s.Notes.Should().NotContain(n => n.Contains("approximate"));
+    }
+
+    // ---- payment history (ROADMAP P1-2j) ----
+
+    private static PaymentApplication Pay(Invoice invoice, DateTime on, decimal amount, bool estimated = false) =>
+        PaymentApplication.Create(PaymentApplication.InvoiceDocument, invoice.Id, on, amount, Guid.NewGuid().ToString("N"), estimated);
+
+    private static PaymentApplication PayBill(Bill bill, DateTime on, decimal amount, bool estimated = false) =>
+        PaymentApplication.Create(PaymentApplication.BillDocument, bill.Id, on, amount, Guid.NewGuid().ToString("N"), estimated);
+
+    [Fact]
+    public void An_invoice_paid_after_the_date_was_still_open_on_it_and_one_paid_before_was_not()
+    {
+        var far = AsOf.AddMonths(18);
+        var paidLater = Inv(1000m, far, status: (int)InvoiceStatus.Paid, paid: 1000m);
+        var paidBefore = Inv(400m, far, status: (int)InvoiceStatus.Paid, paid: 400m);
+        var payments = new[] { Pay(paidLater, AsOf.AddDays(10), 1000m), Pay(paidBefore, AsOf.AddDays(-5), 400m) };
+
+        var m = MaturitySplit.Compute(new[] { paidLater, paidBefore }, Array.Empty<Bill>(), payments, Array.Empty<Loan>(), AsOf, 10_000m, 10_000m, 0m);
+
+        m.Receivable.Should().Be(1000m);
+        m.Estimated.Should().BeFalse();
     }
 
     [Fact]
-    public async Task A_past_date_with_a_split_carries_the_approximation_note()
+    public void A_partial_payment_before_the_date_reduces_the_open_amount_and_a_refund_after_it_changes_nothing()
+    {
+        var far = AsOf.AddMonths(18);
+        var invoice = Inv(1000m, far, paid: 300m);
+        var payments = new[] { Pay(invoice, AsOf.AddDays(-20), 700m), Pay(invoice, AsOf.AddDays(5), -400m) };
+
+        var m = MaturitySplit.Compute(new[] { invoice }, Array.Empty<Bill>(), payments, Array.Empty<Loan>(), AsOf, 10_000m, 10_000m, 0m);
+
+        m.Receivable.Should().Be(300m);
+    }
+
+    [Fact]
+    public void A_cancellation_counts_from_its_day()
+    {
+        var far = AsOf.AddMonths(18);
+        var cancelledLater = Inv(500m, far, status: (int)InvoiceStatus.Cancelled);
+        cancelledLater.CancelledOn = AsOf.AddDays(3);
+        var cancelledBefore = Inv(200m, far, status: (int)InvoiceStatus.Cancelled);
+        cancelledBefore.CancelledOn = AsOf.AddDays(-3);
+
+        var m = Split(new[] { cancelledLater, cancelledBefore }, Array.Empty<Bill>());
+
+        m.Receivable.Should().Be(500m);
+    }
+
+    [Fact]
+    public void A_bill_is_a_payable_from_its_approval_until_the_day_it_was_paid()
+    {
+        var far = AsOf.AddMonths(18);
+        var approvedLater = Bll(100m, far, status: (int)BillStatus.Approved, created: AsOf.AddMonths(-3));
+        approvedLater.ApprovedOn = AsOf.AddDays(4);
+        var paidLater = Bll(300m, far, status: (int)BillStatus.Paid);
+        var paidBefore = Bll(700m, far, status: (int)BillStatus.Paid);
+        var payments = new[] { PayBill(paidLater, AsOf.AddDays(9), 300m), PayBill(paidBefore, AsOf.AddDays(-9), 700m) };
+
+        var m = MaturitySplit.Compute(Array.Empty<Invoice>(), new[] { approvedLater, paidLater, paidBefore }, payments, Array.Empty<Loan>(), AsOf, 10_000m, 10_000m, 0m);
+
+        m.Payable.Should().Be(300m);
+    }
+
+    [Fact]
+    public void An_estimated_payment_or_a_missing_record_flags_the_split_as_approximate()
+    {
+        var far = new DateTime(2028, 12, 31);
+        var estimated = Inv(400m, far, status: (int)InvoiceStatus.Paid, paid: 400m, created: new DateTime(2026, 5, 1));
+        var noRecord = Inv(250m, far, status: (int)InvoiceStatus.Paid, paid: 250m, created: new DateTime(2026, 5, 1));
+        var past = new DateTime(2026, 6, 30);
+
+        MaturitySplit.Compute(new[] { estimated }, Array.Empty<Bill>(), new[] { Pay(estimated, past.AddDays(40), 400m, estimated: true) }, Array.Empty<Loan>(), past, 10_000m, 10_000m, 0m)
+            .Estimated.Should().BeTrue();
+        MaturitySplit.Compute(new[] { noRecord }, Array.Empty<Bill>(), Array.Empty<PaymentApplication>(), Array.Empty<Loan>(), past, 10_000m, 10_000m, 0m)
+            .Estimated.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_past_date_with_exact_payments_has_no_approximation_note_and_matches_the_split_of_that_day()
     {
         var date = new DateTime(2026, 6, 30);
-        var handler = Handler(date, new[] { Inv(300m, date.AddMonths(18), created: date.AddMonths(-2)) }, Array.Empty<Bill>(), out var asOf);
+        var invoice = Inv(300m, date.AddMonths(18), status: (int)InvoiceStatus.Paid, paid: 300m, created: date.AddMonths(-2));
+        var handler = Handler(date, new[] { invoice }, Array.Empty<Bill>(), out var asOf, new[] { Pay(invoice, date.AddDays(30), 300m) });
 
         var s = await handler.Handle(new GetBalanceSheetStatementQuery { AsOfDate = asOf }, default);
 
         Row(s, "211").Should().Be(300m);
-        s.Notes.Should().Contain(n => n.StartsWith("The date is in the past"));
+        s.Notes.Should().NotContain(n => n.Contains("approximate"));
+    }
+
+    [Fact]
+    public async Task A_past_date_with_a_payment_that_has_no_record_carries_the_approximation_note()
+    {
+        var date = new DateTime(2026, 6, 30);
+        var handler = Handler(date, new[] { Inv(300m, date.AddMonths(18), paid: 100m, created: date.AddMonths(-2)) }, Array.Empty<Bill>(), out var asOf);
+
+        var s = await handler.Handle(new GetBalanceSheetStatementQuery { AsOfDate = asOf }, default);
+
+        Row(s, "211").Should().Be(200m);
+        s.Notes.Should().Contain(n => n.Contains("approximate"));
     }
 
     [Fact]
@@ -230,6 +330,6 @@ public class MaturitySplitTests
 
         Row(s, "131").Should().Be(1000m);
         Row(s, "211").Should().Be(0m);
-        s.Notes.Should().NotContain(n => n.StartsWith("The date is in the past")).And.NotContain(n => n.StartsWith("Trade receivables, trade payables and borrowings due after"));
+        s.Notes.Should().NotContain(n => n.Contains("approximate")).And.NotContain(n => n.StartsWith("Trade receivables, trade payables and borrowings due after"));
     }
 }

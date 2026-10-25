@@ -42,10 +42,17 @@ namespace ERP.ACC.Application.Reports
     public class NotesDto
     {
         public string LayoutId { get; set; } = "B09-DN";
+
+        /// <summary>"vi" or "en": the language of the fixed wording (see <see cref="NoteStrings"/>).</summary>
+        public string Language { get; set; } = NoteStrings.Vietnamese;
         public string Title { get; set; } = "Bản thuyết minh báo cáo tài chính (Mẫu B09-DN) — bản nháp";
         public bool IsDraft { get; set; } = true;
         public DateTime FromDate { get; set; }
         public DateTime ToDate { get; set; }
+
+        /// <summary>The prior period compared with (the tables get a column with its figures); null when none was asked for.</summary>
+        public DateTime? CompareFromDate { get; set; }
+        public DateTime? CompareToDate { get; set; }
         public string Unit { get; set; } = "VND";
         public decimal UnitDivisor { get; set; } = 1m;
         public ReportHeaderDto? Header { get; set; }
@@ -56,23 +63,27 @@ namespace ERP.ACC.Application.Reports
     /// <summary>The sections of the notes whose text the accountant writes: key, number, title (Vietnamese form) and a hint.</summary>
     public static class NoteTextSections
     {
-        public sealed record Section(string Key, string Number, string Title, string Hint);
+        public sealed record Section(string Key, string Number, string Title, string Hint, string TitleEn, string HintEn)
+        {
+            public string TitleFor(string language) => language == NoteStrings.English ? TitleEn : Title;
+            public string HintFor(string language) => language == NoteStrings.English ? HintEn : Hint;
+        }
 
         public static IReadOnlyList<Section> All { get; } = new[]
         {
-            new Section("general", "I", "Đặc điểm hoạt động của doanh nghiệp", "Hình thức sở hữu vốn, lĩnh vực kinh doanh, ngành nghề, chu kỳ sản xuất kinh doanh, cấu trúc doanh nghiệp."),
-            new Section("standards", "III", "Chuẩn mực và Chế độ kế toán áp dụng", "Chế độ kế toán áp dụng (Thông tư 99/2025/TT-BTC hoặc Thông tư 200/2014/TT-BTC), tuyên bố tuân thủ chuẩn mực."),
-            new Section("policy.cash", "IV.1", "Chính sách kế toán: tiền và các khoản tương đương tiền", "Nguyên tắc ghi nhận tiền và tương đương tiền; quy đổi ngoại tệ."),
-            new Section("policy.receivables", "IV.2", "Chính sách kế toán: các khoản phải thu", "Nguyên tắc ghi nhận, phân loại ngắn hạn / dài hạn, lập dự phòng phải thu khó đòi."),
-            new Section("policy.inventory", "IV.3", "Chính sách kế toán: hàng tồn kho", "Nguyên tắc đánh giá hàng tồn kho, phương pháp tính giá xuất kho (bình quân, FIFO), dự phòng giảm giá."),
-            new Section("policy.fixedassets", "IV.4", "Chính sách kế toán: tài sản cố định và khấu hao", "Nguyên tắc ghi nhận nguyên giá, phương pháp khấu hao, thời gian hữu dụng."),
-            new Section("policy.provisions", "IV.5", "Chính sách kế toán: các khoản dự phòng", "Nguyên tắc ghi nhận các khoản dự phòng phải trả."),
-            new Section("policy.revenue", "IV.6", "Chính sách kế toán: ghi nhận doanh thu và chi phí", "Điều kiện ghi nhận doanh thu bán hàng, cung cấp dịch vụ, doanh thu tài chính; ghi nhận chi phí."),
-            new Section("policy.tax", "IV.7", "Chính sách kế toán: thuế", "Thuế suất thuế TNDN, thuế GTGT và các loại thuế khác; thuế thu nhập hoãn lại."),
-            new Section("policy.fx", "IV.8", "Chính sách kế toán: ngoại tệ", "Tỷ giá quy đổi và xử lý chênh lệch tỷ giá."),
-            new Section("noncash", "VII", "Thông tin bổ sung cho Báo cáo lưu chuyển tiền tệ", "Các giao dịch không bằng tiền ảnh hưởng đến báo cáo lưu chuyển tiền tệ (mua tài sản bằng nợ, chuyển nợ thành vốn …)."),
-            new Section("subsequent", "VIII.1", "Những sự kiện phát sinh sau ngày kết thúc kỳ kế toán", "Các sự kiện quan trọng xảy ra sau ngày lập báo cáo."),
-            new Section("other", "VIII.2", "Những thông tin khác", "Các thông tin khác cần thuyết minh (bên liên quan, nợ tiềm tàng, cam kết …)."),
+            new Section("general", "I", "Đặc điểm hoạt động của doanh nghiệp", "Hình thức sở hữu vốn, lĩnh vực kinh doanh, ngành nghề, chu kỳ sản xuất kinh doanh, cấu trúc doanh nghiệp.", "Nature of operations", "Form of ownership, line of business, business cycle, group structure."),
+            new Section("standards", "III", "Chuẩn mực và Chế độ kế toán áp dụng", "Chế độ kế toán áp dụng (Thông tư 99/2025/TT-BTC hoặc Thông tư 200/2014/TT-BTC), tuyên bố tuân thủ chuẩn mực.", "Accounting standards and regime applied", "The regime applied (Circular 99/2025/TT-BTC or 200/2014/TT-BTC) and the statement of compliance with the standards."),
+            new Section("policy.cash", "IV.1", "Chính sách kế toán: tiền và các khoản tương đương tiền", "Nguyên tắc ghi nhận tiền và tương đương tiền; quy đổi ngoại tệ.", "Accounting policy: cash and cash equivalents", "Recognition of cash and cash equivalents; foreign currency translation."),
+            new Section("policy.receivables", "IV.2", "Chính sách kế toán: các khoản phải thu", "Nguyên tắc ghi nhận, phân loại ngắn hạn / dài hạn, lập dự phòng phải thu khó đòi.", "Accounting policy: receivables", "Recognition, short- and long-term classification, provision for doubtful debts."),
+            new Section("policy.inventory", "IV.3", "Chính sách kế toán: hàng tồn kho", "Nguyên tắc đánh giá hàng tồn kho, phương pháp tính giá xuất kho (bình quân, FIFO), dự phòng giảm giá.", "Accounting policy: inventories", "Valuation of inventories, cost formula (average, FIFO), write-down provision."),
+            new Section("policy.fixedassets", "IV.4", "Chính sách kế toán: tài sản cố định và khấu hao", "Nguyên tắc ghi nhận nguyên giá, phương pháp khấu hao, thời gian hữu dụng.", "Accounting policy: fixed assets and depreciation", "Recognition of cost, depreciation method, useful lives."),
+            new Section("policy.provisions", "IV.5", "Chính sách kế toán: các khoản dự phòng", "Nguyên tắc ghi nhận các khoản dự phòng phải trả.", "Accounting policy: provisions", "Recognition of provisions for liabilities."),
+            new Section("policy.revenue", "IV.6", "Chính sách kế toán: ghi nhận doanh thu và chi phí", "Điều kiện ghi nhận doanh thu bán hàng, cung cấp dịch vụ, doanh thu tài chính; ghi nhận chi phí.", "Accounting policy: revenue and expense recognition", "Conditions for recognising revenue from goods, services and finance income; recognition of expenses."),
+            new Section("policy.tax", "IV.7", "Chính sách kế toán: thuế", "Thuế suất thuế TNDN, thuế GTGT và các loại thuế khác; thuế thu nhập hoãn lại.", "Accounting policy: taxes", "Corporate income tax rate, VAT and other taxes; deferred tax."),
+            new Section("policy.fx", "IV.8", "Chính sách kế toán: ngoại tệ", "Tỷ giá quy đổi và xử lý chênh lệch tỷ giá.", "Accounting policy: foreign currency", "Exchange rates used and treatment of exchange differences."),
+            new Section("noncash", "VII", "Thông tin bổ sung cho Báo cáo lưu chuyển tiền tệ", "Các giao dịch không bằng tiền ảnh hưởng đến báo cáo lưu chuyển tiền tệ (mua tài sản bằng nợ, chuyển nợ thành vốn …).", "Supplementary information to the cash flow statement", "Non-cash transactions that affect the cash flow statement (assets bought on debt, debt converted into equity …)."),
+            new Section("subsequent", "VIII.1", "Những sự kiện phát sinh sau ngày kết thúc kỳ kế toán", "Các sự kiện quan trọng xảy ra sau ngày lập báo cáo.", "Events after the end of the accounting period", "Significant events after the reporting date."),
+            new Section("other", "VIII.2", "Những thông tin khác", "Các thông tin khác cần thuyết minh (bên liên quan, nợ tiềm tàng, cam kết …).", "Other information", "Other disclosures (related parties, contingent liabilities, commitments …)."),
         };
 
         public static Section? Find(string key) => All.FirstOrDefault(s => s.Key == key);
@@ -115,6 +126,7 @@ namespace ERP.ACC.Application.Reports
         private readonly IReadOnlyDictionary<Guid, AccountBalanceSummary> _activity;
         private readonly IReadOnlyDictionary<Guid, AccountBalanceSummary> _periodResult;
         private readonly decimal _divisor;
+        private readonly NoteStrings _strings;
 
         /// <param name="before">Cumulative balances the day before the range.</param>
         /// <param name="after">Cumulative balances at the end of the range.</param>
@@ -123,8 +135,9 @@ namespace ERP.ACC.Application.Reports
         public NoteLedger(
             IReadOnlyCollection<Account> accounts,
             IReadOnlyDictionary<Guid, AccountBalanceSummary> before, IReadOnlyDictionary<Guid, AccountBalanceSummary> after,
-            IReadOnlyDictionary<Guid, AccountBalanceSummary> activity, IReadOnlyDictionary<Guid, AccountBalanceSummary> periodResult, decimal divisor)
+            IReadOnlyDictionary<Guid, AccountBalanceSummary> activity, IReadOnlyDictionary<Guid, AccountBalanceSummary> periodResult, decimal divisor, NoteStrings? strings = null)
         {
+            _strings = strings ?? NoteStrings.Vi;
             _accounts = accounts;
             _before = before;
             _after = after;
@@ -136,6 +149,8 @@ namespace ERP.ACC.Application.Reports
         public sealed record Group(string Label, string[] Prefixes, bool DebitNormal);
 
         public static readonly string[] MovementColumns = { "Số đầu kỳ", "Tăng", "Giảm", "Số cuối kỳ" };
+
+        private string[] Columns => new[] { _strings.Opening, _strings.Increase, _strings.Decrease, _strings.Closing };
 
         private decimal R(decimal value) => StatementEngine.RoundTo(value, _divisor);
 
@@ -149,7 +164,7 @@ namespace ERP.ACC.Application.Reports
         /// <summary>Opening / increase / decrease / closing per account of each group, with a subtotal per group; the groups are listed one after the other.</summary>
         public NoteTableDto Movement(params Group[] groups)
         {
-            var table = new NoteTableDto { Columns = MovementColumns.ToList() };
+            var table = new NoteTableDto { Columns = Columns.ToList() };
             foreach (var group in groups)
             {
                 var rows = new List<NoteTableRowDto>();
@@ -179,10 +194,28 @@ namespace ERP.ACC.Application.Reports
         public static List<decimal> Subtotal(NoteTableDto table, string label) =>
             table.Rows.FirstOrDefault(r => r.IsTotal && r.Label == label)?.Cells.ToList() ?? new List<decimal> { 0m, 0m, 0m, 0m };
 
+        /// <summary>
+        /// Adds the prior period to a table: one more column with the prior closing balance (a movement table) or the prior amount (a result table), found by row label.
+        /// A row the prior period does not have shows 0.
+        /// </summary>
+        public static void AddPriorColumn(NoteTableDto table, NoteTableDto prior, string columnLabel)
+        {
+            var source = prior.Columns.Count - 1;
+            table.Columns.Add(columnLabel);
+            foreach (var row in table.Rows)
+            {
+                var match = prior.Rows.FirstOrDefault(r => r.Label == row.Label && r.IsTotal == row.IsTotal);
+                var width = table.Columns.Count - 1;
+                while (row.Cells.Count < width)
+                    row.Cells.Add(0m);
+                row.Cells.Add(match != null && match.Cells.Count > source ? match.Cells[source] : 0m);
+            }
+        }
+
         /// <summary>One column per account group: the revenue or expense of the range (closing entries left out), per account, with a total.</summary>
         public NoteTableDto Result(string totalLabel, string[] prefixes, bool debitNormal)
         {
-            var table = new NoteTableDto { Columns = new() { "Số tiền" } };
+            var table = new NoteTableDto { Columns = new() { _strings.Amount } };
             foreach (var account in Matching(new Group(totalLabel, prefixes, debitNormal)))
             {
                 var value = Signed(_periodResult, account, debitNormal);

@@ -48,7 +48,11 @@ namespace ERP.ACC.Application.EventHandlers
 
             var invoice = await _uow.Invoices.GetByOrderIdAsync(@event.OrderId, cancellationToken);
             if (invoice != null && invoice.ApplyPayment(@event.Amount))
+            {
                 await _uow.Invoices.UpdateAsync(invoice, cancellationToken);
+                await _uow.PaymentApplications.AddAsync(Domain.Entities.PaymentApplication.Create(
+                    Domain.Entities.PaymentApplication.InvoiceDocument, invoice.Id, @event.ProcessedAt ?? DateTime.UtcNow, @event.Amount, $"payment:{@event.PaymentId:N}"), cancellationToken);
+            }
             else if (invoice == null)
                 _logger.LogWarning("Payment {PaymentId} for order {OrderId} has no invoice yet; the cash is booked against receivables anyway",
                     @event.PaymentId, @event.OrderId);

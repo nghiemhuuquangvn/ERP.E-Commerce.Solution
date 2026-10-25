@@ -36,6 +36,14 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-25 — ROADMAP P1-2j: loan posting, payment history, own-chart mapping, notes in English (`feat/p1-2j-loans-history-mapping-english`, unmerged)
+- **Loans** post the drawdown (Dr bank / Cr 341, 2100 on the 14-account chart) and each repayment (principal + scheduled interest, Cr bank); option "already booked by hand" keeps older loans out; *Post drawdown* for an older loan without repayments; cancel reverses; `reports/loans-reconciliation` and a card on the Loans screen. Migration 016, keys LoanPayable / InterestExpense.
+- **Payment history**: `PaymentApplications` (+ `Bills.ApprovedOn`, `Invoices.CancelledOn`, backfilled and flagged estimated) make the B01 / B09 split of trade receivables / payables exact for past dates; the "approximate" note only appears for estimated or missing dates. Migration 017.
+- **Account mapping** for a tenant's own chart on B01 / B02 (`accounting/statement-mappings`, Reports → Account mapping). Migration 018.
+- **Notes B09**: `lang=vi|en` with texts per language (migration 019), non-cash table from the journal, prior-period column; admin selectors.
+- Verified live on `glcheck` (drawdown / repayment entries, reconciliation, past-date split, mapping 9001 → row 111 balances 270 = 440, English notes pdf / xlsx / csv); test data removed. Tests: ACC 339 (+38), Architecture drift test passes, admin `tsc -b` clean. Migrations 016 – 019 applied to the host DB.
+- Not done (P1-2k): accrued interest, receiving account per loan, mapping for B03 / notes, versioned texts, other languages, browser click-through of the new admin screens.
+
 ### 2026-10-25 — ROADMAP P1-2i: 14-account layouts, off-balance accounts, loan ledger, B09 notes (`feat/notes-loans-offbalance`, unmerged)
 - B01 / B02 / B03 (direct, indirect) and the notes choose their layout from the tenant's accounts (`ChartTemplates.Detect`): Simple14 layouts added. Found and fixed on the demo tenant: 421b took account 3100 twice.
 - Off-balance: account type 6, accounts 001 – 008 in the Vietnamese template, register `OffBalanceEntries` (migration 013), `accounting/off-balance`, report `reports/off-balance`; journal and posting refuse class 0.

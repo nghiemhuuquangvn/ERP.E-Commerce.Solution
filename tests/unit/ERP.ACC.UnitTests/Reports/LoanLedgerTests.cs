@@ -7,6 +7,7 @@ using ERP.ACC.Domain.Entities;
 using ERP.ACC.Domain.Enums;
 using ERP.Shared.Infrastructure.Exceptions;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -162,7 +163,7 @@ public class LoanLedgerTests
         bl.Setup(r => r.GetUnpaidBillsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Bill>());
         var ln = new Mock<ILoanRepository>();
         ln.Setup(r => r.ListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(loans.ToList());
-        return new GetBalanceSheetStatementQueryHandler(accounts.Object, lines.Object, new Mock<IReportProfileRepository>().Object, inv.Object, bl.Object, ln.Object);
+        return new GetBalanceSheetStatementQueryHandler(accounts.Object, lines.Object, new Mock<IReportProfileRepository>().Object, inv.Object, bl.Object, ln.Object, new Mock<IPaymentApplicationRepository>().Object, new Mock<IStatementMappingRepository>().Object);
     }
 
     [Fact]
@@ -210,7 +211,7 @@ public class LoanLedgerTests
     public async Task Creating_a_loan_returns_its_outstanding_and_the_split_and_refuses_a_duplicate_number_or_a_bad_schedule()
     {
         var uow = Uow();
-        var create = new CreateLoanCommandHandler(uow.Object);
+        var create = new CreateLoanCommandHandler(uow.Object, new Mock<IJournalPostingService>().Object, NullLogger<CreateLoanCommandHandler>.Instance);
 
         var dto = await create.Handle(NewLoan(), default);
 
@@ -230,15 +231,15 @@ public class LoanLedgerTests
     public async Task Repaying_and_cancelling_go_through_the_aggregate_rules()
     {
         var uow = Uow();
-        var dto = await new CreateLoanCommandHandler(uow.Object).Handle(NewLoan(), default);
-        var repay = new RecordLoanRepaymentCommandHandler(uow.Object);
+        var dto = await new CreateLoanCommandHandler(uow.Object, new Mock<IJournalPostingService>().Object, NullLogger<CreateLoanCommandHandler>.Instance).Handle(NewLoan(), default);
+        var repay = new RecordLoanRepaymentCommandHandler(uow.Object, new Mock<IJournalPostingService>().Object, NullLogger<RecordLoanRepaymentCommandHandler>.Instance);
 
         var after = await repay.Handle(new RecordLoanRepaymentCommand { LoanId = dto.Id, InstallmentId = dto.Installments[0].Id, PaidOn = new DateTime(2026, 9, 1) }, default);
 
         after.Installments[0].PaidOn.Should().Be(new DateTime(2026, 9, 1));
         await FluentActions.Awaiting(() => repay.Handle(new RecordLoanRepaymentCommand { LoanId = dto.Id, InstallmentId = dto.Installments[0].Id }, default))
             .Should().ThrowAsync<BusinessRuleException>().WithMessage("*already repaid*");
-        await FluentActions.Awaiting(() => new CancelLoanCommandHandler(uow.Object).Handle(new CancelLoanCommand { LoanId = dto.Id, Reason = "oops" }, default))
+        await FluentActions.Awaiting(() => new CancelLoanCommandHandler(uow.Object, new Mock<IJournalPostingService>().Object, NullLogger<CancelLoanCommandHandler>.Instance).Handle(new CancelLoanCommand { LoanId = dto.Id, Reason = "oops" }, default))
             .Should().ThrowAsync<BusinessRuleException>().WithMessage("*repayments*");
         await FluentActions.Awaiting(() => repay.Handle(new RecordLoanRepaymentCommand { LoanId = Guid.NewGuid(), InstallmentId = dto.Installments[1].Id }, default))
             .Should().ThrowAsync<KeyNotFoundException>();

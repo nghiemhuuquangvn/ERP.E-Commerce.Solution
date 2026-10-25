@@ -13,13 +13,16 @@ namespace ERP.ACC.Domain.Entities
         public const int MaxTextLength = 4000;
 
         public string SectionKey { get; private set; } = string.Empty;
+
+        /// <summary>"vi" or "en": the notes are written once per language (ROADMAP P1-2j).</summary>
+        public string Language { get; private set; } = "vi";
         public string Text { get; private set; } = string.Empty;
 
         private NoteText() { }
 
-        public static NoteText Create(Guid tenantId, string sectionKey, string text)
+        public static NoteText Create(Guid tenantId, string sectionKey, string text, string language = "vi")
         {
-            var note = new NoteText { Id = Guid.NewGuid(), TenantId = tenantId, SectionKey = sectionKey.Trim(), CreatedAt = DateTime.UtcNow };
+            var note = new NoteText { Id = Guid.NewGuid(), TenantId = tenantId, SectionKey = sectionKey.Trim(), Language = language, CreatedAt = DateTime.UtcNow };
             note.Set(text);
             return note;
         }

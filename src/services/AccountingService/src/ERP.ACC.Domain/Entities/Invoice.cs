@@ -13,6 +13,9 @@ namespace ERP.ACC.Domain.Entities
         public int Status { get; set; }
         public decimal AmountPaid { get; set; }
 
+        /// <summary>The day the invoice was cancelled (null while it is not, or for a cancellation made before this was recorded).</summary>
+        public DateTime? CancelledOn { get; set; }
+
         public static Invoice Create(string invoiceNumber, Guid customerId, Guid orderId, decimal amount, DateTime dueDate)
         {
             var invoice = new Invoice
@@ -80,6 +83,7 @@ namespace ERP.ACC.Domain.Entities
                 return;
 
             Status = (int)Enums.InvoiceStatus.Cancelled;
+            CancelledOn = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
         }
 
