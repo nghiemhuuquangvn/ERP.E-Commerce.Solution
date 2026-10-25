@@ -36,6 +36,14 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-25 — ROADMAP P1-2l: day count, month-end accrual job, note-text history, notes in ja / zh / fr (`feat/p1-2l-accrual-job-daycount-history-languages`, unmerged)
+- **Day count per loan** (schedule / actual-365 / actual-360): interest from the outstanding principal per day; default interest paid = interest of the days to the repayment; `interestDueToday` per installment. Migration 022.
+- **Month-end job** `LoanInterestAccrualJob`: opt-in per tenant (closing policy switch, default off), accrues to the end of the previous month, skips a closed period, idempotent.
+- **History of note texts** (`NoteTextRevisions`, `GET reports/notes/text/history`, History link in the editor).
+- **Notes in Japanese, Chinese, French** (wording, section titles / hints, texts per language); PDF for fr, 400 for ja / zh (no CJK font). Translations are drafts.
+- Verified live on `glcheck`: actual/360 accrual 5,000 + 0 + 5,000 and repayment Dr 341 1,000,000 / Dr 335 10,000 / Cr bank 1,010,000; job off → nothing, on → Dr 635 / Cr 335 5,800 dated 30 Sep; 3 text revisions; fr / ja / zh notes, PDF fr 200, ja 400, xlsx ja 200; test data removed, policy switched back off. Tests: ACC 407 (+36), drift test passes, Architecture 53/54 (known failure), admin `tsc -b` clean. Migration 022 applied to the host DB; `RunAllScripts.ps1` now also lists 021. accountingservice and admin rebuilt from the branch.
+- Not done (P1-2m): rate changes, PDF for ja / zh, reviewed translations, browser click-through of the new admin pieces.
+
 ### 2026-10-25 — ROADMAP P1-2k: loan interest and receiving account, B03 / notes mapping, versioned note texts (`feat/p1-2k-loan-interest-mapping-versions`, unmerged)
 - **Loans**: optional receiving account per loan (drawdown and repayments use it, else the Bank key); **accrued interest** (`accrue-interest` by calendar days of each installment's period, Dr 635 / Cr 335; the repayment clears it and books the rest, with the interest actually paid); cancel refused after accrual; interest check in the reconciliation. Migration 020, key InterestPayable.
 - **Mapping** of a tenant's own chart now also feeds B03 direct, B03 indirect and the B09 tables (screen: statement select; side hidden where it does not apply).

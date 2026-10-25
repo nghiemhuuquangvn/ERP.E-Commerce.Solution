@@ -151,12 +151,23 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 
 | # | Issue | Home |
 |---|---|---|
-| AB1 | Accrual is run by the accountant (button / API) for a date; there is no automatic month-end job, and the convention is calendar days of the installment's period (no actual/360, no rate changes). | P1-2l |
+| AB1 | ~~No automatic job / no actual/360~~ **Closed in P1-2l** (opt-in job, day count per loan). Was: Accrual is run by the accountant (button / API) for a date; there is no automatic month-end job, and the convention is calendar days of the installment's period (no actual/360, no rate changes). | P1-2l |
 | AB2 | The interest check compares today's accruals (not kept by date) with the account balance on the date; the receiving account of a loan cannot be changed after the drawdown is posted. | Accountant decision |
-| AB3 | Note texts are versioned per fiscal year; an edit overwrites the year's text (no history, no who / when beyond the row's update time). | P1-2l |
+| AB3 | ~~No history of text edits~~ **Closed in P1-2l** (`NoteTextRevisions`). Was: Note texts are versioned per fiscal year; an edit overwrites the year's text (no history, no who / when beyond the row's update time). | P1-2l |
 | AB4 | The mapping has no unmapped list for B03 (read on the report) and its side is ignored for B03 / B09; a mapping is per statement. | Accountant decision |
 | AB5 | The new admin screens (loan account / accrual / interest paid, mapping for B03 / B09, year of texts) were type-checked, not clicked through in a browser. | — |
 | AB6 | `glcheck` test data left: the 2,000 credit on 341 from P1-2i; throw-away loans, entries, accounts and mappings of the checks were removed. | Local clean-up |
+
+## 4l. Day count, job, history, languages (P1-2l follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| AC1 | One rate for the life of a loan (no rate changes / floating rates); interest paid is typed, not read from the bank statement. | P1-2m |
+| AC2 | The Japanese and Chinese notes have no PDF (no CJK font embedded; ~10–20 MB of fonts). | P1-2m |
+| AC3 | ja / zh / fr wording is a draft translation, not reviewed by a translator or accountant. | Owner / translator |
+| AC4 | The job runs once per service uptime day, only while the service runs on the 1st or later; no per-tenant run log or "last accrued" screen, only the entries and the log. A closed period is skipped silently for the user (log only). | P1-2m |
+| AC5 | Revisions keep the user name text at the time; no restore button (the editor copies the old text into the draft), and no history for other settings (report profile, mappings). | P1-2m |
+| AC6 | The new admin pieces (day count select, closing-policy switch, History list, language select) were type-checked, not clicked through in a browser. | — |
 
 ## 5. Roadmap items these issues are waiting for
 

@@ -173,6 +173,12 @@ At the end of a month (or any date) the accountant presses **Accrue interest** o
 ### 4.18 Own-chart mapping for the cash-flow statements and the notes; texts per year (P1-2k)
 **Mapping.** The *Account mapping* screen now also offers B03 direct, B03 indirect and B09: pick a prefix, the row (for B09 the table: V.1 cash … VI.2 expenses) and save. A cash movement against a mapped counter-account counts in the chosen B03 row (in the direction of the row); an indirect row sums the balance change of the mapped accounts; a notes table lists them. **Texts per year.** The texts of the notes are written for a **fiscal year**; a report for a later year shows the latest earlier text until it is overwritten, and writing an empty text for a year makes that year follow the earlier text again.
 
+### 4.19 Day count and the month-end accrual job (P1-2l)
+When registering a loan the accountant chooses how its interest is counted: **by the schedule** (as before: the scheduled interest of each installment split by the days of its period), **actual/365** or **actual/360** (each day's outstanding principal × annual rate ÷ 365 or 360; the schedule's interest column may be 0). Repaying an installment of such a loan proposes the interest of the days up to the repayment day (shown as the placeholder of *Interest paid*); typing a figure overrides it. In *Fiscal periods → closing policy* the tenant can switch on **Accrue loan interest automatically at month end**: from the 1st of each month the system accrues the interest of all posted loans to the last day of the previous month, the same entry as the manual button (Dr 635 / Cr 335). A closed period is skipped, never back-filled into the current month. The Loans screen says whether the automatic accrual is on.
+
+### 4.20 History of note texts; notes in Japanese, Chinese and French (P1-2l)
+Every change of a note text is kept: who saved it, when, and the text (a clearing is a change too). The text editor of the B09 tab has a **History** link per section listing the changes of that section, language and year (newest first, 50 at most) with *Use this text* to put an old text back into the draft. The notes can be produced in **Japanese, Chinese and French** besides Vietnamese and English: the fixed wording, the section titles and hints and the accountant's texts (kept per language). The Japanese and Chinese notes have no PDF (no CJK font is embedded): Excel and CSV work; French exports PDF like Vietnamese and English. The translations are drafts for a translator or the accountant to review.
+
 ---
 
 ## 5. Functional requirements
@@ -292,6 +298,28 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | FR-109 | Given a prefix mapped to a notes table (for example 9801 to VI.2), then that table lists the account and its total includes it; table codes are V.1 … V.9, V.11, VI.1, VI.2; a prefix the standard sets already hold is refused. | UAT-98 |
 | FR-110 | Given texts written for 2026 and 2027, then the notes of a 2026 period show the 2026 text, a January 2027 report shows the 2027 text (or the 2026 text until 2027 has one), a 2025 report shows the year-0 text or none, clearing 2027 makes January 2027 show 2026 again, and the editor marks inherited texts with their year. | UAT-99, 100 |
 | FR-111 | The admin screens follow: Loans (receiving account, *Accrue interest*, accrued column, interest paid), Account mapping (B03 / B09, side hidden where it does not apply) and the B09 tab (year of the texts). | UAT-101 |
+| UAT-102 | Loan 1,000,000 at 12 %, actual/360, 1 Nov – 1 Dec 2026; accrue to 16 Nov, again, then to 1 Dec. | FR-112, 113 | 5,000 / 0 / 5,000; entries JE-…019 and 020 Dr 635 / Cr 335 (live on glcheck) |
+| UAT-103 | Same with actual/365, and a loan with rate 0 and a day count. | FR-112, 113 | 9,863.01 for the period (unit test); rate 0 → 400 "An interest rate above 0 is needed…" |
+| UAT-104 | Two installments of 500,000; repay the first on its due date, accrue to the second due date. | FR-114 | first interest 10,000.00; second 5,166.67 (unit test) |
+| UAT-105 | Repay the installment of UAT-102 on 1 Dec without interest. | FR-115 | Dr 341 1,000,000, Dr 335 10,000, Cr bank 1,010,000 (live) |
+| UAT-106 | Loan 600,000 at 12 % actual/360 from 1 Sep; switch off; restart the service. | FR-116, 117 | no `LoanAccrual` entry |
+| UAT-107 | Switch on; restart. | FR-116, 117 | one entry dated 30 Sep 2026: Dr 635 / Cr 335 5,800.00 (29 days) (live) |
+| UAT-108 | The period of the date is closed; the job runs; a user runs the accrual for it. | FR-118 | job: nothing posted, `SkippedClosedPeriod`; user: accrued (unit test) |
+| UAT-109 | Save a text for FY 2031: "Ban dau", the same again, "Ban sua", then empty. | FR-119 | 3 revisions (the repeat adds none): empty, "Ban sua", "Ban dau", all by the user; unknown key → 400 (live) |
+| UAT-110 | Notes with lang fr, ja, zh and de. | FR-120 | 200 with the language's titles; de → 400 (live; titles in unit test) |
+| UAT-111 | PDF fr, PDF ja, Excel ja. | FR-121 | 200 application/pdf; 400; 200 |
+| UAT-112 | The admin build. | FR-122 | `tsc -b` clean; not clicked through in a browser in this task |
+| FR-112 | A loan has a day count: schedule (default), actual/365 or actual/360. Values outside 0–2, or a day count on a loan with rate 0, are refused (400); it cannot be changed after interest was accrued or a repayment recorded. | UAT-102, 103 |
+| FR-113 | Given a loan of 1,000,000 at 12 % on actual/360 from 1 Nov to 1 Dec (schedule interest 0), then accruing to 16 Nov posts 5,000.00, again 0, and to 1 Dec 5,000.00 more (Dr 635 / Cr 335); on actual/365 the full period is 9,863.01. | UAT-102, 103 |
+| FR-114 | Given an earlier installment repaid, then the next period's interest is computed on the reduced principal (500,000 × 12 % × 31 ÷ 360 = 5,166.67). | UAT-104 |
+| FR-115 | Repaying an installment of a loan counted by days without an interest figure uses the interest of the days up to the payment day (and stores it as the installment's interest); an explicit figure wins; a scheduled loan keeps the scheduled interest. The loan list returns `interestDueToday` per installment. | UAT-105 |
+| FR-116 | The closing policy has an `autoAccrueLoanInterest` switch (default off; saving the policy without the field keeps it). | UAT-106, 107 |
+| FR-117 | When the switch is on, a background job accrues, once a day per service start and from the 1st of the month, the interest of the tenant's posted loans to the last day of the previous month; with the switch off nothing is accrued; a second run posts nothing. | UAT-106, 107 |
+| FR-118 | The job (command flag `SkipClosedPeriod`) posts nothing for a date whose fiscal period is closed and logs it; a user's accrual is never skipped. | UAT-108 |
+| FR-119 | Each save of a note text that changes it (new text, changed text, cleared) writes a revision with the user and the time; an identical save writes none. `GET accounting/reports/notes/text/history?key&lang&fiscalYear` lists them (newest first, max 50; unknown key or year → 400). | UAT-109 |
+| FR-120 | The notes (`lang`) and the texts accept vi, en, ja, zh, fr (a regional code such as zh-CN counts; anything else → 400). Every wording and every section title and hint exists in all five languages. | UAT-110 |
+| FR-121 | The PDF of the notes in ja or zh answers 400 ("use format=xlsx or csv"); fr, vi and en export PDF; Excel and CSV work in every language. | UAT-111 |
+| FR-122 | The admin screens follow: Loans (day count, auto-accrual status, interest-due placeholder), closing policy (switch), B09 tab (History, five languages, no PDF button for ja / zh). | UAT-112 |
 
 ### 5.5 Acceptance criteria of the P1-2d requirements
 (Scenarios are in section 12; the *UAT* column points at them.)
@@ -621,6 +649,18 @@ Row mapping (account prefix → row; "In" = cash received, "Out" = cash paid):
 | BR-166 | **Fiscal year** of a date = the year in which its fiscal year ends: with year end December the calendar year; with year end month M < 12, the date's year if its month ≤ M, else the next year (year end March: 31 Mar 2026 and 1 Apr 2025 are year 2026; 1 Apr 2026 is year 2027). The notes use the year of their end date; the editor defaults to it. |
 | BR-167 | **Text resolution.** For a section, language and fiscal year Y the text is the non-empty text with the greatest year ≤ Y (year 0 = "every year", the texts written before versions; it is the oldest). Saving writes the chosen year only; an empty text for a year is stored as empty and ignored, so the year follows the earlier text again. A year is 0 or 1 … 9999. One text per tenant, section, language and year (migration 021). Edits overwrite the year's text: there is no history of edits. |
 
+### 6.25 Day count, month-end job, history and languages (P1-2l)
+| ID | Rule |
+|---|---|
+| BR-168 | **Day count** of a loan: 0 schedule (BR-157), 1 actual/365, 2 actual/360. 1 and 2 need a rate > 0. It is set when the loan is created and fixed once interest is accrued or a repayment recorded. Migration 022 (`Loans.DayCountBasis`, default 0, so existing loans keep their behaviour). |
+| BR-169 | **Interest by days.** For an unpaid installment whose period runs from the previous due date (or the loan start) to its due date, the interest to date X is round(Σ over each day d in [period start, min(X, due date)) of outstanding principal(d) × rate ÷ 100 ÷ basis, 2), where outstanding(d) = loan principal − the principal of installments repaid on or before d. The amount posted is that figure minus what is already accrued (BR-158 entry, idempotent). The schedule's interest column is not used. Example: 1,000,000, 12 %, 30 days: actual/360 → 10,000.00, actual/365 → 9,863.01; leap year 29 days actual/360 → 9,666.67. |
+| BR-170 | **Interest paid default** (changes BR-160 for loans counted by days): empty = the interest by days from the period start to the payment day (at most the due date), stored as the installment's interest; for the schedule day count it stays the scheduled interest. |
+| BR-171 | **Month-end job.** Opt-in per tenant (`ClosingPolicies.AutoAccrueLoanInterest`, default false). It checks hourly, handles each day once per service run, and runs the accrual command for each opted-in tenant (inside that tenant's scope) with as-of = the last day of the month before today. It only posts the difference since the last accrual. One tenant's failure is logged and does not stop the others. It starts one minute after the service. |
+| BR-172 | **Closed period.** The job sets `SkipClosedPeriod`: when the fiscal period containing the as-of date exists and is not Open, nothing is posted (a normal posting into a closed period would fall into the current month). A period that does not exist yet is created Open by the posting service. |
+| BR-173 | **History.** `NoteTextRevisions` is append-only: (tenant, section, language, fiscal year, text, user = CreatedBy, time = CreatedAt). A revision is written when the trimmed text differs from the stored one, for a new non-empty text, and for a clearing (empty text). Reading returns the newest 50. The current text stays in `NoteTexts` (BR-167 now has a history of edits). Restoring is a normal save of the old text. |
+| BR-174 | **Languages.** vi, en, ja, zh, fr; the code is matched by prefix. Texts are stored per language (`NoteTexts.Language` ≤ 5 characters); a section's title and hint come from the section list (vi, en) or `NoteSectionTranslations` (ja, zh, fr). Amounts: en, ja, zh show 1,234.56; vi, fr the Vietnamese form in the PDF. Dates are dd/MM/yyyy in all languages. |
+| BR-175 | **PDF.** Needs a font with the glyphs: the embedded Noto Sans covers vi, en and fr. ja and zh are refused with 400 (BusinessRuleException) until a CJK font is embedded. |
+
 
 
 ### 6.14 Short- / long-term split of trade receivables and payables (P1-2h)
@@ -786,6 +826,17 @@ Direct method: received from customers 600, paid to suppliers 200, wages 400, in
 *Exceptions:* an incomplete posting profile → the interest is not accrued and the next run catches up; a negative interest paid or a repaid installment → 400; cancelling a loan with accruals → 400.
 *Post:* journal entries `LoanAccrual:…` and `LoanRepayment:<installment>`.
 
+### UC-27 Count a loan's interest by days and let the month-end job accrue it
+*Actor:* accountant (`accounting:bank:manage`; the policy switch needs the fiscal-period manage permission). *Pre:* the posting profile has InterestExpense and InterestPayable.
+*Main flow:* 1. **Loans** → add the loan, rate above 0, *Day count of the interest* = actual/360, schedule principals (interest column may stay 0) → 2. **Fiscal periods → closing policy** → tick *Accrue loan interest automatically at month end* → Save → 3. on the 1st of the next month the job accrues to the last day of the previous month (entry Dr 635 / Cr 335); the Loans screen shows the accrual → 4. on the repayment day open the loan: *Interest paid* shows the interest of the days as placeholder; leave it empty or type the lender's figure → repay.
+*Alternative flows:* A1 — accrue by hand any day with the button (only the increase is posted). A2 — switch the policy off: the job does nothing. A3 — an earlier installment was repaid: the next period's interest uses the reduced principal.
+*Exceptions:* rate 0 with a day count → 400; the period of the as-of date is closed → the job posts nothing (accrue by hand after reopening, or book it manually); incomplete posting profile → not accrued, next run catches up.
+*Post:* `LoanAccrual:…` entries; `LoanRepayment:<installment>`.
+
+### UC-28 Read the history of a note text and write the notes in another language
+*Actor:* accountant (`accounting:reports:view` to read the history, `accounting:accounts:manage` to save texts). *Main flow:* 1. **Reports → Notes** → pick the language (vi, en, 日本語, 中文, Français) and the fiscal year → *Edit texts* → write and save → 2. **History** under a section lists the earlier versions with user and time → *Use this text* puts one into the draft → Save (a new revision). 3. The report and its Excel / CSV use the language; PDF is offered for vi, en, fr.
+*Exceptions:* unknown language → 400; PDF in ja / zh → 400 (button hidden); unknown section → 400.
+
 ### UC-17 Read the balance sheet B01 with the maturity split
 *Actor:* accountant / chief accountant (`accounting:reports:view`). *Pre:* open invoices carry due dates (they do: every invoice and bill is created with one); the tenant is on the Vietnamese chart.
 *Main flow:* 1. Reports → **B01** → date (and optional prior date, unit) → 2. read "III. Short-term receivables" (row 131) and "I. Long-term receivables" (row 211), "I. Short-term liabilities" (row 311) and "II. Long-term liabilities" (row 331) → 3. check "balanced" (270 = 440) → 4. read the notes → 5. export.
@@ -833,6 +884,7 @@ Direct method: received from customers 600, paid to suppliers 200, wages 400, in
 | **StatementAccountMapping** (table `StatementAccountMappings`, migration `018_StatementAccountMappings.sql`) | tenant, statement id, row code, account prefix (≤ 30), side (0 net, 1 debit, 2 credit) | Unique per (tenant, statement, row, prefix). |
 | **NoteText language** (migration `019_NoteTextLanguage.sql`) | `NoteTexts.Language` ('vi' / 'en', default 'vi') | Unique per (tenant, section, language). |
 | **Loan interest and account** (migration `020_LoanInterestAndAccount.sql`) | `Loans.ReceivingAccountId` (nullable), `LoanInstallments.AccruedInterest` (decimal, default 0) | Accrued interest is cleared on display once the installment is repaid. |
+| **Loan day count / auto accrual / revisions** (migration `022_LoanDayCountPolicyRevisions.sql`) | `Loans.DayCountBasis` (int 0–2, default 0); `ClosingPolicies.AutoAccrueLoanInterest` (bit, default 0); `NoteTextRevisions` (tenant, section key, language, fiscal year, text ≤ 4000, CreatedBy, CreatedAt) | Append-only history; index (tenant, key, language, year, time). |
 | **NoteText year** (migration `021_NoteTextFiscalYear.sql`) | `NoteTexts.FiscalYear` (int, 0 = every year) | Unique per (tenant, section, language, year). |
 | **ClosingPolicy** (table `ClosingPolicies`, migration `011_ClosingPolicy.sql`) | tenant (unique), closing mode (1 Monthly, 2 YearEnd), fiscal-year end month (1 … 12) | One row per tenant; no row = Monthly / December. Checked by database constraints. |
 
@@ -1011,6 +1063,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 4a. The B03 row mapping (6.8) is a draft by account prefix; salary payments are recognised by the payroll-payable account (334), so a salary paid straight from expense accounts lands in row 02, and withholdings paid to the authorities (3388, 3382 … 3384) land in row 07.
 4g. (P1-2j) Loan drawdowns go to the bank account of the posting profile and interest is booked when paid, from the scheduled amounts; the loan-payable key of the 14-account chart shares account 2100 with accrued liabilities. Payment dates are exact only for payments recorded after migration 017; older ones are estimated. The account mapping covers B01 / B02 only. Non-cash transactions are detected by account patterns and must be confirmed by the accountant. Notes exist in Vietnamese and English only.
 4h. (P1-2k) Interest accrues by calendar days of each installment's period from the scheduled interest, on the date the accountant chooses (no automatic monthly job); the repayment posts the scheduled principal and the interest typed. The receiving account of a loan is fixed once posted. Note texts are versioned per fiscal year (not per edit). B03 and notes mapping ignore the balance side.
+4i. (P1-2l) The month-end job is opt-in per tenant, runs once per day of service uptime and needs the service running on the 1st (a restart re-runs it; it never double-posts). Actual/360 and actual/365 use one rate for the life of the loan (no rate changes) and the day-by-day principal; interest paid is an amount, not recomputed from bank statements. Revisions record the user name (or id) at the time and are never edited. ja / zh / fr wording is a draft translation; ja / zh have no PDF.
 5. Warehouse owns costing; Accounting never computes a cost.
 6. A tenant that already has journal entries cannot change its chart template.
 
@@ -1043,6 +1096,7 @@ Open questions for the chief accountant: (1) is the B03 row mapping right for th
 | P1-2i 14-account layouts, off-balance, loans, B09 | 2026-10-25 | FR-75 … 85; BR-109 … 133; UC-18 … 21; UAT-62 … 74 | Reports.md, ChartOfAccounts.md | `Simple14LayoutTests`, `OffBalanceTests`, `LoanLedgerTests`, `NotesTests`, `LiveSchemaDriftTests` (migrations 013 – 015) |
 | P1-2j loan posting, payment history, own-chart mapping, notes in English | 2026-10-25 | FR-86 … 101; BR-134 … 155; UC-22 … 25; UAT-75 … 91 | Reports.md, AutoPosting.md, ChartOfAccounts.md | `LoanPostingTests`, `MaturitySplitTests`, `StatementMappingTests`, `NotesTests`, `AutoPostingFlowTests`, `RefundPostingTests`, `LiveSchemaDriftTests` (migrations 016 – 019) |
 | P1-2k loan receiving account and accrued interest, B03 / notes mapping, versioned note texts | 2026-10-25 | FR-102 … 111; BR-156 … 167; UC-26 (and UC-24 / 25 updated); UAT-92 … 101 | Reports.md, AutoPosting.md, ChartOfAccounts.md | `LoanInterestTests`, `StatementMappingB03Tests`, `NotesTests`, `LoanPostingTests`, `LiveSchemaDriftTests` (migrations 020 – 021) |
+| P1-2l day count (actual/365, actual/360), opt-in month-end accrual job, history of note texts, notes in ja / zh / fr | 2026-10-25 | FR-112 … 122; BR-168 … 175; UC-27, UC-28; UAT-102 … 112 | Reports.md, AutoPosting.md | `LoanDayCountTests`, `LoanAccrualJobTests`, `NoteTextHistoryTests`, `NotesTests` (languages), `LiveSchemaDriftTests` (migration 022) |
 | P1-2h maturity split on B01 | 2026-10-25 | FR-71 … 74; BR-103 … 108; UC-17; UAT-56 … 61 | Reports.md | `MaturitySplitTests` (12 tests) + live scenario on `glcheck` |
 | P1-2g B03 indirect method | 2026-10-25 | FR-67 … 70; BR-94 … 102; UC-16; UAT-51 … 55 | Reports.md | `IndirectCashFlowTests` (16 tests incl. the direct-vs-indirect reconciliation) |
 | P1-2f PDF export of B01 / B02 / B03 | 2026-10-25 | FR-63 … 66; BR-87 … 93; UC-15; UAT-46 … 50 | Reports.md | `PdfWriterTests` (11 tests) + live render check |
