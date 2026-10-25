@@ -194,16 +194,8 @@ namespace ERP.ACC.Application.Reports
 
         private static StatementMaturity MaturityFor(
             DateTime asOf, IReadOnlyCollection<Account> accounts,
-            IReadOnlyDictionary<Guid, AccountBalanceSummary> balances, List<Invoice> invoices, List<Bill> bills, List<Loan> loans)
-        {
-            // the ledger caps the split: debit balances of 131, credit balances of 331 (account by account, as the rows take them)
-            decimal Side(string prefix, bool debit) => accounts.Where(a => a.AccountNumber.StartsWith(prefix, StringComparison.Ordinal))
-                .Sum(a => balances.TryGetValue(a.Id, out var b) ? Math.Max(0m, debit ? b.TotalDebit - b.TotalCredit : b.TotalCredit - b.TotalDebit) : 0m);
-            var layout = StatementLayouts.For(StatementLayouts.BalanceSheet, accounts)!;
-            string[] Prefixes(string special) => layout.Rows.Where(r => r.Special == special).SelectMany(r => r.Terms).Select(x => x.Prefix).Distinct().ToArray();
-            decimal Cap(string special, bool debit) => Prefixes(special).Sum(p => Side(p, debit));
-            return MaturitySplit.Compute(invoices, bills, loans, asOf, Cap("ShortLessLongReceivable", debit: true), Cap("ShortLessLongPayable", debit: false), Cap("ShortLessLongLoan", debit: false));
-        }
+            IReadOnlyDictionary<Guid, AccountBalanceSummary> balances, List<Invoice> invoices, List<Bill> bills, List<Loan> loans) =>
+            MaturityLedger.For(asOf, accounts, balances, invoices, bills, loans);
     }
 
     public class GetIncomeStatementQueryHandler : IRequestHandler<GetIncomeStatementQuery, FinancialStatementDto>

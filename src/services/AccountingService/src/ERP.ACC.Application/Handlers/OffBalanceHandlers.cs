@@ -201,7 +201,15 @@ namespace ERP.ACC.Application.Handlers
 
             var accounts = (await _accounts.GetAllAsync(cancellationToken)).Where(a => a.AccountType == (int)AccountType.OffBalance).ToDictionary(a => a.Id);
             var posted = (await _entries.ListAsync(null, null, to, cancellationToken)).Where(e => e.Status == (int)OffBalanceStatus.Posted).ToList();
+            return OffBalanceReportBuilder.Build(accounts, posted, from, to);
+        }
+    }
 
+    /// <summary>The register per account for a range from its posted entries up to the end of the range (shared with the notes B09).</summary>
+    public static class OffBalanceReportBuilder
+    {
+        public static OffBalanceReportDto Build(IReadOnlyDictionary<Guid, Account> accounts, IEnumerable<OffBalanceEntry> posted, DateTime from, DateTime to)
+        {
             var report = new OffBalanceReportDto { FromDate = from, ToDate = to };
             foreach (var group in posted.GroupBy(e => e.AccountId))
             {

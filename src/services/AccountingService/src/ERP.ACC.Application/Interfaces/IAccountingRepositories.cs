@@ -94,6 +94,13 @@ namespace ERP.ACC.Application.Interfaces
         Task AddAsync(ClosingPolicy policy, CancellationToken ct = default);
     }
 
+    public interface INoteTextRepository
+    {
+        /// <summary>Every note text of the tenant (tracked, so a changed text is saved by the unit of work).</summary>
+        Task<List<NoteText>> GetAllAsync(CancellationToken ct = default);
+        Task AddAsync(NoteText text, CancellationToken ct = default);
+    }
+
     public interface ILoanRepository
     {
         /// <summary>The loan with its installments (tracked, so a repayment is saved by the unit of work).</summary>
