@@ -103,6 +103,7 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
 - [x] **P1-2h B01 maturity split** closed 2026-10-25 (`feat/b01-maturity`): rows 131 / 211 / 311 / 331 by due date, BA doc updated
 - [x] **P1-2i 14-account layouts, off-balance, loans, B09** closed 2026-10-25 (`feat/notes-loans-offbalance`): migrations 013 – 015, BA doc updated
 - [x] **P1-2j loan posting, payment history, own-chart mapping, notes in English** closed 2026-10-25 (`feat/p1-2j-loans-history-mapping-english`): migrations 016 – 019, BA doc updated (FR-86…101, BR-134…155, UC-22…25, UAT-75…91)
+- [x] **P1-3 VAT, VAT listing / return 01/GTGT, e-invoice adapter** closed 2026-10-25 (`feat/p1-3-vat-einvoice`): migration 023, BA doc updated (FR-123…134, BR-176…188, UC-29…32, UAT-113…125)
 - [x] **P1-2l day count, month-end accrual job, note-text history, notes in ja / zh / fr** closed 2026-10-25 (`feat/p1-2l-accrual-job-daycount-history-languages`): migration 022, BA doc updated (FR-112…122, BR-168…175, UC-27, 28, UAT-102…112)
 - [x] **P1-2k loan interest and account, B03 / notes mapping, versioned texts** closed 2026-10-25 (`feat/p1-2k-loan-interest-mapping-versions`): migrations 020 – 021, BA doc updated (FR-102…111, BR-156…167, UC-26, UAT-92…101)
 - [ ] **P1-2l** automatic monthly accrual job, actual/360, history of note-text edits

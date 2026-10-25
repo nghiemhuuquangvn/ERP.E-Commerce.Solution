@@ -33,7 +33,7 @@ profile (which account each automatic entry uses). Small enterprises that follow
 key at the template's account. Allowed only while the tenant has **no journal entries** (otherwise 400: re-map the posting profile instead).
 `Accounting:DefaultChartTemplate` (default `Simple14`) chooses the chart of a tenant that has no accounts when its first document is posted.
 
-Posting map of `Vas99` (suggested): Cash 1111, Bank 1121, AccountsReceivable 131, AccountsPayable 331, SalesRevenue 5111, Inventory 1561, VatOutput 3331,
+Posting map of `Vas99` (suggested): Cash 1111, Bank 1121, AccountsReceivable 131, AccountsPayable 331, SalesRevenue 5111, Inventory 1561, VatOutput 3331, VatInput 1331 (a leaf under 133),
 GoodsReceivedNotInvoiced 3388, CostOfGoodsSold 632, InventoryAdjustment 632, CashOverShort 811, SalaryExpense 6421, SalariesPayable 334,
 PayrollWithholdingsPayable 3388 (until insurance / PIT are split, P1-7), SalesReturns 5212, IncomeSummary 911, RetainedEarnings 4212, LoanPayable 341, InterestExpense 635, InterestPayable 335 (since P1-2j / P1-2k; on the `Simple14` chart LoanPayable and InterestPayable are 2100 and InterestExpense 5100).
 
