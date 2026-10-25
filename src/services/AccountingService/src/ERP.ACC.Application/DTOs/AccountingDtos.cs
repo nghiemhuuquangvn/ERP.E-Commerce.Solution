@@ -58,6 +58,10 @@ namespace ERP.ACC.Application.DTOs
         public DateTime DueDate { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
+
+        /// <summary>False when the entry of this invoice could not be posted (no open fiscal period, incomplete posting profile); see the posting gaps (ROADMAP P1-3b).</summary>
+        public bool PostedToLedger { get; set; } = true;
+        public string? PostingWarning { get; set; }
     }
 
     public class BillDto
@@ -75,6 +79,10 @@ namespace ERP.ACC.Application.DTOs
         public DateTime DueDate { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
+
+        /// <summary>False when the entry of the approval could not be posted (ROADMAP P1-3b).</summary>
+        public bool PostedToLedger { get; set; } = true;
+        public string? PostingWarning { get; set; }
     }
 
     public class JournalLineDto

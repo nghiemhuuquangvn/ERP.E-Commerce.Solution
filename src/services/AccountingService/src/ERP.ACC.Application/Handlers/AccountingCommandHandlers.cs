@@ -119,9 +119,15 @@ namespace ERP.ACC.Application.Handlers
             if (lines != null && _vatLines != null)
                 await _vatLines.ReplaceAsync(VatLine.InvoiceDocument, invoice.Id, VatLineSupport.ToEntities(VatLine.InvoiceDocument, invoice.Id, lines), cancellationToken);
             // Revenue is recognised when the invoice is created; the entry commits with the invoice.
-            await _posting.TryPostAsync(_logger, PostingRules.ForInvoice(invoice), cancellationToken);
+            var entry = await _posting.TryPostAsync(_logger, PostingRules.ForInvoice(invoice), cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
-            return MapInvoiceToDto(invoice);
+            var dto = MapInvoiceToDto(invoice);
+            if (entry == null)
+            {
+                dto.PostedToLedger = false;
+                dto.PostingWarning = PostingWarnings.NotPosted;
+            }
+            return dto;
         }
 
         internal static InvoiceDto MapInvoiceToDto(Invoice i) => new()
@@ -329,9 +335,15 @@ namespace ERP.ACC.Application.Handlers
             }
             bill.Approve();
             await _uow.Bills.UpdateAsync(bill, cancellationToken);
-            await _posting.TryPostAsync(_logger, PostingRules.ForBillApproval(bill, DateTime.UtcNow), cancellationToken);
+            var entry = await _posting.TryPostAsync(_logger, PostingRules.ForBillApproval(bill, DateTime.UtcNow), cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
-            return CreateBillCommandHandler.MapBillToDto(bill);
+            var dto = CreateBillCommandHandler.MapBillToDto(bill);
+            if (entry == null)
+            {
+                dto.PostedToLedger = false;
+                dto.PostingWarning = PostingWarnings.NotPosted;
+            }
+            return dto;
         }
     }
 

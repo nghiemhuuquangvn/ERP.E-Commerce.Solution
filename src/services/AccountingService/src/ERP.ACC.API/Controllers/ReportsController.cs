@@ -366,6 +366,8 @@ namespace ERP.ACC.API.Controllers
                 return Forbid();
 
             var result = await _mediator.Send(new GetVatReturnQuery { FromDate = fromDate, ToDate = toDate, Unit = unit }, ct);
+            if (string.Equals(format, "xml", StringComparison.OrdinalIgnoreCase))
+                return File(VatReturnXml.Build(result), "application/xml", $"vat-return-01-gtgt-{DateTime.UtcNow:yyyyMMddHHmmss}.xml");
             return IsExport(format) ? StatementExport(format, result, "vat-return-01-gtgt") : Ok(result);
         }
 
