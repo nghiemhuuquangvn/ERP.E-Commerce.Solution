@@ -144,6 +144,8 @@ namespace ERP.ACC.Application.Reports
              .Accounts("152", "1. Thuế GTGT được khấu trừ", 3, Dr, "133")
              .Sum("150", "V. Tài sản ngắn hạn khác", 2, Dr, "+152", total: true)
              .Sum("100", "A. TÀI SẢN NGẮN HẠN", 1, Dr, "+110 +120 +130 +140 +150", total: true)
+             .Special("211", "1. Phải thu dài hạn của khách hàng", 3, Dr, "LongReceivable")
+             .Sum("210", "I. Các khoản phải thu dài hạn", 2, Dr, "+211", total: true)
              .Accounts("222", "- Nguyên giá", 4, Dr, "211")
              .Accounts("223", "- Giá trị hao mòn lũy kế", 4, Dr, "2141")
              .Sum("221", "1. Tài sản cố định hữu hình", 3, Dr, "+222 +223")
@@ -168,7 +170,7 @@ namespace ERP.ACC.Application.Reports
              .Accounts("262", "2. Tài sản thuế thu nhập hoãn lại", 3, Dr, "243")
              .Accounts("268", "3. Tài sản dài hạn khác", 3, Dr, "244")
              .Sum("260", "VI. Tài sản dài hạn khác", 2, Dr, "+261 +262 +268", total: true)
-             .Sum("200", "B. TÀI SẢN DÀI HẠN", 1, Dr, "+220 +230 +240 +250 +260", total: true)
+             .Sum("200", "B. TÀI SẢN DÀI HẠN", 1, Dr, "+210 +220 +230 +240 +250 +260", total: true)
              .Sum("270", "TỔNG CỘNG TÀI SẢN (270 = 100 + 200)", 1, Dr, "+100 +200", total: true)
              // ---- liabilities
              .Accounts("311", "1. Phải trả người bán ngắn hạn", 3, Cr, "331:C")
@@ -184,11 +186,12 @@ namespace ERP.ACC.Application.Reports
              .Accounts("321", "11. Dự phòng phải trả ngắn hạn", 3, Cr, "352")
              .Accounts("322", "12. Quỹ khen thưởng, phúc lợi", 3, Cr, "353")
              .Sum("310", "I. Nợ ngắn hạn", 2, Cr, "+311 +312 +313 +314 +315 +316 +317 +318 +319 +320 +321 +322", total: true)
-             .Accounts("337", "1. Phải trả dài hạn khác", 3, Cr, "344")
+             .Special("331", "1. Phải trả người bán dài hạn", 3, Cr, "LongPayable")
+             .Accounts("337", "2. Phải trả dài hạn khác", 3, Cr, "344")
              .Accounts("338", "2. Vay và nợ thuê tài chính dài hạn", 3, Cr, "343")
              .Accounts("340", "3. Thuế thu nhập hoãn lại phải trả", 3, Cr, "347")
              .Accounts("343", "4. Quỹ phát triển khoa học và công nghệ", 3, Cr, "356")
-             .Sum("330", "II. Nợ dài hạn", 2, Cr, "+337 +338 +340 +343", total: true)
+             .Sum("330", "II. Nợ dài hạn", 2, Cr, "+331 +337 +338 +340 +343", total: true)
              .Sum("300", "C. NỢ PHẢI TRẢ", 1, Cr, "+310 +330", total: true)
              // ---- equity
              .Accounts("411", "1. Vốn góp của chủ sở hữu", 3, Cr, "4111")
@@ -207,6 +210,11 @@ namespace ERP.ACC.Application.Reports
 
             // 421b = the retained-earnings account of this year + the result not yet closed (computed)
             var rows = b.Rows.ToList();
+            foreach (var (code, special) in new[] { ("131", "ShortLessLongReceivable"), ("311", "ShortLessLongPayable") })
+            {
+                var at = rows.FindIndex(r => r.Code == code);
+                rows[at] = rows[at] with { Special = special }; // the account total, less what falls due after 12 months (see MaturitySplit)
+            }
             var i421b = rows.FindIndex(r => r.Code == "421b");
             rows[i421b] = new StatementRow("421b", "- Lợi nhuận sau thuế chưa phân phối kỳ này", 4, Cr,
                 new[] { new StatementTerm("4212") }, Array.Empty<FormulaPart>(), false, "UnclosedResult");
@@ -220,7 +228,7 @@ namespace ERP.ACC.Application.Reports
                 new[]
                 {
                     "Draft: the rows and account groups follow the Circular 200 form (numbering largely kept by Circular 99/2025); the accountant must review them before filing.",
-                    "There is no maturity data, so short- and long-term are decided by the account: borrowings 341 are short-term, bonds 343 and deposits received 344 long-term; prepaid expenses 242 are long-term.",
+                    "Trade receivables (131) and payables (331) are split by the due date of the open invoices and approved bills: more than 12 months after the balance-sheet date = long-term. The other items are decided by the account (no due dates exist): borrowings 341 are short-term, bonds 343 and deposits received 344 long-term; prepaid expenses 242 are long-term.",
                     "Receivables and payables are split by the side of each account's balance: a credit balance on 131 is shown under customers' advances (312), a debit balance on 331 under advances to suppliers (132).",
                     "Row 421b includes the result of revenue and expense accounts that no closing entry has moved yet, so the sheet balances before the period is closed.",
                 });

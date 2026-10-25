@@ -1,7 +1,7 @@
 # Deferred issues
 
 Problems found while working through the ROADMAP that were **not fixed on purpose** (out of the plan's scope, needs a decision, or needs another roadmap item first).
-Handle them after the main roadmap tasks; each plan that touches one of them should update its row. Last updated: 2026-10-24 (P1-2g done).
+Handle them after the main roadmap tasks; each plan that touches one of them should update its row. Last updated: 2026-10-24 (P1-2h done).
 
 How to read: **Source** = where it was found; **Home** = the roadmap item or kind of work that should pick it up; **Impact** = why it matters.
 
@@ -72,11 +72,11 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | # | Issue | Home |
 |---|---|---|
 | T1 | The B01 / B02 rows and account groups are a **draft** written from the Circular 200 forms; they are not checked against the official Circular 99/2025 forms and need an accountant's review before filing. | Accountant review |
-| T2 | B01 has no maturity data: short- vs long-term is decided by the account (341 short, 343 / 344 long, 242 long). | P1-2e (due dates on receivables / payables / loans) |
-| T3 | Layouts (B01, B02, B03) exist for the `Vas99` chart only; a tenant on another chart sees every account under "unmapped". Layouts are code, not editable per tenant. | P1-2h |
-| T4 | B03 exists by indicator code, direct and indirect; B09 notes are missing. | P1-2h |
-| T5 | The comparison column is whatever date the user picks (no automatic same-period-last-year). Amounts can now be shown in thousand / million VND (P1-2e). | P1-2h |
-| T7 | Off-balance accounts (class 0) are not built (single-entry postings break the 2-line rule). | P1-2h |
+| T2 | B01 splits trade receivables / payables by due date (P1-2h); borrowings (341) and every other item stay classified by account because there is no loan ledger or due dates for them. | P1-2i (loan ledger) |
+| T3 | Layouts (B01, B02, B03) exist for the `Vas99` chart only; a tenant on another chart sees every account under "unmapped". Layouts are code, not editable per tenant. | P1-2i |
+| T4 | B03 exists by indicator code, direct and indirect; B09 notes are missing. | P1-2i |
+| T5 | The comparison column is whatever date the user picks (no automatic same-period-last-year). Amounts can now be shown in thousand / million VND (P1-2e). | P1-2i |
+| T7 | Off-balance accounts (class 0) are not built (single-entry postings break the 2-line rule). | P1-2i |
 | T8 | Production-cost accounts 621 / 622 / 627 are not on B01 / B02 by design; a tenant that posts to them directly sees them under "unmapped" until the cost flow to 154 / 632 exists. | Manufacturing, if ever |
 
 ## 4d. B03, closing policy, Excel (P1-2d follow-ups)
@@ -84,7 +84,7 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | # | Issue | Home |
 |---|---|---|
 | U1 | The B03 row mapping (prefix → row) is a draft: e.g. withholdings paid (3382 … 3384, 3388) and VAT remitted (3331 out) land in "other payments" (07); salary paid straight from expense accounts lands in row 02. Needs the accountant's review. | Accountant review |
-| U2 | No preview of what the year-end entry will close, no warning when a month of the year has no fiscal period (the SYSTEM demo tenant has no September 2026). The year-end entry simply closes whatever is still open. | P1-2h |
+| U2 | No preview of what the year-end entry will close, no warning when a month of the year has no fiscal period (the SYSTEM demo tenant has no September 2026). The year-end entry simply closes whatever is still open. | P1-2i |
 | U3 | The closing policy has no change history (only the row's updated timestamp); the policy is per tenant, not per legal entity. | Audit, if needed |
 | U4 | The year-end entry is built from cumulative balances up to the period end; backdated prior-year corrections in a closed year are impossible (periods are locked) — they must be booked in the current year. | Policy decision |
 
@@ -116,7 +116,16 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | X4 | Rows 16 / 17 (other operating cash) are not derived; 335 (accrued expenses) and 3334 (income tax payable) are left out of row 11 by design, so accrued-expense changes other than interest appear as a difference. | Accountant review |
 | X5 | The tenant `glcheck` test data does not exercise depreciation, provisions or payables; those rows were verified by unit tests (consistent ledger) only. | QA, if wanted |
 
+## 4h. Maturity split (P1-2h follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| Y1 | Payments are stored as a total on the invoice, not by date, so the long-term split of a **past** balance-sheet date uses today's open amounts (approximate, stated in the statement). A payment history per document would make it exact. | P1-2i / payment history |
+| Y2 | Receivables with no invoice (hand-written entries, 138 / 141 / 244) and bills still Pending are never split; the 12-month threshold is fixed; instalment plans and the order's payment terms are not modelled. | Accountant review |
+| Y3 | `Invoices` / `Bills` have an `IsDeleted` column that the repositories do not filter (a soft-deleted test document still counted until it was deleted for real); the maturity split relies on these lists. | Data hygiene |
+| Y4 | The tenant `glcheck` test run created and removed throw-away invoices, bills and journal entries (P12H-*); entries remain as Voided. | Local clean-up |
+
 ## 5. Roadmap items these issues are waiting for
 
-P0-10 least-privilege SQL · P1-2h B09, off-balance accounts, maturity split, other charts · P1-3 VAT and e-invoice · P1-4 foreign currency and bank reconciliation ·
+P0-10 least-privilege SQL · P1-2i B09, off-balance accounts, loan ledger, other charts · P1-3 VAT and e-invoice · P1-4 foreign currency and bank reconciliation ·
 P1-5 saga completion and returns · P1-6 notifications · P1-7 real payroll.
