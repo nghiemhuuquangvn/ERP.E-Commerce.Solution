@@ -13,6 +13,7 @@ namespace ERP.ACC.Application.Interfaces
         IReportProfileRepository ReportProfiles { get; }
         IOffBalanceRepository OffBalanceEntries { get; }
         IPaymentApplicationRepository PaymentApplications { get; }
+        IStatementMappingRepository StatementMappings { get; }
         ILoanRepository Loans { get; }
         INoteTextRepository NoteTexts { get; }
         ITaxRateRepository TaxRates { get; }

@@ -130,6 +130,14 @@ namespace ERP.ACC.Application.Interfaces
         Task AddAsync(ReportProfile profile, CancellationToken ct = default);
     }
 
+    public interface IStatementMappingRepository
+    {
+        /// <summary>Tracked, so a changed or removed mapping is saved by the unit of work.</summary>
+        Task<List<StatementAccountMapping>> GetAllAsync(CancellationToken ct = default);
+        Task AddAsync(StatementAccountMapping mapping, CancellationToken ct = default);
+        void Remove(StatementAccountMapping mapping);
+    }
+
     public interface IPaymentApplicationRepository
     {
         Task AddAsync(PaymentApplication application, CancellationToken ct = default);

@@ -8,6 +8,7 @@ import { accountsApi } from '@/api/accounting/accounts.api'
 import { offBalanceApi } from '@/api/accounting/off-balance.api'
 import type { OffBalanceLine } from '@/api/accounting/off-balance.api'
 import { DataTable } from '@/components/shared/DataTable'
+import { StatementMappingPanel } from './StatementMappingPanel'
 import { usePermission } from '@/hooks/usePermission'
 
 function todayISODate(): string {
@@ -945,7 +946,7 @@ export function ReportsPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const canView = hasPermission('accounting:reports:view')
-  const [tab, setTab] = useState<'trial-balance' | 'ledger' | 'profit-and-loss' | 'balance-sheet' | 'cash-flow' | 'b01' | 'b02' | 'b03' | 'b09' | 'off-balance'>('trial-balance')
+  const [tab, setTab] = useState<'trial-balance' | 'ledger' | 'profit-and-loss' | 'balance-sheet' | 'cash-flow' | 'b01' | 'b02' | 'b03' | 'b09' | 'mapping' | 'off-balance'>('trial-balance')
 
   if (!canView) {
     return <p className="text-sm text-gray-400">{t('common.noPermission')}</p>
@@ -961,6 +962,7 @@ export function ReportsPage() {
     { key: 'b02', label: t('accounting.reports.tabB02') },
     { key: 'b03', label: t('accounting.reports.tabB03') },
     { key: 'b09', label: t('accounting.reports.tabB09') },
+    { key: 'mapping', label: t('accounting.mapping.tab') },
     { key: 'off-balance', label: t('accounting.offBalance.tab') },
   ]
 
@@ -993,6 +995,7 @@ export function ReportsPage() {
       {tab === 'b02' && <StatementPanel kind="income-statement" />}
       {tab === 'b03' && <StatementPanel kind="cash-flow" />}
       {tab === 'b09' && <NotesPanel canEdit={hasPermission('accounting:accounts:manage')} />}
+      {tab === 'mapping' && <StatementMappingPanel canEdit={hasPermission('accounting:accounts:manage')} />}
       {tab === 'off-balance' && <OffBalancePanel />}
     </div>
   )

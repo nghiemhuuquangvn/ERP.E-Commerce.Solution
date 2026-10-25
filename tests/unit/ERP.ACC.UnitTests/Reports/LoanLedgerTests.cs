@@ -163,7 +163,7 @@ public class LoanLedgerTests
         bl.Setup(r => r.GetUnpaidBillsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Bill>());
         var ln = new Mock<ILoanRepository>();
         ln.Setup(r => r.ListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(loans.ToList());
-        return new GetBalanceSheetStatementQueryHandler(accounts.Object, lines.Object, new Mock<IReportProfileRepository>().Object, inv.Object, bl.Object, ln.Object, new Mock<IPaymentApplicationRepository>().Object);
+        return new GetBalanceSheetStatementQueryHandler(accounts.Object, lines.Object, new Mock<IReportProfileRepository>().Object, inv.Object, bl.Object, ln.Object, new Mock<IPaymentApplicationRepository>().Object, new Mock<IStatementMappingRepository>().Object);
     }
 
     [Fact]

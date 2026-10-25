@@ -132,7 +132,7 @@ public class RoundingTests
             .ReturnsAsync(() => new List<AccountBalanceSummary> { new() { AccountId = chart.Single(a => a.AccountNumber == "5111").Id, TotalCredit = 2600m } });
         var profiles = new Mock<IReportProfileRepository>();
         profiles.Setup(p => p.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(profile);
-        return (new GetIncomeStatementQueryHandler(accounts.Object, lines.Object, profiles.Object), chart);
+        return (new GetIncomeStatementQueryHandler(accounts.Object, lines.Object, profiles.Object, new Mock<IStatementMappingRepository>().Object), chart);
     }
 
     private static ReportProfile Profile(AmountUnit unit, string name = "ACME")

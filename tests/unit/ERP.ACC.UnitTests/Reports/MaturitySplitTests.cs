@@ -192,7 +192,7 @@ public class MaturitySplitTests
         bl.Setup(r => r.GetMaturityCandidatesAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(bills.ToList());
         var ln = new Mock<ILoanRepository>();
         ln.Setup(r => r.ListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Loan>());
-        return new GetBalanceSheetStatementQueryHandler(accounts.Object, lines.Object, new Mock<IReportProfileRepository>().Object, inv.Object, bl.Object, ln.Object, Payments(payments));
+        return new GetBalanceSheetStatementQueryHandler(accounts.Object, lines.Object, new Mock<IReportProfileRepository>().Object, inv.Object, bl.Object, ln.Object, Payments(payments), new Mock<IStatementMappingRepository>().Object);
     }
 
     private static IPaymentApplicationRepository Payments(IEnumerable<PaymentApplication>? payments)

@@ -25,6 +25,7 @@ namespace ERP.ACC.Infrastructure.Persistence
         public DbSet<ReportProfile> ReportProfiles { get; set; }
         public DbSet<OffBalanceEntry> OffBalanceEntries { get; set; }
         public DbSet<PaymentApplication> PaymentApplications { get; set; }
+        public DbSet<StatementAccountMapping> StatementAccountMappings { get; set; }
         public DbSet<Loan> Loans { get; set; }
         public DbSet<NoteText> NoteTexts { get; set; }
         public DbSet<LoanInstallment> LoanInstallments { get; set; }
@@ -134,6 +135,17 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.PrincipalAmount).HasColumnType("decimal(18,2)");
                 e.Property(x => x.InterestAmount).HasColumnType("decimal(18,2)");
                 e.HasIndex(x => x.LoanId);
+            });
+
+            modelBuilder.Entity<StatementAccountMapping>(e =>
+            {
+                e.ToTable("StatementAccountMappings");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.StatementId).IsRequired().HasMaxLength(20);
+                e.Property(x => x.RowCode).IsRequired().HasMaxLength(20);
+                e.Property(x => x.AccountPrefix).IsRequired().HasMaxLength(30);
+                e.HasIndex(x => new { x.TenantId, x.StatementId, x.RowCode, x.AccountPrefix }).IsUnique().HasFilter("[IsDeleted] = 0");
             });
 
             modelBuilder.Entity<PaymentApplication>(e =>

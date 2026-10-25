@@ -154,13 +154,15 @@ namespace ERP.ACC.Application.Reports
         private readonly IBillRepository _bills;
         private readonly ILoanRepository _loans;
         private readonly IPaymentApplicationRepository _payments;
+        private readonly IStatementMappingRepository _mappings;
 
         public GetBalanceSheetStatementQueryHandler(
             IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles, IInvoiceRepository invoices, IBillRepository bills, ILoanRepository loans,
-            IPaymentApplicationRepository payments)
+            IPaymentApplicationRepository payments, IStatementMappingRepository mappings)
         {
             _loans = loans;
             _payments = payments;
+            _mappings = mappings;
             _invoices = invoices;
             _bills = bills;
             _accounts = accounts;
@@ -187,7 +189,7 @@ namespace ERP.ACC.Application.Reports
 
             var profile = await _profiles.GetAsync(cancellationToken);
             var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
-            var statement = StatementEngine.Evaluate(StatementLayouts.For(StatementLayouts.BalanceSheet, accounts)!, accounts, current, prior,
+            var statement = StatementEngine.Evaluate(StatementLayouts.WithMappings(StatementLayouts.For(StatementLayouts.BalanceSheet, accounts)!, await _mappings.GetAllAsync(cancellationToken)), accounts, current, prior,
                 ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile), maturity, priorMaturity);
             if (maturity is { Estimated: true } || priorMaturity is { Estimated: true })
                 statement.Notes.Add("The date is in the past and some payments have no recorded date (they were made before the payment register existed, or their date was estimated), so the long-term split of trade receivables and payables is approximate.");
@@ -207,9 +209,11 @@ namespace ERP.ACC.Application.Reports
         private readonly IAccountRepository _accounts;
         private readonly IJournalLineRepository _lines;
         private readonly IReportProfileRepository _profiles;
+        private readonly IStatementMappingRepository _mappings;
 
-        public GetIncomeStatementQueryHandler(IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles)
+        public GetIncomeStatementQueryHandler(IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles, IStatementMappingRepository mappings)
         {
+            _mappings = mappings;
             _accounts = accounts;
             _lines = lines;
             _profiles = profiles;
@@ -234,7 +238,7 @@ namespace ERP.ACC.Application.Reports
 
             var profile = await _profiles.GetAsync(cancellationToken);
             var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
-            var statement = StatementEngine.Evaluate(StatementLayouts.For(StatementLayouts.IncomeStatement, accounts)!, accounts, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
+            var statement = StatementEngine.Evaluate(StatementLayouts.WithMappings(StatementLayouts.For(StatementLayouts.IncomeStatement, accounts)!, await _mappings.GetAllAsync(cancellationToken)), accounts, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
             statement.FromDate = request.FromDate.Date;
             statement.ToDate = request.ToDate.Date;
             statement.CompareFromDate = request.CompareFromDate?.Date;

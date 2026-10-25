@@ -55,6 +55,25 @@ namespace ERP.ACC.Application.Reports
         public static StatementLayout? For(string id, IEnumerable<Account> accounts) =>
             (ChartTemplates.Detect(accounts) == ChartTemplates.Simple14 ? Simple14 : All).FirstOrDefault(l => l.Id == id);
 
+        /// <summary>
+        /// The layout with a tenant's own account placement added (ROADMAP P1-2j): each mapping adds a term to its row. Only rows that add up accounts take one (a row
+        /// with a formula or a computed source ignores it); the engine and the unmapped check read only the terms, so they need no change.
+        /// </summary>
+        public static StatementLayout WithMappings(StatementLayout layout, IEnumerable<StatementAccountMapping>? mappings)
+        {
+            var own = (mappings ?? Enumerable.Empty<StatementAccountMapping>()).Where(m => m.StatementId == layout.Id).ToList();
+            if (own.Count == 0)
+                return layout;
+
+            var rows = layout.Rows.Select(row =>
+            {
+                var extra = own.Where(m => m.RowCode == row.Code).Select(m => new StatementTerm(m.AccountPrefix, (BalanceSide)m.Side)).ToList();
+                return extra.Count == 0 || row.Formula.Count > 0 || row.Special != null ? row : row with { Terms = row.Terms.Concat(extra).ToList() };
+            }).ToList();
+            var notes = layout.Notes.Concat(new[] { "The tenant's own account mapping is applied to this statement." }).ToList();
+            return layout with { Rows = rows, Notes = notes };
+        }
+
         // ---- builders -----------------------------------------------------------------------------------------------
 
         private sealed class Builder
