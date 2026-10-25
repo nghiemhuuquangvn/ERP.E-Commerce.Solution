@@ -103,7 +103,7 @@ namespace ERP.ACC.Application.Reports
 
         private static Computed Compute(IndirectCashFlowLayout layout, IReadOnlyCollection<Account> accounts, IndirectColumn column, decimal divisor)
         {
-            var direct = CashFlowStatementEngine.Compute(CashFlowLayouts.Layout, column.Direct, divisor);
+            var direct = CashFlowStatementEngine.Compute(CashFlowLayouts.For(layout.ChartTemplate), column.Direct, divisor);
             var byCode = layout.Rows.ToDictionary(r => r.Code);
             var memo = new Dictionary<string, decimal>();
 
@@ -127,7 +127,7 @@ namespace ERP.ACC.Application.Reports
                 var amount = row.Source switch
                 {
                     IndirectSource.Formula => row.Formula.Sum(p => p.Sign * Value(p.Code)),
-                    IndirectSource.Direct => direct.Amounts[DirectCode.GetValueOrDefault(code, code)],
+                    IndirectSource.Direct => direct.Amounts.GetValueOrDefault(DirectCode.GetValueOrDefault(code, code)),
                     IndirectSource.OpeningCash => StatementEngine.RoundTo(column.Direct.OpeningCash, divisor),
                     IndirectSource.FxEffect or IndirectSource.NotUsed => 0m,
                     _ => StatementEngine.RoundTo(Exact(row), divisor),

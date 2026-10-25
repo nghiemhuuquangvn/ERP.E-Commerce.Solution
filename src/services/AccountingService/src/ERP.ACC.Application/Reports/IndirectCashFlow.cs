@@ -35,7 +35,8 @@ namespace ERP.ACC.Application.Reports
         IReadOnlyList<FormulaPart> Formula,
         bool IsTotal = false);
 
-    public sealed record IndirectCashFlowLayout(string Id, string Title, IReadOnlyList<IndirectRow> Rows, IReadOnlyList<string> CoveredPrefixes, IReadOnlyList<string> Notes);
+    public sealed record IndirectCashFlowLayout(
+        string Id, string Title, IReadOnlyList<IndirectRow> Rows, IReadOnlyList<string> CoveredPrefixes, IReadOnlyList<string> Notes, string ChartTemplate = "Vas99");
 
     /// <summary>
     /// The cash-flow statement B03-DN by the **indirect method** (ROADMAP P1-2g) for the <c>Vas99</c> chart: operating cash flow starts from profit before tax,
@@ -49,6 +50,40 @@ namespace ERP.ACC.Application.Reports
         private static readonly string[] None = Array.Empty<string>();
 
         public static IndirectCashFlowLayout Layout { get; } = Build();
+
+        /// <summary>The indirect B03-DN for the platform's 14-account chart (<c>Simple14</c>).</summary>
+        public static IndirectCashFlowLayout Simple14Layout { get; } = BuildSimple14();
+
+        public static IndirectCashFlowLayout For(string chartTemplate) => chartTemplate == "Simple14" ? Simple14Layout : Layout;
+
+        private static IndirectCashFlowLayout BuildSimple14()
+        {
+            var b = new Builder();
+            b.Row("01", "1. Lợi nhuận trước thuế", 1, IndirectSource.ProfitBeforeTax, None)
+             .Sum("08", "2. Lợi nhuận từ hoạt động kinh doanh trước thay đổi vốn lưu động (08 = 01)", 1, "+01")
+             .Row("09", "3. Tăng, giảm các khoản phải thu", 1, IndirectSource.DebitIncreaseNegated, new[] { "1100" })
+             .Row("10", "4. Tăng, giảm hàng tồn kho", 1, IndirectSource.DebitIncreaseNegated, new[] { "1200" })
+             .Row("11", "5. Tăng, giảm các khoản phải trả (người bán, thuế, phải trả khác)", 1, IndirectSource.CreditIncrease, new[] { "2000", "2100", "2200" })
+             .Sum("20", "Lưu chuyển tiền thuần từ hoạt động kinh doanh (20 = 08 + 09 + 10 + 11)", 0, "+08 +09 +10 +11")
+             .Direct("21", "1. Tiền chi để mua sắm, xây dựng TSCĐ", 1)
+             .Direct("22", "2. Tiền thu từ thanh lý, nhượng bán TSCĐ", 1)
+             .Sum("30", "Lưu chuyển tiền thuần từ hoạt động đầu tư (30 = 21 + 22)", 0, "+21 +22")
+             .Direct("31", "1. Tiền thu từ nhận vốn góp của chủ sở hữu", 1)
+             .Direct("32", "2. Tiền trả lại vốn góp cho chủ sở hữu", 1)
+             .Direct("36", "6. Lợi nhuận đã trả cho chủ sở hữu", 1)
+             .Sum("40", "Lưu chuyển tiền thuần từ hoạt động tài chính (40 = 31 + 32 + 36)", 0, "+31 +32 +36")
+             .Sum("50", "Lưu chuyển tiền thuần trong kỳ (50 = 20 + 30 + 40)", 0, "+20 +30 +40")
+             .Row("60", "Tiền và tương đương tiền đầu kỳ", 0, IndirectSource.OpeningCash, None)
+             .Row("61", "Ảnh hưởng của thay đổi tỷ giá hối đoái quy đổi ngoại tệ", 0, IndirectSource.FxEffect, None)
+             .Sum("70", "Tiền và tương đương tiền cuối kỳ (70 = 50 + 60 + 61)", 0, "+50 +60 +61");
+
+            var covered = new[] { "1100", "1200", "1500", "2000", "2100", "2200", "3000", "3100" };
+            return new IndirectCashFlowLayout(Id, "Báo cáo lưu chuyển tiền tệ (B03-DN) — phương pháp gián tiếp, biểu đồ 14 tài khoản", b.Rows, covered, new[]
+            {
+                "Draft layout (indirect method) for the platform's 14-account chart: profit before tax, changes of receivables (1100), inventory (1200) and payables (2000, 2100, 2200); investing and financing are the cash rows of the direct method. There is no depreciation, provision or interest account.",
+                "The indirect operating total (20) is checked against the direct method; a non-cash transaction or an account the form does not take shows up as a difference.",
+            }, "Simple14");
+        }
 
         private sealed class Builder
         {

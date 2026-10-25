@@ -1,3 +1,4 @@
+using ERP.ACC.Application.Posting;
 using ERP.ACC.Application.DTOs;
 using ERP.ACC.Application.Interfaces;
 using ERP.ACC.Domain.Entities;
@@ -84,7 +85,7 @@ namespace ERP.ACC.Application.Reports
 
             var profile = await _profiles.GetAsync(cancellationToken);
             var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
-            var statement = CashFlowStatementEngine.Evaluate(CashFlowLayouts.Layout, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
+            var statement = CashFlowStatementEngine.Evaluate(CashFlowLayouts.For(ChartTemplates.Detect(accounts)), current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
             if (cashIds.Count == 0)
                 statement.Notes.Add("No account is flagged as cash (IsCash): flag the cash and bank accounts to get a cash-flow statement.");
             statement.FromDate = request.FromDate.Date;
@@ -112,7 +113,7 @@ namespace ERP.ACC.Application.Reports
 
             var profile = await _profiles.GetAsync(ct);
             var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
-            var statement = IndirectCashFlowEngine.Evaluate(IndirectCashFlowLayouts.Layout, accounts, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
+            var statement = IndirectCashFlowEngine.Evaluate(IndirectCashFlowLayouts.For(ChartTemplates.Detect(accounts)), accounts, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
             if (cashIds.Count == 0)
                 statement.Notes.Add("No account is flagged as cash (IsCash): flag the cash and bank accounts to get a cash-flow statement.");
             statement.FromDate = request.FromDate.Date;
@@ -178,7 +179,7 @@ namespace ERP.ACC.Application.Reports
 
             var profile = await _profiles.GetAsync(cancellationToken);
             var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
-            var statement = StatementEngine.Evaluate(StatementLayouts.Find(StatementLayouts.BalanceSheet)!, accounts, current, prior,
+            var statement = StatementEngine.Evaluate(StatementLayouts.For(StatementLayouts.BalanceSheet, accounts)!, accounts, current, prior,
                 ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile), maturity, priorMaturity);
             var today = DateTime.UtcNow.Date;
             if ((maturity is { IsEmpty: false } && request.AsOfDate.Date < today) || (priorMaturity is { IsEmpty: false } && request.CompareAsOfDate!.Value.Date < today))
@@ -195,7 +196,10 @@ namespace ERP.ACC.Application.Reports
             // the ledger caps the split: debit balances of 131, credit balances of 331 (account by account, as the rows take them)
             decimal Side(string prefix, bool debit) => accounts.Where(a => a.AccountNumber.StartsWith(prefix, StringComparison.Ordinal))
                 .Sum(a => balances.TryGetValue(a.Id, out var b) ? Math.Max(0m, debit ? b.TotalDebit - b.TotalCredit : b.TotalCredit - b.TotalDebit) : 0m);
-            return MaturitySplit.Compute(invoices, bills, asOf, Side("131", debit: true), Side("331", debit: false));
+            var layout = StatementLayouts.For(StatementLayouts.BalanceSheet, accounts)!;
+            string[] Prefixes(string special) => layout.Rows.Where(r => r.Special == special).SelectMany(r => r.Terms).Select(x => x.Prefix).Distinct().ToArray();
+            decimal Cap(string special, bool debit) => Prefixes(special).Sum(p => Side(p, debit));
+            return MaturitySplit.Compute(invoices, bills, asOf, Cap("ShortLessLongReceivable", debit: true), Cap("ShortLessLongPayable", debit: false));
         }
     }
 
@@ -231,7 +235,7 @@ namespace ERP.ACC.Application.Reports
 
             var profile = await _profiles.GetAsync(cancellationToken);
             var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
-            var statement = StatementEngine.Evaluate(StatementLayouts.Find(StatementLayouts.IncomeStatement)!, accounts, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
+            var statement = StatementEngine.Evaluate(StatementLayouts.For(StatementLayouts.IncomeStatement, accounts)!, accounts, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
             statement.FromDate = request.FromDate.Date;
             statement.ToDate = request.ToDate.Date;
             statement.CompareFromDate = request.CompareFromDate?.Date;

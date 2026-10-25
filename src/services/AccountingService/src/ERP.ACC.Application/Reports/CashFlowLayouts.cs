@@ -21,7 +21,7 @@ namespace ERP.ACC.Application.Reports
         CashFlowCategory? FallbackCategory = null,
         bool FallbackInflow = false);
 
-    public sealed record CashFlowLayout(string Id, string Title, IReadOnlyList<CashFlowRow> Rows, IReadOnlyList<string> Notes);
+    public sealed record CashFlowLayout(string Id, string Title, IReadOnlyList<CashFlowRow> Rows, IReadOnlyList<string> Notes, string ChartTemplate = "Vas99");
 
     /// <summary>
     /// The cash-flow statement B03-DN (direct method) as data (ROADMAP P1-2d) for the <c>Vas99</c> chart. Like B01 / B02 it is a DRAFT written from the
@@ -32,6 +32,42 @@ namespace ERP.ACC.Application.Reports
         public const string CashFlow = "B03-DN";
 
         public static CashFlowLayout Layout { get; } = Build();
+
+        /// <summary>B03-DN for the platform's 14-account chart (<c>Simple14</c>), same row codes where a row exists.</summary>
+        public static CashFlowLayout Simple14Layout { get; } = BuildSimple14();
+
+        /// <summary>The layout for a chart (<see cref="ERP.ACC.Application.Posting.ChartTemplates.Detect"/>).</summary>
+        public static CashFlowLayout For(string chartTemplate) => chartTemplate == "Simple14" ? Simple14Layout : Layout;
+
+        private static CashFlowLayout BuildSimple14()
+        {
+            var b = new Builder();
+            b.In("01", "1. Tiền thu từ bán hàng, cung cấp dịch vụ và doanh thu khác", 1, "4000", "4100", "1100")
+             .Out("02", "2. Tiền chi trả cho người cung cấp hàng hóa và dịch vụ, chi phí hoạt động", 1, "2000", "1200", "5000", "5100")
+             .Out("03", "3. Tiền chi trả cho người lao động", 1, "5200", "2100")
+             .Out("05", "5. Thuế và các khoản đã nộp Nhà nước", 1, "2200")
+             .Fallback("06", "6. Tiền thu khác từ hoạt động kinh doanh", 1, CashFlowCategory.Operating, inflow: true)
+             .Fallback("07", "7. Tiền chi khác cho hoạt động kinh doanh", 1, CashFlowCategory.Operating, inflow: false)
+             .Sum("20", "Lưu chuyển tiền thuần từ hoạt động kinh doanh (20 = 01 + 02 + 03 + 05 + 06 + 07)", 0, "+01 +02 +03 +05 +06 +07")
+             .Out("21", "1. Tiền chi để mua sắm, xây dựng TSCĐ", 1, "1500")
+             .In("22", "2. Tiền thu từ thanh lý, nhượng bán TSCĐ", 1, "1500")
+             .Sum("30", "Lưu chuyển tiền thuần từ hoạt động đầu tư (30 = 21 + 22)", 0, "+21 +22")
+             .In("31", "1. Tiền thu từ nhận vốn góp của chủ sở hữu", 1, "3000")
+             .Out("32", "2. Tiền trả lại vốn góp cho chủ sở hữu", 1, "3000")
+             .Out("36", "6. Lợi nhuận đã trả cho chủ sở hữu", 1, "3100")
+             .Sum("40", "Lưu chuyển tiền thuần từ hoạt động tài chính (40 = 31 + 32 + 36)", 0, "+31 +32 +36")
+             .Sum("50", "Lưu chuyển tiền thuần trong kỳ (50 = 20 + 30 + 40)", 0, "+20 +30 +40")
+             .Special("60", "Tiền và tương đương tiền đầu kỳ", 0, "OpeningCash")
+             .Special("61", "Ảnh hưởng của thay đổi tỷ giá hối đoái quy đổi ngoại tệ", 0, "FxEffect")
+             .Sum("70", "Tiền và tương đương tiền cuối kỳ (70 = 50 + 60 + 61)", 0, "+50 +60 +61");
+
+            return new CashFlowLayout(CashFlow, "Báo cáo lưu chuyển tiền tệ (B03-DN) — phương pháp trực tiếp, biểu đồ 14 tài khoản", b.Rows, new[]
+            {
+                "Draft layout for the platform's 14-account chart (no interest, borrowing or foreign-currency accounts exist). Apply the Vietnamese chart for the full form.",
+                "Outflows are negative. Each cash movement is classified by the counter-account of its journal entry; transfers between cash accounts are left out. Payments on 2100 (accrued liabilities, also used for salaries payable) are shown as paid to employees.",
+                "Row 61 (foreign-exchange effect) is zero: the ledger has no foreign currency yet.",
+            }, "Simple14");
+        }
 
         private sealed class Builder
         {

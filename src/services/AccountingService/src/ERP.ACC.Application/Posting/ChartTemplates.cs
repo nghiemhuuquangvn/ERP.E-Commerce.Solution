@@ -43,6 +43,17 @@ namespace ERP.ACC.Application.Posting
         public const string Simple14 = "Simple14";
         public const string Vas99 = "Vas99";
 
+        /// <summary>
+        /// Which chart a tenant is on, judged by its accounts (the platform keeps no "applied template" flag): the Vietnamese chart has account 111, the
+        /// platform's 14-account chart has 1000 and 4000. A tenant with neither (its own chart) is treated as Vietnamese, as before: the statement layouts
+        /// then report what they cannot place under "unmapped".
+        /// </summary>
+        public static string Detect(IEnumerable<ERP.ACC.Domain.Entities.Account> accounts)
+        {
+            var numbers = accounts.Select(a => a.AccountNumber).ToHashSet(StringComparer.Ordinal);
+            return !numbers.Contains("111") && numbers.Contains("1000") && numbers.Contains("4000") ? Simple14 : Vas99;
+        }
+
         public static IReadOnlyList<ChartTemplate> All { get; } = new[] { BuildSimple14(), BuildVas99() };
 
         public static ChartTemplate? Find(string? id) =>

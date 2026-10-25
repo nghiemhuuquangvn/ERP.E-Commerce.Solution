@@ -1,3 +1,5 @@
+using ERP.ACC.Application.Posting;
+using ERP.ACC.Domain.Entities;
 using ERP.ACC.Domain.Enums;
 
 namespace ERP.ACC.Application.Reports
@@ -44,7 +46,14 @@ namespace ERP.ACC.Application.Reports
 
         public static IReadOnlyList<StatementLayout> All { get; } = new[] { BuildB01(), BuildB02() };
 
+        /// <summary>The statements for the platform's 14-account chart (<c>Simple14</c>); <see cref="All"/> stays the Vietnamese ones.</summary>
+        public static IReadOnlyList<StatementLayout> Simple14 { get; } = new[] { BuildSimple14B01(), BuildSimple14B02() };
+
         public static StatementLayout? Find(string id) => All.FirstOrDefault(l => l.Id == id);
+
+        /// <summary>The layout of a statement for the chart the tenant is on (see <see cref="ChartTemplates.Detect"/>).</summary>
+        public static StatementLayout? For(string id, IEnumerable<Account> accounts) =>
+            (ChartTemplates.Detect(accounts) == ChartTemplates.Simple14 ? Simple14 : All).FirstOrDefault(l => l.Id == id);
 
         // ---- builders -----------------------------------------------------------------------------------------------
 
@@ -230,6 +239,92 @@ namespace ERP.ACC.Application.Reports
                     "Draft: the rows and account groups follow the Circular 200 form (numbering largely kept by Circular 99/2025); the accountant must review them before filing.",
                     "Trade receivables (131) and payables (331) are split by the due date of the open invoices and approved bills: more than 12 months after the balance-sheet date = long-term. The other items are decided by the account (no due dates exist): borrowings 341 are short-term, bonds 343 and deposits received 344 long-term; prepaid expenses 242 are long-term.",
                     "Receivables and payables are split by the side of each account's balance: a credit balance on 131 is shown under customers' advances (312), a debit balance on 331 under advances to suppliers (132).",
+                    "Row 421b includes the result of revenue and expense accounts that no closing entry has moved yet, so the sheet balances before the period is closed.",
+                });
+        }
+
+        // ---- the 14-account chart: a deliberate simplification (no VAT, income tax, interest, depreciation or foreign-currency accounts exist) ----
+
+        private static StatementLayout BuildSimple14B02()
+        {
+            var b = new Builder();
+            b.Accounts("01", "1. Doanh thu bán hàng và cung cấp dịch vụ", 1, Cr, "4000", "4100")
+             .Sum("10", "2. Doanh thu thuần (10 = 01)", 1, Cr, "+01", total: true)
+             .Accounts("11", "3. Giá vốn hàng bán", 1, Dr, "5000")
+             .Sum("20", "4. Lợi nhuận gộp (20 = 10 - 11)", 1, Cr, "+10 -11", total: true)
+             .Accounts("26", "5. Chi phí quản lý doanh nghiệp (chi phí hoạt động và lương)", 1, Dr, "5100", "5200")
+             .Sum("30", "6. Lợi nhuận thuần từ hoạt động kinh doanh (30 = 20 - 26)", 1, Cr, "+20 -26", total: true)
+             .Sum("50", "7. Tổng lợi nhuận kế toán trước thuế (50 = 30)", 1, Cr, "+30", total: true)
+             .Sum("60", "8. Lợi nhuận sau thuế (60 = 50; biểu đồ tài khoản không có chi phí thuế TNDN)", 1, Cr, "+50", total: true);
+
+            return new StatementLayout(
+                IncomeStatement,
+                "Báo cáo kết quả hoạt động kinh doanh (Mẫu B02-DN) — biểu đồ 14 tài khoản, bản nháp",
+                ChartTemplates.Simple14,
+                new[] { AccountType.Revenue, AccountType.Expense },
+                b.Rows,
+                new[]
+                {
+                    "Draft for the platform's 14-account chart: revenue 4000 + 4100, cost of goods 5000, operating expenses and salaries 5100 + 5200 under administration. Apply the Vietnamese chart for the full form.",
+                    "Period activity without the period-closing entries.",
+                });
+        }
+
+        private static StatementLayout BuildSimple14B01()
+        {
+            var b = new Builder();
+            b.Accounts("111", "1. Tiền", 3, Dr, "1000")
+             .Sum("110", "I. Tiền và các khoản tương đương tiền", 2, Dr, "+111", total: true)
+             .Accounts("131", "1. Phải thu ngắn hạn của khách hàng", 3, Dr, "1100:D")
+             .Accounts("132", "2. Trả trước cho người bán ngắn hạn", 3, Dr, "2000:D")
+             .Sum("130", "III. Các khoản phải thu ngắn hạn", 2, Dr, "+131 +132", total: true)
+             .Accounts("141", "1. Hàng tồn kho", 3, Dr, "1200")
+             .Sum("140", "IV. Hàng tồn kho", 2, Dr, "+141", total: true)
+             .Sum("100", "A. TÀI SẢN NGẮN HẠN", 1, Dr, "+110 +130 +140", total: true)
+             .Special("211", "1. Phải thu dài hạn của khách hàng", 3, Dr, "LongReceivable")
+             .Sum("210", "I. Các khoản phải thu dài hạn", 2, Dr, "+211", total: true)
+             .Accounts("222", "- Nguyên giá", 4, Dr, "1500")
+             .Sum("221", "1. Tài sản cố định hữu hình", 3, Dr, "+222")
+             .Sum("220", "II. Tài sản cố định", 2, Dr, "+221", total: true)
+             .Sum("200", "B. TÀI SẢN DÀI HẠN", 1, Dr, "+210 +220", total: true)
+             .Sum("270", "TỔNG CỘNG TÀI SẢN (270 = 100 + 200)", 1, Dr, "+100 +200", total: true)
+             .Accounts("311", "1. Phải trả người bán ngắn hạn", 3, Cr, "2000:C")
+             .Accounts("312", "2. Người mua trả tiền trước ngắn hạn", 3, Cr, "1100:C")
+             .Accounts("313", "3. Thuế và các khoản phải nộp Nhà nước", 3, Cr, "2200")
+             .Accounts("319", "4. Phải trả ngắn hạn khác (chi phí phải trả, lương phải trả, hàng nhận chưa có hóa đơn)", 3, Cr, "2100")
+             .Sum("310", "I. Nợ ngắn hạn", 2, Cr, "+311 +312 +313 +319", total: true)
+             .Special("331", "1. Phải trả người bán dài hạn", 3, Cr, "LongPayable")
+             .Sum("330", "II. Nợ dài hạn", 2, Cr, "+331", total: true)
+             .Sum("300", "C. NỢ PHẢI TRẢ", 1, Cr, "+310 +330", total: true)
+             .Accounts("411", "1. Vốn góp của chủ sở hữu", 3, Cr, "3000")
+             .Accounts("421a", "- Lợi nhuận sau thuế chưa phân phối lũy kế đến cuối kỳ trước", 4, Cr, "3100")
+             .Sum("421b", "- Lợi nhuận sau thuế chưa phân phối kỳ này", 4, Cr, "")
+             .Sum("421", "2. Lợi nhuận sau thuế chưa phân phối", 3, Cr, "+421a +421b")
+             .Sum("410", "I. Vốn chủ sở hữu", 2, Cr, "+411 +421", total: true)
+             .Sum("400", "D. VỐN CHỦ SỞ HỮU", 1, Cr, "+410", total: true)
+             .Sum("440", "TỔNG CỘNG NGUỒN VỐN (440 = 300 + 400)", 1, Cr, "+300 +400", total: true);
+
+            // 421b = the retained-earnings account of this year + the result not yet closed (computed); 131 / 311 are the short-term parts of the trade items
+            var rows = b.Rows.ToList();
+            var i421b = rows.FindIndex(r => r.Code == "421b");
+            rows[i421b] = new StatementRow("421b", "- Lợi nhuận sau thuế chưa phân phối kỳ này", 4, Cr,
+                new[] { new StatementTerm("3100") }, Array.Empty<FormulaPart>(), false, "UnclosedResult");
+            foreach (var (code, special) in new[] { ("131", "ShortLessLongReceivable"), ("311", "ShortLessLongPayable") })
+            {
+                var at = rows.FindIndex(r => r.Code == code);
+                rows[at] = rows[at] with { Special = special };
+            }
+
+            return new StatementLayout(
+                BalanceSheet,
+                "Bảng cân đối kế toán (Mẫu B01-DN) — biểu đồ 14 tài khoản, bản nháp",
+                ChartTemplates.Simple14,
+                new[] { AccountType.Asset, AccountType.Liability, AccountType.Equity },
+                rows,
+                new[]
+                {
+                    "Draft for the platform's 14-account chart: cash 1000, receivables 1100, inventory 1200, fixed assets 1500, payables 2000, accrued liabilities 2100, tax payable 2200, owner equity 3000, retained earnings 3100. Apply the Vietnamese chart for the full form.",
+                    "Trade receivables (1100) and payables (2000) are split by the due date of the open invoices and approved bills: more than 12 months after the balance-sheet date = long-term.",
                     "Row 421b includes the result of revenue and expense accounts that no closing entry has moved yet, so the sheet balances before the period is closed.",
                 });
         }
