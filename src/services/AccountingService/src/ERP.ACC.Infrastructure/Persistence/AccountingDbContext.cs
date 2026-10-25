@@ -28,6 +28,7 @@ namespace ERP.ACC.Infrastructure.Persistence
         public DbSet<StatementAccountMapping> StatementAccountMappings { get; set; }
         public DbSet<Loan> Loans { get; set; }
         public DbSet<NoteText> NoteTexts { get; set; }
+        public DbSet<NoteTextRevision> NoteTextRevisions { get; set; }
         public DbSet<LoanInstallment> LoanInstallments { get; set; }
         public DbSet<OutboxMessage> OutboxMessages { get; set; }
         public DbSet<SystemTaxSettings> SystemTaxSettings { get; set; }
@@ -94,6 +95,7 @@ namespace ERP.ACC.Infrastructure.Persistence
             modelBuilder.Entity<ClosingPolicy>(e =>
             {
                 e.ToTable("ClosingPolicies");
+                e.Property(x => x.AutoAccrueLoanInterest).HasDefaultValue(false);
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Id).ValueGeneratedNever();
                 e.HasIndex(x => x.TenantId).IsUnique().HasFilter("[IsDeleted] = 0");
@@ -110,6 +112,17 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.HasIndex(x => new { x.TenantId, x.SectionKey, x.Language, x.FiscalYear }).IsUnique().HasFilter("[IsDeleted] = 0");
             });
 
+            modelBuilder.Entity<NoteTextRevision>(e =>
+            {
+                e.ToTable("NoteTextRevisions");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.SectionKey).IsRequired().HasMaxLength(50);
+                e.Property(x => x.Text).IsRequired().HasMaxLength(4000);
+                e.Property(x => x.Language).IsRequired().HasMaxLength(5);
+                e.HasIndex(x => new { x.TenantId, x.SectionKey, x.Language, x.FiscalYear, x.CreatedAt });
+            });
+
             modelBuilder.Entity<Loan>(e =>
             {
                 e.ToTable("Loans");
@@ -122,6 +135,7 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.StartDate).HasColumnType("date");
                 e.Property(x => x.CancelReason).HasMaxLength(500);
                 e.Property(x => x.PostedToLedger).HasDefaultValue(false);
+                e.Property(x => x.DayCountBasis).HasDefaultValue(0);
                 e.HasIndex(x => new { x.TenantId, x.LoanNumber }).IsUnique().HasFilter("[IsDeleted] = 0");
                 e.HasMany(l => l.Installments).WithOne().HasForeignKey(i => i.LoanId).OnDelete(DeleteBehavior.Cascade);
             });

@@ -18,6 +18,9 @@ namespace ERP.ACC.Application.Handlers
 
         /// <summary>Interest of the installment already accrued to the books and not yet paid.</summary>
         public decimal AccruedInterest { get; set; }
+
+        /// <summary>The interest owed on this installment if it were repaid today (by the loan's day count); the default of the interest paid. 0 once repaid.</summary>
+        public decimal InterestDueToday { get; set; }
     }
 
     public class LoanDto
@@ -36,6 +39,9 @@ namespace ERP.ACC.Application.Handlers
 
         /// <summary>True when the drawdown is in the journal, so repayments are posted too; false for a loan booked by hand.</summary>
         public bool PostedToLedger { get; set; }
+
+        /// <summary>0 = the scheduled interest split by days, 1 = actual/365, 2 = actual/360.</summary>
+        public int DayCountBasis { get; set; }
 
         /// <summary>The asset account the money is received on and repaid from; null = the Bank key of the posting profile.</summary>
         public Guid? ReceivingAccountId { get; set; }
@@ -74,6 +80,9 @@ namespace ERP.ACC.Application.Handlers
 
         /// <summary>The asset account (bank or cash) that receives the money and repays it; empty = the Bank key of the posting profile.</summary>
         public Guid? ReceivingAccountId { get; set; }
+
+        /// <summary>0 (default) = the scheduled interest split by days; 1 = actual/365; 2 = actual/360 (outstanding principal × annual rate per day).</summary>
+        public int DayCountBasis { get; set; }
     }
 
     public class PostLoanDrawdownCommand : IRequest<LoanDto>
@@ -88,6 +97,9 @@ namespace ERP.ACC.Application.Handlers
     public class AccrueLoanInterestCommand : IRequest<LoanInterestAccrualDto>
     {
         public DateTime AsOfDate { get; set; }
+
+        /// <summary>The month-end job sets it: when the period of the date is closed nothing is posted (a user's entry would fall into the current period, a back-dated accrual must not).</summary>
+        public bool SkipClosedPeriod { get; set; }
     }
 
     public class LoanInterestAccrualLineDto
@@ -105,6 +117,9 @@ namespace ERP.ACC.Application.Handlers
     {
         public DateTime AsOfDate { get; set; }
         public decimal TotalAccrued { get; set; }
+
+        /// <summary>True when nothing was accrued because the period of the date is closed (only with SkipClosedPeriod).</summary>
+        public bool SkippedClosedPeriod { get; set; }
         public List<LoanInterestAccrualLineDto> Lines { get; set; } = new();
     }
 
@@ -150,12 +165,14 @@ namespace ERP.ACC.Application.Handlers
             Notes = loan.Description,
             CancelReason = loan.CancelReason,
             PostedToLedger = loan.PostedToLedger,
+            DayCountBasis = loan.DayCountBasis,
             Outstanding = loan.OutstandingAt(today),
             DueLater = loan.LongTermAt(today),
             DueWithinTwelveMonths = loan.OutstandingAt(today) - loan.LongTermAt(today),
             Installments = loan.Installments.OrderBy(i => i.DueDate).Select(i => new LoanInstallmentDto
             {
                 Id = i.Id, DueDate = i.DueDate, PrincipalAmount = i.PrincipalAmount, InterestAmount = i.InterestAmount, PaidOn = i.PaidOn, AccruedInterest = i.PaidOn.HasValue ? 0m : i.AccruedInterest,
+                InterestDueToday = i.PaidOn.HasValue ? 0m : loan.DayCountBasis == 0 ? i.InterestAmount : loan.InterestToDate(i, today),
             }).ToList(),
         };
     }
@@ -205,7 +222,7 @@ namespace ERP.ACC.Application.Handlers
             try
             {
                 loan = Loan.Create(request.LoanNumber ?? string.Empty, request.Lender ?? string.Empty, request.Principal, request.InterestRatePercent, request.StartDate,
-                    request.Schedule?.Select(s => (s.DueDate, s.PrincipalAmount, s.InterestAmount)), request.MaturityDate, request.Notes);
+                    request.Schedule?.Select(s => (s.DueDate, s.PrincipalAmount, s.InterestAmount)), request.MaturityDate, request.Notes, request.DayCountBasis);
             }
             catch (ArgumentException ex)
             {
@@ -342,6 +359,16 @@ namespace ERP.ACC.Application.Handlers
         {
             var day = request.AsOfDate.Date;
             var result = new LoanInterestAccrualDto { AsOfDate = day };
+            if (request.SkipClosedPeriod)
+            {
+                var period = await _uow.FiscalPeriods.GetContainingAsync(day, cancellationToken);
+                if (period != null && period.Status != (int)FiscalPeriodStatus.Open)
+                {
+                    _logger.LogWarning("Loan interest to {Day:yyyy-MM-dd} not accrued: fiscal period {Period} is closed", day, period.PeriodName);
+                    result.SkippedClosedPeriod = true;
+                    return result;
+                }
+            }
             // the list is read without tracking; each loan is loaded again so its accrued amounts are saved with the entries
             foreach (var summary in (await _uow.Loans.ListAsync(cancellationToken)).Where(l => l.PostedToLedger && l.Status == (int)LoanStatus.Active))
             {

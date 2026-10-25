@@ -47,6 +47,14 @@ namespace ERP.ACC.Domain.Enums
         Voided = 2
     }
 
+    /// <summary>How the interest of a loan is counted (ROADMAP P1-2l): from the scheduled interest split by days (the original rule), or from the outstanding principal and the annual rate over a 365- or 360-day year.</summary>
+    public enum LoanDayCount
+    {
+        Schedule = 0,
+        Actual365 = 1,
+        Actual360 = 2
+    }
+
     public enum LoanStatus
     {
         Active = 1,

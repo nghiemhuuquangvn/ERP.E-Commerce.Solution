@@ -17,16 +17,20 @@ function ClosingPolicyPanel({ canManage }: { canManage: boolean }) {
   const { data } = useQuery({ queryKey: ['accounting', 'closingPolicy'], queryFn: () => fiscalPeriodsApi.closingPolicy(), staleTime: 30_000 })
   const [mode, setMode] = useState<ClosingMode | null>(null)
   const [month, setMonth] = useState<number | null>(null)
+  const [autoAccrue, setAutoAccrue] = useState<boolean | null>(null)
+  const effectiveAutoAccrue = autoAccrue ?? data?.autoAccrueLoanInterest ?? false
   const effectiveMode = mode ?? data?.closingMode ?? 'Monthly'
   const effectiveMonth = month ?? data?.fiscalYearEndMonth ?? 12
-  const dirty = !!data && (effectiveMode !== data.closingMode || effectiveMonth !== data.fiscalYearEndMonth)
+  const dirty = !!data && (effectiveMode !== data.closingMode || effectiveMonth !== data.fiscalYearEndMonth || effectiveAutoAccrue !== !!data.autoAccrueLoanInterest)
 
   const save = useMutation({
-    mutationFn: () => fiscalPeriodsApi.updateClosingPolicy({ closingMode: effectiveMode, fiscalYearEndMonth: effectiveMonth }),
+    mutationFn: () => fiscalPeriodsApi.updateClosingPolicy({ closingMode: effectiveMode, fiscalYearEndMonth: effectiveMonth, autoAccrueLoanInterest: effectiveAutoAccrue }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting', 'closingPolicy'] })
       setMode(null)
       setMonth(null)
+      setAutoAccrue(null)
+      queryClient.invalidateQueries({ queryKey: ['accounting', 'loans'] })
     },
   })
   const error = (save.error as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail
@@ -58,6 +62,11 @@ function ClosingPolicyPanel({ canManage }: { canManage: boolean }) {
           </button>
         )}
       </div>
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input type="checkbox" disabled={!canManage} checked={effectiveAutoAccrue} onChange={(e) => setAutoAccrue(e.target.checked)} />
+        {t('accounting.fiscalPeriods.autoAccrue')}
+      </label>
+      <p className="text-xs text-gray-500">{t('accounting.fiscalPeriods.autoAccrueHint')}</p>
       <p className="text-xs text-gray-500">
         {effectiveMode === 'YearEnd' ? t('accounting.fiscalPeriods.policyYearEndHint') : t('accounting.fiscalPeriods.policyMonthlyHint')}
       </p>

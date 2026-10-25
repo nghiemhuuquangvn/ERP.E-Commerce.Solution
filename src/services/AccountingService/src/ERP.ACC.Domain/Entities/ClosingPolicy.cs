@@ -13,6 +13,16 @@ namespace ERP.ACC.Domain.Entities
         public int ClosingMode { get; private set; } = (int)Enums.ClosingMode.Monthly;
         public int FiscalYearEndMonth { get; private set; } = 12;
 
+
+        /// <summary>The tenant lets the month-end job accrue loan interest to the end of the previous month (ROADMAP P1-2l). Off by default: no entry is written that the tenant did not ask for.</summary>
+        public bool AutoAccrueLoanInterest { get; private set; }
+
+        public void SetAutoAccrueLoanInterest(bool on)
+        {
+            AutoAccrueLoanInterest = on;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         private ClosingPolicy() { }
 
         public static ClosingPolicy Create(Guid tenantId, ClosingMode mode, int fiscalYearEndMonth)

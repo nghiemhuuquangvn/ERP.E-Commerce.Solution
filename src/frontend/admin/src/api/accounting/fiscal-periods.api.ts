@@ -27,6 +27,8 @@ export type ClosingMode = 'Monthly' | 'YearEnd'
 export interface ClosingPolicy {
   closingMode: ClosingMode
   fiscalYearEndMonth: number
+  /** The month-end job accrues the loan interest of the tenant to the end of the previous month. Omitted on save = unchanged. */
+  autoAccrueLoanInterest?: boolean
 }
 
 export const fiscalPeriodsApi = {

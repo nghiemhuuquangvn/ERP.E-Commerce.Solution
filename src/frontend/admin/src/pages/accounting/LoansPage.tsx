@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { accountsApi } from '@/api/accounting/accounts.api'
+import { fiscalPeriodsApi } from '@/api/accounting/fiscal-periods.api'
 import { loansApi } from '@/api/accounting/loans.api'
 import type { Loan } from '@/api/accounting/loans.api'
 import { ReasonDialog } from '@/components/shared/ReasonDialog'
@@ -24,6 +25,7 @@ export function LoansPage() {
   const [form, setForm] = useState({ loanNumber: '', lender: '', principal: '', interestRatePercent: '0', startDate: '', notes: '' })
   const [postDrawdown, setPostDrawdown] = useState(true)
   const [receivingAccountId, setReceivingAccountId] = useState('')
+  const [dayCountBasis, setDayCountBasis] = useState('0')
   const [interestPaid, setInterestPaid] = useState<Record<string, string>>({})
   const [accrueDate, setAccrueDate] = useState(new Date().toISOString().slice(0, 10))
   const [asOf, setAsOf] = useState(new Date().toISOString().slice(0, 10))
@@ -31,6 +33,7 @@ export function LoansPage() {
 
   const { data, isLoading } = useQuery({ queryKey: ['accounting', 'loans'], queryFn: () => loansApi.list(), staleTime: 15_000 })
 
+  const { data: policy } = useQuery({ queryKey: ['accounting', 'closingPolicy'], queryFn: () => fiscalPeriodsApi.closingPolicy(), staleTime: 30_000 })
   const { data: allAccounts } = useQuery({ queryKey: ['accounting', 'accounts', 'list'], queryFn: () => accountsApi.list(), staleTime: 60_000 })
   // bank and cash accounts: the postable assets (leaf, active) — a parent groups sub-accounts and takes no postings
   const assetAccounts = (allAccounts ?? []).filter((a) => a.accountType === 'Asset' && a.isActive && !(allAccounts ?? []).some((c) => c.parentAccountId === a.id))
@@ -50,12 +53,14 @@ export function LoansPage() {
         notes: form.notes || undefined,
         postDrawdown,
         receivingAccountId: receivingAccountId || undefined,
+        dayCountBasis: Number(dayCountBasis),
         schedule: rows.map((r) => ({ dueDate: r.dueDate, principalAmount: Number(r.principalAmount), interestAmount: Number(r.interestAmount) || 0 })),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting'] })
       setForm({ loanNumber: '', lender: '', principal: '', interestRatePercent: '0', startDate: '', notes: '' })
       setRows([{ dueDate: '', principalAmount: '', interestAmount: '0' }])
+      setDayCountBasis('0')
     },
   })
 
@@ -144,6 +149,15 @@ export function LoansPage() {
               ))}
             </select>
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.loans.dayCount')}</label>
+            <select className="input" value={dayCountBasis} onChange={(e) => setDayCountBasis(e.target.value)}>
+              <option value="0">{t('accounting.loans.dayCountSchedule')}</option>
+              <option value="1">{t('accounting.loans.dayCount365')}</option>
+              <option value="2">{t('accounting.loans.dayCount360')}</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">{t('accounting.loans.dayCountHint')}</p>
+          </div>
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={postDrawdown} onChange={(e) => setPostDrawdown(e.target.checked)} />
             {t('accounting.loans.postDrawdown')}
@@ -203,6 +217,7 @@ export function LoansPage() {
             <span className="text-sm text-green-700">{t('accounting.loans.accrued', { total: accrue.data.totalAccrued.toLocaleString(), count: accrue.data.lines.filter((l) => l.posted).length })}</span>
           )}
           {accrue.isError && <span className="text-sm text-red-600">{detail(accrue.error, t('accounting.loans.failed'))}</span>}
+          <span className="text-xs text-gray-500">{policy?.autoAccrueLoanInterest ? t('accounting.loans.autoAccrueOn') : t('accounting.loans.autoAccrueOff')}</span>
         </div>
       )}
 
@@ -240,6 +255,7 @@ export function LoansPage() {
                     <td className="p-2">
                       {loan.status === 'Cancelled' ? `${loan.status}: ${loan.cancelReason ?? ''}` : loan.status}
                       {loan.receivingAccountNumber && <span className="ml-2 text-xs text-gray-500">{loan.receivingAccountNumber}</span>}
+                      {loan.dayCountBasis !== 0 && <span className="ml-2 text-xs text-gray-500">{loan.dayCountBasis === 1 ? '365' : '360'}</span>}
                       {loan.status !== 'Cancelled' && (
                         <span className={loan.postedToLedger ? 'ml-2 text-xs text-green-700' : 'ml-2 text-xs text-gray-400'}>
                           {loan.postedToLedger ? t('accounting.loans.posted') : t('accounting.loans.notPosted')}
@@ -287,7 +303,7 @@ export function LoansPage() {
                                       type="number"
                                       min="0"
                                       className="input mr-2 w-28"
-                                      placeholder={t('accounting.loans.interestPaid')}
+                                      placeholder={loan.dayCountBasis !== 0 ? i.interestDueToday.toLocaleString() : t('accounting.loans.interestPaid')}
                                       value={interestPaid[i.id] ?? ''}
                                       onChange={(e) => setInterestPaid({ ...interestPaid, [i.id]: e.target.value })}
                                     />

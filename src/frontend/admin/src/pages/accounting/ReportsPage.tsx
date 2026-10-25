@@ -733,15 +733,45 @@ function BalanceSheetPanel() {
 }
 
 /** The text sections of the notes the accountant writes (policies, standards, non-cash transactions …). */
+/** The changes of one note text, newest first; "use this text" puts an old text into the draft (saving it writes a new revision). */
+function NoteTextHistory({ sectionKey, language, fiscalYear, canEdit, onUse }: { sectionKey: string; language: NoteLanguage; fiscalYear: number; canEdit: boolean; onUse: (text: string) => void }) {
+  const { t } = useTranslation()
+  const { data, isLoading } = useQuery({
+    queryKey: ['accounting', 'noteTextHistory', sectionKey, language, fiscalYear],
+    queryFn: () => reportsApi.noteTextHistory(sectionKey, language, fiscalYear),
+    staleTime: 15_000,
+  })
+  if (isLoading) return <p className="text-xs text-gray-400">{t('common.loading')}</p>
+  if (!data || data.length === 0) return <p className="text-xs text-gray-500">{t('accounting.reports.notesHistoryEmpty')}</p>
+  return (
+    <ul className="space-y-1 rounded border border-gray-200 bg-gray-50 p-2 text-xs">
+      {data.map((r, i) => (
+        <li key={i} className="flex flex-wrap items-baseline gap-2">
+          <span className="text-gray-500">{new Date(r.changedAt).toLocaleString()}</span>
+          <span className="font-medium text-gray-700">{r.changedBy ?? '—'}</span>
+          <span className="min-w-0 flex-1 truncate text-gray-600">{r.text || t('accounting.reports.notesHistoryCleared')}</span>
+          {canEdit && r.text && (
+            <button className="text-primary-700 hover:underline" onClick={() => onUse(r.text)}>
+              {t('accounting.reports.notesHistoryUse')}
+            </button>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function NoteTextsEditor({ canEdit, language, fiscalYear }: { canEdit: boolean; language: NoteLanguage; fiscalYear: number }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { data } = useQuery({ queryKey: ['accounting', 'noteTexts', language, fiscalYear], queryFn: () => reportsApi.noteTexts(language, fiscalYear), staleTime: 30_000 })
   const [draft, setDraft] = useState<Record<string, string>>({})
+  const [historyOf, setHistoryOf] = useState<string | null>(null)
   const save = useMutation({
     mutationFn: () => reportsApi.updateNoteTexts(draft, language, fiscalYear),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting', 'noteTexts'] })
+      queryClient.invalidateQueries({ queryKey: ['accounting', 'noteTextHistory'] })
       queryClient.invalidateQueries({ queryKey: ['accounting', 'reports', 'notes'] })
       setDraft({})
     },
@@ -770,6 +800,12 @@ function NoteTextsEditor({ canEdit, language, fiscalYear }: { canEdit: boolean; 
               value={draft[s.key] ?? s.text}
               onChange={(e) => setDraft({ ...draft, [s.key]: e.target.value })}
             />
+            <button className="mt-1 text-xs text-gray-500 hover:underline" onClick={() => setHistoryOf(historyOf === s.key ? null : s.key)}>
+              {t('accounting.reports.notesHistory')}
+            </button>
+            {historyOf === s.key && (
+              <NoteTextHistory sectionKey={s.key} language={language} fiscalYear={fiscalYear} canEdit={canEdit} onUse={(text) => setDraft({ ...draft, [s.key]: text })} />
+            )}
           </div>
         ))}
         {canEdit && (
@@ -883,7 +919,11 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
           <select className="input" value={language} onChange={(e) => setLanguage(e.target.value as NoteLanguage)}>
             <option value="vi">Tiếng Việt</option>
             <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="zh">中文</option>
+            <option value="fr">Français</option>
           </select>
+          {(language === 'ja' || language === 'zh') && <p className="mt-1 text-xs text-amber-700">{t('accounting.reports.notesNoPdf')}</p>}
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesCompareFrom')}</label>
@@ -893,7 +933,7 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
           <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesCompareTo')}</label>
           <input type="date" className="input" value={compareTo} onChange={(e) => setCompareTo(e.target.value)} />
         </div>
-        <ExportButton path="statements/notes" params={params} name="notes-b09.csv" disabled={!ready || (!!compareFrom !== !!compareTo)} pdf />
+        <ExportButton path="statements/notes" params={params} name="notes-b09.csv" disabled={!ready || (!!compareFrom !== !!compareTo)} pdf={language !== 'ja' && language !== 'zh'} />
       </div>
 
       <NoteTextsEditor canEdit={canEdit} language={language} fiscalYear={fiscalYear} />

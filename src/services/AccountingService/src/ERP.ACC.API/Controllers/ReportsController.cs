@@ -304,6 +304,17 @@ namespace ERP.ACC.API.Controllers
             return Ok(await _mediator.Send(new GetNoteTextsQuery { Language = lang, FiscalYear = fiscalYear }, ct));
         }
 
+        /// <summary>The history of one note text (section key, language, fiscal year): who saved what and when, newest first (ROADMAP P1-2l).</summary>
+        [HttpGet("notes/text/history")]
+        [ProducesResponseType(typeof(List<NoteTextRevisionDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> NoteTextHistory([FromQuery] string key, [FromQuery] string? lang = null, [FromQuery] int fiscalYear = 0, CancellationToken ct = default)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(new GetNoteTextHistoryQuery { Key = key, Language = lang, FiscalYear = fiscalYear }, ct));
+        }
+
         /// <summary>Saves the texts of the given section keys (an empty text clears one). Same permission as the report profile.</summary>
         [HttpPut("notes/text")]
         [ProducesResponseType(typeof(List<NoteTextEntryDto>), StatusCodes.Status200OK)]
