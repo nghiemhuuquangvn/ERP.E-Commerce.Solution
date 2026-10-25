@@ -55,7 +55,7 @@ public class ChartTemplateTests
     {
         var vas = ChartTemplates.Find(ChartTemplates.Vas99)!;
 
-        vas.Accounts.Select(a => a.Number[0]).Distinct().Order().Should().Equal('1', '2', '3', '4', '5', '6', '7', '8', '9');
+        vas.Accounts.Select(a => a.Number[0]).Distinct().Order().Should().Equal('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'); // 0 = off-balance accounts
         vas.Accounts.Single(a => a.Number == "214").Normal.Should().Be(NormalBalance.Credit); // accumulated depreciation, an asset
         vas.Accounts.Single(a => a.Number == "214").Type.Should().Be(AccountType.Asset);
         vas.Accounts.Single(a => a.Number == "521").Normal.Should().Be(NormalBalance.Debit);  // sales deductions, revenue class

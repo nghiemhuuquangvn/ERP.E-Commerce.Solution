@@ -245,6 +245,70 @@ namespace ERP.ACC.API.Controllers
             return Ok(await _mediator.Send(command, ct));
         }
 
+        /// <summary>
+        /// The off-balance register (class 0 accounts) per account for a range: opening, in, out, closing. Not part of the balance sheet; voided entries never count.
+        /// </summary>
+        [HttpGet("off-balance")]
+        [ProducesResponseType(typeof(ERP.ACC.Application.Handlers.OffBalanceReportDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> OffBalance(
+            [FromQuery] DateTime fromDate,
+            [FromQuery] DateTime toDate,
+            [FromQuery] string? format = null,
+            CancellationToken ct = default)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+            if (IsPdf(format))
+                return PdfNotAvailable();
+
+            var result = await _mediator.Send(new ERP.ACC.Application.Handlers.GetOffBalanceReportQuery { FromDate = fromDate, ToDate = toDate }, ct);
+            return IsExport(format) ? Export(format, ReportTables.OffBalance(result), "off-balance") : Ok(result);
+        }
+
+        /// <summary>
+        /// The notes B09-DN: the accountant's texts (policies, standards, non-cash transactions …) and tables computed from the books — cash, receivables, inventory,
+        /// fixed assets, payables, taxes, borrowings from the loan ledger, equity, off-balance items, revenue and expenses. unit and format (csv, xlsx, pdf) as for B01.
+        /// </summary>
+        [HttpGet("statements/notes")]
+        [ProducesResponseType(typeof(NotesDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Notes(
+            [FromQuery] DateTime fromDate,
+            [FromQuery] DateTime toDate,
+            [FromQuery] string? unit = null,
+            [FromQuery] string? format = null,
+            CancellationToken ct = default)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+
+            var result = await _mediator.Send(new GetNotesQuery { FromDate = fromDate, ToDate = toDate, Unit = unit }, ct);
+            if (IsPdf(format))
+                return File(PdfWriter.ToBytes(result), "application/pdf", $"notes-b09-{DateTime.UtcNow:yyyyMMddHHmmss}.pdf");
+            return IsExport(format) ? Export(format, ReportTables.Notes(result), "notes-b09") : Ok(result);
+        }
+
+        /// <summary>The note sections the accountant writes (key, number, title, hint) with their current texts.</summary>
+        [HttpGet("notes/text")]
+        [ProducesResponseType(typeof(List<NoteTextEntryDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> NoteTexts(CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(new GetNoteTextsQuery(), ct));
+        }
+
+        /// <summary>Saves the texts of the given section keys (an empty text clears one). Same permission as the report profile.</summary>
+        [HttpPut("notes/text")]
+        [ProducesResponseType(typeof(List<NoteTextEntryDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> UpdateNoteTexts([FromBody] UpdateNoteTextsCommand command, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:accounts:manage"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(command, ct));
+        }
+
         private static bool IsPdf(string? format) => string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase);
 
         private IActionResult PdfNotAvailable() => BadRequest(new ProblemDetails

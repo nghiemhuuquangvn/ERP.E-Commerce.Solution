@@ -52,6 +52,66 @@ namespace ERP.ACC.Application.Reports
             return new ReportTable(s.LayoutId, rows, headerRow);
         }
 
+        /// <summary>The notes B09: company block, then each section as a numbered title, its text lines and its table.</summary>
+        public static ReportTable Notes(NotesDto n)
+        {
+            var rows = new List<IReadOnlyList<object?>>();
+            if (n.Header != null)
+            {
+                if (n.Header.CompanyName.Length > 0)
+                    rows.Add(new object?[] { n.Header.CompanyName });
+                if (n.Header.TaxCode.Length > 0)
+                    rows.Add(new object?[] { "Tax code", n.Header.TaxCode });
+                if (n.Header.Address.Length > 0)
+                    rows.Add(new object?[] { "Address", n.Header.Address });
+            }
+
+            rows.Add(new object?[] { n.Title });
+            rows.Add(new object?[] { "Period", Date(n.FromDate), Date(n.ToDate), "Unit", n.Unit });
+            foreach (var s in n.Sections)
+            {
+                rows.Add(new object?[] { "" });
+                rows.Add(new object?[] { s.Number, s.Title });
+                if (!string.IsNullOrEmpty(s.Text))
+                    foreach (var line in s.Text.Split('\n'))
+                        rows.Add(new object?[] { "", line });
+                else if (s.Table == null && !string.IsNullOrEmpty(s.Hint))
+                    rows.Add(new object?[] { "", "(" + s.Hint + ")" });
+
+                if (s.Table != null)
+                {
+                    rows.Add(new object?[] { "", "" }.Concat(s.Table.Columns.Cast<object?>()).ToArray());
+                    foreach (var r in s.Table.Rows)
+                        rows.Add(new object?[] { "", r.Label }.Concat(r.Cells.Select(c => (object?)c)).ToArray());
+                }
+            }
+
+            foreach (var note in n.Notes)
+                rows.Add(new object?[] { "note", note });
+
+            if (n.Header != null && (n.Header.PreparedBy + n.Header.ChiefAccountant + n.Header.Director).Length > 0)
+            {
+                rows.Add(new object?[] { "" });
+                rows.Add(new object?[] { "", "Prepared by", "Chief accountant", "Director" });
+                rows.Add(new object?[] { "", n.Header.PreparedBy, n.Header.ChiefAccountant, n.Header.Director });
+            }
+
+            return new ReportTable("B09-DN", rows, 0);
+        }
+
+        public static ReportTable OffBalance(ERP.ACC.Application.Handlers.OffBalanceReportDto r)
+        {
+            var rows = new List<IReadOnlyList<object?>>
+            {
+                new object?[] { "Off-balance register", Date(r.FromDate), Date(r.ToDate) },
+                new object?[] { "Account", "Name", "Opening", "In", "Out", "Closing" },
+            };
+            rows.AddRange(r.Lines.Select(l => (IReadOnlyList<object?>)new object?[] { l.AccountNumber, l.AccountName, l.Opening, l.In, l.Out, l.Closing }));
+            foreach (var note in r.Notes)
+                rows.Add(new object?[] { "note", note });
+            return new ReportTable("Off-balance", rows, 2);
+        }
+
         public static ReportTable TrialBalance(TrialBalanceDto t)
         {
             var rows = new List<IReadOnlyList<object?>>

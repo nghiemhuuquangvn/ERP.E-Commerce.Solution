@@ -23,6 +23,10 @@ namespace ERP.ACC.Infrastructure.Persistence
         public DbSet<PostingAccountMapping> PostingAccountMappings { get; set; }
         public DbSet<ClosingPolicy> ClosingPolicies { get; set; }
         public DbSet<ReportProfile> ReportProfiles { get; set; }
+        public DbSet<OffBalanceEntry> OffBalanceEntries { get; set; }
+        public DbSet<Loan> Loans { get; set; }
+        public DbSet<NoteText> NoteTexts { get; set; }
+        public DbSet<LoanInstallment> LoanInstallments { get; set; }
         public DbSet<OutboxMessage> OutboxMessages { get; set; }
         public DbSet<SystemTaxSettings> SystemTaxSettings { get; set; }
         public DbSet<TenantTaxSettings> TenantTaxSettings { get; set; }
@@ -91,6 +95,54 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Id).ValueGeneratedNever();
                 e.HasIndex(x => x.TenantId).IsUnique().HasFilter("[IsDeleted] = 0");
+            });
+
+            modelBuilder.Entity<NoteText>(e =>
+            {
+                e.ToTable("NoteTexts");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.SectionKey).IsRequired().HasMaxLength(50);
+                e.Property(x => x.Text).IsRequired().HasMaxLength(4000);
+                e.HasIndex(x => new { x.TenantId, x.SectionKey }).IsUnique().HasFilter("[IsDeleted] = 0");
+            });
+
+            modelBuilder.Entity<Loan>(e =>
+            {
+                e.ToTable("Loans");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.LoanNumber).IsRequired().HasMaxLength(50);
+                e.Property(x => x.Lender).IsRequired().HasMaxLength(200);
+                e.Property(x => x.Principal).HasColumnType("decimal(18,2)");
+                e.Property(x => x.InterestRatePercent).HasColumnType("decimal(9,4)");
+                e.Property(x => x.StartDate).HasColumnType("date");
+                e.Property(x => x.CancelReason).HasMaxLength(500);
+                e.HasIndex(x => new { x.TenantId, x.LoanNumber }).IsUnique().HasFilter("[IsDeleted] = 0");
+                e.HasMany(l => l.Installments).WithOne().HasForeignKey(i => i.LoanId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<LoanInstallment>(e =>
+            {
+                e.ToTable("LoanInstallments");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.DueDate).HasColumnType("date");
+                e.Property(x => x.PaidOn).HasColumnType("date");
+                e.Property(x => x.PrincipalAmount).HasColumnType("decimal(18,2)");
+                e.Property(x => x.InterestAmount).HasColumnType("decimal(18,2)");
+                e.HasIndex(x => x.LoanId);
+            });
+
+            modelBuilder.Entity<OffBalanceEntry>(e =>
+            {
+                e.ToTable("OffBalanceEntries");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+                e.Property(x => x.Reference).HasMaxLength(100);
+                e.Property(x => x.VoidReason).HasMaxLength(500);
+                e.HasIndex(x => new { x.TenantId, x.AccountId, x.EntryDate });
             });
 
             modelBuilder.Entity<ReportProfile>(e =>

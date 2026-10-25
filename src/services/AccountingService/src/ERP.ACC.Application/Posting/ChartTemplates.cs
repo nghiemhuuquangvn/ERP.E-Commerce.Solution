@@ -43,6 +43,17 @@ namespace ERP.ACC.Application.Posting
         public const string Simple14 = "Simple14";
         public const string Vas99 = "Vas99";
 
+        /// <summary>
+        /// Which chart a tenant is on, judged by its accounts (the platform keeps no "applied template" flag): the Vietnamese chart has account 111, the
+        /// platform's 14-account chart has 1000 and 4000. A tenant with neither (its own chart) is treated as Vietnamese, as before: the statement layouts
+        /// then report what they cannot place under "unmapped".
+        /// </summary>
+        public static string Detect(IEnumerable<ERP.ACC.Domain.Entities.Account> accounts)
+        {
+            var numbers = accounts.Select(a => a.AccountNumber).ToHashSet(StringComparer.Ordinal);
+            return !numbers.Contains("111") && numbers.Contains("1000") && numbers.Contains("4000") ? Simple14 : Vas99;
+        }
+
         public static IReadOnlyList<ChartTemplate> All { get; } = new[] { BuildSimple14(), BuildVas99() };
 
         public static ChartTemplate? Find(string? id) =>
@@ -197,6 +208,15 @@ namespace ERP.ACC.Application.Posting
             Add("8212", "Chi phí thuế TNDN hoãn lại", X, Dr, "821");
             // Class 9 - profit determination (temporary: closing entries leave it at zero)
             Add("911", "Xác định kết quả kinh doanh", E, Cr);
+
+            // Class 0 - off-balance accounts (ROADMAP P1-2i): tracked in the off-balance register, never in a journal entry
+            const AccountType O = AccountType.OffBalance;
+            Add("001", "Tài sản thuê ngoài", O, Dr);
+            Add("002", "Vật tư, hàng hóa nhận giữ hộ, nhận gia công", O, Dr);
+            Add("003", "Hàng hóa nhận bán hộ, nhận ký gửi, ký cược", O, Dr);
+            Add("004", "Nợ khó đòi đã xử lý", O, Dr);
+            Add("007", "Ngoại tệ các loại", O, Dr);
+            Add("008", "Dự toán chi sự nghiệp, dự án", O, Dr);
 
             // Cash-flow attributes (suggested; editable per account): cash and bank accounts, and the counter-accounts that are investing / financing.
             var cash = new HashSet<string> { "111", "1111", "1112", "112", "1121", "1122", "113" };

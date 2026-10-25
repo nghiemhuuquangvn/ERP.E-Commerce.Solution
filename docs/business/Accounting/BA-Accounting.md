@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Domain** | Accounting (AccountingService, port 5005, code ACC) |
-| **Covers** | ROADMAP P1-1 … P1-1e (automatic posting), P1-2 (chart of accounts, void / reverse, closing), P1-2b (ledger, trial balance, cash flow), P1-2c (B01 / B02 statements, CSV), P1-2d (B03 cash-flow statement by indicator code, year-end closing policy, Excel export), P1-2e (amount unit VND / thousand / million and company header on the statements), P1-2f (PDF export of B01 / B02 / B03), P1-2g (B03 by the indirect method), **P1-2h (short- / long-term split of trade receivables and payables on B01 by due date)** |
+| **Covers** | ROADMAP P1-1 … P1-1e (automatic posting), P1-2 (chart of accounts, void / reverse, closing), P1-2b (ledger, trial balance, cash flow), P1-2c (B01 / B02 statements, CSV), P1-2d (B03 cash-flow statement by indicator code, year-end closing policy, Excel export), P1-2e (amount unit VND / thousand / million and company header on the statements), P1-2f (PDF export of B01 / B02 / B03), P1-2g (B03 by the indirect method), P1-2h (short- / long-term split of trade receivables and payables on B01 by due date), **P1-2i (layouts for the 14-account chart, off-balance accounts, loan ledger, B09 notes)** |
 | **Status** | Implemented and verified on the local Docker stack, 2026-10-24. Items still open are in [DEFERRED-ISSUES.md](../../DEFERRED-ISSUES.md). |
 | **Audience** | Product owner, chief accountant, QA, developers |
 | **Companion documents** | [AutoPosting.md](AutoPosting.md) (posting rules in detail), [ChartOfAccounts.md](ChartOfAccounts.md), [Reports.md](Reports.md), [event-catalog](../../architecture/event-catalog.md) |
@@ -36,12 +36,13 @@ A Vietnamese company must keep its books under the Vietnamese accounting standar
 | O11 | A statement can be printed or archived as a PDF that looks like the filed form, with the company header, the unit and the signatories, and agrees to the cent with the screen and the spreadsheets. | FR-63 … FR-66. |
 | O12 | A company that files its cash-flow statement by the indirect method (starting from profit before tax) can produce it from the same ledger, and can see that it agrees with the direct method. | FR-67 … FR-70. |
 | O13 | The balance sheet separates trade receivables and payables due within 12 months from those due later, using the real due dates of the open invoices and bills instead of one fixed account. | FR-71 … FR-74. |
+| O14 | A tenant that has not applied the Vietnamese chart still gets B01 / B02 / B03; off-balance items are tracked; borrowings are split by their real schedule; and the notes to the financial statements can be prepared from the books and the accountant's texts. | FR-75 … FR-85. |
 
 ### 1.3 Scope
 **In scope:** posting from sales, payment, purchasing, warehouse, POS, payroll, refunds and returns; chart of accounts and templates; manual entries, void, reverse; fiscal periods and closing;
 trial balance, ledger, profit and loss, balance sheet, cash flow, B01 / B02 / **B03** by indicator code; CSV and **Excel** export; **a closing policy (monthly or at year end)**; admin screens for all of it.
-**Out of scope (see section 15):** VAT, e-invoice, foreign currency, bank reconciliation, real payroll calculation (insurance, personal income tax), restocking of returned goods, B09 notes, indirect-method cash flow,
-off-balance (class 0) accounts, short- / long-term split by due date, PDF of reports other than B01 / B02 / B03. Rounding and the header apply to B01 / B02 / B03 only; the trial balance and the ledger stay exact in VND.
+**Out of scope (see section 15):** VAT, e-invoice, foreign currency, bank reconciliation, real payroll calculation (insurance, personal income tax), restocking of returned goods, an automatic posting link for loans (drawing, repayment, interest accrual),
+layouts for a tenant's own chart (other than Vas99 and Simple14), PDF of reports other than B01 / B02 / B03 and the notes. Rounding and the header apply to B01 / B02 / B03 only; the trial balance and the ledger stay exact in VND.
 
 ---
 
@@ -85,6 +86,11 @@ off-balance (class 0) accounts, short- / long-term split by due date, PDF of rep
 | Report profile | A tenant setting holding the company block of the statements (name, tax code, address), the signatories (người lập biểu, kế toán trưởng, giám đốc) and the default amount unit. |
 | Amount unit (đơn vị tính) | VND, thousand VND or million VND. A statement shows every amount divided by the unit and rounded; the exact books are unchanged. |
 | PDF export | A print-ready A4 file of B01, B02 or B03 (`format=pdf`), built from the same data as the screen, CSV and Excel. Other reports (trial balance, ledger, flat cash flow) have no PDF. |
+| Off-balance account (tài khoản ngoài bảng) | Class 0 accounts 001 – 008 (leased assets, goods held for others, goods on consignment, written-off debts, foreign currency, budget estimates). They have **one side only** and are tracked in the off-balance register, not in journal entries. |
+| Off-balance register | The book of movements of the class 0 accounts: each entry is **In** (raises the balance) or **Out** (lowers it). |
+| Loan ledger | The register of borrowings with their repayment schedule (due date, principal, interest) and the date each installment was repaid. |
+| Installment | One repayment of a loan: principal due on a date; repaid or outstanding. |
+| Notes (B09-DN, thuyết minh) | The notes to the financial statements: general information, accounting policies and detail tables behind the rows of B01 and B02. |
 | Rounding difference | The gap of one or a few units that appears when the rounded rows of two totals that are equal in exact VND (e.g. assets and sources) do not add to the same number. Normal on filed statements; reported in a note. |
 | Carry-forward (kết chuyển số dư) | Balance-sheet accounts keep their balance into the next year; revenue and expense accounts start the new year at zero because the closing entry cleared them. Balances here are cumulative, so no separate "opening entry" is written. |
 
@@ -133,6 +139,18 @@ The policy can be changed only **between** years (BR-75): a year closed half one
 ### 4.7 Producing the cash-flow statement (B03-DN)
 Accountant opens Reports → B03 → picks the range (and optionally a prior range) → the system reads every posted entry of the range that touches a cash account, attributes each non-cash line to a numbered row by its account and
 direction (BR-64 … 66, table in 6.8), adds opening cash (row 60) → row 70 must equal the cash on the books; if not, the statement says so and lists the movements it could not place → the accountant reviews the draft rows → exports to Excel / CSV.
+
+### 4.8 Statements for a tenant on the 14-account chart
+A tenant that never applied the Vietnamese chart keeps the platform's 14 accounts (1000 cash … 5200 salaries). The system looks at the accounts: **111 present → Vietnamese layouts; else 1000 and 4000 present → 14-account layouts; otherwise Vietnamese layouts** (the old behaviour: what cannot be placed is listed as unmapped). Everything else — rounding, header, prior column, PDF, Excel, CSV, direct and indirect cash flow — works the same. The 14-account layouts are a simplification (no VAT, income-tax, interest or depreciation accounts exist); a tenant who needs the full form applies the Vietnamese chart.
+
+### 4.9 Off-balance items
+An item that belongs to the company's notes but not to its books — an asset rented from a third party, goods received to keep or to sell for someone else, a bad debt already written off, foreign currency held — is recorded in the **off-balance register**: choose the account (001 – 008), the direction (In / Out), the amount and a reference. The register shows per account the opening balance, what came in, what went out and the closing balance; a negative closing balance is flagged. A wrong entry is voided with a reason (not while its fiscal period is closed). Off-balance accounts never appear in a journal entry and never change a trial balance, a closing or a statement; their balances are listed in the notes (section V.12).
+
+### 4.10 Borrowings and their schedule
+The accountant registers the loan (lender, principal, rate, start date) with its **repayment schedule**. The money itself is still booked by journal entries (Dr bank / Cr 341 on drawing, the reverse on repayment). When an installment is paid, the accountant marks it repaid with its date. B01 then splits borrowings by the schedule: installments due **within 12 months** of the balance-sheet date stay in "Vay ngắn hạn" (row 320), those due later move to "Vay dài hạn" (row 338). Because the repayment date is stored, the split of **any past date is exact**.
+
+### 4.11 Preparing the notes (B09-DN)
+At year end (or any period end) the accountant: 1. opens Reports → B09, 2. writes the texts once (general information, standards, the accounting policies, non-cash transactions, events after the period, other) in "Edit the texts" — they are kept for the next period, 3. picks the period and unit and reads the generated tables (cash, receivables, inventory, fixed assets with depreciation and net book value, payables, taxes, accruals, borrowings from the loan ledger, equity movement, off-balance items, revenue and expenses), 4. checks them against B01 / B02, 5. exports PDF / Excel / CSV for the filing pack with the company header and signatories of the report profile.
 
 ---
 
@@ -216,6 +234,17 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | FR-72 | B01 shows trade payables in two parts: due within 12 months (row 311) and due later (row 331, in "II. Long-term liabilities"). | M | P1-2h |
 | FR-73 | The split uses the due date of the open invoices (receivables) and approved unpaid bills (payables) at the balance-sheet date; it never exceeds what the ledger holds and never changes a total (130, 200, 270, 310, 330, 300, 440). | M | P1-2h |
 | FR-74 | When the balance-sheet date is in the past, the statement says the split is approximate; the prior column is split by its own date; unit, rounding, header and the CSV / Excel / PDF exports work as before. | M | P1-2h |
+| FR-75 | B01, B02 and B03 (direct and indirect) work for a tenant on the platform's **14-account chart**: the layout is chosen from the tenant's accounts, with the same rounding, header, prior column and exports. | M | P1-2i |
+| FR-76 | A tenant with neither chart (its own accounts) gets the Vietnamese layouts with everything it cannot place listed as unmapped (unchanged behaviour). | M | P1-2i |
+| FR-77 | The Vietnamese template contains the off-balance accounts 001, 002, 003, 004, 007, 008 (account type OffBalance). | M | P1-2i |
+| FR-78 | An accountant can record, list and void movements (In / Out) of off-balance accounts in a register kept outside the journal; the register is locked by a closed fiscal period. | M | P1-2i |
+| FR-79 | An off-balance account is refused in a manual journal entry, in the posting profile and in every automatic posting; B01 / B02 / B03, the trial balance and the closing are unaffected by the register. | M | P1-2i |
+| FR-80 | A report shows, per off-balance account and range, the opening balance, In, Out and closing balance, flags a negative closing balance, and exports to CSV / Excel. | M | P1-2i |
+| FR-81 | An accountant can register a loan with its repayment schedule, record the repayment of each installment with its date, and cancel a loan entered by mistake. | M | P1-2i |
+| FR-82 | B01 splits borrowings (341) into short-term (row 320) and long-term (row 338, together with bonds 343) by the schedule, exact for any past date, capped by the ledger, with no total changed. | M | P1-2i |
+| FR-83 | The notes B09-DN can be produced for a range: general information, period and unit, standards, accounting policies, detail tables behind B01 / B02 (V.1 … V.12, VI.1, VI.2), non-cash transactions, events after the period and other information. | M | P1-2i |
+| FR-84 | The texts of the notes are written by the accountant per section, kept per tenant, and reused in every period; an empty section shows what to write there. | M | P1-2i |
+| FR-85 | The notes export to PDF, Excel and CSV with the company header, the unit and the signatories; the admin app has a **Loans** page, an **Off-balance register** page and a **B09** tab (with the text editor). | M | P1-2i |
 
 ### 5.5 Acceptance criteria of the P1-2d requirements
 (Scenarios are in section 12; the *UAT* column points at them.)
@@ -251,6 +280,19 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | UAT-59 | Totals: with a maturity of 300 receivable / 200 payable on a sheet of 1,000 receivables, 800 payables, 500 cash, 700 capital, then 130 and 310 fall, 210 and 330 rise by those amounts and 270, 300, 440 are unchanged. | FR-73, BR-106 | Unit test |
 | UAT-60 | Given the date 30 Sep 2026 (before today) with a split applied, then the note "The date is in the past …" is present; for today it is absent; with a prior date each column uses its own split. | FR-74, BR-107 | Unit test; live (30 Sep: documents created today are ignored → nothing to split) |
 | UAT-61 | Given `unit=thousand`, then each of 131, 211, 311, 331 is rounded on its own (700 → 1, 300 → 0, 600 → 1, 200 → 0) and `isBalanced` stays true; `format=pdf`, `xlsx` and `csv` answer 200. | FR-74 | Unit test; live 200 |
+| UAT-62 | Given the SYSTEM tenant (14 accounts, demo ledger), when B01 for 31 Oct 2026 is requested, then the title is "… biểu đồ 14 tài khoản", rows 110, 131, 141, 311, 313, 319, 411, 421a, 421b carry the ledger, 270 = 440 = −701,711.10 (the demo data is a net loss), `isBalanced` true, nothing unmapped, and the flat balance sheet has the same total assets. | FR-75 | Passed (after fixing 421b, which had taken account 3100 twice) |
+| UAT-63 | When B02, B03 direct and B03 indirect of the same tenant are requested, then B02 60 = 50 = −882,151.76; B03 70 = −143,312.40 in both methods; both balanced; PDF 200. | FR-75 | Passed |
+| UAT-64 | Unit tests: detection (14 accounts → Simple14; Vietnamese → Vas99; none → Vas99; both → Vas99), every 14-account account is on B01 / B02, retained earnings counted once, maturity split on 1100 / 2000, direct = indirect on a mixed ledger. | FR-75, 76 | Unit test |
+| UAT-65 | On `glcheck`: create account 001 (type 6), record In 1,000 on 10 Nov and Out 300 on 20 Nov; the November report is 0 / 1,000 / 300 / 700 and December opens at 700; the list shows both entries. | FR-77, 78, 80 | Passed |
+| UAT-66 | A journal entry with account 001 → HTTP 400 "…off-balance account…"; B01 stays 270 = 440 = 3,300 and the trial balance stays balanced with no line for 001. | FR-79 | Passed |
+| UAT-67 | Unit tests: amount ≤ 0, wrong account type, unknown direction refused; negative closing flagged; voiding needs a reason and works once; a closed period refuses record and void; CSV / Excel table. | FR-78, 80 | Unit test |
+| UAT-68 | On `glcheck` (341 = 2,000): register a 2,000 loan 500 / 700 / 800; B01 of 30 Nov 2026 → 320 = 500, 338 = 1,500; of 31 Mar 2027 → 320 = 1,200, 338 = 800; 300 = 2,000 and 270 = 440 = 3,300 each time. | FR-81, 82 | Passed |
+| UAT-69 | A schedule of 40 against a principal of 100 is refused ("must add up"); repaying installment 1 twice is refused ("already repaid"); cancelling after a repayment is refused. | FR-81 | Passed |
+| UAT-70 | Unit tests: outstanding 0 before the start, 3,000 at the end of 2026, a repayment lowers it from its own date only, exactly 12 months is short-term, several loans capped by the ledger (5,000 / 2,500 / 0), a cancelled loan owes nothing. | FR-82 | Unit test |
+| UAT-71 | On `glcheck` October 2026 in VND: the notes have 28 sections; V.1 closing 300 = B01 110; V.2 closing 1,500 = rows 131 + 211; V.4 net book value 1,500 = row 220; the borrowings table shows the control row of 341. | FR-83 | Passed |
+| UAT-72 | Saving texts for general, standards, policy.cash and policy.inventory → sections I, III, IV.1, IV.3 show them (I starts with "Tên doanh nghiệp: …"), other sections show hints; key "nonsense" → 400; over 4,000 characters → 400 (unit test); an empty text clears. | FR-84 | Passed (400 key) / unit tests |
+| UAT-73 | The notes as csv, xlsx, pdf answer 200; the PDF (3 pages) renders the Vietnamese titles, the company block, tables with repeated headers and the signatories (page images checked); empty tables say "no data". | FR-85 | Passed |
+| UAT-74 | A 14-account tenant's notes contain V.1, V.2, V.3 (inventory 1200), V.7 … V.11 but not V.5 or V.6 and say so in a note. | FR-85, BR-113 | Unit test |
 | UAT-45 |
 | FR-62 | Given a manager, then the profile panel saves; given a viewer, then its fields are read-only. | manual |
 | FR-63 | Given a tenant with a filled report profile, when B01 for 31 Oct is requested with `format=pdf`, then the answer is HTTP 200, `application/pdf`, file `balance-sheet-b01-<timestamp>.pdf`, the bytes start with `%PDF-`, and the file has the company block, the title, "Tại ngày 31/10/2026 — Đơn vị tính: nghìn đồng", the rows with codes, and the three signatories; B01 (≈ 100 rows) runs over two pages with the table header repeated and "Trang 1/2" in the footer; B02 and B03 each fit one page. | UAT-46, 47 |
@@ -265,6 +307,17 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | FR-72 | Given an approved bill of 400 due in 14 months and 1,400 credited on 331 (as of 30 Nov), then row 311 = 1,000 and row 331 = 400; a pending bill, a paid bill and a bill due in 3 months are not long-term. | UAT-57 |
 | FR-73 | Given the cases above, then 270 = 440 still holds, the flat balance sheet has the same total assets (3,300 on the test tenant), and an invoice larger than the 131 balance is cut to the balance (e.g. 900 against 400 → 400). A partly paid invoice counts its open part only; Paid and Cancelled invoices count nothing; a document created after the date counts nothing; exactly 12 months is still short-term. | UAT-56 … 59 |
 | FR-74 | Given the date 30 Sep 2026 when today is later, then the note "The date is in the past …" is present; with a prior date each column has its own split; in thousand VND each row is rounded and `isBalanced` stays true on the exact amounts; PDF, Excel and CSV answer 200 with the new rows. | UAT-60, 61 |
+| FR-75 | Given the demo tenant (14 accounts, no account 111) with a posted ledger, when B01 is requested for 31 Oct, then the layout is the 14-account one (title ends "biểu đồ 14 tài khoản"), 270 = 440, `isBalanced` true, nothing unmapped, and the totals equal the flat balance sheet; B02 and both B03 methods return rows and B03 direct 70 = indirect 70. Retained earnings in 3100 are counted once (421a) and the unclosed result goes to 421b. | UAT-62, 63, 64 |
+| FR-76 | Given a tenant whose chart has neither 111 nor both 1000 and 4000, then the Vietnamese layout is used; given a tenant with both 111 and 1000, then Vietnamese. | UAT-64 |
+| FR-77 | Given the Vietnamese template, then accounts 001, 002, 003, 004, 007, 008 exist as type OffBalance with a debit normal balance and no other account number starts with 0. | UAT-65 |
+| FR-78 | Given account 001, when In 1,000 (10 Nov) and Out 300 (20 Nov) are recorded, then the list shows both; voiding needs a reason and works once; given a closed period, then recording or voiding in it is refused. | UAT-65, 67 |
+| FR-79 | Given a journal entry with account 001 on a line, then HTTP 400 "…off-balance account: it has no double entry…"; the trial balance stays balanced with no line for 001; B01 is unchanged. | UAT-66 |
+| FR-80 | Given the entries above, then November = opening 0, In 1,000, Out 300, closing 700; December opens at 700; Out above In makes the closing negative and flagged; voided entries disappear; CSV and Excel answer 200. | UAT-65, 67 |
+| FR-81 | Given a loan of 2,000 with installments 500 / 700 / 800, then it is created; a schedule that does not add up to the principal, a duplicate number, an installment dated before the start are refused; repaying an installment twice, repaying a cancelled loan and cancelling after a repayment are refused. | UAT-68, 69 |
+| FR-82 | Given that loan and a ledger balance of 2,000 on 341, then as of 30 Nov 2026 row 320 = 500 and row 338 = 1,500; as of 31 Mar 2027 row 320 = 1,200 and row 338 = 800 (the installment due exactly 12 months later is still short-term); 300 / 310 / 330 sum to 2,000 and 270 = 440; a loan larger than the 341 balance is cut to the balance. | UAT-68, 70 |
+| FR-83 | Given tenant `glcheck` for October 2026, then the notes have 28 sections numbered I, II, III, IV.1 … IV.8, V.1 … V.12, VI.1, VI.2, VII, VIII.1, VIII.2; V.1 closing = B01 row 110, V.2 closing = rows 131 + 211, V.4 net book value = row 220; V.7 = 311 + 331 where there are payables; VI.1 / VI.2 totals = the revenue and expenses of B02. | UAT-71 |
+| FR-84 | Given texts saved for general information, standards, cash policy and inventory policy, then those sections show them (the general section starts with the company block from the profile) and the other sections show their hint; an unknown key is refused (400); a text over 4,000 characters is refused; an empty text clears it. | UAT-72 |
+| FR-85 | Given the notes of that period, then `format=pdf`, `xlsx` and `csv` answer 200; the PDF has the company block, the numbered sections with Vietnamese text, tables with a repeated header, "(Không phát sinh số liệu trong kỳ)" for an empty table, notes and the signatories; the screens exist for loans, off-balance and B09 and are read-only without the manage permission. | UAT-73, 74 |
 
 ---
 
@@ -391,6 +444,51 @@ Row mapping (account prefix → row; "In" = cash received, "Out" = cash paid):
 *Worked example (thousand VND).* Cash 1,400 and inventory 1,400 are assets; equity is 2,800. Exact: 2,800 = 2,800. Rounded rows: cash 1, inventory 1 → total assets 2; equity 3 → total sources 3. The statement shows 2 and 3, says
 "Rounding difference of −1 thousand VND between total assets (270) and total sources (440): the exact amounts agree" and `isBalanced` is true. On the local test tenant, 3,300 VND of assets split over several rows showed 4 against 3 the same way.
 
+### 6.15 Statements for the 14-account chart (P1-2i)
+| ID | Rule |
+|---|---|
+| BR-109 | **Which layout.** The chart is read from the tenant's accounts: account **111** → Vietnamese; else accounts **1000 and 4000** → 14-account; else Vietnamese. The same choice applies to B01, B02, B03 direct and B03 indirect, and to the notes B09. |
+| BR-110 | **B01 (14 accounts):** 110 cash = 1000; 131 receivables = 1100 (debit balance), 132 supplier advances = 2000 (debit balance); 141 inventory = 1200; 221 fixed assets = 1500; 311 payables = 2000 (credit balance), 312 customer advances = 1100 (credit balance), 313 taxes = 2200, 319 other payables (accrued liabilities, salaries payable, goods received not invoiced) = 2100; 411 owner equity = 3000; 421a retained earnings = 3100; **421b = only the result not yet closed** (3100 is taken once, by 421a). The maturity split of trade items works on 1100 / 2000. |
+| BR-111 | **B02 (14 accounts):** 01 revenue = 4000 + 4100; 11 cost of goods = 5000; 26 administration = 5100 + 5200; no deductions, financial or other lines and no income-tax lines (the chart has none); 60 = 50 = 30. |
+| BR-112 | **B03 (14 accounts), direct:** receipts 4000 / 4100 / 1100 (row 01); payments to suppliers and for expenses 2000 / 1200 / 5000 / 5100 (02); to employees 5200 / 2100 (03); taxes 2200 (05); investing 1500 (21 / 22); financing 3000 (31 / 32) and 3100 (36); other operating movements fall back to 06 / 07. **Indirect:** profit before tax, changes of 1100, 1200 and of payables 2000 + 2100 + 2200, then the direct investing and financing rows; the operating total must still equal the direct one (BR-100). |
+| BR-113 | Every account of the 14-account chart is on B01 or B02 (a test checks it). The notes of each layout say it is a simplification and which chart it was written for. |
+
+### 6.16 Off-balance accounts and register (P1-2i)
+| ID | Rule |
+|---|---|
+| BR-114 | **Outside the double entry.** Class 0 accounts (type OffBalance) are never used in a journal line, a posting key or an automatic posting: the system refuses it with a message pointing to the register. Therefore no trial balance, closing, statement or cash-flow figure can be affected by them. |
+| BR-115 | A register entry has an off-balance account (001 – 008, active), a direction **In** (raises the balance) or **Out** (lowers it), an amount **above 0**, a date (default today), an optional description and reference. The normal balance of all class 0 accounts is debit. |
+| BR-116 | **Period lock.** If a fiscal period contains the entry date and is **closed**, recording or voiding in it is refused; a date outside every period is accepted. |
+| BR-117 | **Void.** Needs a reason, works only on a posted entry and once; a voided entry never counts. There is no edit: correct by voiding and re-entering. |
+| BR-118 | **Report.** For a range: opening = all posted entries dated before the range (In minus Out); In and Out = posted entries inside the range; closing = opening + In − Out. An account with no opening, In, Out or closing is left out; a **negative closing** is flagged and noted. The range is by entry date (inclusive). |
+| BR-119 | The register uses the journal permissions: `accounting:journals:view` (read) and `accounting:journals:manage` (record, void); the report needs `accounting:reports:view`. |
+
+*Worked example.* Account 001 *Tài sản thuê ngoài*: 10 Nov In 1,000 (a rented forklift); 20 Nov Out 300 (part returned). November: opening 0, In 1,000, Out 300, closing 700. December: opening 700, no movement, closing 700. Voiding the 1,000 entry leaves an Out of 300 → closing −300, flagged negative.
+
+### 6.17 Loans and the split of borrowings (P1-2i)
+| ID | Rule |
+|---|---|
+| BR-120 | A loan has a unique number (per tenant), a lender, a principal above 0, an interest rate (information only: no interest is accrued or posted from it) and a start date. |
+| BR-121 | **Schedule.** Installments (due date, principal, interest) must have principals adding up to the loan principal (±0.01), each above 0, each due **after** the start date. With no schedule the loan is one installment of the whole principal on its maturity date. |
+| BR-122 | **Repayment.** An installment is repaid once, with a date (default today) that is not before the start; the loan becomes Repaid when all installments are repaid; nothing can be recorded on a Cancelled or Repaid loan. |
+| BR-123 | **Cancel.** Only an Active loan **without any repayment**, with a reason. A cancelled loan owes nothing at any date. |
+| BR-124 | **Outstanding at a date D** = principal of the installments not repaid on or before D, for loans started on or before D, not cancelled. **Long-term part** = outstanding installments due **later than D + 12 months**. Both are exact for any past date because each repayment keeps its date. |
+| BR-125 | **B01.** The long-term part of all loans, capped by the credit balance of 341, is taken out of row 320 (short-term borrowings = 341 − long-term part) and added to row 338 (long-term borrowings = 343 + long-term part). No total changes. A loan not yet booked in the ledger (341 too small) is cut to the ledger. |
+| BR-126 | Drawing the money, repaying principal and paying interest are **journal entries** (the platform posts nothing from the loan ledger). Permissions reuse `accounting:bank:view` / `accounting:bank:manage`. |
+
+*Worked example (start 1 Oct 2026, 341 = 2,000).* Installments: 500 due 30 Jun 2027, 700 due 31 Mar 2028, 800 due 31 Mar 2029. As of **30 Nov 2026** the limit is 30 Nov 2027: 700 and 800 are later → long-term 1,500, short-term 500 (row 320 = 500, row 338 = 1,500). As of **31 Mar 2027** the limit is 31 Mar 2028: the 700 installment is due exactly then → still short-term, only 800 is long-term (row 320 = 1,200, row 338 = 800). After the first installment is repaid on 1 Dec 2026, B01 of 30 Nov 2026 still shows it as owed; B01 of 31 Dec 2026 does not.
+
+### 6.18 The notes B09-DN (P1-2i)
+| ID | Rule |
+|---|---|
+| BR-127 | **Two kinds of content.** *Written by the accountant:* sections I (general), III (standards), IV.1 … IV.8 (policies: cash, receivables, inventory, fixed assets, provisions, revenue and expenses, tax, foreign currency), VII (non-cash transactions), VIII.1 (events after the period), VIII.2 (other). *Generated:* II (period, fiscal-year end from the closing policy, currency, unit), the company block at the top of I, and every table V.1 … V.12, VI.1, VI.2. A section without text shows its hint, not a blank. |
+| BR-128 | **Movement table** (V.1, V.2, V.3, V.4, V.5, V.6, V.7, V.8, V.9, V.11): per account, on the group's natural side (debit for assets, credit for liabilities and equity): opening = balance the day before the range; increase and decrease = debit / credit activity of the range **including closing entries**; closing = balance at the end of the range; one subtotal per group. Accounts with nothing to show are left out; a table with no rows prints "no data" instead of an empty frame. |
+| BR-129 | **Fixed assets (V.4):** cost (211, 212, 213, 217) and accumulated depreciation (214, credit-normal, shown as a positive amount) are two groups; **net book value = cost − depreciation** in the opening and the closing columns, and equals B01 row 220 (14-account chart: 1500 only). |
+| BR-130 | **Trade items (V.2, V.7)** carry a memo row "of which due after 12 months" from the maturity split (BR-103 … 107). **Borrowings (V.10)** come from the **loan ledger**: per active loan its principal, the outstanding amount at the end of the range, the part due within 12 months and the part due later, a total, and the ledger balance of 341 as a control row. |
+| BR-131 | **Revenue and expenses (VI.1, VI.2)** use the activity **without** closing entries (as B02): revenue 511, 512, 515, 711; costs 521, 632, 635, 641, 642, 811, 821 (14-account chart: 4000 + 4100; 5000 + 5100 + 5200). **V.12 off-balance** is the register report (BR-118) in the unit. |
+| BR-132 | **Unit and rounding.** Every amount is rounded **row by row** in the chosen unit (BR-80 … 83); a subtotal adds the rounded rows; a row can differ by a unit from opening + increase − decrease (the note says so). The header and the signatories come from the report profile; the layout is a **draft** for the accountant's review. |
+| BR-133 | **Texts.** One text per section key per tenant; trimmed; at most 4,000 characters; an empty text clears it; a key that is not a note section is refused. Reading needs `accounting:reports:view`, saving needs `accounting:accounts:manage` (as the report profile). Texts are not versioned and are reused in every period. |
+
 ### 6.14 Short- / long-term split of trade receivables and payables (P1-2h)
 | ID | Rule |
 |---|---|
@@ -503,6 +601,31 @@ Direct method: received from customers 600, paid to suppliers 200, wages 400, in
 *Alternative flows:* A1 — pick another unit for one look without changing the profile: use the *Unit* selector of the tab (it sends `unit`). A2 — leave texts empty: those lines are not printed.
 *Exceptions:* a text above its limit or an unknown unit → refused with the reason (400); no permission → 403 (the fields are read-only on screen). *Post:* only the presentation of later reports changes; no amount in the books changes.
 
+### UC-18 Prepare and read the notes B09-DN
+*Actor:* accountant / chief accountant (read: `accounting:reports:view`; texts: `accounting:accounts:manage`). *Pre:* the report profile is filled in (company block, signatories, unit); loans are registered; off-balance movements are recorded.
+*Main flow:* 1. Reports → **B09** → open "Edit the texts" → write the policies and the other texts → Save → 2. enter the period (from, to) and optionally the unit → 3. read sections I … VIII: the figures are generated, the written parts show your texts and, where empty, a hint → 4. compare V.1, V.2, V.4, V.7 with B01 (they agree) → 5. Export **PDF** (filing pack), Excel or CSV.
+*Alternative flows:* A1 — a tenant on the 14-account chart: only the tables its chart has are filled; a note says so. A2 — a table with no figures: the PDF prints "(Không phát sinh số liệu trong kỳ)". A3 — another unit: choose it in the selector; amounts are rounded row by row.
+*Exceptions:* from after to → 400; unknown unit → 400; a text over 4,000 characters or an unknown key → 400; no permission → 403 (the text fields are read-only).
+*Post:* nothing is written to the books; only the texts are saved.
+
+### UC-19 Record an off-balance movement
+*Actor:* accountant (`accounting:journals:manage`). *Pre:* the tenant has an off-balance account (001 – 008): they come with the Vietnamese chart; a tenant that already has entries creates the ones it needs with account type OffBalance.
+*Main flow:* **Off-balance register** → choose the account, direction In / Out, amount, date, description, reference → Add → the entry appears in the list; the report tab shows the account's balance.
+*Alternative flows:* A1 — a wrong entry: Void with a reason, enter the correct one. A2 — read the position: Reports → Off-balance (class 0) with the range.
+*Exceptions:* a non-off-balance account, an amount ≤ 0, an unknown direction → 400; the date in a closed fiscal period → 400; voiding twice or without a reason → 400.
+*Post:* no journal entry, no change to any financial statement; the balances appear in the notes (V.12).
+
+### UC-20 Register a loan and record its repayments
+*Actor:* accountant (`accounting:bank:manage`; reading `accounting:bank:view`). *Pre:* the loan agreement with its schedule.
+*Main flow:* 1. **Loans** → Register a loan: number, lender, start date, principal, rate and the schedule (one line per installment; the screen shows whether the principals add up) → Save → 2. book the drawing as a journal entry (Dr bank / Cr 341) → 3. on each repayment date: book the payment (Dr 341 / Cr bank, plus interest) and press **Mark repaid today** on the installment → 4. read B01 / B09: the borrowings are split by the schedule.
+*Alternative flows:* A1 — loan entered by mistake: **Cancel** with a reason while nothing is repaid. A2 — a loan with no schedule: give a maturity date only (API). A3 — the loan is not yet in the ledger: B01 shows at most what 341 holds.
+*Exceptions:* duplicate number, schedule not adding up, installment before the start, repaying twice, repaying a cancelled loan, cancelling after a repayment → 400 with the reason.
+*Post:* no journal entry is created by the loan ledger (see BR-126).
+
+### UC-21 Produce the statements for a tenant on the 14-account chart
+*Actor:* accountant. *Pre:* the tenant never applied the Vietnamese chart (accounts 1000 … 5200). *Main flow:* Reports → B01 / B02 / B03 (direct or indirect) as in UC-08 / UC-10 / UC-16 → the title shows "biểu đồ 14 tài khoản"; rows are filled; export as usual.
+*Alternative:* to get the full forms, apply the Vietnamese chart while the tenant has no journal entries, or add accounts and re-map the posting profile. *Note:* VAT, income tax, interest and depreciation lines do not exist in this chart.
+
 ### UC-17 Read the balance sheet B01 with the maturity split
 *Actor:* accountant / chief accountant (`accounting:reports:view`). *Pre:* open invoices carry due dates (they do: every invoice and bill is created with one); the tenant is on the Vietnamese chart.
 *Main flow:* 1. Reports → **B01** → date (and optional prior date, unit) → 2. read "III. Short-term receivables" (row 131) and "I. Long-term receivables" (row 211), "I. Short-term liabilities" (row 311) and "II. Long-term liabilities" (row 331) → 3. check "balanced" (270 = 440) → 4. read the notes → 5. export.
@@ -534,7 +657,7 @@ Direct method: received from customers 600, paid to suppliers 200, wages 400, in
 ### 8.1 Main entities
 | Entity | Key attributes | Notes |
 |---|---|---|
-| Account | number (≤ 20, unique per tenant), name, type (Asset, Liability, Equity, Revenue, Expense), normal balance (Debit, Credit), parent, level, active, control, **IsCash**, **CashFlowCategory** | VAS class = first digit of the number (derived). |
+| Account | number (≤ 20, unique per tenant), name, type (Asset, Liability, Equity, Revenue, Expense, **OffBalance**), normal balance (Debit, Credit), parent, level, active, control, **IsCash**, **CashFlowCategory** | VAS class = first digit of the number (derived). |
 | PostingAccountMapping | tenant, posting key, account | Unique per (tenant, key). |
 | JournalEntry | number, date, fiscal period, status, description, total debit / credit, reference type and id, source key, posted / voided audit fields | Source key unique per tenant. |
 | JournalLine | entry, account, debit, credit, description | One positive side. |
@@ -542,6 +665,9 @@ Direct method: received from customers 600, paid to suppliers 200, wages 400, in
 | Invoice | number, customer, order, amount, paid amount, status (Unpaid, Paid, Overdue, Cancelled) | `AmountPaid` goes down on refunds. |
 | Bill | number, supplier, purchase order, amount, status | Header only (no lines). |
 | **ReportProfile** (table `ReportProfiles`, migration `012_ReportProfile.sql`) | tenant (unique), company name (≤ 200), tax code (≤ 20), address, prepared by, chief accountant, director (each ≤ 300), amount unit (1 VND, 2 thousand, 3 million) | One row per tenant; no row = empty texts and VND. |
+| **OffBalanceEntry** (table `OffBalanceEntries`, migration `013_OffBalance.sql`) | tenant, off-balance account, entry date, direction (1 In, 2 Out), amount (> 0), description, reference, status (1 Posted, 2 Voided), void reason and time | Register of the class 0 accounts; no journal lines. |
+| **Loan** (tables `Loans` and `LoanInstallments`, migration `014_Loans.sql`) | tenant, number (unique per tenant), lender, principal, interest rate %, start date, status (1 Active, 2 Repaid, 3 Cancelled), cancel reason, notes; installments: due date, principal, interest, **repaid on** | The schedule and the repayment dates give the exact outstanding amount for any date. |
+| **NoteText** (table `NoteTexts`, migration `015_NoteTexts.sql`) | tenant, section key, text (≤ 4,000) | One row per tenant and key; the figures of the notes are not stored. |
 | **ClosingPolicy** (table `ClosingPolicies`, migration `011_ClosingPolicy.sql`) | tenant (unique), closing mode (1 Monthly, 2 YearEnd), fiscal-year end month (1 … 12) | One row per tenant; no row = Monthly / December. Checked by database constraints. |
 
 ### 8.2 Posting keys and default accounts
@@ -550,6 +676,7 @@ PayrollWithholdingsPayable, SalesReturns, IncomeSummary, RetainedEarnings`. The 
 
 ### 8.3 State models
 - **Fiscal period:** Open → (close) → Closed → (reopen, latest only) → Open. Whether *close* writes an entry depends on the policy: Monthly — always; YearEnd — only the last period of the year.
+- **Loan:** Active → Repaid (all installments repaid) | Cancelled (only without repayments). **Installment:** outstanding → repaid on a date. **Off-balance entry:** Posted → Voided.
 - **Closing policy:** (none) = Monthly/December → set (Monthly ⇄ YearEnd, any month) — a change is allowed only when no year is partly closed (BR-75).
 - **Journal entry:** Posted → Reversed (by reverse) / Voided (by void or reopen of a closing entry).
 - **Invoice:** Unpaid → Paid (covered) → Unpaid again (refund lowers the paid amount); any → Cancelled (order cancelled).
@@ -590,6 +717,9 @@ so they arrive in order. Events without a tenant are dropped.
 | **B03-DN** (`statements/cash-flow`) | dates, optional prior range | Indicator code, name, amount (outflows negative), prior amount; unmapped movements; balanced flag; notes | 70 = closing cash on the books |
 | Closing policy (`fiscal-periods/closing-policy`) | — | Mode, fiscal-year end month | — |
 | Report profile (`accounting/reports/profile`) | — | Company block, signatories, default unit | — |
+| Off-balance register (`accounting/off-balance`, report `reports/off-balance`) | list: account, dates; report: range | Entries; per account opening, In, Out, closing, negative flag | closing = opening + In − Out |
+| Loans (`accounting/loans`) | — | Loans with schedule, outstanding, due within 12 months and later | principals add up to the principal |
+| **B09-DN** (`reports/statements/notes`, texts `reports/notes/text`) | range, optional unit | Numbered sections with text and / or tables (V.1 … V.12, VI.1, VI.2 from the books) | V.1 = B01 row 110; V.2 = rows 131 + 211; V.4 net = row 220 |
 B01 / B02 / B03 take an optional `unit` (`vnd`, `thousand`, `million`) and answer with `unit`, `unitDivisor` and `header`.
 All reports accept `format=csv` and `format=xlsx`.
 
@@ -629,7 +759,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 | UAT-11 | When 400 of a 1,000 payment is refunded and the gateway confirms, then Dr receivables / Cr bank 400 and the invoice's paid amount is 600; an over-refund is refused. | FR-11 | Passed |
 | UAT-12 | When a return of 1,000 is completed and the remaining 600 is refunded, then receivables of the order net to 0. | FR-12 | Passed |
 | UAT-13 | When the gateway declines a refund, then no refund event and no entry exist. | FR-11 | Unit test only |
-| UAT-14 | Given a tenant with entries, when a template is applied, then it is refused; given a clean tenant, then 109 accounts and 17 posting keys are created. | FR-23 | Passed |
+| UAT-14 | Given a tenant with entries, when a template is applied, then it is refused; given a clean tenant, then the template's accounts (now including the six off-balance accounts 001 – 008) and 17 posting keys are created. | FR-23 | Passed |
 | UAT-15 | When a manual entry uses parent account 111, then it is refused; on its sub-account 1111 it is accepted. | FR-21 | Passed |
 | UAT-16 | When a hand-written entry is voided, then it disappears from the reports; reversing another at 20 Oct posts the mirror entry on that date. | FR-30, FR-31 | Passed |
 | UAT-17 | When October (revenue 1,900, expenses 600) is closed, then one closing entry moves 1,300 to retained earnings, the profit and loss still shows 1,300 and the balance sheet balances. | FR-34, FR-43 | Passed |
@@ -683,6 +813,10 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 | Any report (incl. B03, both methods) and CSV / Excel export; PDF of B01 / B02 / B03 | | | | view | |
 | View the report profile | | | | view | |
 | Change the report profile (header, signatories, unit) | manage | | | | |
+| Write the texts of the notes B09 | manage | | | | |
+| View off-balance register, loans | | view (register) | | | `accounting:bank:view` (loans) |
+| Record / void off-balance entries | | manage | | | |
+| Register / repay / cancel a loan | | | | | `accounting:bank:manage` |
 | Pay / cancel a pay slip | | | | | `hrm:payroll:manage` |
 | Refund a payment | | | | | `payments:refund` |
 | Complete a return | | | | | `sales_order:approve` |
@@ -695,6 +829,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 2. The Vietnamese chart and the statement layouts are **suggested drafts** based on Circular 200's numbering (largely kept by Circular 99/2025/TT-BTC); the accountant reviews them before real use.
 3. The SYSTEM tenant and the demo data stay on the 14-account chart.
 4. Fiscal periods are normally months and are opened by the accountant (or automatically for posting); closing is monthly unless the tenant chose YearEnd. The fiscal year is the twelve months ending in the policy's year-end month; periods of one year are assumed to be contiguous.
+4f. The 14-account layouts are a simplification (no VAT, income tax, interest, depreciation or foreign-currency accounts). Off-balance accounts exist only in the Vietnamese template: a tenant that already has entries (so cannot apply a template) creates the accounts it needs with type OffBalance. Loans are information for the statements: the platform does not post drawing, repayment or interest from them. The notes' tables follow the Circular 200 form and the account prefixes of each chart; the accountant reviews wording and structure before filing.
 4e. Due dates are those on the invoice or bill; the order's payment terms and instalment plans are not modelled. Trade items only (131, 331): receivables from other parties (138, 141, 244) keep the account-based classification; the 12-month threshold is fixed.
 4d. The indirect statement relies on the account prefixes of the Vietnamese chart (BR-101); balance changes are measured between the day before the range and its end; depreciation and provisions are measured by the change of their balance sheet accounts, not by the expense; non-cash transactions are not separated (no "non-cash investing and financing" note — part of B09).
 4c. The PDF is A4 portrait with one embedded font (Noto Sans, OFL); the statements are the only reports with a PDF; no digital signature, no PDF/A; the file is generated on demand and not stored.
@@ -709,7 +844,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 
 Full list with owners and impact: [DEFERRED-ISSUES.md](../../DEFERRED-ISSUES.md). The business-relevant ones:
 VAT split and e-invoice (P1-3); foreign currency and bank reconciliation (P1-4); restocking of returned goods and reversing their cost, and triggering the refund from a return (P1-5); real payroll with insurance, personal income tax and employer
-contributions (P1-7); B09 notes, off-balance (class 0) accounts, layouts for charts other than `Vas99`, a loan ledger with due dates, payment history for as-of reporting (P1-2i); PDF of the other reports, digital signature / PDF-A, other paper sizes (DEFERRED W1);
+contributions (P1-7); payment history for as-of reporting, a posting link for loans (drawing, repayment, accrued interest), layouts for a tenant's own chart, notes in English and the notes' non-cash-transaction table generated from the books (P1-2j); PDF of the other reports, digital signature / PDF-A, other paper sizes (DEFERRED W1);
 no automatic back-posting of documents that were saved without an entry; accountant review of the Vietnamese chart and the B01 / B02 / B03 layouts.
 Open questions for the chief accountant: (1) is the B03 row mapping right for the company's usual transactions (VAT paid, withholdings, deposits)? (2) does the company want the fiscal year to end in December? (3) should a year-end preview
 (what would be closed) be shown before closing December?
@@ -729,6 +864,7 @@ Open questions for the chief accountant: (1) is the B03 row mapping right for th
 | P1-2b ledger, trial balance, cash flow | 2026-10-24 | FR-24, 40, 41, 44; BR-50 … 52 | Reports.md | `LedgerAndTrialBalanceTests`, `CashFlowTests` |
 | P1-2c B01 / B02, CSV | 2026-10-24 | FR-45, 46; BR-60 … 63 | Reports.md | `StatementTests`, `StatementHandlerAndCsvTests` |
 | BA baseline (this document) | 2026-10-24 | All | — | — |
+| P1-2i 14-account layouts, off-balance, loans, B09 | 2026-10-25 | FR-75 … 85; BR-109 … 133; UC-18 … 21; UAT-62 … 74 | Reports.md, ChartOfAccounts.md | `Simple14LayoutTests`, `OffBalanceTests`, `LoanLedgerTests`, `NotesTests`, `LiveSchemaDriftTests` (migrations 013 – 015) |
 | P1-2h maturity split on B01 | 2026-10-25 | FR-71 … 74; BR-103 … 108; UC-17; UAT-56 … 61 | Reports.md | `MaturitySplitTests` (12 tests) + live scenario on `glcheck` |
 | P1-2g B03 indirect method | 2026-10-25 | FR-67 … 70; BR-94 … 102; UC-16; UAT-51 … 55 | Reports.md | `IndirectCashFlowTests` (16 tests incl. the direct-vs-indirect reconciliation) |
 | P1-2f PDF export of B01 / B02 / B03 | 2026-10-25 | FR-63 … 66; BR-87 … 93; UC-15; UAT-46 … 50 | Reports.md | `PdfWriterTests` (11 tests) + live render check |

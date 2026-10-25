@@ -114,6 +114,8 @@
     "accountingInvoices": "Hóa đơn",
     "accountingBills": "Hóa đơn mua",
     "accountingFiscalPeriods": "Kỳ kế toán",
+    "accountingOffBalance": "Sổ ngoài bảng",
+    "accountingLoans": "Khoản vay",
     "accountingTaxRates": "Thuế suất",
     "accountingBankAccounts": "Tài khoản ngân hàng",
     "accountingReports": "Báo cáo Kế toán",
@@ -1729,6 +1731,24 @@
       "cashFlowCategory": "Nhóm dòng tiền",
       "cashFlowDefault": "Mặc định"
     },
+    "loans": {
+      "title": "Khoản vay",
+      "hint": "Các khoản vay cùng lịch trả nợ. Bảng cân đối kế toán tách phần đến hạn sau 12 tháng thành vay dài hạn. Giải ngân và trả nợ vẫn ghi bằng bút toán; sổ này cung cấp kỳ hạn thật cho B01.",
+      "add": "Đăng ký khoản vay", "loanNumber": "Số khoản vay", "lender": "Bên cho vay", "startDate": "Ngày bắt đầu", "principal": "Gốc", "rate": "Lãi suất (%/năm)",
+      "notes": "Ghi chú", "schedule": "Lịch trả nợ (gốc phải trả mỗi kỳ)", "interest": "Lãi", "addInstallment": "Thêm kỳ trả",
+      "scheduleTotal": "Lịch trả {{total}} / gốc {{principal}}", "outstanding": "Dư nợ", "within12": "Đến hạn trong 12 tháng", "later": "Đến hạn sau đó",
+      "cancel": "Hủy", "cancelTitle": "Hủy khoản vay", "dueDate": "Ngày đến hạn", "paidOn": "Đã trả ngày", "repay": "Đánh dấu đã trả hôm nay",
+      "failed": "Không lưu được khoản vay."
+    },
+    "offBalance": {
+      "title": "Sổ theo dõi ngoài bảng",
+      "tab": "Ngoài bảng (loại 0)",
+      "hint": "Các tài khoản 001 – 008 (tài sản thuê ngoài, hàng giữ hộ, ngoại tệ …) không ghi sổ kép: ghi từng biến động tại đây. Chúng không nằm trong bảng cân đối kế toán.",
+      "account": "Tài khoản", "direction": "Chiều", "dirIn": "Tăng", "dirOut": "Giảm", "amount": "Số tiền", "date": "Ngày",
+      "description": "Diễn giải", "reference": "Chứng từ", "add": "Thêm", "void": "Hủy", "voidTitle": "Hủy bút toán ngoài bảng",
+      "filterAccount": "Tài khoản", "allAccounts": "Tất cả tài khoản", "opening": "Đầu kỳ", "closing": "Cuối kỳ",
+      "failed": "Không lưu được bút toán ngoài bảng."
+    },
     "fiscalPeriods": {
       "title": "Kỳ kế toán",
       "add": "Mở kỳ kế toán",
@@ -1824,6 +1844,10 @@
       "tabB03": "B03 Lưu chuyển tiền tệ",
       "exportExcel": "Xuất Excel",
       "exportPdf": "Xuất PDF",
+      "tabB09": "B09 Thuyết minh BCTC",
+      "notesEdit": "Soạn nội dung thuyết minh (chính sách kế toán, chuẩn mực …)",
+      "notesEmpty": "Chưa có nội dung",
+      "notesFailed": "Không lưu được nội dung thuyết minh.",
       "method": "Phương pháp",
       "methodDirect": "Trực tiếp",
       "methodIndirect": "Gián tiếp",

@@ -1,0 +1,155 @@
+using ERP.ACC.Domain.Enums;
+using ERP.Shared.Core.Domain;
+
+namespace ERP.ACC.Domain.Entities
+{
+    /// <summary>One repayment of a loan: the principal due on a date and, once repaid, the date it was paid.</summary>
+    public class LoanInstallment : AggregateRoot
+    {
+        public Guid LoanId { get; private set; }
+        public DateTime DueDate { get; private set; }
+        public decimal PrincipalAmount { get; private set; }
+        public decimal InterestAmount { get; private set; }
+
+        /// <summary>The day the principal was repaid; null while it is outstanding.</summary>
+        public DateTime? PaidOn { get; private set; }
+
+        private LoanInstallment() { }
+
+        internal static LoanInstallment Create(Guid loanId, DateTime dueDate, decimal principal, decimal interest) => new()
+        {
+            Id = Guid.NewGuid(),
+            LoanId = loanId,
+            DueDate = dueDate.Date,
+            PrincipalAmount = Math.Round(principal, 2),
+            InterestAmount = Math.Round(interest, 2),
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        internal void MarkPaid(DateTime paidOn)
+        {
+            PaidOn = paidOn.Date;
+            UpdatedAt = DateTime.UtcNow;
+        }
+    }
+
+    /// <summary>
+    /// A borrowing with its repayment schedule (ROADMAP P1-2i). The schedule gives B01 the real due dates, and because each repayment is stored with the date
+    /// it was made, the amount outstanding — and the part due after 12 months — is exact for any past date, unlike invoices. The notes are
+    /// <see cref="BaseEntity.Description"/>. Drawing the loan and repaying it are still booked as journal entries; the ledger caps what B01 takes from here.
+    /// </summary>
+    public class Loan : AggregateRoot
+    {
+        public string LoanNumber { get; private set; } = string.Empty;
+        public string Lender { get; private set; } = string.Empty;
+        public decimal Principal { get; private set; }
+
+        /// <summary>Annual rate in percent; information only (no interest is accrued or posted from it).</summary>
+        public decimal InterestRatePercent { get; private set; }
+        public DateTime StartDate { get; private set; }
+        public int Status { get; private set; } = (int)LoanStatus.Active;
+        public string? CancelReason { get; private set; }
+        public List<LoanInstallment> Installments { get; private set; } = new();
+
+        private Loan() { }
+
+        /// <summary>
+        /// The schedule is a list of (due date, principal, interest); its principals must add up to the loan principal and fall after the start date.
+        /// A loan with no schedule is one installment of the whole principal on <paramref name="maturityDate"/>.
+        /// </summary>
+        public static Loan Create(
+            string loanNumber, string lender, decimal principal, decimal interestRatePercent, DateTime startDate,
+            IEnumerable<(DateTime DueDate, decimal Principal, decimal Interest)>? schedule, DateTime? maturityDate, string? notes)
+        {
+            if (string.IsNullOrWhiteSpace(loanNumber))
+                throw new ArgumentException("A loan needs a number.", nameof(loanNumber));
+            if (string.IsNullOrWhiteSpace(lender))
+                throw new ArgumentException("A loan needs a lender.", nameof(lender));
+            if (principal <= 0m)
+                throw new ArgumentException("The principal must be greater than 0.", nameof(principal));
+            if (interestRatePercent < 0m)
+                throw new ArgumentException("The interest rate cannot be negative.", nameof(interestRatePercent));
+
+            var loan = new Loan
+            {
+                Id = Guid.NewGuid(),
+                LoanNumber = loanNumber.Trim(),
+                Lender = lender.Trim(),
+                Principal = Math.Round(principal, 2),
+                InterestRatePercent = interestRatePercent,
+                StartDate = startDate.Date,
+                Description = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
+                CreatedAt = DateTime.UtcNow,
+            };
+
+            var lines = schedule?.ToList() ?? new List<(DateTime, decimal, decimal)>();
+            if (lines.Count == 0)
+            {
+                if (!maturityDate.HasValue)
+                    throw new ArgumentException("A loan needs a repayment schedule or a maturity date.", nameof(schedule));
+                lines.Add((maturityDate.Value, principal, 0m));
+            }
+
+            if (lines.Any(l => l.Item2 <= 0m || l.Item3 < 0m))
+                throw new ArgumentException("Each installment needs a principal above 0 and an interest of 0 or more.", nameof(schedule));
+            if (lines.Any(l => l.Item1.Date <= loan.StartDate))
+                throw new ArgumentException("Every due date must be after the start date.", nameof(schedule));
+            if (Math.Abs(lines.Sum(l => l.Item2) - principal) > 0.01m)
+                throw new ArgumentException($"The installments' principal ({lines.Sum(l => l.Item2)}) must add up to the loan principal ({principal}).", nameof(schedule));
+
+            foreach (var (due, p, i) in lines.OrderBy(l => l.Item1))
+                loan.Installments.Add(LoanInstallment.Create(loan.Id, due, p, i));
+            return loan;
+        }
+
+        public LoanInstallment RecordRepayment(Guid installmentId, DateTime paidOn)
+        {
+            if (Status != (int)LoanStatus.Active)
+                throw new InvalidOperationException($"Loan {LoanNumber} is {(LoanStatus)Status}: no repayment can be recorded.");
+            var installment = Installments.FirstOrDefault(i => i.Id == installmentId)
+                ?? throw new InvalidOperationException("The installment does not belong to this loan.");
+            if (installment.PaidOn.HasValue)
+                throw new InvalidOperationException($"The installment due {installment.DueDate:yyyy-MM-dd} is already repaid.");
+            if (paidOn.Date < StartDate)
+                throw new ArgumentException("A repayment cannot be dated before the loan started.", nameof(paidOn));
+
+            installment.MarkPaid(paidOn);
+            if (Installments.All(i => i.PaidOn.HasValue))
+                Status = (int)LoanStatus.Repaid;
+            UpdatedAt = DateTime.UtcNow;
+            return installment;
+        }
+
+        /// <summary>A loan entered by mistake can be cancelled while nothing has been repaid.</summary>
+        public void Cancel(string reason)
+        {
+            if (Status != (int)LoanStatus.Active)
+                throw new InvalidOperationException($"Loan {LoanNumber} is {(LoanStatus)Status} and cannot be cancelled.");
+            if (Installments.Any(i => i.PaidOn.HasValue))
+                throw new InvalidOperationException("A loan with repayments cannot be cancelled.");
+            if (string.IsNullOrWhiteSpace(reason))
+                throw new ArgumentException("A reason is required to cancel a loan.", nameof(reason));
+
+            Status = (int)LoanStatus.Cancelled;
+            CancelReason = reason.Trim();
+            UpdatedAt = DateTime.UtcNow;
+        }
+
+        /// <summary>Principal still owed on <paramref name="date"/>: the installments not repaid on or before it, once the loan had started; nothing for a cancelled loan.</summary>
+        public decimal OutstandingAt(DateTime date) => InstallmentsOutstandingAt(date).Sum(i => i.PrincipalAmount);
+
+        /// <summary>The part of <see cref="OutstandingAt"/> due later than <paramref name="date"/> + 12 months (long-term).</summary>
+        public decimal LongTermAt(DateTime date)
+        {
+            var limit = date.Date.AddMonths(12);
+            return InstallmentsOutstandingAt(date).Where(i => i.DueDate > limit).Sum(i => i.PrincipalAmount);
+        }
+
+        public IEnumerable<LoanInstallment> InstallmentsOutstandingAt(DateTime date)
+        {
+            if (Status == (int)LoanStatus.Cancelled || StartDate > date.Date)
+                return Enumerable.Empty<LoanInstallment>();
+            return Installments.Where(i => !i.PaidOn.HasValue || i.PaidOn.Value > date.Date);
+        }
+    }
+}

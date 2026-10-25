@@ -133,8 +133,8 @@ public class MaturitySplitTests
         Row(after, "300").Should().Be(Row(before, "300"));
         Row(after, "440").Should().Be(Row(before, "440"));
         after.IsBalanced.Should().BeTrue();
-        after.Notes.Should().Contain(n => n.StartsWith("Trade receivables and payables due after"));
-        before.Notes.Should().NotContain(n => n.StartsWith("Trade receivables and payables due after"));
+        after.Notes.Should().Contain(n => n.StartsWith("Trade receivables, trade payables and borrowings due after"));
+        before.Notes.Should().NotContain(n => n.StartsWith("Trade receivables, trade payables and borrowings due after"));
     }
 
     [Fact]
@@ -188,7 +188,9 @@ public class MaturitySplitTests
         inv.Setup(r => r.GetUnpaidInvoicesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(invoices.ToList());
         var bl = new Mock<IBillRepository>();
         bl.Setup(r => r.GetUnpaidBillsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(bills.ToList());
-        return new GetBalanceSheetStatementQueryHandler(accounts.Object, lines.Object, new Mock<IReportProfileRepository>().Object, inv.Object, bl.Object);
+        var ln = new Mock<ILoanRepository>();
+        ln.Setup(r => r.ListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Loan>());
+        return new GetBalanceSheetStatementQueryHandler(accounts.Object, lines.Object, new Mock<IReportProfileRepository>().Object, inv.Object, bl.Object, ln.Object);
     }
 
     [Fact]
@@ -228,6 +230,6 @@ public class MaturitySplitTests
 
         Row(s, "131").Should().Be(1000m);
         Row(s, "211").Should().Be(0m);
-        s.Notes.Should().NotContain(n => n.StartsWith("The date is in the past")).And.NotContain(n => n.StartsWith("Trade receivables and payables due after"));
+        s.Notes.Should().NotContain(n => n.StartsWith("The date is in the past")).And.NotContain(n => n.StartsWith("Trade receivables, trade payables and borrowings due after"));
     }
 }

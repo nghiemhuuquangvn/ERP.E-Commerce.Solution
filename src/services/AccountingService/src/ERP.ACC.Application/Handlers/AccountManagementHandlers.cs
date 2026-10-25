@@ -17,6 +17,8 @@ namespace ERP.ACC.Application.Handlers
 
         public static void EnsurePostable(Account account, HashSet<Guid> parentIds)
         {
+            if (account.AccountType == (int)ERP.ACC.Domain.Enums.AccountType.OffBalance)
+                throw new BusinessRuleException("Accounting", $"Account {account.AccountNumber} is an off-balance account: it has no double entry. Record its movements in the off-balance register (accounting/off-balance).");
             if (!account.IsActive)
                 throw new BusinessRuleException("Accounting", $"Account {account.AccountNumber} is inactive and takes no postings.");
             if (parentIds.Contains(account.Id))
