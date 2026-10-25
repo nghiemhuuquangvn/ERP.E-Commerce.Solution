@@ -187,7 +187,7 @@ Verified on the local Docker stack on 2026-10-24 (SYSTEM tenant) unless marked u
 | UAT-POS-01 | A sale of 2 × 100, discount 20, tax 20, paid cash 100 + card 100 → *Dr 1000 100 + 100 / Cr 4000 180 / Cr 2200 20*. | POS-FR-01 | Passed |
 | UAT-POS-02 | A voided cash sale → the entry is Reversed and a reversal entry exists. | POS-FR-03 | Passed |
 | UAT-POS-03 | A shift with float 100, a cash sale 100, counted 195 → expected 200, variance −5 → *Dr 5100 / Cr 1000 5*. | POS-FR-05 | Passed |
-| UAT-POS-04 | A sale then its void use the same key; the void is never processed first. | POS-FR-06 | Passed (live ordering) |
+| UAT-POS-04 | A sale then its void use the same key; the void is never processed first. | POS-FR-06 | Fixed by keying on the transaction / shift id; the ordering was not reproduced live |
 | UAT-POS-05 | Shift totals after a void: 200 / 1 sale. | POS-FR-04 | Passed |
 | UAT-POS-06 | Tender total ≠ total, empty cart, discount above subtotal are refused. | POS-FR-02 | Unit test |
 

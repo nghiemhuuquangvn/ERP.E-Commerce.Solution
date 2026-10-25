@@ -36,6 +36,9 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-25 — BA documentation for the other domains (`docs/ba-other-domains`, unmerged)
+- Five BA-level documents written afterwards for work done before rule 10, same structure as BA-Accounting (objectives, actors, glossary, processes, FR with acceptance criteria, BR, use cases, data and states, integrations, permissions, UAT with real results, assumptions, open issues, traceability): `Warehouse/BA-Warehouse.md` (P1-1b), `POS/BA-POS.md` (P1-1c), `HRM/BA-Payslip-Lifecycle.md` (P1-1d), `Payment/BA-Refunds-and-Returns.md` (P1-1e, Payment + Sales), `Identity/BA-Authentication-Hardening.md` (P0-7, P0-8). UAT results are copied from the verified runs of those tasks; items covered by unit tests only say so. No code change.
+
 ### 2026-10-25 — ROADMAP P1-2h: B01 maturity split (`feat/b01-maturity`, unmerged)
 - B01 splits trade receivables (131 → rows 131 / 211, new group 210) and payables (331 → rows 311 / 331) by the due date of open invoices and approved bills (`MaturitySplit`, 12-month rule, capped by the ledger, totals unchanged); note on past dates. `StatementEngine` got a `StatementMaturity` input; the B01 handler reads the open documents. No schema change.
 - Verified live on `glcheck` with throw-away invoices / bills / a payables entry: 131 1,500 → 600 + 211 900; 311 1,000 + 331 400 (as of 30 Nov); 270 = 440; pdf / xlsx / csv 200; test data removed. Tests: ACC 255 (12 new), Architecture 53/54 (known), no frontend change.

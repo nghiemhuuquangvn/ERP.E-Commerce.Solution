@@ -222,7 +222,7 @@ Verified on the local Docker stack on 2026-10-23 unless marked unit test.
 | UAT-IDN-05 | The delivered code shows `[redacted]` in the outbox while Notification still got it. | IDN-FR-11 | Passed |
 | UAT-IDN-06 | A webhook secret is stored as `enc:v1:` and survives an update without a secret. | IDN-FR-12 | Passed |
 | UAT-IDN-07 | The 31st sign-in request in a minute is 429, even with a rotating `X-Forwarded-For`. | IDN-FR-13 | Passed |
-| UAT-IDN-08 | Different client addresses get separate failed-login windows. | IDN-FR-14 | Passed |
+| UAT-IDN-08 | The client address is the real one behind the two proxies (`TrustedHops` 2), so the per-IP limits are no longer shared by all users. | IDN-FR-14 | Passed (the 429 test with a rotating `X-Forwarded-For` is UAT-IDN-07); separate failed-login windows per user were not measured separately |
 | UAT-IDN-09 | Identity Swagger returns 404 outside Development. | IDN-FR-15 | Passed |
 
 ---
