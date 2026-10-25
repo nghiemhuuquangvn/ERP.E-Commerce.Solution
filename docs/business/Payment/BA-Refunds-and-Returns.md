@@ -229,5 +229,5 @@ Verified on the local Docker stack on 2026-10-24 (SYSTEM tenant) unless marked u
 
 | Task | Date | Requirements | Technical documents | Main tests |
 |---|---|---|---|---|
-| P1-1e refunds and returns to the ledger | 2026-10-24 | PAY-FR-01 … 05; SO-FR-01 … 03; RF-BR-01 … 10 | AutoPosting.md, event-catalog | `RefundEventTests` (PAY 7, new project), `SalesOrderReturnTests` (SO), `RefundPostingTests` (ACC) |
+| P1-1e refunds and returns to the ledger | 2026-10-24 | PAY-FR-01 … 05; SO-FR-01 … 03; RF-BR-01 … 10 | AutoPosting.md, event-catalog | `RefundEventTests` (PAY 7, new project), `CompleteReturnTests` (SO), `RefundPostingTests` (ACC) |
 | BA baseline (this document) | 2026-10-25 | All | — | — |
