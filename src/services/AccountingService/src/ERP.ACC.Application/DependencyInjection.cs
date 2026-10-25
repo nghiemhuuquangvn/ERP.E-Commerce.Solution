@@ -16,6 +16,8 @@ namespace ERP.ACC.Application
 
             services.AddScoped<ERP.ACC.Application.Posting.IJournalPostingService, ERP.ACC.Application.Posting.JournalPostingService>();
 
+            services.AddScoped<ERP.ACC.Application.Interfaces.IVatPolicy, ERP.ACC.Application.Posting.VatPolicy>();
+
             return services;
         }
     }

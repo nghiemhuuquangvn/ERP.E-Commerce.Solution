@@ -121,7 +121,7 @@ namespace ERP.ACC.Application.EventHandlers
 
             await _posting.TryPostAsync(_logger,
                 PostingRules.ForSalesReturn(@event.OrderId, invoice.InvoiceNumber, @event.RefundAmount,
-                    @event.ReturnedAt == default ? DateTime.UtcNow : @event.ReturnedAt),
+                    @event.ReturnedAt == default ? DateTime.UtcNow : @event.ReturnedAt, invoice.TaxRatePercent),
                 cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
         }

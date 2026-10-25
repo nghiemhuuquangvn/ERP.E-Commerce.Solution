@@ -62,6 +62,21 @@ namespace ERP.ACC.API.Controllers
             return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
         }
 
+        public class AdjustVatRequest
+        {
+            public decimal TaxRatePercent { get; set; }
+        }
+
+        /// <summary>Re-splits the invoice's gross at another VAT rate and posts the difference (ROADMAP P1-3).</summary>
+        [HttpPost("{id:guid}/adjust-vat")]
+        public async Task<IActionResult> AdjustVat(Guid id, [FromBody] AdjustVatRequest request, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:invoices:manage"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(new AdjustInvoiceVatCommand { InvoiceId = id, TaxRatePercent = request.TaxRatePercent }, ct));
+        }
+
         [HttpPost("{id:guid}/mark-paid")]
         public async Task<IActionResult> MarkPaid(Guid id, CancellationToken ct)
         {

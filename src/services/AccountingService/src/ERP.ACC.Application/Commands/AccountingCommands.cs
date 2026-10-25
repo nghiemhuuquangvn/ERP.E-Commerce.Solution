@@ -44,8 +44,20 @@ namespace ERP.ACC.Application.Commands
         public string InvoiceNumber { get; set; } = string.Empty;
         public Guid CustomerId { get; set; }
         public Guid OrderId { get; set; }
+
+        /// <summary>The order total. With the tenant's "prices include tax" it is the gross; otherwise the net and VAT is added on top (ROADMAP P1-3).</summary>
         public decimal Amount { get; set; }
         public DateTime DueDate { get; set; }
+
+        /// <summary>Overrides the tenant's default VAT rate (percent) for this invoice; empty = the default.</summary>
+        public decimal? TaxRatePercent { get; set; }
+    }
+
+    /// <summary>Re-splits the invoice's gross at another VAT rate and posts the difference (Dr / Cr sales revenue against VAT output). The amount owed does not change.</summary>
+    public class AdjustInvoiceVatCommand : IRequest<InvoiceDto>
+    {
+        public Guid InvoiceId { get; set; }
+        public decimal TaxRatePercent { get; set; }
     }
 
     public class MarkInvoicePaidCommand : IRequest<InvoiceDto>
