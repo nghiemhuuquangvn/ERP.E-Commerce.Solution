@@ -115,6 +115,7 @@
     "accountingBills": "Bills",
     "accountingFiscalPeriods": "Fiscal Periods",
     "accountingOffBalance": "Off-balance Register",
+    "accountingLoans": "Loans",
     "accountingTaxRates": "Tax Rates",
     "accountingBankAccounts": "Bank Accounts",
     "accountingReports": "Accounting Reports",
@@ -1729,6 +1730,15 @@
       "isCash": "Cash or bank account",
       "cashFlowCategory": "Cash-flow category",
       "cashFlowDefault": "Default"
+    },
+    "loans": {
+      "title": "Loans",
+      "hint": "Borrowings with their repayment schedule. The balance sheet shows the part due after 12 months as long-term. Drawing and repaying the money is still booked as a journal entry; the ledger here gives B01 the real due dates.",
+      "add": "Register a loan", "loanNumber": "Loan number", "lender": "Lender", "startDate": "Start date", "principal": "Principal", "rate": "Interest rate (% a year)",
+      "notes": "Notes", "schedule": "Repayment schedule (principal due on each date)", "interest": "Interest", "addInstallment": "Add installment",
+      "scheduleTotal": "Schedule {{total}} of principal {{principal}}", "outstanding": "Outstanding", "within12": "Due within 12 months", "later": "Due later",
+      "cancel": "Cancel", "cancelTitle": "Cancel loan", "dueDate": "Due date", "paidOn": "Repaid on", "repay": "Mark repaid today",
+      "failed": "The loan could not be saved."
     },
     "offBalance": {
       "title": "Off-balance Register",
