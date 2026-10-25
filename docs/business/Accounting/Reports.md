@@ -89,6 +89,29 @@ total rows add the rounded rows so the form foots; `isBalanced` (270 = 440, 70 =
 The **report profile** (`GET/PUT accounting/reports/profile`, table `ReportProfiles`) holds the company name, tax code, address, the three signatories and the default unit; CSV and Excel print the company block above the title, the unit in the
 period line and the signatories below. Rules BR-80 … BR-86 and a worked example: [BA-Accounting.md](BA-Accounting.md) §6.10.
 
+## Statements for the 14-account chart (P1-2i)
+
+`StatementLayouts.For(id, accounts)`, `CashFlowLayouts.For(chart)` and `IndirectCashFlowLayouts.For(chart)` pick the layout from the tenant's accounts (`ChartTemplates.Detect`: 111 → Vas99; 1000 + 4000 → Simple14; else Vas99).
+Simple14 B01: cash 1000 · receivables 1100 · inventory 1200 · fixed assets 1500 · payables 2000 · accrued 2100 · tax 2200 · equity 3000 · retained earnings 3100 (421a) · unclosed result (421b, no account of its own); B02: revenue 4000 + 4100 · cost 5000 ·
+administration 5100 + 5200; B03: the same accounts by direction. A simplification: the chart has no VAT, income-tax, interest or depreciation accounts. Rules BR-109 … BR-113.
+
+## Off-balance register (P1-2i)
+
+Class 0 accounts (001 – 008, account type OffBalance) are kept in `OffBalanceEntries`, not in the journal: `POST accounting/off-balance {accountId, direction In|Out, amount, entryDate, description, reference}`, `POST …/{id}/void {reason}`,
+`GET accounting/off-balance`, report `GET accounting/reports/off-balance?fromDate&toDate[&format=csv|xlsx]` (opening, In, Out, closing per account; negative closing flagged). A closed fiscal period locks the register. A journal entry or a posting key
+on a class 0 account is refused. Rules BR-114 … BR-119.
+
+## Loan ledger and borrowings on B01 (P1-2i)
+
+`accounting/loans`: create with a schedule (or a maturity date), `…/{id}/installments/{iid}/repay`, `…/{id}/cancel`. B01 row 320 = 341 − the long-term part (`ShortLessLongLoan`), row 338 = 343 + the long-term part (`AddLongLoan`); the part is the outstanding principal
+due later than D + 12 months (`Loan.LongTermAt`), capped by the credit balance of 341; exact for past dates (each repayment has its date). `MaturityLedger.For` ties the three splits (receivables, payables, loans) to the ledger and is shared with the notes. Rules BR-120 … BR-126.
+
+## Notes B09-DN (P1-2i)
+
+`GET accounting/reports/statements/notes?fromDate&toDate[&unit][&format=csv|xlsx|pdf]` → `NotesDto` (28 sections for the Vietnamese chart): generated II and the company block of I, tables V.1 … V.12 and VI.1 / VI.2 from `NoteLedger` (movement: opening, increase, decrease,
+closing on the natural side; fixed assets with accumulated depreciation and net book value; borrowings from the loan ledger; off-balance register), and the accountant's texts from `NoteTexts` (`GET / PUT accounting/reports/notes/text`; keys `general`, `standards`, `policy.*`, `noncash`, `subsequent`,
+`other`). PDF: `PdfWriter.ToBytes(NotesDto)`. Rules BR-127 … BR-133, use case UC-18 in [BA-Accounting.md](BA-Accounting.md).
+
 ## B01 maturity split of trade receivables and payables (P1-2h)
 
 B01 reads the open invoices (`IInvoiceRepository.GetUnpaidInvoicesAsync`) and approved bills (`IBillRepository.GetUnpaidBillsAsync`) and `MaturitySplit.Compute` finds the part due **later than the date + 12 months**, capped by the ledger (debit balance of 131, credit
@@ -118,4 +141,4 @@ starts with `= + - @` is stored as text with Excel's quote prefix. Content type 
 ## Known limits (see docs/DEFERRED-ISSUES.md)
 
 The ledger and the cash flow read journal lines by account and range (index `IX_JELines_AccountId`); the ledger pages in memory after computing the running balance, which is fine
-for normal volumes but a very busy account over a very long range should use date-bounded snapshots later. B09 notes, off-balance accounts and layouts for charts other than Vas99 are not built (ROADMAP P1-2h). Excel files are built in memory.
+for normal volumes but a very busy account over a very long range should use date-bounded snapshots later. layouts for a tenant's own chart, a posting link for loans and notes in English are not built (ROADMAP P1-2j). Excel files are built in memory.

@@ -37,6 +37,12 @@ Posting map of `Vas99` (suggested): Cash 1111, Bank 1121, AccountsReceivable 131
 GoodsReceivedNotInvoiced 3388, CostOfGoodsSold 632, InventoryAdjustment 632, CashOverShort 811, SalaryExpense 6421, SalariesPayable 334,
 PayrollWithholdingsPayable 3388 (until insurance / PIT are split, P1-7), SalesReturns 5212, IncomeSummary 911, RetainedEarnings 4212.
 
+### Class 0 — off-balance accounts (P1-2i)
+
+The Vietnamese template carries 001 (tài sản thuê ngoài), 002 (vật tư, hàng hóa nhận giữ hộ, nhận gia công), 003 (hàng hóa nhận bán hộ, ký gửi), 004 (nợ khó đòi đã xử lý), 007 (ngoại tệ các loại) and 008 (dự toán chi sự nghiệp, dự án) as account type **OffBalance (6)**, debit normal. They
+take **no journal postings** (manual, profile or automatic): their movements go to the off-balance register (`accounting/off-balance`, Reports.md). A tenant with journal entries cannot apply a template; it creates the accounts it needs with type OffBalance (the account form offers the type).
+Account types are 1 – 6; the template count is now the previous 109 plus these six.
+
 ## Void vs reverse
 
 | | Reverse | Void |
@@ -78,5 +84,5 @@ not been closed yet to equity (assets = liabilities + equity before and after cl
 
 ## Known limits
 
-B09 notes, indirect-method cash flow, off-balance accounts (P1-2e); migrating a tenant that already has entries to another chart (re-map the profile by hand); the SYSTEM tenant
+migrating a tenant that already has entries to another chart (re-map the profile by hand); the SYSTEM tenant
 and the demo data stay on the 14-account chart.
