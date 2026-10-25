@@ -59,6 +59,7 @@ namespace ERP.ACC.Application.Posting
         public const string SalesReturn = "SalesReturn";
         public const string InvoiceVatAdjustment = "InvoiceVatAdjust";
         public const string VatSettlement = "VatSettlement";
+        public const string FxRevaluation = "FxRevaluation";
         public const string Loan = "Loan";
         public const string LoanRepayment = "LoanRepayment";
         public const string LoanAccrual = "LoanAccrual";
@@ -186,6 +187,24 @@ namespace ERP.ACC.Application.Posting
             var bytes = System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes($"vat-settlement:{fiscalPeriodId:N}:{round}"));
             return new(VatSettlement, new Guid(bytes), date.Date, $"VAT settlement {periodName}",
                 new[] { PostingLine.Dr(PostingKeys.VatOutput, amount, periodName), PostingLine.Cr(PostingKeys.VatInput, amount, periodName) });
+        }
+
+        /// <summary>
+        /// The unrealized exchange difference of a period (ROADMAP P1-4): <paramref name="receivables"/> and <paramref name="payables"/> are the gain (positive) or loss (negative) on the open foreign
+        /// receivables and payables. A gain on a receivable raises it (Dr Accounts receivable), a gain on a payable lowers it (Dr Accounts payable); the balance goes to FX gain / FX loss.
+        /// </summary>
+        public static PostingRequest ForFxRevaluation(Guid fiscalPeriodId, decimal receivables, decimal payables, string periodName, DateTime date)
+        {
+            var bytes = System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes($"fx-revaluation:{fiscalPeriodId:N}"));
+            var lines = new List<PostingLine>();
+            if (receivables > 0m) lines.Add(PostingLine.Dr(PostingKeys.AccountsReceivable, receivables, periodName));
+            else if (receivables < 0m) lines.Add(PostingLine.Cr(PostingKeys.AccountsReceivable, -receivables, periodName));
+            if (payables > 0m) lines.Add(PostingLine.Dr(PostingKeys.AccountsPayable, payables, periodName));
+            else if (payables < 0m) lines.Add(PostingLine.Cr(PostingKeys.AccountsPayable, -payables, periodName));
+            var net = receivables + payables;
+            if (net > 0m) lines.Add(PostingLine.Cr(PostingKeys.FxGain, net, periodName));
+            else if (net < 0m) lines.Add(PostingLine.Dr(PostingKeys.FxLoss, -net, periodName));
+            return new(FxRevaluation, new Guid(bytes), date.Date, $"FX revaluation {periodName}", lines);
         }
 
         /// <summary>A stable id for "this installment accrued up to this date".</summary>

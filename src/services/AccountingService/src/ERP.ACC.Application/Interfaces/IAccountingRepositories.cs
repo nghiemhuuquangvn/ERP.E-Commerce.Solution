@@ -28,6 +28,8 @@ namespace ERP.ACC.Application.Interfaces
 
         /// <summary>Invoices that could be long-term on a date: due later than <paramref name="dueAfter"/>, created by <paramref name="asOf"/>, whatever their status today.</summary>
         Task<List<Invoice>> GetMaturityCandidatesAsync(DateTime asOf, DateTime dueAfter, CancellationToken ct = default);
+        /// <summary>Invoices in a foreign currency created by <paramref name="asOf"/>, whatever their status today (the period-end revaluation, ROADMAP P1-4).</summary>
+        Task<List<Invoice>> GetForeignCreatedByAsync(DateTime asOf, CancellationToken ct = default);
         Task AddAsync(Invoice invoice, CancellationToken ct = default);
         Task UpdateAsync(Invoice invoice, CancellationToken ct = default);
     }
@@ -43,6 +45,8 @@ namespace ERP.ACC.Application.Interfaces
 
         /// <summary>Approved or paid bills due later than <paramref name="dueAfter"/> that existed on <paramref name="asOf"/>, whatever their status today.</summary>
         Task<List<Bill>> GetMaturityCandidatesAsync(DateTime asOf, DateTime dueAfter, CancellationToken ct = default);
+        /// <summary>Bills in a foreign currency created by <paramref name="asOf"/>, whatever their status today.</summary>
+        Task<List<Bill>> GetForeignCreatedByAsync(DateTime asOf, CancellationToken ct = default);
         Task AddAsync(Bill bill, CancellationToken ct = default);
         Task UpdateAsync(Bill bill, CancellationToken ct = default);
     }
@@ -172,6 +176,9 @@ namespace ERP.ACC.Application.Interfaces
     public interface IPaymentApplicationRepository
     {
         Task AddAsync(PaymentApplication application, CancellationToken ct = default);
+
+        /// <summary>Every application of the given invoices and bills (whatever their date).</summary>
+        Task<List<PaymentApplication>> ListForDocumentsAsync(IReadOnlyCollection<Guid> documentIds, CancellationToken ct = default);
 
 
         /// <summary>

@@ -26,5 +26,34 @@ namespace ERP.ACC.API.Controllers
             var quote = await _mediator.Send(new GetExchangeRateQuery { Currency = currency, Date = date }, ct);
             return quote is null ? NotFound(new { message = $"No exchange rate for {currency} is entered in the master data." }) : Ok(quote);
         }
+
+        public class RevaluationRequest
+        {
+            public Guid FiscalPeriodId { get; set; }
+
+            /// <summary>Closing rates by currency that replace the master data's (base currency per 1 foreign).</summary>
+            public Dictionary<string, decimal>? Rates { get; set; }
+        }
+
+        /// <summary>What revaluing the open foreign receivables and payables at the closing rates of a period would post; nothing is posted.</summary>
+        [HttpPost("revaluation/preview")]
+        [AuthorizePermission(PermissionConstants.Accounting_ReportsView)]
+        [ProducesResponseType(typeof(RevaluationDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Preview([FromBody] RevaluationRequest request, CancellationToken ct) =>
+            Ok(await _mediator.Send(new GetRevaluationQuery { FiscalPeriodId = request.FiscalPeriodId, Rates = request.Rates ?? new() }, ct));
+
+        /// <summary>Posts the unrealized exchange difference of an open period on its last day and reverses it on the next day.</summary>
+        [HttpPost("revaluation")]
+        [AuthorizePermission(PermissionConstants.Accounting_JournalsManage)]
+        [ProducesResponseType(typeof(RevaluationDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Revalue([FromBody] RevaluationRequest request, CancellationToken ct) =>
+            Ok(await _mediator.Send(new RevalueForeignBalancesCommand { FiscalPeriodId = request.FiscalPeriodId, Rates = request.Rates ?? new() }, ct));
+
+        /// <summary>The state of the revaluation of a period (posted or not), at the master data's closing rates.</summary>
+        [HttpGet("revaluation")]
+        [AuthorizePermission(PermissionConstants.Accounting_ReportsView)]
+        [ProducesResponseType(typeof(RevaluationDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Revaluation([FromQuery] Guid fiscalPeriodId, CancellationToken ct) =>
+            Ok(await _mediator.Send(new GetRevaluationQuery { FiscalPeriodId = fiscalPeriodId }, ct));
     }
 }
