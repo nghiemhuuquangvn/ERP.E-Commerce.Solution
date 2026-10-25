@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { reportsApi, downloadReport } from '@/api/accounting/reports.api'
-import type { AmountUnit, FinancialStatement, ReportProfile } from '@/api/accounting/reports.api'
+import type { AmountUnit, FinancialStatement, NoteSection, ReportProfile } from '@/api/accounting/reports.api'
 import type { FinancialAccountLineDto, CashFlowSection } from '@/api/accounting/reports.api'
 import { accountsApi } from '@/api/accounting/accounts.api'
 import { offBalanceApi } from '@/api/accounting/off-balance.api'
@@ -731,6 +731,165 @@ function BalanceSheetPanel() {
   )
 }
 
+/** The text sections of the notes the accountant writes (policies, standards, non-cash transactions …). */
+function NoteTextsEditor({ canEdit }: { canEdit: boolean }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const { data } = useQuery({ queryKey: ['accounting', 'noteTexts'], queryFn: () => reportsApi.noteTexts(), staleTime: 30_000 })
+  const [draft, setDraft] = useState<Record<string, string>>({})
+  const save = useMutation({
+    mutationFn: () => reportsApi.updateNoteTexts(draft),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounting', 'noteTexts'] })
+      queryClient.invalidateQueries({ queryKey: ['accounting', 'reports', 'notes'] })
+      setDraft({})
+    },
+  })
+  const error = (save.error as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail
+
+  return (
+    <details className="card p-3">
+      <summary className="cursor-pointer text-sm font-semibold text-gray-900">{t('accounting.reports.notesEdit')}</summary>
+      <div className="mt-3 space-y-3">
+        {(data ?? []).map((s) => (
+          <div key={s.key}>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {s.number}. {s.title}
+            </label>
+            <textarea
+              className="input min-h-[70px]"
+              maxLength={4000}
+              disabled={!canEdit}
+              placeholder={s.hint}
+              value={draft[s.key] ?? s.text}
+              onChange={(e) => setDraft({ ...draft, [s.key]: e.target.value })}
+            />
+          </div>
+        ))}
+        {canEdit && (
+          <div className="flex items-center gap-3">
+            <button className="btn-primary" disabled={Object.keys(draft).length === 0 || save.isPending} onClick={() => save.mutate()}>
+              {t('common.save')}
+            </button>
+            {save.isError && <span className="text-sm text-red-600">{error ?? t('accounting.reports.notesFailed')}</span>}
+          </div>
+        )}
+      </div>
+    </details>
+  )
+}
+
+function NoteSectionView({ section }: { section: NoteSection }) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-1">
+      <h3 className="text-sm font-semibold text-gray-900">
+        {section.number}. {section.title}
+      </h3>
+      {section.text && <p className="whitespace-pre-line text-sm text-gray-700">{section.text}</p>}
+      {!section.text && !section.table && section.hint && (
+        <p className="text-xs italic text-gray-400">
+          {t('accounting.reports.notesEmpty')} — {section.hint}
+        </p>
+      )}
+      {section.table && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b text-left text-gray-500">
+                <th className="p-1">{t('accounting.reports.indicator')}</th>
+                {section.table.columns.map((c) => (
+                  <th key={c} className="p-1 text-right">
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {section.table.rows.map((r, i) => (
+                <tr key={i} className={r.isTotal ? 'border-b font-semibold' : 'border-b'}>
+                  <td className="p-1">{r.label}</td>
+                  {r.cells.map((c, j) => (
+                    <td key={j} className="p-1 text-right">
+                      {c.toLocaleString()}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** B09-DN: the notes to the financial statements. */
+function NotesPanel({ canEdit }: { canEdit: boolean }) {
+  const { t } = useTranslation()
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState(todayISODate())
+  const [unit, setUnit] = useState<AmountUnit | ''>('')
+  const ready = !!fromDate && !!toDate
+  const params = { fromDate, toDate, unit: unit || undefined }
+  const { data, isLoading } = useQuery({
+    queryKey: ['accounting', 'reports', 'notes', fromDate, toDate, unit],
+    queryFn: () => reportsApi.notes(params),
+    enabled: ready,
+    staleTime: 15_000,
+  })
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.fromDate')}</label>
+          <input type="date" className="input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.toDate')}</label>
+          <input type="date" className="input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.unit')}</label>
+          <select className="input" value={unit} onChange={(e) => setUnit(e.target.value as AmountUnit | '')}>
+            <option value="">{t('accounting.reports.unitProfile')}</option>
+            <option value="Vnd">{t('accounting.reports.unitVnd')}</option>
+            <option value="Thousand">{t('accounting.reports.unitThousand')}</option>
+            <option value="Million">{t('accounting.reports.unitMillion')}</option>
+          </select>
+        </div>
+        <ExportButton path="statements/notes" params={params} name="notes-b09.csv" disabled={!ready} pdf />
+      </div>
+
+      <NoteTextsEditor canEdit={canEdit} />
+
+      {ready && isLoading && <p className="text-sm text-gray-400">{t('common.loading')}</p>}
+      {data && (
+        <div className="space-y-4">
+          <p className="text-xs text-amber-700">
+            {data.title}
+            {data.isDraft ? ` — ${t('accounting.reports.draftWarning')}` : ''} · {t('accounting.reports.unit')}: {data.unit}
+          </p>
+          {data.header && (
+            <div className="text-sm text-gray-700">
+              <p className="font-semibold">{data.header.companyName}</p>
+              {data.header.taxCode && <p>{t('accounting.reports.taxCode')}: {data.header.taxCode}</p>}
+            </div>
+          )}
+          {data.sections.map((s) => (
+            <NoteSectionView key={s.number} section={s} />
+          ))}
+          <ul className="list-disc space-y-1 pl-5 text-xs text-gray-500">
+            {data.notes.map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** The off-balance register per account for a range (class 0 accounts; not part of the balance sheet). */
 function OffBalancePanel() {
   const { t } = useTranslation()
@@ -786,7 +945,7 @@ export function ReportsPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const canView = hasPermission('accounting:reports:view')
-  const [tab, setTab] = useState<'trial-balance' | 'ledger' | 'profit-and-loss' | 'balance-sheet' | 'cash-flow' | 'b01' | 'b02' | 'b03' | 'off-balance'>('trial-balance')
+  const [tab, setTab] = useState<'trial-balance' | 'ledger' | 'profit-and-loss' | 'balance-sheet' | 'cash-flow' | 'b01' | 'b02' | 'b03' | 'b09' | 'off-balance'>('trial-balance')
 
   if (!canView) {
     return <p className="text-sm text-gray-400">{t('common.noPermission')}</p>
@@ -801,6 +960,7 @@ export function ReportsPage() {
     { key: 'b01', label: t('accounting.reports.tabB01') },
     { key: 'b02', label: t('accounting.reports.tabB02') },
     { key: 'b03', label: t('accounting.reports.tabB03') },
+    { key: 'b09', label: t('accounting.reports.tabB09') },
     { key: 'off-balance', label: t('accounting.offBalance.tab') },
   ]
 
@@ -832,6 +992,7 @@ export function ReportsPage() {
       {tab === 'b01' && <StatementPanel kind="balance-sheet" />}
       {tab === 'b02' && <StatementPanel kind="income-statement" />}
       {tab === 'b03' && <StatementPanel kind="cash-flow" />}
+      {tab === 'b09' && <NotesPanel canEdit={hasPermission('accounting:accounts:manage')} />}
       {tab === 'off-balance' && <OffBalancePanel />}
     </div>
   )
