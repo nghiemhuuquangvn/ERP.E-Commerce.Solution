@@ -155,7 +155,10 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.BuyerAddress).HasMaxLength(300);
                 e.Property(x => x.Error).HasMaxLength(1000);
                 e.Property(x => x.CancelReason).HasMaxLength(500);
-                e.HasIndex(x => new { x.TenantId, x.InvoiceId }).IsUnique().HasFilter("[IsDeleted] = 0 AND [Status] <> 2");
+                e.Property(x => x.Reason).HasMaxLength(500);
+                e.Property(x => x.AdjustNet).HasColumnType("decimal(18,2)");
+                e.Property(x => x.AdjustTax).HasColumnType("decimal(18,2)");
+                e.HasIndex(x => new { x.TenantId, x.InvoiceId }).IsUnique().HasFilter("[IsDeleted] = 0 AND [Status] <> 2 AND [Status] <> 4 AND [Kind] <> 2");
             });
 
             modelBuilder.Entity<Loan>(e =>

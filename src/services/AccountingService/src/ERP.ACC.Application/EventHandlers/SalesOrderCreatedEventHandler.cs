@@ -1,4 +1,6 @@
 using ERP.ACC.Application.Commands;
+using ERP.ACC.Application.EInvoicing;
+using ERP.Shared.Infrastructure.Data;
 using ERP.ACC.Application.Interfaces;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -18,12 +20,18 @@ namespace ERP.ACC.Application.EventHandlers
         private readonly IInvoiceRepository _invoices;
         private readonly ILogger<SalesOrderCreatedIntegrationEventHandler> _logger;
 
+        private readonly ITaxSettingsService? _settings;
+        private readonly ITenantProvider? _tenant;
+
         public SalesOrderCreatedIntegrationEventHandler(
-            IMediator mediator, IInvoiceRepository invoices, ILogger<SalesOrderCreatedIntegrationEventHandler> logger)
+            IMediator mediator, IInvoiceRepository invoices, ILogger<SalesOrderCreatedIntegrationEventHandler> logger,
+            ITaxSettingsService? settings = null, ITenantProvider? tenant = null)
         {
             _mediator = mediator;
             _invoices = invoices;
             _logger = logger;
+            _settings = settings;
+            _tenant = tenant;
         }
 
         public async Task Handle(SalesOrderCreatedIntegrationEvent @event, CancellationToken cancellationToken)
@@ -37,7 +45,7 @@ namespace ERP.ACC.Application.EventHandlers
 
             var invoiceNumber = $"INV-{@event.OrderId:N}".Substring(0, 20).ToUpper();
 
-            await _mediator.Send(new CreateInvoiceCommand
+            var created = await _mediator.Send(new CreateInvoiceCommand
             {
                 InvoiceNumber = invoiceNumber,
                 CustomerId = @event.CustomerId,
@@ -45,6 +53,19 @@ namespace ERP.ACC.Application.EventHandlers
                 Amount = @event.TotalAmount,
                 DueDate = DateTime.UtcNow.AddDays(30)
             }, cancellationToken);
+
+            // the tenant asked for an e-invoice with every invoice (ROADMAP P1-3b): a retail customer, errors are logged and the invoice is kept
+            if (_settings != null && _tenant?.CurrentTenantId is { } tenantId && (await _settings.GetTenantSettingsAsync(tenantId, cancellationToken)).AutoIssueEInvoice)
+            {
+                try
+                {
+                    await _mediator.Send(new IssueEInvoiceCommand { InvoiceId = created.Id }, cancellationToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogWarning(ex, "Invoice {Invoice} was created but its e-invoice was not issued automatically", invoiceNumber);
+                }
+            }
         }
     }
 }

@@ -167,7 +167,7 @@ namespace ERP.ACC.Application.Handlers
             if (!withLines && (request.TaxRatePercent < 0m || request.TaxRatePercent > 100m))
                 throw new BusinessRuleException("Accounting", "The VAT rate must be between 0 and 100.");
             // an issued e-invoice declares the VAT to the tax authority: cancel it before the split can change
-            if (_einvoices != null && await _einvoices.GetActiveByInvoiceAsync(invoice.Id, cancellationToken) is { Status: (int)EInvoiceStatus.Issued })
+            if (!request.ForReplacement && _einvoices != null && await _einvoices.GetActiveByInvoiceAsync(invoice.Id, cancellationToken) is { Status: (int)EInvoiceStatus.Issued })
                 throw new BusinessRuleException("Accounting", $"Invoice {invoice.InvoiceNumber} has an issued e-invoice: cancel it before changing the VAT.");
 
             // the gross is what the customer owes and may already be paid: only the split changes

@@ -7,7 +7,18 @@ namespace ERP.ACC.Domain.Entities
         Issued = 1,
         Cancelled = 2,
         /// <summary>The provider refused or could not be reached; the error is kept and the invoice can be issued again.</summary>
-        Failed = 3
+        Failed = 3,
+        /// <summary>An issued e-invoice that a replacement e-invoice took the place of (ROADMAP P1-3b).</summary>
+        Replaced = 4
+    }
+
+    public enum EInvoiceKind
+    {
+        Original = 0,
+        /// <summary>Replaces an issued e-invoice with a corrected one (hóa đơn thay thế).</summary>
+        Replacement = 1,
+        /// <summary>Raises or lowers the amounts of an issued e-invoice (hóa đơn điều chỉnh); the amounts are signed.</summary>
+        Adjustment = 2
     }
 
     /// <summary>
@@ -35,6 +46,17 @@ namespace ERP.ACC.Domain.Entities
         public string? CancelReason { get; private set; }
         public DateTime? CancelledAt { get; private set; }
 
+        /// <summary>An <see cref="EInvoiceKind"/>.</summary>
+        public int Kind { get; private set; }
+
+        /// <summary>The e-invoice this one replaces or adjusts.</summary>
+        public Guid? RelatedEInvoiceId { get; private set; }
+        public string? Reason { get; private set; }
+
+        /// <summary>For an adjustment: the signed change of the net amount and of the VAT.</summary>
+        public decimal? AdjustNet { get; private set; }
+        public decimal? AdjustTax { get; private set; }
+
         private EInvoice() { }
 
         public static EInvoice Start(Guid tenantId, Guid invoiceId, string provider, string series, string buyerName, string? buyerTaxCode, string? buyerAddress, string payload)
@@ -42,6 +64,28 @@ namespace ERP.ACC.Domain.Entities
             var e = new EInvoice { Id = Guid.NewGuid(), TenantId = tenantId, InvoiceId = invoiceId, CreatedAt = DateTime.UtcNow };
             e.Prepare(provider, series, buyerName, buyerTaxCode, buyerAddress, payload);
             return e;
+        }
+
+        /// <summary>A replacement or an adjustment of an issued e-invoice (ROADMAP P1-3b).</summary>
+        public static EInvoice StartKind(
+            Guid tenantId, Guid invoiceId, EInvoiceKind kind, Guid relatedId, string reason, decimal? adjustNet, decimal? adjustTax,
+            string provider, string series, string buyerName, string? buyerTaxCode, string? buyerAddress, string payload)
+        {
+            var e = Start(tenantId, invoiceId, provider, series, buyerName, buyerTaxCode, buyerAddress, payload);
+            e.Kind = (int)kind;
+            e.RelatedEInvoiceId = relatedId;
+            e.Reason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+            e.AdjustNet = adjustNet;
+            e.AdjustTax = adjustTax;
+            return e;
+        }
+
+        public void MarkReplaced()
+        {
+            if (Status != (int)EInvoiceStatus.Issued)
+                throw new InvalidOperationException("Only an issued e-invoice can be replaced.");
+            Status = (int)EInvoiceStatus.Replaced;
+            UpdatedAt = DateTime.UtcNow;
         }
 
         /// <summary>Fills (or refills, for a retry after a failure) what is sent to the provider.</summary>

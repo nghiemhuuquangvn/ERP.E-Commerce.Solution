@@ -127,6 +127,9 @@ namespace ERP.ACC.Application.Interfaces
         /// <summary>The e-invoice of an invoice that is not cancelled (issued or failed), tracked; null when none.</summary>
         Task<EInvoice?> GetActiveByInvoiceAsync(Guid invoiceId, CancellationToken ct = default);
 
+        /// <summary>Every e-invoice of an invoice (originals, replacements, adjustments), oldest first, no tracking.</summary>
+        Task<List<EInvoice>> ListByInvoiceAsync(Guid invoiceId, CancellationToken ct = default);
+
         /// <summary>The latest e-invoice of an invoice whatever its status (no tracking); null when none.</summary>
         Task<EInvoice?> GetLatestByInvoiceAsync(Guid invoiceId, CancellationToken ct = default);
         Task AddAsync(EInvoice einvoice, CancellationToken ct = default);

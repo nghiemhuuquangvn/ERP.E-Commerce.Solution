@@ -28,11 +28,19 @@ namespace ERP.ACC.Application.EInvoicing
         public string? CancelReason { get; set; }
         public DateTime? CancelledAt { get; set; }
 
+        /// <summary>"Original", "Replacement" or "Adjustment".</summary>
+        public string Kind { get; set; } = "Original";
+        public Guid? RelatedEInvoiceId { get; set; }
+        public string? Reason { get; set; }
+        public decimal? AdjustNet { get; set; }
+        public decimal? AdjustTax { get; set; }
+
         internal static EInvoiceDto From(EInvoice e) => new()
         {
             Id = e.Id, InvoiceId = e.InvoiceId, Provider = e.Provider, Status = ((EInvoiceStatus)e.Status).ToString(), Series = e.Series, Number = e.Number,
             LookupCode = e.LookupCode, IssuedAt = e.IssuedAt, BuyerName = e.BuyerName, BuyerTaxCode = e.BuyerTaxCode, BuyerAddress = e.BuyerAddress,
             Error = e.Error, CancelReason = e.CancelReason, CancelledAt = e.CancelledAt,
+            Kind = ((EInvoiceKind)e.Kind).ToString(), RelatedEInvoiceId = e.RelatedEInvoiceId, Reason = e.Reason, AdjustNet = e.AdjustNet, AdjustTax = e.AdjustTax,
         };
     }
 
@@ -59,6 +67,22 @@ namespace ERP.ACC.Application.EInvoicing
     }
 
     public class ListEInvoiceProvidersQuery : IRequest<List<string>> { }
+
+    /// <summary>Every e-invoice of an invoice: the original, its replacements and its adjustments (ROADMAP P1-3b).</summary>
+    public class ListEInvoicesQuery : IRequest<List<EInvoiceDto>>
+    {
+        public Guid InvoiceId { get; set; }
+    }
+
+    public class ListEInvoicesQueryHandler : IRequestHandler<ListEInvoicesQuery, List<EInvoiceDto>>
+    {
+        private readonly IEInvoiceRepository _einvoices;
+
+        public ListEInvoicesQueryHandler(IEInvoiceRepository einvoices) => _einvoices = einvoices;
+
+        public async Task<List<EInvoiceDto>> Handle(ListEInvoicesQuery request, CancellationToken cancellationToken) =>
+            (await _einvoices.ListByInvoiceAsync(request.InvoiceId, cancellationToken)).Select(EInvoiceDto.From).ToList();
+    }
 
     public class ListEInvoiceProvidersQueryHandler : IRequestHandler<ListEInvoiceProvidersQuery, List<string>>
     {

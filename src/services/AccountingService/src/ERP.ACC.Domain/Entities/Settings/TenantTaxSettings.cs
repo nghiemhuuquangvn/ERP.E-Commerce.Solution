@@ -15,6 +15,9 @@ public class TenantTaxSettings : BaseEntity
     /// <summary>The invoice series printed on the e-invoices (e.g. "C26TAA").</summary>
     public string? EInvoiceSeries { get; private set; }
 
+    /// <summary>An invoice created from an order is issued as an e-invoice at once (to a retail customer); off by default (ROADMAP P1-3b).</summary>
+    public bool AutoIssueEInvoice { get; private set; }
+
     protected TenantTaxSettings() { }
 
     public static TenantTaxSettings CreateDefault(Guid tenantId)
@@ -33,8 +36,9 @@ public class TenantTaxSettings : BaseEntity
         };
     }
 
-    public void Update(string? companyTaxCode, decimal defaultTaxRatePercent, bool pricesIncludeTax, string? eInvoiceProvider = null, string? eInvoiceSeries = null)
+    public void Update(string? companyTaxCode, decimal defaultTaxRatePercent, bool pricesIncludeTax, string? eInvoiceProvider = null, string? eInvoiceSeries = null, bool autoIssueEInvoice = false)
     {
+        AutoIssueEInvoice = autoIssueEInvoice;
         CompanyTaxCode = companyTaxCode;
         DefaultTaxRatePercent = defaultTaxRatePercent;
         PricesIncludeTax = pricesIncludeTax;

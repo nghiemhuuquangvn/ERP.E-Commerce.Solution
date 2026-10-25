@@ -65,6 +65,9 @@ namespace ERP.ACC.Application.Commands
 
         /// <summary>VAT lines whose gross amounts add up to the invoice amount; when given the rate is ignored.</summary>
         public List<VatLineInput> Lines { get; set; } = new();
+
+        /// <summary>Set only by the replacement of an e-invoice (ROADMAP P1-3b): the VAT may change although an e-invoice is issued, because that e-invoice is replaced next.</summary>
+        public bool ForReplacement { get; set; }
     }
 
     public class MarkInvoicePaidCommand : IRequest<InvoiceDto>
