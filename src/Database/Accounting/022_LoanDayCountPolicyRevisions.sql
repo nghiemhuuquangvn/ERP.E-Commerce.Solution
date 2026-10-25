@@ -15,3 +15,7 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Loans') AND name = 'DayCountBasis')
     ALTER TABLE Loans ADD DayCountBasis INT NOT NULL CONSTRAINT DF_Loans_DayCountBasis DEFAULT 0;
 GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ClosingPolicies') AND name = 'AutoAccrueLoanInterest')
+    ALTER TABLE ClosingPolicies ADD AutoAccrueLoanInterest BIT NOT NULL CONSTRAINT DF_ClosingPolicies_AutoAccrue DEFAULT 0;
+GO

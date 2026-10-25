@@ -97,6 +97,9 @@ namespace ERP.ACC.Application.Handlers
     public class AccrueLoanInterestCommand : IRequest<LoanInterestAccrualDto>
     {
         public DateTime AsOfDate { get; set; }
+
+        /// <summary>The month-end job sets it: when the period of the date is closed nothing is posted (a user's entry would fall into the current period, a back-dated accrual must not).</summary>
+        public bool SkipClosedPeriod { get; set; }
     }
 
     public class LoanInterestAccrualLineDto
@@ -114,6 +117,9 @@ namespace ERP.ACC.Application.Handlers
     {
         public DateTime AsOfDate { get; set; }
         public decimal TotalAccrued { get; set; }
+
+        /// <summary>True when nothing was accrued because the period of the date is closed (only with SkipClosedPeriod).</summary>
+        public bool SkippedClosedPeriod { get; set; }
         public List<LoanInterestAccrualLineDto> Lines { get; set; } = new();
     }
 
@@ -353,6 +359,16 @@ namespace ERP.ACC.Application.Handlers
         {
             var day = request.AsOfDate.Date;
             var result = new LoanInterestAccrualDto { AsOfDate = day };
+            if (request.SkipClosedPeriod)
+            {
+                var period = await _uow.FiscalPeriods.GetContainingAsync(day, cancellationToken);
+                if (period != null && period.Status != (int)FiscalPeriodStatus.Open)
+                {
+                    _logger.LogWarning("Loan interest to {Day:yyyy-MM-dd} not accrued: fiscal period {Period} is closed", day, period.PeriodName);
+                    result.SkippedClosedPeriod = true;
+                    return result;
+                }
+            }
             // the list is read without tracking; each loan is loaded again so its accrued amounts are saved with the entries
             foreach (var summary in (await _uow.Loans.ListAsync(cancellationToken)).Where(l => l.PostedToLedger && l.Status == (int)LoanStatus.Active))
             {

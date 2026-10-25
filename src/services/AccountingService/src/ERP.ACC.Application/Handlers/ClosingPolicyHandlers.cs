@@ -15,6 +15,9 @@ namespace ERP.ACC.Application.Handlers
 
         /// <summary>1–12; the fiscal year ends on the last day of this month.</summary>
         public int FiscalYearEndMonth { get; set; } = 12;
+
+        /// <summary>True when the month-end job accrues the loan interest of the tenant to the end of the previous month.</summary>
+        public bool AutoAccrueLoanInterest { get; set; }
     }
 
     public class GetClosingPolicyQuery : IRequest<ClosingPolicyDto> { }
@@ -26,6 +29,9 @@ namespace ERP.ACC.Application.Handlers
         public string ClosingMode { get; set; } = string.Empty;
 
         public int FiscalYearEndMonth { get; set; } = 12;
+
+        /// <summary>Empty keeps the current setting.</summary>
+        public bool? AutoAccrueLoanInterest { get; set; }
     }
 
     public class GetClosingPolicyQueryHandler : IRequestHandler<GetClosingPolicyQuery, ClosingPolicyDto>
@@ -81,6 +87,9 @@ namespace ERP.ACC.Application.Handlers
                 policy.Set(mode, request.FiscalYearEndMonth);
             }
 
+            if (request.AutoAccrueLoanInterest.HasValue)
+                policy.SetAutoAccrueLoanInterest(request.AutoAccrueLoanInterest.Value);
+
             await _uow.SaveChangesAsync(cancellationToken);
             return Map(policy);
         }
@@ -89,6 +98,7 @@ namespace ERP.ACC.Application.Handlers
         {
             ClosingMode = policy != null ? ((ClosingMode)policy.ClosingMode).ToString() : nameof(ClosingMode.Monthly),
             FiscalYearEndMonth = policy?.FiscalYearEndMonth ?? 12,
+            AutoAccrueLoanInterest = policy?.AutoAccrueLoanInterest ?? false,
         };
     }
 }

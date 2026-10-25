@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { accountsApi } from '@/api/accounting/accounts.api'
+import { fiscalPeriodsApi } from '@/api/accounting/fiscal-periods.api'
 import { loansApi } from '@/api/accounting/loans.api'
 import type { Loan } from '@/api/accounting/loans.api'
 import { ReasonDialog } from '@/components/shared/ReasonDialog'
@@ -32,6 +33,7 @@ export function LoansPage() {
 
   const { data, isLoading } = useQuery({ queryKey: ['accounting', 'loans'], queryFn: () => loansApi.list(), staleTime: 15_000 })
 
+  const { data: policy } = useQuery({ queryKey: ['accounting', 'closingPolicy'], queryFn: () => fiscalPeriodsApi.closingPolicy(), staleTime: 30_000 })
   const { data: allAccounts } = useQuery({ queryKey: ['accounting', 'accounts', 'list'], queryFn: () => accountsApi.list(), staleTime: 60_000 })
   // bank and cash accounts: the postable assets (leaf, active) — a parent groups sub-accounts and takes no postings
   const assetAccounts = (allAccounts ?? []).filter((a) => a.accountType === 'Asset' && a.isActive && !(allAccounts ?? []).some((c) => c.parentAccountId === a.id))
@@ -215,6 +217,7 @@ export function LoansPage() {
             <span className="text-sm text-green-700">{t('accounting.loans.accrued', { total: accrue.data.totalAccrued.toLocaleString(), count: accrue.data.lines.filter((l) => l.posted).length })}</span>
           )}
           {accrue.isError && <span className="text-sm text-red-600">{detail(accrue.error, t('accounting.loans.failed'))}</span>}
+          <span className="text-xs text-gray-500">{policy?.autoAccrueLoanInterest ? t('accounting.loans.autoAccrueOn') : t('accounting.loans.autoAccrueOff')}</span>
         </div>
       )}
 

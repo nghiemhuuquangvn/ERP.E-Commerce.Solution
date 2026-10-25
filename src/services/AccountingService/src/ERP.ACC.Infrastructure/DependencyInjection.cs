@@ -37,6 +37,7 @@ namespace ERP.ACC.Infrastructure
             services.AddScoped<IMessageBus, KafkaMessageBus>();
 
             services.AddHostedService<OutboxProcessor>();
+            services.AddHostedService<LoanInterestAccrualJob>();
 
             // RabbitMQ connection — shared single connection, matching the topic exchange
             // model SaleOrderService's RabbitMqMessageBus / WarehouseService's consumer use.

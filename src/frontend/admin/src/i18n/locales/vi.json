@@ -1757,6 +1757,8 @@
       "dayCount365": "Thực tế/365 (gốc × lãi suất ÷ 365)",
       "dayCount360": "Thực tế/360 (gốc × lãi suất ÷ 360)",
       "dayCountHint": "Thực tế/365 và thực tế/360 tính lãi từng ngày trên dư nợ gốc và cần có lãi suất; khi trả kỳ, lãi thực trả mặc định là lãi của các ngày đến ngày trả.",
+      "autoAccrueOn": "Tự động trích lãi cuối tháng: bật (Kỳ kế toán → chính sách khóa sổ)",
+      "autoAccrueOff": "Tự động trích lãi cuối tháng: tắt (bật ở Kỳ kế toán → chính sách khóa sổ)",
       "accrueUpTo": "Trích lãi đến ngày",
       "accrue": "Trích lãi vay",
       "accrued": "Đã trích {{total}} cho {{count}} kỳ trả.",
@@ -1807,6 +1809,8 @@
       "policyYearEnd": "Cuối năm (một bút toán kết chuyển mỗi năm)",
       "policyMonth": "Năm tài chính kết thúc vào tháng",
       "policyMonthlyHint": "Khóa kỳ sẽ ghi bút toán kết chuyển của kỳ đó (doanh thu, chi phí sang tài khoản xác định kết quả).",
+      "autoAccrue": "Tự động trích lãi vay cuối tháng",
+      "autoAccrueHint": "Từ ngày 1 hàng tháng, lãi của các khoản vay đã hạch toán được trích đến ngày cuối tháng trước (Nợ chi phí lãi vay / Có lãi vay phải trả); kỳ đã khóa thì bỏ qua.",
       "policyYearEndHint": "Khóa kỳ chỉ khóa sổ; kỳ cuối của năm tài chính ghi một bút toán kết chuyển cho mọi khoản chưa kết chuyển. Chỉ đổi chế độ giữa hai năm tài chính.",
       "failedToSave": "Mở kỳ kế toán thất bại."
     },

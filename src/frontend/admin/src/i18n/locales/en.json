@@ -1757,6 +1757,8 @@
       "dayCount365": "Actual/365 (principal × rate ÷ 365)",
       "dayCount360": "Actual/360 (principal × rate ÷ 360)",
       "dayCountHint": "Actual/365 and actual/360 count the interest of each day on the outstanding principal and need an interest rate; the interest paid then defaults to the interest of the days to the repayment.",
+      "autoAccrueOn": "Automatic month-end accrual: on (Fiscal periods → closing policy)",
+      "autoAccrueOff": "Automatic month-end accrual: off (switch it on in Fiscal periods → closing policy)",
       "accrueUpTo": "Accrue interest up to",
       "accrue": "Accrue interest",
       "accrued": "Accrued {{total}} on {{count}} installment(s).",
@@ -1807,6 +1809,8 @@
       "policyYearEnd": "Year end (one closing entry a year)",
       "policyMonth": "Fiscal year ends in month",
       "policyMonthlyHint": "Closing a period writes its own closing entry (revenue and expenses to the result account).",
+      "autoAccrue": "Accrue loan interest automatically at month end",
+      "autoAccrueHint": "From the 1st of each month the interest of the posted loans is accrued to the last day of the previous month (Dr interest expense / Cr interest payable); a closed period is skipped.",
       "policyYearEndHint": "Closing a period only locks it; the last period of the fiscal year writes one closing entry for everything not yet closed. Change the mode only between fiscal years.",
       "failedToSave": "Failed to open fiscal period."
     },

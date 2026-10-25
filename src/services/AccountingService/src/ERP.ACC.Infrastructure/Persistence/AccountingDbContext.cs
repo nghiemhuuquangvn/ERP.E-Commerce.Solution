@@ -94,6 +94,7 @@ namespace ERP.ACC.Infrastructure.Persistence
             modelBuilder.Entity<ClosingPolicy>(e =>
             {
                 e.ToTable("ClosingPolicies");
+                e.Property(x => x.AutoAccrueLoanInterest).HasDefaultValue(false);
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Id).ValueGeneratedNever();
                 e.HasIndex(x => x.TenantId).IsUnique().HasFilter("[IsDeleted] = 0");
