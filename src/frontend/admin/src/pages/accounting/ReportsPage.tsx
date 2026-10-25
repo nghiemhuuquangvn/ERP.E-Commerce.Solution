@@ -966,6 +966,138 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
 }
 
 /** The off-balance register per account for a range (class 0 accounts; not part of the balance sheet). */
+/** The VAT listing (sales or purchases) with its subtotals per rate and the check against the VAT account, and the simplified return 01/GTGT (ROADMAP P1-3). */
+function VatPanel() {
+  const { t } = useTranslation()
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState(todayISODate())
+  const [direction, setDirection] = useState<'output' | 'input' | 'return'>('output')
+  const ready = !!fromDate && !!toDate
+  const listing = useQuery({
+    queryKey: ['accounting', 'reports', 'vat', 'listing', fromDate, toDate, direction],
+    queryFn: () => reportsApi.vatListing({ fromDate, toDate, direction: direction === 'input' ? 'input' : 'output' }),
+    enabled: ready && direction !== 'return',
+    staleTime: 15_000,
+  })
+  const vatReturn = useQuery({
+    queryKey: ['accounting', 'reports', 'vat', 'return', fromDate, toDate],
+    queryFn: () => reportsApi.vatReturn({ fromDate, toDate }),
+    enabled: ready && direction === 'return',
+    staleTime: 15_000,
+  })
+  const exportParams = direction === 'return' ? { fromDate, toDate } : { fromDate, toDate, direction }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.fromDate')}</label>
+          <input type="date" className="input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.toDate')}</label>
+          <input type="date" className="input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.vat.report')}</label>
+          <select className="input" value={direction} onChange={(e) => setDirection(e.target.value as 'output' | 'input' | 'return')}>
+            <option value="output">{t('accounting.vat.listingOutput')}</option>
+            <option value="input">{t('accounting.vat.listingInput')}</option>
+            <option value="return">{t('accounting.vat.return')}</option>
+          </select>
+        </div>
+        <ExportButton path={direction === 'return' ? 'vat/return' : 'vat/listing'} params={exportParams} name={direction === 'return' ? 'vat-return.csv' : `vat-listing-${direction}.csv`} disabled={!ready} pdf={direction === 'return'} />
+      </div>
+
+      {direction !== 'return' && listing.data && (
+        <div className="space-y-3">
+          <div className="card overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs uppercase text-gray-500">
+                  <th className="p-2">{t('accounting.vat.kind')}</th>
+                  <th className="p-2">{t('accounting.vat.number')}</th>
+                  <th className="p-2">{t('accounting.vat.date')}</th>
+                  <th className="p-2 text-right">{t('accounting.vat.net')}</th>
+                  <th className="p-2 text-right">{t('accounting.vat.rate')}</th>
+                  <th className="p-2 text-right">{t('accounting.vat.tax')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {listing.data.rows.map((r, i) => (
+                  <tr key={i} className="border-b" title={r.description}>
+                    <td className="p-2">{r.kind}</td>
+                    <td className="p-2 font-mono text-xs">{r.number}</td>
+                    <td className="p-2">{r.date.slice(0, 10)}</td>
+                    <td className="p-2 text-right">{r.net ? r.net.toLocaleString() : ''}</td>
+                    <td className="p-2 text-right">{r.ratePercent ?? ''}</td>
+                    <td className="p-2 text-right">{r.tax.toLocaleString()}</td>
+                  </tr>
+                ))}
+                {listing.data.byRate.map((g, i) => (
+                  <tr key={'g' + i} className="bg-gray-50 font-medium">
+                    <td className="p-2" colSpan={3}>
+                      {t('accounting.vat.subtotal')} {g.ratePercent === null ? t('accounting.vat.noRate') : `${g.ratePercent}%`}
+                    </td>
+                    <td className="p-2 text-right">{g.net.toLocaleString()}</td>
+                    <td />
+                    <td className="p-2 text-right">{g.tax.toLocaleString()}</td>
+                  </tr>
+                ))}
+                <tr className="font-semibold">
+                  <td className="p-2" colSpan={3}>
+                    {t('accounting.vat.total')}
+                  </td>
+                  <td className="p-2 text-right">{listing.data.totalNet.toLocaleString()}</td>
+                  <td />
+                  <td className="p-2 text-right">{listing.data.totalTax.toLocaleString()}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="text-sm text-gray-700">
+            {t('accounting.vat.ledger')} ({listing.data.ledgerAccountNumber ?? '—'}): <b>{listing.data.ledgerTax.toLocaleString()}</b> · {t('accounting.vat.difference')}:{' '}
+            <b className={listing.data.isReconciled ? 'text-green-700' : 'text-red-600'}>{listing.data.difference.toLocaleString()}</b>
+          </p>
+          {listing.data.notes.map((n) => (
+            <p key={n} className="text-xs text-amber-700">
+              {n}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {direction === 'return' && vatReturn.data && (
+        <div className="space-y-2">
+          <p className="text-xs text-amber-700">
+            {vatReturn.data.title} · {t('accounting.reports.unit')}: {vatReturn.data.unit}
+          </p>
+          <div className="card overflow-x-auto">
+            <table className="w-full text-sm">
+              <tbody>
+                {vatReturn.data.rows.map((r) => (
+                  <tr key={r.code} className={'border-b ' + (r.isTotal ? 'font-semibold' : '')}>
+                    <td className="p-2 font-mono text-xs">{r.code}</td>
+                    <td className="p-2" style={{ paddingLeft: `${8 + r.indent * 14}px` }}>
+                      {r.name}
+                    </td>
+                    <td className="p-2 text-right">{r.amount.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <ul className="list-disc space-y-1 pl-5 text-xs text-gray-500">
+            {vatReturn.data.notes.map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function OffBalancePanel() {
   const { t } = useTranslation()
   const [fromDate, setFromDate] = useState('')
@@ -1020,7 +1152,7 @@ export function ReportsPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const canView = hasPermission('accounting:reports:view')
-  const [tab, setTab] = useState<'trial-balance' | 'ledger' | 'profit-and-loss' | 'balance-sheet' | 'cash-flow' | 'b01' | 'b02' | 'b03' | 'b09' | 'mapping' | 'off-balance'>('trial-balance')
+  const [tab, setTab] = useState<'trial-balance' | 'ledger' | 'profit-and-loss' | 'balance-sheet' | 'cash-flow' | 'b01' | 'b02' | 'b03' | 'b09' | 'mapping' | 'off-balance' | 'vat'>('trial-balance')
 
   if (!canView) {
     return <p className="text-sm text-gray-400">{t('common.noPermission')}</p>
@@ -1038,6 +1170,7 @@ export function ReportsPage() {
     { key: 'b09', label: t('accounting.reports.tabB09') },
     { key: 'mapping', label: t('accounting.mapping.tab') },
     { key: 'off-balance', label: t('accounting.offBalance.tab') },
+    { key: 'vat', label: t('accounting.vat.tab') },
   ]
 
   return (
@@ -1071,6 +1204,7 @@ export function ReportsPage() {
       {tab === 'b09' && <NotesPanel canEdit={hasPermission('accounting:accounts:manage')} />}
       {tab === 'mapping' && <StatementMappingPanel canEdit={hasPermission('accounting:accounts:manage')} />}
       {tab === 'off-balance' && <OffBalancePanel />}
+      {tab === 'vat' && <VatPanel />}
     </div>
   )
 }

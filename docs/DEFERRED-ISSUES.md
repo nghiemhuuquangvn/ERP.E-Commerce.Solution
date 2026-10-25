@@ -34,7 +34,7 @@ How to read: **Source** = where it was found; **Home** = the roadmap item or kin
 | G8 | Payroll figures are the stub of P1-7: 5000 gross, 30 % lump deduction, no insurance / PIT split, no employer contributions, no cost centres; a paid slip cannot be cancelled; paying a legacy slip books nothing. | P1-1d | P1-7 | The ledger shows whatever HRM computes. |
 | G9 | Refunds: returned goods are not restocked and their COGS is not reversed; nothing triggers the Payment refund from `SalesOrderReturned`; Sales has no return lines. | P1-1e | P1-5 | Revenue is reversed but cost is not; the refund must be requested by hand. |
 | G10 | A Payment refund has no idempotency key; a gateway timeout is recorded as a failed refund (no refund IPN); two concurrent refunds can both pass the over-refund check; `RefundStatus.Processing` is unused. | P1-1e | Payment hardening | Possible double refund or a refund the gateway did process shown as failed. |
-| G11 | No VAT on sales, returns, bills or POS (the `VatOutput` key exists but no flow fills it). | P1-1 | P1-3 | Tax payable is not tracked. |
+| G11 | ~~No VAT on sales, returns, bills~~ **Closed in P1-3** (invoices, returns, bills; POS already posted VAT). Remaining: §4m. Was: No VAT on sales, returns, bills or POS (the `VatOutput` key exists but no flow fills it). | P1-1 | P1-3 | Tax payable is not tracked. |
 | G12 | Single currency (VND); documents in another currency are not converted. Payment defaults to USD while the stack uses VND. | P1-1 | P1-4 | Wrong amounts for foreign-currency tenants. |
 | G13 | Reporting marks a payment "Refunded" even for a partial refund and reads no `NetPay` for pay slips (total likely 0). | P1-1d, P1-1e | Reporting fix | Wrong BI figures. |
 | G14 | Notification does not consume `PaymentRefunded` (the dependency map used to claim it did). | P1-1e | P1-6 | No refund receipts. |
@@ -168,6 +168,18 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | AC4 | The job runs once per service uptime day, only while the service runs on the 1st or later; no per-tenant run log or "last accrued" screen, only the entries and the log. A closed period is skipped silently for the user (log only). | P1-2m |
 | AC5 | Revisions keep the user name text at the time; no restore button (the editor copies the old text into the draft), and no history for other settings (report profile, mappings). | P1-2m |
 | AC6 | The new admin pieces (day count select, closing-policy switch, History list, language select) were type-checked, not clicked through in a browser. | — |
+
+## 4m. VAT and e-invoice (P1-3 follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| AD1 | One VAT rate per document, taken from the tenant's settings (Sales / Purchasing send no tax); no per-line rates, exempt or non-taxable lines; with "prices exclude tax" the invoice exceeds the order total paid via Payment. | P1-3b |
+| AD2 | The e-invoice provider is a sandbox: no real connector (VNPT / Viettel / MISA / BKAV), no tax-authority code, no signing, no adjustment / replacement e-invoices, no auto-issue on order. | P1-3b |
+| AD3 | The VAT return 01/GTGT is a simplified draft (codes 22–25, 35, 40, 43 and rate groups), not the HTKK filing file; there is no VAT settlement entry (Dr 3331 / Cr 133) and a closed fiscal period is not reopened by it. | P1-3b / Accountant review |
+| AD4 | The listing and the ledger can differ when a document is cancelled after the period, an entry is dated differently from its document, or VAT is booked by hand; the difference is reported, not corrected. | Accountant decision |
+| AD5 | A return takes the VAT at the invoice's rate; a partial return of mixed-rate goods is not possible. The live check did not cover a return (unit tests do). | P1-3b |
+| AD6 | A document created while no fiscal period is open exists without a journal entry (logged, as before P1-3); the invoice and bill screens do not warn. | P1-5 |
+| AD7 | The new admin pieces (VAT columns, Adjust VAT, e-invoice dialog, VAT tab, provider in Settings → Tax) were type-checked, not clicked through in a browser. | — |
 
 ## 5. Roadmap items these issues are waiting for
 

@@ -36,6 +36,13 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-25 — ROADMAP P1-3: VAT, VAT listing / return, e-invoice adapter (`feat/p1-3-vat-einvoice`, unmerged)
+- **VAT** on invoices (net / VAT / gross from the tenant's rate and price convention, override, *Adjust VAT*), returns (VAT inside the refund) and bills (new key `VatInput`, rate fixed at approval). Rate 0 (default) = behaviour as before. Migration 023 (`Invoices` / `Bills`.`TaxRatePercent`; `SubTotal` / `TaxAmount` already existed).
+- **Reports → VAT**: sales / purchase listing with the check against the VAT account; simplified return 01/GTGT (csv / xlsx / pdf).
+- **E-invoice**: `IEInvoiceProvider` adapter, `EInvoices` table, issue / cancel / lookup, sandbox provider; provider and series in Settings → Tax; VAT locked while issued.
+- Verified live on `glcheck` (invoice 1,100,000 → Dr 131 / Cr 5111 1,000,000 / Cr 3331 100,000; bill → Dr 3388 2,000,000 / Dr 1331 200,000 / Cr 331; listings reconciled; return csv / xlsx / pdf; adjust to 8 % = 18,518.52; e-invoice issue → repeat 400 → adjust 400 → cancel → re-issue); the fiscal period October 2026 was reopened for the check and closed again; tenant tax settings restored; test data removed. Tests: ACC 455 (+48), drift test passes, Architecture 53/54 (known failure), admin `tsc -b` clean. Migration 023 applied to the host DB; accountingservice and admin rebuilt from the branch.
+- Not done (P1-3b): see ROADMAP; the live check did not cover a return (unit-tested), and the admin screens were type-checked, not clicked.
+
 ### 2026-10-25 — ROADMAP P1-2l: day count, month-end accrual job, note-text history, notes in ja / zh / fr (`feat/p1-2l-accrual-job-daycount-history-languages`, unmerged)
 - **Day count per loan** (schedule / actual-365 / actual-360): interest from the outstanding principal per day; default interest paid = interest of the days to the repayment; `interestDueToday` per installment. Migration 022.
 - **Month-end job** `LoanInterestAccrualJob`: opt-in per tenant (closing policy switch, default off), accrues to the end of the previous month, skips a closed period, idempotent.

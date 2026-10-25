@@ -12,6 +12,27 @@ namespace ERP.ACC.Domain.Entities
         public DateTime DueDate { get; set; }
         public int Status { get; set; }
 
+        /// <summary>Amount before VAT, the VAT rate in percent and the input VAT inside <see cref="Amount"/> (the gross owed to the supplier); ROADMAP P1-3.</summary>
+        public decimal NetAmount { get; set; }
+        public decimal TaxRatePercent { get; set; }
+        public decimal TaxAmount { get; set; }
+
+        /// <summary>The amount before VAT; for a bill created before VAT existed (net 0, tax 0) the whole amount.</summary>
+        public decimal EffectiveNet => NetAmount == 0m && TaxAmount == 0m ? Amount : NetAmount;
+
+        /// <summary>Records the split of the gross <see cref="Amount"/>; net + tax must equal it. Only a pending bill can be re-split (an approved one is posted).</summary>
+        public void ApplyVat(decimal net, decimal ratePercent, decimal tax)
+        {
+            if (net < 0m || tax < 0m || ratePercent < 0m || ratePercent > 100m)
+                throw new ArgumentException("The VAT split cannot be negative and the rate is 0–100.");
+            if (Math.Abs(net + tax - Amount) > 0.005m)
+                throw new ArgumentException($"Net ({net}) plus tax ({tax}) must equal the bill amount ({Amount}).");
+            NetAmount = Math.Round(net, 2);
+            TaxRatePercent = ratePercent;
+            TaxAmount = Math.Round(tax, 2);
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         /// <summary>The day the bill was approved, i.e. became a payable (null for a bill approved before this was recorded: its creation date is used).</summary>
         public DateTime? ApprovedOn { get; set; }
 

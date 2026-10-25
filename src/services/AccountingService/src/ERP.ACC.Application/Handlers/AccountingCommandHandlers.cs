@@ -71,22 +71,37 @@ namespace ERP.ACC.Application.Handlers
         private readonly IAccountingUnitOfWork _uow;
         private readonly IJournalPostingService _posting;
         private readonly ILogger<CreateInvoiceCommandHandler> _logger;
+        private readonly IVatPolicy? _vat;
 
-        public CreateInvoiceCommandHandler(IAccountingUnitOfWork uow, IJournalPostingService posting, ILogger<CreateInvoiceCommandHandler> logger)
+        public CreateInvoiceCommandHandler(IAccountingUnitOfWork uow, IJournalPostingService posting, ILogger<CreateInvoiceCommandHandler> logger, IVatPolicy? vat = null)
         {
             _uow = uow;
             _posting = posting;
             _logger = logger;
+            _vat = vat;
         }
 
         public async Task<InvoiceDto> Handle(CreateInvoiceCommand request, CancellationToken cancellationToken)
         {
+            var policy = _vat == null ? new VatSettings(0m, true) : await _vat.GetAsync(cancellationToken);
+            VatSplit split;
+            try
+            {
+                split = VatCalculator.Split(request.Amount, request.TaxRatePercent ?? policy.RatePercent, policy.PricesIncludeTax);
+            }
+            catch (ArgumentOutOfRangeException ex)
+            {
+                throw new BusinessRuleException("Accounting", ex.Message);
+            }
+
+            // Amount is the gross the customer owes; with prices excluding tax the VAT is added to the order total
             var invoice = Invoice.Create(
                 request.InvoiceNumber,
                 request.CustomerId,
                 request.OrderId,
-                request.Amount,
+                split.Gross,
                 request.DueDate);
+            invoice.ApplyVat(split.Net, split.RatePercent, split.Tax);
 
             await _uow.Invoices.AddAsync(invoice, cancellationToken);
             // Revenue is recognised when the invoice is created; the entry commits with the invoice.
@@ -102,10 +117,58 @@ namespace ERP.ACC.Application.Handlers
             CustomerId = i.CustomerId,
             OrderId = i.OrderId,
             Amount = i.Amount,
+            NetAmount = i.EffectiveNet,
+            TaxRatePercent = i.TaxRatePercent,
+            TaxAmount = i.TaxAmount,
             DueDate = i.DueDate,
             Status = ((InvoiceStatus)i.Status).ToString(),
             CreatedAt = i.CreatedAt
         };
+    }
+
+    public class AdjustInvoiceVatCommandHandler : IRequestHandler<AdjustInvoiceVatCommand, InvoiceDto>
+    {
+        private readonly IAccountingUnitOfWork _uow;
+        private readonly IJournalPostingService _posting;
+        private readonly ILogger<AdjustInvoiceVatCommandHandler> _logger;
+        private readonly IEInvoiceRepository? _einvoices;
+
+        public AdjustInvoiceVatCommandHandler(IAccountingUnitOfWork uow, IJournalPostingService posting, ILogger<AdjustInvoiceVatCommandHandler> logger, IEInvoiceRepository? einvoices = null)
+        {
+            _uow = uow;
+            _posting = posting;
+            _logger = logger;
+            _einvoices = einvoices;
+        }
+
+        public async Task<InvoiceDto> Handle(AdjustInvoiceVatCommand request, CancellationToken cancellationToken)
+        {
+            var invoice = await _uow.Invoices.GetByIdAsync(request.InvoiceId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Invoice {request.InvoiceId} not found.");
+            if (invoice.Status == (int)InvoiceStatus.Cancelled)
+                throw new BusinessRuleException("Accounting", $"Invoice {invoice.InvoiceNumber} is cancelled: its VAT cannot be adjusted.");
+            if (request.TaxRatePercent < 0m || request.TaxRatePercent > 100m)
+                throw new BusinessRuleException("Accounting", "The VAT rate must be between 0 and 100.");
+            // an issued e-invoice declares the VAT to the tax authority: cancel it before the split can change
+            if (_einvoices != null && await _einvoices.GetActiveByInvoiceAsync(invoice.Id, cancellationToken) is { Status: (int)EInvoiceStatus.Issued })
+                throw new BusinessRuleException("Accounting", $"Invoice {invoice.InvoiceNumber} has an issued e-invoice: cancel it before changing the VAT.");
+
+            // the gross is what the customer owes and may already be paid: only the split changes
+            var split = VatCalculator.Split(invoice.Amount, request.TaxRatePercent, pricesIncludeTax: true);
+            var oldTax = invoice.TaxAmount;
+            invoice.ApplyVat(split.Net, split.RatePercent, split.Tax);
+
+            var delta = split.Tax - oldTax;
+            if (delta != 0m)
+            {
+                var entry = await _posting.TryPostAsync(_logger, PostingRules.ForInvoiceVatAdjustment(invoice, delta, DateTime.UtcNow), cancellationToken);
+                if (entry == null)
+                    throw new BusinessRuleException("Accounting", "The VAT adjustment could not be posted: complete the posting profile (Sales revenue and VAT output).");
+            }
+            await _uow.Invoices.UpdateAsync(invoice, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
+            return CreateInvoiceCommandHandler.MapInvoiceToDto(invoice);
+        }
     }
 
     public class MarkInvoicePaidCommandHandler : IRequestHandler<MarkInvoicePaidCommand, InvoiceDto>
@@ -144,16 +207,35 @@ namespace ERP.ACC.Application.Handlers
     {
         private readonly IAccountingUnitOfWork _uow;
 
-        public CreateBillCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
+        private readonly IVatPolicy? _vat;
+
+        public CreateBillCommandHandler(IAccountingUnitOfWork uow, IVatPolicy? vat = null)
+        {
+            _uow = uow;
+            _vat = vat;
+        }
 
         public async Task<BillDto> Handle(CreateBillCommand request, CancellationToken cancellationToken)
         {
+            var policy = _vat == null ? new VatSettings(0m, true) : await _vat.GetAsync(cancellationToken);
+            VatSplit split;
+            try
+            {
+                split = VatCalculator.Split(request.Amount, request.TaxRatePercent ?? policy.RatePercent, policy.PricesIncludeTax);
+            }
+            catch (ArgumentOutOfRangeException ex)
+            {
+                throw new BusinessRuleException("Accounting", ex.Message);
+            }
+
+            // Amount is the gross owed to the supplier; with prices excluding tax the VAT is added to the purchase order total
             var bill = Bill.Create(
                 request.BillNumber,
                 request.SupplierId,
                 request.POId,
-                request.Amount,
+                split.Gross,
                 request.DueDate);
+            bill.ApplyVat(split.Net, split.RatePercent, split.Tax);
 
             await _uow.Bills.AddAsync(bill, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
@@ -167,6 +249,9 @@ namespace ERP.ACC.Application.Handlers
             SupplierId = b.SupplierId,
             POId = b.POId,
             Amount = b.Amount,
+            NetAmount = b.EffectiveNet,
+            TaxRatePercent = b.TaxRatePercent,
+            TaxAmount = b.TaxAmount,
             DueDate = b.DueDate,
             Status = ((BillStatus)b.Status).ToString(),
             CreatedAt = b.CreatedAt
@@ -191,6 +276,13 @@ namespace ERP.ACC.Application.Handlers
             var bill = await _uow.Bills.GetByIdAsync(request.BillId, cancellationToken)
                 ?? throw new InvalidOperationException($"Bill {request.BillId} not found.");
 
+            if (request.TaxRatePercent.HasValue)
+            {
+                if (request.TaxRatePercent < 0m || request.TaxRatePercent > 100m)
+                    throw new BusinessRuleException("Accounting", "The VAT rate must be between 0 and 100.");
+                var split = VatCalculator.Split(bill.Amount, request.TaxRatePercent.Value, pricesIncludeTax: true);
+                bill.ApplyVat(split.Net, split.RatePercent, split.Tax);
+            }
             bill.Approve();
             await _uow.Bills.UpdateAsync(bill, cancellationToken);
             await _posting.TryPostAsync(_logger, PostingRules.ForBillApproval(bill, DateTime.UtcNow), cancellationToken);

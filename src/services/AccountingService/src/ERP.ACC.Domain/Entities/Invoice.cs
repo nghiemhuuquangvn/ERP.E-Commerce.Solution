@@ -13,6 +13,27 @@ namespace ERP.ACC.Domain.Entities
         public int Status { get; set; }
         public decimal AmountPaid { get; set; }
 
+        /// <summary>Amount before VAT, the VAT rate in percent and the VAT inside <see cref="Amount"/> (the gross); ROADMAP P1-3. Tax 0 for an invoice without VAT.</summary>
+        public decimal NetAmount { get; set; }
+        public decimal TaxRatePercent { get; set; }
+        public decimal TaxAmount { get; set; }
+
+        /// <summary>The amount before VAT; for an invoice created before VAT existed (net 0, tax 0) the whole amount.</summary>
+        public decimal EffectiveNet => NetAmount == 0m && TaxAmount == 0m ? Amount : NetAmount;
+
+        /// <summary>Records the split of the gross <see cref="Amount"/>; net + tax must equal it.</summary>
+        public void ApplyVat(decimal net, decimal ratePercent, decimal tax)
+        {
+            if (net < 0m || tax < 0m || ratePercent < 0m || ratePercent > 100m)
+                throw new ArgumentException("The VAT split cannot be negative and the rate is 0–100.");
+            if (Math.Abs(net + tax - Amount) > 0.005m)
+                throw new ArgumentException($"Net ({net}) plus tax ({tax}) must equal the invoice amount ({Amount}).");
+            NetAmount = Math.Round(net, 2);
+            TaxRatePercent = ratePercent;
+            TaxAmount = Math.Round(tax, 2);
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         /// <summary>The day the invoice was cancelled (null while it is not, or for a cancellation made before this was recorded).</summary>
         public DateTime? CancelledOn { get; set; }
 

@@ -8,10 +8,32 @@ export interface InvoiceDto {
   invoiceNumber: string
   customerId: string
   orderId: string
+  /** The gross the customer owes; netAmount + taxAmount. */
   amount: number
+  netAmount: number
+  taxRatePercent: number
+  taxAmount: number
   dueDate: string
   status: string
   createdAt: string
+}
+
+/** The e-invoice of an invoice as the provider answered (ROADMAP P1-3). */
+export interface EInvoiceDto {
+  id: string
+  invoiceId: string
+  provider: string
+  status: 'Issued' | 'Cancelled' | 'Failed'
+  series: string
+  number: string | null
+  lookupCode: string | null
+  issuedAt: string | null
+  buyerName: string
+  buyerTaxCode: string | null
+  buyerAddress: string | null
+  error: string | null
+  cancelReason: string | null
+  cancelledAt: string | null
 }
 
 // InvoiceStatus enum (ERP.ACC.Domain.Enums.InvoiceStatus): Unpaid=0, Paid=1, Overdue=2
@@ -55,6 +77,20 @@ export const invoicesApi = {
 
   create: (body: CreateInvoiceRequest) =>
     apiClient.post<InvoiceDto>(`${ACC_BASE}/invoices`, body).then((r) => r.data),
+
+  adjustVat: (id: string, taxRatePercent: number) =>
+    apiClient.post<InvoiceDto>(`${ACC_BASE}/invoices/${id}/adjust-vat`, { taxRatePercent }).then((r) => r.data),
+
+  eInvoiceProviders: () => apiClient.get<string[]>(`${ACC_BASE}/invoices/e-invoice-providers`).then((r) => r.data),
+
+  eInvoice: (id: string) =>
+    apiClient.get<EInvoiceDto>(`${ACC_BASE}/invoices/${id}/e-invoice`, { validateStatus: (s) => s === 200 || s === 404 }).then((r) => (r.status === 200 ? r.data : null)),
+
+  issueEInvoice: (id: string, buyer: { buyerName?: string; buyerTaxCode?: string; buyerAddress?: string }) =>
+    apiClient.post<EInvoiceDto>(`${ACC_BASE}/invoices/${id}/e-invoice`, buyer).then((r) => r.data),
+
+  cancelEInvoice: (id: string, reason: string) =>
+    apiClient.post<EInvoiceDto>(`${ACC_BASE}/invoices/${id}/e-invoice/cancel`, { reason }).then((r) => r.data),
 
   markPaid: (id: string) =>
     apiClient.post<InvoiceDto>(`${ACC_BASE}/invoices/${id}/mark-paid`).then((r) => r.data),

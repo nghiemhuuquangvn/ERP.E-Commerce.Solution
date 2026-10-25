@@ -14,6 +14,9 @@ export interface TenantTaxSettings {
   companyTaxCode: string | null
   defaultTaxRatePercent: number
   pricesIncludeTax: boolean
+  /** Code of the e-invoice provider ("sandbox" …); empty = e-invoices are off. */
+  eInvoiceProvider?: string | null
+  eInvoiceSeries?: string | null
 }
 
 export type UpdateTenantTaxSettingsRequest = Omit<TenantTaxSettings, 'tenantId'>

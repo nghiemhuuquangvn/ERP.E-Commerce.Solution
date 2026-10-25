@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { invoicesApi, INVOICE_STATUS } from '@/api/accounting/invoices.api'
 import type { InvoiceDto } from '@/api/accounting/invoices.api'
+import { ReasonDialog } from '@/components/shared/ReasonDialog'
 import { DataTable } from '@/components/shared/DataTable'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
@@ -151,12 +152,28 @@ function InvoicesListTab({ canManage }: { canManage: boolean }) {
   })
 
   const items = data ?? []
+  const [eInvoiceOf, setEInvoiceOf] = useState<InvoiceDto | null>(null)
+  const adjustVatMutation = useMutation({
+    mutationFn: ({ id, rate }: { id: string; rate: number }) => invoicesApi.adjustVat(id, rate),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['accounting', 'invoices'] }),
+    onError: (e) => window.alert(detail(e, t('accounting.vat.failed'))),
+  })
 
   const columns = useMemo(
     () => [
       { key: 'invoiceNumber', label: t('accounting.invoices.invoiceNumber'), className: 'font-mono text-xs' },
       { key: 'customerId', label: t('accounting.invoices.customerId'), className: 'font-mono text-xs' },
       { key: 'orderId', label: t('accounting.invoices.orderId'), className: 'font-mono text-xs' },
+      {
+        key: 'netAmount',
+        label: t('accounting.vat.net'),
+        render: (i: InvoiceDto) => i.netAmount.toLocaleString(),
+      },
+      {
+        key: 'taxAmount',
+        label: t('accounting.vat.taxWithRate'),
+        render: (i: InvoiceDto) => (i.taxAmount ? `${i.taxAmount.toLocaleString()} (${i.taxRatePercent}%)` : '—'),
+      },
       {
         key: 'amount',
         label: t('accounting.invoices.amount'),
@@ -180,19 +197,37 @@ function InvoicesListTab({ canManage }: { canManage: boolean }) {
       {
         key: 'actions',
         label: '',
-        render: (i: InvoiceDto) =>
-          canManage && i.status !== 'Paid' ? (
-            <button
-              className="text-xs text-primary-600 hover:underline disabled:opacity-40"
-              disabled={markPaidMutation.isPending}
-              onClick={() => markPaidMutation.mutate(i.id)}
-            >
-              {t('accounting.invoices.markPaid')}
+        render: (i: InvoiceDto) => (
+          <span className="flex flex-wrap gap-3">
+            {canManage && i.status !== 'Paid' && (
+              <button
+                className="text-xs text-primary-600 hover:underline disabled:opacity-40"
+                disabled={markPaidMutation.isPending}
+                onClick={() => markPaidMutation.mutate(i.id)}
+              >
+                {t('accounting.invoices.markPaid')}
+              </button>
+            )}
+            {canManage && i.status !== 'Cancelled' && (
+              <button
+                className="text-xs text-primary-600 hover:underline disabled:opacity-40"
+                disabled={adjustVatMutation.isPending}
+                onClick={() => {
+                  const rate = window.prompt(t('accounting.vat.adjustPrompt'), String(i.taxRatePercent))
+                  if (rate !== null && rate.trim() !== '' && !Number.isNaN(Number(rate))) adjustVatMutation.mutate({ id: i.id, rate: Number(rate) })
+                }}
+              >
+                {t('accounting.vat.adjust')}
+              </button>
+            )}
+            <button className="text-xs text-primary-600 hover:underline" onClick={() => setEInvoiceOf(i)}>
+              {t('accounting.vat.eInvoice')}
             </button>
-          ) : null,
+          </span>
+        ),
       },
     ],
-    [canManage, markPaidMutation, t],
+    [canManage, markPaidMutation, adjustVatMutation, t],
   )
 
   return (
@@ -257,6 +292,90 @@ function InvoicesListTab({ canManage }: { canManage: boolean }) {
       </div>
 
       {createOpen && <CreateInvoiceModal onClose={() => setCreateOpen(false)} />}
+      {eInvoiceOf && <EInvoiceDialog invoice={eInvoiceOf} canManage={canManage} onClose={() => setEInvoiceOf(null)} />}
+    </div>
+  )
+}
+
+const detail = (e: unknown, fallback: string) => (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? fallback
+
+/** The e-invoice of one invoice: its state, issue with the buyer's details, cancel with a reason (ROADMAP P1-3). */
+function EInvoiceDialog({ invoice, canManage, onClose }: { invoice: InvoiceDto; canManage: boolean; onClose: () => void }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [buyer, setBuyer] = useState({ buyerName: '', buyerTaxCode: '', buyerAddress: '' })
+  const [cancelling, setCancelling] = useState(false)
+  const { data, isLoading } = useQuery({ queryKey: ['accounting', 'invoices', 'e-invoice', invoice.id], queryFn: () => invoicesApi.eInvoice(invoice.id) })
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['accounting', 'invoices'] })
+  const issue = useMutation({ mutationFn: () => invoicesApi.issueEInvoice(invoice.id, buyer), onSuccess: refresh })
+  const cancel = useMutation({
+    mutationFn: (reason: string) => invoicesApi.cancelEInvoice(invoice.id, reason),
+    onSuccess: () => {
+      refresh()
+      setCancelling(false)
+    },
+  })
+  const issued = data?.status === 'Issued'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="card w-full max-w-md space-y-3 p-4">
+        <h2 className="text-lg font-semibold">
+          {t('accounting.vat.eInvoice')} · {invoice.invoiceNumber}
+        </h2>
+        {isLoading && <p className="text-sm text-gray-400">{t('common.loading')}</p>}
+        {data && (
+          <div className="space-y-1 text-sm text-gray-700">
+            <p>
+              {t('common.status')}: <b>{data.status}</b>
+            </p>
+            {data.number && (
+              <p>
+                {data.series}-{data.number} · {t('accounting.vat.lookupCode')}: <span className="font-mono">{data.lookupCode}</span>
+              </p>
+            )}
+            <p>
+              {t('accounting.vat.buyer')}: {data.buyerName}
+              {data.buyerTaxCode ? ` (${data.buyerTaxCode})` : ''}
+            </p>
+            {data.error && <p className="text-red-600">{data.error}</p>}
+            {data.cancelReason && <p className="text-gray-500">{data.cancelReason}</p>}
+          </div>
+        )}
+        {canManage && !issued && !isLoading && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-gray-700">{t('accounting.vat.buyer')}</p>
+            {(['buyerName', 'buyerTaxCode', 'buyerAddress'] as const).map((k) => (
+              <input key={k} className="input w-full" placeholder={t(`accounting.vat.${k}`)} value={buyer[k]} onChange={(e) => setBuyer({ ...buyer, [k]: e.target.value })} />
+            ))}
+            <button className="btn-primary" disabled={issue.isPending} onClick={() => issue.mutate()}>
+              {t('accounting.vat.issue')}
+            </button>
+            {issue.isError && <p className="text-xs text-red-600">{detail(issue.error, t('accounting.vat.failed'))}</p>}
+          </div>
+        )}
+        {canManage && issued && (
+          <button className="text-sm text-red-600 hover:underline" onClick={() => setCancelling(true)}>
+            {t('accounting.vat.cancelEInvoice')}
+          </button>
+        )}
+        <div className="flex justify-end">
+          <button className="btn-outline" onClick={onClose}>
+            {t('common.close')}
+          </button>
+        </div>
+      </div>
+      <ReasonDialog
+        open={cancelling}
+        title={t('accounting.vat.cancelEInvoice')}
+        message={invoice.invoiceNumber}
+        confirmLabel={t('accounting.vat.cancelEInvoice')}
+        danger
+        busy={cancel.isPending}
+        error={cancel.isError ? detail(cancel.error, t('accounting.vat.failed')) : null}
+        onConfirm={(reason) => cancel.mutate(reason)}
+        onCancel={() => setCancelling(false)}
+      />
     </div>
   )
 }

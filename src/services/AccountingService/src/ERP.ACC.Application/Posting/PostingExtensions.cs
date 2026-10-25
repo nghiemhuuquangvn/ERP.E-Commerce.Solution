@@ -57,18 +57,37 @@ namespace ERP.ACC.Application.Posting
         public const string PaySlipPayment = "PaySlipPayment";
         public const string PaymentRefund = "PaymentRefund";
         public const string SalesReturn = "SalesReturn";
+        public const string InvoiceVatAdjustment = "InvoiceVatAdjust";
         public const string Loan = "Loan";
         public const string LoanRepayment = "LoanRepayment";
         public const string LoanAccrual = "LoanAccrual";
 
-        /// <summary>Dr Accounts receivable / Cr Sales revenue (gross; VAT is split by P1-3).</summary>
-        public static PostingRequest ForInvoice(Domain.Entities.Invoice invoice) =>
-            new(Invoice, invoice.Id, invoice.CreatedAt, $"Invoice {invoice.InvoiceNumber}",
-                new[]
-                {
-                    PostingLine.Dr(PostingKeys.AccountsReceivable, invoice.Amount, invoice.InvoiceNumber),
-                    PostingLine.Cr(PostingKeys.SalesRevenue, invoice.Amount, invoice.InvoiceNumber),
-                });
+        /// <summary>Dr Accounts receivable (gross) / Cr Sales revenue (net) and Cr VAT output (the VAT, ROADMAP P1-3); an invoice without VAT posts the two lines as before.</summary>
+        public static PostingRequest ForInvoice(Domain.Entities.Invoice invoice)
+        {
+            var lines = new List<PostingLine>
+            {
+                PostingLine.Dr(PostingKeys.AccountsReceivable, invoice.Amount, invoice.InvoiceNumber),
+                PostingLine.Cr(PostingKeys.SalesRevenue, invoice.Amount - invoice.TaxAmount, invoice.InvoiceNumber),
+            };
+            if (invoice.TaxAmount > 0m)
+                lines.Add(PostingLine.Cr(PostingKeys.VatOutput, invoice.TaxAmount, invoice.InvoiceNumber));
+            return new(Invoice, invoice.Id, invoice.CreatedAt, $"Invoice {invoice.InvoiceNumber}", lines);
+        }
+
+        /// <summary>
+        /// The VAT of an invoice was re-split at another rate: <paramref name="taxDelta"/> more VAT output (positive: Dr Sales revenue / Cr VAT output) or less (negative: the reverse).
+        /// One entry per change (the source id is derived from the invoice and the moment).
+        /// </summary>
+        public static PostingRequest ForInvoiceVatAdjustment(Domain.Entities.Invoice invoice, decimal taxDelta, DateTime date)
+        {
+            var amount = Math.Abs(taxDelta);
+            var bytes = System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes($"{invoice.Id:N}:{invoice.TaxRatePercent}:{invoice.UpdatedAt.Ticks}"));
+            var lines = taxDelta > 0m
+                ? new[] { PostingLine.Dr(PostingKeys.SalesRevenue, amount, invoice.InvoiceNumber), PostingLine.Cr(PostingKeys.VatOutput, amount, invoice.InvoiceNumber) }
+                : new[] { PostingLine.Dr(PostingKeys.VatOutput, amount, invoice.InvoiceNumber), PostingLine.Cr(PostingKeys.SalesRevenue, amount, invoice.InvoiceNumber) };
+            return new(InvoiceVatAdjustment, new Guid(bytes), date.Date, $"VAT of invoice {invoice.InvoiceNumber} set to {invoice.TaxRatePercent}%", lines);
+        }
 
         /// <summary>Money received for an order: Dr Cash (cash) or Bank (every other method) / Cr Accounts receivable.</summary>
         public static PostingRequest ForPayment(Guid paymentId, Guid orderId, decimal amount, int paymentMethod, DateTime date)
@@ -83,14 +102,15 @@ namespace ERP.ACC.Application.Posting
             new(InvoicePayment, invoice.Id, date, $"Payment of invoice {invoice.InvoiceNumber}",
                 new[] { PostingLine.Dr(PostingKeys.Bank, outstanding), PostingLine.Cr(PostingKeys.AccountsReceivable, outstanding) });
 
-        /// <summary>Dr Goods received not invoiced / Cr Accounts payable. The stock itself was debited to Inventory by the receipt.</summary>
-        public static PostingRequest ForBillApproval(Domain.Entities.Bill bill, DateTime date) =>
-            new(Bill, bill.Id, date, $"Bill {bill.BillNumber}",
-                new[]
-                {
-                    PostingLine.Dr(PostingKeys.GoodsReceivedNotInvoiced, bill.Amount, bill.BillNumber),
-                    PostingLine.Cr(PostingKeys.AccountsPayable, bill.Amount, bill.BillNumber),
-                });
+        /// <summary>Dr Goods received not invoiced (net) and Dr VAT input (the VAT, ROADMAP P1-3) / Cr Accounts payable (gross). The stock itself was debited to Inventory by the receipt.</summary>
+        public static PostingRequest ForBillApproval(Domain.Entities.Bill bill, DateTime date)
+        {
+            var lines = new List<PostingLine> { PostingLine.Dr(PostingKeys.GoodsReceivedNotInvoiced, bill.Amount - bill.TaxAmount, bill.BillNumber) };
+            if (bill.TaxAmount > 0m)
+                lines.Add(PostingLine.Dr(PostingKeys.VatInput, bill.TaxAmount, bill.BillNumber));
+            lines.Add(PostingLine.Cr(PostingKeys.AccountsPayable, bill.Amount, bill.BillNumber));
+            return new(Bill, bill.Id, date, $"Bill {bill.BillNumber}", lines);
+        }
 
         /// <summary>The line on the money side of a loan: the loan's own receiving account when it has one, else the Bank key.</summary>
         private static PostingLine MoneyLine(Domain.Entities.Loan loan, decimal debit, decimal credit) =>
@@ -275,9 +295,16 @@ namespace ERP.ACC.Application.Posting
         }
 
         /// <summary>A completed return (credit note): Dr Sales returns / Cr Accounts receivable. Keyed by the order: Sales allows one return per order.</summary>
-        public static PostingRequest ForSalesReturn(Guid orderId, string invoiceNumber, decimal amount, DateTime date) =>
-            new(SalesReturn, orderId, date, $"Return of invoice {invoiceNumber}",
-                new[] { PostingLine.Dr(PostingKeys.SalesReturns, amount, invoiceNumber), PostingLine.Cr(PostingKeys.AccountsReceivable, amount, invoiceNumber) });
+        public static PostingRequest ForSalesReturn(Guid orderId, string invoiceNumber, decimal amount, DateTime date, decimal taxRatePercent = 0m)
+        {
+            // the refund is gross: the VAT inside it (at the invoice's rate) comes off the VAT output, the rest off the revenue (ROADMAP P1-3)
+            var tax = taxRatePercent > 0m ? VatCalculator.TaxInGross(amount, taxRatePercent) : 0m;
+            var lines = new List<PostingLine> { PostingLine.Dr(PostingKeys.SalesReturns, amount - tax, invoiceNumber) };
+            if (tax > 0m)
+                lines.Add(PostingLine.Dr(PostingKeys.VatOutput, tax, invoiceNumber));
+            lines.Add(PostingLine.Cr(PostingKeys.AccountsReceivable, amount, invoiceNumber));
+            return new(SalesReturn, orderId, date, $"Return of invoice {invoiceNumber}", lines);
+        }
 
         /// <summary>PaymentService's PaymentMethod enum: CreditCard 0, DebitCard 1, BankTransfer 2, EWallet 3, Cash 4, Crypto 5.</summary>
         public const int CashMethod = 4;

@@ -338,6 +338,37 @@ namespace ERP.ACC.API.Controllers
             return IsExport(format) ? Export(format, ReportTables.LoanReconciliation(result), "loans-reconciliation") : Ok(result);
         }
 
+        /// <summary>
+        /// The VAT listing (ROADMAP P1-3): direction=output lists the sales invoices (and returns, adjustments, POS and manual entries from the journal), direction=input the
+        /// approved bills; subtotals per rate and a check against the VAT account. format=csv|xlsx.
+        /// </summary>
+        [HttpGet("vat/listing")]
+        [ProducesResponseType(typeof(VatListingDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> VatListing(
+            [FromQuery] DateTime fromDate, [FromQuery] DateTime toDate, [FromQuery] string direction = "output", [FromQuery] string? format = null, CancellationToken ct = default)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+            if (IsPdf(format))
+                return PdfNotAvailable();
+
+            var result = await _mediator.Send(new GetVatListingQuery { FromDate = fromDate, ToDate = toDate, Direction = direction }, ct);
+            return IsExport(format) ? Export(format, ReportTables.VatListing(result), "vat-listing-" + result.Direction) : Ok(result);
+        }
+
+        /// <summary>The simplified VAT return 01/GTGT of a period (draft for the accountant): carried-over, input and output VAT, payable or to carry forward. unit and format=csv|xlsx|pdf as for the statements.</summary>
+        [HttpGet("vat/return")]
+        [ProducesResponseType(typeof(FinancialStatementDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> VatReturn(
+            [FromQuery] DateTime fromDate, [FromQuery] DateTime toDate, [FromQuery] string? unit = null, [FromQuery] string? format = null, CancellationToken ct = default)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+
+            var result = await _mediator.Send(new GetVatReturnQuery { FromDate = fromDate, ToDate = toDate, Unit = unit }, ct);
+            return IsExport(format) ? StatementExport(format, result, "vat-return-01-gtgt") : Ok(result);
+        }
+
         private static bool IsPdf(string? format) => string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase);
 
         private IActionResult PdfNotAvailable() => BadRequest(new ProblemDetails

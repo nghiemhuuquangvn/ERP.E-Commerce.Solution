@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using ERP.ACC.Application.Commands;
+using ERP.ACC.Application.EInvoicing;
 using ERP.ACC.Application.Queries;
 using ERP.Shared.Authorization;
 using MediatR;
@@ -60,6 +61,68 @@ namespace ERP.ACC.API.Controllers
 
             var result = await _mediator.Send(command, ct);
             return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+        }
+
+        public class AdjustVatRequest
+        {
+            public decimal TaxRatePercent { get; set; }
+        }
+
+        /// <summary>Re-splits the invoice's gross at another VAT rate and posts the difference (ROADMAP P1-3).</summary>
+        [HttpPost("{id:guid}/adjust-vat")]
+        public async Task<IActionResult> AdjustVat(Guid id, [FromBody] AdjustVatRequest request, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:invoices:manage"))
+                return Forbid();
+
+            return Ok(await _mediator.Send(new AdjustInvoiceVatCommand { InvoiceId = id, TaxRatePercent = request.TaxRatePercent }, ct));
+        }
+
+        public class CancelEInvoiceRequest
+        {
+            public string Reason { get; set; } = string.Empty;
+        }
+
+        public class IssueEInvoiceRequest
+        {
+            public string? BuyerName { get; set; }
+            public string? BuyerTaxCode { get; set; }
+            public string? BuyerAddress { get; set; }
+        }
+
+        /// <summary>The e-invoice providers this installation offers (for the tax settings).</summary>
+        [HttpGet("e-invoice-providers")]
+        public async Task<IActionResult> EInvoiceProviders(CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:invoices:view"))
+                return Forbid();
+            return Ok(await _mediator.Send(new ListEInvoiceProvidersQuery(), ct));
+        }
+
+        /// <summary>Issues the e-invoice of the invoice through the tenant's provider (ROADMAP P1-3). Locks the invoice's VAT.</summary>
+        [HttpPost("{id:guid}/e-invoice")]
+        public async Task<IActionResult> IssueEInvoice(Guid id, [FromBody] IssueEInvoiceRequest? request, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:invoices:manage"))
+                return Forbid();
+            return Ok(await _mediator.Send(new IssueEInvoiceCommand { InvoiceId = id, BuyerName = request?.BuyerName, BuyerTaxCode = request?.BuyerTaxCode, BuyerAddress = request?.BuyerAddress }, ct));
+        }
+
+        [HttpGet("{id:guid}/e-invoice")]
+        public async Task<IActionResult> GetEInvoice(Guid id, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:invoices:view"))
+                return Forbid();
+            var result = await _mediator.Send(new GetEInvoiceQuery { InvoiceId = id }, ct);
+            return result == null ? NotFound() : Ok(result);
+        }
+
+        [HttpPost("{id:guid}/e-invoice/cancel")]
+        public async Task<IActionResult> CancelEInvoice(Guid id, [FromBody] CancelEInvoiceRequest request, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:invoices:manage"))
+                return Forbid();
+            return Ok(await _mediator.Send(new CancelEInvoiceCommand { InvoiceId = id, Reason = request.Reason }, ct));
         }
 
         [HttpPost("{id:guid}/mark-paid")]

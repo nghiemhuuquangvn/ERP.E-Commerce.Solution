@@ -241,6 +241,7 @@ namespace ERP.ACC.Application.Posting
                 [PostingKeys.SalesRevenue] = "5111",
                 [PostingKeys.Inventory] = "1561",
                 [PostingKeys.VatOutput] = "3331",
+                [PostingKeys.VatInput] = "1331",
                 [PostingKeys.GoodsReceivedNotInvoiced] = "3388",
                 [PostingKeys.CostOfGoodsSold] = "632",
                 [PostingKeys.InventoryAdjustment] = "632",

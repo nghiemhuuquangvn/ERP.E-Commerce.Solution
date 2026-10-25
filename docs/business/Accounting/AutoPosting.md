@@ -35,7 +35,8 @@ The entry is staged on the caller's unit of work, so the document, its journal e
 | `SalaryExpense` | 5200 Salaries & Benefits | pay slips (gross + overtime) |
 | `SalariesPayable` | 2100 Accrued Liabilities | pay slips (net pay), their payment |
 | `PayrollWithholdingsPayable` | 2100 (VAS, P1-2, splits insurance and personal income tax) | pay slips (deductions) |
-| `VatOutput` | 2200 Tax Payable | reserved: no flow posts VAT yet (P1-3) |
+| `VatOutput` | 2200 Tax Payable (Vas99: 3331) | VAT on sales invoices, returns and POS sales (P1-3) |
+| `VatInput` | 2200 (shared with VatOutput; Vas99: 1331) | VAT on approved bills (P1-3) |
 
 A tenant with **no accounts at all** gets the default chart and profile the first time something has to be posted. A tenant that
 already has its own chart is never given extra accounts: if a key has no account it needs configuring
@@ -162,7 +163,7 @@ the log service. Fix the profile; entries for documents already saved are not ba
 * Bills for goods received before this release stay on the old Dr Inventory rule; new bills debit GRNI.
 * Stock that was in the warehouse before the release has no entries, so account 1200 starts below the Warehouse valuation until an
   opening-balance entry is booked by hand. Movements before the release are not back-posted.
-* **No VAT split** (P1-3): Sales, Purchasing and Payment carry no tax fields. The engine and `VatOutput` key are ready for it.
+* **VAT** (P1-3): Sales, Purchasing and Payment still carry no tax fields; Accounting splits invoices and bills with the tenant's rate (`TenantTaxSettings`, `VatCalculator`). Invoice: Dr AR gross / Cr Revenue net / Cr VatOutput; bill: Dr GRNI net / Dr VatInput / Cr AP gross; return: Dr SalesReturns net / Dr VatOutput / Cr AR gross; rate correction `InvoiceVatAdjust`. With rate 0 every entry is as before.
 * **Not posted yet:** restock and cost of returned goods and the payment refund triggered by a return (P1-5), POS refund tenders and cash paid-in / paid-out,
   employer payroll contributions (P1-7).
 * Existing invoices and bills (before this release) are not back-posted; demo data keeps its own legacy entries (`SourceKey` empty).

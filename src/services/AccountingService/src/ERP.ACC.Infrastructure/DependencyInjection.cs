@@ -75,6 +75,9 @@ namespace ERP.ACC.Infrastructure
             services.AddScoped<IStatementMappingRepository, StatementMappingRepository>();
             services.AddScoped<ILoanRepository, LoanRepository>();
             services.AddScoped<INoteTextRepository, NoteTextRepository>();
+            services.AddScoped<IEInvoiceRepository, EInvoiceRepository>();
+            services.AddScoped<ERP.ACC.Application.EInvoicing.IEInvoiceProvider, ERP.ACC.Infrastructure.EInvoicing.SandboxEInvoiceProvider>();
+            services.AddScoped<ERP.ACC.Application.EInvoicing.IEInvoiceProviderFactory, ERP.ACC.Infrastructure.EInvoicing.EInvoiceProviderFactory>();
             services.AddScoped<ERP.ACC.Application.Posting.IJournalNumberGenerator, ERP.ACC.Infrastructure.Services.JournalNumberGenerator>();
             services.AddScoped<ITaxRateRepository, TaxRateRepository>();
             services.AddScoped<IBankAccountRepository, BankAccountRepository>();

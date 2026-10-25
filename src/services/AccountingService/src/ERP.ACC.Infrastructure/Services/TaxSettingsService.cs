@@ -61,14 +61,16 @@ public class TaxSettingsService : ITaxSettingsService
         {
             var settings = await GetOrCreateTenantAsync(tenantId, ct);
             await _dbContext.SaveChangesAsync(ct);
-            return new TenantTaxSettingsDto(settings.TenantId, settings.CompanyTaxCode, settings.DefaultTaxRatePercent, settings.PricesIncludeTax);
+            return new TenantTaxSettingsDto(settings.TenantId, settings.CompanyTaxCode, settings.DefaultTaxRatePercent, settings.PricesIncludeTax, settings.EInvoiceProvider, settings.EInvoiceSeries);
         }, TimeSpan.FromMinutes(15), ct);
     }
 
     public async Task<TenantTaxSettingsDto> UpdateTenantSettingsAsync(Guid tenantId, UpdateTenantTaxSettingsRequest request, CancellationToken ct)
     {
         var settings = await GetOrCreateTenantAsync(tenantId, ct);
-        settings.Update(request.CompanyTaxCode, request.DefaultTaxRatePercent, request.PricesIncludeTax);
+        if (request.DefaultTaxRatePercent < 0m || request.DefaultTaxRatePercent > 100m)
+            throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("Accounting", "The default VAT rate must be between 0 and 100.");
+        settings.Update(request.CompanyTaxCode, request.DefaultTaxRatePercent, request.PricesIncludeTax, request.EInvoiceProvider, request.EInvoiceSeries);
 
         var @event = new SettingsChangedIntegrationEvent { ServiceName = "AccountingService", Category = "Tax", Scope = "Tenant", TenantId = tenantId };
         var content = JsonConvert.SerializeObject(@event, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
@@ -76,7 +78,7 @@ public class TaxSettingsService : ITaxSettingsService
 
         await _dbContext.SaveChangesAsync(ct);
         await _cache.RemoveAsync($"settings:accounting:tax:tenant:{tenantId}", ct);
-        return new(settings.TenantId, settings.CompanyTaxCode, settings.DefaultTaxRatePercent, settings.PricesIncludeTax);
+        return new(settings.TenantId, settings.CompanyTaxCode, settings.DefaultTaxRatePercent, settings.PricesIncludeTax, settings.EInvoiceProvider, settings.EInvoiceSeries);
     }
 
     private async Task<SystemTaxSettings> GetOrCreateSystemAsync(CancellationToken ct)
