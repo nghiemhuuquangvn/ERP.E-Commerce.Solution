@@ -884,7 +884,7 @@ When reviewing code:
     business rules, use cases (main / alternative / exception flows), data and state models,
     integrations, permissions, reports, assumptions, open issues and UAT scenarios — in the
     matching `docs/business/<Domain>/` document (baseline for Accounting:
-    `docs/business/Accounting/BA-Accounting.md`, with its traceability table). Technical notes
+    `docs/business/Accounting/BA-Accounting.md`, with its traceability table; other domains: `Warehouse/BA-Warehouse.md`, `POS/BA-POS.md`, `HRM/BA-Payslip-Lifecycle.md`, `Payment/BA-Refunds-and-Returns.md` (with Sales returns), `Identity/BA-Authentication-Hardening.md`). Technical notes
     (ROADMAP, PROJECT-STATUS, task.md, DEFERRED-ISSUES) come on top of it, not instead. Put this
     as the last step of every plan.
 
