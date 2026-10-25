@@ -164,6 +164,15 @@ A tenant whose chart is neither the Vietnamese nor the 14-account one sees its a
 ### 4.15 Notes in English, non-cash transactions and the prior period (P1-2j)
 The accountant chooses the **language** of the notes (Tiếng Việt / English) on the B09 tab. The fixed wording (titles, columns, labels, the PDF labels and number format) and the accountant's own texts are kept **per language**; an English text is written once in English and is not shown in the Vietnamese notes. Section VII shows a table of **non-cash transactions** found in the journal (fixed assets bought on a liability; a liability moved into owners' equity) above the accountant's text. Choosing a **comparison period** adds a column with the prior closing balance (movement tables) or the prior amount (revenue and expenses).
 
+### 4.16 A receiving account per loan (P1-2k)
+When the accountant registers a loan (or posts the drawdown of an older one) he can choose the **bank or cash account** that receives the money. The drawdown debits that account and every repayment credits it. Without a choice the Bank key of the posting profile is used, as before.
+
+### 4.17 Accruing loan interest (P1-2k)
+At the end of a month (or any date) the accountant presses **Accrue interest** on the Loans screen with the date. For every posted active loan and every unpaid installment the system accrues the interest earned so far in the installment's period (Dr interest expense / Cr interest payable). When the installment is repaid the accountant types the **interest actually paid** (or leaves it empty for the scheduled amount): the repayment clears the accrued interest and books only the difference to expense — a credit when less was paid than accrued. The *Loan ledger vs books* card checks the accrued interest against the interest-payable account.
+
+### 4.18 Own-chart mapping for the cash-flow statements and the notes; texts per year (P1-2k)
+**Mapping.** The *Account mapping* screen now also offers B03 direct, B03 indirect and B09: pick a prefix, the row (for B09 the table: V.1 cash … VI.2 expenses) and save. A cash movement against a mapped counter-account counts in the chosen B03 row (in the direction of the row); an indirect row sums the balance change of the mapped accounts; a notes table lists them. **Texts per year.** The texts of the notes are written for a **fiscal year**; a report for a later year shows the latest earlier text until it is overwritten, and writing an empty text for a year makes that year follow the earlier text again.
+
 ---
 
 ## 5. Functional requirements
@@ -273,6 +282,16 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | FR-99 | Given entries with no cash line that debit fixed assets against a liability (300) and debit a liability against capital (200), and a cash purchase and a closing entry, then section VII has a table "Fixed assets acquired on credit 300 / Debt converted into equity 200 / Total 500", the cash entry and the closing entry are not counted, and a note tells the accountant to confirm it; with no such entry section VII stays a text with its hint. | UAT-88 |
 | FR-100 | Given a comparison period, then every movement table gets a last column "Prior closing" and the revenue / expense tables a column "Prior period" (found by row label, 0 when the row did not exist); one comparison date without the other, or a start after the end, is refused (400). | UAT-89 |
 | FR-101 | The admin screens exist: Loans (posted state, post-drawdown option and button, reconciliation), Reports → Account mapping, and on the B09 tab the language and comparison selectors; they follow the manage permissions. | UAT-91 |
+| FR-102 | Given a loan of 2,000 created with receiving account 1112, then the drawdown entry debits 1112 (not the Bank key 1121) and credits 341; an account that is not an asset (331), does not exist, is inactive, groups sub-accounts or is off-balance is refused (400); an older loan without repayment gets its account when *Post drawdown* is used. | UAT-92 |
+| FR-103 | Given that loan (installment 1 due 1 Dec: principal 1,000, interest 90), when interest is accrued to 16 Nov, then 45 (15 of 30 days) is posted Dr 635 / Cr 335 dated 16 Nov; the same date again posts nothing; 22 Nov posts the 18 that completes 63; a hand-booked loan, a repaid installment and a cancelled loan accrue nothing; with an incomplete posting profile the interest stays un-accrued for the next run. | UAT-93 |
+| FR-104 | Given 63 accrued, when installment 1 is repaid on 1 Dec with interest paid 100, then the entry is Dr 341 1,000, Dr 335 63, Dr 635 37 / Cr receiving account 1,100; with interest paid 80 and 90 accrued, Dr 335 90 / Cr 635 10 / Cr account 1,080; a negative interest paid is refused; the installment keeps the interest paid. | UAT-94 |
+| FR-105 | Given interest already accrued on a loan, then cancelling it is refused (400) with the reason. | UAT-95 |
+| FR-106 | Given posted loans with accruals, then the reconciliation also returns the accrued interest of the unpaid installments, the balance of the interest-payable account and their difference; on the 14-account chart (one account for both) the ledger side adds the interest. | UAT-96 |
+| FR-107 | Given an investing counter-account 9701 that no row of B03 (direct) takes, then it is listed as unmapped; when 9701 is mapped to row 22, then its receipt counts in row 22 (30 = 100) and the unmapped list is empty; a payment against an own expense account mapped to row 02 counts there; mapping a total, formula or fallback row is refused. | UAT-97 |
+| FR-108 | Given the indirect method, then a mapped prefix on a prefix-driven row joins the row and the accounts the form deals with, and the direct rows of the indirect statement use the mapped direct layout (20 still equals the direct 20). | UAT-97 |
+| FR-109 | Given a prefix mapped to a notes table (for example 9801 to VI.2), then that table lists the account and its total includes it; table codes are V.1 … V.9, V.11, VI.1, VI.2; a prefix the standard sets already hold is refused. | UAT-98 |
+| FR-110 | Given texts written for 2026 and 2027, then the notes of a 2026 period show the 2026 text, a January 2027 report shows the 2027 text (or the 2026 text until 2027 has one), a 2025 report shows the year-0 text or none, clearing 2027 makes January 2027 show 2026 again, and the editor marks inherited texts with their year. | UAT-99, 100 |
+| FR-111 | The admin screens follow: Loans (receiving account, *Accrue interest*, accrued column, interest paid), Account mapping (B03 / B09, side hidden where it does not apply) and the B09 tab (year of the texts). | UAT-101 |
 
 ### 5.5 Acceptance criteria of the P1-2d requirements
 (Scenarios are in section 12; the *UAT* column points at them.)
@@ -338,6 +357,16 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | UAT-89 | Notes of November compared with October (English). | FR-100, BR-154 | Passed: V.1 has the columns Opening / Increase / Decrease / Closing / Prior closing; total row 300 \| 0 \| 0 \| 300 \| 300; the other cases: unit tests |
 | UAT-90 | The English notes as pdf, xlsx, csv. | FR-97 | Passed: 200 each (PDF 65,423 bytes); the PDF labels and number format in English: unit test on the document model |
 | UAT-91 | The admin build. | FR-101 | `tsc -b` clean; not clicked through in a browser in this task |
+| UAT-92 | On `glcheck`: loan "P12K-1" of 2,000 (1 Nov 2026; installment 1 due 1 Dec 1,000 + interest 90; installment 2 due 1 Jun 2028 1,000 + 400) created with receiving account 1112; then a loan with account 331. | FR-102, BR-156 | Passed: JE dated 2026-11-01 Dr 1112 2,000 / Cr 341 2,000; 331 → 400 "is not an asset account". Other refusals and the older-loan case: unit tests |
+| UAT-93 | Interest accrued to 16 Nov, again, then to 22 Nov. | FR-103, BR-157, 158 | Passed: total 45 (1 line), again 0 (no line), 22 Nov 18; entries JE-…013 Dr 635 45 / Cr 335 45 (16 Nov) and JE-…014 18 (22 Nov). Hand-booked, incomplete profile, repaid, cancelled: unit tests |
+| UAT-94 | Installment 1 repaid on 1 Dec with `interestPaid` 100. | FR-104, BR-159, 160 | Passed: Dr 341 1,000, Dr 335 63, Dr 635 37 / Cr 1112 1,100. Interest paid below the accrual and negative interest: unit tests |
+| UAT-95 | A second loan (500, interest 30) accrued to 16 Nov, then cancelled. | FR-105, BR-161 | Passed: 400 "Interest has been accrued on this loan: reverse the accrual entries first." |
+| UAT-96 | Reconciliation of principal and accrued interest. | FR-106, BR-162 | Unit tests (separate account, same account on the 14-account chart). Live: the check date was before the loan start, so only the principal line was meaningful there |
+| UAT-97 | Account 9701 (investing asset, flag investing) with Dr cash 100 / Cr 9701 100 and 9801 (expense) paid 40 in cash, Nov 2026. B03 direct and indirect before and after mapping 9701 → row 22 and 9801 → row 02. | FR-107, 108, BR-163, 164 | Passed: before: direct 20 = −40, 30 = 0, 50 = −40, unmapped "9701=100"; after: 20 = −40, 30 = 100, 50 = 60, unmapped none. Mapping screen for B03: side does not apply, 18 mappable rows; indirect layout and total rows: unit tests |
+| UAT-98 | Notes (English) November: map 9801 to table VI.2. | FR-109, BR-165 | Passed: VI.2 total 0 before; "9801 Own overhead 40" and total 40 after |
+| UAT-99 | Texts: write "Cash policy of 2026." for 2026; read the notes of Nov 2026 and Jan 2027; write a 2027 text; clear it. | FR-110, BR-166, 167 | Passed: Nov 2026 → FY 2026 "…of 2026."; Jan 2027 → FY 2027 inherits "…of 2026."; after the 2027 text it shows "…of 2027." while Nov 2026 is unchanged; after clearing 2027 it shows the 2026 text again; the editor list says inherited from 2026 |
+| UAT-100 | Fiscal-year arithmetic and resolution order. | FR-110, BR-166, 167 | Unit tests: year ending in December, March, June; same year / earlier year / year 0 / later-only / other language |
+| UAT-101 | The admin build. | FR-111 | `tsc -b` clean; not clicked through in a browser in this task |
 | UAT-45 |
 | FR-62 | Given a manager, then the profile panel saves; given a viewer, then its fields are read-only. | manual |
 | FR-63 | Given a tenant with a filled report profile, when B01 for 31 Oct is requested with `format=pdf`, then the answer is HTTP 200, `application/pdf`, file `balance-sheet-b01-<timestamp>.pdf`, the bytes start with `%PDF-`, and the file has the company block, the title, "Tại ngày 31/10/2026 — Đơn vị tính: nghìn đồng", the rows with codes, and the three signatories; B01 (≈ 100 rows) runs over two pages with the table header repeated and "Trang 1/2" in the footer; B02 and B03 each fit one page. | UAT-46, 47 |
@@ -538,8 +567,8 @@ Row mapping (account prefix → row; "In" = cash received, "Out" = cash paid):
 | ID | Rule |
 |---|---|
 | BR-134 | Two posting keys are added: **LoanPayable** (Vietnamese chart 341; 14-account chart 2100, shared with accrued liabilities because that chart has no borrowings account) and **InterestExpense** (635; 5100). A tenant's profile gets them by default the first time something is posted; an incomplete profile only logs and never blocks the loan. |
-| BR-135 | **Drawdown** = Dr Bank / Cr LoanPayable for the principal, dated the start date, source "Loan:<loan id>" (idempotent). The money is received in the bank; a cash drawdown is booked by hand (a per-loan receiving account is not modelled). |
-| BR-136 | **Repayment** of an installment = Dr LoanPayable (principal) + Dr InterestExpense (the interest scheduled for that installment) / Cr Bank (both), dated the day it was repaid, source "LoanRepayment:<installment id>". Interest is booked **when it is paid**; there is no accrual between payments and the interest rate of the loan stays information. |
+| BR-135 | **Drawdown** = Dr Bank / Cr LoanPayable for the principal, dated the start date, source "Loan:<loan id>" (idempotent). Since P1-2k the debit goes to the loan's **receiving account** when it has one (BR-156), else to the Bank key. |
+| BR-136 | **Repayment** of an installment = Dr LoanPayable (principal) + Dr InterestExpense (the interest scheduled for that installment) / Cr Bank (both), dated the day it was repaid, source "LoanRepayment:<installment id>". Interest is booked **when it is paid** unless it was accrued first (P1-2k, BR-157 … 159); the interest rate of the loan stays information. |
 | BR-137 | A loan has a flag **PostedToLedger**: set when its drawdown was posted. Repayments are posted only for a posted loan. Loans created before P1-2j are not posted (their entries were made by hand). |
 | BR-138 | **Cancel** (allowed only while nothing is repaid) reverses the drawdown entry of a posted loan, dated today; it reverses nothing for a hand-booked loan. |
 | BR-139 | **Post drawdown** later: only for an active loan with no repayment that is not yet posted; refused for a posted, repaid or cancelled loan, and when the posting profile is incomplete. |
@@ -561,7 +590,7 @@ Row mapping (account prefix → row; "In" = cash received, "Out" = cash paid):
 |---|---|
 | BR-148 | A mapping = (statement B01-DN or B02-DN, row code, account-number prefix, side Net / DebitOnly / CreditOnly). It **adds** a term to the row on top of the standard layout of the chart (Vietnamese layout for a chart that is neither template); the engine, the unmapped check and every export read the terms, so they need no other change. |
 | BR-149 | Only rows that **add up accounts** take a mapping (no formula, no computed source). A prefix must match at least one account, may be mapped once per statement, and may not be a prefix the standard layout already places in some row. Saving replaces the mapping of one statement: unchanged entries are kept, new ones added, the others removed. |
-| BR-150 | The mapping applies to B01 and B02 only. B03 (both methods), the notes B09 and the maturity caps keep their own prefix sets; an account mapped here is not automatically in them (DEFERRED). |
+| BR-150 | *Extended in P1-2k (BR-163 … 165):* the mapping also feeds B03 and the notes B09. The maturity caps (B01 specials) still use the standard prefixes of the layout. |
 | BR-151 | The unmapped list of the mapping screen = accounts of the statement's types with a non-zero balance (B01) or activity of the period without closing entries (B02) that no row takes. Permissions: view `accounting:accounts:view`, save `accounting:accounts:manage`. |
 
 ### 6.22 Notes in English, non-cash and comparison (P1-2j)
@@ -571,6 +600,27 @@ Row mapping (account prefix → row; "In" = cash received, "Out" = cash paid):
 | BR-153 | **Non-cash transactions.** From the journal lines of the range (closing entries and entries that touch an account flagged as cash are left out), per entry: assets acquired on credit = min(debit on fixed-asset and construction-in-progress accounts, credit on liability accounts); debt converted into equity = min(debit on liability accounts, credit on equity accounts other than retained earnings). The table is a starting point: the note asks the accountant to confirm it. |
 | BR-154 | **Comparison.** Both dates or none; start ≤ end. The same tables are built for the prior range and joined by row label: movement tables get "Prior closing", revenue / expense tables "Prior period"; a row the prior range lacks shows 0; the borrowings and off-balance tables have no comparison column. |
 | BR-155 | **English form.** Amounts print as 1,300 and (1,300); dates stay dd/MM/yyyy; the unit reads "dong / thousand dong / million dong". The CSV / Excel table already used English headers and now ends the period line with the language. |
+
+### 6.23 Loans: receiving account and accrued interest (P1-2k)
+| ID | Rule |
+|---|---|
+| BR-156 | **Receiving account.** Optional per loan, an active postable asset account (bank or cash). It replaces the Bank key on the money line of the drawdown and of every repayment. It can be set when the loan is created and when an older, unposted loan is posted; it cannot be changed afterwards (the entries already refer to it). |
+| BR-157 | **Accrual.** For an unpaid installment with scheduled interest I, the period is from the previous installment's due date (or the loan start) to its due date, D days long. On date X (after the period start) the interest accrued to X is round(I × min(1, days(X − start) ÷ D), 2). The amount posted is that figure minus what is already accrued on the installment; nothing is posted when it is not positive. Worked example: start 1 Nov, due 1 Dec (30 days), I = 90 → 16 Nov: 45; 22 Nov: 63 (post 18); 1 Dec or later: 90. Calendar days, not actual/360. |
+| BR-158 | **Accrual entry** = Dr InterestExpense / Cr InterestPayable, dated the accrual date, source "LoanAccrual:<id derived from the installment and the date>" (idempotent). Only posted active loans accrue; if the posting profile is incomplete the accrued amount is not remembered, so the next run catches up. Running it needs `accounting:bank:manage`. |
+| BR-159 | **Repayment entry** (replaces BR-136 when interest is accrued): Dr LoanPayable (principal); Dr InterestPayable = interest accrued on the installment; Dr InterestExpense = interest paid − accrued (a **credit** when negative); Cr the receiving account (principal + interest paid). With nothing accrued it is the BR-136 entry. Examples: accrued 63, paid 100 → Dr 63 payable + Dr 37 expense; accrued 90, paid 80 → Dr 90 payable, Cr 10 expense. |
+| BR-160 | **Interest paid** is optional on the repayment command; empty = the scheduled interest; it must be ≥ 0; it replaces the installment's interest from then on (the schedule keeps what was actually paid). The principal paid is always the scheduled principal. |
+| BR-161 | **Cancel** (BR-138) is also refused once any interest has been accrued on the loan: the accrual entries must be reversed by hand first. |
+| BR-162 | **Interest check.** Ledger = Σ interest accrued on the unpaid installments of posted loans (today's state; accruals are not kept by date); books = credit − debit of the InterestPayable account (and its sub-accounts) on the date. When the key and LoanPayable are the same account (14-account chart: 2100) there is one check: ledger principal + accrued interest against the account's balance, and a note says so. |
+
+### 6.24 Mapping for B03 and the notes; texts per fiscal year (P1-2k)
+| ID | Rule |
+|---|---|
+| BR-163 | **B03 direct.** A mapping adds a term (prefix, direction of the row) to a row that takes counter-accounts (rows with terms); the first row whose term matches the counter-account and the direction takes the movement (BR-64 …). Totals, formula, fallback and special rows take no mapping. The "balances taken" side does not apply. |
+| BR-164 | **B03 indirect.** A mapping adds the prefix to a prefix-driven row (balance-change or expense/income rows) and to the accounts the form deals with, so it leaves the unmapped list; direct-source rows use the direct layout **with** the tenant's mapping, so 20 (indirect) still equals 20 (direct). |
+| BR-165 | **Notes.** The mapping row code is the table: V.1 cash, V.2 receivables, V.3 inventories, V.4 fixed assets (cost), V.5 construction in progress, V.6 prepaid, V.7 payables, V.8 taxes, V.9 accrued, V.11 equity, VI.1 revenue, VI.2 expenses. The prefix is added once to that table's prefix set. A prefix already in the standard sets of the chart is refused. B03 and the notes show their unmapped items on the report itself, not on the mapping screen. |
+| BR-166 | **Fiscal year** of a date = the year in which its fiscal year ends: with year end December the calendar year; with year end month M < 12, the date's year if its month ≤ M, else the next year (year end March: 31 Mar 2026 and 1 Apr 2025 are year 2026; 1 Apr 2026 is year 2027). The notes use the year of their end date; the editor defaults to it. |
+| BR-167 | **Text resolution.** For a section, language and fiscal year Y the text is the non-empty text with the greatest year ≤ Y (year 0 = "every year", the texts written before versions; it is the oldest). Saving writes the chosen year only; an empty text for a year is stored as empty and ignored, so the year follows the earlier text again. A year is 0 or 1 … 9999. One text per tenant, section, language and year (migration 021). Edits overwrite the year's text: there is no history of edits. |
+
 
 
 ### 6.14 Short- / long-term split of trade receivables and payables (P1-2h)
@@ -721,13 +771,20 @@ Direct method: received from customers 600, paid to suppliers 200, wages 400, in
 *Actor:* accountant / chief accountant (`accounting:reports:view`). *Main flow:* Loans → the card *Loan ledger vs books* → pick the date → read ledger, books and difference → investigate a difference with the account ledger of 341: a repayment booked by hand, a loan not posted, an entry on 341 that is not a loan. *Post:* nothing changes.
 
 ### UC-24 Map the accounts of an own chart to the statement rows
-*Actor:* accountant (`accounting:accounts:manage`). *Pre:* B01 / B02 show accounts as unmapped.
+*Actor:* accountant (`accounting:accounts:manage`). *Pre:* B01 / B02 show accounts as unmapped (since P1-2k the same screen maps B03 direct, B03 indirect and the B09 tables: pick the statement, the row — for B09 the table — and the prefix; the "balances taken" choice is hidden there; the unmapped items of B03 are read on the report).
 *Main flow:* 1. Reports → **Account mapping** → pick B01-DN or B02-DN → 2. the list shows the accounts with postings that no row takes; click one to fill its number → 3. pick the row (only rows that add up accounts are offered) and the balances to count → Add → 4. run the statement: the account is counted and 270 = 440.
 *Alternative flows:* A1 — a whole range of accounts: use a prefix (`62` takes 621, 622 …). A2 — remove a mapping with × next to it.
 *Exceptions:* see FR-96. *Post:* only the presentation of B01 / B02 changes; no amount in the books.
 
 ### UC-25 Produce the notes in English with a comparison period
-*Actor:* accountant. *Main flow:* Reports → **B09** → choose *English*, the period, optionally the comparison range → write the English texts in "Edit the texts" (one set per language) → read the sections; section VII shows the non-cash table to confirm → export PDF / Excel / CSV. *Alternative:* switch back to Tiếng Việt to see the Vietnamese texts. *Exceptions:* a language other than vi / en, or half a comparison range → 400.
+*Actor:* accountant. *Main flow:* Reports → **B09** → choose *English*, the period, optionally the comparison range → write the English texts in "Edit the texts" (one set per language) → read the sections; section VII shows the non-cash table to confirm → export PDF / Excel / CSV. *Alternative:* switch back to Tiếng Việt to see the Vietnamese texts. Since P1-2k the texts are per fiscal year: the *Fiscal year of the texts* field defaults to the year of the period end; texts of an earlier year show greyed with "from 2025" until the year gets its own text. *Exceptions:* a language other than vi / en, or half a comparison range → 400.
+
+### UC-26 Accrue loan interest and repay with the interest actually paid
+*Actor:* accountant (`accounting:bank:manage`). *Pre:* posted loans with scheduled interest; the posting profile has InterestExpense and InterestPayable (defaults exist).
+*Main flow:* 1. **Loans** → *Accrue interest up to* → pick the month-end date → Accrue → the screen says how much was accrued; the entries Dr 635 / Cr 335 exist → 2. on the repayment date open the loan, type the interest the bank actually charged in *Interest paid* (empty = scheduled) → **Mark repaid today** → the entry clears 335 and books the rest → 3. check the card *Loan ledger vs books* (principal and interest).
+*Alternative flows:* A1 — run the accrual again later in the month: only the increase is posted. A2 — a hand-booked loan: nothing is accrued (register it with the drawdown posted to include it). A3 — the receiving account differs per loan: choose it when registering.
+*Exceptions:* an incomplete posting profile → the interest is not accrued and the next run catches up; a negative interest paid or a repaid installment → 400; cancelling a loan with accruals → 400.
+*Post:* journal entries `LoanAccrual:…` and `LoanRepayment:<installment>`.
 
 ### UC-17 Read the balance sheet B01 with the maturity split
 *Actor:* accountant / chief accountant (`accounting:reports:view`). *Pre:* open invoices carry due dates (they do: every invoice and bill is created with one); the tenant is on the Vietnamese chart.
@@ -775,11 +832,13 @@ Direct method: received from customers 600, paid to suppliers 200, wages 400, in
 | **PaymentApplication** (table `PaymentApplications`, migration `017_PaymentApplications.sql`) | tenant, document type (1 invoice, 2 bill), document id, paid on (date), amount (negative = refund), source key (unique per tenant), estimated flag | Plus `Bills.ApprovedOn` and `Invoices.CancelledOn`. Backfilled (estimated) from the documents. |
 | **StatementAccountMapping** (table `StatementAccountMappings`, migration `018_StatementAccountMappings.sql`) | tenant, statement id, row code, account prefix (≤ 30), side (0 net, 1 debit, 2 credit) | Unique per (tenant, statement, row, prefix). |
 | **NoteText language** (migration `019_NoteTextLanguage.sql`) | `NoteTexts.Language` ('vi' / 'en', default 'vi') | Unique per (tenant, section, language). |
+| **Loan interest and account** (migration `020_LoanInterestAndAccount.sql`) | `Loans.ReceivingAccountId` (nullable), `LoanInstallments.AccruedInterest` (decimal, default 0) | Accrued interest is cleared on display once the installment is repaid. |
+| **NoteText year** (migration `021_NoteTextFiscalYear.sql`) | `NoteTexts.FiscalYear` (int, 0 = every year) | Unique per (tenant, section, language, year). |
 | **ClosingPolicy** (table `ClosingPolicies`, migration `011_ClosingPolicy.sql`) | tenant (unique), closing mode (1 Monthly, 2 YearEnd), fiscal-year end month (1 … 12) | One row per tenant; no row = Monthly / December. Checked by database constraints. |
 
 ### 8.2 Posting keys and default accounts
 `Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, Inventory, VatOutput, GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment, CashOverShort, SalaryExpense, SalariesPayable,
-PayrollWithholdingsPayable, SalesReturns, IncomeSummary, RetainedEarnings, LoanPayable, InterestExpense` (the last two since P1-2j). The defaults per template are listed in AutoPosting.md (14-account chart) and ChartOfAccounts.md (Vietnamese chart).
+PayrollWithholdingsPayable, SalesReturns, IncomeSummary, RetainedEarnings, LoanPayable, InterestExpense, InterestPayable` (the last three since P1-2j / P1-2k). The defaults per template are listed in AutoPosting.md (14-account chart) and ChartOfAccounts.md (Vietnamese chart).
 
 ### 8.3 State models
 - **Fiscal period:** Open → (close) → Closed → (reopen, latest only) → Open. Whether *close* writes an entry depends on the policy: Monthly — always; YearEnd — only the last period of the year.
@@ -829,6 +888,7 @@ so they arrive in order. Events without a tenant are dropped.
 | **B09-DN** (`reports/statements/notes`, texts `reports/notes/text`) | range, optional unit | Numbered sections with text and / or tables (V.1 … V.12, VI.1, VI.2 from the books) | V.1 = B01 row 110; V.2 = rows 131 + 211; V.4 net = row 220 |
 | **Loans vs books** (`reports/loans-reconciliation`) | as-of date | Loans with outstanding and posted flag; ledger total, book balance of the loan-payable account, difference | difference 0 when every loan is posted and nothing was booked by hand |
 | **Account mapping** (`accounting/statement-mappings`) | statement id | Rows (mappable or not, standard prefixes, the tenant's mappings) and the unmapped accounts | after mapping, unmapped is empty and 270 = 440 |
+The loans check (P1-2k) also returns the accrued interest against the interest-payable account; the account mapping answers for B01-DN, B02-DN, B03-DN, B03-DN-GT and B09-DN; the note texts take `fiscalYear`.
 B09 also takes `lang=vi|en` and `compareFromDate` / `compareToDate` (P1-2j); the texts take `lang`.
 B01 / B02 / B03 take an optional `unit` (`vnd`, `thousand`, `million`) and answer with `unit`, `unitDivisor` and `header`.
 All reports accept `format=csv` and `format=xlsx`.
@@ -928,6 +988,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 | Record / void off-balance entries | | manage | | | |
 | Register / repay / cancel a loan; post the drawdown of an older loan | | | | | `accounting:bank:manage` |
 | Loans vs books check | | | | view | |
+| Accrue loan interest | | | | | `accounting:bank:manage` |
 | View the account mapping of B01 / B02 | view | | | | |
 | Change the account mapping | manage | | | | |
 | Pay / cancel a pay slip | | | | | `hrm:payroll:manage` |
@@ -949,6 +1010,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 4b. Rounding is half away from zero per statement row and totals follow the rounded rows (the common practice on filed forms); the profile is edited with the chart-level permission `accounting:accounts:manage` because no dedicated permission exists yet; one profile per tenant (one legal entity).
 4a. The B03 row mapping (6.8) is a draft by account prefix; salary payments are recognised by the payroll-payable account (334), so a salary paid straight from expense accounts lands in row 02, and withholdings paid to the authorities (3388, 3382 … 3384) land in row 07.
 4g. (P1-2j) Loan drawdowns go to the bank account of the posting profile and interest is booked when paid, from the scheduled amounts; the loan-payable key of the 14-account chart shares account 2100 with accrued liabilities. Payment dates are exact only for payments recorded after migration 017; older ones are estimated. The account mapping covers B01 / B02 only. Non-cash transactions are detected by account patterns and must be confirmed by the accountant. Notes exist in Vietnamese and English only.
+4h. (P1-2k) Interest accrues by calendar days of each installment's period from the scheduled interest, on the date the accountant chooses (no automatic monthly job); the repayment posts the scheduled principal and the interest typed. The receiving account of a loan is fixed once posted. Note texts are versioned per fiscal year (not per edit). B03 and notes mapping ignore the balance side.
 5. Warehouse owns costing; Accounting never computes a cost.
 6. A tenant that already has journal entries cannot change its chart template.
 
@@ -958,7 +1020,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 
 Full list with owners and impact: [DEFERRED-ISSUES.md](../../DEFERRED-ISSUES.md). The business-relevant ones:
 VAT split and e-invoice (P1-3); foreign currency and bank reconciliation (P1-4); restocking of returned goods and reversing their cost, and triggering the refund from a return (P1-5); real payroll with insurance, personal income tax and employer
-contributions (P1-7); accrued loan interest, a per-loan receiving account (cash or a specific bank), mapping for B03 and the notes, versioned notes texts, notes in further languages (follow-ups of P1-2j); PDF of the other reports, digital signature / PDF-A, other paper sizes (DEFERRED W1);
+contributions (P1-7); an automatic monthly accrual job, actual/360 interest and rate changes, history of edits of the note texts, notes in further languages (follow-ups of P1-2k); PDF of the other reports, digital signature / PDF-A, other paper sizes (DEFERRED W1);
 no automatic back-posting of documents that were saved without an entry; accountant review of the Vietnamese chart and the B01 / B02 / B03 layouts.
 Open questions for the chief accountant: (1) is the B03 row mapping right for the company's usual transactions (VAT paid, withholdings, deposits)? (2) does the company want the fiscal year to end in December? (3) should a year-end preview
 (what would be closed) be shown before closing December?
@@ -980,6 +1042,7 @@ Open questions for the chief accountant: (1) is the B03 row mapping right for th
 | BA baseline (this document) | 2026-10-24 | All | — | — |
 | P1-2i 14-account layouts, off-balance, loans, B09 | 2026-10-25 | FR-75 … 85; BR-109 … 133; UC-18 … 21; UAT-62 … 74 | Reports.md, ChartOfAccounts.md | `Simple14LayoutTests`, `OffBalanceTests`, `LoanLedgerTests`, `NotesTests`, `LiveSchemaDriftTests` (migrations 013 – 015) |
 | P1-2j loan posting, payment history, own-chart mapping, notes in English | 2026-10-25 | FR-86 … 101; BR-134 … 155; UC-22 … 25; UAT-75 … 91 | Reports.md, AutoPosting.md, ChartOfAccounts.md | `LoanPostingTests`, `MaturitySplitTests`, `StatementMappingTests`, `NotesTests`, `AutoPostingFlowTests`, `RefundPostingTests`, `LiveSchemaDriftTests` (migrations 016 – 019) |
+| P1-2k loan receiving account and accrued interest, B03 / notes mapping, versioned note texts | 2026-10-25 | FR-102 … 111; BR-156 … 167; UC-26 (and UC-24 / 25 updated); UAT-92 … 101 | Reports.md, AutoPosting.md, ChartOfAccounts.md | `LoanInterestTests`, `StatementMappingB03Tests`, `NotesTests`, `LoanPostingTests`, `LiveSchemaDriftTests` (migrations 020 – 021) |
 | P1-2h maturity split on B01 | 2026-10-25 | FR-71 … 74; BR-103 … 108; UC-17; UAT-56 … 61 | Reports.md | `MaturitySplitTests` (12 tests) + live scenario on `glcheck` |
 | P1-2g B03 indirect method | 2026-10-25 | FR-67 … 70; BR-94 … 102; UC-16; UAT-51 … 55 | Reports.md | `IndirectCashFlowTests` (16 tests incl. the direct-vs-indirect reconciliation) |
 | P1-2f PDF export of B01 / B02 / B03 | 2026-10-25 | FR-63 … 66; BR-87 … 93; UC-15; UAT-46 … 50 | Reports.md | `PdfWriterTests` (11 tests) + live render check |

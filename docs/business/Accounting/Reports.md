@@ -118,6 +118,10 @@ closing on the natural side; fixed assets with accumulated depreciation and net 
 
 `CreateLoanCommand` posts the drawdown (`PostingRules.ForLoanDrawdown`, option `postDrawdown`), `RecordLoanRepaymentCommand` posts principal + scheduled interest for a loan with `PostedToLedger` (`ForLoanRepayment`), `CancelLoanCommand` reverses the drawdown, `POST accounting/loans/{id}/post-drawdown` posts an older loan. `GET accounting/reports/loans-reconciliation?asOfDate[&format=csv|xlsx]` (`LoanReconciliation`): ledger total vs the credit balance of the LoanPayable account (prefix, so sub-accounts count), difference, notes. Rules BR-134 … 141, UC-22, UC-23.
 
+## Loan receiving account, accrued interest, mapping and versions (P1-2k)
+
+`Loan.ReceivingAccountId` (money line of `PostingRules.ForLoanDrawdown / ForLoanRepayment`), `LoanInstallment.AccruedInterest`, `Loan.AccrueInterest(asOf)` and `POST accounting/loans/accrue-interest?asOfDate=`; `RecordLoanRepaymentCommand.InterestPaid`; `reports/loans-reconciliation` also compares the accrued interest with the InterestPayable account. `StatementMappingCatalog` describes B01 / B02 / B03-DN / B03-DN-GT / B09-DN for the mapping screen; `CashFlowLayouts.WithMappings`, `IndirectCashFlowLayouts.WithMappings` (the indirect engine takes the mapped direct layout) and `NoteMappingRows.WithMappings`. Note texts: `NoteTexts.FiscalYear`, `NoteTextVersions.Resolve / FiscalYearOf`, `notes/text?lang&fiscalYear`. Rules BR-156 … 167, UC-26.
+
 ## Payment history and the as-of maturity split (P1-2j)
 
 `PaymentApplications` (payments and refunds per invoice / bill with their day), `Bills.ApprovedOn`, `Invoices.CancelledOn`. `MaturityData.LoadAsync` reads the candidate documents (due later than the earliest date + 12 months, existing by the latest date) with all their applications; `MaturitySplit.Compute(invoices, bills, payments, loans, …)` computes the open amount on the date; `StatementMaturity.Estimated` drives the note "some payments have no recorded date". The two older overloads keep the "state today" behaviour. Rules BR-142 … 147.

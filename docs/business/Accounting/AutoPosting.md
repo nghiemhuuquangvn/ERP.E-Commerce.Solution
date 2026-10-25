@@ -30,7 +30,8 @@ The entry is staged on the caller's unit of work, so the document, its journal e
 | `CashOverShort` | 5100 Operating Expenses | POS shift cash difference |
 | `SalesReturns` | 4000 (the default chart has no contra-revenue account; VAS 521 later) | completed returns |
 | `LoanPayable` | 2100 (Accrued Liabilities; Vas99: 341) | loan drawdown and repayment (P1-2j) |
-| `InterestExpense` | 5100 (Operating Expenses; Vas99: 635) | interest part of a loan repayment (P1-2j) |
+| `InterestExpense` | 5100 (Operating Expenses; Vas99: 635) | interest of a loan: accrual and the part of a repayment not accrued (P1-2j / P1-2k) |
+| `InterestPayable` | 2100 (Accrued Liabilities; Vas99: 335) | accrued loan interest (P1-2k) |
 | `SalaryExpense` | 5200 Salaries & Benefits | pay slips (gross + overtime) |
 | `SalariesPayable` | 2100 Accrued Liabilities | pay slips (net pay), their payment |
 | `PayrollWithholdingsPayable` | 2100 (VAS, P1-2, splits insurance and personal income tax) | pay slips (deductions) |
@@ -51,8 +52,9 @@ already has its own chart is never given extra accounts: if a key has no account
 | Bill approved | Dr GRNI / Cr AP | `Bill:<billId>` |
 | Payment refunded (Kafka `payment-topic`, only a gateway-confirmed refund) | Dr AccountsReceivable / Cr Cash (method Cash) or Bank; the invoice's `AmountPaid` goes down and a paid invoice is open again | `PaymentRefund:<refundId>` |
 | Sales return completed (`SalesOrderReturned`) | Dr SalesReturns / Cr AccountsReceivable = the refund amount (credit note against the order's invoice) | `SalesReturn:<orderId>` |
-| Loan registered (P1-2j, `CreateLoanCommand`, option `postDrawdown`, default on) | Dr Bank / Cr LoanPayable = the principal, dated the start date | `Loan:<loanId>` |
-| Loan installment repaid (`RecordLoanRepaymentCommand`, only for a posted loan) | Dr LoanPayable = principal, Dr InterestExpense = scheduled interest / Cr Bank = both, dated the day repaid | `LoanRepayment:<installmentId>` |
+| Loan registered (P1-2j, `CreateLoanCommand`, option `postDrawdown`, default on) | Dr the receiving account (default Bank) / Cr LoanPayable = the principal, dated the start date | `Loan:<loanId>` |
+| Loan installment repaid (`RecordLoanRepaymentCommand`, only for a posted loan) | Dr LoanPayable = principal, Dr InterestPayable = interest accrued, Dr / Cr InterestExpense = interest paid − accrued / Cr the loan's receiving account (default Bank) = principal + interest paid, dated the day repaid | `LoanRepayment:<installmentId>` |
+| Loan interest accrued (`AccrueLoanInterestCommand`, per posted active loan and unpaid installment, P1-2k) | Dr InterestExpense / Cr InterestPayable = the interest earned since the last accrual, dated the accrual date | `LoanAccrual:<id from installment and date>` |
 | Loan cancelled (only without repayments, only a posted loan) | Reversal of `Loan:<loanId>` | — |
 | Pay slip generated (Kafka `hrm-topic`) | Dr SalaryExpense (gross + overtime) / Cr SalariesPayable (net) and Cr PayrollWithholdingsPayable (deductions); dated the end of the pay period, at most today | `PaySlip:<paySlipId>` |
 | Pay slip paid | Dr SalariesPayable / Cr Bank, net pay; only if the slip's salary entry exists | `PaySlipPayment:<paySlipId>` |
