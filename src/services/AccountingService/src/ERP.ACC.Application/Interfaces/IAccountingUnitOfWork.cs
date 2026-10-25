@@ -11,6 +11,9 @@ namespace ERP.ACC.Application.Interfaces
         IPostingAccountMappingRepository PostingMappings { get; }
         IClosingPolicyRepository ClosingPolicies { get; }
         IReportProfileRepository ReportProfiles { get; }
+        IOffBalanceRepository OffBalanceEntries { get; }
+        ILoanRepository Loans { get; }
+        INoteTextRepository NoteTexts { get; }
         ITaxRateRepository TaxRates { get; }
         IBankAccountRepository BankAccounts { get; }
         IBankStatementRepository BankStatements { get; }

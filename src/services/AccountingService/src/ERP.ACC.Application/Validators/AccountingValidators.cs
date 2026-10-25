@@ -48,7 +48,7 @@ namespace ERP.ACC.Application.Validators
             RuleFor(x => x.AccountNumber).NotEmpty().MaximumLength(20).Matches("^[0-9A-Za-z][0-9A-Za-z._-]*$")
                 .WithMessage("The account number may contain letters, digits, '.', '_' and '-' and must start with a letter or digit.");
             RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
-            RuleFor(x => x.AccountType).InclusiveBetween(1, 5);
+            RuleFor(x => x.AccountType).InclusiveBetween(1, 6);
             RuleFor(x => x.NormalBalance).InclusiveBetween(1, 2);
         }
     }

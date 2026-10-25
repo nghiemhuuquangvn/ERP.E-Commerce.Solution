@@ -233,6 +233,18 @@ const ACCOUNTING_CHILDREN: NavItem[] = [
     icon: '🗓️',
   },
   {
+    labelKey: 'nav.accountingLoans',
+    path: '/accounting/loans',
+    permission: 'accounting:bank:view',
+    icon: '🏦',
+  },
+  {
+    labelKey: 'nav.accountingOffBalance',
+    path: '/accounting/off-balance',
+    permission: 'accounting:journals:view',
+    icon: '📒',
+  },
+  {
     labelKey: 'nav.accountingTaxRates',
     path: '/accounting/tax-rates',
     permission: 'accounting:tax:view',

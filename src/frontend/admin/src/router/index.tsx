@@ -88,6 +88,8 @@ import { RolesPermissionsPage } from '@/pages/identity/RolesPermissionsPage'
 import { TenantsPage } from '@/pages/identity/TenantsPage'
 import { AccountsPage } from '@/pages/accounting/AccountsPage'
 import { FiscalPeriodsPage } from '@/pages/accounting/FiscalPeriodsPage'
+import { OffBalancePage } from '@/pages/accounting/OffBalancePage'
+import { LoansPage } from '@/pages/accounting/LoansPage'
 import { TaxRatesPage } from '@/pages/accounting/TaxRatesPage'
 import { InvoicesPage } from '@/pages/accounting/InvoicesPage'
 import { BillsPage } from '@/pages/accounting/BillsPage'
@@ -216,6 +218,8 @@ export const router = createBrowserRouter([
       { path: 'identity/tenants', element: <TenantsPage /> },
       { path: 'accounting/accounts', element: <AccountsPage /> },
       { path: 'accounting/fiscal-periods', element: <FiscalPeriodsPage /> },
+      { path: 'accounting/off-balance', element: <OffBalancePage /> },
+      { path: 'accounting/loans', element: <LoansPage /> },
       { path: 'accounting/tax-rates', element: <TaxRatesPage /> },
       { path: 'accounting/invoices', element: <InvoicesPage /> },
       { path: 'accounting/bills', element: <BillsPage /> },

@@ -73,7 +73,8 @@ public class StatementTests
             foreach (var type in layout.AccountTypes)
                 statementTypes[(int)type] = layout;
 
-        foreach (var account in Chart.Where(a => !parentNumbers.Contains(a.AccountNumber)))
+        // class 0 (off-balance accounts) is tracked in its own register, not on B01 / B02 (ROADMAP P1-2i)
+        foreach (var account in Chart.Where(a => !parentNumbers.Contains(a.AccountNumber) && a.AccountType != (int)AccountType.OffBalance))
         {
             if (Excluded.Contains(account.AccountNumber))
                 continue;

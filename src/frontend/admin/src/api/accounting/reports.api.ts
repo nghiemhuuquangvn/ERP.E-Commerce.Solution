@@ -246,7 +246,50 @@ export async function downloadReport(
 export const downloadReportCsv = (path: string, params: Record<string, unknown>, fallbackName: string) =>
   downloadReport(path, params, fallbackName, 'csv')
 
+// NotesDto — the notes B09-DN: the accountant's texts and tables computed from the books.
+export interface NoteTable {
+  columns: string[]
+  rows: { label: string; cells: number[]; isTotal: boolean }[]
+}
+
+export interface NoteSection {
+  number: string
+  title: string
+  key: string | null
+  text: string | null
+  hint: string | null
+  isGenerated: boolean
+  table: NoteTable | null
+}
+
+export interface Notes {
+  title: string
+  isDraft: boolean
+  fromDate: string
+  toDate: string
+  unit: string
+  header: ReportHeader | null
+  sections: NoteSection[]
+  notes: string[]
+}
+
+export interface NoteTextEntry {
+  key: string
+  number: string
+  title: string
+  hint: string
+  text: string
+}
+
 export const reportsApi = {
+  notes: (params: { fromDate: string; toDate: string; unit?: AmountUnit }) =>
+    apiClient.get<Notes>(`${ACC_BASE}/accounting/reports/statements/notes`, { params }).then((r) => r.data),
+
+  noteTexts: () => apiClient.get<NoteTextEntry[]>(`${ACC_BASE}/accounting/reports/notes/text`).then((r) => r.data),
+
+  updateNoteTexts: (texts: Record<string, string>) =>
+    apiClient.put<NoteTextEntry[]>(`${ACC_BASE}/accounting/reports/notes/text`, { texts }).then((r) => r.data),
+
   reportProfile: () => apiClient.get<ReportProfile>(`${ACC_BASE}/accounting/reports/profile`).then((r) => r.data),
 
   updateReportProfile: (body: ReportProfile) =>

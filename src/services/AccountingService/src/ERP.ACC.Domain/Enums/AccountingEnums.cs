@@ -6,7 +6,9 @@ namespace ERP.ACC.Domain.Enums
         Liability = 2,
         Equity = 3,
         Revenue = 4,
-        Expense = 5
+        Expense = 5,
+        /// <summary>Class 0 (accounts 001 – 008): tracked in the off-balance register, never in a journal entry (ROADMAP P1-2i).</summary>
+        OffBalance = 6
     }
 
     /// <summary>How a cash movement is classified in the cash-flow statement, by the counter-account (ROADMAP P1-2b).</summary>
@@ -30,6 +32,26 @@ namespace ERP.ACC.Domain.Enums
         Vnd = 1,
         Thousand = 2,
         Million = 3
+    }
+
+    /// <summary>Which way an off-balance movement moves the account: In raises its balance, Out lowers it.</summary>
+    public enum OffBalanceDirection
+    {
+        In = 1,
+        Out = 2
+    }
+
+    public enum OffBalanceStatus
+    {
+        Posted = 1,
+        Voided = 2
+    }
+
+    public enum LoanStatus
+    {
+        Active = 1,
+        Repaid = 2,
+        Cancelled = 3
     }
 
     public enum NormalBalance
