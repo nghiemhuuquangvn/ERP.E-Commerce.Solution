@@ -99,7 +99,8 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
 - [x] **P1-2d B03 by code, year-end closing policy, Excel export** closed 2026-10-24 (`feat/b03-yearend-xlsx`): `statements/cash-flow`, `fiscal-periods/closing-policy`, `format=xlsx`, migration 011, BA doc updated
 - [x] **P1-2e amount unit + company header** closed 2026-10-24 (`feat/report-profile`): `accounting/reports/profile`, `unit` on B01 / B02 / B03, migration 012, BA doc updated
 - [x] **P1-2f PDF export of B01 / B02 / B03** closed 2026-10-25 (`feat/pdf-export`): `format=pdf`, embedded font, BA doc updated
-- [ ] **P1-2g** indirect-method cash flow, B09, off-balance accounts, maturity split, other charts
+- [x] **P1-2g B03 indirect method** closed 2026-10-25 (`feat/cashflow-indirect`): `method=indirect`, reconciliation with the direct method, BA doc updated
+- [ ] **P1-2h** B09, off-balance accounts, maturity split, other charts
 - [ ] **P1-3 Tax & e-invoice**: VAT fields on invoice/bill, VAT listing/return, e-invoice provider
   adapter (VNPT / Viettel / MISA / BKAV — owner picks the provider).
 - [ ] **P1-4 Bank reconciliation per line + multi-currency** (MasterData exchange rates, FX differences).

@@ -89,6 +89,13 @@ total rows add the rounded rows so the form foots; `isBalanced` (270 = 440, 70 =
 The **report profile** (`GET/PUT accounting/reports/profile`, table `ReportProfiles`) holds the company name, tax code, address, the three signatories and the default unit; CSV and Excel print the company block above the title, the unit in the
 period line and the signatories below. Rules BR-80 … BR-86 and a worked example: [BA-Accounting.md](BA-Accounting.md) §6.10.
 
+## B03-DN by the indirect method (P1-2g)
+
+`statements/cash-flow?method=indirect` (layout "B03-DN-GT", same DTO, unit, header, prior column and exports). `IndirectCashFlowLayouts` lists the rows; `IndirectCashFlowEngine` evaluates them from: the **direct** cash movements and cash balances (rows 14, 15, 21 … 36, 60, 61), the
+cumulative balances the day before the range and at its end (rows 02, 03, 09 … 12: cash effect = increase of credit − debit), and the activity of the range without closing entries (row 01 profit before tax, 05 interest income removed, 06 interest expense added back).
+Rows 13, 16 and 17 are not derived (0). **Indirect row 20 must equal direct row 20** and row 70 the cash on the books; otherwise `isBalanced` is false with a note and the accounts that moved but are not on the form are listed as `unmapped`.
+Rules BR-94 … BR-102, the worked example and the use case: [BA-Accounting.md](BA-Accounting.md) §6.13, UC-16.
+
 ## PDF export of B01 / B02 / B03 (P1-2f)
 
 `format=pdf` on `statements/balance-sheet`, `income-statement` and `cash-flow` returns `application/pdf` (`<report>-<timestamp>.pdf`); every other report answers 400. `PdfWriter` (PDFsharp-MigraDoc 6, MIT) turns the same
@@ -100,9 +107,9 @@ correctly in a container without fonts. Rules BR-87 … BR-93 and the use case: 
 
 Every report route accepts `format=csv` and `format=xlsx`. `ReportTables` turns each report into rows of cells (text or decimal); `CsvWriter` and `XlsxWriter` (ClosedXML, MIT) serialize the same table.
 In Excel amounts are numeric cells (`#,##0.00`, negatives red), codes and names are text, the header row is bold and frozen, the sheet name is the report code (cleaned to Excel's rules, ≤ 31 characters), and text that
-starts with `= + - @` is stored as text with Excel's quote prefix. Content type `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`. PDF is not built.
+starts with `= + - @` is stored as text with Excel's quote prefix. Content type `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`. PDF of the other reports is not built.
 
 ## Known limits (see docs/DEFERRED-ISSUES.md)
 
 The ledger and the cash flow read journal lines by account and range (index `IX_JELines_AccountId`); the ledger pages in memory after computing the running balance, which is fine
-for normal volumes but a very busy account over a very long range should use date-bounded snapshots later. B09 notes, off-balance accounts, indirect-method cash flow, PDF export and layouts for charts other than Vas99 are not built (ROADMAP P1-2g). Excel files are built in memory.
+for normal volumes but a very busy account over a very long range should use date-bounded snapshots later. B09 notes, off-balance accounts and layouts for charts other than Vas99 are not built (ROADMAP P1-2h). Excel files are built in memory.

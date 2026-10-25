@@ -36,7 +36,12 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
-### 2026-10-25 — ROADMAP P1-2f: PDF export of B01 / B02 / B03 (`feat/pdf-export`, unmerged)
+### 2026-10-25 — ROADMAP P1-2g: B03 by the indirect method (`feat/cashflow-indirect`, unmerged)
+- `statements/cash-flow?method=indirect` (`IndirectCashFlowLayouts` / `IndirectCashFlowEngine`, layout B03-DN-GT): profit before tax, non-cash add-backs, working-capital changes from balance changes, interest / tax paid and investing / financing from the direct cash rows; indirect 20 reconciled with direct 20 (difference reported, never forced). Admin: Method selector on the B03 tab. No schema change.
+- Verified live on `glcheck`: indirect 01 = 1,300, 09 = −1,500, 20 = −200 = direct; 70 = 300; `method=foo` → 400; pdf / xlsx 200. Tests: ACC 243 (16 new, incl. a consistent-ledger reconciliation), Architecture 53/54 (known), admin `tsc -b` clean.
+- Not done (P1-2h): B09, off-balance accounts, maturity split, other charts.
+
+### 2026-10-25 — ROADMAP P1-2f: PDF export of B01 / B02 / B03 (`feat/pdf-export`, merged)
 - `format=pdf` on `statements/balance-sheet|income-statement|cash-flow` (`PdfWriter`, PDFsharp-MigraDoc 6 MIT; Noto Sans embedded via `PdfFonts`, OFL licence in `Reports/Fonts`); other reports → 400. Admin: "Export PDF" on the B01 / B02 / B03 tabs. No schema change.
 - Master (with P1-2e) was deployed first: all 18 services rebuilt one at a time (parallel builds made Docker Desktop drop the connection); then accounting + admin rebuilt for this branch.
 - Verified live on `glcheck`: three PDFs (76 / 62 / 65 KB) with correct Vietnamese, B01 on 2 pages, fonts embedded, signatories printed; 400 on trial-balance / flat cash-flow. Tests: ACC 227, Architecture 53/54 (known `NoSharedTokenKeyTests`), admin `tsc -b` clean.
