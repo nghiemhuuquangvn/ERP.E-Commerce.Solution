@@ -209,6 +209,15 @@ namespace ERP.ACC.Application.Posting
             // Class 9 - profit determination (temporary: closing entries leave it at zero)
             Add("911", "Xác định kết quả kinh doanh", E, Cr);
 
+            // Class 0 - off-balance accounts (ROADMAP P1-2i): tracked in the off-balance register, never in a journal entry
+            const AccountType O = AccountType.OffBalance;
+            Add("001", "Tài sản thuê ngoài", O, Dr);
+            Add("002", "Vật tư, hàng hóa nhận giữ hộ, nhận gia công", O, Dr);
+            Add("003", "Hàng hóa nhận bán hộ, nhận ký gửi, ký cược", O, Dr);
+            Add("004", "Nợ khó đòi đã xử lý", O, Dr);
+            Add("007", "Ngoại tệ các loại", O, Dr);
+            Add("008", "Dự toán chi sự nghiệp, dự án", O, Dr);
+
             // Cash-flow attributes (suggested; editable per account): cash and bank accounts, and the counter-accounts that are investing / financing.
             var cash = new HashSet<string> { "111", "1111", "1112", "112", "1121", "1122", "113" };
             var investing = new HashSet<string> { "121", "128", "211", "212", "213", "217", "221", "222", "228", "241" };

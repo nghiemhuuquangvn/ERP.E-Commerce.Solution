@@ -23,6 +23,7 @@ namespace ERP.ACC.Infrastructure.Persistence
         public DbSet<PostingAccountMapping> PostingAccountMappings { get; set; }
         public DbSet<ClosingPolicy> ClosingPolicies { get; set; }
         public DbSet<ReportProfile> ReportProfiles { get; set; }
+        public DbSet<OffBalanceEntry> OffBalanceEntries { get; set; }
         public DbSet<OutboxMessage> OutboxMessages { get; set; }
         public DbSet<SystemTaxSettings> SystemTaxSettings { get; set; }
         public DbSet<TenantTaxSettings> TenantTaxSettings { get; set; }
@@ -91,6 +92,17 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Id).ValueGeneratedNever();
                 e.HasIndex(x => x.TenantId).IsUnique().HasFilter("[IsDeleted] = 0");
+            });
+
+            modelBuilder.Entity<OffBalanceEntry>(e =>
+            {
+                e.ToTable("OffBalanceEntries");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+                e.Property(x => x.Reference).HasMaxLength(100);
+                e.Property(x => x.VoidReason).HasMaxLength(500);
+                e.HasIndex(x => new { x.TenantId, x.AccountId, x.EntryDate });
             });
 
             modelBuilder.Entity<ReportProfile>(e =>

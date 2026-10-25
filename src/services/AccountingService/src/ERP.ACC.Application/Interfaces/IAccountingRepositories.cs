@@ -94,6 +94,14 @@ namespace ERP.ACC.Application.Interfaces
         Task AddAsync(ClosingPolicy policy, CancellationToken ct = default);
     }
 
+    public interface IOffBalanceRepository
+    {
+        Task<OffBalanceEntry?> GetByIdAsync(Guid id, CancellationToken ct = default);
+        /// <summary>Entries newest first; every filter is optional (dates inclusive).</summary>
+        Task<List<OffBalanceEntry>> ListAsync(Guid? accountId, DateTime? from, DateTime? to, CancellationToken ct = default);
+        Task AddAsync(OffBalanceEntry entry, CancellationToken ct = default);
+    }
+
     public interface IReportProfileRepository
     {
         /// <summary>The tenant's report profile (tracked), or null when it never set one (= plain VND, no header).</summary>

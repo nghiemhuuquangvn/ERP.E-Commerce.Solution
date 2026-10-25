@@ -202,6 +202,9 @@ namespace ERP.ACC.Application.Posting
             if (!account.IsActive)
                 throw new PostingConfigurationException(postingKey,
                     $"Posting key '{postingKey}' points to account {account.AccountNumber}, which is inactive.");
+            if (account.AccountType == (int)ERP.ACC.Domain.Enums.AccountType.OffBalance)
+                throw new PostingConfigurationException(postingKey,
+                    $"Posting key '{postingKey}' points to account {account.AccountNumber}, an off-balance account that takes no journal postings.");
             if (_parentIds != null && _parentIds.Contains(account.Id))
                 throw new PostingConfigurationException(postingKey,
                     $"Posting key '{postingKey}' points to account {account.AccountNumber}, which groups sub-accounts; map it to a sub-account.");

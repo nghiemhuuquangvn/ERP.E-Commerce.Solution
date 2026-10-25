@@ -245,6 +245,26 @@ namespace ERP.ACC.API.Controllers
             return Ok(await _mediator.Send(command, ct));
         }
 
+        /// <summary>
+        /// The off-balance register (class 0 accounts) per account for a range: opening, in, out, closing. Not part of the balance sheet; voided entries never count.
+        /// </summary>
+        [HttpGet("off-balance")]
+        [ProducesResponseType(typeof(ERP.ACC.Application.Handlers.OffBalanceReportDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> OffBalance(
+            [FromQuery] DateTime fromDate,
+            [FromQuery] DateTime toDate,
+            [FromQuery] string? format = null,
+            CancellationToken ct = default)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+            if (IsPdf(format))
+                return PdfNotAvailable();
+
+            var result = await _mediator.Send(new ERP.ACC.Application.Handlers.GetOffBalanceReportQuery { FromDate = fromDate, ToDate = toDate }, ct);
+            return IsExport(format) ? Export(format, ReportTables.OffBalance(result), "off-balance") : Ok(result);
+        }
+
         private static bool IsPdf(string? format) => string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase);
 
         private IActionResult PdfNotAvailable() => BadRequest(new ProblemDetails

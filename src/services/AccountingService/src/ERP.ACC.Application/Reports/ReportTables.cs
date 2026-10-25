@@ -52,6 +52,19 @@ namespace ERP.ACC.Application.Reports
             return new ReportTable(s.LayoutId, rows, headerRow);
         }
 
+        public static ReportTable OffBalance(ERP.ACC.Application.Handlers.OffBalanceReportDto r)
+        {
+            var rows = new List<IReadOnlyList<object?>>
+            {
+                new object?[] { "Off-balance register", Date(r.FromDate), Date(r.ToDate) },
+                new object?[] { "Account", "Name", "Opening", "In", "Out", "Closing" },
+            };
+            rows.AddRange(r.Lines.Select(l => (IReadOnlyList<object?>)new object?[] { l.AccountNumber, l.AccountName, l.Opening, l.In, l.Out, l.Closing }));
+            foreach (var note in r.Notes)
+                rows.Add(new object?[] { "note", note });
+            return new ReportTable("Off-balance", rows, 2);
+        }
+
         public static ReportTable TrialBalance(TrialBalanceDto t)
         {
             var rows = new List<IReadOnlyList<object?>>
