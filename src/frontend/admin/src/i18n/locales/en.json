@@ -1732,6 +1732,14 @@
       "cashFlowDefault": "Default"
     },
     "loans": {
+      "postDrawdown": "Post the drawdown to the books (Dr Bank / Cr Loan payable); repayments are then posted with their interest. Untick for a loan already booked by hand.",
+      "posted": "posted",
+      "notPosted": "by hand",
+      "postNow": "Post drawdown",
+      "reconciliation": "Loan ledger vs books",
+      "ledgerTotal": "Ledger",
+      "bookBalance": "Books",
+      "difference": "Difference",
       "title": "Loans",
       "hint": "Borrowings with their repayment schedule. The balance sheet shows the part due after 12 months as long-term. Drawing and repaying the money is still booked as a journal entry; the ledger here gives B01 the real due dates.",
       "add": "Register a loan", "loanNumber": "Loan number", "lender": "Lender", "startDate": "Start date", "principal": "Principal", "rate": "Interest rate (% a year)",

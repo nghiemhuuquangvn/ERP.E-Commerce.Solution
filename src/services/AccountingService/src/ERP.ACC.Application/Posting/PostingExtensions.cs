@@ -57,6 +57,8 @@ namespace ERP.ACC.Application.Posting
         public const string PaySlipPayment = "PaySlipPayment";
         public const string PaymentRefund = "PaymentRefund";
         public const string SalesReturn = "SalesReturn";
+        public const string Loan = "Loan";
+        public const string LoanRepayment = "LoanRepayment";
 
         /// <summary>Dr Accounts receivable / Cr Sales revenue (gross; VAT is split by P1-3).</summary>
         public static PostingRequest ForInvoice(Domain.Entities.Invoice invoice) =>
@@ -88,6 +90,35 @@ namespace ERP.ACC.Application.Posting
                     PostingLine.Dr(PostingKeys.GoodsReceivedNotInvoiced, bill.Amount, bill.BillNumber),
                     PostingLine.Cr(PostingKeys.AccountsPayable, bill.Amount, bill.BillNumber),
                 });
+
+        /// <summary>A loan drawn (ROADMAP P1-2j): Dr Bank / Cr Loan payable, on the start date.</summary>
+        public static PostingRequest ForLoanDrawdown(Domain.Entities.Loan loan) =>
+            new(Loan, loan.Id, loan.StartDate, $"Loan {loan.LoanNumber} drawn from {loan.Lender}",
+                new[]
+                {
+                    PostingLine.Dr(PostingKeys.Bank, loan.Principal, loan.LoanNumber),
+                    PostingLine.Cr(PostingKeys.LoanPayable, loan.Principal, loan.LoanNumber),
+                });
+
+        /// <summary>
+        /// One installment repaid on <paramref name="paidOn"/>: Dr Loan payable (principal) and Dr Interest expense (interest) / Cr Bank (both). Interest is
+        /// booked when it is paid, with no accrual. Null when the installment moves no money.
+        /// </summary>
+        public static PostingRequest? ForLoanRepayment(Domain.Entities.Loan loan, Domain.Entities.LoanInstallment installment, DateTime paidOn)
+        {
+            var principal = Math.Round(installment.PrincipalAmount, 2);
+            var interest = Math.Round(installment.InterestAmount, 2);
+            if (principal + interest <= 0m)
+                return null;
+
+            var lines = new List<PostingLine>();
+            if (principal > 0m)
+                lines.Add(PostingLine.Dr(PostingKeys.LoanPayable, principal, loan.LoanNumber));
+            if (interest > 0m)
+                lines.Add(PostingLine.Dr(PostingKeys.InterestExpense, interest, loan.LoanNumber));
+            lines.Add(PostingLine.Cr(PostingKeys.Bank, principal + interest, loan.LoanNumber));
+            return new PostingRequest(LoanRepayment, installment.Id, paidOn.Date, $"Repayment of loan {loan.LoanNumber} due {installment.DueDate:dd/MM/yyyy}", lines);
+        }
 
         /// <summary>Dr Accounts payable / Cr Bank.</summary>
         public static PostingRequest ForBillPayment(Domain.Entities.Bill bill, DateTime date) =>

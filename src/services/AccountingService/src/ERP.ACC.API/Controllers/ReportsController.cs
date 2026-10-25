@@ -309,6 +309,18 @@ namespace ERP.ACC.API.Controllers
             return Ok(await _mediator.Send(command, ct));
         }
 
+        /// <summary>The loan ledger against the books (ROADMAP P1-2j): outstanding by the schedules, the balance of the Loan payable account and the difference. format=csv|xlsx.</summary>
+        [HttpGet("loans-reconciliation")]
+        [ProducesResponseType(typeof(LoanReconciliationDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> LoansReconciliation([FromQuery] DateTime asOfDate, [FromQuery] string? format = null, CancellationToken ct = default)
+        {
+            if (!_userContext.HasPermission("accounting:reports:view"))
+                return Forbid();
+
+            var result = await _mediator.Send(new GetLoanReconciliationQuery { AsOfDate = asOfDate }, ct);
+            return IsExport(format) ? Export(format, ReportTables.LoanReconciliation(result), "loans-reconciliation") : Ok(result);
+        }
+
         private static bool IsPdf(string? format) => string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase);
 
         private IActionResult PdfNotAvailable() => BadRequest(new ProblemDetails

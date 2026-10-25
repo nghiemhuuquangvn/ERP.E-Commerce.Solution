@@ -1732,6 +1732,14 @@
       "cashFlowDefault": "Mặc định"
     },
     "loans": {
+      "postDrawdown": "Hạch toán giải ngân (Nợ Ngân hàng / Có Vay phải trả); các kỳ trả sau đó tự hạch toán gốc và lãi. Bỏ chọn nếu khoản vay đã ghi sổ tay.",
+      "posted": "đã hạch toán",
+      "notPosted": "ghi tay",
+      "postNow": "Hạch toán giải ngân",
+      "reconciliation": "Đối chiếu sổ vay với sổ cái",
+      "ledgerTotal": "Sổ vay",
+      "bookBalance": "Sổ cái",
+      "difference": "Chênh lệch",
       "title": "Khoản vay",
       "hint": "Các khoản vay cùng lịch trả nợ. Bảng cân đối kế toán tách phần đến hạn sau 12 tháng thành vay dài hạn. Giải ngân và trả nợ vẫn ghi bằng bút toán; sổ này cung cấp kỳ hạn thật cho B01.",
       "add": "Đăng ký khoản vay", "loanNumber": "Số khoản vay", "lender": "Bên cho vay", "startDate": "Ngày bắt đầu", "principal": "Gốc", "rate": "Lãi suất (%/năm)",

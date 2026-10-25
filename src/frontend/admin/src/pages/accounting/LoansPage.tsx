@@ -21,9 +21,13 @@ export function LoansPage() {
   const [open, setOpen] = useState<string | null>(null)
   const [cancelTarget, setCancelTarget] = useState<Loan | null>(null)
   const [form, setForm] = useState({ loanNumber: '', lender: '', principal: '', interestRatePercent: '0', startDate: '', notes: '' })
+  const [postDrawdown, setPostDrawdown] = useState(true)
+  const [asOf, setAsOf] = useState(new Date().toISOString().slice(0, 10))
   const [rows, setRows] = useState<Row[]>([{ dueDate: '', principalAmount: '', interestAmount: '0' }])
 
   const { data, isLoading } = useQuery({ queryKey: ['accounting', 'loans'], queryFn: () => loansApi.list(), staleTime: 15_000 })
+
+  const { data: recon } = useQuery({ queryKey: ['accounting', 'loans', 'reconciliation', asOf], queryFn: () => loansApi.reconciliation(asOf), enabled: !!asOf, staleTime: 15_000 })
 
   const scheduleTotal = rows.reduce((sum, r) => sum + (Number(r.principalAmount) || 0), 0)
   const scheduleOk = rows.every((r) => r.dueDate && Number(r.principalAmount) > 0) && Math.abs(scheduleTotal - Number(form.principal)) < 0.01
@@ -37,6 +41,7 @@ export function LoansPage() {
         interestRatePercent: Number(form.interestRatePercent) || 0,
         startDate: form.startDate,
         notes: form.notes || undefined,
+        postDrawdown,
         schedule: rows.map((r) => ({ dueDate: r.dueDate, principalAmount: Number(r.principalAmount), interestAmount: Number(r.interestAmount) || 0 })),
       }),
     onSuccess: () => {
@@ -44,6 +49,11 @@ export function LoansPage() {
       setForm({ loanNumber: '', lender: '', principal: '', interestRatePercent: '0', startDate: '', notes: '' })
       setRows([{ dueDate: '', principalAmount: '', interestAmount: '0' }])
     },
+  })
+
+  const post = useMutation({
+    mutationFn: (loan: Loan) => loansApi.postDrawdown(loan.id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['accounting'] }),
   })
 
   const repay = useMutation({
@@ -107,6 +117,10 @@ export function LoansPage() {
               )}
             </div>
           ))}
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" checked={postDrawdown} onChange={(e) => setPostDrawdown(e.target.checked)} />
+            {t('accounting.loans.postDrawdown')}
+          </label>
           <div className="flex flex-wrap items-center gap-3">
             <button className="btn-outline" onClick={() => setRows([...rows, { dueDate: '', principalAmount: '', interestAmount: '0' }])}>
               {t('accounting.loans.addInstallment')}
@@ -121,6 +135,27 @@ export function LoansPage() {
           </div>
         </div>
       )}
+
+      <div className="card space-y-2 p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <h2 className="text-sm font-semibold text-gray-900">{t('accounting.loans.reconciliation')}</h2>
+          <input type="date" className="input" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+        </div>
+        {recon && (
+          <div className="text-sm text-gray-700">
+            <p>
+              {t('accounting.loans.ledgerTotal')}: <b>{recon.ledgerTotal.toLocaleString()}</b> · {t('accounting.loans.bookBalance')} ({recon.accountNumber || '—'}):{' '}
+              <b>{recon.bookBalance.toLocaleString()}</b> · {t('accounting.loans.difference')}:{' '}
+              <b className={recon.isReconciled ? 'text-green-700' : 'text-red-600'}>{recon.difference.toLocaleString()}</b>
+            </p>
+            {recon.notes.map((n) => (
+              <p key={n} className="text-xs text-amber-700">
+                {n}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
 
       {isLoading ? (
         <p className="text-sm text-gray-400">{t('common.loading')}</p>
@@ -153,8 +188,20 @@ export function LoansPage() {
                     <td className="p-2 text-right">{loan.outstanding.toLocaleString()}</td>
                     <td className="p-2 text-right">{loan.dueWithinTwelveMonths.toLocaleString()}</td>
                     <td className="p-2 text-right">{loan.dueLater.toLocaleString()}</td>
-                    <td className="p-2">{loan.status === 'Cancelled' ? `${loan.status}: ${loan.cancelReason ?? ''}` : loan.status}</td>
+                    <td className="p-2">
+                      {loan.status === 'Cancelled' ? `${loan.status}: ${loan.cancelReason ?? ''}` : loan.status}
+                      {loan.status !== 'Cancelled' && (
+                        <span className={loan.postedToLedger ? 'ml-2 text-xs text-green-700' : 'ml-2 text-xs text-gray-400'}>
+                          {loan.postedToLedger ? t('accounting.loans.posted') : t('accounting.loans.notPosted')}
+                        </span>
+                      )}
+                    </td>
                     <td className="p-2 text-right">
+                      {canManage && loan.status === 'Active' && !loan.postedToLedger && !loan.installments.some((i) => i.paidOn) && (
+                        <button className="mr-3 text-xs text-blue-600 hover:underline" disabled={post.isPending} onClick={() => post.mutate(loan)}>
+                          {t('accounting.loans.postNow')}
+                        </button>
+                      )}
                       {canManage && loan.status === 'Active' && !loan.installments.some((i) => i.paidOn) && (
                         <button className="text-xs text-red-600 hover:underline" onClick={() => setCancelTarget(loan)}>
                           {t('accounting.loans.cancel')}
