@@ -1749,6 +1749,14 @@
       "failed": "The mapping could not be saved."
     },
     "loans": {
+      "receivingAccount": "Receiving account (bank or cash)",
+      "receivingDefault": "Bank of the posting profile",
+      "accrueUpTo": "Accrue interest up to",
+      "accrue": "Accrue interest",
+      "accrued": "Accrued {{total}} on {{count}} installment(s).",
+      "accruedInterest": "Accrued interest",
+      "interestPaid": "Interest paid",
+      "interestCheck": "Accrued interest vs books",
       "postDrawdown": "Post the drawdown to the books (Dr Bank / Cr Loan payable); repayments are then posted with their interest. Untick for a loan already booked by hand.",
       "posted": "posted",
       "notPosted": "by hand",

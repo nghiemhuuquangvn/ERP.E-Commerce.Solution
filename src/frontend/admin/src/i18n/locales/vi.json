@@ -1749,6 +1749,14 @@
       "failed": "Không lưu được ánh xạ."
     },
     "loans": {
+      "receivingAccount": "Tài khoản nhận tiền (ngân hàng / tiền mặt)",
+      "receivingDefault": "Ngân hàng của hồ sơ hạch toán",
+      "accrueUpTo": "Trích lãi đến ngày",
+      "accrue": "Trích lãi vay",
+      "accrued": "Đã trích {{total}} cho {{count}} kỳ trả.",
+      "accruedInterest": "Lãi đã trích",
+      "interestPaid": "Lãi thực trả",
+      "interestCheck": "Lãi trích trước so với sổ cái",
       "postDrawdown": "Hạch toán giải ngân (Nợ Ngân hàng / Có Vay phải trả); các kỳ trả sau đó tự hạch toán gốc và lãi. Bỏ chọn nếu khoản vay đã ghi sổ tay.",
       "posted": "đã hạch toán",
       "notPosted": "ghi tay",

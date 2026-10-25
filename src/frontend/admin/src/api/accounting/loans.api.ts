@@ -7,6 +7,8 @@ export interface LoanInstallment {
   principalAmount: number
   interestAmount: number
   paidOn: string | null
+  /** Interest of the installment already accrued to the books and not yet paid. */
+  accruedInterest: number
 }
 
 export interface Loan {
@@ -21,6 +23,10 @@ export interface Loan {
   cancelReason: string | null
   /** True once the drawdown is in the journal, so repayments are posted too; false for a loan booked by hand. */
   postedToLedger: boolean
+  /** The asset account the money is received on and repaid from; null = the Bank key of the posting profile. */
+  receivingAccountId: string | null
+  receivingAccountNumber: string | null
+  receivingAccountName: string | null
   outstanding: number
   dueWithinTwelveMonths: number
   dueLater: number
@@ -38,12 +44,24 @@ export interface CreateLoanRequest {
   notes?: string
   /** Post the drawdown (Dr Bank / Cr Loan payable). False for a loan already booked by hand. */
   postDrawdown?: boolean
+  receivingAccountId?: string
+}
+
+export interface LoanInterestAccrual {
+  asOfDate: string
+  totalAccrued: number
+  lines: { loanId: string; loanNumber: string; installmentDueDate: string; amount: number; posted: boolean }[]
 }
 
 export interface LoanReconciliation {
   asOfDate: string
   accountNumber: string
   accountName: string
+  interestAccountNumber: string
+  interestLedger: number
+  interestBook: number
+  interestDifference: number
+  interestReconciled: boolean
   ledgerTotal: number
   bookBalance: number
   difference: number
@@ -57,10 +75,14 @@ export const loansApi = {
 
   create: (body: CreateLoanRequest) => apiClient.post<Loan>(`${ACC_BASE}/accounting/loans`, body).then((r) => r.data),
 
-  repay: (loanId: string, installmentId: string, paidOn?: string) =>
-    apiClient.post<Loan>(`${ACC_BASE}/accounting/loans/${loanId}/installments/${installmentId}/repay`, { paidOn }).then((r) => r.data),
+  repay: (loanId: string, installmentId: string, paidOn?: string, interestPaid?: number) =>
+    apiClient.post<Loan>(`${ACC_BASE}/accounting/loans/${loanId}/installments/${installmentId}/repay`, { paidOn, interestPaid }).then((r) => r.data),
 
-  postDrawdown: (loanId: string) => apiClient.post<Loan>(`${ACC_BASE}/accounting/loans/${loanId}/post-drawdown`).then((r) => r.data),
+  accrueInterest: (asOfDate: string) =>
+    apiClient.post<LoanInterestAccrual>(`${ACC_BASE}/accounting/loans/accrue-interest`, null, { params: { asOfDate } }).then((r) => r.data),
+
+  postDrawdown: (loanId: string, receivingAccountId?: string) =>
+    apiClient.post<Loan>(`${ACC_BASE}/accounting/loans/${loanId}/post-drawdown`, { receivingAccountId }).then((r) => r.data),
 
   reconciliation: (asOfDate: string) =>
     apiClient.get<LoanReconciliation>(`${ACC_BASE}/accounting/reports/loans-reconciliation`, { params: { asOfDate } }).then((r) => r.data),

@@ -110,6 +110,8 @@ namespace ERP.ACC.Application.Reports
             rows.Add(new object?[] { "Ledger total", "", "", r.LedgerTotal });
             rows.Add(new object?[] { "Book balance", "", "", r.BookBalance });
             rows.Add(new object?[] { "Difference", "", r.IsReconciled ? "reconciled" : "NOT reconciled", r.Difference });
+            if (r.InterestAccountNumber.Length > 0)
+                rows.Add(new object?[] { "Accrued interest", r.InterestAccountNumber, r.InterestReconciled ? "reconciled" : "NOT reconciled", r.InterestDifference, r.InterestLedger, r.InterestBook });
             foreach (var note in r.Notes)
                 rows.Add(new object?[] { "note", note });
             return new ReportTable("Loans", rows, 3);

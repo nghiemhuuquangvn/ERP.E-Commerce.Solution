@@ -54,11 +54,26 @@ namespace ERP.ACC.API.Controllers
             return Ok(await _mediator.Send(command, ct));
         }
 
+        /// <summary>
+        /// Accrues the interest of every posted loan up to the date (Dr interest expense / Cr interest payable). Running it again for the same date posts nothing new;
+        /// the repayment of an installment clears the accrual.
+        /// </summary>
+        [HttpPost("accrue-interest")]
+        [AuthorizePermission(PermissionConstants.Accounting_BankManage)]
+        [ProducesResponseType(typeof(LoanInterestAccrualDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> AccrueInterest([FromQuery] DateTime asOfDate, CancellationToken ct) =>
+            Ok(await _mediator.Send(new AccrueLoanInterestCommand { AsOfDate = asOfDate }, ct));
+
         /// <summary>Posts the drawdown of a loan that was entered without it (Dr Bank / Cr Loan payable); later repayments are then posted too. Refused once anything was repaid.</summary>
         [HttpPost("{id:guid}/post-drawdown")]
         [AuthorizePermission(PermissionConstants.Accounting_BankManage)]
         [ProducesResponseType(typeof(LoanDto), StatusCodes.Status200OK)]
-        public async Task<IActionResult> PostDrawdown(Guid id, CancellationToken ct) => Ok(await _mediator.Send(new PostLoanDrawdownCommand { LoanId = id }, ct));
+        public async Task<IActionResult> PostDrawdown(Guid id, [FromBody] PostLoanDrawdownCommand? command, CancellationToken ct)
+        {
+            command ??= new PostLoanDrawdownCommand();
+            command.LoanId = id;
+            return Ok(await _mediator.Send(command, ct));
+        }
 
         /// <summary>Cancels a loan entered by mistake (reason required); refused once anything has been repaid.</summary>
         [HttpPost("{id:guid}/cancel")]

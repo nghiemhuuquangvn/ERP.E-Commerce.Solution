@@ -59,6 +59,7 @@ namespace ERP.ACC.Application.Posting
         public const string SalesReturn = "SalesReturn";
         public const string Loan = "Loan";
         public const string LoanRepayment = "LoanRepayment";
+        public const string LoanAccrual = "LoanAccrual";
 
         /// <summary>Dr Accounts receivable / Cr Sales revenue (gross; VAT is split by P1-3).</summary>
         public static PostingRequest ForInvoice(Domain.Entities.Invoice invoice) =>
@@ -91,33 +92,66 @@ namespace ERP.ACC.Application.Posting
                     PostingLine.Cr(PostingKeys.AccountsPayable, bill.Amount, bill.BillNumber),
                 });
 
-        /// <summary>A loan drawn (ROADMAP P1-2j): Dr Bank / Cr Loan payable, on the start date.</summary>
+        /// <summary>The line on the money side of a loan: the loan's own receiving account when it has one, else the Bank key.</summary>
+        private static PostingLine MoneyLine(Domain.Entities.Loan loan, decimal debit, decimal credit) =>
+            loan.ReceivingAccountId.HasValue
+                ? new PostingLine(null, loan.ReceivingAccountId, debit, credit, loan.LoanNumber)
+                : new PostingLine(PostingKeys.Bank, null, debit, credit, loan.LoanNumber);
+
+        /// <summary>A loan drawn (ROADMAP P1-2j): Dr the receiving account (default: Bank) / Cr Loan payable, on the start date.</summary>
         public static PostingRequest ForLoanDrawdown(Domain.Entities.Loan loan) =>
             new(Loan, loan.Id, loan.StartDate, $"Loan {loan.LoanNumber} drawn from {loan.Lender}",
                 new[]
                 {
-                    PostingLine.Dr(PostingKeys.Bank, loan.Principal, loan.LoanNumber),
+                    MoneyLine(loan, loan.Principal, 0m),
                     PostingLine.Cr(PostingKeys.LoanPayable, loan.Principal, loan.LoanNumber),
                 });
 
         /// <summary>
-        /// One installment repaid on <paramref name="paidOn"/>: Dr Loan payable (principal) and Dr Interest expense (interest) / Cr Bank (both). Interest is
-        /// booked when it is paid, with no accrual. Null when the installment moves no money.
+        /// One installment repaid on <paramref name="paidOn"/>: Dr Loan payable (principal), Dr Interest payable (the interest accrued so far, ROADMAP P1-2k), Dr / Cr Interest
+        /// expense (the interest paid minus what was accrued: a credit when more was accrued than paid) / Cr the receiving account (principal + interest paid).
+        /// Null when the installment moves no money.
         /// </summary>
         public static PostingRequest? ForLoanRepayment(Domain.Entities.Loan loan, Domain.Entities.LoanInstallment installment, DateTime paidOn)
         {
             var principal = Math.Round(installment.PrincipalAmount, 2);
             var interest = Math.Round(installment.InterestAmount, 2);
-            if (principal + interest <= 0m)
+            var accrued = Math.Round(installment.AccruedInterest, 2);
+            if (principal + interest <= 0m && accrued <= 0m)
                 return null;
 
             var lines = new List<PostingLine>();
             if (principal > 0m)
                 lines.Add(PostingLine.Dr(PostingKeys.LoanPayable, principal, loan.LoanNumber));
-            if (interest > 0m)
-                lines.Add(PostingLine.Dr(PostingKeys.InterestExpense, interest, loan.LoanNumber));
-            lines.Add(PostingLine.Cr(PostingKeys.Bank, principal + interest, loan.LoanNumber));
+            if (accrued > 0m)
+                lines.Add(PostingLine.Dr(PostingKeys.InterestPayable, accrued, loan.LoanNumber));
+            var expense = interest - accrued;
+            if (expense > 0m)
+                lines.Add(PostingLine.Dr(PostingKeys.InterestExpense, expense, loan.LoanNumber));
+            else if (expense < 0m)
+                lines.Add(PostingLine.Cr(PostingKeys.InterestExpense, -expense, loan.LoanNumber));
+            if (principal + interest > 0m)
+                lines.Add(MoneyLine(loan, 0m, principal + interest));
             return new PostingRequest(LoanRepayment, installment.Id, paidOn.Date, $"Repayment of loan {loan.LoanNumber} due {installment.DueDate:dd/MM/yyyy}", lines);
+        }
+
+        /// <summary>
+        /// Interest accrued on an installment up to <paramref name="asOf"/> (ROADMAP P1-2k): Dr Interest expense / Cr Interest payable. One entry per installment and date
+        /// (the source id is derived from both, so running the accrual twice for a date posts once).
+        /// </summary>
+        public static PostingRequest ForLoanAccrual(Domain.Entities.Loan loan, Domain.Entities.LoanInstallment installment, decimal amount, DateTime asOf) =>
+            new(LoanAccrual, AccrualSourceId(installment.Id, asOf), asOf.Date, $"Interest accrued on loan {loan.LoanNumber} due {installment.DueDate:dd/MM/yyyy}",
+                new[]
+                {
+                    PostingLine.Dr(PostingKeys.InterestExpense, amount, loan.LoanNumber),
+                    PostingLine.Cr(PostingKeys.InterestPayable, amount, loan.LoanNumber),
+                });
+
+        /// <summary>A stable id for "this installment accrued up to this date".</summary>
+        public static Guid AccrualSourceId(Guid installmentId, DateTime asOf)
+        {
+            var bytes = System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes($"{installmentId:N}:{asOf:yyyyMMdd}"));
+            return new Guid(bytes);
         }
 
         /// <summary>Dr Accounts payable / Cr Bank.</summary>

@@ -135,6 +135,7 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.PaidOn).HasColumnType("date");
                 e.Property(x => x.PrincipalAmount).HasColumnType("decimal(18,2)");
                 e.Property(x => x.InterestAmount).HasColumnType("decimal(18,2)");
+                e.Property(x => x.AccruedInterest).HasColumnType("decimal(18,2)");
                 e.HasIndex(x => x.LoanId);
             });
 

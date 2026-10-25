@@ -39,13 +39,15 @@ namespace ERP.ACC.Domain.Entities
         public const string LoanPayable = "LoanPayable";
         /// <summary>Interest paid on loans, debited by the interest part of each repayment (no accrual before it is paid).</summary>
         public const string InterestExpense = "InterestExpense";
+        /// <summary>Interest accrued on loans and not yet paid: credited by an accrual, debited by the repayment that pays it (ROADMAP P1-2k).</summary>
+        public const string InterestPayable = "InterestPayable";
 
         public static readonly IReadOnlyList<string> All = new[]
         {
             Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, Inventory, VatOutput,
             GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment, CashOverShort,
             SalaryExpense, SalariesPayable, PayrollWithholdingsPayable,
-            SalesReturns, IncomeSummary, RetainedEarnings, LoanPayable, InterestExpense
+            SalesReturns, IncomeSummary, RetainedEarnings, LoanPayable, InterestExpense, InterestPayable
         };
 
         /// <summary>Account numbers of the seeded 14-account chart, used when a tenant has no mapping yet.</summary>
@@ -70,6 +72,7 @@ namespace ERP.ACC.Domain.Entities
             [RetainedEarnings] = "3100",
             [LoanPayable] = "2100",                // the simple chart has no borrowings account; Accrued Liabilities holds them
             [InterestExpense] = "5100",            // Operating Expenses
+            [InterestPayable] = "2100",            // Accrued Liabilities
         };
     }
 

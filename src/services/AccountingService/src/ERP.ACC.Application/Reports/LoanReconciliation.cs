@@ -27,6 +27,13 @@ namespace ERP.ACC.Application.Reports
         public decimal BookBalance { get; set; }
         public decimal Difference { get; set; }
         public bool IsReconciled { get; set; }
+
+        /// <summary>Interest accrued and not yet paid on the unpaid installments (today's accruals), the balance of the interest-payable account, and their difference (ROADMAP P1-2k).</summary>
+        public string InterestAccountNumber { get; set; } = string.Empty;
+        public decimal InterestLedger { get; set; }
+        public decimal InterestBook { get; set; }
+        public decimal InterestDifference { get; set; }
+        public bool InterestReconciled { get; set; } = true;
         public List<LoanReconciliationLineDto> Loans { get; set; } = new();
         public List<string> Notes { get; set; } = new();
     }
@@ -55,15 +62,21 @@ namespace ERP.ACC.Application.Reports
         {
             var day = request.AsOfDate.Date;
             var accounts = await _accounts.GetAllAsync(ct);
-            var mapping = (await _mappings.GetAllAsync(ct)).FirstOrDefault(m => m.PostingKey == PostingKeys.LoanPayable);
-            Account? account = mapping != null ? accounts.FirstOrDefault(a => a.Id == mapping.AccountId) : null;
-            if (account == null)
+            var mappings = await _mappings.GetAllAsync(ct);
+            Account? Resolve(string key)
             {
+                var mapping = mappings.FirstOrDefault(m => m.PostingKey == key);
+                var found = mapping != null ? accounts.FirstOrDefault(a => a.Id == mapping.AccountId) : null;
+                if (found != null)
+                    return found;
                 // the key is mapped by the first posting; until then it is the default of the tenant's chart
-                var number = ChartTemplates.Find(ChartTemplates.Detect(accounts))?.PostingMap.GetValueOrDefault(PostingKeys.LoanPayable)
-                    ?? PostingKeys.DefaultAccountNumbers.GetValueOrDefault(PostingKeys.LoanPayable);
-                account = accounts.FirstOrDefault(a => a.AccountNumber == number);
+                var number = ChartTemplates.Find(ChartTemplates.Detect(accounts))?.PostingMap.GetValueOrDefault(key)
+                    ?? PostingKeys.DefaultAccountNumbers.GetValueOrDefault(key);
+                return accounts.FirstOrDefault(a => a.AccountNumber == number);
             }
+
+            var account = Resolve(PostingKeys.LoanPayable);
+            var interestAccount = Resolve(PostingKeys.InterestPayable);
 
             var result = new LoanReconciliationDto { AsOfDate = day };
             var loans = (await _loans.ListAsync(ct)).Where(l => l.Status != (int)LoanStatus.Cancelled && l.StartDate.Date <= day).ToList();
@@ -86,8 +99,26 @@ namespace ERP.ACC.Application.Reports
             result.AccountNumber = account.AccountNumber;
             result.AccountName = account.Name;
             result.BookBalance = balances.Where(b => ids.Contains(b.AccountId)).Sum(b => b.TotalCredit - b.TotalDebit);
-            result.Difference = result.LedgerTotal - result.BookBalance;
+
+            // interest accrued and not yet paid (the accruals are not kept by date: the check is of today's state)
+            result.InterestLedger = loans.Where(l => l.PostedToLedger).SelectMany(l => l.Installments).Where(i => !i.PaidOn.HasValue).Sum(i => i.AccruedInterest);
+            var sameAccount = interestAccount != null && interestAccount.Id == account.Id;
+            if (interestAccount != null && !sameAccount)
+            {
+                var interestIds = accounts.Where(a => a.AccountNumber.StartsWith(interestAccount.AccountNumber, StringComparison.Ordinal)).Select(a => a.Id).ToHashSet();
+                result.InterestAccountNumber = interestAccount.AccountNumber;
+                result.InterestBook = balances.Where(b => interestIds.Contains(b.AccountId)).Sum(b => b.TotalCredit - b.TotalDebit);
+                result.InterestDifference = result.InterestLedger - result.InterestBook;
+                result.InterestReconciled = result.InterestDifference == 0m;
+                if (day < DateTime.UtcNow.Date)
+                    result.Notes.Add("The interest check compares today's accruals with the balance on the date: use today's date for it.");
+            }
+
+            // one account for both (the 14-account chart): its balance is principal plus accrued interest
+            result.Difference = result.LedgerTotal + (sameAccount ? result.InterestLedger : 0m) - result.BookBalance;
             result.IsReconciled = result.Difference == 0m;
+            if (sameAccount)
+                result.Notes.Add("Loan payable and interest payable share this account: the ledger side adds the accrued interest.");
             if (loans.Any(l => !l.PostedToLedger))
                 result.Notes.Add("Some loans are not posted to the books: their drawdown and repayments are journal entries made by hand, so a difference can be expected.");
             if (account.AccountNumber == "2100")
