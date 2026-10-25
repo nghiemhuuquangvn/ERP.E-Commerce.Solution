@@ -236,7 +236,7 @@ POS `TransactionCreated/Voided/CashShiftClosed` (Kafka `pos-topic`, ROADMAP P1-1
 Statements B01 / B02 are layouts as data (`StatementLayouts`, Vas99 only, DRAFT until an accountant reviews them) evaluated by `StatementEngine`; a template test requires every Vas99 account to be on a
 statement or in the documented exclusion list — extend the layout when you add accounts to the template. Reports export CSV with `format=csv`.
 
-B03-DN (cash flow by indicator code) works the same way (`CashFlowLayouts` + `CashFlowStatementEngine`); reports export `format=csv|xlsx` from one `ReportTables` table, and B01 / B02 / B03 also `format=pdf` (`PdfWriter`, embedded Noto Sans — never rely on fonts installed in the container). Statements B01 / B02 / B03 are shown in the unit of the tenant's **report profile** (VND / thousand / million, `unit` overrides) with its company header and signatories; rounding is per row, checks use exact amounts.
+B03-DN (cash flow by indicator code) works the same way (`CashFlowLayouts` + `CashFlowStatementEngine`; `method=indirect` adds `IndirectCashFlowLayouts` + `IndirectCashFlowEngine`, whose operating total must reconcile with the direct one); reports export `format=csv|xlsx` from one `ReportTables` table, and B01 / B02 / B03 also `format=pdf` (`PdfWriter`, embedded Noto Sans — never rely on fonts installed in the container). Statements B01 / B02 / B03 are shown in the unit of the tenant's **report profile** (VND / thousand / million, `unit` overrides) with its company header and signatories; rounding is per row, checks use exact amounts.
 The tenant's **closing policy** (`ClosingPolicies`, Monthly / YearEnd)
 decides whether closing a period writes its entry or only the last period of the fiscal year does.
 

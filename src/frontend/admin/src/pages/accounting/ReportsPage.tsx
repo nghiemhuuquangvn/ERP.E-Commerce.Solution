@@ -116,6 +116,7 @@ function ReportProfilePanel({ canEdit }: { canEdit: boolean }) {
 function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' | 'cash-flow' }) {
   const { t } = useTranslation()
   const [unit, setUnit] = useState<AmountUnit | ''>('') // '' = the report profile's unit
+  const [method, setMethod] = useState<'direct' | 'indirect'>('direct') // B03 only
   const isBalanceSheet = kind === 'balance-sheet'
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState(todayISODate())
@@ -127,7 +128,7 @@ function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' |
   const compareReady = compare && (isBalanceSheet ? !!compareTo : !!compareFrom && !!compareTo)
   const params: Record<string, unknown> = isBalanceSheet
     ? { asOfDate: toDate, compareAsOfDate: compareReady ? compareTo : undefined, unit: unit || undefined }
-    : { fromDate, toDate, compareFromDate: compareReady ? compareFrom : undefined, compareToDate: compareReady ? compareTo : undefined, unit: unit || undefined }
+    : { fromDate, toDate, compareFromDate: compareReady ? compareFrom : undefined, compareToDate: compareReady ? compareTo : undefined, unit: unit || undefined, method: kind === 'cash-flow' ? method : undefined }
 
   const { data, isLoading } = useQuery<FinancialStatement>({
     queryKey: ['accounting', 'reports', 'statement', kind, params],
@@ -199,6 +200,15 @@ function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' |
               {isBalanceSheet ? t('accounting.reports.compareAsOf') : t('accounting.reports.compareTo')}
             </label>
             <input type="date" className="input" value={compareTo} onChange={(e) => setCompareTo(e.target.value)} />
+          </div>
+        )}
+        {kind === 'cash-flow' && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.method')}</label>
+            <select className="input" value={method} onChange={(e) => setMethod(e.target.value as 'direct' | 'indirect')}>
+              <option value="direct">{t('accounting.reports.methodDirect')}</option>
+              <option value="indirect">{t('accounting.reports.methodIndirect')}</option>
+            </select>
           </div>
         )}
         <div>

@@ -193,7 +193,7 @@ namespace ERP.ACC.API.Controllers
         }
 
         /// <summary>
-        /// Cash-flow statement B03-DN by indicator code, direct method (Vas99; a DRAFT layout to be reviewed by the accountant). Each cash movement is
+        /// Cash-flow statement B03-DN by indicator code, direct method (method=indirect: the indirect method, starting from profit before tax) (Vas99; a DRAFT layout to be reviewed by the accountant). Each cash movement is
         /// classified by the counter-account of its entry; compareFromDate / compareToDate add a prior column; format=csv downloads it.
         /// </summary>
         [HttpGet("statements/cash-flow")]
@@ -204,6 +204,7 @@ namespace ERP.ACC.API.Controllers
             [FromQuery] DateTime? compareFromDate,
             [FromQuery] DateTime? compareToDate,
             [FromQuery] string? unit = null,
+            [FromQuery] string? method = null,
             [FromQuery] string? format = null,
             CancellationToken ct = default)
         {
@@ -216,9 +217,10 @@ namespace ERP.ACC.API.Controllers
                 ToDate = toDate,
                 CompareFromDate = compareFromDate,
                 CompareToDate = compareToDate,
-                Unit = unit
+                Unit = unit,
+                Method = method
             }, ct);
-            return IsExport(format) ? StatementExport(format, result, "cash-flow-b03") : Ok(result);
+            return IsExport(format) ? StatementExport(format, result, string.Equals(method, "indirect", StringComparison.OrdinalIgnoreCase) ? "cash-flow-b03-indirect" : "cash-flow-b03") : Ok(result);
         }
 
         /// <summary>The header, signatories and amount unit of the statements.</summary>

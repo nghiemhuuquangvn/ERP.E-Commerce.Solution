@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Domain** | Accounting (AccountingService, port 5005, code ACC) |
-| **Covers** | ROADMAP P1-1 … P1-1e (automatic posting), P1-2 (chart of accounts, void / reverse, closing), P1-2b (ledger, trial balance, cash flow), P1-2c (B01 / B02 statements, CSV), P1-2d (B03 cash-flow statement by indicator code, year-end closing policy, Excel export), P1-2e (amount unit VND / thousand / million and company header on the statements), **P1-2f (PDF export of B01 / B02 / B03)** |
+| **Covers** | ROADMAP P1-1 … P1-1e (automatic posting), P1-2 (chart of accounts, void / reverse, closing), P1-2b (ledger, trial balance, cash flow), P1-2c (B01 / B02 statements, CSV), P1-2d (B03 cash-flow statement by indicator code, year-end closing policy, Excel export), P1-2e (amount unit VND / thousand / million and company header on the statements), P1-2f (PDF export of B01 / B02 / B03), **P1-2g (B03 by the indirect method)** |
 | **Status** | Implemented and verified on the local Docker stack, 2026-10-24. Items still open are in [DEFERRED-ISSUES.md](../../DEFERRED-ISSUES.md). |
 | **Audience** | Product owner, chief accountant, QA, developers |
 | **Companion documents** | [AutoPosting.md](AutoPosting.md) (posting rules in detail), [ChartOfAccounts.md](ChartOfAccounts.md), [Reports.md](Reports.md), [event-catalog](../../architecture/event-catalog.md) |
@@ -34,6 +34,7 @@ A Vietnamese company must keep its books under the Vietnamese accounting standar
 | O9 | Reports can be handed to an auditor or a manager as a spreadsheet whose amounts are real numbers. | FR-52. |
 | O10 | The statements look like the filed forms: in thousand or million VND where the company files that way, headed by the company's name, tax code and address, with the signatories below. | FR-58 … FR-62. |
 | O11 | A statement can be printed or archived as a PDF that looks like the filed form, with the company header, the unit and the signatories, and agrees to the cent with the screen and the spreadsheets. | FR-63 … FR-66. |
+| O12 | A company that files its cash-flow statement by the indirect method (starting from profit before tax) can produce it from the same ledger, and can see that it agrees with the direct method. | FR-67 … FR-70. |
 
 ### 1.3 Scope
 **In scope:** posting from sales, payment, purchasing, warehouse, POS, payroll, refunds and returns; chart of accounts and templates; manual entries, void, reverse; fiscal periods and closing;
@@ -206,6 +207,10 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | FR-64 | The PDF shows exactly the figures of the screen / CSV / Excel for the same request (same unit, rounding, prior column, unmapped list, notes, draft label). | M | P1-2f |
 | FR-65 | Vietnamese text (diacritics) prints correctly on any server: the font is embedded in the file, nothing depends on fonts installed on the machine. | M | P1-2f |
 | FR-66 | Every other report answers `format=pdf` with a clear refusal (HTTP 400) instead of silently returning JSON; the admin shows **Export PDF** only on the B01 / B02 / B03 tabs. | M | P1-2f |
+| FR-67 | B03-DN can be produced by the **indirect method** (`method=indirect`): operating cash flow starts from profit before tax, adds back non-cash items, follows working capital and subtracts interest and income tax paid. | M | P1-2g |
+| FR-68 | Investing and financing rows (21 … 36), opening cash (60) and closing cash (70) are the same as in the direct method. | M | P1-2g |
+| FR-69 | The indirect operating total (20) is checked against the direct method; a difference is reported with its amount and the accounts that explain it, never plugged. | M | P1-2g |
+| FR-70 | The indirect statement supports the same prior column, unit and rounding, header, CSV / Excel / PDF and admin screen as the direct one; an unknown method is refused. | M | P1-2g |
 
 ### 5.5 Acceptance criteria of the P1-2d requirements
 (Scenarios are in section 12; the *UAT* column points at them.)
@@ -230,12 +235,21 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | UAT-48 | Given B01 with a prior date, then the PDF has the column "Số kỳ trước"; amounts equal the CSV of the same request; negatives print in parentheses; unmapped and notes are listed. | FR-64 | Passed (unit tests + live columns) |
 | UAT-49 | When `format=pdf` is requested on `trial-balance/full` and on the flat `cash-flow`, then HTTP 400 with the message of FR-66. | FR-66 | Passed |
 | UAT-50 | Given a profile with no text, when B02 is exported as PDF, then there is no company block and no signature block, and the table is unchanged; with only a name, only the name is printed. | BR-85, BR-91 | Unit test only |
+| UAT-51 | Given the sample ledger of BR-102 (unit test), when B03 is produced indirectly, then 01 = 170, 08 = 300, 20 = −90, 30 = −780, 40 = 2,000, 50 = 1,130, 60 = 5,000, 70 = 6,130, `isBalanced` is true, nothing is unmapped, and 20 / 50 / 70 equal the direct statement of the same ledger. | FR-67, 68 | Unit test |
+| UAT-52 | Given tenant `glcheck` October 2026 (revenue 1,900 on credit, expenses 600, receivables up 1,500, loan 2,000, equipment 1,500), when `method=indirect` is requested, then 01 = 1,300, 09 = −1,500, 20 = −200, 21 = −1,500, 33 = 2,000, 50 = 300, 70 = 300 — equal to the direct statement; `isBalanced` true; no unmapped. | FR-67, 69 | Passed |
+| UAT-53 | Given equipment 800 bought on credit, then indirect 20 = 800, direct 20 = 0, `isBalanced` false and a note names the difference; given a movement on account 356, then it is listed as unmapped. | FR-69 | Unit test |
+| UAT-54 | When `method=indirect` is requested with `format=pdf` and `format=xlsx`, then each answers 200 with the right content type; `method=foo` answers 400 with the message of FR-70; omitting `method` returns the direct statement (layout "B03-DN"). | FR-70 | Passed |
+| UAT-55 | Given a prior range, then each row has a prior amount from its own ledger; given unit Thousand, then 170 → 0, 5,000 → 5, 2,000 → 2 and the total 20 equals the sum of the rounded rows while `isBalanced` is decided on exact amounts. | FR-70, BR-102 | Unit test |
 | UAT-45 |
 | FR-62 | Given a manager, then the profile panel saves; given a viewer, then its fields are read-only. | manual |
 | FR-63 | Given a tenant with a filled report profile, when B01 for 31 Oct is requested with `format=pdf`, then the answer is HTTP 200, `application/pdf`, file `balance-sheet-b01-<timestamp>.pdf`, the bytes start with `%PDF-`, and the file has the company block, the title, "Tại ngày 31/10/2026 — Đơn vị tính: nghìn đồng", the rows with codes, and the three signatories; B01 (≈ 100 rows) runs over two pages with the table header repeated and "Trang 1/2" in the footer; B02 and B03 each fit one page. | UAT-46, 47 |
 | FR-64 | Given the same request as CSV, then every code and amount in the PDF equals the CSV (same rounding in the same unit); a comparison range adds the column "Số kỳ trước"; unmapped accounts and notes are listed in small print; negatives are in parentheses; thousands are separated by a dot (1.234.567). | UAT-48 |
 | FR-65 | Given a Linux container without fonts, then the PDF still shows "Bảng cân đối kế toán", "Kế toán trưởng", "Nguyễn Văn A" with all diacritics, and the file's fonts are embedded Noto Sans (regular and bold). | UAT-47 |
 | FR-66 | When `format=pdf` is requested on `trial-balance/full`, `account-ledger` or `cash-flow`, then HTTP 400 "PDF is available for the statements B01, B02 and B03 only; use csv or xlsx for this report."; the Export PDF button exists on the B01, B02 and B03 tabs only. | UAT-49 |
+| FR-67 | Given October of tenant `glcheck`, when B03 is requested with `method=indirect`, then the layout is "B03-DN-GT" and rows 01 (profit before tax), 08, 09 (receivables), 20, 21 … 40, 50, 60, 70 are present; in the unit-test ledger (sales on credit 1,000 with 600 collected, stock 500 bought on credit and 300 sold, wages, depreciation 100, interest, tax) the rows are 01 = 170, 02 = 100, 05 = −20, 06 = 50, 08 = 300, 09 = −400, 10 = −200, 11 = 300, 14 = −50, 15 = −40, 20 = −90. | UAT-51, 52 |
+| FR-68 | Given the same request, then rows 21 … 36 equal those of `method=direct`, and 50 and 70 equal the direct ones. | UAT-51 |
+| FR-69 | Given equipment of 800 bought on credit (payables rise, no cash moves), then indirect row 20 is 800 while the direct 20 is 0, `isBalanced` is false and the note says "differs from the direct method by 800"; a balance-sheet account the form does not follow (e.g. 356) is listed under "unmapped". | UAT-53 |
+| FR-70 | Given `method=indirect` with `format=pdf`, `xlsx` or `csv`, a prior range and `unit=thousand`, then the file / columns / rounding behave as for the direct form; `method=foo` → HTTP 400 "The cash-flow method must be direct or indirect."; the admin B03 tab has a *Method* selector (Direct / Indirect). | UAT-54, 55 |
 
 ---
 
@@ -362,6 +376,23 @@ Row mapping (account prefix → row; "In" = cash received, "Out" = cash paid):
 *Worked example (thousand VND).* Cash 1,400 and inventory 1,400 are assets; equity is 2,800. Exact: 2,800 = 2,800. Rounded rows: cash 1, inventory 1 → total assets 2; equity 3 → total sources 3. The statement shows 2 and 3, says
 "Rounding difference of −1 thousand VND between total assets (270) and total sources (440): the exact amounts agree" and `isBalanced` is true. On the local test tenant, 3,300 VND of assets split over several rows showed 4 against 3 the same way.
 
+### 6.13 B03 by the indirect method (P1-2g)
+| ID | Rule |
+|---|---|
+| BR-94 | `method` is `direct` (default, any case) or `indirect`; anything else is refused (400). The indirect statement has the layout id "B03-DN-GT" and is a **draft** like the other statements (BR-63). |
+| BR-95 | **Row 01** = profit before tax: revenue minus expenses of the range on every revenue / expense account except income tax (821x); closing entries never count. |
+| BR-96 | **Balance-change rows** use the cumulative balances the day before the range starts and at its end: *cash effect = increase of (credit − debit)*. So an increase of a liability (or accumulated depreciation, provisions) adds cash; an increase of an asset (receivables, inventory, prepaid) takes cash. |
+| BR-97 | **Add-backs and removals**: row 06 adds back the interest expense (635) of the range; row 05 removes the interest income (515), which the form shows in investing (row 27). Row 04 (exchange-rate effect) is 0 until foreign currency exists. |
+| BR-98 | **Rows 14 and 15** (interest paid, income tax paid) are the cash movements of the direct form (rows 04 and 05). Rows 13, 16 and 17 are not derived (0): securities changes are shown in investing and other operating cash is already in profit and working capital — counting them again would double count. |
+| BR-99 | Rows 21 … 36, 60, 61 are the direct-method cash rows; 20 = 08 + 09 … + 17, 30, 40, 50 = 20 + 30 + 40, 70 = 50 + 60 + 61 as in BR-67. |
+| BR-100 | **Reconciliation.** Both methods describe the same cash, so indirect 20 must equal direct 20 and indirect 70 must equal the cash on the books, in every column. Otherwise `isBalanced` is false and a note gives the difference (in the chosen unit). The statement is **never forced** to agree. |
+| BR-101 | A difference arises from **non-cash transactions** (e.g. equipment or stock bought on credit moves payables but no cash), from accounts the form does not follow, and from the approximation of rows 02 / 03 (a disposal lowers accumulated depreciation without being an expense). The accountant clears it by correcting the postings or the layout; the *unmapped* list names the accounts that moved but are not on the form (covered prefixes: 214, 229, 131, 133, 136, 138, 141, 244, 15x, 142, 242, 331, 333, 334, 335, 338, the investing and financing accounts 121, 128, 211 … 241, 411 … 421, 911, 341 … 344). |
+| BR-102 | Rounding and unit follow BR-80 … BR-83: leaf rows rounded in the unit, totals from rounded rows, the checks on exact amounts. |
+
+*Worked example (VND).* Before the range: cash 5,000 against capital 5,000. In the range: a sale on credit 1,000 (600 collected); stock 500 bought on credit, 200 paid, 300 sold; wages 400 accrued and paid; depreciation 100; interest 50 paid; interest received 20; income tax 40 paid; equipment 800 for cash; a loan 2,000.
+Profit before tax = 1,000 + 20 − 300 − 500 (wages 400 + depreciation 100) − 50 = **170**. Add depreciation 100, remove interest income 20, add back interest 50 → **300**. Receivables +400 → −400; inventory +200 → −200; payables +300 → +300; interest paid −50; tax paid −40 → **20 = −90**.
+Direct method: received from customers 600, paid to suppliers 200, wages 400, interest 50, tax 40 → 600 − 200 − 400 − 50 − 40 = **−90**. They agree. Investing −800 + 20 = −780, financing +2,000, net change 1,130, closing cash 5,000 + 1,130 = 6,130.
+
 ### 6.12 PDF export (P1-2f)
 | ID | Rule |
 |---|---|
@@ -443,6 +474,13 @@ Row mapping (account prefix → row; "In" = cash received, "Out" = cash paid):
 *Main flow:* 1. Reports → B01, B02 or B03 → open *Report profile* → 2. enter company name, tax code, address, người lập biểu, kế toán trưởng, giám đốc and the default unit → 3. Save → 4. the statements now show the company block, the unit and the signatories, and the exports carry them.
 *Alternative flows:* A1 — pick another unit for one look without changing the profile: use the *Unit* selector of the tab (it sends `unit`). A2 — leave texts empty: those lines are not printed.
 *Exceptions:* a text above its limit or an unknown unit → refused with the reason (400); no permission → 403 (the fields are read-only on screen). *Post:* only the presentation of later reports changes; no amount in the books changes.
+
+### UC-16 Produce the cash-flow statement by the indirect method
+*Actor:* accountant / chief accountant (`accounting:reports:view`). *Pre:* cash and bank accounts are flagged *cash*; the tenant is on the Vietnamese chart.
+*Main flow:* 1. Reports → **B03** → choose *Method: Indirect*, the dates, optional prior period and unit → 2. read: profit before tax, adjustments (02 … 06), working-capital changes (09 … 12), interest and tax paid, total 20, then investing, financing, opening and closing cash → 3. check the line "balanced" → 4. Export CSV / Excel / PDF.
+*Alternative flows:* A1 — the statement says it is not balanced: read the note (difference between the methods) and the *unmapped* list; typical causes are equipment or stock bought on credit (non-cash) and accounts outside the form; switch to *Direct* to see the cash movements behind it; correct and re-run. A2 — profile with header and signatories: printed as on the direct form (UC-14, UC-15).
+*Exceptions:* unknown method / invalid dates / one-sided comparison → refused (400); no permission → 403.
+*Post:* nothing is written to the books. *Business meaning:* the indirect form answers "why did cash differ from profit?"; the direct form answers "where did the money come from and go?" — they must agree.
 
 ### UC-15 Export a statement as PDF
 *Actor:* accountant / chief accountant / auditor (`accounting:reports:view`). *Pre:* B01, B02 or B03 shows the wanted period; the report profile is filled in if the company block and signatories are wanted (UC-14).
@@ -608,7 +646,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 | Close / reopen period | | | manage | | |
 | View the closing policy | | | view | | |
 | Change the closing policy | | | manage | | |
-| Any report (incl. B03) and CSV / Excel export; PDF of B01 / B02 / B03 | | | | view | |
+| Any report (incl. B03, both methods) and CSV / Excel export; PDF of B01 / B02 / B03 | | | | view | |
 | View the report profile | | | | view | |
 | Change the report profile (header, signatories, unit) | manage | | | | |
 | Pay / cancel a pay slip | | | | | `hrm:payroll:manage` |
@@ -623,6 +661,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 2. The Vietnamese chart and the statement layouts are **suggested drafts** based on Circular 200's numbering (largely kept by Circular 99/2025/TT-BTC); the accountant reviews them before real use.
 3. The SYSTEM tenant and the demo data stay on the 14-account chart.
 4. Fiscal periods are normally months and are opened by the accountant (or automatically for posting); closing is monthly unless the tenant chose YearEnd. The fiscal year is the twelve months ending in the policy's year-end month; periods of one year are assumed to be contiguous.
+4d. The indirect statement relies on the account prefixes of the Vietnamese chart (BR-101); balance changes are measured between the day before the range and its end; depreciation and provisions are measured by the change of their balance sheet accounts, not by the expense; non-cash transactions are not separated (no "non-cash investing and financing" note — part of B09).
 4c. The PDF is A4 portrait with one embedded font (Noto Sans, OFL); the statements are the only reports with a PDF; no digital signature, no PDF/A; the file is generated on demand and not stored.
 4b. Rounding is half away from zero per statement row and totals follow the rounded rows (the common practice on filed forms); the profile is edited with the chart-level permission `accounting:accounts:manage` because no dedicated permission exists yet; one profile per tenant (one legal entity).
 4a. The B03 row mapping (6.8) is a draft by account prefix; salary payments are recognised by the payroll-payable account (334), so a salary paid straight from expense accounts lands in row 02, and withholdings paid to the authorities (3388, 3382 … 3384) land in row 07.
@@ -635,7 +674,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 
 Full list with owners and impact: [DEFERRED-ISSUES.md](../../DEFERRED-ISSUES.md). The business-relevant ones:
 VAT split and e-invoice (P1-3); foreign currency and bank reconciliation (P1-4); restocking of returned goods and reversing their cost, and triggering the refund from a return (P1-5); real payroll with insurance, personal income tax and employer
-contributions (P1-7); indirect-method cash flow, B09 notes, off-balance (class 0) accounts, short- / long-term split by due date, layouts for charts other than `Vas99` (P1-2g); PDF of the other reports, digital signature / PDF-A, other paper sizes (DEFERRED W1);
+contributions (P1-7); B09 notes, off-balance (class 0) accounts, short- / long-term split by due date, layouts for charts other than `Vas99` (P1-2h); PDF of the other reports, digital signature / PDF-A, other paper sizes (DEFERRED W1);
 no automatic back-posting of documents that were saved without an entry; accountant review of the Vietnamese chart and the B01 / B02 / B03 layouts.
 Open questions for the chief accountant: (1) is the B03 row mapping right for the company's usual transactions (VAT paid, withholdings, deposits)? (2) does the company want the fiscal year to end in December? (3) should a year-end preview
 (what would be closed) be shown before closing December?
@@ -655,6 +694,7 @@ Open questions for the chief accountant: (1) is the B03 row mapping right for th
 | P1-2b ledger, trial balance, cash flow | 2026-10-24 | FR-24, 40, 41, 44; BR-50 … 52 | Reports.md | `LedgerAndTrialBalanceTests`, `CashFlowTests` |
 | P1-2c B01 / B02, CSV | 2026-10-24 | FR-45, 46; BR-60 … 63 | Reports.md | `StatementTests`, `StatementHandlerAndCsvTests` |
 | BA baseline (this document) | 2026-10-24 | All | — | — |
+| P1-2g B03 indirect method | 2026-10-25 | FR-67 … 70; BR-94 … 102; UC-16; UAT-51 … 55 | Reports.md | `IndirectCashFlowTests` (16 tests incl. the direct-vs-indirect reconciliation) |
 | P1-2f PDF export of B01 / B02 / B03 | 2026-10-25 | FR-63 … 66; BR-87 … 93; UC-15; UAT-46 … 50 | Reports.md | `PdfWriterTests` (11 tests) + live render check |
 | P1-2e amount unit, company header | 2026-10-24 | FR-58 … 62; BR-80 … 86; UC-14; UAT-40 … 45 | Reports.md | `RoundingTests`, `ReportProfileTests`, `XlsxWriterTests`, `LiveSchemaDriftTests` (migration 012) |
 | P1-2d B03, year-end closing policy, Excel | 2026-10-24 | FR-48 … 57; BR-64 … 79; UC-10 … 13; UAT-25 … 39 | Reports.md, ChartOfAccounts.md | `CashFlowStatementTests`, `XlsxWriterTests`, `YearEndClosingTests`, `PeriodClosingTests`, `LiveSchemaDriftTests` (migration 011) |
