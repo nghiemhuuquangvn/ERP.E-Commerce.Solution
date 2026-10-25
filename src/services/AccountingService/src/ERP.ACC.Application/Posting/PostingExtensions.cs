@@ -58,6 +58,7 @@ namespace ERP.ACC.Application.Posting
         public const string PaymentRefund = "PaymentRefund";
         public const string SalesReturn = "SalesReturn";
         public const string InvoiceVatAdjustment = "InvoiceVatAdjust";
+        public const string VatSettlement = "VatSettlement";
         public const string Loan = "Loan";
         public const string LoanRepayment = "LoanRepayment";
         public const string LoanAccrual = "LoanAccrual";
@@ -166,6 +167,17 @@ namespace ERP.ACC.Application.Posting
                     PostingLine.Dr(PostingKeys.InterestExpense, amount, loan.LoanNumber),
                     PostingLine.Cr(PostingKeys.InterestPayable, amount, loan.LoanNumber),
                 });
+
+        /// <summary>
+        /// The VAT of a period settled (ROADMAP P1-3b): Dr VAT output / Cr VAT input for the part of the input VAT that can be deducted from the output VAT. The VAT payable is
+        /// what stays on the output account, the input VAT not used stays on the input account. <paramref name="round"/> numbers a new settlement after the earlier one was reversed.
+        /// </summary>
+        public static PostingRequest ForVatSettlement(Guid fiscalPeriodId, int round, decimal amount, string periodName, DateTime date)
+        {
+            var bytes = System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes($"vat-settlement:{fiscalPeriodId:N}:{round}"));
+            return new(VatSettlement, new Guid(bytes), date.Date, $"VAT settlement {periodName}",
+                new[] { PostingLine.Dr(PostingKeys.VatOutput, amount, periodName), PostingLine.Cr(PostingKeys.VatInput, amount, periodName) });
+        }
 
         /// <summary>A stable id for "this installment accrued up to this date".</summary>
         public static Guid AccrualSourceId(Guid installmentId, DateTime asOf)
