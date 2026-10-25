@@ -155,6 +155,16 @@ function BillsListTab({ canManage }: { canManage: boolean }) {
       { key: 'supplierId', label: t('accounting.bills.supplierId'), className: 'font-mono text-xs' },
       { key: 'poId', label: t('accounting.bills.poId'), className: 'font-mono text-xs' },
       {
+        key: 'netAmount',
+        label: t('accounting.vat.net'),
+        render: (b: BillDto) => b.netAmount.toLocaleString(),
+      },
+      {
+        key: 'taxAmount',
+        label: t('accounting.vat.taxWithRate'),
+        render: (b: BillDto) => (b.taxAmount ? `${b.taxAmount.toLocaleString()} (${b.taxRatePercent}%)` : '—'),
+      },
+      {
         key: 'amount',
         label: t('accounting.bills.amount'),
         render: (b: BillDto) => b.amount.toLocaleString(),

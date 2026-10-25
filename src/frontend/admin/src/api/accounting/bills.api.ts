@@ -8,7 +8,11 @@ export interface BillDto {
   billNumber: string
   supplierId: string
   poId: string
+  /** The gross owed to the supplier; netAmount + taxAmount (input VAT). */
   amount: number
+  netAmount: number
+  taxRatePercent: number
+  taxAmount: number
   dueDate: string
   status: string
   createdAt: string

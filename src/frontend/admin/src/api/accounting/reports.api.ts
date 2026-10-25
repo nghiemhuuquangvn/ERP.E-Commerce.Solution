@@ -271,6 +271,32 @@ export interface NoteTextRevision {
   text: string
 }
 
+export interface VatListingRow {
+  kind: 'Invoice' | 'Bill' | 'Entry'
+  number: string
+  date: string
+  partyId: string | null
+  description: string
+  net: number
+  ratePercent: number | null
+  tax: number
+}
+
+export interface VatListing {
+  direction: 'output' | 'input'
+  fromDate: string
+  toDate: string
+  rows: VatListingRow[]
+  byRate: { ratePercent: number | null; net: number; tax: number }[]
+  totalNet: number
+  totalTax: number
+  ledgerAccountNumber: string | null
+  ledgerTax: number
+  difference: number
+  isReconciled: boolean
+  notes: string[]
+}
+
 export interface Notes {
   language: NoteLanguage
   fiscalYear: number
@@ -301,6 +327,12 @@ export interface NoteTextEntry {
 export const reportsApi = {
   notes: (params: { fromDate: string; toDate: string; unit?: AmountUnit; lang?: NoteLanguage; compareFromDate?: string; compareToDate?: string }) =>
     apiClient.get<Notes>(`${ACC_BASE}/accounting/reports/statements/notes`, { params }).then((r) => r.data),
+
+  vatListing: (params: { fromDate: string; toDate: string; direction: 'output' | 'input' }) =>
+    apiClient.get<VatListing>(`${ACC_BASE}/accounting/reports/vat/listing`, { params }).then((r) => r.data),
+
+  vatReturn: (params: { fromDate: string; toDate: string; unit?: string }) =>
+    apiClient.get<FinancialStatement>(`${ACC_BASE}/accounting/reports/vat/return`, { params }).then((r) => r.data),
 
   noteTexts: (lang: NoteLanguage = 'vi', fiscalYear = 0) =>
     apiClient.get<NoteTextEntry[]>(`${ACC_BASE}/accounting/reports/notes/text`, { params: { lang, fiscalYear } }).then((r) => r.data),

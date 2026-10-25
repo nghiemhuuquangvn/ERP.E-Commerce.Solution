@@ -7,6 +7,7 @@ import {
   type SystemTaxSettings,
   type TenantTaxSettings,
 } from '@/api/settings/tax.settings.api'
+import { invoicesApi } from '@/api/accounting/invoices.api'
 import { usePermission } from '@/hooks/usePermission'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -67,6 +68,8 @@ interface TenantFormValues {
   companyTaxCode: string
   defaultTaxRatePercent: number
   pricesIncludeTax: boolean
+  eInvoiceProvider: string
+  eInvoiceSeries: string
 }
 
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
@@ -81,7 +84,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
   })
 
   const { register, handleSubmit, reset } = useForm<TenantFormValues>({
-    defaultValues: { companyTaxCode: '', defaultTaxRatePercent: 0, pricesIncludeTax: true },
+    defaultValues: { companyTaxCode: '', defaultTaxRatePercent: 0, pricesIncludeTax: true, eInvoiceProvider: '', eInvoiceSeries: '' },
   })
 
   useEffect(() => {
@@ -90,6 +93,8 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
         companyTaxCode: data.companyTaxCode ?? '',
         defaultTaxRatePercent: data.defaultTaxRatePercent,
         pricesIncludeTax: data.pricesIncludeTax,
+        eInvoiceProvider: data.eInvoiceProvider ?? '',
+        eInvoiceSeries: data.eInvoiceSeries ?? '',
       })
     }
   }, [data, reset])
@@ -100,11 +105,15 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
         companyTaxCode: values.companyTaxCode || null,
         defaultTaxRatePercent: Number(values.defaultTaxRatePercent),
         pricesIncludeTax: values.pricesIncludeTax,
+        eInvoiceProvider: values.eInvoiceProvider || null,
+        eInvoiceSeries: values.eInvoiceSeries || null,
       }),
     onSuccess: (result: TenantTaxSettings) => {
       queryClient.setQueryData(['settings', 'tax', 'tenant', tenantId], result)
     },
   })
+
+  const { data: providers } = useQuery({ queryKey: ['accounting', 'e-invoice-providers'], queryFn: () => invoicesApi.eInvoiceProviders(), staleTime: 300_000 })
 
   if (!tenantId) return <p className="text-sm text-gray-400">{t('settings.tax.noTenant')}</p>
   if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
@@ -128,6 +137,21 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       <label className="flex items-center gap-2 text-sm text-gray-700">
         <input type="checkbox" disabled={!canManage} {...register('pricesIncludeTax')} />
         {t('settings.tax.pricesIncludeTax')}
+      </label>
+      <label className="block text-sm text-gray-700">
+        {t('settings.tax.eInvoiceProvider')}
+        <select disabled={!canManage} {...register('eInvoiceProvider')} className="input mt-1 w-full">
+          <option value="">{t('settings.tax.eInvoiceOff')}</option>
+          {(providers ?? []).map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="block text-sm text-gray-700">
+        {t('settings.tax.eInvoiceSeries')}
+        <input type="text" disabled={!canManage} {...register('eInvoiceSeries')} className="input mt-1 w-full" placeholder="C26TAA" />
       </label>
 
       {mutation.isError && <p className="text-xs text-red-600">{t('settings.tax.failedToSave')}</p>}
