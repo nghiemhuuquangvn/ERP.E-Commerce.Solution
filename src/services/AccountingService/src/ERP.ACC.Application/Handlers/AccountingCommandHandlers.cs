@@ -202,16 +202,35 @@ namespace ERP.ACC.Application.Handlers
     {
         private readonly IAccountingUnitOfWork _uow;
 
-        public CreateBillCommandHandler(IAccountingUnitOfWork uow) => _uow = uow;
+        private readonly IVatPolicy? _vat;
+
+        public CreateBillCommandHandler(IAccountingUnitOfWork uow, IVatPolicy? vat = null)
+        {
+            _uow = uow;
+            _vat = vat;
+        }
 
         public async Task<BillDto> Handle(CreateBillCommand request, CancellationToken cancellationToken)
         {
+            var policy = _vat == null ? new VatSettings(0m, true) : await _vat.GetAsync(cancellationToken);
+            VatSplit split;
+            try
+            {
+                split = VatCalculator.Split(request.Amount, request.TaxRatePercent ?? policy.RatePercent, policy.PricesIncludeTax);
+            }
+            catch (ArgumentOutOfRangeException ex)
+            {
+                throw new BusinessRuleException("Accounting", ex.Message);
+            }
+
+            // Amount is the gross owed to the supplier; with prices excluding tax the VAT is added to the purchase order total
             var bill = Bill.Create(
                 request.BillNumber,
                 request.SupplierId,
                 request.POId,
-                request.Amount,
+                split.Gross,
                 request.DueDate);
+            bill.ApplyVat(split.Net, split.RatePercent, split.Tax);
 
             await _uow.Bills.AddAsync(bill, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
@@ -225,6 +244,9 @@ namespace ERP.ACC.Application.Handlers
             SupplierId = b.SupplierId,
             POId = b.POId,
             Amount = b.Amount,
+            NetAmount = b.EffectiveNet,
+            TaxRatePercent = b.TaxRatePercent,
+            TaxAmount = b.TaxAmount,
             DueDate = b.DueDate,
             Status = ((BillStatus)b.Status).ToString(),
             CreatedAt = b.CreatedAt
@@ -249,6 +271,13 @@ namespace ERP.ACC.Application.Handlers
             var bill = await _uow.Bills.GetByIdAsync(request.BillId, cancellationToken)
                 ?? throw new InvalidOperationException($"Bill {request.BillId} not found.");
 
+            if (request.TaxRatePercent.HasValue)
+            {
+                if (request.TaxRatePercent < 0m || request.TaxRatePercent > 100m)
+                    throw new BusinessRuleException("Accounting", "The VAT rate must be between 0 and 100.");
+                var split = VatCalculator.Split(bill.Amount, request.TaxRatePercent.Value, pricesIncludeTax: true);
+                bill.ApplyVat(split.Net, split.RatePercent, split.Tax);
+            }
             bill.Approve();
             await _uow.Bills.UpdateAsync(bill, cancellationToken);
             await _posting.TryPostAsync(_logger, PostingRules.ForBillApproval(bill, DateTime.UtcNow), cancellationToken);

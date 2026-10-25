@@ -16,6 +16,8 @@ namespace ERP.ACC.Domain.Entities
         public const string SalesRevenue = "SalesRevenue";
         public const string Inventory = "Inventory";
         public const string VatOutput = "VatOutput";
+        /// <summary>VAT paid on purchases and deductible (Vas99 133): debited by an approved bill (ROADMAP P1-3). On the 14-account chart it shares the tax account with VatOutput.</summary>
+        public const string VatInput = "VatInput";
         /// <summary>Goods received, not yet invoiced: credited by a stock receipt, debited by the supplier bill (ROADMAP P1-1b).</summary>
         public const string GoodsReceivedNotInvoiced = "GoodsReceivedNotInvoiced";
         public const string CostOfGoodsSold = "CostOfGoodsSold";
@@ -47,7 +49,7 @@ namespace ERP.ACC.Domain.Entities
             Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, Inventory, VatOutput,
             GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment, CashOverShort,
             SalaryExpense, SalariesPayable, PayrollWithholdingsPayable,
-            SalesReturns, IncomeSummary, RetainedEarnings, LoanPayable, InterestExpense, InterestPayable
+            SalesReturns, IncomeSummary, RetainedEarnings, LoanPayable, InterestExpense, InterestPayable, VatInput
         };
 
         /// <summary>Account numbers of the seeded 14-account chart, used when a tenant has no mapping yet.</summary>
@@ -60,6 +62,7 @@ namespace ERP.ACC.Domain.Entities
             [SalesRevenue] = "4000",
             [Inventory] = "1200",
             [VatOutput] = "2200",
+            [VatInput] = "2200",                   // one tax account on the simple chart: input VAT nets against output VAT
             [GoodsReceivedNotInvoiced] = "2100",   // Accrued Liabilities
             [CostOfGoodsSold] = "5000",
             [InventoryAdjustment] = "5000",

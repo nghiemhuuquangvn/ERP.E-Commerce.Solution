@@ -56,6 +56,11 @@ namespace ERP.ACC.Application.DTOs
         public Guid SupplierId { get; set; }
         public Guid POId { get; set; }
         public decimal Amount { get; set; }
+
+        /// <summary>Amount before VAT, the VAT rate (percent) and the input VAT inside Amount (the gross).</summary>
+        public decimal NetAmount { get; set; }
+        public decimal TaxRatePercent { get; set; }
+        public decimal TaxAmount { get; set; }
         public DateTime DueDate { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }

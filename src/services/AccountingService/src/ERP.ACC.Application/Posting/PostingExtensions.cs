@@ -102,14 +102,15 @@ namespace ERP.ACC.Application.Posting
             new(InvoicePayment, invoice.Id, date, $"Payment of invoice {invoice.InvoiceNumber}",
                 new[] { PostingLine.Dr(PostingKeys.Bank, outstanding), PostingLine.Cr(PostingKeys.AccountsReceivable, outstanding) });
 
-        /// <summary>Dr Goods received not invoiced / Cr Accounts payable. The stock itself was debited to Inventory by the receipt.</summary>
-        public static PostingRequest ForBillApproval(Domain.Entities.Bill bill, DateTime date) =>
-            new(Bill, bill.Id, date, $"Bill {bill.BillNumber}",
-                new[]
-                {
-                    PostingLine.Dr(PostingKeys.GoodsReceivedNotInvoiced, bill.Amount, bill.BillNumber),
-                    PostingLine.Cr(PostingKeys.AccountsPayable, bill.Amount, bill.BillNumber),
-                });
+        /// <summary>Dr Goods received not invoiced (net) and Dr VAT input (the VAT, ROADMAP P1-3) / Cr Accounts payable (gross). The stock itself was debited to Inventory by the receipt.</summary>
+        public static PostingRequest ForBillApproval(Domain.Entities.Bill bill, DateTime date)
+        {
+            var lines = new List<PostingLine> { PostingLine.Dr(PostingKeys.GoodsReceivedNotInvoiced, bill.Amount - bill.TaxAmount, bill.BillNumber) };
+            if (bill.TaxAmount > 0m)
+                lines.Add(PostingLine.Dr(PostingKeys.VatInput, bill.TaxAmount, bill.BillNumber));
+            lines.Add(PostingLine.Cr(PostingKeys.AccountsPayable, bill.Amount, bill.BillNumber));
+            return new(Bill, bill.Id, date, $"Bill {bill.BillNumber}", lines);
+        }
 
         /// <summary>The line on the money side of a loan: the loan's own receiving account when it has one, else the Bank key.</summary>
         private static PostingLine MoneyLine(Domain.Entities.Loan loan, decimal debit, decimal credit) =>

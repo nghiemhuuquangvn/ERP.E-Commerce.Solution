@@ -70,13 +70,21 @@ namespace ERP.ACC.Application.Commands
         public string BillNumber { get; set; } = string.Empty;
         public Guid SupplierId { get; set; }
         public Guid POId { get; set; }
+
+        /// <summary>The purchase order total. With the tenant's "prices include tax" it is the gross; otherwise the net and VAT is added on top (ROADMAP P1-3).</summary>
         public decimal Amount { get; set; }
         public DateTime DueDate { get; set; }
+
+        /// <summary>Overrides the tenant's default VAT rate (percent) for this bill; empty = the default.</summary>
+        public decimal? TaxRatePercent { get; set; }
     }
 
     public class ApproveBillCommand : IRequest<BillDto>
     {
         public Guid BillId { get; set; }
+
+        /// <summary>Re-splits the bill's gross at this VAT rate before it is posted (the supplier's invoice shows the real rate); empty keeps the split made at creation.</summary>
+        public decimal? TaxRatePercent { get; set; }
     }
 
     public class MarkBillPaidCommand : IRequest<BillDto>
