@@ -216,6 +216,8 @@ export interface IncomeStatementParams {
   compareFromDate?: string
   compareToDate?: string
   unit?: AmountUnit
+  /** B03 only: 'direct' (default) or 'indirect' (starts from profit before tax). */
+  method?: 'direct' | 'indirect'
 }
 
 /** Downloads a report as a file: CSV (UTF-8 with a BOM, Excel opens it correctly), Excel (.xlsx with numeric cells) or PDF (B01 / B02 / B03 only). */
