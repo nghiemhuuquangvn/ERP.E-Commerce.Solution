@@ -3,9 +3,11 @@ using ERP.ACC.Application.Commands;
 using ERP.ACC.Application.DTOs;
 using ERP.ACC.Application.Handlers;
 using ERP.ACC.Application.Interfaces;
+using ERP.ACC.Application.Posting;
 using ERP.ACC.Domain.Entities;
 using ERP.Shared.Infrastructure.Exceptions;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -351,5 +353,117 @@ public class BankReconciliationTests
         var dto = await new AutoMatchBankStatementCommandHandler(b.Uow.Object).Handle(new AutoMatchBankStatementCommand { BankStatementId = b.Statement.Id }, default);
 
         (dto.Lines.Single().MatchStatus, dto.LedgerBalance, dto.Difference).Should().Be(("Matched", 100m, 0m));
+    }
+
+    // ---- fees and interest posted from a statement line ----
+
+    private static (PostBankStatementLineCommandHandler Handler, List<PostingRequest> Posted, Dictionary<string, Guid> Accounts) PostingHandler(Books b, bool postingWorks = true)
+    {
+        var accounts = new Dictionary<string, Guid>
+        {
+            [PostingKeys.BankFee] = Guid.NewGuid(), [PostingKeys.BankInterestIncome] = Guid.NewGuid(), [PostingKeys.InterestExpense] = Guid.NewGuid(),
+        };
+        var posted = new List<PostingRequest>();
+        var posting = new Mock<IJournalPostingService>();
+        posting.Setup(p => p.PostAsync(It.IsAny<PostingRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((PostingRequest r, CancellationToken _) =>
+            {
+                if (!postingWorks) throw new ERP.ACC.Domain.PostingConfigurationException("BankFee", "no account");
+                posted.Add(r);
+                return JournalEntry.CreatePosted("JE-BANK", Guid.NewGuid(), r.Date, r.Description, r.SourceType, r.SourceId,
+                    r.Lines.Select(l => new JournalLineDraft(l.AccountId ?? accounts[l.PostingKey!], l.Debit, l.Credit, l.Description)));
+            });
+        return (new PostBankStatementLineCommandHandler(b.Uow.Object, posting.Object, NullLogger<PostBankStatementLineCommandHandler>.Instance), posted, accounts);
+    }
+
+    [Fact]
+    public async Task A_bank_fee_line_is_posted_against_the_bank_account_and_the_statement_can_then_be_reconciled()
+    {
+        var b = new Books(0m, 2_950_000m);
+        b.Ledgered("JE-1", Oct4, 5_000_000m, 0m);
+        b.Ledgered("JE-2", Oct10, 0m, 2_000_000m);
+        b.Statemented(Oct4, 5_000_000m);
+        b.Statemented(Oct10, -2_000_000m);
+        var fee = b.Statemented(Oct15, -50_000m, "FEE");
+        await new AutoMatchBankStatementCommandHandler(b.Uow.Object).Handle(new AutoMatchBankStatementCommand { BankStatementId = b.Statement.Id }, default);
+        var (handler, posted, _) = PostingHandler(b);
+
+        var dto = await handler.Handle(new PostBankStatementLineCommand { LineId = fee.Id }, default);
+
+        var request = posted.Single();
+        request.SourceId.Should().Be(fee.Id);
+        request.Date.Should().Be(Oct15);
+        var bank = request.Lines.Single(l => l.AccountId == b.GlAccountId);
+        (bank.Debit, bank.Credit).Should().Be((0m, 50_000m));
+        request.Lines.Single(l => l.PostingKey == PostingKeys.BankFee).Debit.Should().Be(50_000m);
+        fee.MatchStatus.Should().Be(BankStatementLine.Posted);
+        fee.JournalEntryId.Should().NotBeNull();
+        dto.Lines.Single(l => l.Id == fee.Id).MatchStatus.Should().Be("Posted");
+        dto.UnmatchedStatementLines.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_deposit_line_defaults_to_interest_income_and_an_account_can_be_chosen()
+    {
+        var b = new Books(0m, 0m);
+        var interest = b.Statemented(Oct15, 1_250m, "INT");
+        var direct = b.Statemented(Oct15, -300m);
+        var (handler, posted, _) = PostingHandler(b);
+        var chosen = Guid.NewGuid();
+
+        await handler.Handle(new PostBankStatementLineCommand { LineId = interest.Id }, default);
+        await handler.Handle(new PostBankStatementLineCommand { LineId = direct.Id, AccountId = chosen, Description = "Direct debit" }, default);
+
+        var first = posted[0];
+        first.Lines.Single(l => l.AccountId == b.GlAccountId).Debit.Should().Be(1_250m);
+        first.Lines.Single(l => l.PostingKey == PostingKeys.BankInterestIncome).Credit.Should().Be(1_250m);
+        var second = posted[1];
+        second.Lines.Single(l => l.AccountId == chosen).Debit.Should().Be(300m);
+        second.Description.Should().Contain("Direct debit");
+    }
+
+    [Fact]
+    public async Task A_line_cannot_be_posted_twice_against_the_bank_account_itself_or_with_an_unknown_key_or_without_a_profile()
+    {
+        var b = new Books(0m, 0m);
+        var line = b.Statemented(Oct15, -50_000m);
+        var (handler, _, _) = PostingHandler(b);
+
+        var own = () => handler.Handle(new PostBankStatementLineCommand { LineId = line.Id, AccountId = b.GlAccountId }, default);
+        await own.Should().ThrowAsync<BusinessRuleException>().WithMessage("*own ledger account*");
+        var key = () => handler.Handle(new PostBankStatementLineCommand { LineId = line.Id, PostingKey = "Cash" }, default);
+        await key.Should().ThrowAsync<BusinessRuleException>().WithMessage("*not an account for a bank statement line*");
+
+        var (broken, _, _) = PostingHandler(b, postingWorks: false);
+        var noProfile = () => broken.Handle(new PostBankStatementLineCommand { LineId = line.Id }, default);
+        await noProfile.Should().ThrowAsync<BusinessRuleException>().WithMessage("*posting profile*");
+        line.MatchStatus.Should().Be(BankStatementLine.Unmatched);
+
+        await handler.Handle(new PostBankStatementLineCommand { LineId = line.Id }, default);
+        var again = () => handler.Handle(new PostBankStatementLineCommand { LineId = line.Id }, default);
+        await again.Should().ThrowAsync<BusinessRuleException>().WithMessage("*already matched or posted*");
+        var unmatch = () => new UnmatchBankStatementLineCommandHandler(b.Uow.Object).Handle(new UnmatchBankStatementLineCommand { LineId = line.Id }, default);
+        await unmatch.Should().ThrowAsync<BusinessRuleException>().WithMessage("*reverse that entry*");
+    }
+
+    [Fact]
+    public async Task A_bank_account_without_a_ledger_account_cannot_post_a_line()
+    {
+        var b = new Books(0m, 0m, withGl: false);
+        var line = b.Statemented(Oct15, -50_000m);
+        var (handler, _, _) = PostingHandler(b);
+
+        var act = () => handler.Handle(new PostBankStatementLineCommand { LineId = line.Id }, default);
+
+        await act.Should().ThrowAsync<BusinessRuleException>().WithMessage("*no ledger account*");
+    }
+
+    [Fact]
+    public void The_bank_keys_have_default_accounts_on_both_charts()
+    {
+        PostingKeys.All.Should().Contain(new[] { PostingKeys.BankFee, PostingKeys.BankInterestIncome });
+        PostingKeys.DefaultAccountNumbers.Should().ContainKeys(PostingKeys.BankFee, PostingKeys.BankInterestIncome);
+        var vas = ChartTemplates.All.Single(x => x.Id == ChartTemplates.Vas99);
+        (vas.PostingMap[PostingKeys.BankFee], vas.PostingMap[PostingKeys.BankInterestIncome]).Should().Be(("6427", "515"));
     }
 }

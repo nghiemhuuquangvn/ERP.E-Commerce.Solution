@@ -257,6 +257,8 @@ namespace ERP.ACC.Application.Posting
                 [PostingKeys.InterestPayable] = "335",
                 [PostingKeys.FxGain] = "515",
                 [PostingKeys.FxLoss] = "635",
+                [PostingKeys.BankFee] = "6427",
+                [PostingKeys.BankInterestIncome] = "515",
             };
 
             return new ChartTemplate(

@@ -133,6 +133,13 @@ namespace ERP.ACC.API.Controllers
         public async Task<IActionResult> MatchLine(Guid id, Guid statementId, Guid lineId, [FromBody] MatchLineRequest request, CancellationToken ct = default) =>
             Ok(await _mediator.Send(new MatchBankStatementLineCommand { LineId = lineId, JournalLineId = request.JournalLineId }, ct));
 
+        /// <summary>Books a line the ledger does not have (a fee, interest) as an entry against the bank's ledger account and marks the line posted.</summary>
+        [HttpPost("{id:guid}/statements/{statementId:guid}/lines/{lineId:guid}/post")]
+        [AuthorizePermission(PermissionConstants.Accounting_BankManage)]
+        [ProducesResponseType(typeof(BankReconciliationDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> PostLine(Guid id, Guid statementId, Guid lineId, [FromBody] PostLineRequest? request, CancellationToken ct = default) =>
+            Ok(await _mediator.Send(new PostBankStatementLineCommand { LineId = lineId, PostingKey = request?.PostingKey, AccountId = request?.AccountId, Description = request?.Description }, ct));
+
         [HttpPost("{id:guid}/statements/{statementId:guid}/lines/{lineId:guid}/unmatch")]
         [AuthorizePermission(PermissionConstants.Accounting_BankManage)]
         [ProducesResponseType(typeof(BankReconciliationDto), StatusCodes.Status200OK)]
@@ -152,5 +159,7 @@ namespace ERP.ACC.API.Controllers
         public record AddLineRequest(DateTime LineDate, decimal Amount, string? Description = null, string? Reference = null);
 
         public record MatchLineRequest(Guid JournalLineId);
+
+        public record PostLineRequest(string? PostingKey = null, Guid? AccountId = null, string? Description = null);
     }
 }

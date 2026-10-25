@@ -148,7 +148,7 @@ public class JournalPostingServiceTests
         _addedMappings.Select(m => m.PostingKey).Should().BeEquivalentTo(
             new[] { PostingKeys.GoodsReceivedNotInvoiced, PostingKeys.CostOfGoodsSold, PostingKeys.InventoryAdjustment, PostingKeys.CashOverShort,
                 PostingKeys.SalaryExpense, PostingKeys.SalariesPayable, PostingKeys.PayrollWithholdingsPayable,
-                PostingKeys.SalesReturns, PostingKeys.IncomeSummary, PostingKeys.RetainedEarnings, PostingKeys.LoanPayable, PostingKeys.InterestExpense, PostingKeys.InterestPayable, PostingKeys.VatInput, PostingKeys.FxGain, PostingKeys.FxLoss });
+                PostingKeys.SalesReturns, PostingKeys.IncomeSummary, PostingKeys.RetainedEarnings, PostingKeys.LoanPayable, PostingKeys.InterestExpense, PostingKeys.InterestPayable, PostingKeys.VatInput, PostingKeys.FxGain, PostingKeys.FxLoss, PostingKeys.BankFee, PostingKeys.BankInterestIncome });
         posted!.Lines.Single(l => l.Debit > 0).AccountId.Should().Be(_accounts.Single(a => a.AccountNumber == "5000").Id);
         posted.Lines.Single(l => l.Credit > 0).AccountId.Should().Be(_accounts.Single(a => a.AccountNumber == "1200").Id);
     }

@@ -60,6 +60,7 @@ namespace ERP.ACC.Application.Posting
         public const string InvoiceVatAdjustment = "InvoiceVatAdjust";
         public const string VatSettlement = "VatSettlement";
         public const string FxRevaluation = "FxRevaluation";
+        public const string BankStatementLine = "BankStatementLine";
         public const string Loan = "Loan";
         public const string LoanRepayment = "LoanRepayment";
         public const string LoanAccrual = "LoanAccrual";
@@ -205,6 +206,22 @@ namespace ERP.ACC.Application.Posting
             if (net > 0m) lines.Add(PostingLine.Cr(PostingKeys.FxGain, net, periodName));
             else if (net < 0m) lines.Add(PostingLine.Dr(PostingKeys.FxLoss, -net, periodName));
             return new(FxRevaluation, new Guid(bytes), date.Date, $"FX revaluation {periodName}", lines);
+        }
+
+        /// <summary>
+        /// A bank statement line the books did not have (ROADMAP P1-4). A deposit (positive) is Dr the bank's ledger account / Cr the other side (interest income by default); a withdrawal (negative)
+        /// is Dr the other side (a bank fee by default) / Cr the bank's ledger account. The other side is a posting key or an account.
+        /// </summary>
+        public static PostingRequest ForBankStatementLine(Guid statementLineId, DateTime date, decimal amount, Guid bankLedgerAccountId, string? counterKey, Guid? counterAccountId, string description)
+        {
+            var value = Math.Abs(amount);
+            var bank = amount > 0m
+                ? new PostingLine(null, bankLedgerAccountId, value, 0m, description)
+                : new PostingLine(null, bankLedgerAccountId, 0m, value, description);
+            var counter = amount > 0m
+                ? new PostingLine(counterKey, counterAccountId, 0m, value, description)
+                : new PostingLine(counterKey, counterAccountId, value, 0m, description);
+            return new(BankStatementLine, statementLineId, date.Date, $"Bank statement line: {description}", new[] { bank, counter });
         }
 
         /// <summary>A stable id for "this installment accrued up to this date".</summary>
