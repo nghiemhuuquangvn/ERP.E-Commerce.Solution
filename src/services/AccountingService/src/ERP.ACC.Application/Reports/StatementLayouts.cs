@@ -304,11 +304,12 @@ namespace ERP.ACC.Application.Reports
              .Sum("400", "D. VỐN CHỦ SỞ HỮU", 1, Cr, "+410", total: true)
              .Sum("440", "TỔNG CỘNG NGUỒN VỐN (440 = 300 + 400)", 1, Cr, "+300 +400", total: true);
 
-            // 421b = the retained-earnings account of this year + the result not yet closed (computed); 131 / 311 are the short-term parts of the trade items
+            // 421b = only the result not yet closed (computed): the chart has ONE retained-earnings account (3100), already taken by 421a;
+            // 131 / 311 are the short-term parts of the trade items
             var rows = b.Rows.ToList();
             var i421b = rows.FindIndex(r => r.Code == "421b");
             rows[i421b] = new StatementRow("421b", "- Lợi nhuận sau thuế chưa phân phối kỳ này", 4, Cr,
-                new[] { new StatementTerm("3100") }, Array.Empty<FormulaPart>(), false, "UnclosedResult");
+                Array.Empty<StatementTerm>(), Array.Empty<FormulaPart>(), false, "UnclosedResult");
             foreach (var (code, special) in new[] { ("131", "ShortLessLongReceivable"), ("311", "ShortLessLongPayable") })
             {
                 var at = rows.FindIndex(r => r.Code == code);

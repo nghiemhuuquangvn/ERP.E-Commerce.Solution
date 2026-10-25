@@ -106,6 +106,21 @@ public class Simple14LayoutTests
     }
 
     [Fact]
+    public void Retained_earnings_already_on_the_ledger_are_counted_once()
+    {
+        // 3100 holds 200 from earlier years; this year's profit (1,000 − 300) is not closed yet
+        var balances = Balances(("1000", 1200m, 0m), ("3000", 0m, 300m), ("3100", 0m, 200m), ("4000", 0m, 1000m), ("5000", 300m, 0m));
+        var s = StatementEngine.Evaluate(StatementLayouts.For("B01-DN", _s14)!, _s14, balances, null);
+
+        Row(s, "421a").Should().Be(200m);
+        Row(s, "421b").Should().Be(700m);
+        Row(s, "421").Should().Be(900m);
+        Row(s, "270").Should().Be(1200m);
+        Row(s, "440").Should().Be(1200m);
+        s.IsBalanced.Should().BeTrue();
+    }
+
+    [Fact]
     public void The_income_statement_reads_revenue_cost_and_expenses()
     {
         var s = StatementEngine.Evaluate(StatementLayouts.For("B02-DN", _s14)!, _s14,
