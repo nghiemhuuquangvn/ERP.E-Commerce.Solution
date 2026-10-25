@@ -82,7 +82,7 @@ namespace ERP.ACC.Infrastructure.Persistence
                 // DB column is TotalAmount; entity property is Amount
                 e.Property(x => x.Amount).HasColumnName("TotalAmount").HasColumnType("decimal(18,2)");
                 e.Property(x => x.AmountPaid).HasColumnType("decimal(18,2)");
-                e.Property(x => x.NetAmount).HasColumnType("decimal(18,2)");
+                e.Property(x => x.NetAmount).HasColumnName("SubTotal").HasColumnType("decimal(18,2)");
                 e.Property(x => x.TaxAmount).HasColumnType("decimal(18,2)");
                 e.Property(x => x.TaxRatePercent).HasColumnType("decimal(9,4)");
             });
@@ -222,7 +222,7 @@ namespace ERP.ACC.Infrastructure.Persistence
                 // Same class of mismatch as Invoice above: DB column is TotalAmount; entity
                 // property is Amount.
                 e.Property(x => x.Amount).HasColumnName("TotalAmount").HasColumnType("decimal(18,2)");
-                e.Property(x => x.NetAmount).HasColumnType("decimal(18,2)");
+                e.Property(x => x.NetAmount).HasColumnName("SubTotal").HasColumnType("decimal(18,2)");
                 e.Property(x => x.TaxAmount).HasColumnType("decimal(18,2)");
                 e.Property(x => x.TaxRatePercent).HasColumnType("decimal(9,4)");
             });

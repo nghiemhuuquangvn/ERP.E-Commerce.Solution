@@ -1,6 +1,6 @@
 -- ============================================================
 -- AccountingDB Migration 023 — VAT on invoices and bills, e-invoices (ROADMAP P1-3)
---   Invoices / Bills: NetAmount, TaxRatePercent, TaxAmount (TotalAmount stays the gross). Existing rows: net = gross, tax 0. Idempotent.
+--   Invoices / Bills: TaxRatePercent (SubTotal = net and TaxAmount exist since 001; TotalAmount stays the gross). Existing rows: net = gross, tax 0. Idempotent.
 -- ============================================================
 
 USE AccountingDB;
@@ -10,28 +10,19 @@ SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Invoices') AND name = 'TaxAmount')
-BEGIN
-    ALTER TABLE Invoices ADD NetAmount DECIMAL(18,2) NOT NULL CONSTRAINT DF_Invoices_NetAmount DEFAULT 0;
+-- SubTotal (the amount before VAT) and TaxAmount already exist on both tables since migration 001; only the rate is new.
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Invoices') AND name = 'TaxRatePercent')
     ALTER TABLE Invoices ADD TaxRatePercent DECIMAL(9,4) NOT NULL CONSTRAINT DF_Invoices_TaxRate DEFAULT 0;
-    ALTER TABLE Invoices ADD TaxAmount DECIMAL(18,2) NOT NULL CONSTRAINT DF_Invoices_TaxAmount DEFAULT 0;
-END
 GO
 
-IF EXISTS (SELECT 1 FROM Invoices WHERE NetAmount = 0 AND TaxAmount = 0 AND TotalAmount <> 0)
-    UPDATE Invoices SET NetAmount = TotalAmount WHERE NetAmount = 0 AND TaxAmount = 0;
-GO
-
-IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Bills') AND name = 'TaxAmount')
-BEGIN
-    ALTER TABLE Bills ADD NetAmount DECIMAL(18,2) NOT NULL CONSTRAINT DF_Bills_NetAmount DEFAULT 0;
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Bills') AND name = 'TaxRatePercent')
     ALTER TABLE Bills ADD TaxRatePercent DECIMAL(9,4) NOT NULL CONSTRAINT DF_Bills_TaxRate DEFAULT 0;
-    ALTER TABLE Bills ADD TaxAmount DECIMAL(18,2) NOT NULL CONSTRAINT DF_Bills_TaxAmount DEFAULT 0;
-END
 GO
 
-IF EXISTS (SELECT 1 FROM Bills WHERE NetAmount = 0 AND TaxAmount = 0 AND TotalAmount <> 0)
-    UPDATE Bills SET NetAmount = TotalAmount WHERE NetAmount = 0 AND TaxAmount = 0;
+UPDATE Invoices SET SubTotal = TotalAmount WHERE SubTotal = 0 AND TaxAmount = 0 AND TotalAmount <> 0;
+GO
+
+UPDATE Bills SET SubTotal = TotalAmount WHERE SubTotal = 0 AND TaxAmount = 0 AND TotalAmount <> 0;
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('TenantTaxSettings') AND name = 'EInvoiceProvider')
