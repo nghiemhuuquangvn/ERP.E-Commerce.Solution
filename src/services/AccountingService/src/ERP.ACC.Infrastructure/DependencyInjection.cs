@@ -70,6 +70,7 @@ namespace ERP.ACC.Infrastructure
             services.AddScoped<IClosingPolicyRepository, ClosingPolicyRepository>();
             services.AddScoped<IReportProfileRepository, ReportProfileRepository>();
             services.AddScoped<IOffBalanceRepository, OffBalanceRepository>();
+            services.AddScoped<IPaymentApplicationRepository, PaymentApplicationRepository>();
             services.AddScoped<ILoanRepository, LoanRepository>();
             services.AddScoped<INoteTextRepository, NoteTextRepository>();
             services.AddScoped<ERP.ACC.Application.Posting.IJournalNumberGenerator, ERP.ACC.Infrastructure.Services.JournalNumberGenerator>();

@@ -21,6 +21,7 @@ public class AutoPostingFlowTests
     private readonly Mock<IAccountingUnitOfWork> _uow = new();
     private readonly Mock<IInvoiceRepository> _invoices = new();
     private readonly Mock<IBillRepository> _bills = new();
+    private readonly Mock<IPaymentApplicationRepository> _applications = new();
     private readonly Mock<IJournalEntryRepository> _entries = new();
     private readonly Mock<IJournalPostingService> _posting = new();
     private readonly List<PostingRequest> _posted = new();
@@ -30,6 +31,7 @@ public class AutoPostingFlowTests
     {
         _uow.SetupGet(u => u.Invoices).Returns(_invoices.Object);
         _uow.SetupGet(u => u.Bills).Returns(_bills.Object);
+        _uow.SetupGet(u => u.PaymentApplications).Returns(_applications.Object);
         _uow.SetupGet(u => u.JournalEntries).Returns(_entries.Object);
         _posting.Setup(p => p.PostAsync(It.IsAny<PostingRequest>(), It.IsAny<CancellationToken>()))
             .Callback<PostingRequest, CancellationToken>((r, _) => _posted.Add(r)).ReturnsAsync((JournalEntry?)null);
@@ -198,6 +200,8 @@ public class AutoPostingFlowTests
         invoice.Status.Should().Be((int)InvoiceStatus.Unpaid);
         invoice.AmountPaid.Should().Be(150m);
         _posted.Should().ContainSingle();
+        _applications.Verify(a => a.AddAsync(It.Is<PaymentApplication>(p => p.DocumentId == invoice.Id && p.Amount == 150m && p.DocumentType == PaymentApplication.InvoiceDocument),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -251,6 +255,7 @@ public class AutoPostingFlowTests
         var request = _posted.Should().ContainSingle().Subject;
         request.SourceType.Should().Be("InvoicePayment");
         Lines(request, PostingKeys.Bank, PostingKeys.AccountsReceivable, 300m);
+        _applications.Verify(a => a.AddAsync(It.Is<PaymentApplication>(p => p.DocumentId == invoice.Id && p.Amount == 300m), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

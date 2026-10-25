@@ -112,13 +112,15 @@ namespace ERP.ACC.Application.Reports
         private readonly IClosingPolicyRepository _policies;
         private readonly IInvoiceRepository _invoices;
         private readonly IBillRepository _bills;
+        private readonly IPaymentApplicationRepository _payments;
         private readonly ILoanRepository _loans;
         private readonly IOffBalanceRepository _offBalance;
         private readonly INoteTextRepository _texts;
 
         public GetNotesQueryHandler(
             IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles, IClosingPolicyRepository policies,
-            IInvoiceRepository invoices, IBillRepository bills, ILoanRepository loans, IOffBalanceRepository offBalance, INoteTextRepository texts)
+            IInvoiceRepository invoices, IBillRepository bills, ILoanRepository loans, IOffBalanceRepository offBalance, INoteTextRepository texts,
+            IPaymentApplicationRepository payments)
         {
             _accounts = accounts;
             _lines = lines;
@@ -126,6 +128,7 @@ namespace ERP.ACC.Application.Reports
             _policies = policies;
             _invoices = invoices;
             _bills = bills;
+            _payments = payments;
             _loans = loans;
             _offBalance = offBalance;
             _texts = texts;
@@ -151,10 +154,9 @@ namespace ERP.ACC.Application.Reports
             var result = (await _lines.GetActivityBalancesAsync(from, to, JournalEntry.PeriodClosingType, cancellationToken)).ToDictionary(b => b.AccountId);
             var ledger = new NoteLedger(accounts, before, after, activity, result, divisor);
 
-            var invoices = await _invoices.GetUnpaidInvoicesAsync(cancellationToken);
-            var bills = await _bills.GetUnpaidBillsAsync(cancellationToken);
+            var documents = await MaturityData.LoadAsync(_invoices, _bills, _payments, new[] { to }, cancellationToken);
             var loans = await _loans.ListAsync(cancellationToken);
-            var maturity = MaturityLedger.For(to, accounts, after, invoices, bills, loans);
+            var maturity = MaturityLedger.For(to, accounts, after, documents.Invoices, documents.Bills, loans, documents.Payments);
             var policy = await _policies.GetAsync(cancellationToken);
             var texts = (await _texts.GetAllAsync(cancellationToken)).ToDictionary(n => n.SectionKey, n => n.Text);
 

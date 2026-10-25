@@ -68,6 +68,7 @@ public class RefundPostingTests
 
     private readonly Mock<IAccountingUnitOfWork> _uow = new();
     private readonly Mock<IInvoiceRepository> _invoices = new();
+    private readonly Mock<IPaymentApplicationRepository> _applications = new();
     private readonly Mock<IJournalEntryRepository> _entries = new();
     private readonly Mock<IJournalPostingService> _posting = new();
     private readonly List<PostingRequest> _posted = new();
@@ -75,6 +76,7 @@ public class RefundPostingTests
     public RefundPostingTests()
     {
         _uow.SetupGet(u => u.Invoices).Returns(_invoices.Object);
+        _uow.SetupGet(u => u.PaymentApplications).Returns(_applications.Object);
         _uow.SetupGet(u => u.JournalEntries).Returns(_entries.Object);
         _posting.Setup(p => p.PostAsync(It.IsAny<PostingRequest>(), It.IsAny<CancellationToken>()))
             .Callback<PostingRequest, CancellationToken>((r, _) => _posted.Add(r)).ReturnsAsync((JournalEntry?)null);
@@ -101,6 +103,7 @@ public class RefundPostingTests
 
         _posted.Should().ContainSingle().Which.SourceId.Should().Be(refundId);
         invoice.AmountPaid.Should().Be(600m);
+        _applications.Verify(a => a.AddAsync(It.Is<PaymentApplication>(p => p.DocumentId == invoice.Id && p.Amount == -400m && p.PaidOn == Day.Date), It.IsAny<CancellationToken>()), Times.Once);
         _uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 

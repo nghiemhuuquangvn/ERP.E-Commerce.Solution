@@ -24,6 +24,7 @@ namespace ERP.ACC.Infrastructure.Persistence
         public DbSet<ClosingPolicy> ClosingPolicies { get; set; }
         public DbSet<ReportProfile> ReportProfiles { get; set; }
         public DbSet<OffBalanceEntry> OffBalanceEntries { get; set; }
+        public DbSet<PaymentApplication> PaymentApplications { get; set; }
         public DbSet<Loan> Loans { get; set; }
         public DbSet<NoteText> NoteTexts { get; set; }
         public DbSet<LoanInstallment> LoanInstallments { get; set; }
@@ -133,6 +134,18 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.PrincipalAmount).HasColumnType("decimal(18,2)");
                 e.Property(x => x.InterestAmount).HasColumnType("decimal(18,2)");
                 e.HasIndex(x => x.LoanId);
+            });
+
+            modelBuilder.Entity<PaymentApplication>(e =>
+            {
+                e.ToTable("PaymentApplications");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.PaidOn).HasColumnType("date");
+                e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+                e.Property(x => x.SourceKey).HasMaxLength(150);
+                e.HasIndex(x => new { x.TenantId, x.DocumentType, x.DocumentId, x.PaidOn });
+                e.HasIndex(x => new { x.TenantId, x.SourceKey }).IsUnique().HasFilter("[SourceKey] IS NOT NULL AND [IsDeleted] = 0");
             });
 
             modelBuilder.Entity<OffBalanceEntry>(e =>

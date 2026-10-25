@@ -70,6 +70,8 @@ namespace ERP.ACC.Application.EventHandlers
             {
                 invoice.ApplyRefund(@event.Amount);
                 await _uow.Invoices.UpdateAsync(invoice, cancellationToken);
+                await _uow.PaymentApplications.AddAsync(PaymentApplication.Create(
+                    PaymentApplication.InvoiceDocument, invoice.Id, @event.ProcessedAt ?? DateTime.UtcNow, -@event.Amount, $"refund:{@event.RefundId:N}"), cancellationToken);
             }
             else
             {

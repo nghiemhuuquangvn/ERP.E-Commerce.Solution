@@ -12,6 +12,9 @@ namespace ERP.ACC.Domain.Entities
         public DateTime DueDate { get; set; }
         public int Status { get; set; }
 
+        /// <summary>The day the bill was approved, i.e. became a payable (null for a bill approved before this was recorded: its creation date is used).</summary>
+        public DateTime? ApprovedOn { get; set; }
+
         public static Bill Create(string billNumber, Guid supplierId, Guid poId, decimal amount, DateTime dueDate)
         {
             var bill = new Bill
@@ -35,6 +38,7 @@ namespace ERP.ACC.Domain.Entities
                 throw new InvalidOperationException($"Bill {BillNumber} is not in Pending status.");
 
             Status = 1;
+            ApprovedOn = DateTime.UtcNow;
             UpdatedAt = DateTime.UtcNow;
 
             AddDomainEvent(new BillApprovedEvent(Id, BillNumber, SupplierId, POId, Amount));
