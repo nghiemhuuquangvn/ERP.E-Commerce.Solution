@@ -21,6 +21,22 @@ namespace ERP.ACC.Domain.Entities
         public string? SourceKey { get; private set; }
         public bool IsEstimated { get; private set; }
 
+        /// <summary>A payment in a foreign currency (ROADMAP P1-4): the currency, the rate it was received at, the foreign amount, and the difference to the document's carrying amount
+        /// (gain positive) that went to the FX accounts. <see cref="Amount"/> stays the carrying amount of the document that was settled.</summary>
+        public string? ForeignCurrencyCode { get; private set; }
+        public decimal? ExchangeRate { get; private set; }
+        public decimal? ForeignAmount { get; private set; }
+        public decimal? FxDifference { get; private set; }
+
+        public PaymentApplication WithForeign(string currency, decimal foreignAmount, decimal rate, decimal fxDifference)
+        {
+            ForeignCurrencyCode = currency;
+            ForeignAmount = Math.Round(foreignAmount, 2);
+            ExchangeRate = rate;
+            FxDifference = Math.Round(fxDifference, 2);
+            return this;
+        }
+
         private PaymentApplication() { }
 
         public static PaymentApplication Create(int documentType, Guid documentId, DateTime paidOn, decimal amount, string? sourceKey, bool isEstimated = false)

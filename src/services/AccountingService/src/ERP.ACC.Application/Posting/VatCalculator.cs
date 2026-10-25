@@ -4,7 +4,7 @@ namespace ERP.ACC.Application.Posting
     public readonly record struct VatSplit(decimal Net, decimal RatePercent, decimal Tax, decimal Gross);
 
     /// <summary>The tax rate and the price convention a tenant uses when a document carries no tax of its own (TenantTaxSettings).</summary>
-    public readonly record struct VatSettings(decimal RatePercent, bool PricesIncludeTax);
+    public readonly record struct VatSettings(decimal RatePercent, bool PricesIncludeTax, string BaseCurrency = "VND");
 
     /// <summary>A line as typed: category 0 taxable / 1 not subject to VAT, the rate (taxable only) and the line's amount (gross with prices including tax, otherwise net).</summary>
     public class VatLineInput

@@ -55,6 +55,11 @@ namespace ERP.ACC.Application.Commands
 
         /// <summary>VAT lines (rates 0 / 5 / 8 / 10 %, goods not subject to VAT); when given they replace <see cref="Amount"/> and the rate: the document is the sum of its lines (ROADMAP P1-3b).</summary>
         public List<VatLineInput> Lines { get; set; } = new();
+
+        /// <summary>A document in a foreign currency (ROADMAP P1-4): the currency, the total in it (replaces <see cref="Amount"/>) and the rate (base currency per 1 foreign). Empty = the base currency.</summary>
+        public string? CurrencyCode { get; set; }
+        public decimal? ForeignAmount { get; set; }
+        public decimal? ExchangeRate { get; set; }
     }
 
     /// <summary>Re-splits the invoice's gross at another VAT rate and posts the difference (Dr / Cr sales revenue against VAT output). The amount owed does not change.</summary>
@@ -73,6 +78,9 @@ namespace ERP.ACC.Application.Commands
     public class MarkInvoicePaidCommand : IRequest<InvoiceDto>
     {
         public Guid InvoiceId { get; set; }
+
+        /// <summary>Required for an invoice in a foreign currency (ROADMAP P1-4): the rate the money was received at; the difference to the booked rate is the realized FX gain / loss.</summary>
+        public decimal? PaymentRate { get; set; }
     }
 
     public class CreateBillCommand : IRequest<BillDto>
@@ -90,6 +98,11 @@ namespace ERP.ACC.Application.Commands
 
         /// <summary>VAT lines; when given they replace <see cref="Amount"/> and the rate (ROADMAP P1-3b).</summary>
         public List<VatLineInput> Lines { get; set; } = new();
+
+        /// <summary>A bill in a foreign currency (ROADMAP P1-4), as on the invoice.</summary>
+        public string? CurrencyCode { get; set; }
+        public decimal? ForeignAmount { get; set; }
+        public decimal? ExchangeRate { get; set; }
     }
 
     public class ApproveBillCommand : IRequest<BillDto>
@@ -113,6 +126,9 @@ namespace ERP.ACC.Application.Commands
     public class MarkBillPaidCommand : IRequest<BillDto>
     {
         public Guid BillId { get; set; }
+
+        /// <summary>Required for a bill in a foreign currency (ROADMAP P1-4): the rate the supplier was paid at.</summary>
+        public decimal? PaymentRate { get; set; }
     }
 
     public class ReverseJournalEntryCommand : IRequest<JournalEntryDto>

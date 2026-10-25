@@ -427,6 +427,10 @@ services:
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "acc"
+      # Service-to-service token for the exchange-rate read from MasterData (ROADMAP P1-4).
+      ServiceAuth__Name: "accounting"
+      ServiceAuth__SigningKeys__Source: "Ephemeral"
+      Services__MasterDataServiceBaseUrl: "http://masterdataservice:5015"
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
@@ -531,6 +535,9 @@ services:
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "mst"
+      # /internal endpoints accept only these services' tokens (verified with their JWKS).
+      ServiceAuth__Name: "masterdata"
+      ServiceAuth__TrustedCallers__accounting: "http://accountingservice:5005/internal/jwks.json"
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"

@@ -29,7 +29,7 @@ namespace ERP.ACC.API.Middleware
             _logger = logger;
         }
 
-        private static readonly string[] _openPaths = ["/health", "/swagger", "/openapi"];
+        private static readonly string[] _openPaths = ["/health", "/swagger", "/openapi", "/internal/jwks.json"];
 
         public async Task InvokeAsync(HttpContext context, UserContext userContext, IUserContextService userContextService)
         {

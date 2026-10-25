@@ -19,7 +19,7 @@ namespace ERP.ACC.Application.Posting
             if (_tenant.CurrentTenantId is not { } tenantId || tenantId == Guid.Empty)
                 return new VatSettings(0m, true);
             var s = await _settings.GetTenantSettingsAsync(tenantId, ct);
-            return new VatSettings(s.DefaultTaxRatePercent, s.PricesIncludeTax);
+            return new VatSettings(s.DefaultTaxRatePercent, s.PricesIncludeTax, string.IsNullOrWhiteSpace(s.BaseCurrencyCode) ? "VND" : s.BaseCurrencyCode);
         }
     }
 }

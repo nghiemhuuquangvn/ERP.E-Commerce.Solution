@@ -2,6 +2,7 @@ using ERP.ACC.API.Middleware;
 using ERP.ACC.Application;
 using ERP.ACC.Infrastructure;
 using ERP.Shared.Authorization;
+using ERP.Shared.Authorization.ServiceAuth;
 using ERP.Shared.Extensions;
 using ERP.Shared.Localization;
 using ERP.Shared.Versioning;
@@ -80,6 +81,8 @@ try
     app.UseAuthorization();
     app.MapHealthChecks("/health").AllowAnonymous();
     app.MapControllers();
+    // Public keys of this service's service-to-service tokens (MasterData verifies them).
+    app.MapServiceJwks();
 
     app.Run();
 }

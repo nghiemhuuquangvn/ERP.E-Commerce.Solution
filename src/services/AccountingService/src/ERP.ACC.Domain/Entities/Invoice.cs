@@ -34,6 +34,27 @@ namespace ERP.ACC.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
         }
 
+
+        /// <summary>Currency of a foreign document (null = the base currency), the rate (base per 1 foreign) and the gross in that currency; <see cref="Amount"/> is always in the base currency (ROADMAP P1-4).</summary>
+        public string? ForeignCurrencyCode { get; set; }
+        public decimal? ExchangeRate { get; set; }
+        public decimal? ForeignAmount { get; set; }
+        public bool IsForeign => !string.IsNullOrEmpty(ForeignCurrencyCode) && ExchangeRate.HasValue && ForeignAmount.HasValue;
+
+        /// <summary>Marks the document as a foreign one: the gross in <paramref name="currency"/> and the rate it is converted at.</summary>
+        public void SetForeign(string currency, decimal foreignAmount, decimal rate)
+        {
+            if (string.IsNullOrWhiteSpace(currency) || currency.Trim().Length != 3)
+                throw new ArgumentException("The currency is a 3-letter code.", nameof(currency));
+            if (rate <= 0m)
+                throw new ArgumentException("The exchange rate must be greater than zero.", nameof(rate));
+            if (foreignAmount < 0m)
+                throw new ArgumentException("The foreign amount cannot be negative.", nameof(foreignAmount));
+            ForeignCurrencyCode = currency.Trim().ToUpperInvariant();
+            ExchangeRate = rate;
+            ForeignAmount = Math.Round(foreignAmount, 2);
+        }
+
         /// <summary>The day the invoice was cancelled (null while it is not, or for a cancellation made before this was recorded).</summary>
         public DateTime? CancelledOn { get; set; }
 
