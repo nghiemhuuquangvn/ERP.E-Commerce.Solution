@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Domain** | Accounting (AccountingService, port 5005, code ACC) |
-| **Covers** | ROADMAP P1-1 … P1-1e (automatic posting), P1-2 (chart of accounts, void / reverse, closing), P1-2b (ledger, trial balance, cash flow), P1-2c (B01 / B02 statements, CSV), P1-2d (B03 cash-flow statement by indicator code, year-end closing policy, Excel export), P1-2e (amount unit VND / thousand / million and company header on the statements), P1-2f (PDF export of B01 / B02 / B03), **P1-2g (B03 by the indirect method)** |
+| **Covers** | ROADMAP P1-1 … P1-1e (automatic posting), P1-2 (chart of accounts, void / reverse, closing), P1-2b (ledger, trial balance, cash flow), P1-2c (B01 / B02 statements, CSV), P1-2d (B03 cash-flow statement by indicator code, year-end closing policy, Excel export), P1-2e (amount unit VND / thousand / million and company header on the statements), P1-2f (PDF export of B01 / B02 / B03), P1-2g (B03 by the indirect method), **P1-2h (short- / long-term split of trade receivables and payables on B01 by due date)** |
 | **Status** | Implemented and verified on the local Docker stack, 2026-10-24. Items still open are in [DEFERRED-ISSUES.md](../../DEFERRED-ISSUES.md). |
 | **Audience** | Product owner, chief accountant, QA, developers |
 | **Companion documents** | [AutoPosting.md](AutoPosting.md) (posting rules in detail), [ChartOfAccounts.md](ChartOfAccounts.md), [Reports.md](Reports.md), [event-catalog](../../architecture/event-catalog.md) |
@@ -35,6 +35,7 @@ A Vietnamese company must keep its books under the Vietnamese accounting standar
 | O10 | The statements look like the filed forms: in thousand or million VND where the company files that way, headed by the company's name, tax code and address, with the signatories below. | FR-58 … FR-62. |
 | O11 | A statement can be printed or archived as a PDF that looks like the filed form, with the company header, the unit and the signatories, and agrees to the cent with the screen and the spreadsheets. | FR-63 … FR-66. |
 | O12 | A company that files its cash-flow statement by the indirect method (starting from profit before tax) can produce it from the same ledger, and can see that it agrees with the direct method. | FR-67 … FR-70. |
+| O13 | The balance sheet separates trade receivables and payables due within 12 months from those due later, using the real due dates of the open invoices and bills instead of one fixed account. | FR-71 … FR-74. |
 
 ### 1.3 Scope
 **In scope:** posting from sales, payment, purchasing, warehouse, POS, payroll, refunds and returns; chart of accounts and templates; manual entries, void, reverse; fiscal periods and closing;
@@ -211,6 +212,10 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | FR-68 | Investing and financing rows (21 … 36), opening cash (60) and closing cash (70) are the same as in the direct method. | M | P1-2g |
 | FR-69 | The indirect operating total (20) is checked against the direct method; a difference is reported with its amount and the accounts that explain it, never plugged. | M | P1-2g |
 | FR-70 | The indirect statement supports the same prior column, unit and rounding, header, CSV / Excel / PDF and admin screen as the direct one; an unknown method is refused. | M | P1-2g |
+| FR-71 | B01 shows trade receivables in two parts: due within 12 months (row 131, in "A. Short-term assets") and due later (row 211, in the new group 210 "I. Long-term receivables" that is part of "B. Long-term assets"). | M | P1-2h |
+| FR-72 | B01 shows trade payables in two parts: due within 12 months (row 311) and due later (row 331, in "II. Long-term liabilities"). | M | P1-2h |
+| FR-73 | The split uses the due date of the open invoices (receivables) and approved unpaid bills (payables) at the balance-sheet date; it never exceeds what the ledger holds and never changes a total (130, 200, 270, 310, 330, 300, 440). | M | P1-2h |
+| FR-74 | When the balance-sheet date is in the past, the statement says the split is approximate; the prior column is split by its own date; unit, rounding, header and the CSV / Excel / PDF exports work as before. | M | P1-2h |
 
 ### 5.5 Acceptance criteria of the P1-2d requirements
 (Scenarios are in section 12; the *UAT* column points at them.)
@@ -240,6 +245,12 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | UAT-53 | Given equipment 800 bought on credit, then indirect 20 = 800, direct 20 = 0, `isBalanced` false and a note names the difference; given a movement on account 356, then it is listed as unmapped. | FR-69 | Unit test |
 | UAT-54 | When `method=indirect` is requested with `format=pdf` and `format=xlsx`, then each answers 200 with the right content type; `method=foo` answers 400 with the message of FR-70; omitting `method` returns the direct statement (layout "B03-DN"). | FR-70 | Passed |
 | UAT-55 | Given a prior range, then each row has a prior amount from its own ledger; given unit Thousand, then 170 → 0, 5,000 → 5, 2,000 → 2 and the total 20 equals the sum of the rounded rows while `isBalanced` is decided on exact amounts. | FR-70, BR-102 | Unit test |
+| UAT-56 | Given tenant `glcheck` (131 = 1,500 Dr) with an invoice of 900 due in 18 months, an invoice of 300 due in 3 months and a paid invoice of 500, when B01 is run as of today, then 131 = 600, 211 = 900, 210 = 900, 200 rises from 1,500 to 2,400, 270 = 440 = 3,300, `isBalanced` true, and the notes explain the rule. Without the documents the same date shows 131 = 1,500, 211 = 0. | FR-71, 73 | Passed |
+| UAT-57 | Given 700 credited on 331 and an approved bill of 400 due in 14 months, a bill of 100 due in 3 months and a pending bill of 50, when B01 is run as of 30 Nov 2026, then 311 = 1,000, 331 = 400, 310 / 330 follow, and 270 = 440. | FR-72 | Passed (live; ledger 1,400 on 331 at that date) |
+| UAT-58 | Unit tests of the rule: 12 months exactly → short-term, one day later → long-term; partly paid 1,000 − 400 → 600 open; Overdue counts, Paid and Cancelled do not; approved bill counts, pending and paid do not; created after the date → ignored; cap by the ledger (900 against 400 → 400); a credit balance on 131 splits nothing. | FR-73 | Unit test |
+| UAT-59 | Totals: with a maturity of 300 receivable / 200 payable on a sheet of 1,000 receivables, 800 payables, 500 cash, 700 capital, then 130 and 310 fall, 210 and 330 rise by those amounts and 270, 300, 440 are unchanged. | FR-73, BR-106 | Unit test |
+| UAT-60 | Given the date 30 Sep 2026 (before today) with a split applied, then the note "The date is in the past …" is present; for today it is absent; with a prior date each column uses its own split. | FR-74, BR-107 | Unit test; live (30 Sep: documents created today are ignored → nothing to split) |
+| UAT-61 | Given `unit=thousand`, then each of 131, 211, 311, 331 is rounded on its own (700 → 1, 300 → 0, 600 → 1, 200 → 0) and `isBalanced` stays true; `format=pdf`, `xlsx` and `csv` answer 200. | FR-74 | Unit test; live 200 |
 | UAT-45 |
 | FR-62 | Given a manager, then the profile panel saves; given a viewer, then its fields are read-only. | manual |
 | FR-63 | Given a tenant with a filled report profile, when B01 for 31 Oct is requested with `format=pdf`, then the answer is HTTP 200, `application/pdf`, file `balance-sheet-b01-<timestamp>.pdf`, the bytes start with `%PDF-`, and the file has the company block, the title, "Tại ngày 31/10/2026 — Đơn vị tính: nghìn đồng", the rows with codes, and the three signatories; B01 (≈ 100 rows) runs over two pages with the table header repeated and "Trang 1/2" in the footer; B02 and B03 each fit one page. | UAT-46, 47 |
@@ -250,6 +261,10 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | FR-68 | Given the same request, then rows 21 … 36 equal those of `method=direct`, and 50 and 70 equal the direct ones. | UAT-51 |
 | FR-69 | Given equipment of 800 bought on credit (payables rise, no cash moves), then indirect row 20 is 800 while the direct 20 is 0, `isBalanced` is false and the note says "differs from the direct method by 800"; a balance-sheet account the form does not follow (e.g. 356) is listed under "unmapped". | UAT-53 |
 | FR-70 | Given `method=indirect` with `format=pdf`, `xlsx` or `csv`, a prior range and `unit=thousand`, then the file / columns / rounding behave as for the direct form; `method=foo` → HTTP 400 "The cash-flow method must be direct or indirect."; the admin B03 tab has a *Method* selector (Direct / Indirect). | UAT-54, 55 |
+| FR-71 | Given an open invoice of 900 due in 18 months and a ledger balance of 1,500 on 131, when B01 is run as of today, then row 131 = 600, row 211 = 900, row 210 = 900, "B. Long-term assets" (200) rises by 900 and "A. Short-term assets" (100) falls by 900. | UAT-56 |
+| FR-72 | Given an approved bill of 400 due in 14 months and 1,400 credited on 331 (as of 30 Nov), then row 311 = 1,000 and row 331 = 400; a pending bill, a paid bill and a bill due in 3 months are not long-term. | UAT-57 |
+| FR-73 | Given the cases above, then 270 = 440 still holds, the flat balance sheet has the same total assets (3,300 on the test tenant), and an invoice larger than the 131 balance is cut to the balance (e.g. 900 against 400 → 400). A partly paid invoice counts its open part only; Paid and Cancelled invoices count nothing; a document created after the date counts nothing; exactly 12 months is still short-term. | UAT-56 … 59 |
+| FR-74 | Given the date 30 Sep 2026 when today is later, then the note "The date is in the past …" is present; with a prior date each column has its own split; in thousand VND each row is rounded and `isBalanced` stays true on the exact amounts; PDF, Excel and CSV answer 200 with the new rows. | UAT-60, 61 |
 
 ---
 
@@ -376,6 +391,19 @@ Row mapping (account prefix → row; "In" = cash received, "Out" = cash paid):
 *Worked example (thousand VND).* Cash 1,400 and inventory 1,400 are assets; equity is 2,800. Exact: 2,800 = 2,800. Rounded rows: cash 1, inventory 1 → total assets 2; equity 3 → total sources 3. The statement shows 2 and 3, says
 "Rounding difference of −1 thousand VND between total assets (270) and total sources (440): the exact amounts agree" and `isBalanced` is true. On the local test tenant, 3,300 VND of assets split over several rows showed 4 against 3 the same way.
 
+### 6.14 Short- / long-term split of trade receivables and payables (P1-2h)
+| ID | Rule |
+|---|---|
+| BR-103 | **Twelve-month rule.** At the balance-sheet date D, an open trade invoice or an approved unpaid bill whose due date is **later than D + 12 months** is long-term; due on D + 12 months or earlier it is short-term. |
+| BR-104 | **Open amount.** Invoice: Amount − AmountPaid while the status is Unpaid or Overdue (Paid and Cancelled count nothing). Bill: its amount while Approved (a Pending bill has no ledger entry yet and a Paid bill is settled). A document created after D is ignored. |
+| BR-105 | **The ledger caps the split.** Long-term receivables ≤ the sum of the debit balances of the 131 accounts; long-term payables ≤ the sum of the credit balances of the 331 accounts. Amounts with no document behind them (hand-written entries) stay short-term. A credit balance on 131 (customer advances, row 312) or a debit balance on 331 (supplier advances, row 132) is never split. |
+| BR-106 | **Only presentation moves.** Row 131 = account total − long-term receivables; row 211 = long-term receivables; row 311 = account total − long-term payables; row 331 = long-term payables. The group totals change (130 and 100 fall, 210 and 200 rise; 310 falls, 330 rises) but 270, 300 and 440 do not. |
+| BR-107 | **Past dates are approximate.** The platform keeps the total paid on an invoice, not the date of each payment, so for a date before today the open amounts are today's. The statement adds a note whenever a split was applied to a past date. For today's date the split is exact. |
+| BR-108 | Loans have no due dates in the platform: 341 stays short-term, 343 and 344 long-term by account (BR-60). The split uses the due date of the document, not the payment terms of the order. |
+
+*Worked example (as of 30 Nov 2026, VND).* The ledger holds 1,500 on 131 and 1,400 credited on 331. Open documents: invoice A 900 due 25 Apr 2028 (18 months), invoice B 300 due 25 Jan 2027 (3 months), invoice C 500 already paid; bill X 400 due 25 Dec 2027 (13 months), bill Y 100 due 25 Jan 2027, bill Z 50 pending.
+Limit = 30 Nov 2027. Receivables: A is later → long-term 900; B is earlier → short; C is paid → nothing. Payables: X is later → long-term 400; Y short; Z pending → nothing. Result: 131 = 1,500 − 900 = 600, 211 = 900; 311 = 1,400 − 400 = 1,000, 331 = 400. Total assets and total sources are unchanged.
+
 ### 6.13 B03 by the indirect method (P1-2g)
 | ID | Rule |
 |---|---|
@@ -475,6 +503,12 @@ Direct method: received from customers 600, paid to suppliers 200, wages 400, in
 *Alternative flows:* A1 — pick another unit for one look without changing the profile: use the *Unit* selector of the tab (it sends `unit`). A2 — leave texts empty: those lines are not printed.
 *Exceptions:* a text above its limit or an unknown unit → refused with the reason (400); no permission → 403 (the fields are read-only on screen). *Post:* only the presentation of later reports changes; no amount in the books changes.
 
+### UC-17 Read the balance sheet B01 with the maturity split
+*Actor:* accountant / chief accountant (`accounting:reports:view`). *Pre:* open invoices carry due dates (they do: every invoice and bill is created with one); the tenant is on the Vietnamese chart.
+*Main flow:* 1. Reports → **B01** → date (and optional prior date, unit) → 2. read "III. Short-term receivables" (row 131) and "I. Long-term receivables" (row 211), "I. Short-term liabilities" (row 311) and "II. Long-term liabilities" (row 331) → 3. check "balanced" (270 = 440) → 4. read the notes → 5. export.
+*Alternative flows:* A1 — a receivable that should be long-term does not move: it is a hand-written entry without an invoice, or the invoice's due date is within 12 months, or the ledger balance is smaller (BR-105); fix the due date on the invoice or book the amount to the long-term account. A2 — past date: the approximation note is shown (BR-107); for an audit date, check the invoices by hand. A3 — a tenant with no invoices or bills: nothing moves and the statement is as before.
+*Exceptions:* invalid dates, unknown unit → refused (400); no permission → 403. *Post:* nothing is written to the books.
+
 ### UC-16 Produce the cash-flow statement by the indirect method
 *Actor:* accountant / chief accountant (`accounting:reports:view`). *Pre:* cash and bank accounts are flagged *cash*; the tenant is on the Vietnamese chart.
 *Main flow:* 1. Reports → **B03** → choose *Method: Indirect*, the dates, optional prior period and unit → 2. read: profit before tax, adjustments (02 … 06), working-capital changes (09 … 12), interest and tax paid, total 20, then investing, financing, opening and closing cash → 3. check the line "balanced" → 4. Export CSV / Excel / PDF.
@@ -551,7 +585,7 @@ so they arrive in order. Events without a tenant are dropped.
 | Profit and loss | dates | Revenue and expense accounts, net income | Excludes closing entries |
 | Balance sheet | as-of date | Assets, liabilities, equity (+ unclosed result) | Assets = liabilities + equity |
 | Cash flow (`cash-flow`) | dates | Operating / investing / financing lines by counter-account, net change, opening and closing cash | Opening + net = closing |
-| B01-DN (`statements/balance-sheet`) | as-of date, optional prior date | Indicator code, name, amount, prior amount; unmapped; balanced flag | 270 = 440 |
+| B01-DN (`statements/balance-sheet`) | as-of date, optional prior date | Indicator code, name, amount, prior amount; unmapped; balanced flag; trade receivables / payables split by due date (rows 131 / 211, 311 / 331) | 270 = 440 |
 | B02-DN (`statements/income-statement`) | dates, optional prior range | Same | 60 = 50 − 51 − 52 |
 | **B03-DN** (`statements/cash-flow`) | dates, optional prior range | Indicator code, name, amount (outflows negative), prior amount; unmapped movements; balanced flag; notes | 70 = closing cash on the books |
 | Closing policy (`fiscal-periods/closing-policy`) | — | Mode, fiscal-year end month | — |
@@ -661,6 +695,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 2. The Vietnamese chart and the statement layouts are **suggested drafts** based on Circular 200's numbering (largely kept by Circular 99/2025/TT-BTC); the accountant reviews them before real use.
 3. The SYSTEM tenant and the demo data stay on the 14-account chart.
 4. Fiscal periods are normally months and are opened by the accountant (or automatically for posting); closing is monthly unless the tenant chose YearEnd. The fiscal year is the twelve months ending in the policy's year-end month; periods of one year are assumed to be contiguous.
+4e. Due dates are those on the invoice or bill; the order's payment terms and instalment plans are not modelled. Trade items only (131, 331): receivables from other parties (138, 141, 244) keep the account-based classification; the 12-month threshold is fixed.
 4d. The indirect statement relies on the account prefixes of the Vietnamese chart (BR-101); balance changes are measured between the day before the range and its end; depreciation and provisions are measured by the change of their balance sheet accounts, not by the expense; non-cash transactions are not separated (no "non-cash investing and financing" note — part of B09).
 4c. The PDF is A4 portrait with one embedded font (Noto Sans, OFL); the statements are the only reports with a PDF; no digital signature, no PDF/A; the file is generated on demand and not stored.
 4b. Rounding is half away from zero per statement row and totals follow the rounded rows (the common practice on filed forms); the profile is edited with the chart-level permission `accounting:accounts:manage` because no dedicated permission exists yet; one profile per tenant (one legal entity).
@@ -674,7 +709,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 
 Full list with owners and impact: [DEFERRED-ISSUES.md](../../DEFERRED-ISSUES.md). The business-relevant ones:
 VAT split and e-invoice (P1-3); foreign currency and bank reconciliation (P1-4); restocking of returned goods and reversing their cost, and triggering the refund from a return (P1-5); real payroll with insurance, personal income tax and employer
-contributions (P1-7); B09 notes, off-balance (class 0) accounts, short- / long-term split by due date, layouts for charts other than `Vas99` (P1-2h); PDF of the other reports, digital signature / PDF-A, other paper sizes (DEFERRED W1);
+contributions (P1-7); B09 notes, off-balance (class 0) accounts, layouts for charts other than `Vas99`, a loan ledger with due dates, payment history for as-of reporting (P1-2i); PDF of the other reports, digital signature / PDF-A, other paper sizes (DEFERRED W1);
 no automatic back-posting of documents that were saved without an entry; accountant review of the Vietnamese chart and the B01 / B02 / B03 layouts.
 Open questions for the chief accountant: (1) is the B03 row mapping right for the company's usual transactions (VAT paid, withholdings, deposits)? (2) does the company want the fiscal year to end in December? (3) should a year-end preview
 (what would be closed) be shown before closing December?
@@ -694,6 +729,7 @@ Open questions for the chief accountant: (1) is the B03 row mapping right for th
 | P1-2b ledger, trial balance, cash flow | 2026-10-24 | FR-24, 40, 41, 44; BR-50 … 52 | Reports.md | `LedgerAndTrialBalanceTests`, `CashFlowTests` |
 | P1-2c B01 / B02, CSV | 2026-10-24 | FR-45, 46; BR-60 … 63 | Reports.md | `StatementTests`, `StatementHandlerAndCsvTests` |
 | BA baseline (this document) | 2026-10-24 | All | — | — |
+| P1-2h maturity split on B01 | 2026-10-25 | FR-71 … 74; BR-103 … 108; UC-17; UAT-56 … 61 | Reports.md | `MaturitySplitTests` (12 tests) + live scenario on `glcheck` |
 | P1-2g B03 indirect method | 2026-10-25 | FR-67 … 70; BR-94 … 102; UC-16; UAT-51 … 55 | Reports.md | `IndirectCashFlowTests` (16 tests incl. the direct-vs-indirect reconciliation) |
 | P1-2f PDF export of B01 / B02 / B03 | 2026-10-25 | FR-63 … 66; BR-87 … 93; UC-15; UAT-46 … 50 | Reports.md | `PdfWriterTests` (11 tests) + live render check |
 | P1-2e amount unit, company header | 2026-10-24 | FR-58 … 62; BR-80 … 86; UC-14; UAT-40 … 45 | Reports.md | `RoundingTests`, `ReportProfileTests`, `XlsxWriterTests`, `LiveSchemaDriftTests` (migration 012) |

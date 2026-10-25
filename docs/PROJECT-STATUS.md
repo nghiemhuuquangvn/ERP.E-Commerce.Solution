@@ -36,7 +36,12 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
-### 2026-10-25 — ROADMAP P1-2g: B03 by the indirect method (`feat/cashflow-indirect`, unmerged)
+### 2026-10-25 — ROADMAP P1-2h: B01 maturity split (`feat/b01-maturity`, unmerged)
+- B01 splits trade receivables (131 → rows 131 / 211, new group 210) and payables (331 → rows 311 / 331) by the due date of open invoices and approved bills (`MaturitySplit`, 12-month rule, capped by the ledger, totals unchanged); note on past dates. `StatementEngine` got a `StatementMaturity` input; the B01 handler reads the open documents. No schema change.
+- Verified live on `glcheck` with throw-away invoices / bills / a payables entry: 131 1,500 → 600 + 211 900; 311 1,000 + 331 400 (as of 30 Nov); 270 = 440; pdf / xlsx / csv 200; test data removed. Tests: ACC 255 (12 new), Architecture 53/54 (known), no frontend change.
+- Not done (P1-2i): B09, off-balance accounts, loan ledger, other charts.
+
+### 2026-10-25 — ROADMAP P1-2g: B03 by the indirect method (`feat/cashflow-indirect`, merged)
 - `statements/cash-flow?method=indirect` (`IndirectCashFlowLayouts` / `IndirectCashFlowEngine`, layout B03-DN-GT): profit before tax, non-cash add-backs, working-capital changes from balance changes, interest / tax paid and investing / financing from the direct cash rows; indirect 20 reconciled with direct 20 (difference reported, never forced). Admin: Method selector on the B03 tab. No schema change.
 - Verified live on `glcheck`: indirect 01 = 1,300, 09 = −1,500, 20 = −200 = direct; 70 = 300; `method=foo` → 400; pdf / xlsx 200. Tests: ACC 243 (16 new, incl. a consistent-ledger reconciliation), Architecture 53/54 (known), admin `tsc -b` clean.
 - Not done (P1-2h): B09, off-balance accounts, maturity split, other charts.

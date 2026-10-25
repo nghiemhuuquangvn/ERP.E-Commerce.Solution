@@ -66,7 +66,7 @@ of the balances of every account whose number starts with one of its prefixes, a
 * **CSV** (all report routes with `format=csv`): UTF-8 with a byte-order mark so Excel shows Vietnamese correctly, CRLF, RFC 4180 quoting, numbers with a dot decimal and no thousands separator
   (a Vietnamese-locale Excel may need the import wizard for decimals), and text cells starting with `= + @ -` prefixed with an apostrophe against formula injection. The ledger export has every row.
 * **Draft.** The rows and account groups were written from the Circular 200 forms (numbering largely kept by Circular 99/2025/TT-BTC) and **have not been checked against the official forms**.
-  Short- versus long-term is decided by the account (no maturity data): borrowings 341 are short-term, bonds 343 and deposits 344 long-term, prepaid 242 long-term. The accountant must review the
+  Short- versus long-term: trade receivables / payables by the due date of the open documents (P1-2h); everything else by the account (no due dates): borrowings 341 are short-term, bonds 343 and deposits 344 long-term, prepaid 242 long-term. The accountant must review the
   layout before the statements are filed. The Vas99 template gained the sub-accounts 2291–2294 (provisions) and 2147 for this.
 
 ## B03-DN by indicator code (P1-2d)
@@ -88,6 +88,12 @@ B01 / B02 / B03 accept `unit=vnd|thousand|million` (default: the tenant's report
 total rows add the rounded rows so the form foots; `isBalanced` (270 = 440, 70 = closing cash) is decided on the exact amounts and a note reports any rounding difference. Unmapped accounts stay in VND; the trial balance and ledger are never rounded.
 The **report profile** (`GET/PUT accounting/reports/profile`, table `ReportProfiles`) holds the company name, tax code, address, the three signatories and the default unit; CSV and Excel print the company block above the title, the unit in the
 period line and the signatories below. Rules BR-80 … BR-86 and a worked example: [BA-Accounting.md](BA-Accounting.md) §6.10.
+
+## B01 maturity split of trade receivables and payables (P1-2h)
+
+B01 reads the open invoices (`IInvoiceRepository.GetUnpaidInvoicesAsync`) and approved bills (`IBillRepository.GetUnpaidBillsAsync`) and `MaturitySplit.Compute` finds the part due **later than the date + 12 months**, capped by the ledger (debit balance of 131, credit
+balance of 331). `StatementEngine` then moves it: row 131 and 311 are "account total minus the long-term part" (`ShortLessLongReceivable` / `ShortLessLongPayable`), rows 211 (group 210, in 200) and 331 (in 330) take the long-term part (`LongReceivable` / `LongPayable`).
+Totals 270 / 300 / 440 do not change. For a past date the open amounts are today's (payments are not kept by date) and the statement says so. Loans (341 / 343 / 344) stay by account. Rules BR-103 … BR-108, worked example, UC-17: [BA-Accounting.md](BA-Accounting.md) §6.14.
 
 ## B03-DN by the indirect method (P1-2g)
 
