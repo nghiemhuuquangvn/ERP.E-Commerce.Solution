@@ -90,11 +90,13 @@ namespace ERP.ACC.Application.EInvoicing
         private readonly ITaxSettingsService _settings;
         private readonly ITenantProvider _tenant;
         private readonly ILogger<IssueEInvoiceCommandHandler> _logger;
+        private readonly IVatLineRepository? _vatLines;
 
         public IssueEInvoiceCommandHandler(
             IAccountingUnitOfWork uow, IEInvoiceRepository einvoices, IEInvoiceProviderFactory providers, ITaxSettingsService settings, ITenantProvider tenant,
-            ILogger<IssueEInvoiceCommandHandler> logger)
+            ILogger<IssueEInvoiceCommandHandler> logger, IVatLineRepository? vatLines = null)
         {
+            _vatLines = vatLines;
             _uow = uow;
             _einvoices = einvoices;
             _providers = providers;
@@ -131,7 +133,12 @@ namespace ERP.ACC.Application.EInvoicing
                 settings.EInvoiceSeries!, invoice.InvoiceNumber, DateTime.UtcNow.Date,
                 new EInvoiceParty(profile?.CompanyName ?? string.Empty, settings.CompanyTaxCode!, profile?.Address ?? string.Empty),
                 new EInvoiceParty(buyerName, request.BuyerTaxCode?.Trim() ?? string.Empty, request.BuyerAddress?.Trim() ?? string.Empty),
-                "VND", $"Order {invoice.OrderId:N}", invoice.EffectiveNet, invoice.TaxRatePercent, invoice.TaxAmount, invoice.Amount);
+                "VND", $"Order {invoice.OrderId:N}", invoice.EffectiveNet, invoice.TaxRatePercent, invoice.TaxAmount, invoice.Amount)
+            {
+                Lines = _vatLines == null ? Array.Empty<EInvoiceLine>()
+                    : (await _vatLines.ListAsync(VatLine.InvoiceDocument, new[] { invoice.Id }, cancellationToken))
+                        .Select(l => new EInvoiceLine(l.Text ?? $"Order {invoice.OrderId:N}", l.Category == VatLine.NotTaxable, l.RatePercent, l.Net, l.Tax)).ToList(),
+            };
             var json = JsonSerializer.Serialize(payload);
 
             EInvoice e;

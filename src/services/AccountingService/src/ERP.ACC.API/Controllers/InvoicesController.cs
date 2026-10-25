@@ -66,6 +66,15 @@ namespace ERP.ACC.API.Controllers
         public class AdjustVatRequest
         {
             public decimal TaxRatePercent { get; set; }
+            public List<ERP.ACC.Application.Posting.VatLineInput> Lines { get; set; } = new();
+        }
+
+        [HttpGet("{id:guid}/vat-lines")]
+        public async Task<IActionResult> VatLines(Guid id, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:invoices:view"))
+                return Forbid();
+            return Ok(await _mediator.Send(new GetVatLinesQuery { DocumentType = 1, DocumentId = id }, ct));
         }
 
         /// <summary>Re-splits the invoice's gross at another VAT rate and posts the difference (ROADMAP P1-3).</summary>
@@ -75,7 +84,7 @@ namespace ERP.ACC.API.Controllers
             if (!_userContext.HasPermission("accounting:invoices:manage"))
                 return Forbid();
 
-            return Ok(await _mediator.Send(new AdjustInvoiceVatCommand { InvoiceId = id, TaxRatePercent = request.TaxRatePercent }, ct));
+            return Ok(await _mediator.Send(new AdjustInvoiceVatCommand { InvoiceId = id, TaxRatePercent = request.TaxRatePercent, Lines = request.Lines ?? new() }, ct));
         }
 
         public class CancelEInvoiceRequest

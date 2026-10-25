@@ -92,6 +92,7 @@ $DatabaseScripts = @(
     "Accounting\021_NoteTextFiscalYear.sql",
     "Accounting\022_LoanDayCountPolicyRevisions.sql",
     "Accounting\023_VatAndEInvoice.sql",
+    "Accounting\024_VatLinesSettlementEInvoiceKinds.sql",
     "Product\001_CreateProductDB.sql",
     "Product\002_AddProductTranslations.sql",
     "Product\003_AddProductAttributesAndDimensions.sql",

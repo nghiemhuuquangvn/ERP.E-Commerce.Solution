@@ -62,14 +62,29 @@ namespace ERP.ACC.API.Controllers
             return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
         }
 
+        public class ApproveBillRequest
+        {
+            public decimal? TaxRatePercent { get; set; }
+            public List<ERP.ACC.Application.Posting.VatLineInput> Lines { get; set; } = new();
+        }
+
+        /// <summary>Approves the bill; the supplier's real VAT rate (or the VAT lines) can be given and re-split the bill before it is posted (ROADMAP P1-3 / P1-3b).</summary>
         [HttpPost("{id:guid}/approve")]
-        public async Task<IActionResult> Approve(Guid id, CancellationToken ct)
+        public async Task<IActionResult> Approve(Guid id, [FromBody] ApproveBillRequest? request, CancellationToken ct)
         {
             if (!_userContext.HasPermission("accounting:bills:manage"))
                 return Forbid();
 
-            var result = await _mediator.Send(new ApproveBillCommand { BillId = id }, ct);
+            var result = await _mediator.Send(new ApproveBillCommand { BillId = id, TaxRatePercent = request?.TaxRatePercent, Lines = request?.Lines ?? new() }, ct);
             return Ok(result);
+        }
+
+        [HttpGet("{id:guid}/vat-lines")]
+        public async Task<IActionResult> VatLines(Guid id, CancellationToken ct)
+        {
+            if (!_userContext.HasPermission("accounting:bills:view"))
+                return Forbid();
+            return Ok(await _mediator.Send(new GetVatLinesQuery { DocumentType = 2, DocumentId = id }, ct));
         }
 
         [HttpPost("{id:guid}/mark-paid")]

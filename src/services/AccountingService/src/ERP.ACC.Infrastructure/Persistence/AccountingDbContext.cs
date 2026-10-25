@@ -30,6 +30,7 @@ namespace ERP.ACC.Infrastructure.Persistence
         public DbSet<NoteText> NoteTexts { get; set; }
         public DbSet<NoteTextRevision> NoteTextRevisions { get; set; }
         public DbSet<EInvoice> EInvoices { get; set; }
+        public DbSet<VatLine> VatLines { get; set; }
         public DbSet<LoanInstallment> LoanInstallments { get; set; }
         public DbSet<OutboxMessage> OutboxMessages { get; set; }
         public DbSet<SystemTaxSettings> SystemTaxSettings { get; set; }
@@ -125,6 +126,18 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.Text).IsRequired().HasMaxLength(4000);
                 e.Property(x => x.Language).IsRequired().HasMaxLength(5);
                 e.HasIndex(x => new { x.TenantId, x.SectionKey, x.Language, x.FiscalYear, x.CreatedAt });
+            });
+
+            modelBuilder.Entity<VatLine>(e =>
+            {
+                e.ToTable("VatLines");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.RatePercent).HasColumnType("decimal(9,4)");
+                e.Property(x => x.Net).HasColumnType("decimal(18,2)");
+                e.Property(x => x.Tax).HasColumnType("decimal(18,2)");
+                e.Property(x => x.Text).HasMaxLength(200);
+                e.HasIndex(x => new { x.TenantId, x.DocumentType, x.DocumentId });
             });
 
             modelBuilder.Entity<EInvoice>(e =>

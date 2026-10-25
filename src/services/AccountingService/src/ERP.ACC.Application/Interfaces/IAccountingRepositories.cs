@@ -113,6 +113,15 @@ namespace ERP.ACC.Application.Interfaces
         Task<List<NoteTextRevision>> GetRevisionsAsync(string sectionKey, string language, int fiscalYear, int take, CancellationToken ct = default);
     }
 
+    public interface IVatLineRepository
+    {
+        /// <summary>The stored VAT lines of the documents (no tracking); a document with none has an implicit line.</summary>
+        Task<List<VatLine>> ListAsync(int documentType, IReadOnlyCollection<Guid> documentIds, CancellationToken ct = default);
+
+        /// <summary>Replaces the lines of one document (an empty list removes them).</summary>
+        Task ReplaceAsync(int documentType, Guid documentId, IEnumerable<VatLine> lines, CancellationToken ct = default);
+    }
+
     public interface IEInvoiceRepository
     {
         /// <summary>The e-invoice of an invoice that is not cancelled (issued or failed), tracked; null when none.</summary>

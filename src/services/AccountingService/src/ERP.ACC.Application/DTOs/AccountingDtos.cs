@@ -32,6 +32,17 @@ namespace ERP.ACC.Application.DTOs
         public List<AccountTreeNodeDto> Children { get; set; } = new();
     }
 
+    public class VatLineDto
+    {
+        /// <summary>"Taxable" or "NotTaxable".</summary>
+        public string Category { get; set; } = "Taxable";
+        public decimal RatePercent { get; set; }
+        public decimal Net { get; set; }
+        public decimal Tax { get; set; }
+        public decimal Gross { get; set; }
+        public string? Description { get; set; }
+    }
+
     public class InvoiceDto
     {
         public Guid Id { get; set; }
