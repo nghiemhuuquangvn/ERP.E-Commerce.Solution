@@ -70,6 +70,7 @@ interface TenantFormValues {
   pricesIncludeTax: boolean
   eInvoiceProvider: string
   eInvoiceSeries: string
+  autoIssueEInvoice: boolean
 }
 
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
@@ -84,7 +85,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
   })
 
   const { register, handleSubmit, reset } = useForm<TenantFormValues>({
-    defaultValues: { companyTaxCode: '', defaultTaxRatePercent: 0, pricesIncludeTax: true, eInvoiceProvider: '', eInvoiceSeries: '' },
+    defaultValues: { companyTaxCode: '', defaultTaxRatePercent: 0, pricesIncludeTax: true, eInvoiceProvider: '', eInvoiceSeries: '', autoIssueEInvoice: false },
   })
 
   useEffect(() => {
@@ -95,6 +96,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
         pricesIncludeTax: data.pricesIncludeTax,
         eInvoiceProvider: data.eInvoiceProvider ?? '',
         eInvoiceSeries: data.eInvoiceSeries ?? '',
+        autoIssueEInvoice: !!data.autoIssueEInvoice,
       })
     }
   }, [data, reset])
@@ -107,6 +109,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
         pricesIncludeTax: values.pricesIncludeTax,
         eInvoiceProvider: values.eInvoiceProvider || null,
         eInvoiceSeries: values.eInvoiceSeries || null,
+        autoIssueEInvoice: values.autoIssueEInvoice,
       }),
     onSuccess: (result: TenantTaxSettings) => {
       queryClient.setQueryData(['settings', 'tax', 'tenant', tenantId], result)
@@ -152,6 +155,10 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       <label className="block text-sm text-gray-700">
         {t('settings.tax.eInvoiceSeries')}
         <input type="text" disabled={!canManage} {...register('eInvoiceSeries')} className="input mt-1 w-full" placeholder="C26TAA" />
+      </label>
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input type="checkbox" disabled={!canManage} {...register('autoIssueEInvoice')} />
+        {t('settings.tax.autoIssueEInvoice')}
       </label>
 
       {mutation.isError && <p className="text-xs text-red-600">{t('settings.tax.failedToSave')}</p>}

@@ -4,6 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { billsApi, BILL_STATUS } from '@/api/accounting/bills.api'
 import type { BillDto } from '@/api/accounting/bills.api'
+import { PostingGapsBar } from '@/components/accounting/PostingGapsBar'
+import { VatLinesEditor, emptyVatLine, toVatLineInputs } from '@/components/accounting/VatLinesEditor'
+import type { VatLineRow } from '@/components/accounting/VatLinesEditor'
 import { DataTable } from '@/components/shared/DataTable'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
@@ -38,6 +41,8 @@ function CreateBillModal({ onClose }: { onClose: () => void }) {
   const { register, handleSubmit, formState: { errors } } = useForm<CreateBillFormValues>({
     defaultValues: { billNumber: '', supplierId: '', poId: '', amount: 0, dueDate: '' },
   })
+  const [useLines, setUseLines] = useState(false)
+  const [lines, setLines] = useState<VatLineRow[]>([emptyVatLine()])
 
   const mutation = useMutation({
     mutationFn: (values: CreateBillFormValues) =>
@@ -45,8 +50,9 @@ function CreateBillModal({ onClose }: { onClose: () => void }) {
         billNumber: values.billNumber,
         supplierId: values.supplierId,
         poId: values.poId,
-        amount: Number(values.amount),
+        amount: useLines ? 0 : Number(values.amount),
         dueDate: values.dueDate,
+        lines: useLines ? toVatLineInputs(lines) : undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting', 'bills'] })
@@ -82,19 +88,27 @@ function CreateBillModal({ onClose }: { onClose: () => void }) {
             <input className="input" {...register('poId', { required: true })} />
             {errors.poId && <p className="mt-1 text-xs text-red-600">{t('accounting.bills.poId')} is required.</p>}
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.bills.amount')}</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              className="input"
-              {...register('amount', { required: true, valueAsNumber: true, min: 0.01 })}
-            />
-            {errors.amount && (
-              <p className="mt-1 text-xs text-red-600">{t('accounting.bills.amount')} must be greater than 0.</p>
-            )}
-          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" checked={useLines} onChange={(e) => setUseLines(e.target.checked)} />
+            {t('accounting.vat.useLines')}
+          </label>
+          {useLines ? (
+            <VatLinesEditor rows={lines} onChange={setLines} />
+          ) : (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.bills.amount')}</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                className="input"
+                {...register('amount', { required: !useLines, valueAsNumber: true, min: useLines ? undefined : 0.01 })}
+              />
+              {errors.amount && (
+                <p className="mt-1 text-xs text-red-600">{t('accounting.bills.amount')} must be greater than 0.</p>
+              )}
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.bills.dueDate')}</label>
             <input type="date" className="input" {...register('dueDate', { required: true })} />
@@ -138,7 +152,7 @@ function BillsListTab({ canManage }: { canManage: boolean }) {
   })
 
   const approveMutation = useMutation({
-    mutationFn: (id: string) => billsApi.approve(id),
+    mutationFn: ({ id, rate }: { id: string; rate?: number }) => billsApi.approve(id, rate),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['accounting', 'bills'] }),
   })
 
@@ -151,7 +165,21 @@ function BillsListTab({ canManage }: { canManage: boolean }) {
 
   const columns = useMemo(
     () => [
-      { key: 'billNumber', label: t('accounting.bills.billNumber'), className: 'font-mono text-xs' },
+      {
+        key: 'billNumber',
+        label: t('accounting.bills.billNumber'),
+        className: 'font-mono text-xs',
+        render: (b: BillDto) => (
+          <span>
+            {b.billNumber}
+            {b.postedToLedger === false && (
+              <span className="ml-1 text-amber-600" title={b.postingWarning ?? ''}>
+                ⚠
+              </span>
+            )}
+          </span>
+        ),
+      },
       { key: 'supplierId', label: t('accounting.bills.supplierId'), className: 'font-mono text-xs' },
       { key: 'poId', label: t('accounting.bills.poId'), className: 'font-mono text-xs' },
       {
@@ -194,7 +222,12 @@ function BillsListTab({ canManage }: { canManage: boolean }) {
                 <button
                   className="text-xs text-primary-600 hover:underline disabled:opacity-40"
                   disabled={approveMutation.isPending}
-                  onClick={() => approveMutation.mutate(b.id)}
+                  onClick={() => {
+                    // the supplier's invoice shows the real VAT rate: empty keeps the split made when the bill was created
+                    const typed = window.prompt(t('accounting.vat.approvePrompt'), String(b.taxRatePercent))
+                    if (typed === null) return
+                    approveMutation.mutate({ id: b.id, rate: typed.trim() !== '' && !Number.isNaN(Number(typed)) && Number(typed) !== b.taxRatePercent ? Number(typed) : undefined })
+                  }}
                 >
                   {t('accounting.bills.approve')}
                 </button>
@@ -217,6 +250,7 @@ function BillsListTab({ canManage }: { canManage: boolean }) {
 
   return (
     <div className="space-y-4">
+      <PostingGapsBar canManage={canManage} />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-wrap items-end gap-3">
           <div>

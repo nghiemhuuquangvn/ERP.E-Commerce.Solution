@@ -17,6 +17,8 @@ export interface TenantTaxSettings {
   /** Code of the e-invoice provider ("sandbox" …); empty = e-invoices are off. */
   eInvoiceProvider?: string | null
   eInvoiceSeries?: string | null
+  /** Issue an e-invoice (retail customer) with every invoice created from an order. */
+  autoIssueEInvoice?: boolean
 }
 
 export type UpdateTenantTaxSettingsRequest = Omit<TenantTaxSettings, 'tenantId'>

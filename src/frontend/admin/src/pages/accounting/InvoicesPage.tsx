@@ -5,6 +5,9 @@ import { useTranslation } from 'react-i18next'
 import { invoicesApi, INVOICE_STATUS } from '@/api/accounting/invoices.api'
 import type { InvoiceDto } from '@/api/accounting/invoices.api'
 import { ReasonDialog } from '@/components/shared/ReasonDialog'
+import { PostingGapsBar } from '@/components/accounting/PostingGapsBar'
+import { VatLinesEditor, emptyVatLine, toVatLineInputs } from '@/components/accounting/VatLinesEditor'
+import type { VatLineRow } from '@/components/accounting/VatLinesEditor'
 import { DataTable } from '@/components/shared/DataTable'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
@@ -39,6 +42,8 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
   const { register, handleSubmit, formState: { errors } } = useForm<CreateInvoiceFormValues>({
     defaultValues: { invoiceNumber: '', customerId: '', orderId: '', amount: 0, dueDate: '' },
   })
+  const [useLines, setUseLines] = useState(false)
+  const [lines, setLines] = useState<VatLineRow[]>([emptyVatLine()])
 
   const mutation = useMutation({
     mutationFn: (values: CreateInvoiceFormValues) =>
@@ -46,11 +51,12 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
         invoiceNumber: values.invoiceNumber,
         customerId: values.customerId,
         orderId: values.orderId,
-        amount: Number(values.amount),
+        amount: useLines ? 0 : Number(values.amount),
         dueDate: values.dueDate,
+        lines: useLines ? toVatLineInputs(lines) : undefined,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounting', 'invoices'] })
+      queryClient.invalidateQueries({ queryKey: ['accounting'] })
       onClose()
     },
   })
@@ -87,21 +93,29 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
               <p className="mt-1 text-xs text-red-600">{t('accounting.invoices.orderId')} is required.</p>
             )}
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('accounting.invoices.amount')}
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              className="input"
-              {...register('amount', { required: true, valueAsNumber: true, min: 0.01 })}
-            />
-            {errors.amount && (
-              <p className="mt-1 text-xs text-red-600">{t('accounting.invoices.amount')} must be greater than 0.</p>
-            )}
-          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" checked={useLines} onChange={(e) => setUseLines(e.target.checked)} />
+            {t('accounting.vat.useLines')}
+          </label>
+          {useLines ? (
+            <VatLinesEditor rows={lines} onChange={setLines} />
+          ) : (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                {t('accounting.invoices.amount')}
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                className="input"
+                {...register('amount', { required: !useLines, valueAsNumber: true, min: useLines ? undefined : 0.01 })}
+              />
+              {errors.amount && (
+                <p className="mt-1 text-xs text-red-600">{t('accounting.invoices.amount')} must be greater than 0.</p>
+              )}
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               {t('accounting.invoices.dueDate')}
@@ -153,15 +167,25 @@ function InvoicesListTab({ canManage }: { canManage: boolean }) {
 
   const items = data ?? []
   const [eInvoiceOf, setEInvoiceOf] = useState<InvoiceDto | null>(null)
-  const adjustVatMutation = useMutation({
-    mutationFn: ({ id, rate }: { id: string; rate: number }) => invoicesApi.adjustVat(id, rate),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['accounting', 'invoices'] }),
-    onError: (e) => window.alert(detail(e, t('accounting.vat.failed'))),
-  })
+  const [adjustVatOf, setAdjustVatOf] = useState<InvoiceDto | null>(null)
 
   const columns = useMemo(
     () => [
-      { key: 'invoiceNumber', label: t('accounting.invoices.invoiceNumber'), className: 'font-mono text-xs' },
+      {
+        key: 'invoiceNumber',
+        label: t('accounting.invoices.invoiceNumber'),
+        className: 'font-mono text-xs',
+        render: (i: InvoiceDto) => (
+          <span>
+            {i.invoiceNumber}
+            {i.postedToLedger === false && (
+              <span className="ml-1 text-amber-600" title={i.postingWarning ?? ''}>
+                ⚠
+              </span>
+            )}
+          </span>
+        ),
+      },
       { key: 'customerId', label: t('accounting.invoices.customerId'), className: 'font-mono text-xs' },
       { key: 'orderId', label: t('accounting.invoices.orderId'), className: 'font-mono text-xs' },
       {
@@ -209,14 +233,7 @@ function InvoicesListTab({ canManage }: { canManage: boolean }) {
               </button>
             )}
             {canManage && i.status !== 'Cancelled' && (
-              <button
-                className="text-xs text-primary-600 hover:underline disabled:opacity-40"
-                disabled={adjustVatMutation.isPending}
-                onClick={() => {
-                  const rate = window.prompt(t('accounting.vat.adjustPrompt'), String(i.taxRatePercent))
-                  if (rate !== null && rate.trim() !== '' && !Number.isNaN(Number(rate))) adjustVatMutation.mutate({ id: i.id, rate: Number(rate) })
-                }}
-              >
+              <button className="text-xs text-primary-600 hover:underline" onClick={() => setAdjustVatOf(i)}>
                 {t('accounting.vat.adjust')}
               </button>
             )}
@@ -227,11 +244,12 @@ function InvoicesListTab({ canManage }: { canManage: boolean }) {
         ),
       },
     ],
-    [canManage, markPaidMutation, adjustVatMutation, t],
+    [canManage, markPaidMutation, t],
   )
 
   return (
     <div className="space-y-4">
+      <PostingGapsBar canManage={canManage} />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-wrap items-end gap-3">
           <div>
@@ -293,6 +311,60 @@ function InvoicesListTab({ canManage }: { canManage: boolean }) {
 
       {createOpen && <CreateInvoiceModal onClose={() => setCreateOpen(false)} />}
       {eInvoiceOf && <EInvoiceDialog invoice={eInvoiceOf} canManage={canManage} onClose={() => setEInvoiceOf(null)} />}
+      {adjustVatOf && <AdjustVatDialog invoice={adjustVatOf} onClose={() => setAdjustVatOf(null)} />}
+    </div>
+  )
+}
+
+/** Re-splits the invoice at one rate or at several VAT lines whose amounts add up to the invoice amount. */
+function AdjustVatDialog({ invoice, onClose }: { invoice: InvoiceDto; onClose: () => void }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [rate, setRate] = useState(String(invoice.taxRatePercent))
+  const [useLines, setUseLines] = useState(false)
+  const [lines, setLines] = useState<VatLineRow[]>([{ ...emptyVatLine(), amount: String(invoice.amount) }])
+  const total = lines.reduce((s, r) => s + (Number(r.amount) || 0), 0)
+  const mutation = useMutation({
+    mutationFn: () => invoicesApi.adjustVat(invoice.id, Number(rate) || 0, useLines ? toVatLineInputs(lines) : undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounting'] })
+      onClose()
+    },
+  })
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="card w-full max-w-lg space-y-3 p-4">
+        <h2 className="text-lg font-semibold">
+          {t('accounting.vat.adjust')} · {invoice.invoiceNumber}
+        </h2>
+        <p className="text-sm text-gray-600">{t('accounting.vat.adjustHint', { amount: invoice.amount.toLocaleString() })}</p>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" checked={useLines} onChange={(e) => setUseLines(e.target.checked)} />
+          {t('accounting.vat.useLines')}
+        </label>
+        {useLines ? (
+          <>
+            <VatLinesEditor rows={lines} onChange={setLines} />
+            <p className={Math.abs(total - invoice.amount) < 0.01 ? 'text-xs text-green-700' : 'text-xs text-amber-700'}>
+              {t('accounting.vat.linesTotal', { total: total.toLocaleString(), amount: invoice.amount.toLocaleString() })}
+            </p>
+          </>
+        ) : (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.vat.adjustPrompt')}</label>
+            <input type="number" min="0" max="100" step="0.01" className="input w-32" value={rate} onChange={(e) => setRate(e.target.value)} />
+          </div>
+        )}
+        {mutation.isError && <p className="text-xs text-red-600">{detail(mutation.error, t('accounting.vat.failed'))}</p>}
+        <div className="flex justify-end gap-3">
+          <button className="btn-outline" onClick={onClose}>
+            {t('common.cancel')}
+          </button>
+          <button className="btn-primary" disabled={mutation.isPending || (useLines && Math.abs(total - invoice.amount) >= 0.01)} onClick={() => mutation.mutate()}>
+            {t('common.save')}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -305,7 +377,14 @@ function EInvoiceDialog({ invoice, canManage, onClose }: { invoice: InvoiceDto; 
   const queryClient = useQueryClient()
   const [buyer, setBuyer] = useState({ buyerName: '', buyerTaxCode: '', buyerAddress: '' })
   const [cancelling, setCancelling] = useState(false)
-  const { data, isLoading } = useQuery({ queryKey: ['accounting', 'invoices', 'e-invoice', invoice.id], queryFn: () => invoicesApi.eInvoice(invoice.id) })
+  const { data: all, isLoading } = useQuery({ queryKey: ['accounting', 'invoices', 'e-invoices', invoice.id], queryFn: () => invoicesApi.eInvoices(invoice.id) })
+  // the e-invoice in force (original or replacement), else the last one
+  const chain = (all ?? []).filter((e) => e.kind !== 'Adjustment')
+  const data = chain.find((e) => e.status === 'Issued' || e.status === 'Failed') ?? chain[chain.length - 1]
+  const adjustments = (all ?? []).filter((e) => e.kind === 'Adjustment')
+  const [replaceReason, setReplaceReason] = useState('')
+  const [replaceRate, setReplaceRate] = useState('')
+  const [adjust, setAdjust] = useState({ net: '', tax: '', reason: '' })
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['accounting', 'invoices'] })
   const issue = useMutation({ mutationFn: () => invoicesApi.issueEInvoice(invoice.id, buyer), onSuccess: refresh })
   const cancel = useMutation({
@@ -316,6 +395,21 @@ function EInvoiceDialog({ invoice, canManage, onClose }: { invoice: InvoiceDto; 
     },
   })
   const issued = data?.status === 'Issued'
+  const replace = useMutation({
+    mutationFn: () => invoicesApi.replaceEInvoice(invoice.id, { reason: replaceReason, taxRatePercent: replaceRate === '' ? undefined : Number(replaceRate) }),
+    onSuccess: () => {
+      refresh()
+      setReplaceReason('')
+      setReplaceRate('')
+    },
+  })
+  const adjustMutation = useMutation({
+    mutationFn: () => invoicesApi.adjustEInvoice(invoice.id, { adjustNet: Number(adjust.net) || 0, adjustTax: Number(adjust.tax) || 0, reason: adjust.reason }),
+    onSuccess: () => {
+      refresh()
+      setAdjust({ net: '', tax: '', reason: '' })
+    },
+  })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -359,6 +453,41 @@ function EInvoiceDialog({ invoice, canManage, onClose }: { invoice: InvoiceDto; 
             {t('accounting.vat.cancelEInvoice')}
           </button>
         )}
+        {canManage && issued && (
+          <div className="space-y-2 border-t pt-2">
+            <p className="text-sm font-medium text-gray-700">{t('accounting.vat.replace')}</p>
+            <div className="flex flex-wrap gap-2">
+              <input className="input w-48" placeholder={t('accounting.vat.reason')} value={replaceReason} onChange={(e) => setReplaceReason(e.target.value)} />
+              <input type="number" min="0" max="100" step="0.01" className="input w-24" placeholder={t('accounting.vat.newRate')} value={replaceRate} onChange={(e) => setReplaceRate(e.target.value)} />
+              <button className="btn-outline" disabled={!replaceReason.trim() || replace.isPending} onClick={() => replace.mutate()}>
+                {t('accounting.vat.replaceButton')}
+              </button>
+            </div>
+            {replace.isError && <p className="text-xs text-red-600">{detail(replace.error, t('accounting.vat.failed'))}</p>}
+            <p className="text-sm font-medium text-gray-700">{t('accounting.vat.adjustEInvoice')}</p>
+            <div className="flex flex-wrap gap-2">
+              <input type="number" step="0.01" className="input w-28" placeholder={t('accounting.vat.adjustNet')} value={adjust.net} onChange={(e) => setAdjust({ ...adjust, net: e.target.value })} />
+              <input type="number" step="0.01" className="input w-28" placeholder={t('accounting.vat.adjustTax')} value={adjust.tax} onChange={(e) => setAdjust({ ...adjust, tax: e.target.value })} />
+              <input className="input w-48" placeholder={t('accounting.vat.reason')} value={adjust.reason} onChange={(e) => setAdjust({ ...adjust, reason: e.target.value })} />
+              <button className="btn-outline" disabled={!adjust.reason.trim() || (!Number(adjust.net) && !Number(adjust.tax)) || adjustMutation.isPending} onClick={() => adjustMutation.mutate()}>
+                {t('accounting.vat.adjustButton')}
+              </button>
+            </div>
+            {adjustMutation.isError && <p className="text-xs text-red-600">{detail(adjustMutation.error, t('accounting.vat.failed'))}</p>}
+          </div>
+        )}
+        {(all ?? []).length > 1 && (
+          <ul className="space-y-1 border-t pt-2 text-xs text-gray-600">
+            {(all ?? []).map((e) => (
+              <li key={e.id}>
+                {e.kind} · {e.series}-{e.number ?? '—'} · {e.status}
+                {e.kind === 'Adjustment' ? ` · ${(e.adjustNet ?? 0).toLocaleString()} / ${(e.adjustTax ?? 0).toLocaleString()}` : ''}
+                {e.reason ? ` · ${e.reason}` : ''}
+              </li>
+            ))}
+          </ul>
+        )}
+        {adjustments.length > 0 && <p className="text-xs text-gray-500">{t('accounting.vat.adjustmentsCount', { count: adjustments.length })}</p>}
         <div className="flex justify-end">
           <button className="btn-outline" onClick={onClose}>
             {t('common.close')}
