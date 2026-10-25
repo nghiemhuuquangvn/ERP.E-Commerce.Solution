@@ -131,7 +131,7 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | Z1 | ~~The loan ledger posts nothing~~ **Closed in P1-2j** (drawdown and repayments post, reconciliation report). Remaining: loans created before P1-2j are "by hand"; the interest rate is information only (no accrual, see §4j). | — |
 | Z2 | Off-balance accounts exist in the Vietnamese template only; a tenant that already has entries creates them by hand; foreign currency (007) is a register amount in VND with no exchange-rate logic (P1-4). | P1-4 |
 | Z3 | The 14-account layouts are a simplification (no VAT, income tax, interest, depreciation); B09 for such a tenant has fewer tables. | Accountant decision |
-| Z4 | B09: texts are not versioned, one set per tenant and language for all periods. (Headings in English, the non-cash table and the prior-period column were added in P1-2j.) | P1-2k |
+| Z4 | ~~Texts not versioned~~ **Closed in P1-2k** (per fiscal year); no history of edits within a year (§4k). | — |
 | Z5 | B09 structure and wording follow Circular 200 and are a draft for the accountant's review; section V.2 / V.7 use the invoice / bill split, so a past-date notes have the same approximation as B01 for trade items. | Accountant review |
 | Z6 | `glcheck` test data: account 001 (inactive) with voided entries, saved note texts and company profile; `LoanInstallments` / `Loans` rows of the check were deleted. | Local clean-up |
 
@@ -139,15 +139,26 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 
 | # | Issue | Home |
 |---|---|---|
-| AA1 | Interest is booked when paid, from the scheduled amount; no accrual between payments, the loan's interest rate is information only, and the repayment posts the schedule's amounts (a different amount actually paid is booked by hand). | P1-2k |
-| AA2 | Drawdown and repayments always go through the Bank key; a cash loan or a specific bank account per loan is not modelled. On the 14-account chart LoanPayable shares account 2100 with accrued liabilities (the reconciliation says so). | P1-2k |
+| AA1 | ~~No accrual, scheduled amounts only~~ **Closed in P1-2k** (accrual, interest actually paid). Remaining: see §4k. | — |
+| AA2 | ~~Always the Bank key~~ **Closed in P1-2k** (receiving account per loan). On the 14-account chart LoanPayable and InterestPayable still share account 2100 with accrued liabilities (the reconciliation says so). | — |
 | AA3 | Payment dates are exact for payments recorded after migration 017; earlier ones are estimated (the last update of the document). Cancelled bills do not exist as a status. The register is not shown on any screen yet. | Accountant decision |
-| AA4 | The account mapping covers B01 / B02 only; B03 (both methods), the notes B09 and the maturity caps keep their prefix sets, so an account mapped on B01 is not automatically in the notes. | P1-2k |
+| AA4 | ~~Mapping covers B01 / B02 only~~ **Closed in P1-2k** for B03 and the notes; the maturity caps of B01 keep the standard prefixes, and a mapping is per statement (an account mapped on B01 is not automatically in B03 or the notes). | — |
 | AA5 | The non-cash table is derived from the accounts of the entries (fixed assets bought on a liability, a liability moved into equity); other non-cash transactions are still written by the accountant. | Accountant review |
 | AA6 | Notes exist in Vietnamese and English; the language is explicit (`lang`), not taken from Accept-Language. The admin screens added in P1-2j were type-checked, not clicked through in a browser. | — |
 | AA7 | `glcheck` test data left: the 2,000 credit on account 341 from the P1-2i check (so the loan reconciliation there shows a 2,000 difference), the 9001 account was removed, estimated payment applications created by the migration. | Local clean-up |
 
+## 4k. Loan interest, mapping, versions (P1-2k follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| AB1 | Accrual is run by the accountant (button / API) for a date; there is no automatic month-end job, and the convention is calendar days of the installment's period (no actual/360, no rate changes). | P1-2l |
+| AB2 | The interest check compares today's accruals (not kept by date) with the account balance on the date; the receiving account of a loan cannot be changed after the drawdown is posted. | Accountant decision |
+| AB3 | Note texts are versioned per fiscal year; an edit overwrites the year's text (no history, no who / when beyond the row's update time). | P1-2l |
+| AB4 | The mapping has no unmapped list for B03 (read on the report) and its side is ignored for B03 / B09; a mapping is per statement. | Accountant decision |
+| AB5 | The new admin screens (loan account / accrual / interest paid, mapping for B03 / B09, year of texts) were type-checked, not clicked through in a browser. | — |
+| AB6 | `glcheck` test data left: the 2,000 credit on 341 from P1-2i; throw-away loans, entries, accounts and mappings of the checks were removed. | Local clean-up |
+
 ## 5. Roadmap items these issues are waiting for
 
-P0-10 least-privilege SQL · P1-2k accrued loan interest, receiving account per loan, mapping for B03 / notes, versioned texts · P1-3 VAT and e-invoice · P1-4 foreign currency and bank reconciliation ·
+P0-10 least-privilege SQL · P1-2l automatic accrual job, actual/360, history of text edits · P1-3 VAT and e-invoice · P1-4 foreign currency and bank reconciliation ·
 P1-5 saga completion and returns · P1-6 notifications · P1-7 real payroll.

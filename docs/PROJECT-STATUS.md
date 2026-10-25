@@ -36,6 +36,13 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-25 — ROADMAP P1-2k: loan interest and receiving account, B03 / notes mapping, versioned note texts (`feat/p1-2k-loan-interest-mapping-versions`, unmerged)
+- **Loans**: optional receiving account per loan (drawdown and repayments use it, else the Bank key); **accrued interest** (`accrue-interest` by calendar days of each installment's period, Dr 635 / Cr 335; the repayment clears it and books the rest, with the interest actually paid); cancel refused after accrual; interest check in the reconciliation. Migration 020, key InterestPayable.
+- **Mapping** of a tenant's own chart now also feeds B03 direct, B03 indirect and the B09 tables (screen: statement select; side hidden where it does not apply).
+- **Note texts per fiscal year** (migration 021): the report reads the text of its year, else the latest earlier year, else year 0; the editor has a year field and marks inherited texts.
+- Verified live on `glcheck` (loan on account 1112, accrual 45 + 18, repayment Dr 341 1,000 / Dr 335 63 / Dr 635 37 / Cr 1112 1,100, cancel refused; own accounts in B03 and VI.2; 2026 → 2027 text inheritance); test data removed. Tests: ACC 371 (+32), drift test passes, admin `tsc -b` clean. Migrations 020 – 021 applied to the host DB.
+- Not done (P1-2l): automatic monthly accrual, actual/360, history of text edits, other languages, browser click-through of the new admin screens.
+
 ### 2026-10-25 — ROADMAP P1-2j: loan posting, payment history, own-chart mapping, notes in English (`feat/p1-2j-loans-history-mapping-english`, unmerged)
 - **Loans** post the drawdown (Dr bank / Cr 341, 2100 on the 14-account chart) and each repayment (principal + scheduled interest, Cr bank); option "already booked by hand" keeps older loans out; *Post drawdown* for an older loan without repayments; cancel reverses; `reports/loans-reconciliation` and a card on the Loans screen. Migration 016, keys LoanPayable / InterestExpense.
 - **Payment history**: `PaymentApplications` (+ `Bills.ApprovedOn`, `Invoices.CancelledOn`, backfilled and flagged estimated) make the B01 / B09 split of trade receivables / payables exact for past dates; the "approximate" note only appears for estimated or missing dates. Migration 017.

@@ -1732,6 +1732,7 @@
       "cashFlowDefault": "Mặc định"
     },
     "mapping": {
+      "unmappedOnReport": "Với báo cáo lưu chuyển tiền tệ, các khoản chưa có dòng được liệt kê ngay trên báo cáo; với thuyết minh, hãy ánh xạ tiền tố vào bảng tương ứng.",
       "tab": "Ánh xạ tài khoản",
       "hint": "Đặt tài khoản của hệ thống tài khoản riêng vào các dòng của B01 / B02. Một tiền tố tính mọi tài khoản có số bắt đầu bằng nó. Không sửa được cách đặt của bố cục chuẩn.",
       "statement": "Báo cáo",
@@ -1749,6 +1750,14 @@
       "failed": "Không lưu được ánh xạ."
     },
     "loans": {
+      "receivingAccount": "Tài khoản nhận tiền (ngân hàng / tiền mặt)",
+      "receivingDefault": "Ngân hàng của hồ sơ hạch toán",
+      "accrueUpTo": "Trích lãi đến ngày",
+      "accrue": "Trích lãi vay",
+      "accrued": "Đã trích {{total}} cho {{count}} kỳ trả.",
+      "accruedInterest": "Lãi đã trích",
+      "interestPaid": "Lãi thực trả",
+      "interestCheck": "Lãi trích trước so với sổ cái",
       "postDrawdown": "Hạch toán giải ngân (Nợ Ngân hàng / Có Vay phải trả); các kỳ trả sau đó tự hạch toán gốc và lãi. Bỏ chọn nếu khoản vay đã ghi sổ tay.",
       "posted": "đã hạch toán",
       "notPosted": "ghi tay",
@@ -1870,6 +1879,9 @@
       "exportExcel": "Xuất Excel",
       "exportPdf": "Xuất PDF",
       "tabB09": "B09 Thuyết minh BCTC",
+      "notesYear": "Năm tài chính của văn bản (0 = mọi năm)",
+      "notesInherited": "kế thừa từ {{year}}",
+      "notesInheritedAll": "kế thừa từ bộ dùng cho mọi năm",
       "notesLanguage": "Ngôn ngữ thuyết minh",
       "notesCompareFrom": "So sánh từ",
       "notesCompareTo": "So sánh đến",

@@ -15,6 +15,10 @@ export interface StatementMappingRow {
 export interface StatementMapping {
   statementId: string
   title: string
+  /** False for B03 and the notes: the "balances taken" choice has no effect there. */
+  sideApplies: boolean
+  /** True when the unmapped accounts are shown on the report itself (B03) or do not apply (B09). */
+  unmappedOnReport: boolean
   rows: StatementMappingRow[]
   unmapped: { accountNumber: string; accountName: string }[]
 }

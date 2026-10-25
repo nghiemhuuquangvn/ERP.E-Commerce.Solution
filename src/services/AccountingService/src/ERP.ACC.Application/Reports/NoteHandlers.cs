@@ -36,12 +36,35 @@ namespace ERP.ACC.Application.Reports
         public string Hint { get; set; } = string.Empty;
         public string Text { get; set; } = string.Empty;
         public string Language { get; set; } = NoteStrings.Vietnamese;
+
+        /// <summary>The fiscal year asked for (0 = the texts for every year).</summary>
+        public int FiscalYear { get; set; }
+
+        /// <summary>The year the shown text was written for (0 = every year); differs from <see cref="FiscalYear"/> when the text is inherited from an earlier year.</summary>
+        public int SourceYear { get; set; }
+        public bool Inherited { get; set; }
     }
 
     public class GetNoteTextsQuery : IRequest<List<NoteTextEntryDto>>
     {
         /// <summary>"vi" (default) or "en".</summary>
         public string? Language { get; set; }
+
+        /// <summary>0 (default) = the texts for every year; a year = that fiscal year (earlier years' texts carry forward).</summary>
+        public int FiscalYear { get; set; }
+    }
+
+    /// <summary>The fiscal year of a date (the year in which it ends) and the text of a note section for a year: the same year, else the latest earlier one, else year 0.</summary>
+    public static class NoteTextVersions
+    {
+        public static int FiscalYearOf(DateTime date, int yearEndMonth) =>
+            yearEndMonth is < 1 or > 12 || yearEndMonth == 12 || date.Month <= yearEndMonth ? date.Year : date.Year + 1;
+
+        /// <summary>Per section key the text to show for a fiscal year and the year it was written for; empty texts do not count (a cleared year falls back).</summary>
+        public static Dictionary<string, (string Text, int Year)> Resolve(IEnumerable<NoteText> stored, string language, int fiscalYear) =>
+            stored.Where(n => n.Language == language && n.Text.Length > 0 && n.FiscalYear <= fiscalYear)
+                .GroupBy(n => n.SectionKey)
+                .ToDictionary(g => g.Key, g => { var best = g.OrderByDescending(n => n.FiscalYear).First(); return (best.Text, best.FiscalYear); });
     }
 
     /// <summary>Saves the texts of the given keys; an empty text clears it. Keys that are not note sections are refused.</summary>
@@ -49,6 +72,9 @@ namespace ERP.ACC.Application.Reports
     {
         /// <summary>"vi" (default) or "en": the language the texts are written in.</summary>
         public string? Language { get; set; }
+
+        /// <summary>0 (default) = the texts for every year; a year = that fiscal year (earlier years' texts carry forward; an empty text clears that year).</summary>
+        public int FiscalYear { get; set; }
         public Dictionary<string, string> Texts { get; set; } = new();
     }
 
@@ -59,17 +85,22 @@ namespace ERP.ACC.Application.Reports
         public GetNoteTextsQueryHandler(INoteTextRepository texts) => _texts = texts;
 
         public async Task<List<NoteTextEntryDto>> Handle(GetNoteTextsQuery request, CancellationToken cancellationToken) =>
-            NoteTextMapper.Map(await _texts.GetAllAsync(cancellationToken), NoteStrings.Normalize(request.Language));
+            NoteTextMapper.Map(await _texts.GetAllAsync(cancellationToken), NoteStrings.Normalize(request.Language), request.FiscalYear);
     }
 
     internal static class NoteTextMapper
     {
-        public static List<NoteTextEntryDto> Map(IEnumerable<NoteText> stored, string language)
+        public static List<NoteTextEntryDto> Map(IEnumerable<NoteText> stored, string language, int fiscalYear)
         {
-            var byKey = stored.Where(n => n.Language == language).ToDictionary(n => n.SectionKey, n => n.Text);
-            return NoteTextSections.All.Select(s => new NoteTextEntryDto
+            var byKey = NoteTextVersions.Resolve(stored, language, fiscalYear);
+            return NoteTextSections.All.Select(s =>
             {
-                Key = s.Key, Number = s.Number, Title = s.TitleFor(language), Hint = s.HintFor(language), Text = byKey.GetValueOrDefault(s.Key, string.Empty), Language = language,
+                var found = byKey.TryGetValue(s.Key, out var v);
+                return new NoteTextEntryDto
+                {
+                    Key = s.Key, Number = s.Number, Title = s.TitleFor(language), Hint = s.HintFor(language), Text = found ? v.Text : string.Empty, Language = language,
+                    FiscalYear = fiscalYear, SourceYear = found ? v.Year : 0, Inherited = found && v.Year != fiscalYear,
+                };
             }).ToList();
         }
     }
@@ -88,6 +119,8 @@ namespace ERP.ACC.Application.Reports
         public async Task<List<NoteTextEntryDto>> Handle(UpdateNoteTextsCommand request, CancellationToken cancellationToken)
         {
             var language = NoteStrings.Normalize(request.Language);
+            if (request.FiscalYear < 0 || request.FiscalYear > 9999)
+                throw new BusinessRuleException("Accounting", "The fiscal year must be 0 (every year) or a year.");
             var unknown = request.Texts.Keys.Where(k => NoteTextSections.Find(k) == null).ToList();
             if (unknown.Count > 0)
                 throw new BusinessRuleException("Accounting", $"Unknown note section(s): {string.Join(", ", unknown)}.");
@@ -95,7 +128,7 @@ namespace ERP.ACC.Application.Reports
             var stored = await _uow.NoteTexts.GetAllAsync(cancellationToken);
             foreach (var (key, text) in request.Texts)
             {
-                var existing = stored.FirstOrDefault(n => n.SectionKey == key && n.Language == language);
+                var existing = stored.FirstOrDefault(n => n.SectionKey == key && n.Language == language && n.FiscalYear == request.FiscalYear);
                 try
                 {
                     if (existing != null)
@@ -103,7 +136,7 @@ namespace ERP.ACC.Application.Reports
                     else if (!string.IsNullOrWhiteSpace(text))
                     {
                         var tenantId = _tenant.CurrentTenantId ?? throw new BusinessRuleException("Accounting", "No tenant in the request.");
-                        var created = NoteText.Create(tenantId, key, text, language);
+                        var created = NoteText.Create(tenantId, key, text, language, request.FiscalYear);
                         await _uow.NoteTexts.AddAsync(created, cancellationToken);
                         stored.Add(created);
                     }
@@ -115,7 +148,7 @@ namespace ERP.ACC.Application.Reports
             }
 
             await _uow.SaveChangesAsync(cancellationToken);
-            return NoteTextMapper.Map(stored, language);
+            return NoteTextMapper.Map(stored, language, request.FiscalYear);
         }
     }
 
@@ -131,12 +164,14 @@ namespace ERP.ACC.Application.Reports
         private readonly ILoanRepository _loans;
         private readonly IOffBalanceRepository _offBalance;
         private readonly INoteTextRepository _texts;
+        private readonly IStatementMappingRepository _mappings;
 
         public GetNotesQueryHandler(
             IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles, IClosingPolicyRepository policies,
             IInvoiceRepository invoices, IBillRepository bills, ILoanRepository loans, IOffBalanceRepository offBalance, INoteTextRepository texts,
-            IPaymentApplicationRepository payments)
+            IPaymentApplicationRepository payments, IStatementMappingRepository mappings)
         {
+            _mappings = mappings;
             _accounts = accounts;
             _lines = lines;
             _profiles = profiles;
@@ -167,7 +202,7 @@ namespace ERP.ACC.Application.Reports
             var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
             var divisor = ReportProfileMapper.Divisor(unit);
             var chart = ChartTemplates.Detect(accounts);
-            var prefixes = NotePrefixes.For(chart);
+            var prefixes = NoteMappingRows.WithMappings(NotePrefixes.For(chart), await _mappings.GetAllAsync(cancellationToken));
 
             async Task<NoteLedger> LedgerFor(DateTime f, DateTime t)
             {
@@ -187,11 +222,12 @@ namespace ERP.ACC.Application.Reports
             var after = (await _lines.GetAccountBalancesAsync(null, to, null, cancellationToken)).ToDictionary(b => b.AccountId);
             var maturity = MaturityLedger.For(to, accounts, after, documents.Invoices, documents.Bills, loans, documents.Payments);
             var policy = await _policies.GetAsync(cancellationToken);
-            var texts = (await _texts.GetAllAsync(cancellationToken)).Where(n => n.Language == language).ToDictionary(n => n.SectionKey, n => n.Text);
+            var fiscalYear = NoteTextVersions.FiscalYearOf(to, policy?.FiscalYearEndMonth ?? 12);
+            var texts = NoteTextVersions.Resolve(await _texts.GetAllAsync(cancellationToken), language, fiscalYear).ToDictionary(p => p.Key, p => p.Value.Text);
 
             var notes = new NotesDto
             {
-                FromDate = from, ToDate = to, UnitDivisor = divisor, Language = language, Title = s.Title,
+                FromDate = from, ToDate = to, UnitDivisor = divisor, Language = language, Title = s.Title, FiscalYear = fiscalYear,
                 CompareFromDate = request.CompareFromDate?.Date, CompareToDate = request.CompareToDate?.Date,
                 Unit = divisor == 1_000m ? "thousand VND" : divisor == 1_000_000m ? "million VND" : "VND",
                 Header = ReportProfileMapper.Header(profile),

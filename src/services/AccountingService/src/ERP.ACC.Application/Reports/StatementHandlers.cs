@@ -49,9 +49,11 @@ namespace ERP.ACC.Application.Reports
         private readonly IAccountRepository _accounts;
         private readonly IJournalLineRepository _lines;
         private readonly IReportProfileRepository _profiles;
+        private readonly IStatementMappingRepository _mappings;
 
-        public GetCashFlowStatementQueryHandler(IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles)
+        public GetCashFlowStatementQueryHandler(IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles, IStatementMappingRepository mappings)
         {
+            _mappings = mappings;
             _accounts = accounts;
             _lines = lines;
             _profiles = profiles;
@@ -85,7 +87,7 @@ namespace ERP.ACC.Application.Reports
 
             var profile = await _profiles.GetAsync(cancellationToken);
             var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
-            var statement = CashFlowStatementEngine.Evaluate(CashFlowLayouts.For(ChartTemplates.Detect(accounts)), current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
+            var statement = CashFlowStatementEngine.Evaluate(CashFlowLayouts.WithMappings(CashFlowLayouts.For(ChartTemplates.Detect(accounts)), await _mappings.GetAllAsync(cancellationToken)), current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
             if (cashIds.Count == 0)
                 statement.Notes.Add("No account is flagged as cash (IsCash): flag the cash and bank accounts to get a cash-flow statement.");
             statement.FromDate = request.FromDate.Date;
@@ -108,12 +110,15 @@ namespace ERP.ACC.Application.Reports
                 return new IndirectColumn(direct, before, after, activity);
             }
 
+            var mappings = await _mappings.GetAllAsync(ct);
             var current = await Column(request.FromDate.Date, request.ToDate.Date);
             var prior = request.CompareFromDate.HasValue ? await Column(request.CompareFromDate.Value.Date, request.CompareToDate!.Value.Date) : null;
 
             var profile = await _profiles.GetAsync(ct);
             var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
-            var statement = IndirectCashFlowEngine.Evaluate(IndirectCashFlowLayouts.For(ChartTemplates.Detect(accounts)), accounts, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
+            var statement = IndirectCashFlowEngine.Evaluate(
+                IndirectCashFlowLayouts.WithMappings(IndirectCashFlowLayouts.For(ChartTemplates.Detect(accounts)), mappings), accounts, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile),
+                CashFlowLayouts.WithMappings(CashFlowLayouts.For(ChartTemplates.Detect(accounts)), mappings));
             if (cashIds.Count == 0)
                 statement.Notes.Add("No account is flagged as cash (IsCash): flag the cash and bank accounts to get a cash-flow statement.");
             statement.FromDate = request.FromDate.Date;

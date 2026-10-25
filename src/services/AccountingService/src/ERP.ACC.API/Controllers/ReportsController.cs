@@ -296,12 +296,12 @@ namespace ERP.ACC.API.Controllers
         /// <summary>The note sections the accountant writes (key, number, title, hint) with their current texts.</summary>
         [HttpGet("notes/text")]
         [ProducesResponseType(typeof(List<NoteTextEntryDto>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> NoteTexts([FromQuery] string? lang = null, CancellationToken ct = default)
+        public async Task<IActionResult> NoteTexts([FromQuery] string? lang = null, [FromQuery] int fiscalYear = 0, CancellationToken ct = default)
         {
             if (!_userContext.HasPermission("accounting:reports:view"))
                 return Forbid();
 
-            return Ok(await _mediator.Send(new GetNoteTextsQuery { Language = lang }, ct));
+            return Ok(await _mediator.Send(new GetNoteTextsQuery { Language = lang, FiscalYear = fiscalYear }, ct));
         }
 
         /// <summary>Saves the texts of the given section keys (an empty text clears one). Same permission as the report profile.</summary>

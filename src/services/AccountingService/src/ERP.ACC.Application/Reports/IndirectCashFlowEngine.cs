@@ -22,12 +22,12 @@ namespace ERP.ACC.Application.Reports
 
         public static FinancialStatementDto Evaluate(
             IndirectCashFlowLayout layout, IReadOnlyCollection<Account> accounts, IndirectColumn current, IndirectColumn? prior,
-            decimal divisor = 1m, ReportHeaderDto? header = null)
+            decimal divisor = 1m, ReportHeaderDto? header = null, CashFlowLayout? directLayout = null)
         {
-            var now = Compute(layout, accounts, current, divisor);
-            var before = prior != null ? Compute(layout, accounts, prior, divisor) : null;
-            var exactNow = divisor == 1m ? now : Compute(layout, accounts, current, 1m);
-            var exactBefore = prior == null ? null : divisor == 1m ? before : Compute(layout, accounts, prior, 1m);
+            var now = Compute(layout, accounts, current, divisor, directLayout);
+            var before = prior != null ? Compute(layout, accounts, prior, divisor, directLayout) : null;
+            var exactNow = divisor == 1m ? now : Compute(layout, accounts, current, 1m, directLayout);
+            var exactBefore = prior == null ? null : divisor == 1m ? before : Compute(layout, accounts, prior, 1m, directLayout);
 
             var statement = new FinancialStatementDto
             {
@@ -101,9 +101,9 @@ namespace ERP.ACC.Application.Reports
             row.Prefixes.Any(p => account.AccountNumber.StartsWith(p, StringComparison.Ordinal))
             && !row.Except.Any(p => account.AccountNumber.StartsWith(p, StringComparison.Ordinal));
 
-        private static Computed Compute(IndirectCashFlowLayout layout, IReadOnlyCollection<Account> accounts, IndirectColumn column, decimal divisor)
+        private static Computed Compute(IndirectCashFlowLayout layout, IReadOnlyCollection<Account> accounts, IndirectColumn column, decimal divisor, CashFlowLayout? directLayout)
         {
-            var direct = CashFlowStatementEngine.Compute(CashFlowLayouts.For(layout.ChartTemplate), column.Direct, divisor);
+            var direct = CashFlowStatementEngine.Compute(directLayout ?? CashFlowLayouts.For(layout.ChartTemplate), column.Direct, divisor);
             var byCode = layout.Rows.ToDictionary(r => r.Code);
             var memo = new Dictionary<string, decimal>();
 

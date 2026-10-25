@@ -154,7 +154,7 @@ public class CashFlowStatementTests
                 new() { EntryId = transfer, AccountId = cash.Id, Debit = 40m },   // cash <-> bank: no counter-line outside cash
                 new() { EntryId = transfer, AccountId = A("1121").Id, Credit = 40m },
             });
-        var handler = new GetCashFlowStatementQueryHandler(accounts.Object, lines.Object, NoProfile());
+        var handler = new GetCashFlowStatementQueryHandler(accounts.Object, lines.Object, NoProfile(), new Mock<IStatementMappingRepository>().Object);
 
         var s = await handler.Handle(new GetCashFlowStatementQuery { FromDate = from, ToDate = to }, default);
 

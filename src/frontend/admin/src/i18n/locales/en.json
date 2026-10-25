@@ -1732,6 +1732,7 @@
       "cashFlowDefault": "Default"
     },
     "mapping": {
+      "unmappedOnReport": "For the cash-flow statements the movements no row takes are listed on the report itself; for the notes, map a prefix to the table it belongs to.",
       "tab": "Account mapping",
       "hint": "Place the accounts of your own chart on the rows of B01 / B02. A prefix counts every account whose number starts with it. The standard layout's own placement cannot be changed here.",
       "statement": "Statement",
@@ -1749,6 +1750,14 @@
       "failed": "The mapping could not be saved."
     },
     "loans": {
+      "receivingAccount": "Receiving account (bank or cash)",
+      "receivingDefault": "Bank of the posting profile",
+      "accrueUpTo": "Accrue interest up to",
+      "accrue": "Accrue interest",
+      "accrued": "Accrued {{total}} on {{count}} installment(s).",
+      "accruedInterest": "Accrued interest",
+      "interestPaid": "Interest paid",
+      "interestCheck": "Accrued interest vs books",
       "postDrawdown": "Post the drawdown to the books (Dr Bank / Cr Loan payable); repayments are then posted with their interest. Untick for a loan already booked by hand.",
       "posted": "posted",
       "notPosted": "by hand",
@@ -1870,6 +1879,9 @@
       "exportExcel": "Export Excel",
       "exportPdf": "Export PDF",
       "tabB09": "B09 Notes (VAS)",
+      "notesYear": "Fiscal year of the texts (0 = every year)",
+      "notesInherited": "from {{year}}",
+      "notesInheritedAll": "from every year",
       "notesLanguage": "Language of the notes",
       "notesCompareFrom": "Compare from",
       "notesCompareTo": "Compare to",

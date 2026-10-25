@@ -45,6 +45,9 @@ namespace ERP.ACC.Application.Reports
 
         /// <summary>"vi" or "en": the language of the fixed wording (see <see cref="NoteStrings"/>).</summary>
         public string Language { get; set; } = NoteStrings.Vietnamese;
+
+        /// <summary>The fiscal year (the year in which it ends) whose texts the notes show.</summary>
+        public int FiscalYear { get; set; }
         public string Title { get; set; } = "Bản thuyết minh báo cáo tài chính (Mẫu B09-DN) — bản nháp";
         public bool IsDraft { get; set; } = true;
         public DateTime FromDate { get; set; }

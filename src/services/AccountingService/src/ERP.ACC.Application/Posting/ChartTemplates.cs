@@ -253,6 +253,7 @@ namespace ERP.ACC.Application.Posting
                 [PostingKeys.RetainedEarnings] = "4212",
                 [PostingKeys.LoanPayable] = "341",
                 [PostingKeys.InterestExpense] = "635",
+                [PostingKeys.InterestPayable] = "335",
             };
 
             return new ChartTemplate(
