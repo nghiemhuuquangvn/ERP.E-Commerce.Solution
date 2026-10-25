@@ -1752,6 +1752,11 @@
     "loans": {
       "receivingAccount": "Receiving account (bank or cash)",
       "receivingDefault": "Bank of the posting profile",
+      "dayCount": "Day count of the interest",
+      "dayCountSchedule": "Schedule (scheduled interest split by days)",
+      "dayCount365": "Actual/365 (principal × rate ÷ 365)",
+      "dayCount360": "Actual/360 (principal × rate ÷ 360)",
+      "dayCountHint": "Actual/365 and actual/360 count the interest of each day on the outstanding principal and need an interest rate; the interest paid then defaults to the interest of the days to the repayment.",
       "accrueUpTo": "Accrue interest up to",
       "accrue": "Accrue interest",
       "accrued": "Accrued {{total}} on {{count}} installment(s).",

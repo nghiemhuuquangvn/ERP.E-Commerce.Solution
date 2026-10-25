@@ -9,6 +9,8 @@ export interface LoanInstallment {
   paidOn: string | null
   /** Interest of the installment already accrued to the books and not yet paid. */
   accruedInterest: number
+  /** The interest owed if the installment were repaid today (by the loan's day count); the default of the interest paid. */
+  interestDueToday: number
 }
 
 export interface Loan {
@@ -23,6 +25,8 @@ export interface Loan {
   cancelReason: string | null
   /** True once the drawdown is in the journal, so repayments are posted too; false for a loan booked by hand. */
   postedToLedger: boolean
+  /** 0 = the scheduled interest split by days, 1 = actual/365, 2 = actual/360. */
+  dayCountBasis: 0 | 1 | 2
   /** The asset account the money is received on and repaid from; null = the Bank key of the posting profile. */
   receivingAccountId: string | null
   receivingAccountNumber: string | null
@@ -45,6 +49,8 @@ export interface CreateLoanRequest {
   /** Post the drawdown (Dr Bank / Cr Loan payable). False for a loan already booked by hand. */
   postDrawdown?: boolean
   receivingAccountId?: string
+  /** 0 (default) = the scheduled interest split by days; 1 = actual/365; 2 = actual/360 on the outstanding principal. */
+  dayCountBasis?: number
 }
 
 export interface LoanInterestAccrual {

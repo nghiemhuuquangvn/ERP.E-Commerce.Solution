@@ -122,6 +122,7 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.StartDate).HasColumnType("date");
                 e.Property(x => x.CancelReason).HasMaxLength(500);
                 e.Property(x => x.PostedToLedger).HasDefaultValue(false);
+                e.Property(x => x.DayCountBasis).HasDefaultValue(0);
                 e.HasIndex(x => new { x.TenantId, x.LoanNumber }).IsUnique().HasFilter("[IsDeleted] = 0");
                 e.HasMany(l => l.Installments).WithOne().HasForeignKey(i => i.LoanId).OnDelete(DeleteBehavior.Cascade);
             });

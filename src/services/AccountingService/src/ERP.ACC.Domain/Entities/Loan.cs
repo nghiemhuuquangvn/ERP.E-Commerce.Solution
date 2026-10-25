@@ -68,6 +68,21 @@ namespace ERP.ACC.Domain.Entities
         /// <summary>The asset account (a bank or cash account) the money is received on and repaid from; null = the Bank key of the posting profile (ROADMAP P1-2k).</summary>
         public Guid? ReceivingAccountId { get; private set; }
 
+        /// <summary>A <see cref="LoanDayCount"/>: 0 = the scheduled interest split by the days of its period (default); 1 / 2 = outstanding principal × annual rate ÷ 365 / 360 per day (ROADMAP P1-2l).</summary>
+        public int DayCountBasis { get; private set; }
+
+        public void SetDayCountBasis(int basis)
+        {
+            if (!Enum.IsDefined(typeof(LoanDayCount), basis))
+                throw new ArgumentException("The day count must be 0 (schedule), 1 (actual/365) or 2 (actual/360).", nameof(basis));
+            if (basis != (int)LoanDayCount.Schedule && InterestRatePercent <= 0m)
+                throw new ArgumentException("An interest rate above 0 is needed to count the interest by days.", nameof(basis));
+            if (Installments.Any(i => i.AccruedInterest > 0m || i.PaidOn.HasValue))
+                throw new InvalidOperationException("The day count cannot change once interest was accrued or a repayment recorded.");
+            DayCountBasis = basis;
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         public void SetReceivingAccount(Guid? accountId)
         {
             ReceivingAccountId = accountId == Guid.Empty ? null : accountId;
@@ -89,7 +104,7 @@ namespace ERP.ACC.Domain.Entities
         /// </summary>
         public static Loan Create(
             string loanNumber, string lender, decimal principal, decimal interestRatePercent, DateTime startDate,
-            IEnumerable<(DateTime DueDate, decimal Principal, decimal Interest)>? schedule, DateTime? maturityDate, string? notes)
+            IEnumerable<(DateTime DueDate, decimal Principal, decimal Interest)>? schedule, DateTime? maturityDate, string? notes, int dayCountBasis = 0)
         {
             if (string.IsNullOrWhiteSpace(loanNumber))
                 throw new ArgumentException("A loan needs a number.", nameof(loanNumber));
@@ -129,6 +144,8 @@ namespace ERP.ACC.Domain.Entities
 
             foreach (var (due, p, i) in lines.OrderBy(l => l.Item1))
                 loan.Installments.Add(LoanInstallment.Create(loan.Id, due, p, i));
+            if (dayCountBasis != (int)LoanDayCount.Schedule)
+                loan.SetDayCountBasis(dayCountBasis);
             return loan;
         }
 
@@ -145,6 +162,9 @@ namespace ERP.ACC.Domain.Entities
             if (paidOn.Date < StartDate)
                 throw new ArgumentException("A repayment cannot be dated before the loan started.", nameof(paidOn));
 
+            // a loan counted by days owes the interest of the days to the payment, unless the lender's figure is given
+            if (!interestPaid.HasValue && DayCountBasis != (int)LoanDayCount.Schedule)
+                interestPaid = InterestToDate(installment, paidOn);
             installment.MarkPaid(paidOn, interestPaid);
             if (Installments.All(i => i.PaidOn.HasValue))
                 Status = (int)LoanStatus.Repaid;
@@ -169,12 +189,22 @@ namespace ERP.ACC.Domain.Entities
             {
                 var periodStart = previousDue;
                 previousDue = installment.DueDate;
-                if (installment.PaidOn.HasValue || installment.InterestAmount <= 0m || day <= periodStart)
+                var byDays = DayCountBasis != (int)LoanDayCount.Schedule;
+                if (installment.PaidOn.HasValue || (!byDays && installment.InterestAmount <= 0m) || day <= periodStart)
                     continue;
 
-                var days = Math.Max(1, (installment.DueDate - periodStart).Days);
-                var fraction = Math.Min(1m, (decimal)(day - periodStart).Days / days);
-                var delta = Math.Round(installment.InterestAmount * fraction, 2) - installment.AccruedInterest;
+                decimal target;
+                if (byDays)
+                {
+                    target = InterestOfPeriod(periodStart, day < installment.DueDate ? day : installment.DueDate);
+                }
+                else
+                {
+                    var days = Math.Max(1, (installment.DueDate - periodStart).Days);
+                    var fraction = Math.Min(1m, (decimal)(day - periodStart).Days / days);
+                    target = Math.Round(installment.InterestAmount * fraction, 2);
+                }
+                var delta = target - installment.AccruedInterest;
                 if (delta <= 0m)
                     continue;
                 installment.Accrue(delta);
@@ -183,6 +213,46 @@ namespace ERP.ACC.Domain.Entities
             if (result.Count > 0)
                 UpdatedAt = DateTime.UtcNow;
             return result;
+        }
+
+        /// <summary>
+        /// The interest owed on an installment up to <paramref name="date"/> (its period starts at the previous due date or the loan start). A loan counted by days: the
+        /// outstanding principal of each day × rate ÷ 365 / 360; a scheduled loan: the scheduled interest by the share of the period's days.
+        /// </summary>
+        public decimal InterestToDate(LoanInstallment installment, DateTime date)
+        {
+            var periodStart = StartDate;
+            foreach (var i in Installments.OrderBy(i => i.DueDate))
+            {
+                if (i == installment)
+                    break;
+                periodStart = i.DueDate;
+            }
+            var end = date.Date < installment.DueDate ? date.Date : installment.DueDate;
+            if (end <= periodStart)
+                return 0m;
+            if (DayCountBasis == (int)LoanDayCount.Schedule)
+            {
+                var days = Math.Max(1, (installment.DueDate - periodStart).Days);
+                return Math.Round(installment.InterestAmount * Math.Min(1m, (decimal)(end - periodStart).Days / days), 2);
+            }
+            return InterestOfPeriod(periodStart, end);
+        }
+
+        /// <summary>Σ over the days in [from, to) of outstanding principal × rate ÷ basis; a principal repaid on a day no longer earns interest from that day.</summary>
+        private decimal InterestOfPeriod(DateTime from, DateTime to)
+        {
+            var basis = DayCountBasis == (int)LoanDayCount.Actual360 ? 360m : 365m;
+            var paid = Installments.Where(i => i.PaidOn.HasValue).Select(i => (On: i.PaidOn!.Value.Date, i.PrincipalAmount)).ToList();
+            var perDay = InterestRatePercent / 100m / basis;
+            var total = 0m;
+            for (var d = from.Date; d < to.Date; d = d.AddDays(1))
+            {
+                var outstanding = Principal - paid.Where(p => p.On <= d).Sum(p => p.PrincipalAmount);
+                if (outstanding > 0m)
+                    total += outstanding * perDay;
+            }
+            return Math.Round(total, 2);
         }
 
         /// <summary>Takes an accrual back (the entry could not be posted, so the interest must not be remembered as accrued).</summary>

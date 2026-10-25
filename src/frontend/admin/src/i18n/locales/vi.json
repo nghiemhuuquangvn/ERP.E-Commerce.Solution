@@ -1752,6 +1752,11 @@
     "loans": {
       "receivingAccount": "Tài khoản nhận tiền (ngân hàng / tiền mặt)",
       "receivingDefault": "Ngân hàng của hồ sơ hạch toán",
+      "dayCount": "Cơ sở tính ngày của lãi",
+      "dayCountSchedule": "Theo lịch (lãi trong lịch chia theo ngày)",
+      "dayCount365": "Thực tế/365 (gốc × lãi suất ÷ 365)",
+      "dayCount360": "Thực tế/360 (gốc × lãi suất ÷ 360)",
+      "dayCountHint": "Thực tế/365 và thực tế/360 tính lãi từng ngày trên dư nợ gốc và cần có lãi suất; khi trả kỳ, lãi thực trả mặc định là lãi của các ngày đến ngày trả.",
       "accrueUpTo": "Trích lãi đến ngày",
       "accrue": "Trích lãi vay",
       "accrued": "Đã trích {{total}} cho {{count}} kỳ trả.",
