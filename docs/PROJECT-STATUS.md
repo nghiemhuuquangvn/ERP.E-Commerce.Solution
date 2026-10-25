@@ -36,7 +36,13 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
-### 2026-10-24 — ROADMAP P1-2e: amount unit and company header (`feat/report-profile`, unmerged)
+### 2026-10-25 — ROADMAP P1-2f: PDF export of B01 / B02 / B03 (`feat/pdf-export`, unmerged)
+- `format=pdf` on `statements/balance-sheet|income-statement|cash-flow` (`PdfWriter`, PDFsharp-MigraDoc 6 MIT; Noto Sans embedded via `PdfFonts`, OFL licence in `Reports/Fonts`); other reports → 400. Admin: "Export PDF" on the B01 / B02 / B03 tabs. No schema change.
+- Master (with P1-2e) was deployed first: all 18 services rebuilt one at a time (parallel builds made Docker Desktop drop the connection); then accounting + admin rebuilt for this branch.
+- Verified live on `glcheck`: three PDFs (76 / 62 / 65 KB) with correct Vietnamese, B01 on 2 pages, fonts embedded, signatories printed; 400 on trial-balance / flat cash-flow. Tests: ACC 227, Architecture 53/54 (known `NoSharedTokenKeyTests`), admin `tsc -b` clean.
+- Not done (P1-2g): indirect method, B09, off-balance accounts, maturity split, other charts.
+
+### 2026-10-24 — ROADMAP P1-2e: amount unit and company header (`feat/report-profile`, merged)
 - Table `ReportProfiles` (migration `012_ReportProfile.sql`, applied to the local DB), `GET/PUT accounting/reports/profile` (write needs `accounting:accounts:manage`): company name, tax code, address, three signatories, default unit.
 - B01 / B02 / B03 take `unit=vnd|thousand|million` (else the profile's unit, else VND): rows rounded half away from zero, totals added from the rounded rows, integrity checks on the exact amounts with a rounding-difference note; DTO has `unit`, `unitDivisor`, `header`.
   CSV / Excel print the company block above and the signatories below. Admin: unit selector, report-profile panel, header on screen.

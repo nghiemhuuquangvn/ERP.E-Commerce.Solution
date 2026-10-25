@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Domain** | Accounting (AccountingService, port 5005, code ACC) |
-| **Covers** | ROADMAP P1-1 … P1-1e (automatic posting), P1-2 (chart of accounts, void / reverse, closing), P1-2b (ledger, trial balance, cash flow), P1-2c (B01 / B02 statements, CSV), P1-2d (B03 cash-flow statement by indicator code, year-end closing policy, Excel export), **P1-2e (amount unit VND / thousand / million and company header on the statements)** |
+| **Covers** | ROADMAP P1-1 … P1-1e (automatic posting), P1-2 (chart of accounts, void / reverse, closing), P1-2b (ledger, trial balance, cash flow), P1-2c (B01 / B02 statements, CSV), P1-2d (B03 cash-flow statement by indicator code, year-end closing policy, Excel export), P1-2e (amount unit VND / thousand / million and company header on the statements), **P1-2f (PDF export of B01 / B02 / B03)** |
 | **Status** | Implemented and verified on the local Docker stack, 2026-10-24. Items still open are in [DEFERRED-ISSUES.md](../../DEFERRED-ISSUES.md). |
 | **Audience** | Product owner, chief accountant, QA, developers |
 | **Companion documents** | [AutoPosting.md](AutoPosting.md) (posting rules in detail), [ChartOfAccounts.md](ChartOfAccounts.md), [Reports.md](Reports.md), [event-catalog](../../architecture/event-catalog.md) |
@@ -33,12 +33,13 @@ A Vietnamese company must keep its books under the Vietnamese accounting standar
 | O8 | A company that closes its books once a year (not every month) can do so without writing twelve closing entries, and carry its balances into the new year without manual work. | FR-53 … FR-57. |
 | O9 | Reports can be handed to an auditor or a manager as a spreadsheet whose amounts are real numbers. | FR-52. |
 | O10 | The statements look like the filed forms: in thousand or million VND where the company files that way, headed by the company's name, tax code and address, with the signatories below. | FR-58 … FR-62. |
+| O11 | A statement can be printed or archived as a PDF that looks like the filed form, with the company header, the unit and the signatories, and agrees to the cent with the screen and the spreadsheets. | FR-63 … FR-66. |
 
 ### 1.3 Scope
 **In scope:** posting from sales, payment, purchasing, warehouse, POS, payroll, refunds and returns; chart of accounts and templates; manual entries, void, reverse; fiscal periods and closing;
 trial balance, ledger, profit and loss, balance sheet, cash flow, B01 / B02 / **B03** by indicator code; CSV and **Excel** export; **a closing policy (monthly or at year end)**; admin screens for all of it.
 **Out of scope (see section 15):** VAT, e-invoice, foreign currency, bank reconciliation, real payroll calculation (insurance, personal income tax), restocking of returned goods, B09 notes, indirect-method cash flow,
-off-balance (class 0) accounts, short- / long-term split by due date, PDF. Rounding and the header apply to B01 / B02 / B03 only; the trial balance and the ledger stay exact in VND.
+off-balance (class 0) accounts, short- / long-term split by due date, PDF of reports other than B01 / B02 / B03. Rounding and the header apply to B01 / B02 / B03 only; the trial balance and the ledger stay exact in VND.
 
 ---
 
@@ -81,6 +82,7 @@ off-balance (class 0) accounts, short- / long-term split by due date, PDF. Round
 | Closing policy | A tenant setting: **Monthly** (every period writes a closing entry — the original behaviour) or **YearEnd** (a period only locks; the last period of the year writes one closing entry). |
 | Report profile | A tenant setting holding the company block of the statements (name, tax code, address), the signatories (người lập biểu, kế toán trưởng, giám đốc) and the default amount unit. |
 | Amount unit (đơn vị tính) | VND, thousand VND or million VND. A statement shows every amount divided by the unit and rounded; the exact books are unchanged. |
+| PDF export | A print-ready A4 file of B01, B02 or B03 (`format=pdf`), built from the same data as the screen, CSV and Excel. Other reports (trial balance, ledger, flat cash flow) have no PDF. |
 | Rounding difference | The gap of one or a few units that appears when the rounded rows of two totals that are equal in exact VND (e.g. assets and sources) do not add to the same number. Normal on filed statements; reported in a note. |
 | Carry-forward (kết chuyển số dư) | Balance-sheet accounts keep their balance into the next year; revenue and expense accounts start the new year at zero because the closing entry cleared them. Balances here are cumulative, so no separate "opening entry" is written. |
 
@@ -200,6 +202,10 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | FR-60 | Rounding is per statement row; total rows add the rounded rows; the integrity checks (270 = 440, 70 = closing cash) are made on the exact amounts and a rounding difference is reported, not hidden. | M | P1-2e |
 | FR-61 | The statements and their CSV / Excel exports carry the company block above the title and the signatories below, and say the unit. | M | P1-2e |
 | FR-62 | The admin app has a *Unit* selector on the B01 / B02 / B03 tabs and a *Report profile* panel (editable only with `accounting:accounts:manage`). | M | P1-2e |
+| FR-63 | B01, B02 and B03 can be exported as **PDF** (`format=pdf`), A4 portrait: company block, centred title, period and unit line, indicator table, notes, signatories, page numbers. | M | P1-2f |
+| FR-64 | The PDF shows exactly the figures of the screen / CSV / Excel for the same request (same unit, rounding, prior column, unmapped list, notes, draft label). | M | P1-2f |
+| FR-65 | Vietnamese text (diacritics) prints correctly on any server: the font is embedded in the file, nothing depends on fonts installed on the machine. | M | P1-2f |
+| FR-66 | Every other report answers `format=pdf` with a clear refusal (HTTP 400) instead of silently returning JSON; the admin shows **Export PDF** only on the B01 / B02 / B03 tabs. | M | P1-2f |
 
 ### 5.5 Acceptance criteria of the P1-2d requirements
 (Scenarios are in section 12; the *UAT* column points at them.)
@@ -219,8 +225,17 @@ Priority: M = must, S = should. Source: ROADMAP item. Each requirement has accep
 | FR-58 | Given a tenant that never saved a profile, then GET returns empty texts and unit Vnd; after PUT the values are returned and kept per tenant; text longer than the limits (name 200, tax code 20, others 300) or a unit other than Vnd / Thousand / Million is refused (HTTP 400); a user without `accounting:accounts:manage` gets 403 on PUT. | UAT-40, 44 |
 | FR-59 | Given a profile with unit Thousand, then B01 / B02 / B03 are in thousand VND and say so; `unit=vnd` returns exact VND; `unit=foo` is refused (400); with no profile and no `unit` the amounts are plain VND. | UAT-41, 42 |
 | FR-60 | Given cash 1,400 and inventory 1,400 against equity 2,800 in thousands, then rows are 1 + 1 = 2 assets and 3 sources, `isBalanced` is still true and a note says "Rounding difference of −1 thousand VND …"; a sheet that is really unbalanced stays unbalanced; half amounts round away from zero (1,500 → 2; −1,500 → −2). | UAT-43 |
-| FR-61 | Given a filled profile, then the first lines of the CSV / sheet are the company name, tax code and address, the period line names the unit, and the last two lines are the signatory titles and names; a profile with only a name prints only the name and no signature block. | UAT-45 |
+| FR-61 | Given a filled profile, then the first lines of the CSV / sheet are the company name, tax code and address, the period line names the unit, and the last two lines are the signatory titles and names; a profile with only a name prints only the name and no signature block. | UAT-46 | Given the profile of tenant `glcheck` (company, tax code, address, three names, unit Thousand), when B01 31 Oct (prior 30 Sep), B02 October and B03 October are requested with `format=pdf`, then each answers 200 `application/pdf` with a `.pdf` file name and bytes starting `%PDF-` (76 KB, 62 KB, 65 KB). | FR-63 | Passed |
+| UAT-47 | When the three files are rendered to images and their text extracted, then the company block, titles, "Đơn vị tính: nghìn đồng", Vietnamese row names and the signature block are legible with all diacritics; B01 has 2 pages ("Trang 1/2"), B02 and B03 one; the file lists embedded Noto Sans Regular and Bold. | FR-63, 65 | Passed (visual check of rendered pages) |
+| UAT-48 | Given B01 with a prior date, then the PDF has the column "Số kỳ trước"; amounts equal the CSV of the same request; negatives print in parentheses; unmapped and notes are listed. | FR-64 | Passed (unit tests + live columns) |
+| UAT-49 | When `format=pdf` is requested on `trial-balance/full` and on the flat `cash-flow`, then HTTP 400 with the message of FR-66. | FR-66 | Passed |
+| UAT-50 | Given a profile with no text, when B02 is exported as PDF, then there is no company block and no signature block, and the table is unchanged; with only a name, only the name is printed. | BR-85, BR-91 | Unit test only |
+| UAT-45 |
 | FR-62 | Given a manager, then the profile panel saves; given a viewer, then its fields are read-only. | manual |
+| FR-63 | Given a tenant with a filled report profile, when B01 for 31 Oct is requested with `format=pdf`, then the answer is HTTP 200, `application/pdf`, file `balance-sheet-b01-<timestamp>.pdf`, the bytes start with `%PDF-`, and the file has the company block, the title, "Tại ngày 31/10/2026 — Đơn vị tính: nghìn đồng", the rows with codes, and the three signatories; B01 (≈ 100 rows) runs over two pages with the table header repeated and "Trang 1/2" in the footer; B02 and B03 each fit one page. | UAT-46, 47 |
+| FR-64 | Given the same request as CSV, then every code and amount in the PDF equals the CSV (same rounding in the same unit); a comparison range adds the column "Số kỳ trước"; unmapped accounts and notes are listed in small print; negatives are in parentheses; thousands are separated by a dot (1.234.567). | UAT-48 |
+| FR-65 | Given a Linux container without fonts, then the PDF still shows "Bảng cân đối kế toán", "Kế toán trưởng", "Nguyễn Văn A" with all diacritics, and the file's fonts are embedded Noto Sans (regular and bold). | UAT-47 |
+| FR-66 | When `format=pdf` is requested on `trial-balance/full`, `account-ledger` or `cash-flow`, then HTTP 400 "PDF is available for the statements B01, B02 and B03 only; use csv or xlsx for this report."; the Export PDF button exists on the B01, B02 and B03 tabs only. | UAT-49 |
 
 ---
 
@@ -347,6 +362,17 @@ Row mapping (account prefix → row; "In" = cash received, "Out" = cash paid):
 *Worked example (thousand VND).* Cash 1,400 and inventory 1,400 are assets; equity is 2,800. Exact: 2,800 = 2,800. Rounded rows: cash 1, inventory 1 → total assets 2; equity 3 → total sources 3. The statement shows 2 and 3, says
 "Rounding difference of −1 thousand VND between total assets (270) and total sources (440): the exact amounts agree" and `isBalanced` is true. On the local test tenant, 3,300 VND of assets split over several rows showed 4 against 3 the same way.
 
+### 6.12 PDF export (P1-2f)
+| ID | Rule |
+|---|---|
+| BR-87 | The PDF is built from the **statement data** (the same result as the JSON answer), never from a copy of the books, so it cannot disagree with the screen, the CSV or the Excel. It writes nothing to the books. |
+| BR-88 | Page: A4 portrait, margins 2 cm left / 1.5 cm right / 1.8 cm top and bottom. Order: company block (name, "Mã số thuế", "Địa chỉ" — only the filled lines), centred title, the line "Bản nháp — kế toán cần rà soát trước khi nộp" while the layout is a draft, the period line (B01: "Tại ngày …"; B02 / B03: "Từ … đến …") with "Đơn vị tính: đồng / nghìn đồng / triệu đồng", the table, the balanced check (B01 / B03), unmapped lines and notes in small print, the signature block, the footer "Trang x/y". |
+| BR-89 | Table columns: "Mã số" · "Chỉ tiêu" · "Số cuối kỳ" · "Số kỳ trước" (the last only when a comparison was asked for). Rows are indented by level, total rows are bold, the header row repeats on every page. |
+| BR-90 | Number format: dot as thousands separator, negatives in parentheses, no decimals when the amount is whole (always true in thousand / million); an exact-VND amount with a fraction shows a decimal comma and two digits. |
+| BR-91 | The signature block (Người lập biểu / Kế toán trưởng / Giám đốc, with the names below) is printed only if at least one signatory is filled in the report profile, and is kept together on one page. |
+| BR-92 | The font (Noto Sans, SIL Open Font License) is embedded in the application and in the PDF; the licence text is shipped with it. There is no digital signature and the file is not PDF/A. |
+| BR-93 | PDF needs the same permission as the other exports (`accounting:reports:view`); only B01, B02 and B03 have it (BR-79 stays true for CSV and Excel). |
+
 ### 6.11 Export
 | ID | Rule |
 |---|---|
@@ -417,6 +443,13 @@ Row mapping (account prefix → row; "In" = cash received, "Out" = cash paid):
 *Main flow:* 1. Reports → B01, B02 or B03 → open *Report profile* → 2. enter company name, tax code, address, người lập biểu, kế toán trưởng, giám đốc and the default unit → 3. Save → 4. the statements now show the company block, the unit and the signatories, and the exports carry them.
 *Alternative flows:* A1 — pick another unit for one look without changing the profile: use the *Unit* selector of the tab (it sends `unit`). A2 — leave texts empty: those lines are not printed.
 *Exceptions:* a text above its limit or an unknown unit → refused with the reason (400); no permission → 403 (the fields are read-only on screen). *Post:* only the presentation of later reports changes; no amount in the books changes.
+
+### UC-15 Export a statement as PDF
+*Actor:* accountant / chief accountant / auditor (`accounting:reports:view`). *Pre:* B01, B02 or B03 shows the wanted period; the report profile is filled in if the company block and signatories are wanted (UC-14).
+*Main flow:* 1. Reports → B01 / B02 / B03 → choose date(s), optional prior period and unit → 2. press **Export PDF** → 3. the browser downloads `<report>-<timestamp>.pdf` → 4. open it: company block, title, unit, table, notes, signatories, page numbers → 5. print or archive; the chief accountant reviews the draft rows before filing.
+*Alternative flows:* A1 — a prior period is ticked: the PDF gets the extra column. A2 — the unit selector is changed: the PDF is in that unit. A3 — profile empty: no company block and no signature block, the table and notes are still printed.
+*Exceptions:* invalid dates, unknown unit or a comparison with one date → the same refusal (400) as the screen; no permission → 403; the screen shows "Export failed". A direct API call with `format=pdf` on another report → 400 (FR-66).
+*Post:* nothing is written to the books. *Not covered:* digital signature, PDF/A, landscape or other paper sizes (DEFERRED W1).
 
 ### UC-13 Export a report to Excel
 *Actor:* any user with `accounting:reports:view`. *Main flow:* on any report tab press **Export Excel** → the browser downloads `<report>-<timestamp>.xlsx` → open it: amounts are numbers (sortable, summable), the header row is frozen.
@@ -575,7 +608,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 | Close / reopen period | | | manage | | |
 | View the closing policy | | | view | | |
 | Change the closing policy | | | manage | | |
-| Any report (incl. B03) and CSV / Excel export | | | | view | |
+| Any report (incl. B03) and CSV / Excel export; PDF of B01 / B02 / B03 | | | | view | |
 | View the report profile | | | | view | |
 | Change the report profile (header, signatories, unit) | manage | | | | |
 | Pay / cancel a pay slip | | | | | `hrm:payroll:manage` |
@@ -590,6 +623,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 2. The Vietnamese chart and the statement layouts are **suggested drafts** based on Circular 200's numbering (largely kept by Circular 99/2025/TT-BTC); the accountant reviews them before real use.
 3. The SYSTEM tenant and the demo data stay on the 14-account chart.
 4. Fiscal periods are normally months and are opened by the accountant (or automatically for posting); closing is monthly unless the tenant chose YearEnd. The fiscal year is the twelve months ending in the policy's year-end month; periods of one year are assumed to be contiguous.
+4c. The PDF is A4 portrait with one embedded font (Noto Sans, OFL); the statements are the only reports with a PDF; no digital signature, no PDF/A; the file is generated on demand and not stored.
 4b. Rounding is half away from zero per statement row and totals follow the rounded rows (the common practice on filed forms); the profile is edited with the chart-level permission `accounting:accounts:manage` because no dedicated permission exists yet; one profile per tenant (one legal entity).
 4a. The B03 row mapping (6.8) is a draft by account prefix; salary payments are recognised by the payroll-payable account (334), so a salary paid straight from expense accounts lands in row 02, and withholdings paid to the authorities (3388, 3382 … 3384) land in row 07.
 5. Warehouse owns costing; Accounting never computes a cost.
@@ -601,7 +635,7 @@ Verified on the local Docker stack on 2026-10-24 unless marked *unit test only*.
 
 Full list with owners and impact: [DEFERRED-ISSUES.md](../../DEFERRED-ISSUES.md). The business-relevant ones:
 VAT split and e-invoice (P1-3); foreign currency and bank reconciliation (P1-4); restocking of returned goods and reversing their cost, and triggering the refund from a return (P1-5); real payroll with insurance, personal income tax and employer
-contributions (P1-7); indirect-method cash flow, B09 notes, off-balance (class 0) accounts, short- / long-term split by due date, PDF export, layouts for charts other than `Vas99` (P1-2f);
+contributions (P1-7); indirect-method cash flow, B09 notes, off-balance (class 0) accounts, short- / long-term split by due date, layouts for charts other than `Vas99` (P1-2g); PDF of the other reports, digital signature / PDF-A, other paper sizes (DEFERRED W1);
 no automatic back-posting of documents that were saved without an entry; accountant review of the Vietnamese chart and the B01 / B02 / B03 layouts.
 Open questions for the chief accountant: (1) is the B03 row mapping right for the company's usual transactions (VAT paid, withholdings, deposits)? (2) does the company want the fiscal year to end in December? (3) should a year-end preview
 (what would be closed) be shown before closing December?
@@ -621,5 +655,6 @@ Open questions for the chief accountant: (1) is the B03 row mapping right for th
 | P1-2b ledger, trial balance, cash flow | 2026-10-24 | FR-24, 40, 41, 44; BR-50 … 52 | Reports.md | `LedgerAndTrialBalanceTests`, `CashFlowTests` |
 | P1-2c B01 / B02, CSV | 2026-10-24 | FR-45, 46; BR-60 … 63 | Reports.md | `StatementTests`, `StatementHandlerAndCsvTests` |
 | BA baseline (this document) | 2026-10-24 | All | — | — |
+| P1-2f PDF export of B01 / B02 / B03 | 2026-10-25 | FR-63 … 66; BR-87 … 93; UC-15; UAT-46 … 50 | Reports.md | `PdfWriterTests` (11 tests) + live render check |
 | P1-2e amount unit, company header | 2026-10-24 | FR-58 … 62; BR-80 … 86; UC-14; UAT-40 … 45 | Reports.md | `RoundingTests`, `ReportProfileTests`, `XlsxWriterTests`, `LiveSchemaDriftTests` (migration 012) |
 | P1-2d B03, year-end closing policy, Excel | 2026-10-24 | FR-48 … 57; BR-64 … 79; UC-10 … 13; UAT-25 … 39 | Reports.md, ChartOfAccounts.md | `CashFlowStatementTests`, `XlsxWriterTests`, `YearEndClosingTests`, `PeriodClosingTests`, `LiveSchemaDriftTests` (migration 011) |

@@ -1,7 +1,7 @@
 # Deferred issues
 
 Problems found while working through the ROADMAP that were **not fixed on purpose** (out of the plan's scope, needs a decision, or needs another roadmap item first).
-Handle them after the main roadmap tasks; each plan that touches one of them should update its row. Last updated: 2026-10-24 (P1-2e done).
+Handle them after the main roadmap tasks; each plan that touches one of them should update its row. Last updated: 2026-10-24 (P1-2f done).
 
 How to read: **Source** = where it was found; **Home** = the roadmap item or kind of work that should pick it up; **Impact** = why it matters.
 
@@ -73,11 +73,10 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 |---|---|---|
 | T1 | The B01 / B02 rows and account groups are a **draft** written from the Circular 200 forms; they are not checked against the official Circular 99/2025 forms and need an accountant's review before filing. | Accountant review |
 | T2 | B01 has no maturity data: short- vs long-term is decided by the account (341 short, 343 / 344 long, 242 long). | P1-2e (due dates on receivables / payables / loans) |
-| T3 | Layouts (B01, B02, B03) exist for the `Vas99` chart only; a tenant on another chart sees every account under "unmapped". Layouts are code, not editable per tenant. | P1-2f |
-| T4 | B03 exists by indicator code (direct method) but there is no indirect method; B09 notes are missing. | P1-2f |
-| T5 | The comparison column is whatever date the user picks (no automatic same-period-last-year). Amounts can now be shown in thousand / million VND (P1-2e). | P1-2f |
-| T6 | CSV numbers use a dot decimal separator (Excel export has real numbers). No PDF export. | P1-2f |
-| T7 | Off-balance accounts (class 0) are not built (single-entry postings break the 2-line rule). | P1-2f |
+| T3 | Layouts (B01, B02, B03) exist for the `Vas99` chart only; a tenant on another chart sees every account under "unmapped". Layouts are code, not editable per tenant. | P1-2g |
+| T4 | B03 exists by indicator code (direct method) but there is no indirect method; B09 notes are missing. | P1-2g |
+| T5 | The comparison column is whatever date the user picks (no automatic same-period-last-year). Amounts can now be shown in thousand / million VND (P1-2e). | P1-2g |
+| T7 | Off-balance accounts (class 0) are not built (single-entry postings break the 2-line rule). | P1-2g |
 | T8 | Production-cost accounts 621 / 622 / 627 are not on B01 / B02 by design; a tenant that posts to them directly sees them under "unmapped" until the cost flow to 154 / 632 exists. | Manufacturing, if ever |
 
 ## 4d. B03, closing policy, Excel (P1-2d follow-ups)
@@ -85,7 +84,7 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | # | Issue | Home |
 |---|---|---|
 | U1 | The B03 row mapping (prefix → row) is a draft: e.g. withholdings paid (3382 … 3384, 3388) and VAT remitted (3331 out) land in "other payments" (07); salary paid straight from expense accounts lands in row 02. Needs the accountant's review. | Accountant review |
-| U2 | No preview of what the year-end entry will close, no warning when a month of the year has no fiscal period (the SYSTEM demo tenant has no September 2026). The year-end entry simply closes whatever is still open. | P1-2f |
+| U2 | No preview of what the year-end entry will close, no warning when a month of the year has no fiscal period (the SYSTEM demo tenant has no September 2026). The year-end entry simply closes whatever is still open. | P1-2g |
 | U3 | The closing policy has no change history (only the row's updated timestamp); the policy is per tenant, not per legal entity. | Audit, if needed |
 | U4 | The year-end entry is built from cumulative balances up to the period end; backdated prior-year corrections in a closed year are impossible (periods are locked) — they must be booked in the current year. | Policy decision |
 
@@ -98,7 +97,16 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | V3 | The report profile is edited with `accounting:accounts:manage` (no dedicated permission); one profile per tenant (one legal entity); no history of changes. | Permissions work |
 | V4 | The header has no logo, no filing date / place line ("Lập, ngày … tháng … năm …") and no signature images. | P1-2f, if wanted |
 
+## 4f. PDF export (P1-2f follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| W1 | PDF exists for B01 / B02 / B03 only; no digital signature, not PDF/A, A4 portrait only (a wide statement with a prior column fits; landscape / other sizes are not offered). | If needed |
+| W2 | The PDF header has no logo and no "Lập, ngày … tháng … năm …" line (see V4); PDF text is Vietnamese only (the screens have English / Vietnamese). | P1-2g, if wanted |
+| W3 | The embedded font adds about 1.2 MB to the Accounting image; PDFs are generated per request in memory (a very long statement with many rows is fine, a bulk batch job would need queuing). | Performance, if needed |
+| W4 | The PDF was checked by rendering pages to images and reading the extracted text; there is no automated visual-regression test. | QA |
+
 ## 5. Roadmap items these issues are waiting for
 
-P0-10 least-privilege SQL · P1-2f indirect cash flow, B09, off-balance accounts, maturity split, PDF · P1-3 VAT and e-invoice · P1-4 foreign currency and bank reconciliation ·
+P0-10 least-privilege SQL · P1-2g indirect cash flow, B09, off-balance accounts, maturity split, other charts · P1-3 VAT and e-invoice · P1-4 foreign currency and bank reconciliation ·
 P1-5 saga completion and returns · P1-6 notifications · P1-7 real payroll.
