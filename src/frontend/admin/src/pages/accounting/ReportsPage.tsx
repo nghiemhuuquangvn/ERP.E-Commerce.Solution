@@ -5,6 +5,8 @@ import { reportsApi, downloadReport } from '@/api/accounting/reports.api'
 import type { AmountUnit, FinancialStatement, ReportProfile } from '@/api/accounting/reports.api'
 import type { FinancialAccountLineDto, CashFlowSection } from '@/api/accounting/reports.api'
 import { accountsApi } from '@/api/accounting/accounts.api'
+import { offBalanceApi } from '@/api/accounting/off-balance.api'
+import type { OffBalanceLine } from '@/api/accounting/off-balance.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { usePermission } from '@/hooks/usePermission'
 
@@ -729,11 +731,62 @@ function BalanceSheetPanel() {
   )
 }
 
+/** The off-balance register per account for a range (class 0 accounts; not part of the balance sheet). */
+function OffBalancePanel() {
+  const { t } = useTranslation()
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState(todayISODate())
+  const ready = !!fromDate && !!toDate
+  const { data, isLoading } = useQuery({
+    queryKey: ['accounting', 'reports', 'offBalance', fromDate, toDate],
+    queryFn: () => offBalanceApi.report({ fromDate, toDate }),
+    enabled: ready,
+    staleTime: 15_000,
+  })
+  const columns = useMemo(
+    () => [
+      { key: 'accountNumber', label: t('accounting.offBalance.account'), render: (l: OffBalanceLine) => `${l.accountNumber} ${l.accountName}` },
+      { key: 'opening', label: t('accounting.offBalance.opening'), render: (l: OffBalanceLine) => l.opening.toLocaleString() },
+      { key: 'in', label: t('accounting.offBalance.dirIn'), render: (l: OffBalanceLine) => l.in.toLocaleString() },
+      { key: 'out', label: t('accounting.offBalance.dirOut'), render: (l: OffBalanceLine) => l.out.toLocaleString() },
+      {
+        key: 'closing',
+        label: t('accounting.offBalance.closing'),
+        render: (l: OffBalanceLine) => <span className={l.isNegative ? 'font-semibold text-red-700' : ''}>{l.closing.toLocaleString()}</span>,
+      },
+    ],
+    [t],
+  )
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.fromDate')}</label>
+          <input type="date" className="input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.toDate')}</label>
+          <input type="date" className="input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        </div>
+        <ExportButton path="off-balance" params={{ fromDate, toDate }} name="off-balance.csv" disabled={!ready} />
+      </div>
+      {ready && <DataTable columns={columns} data={(data?.lines ?? []).map((l) => ({ id: l.accountNumber, ...l }))} isLoading={isLoading} />}
+      {data && data.notes.length > 0 && (
+        <ul className="list-disc space-y-1 pl-5 text-xs text-gray-500">
+          {data.notes.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export function ReportsPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const canView = hasPermission('accounting:reports:view')
-  const [tab, setTab] = useState<'trial-balance' | 'ledger' | 'profit-and-loss' | 'balance-sheet' | 'cash-flow' | 'b01' | 'b02' | 'b03'>('trial-balance')
+  const [tab, setTab] = useState<'trial-balance' | 'ledger' | 'profit-and-loss' | 'balance-sheet' | 'cash-flow' | 'b01' | 'b02' | 'b03' | 'off-balance'>('trial-balance')
 
   if (!canView) {
     return <p className="text-sm text-gray-400">{t('common.noPermission')}</p>
@@ -748,6 +801,7 @@ export function ReportsPage() {
     { key: 'b01', label: t('accounting.reports.tabB01') },
     { key: 'b02', label: t('accounting.reports.tabB02') },
     { key: 'b03', label: t('accounting.reports.tabB03') },
+    { key: 'off-balance', label: t('accounting.offBalance.tab') },
   ]
 
   return (
@@ -778,6 +832,7 @@ export function ReportsPage() {
       {tab === 'b01' && <StatementPanel kind="balance-sheet" />}
       {tab === 'b02' && <StatementPanel kind="income-statement" />}
       {tab === 'b03' && <StatementPanel kind="cash-flow" />}
+      {tab === 'off-balance' && <OffBalancePanel />}
     </div>
   )
 }

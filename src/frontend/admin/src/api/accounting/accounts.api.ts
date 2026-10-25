@@ -1,7 +1,7 @@
 import { apiClient, ACC_BASE } from './accClient'
 
 // Mirrors ERP.ACC.Domain.Enums.AccountType (src/services/AccountingService/src/ERP.ACC.Domain/Enums/AccountingEnums.cs)
-export type AccountType = 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense'
+export type AccountType = 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense' | 'OffBalance'
 
 // Mirrors ERP.ACC.Domain.Enums.NormalBalance
 export type NormalBalance = 'Debit' | 'Credit'
@@ -17,6 +17,8 @@ export const ACCOUNT_TYPE_OPTIONS: { value: number; label: AccountType }[] = [
   { value: 3, label: 'Equity' },
   { value: 4, label: 'Revenue' },
   { value: 5, label: 'Expense' },
+  // class 0 (001 – 008): tracked in the off-balance register, never in a journal entry
+  { value: 6, label: 'OffBalance' },
 ]
 
 export const NORMAL_BALANCE_OPTIONS: { value: number; label: NormalBalance }[] = [

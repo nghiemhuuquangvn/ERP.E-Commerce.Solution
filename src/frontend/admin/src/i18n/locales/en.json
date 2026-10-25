@@ -114,6 +114,7 @@
     "accountingInvoices": "Invoices",
     "accountingBills": "Bills",
     "accountingFiscalPeriods": "Fiscal Periods",
+    "accountingOffBalance": "Off-balance Register",
     "accountingTaxRates": "Tax Rates",
     "accountingBankAccounts": "Bank Accounts",
     "accountingReports": "Accounting Reports",
@@ -1728,6 +1729,15 @@
       "isCash": "Cash or bank account",
       "cashFlowCategory": "Cash-flow category",
       "cashFlowDefault": "Default"
+    },
+    "offBalance": {
+      "title": "Off-balance Register",
+      "tab": "Off-balance (class 0)",
+      "hint": "Accounts 001 – 008 (leased assets, goods held for others, foreign currency …) have no double entry: record each movement here. They are not part of the balance sheet.",
+      "account": "Account", "direction": "Direction", "dirIn": "In", "dirOut": "Out", "amount": "Amount", "date": "Date",
+      "description": "Description", "reference": "Reference", "add": "Add entry", "void": "Void", "voidTitle": "Void off-balance entry",
+      "filterAccount": "Account", "allAccounts": "All accounts", "opening": "Opening", "closing": "Closing",
+      "failed": "The off-balance entry could not be saved."
     },
     "fiscalPeriods": {
       "title": "Fiscal Periods",

@@ -114,6 +114,7 @@
     "accountingInvoices": "Hóa đơn",
     "accountingBills": "Hóa đơn mua",
     "accountingFiscalPeriods": "Kỳ kế toán",
+    "accountingOffBalance": "Sổ ngoài bảng",
     "accountingTaxRates": "Thuế suất",
     "accountingBankAccounts": "Tài khoản ngân hàng",
     "accountingReports": "Báo cáo Kế toán",
@@ -1728,6 +1729,15 @@
       "isCash": "Tài khoản tiền (tiền mặt, ngân hàng)",
       "cashFlowCategory": "Nhóm dòng tiền",
       "cashFlowDefault": "Mặc định"
+    },
+    "offBalance": {
+      "title": "Sổ theo dõi ngoài bảng",
+      "tab": "Ngoài bảng (loại 0)",
+      "hint": "Các tài khoản 001 – 008 (tài sản thuê ngoài, hàng giữ hộ, ngoại tệ …) không ghi sổ kép: ghi từng biến động tại đây. Chúng không nằm trong bảng cân đối kế toán.",
+      "account": "Tài khoản", "direction": "Chiều", "dirIn": "Tăng", "dirOut": "Giảm", "amount": "Số tiền", "date": "Ngày",
+      "description": "Diễn giải", "reference": "Chứng từ", "add": "Thêm", "void": "Hủy", "voidTitle": "Hủy bút toán ngoài bảng",
+      "filterAccount": "Tài khoản", "allAccounts": "Tất cả tài khoản", "opening": "Đầu kỳ", "closing": "Cuối kỳ",
+      "failed": "Không lưu được bút toán ngoài bảng."
     },
     "fiscalPeriods": {
       "title": "Kỳ kế toán",
