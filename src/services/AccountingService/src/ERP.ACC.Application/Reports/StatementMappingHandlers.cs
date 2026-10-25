@@ -37,6 +37,12 @@ namespace ERP.ACC.Application.Reports
     {
         public string StatementId { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
+
+        /// <summary>False for B03 and the notes: they work on movements and tables, so the "balances taken" choice has no effect.</summary>
+        public bool SideApplies { get; set; } = true;
+
+        /// <summary>True when the unmapped accounts are listed on the report itself (B03) or do not exist (B09), not here.</summary>
+        public bool UnmappedOnReport { get; set; }
         public List<StatementMappingRowDto> Rows { get; set; } = new();
 
         /// <summary>Accounts with postings that no row of the statement takes (neither the standard layout nor the tenant's mapping).</summary>
@@ -64,11 +70,7 @@ namespace ERP.ACC.Application.Reports
 
     internal static class StatementMappingRules
     {
-        public static bool IsMappable(StatementRow row) => row.Formula.Count == 0 && row.Special == null;
-
-        public static StatementLayout RequireLayout(string statementId, IEnumerable<Account> accounts) =>
-            StatementLayouts.For(statementId ?? string.Empty, accounts)
-            ?? throw new BusinessRuleException("Accounting", $"Unknown statement '{statementId}'. Use {StatementLayouts.BalanceSheet} or {StatementLayouts.IncomeStatement}.");
+        public static MappingStatement Require(string statementId, IReadOnlyCollection<Account> accounts) => StatementMappingCatalog.Get(statementId, accounts);
 
         public static BalanceSide ParseSide(string? side) =>
             string.IsNullOrWhiteSpace(side) ? BalanceSide.Net
@@ -78,20 +80,19 @@ namespace ERP.ACC.Application.Reports
         public static async Task<StatementMappingDto> LoadAsync(IAccountingUnitOfWork uow, string statementId, CancellationToken ct)
         {
             var accounts = await uow.Accounts.GetAllAsync(ct);
-            var standard = RequireLayout(statementId, accounts);
-            var mappings = (await uow.StatementMappings.GetAllAsync(ct)).Where(m => m.StatementId == standard.Id).ToList();
-            var effective = StatementLayouts.WithMappings(standard, mappings);
+            var statement = Require(statementId, accounts);
+            var mappings = (await uow.StatementMappings.GetAllAsync(ct)).Where(m => m.StatementId == statement.Id).ToList();
 
-            var dto = new StatementMappingDto { StatementId = standard.Id, Title = standard.Title };
-            foreach (var row in standard.Rows)
+            var dto = new StatementMappingDto { StatementId = statement.Id, Title = statement.Title, SideApplies = statement.UsesSide, UnmappedOnReport = !statement.UsesSide };
+            foreach (var row in statement.Rows)
             {
                 dto.Rows.Add(new StatementMappingRowDto
                 {
                     Code = row.Code,
                     Name = row.Name,
                     Indent = row.Indent,
-                    IsMappable = IsMappable(row),
-                    StandardPrefixes = row.Terms.Select(t => t.Prefix).ToList(),
+                    IsMappable = row.IsMappable,
+                    StandardPrefixes = row.StandardPrefixes.ToList(),
                     Mappings = mappings.Where(m => m.RowCode == row.Code).Select(m => new StatementMappingValueDto
                     {
                         AccountPrefix = m.AccountPrefix, Side = ((BalanceSide)m.Side).ToString(),
@@ -99,20 +100,24 @@ namespace ERP.ACC.Application.Reports
                 });
             }
 
-            // accounts the statement is about that have postings and that no row takes
-            var types = effective.AccountTypes.Select(t => (int)t).ToHashSet();
-            var prefixes = effective.Rows.SelectMany(r => r.Terms).Select(t => t.Prefix).ToList();
-            // the balance sheet shows balances (an account that nets to zero is not a problem); the income statement shows the activity of the year, closing entries left out
-            var moved = standard.Id == StatementLayouts.BalanceSheet
-                ? (await uow.JournalLines.GetAccountBalancesAsync(null, null, null, ct)).Where(b => b.TotalDebit != b.TotalCredit)
-                : (await uow.JournalLines.GetActivityBalancesAsync(null, null, JournalEntry.PeriodClosingType, ct)).Where(b => b.TotalDebit != 0m || b.TotalCredit != 0m);
-            var movedIds = moved.Select(b => b.AccountId).ToHashSet();
-            dto.Unmapped = accounts
-                .Where(a => types.Contains(a.AccountType) && movedIds.Contains(a.Id))
-                .Where(a => !prefixes.Any(p => a.AccountNumber.StartsWith(p, StringComparison.Ordinal)))
-                .OrderBy(a => a.AccountNumber)
-                .Select(a => new StatementUnmappedAccountDto { AccountNumber = a.AccountNumber, AccountName = a.Name })
-                .ToList();
+            // B01 / B02: accounts the statement is about that have postings and that no row takes (B03 shows its unmapped movements on the report)
+            if (statement.UsesSide)
+            {
+                var effective = StatementLayouts.WithMappings(StatementLayouts.For(statement.Id, accounts)!, mappings);
+                var types = effective.AccountTypes.Select(t => (int)t).ToHashSet();
+                var prefixes = effective.Rows.SelectMany(r => r.Terms).Select(t => t.Prefix).ToList();
+                // the balance sheet shows balances (an account that nets to zero is not a problem); the income statement shows the activity of the year, closing entries left out
+                var moved = statement.Id == StatementLayouts.BalanceSheet
+                    ? (await uow.JournalLines.GetAccountBalancesAsync(null, null, null, ct)).Where(b => b.TotalDebit != b.TotalCredit)
+                    : (await uow.JournalLines.GetActivityBalancesAsync(null, null, JournalEntry.PeriodClosingType, ct)).Where(b => b.TotalDebit != 0m || b.TotalCredit != 0m);
+                var movedIds = moved.Select(b => b.AccountId).ToHashSet();
+                dto.Unmapped = accounts
+                    .Where(a => types.Contains(a.AccountType) && movedIds.Contains(a.Id))
+                    .Where(a => !prefixes.Any(p => a.AccountNumber.StartsWith(p, StringComparison.Ordinal)))
+                    .OrderBy(a => a.AccountNumber)
+                    .Select(a => new StatementUnmappedAccountDto { AccountNumber = a.AccountNumber, AccountName = a.Name })
+                    .ToList();
+            }
             return dto;
         }
     }
@@ -136,7 +141,7 @@ namespace ERP.ACC.Application.Reports
         public async Task<StatementMappingDto> Handle(UpdateStatementMappingCommand request, CancellationToken ct)
         {
             var accounts = await _uow.Accounts.GetAllAsync(ct);
-            var standard = StatementMappingRules.RequireLayout(request.StatementId, accounts);
+            var standard = StatementMappingRules.Require(request.StatementId, accounts);
             var inputs = request.Mappings ?? new List<StatementMappingInput>();
 
             var seen = new HashSet<string>();
@@ -145,7 +150,7 @@ namespace ERP.ACC.Application.Reports
                 var prefix = (input.AccountPrefix ?? string.Empty).Trim();
                 var row = standard.Rows.FirstOrDefault(r => r.Code == input.RowCode)
                     ?? throw new BusinessRuleException("Accounting", $"Row {input.RowCode} does not exist on {standard.Id}.");
-                if (!StatementMappingRules.IsMappable(row))
+                if (!row.IsMappable)
                     throw new BusinessRuleException("Accounting", $"Row {row.Code} ({row.Name}) is a total or a computed row: it takes no account.");
                 if (prefix.Length == 0 || prefix.Length > 30)
                     throw new BusinessRuleException("Accounting", "An account number prefix is required (up to 30 characters).");
@@ -154,7 +159,7 @@ namespace ERP.ACC.Application.Reports
                     throw new BusinessRuleException("Accounting", $"No account number starts with '{prefix}'.");
                 if (!seen.Add(prefix))
                     throw new BusinessRuleException("Accounting", $"The prefix '{prefix}' is mapped twice: an account would be counted in two rows.");
-                var placed = standard.Rows.FirstOrDefault(r => r.Terms.Any(t => t.Prefix == prefix));
+                var placed = standard.Rows.FirstOrDefault(r => r.StandardPrefixes.Contains(prefix));
                 if (placed != null)
                     throw new BusinessRuleException("Accounting", $"The prefix '{prefix}' is already placed by the standard layout in row {placed.Code}.");
             }

@@ -249,7 +249,7 @@ public class IndirectCashFlowTests
         lines.Setup(l => l.GetCashEntryLinesAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<CashEntryLine>());
         var profiles = new Mock<IReportProfileRepository>();
-        return (new GetCashFlowStatementQueryHandler(accounts.Object, lines.Object, profiles.Object), lines);
+        return (new GetCashFlowStatementQueryHandler(accounts.Object, lines.Object, profiles.Object, new Mock<IStatementMappingRepository>().Object), lines);
     }
 
     private static GetCashFlowStatementQuery Query(string? method) =>

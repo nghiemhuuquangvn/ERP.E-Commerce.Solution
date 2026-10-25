@@ -36,6 +36,23 @@ namespace ERP.ACC.Application.Reports
         /// <summary>B03-DN for the platform's 14-account chart (<c>Simple14</c>), same row codes where a row exists.</summary>
         public static CashFlowLayout Simple14Layout { get; } = BuildSimple14();
 
+        /// <summary>
+        /// The layout with a tenant's own accounts added (ROADMAP P1-2k): a mapping adds a term to a row that takes counter-accounts; the movement counts in the direction of the
+        /// row's own terms. Formula, fallback and special rows ignore a mapping.
+        /// </summary>
+        public static CashFlowLayout WithMappings(CashFlowLayout layout, IEnumerable<ERP.ACC.Domain.Entities.StatementAccountMapping>? mappings)
+        {
+            var own = (mappings ?? Enumerable.Empty<ERP.ACC.Domain.Entities.StatementAccountMapping>()).Where(m => m.StatementId == layout.Id).ToList();
+            if (own.Count == 0)
+                return layout;
+            var rows = layout.Rows.Select(row =>
+            {
+                var extra = own.Where(m => m.RowCode == row.Code).Select(m => new CashFlowTerm(m.AccountPrefix, row.Terms.Count > 0 && row.Terms[0].Inflow)).ToList();
+                return extra.Count == 0 || row.Formula.Count > 0 || row.Special != null || row.Terms.Count == 0 ? row : row with { Terms = row.Terms.Concat(extra).ToList() };
+            }).ToList();
+            return layout with { Rows = rows, Notes = layout.Notes.Concat(new[] { "The tenant's own account mapping is applied to this statement." }).ToList() };
+        }
+
         /// <summary>The layout for a chart (<see cref="ERP.ACC.Application.Posting.ChartTemplates.Detect"/>).</summary>
         public static CashFlowLayout For(string chartTemplate) => chartTemplate == "Simple14" ? Simple14Layout : Layout;
 

@@ -131,12 +131,14 @@ namespace ERP.ACC.Application.Reports
         private readonly ILoanRepository _loans;
         private readonly IOffBalanceRepository _offBalance;
         private readonly INoteTextRepository _texts;
+        private readonly IStatementMappingRepository _mappings;
 
         public GetNotesQueryHandler(
             IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles, IClosingPolicyRepository policies,
             IInvoiceRepository invoices, IBillRepository bills, ILoanRepository loans, IOffBalanceRepository offBalance, INoteTextRepository texts,
-            IPaymentApplicationRepository payments)
+            IPaymentApplicationRepository payments, IStatementMappingRepository mappings)
         {
+            _mappings = mappings;
             _accounts = accounts;
             _lines = lines;
             _profiles = profiles;
@@ -167,7 +169,7 @@ namespace ERP.ACC.Application.Reports
             var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
             var divisor = ReportProfileMapper.Divisor(unit);
             var chart = ChartTemplates.Detect(accounts);
-            var prefixes = NotePrefixes.For(chart);
+            var prefixes = NoteMappingRows.WithMappings(NotePrefixes.For(chart), await _mappings.GetAllAsync(cancellationToken));
 
             async Task<NoteLedger> LedgerFor(DateTime f, DateTime t)
             {

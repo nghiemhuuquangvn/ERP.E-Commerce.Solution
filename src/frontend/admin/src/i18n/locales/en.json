@@ -1732,6 +1732,7 @@
       "cashFlowDefault": "Default"
     },
     "mapping": {
+      "unmappedOnReport": "For the cash-flow statements the movements no row takes are listed on the report itself; for the notes, map a prefix to the table it belongs to.",
       "tab": "Account mapping",
       "hint": "Place the accounts of your own chart on the rows of B01 / B02. A prefix counts every account whose number starts with it. The standard layout's own placement cannot be changed here.",
       "statement": "Statement",

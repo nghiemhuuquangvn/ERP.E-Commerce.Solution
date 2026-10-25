@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { statementMappingsApi } from '@/api/accounting/statement-mappings.api'
 import type { MappingSide, StatementMappingInput } from '@/api/accounting/statement-mappings.api'
 
-const STATEMENTS = ['B01-DN', 'B02-DN']
+const STATEMENTS = ['B01-DN', 'B02-DN', 'B03-DN', 'B03-DN-GT', 'B09-DN']
 
 /** The tenant's own account placement on B01 / B02: pick an unmapped account's prefix and the row it belongs to. */
 export function StatementMappingPanel({ canEdit }: { canEdit: boolean }) {
@@ -61,7 +61,9 @@ export function StatementMappingPanel({ canEdit }: { canEdit: boolean }) {
         <>
           <div className="card p-4">
             <h3 className="mb-2 text-sm font-semibold text-gray-900">{t('accounting.mapping.unmapped')}</h3>
-            {data.unmapped.length === 0 ? (
+            {data.unmappedOnReport ? (
+              <p className="text-sm text-gray-600">{t('accounting.mapping.unmappedOnReport')}</p>
+            ) : data.unmapped.length === 0 ? (
               <p className="text-sm text-green-700">{t('accounting.mapping.noneUnmapped')}</p>
             ) : (
               <ul className="space-y-1 text-sm text-gray-700">
@@ -94,6 +96,7 @@ export function StatementMappingPanel({ canEdit }: { canEdit: boolean }) {
                   ))}
                 </select>
               </div>
+              {data.sideApplies && (
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.mapping.side')}</label>
                 <select className="input" value={side} onChange={(e) => setSide(e.target.value as MappingSide)}>
@@ -102,6 +105,7 @@ export function StatementMappingPanel({ canEdit }: { canEdit: boolean }) {
                   <option value="CreditOnly">{t('accounting.mapping.sideCredit')}</option>
                 </select>
               </div>
+              )}
               <button
                 className="btn-primary"
                 disabled={!prefix || !rowCode || save.isPending}

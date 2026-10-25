@@ -54,6 +54,28 @@ namespace ERP.ACC.Application.Reports
         /// <summary>The indirect B03-DN for the platform's 14-account chart (<c>Simple14</c>).</summary>
         public static IndirectCashFlowLayout Simple14Layout { get; } = BuildSimple14();
 
+        /// <summary>Rows that sum balance changes or expenses by account prefix take a tenant's mapping; the others (direct, formula, special) do not.</summary>
+        public static bool TakesPrefixes(IndirectRow row) =>
+            row.Formula.Count == 0 && row.Source is IndirectSource.CreditIncrease or IndirectSource.DebitIncreaseNegated or IndirectSource.ExpenseAddBack or IndirectSource.IncomeRemoved;
+
+        /// <summary>
+        /// The layout with a tenant's own accounts added (ROADMAP P1-2k): a mapped prefix joins the row's prefixes and the accounts the form deals with, so it leaves the
+        /// unmapped list and its balance change enters the row.
+        /// </summary>
+        public static IndirectCashFlowLayout WithMappings(IndirectCashFlowLayout layout, IEnumerable<ERP.ACC.Domain.Entities.StatementAccountMapping>? mappings)
+        {
+            var own = (mappings ?? Enumerable.Empty<ERP.ACC.Domain.Entities.StatementAccountMapping>()).Where(m => m.StatementId == layout.Id).ToList();
+            if (own.Count == 0)
+                return layout;
+            var rows = layout.Rows.Select(row =>
+            {
+                var extra = own.Where(m => m.RowCode == row.Code).Select(m => m.AccountPrefix).ToList();
+                return extra.Count == 0 || !TakesPrefixes(row) ? row : row with { Prefixes = row.Prefixes.Concat(extra).ToList() };
+            }).ToList();
+            var covered = layout.CoveredPrefixes.Concat(own.Where(m => rows.Any(r => r.Code == m.RowCode && TakesPrefixes(r))).Select(m => m.AccountPrefix)).Distinct().ToList();
+            return layout with { Rows = rows, CoveredPrefixes = covered, Notes = layout.Notes.Concat(new[] { "The tenant's own account mapping is applied to this statement." }).ToList() };
+        }
+
         public static IndirectCashFlowLayout For(string chartTemplate) => chartTemplate == "Simple14" ? Simple14Layout : Layout;
 
         private static IndirectCashFlowLayout BuildSimple14()

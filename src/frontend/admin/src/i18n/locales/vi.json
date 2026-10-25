@@ -1732,6 +1732,7 @@
       "cashFlowDefault": "Mặc định"
     },
     "mapping": {
+      "unmappedOnReport": "Với báo cáo lưu chuyển tiền tệ, các khoản chưa có dòng được liệt kê ngay trên báo cáo; với thuyết minh, hãy ánh xạ tiền tố vào bảng tương ứng.",
       "tab": "Ánh xạ tài khoản",
       "hint": "Đặt tài khoản của hệ thống tài khoản riêng vào các dòng của B01 / B02. Một tiền tố tính mọi tài khoản có số bắt đầu bằng nó. Không sửa được cách đặt của bố cục chuẩn.",
       "statement": "Báo cáo",

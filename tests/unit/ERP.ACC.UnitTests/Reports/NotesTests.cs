@@ -127,7 +127,7 @@ public class NotesTests
         var stored = (texts ?? Array.Empty<NoteText>()).ToList();
         var nt = new Mock<INoteTextRepository>();
         nt.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(() => stored.ToList());
-        return (new GetNotesQueryHandler(accounts.Object, lines.Object, profiles.Object, policies.Object, inv.Object, bl.Object, ln.Object, off.Object, nt.Object, new Mock<IPaymentApplicationRepository>().Object), stored);
+        return (new GetNotesQueryHandler(accounts.Object, lines.Object, profiles.Object, policies.Object, inv.Object, bl.Object, ln.Object, off.Object, nt.Object, new Mock<IPaymentApplicationRepository>().Object, new Mock<IStatementMappingRepository>().Object), stored);
     }
 
     private static GetNotesQuery Query(string? unit = null) => new() { FromDate = From, ToDate = To, Unit = unit };
