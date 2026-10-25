@@ -18,6 +18,20 @@ public class StatementHandlerAndCsvTests
 
     private Account A(string number) => _chart.Single(a => a.AccountNumber == number);
 
+    private static IInvoiceRepository NoInvoices()
+    {
+        var m = new Mock<IInvoiceRepository>();
+        m.Setup(r => r.GetUnpaidInvoicesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Invoice>());
+        return m.Object;
+    }
+
+    private static IBillRepository NoBills()
+    {
+        var m = new Mock<IBillRepository>();
+        m.Setup(r => r.GetUnpaidBillsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Bill>());
+        return m.Object;
+    }
+
     private static IReportProfileRepository NoProfile() => new Mock<IReportProfileRepository>().Object;
 
     private (IAccountRepository Accounts, Mock<IJournalLineRepository> Lines) Repos()
@@ -38,7 +52,7 @@ public class StatementHandlerAndCsvTests
         lines.Setup(l => l.GetAccountBalancesAsync(null, compare, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<AccountBalanceSummary> { new() { AccountId = A("1111").Id, TotalDebit = 400m }, new() { AccountId = A("4111").Id, TotalCredit = 400m } });
 
-        var s = await new GetBalanceSheetStatementQueryHandler(accounts, lines.Object, NoProfile())
+        var s = await new GetBalanceSheetStatementQueryHandler(accounts, lines.Object, NoProfile(), NoInvoices(), NoBills())
             .Handle(new GetBalanceSheetStatementQuery { AsOfDate = asOf, CompareAsOfDate = compare }, default);
 
         s.Rows.Single(r => r.Code == "270").Amount.Should().Be(900m);

@@ -62,14 +62,16 @@ namespace ERP.ACC.Application.Reports
             IReadOnlyDictionary<Guid, AccountBalanceSummary> current,
             IReadOnlyDictionary<Guid, AccountBalanceSummary>? prior,
             decimal divisor = 1m,
-            ReportHeaderDto? header = null)
+            ReportHeaderDto? header = null,
+            StatementMaturity? maturity = null,
+            StatementMaturity? priorMaturity = null)
         {
             // amounts are rounded per account row in the chosen unit and the formula rows add the rounded rows (the printed form foots);
             // the integrity checks use the exact amounts
-            var amounts = Compute(layout, accounts, current, divisor);
-            var priorAmounts = prior != null ? Compute(layout, accounts, prior, divisor) : null;
-            var exact = divisor == 1m ? amounts : Compute(layout, accounts, current, 1m);
-            var priorExact = prior == null ? null : divisor == 1m ? priorAmounts : Compute(layout, accounts, prior, 1m);
+            var amounts = Compute(layout, accounts, current, divisor, maturity);
+            var priorAmounts = prior != null ? Compute(layout, accounts, prior, divisor, priorMaturity) : null;
+            var exact = divisor == 1m ? amounts : Compute(layout, accounts, current, 1m, maturity);
+            var priorExact = prior == null ? null : divisor == 1m ? priorAmounts : Compute(layout, accounts, prior, 1m, priorMaturity);
 
             var statement = new FinancialStatementDto
             {
@@ -100,6 +102,8 @@ namespace ERP.ACC.Application.Reports
                     statement.Notes.Add($"Rounding difference of {amounts["270"] - amounts["440"]} {statement.Unit} between total assets (270) and total sources (440): the exact amounts agree.");
             }
 
+            if (maturity is { IsEmpty: false } || priorMaturity is { IsEmpty: false })
+                statement.Notes.Add("Trade receivables and payables due after more than 12 months (by the due date of the open invoices and approved bills) are shown as long-term; the rest stays short-term.");
             if (statement.Unmapped.Count > 0)
                 statement.Notes.Add("Some accounts with a balance are not part of this statement's layout; the layout is written for the Vietnamese chart (Vas99). Map them or extend the layout.");
 
@@ -107,7 +111,7 @@ namespace ERP.ACC.Application.Reports
         }
 
         private static Dictionary<string, decimal> Compute(
-            StatementLayout layout, IReadOnlyCollection<Account> accounts, IReadOnlyDictionary<Guid, AccountBalanceSummary> balances, decimal divisor)
+            StatementLayout layout, IReadOnlyCollection<Account> accounts, IReadOnlyDictionary<Guid, AccountBalanceSummary> balances, decimal divisor, StatementMaturity? maturity)
         {
             var byCode = layout.Rows.ToDictionary(r => r.Code);
             var memo = new Dictionary<string, decimal>();
@@ -152,6 +156,17 @@ namespace ERP.ACC.Application.Reports
                             .Where(a => a.AccountType is (int)AccountType.Revenue or (int)AccountType.Expense)
                             .Sum(a => balances.TryGetValue(a.Id, out var b) ? b.TotalCredit - b.TotalDebit : 0m);
                     }
+
+                    // maturity split (P1-2h): the long-term trade receivables / payables move out of the short-term rows into their own rows
+                    if (maturity != null)
+                        amount = row.Special switch
+                        {
+                            "ShortLessLongReceivable" => amount - maturity.Receivable,
+                            "ShortLessLongPayable" => amount - maturity.Payable,
+                            "LongReceivable" => maturity.Receivable,
+                            "LongPayable" => maturity.Payable,
+                            _ => amount,
+                        };
 
                     amount = RoundTo(amount, divisor);
                 }

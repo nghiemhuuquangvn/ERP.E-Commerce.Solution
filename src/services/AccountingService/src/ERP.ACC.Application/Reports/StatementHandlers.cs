@@ -149,9 +149,14 @@ namespace ERP.ACC.Application.Reports
         private readonly IAccountRepository _accounts;
         private readonly IJournalLineRepository _lines;
         private readonly IReportProfileRepository _profiles;
+        private readonly IInvoiceRepository _invoices;
+        private readonly IBillRepository _bills;
 
-        public GetBalanceSheetStatementQueryHandler(IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles)
+        public GetBalanceSheetStatementQueryHandler(
+            IAccountRepository accounts, IJournalLineRepository lines, IReportProfileRepository profiles, IInvoiceRepository invoices, IBillRepository bills)
         {
+            _invoices = invoices;
+            _bills = bills;
             _accounts = accounts;
             _lines = lines;
             _profiles = profiles;
@@ -165,12 +170,32 @@ namespace ERP.ACC.Application.Reports
             if (request.CompareAsOfDate.HasValue)
                 prior = (await _lines.GetAccountBalancesAsync(null, request.CompareAsOfDate.Value.Date, null, cancellationToken)).ToDictionary(b => b.AccountId);
 
+            // the long-term part of trade receivables / payables comes from the due dates of the open documents (ROADMAP P1-2h)
+            var invoices = await _invoices.GetUnpaidInvoicesAsync(cancellationToken);
+            var bills = await _bills.GetUnpaidBillsAsync(cancellationToken);
+            var maturity = MaturityFor(request.AsOfDate, accounts, current, invoices, bills);
+            var priorMaturity = prior != null ? MaturityFor(request.CompareAsOfDate!.Value, accounts, prior, invoices, bills) : null;
+
             var profile = await _profiles.GetAsync(cancellationToken);
             var unit = ReportProfileMapper.ResolveUnit(request.Unit, profile);
-            var statement = StatementEngine.Evaluate(StatementLayouts.Find(StatementLayouts.BalanceSheet)!, accounts, current, prior, ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile));
+            var statement = StatementEngine.Evaluate(StatementLayouts.Find(StatementLayouts.BalanceSheet)!, accounts, current, prior,
+                ReportProfileMapper.Divisor(unit), ReportProfileMapper.Header(profile), maturity, priorMaturity);
+            var today = DateTime.UtcNow.Date;
+            if ((maturity is { IsEmpty: false } && request.AsOfDate.Date < today) || (priorMaturity is { IsEmpty: false } && request.CompareAsOfDate!.Value.Date < today))
+                statement.Notes.Add("The date is in the past: the open amount of each invoice and bill is its current open amount (payments are not kept by date), so the long-term split of an earlier date is approximate.");
             statement.ToDate = request.AsOfDate.Date;
             statement.CompareToDate = request.CompareAsOfDate?.Date;
             return statement;
+        }
+
+        private static StatementMaturity MaturityFor(
+            DateTime asOf, IReadOnlyCollection<Account> accounts,
+            IReadOnlyDictionary<Guid, AccountBalanceSummary> balances, List<Invoice> invoices, List<Bill> bills)
+        {
+            // the ledger caps the split: debit balances of 131, credit balances of 331 (account by account, as the rows take them)
+            decimal Side(string prefix, bool debit) => accounts.Where(a => a.AccountNumber.StartsWith(prefix, StringComparison.Ordinal))
+                .Sum(a => balances.TryGetValue(a.Id, out var b) ? Math.Max(0m, debit ? b.TotalDebit - b.TotalCredit : b.TotalCredit - b.TotalDebit) : 0m);
+            return MaturitySplit.Compute(invoices, bills, asOf, Side("131", debit: true), Side("331", debit: false));
         }
     }
 
