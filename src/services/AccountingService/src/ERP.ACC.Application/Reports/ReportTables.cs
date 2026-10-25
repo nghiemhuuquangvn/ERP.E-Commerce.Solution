@@ -52,6 +52,33 @@ namespace ERP.ACC.Application.Reports
             return new ReportTable(s.LayoutId, rows, headerRow);
         }
 
+        /// <summary>The VAT listing (bảng kê): one line per document or ledger entry, subtotals per rate, the check against the VAT account.</summary>
+        public static ReportTable VatListing(VatListingDto v)
+        {
+            var rows = new List<IReadOnlyList<object?>>();
+            if (v.Header != null)
+            {
+                if (v.Header.CompanyName.Length > 0)
+                    rows.Add(new object?[] { v.Header.CompanyName });
+                if (v.Header.TaxCode.Length > 0)
+                    rows.Add(new object?[] { "Tax code", v.Header.TaxCode });
+            }
+            rows.Add(new object?[] { v.Direction == "output" ? "VAT listing — sales (output)" : "VAT listing — purchases (input)" });
+            rows.Add(new object?[] { "Period", Date(v.FromDate), Date(v.ToDate) });
+            rows.Add(new object?[] { "Kind", "Number", "Date", "Party", "Description", "Net", "Rate %", "VAT" });
+            var headerRow = rows.Count;
+            rows.AddRange(v.Rows.Select(r => (IReadOnlyList<object?>)new object?[] { r.Kind, r.Number, Date(r.Date), r.PartyId?.ToString() ?? "", r.Description, r.Net, r.RatePercent, r.Tax }));
+            rows.Add(new object?[] { "" });
+            foreach (var g in v.ByRate)
+                rows.Add(new object?[] { "Subtotal", "", "", "", g.RatePercent.HasValue ? "Rate " + g.RatePercent.Value.ToString("0.##") + "%" : "No rate (entries)", g.Net, g.RatePercent, g.Tax });
+            rows.Add(new object?[] { "Total", "", "", "", "", v.TotalNet, "", v.TotalTax });
+            rows.Add(new object?[] { "Ledger", v.LedgerAccountNumber ?? "", "", "", "VAT account movement", "", "", v.LedgerTax });
+            rows.Add(new object?[] { "Difference", "", "", "", v.IsReconciled ? "reconciled" : "NOT reconciled", "", "", v.Difference });
+            foreach (var note in v.Notes)
+                rows.Add(new object?[] { "note", note });
+            return new ReportTable("vat-" + v.Direction, rows, headerRow);
+        }
+
         /// <summary>The notes B09: company block, then each section as a numbered title, its text lines and its table.</summary>
         public static ReportTable Notes(NotesDto n)
         {
