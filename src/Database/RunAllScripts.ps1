@@ -87,6 +87,7 @@ $DatabaseScripts = @(
     "Accounting\016_LoanPosting.sql",
     "Accounting\017_PaymentApplications.sql",
     "Accounting\018_StatementAccountMappings.sql",
+    "Accounting\019_NoteTextLanguage.sql",
     "Product\001_CreateProductDB.sql",
     "Product\002_AddProductTranslations.sql",
     "Product\003_AddProductAttributesAndDimensions.sql",

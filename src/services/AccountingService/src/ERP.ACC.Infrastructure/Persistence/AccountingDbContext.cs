@@ -106,7 +106,8 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.Id).ValueGeneratedNever();
                 e.Property(x => x.SectionKey).IsRequired().HasMaxLength(50);
                 e.Property(x => x.Text).IsRequired().HasMaxLength(4000);
-                e.HasIndex(x => new { x.TenantId, x.SectionKey }).IsUnique().HasFilter("[IsDeleted] = 0");
+                e.Property(x => x.Language).IsRequired().HasMaxLength(5);
+                e.HasIndex(x => new { x.TenantId, x.SectionKey, x.Language }).IsUnique().HasFilter("[IsDeleted] = 0");
             });
 
             modelBuilder.Entity<Loan>(e =>

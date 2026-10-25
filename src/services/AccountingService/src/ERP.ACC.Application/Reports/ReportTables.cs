@@ -67,7 +67,7 @@ namespace ERP.ACC.Application.Reports
             }
 
             rows.Add(new object?[] { n.Title });
-            rows.Add(new object?[] { "Period", Date(n.FromDate), Date(n.ToDate), "Unit", n.Unit });
+            rows.Add(new object?[] { "Period", Date(n.FromDate), Date(n.ToDate), "Unit", n.Unit, "Language", n.Language });
             foreach (var s in n.Sections)
             {
                 rows.Add(new object?[] { "" });

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { reportsApi, downloadReport } from '@/api/accounting/reports.api'
-import type { AmountUnit, FinancialStatement, NoteSection, ReportProfile } from '@/api/accounting/reports.api'
+import type { AmountUnit, FinancialStatement, NoteLanguage, NoteSection, ReportProfile } from '@/api/accounting/reports.api'
 import type { FinancialAccountLineDto, CashFlowSection } from '@/api/accounting/reports.api'
 import { accountsApi } from '@/api/accounting/accounts.api'
 import { offBalanceApi } from '@/api/accounting/off-balance.api'
@@ -733,13 +733,13 @@ function BalanceSheetPanel() {
 }
 
 /** The text sections of the notes the accountant writes (policies, standards, non-cash transactions …). */
-function NoteTextsEditor({ canEdit }: { canEdit: boolean }) {
+function NoteTextsEditor({ canEdit, language }: { canEdit: boolean; language: NoteLanguage }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { data } = useQuery({ queryKey: ['accounting', 'noteTexts'], queryFn: () => reportsApi.noteTexts(), staleTime: 30_000 })
+  const { data } = useQuery({ queryKey: ['accounting', 'noteTexts', language], queryFn: () => reportsApi.noteTexts(language), staleTime: 30_000 })
   const [draft, setDraft] = useState<Record<string, string>>({})
   const save = useMutation({
-    mutationFn: () => reportsApi.updateNoteTexts(draft),
+    mutationFn: () => reportsApi.updateNoteTexts(draft, language),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting', 'noteTexts'] })
       queryClient.invalidateQueries({ queryKey: ['accounting', 'reports', 'notes'] })
@@ -831,10 +831,17 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState(todayISODate())
   const [unit, setUnit] = useState<AmountUnit | ''>('')
+  const [language, setLanguage] = useState<NoteLanguage>('vi')
+  const [compareFrom, setCompareFrom] = useState('')
+  const [compareTo, setCompareTo] = useState('')
   const ready = !!fromDate && !!toDate
-  const params = { fromDate, toDate, unit: unit || undefined }
+  const compare = !!compareFrom && !!compareTo
+  const params = {
+    fromDate, toDate, unit: unit || undefined, lang: language,
+    compareFromDate: compare ? compareFrom : undefined, compareToDate: compare ? compareTo : undefined,
+  }
   const { data, isLoading } = useQuery({
-    queryKey: ['accounting', 'reports', 'notes', fromDate, toDate, unit],
+    queryKey: ['accounting', 'reports', 'notes', fromDate, toDate, unit, language, compare ? compareFrom : '', compare ? compareTo : ''],
     queryFn: () => reportsApi.notes(params),
     enabled: ready,
     staleTime: 15_000,
@@ -859,10 +866,25 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
             <option value="Million">{t('accounting.reports.unitMillion')}</option>
           </select>
         </div>
-        <ExportButton path="statements/notes" params={params} name="notes-b09.csv" disabled={!ready} pdf />
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesLanguage')}</label>
+          <select className="input" value={language} onChange={(e) => setLanguage(e.target.value as NoteLanguage)}>
+            <option value="vi">Tiếng Việt</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesCompareFrom')}</label>
+          <input type="date" className="input" value={compareFrom} onChange={(e) => setCompareFrom(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesCompareTo')}</label>
+          <input type="date" className="input" value={compareTo} onChange={(e) => setCompareTo(e.target.value)} />
+        </div>
+        <ExportButton path="statements/notes" params={params} name="notes-b09.csv" disabled={!ready || (!!compareFrom !== !!compareTo)} pdf />
       </div>
 
-      <NoteTextsEditor canEdit={canEdit} />
+      <NoteTextsEditor canEdit={canEdit} language={language} />
 
       {ready && isLoading && <p className="text-sm text-gray-400">{t('common.loading')}</p>}
       {data && (

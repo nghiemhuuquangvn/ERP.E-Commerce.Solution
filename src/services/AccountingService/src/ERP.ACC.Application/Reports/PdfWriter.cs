@@ -33,6 +33,16 @@ namespace ERP.ACC.Application.Reports
             return value < 0m ? "(" + text + ")" : text;
         }
 
+        /// <summary>1,234,567 / (1,234,567) with a point for decimals when <paramref name="english"/>; otherwise the Vietnamese form above.</summary>
+        public static string FormatAmount(decimal value, bool english)
+        {
+            if (!english)
+                return FormatAmount(value);
+            var abs = Math.Abs(value);
+            var text = abs % 1m == 0m ? abs.ToString("#,##0", CultureInfo.InvariantCulture) : abs.ToString("#,##0.00", CultureInfo.InvariantCulture);
+            return value < 0m ? "(" + text + ")" : text;
+        }
+
         /// <summary>The notes B09-DN as a PDF: company block, title, period and unit, then every section with its text and its table, the signatories at the end.</summary>
         public static byte[] ToBytes(NotesDto notes)
         {
@@ -46,6 +56,7 @@ namespace ERP.ACC.Application.Reports
 
         public static Document Build(NotesDto n)
         {
+            var s = NoteStrings.For(n.Language);
             var document = new Document();
             document.Info.Title = n.Title;
             var normal = document.Styles[StyleNames.Normal]!;
@@ -63,7 +74,7 @@ namespace ERP.ACC.Application.Reports
             var footer = section.Footers.Primary.AddParagraph();
             footer.Format.Alignment = ParagraphAlignment.Center;
             footer.Format.Font.Size = 8;
-            footer.AddText("Trang ");
+            footer.AddText(s.PdfPage);
             footer.AddPageField();
             footer.AddText("/");
             footer.AddNumPagesField();
@@ -74,9 +85,9 @@ namespace ERP.ACC.Application.Reports
                 if (header.CompanyName.Length > 0)
                     Line(section, header.CompanyName, bold: true);
                 if (header.TaxCode.Length > 0)
-                    Line(section, "Mã số thuế: " + header.TaxCode);
+                    Line(section, s.PdfTaxCode + header.TaxCode);
                 if (header.Address.Length > 0)
-                    Line(section, "Địa chỉ: " + header.Address);
+                    Line(section, s.PdfAddress + header.Address);
             }
 
             var title = section.AddParagraph(n.Title);
@@ -87,48 +98,48 @@ namespace ERP.ACC.Application.Reports
 
             if (n.IsDraft)
             {
-                var draft = section.AddParagraph("Bản nháp — kế toán cần rà soát trước khi nộp");
+                var draft = section.AddParagraph(s.PdfDraft);
                 draft.Format.Alignment = ParagraphAlignment.Center;
                 draft.Format.Font.Size = 8;
                 draft.Format.Font.Italic = true;
             }
 
             string D(DateTime d) => d.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
-            var period = section.AddParagraph($"Từ {D(n.FromDate)} đến {D(n.ToDate)} — Đơn vị tính: {UnitLabel(n.Unit)}");
+            var period = section.AddParagraph(string.Format(s.PdfPeriod, D(n.FromDate), D(n.ToDate), s.UnitText(n.Unit)));
             period.Format.Alignment = ParagraphAlignment.Center;
             period.Format.SpaceAfter = Unit.FromPoint(6);
 
-            foreach (var s in n.Sections)
+            foreach (var sec in n.Sections)
             {
-                var heading = section.AddParagraph($"{s.Number}. {s.Title}");
+                var heading = section.AddParagraph($"{sec.Number}. {sec.Title}");
                 heading.Format.Font.Bold = true;
                 heading.Format.SpaceBefore = Unit.FromPoint(10);
                 heading.Format.KeepWithNext = true;
 
-                if (!string.IsNullOrEmpty(s.Text))
+                if (!string.IsNullOrEmpty(sec.Text))
                 {
-                    foreach (var line in s.Text.Split('\n'))
+                    foreach (var line in sec.Text.Split('\n'))
                         section.AddParagraph(line);
                 }
-                else if (s.Table == null && !string.IsNullOrEmpty(s.Hint))
+                else if (sec.Table == null && !string.IsNullOrEmpty(sec.Hint))
                 {
-                    var hint = section.AddParagraph("(Chưa có nội dung — " + s.Hint + ")");
+                    var hint = section.AddParagraph(string.Format(s.PdfNotWritten, sec.Hint));
                     hint.Format.Font.Italic = true;
                     hint.Format.Font.Size = 8;
                 }
 
-                if (s.Table != null && s.Table.Rows.Count > 0)
-                    AddNoteTable(section, s.Table);
-                else if (s.Table != null)
+                if (sec.Table != null && sec.Table.Rows.Count > 0)
+                    AddNoteTable(section, sec.Table, s);
+                else if (sec.Table != null)
                 {
-                    var none = section.AddParagraph("(Không phát sinh số liệu trong kỳ)");
+                    var none = section.AddParagraph(s.PdfNoData);
                     none.Format.Font.Italic = true;
                     none.Format.Font.Size = 8;
                 }
             }
 
             foreach (var note in n.Notes)
-                Small(section, "Ghi chú: " + note);
+                Small(section, s.PdfNotePrefix + note);
 
             if (header != null && (header.PreparedBy + header.ChiefAccountant + header.Director).Length > 0)
             {
@@ -140,9 +151,9 @@ namespace ERP.ACC.Application.Reports
                 var titles = sign.AddRow();
                 titles.Format.Font.Bold = true;
                 titles.KeepWith = 1;
-                Cell(titles, 0, "Người lập biểu", ParagraphAlignment.Center);
-                Cell(titles, 1, "Kế toán trưởng", ParagraphAlignment.Center);
-                Cell(titles, 2, "Giám đốc", ParagraphAlignment.Center);
+                Cell(titles, 0, s.PdfPreparedBy, ParagraphAlignment.Center);
+                Cell(titles, 1, s.PdfChiefAccountant, ParagraphAlignment.Center);
+                Cell(titles, 2, s.PdfDirector, ParagraphAlignment.Center);
                 var names = sign.AddRow();
                 names.Height = Unit.FromCentimeter(2.2);
                 names.VerticalAlignment = VerticalAlignment.Bottom;
@@ -154,7 +165,7 @@ namespace ERP.ACC.Application.Reports
             return document;
         }
 
-        private static void AddNoteTable(Section section, NoteTableDto data)
+        private static void AddNoteTable(Section section, NoteTableDto data, NoteStrings s)
         {
             var table = section.AddTable();
             table.Borders.Width = 0.4;
@@ -170,7 +181,7 @@ namespace ERP.ACC.Application.Reports
             head.HeadingFormat = true;
             head.Format.Font.Bold = true;
             head.Shading.Color = Colors.LightGray;
-            Cell(head, 0, "Chỉ tiêu", ParagraphAlignment.Left);
+            Cell(head, 0, s.PdfItem, ParagraphAlignment.Left);
             for (var i = 0; i < numeric; i++)
                 Cell(head, i + 1, data.Columns[i], ParagraphAlignment.Right);
 
@@ -180,7 +191,7 @@ namespace ERP.ACC.Application.Reports
                 row.Format.Font.Bold = r.IsTotal;
                 Cell(row, 0, r.Label, ParagraphAlignment.Left);
                 for (var i = 0; i < numeric; i++)
-                    Cell(row, i + 1, i < r.Cells.Count ? FormatAmount(r.Cells[i]) : "", ParagraphAlignment.Right);
+                    Cell(row, i + 1, i < r.Cells.Count ? FormatAmount(r.Cells[i], s.Language == NoteStrings.English) : "", ParagraphAlignment.Right);
             }
         }
 
