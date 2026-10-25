@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { bankAccountsApi } from '@/api/accounting/bank-accounts.api'
 import type { BankAccount, BankStatement } from '@/api/accounting/bank-accounts.api'
+import { BankReconciliationModal } from '@/components/accounting/BankReconciliationModal'
 import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -143,6 +144,7 @@ function StatementsModal({
   const queryClient = useQueryClient()
   const [addOpen, setAddOpen] = useState(false)
   const [reconcileTarget, setReconcileTarget] = useState<BankStatement | null>(null)
+  const [linesOf, setLinesOf] = useState<BankStatement | null>(null)
 
   const { data: statements, isLoading } = useQuery({
     queryKey: ['accounting', 'bank-accounts', account.id, 'statements'],
@@ -210,15 +212,18 @@ function StatementsModal({
       {
         key: 'actions',
         label: '',
-        render: (s: BankStatement) =>
-          canManage && s.status === 'Open' ? (
-            <button
-              className="text-xs text-primary-600 hover:underline"
-              onClick={() => setReconcileTarget(s)}
-            >
-              {t('accounting.bankAccounts.reconcile')}
+        render: (s: BankStatement) => (
+          <span className="space-x-3">
+            <button className="text-xs text-primary-600 hover:underline" onClick={() => setLinesOf(s)}>
+              {t('accounting.bankRecon.lines')}
             </button>
-          ) : null,
+            {canManage && s.status === 'Open' && (
+              <button className="text-xs text-primary-600 hover:underline" onClick={() => setReconcileTarget(s)}>
+                {t('accounting.bankAccounts.reconcile')}
+              </button>
+            )}
+          </span>
+        ),
       },
     ],
     [canManage, t],
@@ -288,6 +293,8 @@ function StatementsModal({
             )}
           </div>
         )}
+
+        {linesOf && <BankReconciliationModal account={account} statement={linesOf} canManage={canManage} onClose={() => setLinesOf(null)} />}
 
         <div className="flex justify-end pt-4">
           <button className="btn-outline" onClick={onClose}>

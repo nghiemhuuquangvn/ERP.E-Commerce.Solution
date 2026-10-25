@@ -18,6 +18,9 @@ export interface BillDto {
   createdAt: string
   postedToLedger?: boolean
   postingWarning?: string | null
+  foreignCurrencyCode?: string | null
+  exchangeRate?: number | null
+  foreignAmount?: number | null
 }
 
 // BillStatus enum (ERP.ACC.Domain.Enums.BillStatus): Pending=0, Approved=1, Paid=2
@@ -43,6 +46,10 @@ export interface CreateBillRequest {
   dueDate: string
   /** VAT lines (rates, goods not subject to VAT); when given they replace the amount. */
   lines?: { category: number; ratePercent: number; amount: number; description?: string }[]
+  /** A bill in a foreign currency: the currency, the total in it and the rate (base per 1 foreign). */
+  currencyCode?: string
+  foreignAmount?: number
+  exchangeRate?: number
 }
 
 export interface APAgingDto {
@@ -67,8 +74,8 @@ export const billsApi = {
   approve: (id: string, taxRatePercent?: number) =>
     apiClient.post<BillDto>(`${ACC_BASE}/bills/${id}/approve`, { taxRatePercent }).then((r) => r.data),
 
-  markPaid: (id: string) =>
-    apiClient.post<BillDto>(`${ACC_BASE}/bills/${id}/mark-paid`).then((r) => r.data),
+  markPaid: (id: string, paymentRate?: number) =>
+    apiClient.post<BillDto>(`${ACC_BASE}/bills/${id}/mark-paid`, { paymentRate }).then((r) => r.data),
 
   apAging: (asOfDate?: string) =>
     apiClient

@@ -19,6 +19,8 @@ export interface TenantTaxSettings {
   eInvoiceSeries?: string | null
   /** Issue an e-invoice (retail customer) with every invoice created from an order. */
   autoIssueEInvoice?: boolean
+  /** The currency of the books (3-letter code, default VND); ROADMAP P1-4. */
+  baseCurrencyCode?: string
 }
 
 export type UpdateTenantTaxSettingsRequest = Omit<TenantTaxSettings, 'tenantId'>
