@@ -266,7 +266,7 @@ namespace ERP.ACC.Application.Reports
             notes.Sections.Add(TextSection("subsequent"));
             notes.Sections.Add(TextSection("other"));
 
-            notes.Notes.Add("Draft: the structure follows the Circular 200 form B09-DN; the figures come from the books, the policies and the other texts are written by the accountant (Reports → B09 → Edit texts). The accountant must review the notes before filing.");
+            notes.Notes.Add("Draft: the structure follows the Circular 200 form B09-DN; the figures come from the books, the policies and the other texts are written by the accountant (Reports > B09 > Edit texts). The accountant must review the notes before filing.");
             notes.Notes.Add("Amounts are rounded one by one in the chosen unit; a row can differ by a unit from opening + increase − decrease.");
             if (chart == ChartCodes.Simple14)
                 notes.Notes.Add("The tenant uses the platform's 14-account chart: only the tables that exist in that chart are filled (no depreciation, provision, prepaid or borrowing accounts).");

@@ -351,6 +351,7 @@ public class NotesTests
         text.Should().Contain("V.4. Tài sản cố định và bất động sản đầu tư (nguyên giá, hao mòn, giá trị còn lại)");
         text.Should().Contain("Tiền gồm tiền mặt.");
         text.Should().Contain(t => t.StartsWith("(Chưa có nội dung")); // a section without text shows its hint
+        text.Should().Contain("(Không phát sinh số liệu trong kỳ)");     // a table with no rows says so instead of printing an empty frame
         text.Should().Contain("1.300").And.Contain("Giá trị còn lại").And.Contain("Kế toán trưởng").And.Contain("Trần B");
 
         var bytes = PdfWriter.ToBytes(notes);

@@ -117,8 +117,14 @@ namespace ERP.ACC.Application.Reports
                     hint.Format.Font.Size = 8;
                 }
 
-                if (s.Table != null)
+                if (s.Table != null && s.Table.Rows.Count > 0)
                     AddNoteTable(section, s.Table);
+                else if (s.Table != null)
+                {
+                    var none = section.AddParagraph("(Không phát sinh số liệu trong kỳ)");
+                    none.Format.Font.Italic = true;
+                    none.Format.Font.Size = 8;
+                }
             }
 
             foreach (var note in n.Notes)
