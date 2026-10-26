@@ -25,6 +25,7 @@ public class WarehouseEventRabbitMqConsumer : IHostedService
     private const string ExchangeName = "warehouse_exchange";
     private const string QueueName = "purchasing-service.warehouse-events";
     private const string RoutingKey = "warehouse.StockAlertEvent";
+    private const int MaxAttempts = 5;
 
     private readonly IConnection _connection;
     private readonly IServiceProvider _serviceProvider;
@@ -77,14 +78,37 @@ public class WarehouseEventRabbitMqConsumer : IHostedService
                 using var scope = _serviceProvider.CreateScope();
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-                await mediator.Send(new CreatePurchaseRequestFromStockAlertCommand
+                // Five attempts, then a logged error and an ack: a message that always fails must not be redelivered for ever (DEFERRED R3).
+                for (var attempt = 1; ; attempt++)
                 {
-                    ProductId = payload.ProductId,
-                    ProductName = payload.ProductName,
-                    CurrentQuantity = payload.CurrentQuantity,
-                    ReorderPoint = payload.ReorderPoint,
-                    ReorderQuantity = payload.ReorderQuantity
-                });
+                    try
+                    {
+                        await mediator.Send(new CreatePurchaseRequestFromStockAlertCommand
+                        {
+                            ProductId = payload.ProductId,
+                            ProductName = payload.ProductName,
+                            ProductSku = payload.ProductSku,
+                            CurrentQuantity = payload.CurrentQuantity,
+                            AvailableQuantity = payload.AvailableQuantity,
+                            ReorderPoint = payload.ReorderPoint,
+                            ReorderQuantity = payload.ReorderQuantity,
+                            MinStock = payload.MinStock,
+                            MaxStock = payload.MaxStock,
+                            SafetyStock = payload.SafetyStock
+                        });
+                        break;
+                    }
+                    catch (Exception ex) when (attempt < MaxAttempts)
+                    {
+                        _logger.LogWarning(ex, "Stock alert for product {ProductId} failed (attempt {Attempt} of {Max})", payload.ProductId, attempt, MaxAttempts);
+                        await Task.Delay(TimeSpan.FromSeconds(attempt));
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Stock alert for product {ProductId} dropped after {Max} attempts", payload.ProductId, MaxAttempts);
+                        break;
+                    }
+                }
             }
 
             _channel!.BasicAck(ea.DeliveryTag, multiple: false);
@@ -112,4 +136,9 @@ public class StockAlertEventPayload
     public int CurrentQuantity { get; set; }
     public int ReorderPoint { get; set; }
     public int ReorderQuantity { get; set; }
+    public string? ProductSku { get; set; }
+    public int AvailableQuantity { get; set; }
+    public int MinStock { get; set; }
+    public int MaxStock { get; set; }
+    public int SafetyStock { get; set; }
 }

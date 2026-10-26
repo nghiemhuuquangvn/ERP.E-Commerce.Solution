@@ -34,6 +34,13 @@ public class PurchaseRequestsController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Creates draft purchase orders (grouped by preferred supplier) and one RFQ (products without a preferred supplier) from the open requests, or from the given ids.</summary>
+    [HttpPost("create-orders")]
+    [AuthorizePermission(PermissionConstants.PurchaseRequest_Manage)]
+    [ProducesResponseType(typeof(CreateOrdersResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> CreateOrders([FromBody] CreateOrdersFromPurchaseRequestsCommand command) =>
+        Ok(await _mediator.Send(command));
+
     [HttpPost("{id}/dismiss")]
     [AuthorizePermission(PermissionConstants.PurchaseRequest_Manage)]
     [ProducesResponseType(StatusCodes.Status200OK)]

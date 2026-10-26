@@ -15,6 +15,8 @@ public class SupplierItem : BaseEntity
     public string? SupplierItemCode { get; private set; }
     public decimal LastPurchasePrice { get; private set; }
     public int LeadTimeDays { get; private set; }
+    /// <summary>The supplier replenishment orders for this product go to (one per product and tenant, P1-9).</summary>
+    public bool IsPreferred { get; private set; }
 
     private SupplierItem() { }
 
@@ -50,6 +52,12 @@ public class SupplierItem : BaseEntity
             LeadTimeDays = leadTimeDays,
             CreatedAt = DateTime.UtcNow
         };
+    }
+
+    public void SetPreferred(bool preferred)
+    {
+        IsPreferred = preferred;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void Update(decimal lastPurchasePrice, int leadTimeDays, string? supplierItemCode)
