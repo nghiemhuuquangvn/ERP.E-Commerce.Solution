@@ -74,6 +74,15 @@ public static class RoleDefinitions
                 // Purchase Requests (StockAlertEvent-driven suggestions)
                 PermissionConstants.PurchaseRequest_View,
                 PermissionConstants.PurchaseRequest_Manage,
+                PermissionConstants.Rfq_Read,
+                PermissionConstants.Rfq_Manage,
+                PermissionConstants.SupplierInvoice_Read,
+                PermissionConstants.SupplierInvoice_Manage,
+                PermissionConstants.SupplierInvoice_Approve,
+                PermissionConstants.SupplierInvoice_ApproveVariance,
+                PermissionConstants.VendorReturn_Read,
+                PermissionConstants.VendorReturn_Manage,
+                PermissionConstants.PurchasingSettings_Manage,
                 // Payment
                 PermissionConstants.Payments_View,
                 PermissionConstants.Payments_Create,
@@ -189,6 +198,13 @@ public static class RoleDefinitions
                 // Purchase Requests (no Valuation_Close — Finance/Admin-only action)
                 PermissionConstants.PurchaseRequest_View,
                 PermissionConstants.PurchaseRequest_Manage,
+                PermissionConstants.Rfq_Read,
+                PermissionConstants.Rfq_Manage,
+                PermissionConstants.SupplierInvoice_Read,
+                PermissionConstants.SupplierInvoice_Manage,
+                PermissionConstants.SupplierInvoice_Approve,
+                PermissionConstants.VendorReturn_Read,
+                PermissionConstants.VendorReturn_Manage,
                 // Payment (view + shift-level actions, no settlement/auth control)
                 PermissionConstants.Payments_View,
                 // POS
@@ -230,6 +246,12 @@ public static class RoleDefinitions
                 PermissionConstants.Supplier_Read,
                 PermissionConstants.PurchaseRequest_View,
                 PermissionConstants.PurchaseRequest_Manage,
+                PermissionConstants.Rfq_Read,
+                PermissionConstants.Rfq_Manage,
+                PermissionConstants.SupplierInvoice_Read,
+                PermissionConstants.SupplierInvoice_Manage,
+                PermissionConstants.VendorReturn_Read,
+                PermissionConstants.VendorReturn_Manage,
             ]
         },
 

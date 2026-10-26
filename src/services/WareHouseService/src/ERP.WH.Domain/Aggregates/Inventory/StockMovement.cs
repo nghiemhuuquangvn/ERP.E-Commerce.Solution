@@ -10,7 +10,10 @@ public enum MovementType
     Transferred = 4,
 
     /// <summary>Goods of a returned order back on the shelf (ROADMAP P1-5); booked by Accounting as Dr Inventory / Cr Cost of goods sold.</summary>
-    Returned = 5
+    Returned = 5,
+
+    /// <summary>Goods sent back to the supplier (ROADMAP P1-8); booked by Accounting as Dr Goods received not invoiced / Cr Inventory.</summary>
+    ReturnedToVendor = 6
 }
 
 public class StockMovement : ITenantOwned

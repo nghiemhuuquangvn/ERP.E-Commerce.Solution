@@ -335,6 +335,8 @@ Responsibilities:
 
 Database: PurchasingDB
 
+Procure-to-pay (2026-10-26, P1-8, docs/business/Purchasing/ProcureToPay.md): RFQs with supplier quotations (award creates a draft order); a **supplier invoice is stored and matched** against the order, the receipts, the returns and earlier invoices (`InvoiceMatcher`, per-tenant tolerances in `PurchasingSettings`, default 0 % quantity / 2 % price); only an approved invoice publishes `SupplierInvoiceApproved` and **Accounting books the bill from it** (the order approval no longer books one; price difference on `PurchasePriceVariance`); returns to vendor publish `VendorReturnShipped` (Warehouse issues the stock, movement `ReturnedToVendor`) and `VendorReturnCredited` (Accounting books the debit note and credits the order's bills). New permissions: rfq:*, supplier_invoice:* (approve_variance is separate), vendor_return:*, purchasing_settings:manage.
+
 Published Events:
 - PurchaseOrderCreated
 - PurchaseOrderApproved

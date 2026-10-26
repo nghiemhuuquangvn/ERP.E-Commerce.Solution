@@ -50,6 +50,7 @@ namespace ERP.ACC.Application.Posting
         public const string InvoicePayment = "InvoicePayment";
         public const string Bill = "Bill";
         public const string BillPayment = "BillPayment";
+        public const string DebitNote = "DebitNote";
         public const string StockMovement = "StockMovement";
         public const string PosSale = "PosSale";
         public const string PosShift = "PosShift";
@@ -114,14 +115,40 @@ namespace ERP.ACC.Application.Posting
             return new(InvoicePayment, invoice.Id, date, $"Payment of invoice {invoice.InvoiceNumber}", lines);
         }
 
-        /// <summary>Dr Goods received not invoiced (net) and Dr VAT input (the VAT, ROADMAP P1-3) / Cr Accounts payable (gross). The stock itself was debited to Inventory by the receipt.</summary>
+        /// <summary>
+        /// Dr Goods received not invoiced and Dr VAT input / Cr Accounts payable (gross). The stock itself was debited to Inventory by the receipt.
+        /// A bill from a supplier invoice (ROADMAP P1-8) clears GRNI at the received value (what the receipts accrued) and books the rest of the
+        /// net as purchase price variance - a debit when the supplier charged more, a credit when less; any other bill clears GRNI by its whole net.
+        /// </summary>
         public static PostingRequest ForBillApproval(Domain.Entities.Bill bill, DateTime date)
         {
-            var lines = new List<PostingLine> { PostingLine.Dr(PostingKeys.GoodsReceivedNotInvoiced, bill.Amount - bill.TaxAmount, bill.BillNumber) };
+            var net = bill.Amount - bill.TaxAmount;
+            var lines = new List<PostingLine>();
+            if (bill.ReceivedValue.HasValue)
+            {
+                var received = Math.Round(bill.ReceivedValue.Value, 2);
+                var variance = Math.Round(net - received, 2);
+                if (received > 0m) lines.Add(PostingLine.Dr(PostingKeys.GoodsReceivedNotInvoiced, received, bill.BillNumber));
+                if (variance > 0m) lines.Add(PostingLine.Dr(PostingKeys.PurchasePriceVariance, variance, bill.BillNumber));
+                else if (variance < 0m) lines.Add(PostingLine.Cr(PostingKeys.PurchasePriceVariance, -variance, bill.BillNumber));
+            }
+            else
+            {
+                lines.Add(PostingLine.Dr(PostingKeys.GoodsReceivedNotInvoiced, net, bill.BillNumber));
+            }
             if (bill.TaxAmount > 0m)
                 lines.Add(PostingLine.Dr(PostingKeys.VatInput, bill.TaxAmount, bill.BillNumber));
             lines.Add(PostingLine.Cr(PostingKeys.AccountsPayable, bill.Amount, bill.BillNumber));
             return new(Bill, bill.Id, date, $"Bill {bill.BillNumber}", lines);
+        }
+
+        /// <summary>The supplier credited returned goods (ROADMAP P1-8): Dr Accounts payable / Cr Goods received not invoiced (the return reversed the receipt accrual). Null for no amount.</summary>
+        public static PostingRequest? ForDebitNote(Guid vendorReturnId, string returnNumber, string creditNoteNumber, decimal amount, DateTime date)
+        {
+            var credit = Math.Round(amount, 2);
+            if (credit <= 0m) return null;
+            return new(DebitNote, vendorReturnId, date, $"Debit note {creditNoteNumber} for return {returnNumber}",
+                new[] { PostingLine.Dr(PostingKeys.AccountsPayable, credit, creditNoteNumber), PostingLine.Cr(PostingKeys.GoodsReceivedNotInvoiced, credit, creditNoteNumber) });
         }
 
         /// <summary>The line on the money side of a loan: the loan's own receiving account when it has one, else the Bank key.</summary>
@@ -234,13 +261,14 @@ namespace ERP.ACC.Application.Posting
         /// <summary>Dr Accounts payable / Cr Bank. For a foreign-currency bill <paramref name="cashPaid"/> is the foreign amount at the payment rate (ROADMAP P1-4): paying less than the carrying amount is a gain.</summary>
         public static PostingRequest ForBillPayment(Domain.Entities.Bill bill, DateTime date, decimal? cashPaid = null)
         {
-            var cash = cashPaid ?? bill.Amount;
+            var payable = bill.Outstanding;   // what the supplier is still owed (credits for returned goods are already off)
+            var cash = cashPaid ?? payable;
             var lines = new List<PostingLine>
             {
-                PostingLine.Dr(PostingKeys.AccountsPayable, bill.Amount, bill.BillNumber),
+                PostingLine.Dr(PostingKeys.AccountsPayable, payable, bill.BillNumber),
                 PostingLine.Cr(PostingKeys.Bank, cash, bill.BillNumber),
             };
-            var difference = bill.Amount - cash;
+            var difference = payable - cash;
             if (difference > 0m) lines.Add(PostingLine.Cr(PostingKeys.FxGain, difference, bill.BillNumber));
             else if (difference < 0m) lines.Add(PostingLine.Dr(PostingKeys.FxLoss, -difference, bill.BillNumber));
             return new(BillPayment, bill.Id, date, $"Payment of bill {bill.BillNumber}", lines);
@@ -262,6 +290,7 @@ namespace ERP.ACC.Application.Posting
                 "Received" => PostingKeys.GoodsReceivedNotInvoiced,
                 "Returned" => PostingKeys.CostOfGoodsSold,           // returned goods: Dr Inventory / Cr Cost of goods sold (ROADMAP P1-5)
                 "Sold" => PostingKeys.CostOfGoodsSold,
+                "ReturnedToVendor" => PostingKeys.GoodsReceivedNotInvoiced, // goods sent back to the supplier: Dr GRNI / Cr Inventory (ROADMAP P1-8)
                 "Adjusted" or "Damaged" => PostingKeys.InventoryAdjustment,
                 _ => null,
             };

@@ -1,3 +1,5 @@
+> **2026-10-26 (P1-8):** RFQs and supplier quotations exist (§5 gap 2 closed). See `ProcureToPay.md`.
+
 # Supplier — Nghiệp vụ
 
 > Mô tả hành vi thực tế trong code (`src/services/PurchaseOrderService`).

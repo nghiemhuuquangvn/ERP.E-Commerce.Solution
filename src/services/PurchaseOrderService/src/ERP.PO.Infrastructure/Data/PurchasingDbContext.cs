@@ -34,6 +34,17 @@ public class PurchasingDbContext : DbContext, IUnitOfWork, ITenantScopedDbContex
     public DbSet<SupplierItem> SupplierItems { get; set; } = null!;
     public DbSet<GoodsReceipt> GoodsReceipts { get; set; } = null!;
     public DbSet<PurchaseRequest> PurchaseRequests { get; set; } = null!;
+    public DbSet<RequestForQuotation> RequestsForQuotation { get; set; } = null!;
+    public DbSet<RfqLine> RfqLines { get; set; } = null!;
+    public DbSet<RfqInvitation> RfqInvitations { get; set; } = null!;
+    public DbSet<SupplierQuotation> SupplierQuotations { get; set; } = null!;
+    public DbSet<QuotationLine> QuotationLines { get; set; } = null!;
+    public DbSet<SupplierInvoice> SupplierInvoices { get; set; } = null!;
+    public DbSet<SupplierInvoiceLine> SupplierInvoiceLines { get; set; } = null!;
+    public DbSet<SupplierInvoiceMatchLine> SupplierInvoiceMatchLines { get; set; } = null!;
+    public DbSet<VendorReturn> VendorReturns { get; set; } = null!;
+    public DbSet<VendorReturnLine> VendorReturnLines { get; set; } = null!;
+    public DbSet<PurchasingSettings> PurchasingSettings { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public PurchasingDbContext(DbContextOptions<PurchasingDbContext> options, IUserContextService userContextService)
@@ -161,6 +172,108 @@ public class PurchasingDbContext : DbContext, IUnitOfWork, ITenantScopedDbContex
         purchaseRequestBuilder.HasIndex(pr => pr.ProductId);
         purchaseRequestBuilder.HasIndex(pr => pr.Status);
         purchaseRequestBuilder.HasIndex(pr => new { pr.TenantId, pr.Status });
+
+        // ── P1-8: RFQ, quotations, supplier invoices, vendor returns, settings. Same keying as the order: (Id, TenantId).
+        var rfq = builder.Entity<RequestForQuotation>();
+        rfq.ToTable("RequestForQuotations");
+        rfq.HasKey(x => new { x.Id, x.TenantId });
+        rfq.Property(x => x.RfqNumber).HasMaxLength(50).IsRequired();
+        rfq.Property(x => x.Title).HasMaxLength(255).IsRequired();
+        rfq.Property(x => x.Notes).HasMaxLength(1000);
+        rfq.HasIndex(x => new { x.TenantId, x.RfqNumber }).IsUnique();
+        rfq.HasMany(x => x.Lines).WithOne().HasForeignKey(x => new { x.RfqId, x.TenantId }).OnDelete(DeleteBehavior.Cascade);
+        rfq.HasMany(x => x.Invitations).WithOne().HasForeignKey(x => new { x.RfqId, x.TenantId }).OnDelete(DeleteBehavior.Cascade);
+        rfq.HasMany(x => x.Quotations).WithOne().HasForeignKey(x => new { x.RfqId, x.TenantId }).OnDelete(DeleteBehavior.Cascade);
+        rfq.Navigation(x => x.Lines).AutoInclude();
+        rfq.Navigation(x => x.Invitations).AutoInclude();
+        rfq.Navigation(x => x.Quotations).AutoInclude();
+
+        var rfqLine = builder.Entity<RfqLine>();
+        rfqLine.HasKey(x => new { x.Id, x.TenantId });
+        rfqLine.Property(x => x.ProductCode).HasMaxLength(50).IsRequired();
+        rfqLine.Property(x => x.ProductName).HasMaxLength(255).IsRequired();
+        rfqLine.Property(x => x.Unit).HasMaxLength(20);
+        rfqLine.Property(x => x.Quantity).HasPrecision(18, 2);
+
+        var rfqInvitation = builder.Entity<RfqInvitation>();
+        rfqInvitation.HasKey(x => new { x.Id, x.TenantId });
+
+        var quotation = builder.Entity<SupplierQuotation>();
+        quotation.HasKey(x => new { x.Id, x.TenantId });
+        quotation.Property(x => x.QuoteNumber).HasMaxLength(50);
+        quotation.Property(x => x.CurrencyCode).HasMaxLength(3).IsRequired();
+        quotation.Property(x => x.Notes).HasMaxLength(1000);
+        quotation.HasMany(x => x.Lines).WithOne().HasForeignKey(x => new { x.QuotationId, x.TenantId }).OnDelete(DeleteBehavior.Cascade);
+        quotation.Navigation(x => x.Lines).AutoInclude();
+
+        var quotationLine = builder.Entity<QuotationLine>();
+        quotationLine.HasKey(x => new { x.Id, x.TenantId });
+        quotationLine.Property(x => x.UnitPrice).HasPrecision(18, 4);
+
+        var invoice = builder.Entity<SupplierInvoice>();
+        invoice.HasKey(x => new { x.Id, x.TenantId });
+        invoice.Property(x => x.InvoiceNumber).HasMaxLength(50).IsRequired();
+        invoice.Property(x => x.PONumber).HasMaxLength(50);
+        invoice.Property(x => x.CurrencyCode).HasMaxLength(3).IsRequired();
+        invoice.Property(x => x.NetAmount).HasPrecision(18, 2);
+        invoice.Property(x => x.TaxAmount).HasPrecision(18, 2);
+        invoice.Property(x => x.ReceivedValue).HasPrecision(18, 2);
+        invoice.Property(x => x.HoldReasons).HasMaxLength(2000);
+        invoice.Property(x => x.ApprovalReason).HasMaxLength(1000);
+        invoice.Property(x => x.RejectionReason).HasMaxLength(1000);
+        invoice.Property(x => x.ApprovedBy).HasMaxLength(256);
+        invoice.Ignore(x => x.TotalAmount);
+        invoice.HasIndex(x => new { x.TenantId, x.SupplierId, x.InvoiceNumber }).IsUnique();
+        invoice.HasIndex(x => new { x.TenantId, x.PurchaseOrderId });
+        invoice.HasMany(x => x.Lines).WithOne().HasForeignKey(x => new { x.InvoiceId, x.TenantId }).OnDelete(DeleteBehavior.Cascade);
+        invoice.HasMany(x => x.MatchLines).WithOne().HasForeignKey(x => new { x.InvoiceId, x.TenantId }).OnDelete(DeleteBehavior.Cascade);
+        invoice.Navigation(x => x.Lines).AutoInclude();
+        invoice.Navigation(x => x.MatchLines).AutoInclude();
+
+        var invoiceLine = builder.Entity<SupplierInvoiceLine>();
+        invoiceLine.HasKey(x => new { x.Id, x.TenantId });
+        invoiceLine.Property(x => x.ProductCode).HasMaxLength(50).IsRequired();
+        invoiceLine.Property(x => x.Quantity).HasPrecision(18, 2);
+        invoiceLine.Property(x => x.UnitPrice).HasPrecision(18, 4);
+
+        var matchLine = builder.Entity<SupplierInvoiceMatchLine>();
+        matchLine.HasKey(x => new { x.Id, x.TenantId });
+        matchLine.Property(x => x.ProductCode).HasMaxLength(50).IsRequired();
+        matchLine.Property(x => x.Verdict).HasMaxLength(50).IsRequired();
+        foreach (var p in new[] { nameof(SupplierInvoiceMatchLine.Ordered), nameof(SupplierInvoiceMatchLine.Received), nameof(SupplierInvoiceMatchLine.Returned),
+                                  nameof(SupplierInvoiceMatchLine.PreviouslyInvoiced), nameof(SupplierInvoiceMatchLine.Invoiced), nameof(SupplierInvoiceMatchLine.QuantityVariance) })
+            matchLine.Property(p).HasPrecision(18, 2);
+        matchLine.Property(x => x.OrderPrice).HasPrecision(18, 4);
+        matchLine.Property(x => x.InvoicedPrice).HasPrecision(18, 4);
+        matchLine.Property(x => x.PriceVariancePercent).HasPrecision(9, 2);
+
+        var vendorReturn = builder.Entity<VendorReturn>();
+        vendorReturn.HasKey(x => new { x.Id, x.TenantId });
+        vendorReturn.Property(x => x.ReturnNumber).HasMaxLength(50).IsRequired();
+        vendorReturn.Property(x => x.PONumber).HasMaxLength(50);
+        vendorReturn.Property(x => x.CurrencyCode).HasMaxLength(3).IsRequired();
+        vendorReturn.Property(x => x.Reason).HasMaxLength(500).IsRequired();
+        vendorReturn.Property(x => x.CreditNoteNumber).HasMaxLength(50);
+        vendorReturn.Property(x => x.CreditAmount).HasPrecision(18, 2);
+        vendorReturn.Ignore(x => x.Value);
+        vendorReturn.HasIndex(x => new { x.TenantId, x.ReturnNumber }).IsUnique();
+        vendorReturn.HasIndex(x => new { x.TenantId, x.PurchaseOrderId });
+        vendorReturn.HasMany(x => x.Lines).WithOne().HasForeignKey(x => new { x.ReturnId, x.TenantId }).OnDelete(DeleteBehavior.Cascade);
+        vendorReturn.Navigation(x => x.Lines).AutoInclude();
+
+        var vendorReturnLine = builder.Entity<VendorReturnLine>();
+        vendorReturnLine.HasKey(x => new { x.Id, x.TenantId });
+        vendorReturnLine.Property(x => x.ProductCode).HasMaxLength(50).IsRequired();
+        vendorReturnLine.Property(x => x.ProductName).HasMaxLength(255);
+        vendorReturnLine.Property(x => x.Quantity).HasPrecision(18, 2);
+        vendorReturnLine.Property(x => x.UnitPrice).HasPrecision(18, 4);
+
+        var settings = builder.Entity<PurchasingSettings>();
+        settings.ToTable("PurchasingSettings");
+        settings.HasKey(x => new { x.Id, x.TenantId });
+        settings.Property(x => x.QuantityTolerancePercent).HasPrecision(9, 2);
+        settings.Property(x => x.PriceTolerancePercent).HasPrecision(9, 2);
+        settings.HasIndex(x => x.TenantId).IsUnique();
 
         // Configure Outbox pattern table
         builder.Entity<OutboxMessage>(e =>

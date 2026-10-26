@@ -252,6 +252,10 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.ForeignCurrencyCode).HasMaxLength(3);
                 e.Property(x => x.ExchangeRate).HasColumnType("decimal(18,6)");
                 e.Property(x => x.ForeignAmount).HasColumnType("decimal(18,2)");
+                e.Property(x => x.ReceivedValue).HasColumnType("decimal(18,2)");
+                e.Property(x => x.CreditedAmount).HasColumnType("decimal(18,2)");
+                e.Ignore(x => x.Outstanding);
+                e.HasIndex(x => x.SupplierInvoiceId).IsUnique().HasFilter("[SupplierInvoiceId] IS NOT NULL");
             });
 
             modelBuilder.Entity<FiscalPeriod>(e =>

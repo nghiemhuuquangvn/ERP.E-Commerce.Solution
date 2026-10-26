@@ -92,10 +92,67 @@ public class PurchaseOrderReceivedConsumer : IHostedService
         }
     }
 
+    private const int MaxAttempts = 5;
+
+    /// <summary>
+    /// Goods sent back to a supplier (ROADMAP P1-8): the stock is issued. A return the stock cannot cover fails as a whole; it is tried up to 5 times
+    /// (stock may arrive meanwhile) and then logged with its payload, never retried for ever.
+    /// </summary>
+    private async Task IssueVendorReturnAsync(JObject raw, string json, CancellationToken cancellationToken)
+    {
+        var returnId = raw.GuidValue("VendorReturnId") ?? Guid.Empty;
+        var lines = raw.ArrayValue("Lines");
+        if (returnId == Guid.Empty || lines == null)
+            return;
+
+        if (!EventTenant.TryRead(json, out var tenantId))
+        {
+            _logger.LogWarning("VendorReturnShipped {ReturnId} without TenantId ignored", returnId);
+            return;
+        }
+
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                using var tenantScope = TenantScope.Begin(tenantId);
+                using var scope = _serviceProvider.CreateScope();
+                await scope.ServiceProvider.GetRequiredService<IMediator>().Send(new IssueVendorReturnCommand
+                {
+                    VendorReturnId = returnId,
+                    ReturnNumber = raw.Value<string>("ReturnNumber") ?? string.Empty,
+                    PurchaseOrderId = raw.GuidValue("PurchaseOrderId") ?? Guid.Empty,
+                    Lines = lines.Select(l => new VendorReturnLine
+                    {
+                        ProductCode = l.Value<string>("ProductCode") ?? string.Empty,
+                        Quantity = (int)(l.Value<decimal?>("Quantity") ?? 0m)
+                    }).ToList()
+                }, cancellationToken);
+                return;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) when (attempt < MaxAttempts)
+            {
+                _logger.LogWarning(ex, "Attempt {Attempt} of {Max} failed for vendor return {ReturnId}; retrying", attempt, MaxAttempts, returnId);
+                await Task.Delay(TimeSpan.FromSeconds(attempt * 2), cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Giving up on vendor return {ReturnId} after {Max} attempts; the stock was NOT issued. Payload: {Payload}", returnId, MaxAttempts, json);
+                return;
+            }
+        }
+    }
+
     private async Task DispatchAsync(string json, CancellationToken cancellationToken)
     {
         var raw = JObject.Parse(json);
         var typeName = raw["$type"]?.ToString() ?? string.Empty;
+        if (typeName.Contains("VendorReturnShippedDomainEvent"))
+        {
+            await IssueVendorReturnAsync(raw, json, cancellationToken);
+            return;
+        }
         if (!typeName.Contains("PurchaseOrderReceivedDomainEvent"))
             return; // Other purchasing-topic events are not yet consumed by WarehouseService.
 

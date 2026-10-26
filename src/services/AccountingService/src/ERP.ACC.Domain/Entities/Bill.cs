@@ -54,6 +54,31 @@ namespace ERP.ACC.Domain.Entities
             ForeignAmount = Math.Round(foreignAmount, 2);
         }
 
+        /// <summary>The supplier invoice (Purchasing, ROADMAP P1-8) this bill was booked from; null for a bill entered by hand.</summary>
+        public Guid? SupplierInvoiceId { get; set; }
+
+        /// <summary>
+        /// The goods of the invoice at the order price - what the receipts credited to GRNI. The difference to the net amount is the purchase price
+        /// variance. Null for a bill that is not from a supplier invoice (it clears GRNI by its whole net amount).
+        /// </summary>
+        public decimal? ReceivedValue { get; set; }
+
+        /// <summary>What the supplier credited back (debit notes of returned goods); the open balance is <see cref="Outstanding"/>.</summary>
+        public decimal CreditedAmount { get; set; }
+
+        /// <summary>What is still to be paid: the amount less the credits.</summary>
+        public decimal Outstanding => Math.Max(0m, Amount - CreditedAmount);
+
+        /// <summary>Takes a supplier credit off the open balance; returns what was applied (never more than is outstanding).</summary>
+        public decimal ApplyCredit(decimal credit)
+        {
+            if (credit <= 0m) return 0m;
+            var applied = Math.Min(credit, Outstanding);
+            CreditedAmount += applied;
+            UpdatedAt = DateTime.UtcNow;
+            return applied;
+        }
+
         /// <summary>The day the bill was approved, i.e. became a payable (null for a bill approved before this was recorded: its creation date is used).</summary>
         public DateTime? ApprovedOn { get; set; }
 

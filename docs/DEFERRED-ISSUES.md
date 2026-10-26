@@ -25,7 +25,7 @@ How to read: **Source** = where it was found; **Home** = the roadmap item or kin
 | # | Issue | Source | Home | Impact |
 |---|---|---|---|---|
 | G1 | Stock on hand before go-live and all documents before the posting releases are not back-posted. | P1-1, P1-1b | Opening-balance entry (manual) or an import tool | Account 1200 starts below the warehouse valuation. |
-| G2 | A manual stock receipt (no PO, no bill) leaves a credit on GRNI that accounting must clear. | P1-1b | Accounting procedure | GRNI never reaches zero by itself. |
+| G2 | A manual stock receipt (no PO, no bill) leaves a credit on GRNI that accounting must clear. | P1-1b | Accounting procedure | GRNI never reaches zero by itself. | **P1-8:** a supplier invoice now clears GRNI at the received value and the price difference goes to the variance account; goods invoiced beyond what was received, and manual receipts without an order, still leave a balance.
 | G3 | FIFO / LIFO products **without lots** cost at the last receipt price (`Inventory.Cost`); only `Average` is weighted. | P1-1b | Warehouse costing | COGS differs from true FIFO. |
 | G4 | Partial shipments appear to issue stock (and COGS) only when the order is fully shipped; unverified. | P1-1b (agent report) | Verify live, then Warehouse | COGS may lag for partially shipped orders. |
 | G5 | POS: tax is not reduced by the discount (POS pricing rule). | P1-1c | POS pricing | Customer is charged tax on the undiscounted amount. |
@@ -239,6 +239,19 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | AI5 | `warehouse-topic` is consumed by Reporting (`InventoryEventConsumer`) but nothing publishes to it (Warehouse uses RabbitMQ `warehouse_exchange`): `FactInventoryMovements` is never fed. `notification-topic` and `sale-order-settings-topic` still have no consumer; `LeadQualified`, `CaseOpened`, `PaymentInitiated`, `FlashSaleStarted`, `TrackingUpdated` remain unconsumed. | P1-6b |
 | AI6 | Messages that fail 5 times are dropped with an error log (no dead-letter screen); a Kafka message is retried in process, so a restart in the middle of the retries loses it. | P1-5b / P1-6b |
 | AI7 | Message wording is in English; the customer's language is not used. Wording needs the owner's review. | P1-6b |
+
+## 4s. Purchasing: RFQ, supplier invoices, returns to vendor (P1-8 follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| AJ1 | Behaviour change: an approved purchase order no longer books a bill; bills already created stay. A tenant that never records supplier invoices gets no payable for its orders. | P1-8 (owner's choice) |
+| AK1 | An RFQ is not e-mailed to suppliers and has no supplier portal; it cannot be started from a purchase request (those carry a product id, orders a product code); award is for the whole RFQ to one supplier. | P1-8b / P1-9 |
+| AK2 | A supplier invoice in another currency than the order is held; an approved one in another currency than the books becomes a Pending bill with no rate (no automatic conversion). | P1-8b |
+| AK3 | The match tolerances are per tenant, not per supplier or product; there is no tolerance on the invoice total / tax. | P1-8b |
+| AK4 | Warehouse refuses a vendor return when the stock is not available (reserved or sold): after 5 attempts the return stays Shipped in Purchasing with an error in the Warehouse log and no stock movement (no screen). Returns issue at the product's current cost, not the lot cost; no lots / serials. | P1-8b |
+| AK5 | A supplier credit is applied only to the bills of the same order; a credit larger than the open bills is booked but not applied. B01's maturity split and the foreign revaluation still read the bill amount, not the open balance. The Bills screen does not show the supplier invoice number or the credited amount yet. | P1-8b |
+| AK6 | The goods receipt has no lines (header only); the match uses the order line's received quantity. Rejected quantities are not stocked or returned by the system. | P1-8b |
+| AK7 | The Kafka consumer of Warehouse retries a vendor return in process (5 attempts); a restart in between loses the attempt (as in §4r AI6). | P1-5b / P1-8b |
 
 ## 5. Roadmap items these issues are waiting for
 

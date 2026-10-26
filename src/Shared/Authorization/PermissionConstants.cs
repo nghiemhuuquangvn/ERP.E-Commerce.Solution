@@ -85,6 +85,18 @@ public static class PermissionConstants
     public const string PurchaseRequest_View = "purchase_request:view";
     public const string PurchaseRequest_Manage = "purchase_request:manage";
 
+    // PurchaseOrderService — RFQ, supplier invoices with three-way match, returns to vendor (ROADMAP P1-8).
+    public const string Rfq_Read = "rfq:read";
+    public const string Rfq_Manage = "rfq:manage";
+    public const string SupplierInvoice_Read = "supplier_invoice:read";
+    public const string SupplierInvoice_Manage = "supplier_invoice:manage";
+    public const string SupplierInvoice_Approve = "supplier_invoice:approve";
+    /// <summary>Approve an invoice the three-way match put on hold (quantity or price outside the tolerance).</summary>
+    public const string SupplierInvoice_ApproveVariance = "supplier_invoice:approve_variance";
+    public const string VendorReturn_Read = "vendor_return:read";
+    public const string VendorReturn_Manage = "vendor_return:manage";
+    public const string PurchasingSettings_Manage = "purchasing_settings:manage";
+
     // Payment Permissions
     public const string Payments_View = "payments:view";
     public const string Payments_Create = "payments:create";
@@ -388,6 +400,8 @@ public static class PermissionConstants
         PurchaseOrder_Receive,
         Supplier_Create, Supplier_Read, Supplier_Update, Supplier_Delete, Supplier_Deactivate, Supplier_Rate,
         PurchaseRequest_View, PurchaseRequest_Manage,
+        Rfq_Read, Rfq_Manage, SupplierInvoice_Read, SupplierInvoice_Manage, SupplierInvoice_Approve, SupplierInvoice_ApproveVariance,
+        VendorReturn_Read, VendorReturn_Manage, PurchasingSettings_Manage,
         SalesOrder_Create, SalesOrder_Read, SalesOrder_Update, SalesOrder_Approve, SalesOrder_Cancel,
         Accounting_AccountsView, Accounting_AccountsManage,
         Accounting_InvoicesView, Accounting_InvoicesManage,

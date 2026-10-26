@@ -38,6 +38,7 @@ The entry is staged on the caller's unit of work, so the document, its journal e
 | `SocialInsurancePayable` / `HealthInsurancePayable` / `UnemploymentInsurancePayable` | 3383 / 3384 / 3389 (VAS), 2100 (simple) | pay slips: employee + employer insurance (P1-7) |
 | `PitPayable` | 3335 (VAS), 2100 (simple) | pay slips: personal income tax withheld (P1-7) |
 | `EmployerInsuranceExpense` | 6421 (VAS), 5200 (simple) | pay slips: the employer's insurance cost (P1-7) |
+| `PurchasePriceVariance` | 632 (VAS), 5000 (simple) | bills from supplier invoices: invoiced net minus the received value (P1-8) |
 | `VatOutput` | 2200 Tax Payable (Vas99: 3331) | VAT on sales invoices, returns and POS sales (P1-3) |
 | `VatInput` | 2200 (shared with VatOutput; Vas99: 1331) | VAT on approved bills (P1-3) |
 
@@ -53,7 +54,8 @@ already has its own chart is never given extra accounts: if a key has no account
 | `SalesOrderCancelled`, invoice unpaid | invoice → Cancelled, the entry above is reversed (mirror entry) | `InvoiceReversal:<invoiceId>` |
 | `PaymentProcessed` | Dr Cash (method Cash = 4) or Bank / Cr AR; applied to the order's invoice, which is paid once `AmountPaid ≥ Amount` | `Payment:<paymentId>` |
 | Invoice marked paid by hand | Dr Bank / Cr AR for the outstanding amount | `InvoicePayment:<invoiceId>` |
-| Bill approved | Dr GRNI / Cr AP | `Bill:<billId>` |
+| Bill approved (from a supplier invoice, P1-8) | Dr GRNI (received value) and Dr PurchasePriceVariance (net − received value, a credit when negative) and Dr VatInput / Cr AP (gross); a hand-entered bill: Dr GRNI (net), Dr VatInput / Cr AP | `Bill:<billId>` |
+| Debit note for a vendor return credited by the supplier (P1-8) | Dr AP / Cr GRNI, the credit amount; also `Bills.CreditedAmount` on the order's open approved bills | `DebitNote:<vendorReturnId>` |
 | Payment refunded (Kafka `payment-topic`, only a gateway-confirmed refund) | Dr AccountsReceivable / Cr Cash (method Cash) or Bank; the invoice's `AmountPaid` goes down and a paid invoice is open again | `PaymentRefund:<refundId>` |
 | Sales return completed (`SalesOrderReturned`) | Dr SalesReturns / Cr AccountsReceivable = the refund amount (credit note against the order's invoice) | `SalesReturn:<orderId>` |
 | Loan registered (P1-2j, `CreateLoanCommand`, option `postDrawdown`, default on) | Dr the receiving account (default Bank) / Cr LoanPayable = the principal, dated the start date | `Loan:<loanId>` |
@@ -69,6 +71,7 @@ already has its own chart is never given extra accounts: if a key has no account
 | POS sale voided | mirror of the sale entry | `PosSaleReversal:<transactionId>` |
 | POS shift closed, counted ≠ expected cash | shortage: Dr CashOverShort / Cr Cash; overage the reverse | `PosShift:<shiftId>` |
 | Stock received (PO goods receipt or manual receipt with a cost) | Dr Inventory / Cr GRNI, qty × unit cost | `StockMovement:<movementId>` |
+| Stock sent back to a supplier (movement `ReturnedToVendor`, P1-8) | Dr GRNI / Cr Inventory, qty × current cost | `StockMovement:<movementId>` |
 | Stock issued (`Sold`: order shipped, POS sale) | Dr COGS / Cr Inventory, the cost Warehouse took the stock out at | `StockMovement:<movementId>` |
 | Stock adjusted / damaged (approved adjustment, stocktake variance, POS void) | loss: Dr InventoryAdjustment / Cr Inventory; gain: the reverse, at the current cost | `StockMovement:<movementId>` |
 | Bill marked paid | Dr AP / Cr Bank | `BillPayment:<billId>` |

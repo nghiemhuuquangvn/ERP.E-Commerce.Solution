@@ -1,3 +1,5 @@
+> **2026-10-26 (P1-8):** the supplier invoice is now stored and matched with tolerances, and only an approved invoice becomes a bill (not the order approval); returns to vendor exist. This flow is described in `ProcureToPay.md`.
+
 # Purchasing Workflow — Procure-to-Pay (end-to-end)
 
 > Luồng nghiệp vụ thực tế dựa trên code hiện có, tổng hợp từ

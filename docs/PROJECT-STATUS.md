@@ -36,6 +36,14 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-26 — ROADMAP P1-8: purchasing RFQ, supplier invoices, returns to vendor (`feat/p1-8-purchasing-rfq-match-returns`, unmerged)
+- **Purchasing**: RFQ + quotations + comparison + award (→ draft PO); `SupplierInvoice` with a stored three-way match (tolerances per tenant, default 0 % / 2 %), approve / approve-with-variance / reject / match again; `VendorReturn` (create, ship, credit). Migration **Purchasing 012** (11 tables; 009–012 added to the runner), **Identity 029** (nine permissions: rfq, supplier_invoice, vendor_return, purchasing_settings).
+- **Accounting** (migration **026**): no bill from the order approval any more; the bill comes from `SupplierInvoiceApproved` (VAT, due date and received value as invoiced); price variance key `PurchasePriceVariance`; debit note and `Bills.CreditedAmount` from `VendorReturnCredited`; movement `ReturnedToVendor` → Dr GRNI / Cr Inventory.
+- **Warehouse**: `MovementType.ReturnedToVendor = 6`, `IssueVendorReturnCommand` (all or nothing, idempotent, 5 attempts).
+- **Admin**: Purchasing → RFQs, Supplier invoices, Returns to vendor, Match settings; *Receive goods* on the purchase order.
+- Tests: PO 43 (was 9), ACC 579, WH 26; `LiveSchemaDriftTests` green; `tsc -b` clean. Live on `glcheck`: RFQ award at the cheaper quote, no bill at order approval, partial receipts, an invoice matched and booked as a bill, an invoice 5 % over held and approved with a reason (variance 45 on 632), an over-invoice held and rejected, a return that took stock 21 → 19 with its entries, a credit note that lowered the bill by 180, tolerances changed and re-matched. A bug found live (settings row inserted twice in one request) fixed in the last commit. Test data removed.
+- Not done (P1-8b): DEFERRED §4s.
+
 ### 2026-10-26 — ROADMAP P1-6: customer notifications and unconsumed events (`feat/p1-6-event-consumers`, unmerged)
 - **Notification**: `SalesOrderCreated` now carries the customer e-mail and order number; `OrderRecipients` / `UserContacts` projections; messages for order created / paid / shipment prepared / shipped / delivered / cancelled / returned, payment failed / refunded, loyalty points, coupon use, case resolved (platform templates, migration **Notification 013**); `DedupKey` = one message per fact; templates render case-insensitively incl. the subject; consumers retry 5 times; opted-out customers skipped quietly.
 - **Promotion**: points earned once per order, reversed on `SalesOrderCancelled` / `Returned`. **CRM**: `OpportunityWon` and `CaseResolved` carry the contact (and e-mail).

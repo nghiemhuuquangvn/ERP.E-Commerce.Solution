@@ -607,7 +607,7 @@ public class SalesQuotationAcceptedEvent
 **Description:** Published when a new purchase order is created.
 
 **Publisher:** Purchasing Service  
-**Subscribers:** none that act on it (Accounting books bills from `PurchaseOrderApproved` since 2026-10-22)
+**Subscribers:** none that act on it (since P1-8 Accounting no longer books a bill from the order approval: the bill comes from `SupplierInvoiceApproved`)
 
 **Event Structure:**
 ```csharp
@@ -649,7 +649,7 @@ instead fires from `ApproveFinance()` once the finance step completes — either
 way, this event means "the PO is now fully `Approved`."
 
 **Publisher:** Purchasing Service  
-**Subscribers:** Accounting Service; Notification Service (`PurchasingTopic`,
+**Subscribers:** Notification Service (`PurchasingTopic`, Accounting no longer books a bill from it since P1-8;
 added 2026-08-04 — sends a confirmation notification; see
 `PurchaseOrderApprovedIntegrationEventHandler`)
 
@@ -1384,3 +1384,10 @@ Event Published → [Service A] → Event Consumed → [Service B] → Updated
 PO approval; documented `LeaveApprovedEvent`/`LeaveRejectedEvent` and their new
 NotificationService consumer; noted `PurchaseOrderApprovedEvent`'s new
 NotificationService subscriber)
+
+### SupplierInvoiceApprovedDomainEvent / VendorReturnShippedDomainEvent / VendorReturnCreditedDomainEvent (P1-8)
+
+**Publisher:** Purchasing Service (outbox → Kafka `purchasing-topic`, tenant-stamped).
+- `SupplierInvoiceApprovedDomainEvent(SupplierInvoiceId, InvoiceNumber, SupplierId, PurchaseOrderId, PONumber, InvoiceDate, DueDate, CurrencyCode, NetAmount, TaxAmount, ReceivedValue)` — **Accounting** books the bill (BA-Accounting FR-164).
+- `VendorReturnShippedDomainEvent(VendorReturnId, ReturnNumber, PurchaseOrderId, PONumber, SupplierId, CurrencyCode, Lines[ProductCode, Quantity, UnitPrice])` — **Warehouse** issues the stock (movement `ReturnedToVendor`, 5 attempts).
+- `VendorReturnCreditedDomainEvent(VendorReturnId, ReturnNumber, PurchaseOrderId, PONumber, SupplierId, CurrencyCode, CreditNoteNumber, CreditAmount)` — **Accounting** books the debit note.

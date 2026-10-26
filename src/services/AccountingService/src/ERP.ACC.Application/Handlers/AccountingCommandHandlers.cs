@@ -412,9 +412,9 @@ namespace ERP.ACC.Application.Handlers
             bill.MarkPaid();
             await _uow.Bills.UpdateAsync(bill, cancellationToken);
             var application = PaymentApplication.Create(
-                PaymentApplication.BillDocument, bill.Id, DateTime.UtcNow, bill.Amount, $"manual:{bill.Id:N}");
+                PaymentApplication.BillDocument, bill.Id, DateTime.UtcNow, bill.Outstanding, $"manual:{bill.Id:N}");
             if (cash.HasValue)
-                application.WithForeign(bill.ForeignCurrencyCode!, bill.ForeignAmount!.Value, request.PaymentRate!.Value, FxSupport.PayableDifference(cash.Value, bill.Amount));
+                application.WithForeign(bill.ForeignCurrencyCode!, bill.ForeignAmount!.Value, request.PaymentRate!.Value, FxSupport.PayableDifference(cash.Value, bill.Outstanding));
             await _uow.PaymentApplications.AddAsync(application, cancellationToken);
             await _posting.TryPostAsync(_logger, PostingRules.ForBillPayment(bill, DateTime.UtcNow, cash), cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);

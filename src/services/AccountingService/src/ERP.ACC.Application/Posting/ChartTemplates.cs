@@ -254,6 +254,7 @@ namespace ERP.ACC.Application.Posting
                 [PostingKeys.UnemploymentInsurancePayable] = "3389",
                 [PostingKeys.PitPayable] = "3335",
                 [PostingKeys.EmployerInsuranceExpense] = "6421",
+                [PostingKeys.PurchasePriceVariance] = "632",
                 [PostingKeys.SalesReturns] = "5212",
                 [PostingKeys.IncomeSummary] = "911",
                 [PostingKeys.RetainedEarnings] = "4212",
