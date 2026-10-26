@@ -77,13 +77,17 @@ public class ProcurementStore : IProcurementStore
 
     public void Add(VendorReturn vendorReturn) => _db.VendorReturns.Add(vendorReturn);
 
+    private PurchasingSettings? _settings;
+
+    /// <summary>One settings row per tenant: a default created in this request is remembered, so asking twice before the save does not add it twice.</summary>
     public async Task<PurchasingSettings> GetSettingsAsync(Guid tenantId, CancellationToken ct)
     {
-        var settings = await _db.PurchasingSettings.FirstOrDefaultAsync(ct);
-        if (settings != null) return settings;
-        settings = PurchasingSettings.CreateDefault(tenantId);
-        _db.PurchasingSettings.Add(settings);
-        return settings;
+        if (_settings != null) return _settings;
+        _settings = await _db.PurchasingSettings.FirstOrDefaultAsync(ct);
+        if (_settings != null) return _settings;
+        _settings = PurchasingSettings.CreateDefault(tenantId);
+        _db.PurchasingSettings.Add(_settings);
+        return _settings;
     }
 
     public Task<int> SaveChangesAsync(CancellationToken ct) => _db.SaveChangesAsync(ct);
