@@ -383,7 +383,7 @@ public class SalesOrderApprovedEvent : IntegrationEvent
 **Description:** Published when a sales order is shipped.
 
 **Publisher:** Sales Service  
-**Subscribers:** Warehouse Service, Accounting Service, Customer Notifications
+**Subscribers:** Warehouse Service, Reporting; Notification (customer message, since 2026-10-26 P1-6). Notification also subscribes to SalesOrderCreated (now carries `CustomerEmail`, `OrderNo`), Delivered, Cancelled and Returned; Promotion reverses loyalty points on Cancelled / Returned.
 
 > **Fixed 2026-07-27 (Module 8 reconciliation):** WareHouseService's handler for this
 > event previously only flipped the matching `Reservation` to `Fulfilled` —

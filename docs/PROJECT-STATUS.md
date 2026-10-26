@@ -36,6 +36,14 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-26 — ROADMAP P1-6: customer notifications and unconsumed events (`feat/p1-6-event-consumers`, unmerged)
+- **Notification**: `SalesOrderCreated` now carries the customer e-mail and order number; `OrderRecipients` / `UserContacts` projections; messages for order created / paid / shipment prepared / shipped / delivered / cancelled / returned, payment failed / refunded, loyalty points, coupon use, case resolved (platform templates, migration **Notification 013**); `DedupKey` = one message per fact; templates render case-insensitively incl. the subject; consumers retry 5 times; opted-out customers skipped quietly.
+- **Promotion**: points earned once per order, reversed on `SalesOrderCancelled` / `Returned`. **CRM**: `OpportunityWon` and `CaseResolved` carry the contact (and e-mail).
+- **Reporting** (migration **Reporting 008**): dead `sales-order-*` Kafka consumer removed; `FactCrmOpportunities`, `FactPaymentRefunds` (PartiallyRefunded vs Refunded), pay slip fact with net pay and breakdown, returned orders (G13, AH7, G14 closed).
+- **Admin**: Settings → *Sent notifications*, *Message templates* (read-only).
+- Tests: NTF 19, PRM 8, RPT 7, CRM 4 (new projects), SO 33; Architecture 53/54 (known `NoSharedTokenKeyTests`); `LiveSchemaDriftTests` green; `tsc -b` clean. Live on `glcheck`: full order → delivery → return produced 7 messages to the customer, points earned and reversed, partial then full refund in Reporting, won deal and resolved case. Local stack has no SMTP: messages end Failed ("Failure sending mail.") after retries.
+- Not done (P1-6b): DEFERRED §4r.
+
 ### 2026-10-26 — ROADMAP P1-7: real payroll (`feat/p1-7-real-payroll`, unmerged)
 - **HRM**: `PayrollCalculator` (pure; insurance with caps, progressive PIT with personal / dependent deductions, proration, overtime); tables `EmployeeCompensations`, `Dependents`, `PayrollRateSets` + `PitBrackets` (date-effective, seeded DRAFT defaults per tenant on first use), `LeaveBalances` revived; pay slip breakdown columns. Migration **HRM 008** (add to the runner: done in `RunAllScripts.ps1`). API: `salary-profiles`, `employees/{id}/compensations|dependents`, `payroll-settings/rate-sets`, `leave-requests/balances`; `payroll/process` now returns `{created, skipped}`.
 - **Leave**: working days (Mon–Fri), annual balance checked at submit and approve.

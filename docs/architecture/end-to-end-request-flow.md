@@ -369,7 +369,7 @@ monitoring/settings/auth/masterdata — has no `crm` folder) — reachable via
 5. **Post-sale linkage (this session's new wiring):** CRM's
    `SalesOrderRabbitMqConsumer` consumes `sales_order.SalesOrderCreatedEvent` and
    links the order to its Contact; CRM's `CrmKafkaConsumer` (`payment-topic`) updates
-   customer lifetime value on `PaymentProcessedEvent`.
+   customer lifetime value on `PaymentProcessedEvent` (stale: the handler only logs). Since P1-6, `OpportunityWonEvent` also reaches Reporting (`FactCrmOpportunities`) and `CaseResolvedEvent` the customer (Notification).
 
 ---
 

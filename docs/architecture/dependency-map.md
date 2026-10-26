@@ -164,7 +164,7 @@
 |-----------|------|--------|----------|---------|
 | POS | REST | ProcessPayment | PaymentProcessedEvent | Retail payment |
 | Accounting | EVENT | — | PaymentProcessed, PaymentRefunded (since 2026-10-24, confirmed refunds only) | GL posting |
-| Notification | EVENT | — | PaymentProcessed (PaymentRefunded is not consumed yet — P1-6) | Payment receipts |
+| Notification | EVENT | — | PaymentProcessed, PaymentFailed, PaymentRefunded (since P1-6) | Receipts and refund / failure messages |
 | Reporting | EVENT | — | PaymentProcessed | Payment fact table |
 
 **Criticality:** HIGH — Revenue realization
