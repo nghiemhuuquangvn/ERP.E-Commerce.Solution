@@ -32,6 +32,61 @@ public class PayrollPostingTests
         request.Lines.Sum(l => l.Debit).Should().Be(request.Lines.Sum(l => l.Credit));
     }
 
+    // ROADMAP P1-7: base 30,000,000 + 1,000,000 allowance; employee insurance 3,150,000, income tax 635,000, employer insurance 6,450,000.
+    private static readonly PaySlipBreakdown Split = new(2_400_000m, 450_000m, 300_000m, 5_250_000m, 900_000m, 300_000m, 635_000m);
+
+    [Fact]
+    public void A_pay_slip_with_a_breakdown_splits_the_withholdings_and_books_the_employer_cost()
+    {
+        var request = PostingRules.ForPaySlip(Guid.NewGuid(), "2026-10", 31_000_000m, 0m, 3_785_000m, new DateTime(2026, 10, 31), new DateTime(2026, 11, 2), Split)!;
+
+        var lines = ByKey(request);
+        lines[PostingKeys.SalaryExpense].Should().Be((31_000_000m, 0m));
+        lines[PostingKeys.EmployerInsuranceExpense].Should().Be((6_450_000m, 0m));
+        lines[PostingKeys.SalariesPayable].Should().Be((0m, 27_215_000m));
+        lines[PostingKeys.SocialInsurancePayable].Should().Be((0m, 7_650_000m));      // 2,400,000 + 5,250,000
+        lines[PostingKeys.HealthInsurancePayable].Should().Be((0m, 1_350_000m));      // 450,000 + 900,000
+        lines[PostingKeys.UnemploymentInsurancePayable].Should().Be((0m, 600_000m));  // 300,000 + 300,000
+        lines[PostingKeys.PitPayable].Should().Be((0m, 635_000m));
+        request.Lines.Should().NotContain(l => l.PostingKey == PostingKeys.PayrollWithholdingsPayable);
+        request.Lines.Sum(l => l.Debit).Should().Be(request.Lines.Sum(l => l.Credit));
+    }
+
+    [Fact]
+    public void A_withholding_the_breakdown_does_not_explain_stays_on_the_lump_account()
+    {
+        // 3,785,000 explained, 15,000 of another deduction.
+        var request = PostingRules.ForPaySlip(Guid.NewGuid(), "2026-10", 31_000_000m, 0m, 3_800_000m, null, Today, Split)!;
+
+        ByKey(request)[PostingKeys.PayrollWithholdingsPayable].Should().Be((0m, 15_000m));
+        request.Lines.Sum(l => l.Debit).Should().Be(request.Lines.Sum(l => l.Credit));
+    }
+
+    [Fact]
+    public void A_breakdown_larger_than_the_amount_withheld_books_nothing()
+    {
+        PostingRules.ForPaySlip(Guid.NewGuid(), "2026-10", 31_000_000m, 0m, 1_000_000m, null, Today, Split).Should().BeNull();
+    }
+
+    [Fact]
+    public void An_empty_breakdown_posts_the_legacy_entry()
+    {
+        var request = PostingRules.ForPaySlip(Guid.NewGuid(), "2026-09", 5000m, 100m, 1500m, null, Today, new PaySlipBreakdown(0, 0, 0, 0, 0, 0, 0))!;
+
+        ByKey(request).Keys.Should().BeEquivalentTo(new[] { PostingKeys.SalaryExpense, PostingKeys.SalariesPayable, PostingKeys.PayrollWithholdingsPayable });
+    }
+
+    [Fact]
+    public void The_consumer_reads_the_insurance_and_tax_split_of_the_event()
+    {
+        var parsed = AccountingKafkaConsumer.ParsePaySlipGenerated(JObject.Parse(
+            "{\"PaySlipId\":\"" + Guid.NewGuid() + "\",\"PayPeriod\":\"2026-10\",\"GrossSalary\":31000000,\"Deductions\":3785000,\"NetPay\":27215000," +
+            "\"EmployeeSocial\":2400000,\"EmployeeHealth\":450000,\"EmployeeUnemployment\":300000,\"EmployerSocial\":5250000,\"EmployerHealth\":900000,\"EmployerUnemployment\":300000,\"IncomeTax\":635000}"));
+
+        parsed.Breakdown.Should().Be(Split);
+        parsed.Breakdown.HasValues.Should().BeTrue();
+    }
+
     [Fact]
     public void The_entry_is_dated_the_end_of_the_pay_period_but_never_in_the_future()
     {

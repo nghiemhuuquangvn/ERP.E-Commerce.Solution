@@ -20,6 +20,17 @@ namespace ERP.ACC.Application.EventHandlers
         public decimal NetPay { get; set; }
         public DateTime? PeriodEnd { get; set; }
         public DateTime OccurredAt { get; set; }
+
+        // Insurance and tax split (ROADMAP P1-7); all 0 on a slip entered by hand or published before real payroll.
+        public decimal EmployeeSocial { get; set; }
+        public decimal EmployeeHealth { get; set; }
+        public decimal EmployeeUnemployment { get; set; }
+        public decimal EmployerSocial { get; set; }
+        public decimal EmployerHealth { get; set; }
+        public decimal EmployerUnemployment { get; set; }
+        public decimal IncomeTax { get; set; }
+
+        public PaySlipBreakdown Breakdown => new(EmployeeSocial, EmployeeHealth, EmployeeUnemployment, EmployerSocial, EmployerHealth, EmployerUnemployment, IncomeTax);
     }
 
     public class PaySlipPaidIntegrationEvent : INotification
@@ -61,10 +72,10 @@ namespace ERP.ACC.Application.EventHandlers
             }
 
             var request = PostingRules.ForPaySlip(@event.PaySlipId, @event.PayPeriod, @event.GrossSalary, @event.OvertimePay,
-                @event.Deductions, @event.PeriodEnd, DateTime.UtcNow);
+                @event.Deductions, @event.PeriodEnd, DateTime.UtcNow, @event.Breakdown);
             if (request == null)
             {
-                _logger.LogError("Pay slip {PaySlipId} has deductions above its gross pay; no journal entry was posted", @event.PaySlipId);
+                _logger.LogError("Pay slip {PaySlipId} has deductions above its gross pay or a split that does not add up; no journal entry was posted", @event.PaySlipId);
                 return;
             }
 

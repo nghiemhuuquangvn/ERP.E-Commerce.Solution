@@ -318,12 +318,15 @@ namespace ERP.ACC.Application.Posting
         }
 
         /// <summary>
-        /// A pay slip: Dr Salary expense (gross + overtime) / Cr Salaries payable (net) and Cr Payroll withholdings payable (deductions). Dated
-        /// the end of the pay period, at most <paramref name="today"/>, so the expense falls in the month worked. Null when the deductions
-        /// exceed the pay.
+        /// A pay slip. Without a breakdown (legacy): Dr Salary expense (gross + overtime) / Cr Salaries payable (net) and Cr Payroll withholdings
+        /// payable (deductions). With one (ROADMAP P1-7): also Dr Employer insurance expense (the employer's contributions), and the withheld
+        /// amount is split into Cr Social / Health / Unemployment insurance payable (employee + employer shares) and Cr PIT payable; whatever
+        /// deduction is left over stays on Payroll withholdings payable. Dated the end of the pay period, at most <paramref name="today"/>.
+        /// Null when the deductions exceed the pay or do not cover the breakdown.
         /// </summary>
         public static PostingRequest? ForPaySlip(
-            Guid paySlipId, string payPeriod, decimal gross, decimal overtime, decimal deductions, DateTime? periodEnd, DateTime today)
+            Guid paySlipId, string payPeriod, decimal gross, decimal overtime, decimal deductions, DateTime? periodEnd, DateTime today,
+            PaySlipBreakdown? breakdown = null)
         {
             var expense = Math.Round(gross + overtime, 2);
             var withheld = Math.Round(deductions, 2);
@@ -333,10 +336,34 @@ namespace ERP.ACC.Application.Posting
 
             var lines = new List<PostingLine> { PostingLine.Dr(PostingKeys.SalaryExpense, expense) };
             if (net > 0m) lines.Add(PostingLine.Cr(PostingKeys.SalariesPayable, net));
-            if (withheld > 0m) lines.Add(PostingLine.Cr(PostingKeys.PayrollWithholdingsPayable, withheld));
+
+            if (breakdown == null || !breakdown.HasValues)
+            {
+                if (withheld > 0m) lines.Add(PostingLine.Cr(PostingKeys.PayrollWithholdingsPayable, withheld));
+            }
+            else
+            {
+                var b = breakdown;
+                var other = withheld - b.EmployeeInsurance - b.IncomeTax;
+                if (other < 0m) return null; // the split claims more than was withheld
+
+                var employer = Math.Round(b.EmployerInsurance, 2);
+                if (employer > 0m) lines.Add(PostingLine.Dr(PostingKeys.EmployerInsuranceExpense, employer));
+                AddCredit(lines, PostingKeys.SocialInsurancePayable, b.EmployeeSocial + b.EmployerSocial);
+                AddCredit(lines, PostingKeys.HealthInsurancePayable, b.EmployeeHealth + b.EmployerHealth);
+                AddCredit(lines, PostingKeys.UnemploymentInsurancePayable, b.EmployeeUnemployment + b.EmployerUnemployment);
+                AddCredit(lines, PostingKeys.PitPayable, b.IncomeTax);
+                AddCredit(lines, PostingKeys.PayrollWithholdingsPayable, other);
+            }
 
             var date = periodEnd.HasValue && periodEnd.Value.Date < today.Date ? periodEnd.Value.Date : today.Date;
             return new(PaySlip, paySlipId, date, $"Payroll {payPeriod}", lines);
+        }
+
+        private static void AddCredit(List<PostingLine> lines, string key, decimal amount)
+        {
+            var rounded = Math.Round(amount, 2);
+            if (rounded > 0m) lines.Add(PostingLine.Cr(key, rounded));
         }
 
         /// <summary>The net pay was paid out: Dr Salaries payable / Cr Bank. Null for a zero amount.</summary>

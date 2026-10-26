@@ -31,6 +31,14 @@ namespace ERP.ACC.Domain.Entities
         public const string SalariesPayable = "SalariesPayable";
         /// <summary>Deductions withheld from pay (insurance, tax, other): HRM sends one lump until real payroll (P1-7) splits it.</summary>
         public const string PayrollWithholdingsPayable = "PayrollWithholdingsPayable";
+        /// <summary>Social, health and unemployment insurance owed to the funds: the employee's share withheld and the employer's share (ROADMAP P1-7).</summary>
+        public const string SocialInsurancePayable = "SocialInsurancePayable";
+        public const string HealthInsurancePayable = "HealthInsurancePayable";
+        public const string UnemploymentInsurancePayable = "UnemploymentInsurancePayable";
+        /// <summary>Personal income tax withheld from pay and owed to the tax office (ROADMAP P1-7).</summary>
+        public const string PitPayable = "PitPayable";
+        /// <summary>The employer's insurance contributions as a cost, on top of the wages (ROADMAP P1-7).</summary>
+        public const string EmployerInsuranceExpense = "EmployerInsuranceExpense";
         /// <summary>Revenue given back for returned goods (contra-revenue). Defaults to the revenue account; a VAS chart gives it its own.</summary>
         public const string SalesReturns = "SalesReturns";
         /// <summary>Temporary account the period-end closing moves revenue and expenses into (VAS 911). The simple chart has none and uses retained earnings.</summary>
@@ -57,6 +65,7 @@ namespace ERP.ACC.Domain.Entities
             Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, Inventory, VatOutput,
             GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment, CashOverShort,
             SalaryExpense, SalariesPayable, PayrollWithholdingsPayable,
+            SocialInsurancePayable, HealthInsurancePayable, UnemploymentInsurancePayable, PitPayable, EmployerInsuranceExpense,
             SalesReturns, IncomeSummary, RetainedEarnings, LoanPayable, InterestExpense, InterestPayable, VatInput, FxGain, FxLoss, BankFee, BankInterestIncome
         };
 
@@ -78,6 +87,11 @@ namespace ERP.ACC.Domain.Entities
             [SalaryExpense] = "5200",              // Salaries & Benefits
             [SalariesPayable] = "2100",            // Accrued Liabilities
             [PayrollWithholdingsPayable] = "2100", // VAS (P1-2) splits insurance and personal income tax
+            [SocialInsurancePayable] = "2100",     // Accrued Liabilities (the simple chart has no separate fund accounts)
+            [HealthInsurancePayable] = "2100",
+            [UnemploymentInsurancePayable] = "2100",
+            [PitPayable] = "2100",
+            [EmployerInsuranceExpense] = "5200",   // Salaries & Benefits
             [SalesReturns] = "4000",               // the default chart has no contra-revenue account
             [IncomeSummary] = "3100",              // the simple chart closes straight into retained earnings
             [RetainedEarnings] = "3100",
