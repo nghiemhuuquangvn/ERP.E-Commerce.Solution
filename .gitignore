@@ -372,3 +372,5 @@ deployment/k8s/secrets.yaml
 # Output of deployment/scripts/export-identity-service.ps1 (CommonServiceRoadmap.md
 # §7 / Part B) — a generated, standalone copy, never committed to this monorepo.
 /export/
+# local record of what was last deployed to Docker (deployment/docker/deploy-changed.ps1)
+deployment/docker/.deploy-state.json

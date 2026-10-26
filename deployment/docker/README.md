@@ -130,3 +130,29 @@ docker compose -f docker-compose.yml -f docker-compose.localsql.yml up -d --buil
 - Docker Desktop on Windows: give WSL at least 8 GB (`~/.wslconfig`, `memory=12GB`). The default 4 GB makes the
   engine stop answering during the first build.
 - Shell scripts must stay LF (`.gitattributes`); a CRLF checkout makes admin/storefront crash-loop.
+
+## Rebuilding only what changed, without piling up build cache (2026-10-26)
+
+`docker compose build` of the whole stack, repeated, once grew Docker's disk image (`docker_data.vhdx`) to ~200 GB, of which ~150 GB was
+BuildKit cache that nothing could reuse (the root Dockerfile does `COPY . .` before `dotnet restore`, so any edit invalidates the layers anyway).
+Use the script instead of `docker compose build`:
+
+```powershell
+./deployment/docker/deploy-changed.ps1 -DryRun     # list the services whose sources changed since their last deploy
+./deployment/docker/deploy-changed.ps1             # build + restart only those, one at a time, free the cache after each
+./deployment/docker/deploy-changed.ps1 -Services warehouseservice,admin
+./deployment/docker/deploy-changed.ps1 -All        # everything
+./deployment/docker/deploy-changed.ps1 -CleanOnly  # only remove build cache and dangling images
+./deployment/docker/deploy-changed.ps1 -MarkCurrent  # after deploying by hand: record the current sources as deployed
+```
+
+- "Changed" = the content hash of the service's folder plus `src/Shared`, `Dockerfile`, `.dockerignore` (uncommitted edits included) differs
+  from the one stored in `deployment/docker/.deploy-state.json` (git-ignored, per machine). A change in `src/Shared` redeploys every .NET
+  service; a change inside one service folder, only that service; the frontends depend only on their own folder.
+- The service -> folder map is read from `docker-compose.yml`, so a new service needs no edit in the script.
+- After every service: `docker builder prune -a -f` and `docker image prune -f` (skip with `-KeepCache`). It refuses to build when the system drive has
+  less than `-MinFreeGB` (default 8) free.
+- First use on a machine: deploy what is running, then `-MarkCurrent`; otherwise the first run rebuilds every service.
+- Shrinking the disk image itself (it only grows): stop the stack, `wsl --shutdown`, then as administrator
+  `diskpart` → `select vdisk file="%LOCALAPPDATA%\Docker\wsl\disk\docker_data.vhdx"` → `attach vdisk readonly` → `compact vdisk` → `detach vdisk`; and cap it
+  in Docker Desktop → Settings → Resources → Advanced → *Virtual disk limit* (recommended 80 GB: the images and volumes need ~35 GB).
