@@ -1,4 +1,6 @@
+using ERP.Shared.Messaging;
 using ERP.SHP.Application.Interfaces;
+using Newtonsoft.Json;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace ERP.SHP.Infrastructure.Persistence;
@@ -26,6 +28,20 @@ public class ShippingUnitOfWork : IShippingUnitOfWork
 
     public async Task<int> SaveChangesAsync(CancellationToken ct = default) =>
         await _dbContext.SaveChangesAsync(ct);
+
+    public async Task StageEventAsync(ERP.Shared.Core.Domain.IDomainEvent integrationEvent, CancellationToken ct = default)
+    {
+        if (_dbContext.CurrentTenantId is { } tenantId)
+            EventTenant.Stamp(integrationEvent, tenantId);
+        _dbContext.OutboxMessages.Add(new OutboxMessage
+        {
+            Id = Guid.NewGuid(),
+            Type = integrationEvent.GetType().AssemblyQualifiedName ?? integrationEvent.GetType().Name,
+            Content = JsonConvert.SerializeObject(integrationEvent, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All }),
+            OccurredOnUtc = integrationEvent.OccurredOn,
+        });
+        await _dbContext.SaveChangesAsync(ct);
+    }
 
     public async Task BeginTransactionAsync(CancellationToken ct = default) =>
         _currentTrans = await _dbContext.Database.BeginTransactionAsync(ct);

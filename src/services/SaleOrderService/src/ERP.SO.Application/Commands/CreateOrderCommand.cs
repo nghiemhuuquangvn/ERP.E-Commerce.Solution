@@ -94,6 +94,9 @@ namespace ERP.SO.Application.Commands
     public class MarkAsDeliveredCommand : IRequest<SalesOrderDto>
     {
         public Guid OrderId { get; set; }
+
+        /// <summary>Why, for the status history (the carrier's confirmation sets it, ROADMAP P1-5).</summary>
+        public string? Reason { get; set; }
     }
 
     public class RejectOrderCommand : IRequest<SalesOrderDto>

@@ -300,6 +300,27 @@ public sealed class OrderFulfillmentSaga
         _logger.LogWarning("Saga {SagaId}: delivery of Order {OrderId} failed (attempt {Attempts}) — {Reason}", saga.Id, orderId, attempts, reason);
     }
 
+    // ── The carrier confirmed the delivery → the order is Delivered (P1-5) ──
+    /// <summary>Marks a Shipped order Delivered. Any other status (already Delivered, cancelled, partly shipped — other shipments are still on the way) is left alone.</summary>
+    public async Task<bool> HandleDeliveryConfirmedAsync(Guid orderId, CancellationToken ct)
+    {
+        var order = await _uow.Orders.GetByIdAsync(orderId, ct);
+        if (order is null)
+        {
+            _logger.LogWarning("DeliveryConfirmed for unknown Order {OrderId} ignored", orderId);
+            return false;
+        }
+
+        if (order.Status != ERP.SO.Domain.Entities.OrderStatus.Shipped)
+        {
+            _logger.LogInformation("DeliveryConfirmed for Order {OrderId} at {Status} — not changed", orderId, order.Status);
+            return false;
+        }
+
+        await _mediator.Send(new MarkAsDeliveredCommand { OrderId = orderId, Reason = "Delivered (carrier confirmation)" }, ct);
+        return true;
+    }
+
     // ── Timeouts: publish the step's command again, then compensate (P1-5) ──
     /// <summary>
     /// Looks at one Running saga: when its current step has been waiting longer than the step's timeout (or <paramref name="force"/> is set by a person) the command of that step is

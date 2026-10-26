@@ -93,12 +93,19 @@ namespace ERP.SO.Infrastructure.EventBus
         {
             var raw = JObject.Parse(json);
             var typeName = raw["$type"]?.ToString() ?? string.Empty;
-            if (!typeName.Contains("ShipmentCreatedEvent"))
-                return; // Other shipping-topic events are not yet consumed by SaleOrderService.
+            var kind =
+                typeName.Contains("ShipmentCreatedEvent") ? "Created" :
+                typeName.Contains("ShipmentCreationFailedEvent") ? "CreationFailed" :
+                typeName.Contains("ShipmentFailedEvent") ? "DeliveryFailed" :
+                typeName.Contains("DeliveryConfirmedEvent") ? "Delivered" : null;
+            if (kind == null)
+                return; // Other shipping-topic events are not consumed by SaleOrderService.
 
             var orderId = raw.GuidValue("OrderId") ?? Guid.Empty;
+            if (orderId == Guid.Empty)
+                return;
             var shipmentId = raw.GuidValue("ShipmentId") ?? Guid.Empty;
-            if (orderId == Guid.Empty || shipmentId == Guid.Empty)
+            if (kind == "Created" && shipmentId == Guid.Empty)
                 return;
 
             using var scope = _serviceProvider.CreateScope();
@@ -106,7 +113,23 @@ namespace ERP.SO.Infrastructure.EventBus
             if (await OrderTenant.ResolveAsync(scope.ServiceProvider.GetRequiredService<SalesOrderDbContext>(), orderId, json, _logger, cancellationToken) is not { } tenantId)
                 return;
             using var tenantScope = TenantScope.Begin(tenantId);
-            await saga.HandleShipmentCreatedAsync(orderId, shipmentId, cancellationToken);
+
+            var reason = raw["Reason"]?.ToString() ?? "unknown";
+            switch (kind)
+            {
+                case "Created":
+                    await saga.HandleShipmentCreatedAsync(orderId, shipmentId, cancellationToken);
+                    break;
+                case "CreationFailed":
+                    await saga.HandleShipmentCreationFailedAsync(orderId, reason, cancellationToken);
+                    break;
+                case "DeliveryFailed":
+                    await saga.HandleDeliveryFailedAsync(orderId, reason, raw["DeliveryAttempts"]?.Value<int>() ?? 0, cancellationToken);
+                    break;
+                case "Delivered":
+                    await saga.HandleDeliveryConfirmedAsync(orderId, cancellationToken);
+                    break;
+            }
         }
     }
 }

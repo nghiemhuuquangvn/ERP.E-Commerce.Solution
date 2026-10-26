@@ -64,6 +64,7 @@ builder.Services.AddSingleton<IConnection>(_ =>
 
 // Inbound consumers: sales_order_events (create shipment) and warehouse_exchange
 // (inventory reserved) — both RabbitMQ, previously dead handler classes.
+builder.Services.AddScoped<ERP.SHP.Infrastructure.EventBus.SagaShipmentRequestProcessor>();
 builder.Services.AddHostedService<SalesOrderRabbitMqConsumer>();
 builder.Services.AddHostedService<WarehouseRabbitMqConsumer>();
 
