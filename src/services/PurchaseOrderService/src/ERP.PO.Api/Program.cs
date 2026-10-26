@@ -70,6 +70,7 @@ builder.Services.AddDbContext<PurchasingDbContext>(options =>
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IUnitOfWork>(sp => new UnitOfWork(sp.GetRequiredService<PurchasingDbContext>()));
 builder.Services.AddScoped<IPurchaseRequestRepository, PurchaseRequestRepository>();
+builder.Services.AddScoped<ERP.PO.Application.Procurement.IProcurementStore, ProcurementStore>();
 
 // RabbitMQ connection — first time this service consumes anything (previously
 // outbound-only via Kafka/KafkaMessageBus). Mirrors WareHouseService's own
