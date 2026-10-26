@@ -27,6 +27,7 @@ namespace ERP.SO.Application.DTOs
         public List<OrderStatusHistoryDto> StatusHistory { get; set; } = new();
         public string OrderNo { get; set; } = string.Empty;
         public string OrderSource { get; set; } = string.Empty;
+        public string? PaymentMethod { get; set; }
         public Guid? DepartmentId { get; set; }
         public Guid? SalesRepId { get; set; }
         public Guid? QuotationId { get; set; }

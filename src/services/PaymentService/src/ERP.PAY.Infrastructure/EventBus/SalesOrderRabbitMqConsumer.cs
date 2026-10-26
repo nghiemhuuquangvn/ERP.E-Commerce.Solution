@@ -108,7 +108,10 @@ public class SalesOrderRabbitMqConsumer : IHostedService
                     {
                         using var tenantScope = TenantScope.Begin(refund.TenantId);
                         var uow = scope.ServiceProvider.GetRequiredService<IPaymentUnitOfWork>();
-                        var payment = await uow.Payments.GetByIdAsync(refund.PaymentId);
+                        // A cash-on-delivery order has no payment id on the saga: the payment is found by the order.
+                        var payment = refund.PaymentId == Guid.Empty
+                            ? await uow.Payments.GetByOrderIdAsync(refund.OrderId)
+                            : await uow.Payments.GetByIdAsync(refund.PaymentId);
                         if (payment != null && payment.Status is PaymentStatus.Pending or PaymentStatus.Authorized)
                         {
                             // Nothing was collected (cash on delivery, or an online payment that never completed): there is nothing to refund, so close it.
@@ -118,7 +121,7 @@ public class SalesOrderRabbitMqConsumer : IHostedService
                         {
                             await mediator.Send(new RefundPaymentCommand
                             {
-                                PaymentId = refund.PaymentId,
+                                PaymentId = payment.Id,
                                 Amount = payment.Amount,
                                 Reason = refund.Reason
                             });
