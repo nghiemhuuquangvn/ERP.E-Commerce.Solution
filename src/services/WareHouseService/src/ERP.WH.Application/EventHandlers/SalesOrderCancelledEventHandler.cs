@@ -8,9 +8,9 @@ public class SalesOrderCancelledEvent : INotification
 {
     public Guid OrderId { get; set; }
     public Guid CustomerId { get; set; }
-    public required string CancellationReason { get; set; }
+    public string CancellationReason { get; set; } = string.Empty;
     public DateTime CancelledAt { get; set; }
-    public required string CorrelationId { get; set; }
+    public string? CorrelationId { get; set; }
 }
 
 public class SalesOrderCancelledEventHandler : INotificationHandler<SalesOrderCancelledEvent>
