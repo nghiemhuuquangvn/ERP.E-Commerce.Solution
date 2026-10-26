@@ -31,15 +31,20 @@
     <!-- Step 2: Payment -->
     <div v-else-if="currentStep === 2" class="card p-6 space-y-4">
       <h2 class="font-semibold text-gray-900">{{ t('checkout.paymentMethod') }}</h2>
-      <div class="space-y-2">
-        <label v-for="m in paymentMethods" :key="m.value" class="flex items-center gap-3 cursor-pointer">
-          <input type="radio" :value="m.value" v-model="paymentMethod" class="accent-brand-500" />
-          <span class="text-sm">{{ m.label }}</span>
+      <p v-if="methodsLoading" class="text-sm text-gray-400">{{ t('common.loading') }}</p>
+      <p v-else-if="!paymentMethods.length" class="text-sm text-red-600">{{ t('checkout.noPaymentMethods') }}</p>
+      <div v-else class="space-y-2">
+        <label v-for="m in paymentMethods" :key="m.value" class="flex items-start gap-3 cursor-pointer">
+          <input type="radio" :value="m.value" v-model="paymentMethod" class="mt-1 accent-brand-500" />
+          <span class="text-sm">
+            {{ m.label }}
+            <span class="block text-xs text-gray-400">{{ m.hint }}</span>
+          </span>
         </label>
       </div>
       <div class="flex gap-3">
         <button @click="currentStep = 1" class="btn-outline">{{ t('checkout.backArrow') }}</button>
-        <button @click="currentStep = 3" class="btn-brand">{{ t('checkout.reviewOrderArrow') }}</button>
+        <button @click="currentStep = 3" :disabled="!paymentMethod" class="btn-brand disabled:opacity-40">{{ t('checkout.reviewOrderArrow') }}</button>
       </div>
     </div>
 
@@ -63,7 +68,7 @@
       <div class="flex gap-3">
         <button @click="currentStep = 2" class="btn-outline">{{ t('checkout.backArrow') }}</button>
         <button @click="placeOrder" :disabled="placing" class="btn-brand flex-1 disabled:opacity-40">
-          {{ placing ? t('checkout.placingOrder') : t('checkout.placeOrder') }}
+          {{ placing ? t('checkout.placingOrder') : isOnline ? t('checkout.placeOrderAndPay') : t('checkout.placeOrder') }}
         </button>
       </div>
       <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
@@ -72,12 +77,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useCartStore } from '@/stores/cart.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { ordersApi } from '@/api/orders.api'
+import { paymentsApi } from '@/api/payments.api'
 
 const { t } = useI18n()
 const cartStore = useCartStore()
@@ -89,12 +95,29 @@ const placing = ref(false)
 const error = ref('')
 
 const address = ref({ street: '', city: '', state: '', postalCode: '', country: '' })
-const paymentMethod = ref('CreditCard')
-const paymentMethods = computed(() => [
-  { value: 'CreditCard', label: t('checkout.creditCard') },
-  { value: 'BankTransfer', label: t('checkout.bankTransfer') },
-  { value: 'EWallet', label: t('checkout.eWallet') },
-])
+// What this shop really offers (cash on delivery + the gateways it has set up), not a fixed list.
+const paymentMethod = ref('')
+const methodsLoading = ref(true)
+const offered = ref<{ code: string; isGateway: boolean }[]>([])
+const paymentMethods = computed(() =>
+  offered.value.map((m) => ({
+    value: m.code,
+    label: t(`checkout.methods.${m.code}`),
+    hint: t(`checkout.methodHints.${m.code}`),
+  })),
+)
+const isOnline = computed(() => offered.value.find((m) => m.code === paymentMethod.value)?.isGateway ?? false)
+
+onMounted(async () => {
+  try {
+    offered.value = await paymentsApi.methods()
+    paymentMethod.value = offered.value[0]?.code ?? ''
+  } catch {
+    offered.value = []
+  } finally {
+    methodsLoading.value = false
+  }
+})
 const paymentMethodLabel = computed(
   () => paymentMethods.value.find((m) => m.value === paymentMethod.value)?.label ?? paymentMethod.value,
 )
@@ -105,8 +128,11 @@ const addressValid = computed(() =>
   address.value.street && address.value.city && address.value.country,
 )
 
+// Online gateways settle Vietnamese dong; the cart carries plain amounts, so show them as VND when an online method is chosen.
 const fmt = (n: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
+  isOnline.value || paymentMethod.value === 'COD'
+    ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(n)
+    : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
 async function placeOrder() {
   if (!authStore.user) return
@@ -115,16 +141,31 @@ async function placeOrder() {
   try {
     const order = await ordersApi.create({
       customerId: authStore.user.id,
+      customerName: authStore.user.fullName || authStore.user.email,
+      customerEmail: authStore.user.email,
       shippingAddress: address.value,
-      lines: items.value.map((i) => ({
+      lineItems: items.value.map((i) => ({
         productId: i.productId,
         productName: i.productName,
         unitPrice: i.unitPrice,
         quantity: i.quantity,
       })),
+      paymentMethod: paymentMethod.value,
     })
     cartStore.clear()
-    router.push(`/order-confirmation/${order.id}`)
+
+    if (isOnline.value) {
+      // The order exists; now send the customer to the gateway. If the gateway cannot be reached the result page offers "Pay again".
+      try {
+        const { paymentUrl } = await paymentsApi.checkout(order.orderId)
+        window.location.href = paymentUrl
+        return
+      } catch {
+        router.push(`/payment/result?orderId=${order.orderId}&status=pending`)
+        return
+      }
+    }
+    router.push(`/order-confirmation/${order.orderId}`)
   } catch {
     error.value = t('checkout.placeOrderError')
   } finally {

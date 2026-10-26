@@ -71,11 +71,54 @@
     "payment": "Thanh toán:",
     "placingOrder": "Đang đặt hàng…",
     "placeOrder": "Đặt hàng",
-    "placeOrderError": "Đặt hàng không thành công. Vui lòng thử lại."
+    "placeOrderError": "Đặt hàng không thành công. Vui lòng thử lại.",
+    "placeOrderAndPay": "Đặt hàng và thanh toán",
+    "noPaymentMethods": "Cửa hàng hiện chưa có phương thức thanh toán nào. Vui lòng thử lại sau.",
+    "methods": {
+      "COD": "Thanh toán khi nhận hàng (COD)",
+      "VNPay": "VNPay",
+      "MoMo": "Ví MoMo",
+      "ZaloPay": "ZaloPay"
+    },
+    "methodHints": {
+      "COD": "Trả tiền cho người giao hàng khi nhận hàng.",
+      "VNPay": "Thanh toán ngay bằng thẻ ngân hàng hoặc QR qua VNPay.",
+      "MoMo": "Thanh toán ngay bằng ví MoMo.",
+      "ZaloPay": "Thanh toán ngay bằng ví ZaloPay."
+    }
+  },
+  "payment": {
+    "resultTitle": "Thanh toán",
+    "checking": "Đang kiểm tra thanh toán của bạn…",
+    "paid": "Đã nhận thanh toán. Cảm ơn bạn!",
+    "paidDetail": "Khoản thanh toán {amount} đã được xác nhận. Chúng tôi sẽ báo khi đơn hàng được giao.",
+    "failed": "Thanh toán chưa hoàn tất.",
+    "failedDetail": "Đơn hàng đã bị hủy vì thanh toán không thành công. Bạn có thể đặt đơn mới.",
+    "cancelled": "Khoản thanh toán này đã bị hủy.",
+    "pending": "Đơn hàng của bạn đang chờ thanh toán.",
+    "pendingDetail": "Hãy hoàn tất thanh toán để xác nhận đơn hàng.",
+    "invalid": "Chúng tôi không xác thực được kết quả trả về từ cổng thanh toán. Đang kiểm tra trạng thái thật của đơn hàng.",
+    "waitingConfirm": "Đang chờ cổng thanh toán xác nhận. Việc này có thể mất một lúc.",
+    "payNow": "Thanh toán ngay",
+    "payAgain": "Thanh toán lại",
+    "startFailed": "Không kết nối được với cổng thanh toán. Vui lòng thử lại.",
+    "viewOrders": "Xem đơn hàng của tôi",
+    "continueShopping": "Tiếp tục mua sắm",
+    "statusLine": "Thanh toán: {status}",
+    "status": {
+      "Pending": "đang chờ thanh toán",
+      "Authorized": "đang được xác nhận",
+      "Captured": "đã thanh toán",
+      "Failed": "không thành công",
+      "Cancelled": "đã hủy",
+      "Refunded": "đã hoàn tiền",
+      "PartiallyRefunded": "đã hoàn một phần"
+    }
   },
   "orders": {
     "orderPlaced": "Đặt hàng thành công!",
     "orderReceived": "Đơn hàng {orderNumber} của bạn đã được tiếp nhận. Chúng tôi sẽ thông báo khi đơn hàng được giao.",
+    "payOnDelivery": "Bạn sẽ trả tiền cho người giao hàng khi nhận hàng.",
     "viewMyOrders": "Xem đơn hàng của tôi",
     "continueShopping": "Tiếp tục mua sắm",
     "myOrders": "Đơn hàng của tôi",

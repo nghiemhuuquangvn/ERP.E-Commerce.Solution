@@ -9,16 +9,16 @@
     </div>
 
     <div v-else class="space-y-4">
-      <div v-for="order in orders" :key="order.id" class="rounded-lg border border-gray-200 p-5">
+      <div v-for="order in orders" :key="order.orderId" class="rounded-lg border border-gray-200 p-5">
         <div class="flex items-start justify-between">
           <div>
-            <p class="font-medium text-gray-800">{{ order.orderNumber }}</p>
+            <p class="font-medium text-gray-800">{{ order.orderNo }}</p>
             <p class="text-sm text-gray-500">{{ fmt(new Date(order.orderDate)) }}</p>
           </div>
           <span :class="statusClass(order.status)" class="badge">{{ order.status }}</span>
         </div>
         <p class="mt-3 text-sm text-gray-600">
-          {{ order.lines.length }} item(s) ·
+          {{ order.lineItems.length }} item(s) ·
           <span class="font-semibold">{{ fmtCurrency(order.totalAmount) }}</span>
         </p>
       </div>

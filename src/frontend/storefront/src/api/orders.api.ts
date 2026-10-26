@@ -7,8 +7,11 @@ export interface CartLine {
   quantity: number
 }
 
+/** The shape SaleOrderService reads (CreateOrderRequest): `lineItems`, not `lines`, and the customer's name and e-mail. */
 export interface CreateOrderRequest {
   customerId: string
+  customerName: string
+  customerEmail: string
   shippingAddress: {
     street: string
     city: string
@@ -16,17 +19,21 @@ export interface CreateOrderRequest {
     postalCode: string
     country: string
   }
-  lines: CartLine[]
+  lineItems: CartLine[]
   couponCode?: string
+  /** COD, VNPay, MoMo or ZaloPay — one of the methods the shop offers (GET payment-gateway/methods). */
+  paymentMethod?: string
 }
 
+/** The shape SaleOrderService returns (SalesOrderDto). */
 export interface Order {
-  id: string
-  orderNumber: string
+  orderId: string
+  orderNo: string
   status: string
   totalAmount: number
   orderDate: string
-  lines: Array<CartLine & { lineTotal: number }>
+  paymentMethod?: string | null
+  lineItems: CartLine[]
 }
 
 export const ordersApi = {
