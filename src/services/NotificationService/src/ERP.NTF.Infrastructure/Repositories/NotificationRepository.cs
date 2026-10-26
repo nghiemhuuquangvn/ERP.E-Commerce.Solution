@@ -45,6 +45,23 @@ public class NotificationRepository : INotificationRepository
             .Distinct()
             .ToListAsync(ct);
 
+    public async Task<(List<Notification> Items, int Total)> ListAsync(
+        NotificationStatus? status, NotificationChannel? channel, string? search, int skip, int take, CancellationToken ct = default)
+    {
+        var query = _db.Notifications.AsQueryable();
+        if (status.HasValue) query = query.Where(n => n.Status == status.Value);
+        if (channel.HasValue) query = query.Where(n => n.Channel == channel.Value);
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(n => n.RecipientEmail.Contains(search) || n.Subject.Contains(search));
+
+        var total = await query.CountAsync(ct);
+        var items = await query.OrderByDescending(n => n.CreatedAt).Skip(skip).Take(take).AsNoTracking().ToListAsync(ct);
+        return (items, total);
+    }
+
+    public async Task<Notification?> GetByDedupKeyAsync(string dedupKey, CancellationToken ct = default) =>
+        await _db.Notifications.Include(n => n.Logs).FirstOrDefaultAsync(n => n.DedupKey == dedupKey, ct);
+
     public async Task AddAsync(Notification notification, CancellationToken ct = default)
     {
         await _db.Notifications.AddAsync(notification, ct);
@@ -165,5 +182,54 @@ public class WebhookRepository : IWebhookRepository
             _db.WebhookEndpoints.Remove(endpoint);
             await _db.SaveChangesAsync(ct);
         }
+    }
+}
+
+public class RecipientRepository : IRecipientRepository
+{
+    private readonly NotificationDbContext _db;
+    public RecipientRepository(NotificationDbContext db) => _db = db;
+
+    public Task<OrderRecipient?> GetOrderRecipientAsync(Guid orderId, CancellationToken ct = default) =>
+        _db.OrderRecipients.FirstOrDefaultAsync(r => r.OrderId == orderId && !r.IsDeleted, ct);
+
+    public async Task SaveOrderRecipientAsync(OrderRecipient recipient, CancellationToken ct = default)
+    {
+        var existing = await _db.OrderRecipients.FirstOrDefaultAsync(r => r.OrderId == recipient.OrderId, ct);
+        if (existing == null)
+        {
+            recipient.Id = Guid.NewGuid();
+            await _db.OrderRecipients.AddAsync(recipient, ct);
+        }
+        else
+        {
+            existing.CustomerId = recipient.CustomerId;
+            existing.OrderNo = recipient.OrderNo;
+            existing.CustomerName = recipient.CustomerName;
+            existing.Email = recipient.Email;
+            existing.Phone = recipient.Phone;
+            existing.UpdatedAt = DateTime.UtcNow;
+        }
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public Task<UserContact?> GetUserContactAsync(Guid userId, CancellationToken ct = default) =>
+        _db.UserContacts.FirstOrDefaultAsync(c => c.UserId == userId && !c.IsDeleted, ct);
+
+    public async Task SaveUserContactAsync(UserContact contact, CancellationToken ct = default)
+    {
+        var existing = await _db.UserContacts.FirstOrDefaultAsync(c => c.UserId == contact.UserId, ct);
+        if (existing == null)
+        {
+            contact.Id = Guid.NewGuid();
+            await _db.UserContacts.AddAsync(contact, ct);
+        }
+        else
+        {
+            existing.Email = contact.Email;
+            existing.FullName = contact.FullName;
+            existing.UpdatedAt = DateTime.UtcNow;
+        }
+        await _db.SaveChangesAsync(ct);
     }
 }

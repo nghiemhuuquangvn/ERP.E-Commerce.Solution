@@ -26,6 +26,8 @@ public class NotificationKafkaConsumer : IHostedService
     private const string MstTopic = "mst-topic";
     private const string PurchasingTopic = "purchasing-topic";
     private const string HrmTopic = "hrm-topic";
+    private const string PromotionTopic = "promotion-topic";
+    private const string CrmTopic = "crm-topic";
 
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<NotificationKafkaConsumer> _logger;
@@ -55,7 +57,7 @@ public class NotificationKafkaConsumer : IHostedService
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _consumer.Subscribe(new[] { PaymentTopic, ShippingTopic, MstTopic, PurchasingTopic, HrmTopic });
+        _consumer.Subscribe(new[] { PaymentTopic, ShippingTopic, MstTopic, PurchasingTopic, HrmTopic, PromotionTopic, CrmTopic });
         _executingTask = Task.Run(() => ExecuteAsync(_cts.Token), CancellationToken.None);
         return Task.CompletedTask;
     }
@@ -78,11 +80,40 @@ public class NotificationKafkaConsumer : IHostedService
                 var result = _consumer.Consume(TimeSpan.FromSeconds(5));
                 if (result?.Message?.Value == null) continue;
 
-                await DispatchAsync(result.Message.Value, cancellationToken);
+                await DispatchWithRetryAsync(result.Message.Value, cancellationToken);
             }
             catch (OperationCanceledException) { break; }
             catch (ConsumeException ex) { _logger.LogError(ex, "Kafka consume error"); }
             catch (Exception ex) { _logger.LogError(ex, "Error handling Kafka message"); }
+        }
+    }
+
+    private const int MaxAttempts = 5;
+
+    /// <summary>
+    /// A handler error used to lose the message (auto-commit). It is now tried up to 5 times with a growing pause and then logged with
+    /// its payload (ROADMAP P1-6). The handlers are idempotent (notification dedup keys), so a retry never sends twice.
+    /// </summary>
+    private async Task DispatchWithRetryAsync(string json, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await DispatchAsync(json, cancellationToken);
+                return;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) when (attempt < MaxAttempts)
+            {
+                _logger.LogWarning(ex, "Attempt {Attempt} of {Max} failed for a Kafka message; retrying", attempt, MaxAttempts);
+                await Task.Delay(TimeSpan.FromSeconds(attempt * 2), cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Giving up on a Kafka message after {Max} attempts; it is dropped. Payload: {Payload}", MaxAttempts, json);
+                return;
+            }
         }
     }
 
@@ -126,6 +157,77 @@ public class NotificationKafkaConsumer : IHostedService
                 Currency = raw.Value<string>("Currency") ?? "VND"
             };
             if (evt.PaymentId != Guid.Empty)
+                await mediator.Publish(evt, cancellationToken);
+        }
+        else if (typeName.Contains("CaseResolvedEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new CaseResolvedIntegrationEvent
+            {
+                CaseId = GuidOrEmpty(raw, "CaseId"),
+                ContactId = GuidOrEmpty(raw, "ContactId"),
+                Title = raw.Value<string>("Title") ?? string.Empty,
+                ContactEmail = raw.Value<string>("ContactEmail"),
+                ContactName = raw.Value<string>("ContactName")
+            };
+            if (evt.CaseId != Guid.Empty)
+                await mediator.Publish(evt, cancellationToken);
+        }
+        else if (typeName.Contains("LoyaltyPointsEarnedEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new LoyaltyPointsEarnedIntegrationEvent
+            {
+                AccountId = GuidOrEmpty(raw, "AccountId"),
+                UserId = GuidOrEmpty(raw, "UserId"),
+                PointsEarned = raw.Value<int?>("PointsEarned") ?? 0,
+                TotalAvailable = raw.Value<int?>("TotalAvailable") ?? 0,
+                Reason = raw.Value<string>("Reason") ?? string.Empty
+            };
+            if (evt.UserId != Guid.Empty && evt.PointsEarned > 0)
+                await mediator.Publish(evt, cancellationToken);
+        }
+        else if (typeName.Contains("CouponRedeemedEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new CouponRedeemedIntegrationEvent
+            {
+                CouponId = GuidOrEmpty(raw, "CouponId"),
+                Code = raw.Value<string>("Code") ?? string.Empty,
+                UserId = GuidOrEmpty(raw, "UserId"), // a string on the wire: not a user id (e.g. a guest) is skipped
+                DiscountAmount = raw.Value<decimal?>("DiscountAmount") ?? 0m,
+                OccurredOn = raw.Value<DateTime?>("OccurredOn") ?? DateTime.UtcNow
+            };
+            if (evt.UserId != Guid.Empty && evt.CouponId != Guid.Empty)
+                await mediator.Publish(evt, cancellationToken);
+        }
+        else if (typeName.Contains("PaymentFailedEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new PaymentFailedIntegrationEvent
+            {
+                PaymentId = GuidOrEmpty(raw, "PaymentId"),
+                OrderId = GuidOrEmpty(raw, "OrderId"),
+                Amount = raw.Value<decimal?>("Amount") ?? 0m,
+                FailureReason = raw.Value<string>("FailureReason") ?? string.Empty
+            };
+            if (evt.PaymentId != Guid.Empty && evt.OrderId != Guid.Empty)
+                await mediator.Publish(evt, cancellationToken);
+        }
+        else if (typeName.Contains("PaymentRefundedEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var refundId = GuidOrEmpty(raw, "RefundId");
+            var evt = new PaymentRefundedIntegrationEvent
+            {
+                PaymentId = GuidOrEmpty(raw, "PaymentId"),
+                OrderId = GuidOrEmpty(raw, "OrderId"),
+                RefundId = refundId == Guid.Empty ? null : refundId,
+                RefundAmount = raw.Value<decimal?>("RefundAmount") ?? 0m,
+                Currency = raw.Value<string>("Currency") ?? string.Empty,
+                Reason = raw.Value<string>("Reason") ?? string.Empty
+            };
+            if (evt.PaymentId != Guid.Empty && evt.OrderId != Guid.Empty)
                 await mediator.Publish(evt, cancellationToken);
         }
         else if (typeName.Contains("ShipmentCreated") || typeName.Contains("ShipmentCreatedEvent"))

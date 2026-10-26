@@ -36,8 +36,8 @@ How to read: **Source** = where it was found; **Home** = the roadmap item or kin
 | G10 | A Payment refund has no idempotency key; a gateway timeout is recorded as a failed refund (no refund IPN); two concurrent refunds can both pass the over-refund check; `RefundStatus.Processing` is unused. | P1-1e | Payment hardening | Possible double refund or a refund the gateway did process shown as failed. |
 | G11 | ~~No VAT on sales, returns, bills~~ **Closed in P1-3** (invoices, returns, bills; POS already posted VAT). Remaining: §4m. Was: No VAT on sales, returns, bills or POS (the `VatOutput` key exists but no flow fills it). | P1-1 | P1-3 | Tax payable is not tracked. |
 | G12 | ~~Single currency (VND)~~ **Closed in P1-4** for invoices and bills (currency, rate, realized and period-end differences). The Payment service still defaults to USD in a VND stack and its events are booked unconverted (§4o). | P1-1 | P1-4b | Wrong amounts for foreign-currency tenants. |
-| G13 | Reporting marks a payment "Refunded" even for a partial refund and reads no `NetPay` for pay slips (total likely 0). | P1-1d, P1-1e | Reporting fix | Wrong BI figures. |
-| G14 | Notification does not consume `PaymentRefunded` (the dependency map used to claim it did). | P1-1e | P1-6 | No refund receipts. |
+| G13 | ~~Reporting marks every refunded payment 'Refunded' and reads no NetPay~~ **Closed in P1-6** (refunds per payment, PartiallyRefunded, net pay and breakdown on the pay slip fact). | P1-1d, P1-1e | — | — |
+| G14 | ~~Notification does not consume PaymentRefunded~~ **Closed in P1-6** (refund message to the customer). | P1-1e | — | — |
 | G15 | `SalesOrder.CompleteReturn` refusals are `InvalidOperationException`, which the error middleware does not map (HTTP 500 instead of 400/409). | P1-1e | Sales error handling | Misleading status code. |
 
 ## 3. Verified by unit tests only (not run live)
@@ -225,8 +225,20 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | AH4 | Annual leave: fixed days per year from the rate set; no seniority accrual, no carry-over, a request is not split across years; sick, maternity and paternity leave have no balance. | P1-7b |
 | AH5 | One contract per employee and month; no regional minimum wage check against the base salary; salary changes are entered by hand (no event from master data). | P1-7b |
 | AH6 | Payroll cost is booked on one account (6421); no cost centres, no split of sales / admin staff. No payslip PDF, no bank payment file. | P1-7b |
-| AH7 | Reporting still reads only gross / overtime / deductions of the pay slip (G13). | P1-6 |
+| AH7 | ~~Reporting reads only gross / overtime / deductions of the pay slip~~ **Closed in P1-6**. | P1-7 | — |
 | AH8 | Leave days are counted when the request is saved; a rate set change after approval does not recalculate balances. | P1-7b |
+
+## 4r. Customer notifications and consumers (P1-6 follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| AI1 | Mail delivery is not tested end to end: the local stack has no SMTP server, so every message ends Failed with "Failure sending mail." (content, recipient, dedup and retries are checked; a real provider needs `Email` settings). | deployment |
+| AI2 | Templates cannot be edited or deleted from the screen (read-only list); no resend of a failed message. | P1-12 / P1-6b |
+| AI3 | The recipient of an order is the e-mail given when it was created; orders created before P1-6 have none, so their later messages are skipped. Payment and Shipping events still carry no e-mail (they use the order projection). | P1-6b |
+| AI4 | Loyalty points are earned when the order is created (even before payment) and only reversed on cancel / return; no notice when points are taken back; no tier-change message. | P1-6b |
+| AI5 | `warehouse-topic` is consumed by Reporting (`InventoryEventConsumer`) but nothing publishes to it (Warehouse uses RabbitMQ `warehouse_exchange`): `FactInventoryMovements` is never fed. `notification-topic` and `sale-order-settings-topic` still have no consumer; `LeadQualified`, `CaseOpened`, `PaymentInitiated`, `FlashSaleStarted`, `TrackingUpdated` remain unconsumed. | P1-6b |
+| AI6 | Messages that fail 5 times are dropped with an error log (no dead-letter screen); a Kafka message is retried in process, so a restart in the middle of the retries loses it. | P1-5b / P1-6b |
+| AI7 | Message wording is in English; the customer's language is not used. Wording needs the owner's review. | P1-6b |
 
 ## 5. Roadmap items these issues are waiting for
 

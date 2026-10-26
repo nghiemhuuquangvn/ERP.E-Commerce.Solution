@@ -66,6 +66,7 @@ builder.Services.AddHostedService<PromotionKafkaConsumer>();
 builder.Services.AddHostedService<SalesOrderRabbitMqConsumer>();
 builder.Services.AddScoped<ProductCreatedForPromotionHandler>();
 builder.Services.AddScoped<SalesOrderCreatedForPromotionHandler>();
+builder.Services.AddScoped<SalesOrderReversedForPromotionHandler>();
 
 // Real JWT validation — previously trusted the Gateway's forwarded X-User-*/
 // X-Tenant-* headers with no signature verification; see

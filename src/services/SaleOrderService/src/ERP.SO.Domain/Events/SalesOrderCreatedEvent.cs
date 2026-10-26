@@ -12,6 +12,9 @@ namespace ERP.SO.Domain.Events
         public Guid OrderId { get; set; }
         public Guid CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
+        /// <summary>Where order notifications go (ROADMAP P1-6); empty on events published before it.</summary>
+        public string CustomerEmail { get; set; } = string.Empty;
+        public string OrderNo { get; set; } = string.Empty;
         public DateTime OrderDate { get; set; }
         public decimal TotalAmount { get; set; }
         public List<LineItem> LineItems { get; set; } = new();

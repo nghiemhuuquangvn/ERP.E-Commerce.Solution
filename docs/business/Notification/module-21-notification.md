@@ -86,6 +86,8 @@ POST   /api/v1/notifications/bulk                  (notifications:send, 202 Acce
 
 **Ghi chú bảo mật đáng chú ý**: `GET /{id}` và `GET /history/{recipientId}` đều có kiểm tra "chỉ chính chủ hoặc người có quyền `notifications:send`" — không phải cứ có `notifications:view` là đọc được thông báo của người khác. Đây là cơ chế ownership-check tương tự PreferencesController, ngăn một caller có quyền view chung dò được `NotificationId` của người khác rồi đọc trộm nội dung.
 
+> **2026-10-26 (P1-6):** the customer messages, recipients, dedup and screens are described in `CustomerNotifications.md`; the consumer list in §7 / §9 is stale (Notification now consumes Sales, Payment, Shipping, Promotion and CRM events).
+
 ## 7. Event Design
 
 **Published** (chỉ 2 event, xác nhận đúng CLAUDE.md — service KHÔNG publish domain event nghiệp vụ nào khác ra ngoài):

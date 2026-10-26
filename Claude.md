@@ -565,9 +565,10 @@ Live consumers today (verified 2026-10-20):
   `purchasing-topic`, `shipping-topic`: EmployeeHired, LeaveApproved/Rejected,
   PaymentProcessed, PurchaseOrderApproved, PurchaseOrderPendingFinanceApproval,
   ShipmentCreated
-- `SalesOrderRabbitMqConsumer` — RabbitMQ: SalesOrderCreated, SalesOrderApproved
+- `SalesOrderRabbitMqConsumer` — RabbitMQ: SalesOrderCreated, Approved, Shipped, Delivered, Cancelled, Returned
+- Since 2026-10-26 (P1-6, docs/business/Notification/CustomerNotifications.md): `NotificationKafkaConsumer` also reads `promotion-topic` (LoyaltyPointsEarned, CouponRedeemed), `crm-topic` (CaseResolved) and payment Failed / Refunded. Order, payment and shipment messages go to the e-mail kept per order (`OrderRecipients`, from `SalesOrderCreated.CustomerEmail`) - never read an e-mail from a payment or shipment event; every send uses a `DedupKey` (one message per fact); failing messages are retried 5 times then logged. Reporting reads `crm-topic` and no longer has the dead `sales-order-*` consumer; Promotion reverses points on cancel / return.
 
-Not subscribed yet: crm, accounting, pos, promotion, product, warehouse topics. Don't
+Not subscribed yet: accounting, pos, product, warehouse topics. Don't
 assume an `INotification` handler in `IntegrationEventHandlers.cs` is live until one of
 the consumers above dispatches to it (pattern: parse `$type`, map to the local
 integration event, `IMediator.Publish`).

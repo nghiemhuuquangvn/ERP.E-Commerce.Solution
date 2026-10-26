@@ -93,6 +93,8 @@ namespace ERP.SO.Domain.Entities
                 OrderId = order.Id,
                 CustomerId = customerId,
                 CustomerName = customerName,
+                CustomerEmail = customerEmail,
+                OrderNo = orderNo,
                 OrderDate = order.OrderDate,
                 TotalAmount = order.TotalAmount,
                 LineItems = lineItems.Select(li => new SalesOrderCreatedEvent.LineItem

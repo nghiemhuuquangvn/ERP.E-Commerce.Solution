@@ -70,7 +70,7 @@ namespace ERP.CRM.Domain.Entities
             OpportunityStage = (int)Enums.OpportunityStage.Won;
             ProbabilityPercent = 100;
             UpdatedAt = DateTime.UtcNow;
-            AddDomainEvent(new OpportunityWonEvent(Id, EstimatedValue ?? 0));
+            AddDomainEvent(new OpportunityWonEvent(Id, EstimatedValue ?? 0, ContactId, OpportunityName));
         }
 
         public void MarkLost(string reason)

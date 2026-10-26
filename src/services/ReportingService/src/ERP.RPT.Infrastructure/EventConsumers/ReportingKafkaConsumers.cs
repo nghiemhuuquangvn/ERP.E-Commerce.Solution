@@ -147,129 +147,6 @@ internal abstract class ReportingConsumerBase : BackgroundService
     protected abstract Task ProcessAsync(string topic, JsonElement root, ReportingDbContext db, CancellationToken ct);
 }
 
-// ── Sales Order Consumer ────────────────────────────────────────────────────
-// NOTE: SaleOrderService currently publishes via RabbitMQ, not Kafka.
-// Topics below are placeholders for when Kafka outbox is added to SaleOrderService.
-
-public class SalesOrderEventConsumer : BackgroundService
-{
-    private readonly IServiceProvider _services;
-    private readonly IConfiguration _config;
-    private readonly ILogger<SalesOrderEventConsumer> _logger;
-
-    private static readonly string[] Topics = { "sales-order-created", "sales-order-approved", "sales-order-shipped", "sales-order-delivered" };
-
-    public SalesOrderEventConsumer(IServiceProvider services, IConfiguration config, ILogger<SalesOrderEventConsumer> logger)
-    {
-        _services = services;
-        _config = config;
-        _logger = logger;
-    }
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        var kafkaServers = _config["KafkaSettings:BootstrapServers"] ?? "localhost:9092";
-        var consumerConfig = new ConsumerConfig
-        {
-            BootstrapServers = kafkaServers,
-            GroupId = "reporting-sales-group",
-            AutoOffsetReset = AutoOffsetReset.Earliest,
-            EnableAutoCommit = true
-        };
-
-        using var consumer = new ConsumerBuilder<string, string>(consumerConfig).Build();
-        consumer.Subscribe(Topics);
-        _logger.LogInformation("[REPORTING] SalesOrderEventConsumer started");
-
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                var result = consumer.Consume(TimeSpan.FromSeconds(1));
-                if (result == null) continue;
-
-                await using var scope = _services.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<ReportingDbContext>();
-
-                using var doc = JsonDocument.Parse(result.Message.Value);
-                var root = doc.RootElement;
-                var typeName = JDoc.GetTypeName(root);
-
-                // Facts belong to the tenant of the source event (stamped by the publisher's Outbox);
-                // an event without one is skipped, never counted in some other tenant's reports.
-                if (!EventTenant.TryRead(result.Message.Value, out var tenantId))
-                {
-                    _logger.LogWarning("[REPORTING] {EventType} without TenantId ignored", typeName);
-                    continue;
-                }
-                using var tenantScope = TenantScope.Begin(tenantId);
-
-                if (result.Topic == "sales-order-created" || typeName.Contains("SalesOrderCreated"))
-                {
-                    var orderId = JDoc.GetGuid(root, "OrderId", "orderId");
-                    if (orderId == Guid.Empty) continue;
-
-                    var existing = await db.FactSalesOrders.FindAsync(new object[] { orderId }, stoppingToken);
-                    if (existing != null) continue;
-
-                    db.FactSalesOrders.Add(new FactSalesOrder
-                    {
-                        OrderId = orderId,
-                        CustomerId = JDoc.GetGuid(root, "CustomerId", "customerId"),
-                        CustomerName = JDoc.GetString(root, "CustomerName", "customerName"),
-                        Status = "Created",
-                        TotalAmount = JDoc.GetDecimal(root, "TotalAmount", "totalAmount"),
-                        ItemCount = JDoc.GetInt(root, "ItemCount", "itemCount"),
-                        OrderDate = JDoc.GetDateTime(root, "OrderDate", "orderDate"),
-                        DateKey = DateKeyHelper.ToDateKey(JDoc.GetDateTime(root, "OrderDate", "orderDate"))
-                    });
-                    await db.SaveChangesAsync(stoppingToken);
-                    _logger.LogInformation("[REPORTING] FactSalesOrder inserted: {OrderId}", orderId);
-                }
-                else if (result.Topic == "sales-order-approved" || typeName.Contains("SalesOrderApproved"))
-                {
-                    var orderId = JDoc.GetGuid(root, "OrderId", "orderId");
-                    var row = await db.FactSalesOrders.FindAsync(new object[] { orderId }, stoppingToken);
-                    if (row == null) continue;
-                    row.Status = "Approved";
-                    row.ApprovedAt = JDoc.GetDateTime(root, "ApprovedAt", "approvedAt");
-                    await db.SaveChangesAsync(stoppingToken);
-                }
-                else if (result.Topic == "sales-order-shipped" || typeName.Contains("SalesOrderShipped"))
-                {
-                    var orderId = JDoc.GetGuid(root, "OrderId", "orderId");
-                    var row = await db.FactSalesOrders.FindAsync(new object[] { orderId }, stoppingToken);
-                    if (row == null) continue;
-                    row.Status = "Shipped";
-                    row.ShippedAt = JDoc.GetDateTime(root, "ShippedAt", "shippedAt");
-                    await db.SaveChangesAsync(stoppingToken);
-                }
-                else if (result.Topic == "sales-order-delivered" || typeName.Contains("SalesOrderDelivered"))
-                {
-                    var orderId = JDoc.GetGuid(root, "OrderId", "orderId");
-                    var row = await db.FactSalesOrders.FindAsync(new object[] { orderId }, stoppingToken);
-                    if (row == null) continue;
-                    row.Status = "Delivered";
-                    row.DeliveredAt = JDoc.GetDateTime(root, "DeliveredAt", "deliveredAt");
-                    await db.SaveChangesAsync(stoppingToken);
-                }
-            }
-            catch (ConsumeException ex) when (ex.Error.Code != ErrorCode.UnknownTopicOrPart)
-            {
-                _logger.LogError(ex, "[REPORTING] Kafka consume error on sales-order topics");
-                await Task.Delay(2000, stoppingToken);
-            }
-            catch (OperationCanceledException) { break; }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[REPORTING] Processing error on sales topics");
-            }
-        }
-
-        consumer.Close();
-    }
-}
-
 // ── Payment Consumer ────────────────────────────────────────────────────────
 // Subscribes to "payment-topic" (PaymentService Kafka outbox).
 
@@ -351,7 +228,28 @@ public class PaymentEventConsumer : BackgroundService
                 {
                     var paymentId = JDoc.GetGuid(root, "PaymentId", "paymentId");
                     var row = await db.FactPayments.FindAsync(new object[] { paymentId }, stoppingToken);
-                    if (row != null) { row.Status = "Refunded"; await db.SaveChangesAsync(stoppingToken); }
+                    if (row == null) continue;
+
+                    var refundAmount = JDoc.GetDecimal(root, "RefundAmount", "refundAmount");
+                    var refundId = JDoc.GetGuid(root, "RefundId", "refundId");
+                    // An event without a refund id (published before P1-1e) is identified by payment + amount, so a replay still counts once.
+                    if (refundId == Guid.Empty) refundId = ReportingRefunds.DeterministicId(paymentId, refundAmount);
+                    if (await db.FactPaymentRefunds.FindAsync(new object[] { refundId }, stoppingToken) == null)
+                    {
+                        db.FactPaymentRefunds.Add(new FactPaymentRefund
+                        {
+                            RefundId = refundId,
+                            PaymentId = paymentId,
+                            Amount = refundAmount,
+                            RefundedAt = JDoc.GetDateTime(root, "ProcessedAt", "processedAt", "OccurredOn")
+                        });
+                        await db.SaveChangesAsync(stoppingToken);
+                    }
+
+                    var refunded = await db.FactPaymentRefunds.Where(r => r.PaymentId == paymentId).SumAsync(r => r.Amount, stoppingToken);
+                    row.RefundedAmount = refunded;
+                    row.Status = ReportingRefunds.StatusFor(row.Amount, refunded);
+                    await db.SaveChangesAsync(stoppingToken);
                 }
                 else if (typeName.Contains("PaymentFailed"))
                 {
@@ -626,7 +524,7 @@ public class HRMEventConsumer : BackgroundService
                     var existing = await db.FactHRPayslips.FindAsync(new object[] { payslipId }, stoppingToken);
                     if (existing != null) continue;
 
-                    var paidAt = JDoc.GetDateTime(root, "PaidAt", "paidAt", "GeneratedAt", "generatedAt");
+                    var paidAt = JDoc.GetDateTime(root, "PaidAt", "paidAt", "GeneratedAt", "generatedAt", "PeriodEnd", "periodEnd");
                     var firstName = JDoc.GetString(root, "FirstName", "firstName");
                     var lastName = JDoc.GetString(root, "LastName", "lastName");
                     var employeeName = JDoc.GetString(root, "EmployeeName", "employeeName");
@@ -639,14 +537,27 @@ public class HRMEventConsumer : BackgroundService
                         EmployeeId = JDoc.GetGuid(root, "EmployeeId", "employeeId"),
                         EmployeeName = employeeName,
                         Period = JDoc.GetString(root, "Period", "period", "PayPeriod", "payPeriod"),
-                        BasicSalary = JDoc.GetDecimal(root, "BasicSalary", "basicSalary", "BaseSalary", "baseSalary"),
+                        BasicSalary = JDoc.GetDecimal(root, "BasicSalary", "basicSalary", "BaseSalary", "baseSalary", "GrossSalary", "grossSalary"),
                         OvertimePay = JDoc.GetDecimal(root, "OvertimePay", "overtimePay"),
-                        TotalAmount = JDoc.GetDecimal(root, "TotalAmount", "totalAmount", "NetAmount", "netAmount"),
+                        // HRM publishes the net pay as NetPay (the old names were never sent, so this was always 0).
+                        TotalAmount = JDoc.GetDecimal(root, "NetPay", "netPay", "TotalAmount", "totalAmount", "NetAmount", "netAmount"),
+                        GrossSalary = JDoc.GetDecimal(root, "GrossSalary", "grossSalary"),
+                        Deductions = JDoc.GetDecimal(root, "Deductions", "deductions"),
+                        IncomeTax = JDoc.GetDecimal(root, "IncomeTax", "incomeTax"),
+                        EmployerInsurance = JDoc.GetDecimal(root, "EmployerSocial", "employerSocial") + JDoc.GetDecimal(root, "EmployerHealth", "employerHealth")
+                            + JDoc.GetDecimal(root, "EmployerUnemployment", "employerUnemployment"),
                         PaidAt = paidAt,
                         DateKey = DateKeyHelper.ToDateKey(paidAt)
                     });
                     await db.SaveChangesAsync(stoppingToken);
                     _logger.LogInformation("[REPORTING] FactHRPayslip inserted: {PayslipId}", payslipId);
+                }
+                else if (typeName.Contains("PaySlipVoided"))
+                {
+                    // a cancelled pay slip must not stay in the payroll totals
+                    var voidedId = JDoc.GetGuid(root, "PaySlipId", "paySlipId");
+                    var voided = voidedId == Guid.Empty ? null : await db.FactHRPayslips.FindAsync(new object[] { voidedId }, stoppingToken);
+                    if (voided != null) { db.FactHRPayslips.Remove(voided); await db.SaveChangesAsync(stoppingToken); }
                 }
             }
             catch (ConsumeException ex) when (ex.Error.Code != ErrorCode.UnknownTopicOrPart)
@@ -765,17 +676,117 @@ public class ProductEventConsumer : BackgroundService
     }
 }
 
+// ── Refund helpers ─────────────────────────────────────────────────────────
+
+public static class ReportingRefunds
+{
+    public static Guid DeterministicId(Guid paymentId, decimal amount)
+    {
+        var hash = System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes($"{paymentId:N}:{amount:0.####}"));
+        return new Guid(hash);
+    }
+
+    /// <summary>A refund of part of the amount is PartiallyRefunded; of all of it, Refunded.</summary>
+    public static string StatusFor(decimal paid, decimal refunded) =>
+        refunded <= 0m ? "Processed" : refunded >= paid ? "Refunded" : "PartiallyRefunded";
+}
+
+// ── CRM Consumer ────────────────────────────────────────────────────────────
+// Subscribes to "crm-topic" (CRMService Kafka outbox): a won opportunity becomes a fact (ROADMAP P1-6).
+
+public class CrmEventConsumer : BackgroundService
+{
+    private readonly IServiceProvider _services;
+    private readonly IConfiguration _config;
+    private readonly ILogger<CrmEventConsumer> _logger;
+
+    public CrmEventConsumer(IServiceProvider services, IConfiguration config, ILogger<CrmEventConsumer> logger)
+    {
+        _services = services;
+        _config = config;
+        _logger = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        var consumerConfig = new ConsumerConfig
+        {
+            BootstrapServers = _config["KafkaSettings:BootstrapServers"] ?? "localhost:9092",
+            GroupId = "reporting-crm-group",
+            AutoOffsetReset = AutoOffsetReset.Earliest,
+            EnableAutoCommit = true
+        };
+
+        using var consumer = new ConsumerBuilder<string, string>(consumerConfig).Build();
+        consumer.Subscribe(new[] { "crm-topic" });
+        _logger.LogInformation("[REPORTING] CrmEventConsumer started on crm-topic");
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                var result = consumer.Consume(TimeSpan.FromSeconds(1));
+                if (result == null) continue;
+
+                await using var scope = _services.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<ReportingDbContext>();
+
+                using var doc = JsonDocument.Parse(result.Message.Value);
+                var root = doc.RootElement;
+                var typeName = JDoc.GetTypeName(root);
+                if (!typeName.Contains("OpportunityWonEvent")) continue;
+
+                if (!EventTenant.TryRead(result.Message.Value, out var tenantId))
+                {
+                    _logger.LogWarning("[REPORTING] {EventType} without TenantId ignored", typeName);
+                    continue;
+                }
+                using var tenantScope = TenantScope.Begin(tenantId);
+
+                var opportunityId = JDoc.GetGuid(root, "OpportunityId", "opportunityId");
+                if (opportunityId == Guid.Empty) continue;
+                if (await db.FactCrmOpportunities.FindAsync(new object[] { opportunityId }, stoppingToken) != null) continue;
+
+                var wonAt = JDoc.GetDateTime(root, "OccurredOn", "occurredOn");
+                db.FactCrmOpportunities.Add(new FactCrmOpportunity
+                {
+                    OpportunityId = opportunityId,
+                    ContactId = JDoc.GetGuid(root, "ContactId", "contactId"),
+                    Name = JDoc.GetString(root, "Name", "name"),
+                    Value = JDoc.GetDecimal(root, "Value", "value"),
+                    WonAt = wonAt,
+                    DateKey = DateKeyHelper.ToDateKey(wonAt)
+                });
+                await db.SaveChangesAsync(stoppingToken);
+                _logger.LogInformation("[REPORTING] FactCrmOpportunity inserted: {OpportunityId}", opportunityId);
+            }
+            catch (ConsumeException ex) when (ex.Error.Code != ErrorCode.UnknownTopicOrPart)
+            {
+                _logger.LogError(ex, "[REPORTING] Kafka consume error on crm-topic");
+                await Task.Delay(2000, stoppingToken);
+            }
+            catch (OperationCanceledException) { break; }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[REPORTING] Processing error on crm-topic");
+            }
+        }
+
+        consumer.Close();
+    }
+}
+
 // ── Registration ───────────────────────────────────────────────────────────
 
 public static class ReportingConsumerExtensions
 {
     public static IServiceCollection AddReportingKafkaConsumers(this IServiceCollection services)
     {
-        services.AddHostedService<SalesOrderEventConsumer>();
         services.AddHostedService<PaymentEventConsumer>();
         services.AddHostedService<InventoryEventConsumer>();
         services.AddHostedService<POSEventConsumer>();
         services.AddHostedService<HRMEventConsumer>();
+        services.AddHostedService<CrmEventConsumer>();
         services.AddHostedService<ProductEventConsumer>();
         return services;
     }

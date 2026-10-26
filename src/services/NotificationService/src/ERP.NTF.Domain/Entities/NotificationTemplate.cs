@@ -50,11 +50,17 @@ public class NotificationTemplate : AggregateRoot, ISharedReferenceData
 
     public void Activate() => IsActive = true;
 
-    public string Render(Dictionary<string, string> variables)
+    public string Render(Dictionary<string, string> variables) => Fill(Body, variables);
+
+    /// <summary>The subject carries placeholders too ("Order #{OrderNumber} confirmed").</summary>
+    public string RenderSubject(Dictionary<string, string> variables) => Fill(Subject, variables);
+
+    /// <summary>Replaces <c>{name}</c> with the variable of that name, ignoring case ({OrderNumber} = orderNumber); unknown placeholders stay.</summary>
+    public static string Fill(string text, Dictionary<string, string> variables)
     {
-        var result = Body;
-        foreach (var (key, value) in variables)
-            result = result.Replace($"{{{key}}}", value);
-        return result;
+        if (string.IsNullOrEmpty(text) || variables.Count == 0) return text;
+        var byName = new Dictionary<string, string>(variables, StringComparer.OrdinalIgnoreCase);
+        return System.Text.RegularExpressions.Regex.Replace(text, @"\{([A-Za-z0-9_]+)\}",
+            m => byName.TryGetValue(m.Groups[1].Value, out var value) ? value : m.Value);
     }
 }

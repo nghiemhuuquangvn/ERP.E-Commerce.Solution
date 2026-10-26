@@ -102,6 +102,8 @@ import { LeaveRequestsPage } from '@/pages/hrm/LeaveRequestsPage'
 import { PayrollPage } from '@/pages/hrm/PayrollPage'
 import { WorkShiftsPage } from '@/pages/hrm/WorkShiftsPage'
 import { SalaryProfilesPage } from '@/pages/hrm/SalaryProfilesPage'
+import { NotificationHistoryPage } from '@/pages/settings/NotificationHistoryPage'
+import { NotificationTemplatesPage } from '@/pages/settings/NotificationTemplatesPage'
 import { PayrollSettingsPage } from '@/pages/hrm/PayrollSettingsPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -175,6 +177,8 @@ export const router = createBrowserRouter([
       { path: 'settings/company', element: <CompanySettingsPage /> },
       { path: 'settings/auth', element: <AuthSettingsPage /> },
       { path: 'settings/notification', element: <NotificationSettingsPage /> },
+      { path: 'settings/notification-history', element: <NotificationHistoryPage /> },
+      { path: 'settings/notification-templates', element: <NotificationTemplatesPage /> },
       { path: 'settings/email', element: <EmailSettingsPage /> },
       { path: 'settings/sms', element: <SmsSettingsPage /> },
       { path: 'settings/workflow', element: <WorkflowSettingsPage /> },

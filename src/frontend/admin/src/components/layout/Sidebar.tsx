@@ -44,6 +44,18 @@ const SETTINGS_CHILDREN: NavItem[] = [
     icon: '🔔',
   },
   {
+    labelKey: 'nav.notificationHistory',
+    path: '/settings/notification-history',
+    permissions: ['notifications:send'],
+    icon: '📨',
+  },
+  {
+    labelKey: 'nav.notificationTemplates',
+    path: '/settings/notification-templates',
+    permissions: ['notifications:view'],
+    icon: '📝',
+  },
+  {
     labelKey: 'nav.emailSettings',
     path: '/settings/email',
     permissions: ['settings:email:system:view', 'settings:email:tenant:view'],

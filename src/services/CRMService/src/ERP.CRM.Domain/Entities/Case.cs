@@ -46,7 +46,7 @@ namespace ERP.CRM.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
         }
 
-        public void Resolve(string resolution)
+        public void Resolve(string resolution, string? contactEmail = null, string? contactName = null)
         {
             if (CaseStatus == (int)Enums.CaseStatus.Resolved || CaseStatus == (int)Enums.CaseStatus.Closed)
                 throw new InvalidOperationException("Case is already resolved or closed.");
@@ -54,7 +54,7 @@ namespace ERP.CRM.Domain.Entities
             CaseStatus = (int)Enums.CaseStatus.Resolved;
             ResolutionNote = resolution;
             UpdatedAt = DateTime.UtcNow;
-            AddDomainEvent(new CaseResolvedEvent(Id));
+            AddDomainEvent(new CaseResolvedEvent(Id, CustomerId, CaseSubject, contactEmail, contactName));
         }
 
         public void Close()

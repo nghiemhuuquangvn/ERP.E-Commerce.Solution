@@ -24,6 +24,8 @@ public class ReportingSalesOrderRabbitMqConsumer : IHostedService
 {
     private const string ExchangeName = "sales_order_events";
     private const string QueueName = "reporting-service.sales-order-events";
+    private const string AttemptHeader = "x-attempt";
+    private const int MaxAttempts = 5;
 
     private readonly IConnection _connection;
     private readonly IServiceProvider _services;
@@ -51,6 +53,7 @@ public class ReportingSalesOrderRabbitMqConsumer : IHostedService
         _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderShippedEvent");
         _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderDeliveredEvent");
         _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderCancelledEvent");
+        _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderReturnedEvent");
 
         var consumer = new AsyncEventingBasicConsumer(_channel);
         consumer.Received += OnMessageReceivedAsync;
@@ -149,15 +152,47 @@ public class ReportingSalesOrderRabbitMqConsumer : IHostedService
                         await db.SaveChangesAsync();
                     }
                     break;
+
+                case "sales_order.SalesOrderReturnedEvent":
+                    var returnedId = JDoc.GetGuid(root, "OrderId", "orderId");
+                    var returnedRow = returnedId != Guid.Empty ? await db.FactSalesOrders.FindAsync(returnedId) : null;
+                    if (returnedRow != null)
+                    {
+                        returnedRow.Status = "Returned";
+                        await db.SaveChangesAsync();
+                    }
+                    break;
             }
 
             _channel!.BasicAck(ea.DeliveryTag, multiple: false);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[REPORTING] Error processing {RoutingKey} from {Exchange}", ea.RoutingKey, ExchangeName);
-            _channel!.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
+            // Republish with an attempt counter instead of requeueing for ever (as in P1-5); the updates are idempotent.
+            var attempt = ReadAttempt(ea.BasicProperties) + 1;
+            if (attempt < MaxAttempts)
+            {
+                _logger.LogWarning(ex, "[REPORTING] Attempt {Attempt} of {Max} failed for {RoutingKey}; republishing", attempt, MaxAttempts, ea.RoutingKey);
+                await Task.Delay(TimeSpan.FromSeconds(attempt));
+                var properties = _channel!.CreateBasicProperties();
+                properties.Persistent = true;
+                properties.Headers = new Dictionary<string, object> { [AttemptHeader] = attempt };
+                _channel.BasicPublish(ExchangeName, ea.RoutingKey, properties, ea.Body);
+            }
+            else
+            {
+                _logger.LogError(ex, "[REPORTING] Giving up on {RoutingKey} after {Max} attempts; the message is dropped. Payload: {Payload}",
+                    ea.RoutingKey, MaxAttempts, Encoding.UTF8.GetString(ea.Body.ToArray()));
+            }
+            _channel!.BasicAck(ea.DeliveryTag, multiple: false);
         }
+    }
+
+    private static int ReadAttempt(IBasicProperties properties)
+    {
+        if (properties?.Headers != null && properties.Headers.TryGetValue(AttemptHeader, out var value))
+            return value switch { int i => i, long l => (int)l, byte[] b when int.TryParse(Encoding.UTF8.GetString(b), out var parsed) => parsed, _ => 0 };
+        return 0;
     }
 
     public Task StopAsync(CancellationToken cancellationToken)

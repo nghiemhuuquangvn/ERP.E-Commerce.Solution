@@ -24,6 +24,8 @@ public class Notification : AggregateRoot
     public DateTime? FailedAt { get; private set; }
     public int RetryCount { get; private set; }
     public string? ErrorMessage { get; private set; }
+    /// <summary>One notification per business fact ("OrderShipped:orderId"): a redelivered event sends nothing twice. Unique per tenant when set.</summary>
+    public string? DedupKey { get; private set; }
     public bool IsRead { get; private set; }
     public DateTime? ReadAt { get; private set; }
     public IReadOnlyCollection<NotificationLog> Logs => _logs.AsReadOnly();
@@ -40,7 +42,8 @@ public class Notification : AggregateRoot
         Guid? templateId = null,
         string? recipientPhone = null,
         string? recipientDeviceToken = null,
-        DateTime? scheduledFor = null)
+        DateTime? scheduledFor = null,
+        string? dedupKey = null)
     {
         var notification = new Notification
         {
@@ -56,6 +59,7 @@ public class Notification : AggregateRoot
             Priority = priority,
             Status = scheduledFor.HasValue ? NotificationStatus.Queued : NotificationStatus.Queued,
             ScheduledFor = scheduledFor,
+            DedupKey = dedupKey,
             RetryCount = 0,
             CreatedAt = DateTime.UtcNow
         };

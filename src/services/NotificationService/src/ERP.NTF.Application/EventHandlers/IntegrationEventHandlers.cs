@@ -1,4 +1,6 @@
 using ERP.NTF.Application.Commands;
+using ERP.NTF.Application.Interfaces;
+using ERP.NTF.Domain.Entities;
 using ERP.NTF.Domain.Enums;
 using MediatR;
 
@@ -20,6 +22,7 @@ public class SalesOrderCreatedIntegrationEvent : INotification
     public Guid CustomerId { get; set; }
     public string CustomerEmail { get; set; } = string.Empty;
     public string CustomerName { get; set; } = string.Empty;
+    public string OrderNo { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
     public DateTime OrderDate { get; set; }
 }
@@ -145,94 +148,82 @@ public class PermissionGrantedIntegrationEvent : INotification
 public class UserCreatedIntegrationEventHandler : INotificationHandler<UserCreatedIntegrationEvent>
 {
     private readonly IMediator _mediator;
-    public UserCreatedIntegrationEventHandler(IMediator mediator) => _mediator = mediator;
+    private readonly IRecipientRepository _recipients;
+    public UserCreatedIntegrationEventHandler(IMediator mediator, IRecipientRepository recipients) { _mediator = mediator; _recipients = recipients; }
 
     public async Task Handle(UserCreatedIntegrationEvent @event, CancellationToken cancellationToken)
     {
+        if (!string.IsNullOrWhiteSpace(@event.Email))
+            await _recipients.SaveUserContactAsync(new UserContact
+            {
+                UserId = @event.UserId,
+                Email = @event.Email,
+                FullName = $"{@event.FirstName} {@event.LastName}".Trim()
+            }, cancellationToken);
+
         await _mediator.Send(new SendNotificationCommand
         {
             RecipientId = @event.UserId.ToString(),
             RecipientEmail = @event.Email,
             Channel = NotificationChannel.Email,
             TemplateCode = "WELCOME_EMAIL",
-            TemplateVariables = new() { ["firstName"] = @event.FirstName, ["lastName"] = @event.LastName },
-            Priority = NotificationPriority.Normal
+            TemplateVariables = new() { ["firstName"] = @event.FirstName, ["lastName"] = @event.LastName, ["appName"] = "ERP" },
+            Priority = NotificationPriority.Normal,
+            DedupKey = $"WELCOME_EMAIL:{@event.UserId:N}",
+            SkipWhenOptedOut = true
         }, cancellationToken);
     }
 }
 
 public class SalesOrderCreatedIntegrationEventHandler : INotificationHandler<SalesOrderCreatedIntegrationEvent>
 {
-    private readonly IMediator _mediator;
-    public SalesOrderCreatedIntegrationEventHandler(IMediator mediator) => _mediator = mediator;
+    private readonly IRecipientRepository _recipients;
+    private readonly OrderNotifier _notifier;
+    public SalesOrderCreatedIntegrationEventHandler(IRecipientRepository recipients, OrderNotifier notifier) { _recipients = recipients; _notifier = notifier; }
 
     public async Task Handle(SalesOrderCreatedIntegrationEvent @event, CancellationToken cancellationToken)
     {
-        await _mediator.Send(new SendNotificationCommand
-        {
-            RecipientId = @event.CustomerId.ToString(),
-            RecipientEmail = @event.CustomerEmail,
-            Channel = NotificationChannel.Email,
-            TemplateCode = "ORDER_CONFIRMATION",
-            TemplateVariables = new()
+        // The order's contact is remembered for every later event of the order (payment, shipping, status changes).
+        if (!string.IsNullOrWhiteSpace(@event.CustomerEmail))
+            await _recipients.SaveOrderRecipientAsync(new OrderRecipient
             {
-                ["customerName"] = @event.CustomerName,
-                ["orderId"] = @event.OrderId.ToString(),
-                ["totalAmount"] = @event.TotalAmount.ToString("C"),
+                OrderId = @event.OrderId,
+                CustomerId = @event.CustomerId,
+                OrderNo = @event.OrderNo,
+                CustomerName = @event.CustomerName,
+                Email = @event.CustomerEmail
+            }, cancellationToken);
+
+        await _notifier.SendAsync(@event.OrderId, "ORDER_CONFIRMATION", @event.OrderId.ToString("N"),
+            new()
+            {
+                ["totalAmount"] = OrderNotifier.Money(@event.TotalAmount),
                 ["orderDate"] = @event.OrderDate.ToString("dd/MM/yyyy")
             },
-            Priority = NotificationPriority.High
-        }, cancellationToken);
+            NotificationPriority.High, cancellationToken, fallbackEmail: @event.CustomerEmail);
     }
 }
 
 public class PaymentProcessedIntegrationEventHandler : INotificationHandler<PaymentProcessedIntegrationEvent>
 {
-    private readonly IMediator _mediator;
-    public PaymentProcessedIntegrationEventHandler(IMediator mediator) => _mediator = mediator;
+    private readonly OrderNotifier _notifier;
+    public PaymentProcessedIntegrationEventHandler(OrderNotifier notifier) => _notifier = notifier;
 
-    public async Task Handle(PaymentProcessedIntegrationEvent @event, CancellationToken cancellationToken)
-    {
-        await _mediator.Send(new SendNotificationCommand
-        {
-            RecipientId = @event.OrderId.ToString(),
-            RecipientEmail = @event.RecipientEmail,
-            Channel = NotificationChannel.Email,
-            TemplateCode = "PAYMENT_RECEIPT",
-            TemplateVariables = new()
-            {
-                ["recipientName"] = @event.RecipientName,
-                ["orderId"] = @event.OrderId.ToString(),
-                ["amount"] = @event.Amount.ToString("C"),
-                ["currency"] = @event.Currency
-            },
-            Priority = NotificationPriority.High
-        }, cancellationToken);
-    }
+    public Task Handle(PaymentProcessedIntegrationEvent @event, CancellationToken cancellationToken) =>
+        _notifier.SendAsync(@event.OrderId, "PAYMENT_RECEIPT", @event.PaymentId.ToString("N"),
+            new() { ["amount"] = OrderNotifier.Money(@event.Amount, @event.Currency), ["currency"] = @event.Currency },
+            NotificationPriority.High, cancellationToken, fallbackEmail: @event.RecipientEmail);
 }
 
 public class ShipmentCreatedIntegrationEventHandler : INotificationHandler<ShipmentCreatedIntegrationEvent>
 {
-    private readonly IMediator _mediator;
-    public ShipmentCreatedIntegrationEventHandler(IMediator mediator) => _mediator = mediator;
+    private readonly OrderNotifier _notifier;
+    public ShipmentCreatedIntegrationEventHandler(OrderNotifier notifier) => _notifier = notifier;
 
-    public async Task Handle(ShipmentCreatedIntegrationEvent @event, CancellationToken cancellationToken)
-    {
-        await _mediator.Send(new SendNotificationCommand
-        {
-            RecipientId = @event.OrderId.ToString(),
-            RecipientEmail = @event.CustomerEmail,
-            Channel = NotificationChannel.Email,
-            TemplateCode = "SHIPMENT_NOTIFICATION",
-            TemplateVariables = new()
-            {
-                ["customerName"] = @event.CustomerName,
-                ["trackingNumber"] = @event.TrackingNumber,
-                ["carrier"] = @event.CarrierName
-            },
-            Priority = NotificationPriority.Normal
-        }, cancellationToken);
-    }
+    public Task Handle(ShipmentCreatedIntegrationEvent @event, CancellationToken cancellationToken) =>
+        _notifier.SendAsync(@event.OrderId, "SHIPMENT_NOTIFICATION", @event.ShipmentId.ToString("N"),
+            new() { ["carrier"] = @event.CarrierName, ["trackingNumber"] = @event.TrackingNumber },
+            NotificationPriority.Normal, cancellationToken, fallbackEmail: @event.CustomerEmail);
 }
 
 public class EmployeeHiredIntegrationEventHandler : INotificationHandler<EmployeeHiredIntegrationEvent>

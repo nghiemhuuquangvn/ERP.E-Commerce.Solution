@@ -13,6 +13,8 @@ public class NotificationDbContext : DbContext, ITenantScopedDbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationTemplate> Templates => Set<NotificationTemplate>();
     public DbSet<NotificationPreference> Preferences => Set<NotificationPreference>();
+    public DbSet<OrderRecipient> OrderRecipients => Set<OrderRecipient>();
+    public DbSet<UserContact> UserContacts => Set<UserContact>();
     public DbSet<WebhookEndpoint> WebhookEndpoints => Set<WebhookEndpoint>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<SystemNotificationSettings> SystemNotificationSettings => Set<SystemNotificationSettings>();
@@ -54,6 +56,8 @@ public class NotificationDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.IsRead);
             e.Property(x => x.ReadAt);
             e.HasIndex(x => x.RecipientId);
+            e.Property(x => x.DedupKey).HasMaxLength(300);
+            e.HasIndex(x => new { x.TenantId, x.DedupKey }).IsUnique().HasFilter("[DedupKey] IS NOT NULL");
             e.HasIndex(x => x.Status);
             e.HasIndex(x => new { x.Status, x.ScheduledFor });
             e.OwnsMany(x => x.Logs, log =>
@@ -64,6 +68,22 @@ public class NotificationDbContext : DbContext, ITenantScopedDbContext
                 log.Property(l => l.Details).IsRequired().HasMaxLength(1000);
                 log.ToTable("NotificationLogs");
             });
+        });
+
+        modelBuilder.Entity<OrderRecipient>(e =>
+        {
+            e.Property(x => x.OrderNo).HasMaxLength(50);
+            e.Property(x => x.CustomerName).HasMaxLength(200);
+            e.Property(x => x.Email).IsRequired().HasMaxLength(320);
+            e.Property(x => x.Phone).HasMaxLength(50);
+            e.HasIndex(x => new { x.TenantId, x.OrderId }).IsUnique();
+        });
+
+        modelBuilder.Entity<UserContact>(e =>
+        {
+            e.Property(x => x.Email).IsRequired().HasMaxLength(320);
+            e.Property(x => x.FullName).HasMaxLength(200);
+            e.HasIndex(x => new { x.TenantId, x.UserId }).IsUnique();
         });
 
         modelBuilder.Entity<NotificationTemplate>(e =>

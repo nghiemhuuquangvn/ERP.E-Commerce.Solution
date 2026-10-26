@@ -13,6 +13,8 @@ public class ReportingDbContext : DbContext, ITenantScopedDbContext
     public DbSet<FactInventoryMovement> FactInventoryMovements => Set<FactInventoryMovement>();
     public DbSet<FactPOSTransaction> FactPOSTransactions => Set<FactPOSTransaction>();
     public DbSet<FactHRPayslip> FactHRPayslips => Set<FactHRPayslip>();
+    public DbSet<FactPaymentRefund> FactPaymentRefunds => Set<FactPaymentRefund>();
+    public DbSet<FactCrmOpportunity> FactCrmOpportunities => Set<FactCrmOpportunity>();
     public DbSet<DimDate> DimDates => Set<DimDate>();
     public DbSet<DimProduct> DimProducts => Set<DimProduct>();
 
@@ -44,6 +46,22 @@ public class ReportingDbContext : DbContext, ITenantScopedDbContext
         {
             e.HasKey(x => x.PaymentId);
             e.Property(x => x.Amount).HasPrecision(18, 2);
+            e.Property(x => x.RefundedAmount).HasPrecision(18, 2);
+            e.HasIndex(x => x.DateKey);
+        });
+
+        modelBuilder.Entity<FactPaymentRefund>(e =>
+        {
+            e.HasKey(x => x.RefundId);
+            e.Property(x => x.Amount).HasPrecision(18, 2);
+            e.HasIndex(x => x.PaymentId);
+        });
+
+        modelBuilder.Entity<FactCrmOpportunity>(e =>
+        {
+            e.HasKey(x => x.OpportunityId);
+            e.Property(x => x.Name).HasMaxLength(300);
+            e.Property(x => x.Value).HasPrecision(18, 2);
             e.HasIndex(x => x.DateKey);
         });
 
@@ -69,6 +87,10 @@ public class ReportingDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.BasicSalary).HasPrecision(18, 2);
             e.Property(x => x.OvertimePay).HasPrecision(18, 2);
             e.Property(x => x.TotalAmount).HasPrecision(18, 2);
+            e.Property(x => x.GrossSalary).HasPrecision(18, 2);
+            e.Property(x => x.Deductions).HasPrecision(18, 2);
+            e.Property(x => x.IncomeTax).HasPrecision(18, 2);
+            e.Property(x => x.EmployerInsurance).HasPrecision(18, 2);
             e.HasIndex(x => x.EmployeeId);
             e.HasIndex(x => x.Period);
         });

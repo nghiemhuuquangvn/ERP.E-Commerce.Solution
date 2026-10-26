@@ -59,6 +59,13 @@ public class EarnLoyaltyPointsCommand : IRequest<LoyaltyAccountDto>
     public string Reason { get; set; } = string.Empty;
 }
 
+/// <summary>Takes back the points earned for a reason (an order that was cancelled or returned). Safe to repeat.</summary>
+public class ReverseLoyaltyPointsCommand : IRequest<int>
+{
+    public Guid UserId { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}
+
 public class RedeemLoyaltyPointsCommand : IRequest<LoyaltyAccountDto>
 {
     public Guid UserId { get; set; }

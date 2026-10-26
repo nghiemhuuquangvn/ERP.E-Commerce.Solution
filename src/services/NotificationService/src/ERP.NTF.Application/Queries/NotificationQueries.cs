@@ -21,6 +21,16 @@ public class NotificationHistoryResponse
     public List<NotificationDto> Items { get; set; } = new();
 }
 
+/// <summary>Every notification of the tenant, newest first, for the admin history page (ROADMAP P1-6).</summary>
+public class ListNotificationsQuery : IRequest<NotificationHistoryResponse>
+{
+    public string? Status { get; set; }
+    public string? Channel { get; set; }
+    public string? Search { get; set; }
+    public int Skip { get; set; } = 0;
+    public int Take { get; set; } = 20;
+}
+
 public class GetUnreadCountQuery : IRequest<int>
 {
     public string RecipientId { get; set; } = string.Empty;
