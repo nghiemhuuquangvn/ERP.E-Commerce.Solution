@@ -30,6 +30,10 @@ public class GatewayAuthorizationMiddleware
     [
         "/health",
         "/api/v1/auth",
+        "/api/v1/payment-gateway/callback",   // gateway notifications and the browser return: signed, no bearer token
+        "/api/v1/payment-gateway/ipn",
+        "/pay/api/v1/payment-gateway/callback",
+        "/pay/api/v1/payment-gateway/ipn",
         "/api/v1/products",
         "/logs/api/v1/logs/client",
     ];
