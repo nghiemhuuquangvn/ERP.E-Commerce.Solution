@@ -44,12 +44,20 @@ namespace ERP.ACC.Domain.Entities
         /// <summary>Interest accrued on loans and not yet paid: credited by an accrual, debited by the repayment that pays it (ROADMAP P1-2k).</summary>
         public const string InterestPayable = "InterestPayable";
 
+        /// <summary>Gain / loss when a foreign document is settled at another rate than it was booked at, and the unrealized one of the period-end revaluation (ROADMAP P1-4).</summary>
+        public const string FxGain = "FxGain";
+        public const string FxLoss = "FxLoss";
+
+        /// <summary>Charges the bank takes (statement lines posted from the reconciliation, ROADMAP P1-4) and the interest it pays on deposits.</summary>
+        public const string BankFee = "BankFee";
+        public const string BankInterestIncome = "BankInterestIncome";
+
         public static readonly IReadOnlyList<string> All = new[]
         {
             Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, Inventory, VatOutput,
             GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment, CashOverShort,
             SalaryExpense, SalariesPayable, PayrollWithholdingsPayable,
-            SalesReturns, IncomeSummary, RetainedEarnings, LoanPayable, InterestExpense, InterestPayable, VatInput
+            SalesReturns, IncomeSummary, RetainedEarnings, LoanPayable, InterestExpense, InterestPayable, VatInput, FxGain, FxLoss, BankFee, BankInterestIncome
         };
 
         /// <summary>Account numbers of the seeded 14-account chart, used when a tenant has no mapping yet.</summary>
@@ -76,6 +84,10 @@ namespace ERP.ACC.Domain.Entities
             [LoanPayable] = "2100",                // the simple chart has no borrowings account; Accrued Liabilities holds them
             [InterestExpense] = "5100",            // Operating Expenses
             [InterestPayable] = "2100",            // Accrued Liabilities
+            [FxGain] = "4000",                     // the simple chart has no financial-income account
+            [FxLoss] = "5100",                     // Operating Expenses
+            [BankFee] = "5100",                    // Operating Expenses
+            [BankInterestIncome] = "4000",         // the simple chart has no financial-income account
         };
     }
 

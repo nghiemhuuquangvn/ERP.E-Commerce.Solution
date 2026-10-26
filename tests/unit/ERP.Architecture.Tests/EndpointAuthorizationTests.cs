@@ -35,7 +35,6 @@ public class EndpointAuthorizationTests
     private static readonly HashSet<string> InActionCheckAllowlist = new(StringComparer.Ordinal)
     {
         "ERP.ACC.API:ERP.ACC.API.Controllers.AccountsController",
-        "ERP.ACC.API:ERP.ACC.API.Controllers.BankAccountsController",
         "ERP.ACC.API:ERP.ACC.API.Controllers.BillsController",
         "ERP.ACC.API:ERP.ACC.API.Controllers.FiscalPeriodsController",
         "ERP.ACC.API:ERP.ACC.API.Controllers.InvoicesController",

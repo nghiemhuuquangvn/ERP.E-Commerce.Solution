@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { fiscalPeriodsApi } from '@/api/accounting/fiscal-periods.api'
 import type { ClosingMode, FiscalPeriod } from '@/api/accounting/fiscal-periods.api'
+import { FxRevaluationPanel } from '@/components/accounting/FxRevaluationPanel'
 import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { ReasonDialog } from '@/components/shared/ReasonDialog'
@@ -241,6 +242,8 @@ export function FiscalPeriodsPage() {
       </div>
 
       <ClosingPolicyPanel canManage={canManage} />
+
+      <FxRevaluationPanel canManage={canManage} />
 
       <DataTable columns={columns} data={data ?? []} isLoading={isLoading} />
 

@@ -1,5 +1,6 @@
 using ERP.ACC.Application.Commands;
 using ERP.ACC.Application.DTOs;
+using ERP.ACC.Application.Fx;
 using ERP.ACC.Application.Interfaces;
 using ERP.ACC.Application.Posting;
 using ERP.ACC.Domain.Entities;
@@ -86,6 +87,8 @@ namespace ERP.ACC.Application.Handlers
         public async Task<InvoiceDto> Handle(CreateInvoiceCommand request, CancellationToken cancellationToken)
         {
             var policy = _vat == null ? new VatSettings(0m, true) : await _vat.GetAsync(cancellationToken);
+            var fx = FxSupport.IsForeign(request.CurrencyCode, request.ExchangeRate, policy.BaseCurrency);
+            var amountInBase = fx ? FxSupport.ForeignToBase(request.ForeignAmount, request.ExchangeRate!.Value, request.Lines.Count) : request.Amount;
             VatSplit split;
             VatLinesSplit? lines = null;
             if (request.Lines is { Count: > 0 })
@@ -98,7 +101,7 @@ namespace ERP.ACC.Application.Handlers
             {
                 try
                 {
-                    split = VatCalculator.Split(request.Amount, request.TaxRatePercent ?? policy.RatePercent, policy.PricesIncludeTax);
+                    split = VatCalculator.Split(amountInBase, request.TaxRatePercent ?? policy.RatePercent, policy.PricesIncludeTax);
                 }
                 catch (ArgumentOutOfRangeException ex)
                 {
@@ -114,6 +117,8 @@ namespace ERP.ACC.Application.Handlers
                 split.Gross,
                 request.DueDate);
             invoice.ApplyVat(split.Net, split.RatePercent, split.Tax);
+            if (fx)
+                invoice.SetForeign(request.CurrencyCode!, FxSupport.ForeignGross(request.ForeignAmount!.Value, request.TaxRatePercent ?? policy.RatePercent, policy.PricesIncludeTax), request.ExchangeRate!.Value);
 
             await _uow.Invoices.AddAsync(invoice, cancellationToken);
             if (lines != null && _vatLines != null)
@@ -140,6 +145,9 @@ namespace ERP.ACC.Application.Handlers
             NetAmount = i.EffectiveNet,
             TaxRatePercent = i.TaxRatePercent,
             TaxAmount = i.TaxAmount,
+            ForeignCurrencyCode = i.ForeignCurrencyCode,
+            ExchangeRate = i.ExchangeRate,
+            ForeignAmount = i.ForeignAmount,
             DueDate = i.DueDate,
             Status = ((InvoiceStatus)i.Status).ToString(),
             CreatedAt = i.CreatedAt
@@ -217,13 +225,34 @@ namespace ERP.ACC.Application.Handlers
 
             // Recorded by hand, without gateway data: what is still outstanding is treated as received into the bank.
             var outstanding = invoice.Amount - invoice.AmountPaid;
+            if (!invoice.IsForeign && request.PaymentRate.HasValue)
+                throw new BusinessRuleException("Accounting", $"Invoice {invoice.InvoiceNumber} is in the base currency: it takes no payment rate.");
+            if (invoice.IsForeign && outstanding > 0 && request.PaymentRate is not > 0m)
+                throw new BusinessRuleException("Accounting", $"Invoice {invoice.InvoiceNumber} is in {invoice.ForeignCurrencyCode}: give the rate the money was received at.");
+
+            // foreign invoice: the foreign part still owed is received at the payment rate, the difference to the carrying amount is the realized FX difference (ROADMAP P1-4)
+            decimal? cash = null;
+            decimal fxDifference = 0m;
+            decimal foreignOutstanding = 0m;
+            if (invoice.IsForeign && outstanding > 0)
+            {
+                foreignOutstanding = Math.Round(invoice.ForeignAmount!.Value * outstanding / invoice.Amount, 2);
+                cash = FxSupport.ToBase(foreignOutstanding, request.PaymentRate!.Value);
+                fxDifference = FxSupport.ReceivableDifference(cash.Value, outstanding);
+            }
+
             invoice.MarkPaid();
             await _uow.Invoices.UpdateAsync(invoice, cancellationToken);
             if (outstanding > 0)
-                await _uow.PaymentApplications.AddAsync(PaymentApplication.Create(
-                    PaymentApplication.InvoiceDocument, invoice.Id, DateTime.UtcNow, outstanding, $"manual:{invoice.Id:N}"), cancellationToken);
+            {
+                var application = PaymentApplication.Create(
+                    PaymentApplication.InvoiceDocument, invoice.Id, DateTime.UtcNow, outstanding, $"manual:{invoice.Id:N}");
+                if (cash.HasValue)
+                    application.WithForeign(invoice.ForeignCurrencyCode!, foreignOutstanding, request.PaymentRate!.Value, fxDifference);
+                await _uow.PaymentApplications.AddAsync(application, cancellationToken);
+            }
             if (outstanding > 0)
-                await _posting.TryPostAsync(_logger, PostingRules.ForManualInvoicePayment(invoice, outstanding, DateTime.UtcNow), cancellationToken);
+                await _posting.TryPostAsync(_logger, PostingRules.ForManualInvoicePayment(invoice, outstanding, DateTime.UtcNow, cash), cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
             return CreateInvoiceCommandHandler.MapInvoiceToDto(invoice);
         }
@@ -246,6 +275,8 @@ namespace ERP.ACC.Application.Handlers
         public async Task<BillDto> Handle(CreateBillCommand request, CancellationToken cancellationToken)
         {
             var policy = _vat == null ? new VatSettings(0m, true) : await _vat.GetAsync(cancellationToken);
+            var fx = FxSupport.IsForeign(request.CurrencyCode, request.ExchangeRate, policy.BaseCurrency);
+            var amountInBase = fx ? FxSupport.ForeignToBase(request.ForeignAmount, request.ExchangeRate!.Value, request.Lines.Count) : request.Amount;
             VatSplit split;
             VatLinesSplit? lines = null;
             if (request.Lines is { Count: > 0 })
@@ -257,7 +288,7 @@ namespace ERP.ACC.Application.Handlers
             {
                 try
                 {
-                    split = VatCalculator.Split(request.Amount, request.TaxRatePercent ?? policy.RatePercent, policy.PricesIncludeTax);
+                    split = VatCalculator.Split(amountInBase, request.TaxRatePercent ?? policy.RatePercent, policy.PricesIncludeTax);
                 }
                 catch (ArgumentOutOfRangeException ex)
                 {
@@ -273,6 +304,8 @@ namespace ERP.ACC.Application.Handlers
                 split.Gross,
                 request.DueDate);
             bill.ApplyVat(split.Net, split.RatePercent, split.Tax);
+            if (fx)
+                bill.SetForeign(request.CurrencyCode!, FxSupport.ForeignGross(request.ForeignAmount!.Value, request.TaxRatePercent ?? policy.RatePercent, policy.PricesIncludeTax), request.ExchangeRate!.Value);
 
             await _uow.Bills.AddAsync(bill, cancellationToken);
             if (lines != null && _vatLines != null)
@@ -291,6 +324,9 @@ namespace ERP.ACC.Application.Handlers
             NetAmount = b.EffectiveNet,
             TaxRatePercent = b.TaxRatePercent,
             TaxAmount = b.TaxAmount,
+            ForeignCurrencyCode = b.ForeignCurrencyCode,
+            ExchangeRate = b.ExchangeRate,
+            ForeignAmount = b.ForeignAmount,
             DueDate = b.DueDate,
             Status = ((BillStatus)b.Status).ToString(),
             CreatedAt = b.CreatedAt
@@ -365,11 +401,22 @@ namespace ERP.ACC.Application.Handlers
             var bill = await _uow.Bills.GetByIdAsync(request.BillId, cancellationToken)
                 ?? throw new InvalidOperationException($"Bill {request.BillId} not found.");
 
+            if (!bill.IsForeign && request.PaymentRate.HasValue)
+                throw new BusinessRuleException("Accounting", $"Bill {bill.BillNumber} is in the base currency: it takes no payment rate.");
+            if (bill.IsForeign && request.PaymentRate is not > 0m)
+                throw new BusinessRuleException("Accounting", $"Bill {bill.BillNumber} is in {bill.ForeignCurrencyCode}: give the rate the supplier was paid at.");
+
+            // foreign bill: the foreign amount paid at the payment rate against the carrying amount (ROADMAP P1-4)
+            decimal? cash = bill.IsForeign ? FxSupport.ToBase(bill.ForeignAmount!.Value, request.PaymentRate!.Value) : null;
+
             bill.MarkPaid();
             await _uow.Bills.UpdateAsync(bill, cancellationToken);
-            await _uow.PaymentApplications.AddAsync(PaymentApplication.Create(
-                PaymentApplication.BillDocument, bill.Id, DateTime.UtcNow, bill.Amount, $"manual:{bill.Id:N}"), cancellationToken);
-            await _posting.TryPostAsync(_logger, PostingRules.ForBillPayment(bill, DateTime.UtcNow), cancellationToken);
+            var application = PaymentApplication.Create(
+                PaymentApplication.BillDocument, bill.Id, DateTime.UtcNow, bill.Amount, $"manual:{bill.Id:N}");
+            if (cash.HasValue)
+                application.WithForeign(bill.ForeignCurrencyCode!, bill.ForeignAmount!.Value, request.PaymentRate!.Value, FxSupport.PayableDifference(cash.Value, bill.Amount));
+            await _uow.PaymentApplications.AddAsync(application, cancellationToken);
+            await _posting.TryPostAsync(_logger, PostingRules.ForBillPayment(bill, DateTime.UtcNow, cash), cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
             return CreateBillCommandHandler.MapBillToDto(bill);
         }

@@ -55,6 +55,11 @@ namespace ERP.ACC.Application.DTOs
         public decimal NetAmount { get; set; }
         public decimal TaxRatePercent { get; set; }
         public decimal TaxAmount { get; set; }
+
+        /// <summary>Set for a document in a foreign currency (ROADMAP P1-4): its currency, the rate it was booked at (base per 1 foreign) and the gross in that currency. Amount is in the base currency.</summary>
+        public string? ForeignCurrencyCode { get; set; }
+        public decimal? ExchangeRate { get; set; }
+        public decimal? ForeignAmount { get; set; }
         public DateTime DueDate { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
@@ -76,6 +81,11 @@ namespace ERP.ACC.Application.DTOs
         public decimal NetAmount { get; set; }
         public decimal TaxRatePercent { get; set; }
         public decimal TaxAmount { get; set; }
+
+        /// <summary>Set for a document in a foreign currency (ROADMAP P1-4): its currency, the rate it was booked at (base per 1 foreign) and the gross in that currency. Amount is in the base currency.</summary>
+        public string? ForeignCurrencyCode { get; set; }
+        public decimal? ExchangeRate { get; set; }
+        public decimal? ForeignAmount { get; set; }
         public DateTime DueDate { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
@@ -221,6 +231,9 @@ namespace ERP.ACC.Application.DTOs
     /// <summary>One journal line as the ledger reads it (repository projection).</summary>
     public class LedgerRow
     {
+        /// <summary>The journal line itself (what a bank statement line is matched to) and the document that made the entry.</summary>
+        public Guid LineId { get; set; }
+        public Guid? ReferenceId { get; set; }
         public Guid EntryId { get; set; }
         public string EntryNumber { get; set; } = string.Empty;
         public DateTime EntryDate { get; set; }

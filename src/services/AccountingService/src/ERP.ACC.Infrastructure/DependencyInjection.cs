@@ -6,6 +6,7 @@ using ERP.ACC.Infrastructure.EventBus;
 using ERP.ACC.Infrastructure.MessageBus;
 using ERP.ACC.Infrastructure.Persistence;
 using ERP.ACC.Infrastructure.Repositories;
+using ERP.Shared.Authorization.ServiceAuth;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -83,10 +84,15 @@ namespace ERP.ACC.Infrastructure
             services.AddScoped<ITaxRateRepository, TaxRateRepository>();
             services.AddScoped<IBankAccountRepository, BankAccountRepository>();
             services.AddScoped<IBankStatementRepository, BankStatementRepository>();
+            services.AddScoped<IBankStatementLineRepository, BankStatementLineRepository>();
             services.AddScoped<IAccountingUnitOfWork, AccountingUnitOfWork>();
 
             // Tax Settings (System/Tenant two-tier) — storage+CRUD only for now
             services.AddScoped<ITaxSettingsService, TaxSettingsService>();
+
+            // Exchange rates entered in SharedMasterDataService (ROADMAP P1-4), read through its /internal route with this service's token.
+            services.AddHttpClient<ERP.ACC.Application.Fx.IExchangeRateProvider, MasterDataExchangeRateProvider>()
+                .AddServiceToken("masterdata");
 
             services.AddCacheService(configuration, "acc");
 

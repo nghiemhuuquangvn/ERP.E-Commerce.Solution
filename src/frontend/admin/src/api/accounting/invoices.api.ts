@@ -19,6 +19,10 @@ export interface InvoiceDto {
   /** False when the journal entry could not be posted (no open fiscal period …); see the posting gaps. */
   postedToLedger?: boolean
   postingWarning?: string | null
+  /** Set for a document in a foreign currency (ROADMAP P1-4): amount is in the base currency. */
+  foreignCurrencyCode?: string | null
+  exchangeRate?: number | null
+  foreignAmount?: number | null
 }
 
 /** A VAT line as the API takes it (ROADMAP P1-3b): category 0 taxable / 1 not subject to VAT. */
@@ -74,6 +78,10 @@ export interface CreateInvoiceRequest {
   dueDate: string
   taxRatePercent?: number
   lines?: VatLineInput[]
+  /** A document in a foreign currency: the currency, the total in it and the rate (base per 1 foreign). */
+  currencyCode?: string
+  foreignAmount?: number
+  exchangeRate?: number
 }
 
 export interface ARAgingDto {
@@ -117,8 +125,8 @@ export const invoicesApi = {
   cancelEInvoice: (id: string, reason: string) =>
     apiClient.post<EInvoiceDto>(`${ACC_BASE}/invoices/${id}/e-invoice/cancel`, { reason }).then((r) => r.data),
 
-  markPaid: (id: string) =>
-    apiClient.post<InvoiceDto>(`${ACC_BASE}/invoices/${id}/mark-paid`).then((r) => r.data),
+  markPaid: (id: string, paymentRate?: number) =>
+    apiClient.post<InvoiceDto>(`${ACC_BASE}/invoices/${id}/mark-paid`, { paymentRate }).then((r) => r.data),
 
   arAging: (asOfDate?: string) =>
     apiClient

@@ -59,6 +59,8 @@ namespace ERP.ACC.Application.Posting
         public const string SalesReturn = "SalesReturn";
         public const string InvoiceVatAdjustment = "InvoiceVatAdjust";
         public const string VatSettlement = "VatSettlement";
+        public const string FxRevaluation = "FxRevaluation";
+        public const string BankStatementLine = "BankStatementLine";
         public const string Loan = "Loan";
         public const string LoanRepayment = "LoanRepayment";
         public const string LoanAccrual = "LoanAccrual";
@@ -98,10 +100,19 @@ namespace ERP.ACC.Application.Posting
                 new[] { PostingLine.Dr(key, amount), PostingLine.Cr(PostingKeys.AccountsReceivable, amount) });
         }
 
-        /// <summary>A payment recorded by hand on the invoice (no gateway data): Dr Bank / Cr Accounts receivable.</summary>
-        public static PostingRequest ForManualInvoicePayment(Domain.Entities.Invoice invoice, decimal outstanding, DateTime date) =>
-            new(InvoicePayment, invoice.Id, date, $"Payment of invoice {invoice.InvoiceNumber}",
-                new[] { PostingLine.Dr(PostingKeys.Bank, outstanding), PostingLine.Cr(PostingKeys.AccountsReceivable, outstanding) });
+        /// <summary>
+        /// A payment recorded by hand on the invoice (no gateway data): Dr Bank / Cr Accounts receivable. For a foreign-currency invoice <paramref name="cashReceived"/> is what the
+        /// foreign amount came to at the payment rate (ROADMAP P1-4): more than the carrying amount is a realized gain (Cr FX gain), less a loss (Dr FX loss).
+        /// </summary>
+        public static PostingRequest ForManualInvoicePayment(Domain.Entities.Invoice invoice, decimal outstanding, DateTime date, decimal? cashReceived = null)
+        {
+            var cash = cashReceived ?? outstanding;
+            var lines = new List<PostingLine> { PostingLine.Dr(PostingKeys.Bank, cash, invoice.InvoiceNumber), PostingLine.Cr(PostingKeys.AccountsReceivable, outstanding, invoice.InvoiceNumber) };
+            var difference = cash - outstanding;
+            if (difference > 0m) lines.Add(PostingLine.Cr(PostingKeys.FxGain, difference, invoice.InvoiceNumber));
+            else if (difference < 0m) lines.Add(PostingLine.Dr(PostingKeys.FxLoss, -difference, invoice.InvoiceNumber));
+            return new(InvoicePayment, invoice.Id, date, $"Payment of invoice {invoice.InvoiceNumber}", lines);
+        }
 
         /// <summary>Dr Goods received not invoiced (net) and Dr VAT input (the VAT, ROADMAP P1-3) / Cr Accounts payable (gross). The stock itself was debited to Inventory by the receipt.</summary>
         public static PostingRequest ForBillApproval(Domain.Entities.Bill bill, DateTime date)
@@ -179,6 +190,40 @@ namespace ERP.ACC.Application.Posting
                 new[] { PostingLine.Dr(PostingKeys.VatOutput, amount, periodName), PostingLine.Cr(PostingKeys.VatInput, amount, periodName) });
         }
 
+        /// <summary>
+        /// The unrealized exchange difference of a period (ROADMAP P1-4): <paramref name="receivables"/> and <paramref name="payables"/> are the gain (positive) or loss (negative) on the open foreign
+        /// receivables and payables. A gain on a receivable raises it (Dr Accounts receivable), a gain on a payable lowers it (Dr Accounts payable); the balance goes to FX gain / FX loss.
+        /// </summary>
+        public static PostingRequest ForFxRevaluation(Guid fiscalPeriodId, decimal receivables, decimal payables, string periodName, DateTime date)
+        {
+            var bytes = System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes($"fx-revaluation:{fiscalPeriodId:N}"));
+            var lines = new List<PostingLine>();
+            if (receivables > 0m) lines.Add(PostingLine.Dr(PostingKeys.AccountsReceivable, receivables, periodName));
+            else if (receivables < 0m) lines.Add(PostingLine.Cr(PostingKeys.AccountsReceivable, -receivables, periodName));
+            if (payables > 0m) lines.Add(PostingLine.Dr(PostingKeys.AccountsPayable, payables, periodName));
+            else if (payables < 0m) lines.Add(PostingLine.Cr(PostingKeys.AccountsPayable, -payables, periodName));
+            var net = receivables + payables;
+            if (net > 0m) lines.Add(PostingLine.Cr(PostingKeys.FxGain, net, periodName));
+            else if (net < 0m) lines.Add(PostingLine.Dr(PostingKeys.FxLoss, -net, periodName));
+            return new(FxRevaluation, new Guid(bytes), date.Date, $"FX revaluation {periodName}", lines);
+        }
+
+        /// <summary>
+        /// A bank statement line the books did not have (ROADMAP P1-4). A deposit (positive) is Dr the bank's ledger account / Cr the other side (interest income by default); a withdrawal (negative)
+        /// is Dr the other side (a bank fee by default) / Cr the bank's ledger account. The other side is a posting key or an account.
+        /// </summary>
+        public static PostingRequest ForBankStatementLine(Guid statementLineId, DateTime date, decimal amount, Guid bankLedgerAccountId, string? counterKey, Guid? counterAccountId, string description)
+        {
+            var value = Math.Abs(amount);
+            var bank = amount > 0m
+                ? new PostingLine(null, bankLedgerAccountId, value, 0m, description)
+                : new PostingLine(null, bankLedgerAccountId, 0m, value, description);
+            var counter = amount > 0m
+                ? new PostingLine(counterKey, counterAccountId, 0m, value, description)
+                : new PostingLine(counterKey, counterAccountId, value, 0m, description);
+            return new(BankStatementLine, statementLineId, date.Date, $"Bank statement line: {description}", new[] { bank, counter });
+        }
+
         /// <summary>A stable id for "this installment accrued up to this date".</summary>
         public static Guid AccrualSourceId(Guid installmentId, DateTime asOf)
         {
@@ -186,14 +231,20 @@ namespace ERP.ACC.Application.Posting
             return new Guid(bytes);
         }
 
-        /// <summary>Dr Accounts payable / Cr Bank.</summary>
-        public static PostingRequest ForBillPayment(Domain.Entities.Bill bill, DateTime date) =>
-            new(BillPayment, bill.Id, date, $"Payment of bill {bill.BillNumber}",
-                new[]
-                {
-                    PostingLine.Dr(PostingKeys.AccountsPayable, bill.Amount, bill.BillNumber),
-                    PostingLine.Cr(PostingKeys.Bank, bill.Amount, bill.BillNumber),
-                });
+        /// <summary>Dr Accounts payable / Cr Bank. For a foreign-currency bill <paramref name="cashPaid"/> is the foreign amount at the payment rate (ROADMAP P1-4): paying less than the carrying amount is a gain.</summary>
+        public static PostingRequest ForBillPayment(Domain.Entities.Bill bill, DateTime date, decimal? cashPaid = null)
+        {
+            var cash = cashPaid ?? bill.Amount;
+            var lines = new List<PostingLine>
+            {
+                PostingLine.Dr(PostingKeys.AccountsPayable, bill.Amount, bill.BillNumber),
+                PostingLine.Cr(PostingKeys.Bank, cash, bill.BillNumber),
+            };
+            var difference = bill.Amount - cash;
+            if (difference > 0m) lines.Add(PostingLine.Cr(PostingKeys.FxGain, difference, bill.BillNumber));
+            else if (difference < 0m) lines.Add(PostingLine.Dr(PostingKeys.FxLoss, -difference, bill.BillNumber));
+            return new(BillPayment, bill.Id, date, $"Payment of bill {bill.BillNumber}", lines);
+        }
 
         /// <summary>
         /// One Warehouse stock movement (ROADMAP P1-1b), from its signed stock-value change: a receipt debits Inventory and credits

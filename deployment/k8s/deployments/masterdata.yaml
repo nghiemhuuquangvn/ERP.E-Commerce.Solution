@@ -25,6 +25,11 @@ spec:
         env:
         - name: ASPNETCORE_URLS
           value: "http://+:5015"
+        # /internal endpoints: only these services' tokens (verified with their JWKS).
+        - name: ServiceAuth__Name
+          value: "masterdata"
+        - name: ServiceAuth__TrustedCallers__accounting
+          value: "http://accountingservice:5005/internal/jwks.json"
         - name: Cache__InstanceName
           value: "mst"
         - name: ConnectionStrings__MasterDataDb

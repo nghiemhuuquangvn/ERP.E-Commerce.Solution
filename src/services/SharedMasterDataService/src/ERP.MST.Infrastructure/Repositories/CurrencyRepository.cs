@@ -46,6 +46,12 @@ public class CurrencyRepository : ICurrencyRepository
             .AnyAsync(c => !c.IsDeleted && c.Code == code, cancellationToken);
     }
 
+    public async Task<Currency?> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
+    {
+        return await _context.Currencies
+            .FirstOrDefaultAsync(c => !c.IsDeleted && c.Code == code, cancellationToken);
+    }
+
     public void Add(Currency currency)
     {
         _context.Currencies.Add(currency);

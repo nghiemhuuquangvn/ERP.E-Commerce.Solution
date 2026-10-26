@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { billsApi, BILL_STATUS } from '@/api/accounting/bills.api'
 import type { BillDto } from '@/api/accounting/bills.api'
+import { ForeignCurrencyFields, emptyFx, isForeign, toFxRequest } from '@/components/accounting/ForeignCurrencyFields'
+import type { FxFields } from '@/components/accounting/ForeignCurrencyFields'
 import { PostingGapsBar } from '@/components/accounting/PostingGapsBar'
 import { VatLinesEditor, emptyVatLine, toVatLineInputs } from '@/components/accounting/VatLinesEditor'
 import type { VatLineRow } from '@/components/accounting/VatLinesEditor'
@@ -43,6 +45,7 @@ function CreateBillModal({ onClose }: { onClose: () => void }) {
   })
   const [useLines, setUseLines] = useState(false)
   const [lines, setLines] = useState<VatLineRow[]>([emptyVatLine()])
+  const [fx, setFx] = useState<FxFields>(emptyFx())
 
   const mutation = useMutation({
     mutationFn: (values: CreateBillFormValues) =>
@@ -50,7 +53,8 @@ function CreateBillModal({ onClose }: { onClose: () => void }) {
         billNumber: values.billNumber,
         supplierId: values.supplierId,
         poId: values.poId,
-        amount: useLines ? 0 : Number(values.amount),
+        ...toFxRequest(fx),
+        amount: useLines || isForeign(fx) ? 0 : Number(values.amount),
         dueDate: values.dueDate,
         lines: useLines ? toVatLineInputs(lines) : undefined,
       }),
@@ -88,11 +92,14 @@ function CreateBillModal({ onClose }: { onClose: () => void }) {
             <input className="input" {...register('poId', { required: true })} />
             {errors.poId && <p className="mt-1 text-xs text-red-600">{t('accounting.bills.poId')} is required.</p>}
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" checked={useLines} onChange={(e) => setUseLines(e.target.checked)} />
-            {t('accounting.vat.useLines')}
-          </label>
-          {useLines ? (
+          <ForeignCurrencyFields value={fx} onChange={setFx} />
+          {!isForeign(fx) && (
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={useLines} onChange={(e) => setUseLines(e.target.checked)} />
+              {t('accounting.vat.useLines')}
+            </label>
+          )}
+          {isForeign(fx) ? null : useLines ? (
             <VatLinesEditor rows={lines} onChange={setLines} />
           ) : (
             <div>
@@ -157,7 +164,7 @@ function BillsListTab({ canManage }: { canManage: boolean }) {
   })
 
   const markPaidMutation = useMutation({
-    mutationFn: (id: string) => billsApi.markPaid(id),
+    mutationFn: ({ id, paymentRate }: { id: string; paymentRate?: number }) => billsApi.markPaid(id, paymentRate),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['accounting', 'bills'] }),
   })
 
@@ -195,7 +202,16 @@ function BillsListTab({ canManage }: { canManage: boolean }) {
       {
         key: 'amount',
         label: t('accounting.bills.amount'),
-        render: (b: BillDto) => b.amount.toLocaleString(),
+        render: (b: BillDto) => (
+          <span>
+            {b.amount.toLocaleString()}
+            {b.foreignCurrencyCode && (
+              <span className="block text-xs text-gray-500">
+                {b.foreignAmount?.toLocaleString()} {b.foreignCurrencyCode} @ {b.exchangeRate?.toLocaleString()}
+              </span>
+            )}
+          </span>
+        ),
       },
       {
         key: 'dueDate',
@@ -236,7 +252,11 @@ function BillsListTab({ canManage }: { canManage: boolean }) {
                 <button
                   className="text-xs text-primary-600 hover:underline disabled:opacity-40"
                   disabled={markPaidMutation.isPending}
-                  onClick={() => markPaidMutation.mutate(b.id)}
+                  onClick={() => {
+                    if (!b.foreignCurrencyCode) return markPaidMutation.mutate({ id: b.id })
+                    const rate = Number(window.prompt(t('accounting.fx.paymentRatePrompt', { currency: b.foreignCurrencyCode }), String(b.exchangeRate ?? '')))
+                    if (rate > 0) markPaidMutation.mutate({ id: b.id, paymentRate: rate })
+                  }}
                 >
                   {t('accounting.bills.markPaid')}
                 </button>

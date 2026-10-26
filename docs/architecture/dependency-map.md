@@ -55,6 +55,7 @@
 | Purchasing | REST | ValidateUser, GetUserRoles | — | Buyer validation |
 | Warehouse | REST | ValidateUser | — | Permission check |
 | Accounting | REST | ValidateUser | — | GL user validation |
+| Accounting | REST (service token, `/internal`) | `GET internal/v1/exchange-rates/effective` on SharedMasterData | — | Exchange-rate suggestion and period-end revaluation (P1-4) |
 | CRM | REST | ValidateUser | — | Contact/user sync |
 | HRM | REST | ValidateUser | — | Employee user creation |
 | Notification | — | — | UserCreated, UserUpdated, RoleAssigned | Email/SMS templates |

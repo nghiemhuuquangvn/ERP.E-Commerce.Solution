@@ -270,6 +270,7 @@ public interface ICurrencyRepository
         int pageSize,
         CancellationToken cancellationToken = default);
     Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
+    Task<Currency?> GetByCodeAsync(string code, CancellationToken cancellationToken = default);
     void Add(Currency currency);
     void Update(Currency currency);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

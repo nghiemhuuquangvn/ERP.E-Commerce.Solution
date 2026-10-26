@@ -28,6 +28,8 @@ namespace ERP.ACC.Application.Interfaces
 
         /// <summary>Invoices that could be long-term on a date: due later than <paramref name="dueAfter"/>, created by <paramref name="asOf"/>, whatever their status today.</summary>
         Task<List<Invoice>> GetMaturityCandidatesAsync(DateTime asOf, DateTime dueAfter, CancellationToken ct = default);
+        /// <summary>Invoices in a foreign currency created by <paramref name="asOf"/>, whatever their status today (the period-end revaluation, ROADMAP P1-4).</summary>
+        Task<List<Invoice>> GetForeignCreatedByAsync(DateTime asOf, CancellationToken ct = default);
         Task AddAsync(Invoice invoice, CancellationToken ct = default);
         Task UpdateAsync(Invoice invoice, CancellationToken ct = default);
     }
@@ -43,6 +45,8 @@ namespace ERP.ACC.Application.Interfaces
 
         /// <summary>Approved or paid bills due later than <paramref name="dueAfter"/> that existed on <paramref name="asOf"/>, whatever their status today.</summary>
         Task<List<Bill>> GetMaturityCandidatesAsync(DateTime asOf, DateTime dueAfter, CancellationToken ct = default);
+        /// <summary>Bills in a foreign currency created by <paramref name="asOf"/>, whatever their status today.</summary>
+        Task<List<Bill>> GetForeignCreatedByAsync(DateTime asOf, CancellationToken ct = default);
         Task AddAsync(Bill bill, CancellationToken ct = default);
         Task UpdateAsync(Bill bill, CancellationToken ct = default);
     }
@@ -173,6 +177,9 @@ namespace ERP.ACC.Application.Interfaces
     {
         Task AddAsync(PaymentApplication application, CancellationToken ct = default);
 
+        /// <summary>Every application of the given invoices and bills (whatever their date).</summary>
+        Task<List<PaymentApplication>> ListForDocumentsAsync(IReadOnlyCollection<Guid> documentIds, CancellationToken ct = default);
+
 
         /// <summary>
         /// Every application (whatever its date) of the documents <see cref="IInvoiceRepository.GetMaturityCandidatesAsync"/> / <see cref="IBillRepository.GetMaturityCandidatesAsync"/>
@@ -202,6 +209,22 @@ namespace ERP.ACC.Application.Interfaces
         Task<List<BankAccount>> GetAllAsync(bool? activeOnly = null, CancellationToken ct = default);
         Task AddAsync(BankAccount bankAccount, CancellationToken ct = default);
         Task UpdateAsync(BankAccount bankAccount, CancellationToken ct = default);
+    }
+
+    public interface IBankStatementLineRepository
+    {
+        Task<BankStatementLine?> GetByIdAsync(Guid id, CancellationToken ct = default);
+
+        /// <summary>The lines of a statement, oldest first (tracked, so a match is saved by the unit of work).</summary>
+        Task<List<BankStatementLine>> ListByStatementAsync(Guid bankStatementId, CancellationToken ct = default);
+
+        /// <summary>Every line of the bank account dated up to <paramref name="to"/>, whichever statement it belongs to.</summary>
+        Task<List<BankStatementLine>> ListByBankAccountAsync(Guid bankAccountId, DateTime to, CancellationToken ct = default);
+
+        /// <summary>The ledger lines already matched to a statement line (any bank account of the tenant).</summary>
+        Task<HashSet<Guid>> MatchedJournalLineIdsAsync(CancellationToken ct = default);
+        Task AddRangeAsync(IEnumerable<BankStatementLine> lines, CancellationToken ct = default);
+        void Remove(BankStatementLine line);
     }
 
     public interface IBankStatementRepository

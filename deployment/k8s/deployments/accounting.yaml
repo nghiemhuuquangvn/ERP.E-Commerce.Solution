@@ -25,6 +25,18 @@ spec:
         env:
         - name: ASPNETCORE_URLS
           value: "http://+:5005"
+        # Service-to-service token for the exchange-rate read from MasterData (ROADMAP P1-4):
+        # several replicas share the Key Vault certificate (never Ephemeral here).
+        - name: ServiceAuth__Name
+          value: "accounting"
+        - name: ServiceAuth__SigningKeys__Source
+          value: "KeyVault"
+        - name: ServiceAuth__SigningKeys__KeyVault__VaultUri
+          value: "https://<your-key-vault>.vault.azure.net/"
+        - name: ServiceAuth__SigningKeys__KeyVault__CertificateName
+          value: "svc-accounting-signing"
+        - name: Services__MasterDataServiceBaseUrl
+          value: "http://masterdataservice:5015"
         - name: Cache__InstanceName
           value: "acc"
         - name: ConnectionStrings__AccountingDB

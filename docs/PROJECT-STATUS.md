@@ -36,6 +36,13 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-26 — ROADMAP P1-4: foreign currency and line-level bank reconciliation (`feat/p1-4-fx-bank-reconciliation`, unmerged)
+- **Foreign currency**: invoices / bills carry currency, rate and foreign gross (base currency per tenant, default VND, in *Settings → Tax*); the rate is typed and can be suggested from MasterData (new `internal/v1/exchange-rates/effective` route, service token Accounting → MasterData; compose and k8s `ServiceAuth` settings added). *Mark as paid* takes the payment rate and posts the realized gain / loss (keys FxGain / FxLoss).
+- **Period-end revaluation** (`accounting/fx/revaluation`, preview + post, panel on *Fiscal periods*): unrealized difference of open foreign receivables / payables at the closing rates, dated the last day and reversed the next day.
+- **Bank reconciliation by line**: `BankStatementLines`, CSV import, automatic / manual match to the bank's ledger lines, difference to the closing balance, fee / interest posted from a line (keys BankFee / BankInterestIncome), reconcile only at difference 0. `BankAccountsController` moved to attribute authorization (allowlist shrank by one).
+- Migration Accounting 025; drift test passes; ACC 563 tests, Architecture 53/54 (known `NoSharedTokenKeyTests`), admin `tsc -b` clean. Verified live on `glcheck` (rates by SQL: the tenant admin lacks the currency permission): 1,000 USD invoice → 24,000,000; received at 24,500 → Cr 515 500,000; bill 500 USD paid at 23,500 → Cr 515 250,000; revaluation +840,000 posted 31 Oct and reversed 1 Nov (found and fixed a tenant error when reversing an unsaved entry); CSV of 4 lines → 2 auto-matched, fee Dr 6427 75,000, interest Cr 515 12,500, difference 0, reconciled. Test data removed, October closed again.
+- Not done (P1-4b): DEFERRED §4o.
+
 ### 2026-10-26 — ROADMAP P1-3b: VAT lines, settlement, e-invoice kinds, posting gaps, XML (`feat/p1-3b-vat-lines-settlement`, unmerged)
 - **VAT lines** on invoices and bills (rates 0 / 5 / 8 / 10 %, goods not subject to VAT; table `VatLines`, migration 024), *Adjust VAT* by lines, bill approval with the supplier's rate, return by the invoice's VAT share, listing rows per line, return row 26.
 - **VAT settlement** (`accounting/vat/settlement`, `settle`): Dr VAT output / Cr VAT input for the smaller balance, once per period (reverse to redo).

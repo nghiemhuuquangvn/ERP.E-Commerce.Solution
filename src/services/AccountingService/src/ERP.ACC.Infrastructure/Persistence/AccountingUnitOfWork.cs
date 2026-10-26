@@ -26,7 +26,8 @@ namespace ERP.ACC.Infrastructure.Persistence
             INoteTextRepository noteTexts,
             ITaxRateRepository taxRates,
             IBankAccountRepository bankAccounts,
-            IBankStatementRepository bankStatements)
+            IBankStatementRepository bankStatements,
+            IBankStatementLineRepository bankStatementLines)
         {
             _db = db;
             Accounts = accounts;
@@ -46,6 +47,7 @@ namespace ERP.ACC.Infrastructure.Persistence
             TaxRates = taxRates;
             BankAccounts = bankAccounts;
             BankStatements = bankStatements;
+            BankStatementLines = bankStatementLines;
         }
 
         public IAccountRepository Accounts { get; }
@@ -65,6 +67,7 @@ namespace ERP.ACC.Infrastructure.Persistence
         public ITaxRateRepository TaxRates { get; }
         public IBankAccountRepository BankAccounts { get; }
         public IBankStatementRepository BankStatements { get; }
+        public IBankStatementLineRepository BankStatementLines { get; }
 
         public async Task<int> SaveChangesAsync(CancellationToken ct = default)
             => await _db.SaveChangesAsync(ct);

@@ -18,6 +18,9 @@ public class TenantTaxSettings : BaseEntity
     /// <summary>An invoice created from an order is issued as an e-invoice at once (to a retail customer); off by default (ROADMAP P1-3b).</summary>
     public bool AutoIssueEInvoice { get; private set; }
 
+    /// <summary>The currency of the books (3-letter code, default VND); a document in another currency is converted at its rate (ROADMAP P1-4).</summary>
+    public string BaseCurrencyCode { get; private set; } = "VND";
+
     protected TenantTaxSettings() { }
 
     public static TenantTaxSettings CreateDefault(Guid tenantId)
@@ -36,8 +39,10 @@ public class TenantTaxSettings : BaseEntity
         };
     }
 
-    public void Update(string? companyTaxCode, decimal defaultTaxRatePercent, bool pricesIncludeTax, string? eInvoiceProvider = null, string? eInvoiceSeries = null, bool autoIssueEInvoice = false)
+    public void Update(string? companyTaxCode, decimal defaultTaxRatePercent, bool pricesIncludeTax, string? eInvoiceProvider = null, string? eInvoiceSeries = null, bool autoIssueEInvoice = false, string? baseCurrencyCode = null)
     {
+        if (!string.IsNullOrWhiteSpace(baseCurrencyCode))
+            BaseCurrencyCode = baseCurrencyCode.Trim().ToUpperInvariant();
         AutoIssueEInvoice = autoIssueEInvoice;
         CompanyTaxCode = companyTaxCode;
         DefaultTaxRatePercent = defaultTaxRatePercent;

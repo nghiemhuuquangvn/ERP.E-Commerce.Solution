@@ -71,6 +71,7 @@ interface TenantFormValues {
   eInvoiceProvider: string
   eInvoiceSeries: string
   autoIssueEInvoice: boolean
+  baseCurrencyCode: string
 }
 
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
@@ -85,7 +86,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
   })
 
   const { register, handleSubmit, reset } = useForm<TenantFormValues>({
-    defaultValues: { companyTaxCode: '', defaultTaxRatePercent: 0, pricesIncludeTax: true, eInvoiceProvider: '', eInvoiceSeries: '', autoIssueEInvoice: false },
+    defaultValues: { companyTaxCode: '', defaultTaxRatePercent: 0, pricesIncludeTax: true, eInvoiceProvider: '', eInvoiceSeries: '', autoIssueEInvoice: false, baseCurrencyCode: 'VND' },
   })
 
   useEffect(() => {
@@ -97,6 +98,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
         eInvoiceProvider: data.eInvoiceProvider ?? '',
         eInvoiceSeries: data.eInvoiceSeries ?? '',
         autoIssueEInvoice: !!data.autoIssueEInvoice,
+        baseCurrencyCode: data.baseCurrencyCode ?? 'VND',
       })
     }
   }, [data, reset])
@@ -110,6 +112,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
         eInvoiceProvider: values.eInvoiceProvider || null,
         eInvoiceSeries: values.eInvoiceSeries || null,
         autoIssueEInvoice: values.autoIssueEInvoice,
+        baseCurrencyCode: values.baseCurrencyCode.trim().toUpperCase() || 'VND',
       }),
     onSuccess: (result: TenantTaxSettings) => {
       queryClient.setQueryData(['settings', 'tax', 'tenant', tenantId], result)
@@ -155,6 +158,11 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       <label className="block text-sm text-gray-700">
         {t('settings.tax.eInvoiceSeries')}
         <input type="text" disabled={!canManage} {...register('eInvoiceSeries')} className="input mt-1 w-full" placeholder="C26TAA" />
+      </label>
+      <label className="block text-sm text-gray-700">
+        {t('settings.tax.baseCurrency')}
+        <input type="text" maxLength={3} disabled={!canManage} {...register('baseCurrencyCode')} className="input mt-1 w-32 uppercase" placeholder="VND" />
+        <span className="mt-1 block text-xs text-gray-500">{t('settings.tax.baseCurrencyHint')}</span>
       </label>
       <label className="flex items-center gap-2 text-sm text-gray-700">
         <input type="checkbox" disabled={!canManage} {...register('autoIssueEInvoice')} />

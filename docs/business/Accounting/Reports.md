@@ -79,6 +79,7 @@ prefix → row table are in [BA-Accounting.md](BA-Accounting.md) §6.8.
   transfers between cash accounts dropped). Each non-cash line contributes *credit − debit* (received positive, paid negative).
 * **Placement.** `CashFlowStatementEngine` walks the layout top to bottom and gives each movement to the first row whose prefix **and direction** match its counter-account (a movement counts once). Operating movements no row
   names go to 06 / 07 by the account's category; investing / financing ones no row names are listed in `unmapped` and make the check fail (they are never pushed into another activity).
+* **FX effect (row 61) stays 0 after P1-4:** only receivables and payables are revalued, the foreign balance of a bank account is not tracked (DEFERRED §4o).
 * **Check.** Row 70 (50 + opening cash 60 + FX effect 61 = 0) must equal the cash on the books at the end of the range, in every column — `isBalanced`.
 * **Draft.** Like B01 / B02 the rows come from the Circular 200 form and need the accountant's review. The older `cash-flow` route (by account, with its own reconciliation) stays.
 

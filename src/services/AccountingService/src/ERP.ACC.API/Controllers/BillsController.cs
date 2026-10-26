@@ -87,13 +87,19 @@ namespace ERP.ACC.API.Controllers
             return Ok(await _mediator.Send(new GetVatLinesQuery { DocumentType = 2, DocumentId = id }, ct));
         }
 
+        public class MarkPaidRequest
+        {
+            /// <summary>The rate the supplier was paid at; required for a bill in a foreign currency.</summary>
+            public decimal? PaymentRate { get; set; }
+        }
+
         [HttpPost("{id:guid}/mark-paid")]
-        public async Task<IActionResult> MarkPaid(Guid id, CancellationToken ct)
+        public async Task<IActionResult> MarkPaid(Guid id, [FromBody] MarkPaidRequest? request, CancellationToken ct)
         {
             if (!_userContext.HasPermission("accounting:bills:manage"))
                 return Forbid();
 
-            var result = await _mediator.Send(new MarkBillPaidCommand { BillId = id }, ct);
+            var result = await _mediator.Send(new MarkBillPaidCommand { BillId = id, PaymentRate = request?.PaymentRate }, ct);
             return Ok(result);
         }
 

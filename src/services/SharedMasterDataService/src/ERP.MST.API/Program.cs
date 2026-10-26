@@ -1,6 +1,7 @@
 using ERP.MST.Application;
 using ERP.MST.Infrastructure;
 using ERP.Shared.Authorization;
+using ERP.Shared.Authorization.ServiceAuth;
 using ERP.Shared.Extensions;
 using ERP.Shared.Localization;
 using ERP.Shared.Versioning;
@@ -41,6 +42,8 @@ try
     // X-Tenant-* headers with no signature verification; see
     // AuthenticationExtensions.AddErpJwtAuthentication/JwtClaimsUserContextService.
     builder.Services.AddErpJwtAuthentication(builder.Configuration);
+    // /internal endpoints: service tokens of ServiceAuth:TrustedCallers (Accounting reads exchange rates).
+    builder.Services.AddErpServiceAuthentication(builder.Configuration);
     builder.Services.AddErpAuthorization();
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();

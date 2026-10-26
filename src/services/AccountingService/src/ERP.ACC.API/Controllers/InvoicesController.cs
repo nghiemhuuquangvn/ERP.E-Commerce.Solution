@@ -182,13 +182,19 @@ namespace ERP.ACC.API.Controllers
             return Ok(await _mediator.Send(new CancelEInvoiceCommand { InvoiceId = id, Reason = request.Reason }, ct));
         }
 
+        public class MarkPaidRequest
+        {
+            /// <summary>The rate the money was received at; required for an invoice in a foreign currency.</summary>
+            public decimal? PaymentRate { get; set; }
+        }
+
         [HttpPost("{id:guid}/mark-paid")]
-        public async Task<IActionResult> MarkPaid(Guid id, CancellationToken ct)
+        public async Task<IActionResult> MarkPaid(Guid id, [FromBody] MarkPaidRequest? request, CancellationToken ct)
         {
             if (!_userContext.HasPermission("accounting:invoices:manage"))
                 return Forbid();
 
-            var result = await _mediator.Send(new MarkInvoicePaidCommand { InvoiceId = id }, ct);
+            var result = await _mediator.Send(new MarkInvoicePaidCommand { InvoiceId = id, PaymentRate = request?.PaymentRate }, ct);
             return Ok(result);
         }
 

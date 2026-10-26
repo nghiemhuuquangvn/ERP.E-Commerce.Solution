@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { invoicesApi, INVOICE_STATUS } from '@/api/accounting/invoices.api'
 import type { InvoiceDto } from '@/api/accounting/invoices.api'
 import { ReasonDialog } from '@/components/shared/ReasonDialog'
+import { ForeignCurrencyFields, emptyFx, isForeign, toFxRequest } from '@/components/accounting/ForeignCurrencyFields'
+import type { FxFields } from '@/components/accounting/ForeignCurrencyFields'
 import { PostingGapsBar } from '@/components/accounting/PostingGapsBar'
 import { VatLinesEditor, emptyVatLine, toVatLineInputs } from '@/components/accounting/VatLinesEditor'
 import type { VatLineRow } from '@/components/accounting/VatLinesEditor'
@@ -44,14 +46,16 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
   })
   const [useLines, setUseLines] = useState(false)
   const [lines, setLines] = useState<VatLineRow[]>([emptyVatLine()])
+  const [fx, setFx] = useState<FxFields>(emptyFx())
 
   const mutation = useMutation({
     mutationFn: (values: CreateInvoiceFormValues) =>
       invoicesApi.create({
+        ...toFxRequest(fx),
         invoiceNumber: values.invoiceNumber,
         customerId: values.customerId,
         orderId: values.orderId,
-        amount: useLines ? 0 : Number(values.amount),
+        amount: useLines || isForeign(fx) ? 0 : Number(values.amount),
         dueDate: values.dueDate,
         lines: useLines ? toVatLineInputs(lines) : undefined,
       }),
@@ -93,11 +97,14 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
               <p className="mt-1 text-xs text-red-600">{t('accounting.invoices.orderId')} is required.</p>
             )}
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" checked={useLines} onChange={(e) => setUseLines(e.target.checked)} />
-            {t('accounting.vat.useLines')}
-          </label>
-          {useLines ? (
+          <ForeignCurrencyFields value={fx} onChange={setFx} />
+          {!isForeign(fx) && (
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={useLines} onChange={(e) => setUseLines(e.target.checked)} />
+              {t('accounting.vat.useLines')}
+            </label>
+          )}
+          {isForeign(fx) ? null : useLines ? (
             <VatLinesEditor rows={lines} onChange={setLines} />
           ) : (
             <div>
@@ -161,7 +168,7 @@ function InvoicesListTab({ canManage }: { canManage: boolean }) {
   })
 
   const markPaidMutation = useMutation({
-    mutationFn: (id: string) => invoicesApi.markPaid(id),
+    mutationFn: ({ id, paymentRate }: { id: string; paymentRate?: number }) => invoicesApi.markPaid(id, paymentRate),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['accounting', 'invoices'] }),
   })
 
@@ -201,7 +208,16 @@ function InvoicesListTab({ canManage }: { canManage: boolean }) {
       {
         key: 'amount',
         label: t('accounting.invoices.amount'),
-        render: (i: InvoiceDto) => i.amount.toLocaleString(),
+        render: (i: InvoiceDto) => (
+          <span>
+            {i.amount.toLocaleString()}
+            {i.foreignCurrencyCode && (
+              <span className="block text-xs text-gray-500">
+                {i.foreignAmount?.toLocaleString()} {i.foreignCurrencyCode} @ {i.exchangeRate?.toLocaleString()}
+              </span>
+            )}
+          </span>
+        ),
       },
       {
         key: 'dueDate',
@@ -227,7 +243,11 @@ function InvoicesListTab({ canManage }: { canManage: boolean }) {
               <button
                 className="text-xs text-primary-600 hover:underline disabled:opacity-40"
                 disabled={markPaidMutation.isPending}
-                onClick={() => markPaidMutation.mutate(i.id)}
+                onClick={() => {
+                  if (!i.foreignCurrencyCode) return markPaidMutation.mutate({ id: i.id })
+                  const rate = Number(window.prompt(t('accounting.fx.paymentRatePrompt', { currency: i.foreignCurrencyCode }), String(i.exchangeRate ?? '')))
+                  if (rate > 0) markPaidMutation.mutate({ id: i.id, paymentRate: rate })
+                }}
               >
                 {t('accounting.invoices.markPaid')}
               </button>

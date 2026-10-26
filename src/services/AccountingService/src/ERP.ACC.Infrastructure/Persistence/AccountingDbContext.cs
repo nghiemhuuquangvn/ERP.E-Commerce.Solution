@@ -20,6 +20,7 @@ namespace ERP.ACC.Infrastructure.Persistence
         public DbSet<TaxRate> TaxRates { get; set; }
         public DbSet<BankAccount> BankAccounts { get; set; }
         public DbSet<BankStatement> BankStatements { get; set; }
+        public DbSet<BankStatementLine> BankStatementLines { get; set; }
         public DbSet<PostingAccountMapping> PostingAccountMappings { get; set; }
         public DbSet<ClosingPolicy> ClosingPolicies { get; set; }
         public DbSet<ReportProfile> ReportProfiles { get; set; }
@@ -86,6 +87,9 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.NetAmount).HasColumnName("SubTotal").HasColumnType("decimal(18,2)");
                 e.Property(x => x.TaxAmount).HasColumnType("decimal(18,2)");
                 e.Property(x => x.TaxRatePercent).HasColumnType("decimal(9,4)");
+                e.Property(x => x.ForeignCurrencyCode).HasMaxLength(3);
+                e.Property(x => x.ExchangeRate).HasColumnType("decimal(18,6)");
+                e.Property(x => x.ForeignAmount).HasColumnType("decimal(18,2)");
             });
 
             modelBuilder.Entity<PostingAccountMapping>(e =>
@@ -210,6 +214,10 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.PaidOn).HasColumnType("date");
                 e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
                 e.Property(x => x.SourceKey).HasMaxLength(150);
+                e.Property(x => x.ForeignCurrencyCode).HasMaxLength(3);
+                e.Property(x => x.ExchangeRate).HasColumnType("decimal(18,6)");
+                e.Property(x => x.ForeignAmount).HasColumnType("decimal(18,2)");
+                e.Property(x => x.FxDifference).HasColumnType("decimal(18,2)");
                 e.HasIndex(x => new { x.TenantId, x.DocumentType, x.DocumentId, x.PaidOn });
                 e.HasIndex(x => new { x.TenantId, x.SourceKey }).IsUnique().HasFilter("[SourceKey] IS NOT NULL AND [IsDeleted] = 0");
             });
@@ -241,6 +249,9 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.NetAmount).HasColumnName("SubTotal").HasColumnType("decimal(18,2)");
                 e.Property(x => x.TaxAmount).HasColumnType("decimal(18,2)");
                 e.Property(x => x.TaxRatePercent).HasColumnType("decimal(9,4)");
+                e.Property(x => x.ForeignCurrencyCode).HasMaxLength(3);
+                e.Property(x => x.ExchangeRate).HasColumnType("decimal(18,6)");
+                e.Property(x => x.ForeignAmount).HasColumnType("decimal(18,2)");
             });
 
             modelBuilder.Entity<FiscalPeriod>(e =>
@@ -286,6 +297,21 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.HasIndex(x => x.AccountNumber);
             });
 
+            modelBuilder.Entity<BankStatementLine>(e =>
+            {
+                e.ToTable("BankStatementLines");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Id).ValueGeneratedNever();
+                e.Property(x => x.LineDate).HasColumnType("date");
+                e.Property(x => x.Reference).HasMaxLength(100);
+                e.Property(x => x.Description).HasMaxLength(500);
+                e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+                e.Property(x => x.Balance).HasColumnType("decimal(18,2)");
+                e.HasIndex(x => new { x.TenantId, x.BankStatementId });
+                e.HasIndex(x => new { x.TenantId, x.BankAccountId, x.LineDate });
+                e.HasIndex(x => new { x.TenantId, x.MatchedJournalLineId }).IsUnique().HasFilter("[MatchedJournalLineId] IS NOT NULL AND [IsDeleted] = 0");
+            });
+
             modelBuilder.Entity<BankStatement>(e =>
             {
                 e.HasKey(x => x.Id);
@@ -312,6 +338,7 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.DefaultTaxRatePercent).HasColumnType("decimal(8,4)");
                 e.Property(x => x.EInvoiceProvider).HasMaxLength(30);
                 e.Property(x => x.EInvoiceSeries).HasMaxLength(20);
+                e.Property(x => x.BaseCurrencyCode).HasMaxLength(3).IsRequired();
                 e.HasIndex(x => x.TenantId).IsUnique();
             });
 
