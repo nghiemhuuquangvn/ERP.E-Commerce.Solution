@@ -1,3 +1,5 @@
+> **2026-10-26 (P1-8):** the gaps "no real RFQ" and the stateless three-way match are closed; the bill is no longer created at order approval. See `ProcureToPay.md`.
+
 # Purchase Order — Nghiệp vụ
 
 > Tài liệu này mô tả hành vi **thực tế trong code** của
