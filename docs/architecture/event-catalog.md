@@ -940,7 +940,7 @@ public class StockAdjustmentRejectedEvent
 |---|---|---|
 | `InventoryInsufficientEvent` | A reservation request's line(s) couldn't be fully covered | SaleOrderService's saga (compensation path) |
 | `ReceiptCompletedEvent` | Goods received (`ReceiveStockCommand`) | None confirmed |
-| `StockAlertEvent` | Product quantity at/below reorder point | **PurchaseOrderService** (added 2026-07-27, Module 8) — `WarehouseEventRabbitMqConsumer` creates a suggestion-only `PurchaseRequest`; was unconsumed anywhere before this pass |
+| `StockAlertEvent` | Product's **available** quantity at/below its minimum — once per time below the minimum, again after 24 h while still low (daily scan), when the policy changes, and once more when stock is back above the minimum (AvailableQuantity > MinStock = "no longer low"). P1-9 fields: `ProductSku`, `AvailableQuantity`, `MinStock`, `MaxStock`, `SafetyStock` (old fields kept) | **PurchaseOrderService** (added 2026-07-27, Module 8) — `WarehouseEventRabbitMqConsumer` creates a suggestion-only `PurchaseRequest`; was unconsumed anywhere before this pass |
 | `StocktakeCompletedEvent` | Stocktake variance approved and posted | None confirmed |
 | `TransferOrderCompletedEvent` | Transfer order completed | None confirmed |
 | `InventoryValuationSnapshotClosed` (added 2026-07-27, Module 8) | A period-end Inventory Valuation Snapshot is closed (`POST /inventory/valuation/snapshots`) | None confirmed — same reasoning as `InventoryReservedEvent`'s Accounting note above: AccountingService's GL posting is deferred until Chart-of-Accounts mapping exists |

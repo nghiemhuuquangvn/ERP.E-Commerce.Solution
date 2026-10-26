@@ -245,13 +245,42 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | # | Issue | Home |
 |---|---|---|
 | AJ1 | Behaviour change: an approved purchase order no longer books a bill; bills already created stay. A tenant that never records supplier invoices gets no payable for its orders. | P1-8 (owner's choice) |
-| AK1 | An RFQ is not e-mailed to suppliers and has no supplier portal; it cannot be started from a purchase request (those carry a product id, orders a product code); award is for the whole RFQ to one supplier. | P1-8b / P1-9 |
+| AK1 | An RFQ is not e-mailed to suppliers and has no supplier portal; award is for the whole RFQ to one supplier. (Starting an RFQ from purchase requests is done in P1-9.) | P1-8b |
 | AK2 | A supplier invoice in another currency than the order is held; an approved one in another currency than the books becomes a Pending bill with no rate (no automatic conversion). | P1-8b |
 | AK3 | The match tolerances are per tenant, not per supplier or product; there is no tolerance on the invoice total / tax. | P1-8b |
 | AK4 | Warehouse refuses a vendor return when the stock is not available (reserved or sold): after 5 attempts the return stays Shipped in Purchasing with an error in the Warehouse log and no stock movement (no screen). Returns issue at the product's current cost, not the lot cost; no lots / serials. | P1-8b |
 | AK5 | A supplier credit is applied only to the bills of the same order; a credit larger than the open bills is booked but not applied. B01's maturity split and the foreign revaluation still read the bill amount, not the open balance. The Bills screen does not show the supplier invoice number or the credited amount yet. | P1-8b |
 | AK6 | The goods receipt has no lines (header only); the match uses the order line's received quantity. Rejected quantities are not stocked or returned by the system. | P1-8b |
 | AK7 | The Kafka consumer of Warehouse retries a vendor return in process (5 attempts); a restart in between loses the attempt (as in §4r AI6). | P1-5b / P1-8b |
+
+## 4t. Replenishment (P1-9 follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| AL1 | Minimum and maximum are typed by hand; no demand forecast, average usage or lead-time based safety stock. | P1-9b |
+| AL2 | No minimum order quantity or pack size; lines created from proposals use the unit "pcs". | P1-9b |
+| AL3 | An RFQ made from proposals asks only suppliers that have a supplier item for one of its products; a product nobody supplies is not covered when others are supplied. | P1-9b |
+| AL4 | One policy per product (Inventory is one row per product), not per warehouse or location. | P1-9b |
+| AL5 | A draft order counts as "on order": a draft left unapproved hides the need until it is cancelled or approved. | P1-9b |
+| AL6 | The old *Convert* button still only marks a proposal as done by hand. | P1-9b |
+| AL7 | The generated draft order is not submitted or e-mailed; there is no notification that new proposals exist. | P1-9b / P1-6b |
+
+## 6. Risk register — to handle after the main roadmap tasks
+
+Latent risks found while working (owner's rule 2026-10-26: record them, fix them after the main tasks). Each task appends its own.
+
+| # | Risk | Impact / trigger | Suggested fix | Found in |
+|---|---|---|---|---|
+| R1 | Warehouse consumer of vendor returns: after 5 attempts only a log line; the return stays Shipped, no screen, no retry queue. | A return of unavailable stock is silently stuck. | Dead-letter table + admin screen, retry button. | P1-8 |
+| R2 | The purchase order line's product code is assumed equal to the warehouse SKU. | A mismatch hides on-order quantity (duplicate proposals) or the order lines point to nothing. | Carry the product id on order lines; map once. | P1-9 |
+| R3 | Alert consumer used to requeue a failing message for ever. | Poison message loops. | **Mitigated in P1-9** (5 attempts then log + ack; the daily scan resends). Same pattern still to check in other RabbitMQ consumers. | P1-9 |
+| R4 | B01 maturity split and FX revaluation read the bill amount, not the open balance (credits ignored). | Slightly wrong split after a supplier credit. | Use `Outstanding` there. | P1-8 |
+| R5 | Kafka / Rabbit retries are in process; a restart between attempts loses the message. | Lost return / alert / e-mail. | Put retries on the outbox / a retry table. | P1-8, P1-6 |
+| R6 | Admin screens of P1-6 … P1-9 are type-checked and API-tested but were never clicked in a browser. | Layout or interaction bugs only a user sees. | Playwright smoke path (P3-2) or a manual walkthrough. | P1-6…P1-9 |
+| R7 | The other services' test projects (SO, SHP, PAY, NTF, PRM, RPT, CRM, HRM) are not re-run per task. | A shared change could break one unnoticed. | Full test run before each merge train. | P1-8, P1-9 |
+| R8 | Low stock now means available ≤ minimum (was total ≤ reorder point): existing tenants get more "low" products and alerts, and the list filter changes meaning. | Alert / proposal volume jumps after deploy. | Tell tenants; review default minimums. | P1-9 |
+| R9 | The alert is sent over RabbitMQ with no per-product dedupe at the consumer; a burst of movements is handled one by one with a 1–4 s delay per retry inside the consumer. | Backlog if the Purchasing database is slow. | Batch / debounce per product. | P1-9 |
+| R10 | Several Database runner entries were missing (Warehouse 007–008, Purchasing 009–013 until now): a fresh database built by `RunAllScripts.ps1` depended on someone remembering to add them. | Fresh install missing columns. | A test that every file in `src/Database` is in the runner. | P1-8, P1-9 |
 
 ## 5. Roadmap items these issues are waiting for
 

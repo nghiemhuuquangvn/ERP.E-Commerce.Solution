@@ -8,7 +8,7 @@ Before P1-8 buying had three holes: there was no way to ask suppliers for prices
 - the supplier's **invoice is recorded and matched** (order ↔ receipts ↔ invoice) against per-tenant tolerances; only an approved invoice becomes a bill, with the VAT and due date the supplier invoiced;
 - **goods can be returned** to the supplier: stock leaves, the receipt accrual is reversed, and the supplier's credit note lowers what is owed.
 
-Out of scope (DEFERRED §4s): e-mailing the RFQ to suppliers, a supplier portal, RFQ from a purchase request, contracts and price lists, partial award of an RFQ line by line, a foreign-currency invoice converted automatically, batches / serials on a return, restocking replacement goods.
+Out of scope (DEFERRED §4s): e-mailing the RFQ to suppliers, a supplier portal, contracts and price lists, partial award of an RFQ line by line, a foreign-currency invoice converted automatically, batches / serials on a return, restocking replacement goods.
 
 ## 2. Actors and permissions
 | Actor | Does | Permission |
@@ -101,6 +101,9 @@ Product code on an order line equals the warehouse SKU. Invoices are in the orde
 | UAT-P11 | A user without the variance permission approves a held invoice | refused (unit test; the live admin holds the permission) |
 
 Verified live on tenant `glcheck` 2026-10-26: UAT-P1…P10; UAT-P11 by unit test.
+
+## 12b. Replenishment (P1-9)
+Purchase requests now carry a quantity, the goods already on order and the product's preferred supplier, and *Create orders* turns them into draft purchase orders (one per preferred supplier) and one RFQ (products without a preferred supplier): see `docs/business/Warehouse/Replenishment.md`. An RFQ made that way follows the flow of section 3 from *Send* on.
 
 ## 13. Stale documents
 `PurchaseOrder.md` §6 (no RFQ), `PurchasingWorkflow.md` (three-way match as a stateless call, bill from the order) and `Supplier.md` §5 are superseded by this document; each carries a pointer.

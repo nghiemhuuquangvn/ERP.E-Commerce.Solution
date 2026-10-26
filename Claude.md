@@ -387,6 +387,8 @@ Published Events:
 - InventoryAdjusted
 - ReceiptCompleted
 
+Replenishment (2026-10-26, P1-9, docs/business/Warehouse/Replenishment.md): each `Inventory` has MinStock / MaxStock / SafetyStock; low stock = **available** ≤ minimum; `StockAlertEvent` (RabbitMQ) is sent once per time below the minimum, again when stock recovers (AvailableQuantity > MinStock = "no longer low"), on a policy change and by the daily `ReplenishmentScanJob`. Purchasing turns it into a proposal sized `max − (available + on order)` (on order is Purchasing's own data; order lines use the warehouse SKU as product code) and *Create orders* makes draft POs per preferred supplier (`SupplierItem.IsPreferred`) plus one RFQ for the rest. Latent risks go to DEFERRED-ISSUES §6 (risk register) in every task.
+
 Consumed Events:
 - SalesOrderCreated
 - PurchaseOrderCreated
