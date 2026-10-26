@@ -194,6 +194,18 @@ const HRM_CHILDREN: NavItem[] = [
     icon: '💵',
   },
   {
+    labelKey: 'nav.salaryProfiles',
+    path: '/hrm/salary-profiles',
+    permission: 'hrm:payroll:manage',
+    icon: '🧾',
+  },
+  {
+    labelKey: 'nav.payrollSettings',
+    path: '/hrm/payroll-settings',
+    permission: 'hrm:payroll:manage',
+    icon: '⚙️',
+  },
+  {
     labelKey: 'nav.workShifts',
     path: '/hrm/work-shifts',
     permission: 'hrm:shifts:view',

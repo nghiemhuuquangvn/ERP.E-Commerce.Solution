@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { leaveRequestsApi, LEAVE_TYPE } from '@/api/hrm/leaveRequests.api'
 import type { LeaveRequest } from '@/api/hrm/leaveRequests.api'
 import { employeeSnapshotsApi } from '@/api/hrm/employeeSnapshots.api'
+import { payrollSettingsApi } from '@/api/hrm/payrollSettings.api'
+import { serverMessage } from '@/api/hrm/payroll.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { Pagination } from '@/components/shared/Pagination'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
@@ -34,7 +36,7 @@ function SubmitLeaveModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { data: employeesPage } = useEmployeePicker()
-  const { register, handleSubmit, formState: { errors } } = useForm<SubmitFormValues>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<SubmitFormValues>({
     defaultValues: {
       employeeId: '',
       leaveType: String(LEAVE_TYPE.Annual),
@@ -43,6 +45,17 @@ function SubmitLeaveModal({ onClose }: { onClose: () => void }) {
       reason: '',
     },
   })
+
+  // Annual leave is limited by the year's balance: show what is left for the chosen employee.
+  const employeeId = watch('employeeId')
+  const leaveType = watch('leaveType')
+  const year = new Date(watch('startDate') || Date.now()).getFullYear()
+  const { data: balances } = useQuery({
+    queryKey: ['hrm', 'leaveBalances', employeeId, year],
+    queryFn: () => payrollSettingsApi.leaveBalances(employeeId, year),
+    enabled: !!employeeId && Number(leaveType) === LEAVE_TYPE.Annual,
+  })
+  const annual = balances?.find((b) => b.leaveType === 'Annual')
 
   const mutation = useMutation({
     mutationFn: (values: SubmitFormValues) =>
@@ -100,7 +113,12 @@ function SubmitLeaveModal({ onClose }: { onClose: () => void }) {
             <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.leaveRequests.reason')}</label>
             <textarea className="input" rows={3} {...register('reason')} />
           </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('hrm.leaveRequests.failedToSave')}</p>}
+          {annual && Number(leaveType) === LEAVE_TYPE.Annual && (
+            <p className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
+              {t('hrm.leaveRequests.balance', { remaining: annual.remainingDays, total: annual.totalDays, year })}
+            </p>
+          )}
+          {mutation.isError && <p className="text-xs text-red-600">{serverMessage(mutation.error, t('hrm.leaveRequests.failedToSave'))}</p>}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-outline">
               {t('common.cancel')}
@@ -208,7 +226,10 @@ export function LeaveRequestsPage() {
 
   const approveMutation = useMutation({
     mutationFn: (r: LeaveRequest) => leaveRequestsApi.approve(r.id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hrm', 'leaveRequests'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hrm', 'leaveRequests'] })
+      queryClient.invalidateQueries({ queryKey: ['hrm', 'leaveBalances'] })
+    },
   })
 
   const cancelMutation = useMutation({
@@ -312,6 +333,9 @@ export function LeaveRequestsPage() {
         </select>
       </div>
 
+      {approveMutation.isError && (
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{serverMessage(approveMutation.error, t('hrm.leaveRequests.failedToSave'))}</p>
+      )}
       <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />
       <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount ?? 0} onPageChange={setPage} />
 

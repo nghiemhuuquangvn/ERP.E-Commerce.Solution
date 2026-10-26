@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { payrollApi } from '@/api/hrm/payroll.api'
-import type { PaySlip } from '@/api/hrm/payroll.api'
+import { payrollApi, serverMessage } from '@/api/hrm/payroll.api'
+import type { PaySlip, ProcessPayrollResult } from '@/api/hrm/payroll.api'
 import { employeeSnapshotsApi } from '@/api/hrm/employeeSnapshots.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { Pagination } from '@/components/shared/Pagination'
@@ -32,6 +32,7 @@ interface ProcessFormValues {
 function ProcessPayrollModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const [result, setResult] = useState<ProcessPayrollResult | null>(null)
   const { register, handleSubmit } = useForm<ProcessFormValues>({
     defaultValues: { year: CURRENT_YEAR, month: CURRENT_MONTH },
   })
@@ -39,11 +40,35 @@ function ProcessPayrollModal({ onClose }: { onClose: () => void }) {
   const mutation = useMutation({
     mutationFn: (values: ProcessFormValues) =>
       payrollApi.processPayroll({ year: Number(values.year), month: Number(values.month) }),
-    onSuccess: () => {
+    onSuccess: (r) => {
       queryClient.invalidateQueries({ queryKey: ['hrm', 'paySlips'] })
-      onClose()
+      if (r.skipped.length === 0) onClose()
+      else setResult(r)
     },
   })
+
+  if (result) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="card max-h-[90vh] w-full max-w-lg overflow-y-auto p-6">
+          <h3 className="mb-2 text-base font-semibold text-gray-900">{t('hrm.payroll.processResultTitle')}</h3>
+          <p className="mb-3 text-sm text-gray-700">{t('hrm.payroll.createdCount', { count: result.created.length })}</p>
+          <p className="mb-2 text-sm font-medium text-amber-700">{t('hrm.payroll.skippedCount', { count: result.skipped.length })}</p>
+          <ul className="mb-4 space-y-1 text-sm text-gray-700">
+            {result.skipped.map((s) => (
+              <li key={s.employeeId}>
+                {s.fullName} ({s.employeeNumber}) — {t('hrm.payroll.noSalaryProfile')}
+              </li>
+            ))}
+          </ul>
+          <p className="mb-4 text-xs text-gray-500">{t('hrm.payroll.skippedHint')}</p>
+          <div className="flex justify-end">
+            <button className="btn-primary" onClick={onClose}>{t('common.close')}</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -67,7 +92,7 @@ function ProcessPayrollModal({ onClose }: { onClose: () => void }) {
               />
             </div>
           </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('hrm.payroll.failedToSave')}</p>}
+          {mutation.isError && <p className="text-xs text-red-600">{serverMessage(mutation.error, t('hrm.payroll.failedToSave'))}</p>}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-outline">
               {t('common.cancel')}
@@ -215,6 +240,104 @@ function GeneratePaySlipModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+// ─── Pay slip detail modal ──────────────────────────────────────────────────
+
+const money = (v: number) => new Intl.NumberFormat().format(v)
+
+function Row({ label, value, strong, muted }: { label: string; value: string; strong?: boolean; muted?: boolean }) {
+  return (
+    <div className={`flex justify-between py-1 ${strong ? 'border-t border-gray-300 pt-2 font-semibold' : ''} ${muted ? 'text-gray-500' : ''}`}>
+      <span>{label}</span>
+      <span className="tabular-nums">{value}</span>
+    </div>
+  )
+}
+
+function PaySlipDetailModal({ slip, employeeName, canManage, onClose }: { slip: PaySlip; employeeName: string; canManage: boolean; onClose: () => void }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [reason, setReason] = useState('')
+  const [cancelling, setCancelling] = useState(false)
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['hrm', 'paySlips'] })
+    onClose()
+  }
+  const pay = useMutation({ mutationFn: () => payrollApi.payPaySlip(slip.id, { paymentMethod: 'BankTransfer' }), onSuccess: refresh })
+  const cancel = useMutation({ mutationFn: () => payrollApi.cancelPaySlip(slip.id, reason), onSuccess: refresh })
+
+  const calculated = slip.standardDays > 0
+  const employeeInsurance = slip.employeeSocial + slip.employeeHealth + slip.employeeUnemployment
+  const employerInsurance = slip.employerSocial + slip.employerHealth + slip.employerUnemployment
+  const error = pay.isError ? serverMessage(pay.error, '') : cancel.isError ? serverMessage(cancel.error, '') : ''
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="card max-h-[92vh] w-full max-w-lg overflow-y-auto p-6 text-sm">
+        <div className="mb-3 flex items-start justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">{slip.paySlipNumber}</h3>
+            <p className="text-gray-500">{employeeName} · {slip.payPeriod}</p>
+          </div>
+          <StatusBadge status={slip.paymentStatus} />
+        </div>
+
+        {calculated ? (
+          <>
+            <Row label={t('hrm.payroll.detail.baseSalary')} value={money(slip.baseSalary)} />
+            <Row label={t('hrm.payroll.detail.workedDays', { worked: slip.workedDays, standard: slip.standardDays })} value={money(slip.grossSalary - slip.allowances)} />
+            <Row label={t('hrm.payroll.detail.allowances')} value={money(slip.allowances)} />
+            <Row label={t('hrm.payroll.detail.overtime', { hours: slip.overtimeHours })} value={money(slip.overtimePay)} />
+            <Row label={t('hrm.payroll.grossSalary')} value={money(slip.grossSalary + slip.overtimePay)} strong />
+            <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-gray-500">{t('hrm.payroll.detail.withheld')}</div>
+            <Row label={t('hrm.payroll.detail.social')} value={`− ${money(slip.employeeSocial)}`} />
+            <Row label={t('hrm.payroll.detail.health')} value={`− ${money(slip.employeeHealth)}`} />
+            <Row label={t('hrm.payroll.detail.unemployment')} value={`− ${money(slip.employeeUnemployment)}`} />
+            <Row label={t('hrm.payroll.detail.taxable', { dependents: slip.dependentCount })} value={money(slip.taxableIncome)} muted />
+            <Row label={t('hrm.payroll.detail.pit')} value={`− ${money(slip.personalIncomeTax)}`} />
+            <Row label={t('hrm.payroll.netSalary')} value={money(slip.netSalary)} strong />
+            <div className="mt-3 rounded-md bg-gray-50 p-3 text-xs text-gray-600">
+              <Row label={t('hrm.payroll.detail.employerCost')} value={money(employerInsurance)} muted />
+              <p className="mt-1">{t('hrm.payroll.detail.employerHint', { insurance: money(employeeInsurance) })}</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <Row label={t('hrm.payroll.grossSalary')} value={money(slip.grossSalary)} />
+            <Row label={t('hrm.payroll.overtimePay')} value={money(slip.overtimePay)} />
+            <Row label={t('hrm.payroll.deductions')} value={`− ${money(slip.deductions)}`} />
+            <Row label={t('hrm.payroll.netSalary')} value={money(slip.netSalary)} strong />
+            <p className="mt-2 text-xs text-gray-500">{t('hrm.payroll.detail.manualSlip')}</p>
+          </>
+        )}
+
+        {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
+
+        {cancelling && (
+          <div className="mt-4 space-y-2">
+            <label className="block text-sm font-medium text-gray-700">{t('hrm.payroll.detail.cancelReason')}</label>
+            <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} />
+          </div>
+        )}
+
+        <div className="mt-5 flex justify-end gap-3">
+          {canManage && slip.paymentStatus === 'Pending' && !cancelling && (
+            <>
+              <button className="btn-outline" onClick={() => setCancelling(true)}>{t('hrm.payroll.detail.cancel')}</button>
+              <button className="btn-primary" disabled={pay.isPending} onClick={() => pay.mutate()}>{t('hrm.payroll.detail.pay')}</button>
+            </>
+          )}
+          {cancelling && (
+            <button className="btn-danger" disabled={!reason.trim() || cancel.isPending} onClick={() => cancel.mutate()}>
+              {t('hrm.payroll.detail.confirmCancel')}
+            </button>
+          )}
+          <button className="btn-outline" onClick={onClose}>{t('common.close')}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 type ModalKind = 'process' | 'generate' | null
@@ -227,6 +350,7 @@ export function PayrollPage() {
   const [yearFilter, setYearFilter] = useState('')
   const [monthFilter, setMonthFilter] = useState('')
   const [modal, setModal] = useState<ModalKind>(null)
+  const [detail, setDetail] = useState<PaySlip | null>(null)
 
   const { data: employeesPage } = useEmployeePicker()
 
@@ -260,13 +384,22 @@ export function PayrollPage() {
         render: (p: PaySlip) => employeeNameById.get(p.employeeId) ?? p.employeeId,
       },
       { key: 'payPeriod', label: t('hrm.payroll.payPeriod') },
-      { key: 'grossSalary', label: t('hrm.payroll.grossSalary') },
-      { key: 'deductions', label: t('hrm.payroll.deductions') },
-      { key: 'netSalary', label: t('hrm.payroll.netSalary') },
+      { key: 'grossSalary', label: t('hrm.payroll.grossSalary'), render: (p: PaySlip) => money(p.grossSalary + p.overtimePay) },
+      { key: 'deductions', label: t('hrm.payroll.deductions'), render: (p: PaySlip) => money(p.deductions) },
+      { key: 'netSalary', label: t('hrm.payroll.netSalary'), render: (p: PaySlip) => money(p.netSalary) },
       {
         key: 'paymentStatus',
         label: t('common.status'),
         render: (p: PaySlip) => <StatusBadge status={p.paymentStatus} />,
+      },
+      {
+        key: 'actions',
+        label: '',
+        render: (p: PaySlip) => (
+          <button className="text-xs text-blue-600 hover:underline" onClick={() => setDetail(p)}>
+            {t('hrm.payroll.details')}
+          </button>
+        ),
       },
     ],
     [employeeNameById, t],
@@ -333,6 +466,14 @@ export function PayrollPage() {
 
       {modal === 'process' && <ProcessPayrollModal onClose={() => setModal(null)} />}
       {modal === 'generate' && <GeneratePaySlipModal onClose={() => setModal(null)} />}
+      {detail && (
+        <PaySlipDetailModal
+          slip={detail}
+          employeeName={employeeNameById.get(detail.employeeId) ?? detail.employeeId}
+          canManage={canManage}
+          onClose={() => setDetail(null)}
+        />
+      )}
     </div>
   )
 }

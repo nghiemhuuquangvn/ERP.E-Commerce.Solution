@@ -101,6 +101,8 @@ import { AttendancePage } from '@/pages/hrm/AttendancePage'
 import { LeaveRequestsPage } from '@/pages/hrm/LeaveRequestsPage'
 import { PayrollPage } from '@/pages/hrm/PayrollPage'
 import { WorkShiftsPage } from '@/pages/hrm/WorkShiftsPage'
+import { SalaryProfilesPage } from '@/pages/hrm/SalaryProfilesPage'
+import { PayrollSettingsPage } from '@/pages/hrm/PayrollSettingsPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -230,6 +232,8 @@ export const router = createBrowserRouter([
       { path: 'hrm/leave-requests', element: <LeaveRequestsPage /> },
       { path: 'hrm/payroll', element: <PayrollPage /> },
       { path: 'hrm/work-shifts', element: <WorkShiftsPage /> },
+      { path: 'hrm/salary-profiles', element: <SalaryProfilesPage /> },
+      { path: 'hrm/payroll-settings', element: <PayrollSettingsPage /> },
       // Kept for anyone with the old bookmark/link — SharedMasterDataService now
       // owns Employee data, not HRM.
       { path: 'employees', element: <Navigate to="/masterdata/employees" replace /> },
