@@ -277,6 +277,8 @@ cross-service call. Do not re-add Employee/Department entities here.
 
 Database: HrmDB
 
+Payroll (2026-10-26, P1-7, docs/business/HRM/Payroll.md): pay slips are calculated by `PayrollCalculator` from the employee's salary terms (`EmployeeCompensations`), dependents, worked days (attendance, unpaid leave) and the **date-effective rate set** (`PayrollRateSets` + `PitBrackets`: insurance rates and caps, deductions, tax brackets — seeded DRAFT defaults, never hard-code a rate); an employee without salary terms is skipped and listed, never given invented figures; `PaySlipGeneratedEvent` carries the insurance / income-tax split (Accounting posts 3383 / 3384 / 3389 / 3335 and the employer cost); annual leave has a per-year balance checked at submit and approve.
+
 Published Events:
 - PaySlipGenerated
 - LeaveApproved

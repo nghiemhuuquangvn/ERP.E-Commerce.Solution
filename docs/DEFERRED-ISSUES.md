@@ -31,7 +31,7 @@ How to read: **Source** = where it was found; **Home** = the roadmap item or kin
 | G5 | POS: tax is not reduced by the discount (POS pricing rule). | P1-1c | POS pricing | Customer is charged tax on the undiscounted amount. |
 | G6 | POS: a void or an offline sync after the shift is closed is not in the shift figures already booked. | P1-1c | POS shift handling | Cash variance can drift from the drawer. |
 | G7 | POS: every tender other than "Cash" goes to the Bank key (no separate card / e-wallet clearing). | P1-1c | Posting keys per tender | Card and wallet settlements are not distinguishable in the ledger. |
-| G8 | Payroll figures are the stub of P1-7: 5000 gross, 30 % lump deduction, no insurance / PIT split, no employer contributions, no cost centres; a paid slip cannot be cancelled; paying a legacy slip books nothing. | P1-1d | P1-7 | The ledger shows whatever HRM computes. |
+| G8 | ~~Payroll figures are a stub~~ **Closed in P1-7** (salary terms, insurance, PIT with deductions, employer cost, split posting). Still open: §4q. | P1-1d | P1-7b | — |
 | G9 | ~~Returned goods not restocked, no refund from a return~~ **Closed in P1-5** (whole-order return: restock at the issue cost, Dr Inventory / Cr COGS, Payment refund). Still open: partial returns by line (§4p). | P1-1e | P1-5b | Revenue is reversed but cost is not; the refund must be requested by hand. |
 | G10 | A Payment refund has no idempotency key; a gateway timeout is recorded as a failed refund (no refund IPN); two concurrent refunds can both pass the over-refund check; `RefundStatus.Processing` is unused. | P1-1e | Payment hardening | Possible double refund or a refund the gateway did process shown as failed. |
 | G11 | ~~No VAT on sales, returns, bills~~ **Closed in P1-3** (invoices, returns, bills; POS already posted VAT). Remaining: §4m. Was: No VAT on sales, returns, bills or POS (the `VatOutput` key exists but no flow fills it). | P1-1 | P1-3 | Tax payable is not tracked. |
@@ -214,6 +214,19 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | AG5 | `DeliveryConfirmed` marks only a Shipped order Delivered; an order with several partial shipments needs every shipment confirmed (not modelled). A failed delivery attempt is only displayed. | P1-5b |
 | AG6 | Restocking at the FIFO valuation overwrites the product's current cost with the returned cost, like any receipt. | Accountant review |
 | AG7 | The order GET endpoint is cached for a short while, so the page may show the previous status for a few seconds after an event-driven change. The admin screen was type-checked, not clicked. | P1-5b |
+
+## 4q. Payroll (P1-7 follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| AH1 | The seeded rate set (insurance rates, caps, deductions, brackets) is the project's understanding of the rules from 2026-01 and is DRAFT until an accountant confirms it; nothing blocks payroll on an unconfirmed set. | accountant review |
+| AH2 | No PIT year-end finalisation, no tax-exempt part of overtime premium, no non-resident rate, no tax on a second job. | P1-7b |
+| AH3 | Standard days are Monday–Friday; no public-holiday calendar, no shifts-based days. Approving a leave does not mark the attendance days, so Absent and unpaid leave on the same day count twice. | P1-7b |
+| AH4 | Annual leave: fixed days per year from the rate set; no seniority accrual, no carry-over, a request is not split across years; sick, maternity and paternity leave have no balance. | P1-7b |
+| AH5 | One contract per employee and month; no regional minimum wage check against the base salary; salary changes are entered by hand (no event from master data). | P1-7b |
+| AH6 | Payroll cost is booked on one account (6421); no cost centres, no split of sales / admin staff. No payslip PDF, no bank payment file. | P1-7b |
+| AH7 | Reporting still reads only gross / overtime / deductions of the pay slip (G13). | P1-6 |
+| AH8 | Leave days are counted when the request is saved; a rate set change after approval does not recalculate balances. | P1-7b |
 
 ## 5. Roadmap items these issues are waiting for
 

@@ -31,6 +31,7 @@ don't need a cross-service call for something as basic as populating a dropdown.
    - `leaveRequests.api.ts` — `LeaveRequestsController` (list/get/submit/approve/
      reject/cancel).
    - `payroll.api.ts` — `PayrollController` (listPaySlips/getPaySlip/
+     (2026-10-26, P1-7: also `pay`, `cancel`, and `process` now returns `{created, skipped}`); `payrollSettings.api.ts` — `PayrollSettingsController` (`salary-profiles`, `employees/{id}/compensations|dependents`, `payroll-settings/rate-sets`, `leave-requests/balances`). Pages `SalaryProfilesPage` (`/hrm/salary-profiles`) and `PayrollSettingsPage` (`/hrm/payroll-settings`), both `hrm:payroll:manage`. Rates are stored as fractions (0.08) and shown as percent; `serverMessage()` shows the server's refusal text.
      generatePaySlip/processPayroll). Note the controller has no class-level
      `[Route]` — each action's route is spelled out in full
      (`api/v1/hrm/payroll/...`, `api/v1/hrm/payslips/...`).
