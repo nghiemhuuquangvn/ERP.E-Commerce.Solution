@@ -51,8 +51,8 @@ public class UpdateStockPolicyCommandHandler : IRequestHandler<UpdateStockPolicy
             throw new InvalidOperationException(ex.Message.Split(" (Parameter")[0]);
         }
 
-        // A higher minimum can put the product below it at once; a lower one lifts the "already alerted" mark.
-        if (inventory.EvaluateLowStockAlert(DateTime.UtcNow) is { } alert)
+        // The figures changed: tell Purchasing again (an open request is refreshed, or closed when the product is no longer below the minimum).
+        if (inventory.EvaluateLowStockAlert(DateTime.UtcNow, TimeSpan.Zero) is { } alert)
             _outboxWriter.Stage(alert);
 
         await _uow.Inventories.UpdateAsync(inventory, cancellationToken);

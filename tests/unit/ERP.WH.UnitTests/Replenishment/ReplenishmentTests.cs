@@ -93,8 +93,12 @@ public class ReplenishmentTests
         inventory.EvaluateLowStockAlert(Now);
 
         inventory.ReceiveStock(40, 100m);
-        inventory.EvaluateLowStockAlert(Now.AddHours(1)).Should().BeNull();
+        // Back above the minimum: one more event, so Purchasing can close the request that is no longer needed.
+        var cleared = inventory.EvaluateLowStockAlert(Now.AddHours(1));
+        cleared.Should().NotBeNull();
+        cleared!.AvailableQuantity.Should().BeGreaterThan(cleared.MinStock);
         inventory.LowStockAlertedAt.Should().BeNull();
+        inventory.EvaluateLowStockAlert(Now.AddHours(1.5)).Should().BeNull();
 
         inventory.AdjustStock(-45);
         inventory.EvaluateLowStockAlert(Now.AddHours(2)).Should().NotBeNull();
@@ -152,6 +156,25 @@ public class ReplenishmentTests
 
         response.IsLowStock.Should().BeTrue();
         staged.Should().ContainSingle().Which.Should().BeOfType<StockAlertEvent>();
+    }
+
+    [Fact]
+    public async Task Changing_the_policy_of_a_product_already_alerted_tells_Purchasing_again()
+    {
+        var inventory = Stocked(5);   // below min 10
+        inventory.EvaluateLowStockAlert(Now);
+        var uow = new Mock<IWarehouseUnitOfWork>();
+        var inventories = new Mock<IInventoryRepository>();
+        inventories.Setup(i => i.GetByProductIdAsync(inventory.ProductId, It.IsAny<CancellationToken>())).ReturnsAsync(inventory);
+        uow.SetupGet(u => u.Inventories).Returns(inventories.Object);
+        var staged = new List<object>();
+        var outbox = new Mock<IEventOutboxWriter>();
+        outbox.Setup(o => o.Stage(It.IsAny<object>())).Callback<object>(staged.Add);
+
+        await new UpdateStockPolicyCommandHandler(uow.Object, outbox.Object, Mock.Of<ICacheService>())
+            .Handle(new UpdateStockPolicyCommand { ProductId = inventory.ProductId, MinStock = 10, MaxStock = 80, SafetyStock = 3 }, default);
+
+        staged.Should().ContainSingle().Which.Should().BeOfType<StockAlertEvent>().Which.MaxStock.Should().Be(80);
     }
 
     [Fact]

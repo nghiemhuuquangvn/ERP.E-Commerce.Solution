@@ -143,20 +143,18 @@ public class Inventory : ITenantOwned
     public bool IsLowStock() => AvailableQuantity <= MinStock;
 
     /// <summary>
-    /// The alert to send after a stock change, or null. One alert per time below the minimum: the mark is set when the alert is
-    /// returned and cleared once stock is back above the minimum. <paramref name="repeatAfter"/> lets the daily scan send it again.
+    /// The event to send after a stock change, or null. One alert per time below the minimum: the mark is set when the alert is
+    /// returned. When stock is back above the minimum the mark is cleared and the same event is returned once more (its available
+    /// quantity is then above the minimum), so Purchasing can close a request that is no longer needed.
+    /// <paramref name="repeatAfter"/> lets the daily scan (or a policy change, with zero) send the alert again.
     /// </summary>
     public ERP.WH.Domain.Events.StockAlertEvent? EvaluateLowStockAlert(DateTime now, TimeSpan? repeatAfter = null)
     {
-        if (!IsLowStock())
-        {
-            LowStockAlertedAt = null;
-            return null;
-        }
+        var low = IsLowStock();
+        if (!low && LowStockAlertedAt == null) return null;
+        if (low && LowStockAlertedAt != null && (repeatAfter == null || now - LowStockAlertedAt < repeatAfter)) return null;
 
-        if (LowStockAlertedAt != null && (repeatAfter == null || now - LowStockAlertedAt < repeatAfter)) return null;
-
-        LowStockAlertedAt = now;
+        LowStockAlertedAt = low ? now : null;
         return new ERP.WH.Domain.Events.StockAlertEvent
         {
             ProductId = ProductId,

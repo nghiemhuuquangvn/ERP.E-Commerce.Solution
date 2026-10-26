@@ -28,7 +28,7 @@ public class CreatePurchaseRequestFromStockAlertCommand : IRequest<PurchaseReque
 
 public class CreatePurchaseRequestFromStockAlertCommandHandler : IRequestHandler<CreatePurchaseRequestFromStockAlertCommand, PurchaseRequestDto?>
 {
-    public const string CoveredNote = "Covered by orders";
+    public const string CoveredNote = "Covered by stock or orders";
 
     private readonly IPurchaseRequestRepository _repository;
     private readonly ILogger<CreatePurchaseRequestFromStockAlertCommandHandler> _logger;

@@ -119,11 +119,11 @@ public class RecordPointOfSaleStockCommandHandler : IRequestHandler<RecordPointO
                 EventCreatedAt = DateTime.UtcNow
             });
 
-            // A return never raises an alert, but it still clears the "already alerted" mark once stock is back above the minimum.
+            // A return never raises a low-stock alert, but it still reports that stock is back above the minimum.
             var stockAlert = request.IsReturn && inventory.IsLowStock() ? null : inventory.EvaluateLowStockAlert(DateTime.UtcNow);
-            if (!request.IsReturn && stockAlert != null)
+            if (stockAlert != null)
             {
-                if (inventory.TotalQuantity < 0)
+                if (inventory.IsLowStock() && inventory.TotalQuantity < 0)
                     _logger.LogWarning("POS transaction {TransactionId}: product {ProductId} stock is negative ({Quantity}) — recount needed",
                         request.TransactionId, line.ProductId, inventory.TotalQuantity);
 
