@@ -640,6 +640,8 @@ services:
       ASPNETCORE_URLS: "http://+:5009"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__PaymentDb: "Server=${SQL_HOST:-sqlserver},1433;Database=PaymentDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      # Encrypts the shop's gateway keys (MoMo / ZaloPay / VNPay) at rest — same key as Identity and Notification.
+      Security__SettingsEncryptionKey: "${SETTINGS_ENCRYPTION_KEY:?set SETTINGS_ENCRYPTION_KEY in .env (see .env.example)}"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "pay"
