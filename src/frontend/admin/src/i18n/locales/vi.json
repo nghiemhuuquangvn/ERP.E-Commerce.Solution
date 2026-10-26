@@ -791,7 +791,17 @@
       "pending": "Chờ xử lý",
       "captured": "Đã thu tiền",
       "failed": "Thất bại",
-      "refunded": "Đã hoàn tiền"
+      "refunded": "Đã hoàn tiền",
+      "partiallyRefunded": "Hoàn một phần"
+    },
+    "flagged": "Đang chờ xem xét",
+    "refund": {
+      "button": "Hoàn tiền",
+      "title": "Hoàn tiền khoản thanh toán này",
+      "hint": "Yêu cầu hoàn tiền được gửi tới {{provider}} bằng khóa riêng của cửa hàng; khoản thanh toán chỉ đổi trạng thái khi cổng xác nhận.",
+      "amount": "Số tiền hoàn",
+      "reason": "Lý do",
+      "submit": "Hoàn tiền"
     }
   },
   "reports": {
@@ -1863,8 +1873,30 @@
       "secretKeyPlaceholderUnset": "Chưa đặt",
       "secretKeyHint": "Để trống để giữ nguyên khóa hiện đang lưu.",
       "sandboxMode": "Chế độ thử nghiệm (sandbox)",
-      "noTenant": "Không tìm thấy đơn vị cho người dùng hiện tại.",
-      "failedToSave": "Lưu cài đặt thất bại. Vui lòng thử lại."
+      "noTenant": "Không tìm thấy tenant cho người dùng hiện tại.",
+      "failedToSave": "Lưu cài đặt thất bại. Vui lòng thử lại.",
+      "moMoAvailable": "MoMo khả dụng trên toàn nền tảng",
+      "zaloPayAvailable": "ZaloPay khả dụng trên toàn nền tảng",
+      "codEnabled": "Cho phép thanh toán khi nhận hàng (COD)",
+      "gateways": {
+        "title": "Tài khoản thanh toán trực tuyến",
+        "hint": "Tài khoản merchant riêng của cửa hàng tại từng cổng. Khóa được lưu mã hóa và không hiển thị lại; để trống ô khóa để giữ khóa đang lưu. Cổng chỉ hiện ở trang thanh toán khi đã bật ở đây, nền tảng cho phép và đã có đủ khóa.",
+        "enable": "Bật",
+        "on": "Đang bật",
+        "off": "Đang tắt",
+        "saved": "Đã lưu.",
+        "notifyHint": "Khai báo địa chỉ này với cổng để nhận thông báo thanh toán (IPN):",
+        "fields": {
+          "tmnCode": "Mã TMN",
+          "hashSecret": "Hash secret",
+          "partnerCode": "Partner code",
+          "accessKey": "Access key",
+          "secretKey": "Secret key",
+          "appId": "App ID",
+          "key1": "Key 1 (tạo đơn)",
+          "key2": "Key 2 (xác thực callback)"
+        }
+      }
     },
     "shipping": {
       "title": "Cài đặt Vận chuyển",

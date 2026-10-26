@@ -40,6 +40,7 @@ const STATUS_COLORS: Record<string, string> = {
   Shipped: 'bg-purple-100 text-purple-700',
   PartiallyShipped: 'bg-purple-100 text-purple-700',
   Refunded: 'bg-orange-100 text-orange-700',
+  PartiallyRefunded: 'bg-orange-50 text-orange-600',
   RECEIVED: 'bg-green-100 text-green-700',
 
   Submitted: 'bg-yellow-100 text-yellow-700',
