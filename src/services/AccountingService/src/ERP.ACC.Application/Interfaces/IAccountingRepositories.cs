@@ -40,6 +40,9 @@ namespace ERP.ACC.Application.Interfaces
         Task<List<Bill>> GetAllAsync(CancellationToken ct = default);
         Task<List<Bill>> GetBySupplierIdAsync(Guid supplierId, CancellationToken ct = default);
         Task<Bill?> GetByPurchaseOrderIdAsync(Guid purchaseOrderId, CancellationToken ct = default);
+        Task<Bill?> GetBySupplierInvoiceIdAsync(Guid supplierInvoiceId, CancellationToken ct = default);
+        /// <summary>Approved bills of a purchase order that still have something to pay, oldest due date first (tracked: credits are applied to them).</summary>
+        Task<List<Bill>> GetOpenApprovedByPurchaseOrderIdAsync(Guid purchaseOrderId, CancellationToken ct = default);
         Task<List<Bill>> GetByStatusAsync(int status, CancellationToken ct = default);
         Task<List<Bill>> GetUnpaidBillsAsync(CancellationToken ct = default);
 

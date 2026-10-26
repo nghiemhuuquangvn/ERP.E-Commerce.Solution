@@ -258,20 +258,44 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
             using var scope = _serviceProvider.CreateScope();
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-            if (typeName.Contains("PurchaseOrderApprovedDomainEvent"))
+            if (typeName.Contains("SupplierInvoiceApprovedDomainEvent"))
             {
-                // Final approval (manager, or finance above the threshold) carries the order
-                // total; the bill is booked then. PurchaseOrderCreated has no lines yet.
+                // A supplier invoice matched in Purchasing (ROADMAP P1-8) becomes the bill. The order approval no longer books one:
+                // it came before any goods or invoice existed.
                 var raw = JObject.Parse(json);
-                var evt = new PurchaseOrderApprovedIntegrationEvent
+                var evt = new SupplierInvoiceApprovedIntegrationEvent
                 {
-                    POId = raw.GuidValue("PurchaseOrderId") ?? Guid.Empty,
-                    PONumber = raw.Value<string?>("PONumber") ?? string.Empty,
+                    SupplierInvoiceId = raw.GuidValue("SupplierInvoiceId") ?? Guid.Empty,
+                    InvoiceNumber = raw.Value<string?>("InvoiceNumber") ?? string.Empty,
                     SupplierId = raw.GuidValue("SupplierId") ?? Guid.Empty,
-                    TotalAmount = raw.Value<decimal?>("TotalAmount") ?? 0m
+                    PurchaseOrderId = raw.GuidValue("PurchaseOrderId") ?? Guid.Empty,
+                    PONumber = raw.Value<string?>("PONumber") ?? string.Empty,
+                    InvoiceDate = raw.Value<DateTime?>("InvoiceDate") ?? DateTime.UtcNow,
+                    DueDate = raw.Value<DateTime?>("DueDate") ?? DateTime.UtcNow.AddDays(30),
+                    CurrencyCode = raw.Value<string?>("CurrencyCode") ?? string.Empty,
+                    NetAmount = raw.Value<decimal?>("NetAmount") ?? 0m,
+                    TaxAmount = raw.Value<decimal?>("TaxAmount") ?? 0m,
+                    ReceivedValue = raw.Value<decimal?>("ReceivedValue") ?? 0m
                 };
 
-                if (evt.POId != Guid.Empty)
+                if (evt.SupplierInvoiceId != Guid.Empty && evt.NetAmount > 0m)
+                    await mediator.Publish(evt, cancellationToken);
+            }
+            else if (typeName.Contains("VendorReturnCreditedDomainEvent"))
+            {
+                var raw = JObject.Parse(json);
+                var evt = new VendorReturnCreditedIntegrationEvent
+                {
+                    VendorReturnId = raw.GuidValue("VendorReturnId") ?? Guid.Empty,
+                    ReturnNumber = raw.Value<string?>("ReturnNumber") ?? string.Empty,
+                    PurchaseOrderId = raw.GuidValue("PurchaseOrderId") ?? Guid.Empty,
+                    SupplierId = raw.GuidValue("SupplierId") ?? Guid.Empty,
+                    CurrencyCode = raw.Value<string?>("CurrencyCode") ?? string.Empty,
+                    CreditNoteNumber = raw.Value<string?>("CreditNoteNumber") ?? string.Empty,
+                    CreditAmount = raw.Value<decimal?>("CreditAmount") ?? 0m
+                };
+
+                if (evt.VendorReturnId != Guid.Empty)
                     await mediator.Publish(evt, cancellationToken);
             }
             else if (typeName.Contains("PaymentRefundedEvent"))

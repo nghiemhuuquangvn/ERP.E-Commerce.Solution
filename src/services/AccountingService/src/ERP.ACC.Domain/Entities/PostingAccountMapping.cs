@@ -37,6 +37,8 @@ namespace ERP.ACC.Domain.Entities
         public const string UnemploymentInsurancePayable = "UnemploymentInsurancePayable";
         /// <summary>Personal income tax withheld from pay and owed to the tax office (ROADMAP P1-7).</summary>
         public const string PitPayable = "PitPayable";
+        /// <summary>Difference between what a supplier invoiced and what the receipts accrued at the order price (ROADMAP P1-8).</summary>
+        public const string PurchasePriceVariance = "PurchasePriceVariance";
         /// <summary>The employer's insurance contributions as a cost, on top of the wages (ROADMAP P1-7).</summary>
         public const string EmployerInsuranceExpense = "EmployerInsuranceExpense";
         /// <summary>Revenue given back for returned goods (contra-revenue). Defaults to the revenue account; a VAS chart gives it its own.</summary>
@@ -65,7 +67,7 @@ namespace ERP.ACC.Domain.Entities
             Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, Inventory, VatOutput,
             GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment, CashOverShort,
             SalaryExpense, SalariesPayable, PayrollWithholdingsPayable,
-            SocialInsurancePayable, HealthInsurancePayable, UnemploymentInsurancePayable, PitPayable, EmployerInsuranceExpense,
+            SocialInsurancePayable, HealthInsurancePayable, UnemploymentInsurancePayable, PitPayable, EmployerInsuranceExpense, PurchasePriceVariance,
             SalesReturns, IncomeSummary, RetainedEarnings, LoanPayable, InterestExpense, InterestPayable, VatInput, FxGain, FxLoss, BankFee, BankInterestIncome
         };
 
@@ -91,6 +93,7 @@ namespace ERP.ACC.Domain.Entities
             [HealthInsurancePayable] = "2100",
             [UnemploymentInsurancePayable] = "2100",
             [PitPayable] = "2100",
+            [PurchasePriceVariance] = "5000",         // the simple chart posts it with the cost of goods
             [EmployerInsuranceExpense] = "5200",   // Salaries & Benefits
             [SalesReturns] = "4000",               // the default chart has no contra-revenue account
             [IncomeSummary] = "3100",              // the simple chart closes straight into retained earnings

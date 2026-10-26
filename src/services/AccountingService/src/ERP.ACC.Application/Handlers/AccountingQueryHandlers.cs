@@ -256,13 +256,13 @@ namespace ERP.ACC.Application.Handlers
                     {
                         var daysOverdue = (asOf - bill.DueDate).Days;
                         if (daysOverdue <= 0)
-                            aging.Current += bill.Amount;
+                            aging.Current += bill.Outstanding;
                         else if (daysOverdue <= 30)
-                            aging.Days30 += bill.Amount;
+                            aging.Days30 += bill.Outstanding;
                         else if (daysOverdue <= 60)
-                            aging.Days60 += bill.Amount;
+                            aging.Days60 += bill.Outstanding;
                         else
-                            aging.Days90Plus += bill.Amount;
+                            aging.Days90Plus += bill.Outstanding;
                     }
                     aging.TotalOutstanding = aging.Current + aging.Days30 + aging.Days60 + aging.Days90Plus;
                     return aging;

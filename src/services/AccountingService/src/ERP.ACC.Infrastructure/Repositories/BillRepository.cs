@@ -23,6 +23,12 @@ namespace ERP.ACC.Infrastructure.Repositories
         public async Task<Bill?> GetByPurchaseOrderIdAsync(Guid purchaseOrderId, CancellationToken ct = default) =>
             await _db.Bills.AsNoTracking().FirstOrDefaultAsync(b => b.POId == purchaseOrderId, ct);
 
+        public async Task<Bill?> GetBySupplierInvoiceIdAsync(Guid supplierInvoiceId, CancellationToken ct = default) =>
+            await _db.Bills.AsNoTracking().FirstOrDefaultAsync(b => b.SupplierInvoiceId == supplierInvoiceId, ct);
+
+        public async Task<List<Bill>> GetOpenApprovedByPurchaseOrderIdAsync(Guid purchaseOrderId, CancellationToken ct = default) =>
+            await _db.Bills.Where(b => b.POId == purchaseOrderId && b.Status == 1 && b.CreditedAmount < b.Amount).OrderBy(b => b.DueDate).ToListAsync(ct);
+
         public async Task<List<Bill>> GetByStatusAsync(int status, CancellationToken ct = default) =>
             await _db.Bills.Where(b => b.Status == status).OrderByDescending(b => b.CreatedAt).AsNoTracking().ToListAsync(ct);
 
