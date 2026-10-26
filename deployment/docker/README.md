@@ -153,6 +153,8 @@ Use the script instead of `docker compose build`:
 - After every service: `docker builder prune -a -f` and `docker image prune -f` (skip with `-KeepCache`). It refuses to build when the system drive has
   less than `-MinFreeGB` (default 8) free.
 - First use on a machine: deploy what is running, then `-MarkCurrent`; otherwise the first run rebuilds every service.
-- Shrinking the disk image itself (it only grows): stop the stack, `wsl --shutdown`, then as administrator
-  `diskpart` → `select vdisk file="%LOCALAPPDATA%\Docker\wsl\disk\docker_data.vhdx"` → `attach vdisk readonly` → `compact vdisk` → `detach vdisk`; and cap it
-  in Docker Desktop → Settings → Resources → Advanced → *Virtual disk limit* (recommended 80 GB: the images and volumes need ~35 GB).
+- The disk image `docker_data.vhdx` only grows, and Docker Desktop on WSL2 has **no** virtual-disk-limit setting (it is 1 TB sparse). Keep it small by
+  habit: use this script (it frees the cache after every service), and when the file has grown past ~80 GB run, in an **administrator** PowerShell,
+  `./deployment/docker/compact-docker-disk.ps1` (`-Force` to run at any size, `-NoRestart` to leave the stack stopped). It stops the stack, runs `fstrim` inside WSL
+  (without it the compaction frees almost nothing), quits Docker Desktop and WSL, runs `diskpart` `compact vdisk`, then starts everything again. The images and
+  volumes themselves need ~35 GB; measured 2026-10-26: 206.8 GB -> 49 GB, 173 GB free on C:.
