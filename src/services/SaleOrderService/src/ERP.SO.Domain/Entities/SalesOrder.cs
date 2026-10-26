@@ -348,7 +348,9 @@ namespace ERP.SO.Domain.Entities
                 CustomerId = CustomerId,
                 Reason = ReturnReason ?? string.Empty,
                 RefundAmount = refundAmount,
-                ReturnedAt = ReturnedAt.Value
+                ReturnedAt = ReturnedAt.Value,
+                Lines = _lineItems.Where(li => li.ShippedQuantity > 0)
+                    .Select(li => new SalesOrderReturnedEvent.ReturnedLine { ProductId = li.ProductId, Quantity = li.ShippedQuantity }).ToList()
             });
         }
 

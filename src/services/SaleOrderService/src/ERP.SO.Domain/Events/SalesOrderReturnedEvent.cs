@@ -19,5 +19,14 @@ namespace ERP.SO.Domain.Events
         public string Reason { get; set; } = string.Empty;
         public decimal RefundAmount { get; set; }
         public DateTime ReturnedAt { get; set; }
+
+        /// <summary>The goods that come back: every line that was shipped (a return is of the whole order). Warehouse puts them back on the shelf (ROADMAP P1-5).</summary>
+        public List<ReturnedLine> Lines { get; set; } = new();
+
+        public class ReturnedLine
+        {
+            public Guid ProductId { get; set; }
+            public int Quantity { get; set; }
+        }
     }
 }

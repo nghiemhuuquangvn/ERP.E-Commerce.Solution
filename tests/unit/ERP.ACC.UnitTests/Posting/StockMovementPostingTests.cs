@@ -30,6 +30,10 @@ public class StockMovementPostingTests
         Entry("Received", 500m).Should().Be((PostingKeys.Inventory, PostingKeys.GoodsReceivedNotInvoiced, 500m));
 
     [Fact]
+    public void Returned_goods_debit_inventory_and_credit_cogs_reversing_the_issue() =>
+        Entry("Returned", 150m).Should().Be((PostingKeys.Inventory, PostingKeys.CostOfGoodsSold, 150m));
+
+    [Fact]
     public void An_issue_debits_cogs_and_credits_inventory() =>
         Entry("Sold", -120m).Should().Be((PostingKeys.CostOfGoodsSold, PostingKeys.Inventory, 120m));
 

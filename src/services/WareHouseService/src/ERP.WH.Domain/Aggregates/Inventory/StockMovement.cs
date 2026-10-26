@@ -7,7 +7,10 @@ public enum MovementType
     Sold = 1,
     Adjusted = 2,
     Damaged = 3,
-    Transferred = 4
+    Transferred = 4,
+
+    /// <summary>Goods of a returned order back on the shelf (ROADMAP P1-5); booked by Accounting as Dr Inventory / Cr Cost of goods sold.</summary>
+    Returned = 5
 }
 
 public class StockMovement : ITenantOwned
