@@ -369,11 +369,29 @@
         "All": "All",
         "Suggested": "Suggested",
         "Dismissed": "Dismissed",
-        "Converted": "Converted"
+        "Converted": "Converted",
+        "Ordered": "Ordered",
+        "Quoting": "Quoting"
       },
       "suggestedQuantity": "Suggested Qty",
       "dismiss": "Dismiss",
-      "convert": "Convert"
+      "convert": "Convert",
+      "onOrder": "On order",
+      "policy": "Min – max",
+      "safety": "safety",
+      "supplier": "Preferred supplier",
+      "days": "days",
+      "noPreferred": "None — goes to an RFQ",
+      "openOrder": "Open purchase order",
+      "openRfq": "Open RFQ",
+      "scanNow": "Scan stock now",
+      "scanDone": "Checked {{checked}} products, {{below}} below minimum, {{alerts}} alert(s) sent. New requests appear in a moment.",
+      "createOrdersAll": "Create orders from all open ({{count}})",
+      "createOrdersSelected": "Create orders from {{count}} selected",
+      "created": "Created {{orders}} draft purchase order(s) and {{rfq}} RFQ.",
+      "lines": "{{count}} line(s)",
+      "rfqSummary": "{{lines}} line(s), {{suppliers}} supplier(s) asked",
+      "skipped": "Skipped {{count}}"
     },
     "suppliers": {
       "title": "Suppliers",
@@ -428,7 +446,9 @@
         "addTitle": "Add Supplier Item",
         "editTitle": "Edit Supplier Item",
         "searchProductPlaceholder": "Search product by name or SKU…",
-        "selectedProduct": "Selected"
+        "selectedProduct": "Selected",
+        "preferred": "Preferred",
+        "preferredHint": "Replenishment orders for this product go to this supplier"
       }
     }
   },
@@ -631,6 +651,15 @@
     "available": "Available",
     "lastMovement": "Last Movement",
     "reorderPoint": "Reorder Point",
+    "policy": {
+      "title": "Stock policy",
+      "hint": "When available stock plus goods on order is at or below the minimum, Purchasing proposes an order up to the maximum. The safety stock is the part of the minimum kept for surprises.",
+      "minStock": "Minimum",
+      "safetyStock": "Safety stock",
+      "maxStock": "Maximum",
+      "belowMinimum": "Below minimum",
+      "invalid": "Safety stock cannot exceed the minimum, and the maximum must be above the minimum."
+    },
     "notFound": "Product not found in inventory.",
     "backToInventory": "← Inventory",
     "noBinLevelData": "No bin-level stock data tracked yet for this product — showing the product-level total.",

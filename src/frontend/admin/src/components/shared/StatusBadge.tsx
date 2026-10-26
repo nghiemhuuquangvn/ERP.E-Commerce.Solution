@@ -55,6 +55,8 @@ const STATUS_COLORS: Record<string, string> = {
 
   Suggested: 'bg-blue-100 text-blue-700',
   Dismissed: 'bg-gray-100 text-gray-600',
+  Ordered: 'bg-green-100 text-green-700',
+  Quoting: 'bg-indigo-100 text-indigo-700',
 }
 
 interface StatusBadgeProps {

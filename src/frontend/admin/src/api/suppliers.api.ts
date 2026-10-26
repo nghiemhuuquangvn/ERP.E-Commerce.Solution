@@ -31,6 +31,7 @@ export interface SupplierItem {
   supplierItemCode?: string
   lastPurchasePrice: number
   leadTimeDays: number
+  isPreferred?: boolean
   createdAt?: string
   updatedAt?: string
 }
@@ -151,6 +152,10 @@ export const suppliersApi = {
 
   createItem: (id: string, body: CreateSupplierItemRequest) =>
     apiClient.post<SupplierItem>(`${BASE}/${id}/items`, body).then((r) => r.data),
+
+  /** The supplier replenishment orders for this product go to; clears the flag on the product's other items. */
+  setPreferred: (id: string, itemId: string, preferred: boolean) =>
+    apiClient.put<{ supplierItemId: string; productId: string; isPreferred: boolean }>(`${BASE}/${id}/items/${itemId}/preferred`, { preferred }).then((r) => r.data),
 
   updateItem: (id: string, itemId: string, body: UpdateSupplierItemRequest) =>
     apiClient.put<SupplierItem>(`${BASE}/${id}/items/${itemId}`, body).then((r) => r.data),

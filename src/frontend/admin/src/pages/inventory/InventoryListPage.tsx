@@ -49,7 +49,8 @@ export function InventoryListPage() {
         </span>
       ),
     },
-    { key: 'reorderPoint', label: t('inventory.reorderPoint'), className: 'text-right' },
+    { key: 'minStock', label: t('inventory.policy.minStock'), className: 'text-right' },
+    { key: 'maxStock', label: t('inventory.policy.maxStock'), className: 'text-right' },
     {
       key: 'status',
       label: t('common.status'),
