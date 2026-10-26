@@ -128,6 +128,7 @@ $DatabaseScripts = @(
     "HRM\005_TenantIsolation.sql",
     "HRM\006_AlignLegacyColumns.sql",
     "HRM\007_PaySlipPeriodUniqueExceptCancelled.sql",
+    "HRM\008_RealPayroll.sql",
     "POS\001_CreatePosDB.sql",
     "POS\002_AddTendersDenominationsAndTypeFixes.sql",
     "POS\003_AddProductAndPromotionCache.sql",

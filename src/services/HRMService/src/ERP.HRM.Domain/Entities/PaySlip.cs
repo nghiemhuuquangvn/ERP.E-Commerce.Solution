@@ -1,4 +1,5 @@
 using ERP.HRM.Domain.Events;
+using ERP.HRM.Domain.Payroll;
 using ERP.Shared.Core.Domain;
 
 namespace ERP.HRM.Domain.Entities
@@ -17,6 +18,24 @@ namespace ERP.HRM.Domain.Entities
         public DateTime PaymentDate { get; set; }
         public int PaymentStatus { get; set; }
 
+        // Calculation breakdown (ROADMAP P1-7). All zero on a slip entered by hand; Deductions is then the typed lump.
+        public decimal BaseSalary { get; set; }
+        public decimal Allowances { get; set; }
+        public decimal WorkedDays { get; set; }
+        public decimal StandardDays { get; set; }
+        public decimal EmployeeSocial { get; set; }
+        public decimal EmployeeHealth { get; set; }
+        public decimal EmployeeUnemployment { get; set; }
+        public decimal EmployerSocial { get; set; }
+        public decimal EmployerHealth { get; set; }
+        public decimal EmployerUnemployment { get; set; }
+        public decimal TaxableIncome { get; set; }
+        public decimal PersonalIncomeTax { get; set; }
+        public int DependentCount { get; set; }
+        public Guid? RateSetId { get; set; }
+
+        public decimal EmployerInsurance => EmployerSocial + EmployerHealth + EmployerUnemployment;
+
         public string PayPeriod => $"{Year:D4}-{Month:D2}";
 
         public static PaySlip Create(
@@ -27,7 +46,8 @@ namespace ERP.HRM.Domain.Entities
             decimal grossSalary,
             decimal deductions,
             decimal overtimeHours = 0m,
-            decimal overtimePay = 0m)
+            decimal overtimePay = 0m,
+            bool raiseEvent = true)
         {
             var paySlip = new PaySlip
             {
@@ -47,18 +67,36 @@ namespace ERP.HRM.Domain.Entities
                 UpdatedAt = DateTime.UtcNow
             };
 
-            paySlip.AddDomainEvent(new PaySlipGeneratedEvent(
-                paySlip.Id,
-                paySlip.EmployeeId,
-                paySlip.NetSalary,
-                paySlip.PayPeriod,
-                paySlip.GrossSalary,
-                paySlip.OvertimePay,
-                paySlip.Deductions,
-                paySlip.PaymentDate));
+            if (raiseEvent) paySlip.RaiseGenerated();
 
             return paySlip;
         }
+
+        /// <summary>A pay slip calculated from the employee's salary terms and the rate set in force (insurance, income tax, worked days).</summary>
+        public static PaySlip CreateCalculated(string paySlipNumber, Guid employeeId, int year, int month, PayrollResult r)
+        {
+            var paySlip = Create(paySlipNumber, employeeId, year, month, r.GrossSalary, r.Deductions, r.OvertimeHours, r.OvertimePay, raiseEvent: false);
+            paySlip.BaseSalary = r.BaseSalary;
+            paySlip.Allowances = r.Allowances;
+            paySlip.WorkedDays = r.PaidDays;
+            paySlip.StandardDays = r.StandardDays;
+            paySlip.EmployeeSocial = r.EmployeeSocial;
+            paySlip.EmployeeHealth = r.EmployeeHealth;
+            paySlip.EmployeeUnemployment = r.EmployeeUnemployment;
+            paySlip.EmployerSocial = r.EmployerSocial;
+            paySlip.EmployerHealth = r.EmployerHealth;
+            paySlip.EmployerUnemployment = r.EmployerUnemployment;
+            paySlip.TaxableIncome = r.TaxableIncome;
+            paySlip.PersonalIncomeTax = r.PersonalIncomeTax;
+            paySlip.DependentCount = r.DependentCount;
+            paySlip.RateSetId = r.RateSetId;
+            paySlip.RaiseGenerated();
+            return paySlip;
+        }
+
+        private void RaiseGenerated() => AddDomainEvent(new PaySlipGeneratedEvent(
+            Id, EmployeeId, NetSalary, PayPeriod, GrossSalary, OvertimePay, Deductions, PaymentDate,
+            EmployeeSocial, EmployeeHealth, EmployeeUnemployment, EmployerSocial, EmployerHealth, EmployerUnemployment, PersonalIncomeTax));
 
         /// <summary>Net pay was paid out. Only a pending slip can be paid, once.</summary>
         public void MarkPaid(DateTime paidOn, string? paymentMethod = null)

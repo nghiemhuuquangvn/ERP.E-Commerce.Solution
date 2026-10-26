@@ -66,7 +66,14 @@ public record PaySlipGeneratedEvent(
     decimal GrossSalary = 0m,
     decimal OvertimePay = 0m,
     decimal Deductions = 0m,
-    DateTime? PeriodEnd = null) : IDomainEvent, ITenantEvent
+    DateTime? PeriodEnd = null,
+    decimal EmployeeSocial = 0m,
+    decimal EmployeeHealth = 0m,
+    decimal EmployeeUnemployment = 0m,
+    decimal EmployerSocial = 0m,
+    decimal EmployerHealth = 0m,
+    decimal EmployerUnemployment = 0m,
+    decimal IncomeTax = 0m) : IDomainEvent, ITenantEvent
 {
     /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
     public Guid TenantId { get; set; }
