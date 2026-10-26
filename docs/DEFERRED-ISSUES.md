@@ -35,7 +35,7 @@ How to read: **Source** = where it was found; **Home** = the roadmap item or kin
 | G9 | Refunds: returned goods are not restocked and their COGS is not reversed; nothing triggers the Payment refund from `SalesOrderReturned`; Sales has no return lines. | P1-1e | P1-5 | Revenue is reversed but cost is not; the refund must be requested by hand. |
 | G10 | A Payment refund has no idempotency key; a gateway timeout is recorded as a failed refund (no refund IPN); two concurrent refunds can both pass the over-refund check; `RefundStatus.Processing` is unused. | P1-1e | Payment hardening | Possible double refund or a refund the gateway did process shown as failed. |
 | G11 | ~~No VAT on sales, returns, bills~~ **Closed in P1-3** (invoices, returns, bills; POS already posted VAT). Remaining: §4m. Was: No VAT on sales, returns, bills or POS (the `VatOutput` key exists but no flow fills it). | P1-1 | P1-3 | Tax payable is not tracked. |
-| G12 | Single currency (VND); documents in another currency are not converted. Payment defaults to USD while the stack uses VND. | P1-1 | P1-4 | Wrong amounts for foreign-currency tenants. |
+| G12 | ~~Single currency (VND)~~ **Closed in P1-4** for invoices and bills (currency, rate, realized and period-end differences). The Payment service still defaults to USD in a VND stack and its events are booked unconverted (§4o). | P1-1 | P1-4b | Wrong amounts for foreign-currency tenants. |
 | G13 | Reporting marks a payment "Refunded" even for a partial refund and reads no `NetPay` for pay slips (total likely 0). | P1-1d, P1-1e | Reporting fix | Wrong BI figures. |
 | G14 | Notification does not consume `PaymentRefunded` (the dependency map used to claim it did). | P1-1e | P1-6 | No refund receipts. |
 | G15 | `SalesOrder.CompleteReturn` refusals are `InvalidOperationException`, which the error middleware does not map (HTTP 500 instead of 400/409). | P1-1e | Sales error handling | Misleading status code. |
@@ -191,6 +191,17 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | AE4 | VAT lines come from a person; orders and purchase orders still carry no tax (a per-line tax in the Sales / Purchasing events would remove the manual step). Auto-issue sends every invoice to a retail customer (no buyer tax code). | P1-3c |
 | AE5 | If the provider fails after `Replace` applied a new VAT split, the invoice VAT is already changed and the replacement must be retried (no new split). The failing e-invoice of an adjustment / replacement is not stored. | Accepted |
 | AE6 | The return pro rata, the auto-issue event path and the settlement of a period with late documents were covered by unit tests, not run live; the new admin pieces (lines editor, adjust dialog, e-invoice chain, gaps bar, settlement panel, XML button, auto-issue switch) were type-checked, not clicked through in a browser. | — |
+
+## 4o. Foreign currency and bank reconciliation (P1-4 follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| AF1 | Payments that reach Accounting from the Payment service (`PaymentProcessed`, refunds) are booked unconverted: their currency is ignored. A foreign document is settled through *Mark as paid* with a rate. | P1-4b |
+| AF2 | Only receivables and payables are revalued. The foreign balance of a bank / cash account is not tracked (no currency on journal lines), so the cash-flow FX effect (row 61) stays 0 and a foreign bank account is reconciled on base amounts. | P1-4b |
+| AF3 | A revaluation cannot be redone for a period (one run; reverse its two entries by hand to run again). A foreign document carries one VAT rate (no VAT lines). A partial payment of a foreign document is not offered in the UI (mark-paid settles the rest). | P1-4b |
+| AF4 | Exchange rates are read from the master data and typed on documents by a person; no automatic rate import. The tenant admin of `glcheck` has no master-data currency permission, so the live check entered the rates by SQL. | P1-4b |
+| AF5 | A statement line is matched one-to-one: a bank line that settles several ledger lines (or the reverse) needs the ledger entries to be combined by hand. Interest of a loan is not read from the statement (AC1 stays open). | P1-4b / P1-2m |
+| AF6 | The default accounts of the new keys (FxGain 515, FxLoss 635, BankFee 6427, BankInterestIncome 515) are suggestions for an accountant to review. The admin screens (currency fields, revaluation panel, reconciliation dialog) were type-checked, not clicked. | Accountant review |
 
 ## 5. Roadmap items these issues are waiting for
 

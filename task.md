@@ -103,6 +103,7 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
 - [x] **P1-2h B01 maturity split** closed 2026-10-25 (`feat/b01-maturity`): rows 131 / 211 / 311 / 331 by due date, BA doc updated
 - [x] **P1-2i 14-account layouts, off-balance, loans, B09** closed 2026-10-25 (`feat/notes-loans-offbalance`): migrations 013 – 015, BA doc updated
 - [x] **P1-2j loan posting, payment history, own-chart mapping, notes in English** closed 2026-10-25 (`feat/p1-2j-loans-history-mapping-english`): migrations 016 – 019, BA doc updated (FR-86…101, BR-134…155, UC-22…25, UAT-75…91)
+- [x] **P1-4 foreign currency, FX revaluation, line-level bank reconciliation, fee / interest from statement lines** closed 2026-10-26 (`feat/p1-4-fx-bank-reconciliation`): migration 025, BA doc updated (FR-147…157, BR-201…213, UC-37…39, UAT-141…158)
 - [x] **P1-3b VAT lines, VAT settlement, replacement / adjustment e-invoices, posting gaps, XML** closed 2026-10-26 (`feat/p1-3b-vat-lines-settlement`): migration 024, BA doc updated (FR-135…146, BR-189…200, UC-33…36, UAT-126…140)
 - [x] **P1-3 VAT, VAT listing / return 01/GTGT, e-invoice adapter** closed 2026-10-25 (`feat/p1-3-vat-einvoice`): migration 023, BA doc updated (FR-123…134, BR-176…188, UC-29…32, UAT-113…125)
 - [x] **P1-2l day count, month-end accrual job, note-text history, notes in ja / zh / fr** closed 2026-10-25 (`feat/p1-2l-accrual-job-daycount-history-languages`): migration 022, BA doc updated (FR-112…122, BR-168…175, UC-27, 28, UAT-102…112)

@@ -74,7 +74,10 @@ already has its own chart is never given extra accounts: if a key has no account
 * A cancelled order whose invoice is paid (even in part) is left alone and logged: it needs a refund (P1-1e).
 * The payment's `Method` is PaymentService's enum, a **number** on the Kafka wire (CreditCard 0 … Cash 4). Payments created by the
   order saga always say CreditCard, so they are booked to Bank.
-* Single currency (VND). The document currency is not converted (P1-4).
+* **Foreign currency (P1-4).** The ledger is in the base currency (`TenantTaxSettings.BaseCurrencyCode`, VND). A foreign invoice / bill is booked at `foreign × rate`; the payment events from the Payment service are still booked unconverted. Marking a foreign document paid takes a payment rate and posts the realized difference on the same entry: receivable `Dr Bank (foreign × payment rate) / Cr AR (carrying) / Cr FxGain or Dr FxLoss`; payable `Dr AP (carrying) / Cr Bank (foreign × payment rate) / Cr FxGain or Dr FxLoss`.
+* **Period-end revaluation (P1-4).** `FxRevaluation:<id derived from the period>` dated the last day: Dr / Cr AR by the open foreign invoices' difference, Cr / Dr AP by the bills', balanced on FxGain / FxLoss; reversed the next day (`FxRevaluationReversal`). One per period.
+* **Bank statement line (P1-4).** `BankStatementLine:<line id>`: withdrawal `Dr BankFee (or the chosen key / account) / Cr the bank's ledger account`; deposit `Dr the bank's ledger account / Cr BankInterestIncome (or chosen)`. The bank's ledger account is the account of the bank account (`GlAccountId`), not a key.
+* Keys added in P1-4: `FxGain` (515 / 4000), `FxLoss` (635 / 5100), `BankFee` (6427 / 5100), `BankInterestIncome` (515 / 4000) — Vietnamese chart / 14-account chart.
 
 ### Stock movements (P1-1b)
 
