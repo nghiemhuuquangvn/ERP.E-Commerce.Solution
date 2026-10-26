@@ -64,6 +64,23 @@ public class AttendanceRepository : IAttendanceRepository
             .SumAsync(r => r.OvertimeHours, cancellationToken);
     }
 
+    public async Task<(int Records, int AbsentDays, int HalfDays)> GetMonthlyCountsAsync(
+        Guid employeeId, int year, int month, CancellationToken cancellationToken = default)
+    {
+        var startDate = new DateTime(year, month, 1);
+        var endDate = startDate.AddMonths(1).AddDays(-1);
+
+        var rows = await _db.AttendanceRecords
+            .Where(r => r.EmployeeId == employeeId && r.Date >= startDate && r.Date <= endDate)
+            .GroupBy(r => r.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        return (rows.Sum(r => r.Count),
+                rows.Where(r => r.Status == AttendanceStatus.Absent).Sum(r => r.Count),
+                rows.Where(r => r.Status == AttendanceStatus.HalfDay).Sum(r => r.Count));
+    }
+
     public void Add(AttendanceRecord record) => _db.AttendanceRecords.Add(record);
 
     public void Update(AttendanceRecord record) => _db.AttendanceRecords.Update(record);

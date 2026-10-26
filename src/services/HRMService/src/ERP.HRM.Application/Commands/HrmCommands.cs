@@ -47,7 +47,7 @@ public record CancelLeaveCommand(
 
 public record ProcessPayrollCommand(
     int Year,
-    int Month) : IRequest<List<PaySlipDto>>;
+    int Month) : IRequest<ProcessPayrollResultDto>;
 
 public record GeneratePaySlipCommand(
     Guid EmployeeId,

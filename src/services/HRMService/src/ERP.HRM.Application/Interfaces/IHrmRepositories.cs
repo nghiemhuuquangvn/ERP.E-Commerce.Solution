@@ -30,6 +30,8 @@ public interface ILeaveRequestRepository
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);
+    /// <summary>Approved requests of a leave type that touch the period [from, to].</summary>
+    Task<IReadOnlyList<LeaveRequest>> GetApprovedOverlappingAsync(Guid employeeId, int leaveType, DateTime from, DateTime to, CancellationToken cancellationToken = default);
     void Add(LeaveRequest leaveRequest);
     void Update(LeaveRequest leaveRequest);
 }
@@ -61,6 +63,8 @@ public interface IAttendanceRepository
         int pageSize,
         CancellationToken cancellationToken = default);
     Task<decimal> GetMonthlyOvertimeHoursAsync(Guid employeeId, int year, int month, CancellationToken cancellationToken = default);
+    /// <summary>Attendance records of the month: how many there are, how many days were Absent and how many HalfDay.</summary>
+    Task<(int Records, int AbsentDays, int HalfDays)> GetMonthlyCountsAsync(Guid employeeId, int year, int month, CancellationToken cancellationToken = default);
     void Add(AttendanceRecord record);
     void Update(AttendanceRecord record);
 }

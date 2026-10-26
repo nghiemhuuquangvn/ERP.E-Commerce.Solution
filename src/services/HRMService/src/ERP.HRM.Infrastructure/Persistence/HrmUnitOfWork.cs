@@ -14,7 +14,8 @@ public class HrmUnitOfWork : IHrmUnitOfWork
         IPaySlipRepository paySlips,
         IAttendanceRepository attendance,
         IWorkShiftRepository workShifts,
-        IEmployeeSnapshotRepository employeeSnapshots)
+        IEmployeeSnapshotRepository employeeSnapshots,
+        IPayrollRepository payroll)
     {
         _dbContext = dbContext;
         LeaveRequests = leaveRequests;
@@ -22,6 +23,7 @@ public class HrmUnitOfWork : IHrmUnitOfWork
         Attendance = attendance;
         WorkShifts = workShifts;
         EmployeeSnapshots = employeeSnapshots;
+        Payroll = payroll;
     }
 
     public ILeaveRequestRepository LeaveRequests { get; }
@@ -29,6 +31,7 @@ public class HrmUnitOfWork : IHrmUnitOfWork
     public IAttendanceRepository Attendance { get; }
     public IWorkShiftRepository WorkShifts { get; }
     public IEmployeeSnapshotRepository EmployeeSnapshots { get; }
+    public IPayrollRepository Payroll { get; }
 
     public async Task<int> SaveChangesAsync(CancellationToken ct = default) =>
         await _dbContext.SaveChangesAsync(ct);

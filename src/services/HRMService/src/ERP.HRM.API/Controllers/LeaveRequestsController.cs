@@ -42,6 +42,21 @@ public class LeaveRequestsController : ControllerBase
     }
 
     /// <summary>
+    /// Leave balances of a year (default: this year); with an employee, the annual balance is created on first sight.
+    /// </summary>
+    [HttpGet("balances")]
+    [AuthorizePermission("hrm:leave:manage")]
+    [ProducesResponseType(typeof(List<LeaveBalanceDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Balances(
+        [FromQuery] Guid? employeeId = null,
+        [FromQuery] int? year = null,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new ListLeaveBalancesQuery(employeeId, year ?? DateTime.UtcNow.Year), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Submit a new leave request.
     /// </summary>
     [HttpPost]
