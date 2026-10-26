@@ -34,7 +34,10 @@ The entry is staged on the caller's unit of work, so the document, its journal e
 | `InterestPayable` | 2100 (Accrued Liabilities; Vas99: 335) | accrued loan interest (P1-2k) |
 | `SalaryExpense` | 5200 Salaries & Benefits | pay slips (gross + overtime) |
 | `SalariesPayable` | 2100 Accrued Liabilities | pay slips (net pay), their payment |
-| `PayrollWithholdingsPayable` | 2100 (VAS, P1-2, splits insurance and personal income tax) | pay slips (deductions) |
+| `PayrollWithholdingsPayable` | 3388 (VAS), 2100 (simple) | pay slips: deductions the breakdown does not explain, and slips without a breakdown |
+| `SocialInsurancePayable` / `HealthInsurancePayable` / `UnemploymentInsurancePayable` | 3383 / 3384 / 3389 (VAS), 2100 (simple) | pay slips: employee + employer insurance (P1-7) |
+| `PitPayable` | 3335 (VAS), 2100 (simple) | pay slips: personal income tax withheld (P1-7) |
+| `EmployerInsuranceExpense` | 6421 (VAS), 5200 (simple) | pay slips: the employer's insurance cost (P1-7) |
 | `VatOutput` | 2200 Tax Payable (Vas99: 3331) | VAT on sales invoices, returns and POS sales (P1-3) |
 | `VatInput` | 2200 (shared with VatOutput; Vas99: 1331) | VAT on approved bills (P1-3) |
 
@@ -59,6 +62,7 @@ already has its own chart is never given extra accounts: if a key has no account
 | Loan interest accrued by the month-end job (`LoanInterestAccrualJob`, tenants with `AutoAccrueLoanInterest`, P1-2l) | The same entry, as of the last day of the previous month; skipped when that fiscal period is closed | the same `LoanAccrual:<…>` key (only the difference is posted) |
 | Loan cancelled (only without repayments, only a posted loan) | Reversal of `Loan:<loanId>` | — |
 | Pay slip generated (Kafka `hrm-topic`) | Dr SalaryExpense (gross + overtime) / Cr SalariesPayable (net) and Cr PayrollWithholdingsPayable (deductions); dated the end of the pay period, at most today | `PaySlip:<paySlipId>` |
+| Pay slip generated **with a breakdown** (P1-7) | Dr SalaryExpense (gross + overtime) and Dr EmployerInsuranceExpense / Cr SalariesPayable (net), Cr Social / Health / UnemploymentInsurancePayable (employee + employer), Cr PitPayable, Cr PayrollWithholdingsPayable (any leftover); the legacy line above applies when the event has no breakdown | `PaySlip:<paySlipId>` |
 | Pay slip paid | Dr SalariesPayable / Cr Bank, net pay; only if the slip's salary entry exists | `PaySlipPayment:<paySlipId>` |
 | Pay slip cancelled (unpaid only) | mirror of the slip entry | `PaySlipReversal:<paySlipId>` |
 | POS sale completed (Kafka `pos-topic`) | Dr Cash (cash tenders) and Dr Bank (all other tenders) / Cr SalesRevenue (subtotal − discount) and Cr VatOutput (tax) | `PosSale:<transactionId>` |

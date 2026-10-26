@@ -7,6 +7,7 @@ public interface IHrmUnitOfWork : IDisposable
     IAttendanceRepository Attendance { get; }
     IWorkShiftRepository WorkShifts { get; }
     IEmployeeSnapshotRepository EmployeeSnapshots { get; }
+    IPayrollRepository Payroll { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
     Task BeginTransactionAsync(CancellationToken ct = default);

@@ -24,7 +24,7 @@ public class PayrollController : ControllerBase
     /// </summary>
     [HttpPost("api/v{version:apiVersion}/hrm/payroll/process")]
     [AuthorizePermission("hrm:payroll:manage")]
-    [ProducesResponseType(typeof(List<PaySlipDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProcessPayrollResultDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

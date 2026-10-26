@@ -14,6 +14,16 @@ public class LeaveRequestRepository : ILeaveRequestRepository
         _context = context;
     }
 
+    public async Task<IReadOnlyList<LeaveRequest>> GetApprovedOverlappingAsync(
+        Guid employeeId, int leaveType, DateTime from, DateTime to, CancellationToken cancellationToken = default)
+    {
+        return await _context.LeaveRequests
+            .Where(lr => !lr.IsDeleted && lr.EmployeeId == employeeId && lr.LeaveTypeId == leaveType
+                         && lr.LeaveStatus == (int)Domain.Enums.LeaveStatus.Approved
+                         && lr.StartDate <= to && lr.EndDate >= from)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<LeaveRequest?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.LeaveRequests

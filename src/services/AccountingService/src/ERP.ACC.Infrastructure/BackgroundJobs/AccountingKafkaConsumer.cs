@@ -207,6 +207,13 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
             NetPay = raw.Value<decimal?>("NetPay") ?? 0m,
             PeriodEnd = raw["PeriodEnd"]?.Type is JTokenType.Null or null ? null : raw.Value<DateTime?>("PeriodEnd"),
             OccurredAt = raw.Value<DateTime?>("OccurredOn") ?? default,
+            EmployeeSocial = raw.Value<decimal?>("EmployeeSocial") ?? 0m,
+            EmployeeHealth = raw.Value<decimal?>("EmployeeHealth") ?? 0m,
+            EmployeeUnemployment = raw.Value<decimal?>("EmployeeUnemployment") ?? 0m,
+            EmployerSocial = raw.Value<decimal?>("EmployerSocial") ?? 0m,
+            EmployerHealth = raw.Value<decimal?>("EmployerHealth") ?? 0m,
+            EmployerUnemployment = raw.Value<decimal?>("EmployerUnemployment") ?? 0m,
+            IncomeTax = raw.Value<decimal?>("IncomeTax") ?? 0m,
         };
 
         public static PaySlipPaidIntegrationEvent ParsePaySlipPaid(JObject raw) => new()

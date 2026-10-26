@@ -19,13 +19,16 @@ public class SubmitLeaveRequestCommandHandler : IRequestHandler<SubmitLeaveReque
 {
     private readonly IHrmUnitOfWork _uow;
     private readonly ILogger<SubmitLeaveRequestCommandHandler> _logger;
+    private readonly PayrollSupport _support;
 
     public SubmitLeaveRequestCommandHandler(
         IHrmUnitOfWork uow,
-        ILogger<SubmitLeaveRequestCommandHandler> logger)
+        ILogger<SubmitLeaveRequestCommandHandler> logger,
+        PayrollSupport support)
     {
         _uow = uow;
         _logger = logger;
+        _support = support;
     }
 
     public async Task<LeaveRequestDto> Handle(SubmitLeaveRequestCommand request, CancellationToken cancellationToken)
@@ -39,8 +42,26 @@ public class SubmitLeaveRequestCommandHandler : IRequestHandler<SubmitLeaveReque
         if (snapshot != null && snapshot.EmploymentStatus == (int)EmploymentStatus.Terminated)
             throw new InvalidOperationException("Cannot submit leave request for a terminated employee.");
 
-        var daysRequested = (int)(request.EndDate.Date - request.StartDate.Date).TotalDays + 1;
+        if (request.EndDate.Date < request.StartDate.Date)
+            throw new BusinessRuleException("HRM", "The end date cannot be before the start date.");
+
+        // Working days (Monday-Friday): weekends are not leave.
+        var daysRequested = PayrollSupport.WorkingDays(request.StartDate, request.EndDate);
+        if (daysRequested == 0)
+            throw new BusinessRuleException("HRM", "The request covers no working day.");
+
         var year = request.StartDate.Year;
+
+        // Annual leave is limited by the year's balance (consumed when the request is approved).
+        if (request.LeaveType == (int)LeaveType.Annual)
+        {
+            var balance = await _support.AnnualBalanceAsync(request.EmployeeId, year, cancellationToken);
+            if (daysRequested > balance.RemainingDays)
+                throw new BusinessRuleException("HRM",
+                    $"Not enough annual leave: {balance.RemainingDays:0.#} day(s) left in {year}, {daysRequested} requested.");
+            await _uow.SaveChangesAsync(cancellationToken); // persists a balance created just now
+        }
+
         var random4 = Random.Shared.Next(1000, 9999);
         var leaveRequestNumber = $"LR-{year}-{random4:D4}";
 
@@ -81,19 +102,30 @@ public class ApproveLeaveCommandHandler : IRequestHandler<ApproveLeaveCommand, L
 {
     private readonly IHrmUnitOfWork _uow;
     private readonly ILogger<ApproveLeaveCommandHandler> _logger;
+    private readonly PayrollSupport _support;
 
     public ApproveLeaveCommandHandler(
         IHrmUnitOfWork uow,
-        ILogger<ApproveLeaveCommandHandler> logger)
+        ILogger<ApproveLeaveCommandHandler> logger,
+        PayrollSupport support)
     {
         _uow = uow;
         _logger = logger;
+        _support = support;
     }
 
     public async Task<LeaveRequestDto> Handle(ApproveLeaveCommand request, CancellationToken cancellationToken)
     {
         var leaveRequest = await _uow.LeaveRequests.GetByIdAsync(request.LeaveRequestId, cancellationToken)
             ?? throw new KeyNotFoundException($"Leave request {request.LeaveRequestId} not found.");
+
+        // Annual leave comes off the year's balance; approving more than is left is refused.
+        if (leaveRequest.LeaveTypeId == (int)LeaveType.Annual)
+        {
+            var balance = await _support.AnnualBalanceAsync(leaveRequest.EmployeeId, leaveRequest.StartDate.Year, cancellationToken);
+            try { balance.Consume(leaveRequest.DaysRequested); }
+            catch (InvalidOperationException ex) { throw new BusinessRuleException("HRM", ex.Message); }
+        }
 
         leaveRequest.Approve();
 
@@ -238,7 +270,11 @@ public class GeneratePaySlipCommandHandler : IRequestHandler<GeneratePaySlipComm
             ps.NetSalary,
             ps.PaymentDate,
             ((Domain.Enums.PaymentStatus)ps.PaymentStatus).ToString(),
-            ps.CreatedAt);
+            ps.CreatedAt,
+            ps.BaseSalary, ps.Allowances, ps.WorkedDays, ps.StandardDays,
+            ps.EmployeeSocial, ps.EmployeeHealth, ps.EmployeeUnemployment,
+            ps.EmployerSocial, ps.EmployerHealth, ps.EmployerUnemployment,
+            ps.TaxableIncome, ps.PersonalIncomeTax, ps.DependentCount);
 }
 
 public class PayPaySlipCommandHandler : IRequestHandler<PayPaySlipCommand, PaySlipDto>
@@ -274,78 +310,5 @@ public class CancelPaySlipCommandHandler : IRequestHandler<CancelPaySlipCommand,
 
         await _uow.SaveChangesAsync(cancellationToken);
         return GeneratePaySlipCommandHandler.MapToDto(paySlip);
-    }
-}
-
-public class ProcessPayrollCommandHandler : IRequestHandler<ProcessPayrollCommand, List<PaySlipDto>>
-{
-    private readonly IHrmUnitOfWork _uow;
-    private readonly ILogger<ProcessPayrollCommandHandler> _logger;
-
-    private const decimal DefaultDeductionRate = 0.30m;
-    private const decimal DefaultGrossSalary = 5000m;
-    private const decimal StandardMonthlyHours = 160m;
-    private const decimal OvertimeRateMultiplier = 1.5m;
-
-    public ProcessPayrollCommandHandler(
-        IHrmUnitOfWork uow,
-        ILogger<ProcessPayrollCommandHandler> logger)
-    {
-        _uow = uow;
-        _logger = logger;
-    }
-
-    public async Task<List<PaySlipDto>> Handle(ProcessPayrollCommand request, CancellationToken cancellationToken)
-    {
-        var activeEmployees = await _uow.EmployeeSnapshots.GetActiveAsync(cancellationToken);
-
-        _logger.LogInformation(
-            "Processing payroll for {Year}-{Month:D2} — {Count} active employees",
-            request.Year, request.Month, activeEmployees.Count);
-
-        var results = new List<PaySlipDto>();
-
-        foreach (var employee in activeEmployees)
-        {
-            if (await _uow.PaySlips.ExistsForPeriodAsync(employee.Id, request.Year, request.Month, cancellationToken))
-            {
-                _logger.LogWarning(
-                    "Pay slip already exists for employee {EmployeeId} period {Year}-{Month:D2} — skipping.",
-                    employee.Id, request.Year, request.Month);
-                continue;
-            }
-
-            var grossSalary = DefaultGrossSalary;
-            var deductions = Math.Round(grossSalary * DefaultDeductionRate, 2);
-
-            var overtimeHours = await _uow.Attendance.GetMonthlyOvertimeHoursAsync(
-                employee.Id, request.Year, request.Month, cancellationToken);
-
-            var hourlyRate = grossSalary / StandardMonthlyHours;
-            var overtimePay = Math.Round(overtimeHours * hourlyRate * OvertimeRateMultiplier, 2);
-
-            var paySlipNumber = $"PS-{request.Year:D4}{request.Month:D2}-{Random.Shared.Next(1000, 9999):D4}";
-
-            var paySlip = PaySlip.Create(
-                paySlipNumber,
-                employee.Id,
-                request.Year,
-                request.Month,
-                grossSalary,
-                deductions,
-                overtimeHours,
-                overtimePay);
-
-            _uow.PaySlips.Add(paySlip);
-            results.Add(GeneratePaySlipCommandHandler.MapToDto(paySlip));
-        }
-
-        await _uow.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation(
-            "Payroll processed for {Year}-{Month:D2} — {Count} pay slips generated.",
-            request.Year, request.Month, results.Count);
-
-        return results;
     }
 }

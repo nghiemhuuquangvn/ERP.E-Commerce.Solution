@@ -29,7 +29,20 @@ public record PaySlipDto(
     decimal NetSalary,
     DateTime PaymentDate,
     string PaymentStatus,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    decimal BaseSalary = 0m,
+    decimal Allowances = 0m,
+    decimal WorkedDays = 0m,
+    decimal StandardDays = 0m,
+    decimal EmployeeSocial = 0m,
+    decimal EmployeeHealth = 0m,
+    decimal EmployeeUnemployment = 0m,
+    decimal EmployerSocial = 0m,
+    decimal EmployerHealth = 0m,
+    decimal EmployerUnemployment = 0m,
+    decimal TaxableIncome = 0m,
+    decimal PersonalIncomeTax = 0m,
+    int DependentCount = 0);
 
 public record AttendanceDto(
     Guid Id,

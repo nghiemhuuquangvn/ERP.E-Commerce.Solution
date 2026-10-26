@@ -36,6 +36,14 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-26 — ROADMAP P1-7: real payroll (`feat/p1-7-real-payroll`, unmerged)
+- **HRM**: `PayrollCalculator` (pure; insurance with caps, progressive PIT with personal / dependent deductions, proration, overtime); tables `EmployeeCompensations`, `Dependents`, `PayrollRateSets` + `PitBrackets` (date-effective, seeded DRAFT defaults per tenant on first use), `LeaveBalances` revived; pay slip breakdown columns. Migration **HRM 008** (add to the runner: done in `RunAllScripts.ps1`). API: `salary-profiles`, `employees/{id}/compensations|dependents`, `payroll-settings/rate-sets`, `leave-requests/balances`; `payroll/process` now returns `{created, skipped}`.
+- **Leave**: working days (Mon–Fri), annual balance checked at submit and approve.
+- **Accounting**: keys `SocialInsurancePayable` 3383, `HealthInsurancePayable` 3384, `UnemploymentInsurancePayable` 3389, `PitPayable` 3335, `EmployerInsuranceExpense` 6421 (no SQL migration: keys resolve from the chart template); `ForPaySlip` posts the split.
+- **Admin**: Salary profiles, Payroll settings (new pages), pay slip detail with pay / cancel and the skipped list, leave balance in the leave form.
+- Tests: HRM 42 (was 8), ACC 569 (was 564); `LiveSchemaDriftTests` green; `tsc -b` clean. Live on `glcheck`: hand-calculated slips (net 27,215,000 and 52,748,600) equal the system's, balanced entries with the split, pay / cancel / reversal, a rate set picked by date, leave refused over the balance. Test data removed.
+- Not done (P1-7b): DEFERRED §4q. **Rates are DRAFT: an accountant must confirm them.**
+
 ### 2026-10-26 — ROADMAP P1-5: saga completion (`feat/p1-5-saga-completion`, unmerged)
 - **Saga**: `Saga:*` options (Payment 15, Stock 10, Shipment 15 min; 3 retries; 60 s check); `SagaRecoveryHostedService` pushes a stuck step and then compensates (refund + cancel + release); approval never retried. `GET` / `POST orders/{id}/saga[/retry]`. No schema change.
 - **Shipping**: `ShipmentCreationFailed` instead of dropping the command; one shipment per order; consumer retries 5 times. **Sales** consumes `ShipmentCreationFailed`, `ShipmentFailed` (recorded), `DeliveryConfirmed` (→ Delivered, reason "Delivered (carrier confirmation)").

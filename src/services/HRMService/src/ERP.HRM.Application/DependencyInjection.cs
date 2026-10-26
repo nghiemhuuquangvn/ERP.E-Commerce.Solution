@@ -16,6 +16,7 @@ namespace ERP.HRM.Application
             services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
             services.AddScoped<EmployeeMasterDataEventHandlers>();
+            services.AddScoped<ERP.HRM.Application.Handlers.PayrollSupport>();
 
             return services;
         }

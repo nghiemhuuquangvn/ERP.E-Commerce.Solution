@@ -15,6 +15,11 @@ namespace ERP.HRM.Infrastructure.Persistence
         public DbSet<PaySlip> PaySlips { get; set; }
         public DbSet<AttendanceRecord> AttendanceRecords { get; set; }
         public DbSet<WorkShift> WorkShifts { get; set; }
+        public DbSet<EmployeeCompensation> EmployeeCompensations { get; set; }
+        public DbSet<Dependent> Dependents { get; set; }
+        public DbSet<PayrollRateSet> PayrollRateSets { get; set; }
+        public DbSet<PitBracket> PitBrackets { get; set; }
+        public DbSet<LeaveBalance> LeaveBalances { get; set; }
         public DbSet<OutboxMessage> OutboxMessages { get; set; }
 
         private readonly ITenantProvider _tenantProvider;
@@ -73,6 +78,58 @@ namespace ERP.HRM.Infrastructure.Persistence
             {
                 e.Property(x => x.OvertimeHours).HasColumnType("decimal(6,2)");
                 e.Property(x => x.OvertimePay).HasColumnType("decimal(18,2)");
+                e.Property(x => x.BaseSalary).HasColumnName("BasicSalary").HasColumnType("decimal(18,2)");
+                e.Property(x => x.Allowances).HasColumnType("decimal(18,2)");
+                e.Property(x => x.WorkedDays).HasColumnType("decimal(5,1)");
+                e.Property(x => x.StandardDays).HasColumnType("decimal(5,1)");
+                e.Property(x => x.EmployeeSocial).HasColumnName("SocialInsurance").HasColumnType("decimal(18,2)");
+                e.Property(x => x.PersonalIncomeTax).HasColumnName("TaxAmount").HasColumnType("decimal(18,2)");
+                e.Ignore(x => x.EmployerInsurance);
+                foreach (var p in new[] { nameof(PaySlip.EmployeeHealth), nameof(PaySlip.EmployeeUnemployment), nameof(PaySlip.EmployerSocial),
+                                          nameof(PaySlip.EmployerHealth), nameof(PaySlip.EmployerUnemployment), nameof(PaySlip.TaxableIncome) })
+                    e.Property(p).HasColumnType("decimal(18,2)");
+            });
+
+            modelBuilder.Entity<PayrollRateSet>(e =>
+            {
+                e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+                foreach (var p in new[] { nameof(PayrollRateSet.SocialEmployeeRate), nameof(PayrollRateSet.HealthEmployeeRate), nameof(PayrollRateSet.UnemploymentEmployeeRate),
+                                          nameof(PayrollRateSet.SocialEmployerRate), nameof(PayrollRateSet.HealthEmployerRate), nameof(PayrollRateSet.UnemploymentEmployerRate) })
+                    e.Property(p).HasColumnType("decimal(9,6)");
+                foreach (var p in new[] { nameof(PayrollRateSet.PersonalDeduction), nameof(PayrollRateSet.DependentDeduction),
+                                          nameof(PayrollRateSet.InsuranceSalaryCap), nameof(PayrollRateSet.UnemploymentSalaryCap) })
+                    e.Property(p).HasColumnType("decimal(18,2)");
+                e.Property(x => x.AnnualLeaveDays).HasColumnType("decimal(5,1)");
+                e.HasMany(x => x.Brackets).WithOne().HasForeignKey(b => b.RateSetId);
+            });
+
+            modelBuilder.Entity<PitBracket>(e =>
+            {
+                e.Property(x => x.UpTo).HasColumnType("decimal(18,2)");
+                e.Property(x => x.Rate).HasColumnType("decimal(9,6)");
+            });
+
+            modelBuilder.Entity<EmployeeCompensation>(e =>
+            {
+                foreach (var p in new[] { nameof(EmployeeCompensation.BaseSalary), nameof(EmployeeCompensation.TaxableAllowance), nameof(EmployeeCompensation.ExemptAllowance) })
+                    e.Property(p).HasColumnType("decimal(18,2)");
+                e.Property(x => x.InsuranceSalary).HasColumnType("decimal(18,2)");
+                e.Property(x => x.TaxCode).HasMaxLength(20);
+                e.Property(x => x.InsuranceNumber).HasMaxLength(20);
+            });
+
+            modelBuilder.Entity<Dependent>(e =>
+            {
+                e.Property(x => x.FullName).IsRequired().HasMaxLength(200);
+                e.Property(x => x.Relationship).IsRequired().HasMaxLength(50);
+                e.Property(x => x.TaxCode).HasMaxLength(20);
+            });
+
+            modelBuilder.Entity<LeaveBalance>(e =>
+            {
+                e.Property(x => x.TotalDays).HasColumnType("decimal(5,1)");
+                e.Property(x => x.UsedDays).HasColumnType("decimal(5,1)");
+                e.Ignore(x => x.RemainingDays);
             });
 
             // Last, so it composes with any per-entity filter configured above.
