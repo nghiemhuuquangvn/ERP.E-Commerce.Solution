@@ -36,6 +36,15 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-26 — ROADMAP P1-5: saga completion (`feat/p1-5-saga-completion`, unmerged)
+- **Saga**: `Saga:*` options (Payment 15, Stock 10, Shipment 15 min; 3 retries; 60 s check); `SagaRecoveryHostedService` pushes a stuck step and then compensates (refund + cancel + release); approval never retried. `GET` / `POST orders/{id}/saga[/retry]`. No schema change.
+- **Shipping**: `ShipmentCreationFailed` instead of dropping the command; one shipment per order; consumer retries 5 times. **Sales** consumes `ShipmentCreationFailed`, `ShipmentFailed` (recorded), `DeliveryConfirmed` (→ Delivered, reason "Delivered (carrier confirmation)").
+- **Returns**: `SalesOrderReturned` lists the shipped lines; **Warehouse** restocks at the issue cost (movement `Returned` = 5, lot `RET-…`), **Accounting** books Dr Inventory / Cr COGS, **Payment** refunds once per return. Warehouse / Payment consumers use the 5-attempt model.
+- **Found and fixed in the live check**: Warehouse never read Sales' cancelled / shipped events (required `CorrelationId` Sales does not send): reservations of cancelled orders were never released and shipped stock never issued.
+- **Admin**: *Order processing* card on the order page (steps, waiting time, retries, error, retry button).
+- Tests: SO 33, SHP 9, WH 22, PAY 12, ACC 564; Architecture 53/54 (known `NoSharedTokenKeyTests`); `tsc -b` clean. Live on `glcheck`: no carrier → saga Failed, order Cancelled, payment Refunded, reservation released; with a carrier → saga Completed, ship, carrier confirms → Delivered, return → stock 8 → 10 at cost 50, refund 200,000, Dr 1561 / Cr 632 100; unpaid order → retried, manual retry, timed out → Cancelled; approval not retried. Test data removed, October closed again, saga test timeouts removed (service rebuilt with defaults).
+- Not done (P1-5b): DEFERRED §4p.
+
 ### 2026-10-26 — ROADMAP P1-4: foreign currency and line-level bank reconciliation (`feat/p1-4-fx-bank-reconciliation`, unmerged)
 - **Foreign currency**: invoices / bills carry currency, rate and foreign gross (base currency per tenant, default VND, in *Settings → Tax*); the rate is typed and can be suggested from MasterData (new `internal/v1/exchange-rates/effective` route, service token Accounting → MasterData; compose and k8s `ServiceAuth` settings added). *Mark as paid* takes the payment rate and posts the realized gain / loss (keys FxGain / FxLoss).
 - **Period-end revaluation** (`accounting/fx/revaluation`, preview + post, panel on *Fiscal periods*): unrealized difference of open foreign receivables / payables at the closing rates, dated the last day and reversed the next day.

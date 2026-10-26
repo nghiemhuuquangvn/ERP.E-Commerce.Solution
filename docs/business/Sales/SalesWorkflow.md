@@ -146,3 +146,5 @@ tiếp tục hoạt động theo choreography độc lập như trước — kh�
 - Consumer cho `SalesOrderPartiallyShippedEvent`/`SalesOrderDeliveredEvent`/
   `SalesOrderReturnedEvent` ở các service liên quan vẫn chưa có.
 - Hạn mức tín dụng khách hàng trước khi Approve — vẫn chưa có.
+
+> **P1-5 (2026-10-26):** timeouts, retries, compensation of a failed shipment, `DeliveryConfirmed` and returns are described in [OrderProcessing.md](OrderProcessing.md).

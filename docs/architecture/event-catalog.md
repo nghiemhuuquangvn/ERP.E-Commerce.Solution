@@ -509,7 +509,7 @@ refund/reverse the journal entry, but no consumer for it has been confirmed
 yet (see `docs/business/Sales/SalesWorkflow.md`).
 
 **Publisher:** Sales Service  
-**Subscribers:** **AccountingService** since 2026-10-24 (credit note: Dr Sales returns / Cr Receivables). Not yet: Payment (refund), Warehouse (restock) — ROADMAP P1-5.
+**Subscribers:** **AccountingService** since 2026-10-24 (credit note: Dr Sales returns / Cr Receivables); **WarehouseService** since 2026-10-26 (restock of the shipped `Lines` at the order's issue cost, movement `Returned`); **PaymentService** since 2026-10-26 (refund of `min(RefundAmount, refundable)` through the gateway). ROADMAP P1-5.
 
 **Event Structure (actual code):**
 ```csharp
@@ -520,11 +520,28 @@ public class SalesOrderReturnedEvent
     public string Reason { get; set; }
     public decimal RefundAmount { get; set; }
     public DateTime ReturnedAt { get; set; }
+    public List<ReturnedLine> Lines { get; set; }   // ProductId, Quantity of every shipped line (P1-5)
 }
 ```
 
 **Routing:** RabbitMQ  
 **Delivery:** Guaranteed
+
+---
+
+### ShipmentCreationFailedEvent (ShippingService, added 2026-10-26, ROADMAP P1-5)
+
+**Description:** the shipment the order saga asked for cannot be created: no delivery address, no active carrier, or a technical failure that survived 5 attempts. Staged straight into the outbox (no aggregate raises it).
+**Publisher:** Shipping (`shipping-topic`). **Subscribers:** SaleOrderService (`ShippingKafkaConsumer`) — compensates the order (refund if paid, cancel, release the reservation).
+**Structure:** `OrderId`, `Reason`, `TenantId`.
+
+### DeliveryConfirmedEvent / ShipmentFailedEvent (ShippingService, consumed since 2026-10-26)
+
+`DeliveryConfirmedEvent(ShipmentId, OrderId, DeliveredAt)` → Sales marks a Shipped order Delivered ("Delivered (carrier confirmation)"). `ShipmentFailedEvent(ShipmentId, OrderId, Reason, DeliveryAttempts)` → Sales records it on the saga (order card); the order is not cancelled. Both on `shipping-topic`.
+
+### StockMovementRecordedEvent — new type `Returned` (WarehouseService, 2026-10-26)
+
+Raised when a returned order is restocked: `MovementType = "Returned"`, positive `ValueDelta` (quantity × the cost the goods were issued at), `SourceOrderId` = the order. AccountingService posts Dr Inventory / Cr Cost of goods sold.
 
 ---
 
