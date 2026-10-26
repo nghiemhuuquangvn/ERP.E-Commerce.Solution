@@ -17,6 +17,12 @@ public class SendNotificationCommand : IRequest<NotificationDto>
     public string? TemplateCode { get; set; }
     public Dictionary<string, string>? TemplateVariables { get; set; }
     public DateTime? ScheduledFor { get; set; }
+
+    /// <summary>Set by event handlers: the same key is sent once (a redelivered event is a no-op).</summary>
+    public string? DedupKey { get; set; }
+
+    /// <summary>Event handlers: a recipient who turned the channel off is skipped quietly instead of failing the message (and being retried).</summary>
+    public bool SkipWhenOptedOut { get; set; }
 }
 
 public class CreateTemplateCommand : IRequest<NotificationTemplateDto>

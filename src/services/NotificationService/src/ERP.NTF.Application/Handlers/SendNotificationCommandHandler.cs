@@ -38,20 +38,37 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
 
     public async Task<NotificationDto> Handle(SendNotificationCommand request, CancellationToken cancellationToken)
     {
-        var preference = await _preferences.GetByUserIdAsync(Guid.Parse(request.RecipientId), cancellationToken);
+        // A redelivered business event must not send twice: the same key is answered with the notification already made.
+        if (!string.IsNullOrEmpty(request.DedupKey))
+        {
+            var existing = await _notifications.GetByDedupKeyAsync(request.DedupKey, cancellationToken);
+            if (existing != null) return MapToDto(existing);
+        }
+
+        // RecipientId is a user id for account notifications; for others (a customer id, an order id) there is no preference to read.
+        var preference = Guid.TryParse(request.RecipientId, out var recipientUserId)
+            ? await _preferences.GetByUserIdAsync(recipientUserId, cancellationToken)
+            : null;
         if (preference != null && !preference.IsChannelEnabled(request.Channel))
+        {
+            if (request.SkipWhenOptedOut)
+                return new NotificationDto { RecipientId = request.RecipientId, Channel = request.Channel.ToString(), Status = "Skipped", Subject = request.Subject, Body = request.Body };
             throw new InvalidOperationException($"Recipient has disabled {request.Channel} notifications.");
+        }
 
         var subject = request.Subject;
         var body = request.Body;
+        Guid? templateId = null;
 
         if (!string.IsNullOrEmpty(request.TemplateCode))
         {
             var template = await _templates.GetByCodeAsync(request.TemplateCode, cancellationToken)
                 ?? throw new InvalidOperationException($"Template '{request.TemplateCode}' not found.");
 
-            subject = template.Subject;
-            body = template.Render(request.TemplateVariables ?? new());
+            var variables = request.TemplateVariables ?? new();
+            subject = template.RenderSubject(variables);
+            body = template.Render(variables);
+            templateId = template.Id;
         }
 
         var notification = Notification.Create(
@@ -61,10 +78,11 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
             subject,
             body,
             request.Priority,
-            null,
+            templateId,
             request.RecipientPhone,
             request.RecipientDeviceToken,
-            request.ScheduledFor);
+            request.ScheduledFor,
+            request.DedupKey);
 
         await _notifications.AddAsync(notification, cancellationToken);
 
@@ -179,11 +197,11 @@ public class BulkSendNotificationCommandHandler : IRequestHandler<BulkSendNotifi
 
             if (template != null)
             {
-                subject = template.Subject;
                 var vars = new Dictionary<string, string>(request.SharedVariables ?? new());
                 if (recipient.Variables != null)
                     foreach (var kv in recipient.Variables)
                         vars[kv.Key] = kv.Value;
+                subject = template.RenderSubject(vars);
                 body = template.Render(vars);
             }
 

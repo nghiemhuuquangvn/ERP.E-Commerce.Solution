@@ -11,6 +11,7 @@ public interface INotificationRepository
     Task<List<Notification>> GetFailedForRetryAsync(CancellationToken ct = default);
     /// <summary>Tenants with queued or retryable notifications — across tenants, for the dispatch job.</summary>
     Task<List<Guid>> GetTenantsWithWorkAsync(CancellationToken ct = default);
+    Task<Notification?> GetByDedupKeyAsync(string dedupKey, CancellationToken ct = default);
     Task AddAsync(Notification notification, CancellationToken ct = default);
     Task AddRangeAsync(IEnumerable<Notification> notifications, CancellationToken ct = default);
     Task UpdateAsync(Notification notification, CancellationToken ct = default);
@@ -42,4 +43,13 @@ public interface IPreferenceRepository
     Task<NotificationPreference?> GetByUserIdAsync(Guid userId, CancellationToken ct = default);
     Task AddAsync(NotificationPreference preference, CancellationToken ct = default);
     Task UpdateAsync(NotificationPreference preference, CancellationToken ct = default);
+}
+
+/// <summary>Local projections of who to notify (ROADMAP P1-6): the customer of an order, and an account's contact.</summary>
+public interface IRecipientRepository
+{
+    Task<OrderRecipient?> GetOrderRecipientAsync(Guid orderId, CancellationToken ct = default);
+    Task SaveOrderRecipientAsync(OrderRecipient recipient, CancellationToken ct = default);
+    Task<UserContact?> GetUserContactAsync(Guid userId, CancellationToken ct = default);
+    Task SaveUserContactAsync(UserContact contact, CancellationToken ct = default);
 }

@@ -39,6 +39,8 @@ builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
 builder.Services.AddScoped<IPreferenceRepository, PreferenceRepository>();
 builder.Services.AddScoped<IWebhookRepository, WebhookRepository>();
+builder.Services.AddScoped<IRecipientRepository, RecipientRepository>();
+builder.Services.AddScoped<ERP.NTF.Application.EventHandlers.OrderNotifier>();
 
 // Notification/Email/SMS Settings (System/Tenant two-tier) — storage+CRUD only for now
 builder.Services.AddScoped<ISecretProtector, AesSecretProtector>();
