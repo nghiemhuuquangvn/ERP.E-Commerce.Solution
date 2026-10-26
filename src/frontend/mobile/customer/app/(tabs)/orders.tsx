@@ -5,13 +5,14 @@ import { useTranslation } from 'react-i18next'
 import { apiClient } from '@/api/client'
 import { format } from 'date-fns'
 
+// SalesOrderDto: orderId / orderNo / lineItems.
 interface Order {
-  id: string
-  orderNumber: string
+  orderId: string
+  orderNo: string
   status: string
   totalAmount: number
   orderDate: string
-  lines: Array<{ productName: string; quantity: number }>
+  lineItems: Array<{ productName: string; quantity: number }>
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -47,17 +48,17 @@ export default function OrdersScreen() {
       ) : (
         <FlatList
           data={data ?? []}
-          keyExtractor={(o) => o.id}
+          keyExtractor={(o) => o.orderId}
           contentContainerClassName="p-4 gap-3"
           renderItem={({ item }) => {
             const colorClass = STATUS_COLOR[item.status] ?? 'bg-gray-100 text-gray-600'
             return (
               <TouchableOpacity
                 className="rounded-xl border border-gray-100 p-4 bg-gray-50"
-                onPress={() => router.push(`/order/${item.id}`)}
+                onPress={() => router.push(`/order/${item.orderId}`)}
               >
                 <View className="flex-row justify-between items-start mb-2">
-                  <Text className="font-semibold text-gray-800">{item.orderNumber}</Text>
+                  <Text className="font-semibold text-gray-800">{item.orderNo}</Text>
                   <View className={`rounded-full px-2.5 py-0.5 ${colorClass}`}>
                     <Text className="text-xs font-medium">{item.status}</Text>
                   </View>
@@ -66,7 +67,7 @@ export default function OrdersScreen() {
                   {format(new Date(item.orderDate), 'dd MMM yyyy')}
                 </Text>
                 <Text className="text-sm text-gray-600 mb-2">
-                  {item.lines.map((l) => `${l.productName} ×${l.quantity}`).join(', ')}
+                  {item.lineItems.map((l) => `${l.productName} ×${l.quantity}`).join(', ')}
                 </Text>
                 <Text className="font-bold text-brand-500">{fmt(item.totalAmount)}</Text>
               </TouchableOpacity>

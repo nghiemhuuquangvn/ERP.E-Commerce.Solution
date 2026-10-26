@@ -30,7 +30,34 @@
     "subtotal": "Tạm tính",
     "total": "Tổng cộng",
     "placingOrder": "Đang đặt hàng…",
-    "placeOrder": "Đặt hàng"
+    "placeOrder": "Đặt hàng",
+    "paymentMethod": "Thanh toán bằng",
+    "methods": {
+      "COD": "Khi nhận hàng (COD)",
+      "VNPay": "VNPay",
+      "MoMo": "MoMo",
+      "ZaloPay": "ZaloPay"
+    }
+  },
+  "order": {
+    "notFound": "Không tìm thấy đơn hàng.",
+    "payment": "Thanh toán",
+    "payOnDelivery": "Bạn sẽ trả tiền cho người giao hàng khi nhận hàng.",
+    "preparing": "Đang chuẩn bị thanh toán…",
+    "payNow": "Thanh toán ngay",
+    "opening": "Đang mở…",
+    "startFailed": "Không kết nối được với cổng thanh toán. Vui lòng thử lại.",
+    "failedDetail": "Thanh toán không thành công nên đơn hàng đã bị hủy.",
+    "viewOrders": "Xem đơn hàng của tôi",
+    "status": {
+      "Pending": "đang chờ thanh toán",
+      "Authorized": "đang được xác nhận",
+      "Captured": "đã thanh toán",
+      "Failed": "không thành công",
+      "Cancelled": "đã hủy",
+      "Refunded": "đã hoàn tiền",
+      "PartiallyRefunded": "đã hoàn một phần"
+    }
   },
   "orders": {
     "loading": "Đang tải đơn hàng…",
