@@ -439,6 +439,10 @@ const PURCHASING_CHILDREN: NavItem[] = [
     permission: 'purchase_request:view',
     icon: '🔔',
   },
+  { labelKey: 'nav.rfqs', path: '/purchasing/rfqs', permission: 'rfq:read', icon: '📨' },
+  { labelKey: 'nav.supplierInvoices', path: '/purchasing/supplier-invoices', permission: 'supplier_invoice:read', icon: '🧮' },
+  { labelKey: 'nav.vendorReturns', path: '/purchasing/vendor-returns', permission: 'vendor_return:read', icon: '↩️' },
+  { labelKey: 'nav.purchasingSettings', path: '/purchasing/settings', permission: 'supplier_invoice:read', icon: '⚖️' },
 ]
 
 const NAV_ITEMS: NavItem[] = [

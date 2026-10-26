@@ -10,6 +10,9 @@ import { OrderDetailPage } from '@/pages/orders/OrderDetailPage'
 import { OrderFormPage } from '@/pages/orders/OrderFormPage'
 import { PurchaseOrderListPage } from '@/pages/orders/PurchaseOrderListPage'
 import { PurchaseOrderDetailPage } from '@/pages/orders/PurchaseOrderDetailPage'
+import { RfqListPage, RfqDetailPage } from '@/pages/purchasing/RfqPages'
+import { SupplierInvoiceListPage, SupplierInvoiceDetailPage, PurchasingSettingsPage } from '@/pages/purchasing/SupplierInvoicePages'
+import { VendorReturnListPage } from '@/pages/purchasing/VendorReturnPages'
 import { PurchaseOrderFormPage } from '@/pages/orders/PurchaseOrderFormPage'
 import { QuotationListPage } from '@/pages/sales/QuotationListPage'
 import { QuotationFormPage } from '@/pages/sales/QuotationFormPage'
@@ -158,6 +161,12 @@ export const router = createBrowserRouter([
       { path: 'purchasing/suppliers/new', element: <SupplierFormPage /> },
       { path: 'purchasing/suppliers/:id', element: <SupplierFormPage /> },
       { path: 'purchasing/requests', element: <PurchaseRequestsPage /> },
+      { path: 'purchasing/rfqs', element: <RfqListPage /> },
+      { path: 'purchasing/rfqs/:id', element: <RfqDetailPage /> },
+      { path: 'purchasing/supplier-invoices', element: <SupplierInvoiceListPage /> },
+      { path: 'purchasing/supplier-invoices/:id', element: <SupplierInvoiceDetailPage /> },
+      { path: 'purchasing/vendor-returns', element: <VendorReturnListPage /> },
+      { path: 'purchasing/settings', element: <PurchasingSettingsPage /> },
       { path: 'inventory', element: <InventoryListPage /> },
       { path: 'inventory/locations', element: <LocationsPage /> },
       { path: 'inventory/warehouses', element: <WarehousesPage /> },
