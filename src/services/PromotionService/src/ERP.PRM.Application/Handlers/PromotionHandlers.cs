@@ -159,6 +159,26 @@ public class RedeemCouponCommandHandler : IRequestHandler<RedeemCouponCommand, C
 
 // ── Loyalty ────────────────────────────────────────────────────────────────────
 
+public class ReverseLoyaltyPointsCommandHandler : IRequestHandler<ReverseLoyaltyPointsCommand, int>
+{
+    private readonly IPromotionUnitOfWork _uow;
+    public ReverseLoyaltyPointsCommandHandler(IPromotionUnitOfWork uow) => _uow = uow;
+
+    public async Task<int> Handle(ReverseLoyaltyPointsCommand request, CancellationToken cancellationToken)
+    {
+        var account = await _uow.LoyaltyAccounts.GetByUserIdAsync(request.UserId, cancellationToken);
+        if (account == null) return 0;
+
+        var reversed = account.ReversePoints(request.Reason);
+        if (reversed > 0)
+        {
+            await _uow.LoyaltyAccounts.UpdateAsync(account, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
+        }
+        return reversed;
+    }
+}
+
 public class EarnLoyaltyPointsCommandHandler : IRequestHandler<EarnLoyaltyPointsCommand, LoyaltyAccountDto>
 {
     private readonly IPromotionUnitOfWork _uow;
@@ -167,6 +187,11 @@ public class EarnLoyaltyPointsCommandHandler : IRequestHandler<EarnLoyaltyPoints
     public async Task<LoyaltyAccountDto> Handle(EarnLoyaltyPointsCommand request, CancellationToken cancellationToken)
     {
         var account = await _uow.LoyaltyAccounts.GetByUserIdAsync(request.UserId, cancellationToken);
+
+        // The same business fact (an order) earns once: a redelivered event changes nothing.
+        if (account != null && account.HasEarned(request.Reason))
+            return MapLoyaltyDto(account);
+
         if (account == null)
         {
             account = LoyaltyAccount.Create(request.UserId);

@@ -24,6 +24,19 @@ public class LoyaltyTransaction : BaseEntity
             CreatedAt = DateTime.UtcNow
         };
 
+    /// <summary>Points taken back because the order they were earned for was cancelled or returned (ROADMAP P1-6).</summary>
+    public static LoyaltyTransaction CreateReverse(Guid accountId, Guid userId, int points, string reason) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            UserId = userId,
+            Points = -points,
+            Reason = reason,
+            TransactionType = "Reverse",
+            CreatedAt = DateTime.UtcNow
+        };
+
     public static LoyaltyTransaction CreateRedeem(Guid accountId, Guid userId, int points) =>
         new()
         {

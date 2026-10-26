@@ -26,6 +26,7 @@ public class NotificationKafkaConsumer : IHostedService
     private const string MstTopic = "mst-topic";
     private const string PurchasingTopic = "purchasing-topic";
     private const string HrmTopic = "hrm-topic";
+    private const string PromotionTopic = "promotion-topic";
 
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<NotificationKafkaConsumer> _logger;
@@ -55,7 +56,7 @@ public class NotificationKafkaConsumer : IHostedService
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _consumer.Subscribe(new[] { PaymentTopic, ShippingTopic, MstTopic, PurchasingTopic, HrmTopic });
+        _consumer.Subscribe(new[] { PaymentTopic, ShippingTopic, MstTopic, PurchasingTopic, HrmTopic, PromotionTopic });
         _executingTask = Task.Run(() => ExecuteAsync(_cts.Token), CancellationToken.None);
         return Task.CompletedTask;
     }
@@ -155,6 +156,34 @@ public class NotificationKafkaConsumer : IHostedService
                 Currency = raw.Value<string>("Currency") ?? "VND"
             };
             if (evt.PaymentId != Guid.Empty)
+                await mediator.Publish(evt, cancellationToken);
+        }
+        else if (typeName.Contains("LoyaltyPointsEarnedEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new LoyaltyPointsEarnedIntegrationEvent
+            {
+                AccountId = GuidOrEmpty(raw, "AccountId"),
+                UserId = GuidOrEmpty(raw, "UserId"),
+                PointsEarned = raw.Value<int?>("PointsEarned") ?? 0,
+                TotalAvailable = raw.Value<int?>("TotalAvailable") ?? 0,
+                Reason = raw.Value<string>("Reason") ?? string.Empty
+            };
+            if (evt.UserId != Guid.Empty && evt.PointsEarned > 0)
+                await mediator.Publish(evt, cancellationToken);
+        }
+        else if (typeName.Contains("CouponRedeemedEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new CouponRedeemedIntegrationEvent
+            {
+                CouponId = GuidOrEmpty(raw, "CouponId"),
+                Code = raw.Value<string>("Code") ?? string.Empty,
+                UserId = GuidOrEmpty(raw, "UserId"), // a string on the wire: not a user id (e.g. a guest) is skipped
+                DiscountAmount = raw.Value<decimal?>("DiscountAmount") ?? 0m,
+                OccurredOn = raw.Value<DateTime?>("OccurredOn") ?? DateTime.UtcNow
+            };
+            if (evt.UserId != Guid.Empty && evt.CouponId != Guid.Empty)
                 await mediator.Publish(evt, cancellationToken);
         }
         else if (typeName.Contains("PaymentFailedEvent"))

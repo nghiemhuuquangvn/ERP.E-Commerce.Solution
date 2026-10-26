@@ -57,6 +57,33 @@ public class LoyaltyAccount : AggregateRoot
         AddDomainEvent(new LoyaltyPointsEarnedEvent(Id, UserId, points, AvailablePoints, reason));
     }
 
+    /// <summary>Whether points were already earned for this reason (e.g. "SalesOrder:id"): the same fact earns once.</summary>
+    public bool HasEarned(string reason) => _transactions.Any(x => x.TransactionType == "Earn" && x.Reason == reason);
+
+    public int EarnedFor(string reason) => _transactions.Where(x => x.TransactionType == "Earn" && x.Reason == reason).Sum(x => x.Points);
+
+    public bool HasReversed(string reason) => _transactions.Any(x => x.TransactionType == "Reverse" && x.Reason == ReversalReason(reason));
+
+    public static string ReversalReason(string reason) => "Reversal of " + reason;
+
+    /// <summary>
+    /// Takes back the points earned for <paramref name="reason"/> (the order was cancelled or returned). Points already spent cannot go
+    /// below zero: the available balance is cut by at most what is left. The lifetime total and the tier follow.
+    /// </summary>
+    public int ReversePoints(string reason)
+    {
+        if (HasReversed(reason)) return 0;
+        var earned = EarnedFor(reason);
+        if (earned <= 0) return 0;
+
+        TotalPoints = Math.Max(0, TotalPoints - earned);
+        AvailablePoints = Math.Max(0, AvailablePoints - earned);
+        UpdateTier();
+        UpdatedAt = DateTime.UtcNow;
+        _transactions.Add(LoyaltyTransaction.CreateReverse(Id, UserId, earned, ReversalReason(reason)));
+        return earned;
+    }
+
     public void RedeemPoints(int points)
     {
         if (points <= 0) throw new InvalidOperationException("Points must be positive.");

@@ -8,6 +8,7 @@ namespace ERP.PRM.Application.EventHandlers;
 // Integration event contracts
 public record ProductCreatedIntegrationEvent(Guid ProductId, string Name, string Category, decimal Price);
 public record SalesOrderCreatedIntegrationEvent(Guid OrderId, Guid CustomerId, decimal TotalAmount, List<OrderLineDto> Lines);
+public record SalesOrderReversedIntegrationEvent(Guid OrderId, Guid CustomerId);
 public record TransactionCreatedIntegrationEvent(Guid TransactionId, Guid CashierId, decimal TotalAmount);
 
 public record OrderLineDto(Guid ProductId, int Quantity, decimal UnitPrice);
@@ -37,6 +38,33 @@ public class SalesOrderCreatedForPromotionHandler
             Points = (int)Math.Floor(@event.TotalAmount),
             Reason = $"SalesOrder:{@event.OrderId}"
         }, ct);
+    }
+}
+
+/// <summary>
+/// Handles SalesOrderCancelled and SalesOrderReturned: the points earned when the order was placed are taken back (ROADMAP P1-6).
+/// </summary>
+public class SalesOrderReversedForPromotionHandler
+{
+    private readonly IMediator _mediator;
+    private readonly ILogger<SalesOrderReversedForPromotionHandler> _logger;
+
+    public SalesOrderReversedForPromotionHandler(IMediator mediator, ILogger<SalesOrderReversedForPromotionHandler> logger)
+    {
+        _mediator = mediator;
+        _logger = logger;
+    }
+
+    public async Task HandleAsync(SalesOrderReversedIntegrationEvent @event, CancellationToken ct = default)
+    {
+        var reversed = await _mediator.Send(new ReverseLoyaltyPointsCommand
+        {
+            UserId = @event.CustomerId,
+            Reason = $"SalesOrder:{@event.OrderId}"
+        }, ct);
+
+        _logger.LogInformation("[PROMOTION] Order {OrderId} cancelled / returned: {Points} loyalty points taken back from {CustomerId}",
+            @event.OrderId, reversed, @event.CustomerId);
     }
 }
 
