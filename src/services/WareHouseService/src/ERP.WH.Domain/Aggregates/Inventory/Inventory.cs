@@ -14,6 +14,13 @@ public class Inventory : ITenantOwned
     public int AvailableQuantity => TotalQuantity - ReservedQuantity - LockedQuantity;
     public int ReorderPoint { get; private set; }
     public int ReorderQuantity { get; private set; }
+    /// <summary>Replenishment policy: order when available stock (plus goods on order) is at or below MinStock, up to MaxStock. ReorderPoint mirrors MinStock for older readers.</summary>
+    public int MinStock { get; private set; }
+    public int MaxStock { get; private set; }
+    /// <summary>Part of MinStock kept for demand and delivery surprises; shown to the buyer, never ordered separately.</summary>
+    public int SafetyStock { get; private set; }
+    /// <summary>When a low-stock alert was last sent; null while stock is above MinStock, so a movement does not repeat the alert.</summary>
+    public DateTime? LowStockAlertedAt { get; private set; }
     public decimal Cost { get; private set; }
     public Guid? LocationId { get; private set; }
     public ValuationMethod ValuationMethod { get; private set; }
@@ -30,6 +37,8 @@ public class Inventory : ITenantOwned
         LockedQuantity = 0;
         ReorderPoint = reorderPoint;
         ReorderQuantity = reorderQuantity;
+        MinStock = reorderPoint;
+        MaxStock = reorderPoint + reorderQuantity;
         Cost = 0;
         ValuationMethod = ValuationMethod.FIFO;
         LastMovementDate = DateTime.UtcNow;
@@ -62,10 +71,21 @@ public class Inventory : ITenantOwned
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void SetReorderLevels(int reorderPoint, int reorderQuantity)
+    public void SetReorderLevels(int reorderPoint, int reorderQuantity) =>
+        SetStockPolicy(reorderPoint, reorderPoint + reorderQuantity, Math.Min(SafetyStock, reorderPoint));
+
+    /// <summary>0 ≤ safety ≤ min &lt; max. ReorderPoint / ReorderQuantity follow, so every older reader sees the same numbers.</summary>
+    public void SetStockPolicy(int minStock, int maxStock, int safetyStock)
     {
-        ReorderPoint = reorderPoint;
-        ReorderQuantity = reorderQuantity;
+        if (safetyStock < 0) throw new ArgumentOutOfRangeException(nameof(safetyStock), "Safety stock cannot be negative.");
+        if (minStock < safetyStock) throw new ArgumentOutOfRangeException(nameof(minStock), "Minimum stock cannot be below the safety stock.");
+        if (maxStock <= minStock) throw new ArgumentOutOfRangeException(nameof(maxStock), "Maximum stock must be above the minimum.");
+
+        MinStock = minStock;
+        MaxStock = maxStock;
+        SafetyStock = safetyStock;
+        ReorderPoint = minStock;
+        ReorderQuantity = maxStock - minStock;
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -119,5 +139,37 @@ public class Inventory : ITenantOwned
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public bool IsLowStock() => TotalQuantity <= ReorderPoint;
+    /// <summary>Available (not total) stock: goods reserved for customers cannot be sold again.</summary>
+    public bool IsLowStock() => AvailableQuantity <= MinStock;
+
+    /// <summary>
+    /// The alert to send after a stock change, or null. One alert per time below the minimum: the mark is set when the alert is
+    /// returned and cleared once stock is back above the minimum. <paramref name="repeatAfter"/> lets the daily scan send it again.
+    /// </summary>
+    public ERP.WH.Domain.Events.StockAlertEvent? EvaluateLowStockAlert(DateTime now, TimeSpan? repeatAfter = null)
+    {
+        if (!IsLowStock())
+        {
+            LowStockAlertedAt = null;
+            return null;
+        }
+
+        if (LowStockAlertedAt != null && (repeatAfter == null || now - LowStockAlertedAt < repeatAfter)) return null;
+
+        LowStockAlertedAt = now;
+        return new ERP.WH.Domain.Events.StockAlertEvent
+        {
+            ProductId = ProductId,
+            ProductName = ProductName,
+            ProductSku = ProductSku,
+            CurrentQuantity = TotalQuantity,
+            AvailableQuantity = AvailableQuantity,
+            ReorderPoint = ReorderPoint,
+            ReorderQuantity = ReorderQuantity,
+            MinStock = MinStock,
+            MaxStock = MaxStock,
+            SafetyStock = SafetyStock,
+            EventCreatedAt = now
+        };
+    }
 }

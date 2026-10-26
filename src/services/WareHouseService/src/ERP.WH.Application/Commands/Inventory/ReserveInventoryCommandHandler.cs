@@ -212,6 +212,8 @@ public interface IInventoryRepository
     Task UpdateAsync(InventoryEntity inventory, CancellationToken cancellationToken);
     Task AddAsync(InventoryEntity inventory, CancellationToken cancellationToken);
     Task<List<InventoryEntity>> GetAllAsync(CancellationToken cancellationToken);
+    /// <summary>Tenants that have stock rows — across tenants, for the replenishment scan.</summary>
+    Task<List<Guid>> GetTenantsWithInventoryAsync(CancellationToken cancellationToken);
 }
 
 public interface IReservationRepository

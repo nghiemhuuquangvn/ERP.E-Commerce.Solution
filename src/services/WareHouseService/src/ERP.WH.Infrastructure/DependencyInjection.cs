@@ -43,6 +43,7 @@ public static class DependencyInjection
         services.AddScoped<IEventPublisher, EventPublisher>();
         services.AddScoped<IEventOutboxWriter, WarehouseEventOutboxWriter>();
         services.AddScoped<IReservationFulfillmentService, ReservationFulfillmentService>();
+        services.AddScoped<IReplenishmentScanService, ReplenishmentScanService>();
 
         // Inventory Settings (System/Tenant two-tier) — storage+CRUD only for now
         services.AddScoped<IInventorySettingsService, Services.InventorySettingsService>();
@@ -106,6 +107,9 @@ public static class DependencyInjection
         // Sweeps Reservations past HoldUntil and auto-releases them — previously
         // Reservation.HoldUntil/IsExpired()/Expire() were unused dead code.
         services.AddHostedService<ReservationExpiryProcessor>();
+
+        // Daily low-stock scan (P1-9): repeats the alert of products still below their minimum.
+        services.AddHostedService<ReplenishmentScanJob>();
 
         return services;
     }

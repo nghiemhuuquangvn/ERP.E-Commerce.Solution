@@ -37,4 +37,13 @@ public class InventoryRepository : IInventoryRepository
     {
         return await _context.Inventories.ToListAsync(cancellationToken);
     }
+
+    public async Task<List<Guid>> GetTenantsWithInventoryAsync(CancellationToken cancellationToken)
+    {
+        return await _context.Inventories
+            .IgnoreQueryFilters() // background job: finds work in every tenant, then runs per tenant
+            .Select(i => i.TenantId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+    }
 }

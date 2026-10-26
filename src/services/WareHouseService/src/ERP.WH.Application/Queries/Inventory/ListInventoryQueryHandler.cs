@@ -31,6 +31,10 @@ public class ListInventoryQueryHandler : IRequestHandler<ListInventoryQuery, Lis
             TotalQuantity = i.TotalQuantity,
             AvailableQuantity = i.AvailableQuantity,
             ReorderPoint = i.ReorderPoint,
+            MinStock = i.MinStock,
+            MaxStock = i.MaxStock,
+            SafetyStock = i.SafetyStock,
+            ProductSku = i.ProductSku,
             Status = i.IsLowStock() ? "Low Stock" : "OK"
         }).ToList();
 
