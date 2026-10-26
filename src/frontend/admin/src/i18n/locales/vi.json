@@ -218,6 +218,31 @@
       "ReturnRequested": "Yêu cầu trả hàng",
       "Returned": "Đã trả hàng"
     },
+    "saga": {
+      "title": "Tiến trình xử lý đơn",
+      "status": {
+        "Running": "Đang xử lý",
+        "Completed": "Hoàn tất",
+        "Compensating": "Đang hủy",
+        "Failed": "Đã dừng",
+        "": ""
+      },
+      "step": {
+        "Payment": "Thanh toán",
+        "Inventory": "Giữ hàng",
+        "Approval": "Duyệt đơn",
+        "Shipping": "Vận đơn",
+        "Done": "Hoàn tất"
+      },
+      "waitingSince": "Đang chờ bước “{{step}}” {{time}} (hệ thống tự đẩy lại sau {{limit}} phút).",
+      "waitingForPerson": "Đang chờ người có quyền duyệt đơn.",
+      "stuck": "lâu hơn dự kiến",
+      "retries": "Đã đẩy lại {{count}}/{{max}} lần.",
+      "retry": "Thử lại bước này ngay",
+      "retryFailed": "Không thử lại được bước này.",
+      "cancelledAutomatically": "Đơn đã bị hủy tự động; khoản đã thanh toán (nếu có) đang được hoàn lại.",
+      "completedAt": "Xử lý xong lúc {{date}}."
+    },
     "statusActions": {
       "title": "Hành động trạng thái",
       "submit": "Gửi duyệt",

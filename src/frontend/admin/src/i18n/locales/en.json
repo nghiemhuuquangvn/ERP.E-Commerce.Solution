@@ -218,6 +218,31 @@
       "ReturnRequested": "Return Requested",
       "Returned": "Returned"
     },
+    "saga": {
+      "title": "Order processing",
+      "status": {
+        "Running": "In progress",
+        "Completed": "Completed",
+        "Compensating": "Cancelling",
+        "Failed": "Stopped",
+        "": ""
+      },
+      "step": {
+        "Payment": "Payment",
+        "Inventory": "Stock reserved",
+        "Approval": "Approval",
+        "Shipping": "Shipment",
+        "Done": "Done"
+      },
+      "waitingSince": "Waiting for “{{step}}” for {{time}} (the system pushes it again after {{limit}} min).",
+      "waitingForPerson": "Waiting for a person to approve the order.",
+      "stuck": "it is taking longer than expected",
+      "retries": "Pushed again {{count}} of {{max}} times.",
+      "retry": "Retry this step now",
+      "retryFailed": "The step could not be retried.",
+      "cancelledAutomatically": "The order was cancelled automatically; any payment is being refunded.",
+      "completedAt": "Processing finished on {{date}}."
+    },
     "statusActions": {
       "title": "Status Actions",
       "submit": "Submit",

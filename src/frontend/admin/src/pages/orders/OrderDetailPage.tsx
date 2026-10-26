@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
 import { ordersApi } from '@/api/orders.api'
+import { OrderSagaPanel } from '@/components/orders/OrderSagaPanel'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
 import { format } from 'date-fns'
@@ -216,6 +217,8 @@ export function OrderDetailPage() {
           </div>
         </div>
       </div>
+
+      <OrderSagaPanel orderId={order.orderId} />
 
       <div className="card p-5">
         <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.lineItems')}</h2>
