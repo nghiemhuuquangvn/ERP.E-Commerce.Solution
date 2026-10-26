@@ -94,3 +94,46 @@ public class CouponRedeemedIntegrationEventHandler : INotificationHandler<Coupon
         _notifier.SendAsync(e.UserId, "COUPON_REDEEMED", $"{e.CouponId:N}:{e.UserId:N}:{e.OccurredOn.Ticks}",
             new() { ["code"] = e.Code, ["discount"] = OrderNotifier.Money(e.DiscountAmount) }, ct);
 }
+
+// A resolved support case (CRM, ROADMAP P1-6): the event carries the contact's e-mail and name, so no lookup is needed.
+public class CaseResolvedIntegrationEvent : INotification
+{
+    public Guid CaseId { get; set; }
+    public Guid ContactId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? ContactEmail { get; set; }
+    public string? ContactName { get; set; }
+}
+
+public class CaseResolvedIntegrationEventHandler : INotificationHandler<CaseResolvedIntegrationEvent>
+{
+    private readonly IMediator _mediator;
+    private readonly ILogger<CaseResolvedIntegrationEventHandler> _logger;
+
+    public CaseResolvedIntegrationEventHandler(IMediator mediator, ILogger<CaseResolvedIntegrationEventHandler> logger)
+    {
+        _mediator = mediator;
+        _logger = logger;
+    }
+
+    public async Task Handle(CaseResolvedIntegrationEvent e, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(e.ContactEmail))
+        {
+            _logger.LogInformation("Case {CaseId} resolved but the contact has no e-mail; nothing sent", e.CaseId);
+            return;
+        }
+
+        await _mediator.Send(new SendNotificationCommand
+        {
+            RecipientId = (e.ContactId == Guid.Empty ? e.CaseId : e.ContactId).ToString(),
+            RecipientEmail = e.ContactEmail,
+            Channel = NotificationChannel.Email,
+            TemplateCode = "CASE_RESOLVED",
+            TemplateVariables = new() { ["customerName"] = e.ContactName ?? string.Empty, ["title"] = e.Title },
+            Priority = NotificationPriority.Normal,
+            DedupKey = $"CASE_RESOLVED:{e.CaseId:N}",
+            SkipWhenOptedOut = true
+        }, ct);
+    }
+}

@@ -86,3 +86,37 @@ public class PromotionNotificationTests
         _sent.Select(c => c.DedupKey).Should().OnlyHaveUniqueItems();
     }
 }
+
+public class CaseResolvedNotificationTests
+{
+    [Fact]
+    public async Task A_resolved_case_writes_to_the_contact_once()
+    {
+        var mediator = new Mock<IMediator>();
+        var sent = new List<SendNotificationCommand>();
+        mediator.Setup(m => m.Send(It.IsAny<SendNotificationCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<ERP.NTF.Application.DTOs.NotificationDto>, CancellationToken>((c, _) => sent.Add((SendNotificationCommand)c))
+            .ReturnsAsync(new ERP.NTF.Application.DTOs.NotificationDto());
+        var handler = new CaseResolvedIntegrationEventHandler(mediator.Object, NullLogger<CaseResolvedIntegrationEventHandler>.Instance);
+        var e = new CaseResolvedIntegrationEvent { CaseId = Guid.NewGuid(), ContactId = Guid.NewGuid(), Title = "Wrong item", ContactEmail = "an@example.com", ContactName = "An" };
+
+        await handler.Handle(e, default);
+
+        var cmd = sent.Single();
+        cmd.TemplateCode.Should().Be("CASE_RESOLVED");
+        cmd.RecipientEmail.Should().Be("an@example.com");
+        cmd.TemplateVariables!["title"].Should().Be("Wrong item");
+        cmd.DedupKey.Should().Be($"CASE_RESOLVED:{e.CaseId:N}");
+    }
+
+    [Fact]
+    public async Task A_contact_without_an_email_is_not_written_to()
+    {
+        var mediator = new Mock<IMediator>();
+        var handler = new CaseResolvedIntegrationEventHandler(mediator.Object, NullLogger<CaseResolvedIntegrationEventHandler>.Instance);
+
+        await handler.Handle(new CaseResolvedIntegrationEvent { CaseId = Guid.NewGuid(), ContactEmail = null }, default);
+
+        mediator.Verify(m => m.Send(It.IsAny<SendNotificationCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+}

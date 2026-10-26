@@ -27,6 +27,7 @@ public class NotificationKafkaConsumer : IHostedService
     private const string PurchasingTopic = "purchasing-topic";
     private const string HrmTopic = "hrm-topic";
     private const string PromotionTopic = "promotion-topic";
+    private const string CrmTopic = "crm-topic";
 
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<NotificationKafkaConsumer> _logger;
@@ -56,7 +57,7 @@ public class NotificationKafkaConsumer : IHostedService
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _consumer.Subscribe(new[] { PaymentTopic, ShippingTopic, MstTopic, PurchasingTopic, HrmTopic, PromotionTopic });
+        _consumer.Subscribe(new[] { PaymentTopic, ShippingTopic, MstTopic, PurchasingTopic, HrmTopic, PromotionTopic, CrmTopic });
         _executingTask = Task.Run(() => ExecuteAsync(_cts.Token), CancellationToken.None);
         return Task.CompletedTask;
     }
@@ -156,6 +157,20 @@ public class NotificationKafkaConsumer : IHostedService
                 Currency = raw.Value<string>("Currency") ?? "VND"
             };
             if (evt.PaymentId != Guid.Empty)
+                await mediator.Publish(evt, cancellationToken);
+        }
+        else if (typeName.Contains("CaseResolvedEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new CaseResolvedIntegrationEvent
+            {
+                CaseId = GuidOrEmpty(raw, "CaseId"),
+                ContactId = GuidOrEmpty(raw, "ContactId"),
+                Title = raw.Value<string>("Title") ?? string.Empty,
+                ContactEmail = raw.Value<string>("ContactEmail"),
+                ContactName = raw.Value<string>("ContactName")
+            };
+            if (evt.CaseId != Guid.Empty)
                 await mediator.Publish(evt, cancellationToken);
         }
         else if (typeName.Contains("LoyaltyPointsEarnedEvent"))

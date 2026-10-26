@@ -152,6 +152,9 @@ $DatabaseScripts = @(
     "Reporting\002_AddMissingEntityColumns.sql",
     "Reporting\004_FixFactPOSTransactionsCashierIdType.sql",
     "Reporting\005_AddDimProductStockQuantity.sql",
+    "Reporting\006_TenantIsolation.sql",
+    "Reporting\007_AlignLegacyColumns.sql",
+    "Reporting\008_CrmRefundsPayroll.sql",
     "ChatBot\001_CreateChatBotDB.sql",
 
     # ============================================================

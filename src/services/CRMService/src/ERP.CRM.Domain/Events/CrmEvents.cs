@@ -34,7 +34,8 @@ public record OpportunityCreatedEvent(Guid OpportunityId, Guid ContactId, string
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
 
-public record OpportunityWonEvent(Guid OpportunityId, decimal Value) : IDomainEvent, ITenantEvent
+/// <summary>An opportunity was won. ContactId / Name are optional (ROADMAP P1-6): events published before it carry only the id and the value.</summary>
+public record OpportunityWonEvent(Guid OpportunityId, decimal Value, Guid ContactId = default, string Name = "") : IDomainEvent, ITenantEvent
 {
     /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
     public Guid TenantId { get; set; }
@@ -58,7 +59,8 @@ public record CaseOpenedEvent(Guid CaseId, Guid ContactId, string Title) : IDoma
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
 
-public record CaseResolvedEvent(Guid CaseId) : IDomainEvent, ITenantEvent
+/// <summary>A support case was resolved. The contact's name and e-mail travel with it so Notification can write to the customer (ROADMAP P1-6).</summary>
+public record CaseResolvedEvent(Guid CaseId, Guid ContactId = default, string Title = "", string? ContactEmail = null, string? ContactName = null) : IDomainEvent, ITenantEvent
 {
     /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
     public Guid TenantId { get; set; }

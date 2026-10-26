@@ -407,7 +407,9 @@ public class ResolveCaseCommandHandler : IRequestHandler<ResolveCaseCommand, Cas
         var caseEntity = await _uow.Cases.GetByIdAsync(request.CaseId, cancellationToken)
             ?? throw new KeyNotFoundException($"Case {request.CaseId} not found.");
 
-        caseEntity.Resolve(request.Resolution);
+        // The customer's e-mail and name go with the event so Notification can tell them the case is resolved.
+        var contact = await _uow.Contacts.GetByIdAsync(caseEntity.CustomerId, cancellationToken);
+        caseEntity.Resolve(request.Resolution, contact?.Email, contact?.Name);
         await _uow.Cases.UpdateAsync(caseEntity, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
 

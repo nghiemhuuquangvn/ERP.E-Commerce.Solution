@@ -28,8 +28,33 @@ public class FactPayment : ITenantOwned
     public decimal Amount { get; set; }
     public string Currency { get; set; } = string.Empty;
     public string Method { get; set; } = string.Empty;
+    /// <summary>Processed, Failed, PartiallyRefunded (some of the amount came back) or Refunded (all of it).</summary>
     public string Status { get; set; } = string.Empty;
+    /// <summary>Sum of the payment's refunds (<see cref="FactPaymentRefund"/>), so a partial refund is not reported as a full one (ROADMAP P1-6).</summary>
+    public decimal RefundedAmount { get; set; }
     public DateTime? ProcessedAt { get; set; }
+    public int DateKey { get; set; }
+}
+
+/// <summary>One refund of a payment; its id makes a replayed event count once.</summary>
+public class FactPaymentRefund : ITenantOwned
+{
+    public Guid RefundId { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid PaymentId { get; set; }
+    public decimal Amount { get; set; }
+    public DateTime RefundedAt { get; set; }
+}
+
+/// <summary>An opportunity CRM marked as won (ROADMAP P1-6): count and value of the deals won per day.</summary>
+public class FactCrmOpportunity : ITenantOwned
+{
+    public Guid OpportunityId { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid ContactId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public decimal Value { get; set; }
+    public DateTime WonAt { get; set; }
     public int DateKey { get; set; }
 }
 
@@ -83,7 +108,13 @@ public class FactHRPayslip : ITenantOwned
     public string Period { get; set; } = string.Empty;
     public decimal BasicSalary { get; set; }
     public decimal OvertimePay { get; set; }
+    /// <summary>The net pay (what the employee receives).</summary>
     public decimal TotalAmount { get; set; }
+    /// <summary>Gross pay before insurance and tax, the withholdings, the income tax inside them, and the employer's insurance on top (ROADMAP P1-7 / P1-6).</summary>
+    public decimal GrossSalary { get; set; }
+    public decimal Deductions { get; set; }
+    public decimal IncomeTax { get; set; }
+    public decimal EmployerInsurance { get; set; }
     public DateTime? PaidAt { get; set; }
     public int DateKey { get; set; }
 }
