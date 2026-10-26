@@ -64,6 +64,9 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
             entity.Property(e => e.LockedQuantity).IsRequired();
             entity.Property(e => e.ReorderPoint).IsRequired();
             entity.Property(e => e.ReorderQuantity).IsRequired();
+            entity.Property(e => e.MinStock).IsRequired();
+            entity.Property(e => e.MaxStock).IsRequired();
+            entity.Property(e => e.SafetyStock).IsRequired();
             entity.Property(e => e.Cost).IsRequired();
             entity.Property(e => e.ValuationMethod).IsRequired();
             entity.Property(e => e.LastMovementDate).IsRequired();

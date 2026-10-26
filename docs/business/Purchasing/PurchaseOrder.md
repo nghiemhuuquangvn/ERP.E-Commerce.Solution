@@ -1,3 +1,4 @@
+> **2026-10-26 (P1-9):** purchase requests are now replenishment proposals that create draft orders / RFQs — see `docs/business/Warehouse/Replenishment.md`.
 > **2026-10-26 (P1-8):** the gaps "no real RFQ" and the stateless three-way match are closed; the bill is no longer created at order approval. See `ProcureToPay.md`.
 
 # Purchase Order — Nghiệp vụ

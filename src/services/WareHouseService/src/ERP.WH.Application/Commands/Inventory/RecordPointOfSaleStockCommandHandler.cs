@@ -119,21 +119,15 @@ public class RecordPointOfSaleStockCommandHandler : IRequestHandler<RecordPointO
                 EventCreatedAt = DateTime.UtcNow
             });
 
-            if (!request.IsReturn && inventory.IsLowStock())
+            // A return never raises a low-stock alert, but it still reports that stock is back above the minimum.
+            var stockAlert = request.IsReturn && inventory.IsLowStock() ? null : inventory.EvaluateLowStockAlert(DateTime.UtcNow);
+            if (stockAlert != null)
             {
-                if (inventory.TotalQuantity < 0)
+                if (inventory.IsLowStock() && inventory.TotalQuantity < 0)
                     _logger.LogWarning("POS transaction {TransactionId}: product {ProductId} stock is negative ({Quantity}) — recount needed",
                         request.TransactionId, line.ProductId, inventory.TotalQuantity);
 
-                _outboxWriter.Stage(new StockAlertEvent
-                {
-                    ProductId = inventory.ProductId,
-                    ProductName = inventory.ProductName,
-                    CurrentQuantity = inventory.TotalQuantity,
-                    ReorderPoint = inventory.ReorderPoint,
-                    ReorderQuantity = inventory.ReorderQuantity,
-                    EventCreatedAt = DateTime.UtcNow
-                });
+                _outboxWriter.Stage(stockAlert);
             }
 
             await _cache.RemoveAsync($"wh:inventory:{line.ProductId}", cancellationToken);

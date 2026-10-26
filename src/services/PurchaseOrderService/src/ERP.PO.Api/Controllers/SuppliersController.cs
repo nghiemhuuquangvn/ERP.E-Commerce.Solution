@@ -2,6 +2,7 @@ using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ERP.PO.Application.DTOs;
+using ERP.PO.Application.Features.PurchaseRequests;
 using ERP.PO.Application.Features.Suppliers.Commands;
 using ERP.PO.Application.Features.Suppliers.Queries;
 using ERP.Shared.Authorization;
@@ -312,6 +313,21 @@ public class SuppliersController : ControllerBase
             return NotFound();
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Marks a supplier item as the preferred source of its product (replenishment orders go to it); any other supplier item of the same product stops being preferred.
+    /// Yêu cầu quyền: supplier:update
+    /// </summary>
+    [HttpPut("{id}/items/{itemId}/preferred")]
+    [AuthorizePermission(PermissionConstants.Supplier_Update)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetPreferred(Guid id, Guid itemId, [FromBody] SetPreferredSupplierItemCommand command)
+    {
+        command.SupplierId = id;
+        command.SupplierItemId = itemId;
+        return Ok(await _mediator.Send(command));
     }
 
     /// <summary>

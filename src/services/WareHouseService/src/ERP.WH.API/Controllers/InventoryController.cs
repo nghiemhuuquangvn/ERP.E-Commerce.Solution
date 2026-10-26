@@ -5,6 +5,7 @@ using MediatR;
 using ERP.Shared.Authorization;
 using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Application.Queries.Inventory;
+using ERP.WH.Application.Services;
 
 namespace ERP.WH.API.Controllers;
 
@@ -126,6 +127,36 @@ public class InventoryController : ControllerBase
             return NotFound(new { message = ex.Message });
         }
     }
+
+    /// <summary>Sets min / max / safety stock of one product (the replenishment policy, P1-9).</summary>
+    [HttpPut("{productId}/stock-policy")]
+    [AuthorizePermission("inventory:manage")]
+    [ProducesResponseType(typeof(StockPolicyResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<StockPolicyResponse>> UpdateStockPolicy(Guid productId, [FromBody] UpdateStockPolicyCommand command)
+    {
+        command.ProductId = productId;
+        try
+        {
+            return Ok(await _mediator.Send(command));
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>Runs the replenishment scan now for the caller's tenant (the daily job does the same for every tenant).</summary>
+    [HttpPost("replenishment/scan")]
+    [AuthorizePermission("inventory:manage")]
+    [ProducesResponseType(typeof(ReplenishmentScanResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ReplenishmentScanResult>> ScanReplenishment([FromServices] IReplenishmentScanService scan, CancellationToken ct) =>
+        Ok(await scan.ScanAsync(ct));
 
     [HttpPost("receive")]
     [ProducesResponseType(typeof(ReceiveStockResponse), StatusCodes.Status201Created)]

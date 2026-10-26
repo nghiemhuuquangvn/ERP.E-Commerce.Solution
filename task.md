@@ -107,6 +107,7 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
 - [x] **P1-7 real payroll (salary terms, dependents, insurance, progressive PIT, rate sets by date, worked days, annual leave balance, split posting, Salary profiles / Payroll settings screens)** closed 2026-10-26 (`feat/p1-7-real-payroll`): migration HRM 008, BA doc `docs/business/HRM/Payroll.md`, FR-160…163
 - [x] **P1-6 customer notifications (order / payment / shipment / return), loyalty reversal, CRM events, Reporting clean-up, Sent notifications + Message templates screens** closed 2026-10-26 (`feat/p1-6-event-consumers`): migrations Notification 013, Reporting 008, BA doc `docs/business/Notification/CustomerNotifications.md`
 - [x] **P1-8 purchasing: RFQ and quotations, stored supplier invoices with a tolerance-based three-way match, bill from the approved invoice (price variance), returns to vendor (stock, debit note, credit on the bill)** closed 2026-10-26 (`feat/p1-8-purchasing-rfq-match-returns`): migrations Purchasing 012, Accounting 026, Identity 029, BA doc `docs/business/Purchasing/ProcureToPay.md`, FR-164…167
+- [x] **P1-9 warehouse replenishment (min / max / safety stock, one alert per crossing, daily scan, proposals with goods on order and preferred supplier, create draft POs + RFQ)** closed 2026-10-26 (`feat/p1-9-replenishment`): migrations Warehouse 009, Purchasing 013, BA doc `docs/business/Warehouse/Replenishment.md`
 - [x] **P1-4 foreign currency, FX revaluation, line-level bank reconciliation, fee / interest from statement lines** closed 2026-10-26 (`feat/p1-4-fx-bank-reconciliation`): migration 025, BA doc updated (FR-147…157, BR-201…213, UC-37…39, UAT-141…158)
 - [x] **P1-3b VAT lines, VAT settlement, replacement / adjustment e-invoices, posting gaps, XML** closed 2026-10-26 (`feat/p1-3b-vat-lines-settlement`): migration 024, BA doc updated (FR-135…146, BR-189…200, UC-33…36, UAT-126…140)
 - [x] **P1-3 VAT, VAT listing / return 01/GTGT, e-invoice adapter** closed 2026-10-25 (`feat/p1-3-vat-einvoice`): migration 023, BA doc updated (FR-123…134, BR-176…188, UC-29…32, UAT-113…125)
@@ -130,7 +131,7 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
   Today: 5000 gross and 30 % deduction hard-coded in `ProcessPayrollCommandHandler`.
 - [ ] **P1-8 Purchasing**: RFQ / supplier quotations, stored supplier invoices for three-way match,
   returns to vendor.
-- [ ] **P1-9 Replenishment**: min/max, safety stock, purchase request → PO automation.
+- [x] **P1-9 Replenishment**: min/max, safety stock, purchase request → PO automation. (done 2026-10-26)
 - [ ] **P1-10 Payment gateways**: MoMo, ZaloPay (and/or Stripe) behind `IPaymentGateway`;
   storefront/mobile checkout calls Payment (today only a radio button).
 - [ ] **P1-11 Carriers**: GHTK, Viettel Post; carrier selection by rule/price.

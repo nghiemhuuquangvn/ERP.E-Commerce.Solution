@@ -7,6 +7,7 @@ import { inventoryApi } from '@/api/inventory.api'
 import { stockAdjustmentsApi } from '@/api/stockAdjustments.api'
 import type { AdjustmentReason } from '@/api/stockAdjustments.api'
 import { usePermission } from '@/hooks/usePermission'
+import { StockPolicyCard } from './StockPolicyCard'
 import { format } from 'date-fns'
 
 type Tab = 'locations' | 'lots' | 'serials' | 'costHistory'
@@ -139,6 +140,8 @@ export function InventoryDetailPage() {
           <p className="text-lg font-semibold">{inventory.reorderPoint}</p>
         </div>
       </div>
+
+      <StockPolicyCard inventory={inventory} canEdit={hasPermission('inventory:manage')} />
 
       {hasPermission('inventory:adjustment:create') && (
         <button className="btn-outline" onClick={() => setModalOpen(true)}>

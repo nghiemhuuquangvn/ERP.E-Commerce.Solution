@@ -23,5 +23,9 @@ public class InventoryItemDto
     public int TotalQuantity { get; set; }
     public int AvailableQuantity { get; set; }
     public int ReorderPoint { get; set; }
+    public int MinStock { get; set; }
+    public int MaxStock { get; set; }
+    public int SafetyStock { get; set; }
+    public string? ProductSku { get; set; }
     public required string Status { get; set; }
 }

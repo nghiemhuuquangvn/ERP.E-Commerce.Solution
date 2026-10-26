@@ -369,11 +369,29 @@
         "All": "Tất cả",
         "Suggested": "Đề xuất",
         "Dismissed": "Đã bỏ qua",
-        "Converted": "Đã chuyển đổi"
+        "Converted": "Đã chuyển đổi",
+        "Ordered": "Đã tạo đơn",
+        "Quoting": "Đang báo giá"
       },
       "suggestedQuantity": "SL đề xuất",
       "dismiss": "Bỏ qua",
-      "convert": "Chuyển đổi"
+      "convert": "Chuyển đổi",
+      "onOrder": "Đang đặt",
+      "policy": "Tối thiểu – tối đa",
+      "safety": "an toàn",
+      "supplier": "NCC ưu tiên",
+      "days": "ngày",
+      "noPreferred": "Chưa có — đi qua RFQ",
+      "openOrder": "Mở đơn mua",
+      "openRfq": "Mở RFQ",
+      "scanNow": "Quét tồn kho ngay",
+      "scanDone": "Đã kiểm tra {{checked}} sản phẩm, {{below}} dưới mức tối thiểu, đã gửi {{alerts}} cảnh báo. Đề xuất mới sẽ hiện sau giây lát.",
+      "createOrdersAll": "Tạo đơn từ tất cả đề xuất đang mở ({{count}})",
+      "createOrdersSelected": "Tạo đơn từ {{count}} đề xuất đã chọn",
+      "created": "Đã tạo {{orders}} đơn mua nháp và {{rfq}} RFQ.",
+      "lines": "{{count}} dòng",
+      "rfqSummary": "{{lines}} dòng, hỏi {{suppliers}} nhà cung cấp",
+      "skipped": "Bỏ qua {{count}}"
     },
     "suppliers": {
       "title": "Nhà cung cấp",
@@ -428,7 +446,9 @@
         "addTitle": "Thêm mặt hàng",
         "editTitle": "Sửa mặt hàng",
         "searchProductPlaceholder": "Tìm sản phẩm theo tên hoặc SKU…",
-        "selectedProduct": "Đã chọn"
+        "selectedProduct": "Đã chọn",
+        "preferred": "Ưu tiên",
+        "preferredHint": "Đơn bổ sung hàng của sản phẩm này gửi tới nhà cung cấp này"
       }
     }
   },
@@ -631,6 +651,15 @@
     "available": "Khả dụng",
     "lastMovement": "Biến động gần nhất",
     "reorderPoint": "Điểm đặt hàng lại",
+    "policy": {
+      "title": "Chính sách tồn kho",
+      "hint": "Khi tồn khả dụng cộng hàng đang đặt chạm mức tối thiểu, Mua hàng đề xuất đơn để lên mức tối đa. Tồn an toàn là phần của mức tối thiểu để dự phòng.",
+      "minStock": "Tối thiểu",
+      "safetyStock": "Tồn an toàn",
+      "maxStock": "Tối đa",
+      "belowMinimum": "Dưới mức tối thiểu",
+      "invalid": "Tồn an toàn không được vượt mức tối thiểu và mức tối đa phải lớn hơn mức tối thiểu."
+    },
     "notFound": "Không tìm thấy sản phẩm trong tồn kho.",
     "backToInventory": "← Tồn kho",
     "noBinLevelData": "Chưa có dữ liệu tồn kho theo vị trí cụ thể cho sản phẩm này — hiển thị tổng tồn kho.",

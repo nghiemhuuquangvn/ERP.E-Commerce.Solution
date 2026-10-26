@@ -81,6 +81,10 @@ public class GetInventoryQueryHandler : IRequestHandler<GetInventoryQuery, GetIn
             LockedQuantity = inventory.LockedQuantity,
             ReorderPoint = inventory.ReorderPoint,
             ReorderQuantity = inventory.ReorderQuantity,
+            MinStock = inventory.MinStock,
+            MaxStock = inventory.MaxStock,
+            SafetyStock = inventory.SafetyStock,
+            IsLowStock = inventory.IsLowStock(),
             Locations = locations,
             LastUpdated = inventory.UpdatedAt
         };

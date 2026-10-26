@@ -17,6 +17,10 @@ public class GetInventoryResponse
     public int LockedQuantity { get; set; }
     public int ReorderPoint { get; set; }
     public int ReorderQuantity { get; set; }
+    public int MinStock { get; set; }
+    public int MaxStock { get; set; }
+    public int SafetyStock { get; set; }
+    public bool IsLowStock { get; set; }
     public required List<LocationStockDto> Locations { get; set; }
     public DateTime LastUpdated { get; set; }
 }

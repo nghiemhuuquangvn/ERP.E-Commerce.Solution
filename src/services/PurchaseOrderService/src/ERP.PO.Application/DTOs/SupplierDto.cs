@@ -74,6 +74,7 @@ public class SupplierItemDto
     public string? SupplierItemCode { get; set; }
     public decimal LastPurchasePrice { get; set; }
     public int LeadTimeDays { get; set; }
+    public bool IsPreferred { get; set; }
     public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 }

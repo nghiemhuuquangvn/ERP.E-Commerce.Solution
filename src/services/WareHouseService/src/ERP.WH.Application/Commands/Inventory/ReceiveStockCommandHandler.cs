@@ -170,18 +170,8 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
             EventCreatedAt = DateTime.UtcNow
         });
 
-        if (inventory.IsLowStock())
-        {
-            _outboxWriter.Stage(new StockAlertEvent
-            {
-                ProductId = inventory.ProductId,
-                ProductName = inventory.ProductName,
-                CurrentQuantity = inventory.TotalQuantity,
-                ReorderPoint = inventory.ReorderPoint,
-                ReorderQuantity = inventory.ReorderQuantity,
-                EventCreatedAt = DateTime.UtcNow
-            });
-        }
+        if (inventory.EvaluateLowStockAlert(DateTime.UtcNow) is { } stockAlert)
+            _outboxWriter.Stage(stockAlert);
 
         await _uow.SaveChangesAsync(cancellationToken);
         await _cache.RemoveAsync($"wh:inventory:{request.ProductId}", cancellationToken);

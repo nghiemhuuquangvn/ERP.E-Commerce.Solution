@@ -260,6 +260,11 @@ export function SupplierFormPage() {
     },
   })
 
+  const preferredMutation = useMutation({
+    mutationFn: ({ itemId, preferred }: { itemId: string; preferred: boolean }) => suppliersApi.setPreferred(id!, itemId, preferred),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['supplier', id, 'items'] }),
+  })
+
   const handleItemSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!itemProductId) return
@@ -616,6 +621,9 @@ export function SupplierFormPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">
                     {t('purchasing.suppliers.items.leadTimeDays')}
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">
+                    {t('purchasing.suppliers.items.preferred')}
+                  </th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -628,6 +636,18 @@ export function SupplierFormPage() {
                     <td className="px-4 py-3">{item.supplierItemCode ?? '—'}</td>
                     <td className="px-4 py-3">{item.lastPurchasePrice}</td>
                     <td className="px-4 py-3">{item.leadTimeDays}</td>
+                    <td className="px-4 py-3">
+                      <label className="flex items-center gap-2 text-xs" title={t('purchasing.suppliers.items.preferredHint')}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(item.isPreferred)}
+                          disabled={!canEditDetails || preferredMutation.isPending}
+                          onChange={(e) => preferredMutation.mutate({ itemId: item.id, preferred: e.target.checked })}
+                          className="rounded border-gray-300"
+                        />
+                        {item.isPreferred && <span className="font-medium text-green-700">{t('purchasing.suppliers.items.preferred')}</span>}
+                      </label>
+                    </td>
                     <td className="px-4 py-3">
                       {canEditDetails && (
                         <button
@@ -650,7 +670,7 @@ export function SupplierFormPage() {
                 ))}
                 {(!items || items.length === 0) && (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-gray-400">
+                    <td colSpan={6} className="py-8 text-center text-gray-400">
                       {t('common.noRecordsFound')}
                     </td>
                   </tr>

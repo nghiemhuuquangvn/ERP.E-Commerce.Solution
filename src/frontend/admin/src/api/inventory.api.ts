@@ -21,6 +21,10 @@ export interface Inventory {
   lockedQuantity: number
   reorderPoint: number
   reorderQuantity: number
+  minStock: number
+  maxStock: number
+  safetyStock: number
+  isLowStock: boolean
   locations: LocationStock[]
   lastUpdated: string
 }
@@ -31,6 +35,10 @@ export interface InventoryListItem {
   totalQuantity: number
   availableQuantity: number
   reorderPoint: number
+  minStock: number
+  maxStock: number
+  safetyStock: number
+  productSku?: string
   status: 'OK' | 'Low Stock'
 }
 
@@ -92,6 +100,18 @@ export interface InventorySerial {
   soldDate: string | null
 }
 
+export interface StockPolicy {
+  minStock: number
+  maxStock: number
+  safetyStock: number
+}
+
+export interface ReplenishmentScanResult {
+  checked: number
+  belowMinimum: number
+  alertsSent: number
+}
+
 export const inventoryApi = {
   get: (productId: string) => apiClient.get<Inventory>(`/v1/inventory/${productId}`).then((r) => r.data),
 
@@ -103,6 +123,12 @@ export const inventoryApi = {
       })
       .then((r) => r.data)
   },
+
+  /** Replenishment policy of one product: order when available stock (plus goods on order) is at or below min, up to max. */
+  updateStockPolicy: (productId: string, policy: StockPolicy) =>
+    apiClient.put<StockPolicy & { productId: string; availableQuantity: number; isLowStock: boolean }>(`/v1/inventory/${productId}/stock-policy`, policy).then((r) => r.data),
+
+  scanReplenishment: () => apiClient.post<ReplenishmentScanResult>('/v1/inventory/replenishment/scan').then((r) => r.data),
 
   lowStock: () => apiClient.get<ListInventoryResponse>('/v1/inventory/low-stock').then((r) => r.data),
 

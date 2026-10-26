@@ -167,6 +167,10 @@ public class PurchasingDbContext : DbContext, IUnitOfWork, ITenantScopedDbContex
         var purchaseRequestBuilder = builder.Entity<PurchaseRequest>();
         purchaseRequestBuilder.HasKey(pr => pr.Id);
         purchaseRequestBuilder.Property(pr => pr.ProductName).HasMaxLength(255).IsRequired();
+        purchaseRequestBuilder.Property(pr => pr.ProductCode).HasMaxLength(100).IsRequired();
+        purchaseRequestBuilder.Property(pr => pr.UnitPrice).HasPrecision(18, 2);
+        purchaseRequestBuilder.Property(pr => pr.Note).HasMaxLength(500);
+        purchaseRequestBuilder.HasIndex(pr => new { pr.TenantId, pr.ProductCode });
         purchaseRequestBuilder.Property(pr => pr.Status).IsRequired();
         purchaseRequestBuilder.Property(pr => pr.CreatedAt).IsRequired();
         purchaseRequestBuilder.HasIndex(pr => pr.ProductId);
