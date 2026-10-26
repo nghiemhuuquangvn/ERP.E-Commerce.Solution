@@ -12,6 +12,10 @@ public class PaymentDto
     public string? TransactionRef { get; set; }
     public string? GatewayTransactionId { get; set; }
     public string? GatewayProvider { get; set; }
+    /// <summary>The customer's choice at checkout (COD, VNPay, MoMo, ZaloPay).</summary>
+    public string? Provider { get; set; }
+    public Guid? CustomerId { get; set; }
+    public string? OrderNumber { get; set; }
     public string? FailureReason { get; set; }
     public DateTime? AuthorizedAt { get; set; }
     public DateTime? CapturedAt { get; set; }

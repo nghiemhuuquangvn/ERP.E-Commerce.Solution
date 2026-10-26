@@ -25,11 +25,16 @@ public class Payment : AggregateRoot
     public bool IsFlaggedForReview { get; private set; }
     public string? FraudReviewReason { get; private set; }
     public Guid? SettlementId { get; private set; }
+    /// <summary>What the customer chose at checkout: COD, VNPay, MoMo, ZaloPay (null for payments made before P1-10 or by staff).</summary>
+    public string? Provider { get; private set; }
+    public Guid? CustomerId { get; private set; }
+    public string? OrderNumber { get; private set; }
     public IReadOnlyCollection<Refund> Refunds => _refunds.AsReadOnly();
 
     private Payment() { }
 
-    public static Payment Initiate(Guid orderId, decimal amount, PaymentMethod method, string currency = "USD", Guid? invoiceId = null)
+    public static Payment Initiate(Guid orderId, decimal amount, PaymentMethod method, string currency = "USD", Guid? invoiceId = null,
+        string? provider = null, Guid? customerId = null, string? orderNumber = null)
     {
         if (amount <= 0)
             throw new InvalidOperationException("Payment amount must be positive.");
@@ -42,6 +47,9 @@ public class Payment : AggregateRoot
             Amount = amount,
             Currency = currency,
             Method = method,
+            Provider = provider,
+            CustomerId = customerId,
+            OrderNumber = orderNumber,
             Status = PaymentStatus.Pending,
             CreatedAt = DateTime.UtcNow
         };
@@ -73,6 +81,9 @@ public class Payment : AggregateRoot
         TransactionRef = transactionRef;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    /// <summary>True while the money is still to be collected on delivery (no gateway involved).</summary>
+    public bool IsCashOnDelivery => Provider == PaymentProviders.Cod && Status == PaymentStatus.Pending;
 
     public void FlagForReview(string reason)
     {

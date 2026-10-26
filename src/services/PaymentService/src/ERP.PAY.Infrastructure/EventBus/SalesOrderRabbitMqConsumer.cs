@@ -92,8 +92,12 @@ public class SalesOrderRabbitMqConsumer : IHostedService
                         {
                             OrderId = initiate.OrderId,
                             Amount = initiate.Amount,
-                            Currency = "USD",
-                            Method = PaymentMethod.CreditCard
+                            // P1-10: what the customer chose, and who they are. An order that did not say keeps the old behaviour (USD / credit card).
+                            Currency = string.IsNullOrWhiteSpace(initiate.Currency) ? "USD" : initiate.Currency,
+                            Method = PaymentMethod.CreditCard,
+                            Provider = initiate.PaymentMethod,
+                            CustomerId = initiate.CustomerId,
+                            OrderNumber = initiate.OrderNumber
                         });
                     }
                     break;
@@ -105,7 +109,12 @@ public class SalesOrderRabbitMqConsumer : IHostedService
                         using var tenantScope = TenantScope.Begin(refund.TenantId);
                         var uow = scope.ServiceProvider.GetRequiredService<IPaymentUnitOfWork>();
                         var payment = await uow.Payments.GetByIdAsync(refund.PaymentId);
-                        if (payment != null)
+                        if (payment != null && payment.Status is PaymentStatus.Pending or PaymentStatus.Authorized)
+                        {
+                            // Nothing was collected (cash on delivery, or an online payment that never completed): there is nothing to refund, so close it.
+                            await mediator.Send(new CancelPaymentCommand { PaymentId = payment.Id });
+                        }
+                        else if (payment != null)
                         {
                             await mediator.Send(new RefundPaymentCommand
                             {
@@ -192,6 +201,11 @@ public class SagaInitiatePaymentCommand
     public Guid OrderId { get; set; }
     public Guid TenantId { get; set; }
     public decimal Amount { get; set; }
+    // P1-10 — absent from messages sent by an older Sales: they deserialize to null / empty and keep the old behaviour.
+    public string? PaymentMethod { get; set; }
+    public string? Currency { get; set; }
+    public Guid? CustomerId { get; set; }
+    public string? OrderNumber { get; set; }
 }
 
 // Local mirror of SalesOrderReturnedEvent (ERP.SO.Domain.Events) — only the fields Payment needs.

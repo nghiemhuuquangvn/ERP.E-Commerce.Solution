@@ -85,10 +85,14 @@ public class RefundEventTests
         repo.Setup(r => r.GetByIdAsync(payment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(payment);
         var uow = new Mock<IPaymentUnitOfWork>();
         uow.SetupGet(u => u.Payments).Returns(repo.Object);
-        var gateway = new Mock<IPaymentGateway>();
-        gateway.Setup(g => g.RefundAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        var gateway = new Mock<IPaymentProvider>();
+        gateway.Setup(g => g.RefundAsync(It.IsAny<GatewayCredentials>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(result);
-        return (new RefundPaymentCommandHandler(uow.Object, gateway.Object), payment, uow);
+        var providers = new Mock<IPaymentProviderResolver>();
+        providers.Setup(r => r.StubFor(It.IsAny<string?>())).Returns((IPaymentProvider?)null);
+        providers.Setup(r => r.ResolveAsync("VNPay", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ResolvedProvider(gateway.Object, new GatewayCredentials("VNPay", "TMN", null, "secret", null, true)));
+        return (new RefundPaymentCommandHandler(uow.Object, providers.Object), payment, uow);
     }
 
     [Fact]

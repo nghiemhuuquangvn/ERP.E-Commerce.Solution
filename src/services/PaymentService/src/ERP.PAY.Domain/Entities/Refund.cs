@@ -36,6 +36,14 @@ public class Refund : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>The gateway accepted the refund but has not confirmed the money yet (ZaloPay "processing"). It counts as nothing until completed.</summary>
+    public void MarkAsProcessing(string gatewayRefundId)
+    {
+        Status = RefundStatus.Processing;
+        GatewayRefundId = gatewayRefundId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void MarkAsFailed(string reason)
     {
         Status = RefundStatus.Failed;

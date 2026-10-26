@@ -87,12 +87,16 @@ builder.Services.AddHostedService<SalesOrderRabbitMqConsumer>();
 // checkout payment was initiated for that order.
 builder.Services.AddHostedService<InvoiceCreatedConsumer>();
 
-// Payment gateway — use VNPay when credentials are configured, fall back to Null stub
-var vnpayConfigured = !string.IsNullOrEmpty(builder.Configuration["VnPay:TmnCode"]);
-if (vnpayConfigured)
-    builder.Services.AddScoped<IPaymentGateway, VnPayGateway>();
-else
-    builder.Services.AddScoped<IPaymentGateway, NullPaymentGateway>();
+// Cash on delivery (P1-10): captures a COD payment when ShippingService confirms the delivery.
+builder.Services.AddHostedService<ShippingDeliveryConsumer>();
+
+// Payment gateways (P1-10): every gateway is registered; the tenant's own keys decide which ones it can use (PaymentProviderResolver).
+builder.Services.AddScoped<IPaymentProvider, VnPayGateway>();
+builder.Services.AddScoped<IPaymentProvider, MoMoGateway>();
+builder.Services.AddScoped<IPaymentProvider, ZaloPayGateway>();
+builder.Services.AddScoped<IPaymentProvider, NullPaymentProvider>();
+builder.Services.AddScoped<IPaymentProviderResolver, PaymentProviderResolver>();
+builder.Services.AddScoped<IGatewayNotificationService, GatewayNotificationService>();
 
 // Real JWT validation — previously trusted the Gateway's forwarded X-User-*/
 // X-Tenant-* headers with no signature verification; see

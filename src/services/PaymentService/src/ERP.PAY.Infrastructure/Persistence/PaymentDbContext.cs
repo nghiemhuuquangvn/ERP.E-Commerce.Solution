@@ -17,6 +17,7 @@ public class PaymentDbContext : DbContext, ITenantScopedDbContext
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<SystemPaymentSettings> SystemPaymentSettings => Set<SystemPaymentSettings>();
     public DbSet<TenantPaymentSettings> TenantPaymentSettings => Set<TenantPaymentSettings>();
+    public DbSet<TenantGatewayCredential> TenantGatewayCredentials => Set<TenantGatewayCredential>();
 
     private readonly ITenantProvider _tenantProvider;
 
@@ -41,6 +42,8 @@ public class PaymentDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.Amount).HasPrecision(18, 2);
             e.Property(x => x.Currency).IsRequired().HasMaxLength(3);
             e.Property(x => x.TransactionRef).HasMaxLength(50);
+            e.Property(x => x.Provider).HasMaxLength(20);
+            e.Property(x => x.OrderNumber).HasMaxLength(50);
             e.Property(x => x.GatewayTransactionId).HasMaxLength(200);
             e.Property(x => x.GatewayProvider).HasMaxLength(100);
             e.Property(x => x.FailureReason).HasMaxLength(1000);
@@ -116,6 +119,18 @@ public class PaymentDbContext : DbContext, ITenantScopedDbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.VnPaySecretKeyEncrypted).HasMaxLength(500);
             e.HasIndex(x => x.TenantId).IsUnique();
+        });
+
+        modelBuilder.Entity<TenantGatewayCredential>(e =>
+        {
+            e.ToTable("TenantGatewayCredentials");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Provider).HasMaxLength(20).IsRequired();
+            e.Property(x => x.PublicId).HasMaxLength(200);
+            e.Property(x => x.AccessKey).HasMaxLength(1000);
+            e.Property(x => x.Secret1Encrypted).HasMaxLength(1000);
+            e.Property(x => x.Secret2Encrypted).HasMaxLength(1000);
+            e.HasIndex(x => new { x.TenantId, x.Provider }).IsUnique();
         });
 
         // Last, so it composes with any per-entity filter configured above.
