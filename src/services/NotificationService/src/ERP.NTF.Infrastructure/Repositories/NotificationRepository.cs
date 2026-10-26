@@ -45,6 +45,20 @@ public class NotificationRepository : INotificationRepository
             .Distinct()
             .ToListAsync(ct);
 
+    public async Task<(List<Notification> Items, int Total)> ListAsync(
+        NotificationStatus? status, NotificationChannel? channel, string? search, int skip, int take, CancellationToken ct = default)
+    {
+        var query = _db.Notifications.AsQueryable();
+        if (status.HasValue) query = query.Where(n => n.Status == status.Value);
+        if (channel.HasValue) query = query.Where(n => n.Channel == channel.Value);
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(n => n.RecipientEmail.Contains(search) || n.Subject.Contains(search));
+
+        var total = await query.CountAsync(ct);
+        var items = await query.OrderByDescending(n => n.CreatedAt).Skip(skip).Take(take).AsNoTracking().ToListAsync(ct);
+        return (items, total);
+    }
+
     public async Task<Notification?> GetByDedupKeyAsync(string dedupKey, CancellationToken ct = default) =>
         await _db.Notifications.Include(n => n.Logs).FirstOrDefaultAsync(n => n.DedupKey == dedupKey, ct);
 

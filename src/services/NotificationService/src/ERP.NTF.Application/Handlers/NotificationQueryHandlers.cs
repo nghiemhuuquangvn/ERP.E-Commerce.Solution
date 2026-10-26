@@ -1,3 +1,5 @@
+using ERP.NTF.Domain.Enums;
+using ERP.Shared.Core.Domain;
 using ERP.NTF.Application.DTOs;
 using ERP.NTF.Application.Interfaces;
 using ERP.NTF.Application.Queries;
@@ -86,6 +88,26 @@ public class GetUnreadCountQueryHandler : IRequestHandler<GetUnreadCountQuery, i
         _notifications.GetUnreadCountByRecipientAsync(request.RecipientId, cancellationToken);
 }
 
+public class ListNotificationsQueryHandler : IRequestHandler<ListNotificationsQuery, NotificationHistoryResponse>
+{
+    private readonly INotificationRepository _notifications;
+    public ListNotificationsQueryHandler(INotificationRepository notifications) => _notifications = notifications;
+
+    public async Task<NotificationHistoryResponse> Handle(ListNotificationsQuery request, CancellationToken cancellationToken)
+    {
+        NotificationStatus? status = Enum.TryParse<NotificationStatus>(request.Status, true, out var s) ? s : null;
+        NotificationChannel? channel = Enum.TryParse<NotificationChannel>(request.Channel, true, out var c) ? c : null;
+        var take = Math.Clamp(request.Take, 1, 100);
+
+        var (items, total) = await _notifications.ListAsync(status, channel, request.Search, Math.Max(0, request.Skip), take, cancellationToken);
+        return new NotificationHistoryResponse
+        {
+            Total = total,
+            Items = items.Select(SendNotificationCommandHandler.MapToDto).ToList()
+        };
+    }
+}
+
 public class GetTemplateQueryHandler : IRequestHandler<GetTemplateQuery, NotificationTemplateDto?>
 {
     private readonly ITemplateRepository _templates;
@@ -123,6 +145,14 @@ public class ListTemplatesQueryHandler : IRequestHandler<ListTemplatesQuery, Lis
     public async Task<List<NotificationTemplateDto>> Handle(ListTemplatesQuery request, CancellationToken cancellationToken)
     {
         var templates = await _templates.GetAllAsync(request.IsActive, cancellationToken);
+
+        // A tenant's own template replaces the platform default with the same code (as when a message is sent): one row per code.
+        templates = templates
+            .GroupBy(t => t.Code)
+            .Select(g => g.OrderBy(t => t.TenantId == WellKnownTenants.Platform ? 1 : 0).First())
+            .OrderBy(t => t.Name)
+            .ToList();
+
         return templates.Select(t => new NotificationTemplateDto
         {
             Id = t.Id,
@@ -132,7 +162,8 @@ public class ListTemplatesQueryHandler : IRequestHandler<ListTemplatesQuery, Lis
             Subject = t.Subject,
             Body = t.Body,
             Variables = t.Variables,
-            IsActive = t.IsActive
+            IsActive = t.IsActive,
+            IsPlatformDefault = t.TenantId == WellKnownTenants.Platform
         }).ToList();
     }
 }

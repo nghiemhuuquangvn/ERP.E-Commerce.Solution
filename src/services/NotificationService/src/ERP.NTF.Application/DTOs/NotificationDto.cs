@@ -40,6 +40,8 @@ public class NotificationTemplateDto
     public string Body { get; set; } = string.Empty;
     public string? Variables { get; set; }
     public bool IsActive { get; set; }
+    /// <summary>True for the platform's default; false when this tenant wrote its own template with the same code.</summary>
+    public bool IsPlatformDefault { get; set; }
 }
 
 public class NotificationPreferenceDto

@@ -11,6 +11,7 @@ public interface INotificationRepository
     Task<List<Notification>> GetFailedForRetryAsync(CancellationToken ct = default);
     /// <summary>Tenants with queued or retryable notifications — across tenants, for the dispatch job.</summary>
     Task<List<Guid>> GetTenantsWithWorkAsync(CancellationToken ct = default);
+    Task<(List<Notification> Items, int Total)> ListAsync(NotificationStatus? status, NotificationChannel? channel, string? search, int skip, int take, CancellationToken ct = default);
     Task<Notification?> GetByDedupKeyAsync(string dedupKey, CancellationToken ct = default);
     Task AddAsync(Notification notification, CancellationToken ct = default);
     Task AddRangeAsync(IEnumerable<Notification> notifications, CancellationToken ct = default);
