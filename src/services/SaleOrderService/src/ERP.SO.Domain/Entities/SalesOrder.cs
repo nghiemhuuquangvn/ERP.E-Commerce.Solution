@@ -236,7 +236,7 @@ namespace ERP.SO.Domain.Entities
             }
         }
 
-        public void MarkAsDelivered()
+        public void MarkAsDelivered(string? reason = null)
         {
             if (Status != OrderStatus.Shipped)
                 throw new InvalidOperationException($"Cannot mark as delivered. Current status: {Status}");
@@ -244,7 +244,7 @@ namespace ERP.SO.Domain.Entities
             var from = Status;
             Status = OrderStatus.Delivered;
             DeliveredAt = DateTime.UtcNow;
-            RecordStatusChange(from, Status);
+            RecordStatusChange(from, Status, reason);
 
             AddDomainEvent(new SalesOrderDeliveredEvent
             {
@@ -348,7 +348,9 @@ namespace ERP.SO.Domain.Entities
                 CustomerId = CustomerId,
                 Reason = ReturnReason ?? string.Empty,
                 RefundAmount = refundAmount,
-                ReturnedAt = ReturnedAt.Value
+                ReturnedAt = ReturnedAt.Value,
+                Lines = _lineItems.Where(li => li.ShippedQuantity > 0)
+                    .Select(li => new SalesOrderReturnedEvent.ReturnedLine { ProductId = li.ProductId, Quantity = li.ShippedQuantity }).ToList()
             });
         }
 

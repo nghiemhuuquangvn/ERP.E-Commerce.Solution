@@ -260,6 +260,7 @@ namespace ERP.ACC.Application.Posting
             string? counterKey = movementType switch
             {
                 "Received" => PostingKeys.GoodsReceivedNotInvoiced,
+                "Returned" => PostingKeys.CostOfGoodsSold,           // returned goods: Dr Inventory / Cr Cost of goods sold (ROADMAP P1-5)
                 "Sold" => PostingKeys.CostOfGoodsSold,
                 "Adjusted" or "Damaged" => PostingKeys.InventoryAdjustment,
                 _ => null,

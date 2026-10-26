@@ -83,7 +83,7 @@ public class MarkAsDeliveredCommandHandler : IRequestHandler<MarkAsDeliveredComm
         var order = await _repository.GetByIdAsync(request.OrderId, cancellationToken)
             ?? throw new InvalidOperationException($"Order {request.OrderId} not found.");
 
-        order.MarkAsDelivered();
+        order.MarkAsDelivered(request.Reason);
         await _repository.UpdateAsync(order, cancellationToken);
 
         // Order is fulfilled — no longer counts as open exposure against the credit limit.

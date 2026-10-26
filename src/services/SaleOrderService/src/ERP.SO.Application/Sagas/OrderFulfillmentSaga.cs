@@ -272,6 +272,135 @@ public sealed class OrderFulfillmentSaga
 
         await _mediator.Send(new CancelOrderCommand { OrderId = orderId, Reason = $"Inventory insufficient: {reason}" }, ct);
     }
+
+    // ── Compensation: the shipment could not be created → refund (if paid) + cancel order (P1-5) ──
+    public async Task HandleShipmentCreationFailedAsync(Guid orderId, string reason, CancellationToken ct)
+    {
+        var saga = await _uow.Sagas.GetByOrderIdAsync(orderId, ct);
+        if (saga is null) return;
+
+        if (saga.CurrentStep != SagaStep.ShippingPending)
+        {
+            _logger.LogInformation("Saga {SagaId} not awaiting a shipment (at {Step}) — ignoring ShipmentCreationFailed", saga.Id, saga.CurrentStep);
+            return;
+        }
+
+        await CompensateAsync(saga, $"Shipment could not be created: {reason}", ct);
+    }
+
+    // ── A delivery attempt failed after the shipment exists: recorded, the order is not cancelled (P1-5) ──
+    public async Task HandleDeliveryFailedAsync(Guid orderId, string reason, int attempts, CancellationToken ct)
+    {
+        var saga = await _uow.Sagas.GetByOrderIdAsync(orderId, ct);
+        if (saga is null) return;
+
+        saga.RecordProblem($"Delivery failed (attempt {attempts}): {reason}");
+        await _uow.Sagas.UpdateAsync(saga, ct);
+        await _uow.SaveChangesAsync(ct);
+        _logger.LogWarning("Saga {SagaId}: delivery of Order {OrderId} failed (attempt {Attempts}) — {Reason}", saga.Id, orderId, attempts, reason);
+    }
+
+    // ── The carrier confirmed the delivery → the order is Delivered (P1-5) ──
+    /// <summary>Marks a Shipped order Delivered. Any other status (already Delivered, cancelled, partly shipped — other shipments are still on the way) is left alone.</summary>
+    public async Task<bool> HandleDeliveryConfirmedAsync(Guid orderId, CancellationToken ct)
+    {
+        var order = await _uow.Orders.GetByIdAsync(orderId, ct);
+        if (order is null)
+        {
+            _logger.LogWarning("DeliveryConfirmed for unknown Order {OrderId} ignored", orderId);
+            return false;
+        }
+
+        if (order.Status != ERP.SO.Domain.Entities.OrderStatus.Shipped)
+        {
+            _logger.LogInformation("DeliveryConfirmed for Order {OrderId} at {Status} — not changed", orderId, order.Status);
+            return false;
+        }
+
+        await _mediator.Send(new MarkAsDeliveredCommand { OrderId = orderId, Reason = "Delivered (carrier confirmation)" }, ct);
+        return true;
+    }
+
+    // ── Timeouts: publish the step's command again, then compensate (P1-5) ──
+    /// <summary>
+    /// Looks at one Running saga: when its current step has been waiting longer than the step's timeout (or <paramref name="force"/> is set by a person) the command of that step is
+    /// published again; once <see cref="SagaOptions.MaxRetries"/> retries are used the saga is compensated. A step without a timeout (approval) is never touched.
+    /// </summary>
+    public async Task<SagaTimeoutOutcome> HandleStepTimeoutAsync(Guid sagaId, SagaOptions options, DateTime nowUtc, bool force, CancellationToken ct)
+    {
+        var saga = await _uow.Sagas.GetByIdAsync(sagaId, ct);
+        if (saga is null || saga.Status != SagaStatus.Running)
+            return SagaTimeoutOutcome.NotDue;
+
+        var timeout = options.TimeoutFor(saga.CurrentStep);
+        if (timeout is null)
+            return SagaTimeoutOutcome.NotDue;
+        if (!force && nowUtc - saga.LastUpdatedAt < timeout.Value)
+            return SagaTimeoutOutcome.NotDue;
+
+        if (!force && saga.RetryCount >= options.MaxRetries)
+        {
+            _logger.LogWarning("Saga {SagaId} for Order {OrderId}: {Step} timed out after {Retries} retries — compensating", saga.Id, saga.OrderId, saga.CurrentStep, saga.RetryCount);
+            await CompensateAsync(saga, $"Timed out in step {saga.CurrentStep} after {saga.RetryCount} retries", ct);
+            return SagaTimeoutOutcome.TimedOut;
+        }
+
+        var step = saga.CurrentStep;
+        saga.IncrementRetry();
+        await _uow.Sagas.UpdateAsync(saga, ct);
+        await _uow.SaveChangesAsync(ct);
+        _logger.LogWarning("Saga {SagaId} for Order {OrderId}: {Step} waited too long — publishing its command again (retry {Retry})", saga.Id, saga.OrderId, step, saga.RetryCount);
+
+        var order = await _uow.Orders.GetByIdAsync(saga.OrderId, ct);
+        if (order is null)
+        {
+            _logger.LogError("Saga {SagaId}: order {OrderId} not found — nothing to publish again", saga.Id, saga.OrderId);
+            return SagaTimeoutOutcome.Retried;
+        }
+
+        switch (step)
+        {
+            case SagaStep.PaymentPending:
+                await _messageBus.PublishAsync(new InitiatePaymentCommand { OrderId = saga.OrderId, TenantId = saga.TenantId, Amount = order.TotalAmount }, ct);
+                break;
+            case SagaStep.InventoryPending:
+                await _messageBus.PublishAsync(new ReserveInventoryCommand
+                {
+                    OrderId = saga.OrderId,
+                    TenantId = saga.TenantId,
+                    Items = order.LineItems.Select(li => new SagaLineItem { ProductId = li.ProductId, Quantity = li.Quantity }).ToList()
+                }, ct);
+                break;
+            case SagaStep.ShippingPending:
+                await PublishCreateShipmentCommandAsync(saga, ct);
+                break;
+        }
+        return SagaTimeoutOutcome.Retried;
+    }
+
+    /// <summary>Fails the saga, refunds the payment when there is one and cancels the order (the cancellation releases the reservation).</summary>
+    private async Task CompensateAsync(OrderFulfillmentSagaState saga, string reason, CancellationToken ct)
+    {
+        _logger.LogWarning("Saga {SagaId}: compensating Order {OrderId} — {Reason}", saga.Id, saga.OrderId, reason);
+
+        saga.BeginCompensation(reason);
+        saga.MarkFailed(reason);
+        await _uow.Sagas.UpdateAsync(saga, ct);
+        await _uow.SaveChangesAsync(ct);
+
+        if (saga.PaymentId.HasValue)
+        {
+            await _messageBus.PublishAsync(new RefundPaymentCommand
+            {
+                PaymentId = saga.PaymentId.Value,
+                OrderId = saga.OrderId,
+                TenantId = saga.TenantId,
+                Reason = $"Order cancelled: {reason}"
+            }, ct);
+        }
+
+        await _mediator.Send(new CancelOrderCommand { OrderId = saga.OrderId, Reason = reason }, ct);
+    }
 }
 
 // ── Cross-service command DTOs published by the saga via IMessageBus ───────

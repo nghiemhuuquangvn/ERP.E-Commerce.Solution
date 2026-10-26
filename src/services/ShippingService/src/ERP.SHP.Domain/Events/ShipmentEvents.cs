@@ -20,6 +20,18 @@ public record TrackingUpdatedEvent(
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
 
+/// <summary>
+/// The shipment the order saga asked for could not be created (no delivery address, no active carrier, or a technical failure that did not go away): Sales compensates
+/// the order (ROADMAP P1-5). Not raised by an aggregate: it is staged straight into the outbox.
+/// </summary>
+public record ShipmentCreationFailedEvent(Guid OrderId, string Reason) : IDomainEvent, ITenantEvent
+{
+    /// <summary>Tenant the event belongs to (stamped when it is staged).</summary>
+    public Guid TenantId { get; set; }
+
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}
+
 public record DeliveryConfirmedEvent(
     Guid ShipmentId, Guid OrderId, DateTime DeliveredAt) : IDomainEvent, ITenantEvent
 {

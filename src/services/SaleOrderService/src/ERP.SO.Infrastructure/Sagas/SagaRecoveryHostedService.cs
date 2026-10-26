@@ -1,30 +1,28 @@
+using ERP.Shared.Infrastructure.Data;
 using ERP.SO.Application.Sagas;
-using ERP.SO.Domain.Sagas;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace ERP.SO.Infrastructure.Sagas;
 
 /// <summary>
-/// Periodically surfaces sagas that haven't progressed within a reasonable time —
-/// GetStuckSagasAsync existed on the repository already but nothing ever called it.
-/// Deliberately excludes PaymentPending from alerting: waiting on an external payment
-/// gateway can legitimately take a long time (or the customer may abandon checkout),
-/// so that step is not "stuck" in the same sense a should-be-fast inventory/shipment
-/// step is. No auto-retry — logging is the deliverable here.
+/// Looks for sagas that stopped moving (ROADMAP P1-5). A Running saga that has waited in a step longer than that step's timeout
+/// (<see cref="SagaOptions"/>, configuration section <c>Saga</c>) gets the command of the step published again; once the retries are used up the saga is
+/// compensated: the payment is refunded, the order is cancelled and the reservation released. A saga waiting for the order's approval is never touched.
+/// Every saga is handled in its own tenant scope and its own DI scope, so one failing order does not stop the others.
 /// </summary>
 public class SagaRecoveryHostedService : BackgroundService
 {
-    private static readonly TimeSpan CheckInterval = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan StuckTimeout = TimeSpan.FromMinutes(30);
-
     private readonly IServiceProvider _serviceProvider;
+    private readonly SagaOptions _options;
     private readonly ILogger<SagaRecoveryHostedService> _logger;
 
-    public SagaRecoveryHostedService(IServiceProvider serviceProvider, ILogger<SagaRecoveryHostedService> logger)
+    public SagaRecoveryHostedService(IServiceProvider serviceProvider, IOptions<SagaOptions> options, ILogger<SagaRecoveryHostedService> logger)
     {
         _serviceProvider = serviceProvider;
+        _options = options.Value;
         _logger = logger;
     }
 
@@ -34,19 +32,11 @@ public class SagaRecoveryHostedService : BackgroundService
         {
             try
             {
-                using var scope = _serviceProvider.CreateScope();
-                var repository = scope.ServiceProvider.GetRequiredService<IOrderFulfillmentSagaRepository>();
-
-                var stuck = await repository.GetStuckSagasAsync(StuckTimeout, stoppingToken);
-                foreach (var saga in stuck)
-                {
-                    if (saga.CurrentStep == SagaStep.PaymentPending)
-                        continue; // Legitimately can take a long time — not an alert-worthy stall.
-
-                    _logger.LogWarning(
-                        "Saga {SagaId} for Order {OrderId} has been stuck at {Step} since {LastUpdatedAt}",
-                        saga.Id, saga.OrderId, saga.CurrentStep, saga.LastUpdatedAt);
-                }
+                await RunOnceAsync(DateTime.UtcNow, stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
             }
             catch (Exception ex)
             {
@@ -55,12 +45,48 @@ public class SagaRecoveryHostedService : BackgroundService
 
             try
             {
-                await Task.Delay(CheckInterval, stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(Math.Max(_options.CheckIntervalSeconds, 5)), stoppingToken);
             }
             catch (OperationCanceledException)
             {
                 break;
             }
         }
+    }
+
+    /// <summary>One pass: returns how many sagas were retried and how many were compensated.</summary>
+    public async Task<(int Retried, int TimedOut)> RunOnceAsync(DateTime nowUtc, CancellationToken ct)
+    {
+        List<(Guid SagaId, Guid TenantId)> candidates;
+        using (var scope = _serviceProvider.CreateScope())
+        {
+            var repository = scope.ServiceProvider.GetRequiredService<IOrderFulfillmentSagaRepository>();
+            candidates = (await repository.GetStuckSagasAsync(_options.ShortestTimeout, ct)).Select(s => (s.Id, s.TenantId)).ToList();
+        }
+
+        int retried = 0, timedOut = 0;
+        foreach (var (sagaId, tenantId) in candidates)
+        {
+            try
+            {
+                using var scope = _serviceProvider.CreateScope();
+                using var tenant = TenantScope.Begin(tenantId);
+                var saga = scope.ServiceProvider.GetRequiredService<OrderFulfillmentSaga>();
+                switch (await saga.HandleStepTimeoutAsync(sagaId, _options, nowUtc, force: false, ct))
+                {
+                    case SagaTimeoutOutcome.Retried: retried++; break;
+                    case SagaTimeoutOutcome.TimedOut: timedOut++; break;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Could not recover saga {SagaId} of tenant {TenantId}", sagaId, tenantId);
+            }
+        }
+        return (retried, timedOut);
     }
 }

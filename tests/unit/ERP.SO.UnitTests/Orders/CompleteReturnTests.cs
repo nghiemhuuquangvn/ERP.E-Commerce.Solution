@@ -34,6 +34,18 @@ public class CompleteReturnTests
         evt.RefundAmount.Should().Be(order.TotalAmount);
     }
 
+    [Fact]
+    public void The_event_lists_the_shipped_lines_so_Warehouse_can_restock_them()
+    {
+        var order = ReturnRequestedOrder();
+
+        order.CompleteReturn(order.TotalAmount);
+
+        var evt = order.DomainEvents.OfType<SalesOrderReturnedEvent>().Single();
+        evt.Lines.Should().ContainSingle().Which.Quantity.Should().Be(2);
+        evt.Lines[0].ProductId.Should().Be(order.LineItems.Single().ProductId);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(-5)]
