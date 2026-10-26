@@ -126,6 +126,15 @@ public class OrderFulfillmentSagaState : ERP.Shared.Core.Domain.ITenantOwned
         LastUpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>A problem that does not end the saga (a failed delivery attempt after the shipment was created): shown on the order, nothing else changes.</summary>
+    public void RecordProblem(string message)
+    {
+        ErrorMessage = message;
+        UpdatedNow();
+    }
+
+    private void UpdatedNow() => LastUpdatedAt = DateTime.UtcNow;
+
     public void IncrementRetry()
     {
         RetryCount++;

@@ -135,6 +135,8 @@ builder.Services.AddHostedService<ShippingKafkaConsumer>();
 
 // Surfaces sagas that haven't progressed within a reasonable time — GetStuckSagasAsync
 // existed on the repository already but nothing ever called it.
+// Timeouts / retries of the saga (configuration section "Saga", ROADMAP P1-5).
+builder.Services.Configure<ERP.SO.Application.Sagas.SagaOptions>(builder.Configuration.GetSection(ERP.SO.Application.Sagas.SagaOptions.SectionName));
 builder.Services.AddHostedService<SagaRecoveryHostedService>();
 
 // Authorization & User Context — real JWT validation (previously this service trusted
