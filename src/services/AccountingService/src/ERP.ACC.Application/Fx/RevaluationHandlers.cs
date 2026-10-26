@@ -237,9 +237,22 @@ namespace ERP.ACC.Application.Fx
                 PostingRules.ForFxRevaluation(period.Id, dto.ReceivablesDifference, dto.PayablesDifference, period.PeriodName, period.EndDate), cancellationToken);
             if (entry == null)
                 throw new BusinessRuleException("Accounting", "The revaluation could not be posted: complete the posting profile (Accounts receivable, Accounts payable, FX gain and FX loss).");
-            // the unrealized difference only holds until the end of the period: the next day it is taken back
-            var reversal = await _posting.ReverseEntryAsync(entry, $"Reversal of the FX revaluation of {period.PeriodName}", period.EndDate.Date.AddDays(1), cancellationToken);
-            await _uow.SaveChangesAsync(cancellationToken);
+            // the unrealized difference only holds until the end of the period: the next day it is taken back. The entry is saved first (it gets its tenant then) and
+            // both saves share one transaction, so there is never a revaluation without its reversal.
+            JournalEntry? reversal;
+            await _uow.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                await _uow.SaveChangesAsync(cancellationToken);
+                reversal = await _posting.ReverseEntryAsync(entry, $"Reversal of the FX revaluation of {period.PeriodName}", period.EndDate.Date.AddDays(1), cancellationToken);
+                await _uow.SaveChangesAsync(cancellationToken);
+                await _uow.CommitTransactionAsync(cancellationToken);
+            }
+            catch
+            {
+                await _uow.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
 
             dto.Posted = true;
             dto.EntryNumber = entry.EntryNumber;

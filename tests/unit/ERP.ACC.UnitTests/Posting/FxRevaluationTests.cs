@@ -184,7 +184,8 @@ public class FxRevaluationTests
         lines[PostingKeys.AccountsPayable].Should().Be((0m, 250_000m));
         lines[PostingKeys.FxGain].Should().Be((0m, 250_000m));
         h.Posting.Verify(p => p.ReverseEntryAsync(It.IsAny<JournalEntry>(), It.IsAny<string>(), End.AddDays(1), It.IsAny<CancellationToken>()), Times.Once);
-        h.Uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        h.Uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+        h.Uow.Verify(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
         (dto.Posted, dto.EntryNumber, dto.ReversalEntryNumber, dto.NetDifference).Should().Be((true, "JE-REVAL", "JE-REV", 250_000m));
     }
 
