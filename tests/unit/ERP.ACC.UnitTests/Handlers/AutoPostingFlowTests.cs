@@ -164,6 +164,26 @@ public class AutoPostingFlowTests
     private PaymentProcessedIntegrationEventHandler PaymentHandler() =>
         new(_uow.Object, _posting.Object, NullLogger<PaymentProcessedIntegrationEventHandler>.Instance);
 
+    [Fact]
+    public async Task APaymentRedeliveredAfterTheLedgerEntryFailed_IsNotCreditedTwice_ButItsPostingIsTriedAgain()
+    {
+        // R13: no open period the first time, so there is no journal entry to recognise the redelivery by.
+        var invoice = NewInvoice(400m);
+        _invoices.Setup(i => i.GetByOrderIdAsync(invoice.OrderId, It.IsAny<CancellationToken>())).ReturnsAsync(invoice);
+        var payment = Guid.NewGuid();
+        _applications.Setup(a => a.ExistsBySourceKeyAsync($"payment:{payment:N}", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        invoice.ApplyPayment(150m);   // what the first delivery already did
+
+        await PaymentHandler().Handle(new PaymentProcessedIntegrationEvent
+        {
+            PaymentId = payment, OrderId = invoice.OrderId, Amount = 150m, Method = 3, ProcessedAt = new DateTime(2026, 10, 20)
+        }, default);
+
+        invoice.AmountPaid.Should().Be(150m);                                                 // not 300
+        _applications.Verify(a => a.AddAsync(It.IsAny<PaymentApplication>(), It.IsAny<CancellationToken>()), Times.Never);
+        _posted.Should().ContainSingle().Which.SourceId.Should().Be(payment);                  // posting retried
+    }
+
     [Theory]
     [InlineData(4, PostingKeys.Cash)]          // Cash
     [InlineData(0, PostingKeys.Bank)]          // CreditCard

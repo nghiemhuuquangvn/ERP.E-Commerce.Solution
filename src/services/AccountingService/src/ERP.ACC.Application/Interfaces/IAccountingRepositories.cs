@@ -180,6 +180,9 @@ namespace ERP.ACC.Application.Interfaces
     {
         Task AddAsync(PaymentApplication application, CancellationToken ct = default);
 
+        /// <summary>True when an application with this source key (the business event that made it) is already recorded.</summary>
+        Task<bool> ExistsBySourceKeyAsync(string sourceKey, CancellationToken ct = default);
+
         /// <summary>Every application of the given invoices and bills (whatever their date).</summary>
         Task<List<PaymentApplication>> ListForDocumentsAsync(IReadOnlyCollection<Guid> documentIds, CancellationToken ct = default);
 
