@@ -113,9 +113,9 @@ function QuoteTester() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <input className="input" placeholder={t('settings.shipping.rules.province')} value={parcel.province} onChange={(e) => setParcel({ ...parcel, province: e.target.value })} />
         <input className="input" placeholder={t('settings.shipping.rules.district')} value={parcel.district} onChange={(e) => setParcel({ ...parcel, district: e.target.value })} />
-        <input type="number" className="input" title={t('settings.shipping.rules.weightG')} value={parcel.weightGrams} onChange={(e) => setParcel({ ...parcel, weightGrams: Number(e.target.value) })} />
-        <input type="number" className="input" title={t('settings.shipping.rules.value')} value={parcel.declaredValue} onChange={(e) => setParcel({ ...parcel, declaredValue: Number(e.target.value) })} />
-        <input type="number" className="input" title={t('settings.shipping.rules.cod')} value={parcel.codAmount} onChange={(e) => setParcel({ ...parcel, codAmount: Number(e.target.value) })} />
+        <input type="number" className="input" title={t('settings.shipping.rules.weightG')} placeholder={t('settings.shipping.rules.weightG')} value={parcel.weightGrams} onChange={(e) => setParcel({ ...parcel, weightGrams: Number(e.target.value) })} />
+        <input type="number" className="input" title={t('settings.shipping.rules.value')} placeholder={t('settings.shipping.rules.value')} value={parcel.declaredValue} onChange={(e) => setParcel({ ...parcel, declaredValue: Number(e.target.value) })} />
+        <input type="number" className="input" title={t('settings.shipping.rules.cod')} placeholder={t('settings.shipping.rules.cod')} value={parcel.codAmount} onChange={(e) => setParcel({ ...parcel, codAmount: Number(e.target.value) })} />
         <button className="btn-outline" disabled={run.isPending || !parcel.province || !parcel.district} onClick={() => run.mutate()}>
           {t('settings.shipping.rules.try')}
         </button>
