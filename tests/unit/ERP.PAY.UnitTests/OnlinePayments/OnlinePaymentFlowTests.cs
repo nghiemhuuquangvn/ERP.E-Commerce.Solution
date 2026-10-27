@@ -68,6 +68,42 @@ public class OnlinePaymentFlowTests
         created.OrderNumber.Should().Be("SO-1");
     }
 
+    // ── order cancelled by hand (R18) ─────────────────────────────────────
+
+    [Fact]
+    public async Task A_cancelled_order_closes_its_pending_payment_and_a_late_payment_is_then_flagged_not_captured()
+    {
+        var payment = Pending();
+
+        var closed = await new CancelPendingPaymentForOrderCommandHandler(_uow.Object).Handle(new CancelPendingPaymentForOrderCommand { OrderId = payment.OrderId }, default);
+
+        closed.Should().BeTrue();
+        payment.Status.Should().Be(PaymentStatus.Cancelled);
+
+        await new ProcessGatewayCallbackCommandHandler(_uow.Object).Handle(new ProcessGatewayCallbackCommand
+        { TransactionRef = "R", IsPaid = true, GatewayTransactionId = "T1", GatewayProvider = "MoMo", Amount = 150000m }, default);
+        payment.Status.Should().Be(PaymentStatus.Cancelled);
+        payment.IsFlaggedForReview.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_cancelled_order_never_refunds_a_captured_payment_and_a_repeat_or_a_missing_payment_changes_nothing()
+    {
+        var captured = Pending();
+        captured.Authorize("T", "MoMo");
+        captured.Capture();
+        var handler = new CancelPendingPaymentForOrderCommandHandler(_uow.Object);
+
+        (await handler.Handle(new CancelPendingPaymentForOrderCommand { OrderId = captured.OrderId }, default)).Should().BeFalse();
+        captured.Status.Should().Be(PaymentStatus.Captured);
+
+        var pending = Pending();
+        await handler.Handle(new CancelPendingPaymentForOrderCommand { OrderId = pending.OrderId }, default);
+        (await handler.Handle(new CancelPendingPaymentForOrderCommand { OrderId = pending.OrderId }, default)).Should().BeFalse();
+
+        (await handler.Handle(new CancelPendingPaymentForOrderCommand { OrderId = Guid.NewGuid() }, default)).Should().BeFalse();
+    }
+
     // ── callback amount ───────────────────────────────────────────────────
 
     [Fact]

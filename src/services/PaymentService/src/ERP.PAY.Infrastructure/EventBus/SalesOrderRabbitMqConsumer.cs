@@ -8,6 +8,7 @@ using MediatR;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using ERP.PAY.Application.Commands;
+using ERP.PAY.Application.Handlers;
 using ERP.PAY.Application.Interfaces;
 using ERP.PAY.Domain.Enums;
 
@@ -60,6 +61,7 @@ public class SalesOrderRabbitMqConsumer : IHostedService
         _channel.QueueBind(QueueName, ExchangeName, "sales_order.InitiatePaymentCommand");
         _channel.QueueBind(QueueName, ExchangeName, "sales_order.RefundPaymentCommand");
         _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderReturnedEvent");
+        _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderCancelledEvent");
 
         var consumer = new AsyncEventingBasicConsumer(_channel);
         consumer.Received += OnMessageReceivedAsync;
@@ -144,6 +146,17 @@ public class SalesOrderRabbitMqConsumer : IHostedService
                     }
                     break;
 
+                case "sales_order.SalesOrderCancelledEvent":
+                    // Risk R18: an order cancelled by hand must not leave a payment that can still be captured.
+                    var cancelled = JsonSerializer.Deserialize<SalesOrderCancelledContract>(json);
+                    if (cancelled != null && RequireTenant(cancelled.TenantId, ea.RoutingKey))
+                    {
+                        using var cancelTenant = TenantScope.Begin(cancelled.TenantId);
+                        var closed = await mediator.Send(new CancelPendingPaymentForOrderCommand { OrderId = cancelled.OrderId });
+                        _logger.LogInformation("Order {OrderId} cancelled: pending payment closed = {Closed}", cancelled.OrderId, closed);
+                    }
+                    break;
+
                 default:
                     _logger.LogWarning("Unhandled routing key {RoutingKey} on {Exchange}", ea.RoutingKey, ExchangeName);
                     break;
@@ -217,6 +230,13 @@ public class SalesOrderReturnedContract
     public Guid OrderId { get; set; }
     public Guid TenantId { get; set; }
     public decimal RefundAmount { get; set; }
+}
+
+// Local mirror of SalesOrderCancelledEvent (ERP.SO.Domain.Events) — only the fields Payment needs.
+public class SalesOrderCancelledContract
+{
+    public Guid OrderId { get; set; }
+    public Guid TenantId { get; set; }
 }
 
 public class SagaRefundPaymentCommand
