@@ -25,6 +25,13 @@ namespace ERP.PRM.Infrastructure.EventBus
     /// </summary>
     public class SalesOrderRabbitMqConsumer : IHostedService
     {
+        /// <summary>
+        /// What the customer paid for the goods: the order total without the delivery fee (ROADMAP P1-11b). Loyalty points are earned on goods, not on delivery;
+        /// an event published before the fee existed has no ShippingFee and counts as 0.
+        /// </summary>
+        public static decimal GoodsTotal(Newtonsoft.Json.Linq.JObject raw) =>
+            Math.Max(0m, raw.Value<decimal>("TotalAmount") - (raw.Value<decimal?>("ShippingFee") ?? 0m));
+
         private const string ExchangeName = "sales_order_events";
         private const string QueueName = "promotion-service.sales-order-events";
         private const string AttemptHeader = "x-attempt";
@@ -95,7 +102,7 @@ namespace ERP.PRM.Infrastructure.EventBus
                         var evt = new SalesOrderCreatedIntegrationEvent(
                             (raw.GuidValue("OrderId") ?? Guid.Empty),
                             (raw.GuidValue("CustomerId") ?? Guid.Empty),
-                            raw.Value<decimal>("TotalAmount"),
+                            GoodsTotal(raw),
                             lines);
 
                         var handler = scope.ServiceProvider.GetRequiredService<SalesOrderCreatedForPromotionHandler>();
