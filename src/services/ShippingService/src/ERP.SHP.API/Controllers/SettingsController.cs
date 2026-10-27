@@ -56,6 +56,23 @@ public class SettingsController : ControllerBase
         return Ok(await _settingsService.UpdateTenantSettingsAsync(tenantId, request, ct));
     }
 
+    /// <summary>The shop's account at each carrier; secrets are never returned, only whether they are set.</summary>
+    [HttpGet("tenant/{tenantId}/carriers")]
+    public async Task<IActionResult> GetCarrierAccounts([FromRoute] Guid tenantId, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("settings:shipping:tenant:view") || !CallerCanAccessTenant(tenantId))
+            return Forbid();
+        return Ok(await _settingsService.GetCarrierAccountsAsync(tenantId, ct));
+    }
+
+    [HttpPut("tenant/{tenantId}/carriers/{carrier}")]
+    public async Task<IActionResult> UpdateCarrierAccount([FromRoute] Guid tenantId, [FromRoute] string carrier, [FromBody] UpdateCarrierAccountRequest request, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("settings:shipping:tenant:manage") || !CallerCanAccessTenant(tenantId))
+            return Forbid();
+        return Ok(await _settingsService.UpdateCarrierAccountAsync(tenantId, carrier, request, ct));
+    }
+
     private bool CallerCanAccessTenant(Guid tenantId)
     {
         if (Guid.TryParse(_userContext.TenantId, out var callerTenantId) && callerTenantId == tenantId)

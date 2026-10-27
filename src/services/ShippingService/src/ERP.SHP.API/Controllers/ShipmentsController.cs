@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using ERP.SHP.Application.Commands;
+using ERP.SHP.Application.Handlers;
 using ERP.SHP.Application.Interfaces;
 using ERP.SHP.Application.Queries;
 using ERP.Shared.Authorization;
@@ -30,6 +31,37 @@ public class ShipmentsController : ControllerBase
 
         var result = await _mediator.Send(command, ct);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+    }
+
+    /// <summary>The shop's shipments, newest first (admin list; also what the staff delivery screen reads).</summary>
+    [HttpGet]
+    public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? status = null,
+        [FromQuery] string? search = null, [FromQuery] bool needsReview = false, CancellationToken ct = default)
+    {
+        if (!_userContext.HasPermission("shipping:view"))
+            return Forbid();
+
+        return Ok(await _mediator.Send(new ListShipmentsQuery { Page = page, PageSize = pageSize, Status = status, Search = search, NeedsReview = needsReview }, ct));
+    }
+
+    /// <summary>Cancels a parcel the carrier has not collected, at the carrier and here.</summary>
+    [HttpPost("{id:guid}/cancel-at-carrier")]
+    public async Task<IActionResult> CancelAtCarrier(Guid id, [FromBody] CancelAtCarrierRequest? body, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("shipping:update"))
+            return Forbid();
+
+        return Ok(await _mediator.Send(new CancelShipmentAtCarrierCommand { ShipmentId = id, Reason = string.IsNullOrWhiteSpace(body?.Reason) ? "cancelled by the shop" : body!.Reason! }, ct));
+    }
+
+    /// <summary>Books again a shipment that has no carrier tracking number.</summary>
+    [HttpPost("{id:guid}/rebook")]
+    public async Task<IActionResult> Rebook(Guid id, [FromBody] RebookRequest? body, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("shipping:update"))
+            return Forbid();
+
+        return Ok(await _mediator.Send(new RebookShipmentCommand { ShipmentId = id, CarrierId = body?.CarrierId }, ct));
     }
 
     [HttpGet("{id:guid}")]
@@ -239,12 +271,14 @@ public class CarriersController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ERP.SHP.Application.Services.CarrierBookingService _booking;
+    private readonly ICarrierRuleService _rules;
     private readonly UserContext _userContext;
 
-    public CarriersController(IMediator mediator, ERP.SHP.Application.Services.CarrierBookingService booking, UserContext userContext)
+    public CarriersController(IMediator mediator, ERP.SHP.Application.Services.CarrierBookingService booking, ICarrierRuleService rules, UserContext userContext)
     {
         _mediator = mediator;
         _booking = booking;
+        _rules = rules;
         _userContext = userContext;
     }
 
@@ -266,6 +300,44 @@ public class CarriersController : ControllerBase
         return Ok(result);
     }
 
+    // ── selection rules ───────────────────────────────────────────────────
+    [HttpGet("rules")]
+    public async Task<IActionResult> ListRules(CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("shipping:view"))
+            return Forbid();
+        return Ok(await _rules.ListAsync(ct));
+    }
+
+    [HttpPost("rules")]
+    public async Task<IActionResult> CreateRule([FromBody] ERP.SHP.Application.DTOs.SaveCarrierRuleRequest request, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("shipping:carriers:manage"))
+            return Forbid();
+        return Ok(await _rules.CreateAsync(request, ct));
+    }
+
+    [HttpPut("rules/{id:guid}")]
+    public async Task<IActionResult> UpdateRule(Guid id, [FromBody] ERP.SHP.Application.DTOs.SaveCarrierRuleRequest request, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("shipping:carriers:manage"))
+            return Forbid();
+        return Ok(await _rules.UpdateAsync(id, request, ct));
+    }
+
+    [HttpDelete("rules/{id:guid}")]
+    public async Task<IActionResult> DeleteRule(Guid id, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("shipping:carriers:manage"))
+            return Forbid();
+        await _rules.DeleteAsync(id, ct);
+        return NoContent();
+    }
+
+    /// <summary>What the selection would do with a parcel: the matching rule and what every carrier asks. Books nothing.</summary>
+    [HttpPost("quote")]
+    public Task<IActionResult> Quote([FromBody] ERP.SHP.Application.DTOs.QuoteParcelRequest request, CancellationToken ct) => CalculateFee(request, ct);
+
     [HttpPost("calculate-fee")]
     public async Task<IActionResult> CalculateFee([FromBody] ERP.SHP.Application.DTOs.QuoteParcelRequest request, CancellationToken ct)
     {
@@ -274,24 +346,17 @@ public class CarriersController : ControllerBase
 
         var sender = await _booking.SenderAsync(ct);
         var to = new ERP.SHP.Application.Interfaces.CarrierAddress("Recipient", "0900000000", request.Street ?? string.Empty, request.Ward, request.District, request.Province);
-        var quotes = await _booking.QuoteAllAsync(new ERP.SHP.Application.Interfaces.CarrierQuoteRequest(sender.Address, to, request.WeightGrams, request.DeclaredValue, request.CodAmount), ct);
-        return Ok(quotes);
+        var preview = await _booking.PreviewAsync(new ERP.SHP.Application.Interfaces.CarrierQuoteRequest(sender.Address, to, request.WeightGrams, request.DeclaredValue, request.CodAmount), ct);
+        return Ok(preview);
     }
+}
 
-    [HttpGet("{id:guid}/quote")]
-    public async Task<IActionResult> GetQuote(Guid id, [FromQuery] decimal weightKg, [FromQuery] string? destinationProvince, CancellationToken ct)
-    {
-        if (!_userContext.HasPermission("shipping:view"))
-            return Forbid();
+public class CancelAtCarrierRequest
+{
+    public string? Reason { get; set; }
+}
 
-        try
-        {
-            var result = await _mediator.Send(new GetCarrierQuoteQuery { CarrierId = id, WeightKg = weightKg, DestinationProvince = destinationProvince }, ct);
-            return Ok(result);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
-    }
+public class RebookRequest
+{
+    public Guid? CarrierId { get; set; }
 }

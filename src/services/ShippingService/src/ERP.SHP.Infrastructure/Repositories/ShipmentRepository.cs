@@ -32,6 +32,21 @@ public class ShipmentRepository : IShipmentRepository
         return Task.CompletedTask;
     }
 
+    public async Task<(List<Shipment> Items, int Total)> ListAsync(int skip, int take, ShipmentStatus? status, string? search, bool needsReview, CancellationToken ct = default)
+    {
+        var query = _db.Shipments.AsNoTracking().AsQueryable();
+        if (status.HasValue) query = query.Where(s => s.Status == status.Value);
+        if (needsReview) query = query.Where(s => s.ReviewNote != null);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var q = search.Trim();
+            query = query.Where(s => s.TrackingNumber == q || s.CarrierOrderCode == q || s.RecipientName.Contains(q));
+        }
+        var total = await query.CountAsync(ct);
+        var items = await query.Include(s => s.Items).Include(s => s.TrackingEvents).OrderByDescending(s => s.CreatedAt).Skip(skip).Take(take).ToListAsync(ct);
+        return (items, total);
+    }
+
     public async Task<Shipment?> GetTrackedByTrackingNumberAsync(string trackingNumber, CancellationToken ct = default) =>
         await _db.Shipments.Include(s => s.Items).Include(s => s.TrackingEvents)
             .FirstOrDefaultAsync(s => s.TrackingNumber == trackingNumber, ct);

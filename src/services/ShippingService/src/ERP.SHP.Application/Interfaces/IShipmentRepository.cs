@@ -1,4 +1,5 @@
 using ERP.SHP.Domain.Entities;
+using ERP.SHP.Domain.Enums;
 
 namespace ERP.SHP.Application.Interfaces;
 
@@ -20,6 +21,8 @@ public interface IShipmentRepository
     Task UpdateAsync(Shipment shipment, CancellationToken ct = default);
 
     /// <summary>Tracked, for a carrier notification or poll that will change it. Null when no shipment of the current tenant has this tracking code.</summary>
+    Task<(List<Shipment> Items, int Total)> ListAsync(int skip, int take, ShipmentStatus? status, string? search, bool needsReview, CancellationToken ct = default);
+
     Task<Shipment?> GetTrackedByTrackingNumberAsync(string trackingNumber, CancellationToken ct = default);
 
     /// <summary>The tenant that owns a shipment with this tracking code, across tenants (the webhook has no tenant until it is found).</summary>

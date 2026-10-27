@@ -42,6 +42,18 @@ public class CarrierBookingService
         return quotes.ToList();
     }
 
+    /// <summary>What the selection would do with this parcel: the rule that matches (if any) and every carrier's quote. Books nothing.</summary>
+    public async Task<ERP.SHP.Application.DTOs.CarrierChoicePreviewDto> PreviewAsync(CarrierQuoteRequest request, CancellationToken ct = default)
+    {
+        var usable = await _carriers.ListEnabledAsync(ct);
+        var quotes = await Task.WhenAll(usable.Select(c => c.Provider.QuoteAsync(c.Credentials, request, ct)));
+        var codes = usable.Select(c => c.Credentials.CarrierCode).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var facts = new ShipmentFacts(request.To.Province, request.WeightGrams, request.DeclaredValue, request.CodAmount > 0m);
+        var rule = (await _uow.Config.GetActiveRulesAsync(ct)).OrderBy(r => r.Priority).FirstOrDefault(r => codes.Contains(r.CarrierCode) && r.Matches(facts));
+        return new ERP.SHP.Application.DTOs.CarrierChoicePreviewDto(rule?.CarrierCode, rule?.Name,
+            quotes.Select(q => new ERP.SHP.Application.DTOs.CarrierQuotePreviewDto(q.CarrierCode, NameOf(q.CarrierCode), q.Success, q.Fee, q.Error)).ToList());
+    }
+
     public async Task<CarrierSender> SenderAsync(CancellationToken ct = default)
     {
         var settings = await _uow.Config.GetTenantSettingsAsync(ct);

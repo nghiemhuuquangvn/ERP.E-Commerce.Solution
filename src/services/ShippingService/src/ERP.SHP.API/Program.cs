@@ -33,6 +33,7 @@ builder.Services.AddScoped<ICarrierRepository, CarrierRepository>();
 builder.Services.AddScoped<IShippingConfigRepository, ShippingConfigRepository>();
 builder.Services.AddScoped<ERP.SHP.Application.Services.CarrierBookingService>();
 builder.Services.AddScoped<ERP.SHP.Application.Services.CarrierTrackingService>();
+builder.Services.AddScoped<ERP.SHP.Application.Interfaces.ICarrierRuleService, ERP.SHP.Infrastructure.Services.CarrierRuleService>();
 builder.Services.AddScoped<ERP.SHP.Application.Interfaces.ICarrierWebhookService, ERP.SHP.Infrastructure.Services.CarrierWebhookService>();
 builder.Services.AddHostedService<ERP.SHP.Infrastructure.BackgroundJobs.CarrierTrackingSyncJob>();
 builder.Services.AddScoped<IReturnShipmentRepository, ReturnShipmentRepository>();
