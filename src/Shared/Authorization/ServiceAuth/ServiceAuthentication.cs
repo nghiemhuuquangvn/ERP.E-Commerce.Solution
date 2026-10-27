@@ -40,6 +40,9 @@ public static class ServiceAuthenticationExtensions
                 options.RefreshOnIssuerKeyNotFound = true;
                 options.TokenValidationParameters = parameters;
                 options.ConfigurationManager = new TrustedCallerKeys(callers, requireHttps);
+                // An unknown key id is looked up again before the token is judged (see TrustedCallerKeys); the manager is read from the options so it can be replaced.
+                parameters.IssuerSigningKeyResolver = (_, _, kid, _) =>
+                    (options.ConfigurationManager as TrustedCallerKeys)?.ResolveSigningKeys(kid) ?? [];
             });
         return services;
     }
@@ -95,15 +98,34 @@ public static class ServiceAuthenticationExtensions
 }
 
 /// <summary>
-/// The keys of every trusted caller, fetched from each caller's JWKS (cached, refreshed on an
-/// unknown kid). One unreachable caller doesn't stop the others' tokens from validating.
+/// The keys of every trusted caller, fetched from each caller's JWKS and cached. One unreachable caller doesn't stop the others' tokens from validating.
+/// A token signed with a key that is not cached (the caller restarted: service tokens use an ephemeral key) is not refused: the JWKS is fetched again
+/// right then, at most once per <see cref="MinimumRefreshInterval"/> per caller, and the token is validated against the new keys (R38 - the library's own
+/// refresh runs in the background, so the first call after a redeploy used to get 401).
 /// </summary>
 public sealed class TrustedCallerKeys : IConfigurationManager<OpenIdConnectConfiguration>
 {
     private static readonly ConditionalWeakTable<SecurityKey, string> Owners = new();
 
-    private readonly IReadOnlyDictionary<string, ConfigurationManager<OpenIdConnectConfiguration>> _callers;
+    /// <summary>The least time between two fetches of one caller's keys: bounds the traffic an attacker can cause with tokens of unknown keys.</summary>
+    public static readonly TimeSpan MinimumRefreshInterval = TimeSpan.FromSeconds(2);
+
+    /// <summary>Keys are fetched again after this even when nothing asked for it.</summary>
+    private static readonly TimeSpan MaximumAge = TimeSpan.FromHours(1);
+
+    private sealed class CallerState(string url)
+    {
+        public string Url { get; } = url;
+        public IReadOnlyList<SecurityKey> Keys { get; set; } = [];
+        public DateTimeOffset? FetchedAt { get; set; }
+    }
+
+    private readonly Dictionary<string, CallerState> _callers;
+    private readonly IDocumentRetriever _documents;
     private readonly ILogger _logger;
+    private readonly TimeProvider _time;
+    private readonly object _gate = new();
+    private readonly SemaphoreSlim _fetching = new(1, 1);
 
     public TrustedCallerKeys(IReadOnlyDictionary<string, string> callers, bool requireHttps, ILogger? logger = null)
         : this(callers, new HttpDocumentRetriever { RequireHttps = requireHttps }, logger)
@@ -112,15 +134,12 @@ public sealed class TrustedCallerKeys : IConfigurationManager<OpenIdConnectConfi
 
     /// <param name="callers">Caller name → its JWKS URL.</param>
     /// <param name="documents">Fetches the JWKS documents (HTTP in production; a fake in tests).</param>
-    public TrustedCallerKeys(IReadOnlyDictionary<string, string> callers, IDocumentRetriever documents, ILogger? logger = null)
+    public TrustedCallerKeys(IReadOnlyDictionary<string, string> callers, IDocumentRetriever documents, ILogger? logger = null, TimeProvider? time = null)
     {
+        _documents = documents;
         _logger = logger ?? NullLogger.Instance;
-        _callers = callers.ToDictionary(
-            c => c.Key,
-            c => new ConfigurationManager<OpenIdConnectConfiguration>(c.Value, new JwksConfigurationRetriever(), documents)
-            {
-                RefreshInterval = TimeSpan.FromSeconds(30)
-            });
+        _time = time ?? TimeProvider.System;
+        _callers = callers.ToDictionary(c => c.Key, c => new CallerState(c.Value));
     }
 
     internal static string? OwnerOf(SecurityKey key) => Owners.TryGetValue(key, out var owner) ? owner : null;
@@ -129,30 +148,73 @@ public sealed class TrustedCallerKeys : IConfigurationManager<OpenIdConnectConfi
 
     public async Task<OpenIdConnectConfiguration> GetConfigurationAsync(CancellationToken cancel)
     {
+        await RefreshAsync(force: false, cancel);
         var merged = new OpenIdConnectConfiguration();
-        foreach (var (caller, manager) in _callers)
-        {
-            try
-            {
-                var configuration = await manager.GetConfigurationAsync(cancel);
-                foreach (var key in configuration.SigningKeys)
-                {
-                    SetOwner(key, caller);
+        lock (_gate)
+            foreach (var state in _callers.Values)
+                foreach (var key in state.Keys)
                     merged.SigningKeys.Add(key);
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _logger.LogWarning(ex, "Could not fetch the token keys of trusted caller {Caller}", caller);
-            }
-        }
         return merged;
     }
 
+    /// <summary>
+    /// The cached keys that match <paramref name="kid"/> (all of them when the token names none). When none matches, the callers' keys are fetched again
+    /// first (throttled) so a token signed after a restart is validated on its first call.
+    /// </summary>
+    public IReadOnlyList<SecurityKey> ResolveSigningKeys(string? kid)
+    {
+        RefreshAsync(force: false, CancellationToken.None).GetAwaiter().GetResult();
+        var found = Matching(kid);
+        if (found.Count > 0) return found;
+
+        RefreshAsync(force: true, CancellationToken.None).GetAwaiter().GetResult();
+        return Matching(kid);
+    }
+
+    private List<SecurityKey> Matching(string? kid)
+    {
+        lock (_gate)
+            return _callers.Values.SelectMany(s => s.Keys)
+                .Where(k => string.IsNullOrEmpty(kid) || string.Equals(k.KeyId, kid, StringComparison.Ordinal))
+                .ToList();
+    }
+
+    /// <summary>The library asks for a refresh when it meets an unknown key; <see cref="ResolveSigningKeys"/> already did it before the token was judged.</summary>
     public void RequestRefresh()
     {
-        foreach (var manager in _callers.Values)
-            manager.RequestRefresh();
+    }
+
+    private async Task RefreshAsync(bool force, CancellationToken cancel)
+    {
+        await _fetching.WaitAsync(cancel);
+        try
+        {
+            foreach (var (caller, state) in _callers)
+            {
+                var now = _time.GetUtcNow();
+                var age = state.FetchedAt is { } at ? now - at : (TimeSpan?)null;
+                var due = age is null || age >= MaximumAge || (force && age >= MinimumRefreshInterval);
+                if (!due) continue;
+
+                try
+                {
+                    var configuration = await new JwksConfigurationRetriever().GetConfigurationAsync(state.Url, _documents, cancel);
+                    var keys = configuration.SigningKeys.ToList();
+                    foreach (var key in keys) SetOwner(key, caller);
+                    lock (_gate) state.Keys = keys;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogWarning(ex, "Could not fetch the token keys of trusted caller {Caller}", caller);
+                }
+                // A caller that cannot be reached is tried again after the minimum interval, not on every call.
+                lock (_gate) state.FetchedAt = now;
+            }
+        }
+        finally
+        {
+            _fetching.Release();
+        }
     }
 }
 
