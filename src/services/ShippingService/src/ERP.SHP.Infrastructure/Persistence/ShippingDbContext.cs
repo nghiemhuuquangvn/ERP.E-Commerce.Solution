@@ -16,6 +16,9 @@ public class ShippingDbContext : DbContext, ITenantScopedDbContext
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<SystemShippingSettings> SystemShippingSettings => Set<SystemShippingSettings>();
     public DbSet<TenantShippingSettings> TenantShippingSettings => Set<TenantShippingSettings>();
+    public DbSet<TenantCarrierCredential> TenantCarrierCredentials => Set<TenantCarrierCredential>();
+    public DbSet<CarrierSelectionRule> CarrierSelectionRules => Set<CarrierSelectionRule>();
+    public DbSet<CarrierWebhookLog> CarrierWebhookLogs => Set<CarrierWebhookLog>();
 
     private readonly ITenantProvider _tenantProvider;
 
@@ -51,6 +54,14 @@ public class ShippingDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.ReceivedByName).HasMaxLength(200);
             e.Property(x => x.SignatureUrl).HasMaxLength(1000);
             e.Property(x => x.PhotoUrl).HasMaxLength(1000);
+            e.Property(x => x.CodAmount).HasPrecision(18, 2);
+            e.Property(x => x.DeclaredValue).HasPrecision(18, 2);
+            e.Property(x => x.CarrierFee).HasPrecision(18, 2);
+            e.Property(x => x.CarrierOrderCode).HasMaxLength(100);
+            e.Property(x => x.SelectionNote).HasMaxLength(1000);
+            e.Property(x => x.BookingError).HasMaxLength(1000);
+            e.Property(x => x.ReviewNote).HasMaxLength(500);
+            e.HasIndex(x => x.TrackingNumber);
             // Columns created by 001_CreateShippingDB.sql carry the unit / older name.
             e.Property(x => x.TotalWeight).HasPrecision(10, 3).HasColumnName("TotalWeightKg");
             e.Property(x => x.DeliveredAt).HasColumnName("ActualDelivery");
@@ -118,7 +129,47 @@ public class ShippingDbContext : DbContext, ITenantScopedDbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.DefaultShippingFee).HasPrecision(18, 2);
             e.Property(x => x.FreeShippingThreshold).HasPrecision(18, 2);
+            e.Property(x => x.SenderName).HasMaxLength(200);
+            e.Property(x => x.SenderPhone).HasMaxLength(50);
+            e.Property(x => x.SenderAddress).HasMaxLength(300);
+            e.Property(x => x.SenderWard).HasMaxLength(100);
+            e.Property(x => x.SenderDistrict).HasMaxLength(100);
+            e.Property(x => x.SenderProvince).HasMaxLength(100);
             e.HasIndex(x => x.TenantId).IsUnique();
+        });
+
+        modelBuilder.Entity<TenantCarrierCredential>(e =>
+        {
+            e.ToTable("TenantCarrierCredentials");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.CarrierCode).HasMaxLength(20).IsRequired();
+            e.Property(x => x.PublicId).HasMaxLength(200);
+            e.Property(x => x.Username).HasMaxLength(200);
+            e.Property(x => x.Secret1Encrypted).HasMaxLength(1000);
+            e.Property(x => x.Secret2Encrypted).HasMaxLength(1000);
+            e.HasIndex(x => new { x.TenantId, x.CarrierCode }).IsUnique();
+        });
+
+        modelBuilder.Entity<CarrierSelectionRule>(e =>
+        {
+            e.ToTable("CarrierSelectionRules");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.MatchProvinces).HasMaxLength(1000);
+            e.Property(x => x.MinOrderValue).HasPrecision(18, 2);
+            e.Property(x => x.MaxOrderValue).HasPrecision(18, 2);
+            e.Property(x => x.CarrierCode).HasMaxLength(20).IsRequired();
+            e.HasIndex(x => new { x.TenantId, x.Priority });
+        });
+
+        modelBuilder.Entity<CarrierWebhookLog>(e =>
+        {
+            e.ToTable("CarrierWebhookLogs");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.CarrierCode).HasMaxLength(20).IsRequired();
+            e.Property(x => x.TrackingCode).HasMaxLength(100).IsRequired();
+            e.Property(x => x.CarrierStatus).HasMaxLength(50).IsRequired();
+            e.HasIndex(x => new { x.TenantId, x.CarrierCode, x.TrackingCode, x.CarrierStatus, x.ActionTime }).IsUnique();
         });
 
         // Last, so it composes with any per-entity filter configured above.

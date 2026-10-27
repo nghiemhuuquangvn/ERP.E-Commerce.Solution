@@ -32,6 +32,23 @@ public class Shipment : AggregateRoot
     public string? SignatureUrl { get; private set; }
     public string? PhotoUrl { get; private set; }
     public decimal TotalWeight { get; private set; }
+
+    // P1-11: what the carrier was asked and what it answered.
+    /// <summary>Cash the carrier collects from the recipient (0 when the order was paid online).</summary>
+    public decimal CodAmount { get; private set; }
+    /// <summary>Value declared to the carrier for insurance (the goods' value).</summary>
+    public decimal DeclaredValue { get; private set; }
+    /// <summary>The fee the carrier charges the shop (not the customer: the order has no shipping fee yet).</summary>
+    public decimal? CarrierFee { get; private set; }
+    /// <summary>The carrier's own order id when it differs from the tracking code.</summary>
+    public string? CarrierOrderCode { get; private set; }
+    /// <summary>Why this carrier: the rule that matched or the quotes compared.</summary>
+    public string? SelectionNote { get; private set; }
+    /// <summary>Why the booking failed (carriers tried and their errors); empty once a carrier accepted it.</summary>
+    public string? BookingError { get; private set; }
+    public DateTime? LastCarrierSyncAt { get; private set; }
+    /// <summary>Something a person should look at (e.g. the carrier collected another cash amount than expected).</summary>
+    public string? ReviewNote { get; private set; }
     public IReadOnlyCollection<ShipmentItem> Items => _items.AsReadOnly();
     public IReadOnlyCollection<TrackingEvent> TrackingEvents => _trackingEvents.AsReadOnly();
 
@@ -72,6 +89,100 @@ public class Shipment : AggregateRoot
     {
         TrackingNumber = trackingNumber;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetCommercials(decimal codAmount, decimal declaredValue)
+    {
+        CodAmount = Math.Max(0m, Math.Round(codAmount, 2));
+        DeclaredValue = Math.Max(0m, Math.Round(declaredValue, 2));
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>A carrier accepted the parcel: its codes, fee and the reason it was chosen.</summary>
+    public void RecordBooking(Guid carrierId, string carrierName, string trackingNumber, string? carrierOrderCode, decimal? fee, DateTime? estimatedDelivery, string? selectionNote)
+    {
+        CarrierId = carrierId;
+        CarrierName = carrierName;
+        TrackingNumber = trackingNumber;
+        CarrierOrderCode = carrierOrderCode;
+        CarrierFee = fee;
+        if (estimatedDelivery.HasValue) EstimatedDelivery = estimatedDelivery;
+        SelectionNote = selectionNote;
+        BookingError = null;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Every carrier tried refused (or none was usable): kept on the shipment so a person sees why.</summary>
+    public void RecordBookingFailure(string error)
+    {
+        BookingError = error.Length > 1000 ? error[..1000] : error;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void MarkCarrierSynced()
+    {
+        LastCarrierSyncAt = DateTime.UtcNow;
+    }
+
+    public void FlagForReview(string note)
+    {
+        ReviewNote = note.Length > 500 ? note[..500] : note;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// A carrier's report applied to the shipment: the tracking line is always added, the state only moves forward and never leaves a final
+    /// state (Delivered, Returned, Cancelled). A carrier may skip steps (picked up and delivered in one message), so intermediate states are passed through.
+    /// </summary>
+    public void ApplyCarrierStatus(CarrierShipmentStatus status, string location, string description)
+    {
+        if (Status is ShipmentStatus.Delivered or ShipmentStatus.Returned or ShipmentStatus.Cancelled)
+            return;
+
+        switch (status)
+        {
+            case CarrierShipmentStatus.Accepted:
+            case CarrierShipmentStatus.Returning:
+                AddTrackingEvent(status.ToString(), location, description);
+                break;
+            case CarrierShipmentStatus.PickedUp:
+                if (Status is ShipmentStatus.Pending or ShipmentStatus.ReadyForPickup) MarkAsPickedUp();
+                else AddTrackingEvent("PickedUp", location, description);
+                break;
+            case CarrierShipmentStatus.InTransit:
+                if (Status is ShipmentStatus.Pending or ShipmentStatus.ReadyForPickup) MarkAsPickedUp();
+                if (Status is ShipmentStatus.PickedUp or ShipmentStatus.DeliveryFailed) MarkInTransit(location);
+                else AddTrackingEvent("InTransit", location, description);
+                break;
+            case CarrierShipmentStatus.OutForDelivery:
+                if (Status is ShipmentStatus.Pending or ShipmentStatus.ReadyForPickup) MarkAsPickedUp();
+                if (Status != ShipmentStatus.OutForDelivery) MarkOutForDelivery(location);
+                else AddTrackingEvent("OutForDelivery", location, description);
+                break;
+            case CarrierShipmentStatus.Delivered:
+                if (Status is ShipmentStatus.Pending or ShipmentStatus.ReadyForPickup) MarkAsPickedUp();
+                if (Status is not (ShipmentStatus.OutForDelivery or ShipmentStatus.InTransit)) MarkOutForDelivery(location);
+                MarkAsDelivered(location);
+                break;
+            case CarrierShipmentStatus.DeliveryFailed:
+                MarkDeliveryFailed(string.IsNullOrWhiteSpace(description) ? "carrier reported a failed delivery" : description);
+                break;
+            case CarrierShipmentStatus.Returned:
+                MarkReturned(description);
+                break;
+            case CarrierShipmentStatus.Cancelled:
+                Cancel(string.IsNullOrWhiteSpace(description) ? "cancelled at the carrier" : description);
+                AddTrackingEvent("Cancelled", location, description);
+                break;
+        }
+    }
+
+    public void MarkReturned(string? note)
+    {
+        if (Status is ShipmentStatus.Delivered or ShipmentStatus.Cancelled) return;
+        Status = ShipmentStatus.Returned;
+        UpdatedAt = DateTime.UtcNow;
+        AddTrackingEvent("Returned", CarrierName, string.IsNullOrWhiteSpace(note) ? "Parcel returned to the sender" : note);
     }
 
     public void MarkReadyForPickup()
