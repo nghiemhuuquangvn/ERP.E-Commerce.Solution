@@ -102,6 +102,10 @@ namespace ERP.PRD.Application.Features.Variants.Commands
             // Add to product
             product.AddVariant(variant);
 
+            // Explicit Add (the same lesson as the product images): the variant's Id is assigned before EF sees it, so the navigation alone leaves it Modified,
+            // without its tenant, and the save is refused.
+            await _uow.Variants.AddAsync(variant, cancellationToken);
+
             // Save
             await _uow.SaveChangesAsync(cancellationToken);
 

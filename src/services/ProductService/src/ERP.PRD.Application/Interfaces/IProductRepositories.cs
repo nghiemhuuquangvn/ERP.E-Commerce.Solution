@@ -43,6 +43,10 @@ namespace ERP.PRD.Application.Interfaces
         Task<List<ProductVariant>> GetByProductIdsAsync(IReadOnlyCollection<Guid> productIds, CancellationToken ct = default);
         Task<List<VariantPriceProjection>> GetPricesByProductIdAsync(Guid productId, CancellationToken ct = default);
         void Update(ProductVariant variant);
+
+        // Explicit Add for a NEW variant, like IProductImageRepository.AddAsync: ProductVariant.Id is a client-assigned Guid, so a variant reached only through
+        // Product.AddVariant() is tracked as Modified, never stamped with its tenant, and SaveChanges refuses it (R38).
+        Task AddAsync(ProductVariant variant, CancellationToken ct = default);
     }
 
     public interface IProductAttributeRepository
