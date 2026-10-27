@@ -1,7 +1,13 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth.store'
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000/api'
+const DEFAULT_API_URL = 'http://localhost:5000/api'
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_API_URL
+
+// The Gateway takes the tenant from the request HOST; localhost belongs to no tenant (risk R15).
+if (BASE_URL === DEFAULT_API_URL) {
+  console.warn('EXPO_PUBLIC_API_URL is not set: calls go to localhost, which is no tenant. See docs/frontend/mobile-apps.md.')
+}
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
