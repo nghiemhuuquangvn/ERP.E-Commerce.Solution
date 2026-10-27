@@ -66,12 +66,14 @@ namespace ERP.SO.Infrastructure
                 eb.Property(e => e.PaymentMethod).HasMaxLength(20);
                 eb.Property(e => e.CustomerPhone).HasMaxLength(30);
                 eb.Property(e => e.DiscountAmount).IsRequired().HasPrecision(18, 2);
+                eb.Property(e => e.ShippingFee).IsRequired().HasPrecision(18, 2);
 
                 eb.HasIndex(e => new { e.TenantId, e.OrderNo }).IsUnique().HasFilter("[OrderNo] <> ''"); // numbering is per tenant
 
                 eb.OwnsOne(e => e.ShippingAddress, address =>
                 {
                     address.Property(a => a.Street).IsRequired().HasMaxLength(255);
+                    address.Property(a => a.Ward).IsRequired().HasMaxLength(100).HasDefaultValue(string.Empty);
                     address.Property(a => a.City).IsRequired().HasMaxLength(100);
                     address.Property(a => a.State).IsRequired().HasMaxLength(100);
                     address.Property(a => a.PostalCode).IsRequired().HasMaxLength(20);

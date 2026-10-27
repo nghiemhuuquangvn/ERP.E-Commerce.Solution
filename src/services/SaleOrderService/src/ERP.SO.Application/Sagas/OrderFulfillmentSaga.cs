@@ -228,6 +228,7 @@ public sealed class OrderFulfillmentSaga
             ShippingAddress = new SagaShippingAddress
             {
                 Street = order.ShippingAddress.Street,
+                Ward = order.ShippingAddress.Ward,
                 City = order.ShippingAddress.City,
                 State = order.ShippingAddress.State,
                 PostalCode = order.ShippingAddress.PostalCode,
@@ -479,6 +480,8 @@ public record CreateShipmentCommand
 public record SagaShippingAddress
 {
     public string Street { get; init; } = string.Empty;
+    /// <summary>Ward (phuong / xa) of the delivery address; empty for orders made before it existed.</summary>
+    public string Ward { get; init; } = string.Empty;
     public string City { get; init; } = string.Empty;
     public string State { get; init; } = string.Empty;
     public string PostalCode { get; init; } = string.Empty;

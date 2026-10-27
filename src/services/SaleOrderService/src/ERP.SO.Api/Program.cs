@@ -74,6 +74,10 @@ builder.Services.AddHttpClient<IPromotionServiceClient, PromotionServiceClient>(
 builder.Services.AddHttpClient<IWarehouseServiceClient, WarehouseServiceClient>()
     .AddServiceToken("warehouse");
 
+// ShippingService client - the delivery fee the customer pays (ROADMAP P1-11b); fails closed like the stock check.
+builder.Services.AddHttpClient<IShippingServiceClient, ShippingServiceClient>()
+    .AddServiceToken("shipping");
+
 // Consumes ProductService's product-topic (Kafka) for ProductPriceChangedDomainEvent —
 // previously impossible, since that event didn't exist in ProductService until
 // 2026-07-03 (docs/business section 3.2).

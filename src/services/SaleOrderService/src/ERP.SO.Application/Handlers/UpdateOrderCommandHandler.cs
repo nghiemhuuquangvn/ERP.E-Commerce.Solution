@@ -24,7 +24,8 @@ namespace ERP.SO.Application.Handlers
                 request.ShippingAddress.City,
                 request.ShippingAddress.State,
                 request.ShippingAddress.PostalCode,
-                request.ShippingAddress.Country);
+                request.ShippingAddress.Country,
+                request.ShippingAddress.Ward);
 
             order.UpdateOrder(address, request.Notes);
             await _repository.UpdateAsync(order, cancellationToken);

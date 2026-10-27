@@ -38,9 +38,13 @@ namespace ERP.SO.Application.Handlers
             QuotationId = order.QuotationId,
             PromotionId = order.PromotionId,
             DiscountAmount = order.DiscountAmount,
+
+            ShippingFee = order.ShippingFee,
             ShippingAddress = new AddressDto
             {
                 Street = order.ShippingAddress.Street,
+
+                Ward = order.ShippingAddress.Ward,
                 City = order.ShippingAddress.City,
                 State = order.ShippingAddress.State,
                 PostalCode = order.ShippingAddress.PostalCode,

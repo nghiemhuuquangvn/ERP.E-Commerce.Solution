@@ -127,7 +127,8 @@ namespace ERP.SO.Application.Handlers
                 request.ShippingAddress.City,
                 request.ShippingAddress.State,
                 request.ShippingAddress.PostalCode,
-                request.ShippingAddress.Country);
+                request.ShippingAddress.Country,
+                request.ShippingAddress.Ward);
 
             var lineItems = quotation.LineItems
                 .Select(li => new OrderLineItem(li.ProductId, li.ProductName, li.Quantity, li.UnitPrice))

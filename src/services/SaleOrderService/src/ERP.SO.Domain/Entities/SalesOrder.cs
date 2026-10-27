@@ -33,6 +33,10 @@ namespace ERP.SO.Domain.Entities
         /// <summary>Which promotion produced DiscountAmount, if any — was previously discarded after coupon validation.</summary>
         public Guid? PromotionId { get; private set; }
         public decimal DiscountAmount { get; private set; }
+        /// <summary>What the customer pays for delivery (the shop's flat fee, free from a threshold - ROADMAP P1-11b). Part of TotalAmount; decided by ShippingService when the order is created.</summary>
+        public decimal ShippingFee { get; private set; }
+        /// <summary>The goods after the coupon, without delivery.</summary>
+        public decimal MerchandiseTotal => Math.Max(0, _lineItems.Sum(li => li.LineTotal) - DiscountAmount);
 
         public DateTime? ApprovedAt { get; private set; }
         public DateTime? ShippedAt { get; private set; }
@@ -392,12 +396,30 @@ namespace ERP.SO.Domain.Entities
 
             PromotionId = promotionId;
             DiscountAmount = discountAmount;
-            TotalAmount = Math.Max(0, TotalAmount - discountAmount);
+            RecalculateTotal();
+        }
+
+        /// <summary>Sets the delivery fee the customer pays and puts it in the total. Before the first save only: the order created event the other services read carries it.</summary>
+        public void SetShippingFee(decimal fee)
+        {
+            if (fee < 0)
+                throw new ArgumentException("The shipping fee cannot be negative", nameof(fee));
+
+            ShippingFee = fee;
+            RecalculateTotal();
         }
 
         private void RecalculateTotal()
         {
-            TotalAmount = _lineItems.Sum(li => li.LineTotal);
+            TotalAmount = MerchandiseTotal + ShippingFee;
+
+            // The order created event is built before the coupon and the delivery fee are known: keep it equal to the order that is saved.
+            foreach (var created in DomainEvents.OfType<SalesOrderCreatedEvent>())
+            {
+                created.TotalAmount = TotalAmount;
+                created.ShippingFee = ShippingFee;
+                created.DiscountAmount = DiscountAmount;
+            }
         }
     }
 }

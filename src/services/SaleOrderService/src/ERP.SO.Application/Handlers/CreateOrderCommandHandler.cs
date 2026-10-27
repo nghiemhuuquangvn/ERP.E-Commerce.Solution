@@ -26,6 +26,7 @@ namespace ERP.SO.Application.Handlers
         private readonly ISalesOrderUnitOfWork _uow;
         private readonly IPromotionServiceClient _promotionServiceClient;
         private readonly IWarehouseServiceClient _warehouseServiceClient;
+        private readonly IShippingServiceClient _shippingServiceClient;
         private readonly OrderFulfillmentSaga _saga;
         private readonly IUserContextService _userContextService;
         private readonly IOrderNumberGenerator _orderNumberGenerator;
@@ -34,6 +35,7 @@ namespace ERP.SO.Application.Handlers
             ISalesOrderUnitOfWork uow,
             IPromotionServiceClient promotionServiceClient,
             IWarehouseServiceClient warehouseServiceClient,
+            IShippingServiceClient shippingServiceClient,
             OrderFulfillmentSaga saga,
             IUserContextService userContextService,
             IOrderNumberGenerator orderNumberGenerator)
@@ -41,6 +43,7 @@ namespace ERP.SO.Application.Handlers
             _uow = uow;
             _promotionServiceClient = promotionServiceClient;
             _warehouseServiceClient = warehouseServiceClient;
+            _shippingServiceClient = shippingServiceClient;
             _saga = saga;
             _userContextService = userContextService;
             _orderNumberGenerator = orderNumberGenerator;
@@ -53,7 +56,8 @@ namespace ERP.SO.Application.Handlers
                 request.ShippingAddress.City,
                 request.ShippingAddress.State,
                 request.ShippingAddress.PostalCode,
-                request.ShippingAddress.Country);
+                request.ShippingAddress.Country,
+                request.ShippingAddress.Ward);
 
             var lineItems = request.LineItems
                 .Select(li => new OrderLineItem(li.ProductId, li.ProductName, li.Quantity, li.UnitPrice))
@@ -111,6 +115,13 @@ namespace ERP.SO.Application.Handlers
                     salesOrder.AddInternalNote($"Coupon '{request.CouponCode}' not applied: {validation.ErrorMessage}", "system:promotion-validation");
             }
 
+            // The delivery fee is the shop's (ShippingService decides it from the goods after the coupon); the client never sends one.
+            // Fails closed like the stock check: an order whose fee cannot be fixed would be charged wrongly.
+            var fee = await _shippingServiceClient.GetFeeAsync(salesOrder.MerchandiseTotal, cancellationToken);
+            if (fee is null)
+                throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("Sales", "The delivery fee cannot be worked out right now. Please try again in a moment.");
+            salesOrder.SetShippingFee(fee.Value);
+
             await _uow.Orders.AddAsync(salesOrder, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
 
@@ -165,9 +176,13 @@ namespace ERP.SO.Application.Handlers
                 QuotationId = order.QuotationId,
                 PromotionId = order.PromotionId,
                 DiscountAmount = order.DiscountAmount,
+
+                ShippingFee = order.ShippingFee,
                 ShippingAddress = new AddressDto
                 {
                     Street = order.ShippingAddress.Street,
+
+                    Ward = order.ShippingAddress.Ward,
                     City = order.ShippingAddress.City,
                     State = order.ShippingAddress.State,
                     PostalCode = order.ShippingAddress.PostalCode,
@@ -250,9 +265,13 @@ namespace ERP.SO.Application.Handlers
                 QuotationId = order.QuotationId,
                 PromotionId = order.PromotionId,
                 DiscountAmount = order.DiscountAmount,
+
+                ShippingFee = order.ShippingFee,
                 ShippingAddress = new AddressDto
                 {
                     Street = order.ShippingAddress.Street,
+
+                    Ward = order.ShippingAddress.Ward,
                     City = order.ShippingAddress.City,
                     State = order.ShippingAddress.State,
                     PostalCode = order.ShippingAddress.PostalCode,
@@ -316,9 +335,13 @@ namespace ERP.SO.Application.Handlers
                 QuotationId = order.QuotationId,
                 PromotionId = order.PromotionId,
                 DiscountAmount = order.DiscountAmount,
+
+                ShippingFee = order.ShippingFee,
                 ShippingAddress = new AddressDto
                 {
                     Street = order.ShippingAddress.Street,
+
+                    Ward = order.ShippingAddress.Ward,
                     City = order.ShippingAddress.City,
                     State = order.ShippingAddress.State,
                     PostalCode = order.ShippingAddress.PostalCode,
@@ -398,9 +421,13 @@ namespace ERP.SO.Application.Handlers
                 QuotationId = order.QuotationId,
                 PromotionId = order.PromotionId,
                 DiscountAmount = order.DiscountAmount,
+
+                ShippingFee = order.ShippingFee,
                 ShippingAddress = new AddressDto
                 {
                     Street = order.ShippingAddress.Street,
+
+                    Ward = order.ShippingAddress.Ward,
                     City = order.ShippingAddress.City,
                     State = order.ShippingAddress.State,
                     PostalCode = order.ShippingAddress.PostalCode,

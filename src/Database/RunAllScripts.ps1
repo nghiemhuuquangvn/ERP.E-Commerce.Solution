@@ -75,6 +75,7 @@ $DatabaseScripts = @(
     "Sales\012_OrderItemsTenantNullable.sql",
     "Sales\013_OrderPaymentMethod.sql",
     "Sales\014_OrderCustomerPhone.sql",
+    "Sales\015_OrderShippingFeeAndWard.sql",
     "Purchasing\001_CreatePurchasingDB.sql",
     "Purchasing\002_AddOutboxMessages.sql",
     "Purchasing\003_AddReceivingScheduleAndSupplierRatings.sql",
