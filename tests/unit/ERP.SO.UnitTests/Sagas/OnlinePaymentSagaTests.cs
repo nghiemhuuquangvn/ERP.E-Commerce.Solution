@@ -146,19 +146,33 @@ public class OnlinePaymentSagaTests
     }
 
     [Fact]
-    public async Task An_order_that_did_not_say_and_never_paid_sends_no_refund_as_before()
+    public async Task A_paid_order_still_refunds_its_payment_by_id()
     {
-        var order = Order(null);
+        var order = Order("MoMo");
+        var paymentId = Guid.NewGuid();
         var state = OrderFulfillmentSagaState.Start(order.Id, Tenant);
-        state.PaymentInitiated(Guid.NewGuid());
+        state.PaymentInitiated(paymentId);
         _sagas.Setup(s => s.GetByOrderIdAsync(order.Id, It.IsAny<CancellationToken>())).ReturnsAsync(state);
-        var noPayment = OrderFulfillmentSagaState.Start(order.Id, Tenant);
-        noPayment.SkipPaymentForCashOnDelivery();
-        _sagas.Setup(s => s.GetByOrderIdAsync(order.Id, It.IsAny<CancellationToken>())).ReturnsAsync(noPayment);
 
         await Saga().HandleInventoryInsufficientAsync(order.Id, "no stock", default);
 
-        _published.OfType<RefundPaymentCommand>().Should().BeEmpty();
+        _published.OfType<RefundPaymentCommand>().Single().PaymentId.Should().Be(paymentId);
+    }
+
+    [Fact]
+    public async Task An_online_order_that_times_out_unpaid_asks_Payment_to_cancel_its_pending_payment()
+    {
+        var order = Order("MoMo");
+        var state = OrderFulfillmentSagaState.Start(order.Id, Tenant);   // still waiting for payment, no payment id
+        _sagas.Setup(s => s.GetByIdAsync(state.Id, It.IsAny<CancellationToken>())).ReturnsAsync(state);
+        _sagas.Setup(s => s.GetByOrderIdAsync(order.Id, It.IsAny<CancellationToken>())).ReturnsAsync(state);
+        var options = new SagaOptions();
+        options.MaxRetries = 0;
+
+        await Saga().HandleStepTimeoutAsync(state.Id, options, state.LastUpdatedAt.AddHours(5), false, default);
+
+        var refund = _published.OfType<RefundPaymentCommand>().Single();
+        (refund.PaymentId, refund.OrderId).Should().Be((Guid.Empty, order.Id));
     }
 
     /// <summary>The step the saga was in when it was saved (the entity is mutated afterwards).</summary>

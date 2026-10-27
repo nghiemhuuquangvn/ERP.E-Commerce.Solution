@@ -98,18 +98,16 @@ public sealed class OrderFulfillmentSaga
         OrderNumber = orderNumber
     };
 
-    /// <summary>Refunds the payment when there is one; for a cash-on-delivery order there is none yet, so Payment is asked (by order id) to cancel its pending one.</summary>
+    /// <summary>
+    /// Refunds the payment when the saga knows it. Without a payment id (cash on delivery, or an online order that timed out before it was paid) Payment is
+    /// asked, by order id, to close whatever it holds: a pending payment is cancelled, so a late "paid" from the gateway can no longer be taken for this order.
+    /// </summary>
     private async Task RefundOrCancelPaymentAsync(OrderFulfillmentSagaState saga, string reason, CancellationToken ct)
     {
-        if (saga.PaymentId.HasValue)
+        await _messageBus.PublishAsync(new RefundPaymentCommand
         {
-            await _messageBus.PublishAsync(new RefundPaymentCommand { PaymentId = saga.PaymentId.Value, OrderId = saga.OrderId, TenantId = saga.TenantId, Reason = reason }, ct);
-            return;
-        }
-
-        var order = await _uow.Orders.GetByIdAsync(saga.OrderId, ct);
-        if (order?.IsCashOnDelivery == true)
-            await _messageBus.PublishAsync(new RefundPaymentCommand { PaymentId = Guid.Empty, OrderId = saga.OrderId, TenantId = saga.TenantId, Reason = reason }, ct);
+            PaymentId = saga.PaymentId ?? Guid.Empty, OrderId = saga.OrderId, TenantId = saga.TenantId, Reason = reason
+        }, ct);
     }
 
     // ── Step 2: Payment processed → reserve inventory ─────────────────────

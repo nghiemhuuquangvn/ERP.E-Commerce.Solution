@@ -112,6 +112,23 @@ public class OnlinePaymentFlowTests
     }
 
     [Fact]
+    public async Task Money_that_arrives_for_a_cancelled_payment_is_flagged_for_refund_not_captured_and_not_an_error()
+    {
+        var payment = Pending();
+        payment.Cancel();
+        var handler = new ProcessGatewayCallbackCommandHandler(_uow.Object);
+        var command = new ProcessGatewayCallbackCommand { TransactionRef = "R", IsPaid = true, GatewayTransactionId = "T1", GatewayProvider = "MoMo", Amount = 150000m };
+
+        var dto = await handler.Handle(command, default);
+        await handler.Handle(command, default);   // the gateway retries
+
+        dto.Status.Should().Be("Cancelled");
+        payment.IsFlaggedForReview.Should().BeTrue();
+        payment.FraudReviewReason.Should().Contain("refund the customer");
+        _uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);   // flagged once
+    }
+
+    [Fact]
     public async Task A_failed_callback_fails_the_payment()
     {
         var payment = Pending();

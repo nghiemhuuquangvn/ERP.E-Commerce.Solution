@@ -126,6 +126,19 @@ public class ProcessGatewayCallbackCommandHandler : IRequestHandler<ProcessGatew
         if (payment.Status is Domain.Enums.PaymentStatus.Captured or Domain.Enums.PaymentStatus.Failed)
             return InitiatePaymentCommandHandler.MapToDto(payment);
 
+        // The order was cancelled (and its payment with it) before the customer's money arrived: nothing is captured, but the money is real —
+        // flag it for a person to refund, and answer normally so the gateway stops retrying.
+        if (payment.Status == Domain.Enums.PaymentStatus.Cancelled)
+        {
+            if (request.IsPaid && !payment.IsFlaggedForReview)
+            {
+                payment.FlagForReview($"Paid at {request.GatewayProvider ?? "the gateway"} (transaction {request.GatewayTransactionId}) after the payment was cancelled — refund the customer");
+                await _uow.Payments.UpdateAsync(payment, cancellationToken);
+                await _uow.SaveChangesAsync(cancellationToken);
+            }
+            return InitiatePaymentCommandHandler.MapToDto(payment);
+        }
+
         if (request.IsPaid)
         {
             // What the gateway says was paid must be what the order costs; otherwise nothing is captured and a person looks at it.
