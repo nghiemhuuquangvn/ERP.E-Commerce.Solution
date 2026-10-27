@@ -78,6 +78,6 @@ public class ProductVariantCreationTests
         using var again = Db(TenantA);
         var act = () => new CreateProductVariantHandler(UnitOfWork(again)).Handle(command, default);
 
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already exists*");
+        await act.Should().ThrowAsync<ERP.Shared.Infrastructure.Exceptions.BusinessRuleException>().WithMessage("*already exists*");
     }
 }

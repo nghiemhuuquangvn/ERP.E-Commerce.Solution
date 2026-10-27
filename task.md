@@ -136,6 +136,7 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
 - [x] **P1-9 Replenishment**: min/max, safety stock, purchase request → PO automation. (done 2026-10-26)
 - [x] **P1-10 Payment gateways** (done 2026-10-27; Stripe left to P1-10b): MoMo, ZaloPay (and/or Stripe) behind `IPaymentGateway`;
   storefront/mobile checkout calls Payment (today only a radio button).
+- [x] **R38 Variants + service-token keys** (done 2026-10-28, `fix/r38-variants-and-service-token-keys`): variant creation fixed; keys refreshed before an unknown key id is judged. Next: P1-11c split into fee table, returns + parcels, J&T / Viettel Post (ROADMAP).
 - [x] **P1-11b Delivery fee** (done 2026-10-28, `feat/p1-11b-shipping-fee`; migration Sales 015; BA doc `docs/business/Shipping/ShippingFee.md`): the shop's flat fee / free threshold charged to the customer, ward, real product weights. Left: P1-11c (see ROADMAP).
 - [x] **P1-11 Carriers** (done 2026-10-27, `feat/p1-11-carriers`; migrations Shipping 008, Sales 014; BA doc `docs/business/Shipping/CarrierIntegration.md`): GHTK, Viettel Post, GHN per shop; selection by rule then cheapest quote; webhooks + polling; cancel at the carrier. Left to P1-11b: shipping fee charged to the customer, ward, product weights, returns through carriers, J&T, a verified Viettel Post.
 - [ ] **P1-12 Notification VN channels**: Zalo ZNS / SMS brandname; template update/delete.

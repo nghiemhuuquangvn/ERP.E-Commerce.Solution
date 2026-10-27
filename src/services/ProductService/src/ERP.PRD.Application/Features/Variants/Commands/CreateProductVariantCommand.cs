@@ -79,7 +79,7 @@ namespace ERP.PRD.Application.Features.Variants.Commands
 
             // Check if variant with same SKU already exists
             if (product.GetVariantBySku(request.Sku) != null)
-                throw new InvalidOperationException($"Variant with SKU '{request.Sku}' already exists for this product");
+                throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("Product", $"Variant with SKU '{request.Sku}' already exists for this product");
 
             // Create new variant
             var variant = new Domain.Entities.ProductVariant(
