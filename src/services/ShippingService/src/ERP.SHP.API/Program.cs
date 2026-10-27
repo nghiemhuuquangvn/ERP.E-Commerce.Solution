@@ -30,12 +30,8 @@ builder.Services.AddMediatR(cfg =>
 
 builder.Services.AddScoped<IShipmentRepository, ShipmentRepository>();
 builder.Services.AddScoped<ICarrierRepository, CarrierRepository>();
-builder.Services.AddScoped<IShippingConfigRepository, ShippingConfigRepository>();
-builder.Services.AddScoped<ERP.SHP.Application.Services.CarrierBookingService>();
-builder.Services.AddScoped<ERP.SHP.Application.Services.CarrierTrackingService>();
-builder.Services.AddScoped<ERP.SHP.Application.Interfaces.ICarrierRuleService, ERP.SHP.Infrastructure.Services.CarrierRuleService>();
-builder.Services.AddScoped<ERP.SHP.Application.Interfaces.ICarrierWebhookService, ERP.SHP.Infrastructure.Services.CarrierWebhookService>();
-builder.Services.AddHostedService<ERP.SHP.Infrastructure.BackgroundJobs.CarrierTrackingSyncJob>();
+// P1-11: carrier integrations (GHTK, Viettel Post, GHN, J&T), booking, webhooks, rules, polling job - see CarrierServiceCollectionExtensions.
+builder.Services.AddCarrierIntegration();
 builder.Services.AddScoped<IReturnShipmentRepository, ReturnShipmentRepository>();
 builder.Services.AddScoped<IShippingUnitOfWork, ShippingUnitOfWork>();
 builder.Services.AddCacheService(builder.Configuration, "shp");
