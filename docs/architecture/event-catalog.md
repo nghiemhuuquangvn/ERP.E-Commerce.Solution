@@ -316,7 +316,7 @@ public class EmailConfirmationRequestedDomainEvent : IDomainEvent
 
 ### SalesOrderCreatedEvent
 
-**Description:** Published when a new sales order is created.
+**Description:** Published when a new sales order is created. **P1-11b:** `TotalAmount` is the final amount owed (goods after the coupon + `ShippingFee`); `ShippingFee` and `DiscountAmount` are carried too (goods = total − fee); consumers that earn on goods (Promotion) subtract the fee.
 
 **Publisher:** Sales Service  
 **Subscribers:** Warehouse Service, Accounting Service (optional)

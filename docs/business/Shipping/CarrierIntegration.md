@@ -1,3 +1,5 @@
+> **P1-11b (2026-10-28):** the delivery fee the customer pays, the ward and the product weight are described in `ShippingFee.md`; where this document says the customer is not charged shipping, that document wins.
+
 # Carrier integration and carrier selection (GHTK, Viettel Post, GHN, J&T)
 
 > Business analysis, 2026-10-27 (ROADMAP P1-11). Owner: ShippingService. Related: `module-13-shipping.md` (the shipment aggregate), `docs/business/Payment/OnlinePayments.md` (cash on delivery), `docs/business/Sales/OrderProcessing.md` (the order saga), `docs/business/Identity/CustomerSignup.md`.
