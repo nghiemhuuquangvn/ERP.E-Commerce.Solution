@@ -9,6 +9,7 @@ using ERP.SHP.Infrastructure.Persistence;
 using ERP.SHP.Infrastructure.Repositories;
 using ERP.SHP.Infrastructure.Services;
 using ERP.Shared.Authorization;
+using ERP.Shared.Authorization.ServiceAuth;
 using ERP.Shared.Extensions;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
@@ -74,7 +75,10 @@ builder.Services.AddHostedService<WarehouseRabbitMqConsumer>();
 // X-Tenant-* headers with no signature verification; see
 // AuthenticationExtensions.AddErpJwtAuthentication/JwtClaimsUserContextService.
 builder.Services.AddErpJwtAuthentication(builder.Configuration);
+// /internal endpoints: service tokens of ServiceAuth:TrustedCallers (SaleOrder asks for the delivery fee).
+builder.Services.AddErpServiceAuthentication(builder.Configuration);
 builder.Services.AddErpAuthorization();
+builder.Services.AddScoped<ERP.SHP.Application.Services.ShippingFeeService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 // Tenant isolation for ShippingDbContext: JWT tenant, Gateway host tenant for anonymous
