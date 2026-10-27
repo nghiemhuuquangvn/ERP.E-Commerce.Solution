@@ -18,10 +18,15 @@ public class ShipmentRecipientRequest
 public class CreateShipmentCommand : IRequest<ShipmentDto>
 {
     public Guid OrderId { get; set; }
-    public Guid CarrierId { get; set; }
+    /// <summary>The carrier a person chose; null = the system picks (the shop's rules, then the cheapest quote).</summary>
+    public Guid? CarrierId { get; set; }
     public ShipmentRecipientRequest Recipient { get; set; } = new();
     public DateTime? EstimatedDelivery { get; set; }
     public List<ShipmentItemRequest> Items { get; set; } = new();
+    /// <summary>Cash the carrier collects from the recipient (0 = paid online).</summary>
+    public decimal CodAmount { get; set; }
+    /// <summary>Value of the goods, declared to the carrier for insurance; also what the selection rules compare with their order-value limits.</summary>
+    public decimal DeclaredValue { get; set; }
 }
 
 public class ShipmentItemRequest
@@ -29,7 +34,9 @@ public class ShipmentItemRequest
     public Guid ProductId { get; set; }
     public string ProductName { get; set; } = string.Empty;
     public int Quantity { get; set; }
+    /// <summary>Kilograms per piece; 0 = unknown (the shop's default item weight is used).</summary>
     public decimal Weight { get; set; }
+    public decimal UnitPrice { get; set; }
 }
 
 public class AssignTrackingNumberCommand : IRequest<ShipmentDto>

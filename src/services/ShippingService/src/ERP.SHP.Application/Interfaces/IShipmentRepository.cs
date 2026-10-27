@@ -24,8 +24,17 @@ public interface ICarrierRepository
 {
     Task<Carrier?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<List<Carrier>> GetActiveAsync(CancellationToken ct = default);
+    /// <summary>The shop's carrier row for a carrier code (GHTK, VTP, GHN, JNT); null when it has none yet.</summary>
+    Task<Carrier?> GetByCodeAsync(string code, CancellationToken ct = default);
     Task AddAsync(Carrier carrier, CancellationToken ct = default);
     Task UpdateAsync(Carrier carrier, CancellationToken ct = default);
+}
+
+/// <summary>Selection rules and the shop's shipping settings (pickup address, default item weight) for the booking.</summary>
+public interface IShippingConfigRepository
+{
+    Task<List<CarrierSelectionRule>> GetActiveRulesAsync(CancellationToken ct = default);
+    Task<ERP.SHP.Domain.Entities.Settings.TenantShippingSettings?> GetTenantSettingsAsync(CancellationToken ct = default);
 }
 
 public interface IReturnShipmentRepository

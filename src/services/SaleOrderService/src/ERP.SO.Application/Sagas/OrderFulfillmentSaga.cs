@@ -220,6 +220,11 @@ public sealed class OrderFulfillmentSaga
             TenantId = saga.TenantId,
             RecipientName = order.CustomerName,
             RecipientEmail = order.CustomerEmail,
+            RecipientPhone = order.CustomerPhone,
+            // P1-11: what the carrier needs to price and book the parcel; a COD order's cash is collected at the door.
+            PaymentMethod = order.PaymentMethod,
+            OrderTotal = order.TotalAmount,
+            CodAmount = order.IsCashOnDelivery ? order.TotalAmount : 0m,
             ShippingAddress = new SagaShippingAddress
             {
                 Street = order.ShippingAddress.Street,
@@ -230,7 +235,7 @@ public sealed class OrderFulfillmentSaga
             },
             Items = order.LineItems
                 .Where(li => li.RemainingQuantity > 0)
-                .Select(li => new SagaShipmentLine { ProductId = li.ProductId, ProductName = li.ProductName, Quantity = li.RemainingQuantity })
+                .Select(li => new SagaShipmentLine { ProductId = li.ProductId, ProductName = li.ProductName, Quantity = li.RemainingQuantity, UnitPrice = li.UnitPrice })
                 .ToList()
         }, ct);
     }
@@ -462,6 +467,11 @@ public record CreateShipmentCommand
     public Guid TenantId { get; init; }
     public string RecipientName { get; init; } = string.Empty;
     public string? RecipientEmail { get; init; }
+    public string? RecipientPhone { get; init; }
+    public string? PaymentMethod { get; init; }
+    public decimal OrderTotal { get; init; }
+    /// <summary>The cash the carrier collects from the recipient: the order total for cash on delivery, else 0.</summary>
+    public decimal CodAmount { get; init; }
     public SagaShippingAddress? ShippingAddress { get; init; }
     public List<SagaShipmentLine> Items { get; init; } = new();
 }
@@ -480,6 +490,7 @@ public record SagaShipmentLine
     public Guid ProductId { get; init; }
     public string ProductName { get; init; } = string.Empty;
     public int Quantity { get; init; }
+    public decimal UnitPrice { get; init; }
 }
 
 public record RefundPaymentCommand

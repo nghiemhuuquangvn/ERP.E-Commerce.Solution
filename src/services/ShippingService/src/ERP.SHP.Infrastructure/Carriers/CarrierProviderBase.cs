@@ -23,7 +23,9 @@ public abstract class CarrierProviderBase
 
     /// <summary>The carrier's host for the account's mode. Configuration only: a tenant can never point a call at an address of its choosing.</summary>
     protected string? BaseUrl(string configSection, bool sandbox, string sandboxDefault, string? productionDefault) =>
-        (sandbox ? Config[$"{configSection}:SandboxBaseUrl"] ?? sandboxDefault : Config[$"{configSection}:BaseUrl"] ?? productionDefault)?.TrimEnd('/');
+        (sandbox ? NotBlank(Config[$"{configSection}:SandboxBaseUrl"]) ?? sandboxDefault : NotBlank(Config[$"{configSection}:BaseUrl"]) ?? productionDefault)?.TrimEnd('/');
+
+    private static string? NotBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
     protected static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = null, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never };
 

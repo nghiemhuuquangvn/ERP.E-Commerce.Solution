@@ -168,6 +168,11 @@ namespace ERP.SHP.Infrastructure.EventBus
         public Guid TenantId { get; set; }
         public string RecipientName { get; set; } = string.Empty;
         public string? RecipientEmail { get; set; }
+        // P1-11 - absent from messages sent by an older Sales: they deserialize to null / 0.
+        public string? RecipientPhone { get; set; }
+        public string? PaymentMethod { get; set; }
+        public decimal OrderTotal { get; set; }
+        public decimal CodAmount { get; set; }
         public SagaShippingAddress? ShippingAddress { get; set; }
         public List<SagaShipmentLine> Items { get; set; } = new();
 
@@ -179,13 +184,16 @@ namespace ERP.SHP.Infrastructure.EventBus
         /// docs/ROADMAP.md P2-2): City is the district and State the province of a Vietnamese
         /// address, which is how the storefront checkout fills them.
         /// </summary>
-        public CreateShipmentCommand ToCreateShipmentCommand(Guid carrierId) => new()
+        public CreateShipmentCommand ToCreateShipmentCommand() => new()
         {
             OrderId = OrderId,
-            CarrierId = carrierId,
+            CarrierId = null,   // the system picks: the shop's rules, then the cheapest quote
+            CodAmount = CodAmount,
+            DeclaredValue = OrderTotal,
             Recipient = new ShipmentRecipientRequest
             {
                 RecipientName = RecipientName,
+                RecipientPhone = string.IsNullOrWhiteSpace(RecipientPhone) ? null : RecipientPhone,
                 AddressStreet = ShippingAddress?.Street ?? string.Empty,
                 AddressDistrict = ShippingAddress?.City ?? string.Empty,
                 AddressProvince = ShippingAddress?.State ?? string.Empty,
@@ -197,7 +205,8 @@ namespace ERP.SHP.Infrastructure.EventBus
             {
                 ProductId = i.ProductId,
                 ProductName = i.ProductName,
-                Quantity = i.Quantity
+                Quantity = i.Quantity,
+                UnitPrice = i.UnitPrice
             }).ToList()
         };
     }
@@ -216,5 +225,6 @@ namespace ERP.SHP.Infrastructure.EventBus
         public Guid ProductId { get; set; }
         public string ProductName { get; set; } = string.Empty;
         public int Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
     }
 }

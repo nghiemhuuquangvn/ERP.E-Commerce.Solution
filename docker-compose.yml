@@ -678,6 +678,12 @@ services:
       ASPNETCORE_URLS: "http://+:5010"
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__ShippingDb: "Server=${SQL_HOST:-sqlserver},1433;Database=ShippingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      # Encrypts the shop's carrier accounts (GHTK / Viettel Post / GHN) at rest — same key as Identity, Notification and Payment.
+      Security__SettingsEncryptionKey: "${SETTINGS_ENCRYPTION_KEY:?set SETTINGS_ENCRYPTION_KEY in .env (see .env.example)}"
+      # Carrier hosts: empty = the carrier's own sandbox / production host. Set to a test double (e.g. a local fake carrier) only for local checks.
+      Carriers__Ghtk__SandboxBaseUrl: "${CARRIERS_GHTK_SANDBOX_URL:-}"
+      Carriers__Vtp__SandboxBaseUrl: "${CARRIERS_VTP_SANDBOX_URL:-}"
+      Carriers__Ghn__SandboxBaseUrl: "${CARRIERS_GHN_SANDBOX_URL:-}"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
       Cache__InstanceName: "shp"

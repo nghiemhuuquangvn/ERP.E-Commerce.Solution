@@ -91,6 +91,16 @@ public class Shipment : AggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// The carrier is known now: announce the shipment with the carrier that accepted it (Create raised the event with the first candidate,
+    /// which may not be the one that booked it).
+    /// </summary>
+    public void FinalizeCreation()
+    {
+        ClearDomainEvents();
+        AddDomainEvent(new ShipmentCreatedEvent(Id, OrderId, CarrierId, CarrierName));
+    }
+
     public void SetCommercials(decimal codAmount, decimal declaredValue)
     {
         CodAmount = Math.Max(0m, Math.Round(codAmount, 2));

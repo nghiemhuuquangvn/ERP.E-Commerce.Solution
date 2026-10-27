@@ -30,6 +30,8 @@ builder.Services.AddMediatR(cfg =>
 
 builder.Services.AddScoped<IShipmentRepository, ShipmentRepository>();
 builder.Services.AddScoped<ICarrierRepository, CarrierRepository>();
+builder.Services.AddScoped<IShippingConfigRepository, ShippingConfigRepository>();
+builder.Services.AddScoped<ERP.SHP.Application.Services.CarrierBookingService>();
 builder.Services.AddScoped<IReturnShipmentRepository, ReturnShipmentRepository>();
 builder.Services.AddScoped<IShippingUnitOfWork, ShippingUnitOfWork>();
 builder.Services.AddCacheService(builder.Configuration, "shp");
@@ -67,26 +69,6 @@ builder.Services.AddSingleton<IConnection>(_ =>
 builder.Services.AddScoped<ERP.SHP.Infrastructure.EventBus.SagaShipmentRequestProcessor>();
 builder.Services.AddHostedService<SalesOrderRabbitMqConsumer>();
 builder.Services.AddHostedService<WarehouseRabbitMqConsumer>();
-
-// Carrier client — GHN when Token configured, else Null stub.
-// GhnCarrierClient resolves IHttpClientFactory.CreateClient("GHN") — previously
-// AddHttpClient was never called anywhere in this service, so DI would throw the
-// moment GHN was actually configured (the one environment where this client matters).
-builder.Services.AddHttpClient("GHN");
-if (!string.IsNullOrEmpty(builder.Configuration["Ghn:Token"]))
-    builder.Services.AddScoped<ICarrierClient, GhnCarrierClient>();
-else
-    builder.Services.AddScoped<ICarrierClient, NullCarrierClient>();
-
-// P1-11: every carrier integration behind one interface; the resolver picks the provider and the CURRENT shop's account (encrypted with ISecretProtector,
-// so Security:SettingsEncryptionKey must be set, as for PaymentService).
-builder.Services.AddHttpClient("Carriers");
-builder.Services.AddScoped<ERP.Shared.Security.ISecretProtector, ERP.Shared.Security.AesSecretProtector>();
-builder.Services.AddScoped<ERP.SHP.Application.Interfaces.ICarrierProvider, ERP.SHP.Infrastructure.Carriers.GhtkCarrierProvider>();
-builder.Services.AddScoped<ERP.SHP.Application.Interfaces.ICarrierProvider, ERP.SHP.Infrastructure.Carriers.GhnCarrierProvider>();
-builder.Services.AddScoped<ERP.SHP.Application.Interfaces.ICarrierProvider, ERP.SHP.Infrastructure.Carriers.ViettelPostCarrierProvider>();
-builder.Services.AddScoped<ERP.SHP.Application.Interfaces.ICarrierProvider, ERP.SHP.Infrastructure.Carriers.JAndTCarrierProvider>();
-builder.Services.AddScoped<ERP.SHP.Application.Interfaces.ICarrierProviderResolver, ERP.SHP.Infrastructure.Services.CarrierProviderResolver>();
 
 // Real JWT validation — previously trusted the Gateway's forwarded X-User-*/
 // X-Tenant-* headers with no signature verification; see

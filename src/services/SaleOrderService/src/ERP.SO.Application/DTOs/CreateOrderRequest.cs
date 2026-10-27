@@ -14,6 +14,8 @@ namespace ERP.SO.Application.DTOs
         public Guid? SalesRepId { get; set; }
         /// <summary>COD, VNPay, MoMo or ZaloPay; omitted = the order does not say (waits for a payment, as before).</summary>
         public string? PaymentMethod { get; set; }
+        /// <summary>The recipient's phone (digits, spaces, + - . ( ) allowed); needed by the carrier when the order ships.</summary>
+        public string? CustomerPhone { get; set; }
     }
 
     public class OrderLineItemDto

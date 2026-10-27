@@ -14,17 +14,20 @@ public class ShippingUnitOfWork : IShippingUnitOfWork
         ShippingDbContext dbContext,
         IShipmentRepository shipments,
         ICarrierRepository carriers,
-        IReturnShipmentRepository returnShipments)
+        IReturnShipmentRepository returnShipments,
+        IShippingConfigRepository config)
     {
         _dbContext = dbContext;
         Shipments = shipments;
         Carriers = carriers;
         ReturnShipments = returnShipments;
+        Config = config;
     }
 
     public IShipmentRepository Shipments { get; }
     public ICarrierRepository Carriers { get; }
     public IReturnShipmentRepository ReturnShipments { get; }
+    public IShippingConfigRepository Config { get; }
 
     public async Task<int> SaveChangesAsync(CancellationToken ct = default) =>
         await _dbContext.SaveChangesAsync(ct);

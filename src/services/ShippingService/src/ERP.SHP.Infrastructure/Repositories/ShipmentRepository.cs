@@ -53,6 +53,18 @@ public class ReturnShipmentRepository : IReturnShipmentRepository
     }
 }
 
+public class ShippingConfigRepository : IShippingConfigRepository
+{
+    private readonly ShippingDbContext _db;
+    public ShippingConfigRepository(ShippingDbContext db) => _db = db;
+
+    public async Task<List<CarrierSelectionRule>> GetActiveRulesAsync(CancellationToken ct = default) =>
+        await _db.CarrierSelectionRules.Where(r => r.IsActive).AsNoTracking().ToListAsync(ct);
+
+    public async Task<ERP.SHP.Domain.Entities.Settings.TenantShippingSettings?> GetTenantSettingsAsync(CancellationToken ct = default) =>
+        await _db.TenantShippingSettings.AsNoTracking().FirstOrDefaultAsync(ct);
+}
+
 public class CarrierRepository : ICarrierRepository
 {
     private readonly ShippingDbContext _db;
@@ -63,6 +75,9 @@ public class CarrierRepository : ICarrierRepository
 
     public async Task<List<Carrier>> GetActiveAsync(CancellationToken ct = default) =>
         await _db.Carriers.Where(c => c.IsActive).AsNoTracking().ToListAsync(ct);
+
+    public async Task<Carrier?> GetByCodeAsync(string code, CancellationToken ct = default) =>
+        await _db.Carriers.FirstOrDefaultAsync(c => c.Code == code, ct);
 
     public async Task AddAsync(Carrier carrier, CancellationToken ct = default) =>
         await _db.Carriers.AddAsync(carrier, ct);

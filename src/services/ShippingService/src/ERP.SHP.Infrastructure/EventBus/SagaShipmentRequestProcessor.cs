@@ -1,4 +1,5 @@
 using ERP.SHP.Application.Interfaces;
+using ERP.SHP.Application.Services;
 using ERP.SHP.Domain.Enums;
 using ERP.SHP.Domain.Events;
 using MediatR;
@@ -55,16 +56,19 @@ namespace ERP.SHP.Infrastructure.EventBus
                 return SagaShipmentOutcome.Failed;
             }
 
-            // The tenant's own default carrier (first active one by name).
-            var carrier = (await _uow.Carriers.GetActiveAsync(ct)).OrderBy(c => c.Name).FirstOrDefault();
-            if (carrier == null)
+            // The carrier is chosen while booking: the shop's rules, then the cheapest quote, the next one when a carrier refuses.
+            try
             {
-                await FailAsync(command.OrderId, "there is no active carrier", ct);
+                await _mediator.Send(command.ToCreateShipmentCommand(), ct);
+                return SagaShipmentOutcome.Created;
+            }
+            catch (CarrierBookingException ex) when (!ex.IsTransient)
+            {
+                // No carrier accepted the parcel (or none is set up): the order cannot ship, the saga compensates and keeps the reason.
+                await FailAsync(command.OrderId, ex.Message, ct);
                 return SagaShipmentOutcome.Failed;
             }
-
-            await _mediator.Send(command.ToCreateShipmentCommand(carrier.Id), ct);
-            return SagaShipmentOutcome.Created;
+            // A carrier that could not be reached is not a verdict: the exception goes to the consumer, which tries again before giving up.
         }
 
         /// <summary>Tells Sales the shipment of the order could not be created.</summary>

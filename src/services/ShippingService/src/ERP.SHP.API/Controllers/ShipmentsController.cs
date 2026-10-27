@@ -238,13 +238,13 @@ public class ReturnShipmentsController : ControllerBase
 public class CarriersController : ControllerBase
 {
     private readonly IMediator _mediator;
-    private readonly ICarrierClient _carrierClient;
+    private readonly ERP.SHP.Application.Services.CarrierBookingService _booking;
     private readonly UserContext _userContext;
 
-    public CarriersController(IMediator mediator, ICarrierClient carrierClient, UserContext userContext)
+    public CarriersController(IMediator mediator, ERP.SHP.Application.Services.CarrierBookingService booking, UserContext userContext)
     {
         _mediator = mediator;
-        _carrierClient = carrierClient;
+        _booking = booking;
         _userContext = userContext;
     }
 
@@ -267,13 +267,15 @@ public class CarriersController : ControllerBase
     }
 
     [HttpPost("calculate-fee")]
-    public async Task<IActionResult> CalculateFee([FromBody] FeeRequest request, CancellationToken ct)
+    public async Task<IActionResult> CalculateFee([FromBody] ERP.SHP.Application.DTOs.QuoteParcelRequest request, CancellationToken ct)
     {
         if (!_userContext.HasPermission("shipping:view"))
             return Forbid();
 
-        var fees = await _carrierClient.CalculateFeeAsync(request, ct);
-        return Ok(fees);
+        var sender = await _booking.SenderAsync(ct);
+        var to = new ERP.SHP.Application.Interfaces.CarrierAddress("Recipient", "0900000000", request.Street ?? string.Empty, request.Ward, request.District, request.Province);
+        var quotes = await _booking.QuoteAllAsync(new ERP.SHP.Application.Interfaces.CarrierQuoteRequest(sender.Address, to, request.WeightGrams, request.DeclaredValue, request.CodAmount), ct);
+        return Ok(quotes);
     }
 
     [HttpGet("{id:guid}/quote")]
