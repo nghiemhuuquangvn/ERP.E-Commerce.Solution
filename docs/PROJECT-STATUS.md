@@ -36,7 +36,12 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
-### 2026-10-28 — ROADMAP P1-11b: delivery fee (`feat/p1-11b-shipping-fee`, unmerged)
+### 2026-10-28 — R38: variants and service-token keys (`fix/r38-variants-and-service-token-keys`, unmerged)
+- **Product**: `IProductVariantRepository.AddAsync`; `CreateProductVariantHandler` adds the variant explicitly (it was tracked as Modified and refused, HTTP 500); a duplicate SKU is now a 400 `BusinessRuleException`.
+- **Shared**: `TrustedCallerKeys` is its own throttled key cache (min 2 s between fetches per caller): a token with an unknown key id triggers a fetch before it is judged, so the first call after a caller restarts is accepted. Receivers redeployed: product, warehouse, promotion, shipping, masterdata, identity.
+- Tests: Architecture 68 (variant creation on the real context, fails on the old handler), Shared 103 (rotation, throttle, caller down while restarting). Live on `glcheck`: variant 0.8 kg created via API (201, stored for the tenant); Sales redeployed and orders placed immediately: all 201. Next: P1-11c fee table (`feat/p1-11c-fee-table`).
+
+### 2026-10-28 — ROADMAP P1-11b: delivery fee (`feat/p1-11b-shipping-fee`, merged as PR #44)
 - **Shipping**: `ShippingFeePolicy` + `ShippingFeeService`; `GET api/v1/shipping/fee` (preview, any signed-in user, Gateway route) and `internal/v1/shipping-fee` (service token `salesorder`); `IProductWeightClient` (service token `product`) fills the parcel weight; Shipping now publishes service JWKS and trusts `salesorder`.
 - **Product**: `internal/v1/product-weights` (grams, kg/g/lb/oz converted; trusts `shipping`).
 - **Sales** (migration **015**): `ShippingFee`, `Address.Ward`; `IShippingServiceClient` (fail closed); created event carries the final total, fee and discount; saga command carries the ward. **Promotion**: points on goods only.

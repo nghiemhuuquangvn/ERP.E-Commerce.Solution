@@ -137,3 +137,7 @@ Phát hiện chính cần ưu tiên xử lý:
 3. **Rủi ro thứ tự migration ở bước 007** — schema định nghĩa lại khác hẳn 003/004/006, chỉ an toàn nếu chạy đúng thứ tự.
 4. **`ProductExternalMapping` chết hoàn toàn** ở tầng ứng dụng dù có đủ Domain/DB.
 5. Không chống vòng lặp Category/Bundle — rủi ro dữ liệu tiềm ẩn khi mở rộng danh mục lớn.
+
+## Variant creation (R38, 2026-10-28)
+`POST /api/v1/products/{id}/variants` creates a variant (SKU unique per product, uppercase letters, digits and hyphens; cost; optional weight with its unit kg / g / lb / oz, dimensions). The variant belongs to the caller's tenant. A SKU already used by the product is refused with HTTP 400. The weight is what ShippingService reads (`internal/v1/product-weights`, see `docs/business/Shipping/ShippingFee.md`) to weigh a parcel; a product without a weight is parcelled at the shop's default item weight.
+**UAT:** create a 0.8 kg variant → 201 and listed with `0.8 kg`; the same SKU again → 400; another tenant does not see it.

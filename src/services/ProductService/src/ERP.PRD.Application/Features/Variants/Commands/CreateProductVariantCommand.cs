@@ -79,7 +79,7 @@ namespace ERP.PRD.Application.Features.Variants.Commands
 
             // Check if variant with same SKU already exists
             if (product.GetVariantBySku(request.Sku) != null)
-                throw new InvalidOperationException($"Variant with SKU '{request.Sku}' already exists for this product");
+                throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("Product", $"Variant with SKU '{request.Sku}' already exists for this product");
 
             // Create new variant
             var variant = new Domain.Entities.ProductVariant(
@@ -101,6 +101,10 @@ namespace ERP.PRD.Application.Features.Variants.Commands
 
             // Add to product
             product.AddVariant(variant);
+
+            // Explicit Add (the same lesson as the product images): the variant's Id is assigned before EF sees it, so the navigation alone leaves it Modified,
+            // without its tenant, and the save is refused.
+            await _uow.Variants.AddAsync(variant, cancellationToken);
 
             // Save
             await _uow.SaveChangesAsync(cancellationToken);

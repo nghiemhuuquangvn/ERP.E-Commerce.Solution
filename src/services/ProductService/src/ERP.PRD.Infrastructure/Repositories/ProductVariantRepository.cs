@@ -42,6 +42,9 @@ namespace ERP.PRD.Infrastructure.Repositories
                 .Select(v => new VariantPriceProjection(v.Id, v.Sku, v.Cost, v.UpdatedAt))
                 .ToListAsync(ct);
 
+        public async Task AddAsync(ProductVariant variant, CancellationToken ct = default)
+            => await _db.ProductVariants.AddAsync(variant, ct);
+
         public void Update(ProductVariant variant)
             => _db.ProductVariants.Update(variant);
     }

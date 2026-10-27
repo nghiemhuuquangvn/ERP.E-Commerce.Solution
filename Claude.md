@@ -756,7 +756,7 @@ tenant-owned entity of the real EF model is filtered), `TenantIsolationBehaviorT
   only shrink). Never add a new controller to it.
 - **Service-to-service calls** go to `internal/...` routes protected by
   `[AuthorizeInternalService("<caller>", …)]` (receiver: `AddErpServiceAuthentication`,
-  `ServiceAuth:TrustedCallers`); the caller adds its own short-lived RS256 token with
+  `ServiceAuth:TrustedCallers`); the receiver fetches the callers' keys again before it judges a token with an unknown key id (`TrustedCallerKeys`, at most once per 2 s per caller - services restart with new ephemeral keys); the caller adds its own short-lived RS256 token with
   `AddHttpClient<…>().AddServiceToken("<target>")` and publishes `app.MapServiceJwks()`. Each
   service signs with its own key (`ServiceAuth:SigningKeys`), the token carries the request's
   tenant (no tenant → not sent). Never make an endpoint `[AllowAnonymous]` "because only another
