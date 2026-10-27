@@ -55,6 +55,7 @@
     "stepReview": "Review",
     "shippingAddress": "Shipping Address",
     "streetAddress": "Street address",
+    "phone": "Phone number (the carrier will call it)",
     "city": "City",
     "state": "State",
     "postalCode": "Postal code",

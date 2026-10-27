@@ -15,6 +15,7 @@
     <div v-if="currentStep === 1" class="card p-6 space-y-4">
       <h2 class="font-semibold text-gray-900">{{ t('checkout.shippingAddress') }}</h2>
       <input v-model="address.street" class="input" :placeholder="t('checkout.streetAddress')" />
+      <input v-model="phone" type="tel" autocomplete="tel" class="input" :placeholder="t('checkout.phone')" />
       <div class="grid grid-cols-2 gap-3">
         <input v-model="address.city" class="input" :placeholder="t('checkout.city')" />
         <input v-model="address.state" class="input" :placeholder="t('checkout.state')" />
@@ -95,6 +96,8 @@ const placing = ref(false)
 const error = ref('')
 
 const address = ref({ street: '', city: '', state: '', postalCode: '', country: '' })
+// The carrier calls this number: it is part of the delivery address.
+const phone = ref('')
 // What this shop really offers (cash on delivery + the gateways it has set up), not a fixed list.
 const paymentMethod = ref('')
 const methodsLoading = ref(true)
@@ -124,8 +127,9 @@ const paymentMethodLabel = computed(
 
 const items = computed(() => cartStore.items)
 const total = computed(() => cartStore.total)
+const phoneValid = computed(() => /^\+?[0-9 .()-]{8,20}$/.test(phone.value.trim()) && phone.value.replace(/\D/g, '').length >= 8)
 const addressValid = computed(() =>
-  address.value.street && address.value.city && address.value.country,
+  address.value.street && address.value.city && address.value.country && phoneValid.value,
 )
 
 // Online gateways settle Vietnamese dong; the cart carries plain amounts, so show them as VND when an online method is chosen.
@@ -144,6 +148,7 @@ async function placeOrder() {
       customerName: authStore.user.fullName || authStore.user.email,
       customerEmail: authStore.user.email,
       shippingAddress: address.value,
+      customerPhone: phone.value.trim(),
       lineItems: items.value.map((i) => ({
         productId: i.productId,
         productName: i.productName,

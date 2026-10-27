@@ -12,6 +12,8 @@ export interface CreateOrderRequest {
   customerId: string
   customerName: string
   customerEmail: string
+  /** The recipient's phone: the carrier will not take a parcel without it. */
+  customerPhone?: string
   shippingAddress: {
     street: string
     city: string
