@@ -3,6 +3,7 @@
 -- New tenants now get them in code (DefaultTenantRoles); this repairs the tenants that already exist.
 -- Idempotent: only inserts what is missing.
 USE AuthDB;
+SET QUOTED_IDENTIFIER ON;   -- Roles has filtered indexes; sqlcmd without -I leaves it off
 GO
 
 INSERT INTO Roles (Id, TenantId, RoleCode, RoleName, IsSystem, IsActive)
