@@ -71,11 +71,54 @@
     "payment": "Payment:",
     "placingOrder": "Placing Order…",
     "placeOrder": "Place Order",
-    "placeOrderError": "Failed to place order. Please try again."
+    "placeOrderError": "Failed to place order. Please try again.",
+    "placeOrderAndPay": "Place order and pay",
+    "noPaymentMethods": "This shop has no payment method available right now. Please try again later.",
+    "methods": {
+      "COD": "Cash on delivery",
+      "VNPay": "VNPay",
+      "MoMo": "MoMo wallet",
+      "ZaloPay": "ZaloPay"
+    },
+    "methodHints": {
+      "COD": "Pay the courier when the goods arrive.",
+      "VNPay": "Pay now by bank card or QR through VNPay.",
+      "MoMo": "Pay now with your MoMo wallet.",
+      "ZaloPay": "Pay now with your ZaloPay wallet."
+    }
+  },
+  "payment": {
+    "resultTitle": "Payment",
+    "checking": "Checking your payment…",
+    "paid": "Payment received. Thank you!",
+    "paidDetail": "Your payment of {amount} was confirmed. We'll notify you when your order ships.",
+    "failed": "The payment was not completed.",
+    "failedDetail": "The order has been cancelled because the payment failed. You can place a new order.",
+    "cancelled": "This payment was cancelled.",
+    "pending": "Your order is waiting for payment.",
+    "pendingDetail": "Complete the payment to confirm your order.",
+    "invalid": "We could not verify the payment return. We are checking the order's real status.",
+    "waitingConfirm": "Waiting for the payment gateway to confirm. This can take a moment.",
+    "payNow": "Pay now",
+    "payAgain": "Pay again",
+    "startFailed": "We could not reach the payment gateway. Please try again.",
+    "viewOrders": "View my orders",
+    "continueShopping": "Continue shopping",
+    "statusLine": "Payment: {status}",
+    "status": {
+      "Pending": "waiting for payment",
+      "Authorized": "being confirmed",
+      "Captured": "paid",
+      "Failed": "failed",
+      "Cancelled": "cancelled",
+      "Refunded": "refunded",
+      "PartiallyRefunded": "partly refunded"
+    }
   },
   "orders": {
     "orderPlaced": "Order Placed!",
     "orderReceived": "Your order {orderNumber} has been received. We'll notify you when it ships.",
+    "payOnDelivery": "You will pay the courier when the goods arrive.",
     "viewMyOrders": "View My Orders",
     "continueShopping": "Continue Shopping",
     "myOrders": "My Orders",

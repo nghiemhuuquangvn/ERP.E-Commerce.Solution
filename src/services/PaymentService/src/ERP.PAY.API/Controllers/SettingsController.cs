@@ -57,6 +57,30 @@ public class SettingsController : ControllerBase
         return Ok(await _settingsService.UpdateTenantSettingsAsync(tenantId, request, ct));
     }
 
+    /// <summary>The tenant's merchant accounts at VNPay, MoMo and ZaloPay. Secrets are never returned, only whether they are set.</summary>
+    [HttpGet("tenant/{tenantId}/gateways")]
+    public async Task<IActionResult> GetGateways([FromRoute] Guid tenantId, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("settings:payment:tenant:view") || !CallerCanAccessTenant(tenantId))
+            return Forbid();
+        return Ok(await _settingsService.GetGatewaysAsync(tenantId, ct));
+    }
+
+    [HttpPut("tenant/{tenantId}/gateways/{provider}")]
+    public async Task<IActionResult> UpdateGateway([FromRoute] Guid tenantId, [FromRoute] string provider, [FromBody] UpdateGatewayCredentialRequest request, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("settings:payment:tenant:manage") || !CallerCanAccessTenant(tenantId))
+            return Forbid();
+        try
+        {
+            return Ok(await _settingsService.UpdateGatewayAsync(tenantId, provider, request, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     private bool CallerCanAccessTenant(Guid tenantId)
     {
         if (Guid.TryParse(_userContext.TenantId, out var callerTenantId) && callerTenantId == tenantId)

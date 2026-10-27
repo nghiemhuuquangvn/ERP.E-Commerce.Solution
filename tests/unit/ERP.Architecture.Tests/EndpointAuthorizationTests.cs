@@ -49,7 +49,6 @@ public class EndpointAuthorizationTests
         "ERP.NTF.API:ERP.NTF.API.Controllers.TemplatesController",
         "ERP.NTF.API:ERP.NTF.API.Controllers.WebhooksController",
         "ERP.PAY.API:ERP.PAY.API.Controllers.InstallmentsController",
-        "ERP.PAY.API:ERP.PAY.API.Controllers.PaymentGatewayController",
         "ERP.PAY.API:ERP.PAY.API.Controllers.PaymentMethodsController",
         "ERP.PAY.API:ERP.PAY.API.Controllers.PaymentsController",
         "ERP.PAY.API:ERP.PAY.API.Controllers.SettingsController",

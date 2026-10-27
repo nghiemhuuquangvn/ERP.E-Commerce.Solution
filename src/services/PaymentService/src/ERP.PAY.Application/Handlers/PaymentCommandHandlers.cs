@@ -27,7 +27,10 @@ public class InitiatePaymentCommandHandler : IRequestHandler<InitiatePaymentComm
         if (existing != null)
             return MapToDto(existing);
 
-        var payment = Payment.Initiate(request.OrderId, request.Amount, request.Method, request.Currency, request.InvoiceId);
+        var provider = ERP.PAY.Domain.Enums.PaymentProviders.Normalize(request.Provider);
+        var method = provider != null ? ERP.PAY.Domain.Enums.PaymentProviders.MethodFor(provider) : request.Method;
+        var payment = Payment.Initiate(request.OrderId, request.Amount, method, request.Currency, request.InvoiceId,
+            provider, request.CustomerId, request.OrderNumber);
 
         var fraudCheck = await _fraudDetection.EvaluateAsync(request.OrderId, request.Amount, cancellationToken);
         if (fraudCheck.IsSuspicious)
@@ -50,6 +53,9 @@ public class InitiatePaymentCommandHandler : IRequestHandler<InitiatePaymentComm
         TransactionRef = p.TransactionRef,
         GatewayTransactionId = p.GatewayTransactionId,
         GatewayProvider = p.GatewayProvider,
+        Provider = p.Provider,
+        CustomerId = p.CustomerId,
+        OrderNumber = p.OrderNumber,
         FailureReason = p.FailureReason,
         AuthorizedAt = p.AuthorizedAt,
         CapturedAt = p.CapturedAt,
@@ -120,8 +126,29 @@ public class ProcessGatewayCallbackCommandHandler : IRequestHandler<ProcessGatew
         if (payment.Status is Domain.Enums.PaymentStatus.Captured or Domain.Enums.PaymentStatus.Failed)
             return InitiatePaymentCommandHandler.MapToDto(payment);
 
+        // The order was cancelled (and its payment with it) before the customer's money arrived: nothing is captured, but the money is real —
+        // flag it for a person to refund, and answer normally so the gateway stops retrying.
+        if (payment.Status == Domain.Enums.PaymentStatus.Cancelled)
+        {
+            if (request.IsPaid && !payment.IsFlaggedForReview)
+            {
+                payment.FlagForReview($"Paid at {request.GatewayProvider ?? "the gateway"} (transaction {request.GatewayTransactionId}) after the payment was cancelled — refund the customer");
+                await _uow.Payments.UpdateAsync(payment, cancellationToken);
+                await _uow.SaveChangesAsync(cancellationToken);
+            }
+            return InitiatePaymentCommandHandler.MapToDto(payment);
+        }
+
         if (request.IsPaid)
         {
+            // What the gateway says was paid must be what the order costs; otherwise nothing is captured and a person looks at it.
+            if (request.Amount.HasValue && decimal.Round(request.Amount.Value, 0) != decimal.Round(payment.Amount, 0))
+            {
+                payment.FlagForReview($"Gateway reported {request.Amount.Value:0.##} paid for a payment of {payment.Amount:0.##}");
+                await _uow.Payments.UpdateAsync(payment, cancellationToken);
+                await _uow.SaveChangesAsync(cancellationToken);
+                throw new InvalidOperationException("The paid amount does not match the payment.");
+            }
             payment.Authorize(request.GatewayTransactionId ?? string.Empty, request.GatewayProvider ?? "VNPay");
             payment.Capture();
         }
@@ -173,12 +200,12 @@ public class CapturePaymentCommandHandler : IRequestHandler<CapturePaymentComman
 public class RefundPaymentCommandHandler : IRequestHandler<RefundPaymentCommand, PaymentDto>
 {
     private readonly IPaymentUnitOfWork _uow;
-    private readonly IPaymentGateway _gateway;
+    private readonly IPaymentProviderResolver _providers;
 
-    public RefundPaymentCommandHandler(IPaymentUnitOfWork uow, IPaymentGateway gateway)
+    public RefundPaymentCommandHandler(IPaymentUnitOfWork uow, IPaymentProviderResolver providers)
     {
         _uow = uow;
-        _gateway = gateway;
+        _providers = providers;
     }
 
     public async Task<PaymentDto> Handle(RefundPaymentCommand request, CancellationToken cancellationToken)
@@ -193,16 +220,35 @@ public class RefundPaymentCommandHandler : IRequestHandler<RefundPaymentCommand,
         // call site ever invoked them, and no money was ever actually returned via the
         // gateway. Now the gateway is genuinely called before the refund is
         // considered final.
-        var gatewayResult = await _gateway.RefundAsync(
-            payment.GatewayTransactionId ?? string.Empty,
-            payment.TransactionRef ?? payment.Id.ToString("N")[..16].ToUpperInvariant(),
-            request.Amount,
-            request.Reason,
-            cancellationToken);
+        var transactionRef = payment.TransactionRef ?? payment.Id.ToString("N")[..16].ToUpperInvariant();
+        GatewayRefundResult gatewayResult;
+        try
+        {
+            // A payment that went through a gateway is refunded at THAT gateway with the tenant's keys; one captured by hand has none.
+            if (_providers.StubFor(payment.GatewayProvider) is { } stub)
+                gatewayResult = await stub.RefundAsync(new GatewayCredentials("Null", string.Empty, null, null, null, true),
+                    payment.GatewayTransactionId ?? string.Empty, transactionRef, request.Amount, request.Reason, cancellationToken);
+            else
+            {
+                var resolved = await _providers.ResolveAsync(payment.GatewayProvider!, cancellationToken);
+                gatewayResult = await resolved.Provider.RefundAsync(resolved.Credentials,
+                    payment.GatewayTransactionId ?? string.Empty, transactionRef, request.Amount, request.Reason, cancellationToken);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            gatewayResult = new GatewayRefundResult(false, null, ex.Message);
+        }
 
         // The refund event (and with it the ledger entry) exists only for a refund the gateway confirmed.
         if (gatewayResult.Success)
             payment.CompleteRefund(refund, gatewayResult.GatewayRefundId ?? string.Empty);
+        else if (gatewayResult.Pending)
+        {
+            // The gateway accepted it and is still processing: not failed, not yet money back (no status poll yet — DEFERRED).
+            refund.MarkAsProcessing(gatewayResult.GatewayRefundId ?? string.Empty);
+            payment.ReconcileStatusWithConfirmedRefunds();
+        }
         else
         {
             refund.MarkAsFailed(gatewayResult.Error ?? "Gateway refund failed");

@@ -63,6 +63,7 @@ namespace ERP.SO.Infrastructure
                 eb.Property(e => e.RefundAmount).HasPrecision(18, 2);
                 eb.Property(e => e.OrderNo).IsRequired().HasMaxLength(50);
                 eb.Property(e => e.OrderSource).IsRequired();
+                eb.Property(e => e.PaymentMethod).HasMaxLength(20);
                 eb.Property(e => e.DiscountAmount).IsRequired().HasPrecision(18, 2);
 
                 eb.HasIndex(e => new { e.TenantId, e.OrderNo }).IsUnique().HasFilter("[OrderNo] <> ''"); // numbering is per tenant

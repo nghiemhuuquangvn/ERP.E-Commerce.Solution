@@ -791,7 +791,17 @@
       "pending": "Pending",
       "captured": "Captured",
       "failed": "Failed",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "partiallyRefunded": "Partly refunded"
+    },
+    "flagged": "Flagged for review",
+    "refund": {
+      "button": "Refund",
+      "title": "Refund this payment",
+      "hint": "The refund is sent to {{provider}} with the shop's own keys; the payment changes only when the gateway confirms it.",
+      "amount": "Amount to refund",
+      "reason": "Reason",
+      "submit": "Refund"
     }
   },
   "reports": {
@@ -1864,7 +1874,29 @@
       "secretKeyHint": "Leave blank to keep the currently stored key unchanged.",
       "sandboxMode": "Sandbox mode",
       "noTenant": "No tenant found for the current user.",
-      "failedToSave": "Failed to save settings. Please try again."
+      "failedToSave": "Failed to save settings. Please try again.",
+      "moMoAvailable": "MoMo available platform-wide",
+      "zaloPayAvailable": "ZaloPay available platform-wide",
+      "codEnabled": "Offer cash on delivery at checkout",
+      "gateways": {
+        "title": "Online payment accounts",
+        "hint": "This shop's own merchant account at each gateway. Keys are stored encrypted and never shown again; leave a key blank to keep the stored one. A gateway is offered at checkout only when it is enabled here, available on the platform and has its keys.",
+        "enable": "Enabled",
+        "on": "On",
+        "off": "Off",
+        "saved": "Saved.",
+        "notifyHint": "Give the gateway this address for its payment notifications (IPN):",
+        "fields": {
+          "tmnCode": "TMN code",
+          "hashSecret": "Hash secret",
+          "partnerCode": "Partner code",
+          "accessKey": "Access key",
+          "secretKey": "Secret key",
+          "appId": "App ID",
+          "key1": "Key 1 (creates orders)",
+          "key2": "Key 2 (verifies callbacks)"
+        }
+      }
     },
     "shipping": {
       "title": "Shipping Settings",

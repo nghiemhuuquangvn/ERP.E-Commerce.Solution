@@ -147,14 +147,15 @@ public class SagaTimeoutTests
     }
 
     [Fact]
-    public async Task An_unpaid_order_that_times_out_is_cancelled_without_a_refund()
+    public async Task An_unpaid_order_that_times_out_is_cancelled_and_its_pending_payment_is_closed_not_refunded()
     {
         var state = State(SagaStep.PaymentPending);
         for (var i = 0; i < _options.MaxRetries; i++) state.IncrementRetry();
 
         await Saga().HandleStepTimeoutAsync(state.Id, _options, Later(state, 16), false, default);
 
-        _bus.Verify(b => b.PublishAsync(It.IsAny<RefundPaymentCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+        // No payment id yet (P1-10): Payment is asked by order id, and cancels the payment it still holds as pending instead of refunding money.
+        _bus.Verify(b => b.PublishAsync(It.Is<RefundPaymentCommand>(c => c.PaymentId == Guid.Empty && c.OrderId == _order.Id), It.IsAny<CancellationToken>()), Times.Once);
         _mediator.Verify(m => m.Send(It.IsAny<CancelOrderCommand>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 

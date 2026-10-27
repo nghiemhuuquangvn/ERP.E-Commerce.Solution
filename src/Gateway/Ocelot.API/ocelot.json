@@ -302,6 +302,73 @@
       }
     },
     {
+      "DownstreamPathTemplate": "/api/v1/payment-gateway/callback/{provider}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "paymentservice",
+          "Port": 5009
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/payment-gateway/callback/{provider}",
+      "UpstreamHttpMethod": [ "GET" ],
+      "Priority": 5
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/payment-gateway/ipn/{provider}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "paymentservice",
+          "Port": 5009
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/payment-gateway/ipn/{provider}",
+      "UpstreamHttpMethod": [ "GET", "POST" ],
+      "Priority": 5
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/payment-gateway/callback/{provider}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "paymentservice",
+          "Port": 5009
+        }
+      ],
+      "UpstreamPathTemplate": "/pay/api/v1/payment-gateway/callback/{provider}",
+      "UpstreamHttpMethod": [ "GET" ],
+      "Priority": 5
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/payment-gateway/ipn/{provider}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "paymentservice",
+          "Port": 5009
+        }
+      ],
+      "UpstreamPathTemplate": "/pay/api/v1/payment-gateway/ipn/{provider}",
+      "UpstreamHttpMethod": [ "GET", "POST" ],
+      "Priority": 5
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/payment-gateway/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "paymentservice",
+          "Port": 5009
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/payment-gateway/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer"
+      }
+    },
+    {
       "DownstreamPathTemplate": "/api/v1/shipments/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [

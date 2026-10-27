@@ -1,4 +1,6 @@
 # Module 11 — Payment
+
+> **2026-10-27 (P1-10):** online payments (MoMo, ZaloPay, VNPay per shop, cash on delivery, checkout in storefront and mobile, one verified notification path with an amount check) are described in `docs/business/Payment/OnlinePayments.md`. Where this document says the gateway is VNPay only, chosen once for the process, or that `create-url` / `callback` / `ipn` are single routes, that document wins.
 ## Technical Design Specification | ERP.E-Commerce.Solution
 
 > Số module (11) được gán mới trong đợt rà soát 2026-07-29 — PaymentService trước đó chưa có tài liệu BA riêng. Viết theo hướng **reconciliation** hoàn toàn — mọi chi tiết đã đối chiếu trực tiếp với code thật (`src/services/PaymentService`).

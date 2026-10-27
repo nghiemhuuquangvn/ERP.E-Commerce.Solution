@@ -26,6 +26,12 @@ const router = createRouter({
           meta: { requiresAuth: true },
         },
         {
+          path: 'payment/result',
+          name: 'payment-result',
+          component: () => import('@/pages/PaymentResultPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
           path: 'account',
           meta: { requiresAuth: true },
           children: [

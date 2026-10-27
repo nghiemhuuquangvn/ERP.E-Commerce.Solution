@@ -9,6 +9,8 @@ public class SystemPaymentSettings : BaseEntity, IPlatformWideEntity
 
     public bool VnPayAvailable { get; private set; } = true;
     public bool ManualBankTransferAvailable { get; private set; } = true;
+    public bool MoMoAvailable { get; private set; } = true;
+    public bool ZaloPayAvailable { get; private set; } = true;
 
     protected SystemPaymentSettings() { }
 
@@ -19,14 +21,18 @@ public class SystemPaymentSettings : BaseEntity, IPlatformWideEntity
             Id = WellKnownId,
             VnPayAvailable = true,
             ManualBankTransferAvailable = true,
+            MoMoAvailable = true,
+            ZaloPayAvailable = true,
             CreatedBy = "System",
             CreatedAt = DateTime.UtcNow
         };
     }
 
-    public void Update(bool vnPayAvailable, bool manualBankTransferAvailable)
+    public void Update(bool vnPayAvailable, bool manualBankTransferAvailable, bool moMoAvailable = true, bool zaloPayAvailable = true)
     {
         VnPayAvailable = vnPayAvailable;
         ManualBankTransferAvailable = manualBankTransferAvailable;
+        MoMoAvailable = moMoAvailable;
+        ZaloPayAvailable = zaloPayAvailable;
     }
 }

@@ -265,6 +265,20 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | AL6 | The old *Convert* button still only marks a proposal as done by hand. | P1-9b |
 | AL7 | The generated draft order is not submitted or e-mailed; there is no notification that new proposals exist. | P1-9b / P1-6b |
 
+## 4u. Online payments (P1-10 follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| AM1 | Only VNPay, MoMo and ZaloPay (VND). No Stripe, no cards in other currencies; the order has no currency (online methods and COD are sent as VND). | P1-10b |
+| AM2 | Only the providers' **sandboxes** were used; no merchant (production) account. Production hosts must be configured (`MoMo:ProductionBaseUrl`, …) or the call is refused. | P1-10b |
+| AM3 | A ZaloPay refund the gateway is still processing stays `Processing`; nothing polls its final status. | P1-10b |
+| AM4 | A pending online payment the customer abandons waits for the saga timeout (about an hour with retries), then the order is cancelled and the payment closed; there is no shorter payment expiry. | P1-10b |
+| AM5 | A customer who cancels at the gateway: a failed return cancels the order at once (as VNPay always did); no "try again" for a cancelled order. | P1-10b |
+| AM6 | No e-mail / push when a payment fails or when money arrives for a cancelled payment (it is only flagged on the Payments screen). | P1-10b / P1-6b |
+| AM7 | No reconciliation of captured payments against the gateway's own statements; no settlement import per gateway. | P1-10b |
+| AM8 | The shop's gateway accounts have no history of changes and no test button ("create a 1 VND payment"). | P1-10b |
+| AM9 | Mobile still sends no shipping address and shows amounts without the shop's currency formatting. | P1-10b |
+
 ## 6. Risk register — to handle after the main roadmap tasks
 
 Latent risks found while working (owner's rule 2026-10-26: record them, fix them after the main tasks). Each task appends its own.
@@ -280,6 +294,14 @@ Latent risks found while working (owner's rule 2026-10-26: record them, fix them
 | R7 | The other services' test projects (SO, SHP, PAY, NTF, PRM, RPT, CRM, HRM) are not re-run per task. | A shared change could break one unnoticed. | Full test run before each merge train. | P1-8, P1-9 |
 | R8 | Low stock now means available ≤ minimum (was total ≤ reorder point): existing tenants get more "low" products and alerts, and the list filter changes meaning. | Alert / proposal volume jumps after deploy. | Tell tenants; review default minimums. | P1-9 |
 | R9 | The alert is sent over RabbitMQ with no per-product dedupe at the consumer; a burst of movements is handled one by one with a 1–4 s delay per retry inside the consumer. | Backlog if the Purchasing database is slow. | Batch / debounce per product. | P1-9 |
+| R11 | The providers cannot call a local Docker stack, so their server notifications were only **simulated** (signed with the stored secrets); only create and refund were real sandbox calls. A real notification may differ in a detail (extra fields, retries, IPv6 source). | A surprise on the first real payment. | Test once with a public tunnel (`Payment:PublicBaseUrl`) and a real sandbox account of each provider before going live. | P1-10 |
+| R12 | A ZaloPay sandbox key I remembered (app 2553) was wrong; the signing code was right (app 2554 worked at once). Keys for MoMo/ZaloPay in this repo's docs and tests are the providers' public sandbox values. | Confusion about "invalid signature". | Keep the sandbox accounts documented in one place; never commit real keys. | P1-10 |
+| R13 | Accounting could not post the captured payments of the live check because the tenant's October 2026 period was closed (handler logs, no entry). Cash collected on delivery can fall into a closed period the same way. | Payments without a ledger entry. | The `posting-gaps` screen exists; consider posting into the next open period or an alert. | P1-10 |
+| R14 | The storefront order calls were out of sync with the backend (`lines` vs `lineItems`, `id` vs `orderId`, `orderNumber` vs `orderNo`) — placing an order from the storefront / mobile could never have worked. Fixed for create / confirmation / history; other client calls may have the same drift. | Silent breakage of clients. | Generate the clients from the OpenAPI contract or add contract tests. | P1-10 |
+| R15 | Mobile defaults to `http://localhost:5000/api`: the Gateway takes the tenant from the **host**, and `localhost` belongs to no tenant. | The app cannot sign in outside a prepared setup. | Point `EXPO_PUBLIC_API_URL` at the tenant's host; document it. | P1-10 |
+| R16 | Registering a customer fails on a tenant that has no `CUSTOMER` role (the test tenant `glcheck`); the role must be seeded for every tenant. | New customers cannot sign up. | Seed default roles when a tenant is created and add a repair migration. | P1-10 |
+| R17 | The Payments list (admin) has no filter by provider and no screen for payments flagged for review (the flag is shown as a note). | A refund-needed payment can be missed. | A "needs attention" view. | P1-10 |
+| R18 | Sales cancels an order by hand (admin) without telling Payment: its pending payment stays open until paid or forgotten (the saga path now closes it). | A late payment for a manually cancelled order is captured, not flagged. | Publish an order-cancelled event Payment consumes (or call Payment from `CancelOrderCommand`). | P1-10 |
 | R10 | Several Database runner entries were missing (Warehouse 007–008, Purchasing 009–013 until now): a fresh database built by `RunAllScripts.ps1` depended on someone remembering to add them. | Fresh install missing columns. | A test that every file in `src/Database` is in the runner. | P1-8, P1-9 |
 
 ## 5. Roadmap items these issues are waiting for

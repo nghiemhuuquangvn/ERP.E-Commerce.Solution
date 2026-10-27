@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
   Alert,
+  Linking,
   ListRenderItem,
 } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -13,6 +14,8 @@ import { useCartStore } from '@/stores/cart.store'
 import type { CartItem } from '@/stores/cart.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { apiClient } from '@/api/client'
+import { fetchPaymentMethods, startCheckout } from '@/api/payments'
+import type { PaymentMethodOption, Order } from '@/api/payments'
 
 // Module-level formatter — created once per app lifecycle
 const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
@@ -23,6 +26,18 @@ export default function CartScreen() {
   const cartStore = useCartStore()
   const authStore = useAuthStore()
   const [placing, setPlacing] = useState(false)
+  // What this shop really offers (cash on delivery + the gateways it set up).
+  const [methods, setMethods] = useState<PaymentMethodOption[]>([])
+  const [method, setMethod] = useState('')
+
+  useEffect(() => {
+    fetchPaymentMethods()
+      .then((list) => {
+        setMethods(list)
+        setMethod((current) => current || list[0]?.code || '')
+      })
+      .catch(() => setMethods([]))
+  }, [])
 
   const items = cartStore.items
 
@@ -37,23 +52,35 @@ export default function CartScreen() {
 
     setPlacing(true)
     try {
-      const { data: order } = await apiClient.post('/v1/orders', {
+      const { data: order } = await apiClient.post<Order>('/v1/orders', {
         customerId: authStore.user!.id,
-        lines: cartStore.items.map((i) => ({
+        customerName: `${authStore.user!.firstName} ${authStore.user!.lastName}`.trim() || authStore.user!.email,
+        customerEmail: authStore.user!.email,
+        lineItems: cartStore.items.map((i) => ({
           productId: i.productId,
           productName: i.productName,
           unitPrice: i.unitPrice,
           quantity: i.quantity,
         })),
+        paymentMethod: method || undefined,
       })
       cartStore.clear()
-      router.push(`/order/${order.id}`)
+      // Online method: open the gateway's page now; the order screen shows the result when the customer comes back.
+      if (methods.find((m) => m.code === method)?.isGateway) {
+        try {
+          const { paymentUrl } = await startCheckout(order.orderId)
+          await Linking.openURL(paymentUrl)
+        } catch {
+          // The order screen offers "Pay now" again.
+        }
+      }
+      router.push(`/order/${order.orderId}`)
     } catch {
       Alert.alert(t('common.error'), t('cart.errorPlacingOrder'))
     } finally {
       setPlacing(false)
     }
-  }, [authStore, cartStore, router, t])
+  }, [authStore, cartStore, router, t, method, methods])
 
   // Stable renderItem — FlatList re-renders only changed rows
   const renderItem = useCallback<ListRenderItem<CartItem>>(
@@ -122,9 +149,25 @@ export default function CartScreen() {
           <Text className="font-bold text-gray-900 text-lg">{t('cart.total')}</Text>
           <Text className="font-bold text-brand-500 text-lg">{fmt.format(cartStore.total())}</Text>
         </View>
+        {methods.length > 0 && (
+          <View className="mb-4">
+            <Text className="mb-2 text-xs uppercase text-gray-400">{t('cart.paymentMethod')}</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {methods.map((m) => (
+                <TouchableOpacity
+                  key={m.code}
+                  onPress={() => setMethod(m.code)}
+                  className={`rounded-full border px-4 py-2 ${method === m.code ? 'border-brand-500 bg-brand-500' : 'border-gray-200 bg-white'}`}
+                >
+                  <Text className={method === m.code ? 'font-semibold text-white' : 'text-gray-700'}>{t(`cart.methods.${m.code}`)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
         <TouchableOpacity
           onPress={checkout}
-          disabled={placing}
+          disabled={placing || !method}
           className="bg-brand-500 rounded-xl py-4 items-center"
         >
           <Text className="text-white font-bold text-base">

@@ -43,7 +43,8 @@ public sealed class OrderFulfillmentSaga
     }
 
     // ── Step 1: Order created → start saga + request payment ──────────────
-    public async Task HandleOrderCreatedAsync(Guid orderId, Guid tenantId, decimal totalAmount, CancellationToken ct)
+    public async Task HandleOrderCreatedAsync(Guid orderId, Guid tenantId, decimal totalAmount, CancellationToken ct,
+        Guid? customerId = null, string? orderNumber = null, string? paymentMethod = null)
     {
         var existing = await _uow.Sagas.GetByOrderIdAsync(orderId, ct);
         if (existing is not null)
@@ -59,11 +60,53 @@ public sealed class OrderFulfillmentSaga
         _logger.LogInformation("Saga {SagaId} started for Order {OrderId} — requesting payment (Amount={Amount})",
             saga.Id, orderId, totalAmount);
 
-        await _messageBus.PublishAsync(new InitiatePaymentCommand
+        await _messageBus.PublishAsync(BuildInitiatePayment(orderId, tenantId, totalAmount, customerId, orderNumber, paymentMethod), ct);
+
+        // Cash on delivery does not wait: Payment records a pending COD payment (captured when the goods are delivered) and the saga
+        // goes on to reserve stock at once.
+        if (string.Equals(paymentMethod, "COD", StringComparison.OrdinalIgnoreCase))
         {
-            OrderId = orderId,
-            TenantId = tenantId,
-            Amount = totalAmount
+            var order = await _uow.Orders.GetByIdAsync(orderId, ct);
+            if (order is null) return;
+
+            saga.SkipPaymentForCashOnDelivery();
+            await _uow.Sagas.UpdateAsync(saga, ct);
+            await _uow.SaveChangesAsync(ct);
+
+            _logger.LogInformation("Saga {SagaId}: Order {OrderId} is cash on delivery — requesting inventory reservation without waiting for payment", saga.Id, orderId);
+            await _messageBus.PublishAsync(new ReserveInventoryCommand
+            {
+                OrderId = orderId,
+                TenantId = saga.TenantId,
+                Items = order.LineItems.Select(li => new SagaLineItem { ProductId = li.ProductId, Quantity = li.Quantity }).ToList()
+            }, ct);
+        }
+    }
+
+    /// <summary>
+    /// What Payment needs to make the payment the customer asked for. Online gateways settle VND only, so those orders (and COD) carry VND;
+    /// an order that did not say keeps the old defaults (no currency, Payment picks its own).
+    /// </summary>
+    internal static InitiatePaymentCommand BuildInitiatePayment(Guid orderId, Guid tenantId, decimal amount, Guid? customerId, string? orderNumber, string? paymentMethod) => new()
+    {
+        OrderId = orderId,
+        TenantId = tenantId,
+        Amount = amount,
+        PaymentMethod = paymentMethod,
+        Currency = string.IsNullOrEmpty(paymentMethod) || string.Equals(paymentMethod, "Unspecified", StringComparison.OrdinalIgnoreCase) ? null : "VND",
+        CustomerId = customerId,
+        OrderNumber = orderNumber
+    };
+
+    /// <summary>
+    /// Refunds the payment when the saga knows it. Without a payment id (cash on delivery, or an online order that timed out before it was paid) Payment is
+    /// asked, by order id, to close whatever it holds: a pending payment is cancelled, so a late "paid" from the gateway can no longer be taken for this order.
+    /// </summary>
+    private async Task RefundOrCancelPaymentAsync(OrderFulfillmentSagaState saga, string reason, CancellationToken ct)
+    {
+        await _messageBus.PublishAsync(new RefundPaymentCommand
+        {
+            PaymentId = saga.PaymentId ?? Guid.Empty, OrderId = saga.OrderId, TenantId = saga.TenantId, Reason = reason
         }, ct);
     }
 
@@ -259,16 +302,7 @@ public sealed class OrderFulfillmentSaga
         await _uow.Sagas.UpdateAsync(saga, ct);
         await _uow.SaveChangesAsync(ct);
 
-        if (saga.PaymentId.HasValue)
-        {
-            await _messageBus.PublishAsync(new RefundPaymentCommand
-            {
-                PaymentId = saga.PaymentId.Value,
-                OrderId = orderId,
-                TenantId = saga.TenantId,
-                Reason = "Order cancelled: inventory insufficient"
-            }, ct);
-        }
+        await RefundOrCancelPaymentAsync(saga, "Order cancelled: inventory insufficient", ct);
 
         await _mediator.Send(new CancelOrderCommand { OrderId = orderId, Reason = $"Inventory insufficient: {reason}" }, ct);
     }
@@ -361,7 +395,7 @@ public sealed class OrderFulfillmentSaga
         switch (step)
         {
             case SagaStep.PaymentPending:
-                await _messageBus.PublishAsync(new InitiatePaymentCommand { OrderId = saga.OrderId, TenantId = saga.TenantId, Amount = order.TotalAmount }, ct);
+                await _messageBus.PublishAsync(BuildInitiatePayment(saga.OrderId, saga.TenantId, order.TotalAmount, order.CustomerId, order.OrderNo, order.PaymentMethod), ct);
                 break;
             case SagaStep.InventoryPending:
                 await _messageBus.PublishAsync(new ReserveInventoryCommand
@@ -388,16 +422,7 @@ public sealed class OrderFulfillmentSaga
         await _uow.Sagas.UpdateAsync(saga, ct);
         await _uow.SaveChangesAsync(ct);
 
-        if (saga.PaymentId.HasValue)
-        {
-            await _messageBus.PublishAsync(new RefundPaymentCommand
-            {
-                PaymentId = saga.PaymentId.Value,
-                OrderId = saga.OrderId,
-                TenantId = saga.TenantId,
-                Reason = $"Order cancelled: {reason}"
-            }, ct);
-        }
+        await RefundOrCancelPaymentAsync(saga, $"Order cancelled: {reason}", ct);
 
         await _mediator.Send(new CancelOrderCommand { OrderId = saga.OrderId, Reason = reason }, ct);
     }
@@ -411,6 +436,11 @@ public record InitiatePaymentCommand
     public Guid OrderId { get; init; }
     public Guid TenantId { get; init; }
     public decimal Amount { get; init; }
+    /// <summary>COD, VNPay, MoMo, ZaloPay or Unspecified / null (P1-10).</summary>
+    public string? PaymentMethod { get; init; }
+    public string? Currency { get; init; }
+    public Guid? CustomerId { get; init; }
+    public string? OrderNumber { get; init; }
 }
 
 public record ReserveInventoryCommand

@@ -30,7 +30,34 @@
     "subtotal": "Subtotal",
     "total": "Total",
     "placingOrder": "Placing Order…",
-    "placeOrder": "Place Order"
+    "placeOrder": "Place Order",
+    "paymentMethod": "Pay with",
+    "methods": {
+      "COD": "Cash on delivery",
+      "VNPay": "VNPay",
+      "MoMo": "MoMo",
+      "ZaloPay": "ZaloPay"
+    }
+  },
+  "order": {
+    "notFound": "Order not found.",
+    "payment": "Payment",
+    "payOnDelivery": "You will pay the courier when the goods arrive.",
+    "preparing": "Preparing your payment…",
+    "payNow": "Pay now",
+    "opening": "Opening…",
+    "startFailed": "We could not reach the payment gateway. Please try again.",
+    "failedDetail": "The payment failed, so the order was cancelled.",
+    "viewOrders": "View my orders",
+    "status": {
+      "Pending": "waiting for payment",
+      "Authorized": "being confirmed",
+      "Captured": "paid",
+      "Failed": "failed",
+      "Cancelled": "cancelled",
+      "Refunded": "refunded",
+      "PartiallyRefunded": "partly refunded"
+    }
   },
   "orders": {
     "loading": "Loading orders…",

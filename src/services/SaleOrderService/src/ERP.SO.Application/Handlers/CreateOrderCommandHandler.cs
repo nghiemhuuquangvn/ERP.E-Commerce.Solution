@@ -84,6 +84,9 @@ namespace ERP.SO.Application.Handlers
                 ? OrderSource.Manual
                 : Enum.Parse<OrderSource>(request.OrderSource, ignoreCase: true);
 
+            // The payment method must be one the platform knows; whether this shop really offers it is checked when the customer starts the payment.
+            var paymentMethod = NormalizePaymentMethod(request.PaymentMethod);
+
             var salesOrder = SalesOrder.Create(
                 request.CustomerId,
                 request.CustomerName,
@@ -95,7 +98,8 @@ namespace ERP.SO.Application.Handlers
                 orderSource,
                 request.DepartmentId,
                 request.SalesRepId,
-                request.QuotationId);
+                request.QuotationId,
+                paymentMethod);
 
             if (!string.IsNullOrWhiteSpace(request.CouponCode))
             {
@@ -109,9 +113,20 @@ namespace ERP.SO.Application.Handlers
             await _uow.Orders.AddAsync(salesOrder, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
 
-            await _saga.HandleOrderCreatedAsync(salesOrder.Id, tenantId, salesOrder.TotalAmount, cancellationToken);
+            await _saga.HandleOrderCreatedAsync(salesOrder.Id, tenantId, salesOrder.TotalAmount, cancellationToken,
+                salesOrder.CustomerId, salesOrder.OrderNo, salesOrder.PaymentMethod);
 
             return MapToDto(salesOrder);
+        }
+
+        private static readonly string[] PaymentMethods = { "COD", "VNPay", "MoMo", "ZaloPay", "Unspecified" };
+
+        /// <summary>Canonical spelling of a known payment method; null when none was given. An unknown one is refused (a business-rule error, HTTP 400).</summary>
+        public static string? NormalizePaymentMethod(string? method)
+        {
+            if (string.IsNullOrWhiteSpace(method)) return null;
+            return PaymentMethods.FirstOrDefault(m => string.Equals(m, method.Trim(), StringComparison.OrdinalIgnoreCase))
+                ?? throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("Sales", $"Unknown payment method '{method}'. Use one of: {string.Join(", ", PaymentMethods)}.");
         }
 
         private SalesOrderDto MapToDto(SalesOrder order)
@@ -132,6 +147,7 @@ namespace ERP.SO.Application.Handlers
                 Notes = order.Notes,
                 OrderNo = order.OrderNo,
                 OrderSource = order.OrderSource.ToString(),
+                PaymentMethod = order.PaymentMethod,
                 DepartmentId = order.DepartmentId,
                 SalesRepId = order.SalesRepId,
                 QuotationId = order.QuotationId,
@@ -216,6 +232,7 @@ namespace ERP.SO.Application.Handlers
                 Notes = order.Notes,
                 OrderNo = order.OrderNo,
                 OrderSource = order.OrderSource.ToString(),
+                PaymentMethod = order.PaymentMethod,
                 DepartmentId = order.DepartmentId,
                 SalesRepId = order.SalesRepId,
                 QuotationId = order.QuotationId,
@@ -281,6 +298,7 @@ namespace ERP.SO.Application.Handlers
                 Notes = order.Notes,
                 OrderNo = order.OrderNo,
                 OrderSource = order.OrderSource.ToString(),
+                PaymentMethod = order.PaymentMethod,
                 DepartmentId = order.DepartmentId,
                 SalesRepId = order.SalesRepId,
                 QuotationId = order.QuotationId,
@@ -362,6 +380,7 @@ namespace ERP.SO.Application.Handlers
                 Notes = order.Notes,
                 OrderNo = order.OrderNo,
                 OrderSource = order.OrderSource.ToString(),
+                PaymentMethod = order.PaymentMethod,
                 DepartmentId = order.DepartmentId,
                 SalesRepId = order.SalesRepId,
                 QuotationId = order.QuotationId,

@@ -69,6 +69,13 @@ public class OrderFulfillmentSagaState : ERP.Shared.Core.Domain.ITenantOwned
         LastUpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>Cash on delivery: there is nothing to wait for, so the saga goes straight to inventory with no payment id (the cash is collected on delivery).</summary>
+    public void SkipPaymentForCashOnDelivery()
+    {
+        CurrentStep = SagaStep.InventoryPending;
+        LastUpdatedAt = DateTime.UtcNow;
+    }
+
     /// <summary>Records that inventory is reserved. Does not by itself move to
     /// ShippingPending — call <see cref="TryAdvanceToShipping"/> after this (and after
     /// <see cref="MarkApproved"/>) since either can complete first.</summary>

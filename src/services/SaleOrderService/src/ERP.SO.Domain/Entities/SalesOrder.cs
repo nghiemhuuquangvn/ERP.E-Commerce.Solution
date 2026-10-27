@@ -24,6 +24,10 @@ namespace ERP.SO.Domain.Entities
         public Guid? SalesRepId { get; private set; }
         /// <summary>Set only when this order was created by converting a SalesQuotation.</summary>
         public Guid? QuotationId { get; private set; }
+        /// <summary>What the customer chose to pay with: COD, VNPay, MoMo, ZaloPay, or null / "Unspecified" (an order that did not say; it keeps the pre-P1-10 behaviour of waiting for a payment).</summary>
+        public string? PaymentMethod { get; private set; }
+        /// <summary>Cash on delivery: the order does not wait for a payment, the money is collected when the goods are delivered.</summary>
+        public bool IsCashOnDelivery => string.Equals(PaymentMethod, "COD", StringComparison.OrdinalIgnoreCase);
         /// <summary>Which promotion produced DiscountAmount, if any — was previously discarded after coupon validation.</summary>
         public Guid? PromotionId { get; private set; }
         public decimal DiscountAmount { get; private set; }
@@ -67,7 +71,8 @@ namespace ERP.SO.Domain.Entities
             OrderSource orderSource = OrderSource.Manual,
             Guid? departmentId = null,
             Guid? salesRepId = null,
-            Guid? quotationId = null)
+            Guid? quotationId = null,
+            string? paymentMethod = null)
         {
             var order = new SalesOrder
             {
@@ -84,6 +89,7 @@ namespace ERP.SO.Domain.Entities
                 DepartmentId = departmentId,
                 SalesRepId = salesRepId,
                 QuotationId = quotationId,
+                PaymentMethod = paymentMethod,
                 _lineItems = lineItems
             };
 

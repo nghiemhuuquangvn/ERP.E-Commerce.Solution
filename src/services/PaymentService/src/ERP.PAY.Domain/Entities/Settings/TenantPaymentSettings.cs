@@ -12,6 +12,8 @@ public class TenantPaymentSettings : BaseEntity
     public bool VnPayEnabled { get; private set; } = false;
     public string? VnPaySecretKeyEncrypted { get; private set; }
     public bool SandboxMode { get; private set; } = true;
+    /// <summary>Cash on delivery offered at checkout (no gateway; the money is collected when the goods are delivered).</summary>
+    public bool CodEnabled { get; private set; } = true;
 
     protected TenantPaymentSettings() { }
 
@@ -32,8 +34,9 @@ public class TenantPaymentSettings : BaseEntity
     }
 
     /// <summary>vnPaySecretKeyEncrypted must already be encrypted by the caller (ISecretProtector.Protect) — null/unchanged keeps the existing stored value.</summary>
-    public void Update(bool vnPayEnabled, string? vnPaySecretKeyEncrypted, bool sandboxMode)
+    public void Update(bool vnPayEnabled, string? vnPaySecretKeyEncrypted, bool sandboxMode, bool codEnabled = true)
     {
+        CodEnabled = codEnabled;
         VnPayEnabled = vnPayEnabled;
         if (vnPaySecretKeyEncrypted != null)
             VnPaySecretKeyEncrypted = vnPaySecretKeyEncrypted;

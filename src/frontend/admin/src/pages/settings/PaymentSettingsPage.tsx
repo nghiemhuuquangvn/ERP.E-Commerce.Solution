@@ -9,12 +9,15 @@ import {
 } from '@/api/settings/payment.settings.api'
 import { usePermission } from '@/hooks/usePermission'
 import { useAuthStore } from '@/stores/auth.store'
+import { PaymentGatewaysCard } from './PaymentGatewaysCard'
 
 type Tab = 'system' | 'tenant'
 
 interface SystemFormValues {
   vnPayAvailable: boolean
   manualBankTransferAvailable: boolean
+  moMoAvailable: boolean
+  zaloPayAvailable: boolean
 }
 
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
@@ -28,7 +31,7 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   })
 
   const { register, handleSubmit, reset } = useForm<SystemFormValues>({
-    defaultValues: { vnPayAvailable: true, manualBankTransferAvailable: true },
+    defaultValues: { vnPayAvailable: true, manualBankTransferAvailable: true, moMoAvailable: true, zaloPayAvailable: true },
   })
 
   useEffect(() => {
@@ -49,6 +52,14 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
       <label className="flex items-center gap-2 text-sm text-gray-700">
         <input type="checkbox" disabled={!canManage} {...register('vnPayAvailable')} />
         {t('settings.payment.vnPayAvailable')}
+      </label>
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input type="checkbox" disabled={!canManage} {...register('moMoAvailable')} />
+        {t('settings.payment.moMoAvailable')}
+      </label>
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input type="checkbox" disabled={!canManage} {...register('zaloPayAvailable')} />
+        {t('settings.payment.zaloPayAvailable')}
       </label>
       <label className="flex items-center gap-2 text-sm text-gray-700">
         <input type="checkbox" disabled={!canManage} {...register('manualBankTransferAvailable')} />
@@ -72,6 +83,7 @@ interface TenantFormValues {
   vnPayEnabled: boolean
   vnPaySecretKey: string
   sandboxMode: boolean
+  codEnabled: boolean
 }
 
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
@@ -86,12 +98,12 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
   })
 
   const { register, handleSubmit, reset } = useForm<TenantFormValues>({
-    defaultValues: { vnPayEnabled: false, vnPaySecretKey: '', sandboxMode: true },
+    defaultValues: { vnPayEnabled: false, vnPaySecretKey: '', sandboxMode: true, codEnabled: true },
   })
 
   useEffect(() => {
     if (data) {
-      reset({ vnPayEnabled: data.vnPayEnabled, vnPaySecretKey: '', sandboxMode: data.sandboxMode })
+      reset({ vnPayEnabled: data.vnPayEnabled, vnPaySecretKey: '', sandboxMode: data.sandboxMode, codEnabled: data.codEnabled })
     }
   }, [data, reset])
 
@@ -102,6 +114,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
         // Empty means "leave the currently stored key unchanged" — never send a blank overwrite.
         vnPaySecretKey: values.vnPaySecretKey || undefined,
         sandboxMode: values.sandboxMode,
+        codEnabled: values.codEnabled,
       }),
     onSuccess: (result: TenantPaymentSettings) => {
       queryClient.setQueryData(['settings', 'payment', 'tenant', tenantId], result)
@@ -132,6 +145,10 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       <label className="flex items-center gap-2 text-sm text-gray-700">
         <input type="checkbox" disabled={!canManage} {...register('sandboxMode')} />
         {t('settings.payment.sandboxMode')}
+      </label>
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input type="checkbox" disabled={!canManage} {...register('codEnabled')} />
+        {t('settings.payment.codEnabled')}
       </label>
 
       {mutation.isError && <p className="text-xs text-red-600">{t('settings.payment.failedToSave')}</p>}
@@ -185,7 +202,10 @@ export function PaymentSettingsPage() {
 
       {tab === 'system' && canViewSystem && <SystemSettingsForm canManage={canManageSystem} />}
       {tab === 'tenant' && (
-        <TenantSettingsForm canManage={canManageTenant} tenantId={user?.tenantId ?? ''} />
+        <div className="space-y-8">
+          <TenantSettingsForm canManage={canManageTenant} tenantId={user?.tenantId ?? ''} />
+          {user?.tenantId && <PaymentGatewaysCard tenantId={user.tenantId} canManage={canManageTenant} />}
+        </div>
       )}
     </div>
   )
