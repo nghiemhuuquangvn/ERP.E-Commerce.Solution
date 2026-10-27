@@ -79,6 +79,9 @@ builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddErpServiceAuthentication(builder.Configuration);
 builder.Services.AddErpAuthorization();
 builder.Services.AddScoped<ERP.SHP.Application.Services.ShippingFeeService>();
+// Product weights for the parcel (ProductService internal endpoint, this service's own token) - P1-11b.
+builder.Services.AddHttpClient<IProductWeightClient, ERP.SHP.Infrastructure.Services.ProductWeightClient>()
+    .AddServiceToken("product");
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 // Tenant isolation for ShippingDbContext: JWT tenant, Gateway host tenant for anonymous
@@ -116,5 +119,7 @@ app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapHealthChecks("/health").AllowAnonymous();
 app.MapControllers();
+// Public keys of this service's service-to-service tokens (ProductService verifies them).
+app.MapServiceJwks();
 
 app.Run();

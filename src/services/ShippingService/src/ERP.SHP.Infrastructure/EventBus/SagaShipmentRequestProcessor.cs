@@ -1,3 +1,4 @@
+using ERP.SHP.Application.Commands;
 using ERP.SHP.Application.Interfaces;
 using ERP.SHP.Application.Services;
 using ERP.SHP.Domain.Enums;
@@ -29,12 +30,14 @@ namespace ERP.SHP.Infrastructure.EventBus
         private readonly IShippingUnitOfWork _uow;
         private readonly IMediator _mediator;
         private readonly ILogger<SagaShipmentRequestProcessor> _logger;
+        private readonly IProductWeightClient _weights;
 
-        public SagaShipmentRequestProcessor(IShippingUnitOfWork uow, IMediator mediator, ILogger<SagaShipmentRequestProcessor> logger)
+        public SagaShipmentRequestProcessor(IShippingUnitOfWork uow, IMediator mediator, ILogger<SagaShipmentRequestProcessor> logger, IProductWeightClient weights)
         {
             _uow = uow;
             _mediator = mediator;
             _logger = logger;
+            _weights = weights;
         }
 
         public async Task<SagaShipmentOutcome> ProcessAsync(SagaCreateShipmentCommand command, CancellationToken ct = default)
@@ -59,7 +62,9 @@ namespace ERP.SHP.Infrastructure.EventBus
             // The carrier is chosen while booking: the shop's rules, then the cheapest quote, the next one when a carrier refuses.
             try
             {
-                await _mediator.Send(command.ToCreateShipmentCommand(), ct);
+                var create = command.ToCreateShipmentCommand();
+                await ApplyProductWeightsAsync(create, ct);
+                await _mediator.Send(create, ct);
                 return SagaShipmentOutcome.Created;
             }
             catch (CarrierBookingException ex) when (!ex.IsTransient)
@@ -69,6 +74,15 @@ namespace ERP.SHP.Infrastructure.EventBus
                 return SagaShipmentOutcome.Failed;
             }
             // A carrier that could not be reached is not a verdict: the exception goes to the consumer, which tries again before giving up.
+        }
+
+        /// <summary>The products' own weights (kg per unit) go on the lines; a product without one keeps 0 and the booking uses the shop's default item weight.</summary>
+        private async Task ApplyProductWeightsAsync(CreateShipmentCommand create, CancellationToken ct)
+        {
+            var weights = await _weights.GetWeightsAsync(create.Items.Select(i => i.ProductId).Distinct().ToList(), ct);
+            foreach (var item in create.Items)
+                if (item.Weight <= 0 && weights.TryGetValue(item.ProductId, out var grams))
+                    item.Weight = grams / 1000m;
         }
 
         /// <summary>Tells Sales the shipment of the order could not be created.</summary>

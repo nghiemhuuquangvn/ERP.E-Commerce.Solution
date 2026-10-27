@@ -25,6 +25,7 @@ public class SagaShipmentRequestProcessorTests
 
     public SagaShipmentRequestProcessorTests()
     {
+        _weights.Setup(w => w.GetWeightsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new Dictionary<Guid, int>());
         _uow.SetupGet(u => u.Shipments).Returns(_shipments.Object);
         _uow.SetupGet(u => u.Carriers).Returns(_carriers.Object);
         _uow.Setup(u => u.StageEventAsync(It.IsAny<IDomainEvent>(), It.IsAny<CancellationToken>()))
@@ -33,7 +34,37 @@ public class SagaShipmentRequestProcessorTests
         _carriers.Setup(c => c.GetActiveAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Carrier> { Carrier.Create("GHN", "GHN", 10m) });
     }
 
-    private SagaShipmentRequestProcessor Processor() => new(_uow.Object, _mediator.Object, NullLogger<SagaShipmentRequestProcessor>.Instance);
+    private readonly Mock<IProductWeightClient> _weights = new();
+
+    private SagaShipmentRequestProcessor Processor() => new(_uow.Object, _mediator.Object, NullLogger<SagaShipmentRequestProcessor>.Instance, _weights.Object);
+
+    [Fact]
+    public async Task The_products_own_weight_goes_on_the_line_and_a_product_without_one_keeps_zero_for_the_shop_default()
+    {
+        var command = Command();
+        var heavy = command.Items[0].ProductId;
+        var unknown = Guid.NewGuid();
+        command.Items.Add(new SagaShipmentLine { ProductId = unknown, ProductName = "Khong ro", Quantity = 1 });
+        _weights.Setup(w => w.GetWeightsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, int> { [heavy] = 1250 });
+        CreateShipmentCommand? sent = null;
+        _mediator.Setup(m => m.Send(It.IsAny<CreateShipmentCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<ShipmentDto>, CancellationToken>((c, _) => sent = (CreateShipmentCommand)c);
+
+        await Processor().ProcessAsync(command);
+
+        sent!.Items.Single(i => i.ProductId == heavy).Weight.Should().Be(1.25m);
+        sent.Items.Single(i => i.ProductId == unknown).Weight.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task The_ward_of_the_order_address_reaches_the_carrier_request()
+    {
+        var command = Command();
+        command.ShippingAddress!.Ward = "Phuong Ben Nghe";
+
+        command.ToCreateShipmentCommand().Recipient.AddressWard.Should().Be("Phuong Ben Nghe");
+    }
 
     private static SagaCreateShipmentCommand Command(bool withAddress = true) => new()
     {

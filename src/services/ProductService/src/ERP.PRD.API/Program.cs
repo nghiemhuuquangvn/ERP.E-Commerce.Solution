@@ -1,6 +1,7 @@
 using ERP.PRD.Application;
 using ERP.PRD.Infrastructure;
 using ERP.Shared.Authorization;
+using ERP.Shared.Authorization.ServiceAuth;
 using ERP.Shared.Extensions;
 using ERP.Shared.Localization;
 using ERP.Shared.Versioning;
@@ -19,6 +20,8 @@ builder.Services
 // for consistency with the rest of the platform and so any future [Authorize]-gated
 // endpoint actually works instead of silently passing through.
 builder.Services.AddErpJwtAuthentication(builder.Configuration);
+// /internal endpoints: service tokens of ServiceAuth:TrustedCallers (Shipping reads product weights).
+builder.Services.AddErpServiceAuthentication(builder.Configuration);
 builder.Services.AddErpAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();

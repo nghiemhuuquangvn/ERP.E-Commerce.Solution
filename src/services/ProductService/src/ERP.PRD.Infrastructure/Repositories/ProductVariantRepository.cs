@@ -28,6 +28,12 @@ namespace ERP.PRD.Infrastructure.Repositories
                 .OrderBy(v => v.Sku)
                 .ToListAsync(ct);
 
+        public async Task<List<ProductVariant>> GetByProductIdsAsync(IReadOnlyCollection<Guid> productIds, CancellationToken ct = default)
+            => await _db.ProductVariants
+                .Where(v => productIds.Contains(v.ProductId) && !v.IsDeleted)
+                .OrderBy(v => v.Sku)
+                .ToListAsync(ct);
+
         public async Task<List<VariantPriceProjection>> GetPricesByProductIdAsync(
             Guid productId, CancellationToken ct = default)
             => await _db.ProductVariants

@@ -216,6 +216,7 @@ namespace ERP.SHP.Infrastructure.EventBus
                 RecipientName = RecipientName,
                 RecipientPhone = string.IsNullOrWhiteSpace(RecipientPhone) ? null : RecipientPhone,
                 AddressStreet = ShippingAddress?.Street ?? string.Empty,
+                AddressWard = string.IsNullOrWhiteSpace(ShippingAddress?.Ward) ? null : ShippingAddress.Ward,
                 AddressDistrict = ShippingAddress?.City ?? string.Empty,
                 AddressProvince = ShippingAddress?.State ?? string.Empty,
                 AddressPostalCode = string.IsNullOrWhiteSpace(ShippingAddress?.PostalCode) ? null : ShippingAddress.PostalCode,
@@ -235,6 +236,8 @@ namespace ERP.SHP.Infrastructure.EventBus
     public class SagaShippingAddress
     {
         public string Street { get; set; } = string.Empty;
+        // P1-11b - absent from messages sent by an older Sales.
+        public string? Ward { get; set; }
         public string City { get; set; } = string.Empty;
         public string State { get; set; } = string.Empty;
         public string PostalCode { get; set; } = string.Empty;
