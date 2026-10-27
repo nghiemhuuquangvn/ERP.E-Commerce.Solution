@@ -98,6 +98,8 @@ public class TenantServiceTests
         mockTenantRepository.Setup(r => r.AddAsync(It.IsAny<AuthTenant>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
+        var mockRoles = new Mock<IRoleRepository>();
+        _mockUnitOfWork.Setup(uow => uow.Roles).Returns(mockRoles.Object);
         _mockUnitOfWork.Setup(uow => uow.Tenants).Returns(mockTenantRepository.Object);
         _mockUnitOfWork.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
@@ -109,6 +111,38 @@ public class TenantServiceTests
         result.Should().NotBeNull();
         result.TenantCode.Should().Be("NEWTENANT");
         result.TenantName.Should().Be("New Tenant");
+    }
+
+    [Fact]
+    public async Task CreateAsync_gives_the_new_tenant_the_roles_customer_registration_needs()
+    {
+        var added = new List<Role>();
+        var roles = new Mock<IRoleRepository>();
+        roles.Setup(r => r.ExistsAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        roles.Setup(r => r.AddAsync(It.IsAny<Role>(), It.IsAny<CancellationToken>()))
+            .Callback<Role, CancellationToken>((r, _) => added.Add(r)).Returns(Task.CompletedTask);
+        var tenants = new Mock<ITenantRepository>();
+        _mockUnitOfWork.Setup(uow => uow.Tenants).Returns(tenants.Object);
+        _mockUnitOfWork.Setup(uow => uow.Roles).Returns(roles.Object);
+
+        var result = await _tenantService.CreateAsync(new CreateTenantRequest("shopx", "Shop X"), CancellationToken.None);
+
+        added.Select(r => r.RoleCode).Should().BeEquivalentTo("CUSTOMER", "STAFF", "USER");
+        added.Should().OnlyContain(r => r.TenantId == result.Id);
+    }
+
+    [Fact]
+    public async Task Default_roles_are_not_duplicated_when_they_already_exist()
+    {
+        var roles = new Mock<IRoleRepository>();
+        roles.Setup(r => r.ExistsAsync("CUSTOMER", It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        roles.Setup(r => r.ExistsAsync(It.Is<string>(c => c != "CUSTOMER"), It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _mockUnitOfWork.Setup(uow => uow.Roles).Returns(roles.Object);
+
+        await DefaultTenantRoles.EnsureAsync(_mockUnitOfWork.Object, Guid.NewGuid(), CancellationToken.None);
+
+        roles.Verify(r => r.AddAsync(It.IsAny<Role>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        roles.Verify(r => r.AddAsync(It.Is<Role>(x => x.RoleCode == "CUSTOMER"), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

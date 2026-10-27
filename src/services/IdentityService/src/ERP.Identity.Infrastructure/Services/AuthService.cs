@@ -619,8 +619,8 @@ namespace ERP.Identity.Infrastructure.Services
 
             var roleCodes = _userRoleResolver.GetRolesForUser(userType);
             var roles = await _unitOfWork.Roles.GetRolesByCodeAsync(roleCodes, tenant.Id, ct);
-            if (roles == null)
-                throw new InvalidOperationException("Role not found");
+            if (roles == null || !roles.Any())
+                throw new BusinessRuleException("DefaultRoleMissing", $"The default role for '{userType}' is missing in this tenant.");
             foreach (var role in roles)
             {
                 user.AssignRole(role, tenant.Id);
@@ -791,7 +791,7 @@ namespace ERP.Identity.Infrastructure.Services
                 var roleMap = _userRoleResolver.GetRolesForUser(selfServiceUserType);
                 var roles = await _unitOfWork.Roles.GetRolesByCodeAsync(roleMap, tenant.Id, ct);
                 if (roles == null || !roles.Any())
-                    throw new InvalidOperationException($"Default role for user type '{selfServiceUserType}' not found in tenant '{request.TenantCode}'");
+                    throw new BusinessRuleException("DefaultRoleMissing", $"This shop is not ready for customer sign-up: the default role for '{selfServiceUserType}' is missing in tenant '{request.TenantCode}'.");
                 foreach (var role in roles)
                 {
                     user.AssignRole(role, tenant.Id);
@@ -848,6 +848,7 @@ namespace ERP.Identity.Infrastructure.Services
                 // service, and an ERP operator can still grant broader roles manually after.
                 var role = Role.Create(SystemRoles.Admin, "Administrator", tenant.Id);
                 await _unitOfWork.Roles.AddAsync(role, ct);
+                await DefaultTenantRoles.EnsureAsync(_unitOfWork, tenant.Id, ct);   // CUSTOMER / STAFF / USER (R16)
                 await _unitOfWork.SaveChangesAsync(ct);
 
                 // Tenant-scope only: filtering by Module used to include identity:tenants:*,

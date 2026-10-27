@@ -42,6 +42,10 @@ namespace ERP.Identity.Infrastructure.Services
             await _unitOfWork.Tenants.AddAsync(tenant, ct);
             await _unitOfWork.SaveChangesAsync(ct);
 
+            // Customer registration needs a CUSTOMER role in the tenant from day one (R16).
+            await DefaultTenantRoles.EnsureAsync(_unitOfWork, tenant.Id, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+
             return new TenantDto(tenant.Id, tenant.TenantCode, tenant.TenantName, tenant.Status);
         }
 
