@@ -86,7 +86,13 @@
       "VNPay": "Pay now by bank card or QR through VNPay.",
       "MoMo": "Pay now with your MoMo wallet.",
       "ZaloPay": "Pay now with your ZaloPay wallet."
-    }
+    },
+    "ward": "Ward",
+    "goods": "Goods",
+    "deliveryFee": "Delivery",
+    "freeDelivery": "Free",
+    "feeUnavailable": "Could not be worked out - it is added when the order is placed",
+    "freeFrom": "Free delivery from {amount}"
   },
   "payment": {
     "resultTitle": "Payment",
@@ -124,7 +130,9 @@
     "continueShopping": "Continue Shopping",
     "myOrders": "My Orders",
     "noOrdersYet": "You haven't placed any orders yet.",
-    "itemsCount": "{count} item(s) ·"
+    "itemsCount": "{count} item(s) ·",
+    "totalLine": "Total to pay: {total}",
+    "includesDelivery": "including {fee} delivery"
   },
   "account": {
     "myProfile": "My Profile",

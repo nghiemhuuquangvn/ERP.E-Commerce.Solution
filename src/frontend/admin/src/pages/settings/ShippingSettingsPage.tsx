@@ -126,6 +126,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-xl space-y-4">
+      <p className="text-xs text-gray-500">{t('settings.shipping.feeHint')}</p>
       <label className="block text-sm text-gray-700">
         {t('settings.shipping.defaultShippingFee')}
         <input type="number" step="0.01" disabled={!canManage} {...register('defaultShippingFee', { valueAsNumber: true })} className="input mt-1 w-full" />

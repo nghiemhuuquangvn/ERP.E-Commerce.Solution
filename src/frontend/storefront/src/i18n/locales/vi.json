@@ -86,7 +86,13 @@
       "VNPay": "Thanh toán ngay bằng thẻ ngân hàng hoặc QR qua VNPay.",
       "MoMo": "Thanh toán ngay bằng ví MoMo.",
       "ZaloPay": "Thanh toán ngay bằng ví ZaloPay."
-    }
+    },
+    "ward": "Phường / xã",
+    "goods": "Tiền hàng",
+    "deliveryFee": "Phí vận chuyển",
+    "freeDelivery": "Miễn phí",
+    "feeUnavailable": "Chưa tính được - sẽ được cộng khi đặt hàng",
+    "freeFrom": "Miễn phí vận chuyển từ {amount}"
   },
   "payment": {
     "resultTitle": "Thanh toán",
@@ -124,7 +130,9 @@
     "continueShopping": "Tiếp tục mua sắm",
     "myOrders": "Đơn hàng của tôi",
     "noOrdersYet": "Bạn chưa đặt đơn hàng nào.",
-    "itemsCount": "{count} sản phẩm ·"
+    "itemsCount": "{count} sản phẩm ·",
+    "totalLine": "Tổng thanh toán: {total}",
+    "includesDelivery": "đã gồm {fee} phí vận chuyển"
   },
   "account": {
     "myProfile": "Hồ sơ của tôi",

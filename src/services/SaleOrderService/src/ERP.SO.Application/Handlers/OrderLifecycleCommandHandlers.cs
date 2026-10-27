@@ -50,9 +50,13 @@ public class SubmitOrderCommandHandler : IRequestHandler<SubmitOrderCommand, Sal
         QuotationId = order.QuotationId,
         PromotionId = order.PromotionId,
         DiscountAmount = order.DiscountAmount,
+
+        ShippingFee = order.ShippingFee,
         ShippingAddress = new AddressDto
         {
             Street = order.ShippingAddress.Street,
+
+            Ward = order.ShippingAddress.Ward,
             City = order.ShippingAddress.City,
             State = order.ShippingAddress.State,
             PostalCode = order.ShippingAddress.PostalCode,
@@ -120,9 +124,13 @@ public class MarkAsDeliveredCommandHandler : IRequestHandler<MarkAsDeliveredComm
         QuotationId = order.QuotationId,
         PromotionId = order.PromotionId,
         DiscountAmount = order.DiscountAmount,
+
+        ShippingFee = order.ShippingFee,
         ShippingAddress = new AddressDto
         {
             Street = order.ShippingAddress.Street,
+
+            Ward = order.ShippingAddress.Ward,
             City = order.ShippingAddress.City,
             State = order.ShippingAddress.State,
             PostalCode = order.ShippingAddress.PostalCode,
@@ -177,9 +185,13 @@ public class RejectOrderCommandHandler : IRequestHandler<RejectOrderCommand, Sal
         QuotationId = order.QuotationId,
         PromotionId = order.PromotionId,
         DiscountAmount = order.DiscountAmount,
+
+        ShippingFee = order.ShippingFee,
         ShippingAddress = new AddressDto
         {
             Street = order.ShippingAddress.Street,
+
+            Ward = order.ShippingAddress.Ward,
             City = order.ShippingAddress.City,
             State = order.ShippingAddress.State,
             PostalCode = order.ShippingAddress.PostalCode,
@@ -234,9 +246,13 @@ public class MarkAsPickedCommandHandler : IRequestHandler<MarkAsPickedCommand, S
         QuotationId = order.QuotationId,
         PromotionId = order.PromotionId,
         DiscountAmount = order.DiscountAmount,
+
+        ShippingFee = order.ShippingFee,
         ShippingAddress = new AddressDto
         {
             Street = order.ShippingAddress.Street,
+
+            Ward = order.ShippingAddress.Ward,
             City = order.ShippingAddress.City,
             State = order.ShippingAddress.State,
             PostalCode = order.ShippingAddress.PostalCode,

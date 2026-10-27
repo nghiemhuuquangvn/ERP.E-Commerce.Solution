@@ -26,7 +26,7 @@ export function OrderFormPage() {
   const [orderSource, setOrderSource] = useState<OrderSource>('Manual')
   const [salesRepId, setSalesRepId] = useState('')
   const [couponCode, setCouponCode] = useState('')
-  const [address, setAddress] = useState({ street: '', city: '', state: '', postalCode: '', country: 'US' })
+  const [address, setAddress] = useState({ street: '', ward: '', city: '', state: '', postalCode: '', country: 'US' })
   const [lines, setLines] = useState<DraftLine[]>([
     { key: nextKey++, productId: '', productName: '', quantity: 1, unitPrice: 0 },
   ])
@@ -141,6 +141,7 @@ export function OrderFormPage() {
           <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.form.shippingAddress')}</h2>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
             <input className="input" placeholder={t('orders.form.street')} value={address.street} onChange={(e) => setAddress({ ...address, street: e.target.value })} />
+            <input className="input" placeholder={t('orders.form.ward')} value={address.ward} onChange={(e) => setAddress({ ...address, ward: e.target.value })} />
             <input className="input" placeholder={t('orders.form.city')} value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
             <input className="input" placeholder={t('orders.form.state')} value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} />
             <input className="input" placeholder={t('orders.form.postalCode')} value={address.postalCode} onChange={(e) => setAddress({ ...address, postalCode: e.target.value })} />

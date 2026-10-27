@@ -5,6 +5,11 @@
     <p class="mt-2 text-gray-600">
       {{ t('orders.orderReceived', { orderNumber: order?.orderNo ?? '' }) }}
     </p>
+    <p v-if="order" class="mt-2 text-sm text-gray-700">
+      {{ t('orders.totalLine', { total: money(order.totalAmount) }) }}
+      <span v-if="order.shippingFee" class="text-gray-500">({{ t('orders.includesDelivery', { fee: money(order.shippingFee) }) }})</span>
+      <span v-else class="text-gray-500">({{ t('checkout.freeDelivery') }})</span>
+    </p>
     <p v-if="order?.paymentMethod === 'COD'" class="mt-2 text-sm text-gray-500">{{ t('orders.payOnDelivery') }}</p>
     <p v-else-if="payment" class="mt-2 text-sm text-gray-500">{{ t('payment.statusLine', { status: t(`payment.status.${payment.status}`) }) }}</p>
     <RouterLink v-if="payment?.status === 'Pending' && payment.provider !== 'COD'" :to="`/payment/result?orderId=${route.params.id}&status=pending`" class="btn-brand mt-4 inline-block">
@@ -26,6 +31,7 @@ import { paymentsApi } from '@/api/payments.api'
 
 const { t } = useI18n()
 const route = useRoute()
+const money = (n: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(n)
 const { data: order } = useQuery({
   queryKey: ['orders', route.params.id],
   queryFn: () => ordersApi.get(route.params.id as string),

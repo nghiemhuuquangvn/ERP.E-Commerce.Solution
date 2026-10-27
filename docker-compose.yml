@@ -312,6 +312,7 @@ services:
       ServiceAuth__SigningKeys__Source: "Ephemeral"
       Services__WarehouseServiceBaseUrl: "http://warehouseservice:5004"
       Services__PromotionServiceBaseUrl: "http://promotionservice:5012"
+      Services__ShippingServiceBaseUrl: "http://shippingservice:5010"
       ConnectionStrings__SalesDb: "Server=${SQL_HOST:-sqlserver},1433;Database=SalesDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
@@ -596,6 +597,9 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5008"
       ASPNETCORE_ENVIRONMENT: Production
+      # /internal endpoints accept only these services' tokens (verified with their JWKS): Shipping reads product weights.
+      ServiceAuth__Name: "product"
+      ServiceAuth__TrustedCallers__shipping: "http://shippingservice:5010/internal/jwks.json"
       ConnectionStrings__ProductDB: "Server=${SQL_HOST:-sqlserver},1433;Database=ProductDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       ConnectionStrings__BlobStorage: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
@@ -677,6 +681,11 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:5010"
       ASPNETCORE_ENVIRONMENT: Production
+      # /internal endpoints accept only these services' tokens (verified with their JWKS): SaleOrder asks for the delivery fee.
+      ServiceAuth__Name: "shipping"
+      ServiceAuth__SigningKeys__Source: "Ephemeral"
+      ServiceAuth__TrustedCallers__salesorder: "http://salesorderservice:5002/internal/jwks.json"
+      Services__ProductServiceBaseUrl: "http://productservice:5008"
       ConnectionStrings__ShippingDb: "Server=${SQL_HOST:-sqlserver},1433;Database=ShippingDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       # Encrypts the shop's carrier accounts (GHTK / Viettel Post / GHN) at rest — same key as Identity, Notification and Payment.
       Security__SettingsEncryptionKey: "${SETTINGS_ENCRYPTION_KEY:?set SETTINGS_ENCRYPTION_KEY in .env (see .env.example)}"

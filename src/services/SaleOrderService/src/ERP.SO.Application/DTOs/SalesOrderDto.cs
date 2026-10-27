@@ -33,6 +33,8 @@ namespace ERP.SO.Application.DTOs
         public Guid? QuotationId { get; set; }
         public Guid? PromotionId { get; set; }
         public decimal DiscountAmount { get; set; }
+        /// <summary>What the customer paid for delivery; already part of TotalAmount (ROADMAP P1-11b).</summary>
+        public decimal ShippingFee { get; set; }
 
         /// <summary>
         /// Rule-based flag (not ML): true when TotalAmount exceeds 3x this

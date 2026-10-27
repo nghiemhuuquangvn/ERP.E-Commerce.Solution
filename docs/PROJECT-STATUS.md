@@ -36,7 +36,14 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
-### 2026-10-27 — ROADMAP P1-11: carriers (`feat/p1-11-carriers`, unmerged)
+### 2026-10-28 — ROADMAP P1-11b: delivery fee (`feat/p1-11b-shipping-fee`, unmerged)
+- **Shipping**: `ShippingFeePolicy` + `ShippingFeeService`; `GET api/v1/shipping/fee` (preview, any signed-in user, Gateway route) and `internal/v1/shipping-fee` (service token `salesorder`); `IProductWeightClient` (service token `product`) fills the parcel weight; Shipping now publishes service JWKS and trusts `salesorder`.
+- **Product**: `internal/v1/product-weights` (grams, kg/g/lb/oz converted; trusts `shipping`).
+- **Sales** (migration **015**): `ShippingFee`, `Address.Ward`; `IShippingServiceClient` (fail closed); created event carries the final total, fee and discount; saga command carries the ward. **Promotion**: points on goods only.
+- **Storefront**: ward field, fee at review, fee in the confirmation. **Admin**: ward on the order form, fee line on the order, fee settings explained.
+- Tests: SHP 125, SO 70, PRM 11, Architecture 66; storefront `vue-tsc` and admin `tsc -b` clean. Live on `glcheck`: UAT S1…S6 in `ShippingFee.md`. Not done: P1-11c; risk register R34…R38; DEFERRED 4w.
+
+### 2026-10-27 — ROADMAP P1-11: carriers (`feat/p1-11-carriers`, merged as PR #43)
 - **Shipping** (migration **008**; 008 + Sales 014 added to the runner): `ICarrierProvider` (GHTK, GHN, Viettel Post, J&T placeholder) replaces the global `ICarrierClient`; `CarrierProviderResolver` (platform switch → shop switch → complete account; `TenantCarrierCredentials` encrypted); `CarrierBookingService` + `CarrierSelector` (rules, then cheapest quote, failover; failure never swallowed); `CarrierWebhookService` (anonymous, shared secret, idempotent) + `CarrierTrackingService` + `CarrierTrackingSyncJob`; cancel at the carrier (also on `SalesOrderCancelled`); `Shipment.ApplyCarrierStatus` (forward-only state machine); API: shipments list, cancel-at-carrier, rebook, carrier rules CRUD, parcel quote, carrier accounts under settings; the toy per-kg quote removed. Registration lives in `AddCarrierIntegration` (a DI test resolves it).
 - **Sales** (migration **014**): the order records the recipient's phone; the saga's shipment command carries phone, payment method, order total, COD amount and line prices.
 - **Gateway**: anonymous routes `shipping-webhooks/{carrier}`. **Admin**: Settings → Shipping gets Tenant (pickup address) / Carriers / Carrier rules tabs and a system switch per carrier; new Shipments page. **Storefront**: phone at checkout.

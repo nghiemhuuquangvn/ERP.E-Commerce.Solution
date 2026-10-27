@@ -40,6 +40,7 @@ namespace ERP.PRD.Application.Interfaces
         Task<ProductVariant?> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task<ProductVariant?> GetBySkuAsync(string sku, CancellationToken ct = default);
         Task<List<ProductVariant>> GetByProductIdAsync(Guid productId, CancellationToken ct = default);
+        Task<List<ProductVariant>> GetByProductIdsAsync(IReadOnlyCollection<Guid> productIds, CancellationToken ct = default);
         Task<List<VariantPriceProjection>> GetPricesByProductIdAsync(Guid productId, CancellationToken ct = default);
         void Update(ProductVariant variant);
     }
