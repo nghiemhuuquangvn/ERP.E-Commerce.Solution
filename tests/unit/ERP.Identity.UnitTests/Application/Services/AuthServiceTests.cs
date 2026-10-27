@@ -141,6 +141,21 @@ public class AuthServiceTests
             _tenant.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task RegisterAsync_UsesTheEmailAsAccountName_AndTheGivenNameOnlyAsDisplayName()
+    {
+        // Risk R19: the display name used to be the unique user name, so a second "Shop Walker" was a 500.
+        User? created = null;
+        _users.Setup(u => u.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
+            .Callback<User, CancellationToken>((u, _) => created = u);
+        var request = new RegisterDto.RegisterRequest("walker@shop.test", "Shop Walker", "Str0ng-Passw0rd!", TenantCode, UserType.Customer);
+
+        await CreateService().RegisterAsync(request, CancellationToken.None);
+
+        created!.UserName.Should().Be("walker@shop.test");
+        created.FullName.Should().Be("Shop Walker");
+    }
+
     // ---- C2: forgot-password must never hand the reset token to the caller ----
 
     [Fact]

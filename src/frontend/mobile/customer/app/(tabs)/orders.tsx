@@ -5,14 +5,13 @@ import { useTranslation } from 'react-i18next'
 import { apiClient } from '@/api/client'
 import { format } from 'date-fns'
 
-// SalesOrderDto: orderId / orderNo / lineItems.
+// GET /v1/orders/my returns SalesOrderSummaryDto: no line items (those are on GET /v1/orders/{id}, the order screen).
 interface Order {
   orderId: string
   orderNo: string
   status: string
   totalAmount: number
   orderDate: string
-  lineItems: Array<{ productName: string; quantity: number }>
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -65,9 +64,6 @@ export default function OrdersScreen() {
                 </View>
                 <Text className="text-xs text-gray-400 mb-1">
                   {format(new Date(item.orderDate), 'dd MMM yyyy')}
-                </Text>
-                <Text className="text-sm text-gray-600 mb-2">
-                  {item.lineItems.map((l) => `${l.productName} ×${l.quantity}`).join(', ')}
                 </Text>
                 <Text className="font-bold text-brand-500">{fmt(item.totalAmount)}</Text>
               </TouchableOpacity>

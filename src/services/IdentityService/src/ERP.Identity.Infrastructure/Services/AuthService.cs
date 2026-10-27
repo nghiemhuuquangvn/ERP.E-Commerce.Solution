@@ -619,8 +619,8 @@ namespace ERP.Identity.Infrastructure.Services
 
             var roleCodes = _userRoleResolver.GetRolesForUser(userType);
             var roles = await _unitOfWork.Roles.GetRolesByCodeAsync(roleCodes, tenant.Id, ct);
-            if (roles == null)
-                throw new InvalidOperationException("Role not found");
+            if (roles == null || !roles.Any())
+                throw new BusinessRuleException("DefaultRoleMissing", $"The default role for '{userType}' is missing in this tenant.");
             foreach (var role in roles)
             {
                 user.AssignRole(role, tenant.Id);
@@ -762,13 +762,13 @@ namespace ERP.Identity.Infrastructure.Services
                 // 5️⃣ Hash password
                 var passwordHash = _passwordHasher.HashPassword(request.Password.Trim());
 
-                // 6️⃣ Resolve display name: explicit UserName > FirstName+LastName > email
-                var userName = request.UserName;
-                if (string.IsNullOrWhiteSpace(userName))
-                {
-                    var combined = $"{request.FirstName} {request.LastName}".Trim();
-                    userName = string.IsNullOrWhiteSpace(combined) ? request.Email : combined;
-                }
+                // 6️⃣ Resolve display name: explicit UserName > FirstName+LastName > email. It is only a DISPLAY name (FullName):
+                // the account name is the e-mail, which is unique in the tenant - two customers called "John Smith" used to
+                // collide on the unique user name and the second registration was a 500 (risk R19).
+                var displayName = request.UserName;
+                if (string.IsNullOrWhiteSpace(displayName))
+                    displayName = $"{request.FirstName} {request.LastName}".Trim();
+                var userName = request.Email;
 
                 // 7️⃣ Create user (DOMAIN). Anonymous self-registration is ALWAYS a Customer —
                 //    request.UserType used to be honored here, letting anyone register as
@@ -782,6 +782,8 @@ namespace ERP.Identity.Infrastructure.Services
                     tenantId: tenant.Id,
                     userType: selfServiceUserType
                 );
+                if (!string.IsNullOrWhiteSpace(displayName))
+                    user.UpdateProfile(displayName.Trim(), null);
 
                 await _unitOfWork.Users.AddAsync(user, ct);
 
@@ -791,7 +793,7 @@ namespace ERP.Identity.Infrastructure.Services
                 var roleMap = _userRoleResolver.GetRolesForUser(selfServiceUserType);
                 var roles = await _unitOfWork.Roles.GetRolesByCodeAsync(roleMap, tenant.Id, ct);
                 if (roles == null || !roles.Any())
-                    throw new InvalidOperationException($"Default role for user type '{selfServiceUserType}' not found in tenant '{request.TenantCode}'");
+                    throw new BusinessRuleException("DefaultRoleMissing", $"This shop is not ready for customer sign-up: the default role for '{selfServiceUserType}' is missing in tenant '{request.TenantCode}'.");
                 foreach (var role in roles)
                 {
                     user.AssignRole(role, tenant.Id);
@@ -848,6 +850,7 @@ namespace ERP.Identity.Infrastructure.Services
                 // service, and an ERP operator can still grant broader roles manually after.
                 var role = Role.Create(SystemRoles.Admin, "Administrator", tenant.Id);
                 await _unitOfWork.Roles.AddAsync(role, ct);
+                await DefaultTenantRoles.EnsureAsync(_unitOfWork, tenant.Id, ct);   // CUSTOMER / STAFF / USER (R16)
                 await _unitOfWork.SaveChangesAsync(ct);
 
                 // Tenant-scope only: filtering by Module used to include identity:tenants:*,

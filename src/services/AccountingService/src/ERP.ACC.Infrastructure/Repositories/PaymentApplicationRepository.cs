@@ -14,6 +14,9 @@ namespace ERP.ACC.Infrastructure.Repositories
         public async Task AddAsync(PaymentApplication application, CancellationToken ct = default) =>
             await _db.PaymentApplications.AddAsync(application, ct);
 
+        public Task<bool> ExistsBySourceKeyAsync(string sourceKey, CancellationToken ct = default) =>
+            _db.PaymentApplications.AsNoTracking().AnyAsync(p => p.SourceKey == sourceKey, ct);
+
         public async Task<List<PaymentApplication>> ListForDocumentsAsync(IReadOnlyCollection<Guid> documentIds, CancellationToken ct = default) =>
             documentIds.Count == 0 ? new List<PaymentApplication>() : await _db.PaymentApplications.AsNoTracking().Where(p => documentIds.Contains(p.DocumentId)).ToListAsync(ct);
 

@@ -22,10 +22,13 @@ export default function SearchScreen() {
   const { data, isLoading } = useQuery({
     queryKey: ['products', 'search', search],
     queryFn: async () => {
-      const { data } = await apiClient.get('/v1/products', {
-        params: { search: search || undefined, pageSize: 30 },
-      })
-      return data.items as Product[]
+      // The search route answers with an array, the list route with { total, skip, take, products }.
+      if (search.trim()) {
+        const { data } = await apiClient.get('/v1/products/search', { params: { searchTerm: search.trim() } })
+        return data as Product[]
+      }
+      const { data } = await apiClient.get('/v1/products', { params: { take: 30 } })
+      return (data.products ?? []) as Product[]
     },
     enabled: true,
   })

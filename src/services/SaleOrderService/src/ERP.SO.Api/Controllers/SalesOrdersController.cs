@@ -54,7 +54,7 @@ namespace ERP.SO.Api.Controllers
 
         /// <summary>
         /// Get all orders belonging to the currently authenticated user (storefront customers)
-        /// Requires: sales_order:read permission
+        /// Requires: a signed-in user (scoped to their own orders)
         /// </summary>
         [HttpGet("my")]
         [ProducesResponseType(typeof(List<SalesOrderSummaryDto>), StatusCodes.Status200OK)]
@@ -62,11 +62,8 @@ namespace ERP.SO.Api.Controllers
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> GetMyOrders(CancellationToken cancellationToken)
         {
-            if (!_userContext.HasPermission("sales_order:read"))
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:read required" });
-            }
-
+            // Any signed-in customer sees their own orders: no sales_order:read needed (the CUSTOMER role holds no permissions,
+            // so the storefront / mobile order history answered 403 for every customer - risk R19).
             if (!Guid.TryParse(_userContext.UserId, out var userId))
                 return Unauthorized(new { message = "Invalid user ID" });
 
@@ -93,15 +90,17 @@ namespace ERP.SO.Api.Controllers
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
         {
-            if (!_userContext.HasPermission("sales_order:read"))
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:read required" });
-            }
-
             try
             {
                 var query = new GetOrderQuery(id);
                 var result = await _mediator.Send(query, cancellationToken);
+
+                // Staff with sales_order:read see any order; a customer sees only their own (the order confirmation page).
+                var isOwnOrder = Guid.TryParse(_userContext.UserId, out var currentUserId) && result.CustomerId == currentUserId;
+                if (!isOwnOrder && !_userContext.HasPermission("sales_order:read"))
+                {
+                    return NotFound(new { message = "Order not found" });   // not 403: do not confirm that another customer's order exists
+                }
                 return Ok(result);
             }
             catch (InvalidOperationException ex)

@@ -20,6 +20,8 @@ const STATUS_FILTERS: { labelKey: string; value: PaymentStatus | '' }[] = [
   { labelKey: 'payments.statusFilters.partiallyRefunded', value: 'PartiallyRefunded' },
 ]
 
+const PROVIDERS = ['COD', 'VNPay', 'MoMo', 'ZaloPay']
+
 function RefundModal({ payment, onClose }: { payment: Payment; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -64,11 +66,13 @@ export function PaymentsPage() {
   const { hasPermission } = usePermission()
   const { page, pageSize, setPage } = usePagination()
   const [status, setStatus] = useState<PaymentStatus | ''>('')
+  const [provider, setProvider] = useState('')
+  const [needsReview, setNeedsReview] = useState(false)
   const [refunding, setRefunding] = useState<Payment | null>(null)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['payments', { page, pageSize, status }],
-    queryFn: () => paymentsApi.list({ page, pageSize, status: status || undefined }),
+    queryKey: ['payments', { page, pageSize, status, provider, needsReview }],
+    queryFn: () => paymentsApi.list({ page, pageSize, status: status || undefined, provider: provider || undefined, needsReview: needsReview || undefined }),
   })
 
   // The payment's own currency (VND for the online gateways), not a fixed one.
@@ -137,6 +141,20 @@ export function PaymentsPage() {
             {t(f.labelKey)}
           </button>
         ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          {t('payments.provider')}
+          <select className="input w-auto" value={provider} onChange={(e) => { setProvider(e.target.value); setPage(1) }}>
+            <option value="">{t('common.all')}</option>
+            {PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          <input type="checkbox" checked={needsReview} onChange={(e) => { setNeedsReview(e.target.checked); setPage(1) }} />
+          {t('payments.needsReview')}
+        </label>
       </div>
 
       <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />

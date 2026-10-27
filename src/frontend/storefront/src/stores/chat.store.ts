@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { i18n } from '@/i18n'
+import { uuid } from '@/utils/uuid'
 import { chatbotApi } from '@/api/chatbot.api'
 import { useAuthStore } from '@/stores/auth.store'
 import {
@@ -32,7 +33,7 @@ const TOOL_LABEL_KEYS: Record<string, string> = {
 function loadGuestSessionId(): string {
   const existing = localStorage.getItem(GUEST_SESSION_KEY)
   if (existing) return existing
-  const generated = crypto.randomUUID()
+  const generated = uuid()
   localStorage.setItem(GUEST_SESSION_KEY, generated)
   return generated
 }
@@ -56,7 +57,7 @@ export const useChatStore = defineStore('chat', () => {
     if (last && last.role === 'assistant' && last.streaming) {
       last.content += delta
     } else {
-      messages.value.push({ id: crypto.randomUUID(), role: 'assistant', content: delta, streaming: true })
+      messages.value.push({ id: uuid(), role: 'assistant', content: delta, streaming: true })
     }
   }
 
@@ -109,7 +110,7 @@ export const useChatStore = defineStore('chat', () => {
     const trimmed = text.trim()
     if (!trimmed || !conversationId.value) return
 
-    messages.value.push({ id: crypto.randomUUID(), role: 'user', content: trimmed, streaming: false })
+    messages.value.push({ id: uuid(), role: 'user', content: trimmed, streaming: false })
     error.value = null
     try {
       await sendChatMessage(conversationId.value, trimmed)

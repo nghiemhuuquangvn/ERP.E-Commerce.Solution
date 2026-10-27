@@ -151,3 +151,33 @@ public class CollectCashOnDeliveryCommandHandler : IRequestHandler<CollectCashOn
         return true;
     }
 }
+
+// ── An order cancelled by hand closes its pending payment (risk R18) ───────────
+
+public class CancelPendingPaymentForOrderCommand : IRequest<bool>
+{
+    public Guid OrderId { get; set; }
+}
+
+/// <summary>
+/// Sales publishes SalesOrderCancelled for every cancellation (the saga's own path already closes the payment through
+/// RefundPaymentCommand). Only a payment that collected nothing (Pending / Authorized) is closed, so a late gateway
+/// notification is flagged for refund instead of captured. A Captured payment is NEVER refunded here — money
+/// back to the customer stays a deliberate action. Idempotent: a repeat, or an order without a payment, returns false.
+/// </summary>
+public class CancelPendingPaymentForOrderCommandHandler : IRequestHandler<CancelPendingPaymentForOrderCommand, bool>
+{
+    private readonly IPaymentUnitOfWork _uow;
+    public CancelPendingPaymentForOrderCommandHandler(IPaymentUnitOfWork uow) => _uow = uow;
+
+    public async Task<bool> Handle(CancelPendingPaymentForOrderCommand request, CancellationToken ct)
+    {
+        var payment = await _uow.Payments.GetByOrderIdAsync(request.OrderId, ct);
+        if (payment == null || payment.Status is not (PaymentStatus.Pending or PaymentStatus.Authorized)) return false;
+
+        payment.Cancel();
+        await _uow.Payments.UpdateAsync(payment, ct);
+        await _uow.SaveChangesAsync(ct);
+        return true;
+    }
+}

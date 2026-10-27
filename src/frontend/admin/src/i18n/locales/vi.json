@@ -795,6 +795,8 @@
       "partiallyRefunded": "Hoàn một phần"
     },
     "flagged": "Đang chờ xem xét",
+    "provider": "Cổng thanh toán",
+    "needsReview": "Cần xử lý (đã gắn cờ, ví dụ cần hoàn tiền cho khách)",
     "refund": {
       "button": "Hoàn tiền",
       "title": "Hoàn tiền khoản thanh toán này",

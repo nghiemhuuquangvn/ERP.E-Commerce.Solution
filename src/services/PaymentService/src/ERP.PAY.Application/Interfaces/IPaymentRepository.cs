@@ -16,6 +16,9 @@ public interface IPaymentRepository
     Task<Guid?> FindTenantByTransactionRefAsync(string transactionRef, CancellationToken ct = default);
     Task<List<Payment>> GetByStatusAsync(PaymentStatus status, CancellationToken ct = default);
     Task<(List<Payment> Items, int Total)> GetPagedAsync(int skip, int take, PaymentStatus? status, CancellationToken ct = default);
+
+    /// <summary>Same list with optional filters: the shop/gateway the payment was made with (case-insensitive) and only payments flagged for review.</summary>
+    Task<(List<Payment> Items, int Total)> GetPagedAsync(int skip, int take, PaymentStatus? status, string? provider, bool needsReview, CancellationToken ct = default);
     Task AddAsync(Payment payment, CancellationToken ct = default);
     Task UpdateAsync(Payment payment, CancellationToken ct = default);
 }

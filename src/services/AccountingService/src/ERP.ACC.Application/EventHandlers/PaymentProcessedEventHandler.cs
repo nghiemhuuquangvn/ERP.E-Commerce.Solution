@@ -46,13 +46,20 @@ namespace ERP.ACC.Application.EventHandlers
                 return;
             }
 
-            var invoice = await _uow.Invoices.GetByOrderIdAsync(@event.OrderId, cancellationToken);
+            // The ledger entry is the idempotency record, but when no period was open there is none (risk R13): the credit to the
+            // invoice must not be repeated on redelivery, yet the posting is tried again (the period may be open by then).
+            var applicationKey = $"payment:{@event.PaymentId:N}";
+            var alreadyApplied = await _uow.PaymentApplications.ExistsBySourceKeyAsync(applicationKey, cancellationToken);
+
+            var invoice = alreadyApplied ? null : await _uow.Invoices.GetByOrderIdAsync(@event.OrderId, cancellationToken);
             if (invoice != null && invoice.ApplyPayment(@event.Amount))
             {
                 await _uow.Invoices.UpdateAsync(invoice, cancellationToken);
                 await _uow.PaymentApplications.AddAsync(Domain.Entities.PaymentApplication.Create(
-                    Domain.Entities.PaymentApplication.InvoiceDocument, invoice.Id, @event.ProcessedAt ?? DateTime.UtcNow, @event.Amount, $"payment:{@event.PaymentId:N}"), cancellationToken);
+                    Domain.Entities.PaymentApplication.InvoiceDocument, invoice.Id, @event.ProcessedAt ?? DateTime.UtcNow, @event.Amount, applicationKey), cancellationToken);
             }
+            else if (alreadyApplied)
+                _logger.LogInformation("Payment {PaymentId} was already applied to its invoice; only the ledger posting is retried", @event.PaymentId);
             else if (invoice == null)
                 _logger.LogWarning("Payment {PaymentId} for order {OrderId} has no invoice yet; the cash is booked against receivables anyway",
                     @event.PaymentId, @event.OrderId);

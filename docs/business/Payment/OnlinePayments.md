@@ -65,6 +65,8 @@ A shop's account marked *sandbox* uses the sandbox host; a production account ne
 | FR-O10 | Refunds use the payment's gateway and the shop's keys. | A refund on a MoMo payment calls MoMo (here: refused by MoMo for a fake transaction → refund recorded *Failed*, payment still *Captured*). |
 | FR-O11 | Money arriving for a cancelled payment is never lost. | Late "paid" → 204, payment stays *Cancelled* and is flagged "refund the customer". |
 | FR-O12 | The admin manages the accounts and refunds; storefront and mobile pay. | See section 9. |
+| FR-O13 | An order cancelled by hand (not only by the saga) closes its pending payment. | Cancel an order with a *Pending* payment → payment *Cancelled* within seconds; a later "paid" notification is flagged "refund the customer", not captured. A *Captured* payment is never refunded by the cancellation. |
+| FR-O14 | The Payments list can be narrowed to one gateway and to payments that need attention. | `provider=momo` (any case) lists only MoMo payments; `needsReview=true` lists only flagged payments; both together combine. |
 
 ## 6. Business rules
 - BR-O1 A gateway is usable only if the platform offers it **and** the shop enabled it **and** its keys are complete (MoMo needs the access key, ZaloPay key 2).
@@ -77,6 +79,7 @@ A shop's account marked *sandbox* uses the sandbox host; a production account ne
 - BR-O8 The result page decides from the payment's status, not from the address the browser came back with.
 - BR-O9 Public callback routes are anonymous **only** because the signature is verified before anything is applied; every other payment-gateway route needs a signed-in user.
 - BR-O10 An order that did not name a method keeps the pre-P1-10 behaviour (waits for a payment; credit card / USD).
+- BR-O11 Cancelling an order closes only a payment that collected nothing (*Pending* / *Authorized*). Money already collected is returned only by a deliberate refund, never as a side effect of a cancellation. Repeating the cancellation changes nothing.
 
 ## 7. Use cases
 **UC-O1 Pay online.** Main: customer chooses MoMo → places the order → is sent to MoMo → pays → returns to the result page → "Payment received". Alternative: the customer closes the page → the order shows *waiting for payment* and *Pay now*. Exception: the gateway is unreachable → the order exists; the result page offers *Pay now* again; the gateway refuses (e.g. MoMo error) → 400 with its message.
@@ -108,7 +111,7 @@ Sales → Payment: `InitiatePaymentCommand` / `RefundPaymentCommand` (RabbitMQ `
 - Public **sandbox** accounts were used (MoMo test account; ZaloPay app 2554). A real merchant account of each was not available.
 - The providers cannot call a local Docker stack, so their **notifications were simulated** (signed with the same stored secrets). Create and refund calls were real sandbox calls.
 - The order has no currency; online methods and COD are sent as VND.
-- Open issues: DEFERRED §4u and the risk register §6 (R11…R18).
+- Open issues: DEFERRED §4u and the risk register §6 (R11…R25; R17 and R18 were closed in the 2026-10-27 clean-up).
 
 ## 12. UAT scenarios
 | ID | Scenario | Expected |
@@ -123,6 +126,8 @@ Sales → Payment: `InitiatePaymentCommand` / `RefundPaymentCommand` (RabbitMQ `
 | UAT-O8 | Correct paid notification | 204, payment captured, order moves to stock; repeat → 204, nothing doubled |
 | UAT-O9 | Two checkouts in a row | different references |
 | UAT-O10 | Failed notification | payment failed, order cancelled, checkout → 400 |
+| UAT-O17 | Cancel a MoMo order by hand while its payment is pending (live, 2026-10-27) | payment *Cancelled*; log "pending payment closed = True"; a later paid notification → 204, payment stays *Cancelled* and flagged "refund the customer" |
+| UAT-O18 | Payments list `provider=momo`, `provider=ZaloPay`, `needsReview=true` | only the MoMo payment; no ZaloPay payment; only the flagged payment. A customer calling the list → 403 |
 | UAT-O11 | ZaloPay order → checkout → server callback → signed browser return | sandbox page address; captured; redirect to result with `paid`; forged return → `invalid` |
 | UAT-O12 | COD order | stock reserved without waiting; payment *Pending (cash)*; checkout → "paid on delivery" |
 | UAT-O13 | Delivery event for the COD order, then again | captured once; unchanged |

@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\services\SaleOrderService\src\ERP.SO.Application\ERP.SO.Application.csproj" />
+    <ProjectReference Include="..\..\..\src\services\SaleOrderService\src\ERP.SO.Api\ERP.SO.Api.csproj" />
   </ItemGroup>
 
 </Project>

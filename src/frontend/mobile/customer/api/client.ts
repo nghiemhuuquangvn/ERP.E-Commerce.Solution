@@ -7,8 +7,16 @@ const LOCALE_TO_CULTURE: Record<string, string> = {
   vi: 'vi-VN',
 }
 
+const DEFAULT_API_URL = 'http://localhost:5000/api'
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_API_URL
+
+// The Gateway takes the tenant from the request HOST; localhost belongs to no tenant (risk R15).
+if (API_URL === DEFAULT_API_URL) {
+  console.warn('EXPO_PUBLIC_API_URL is not set: calls go to localhost, which is no tenant, so sign-in and ordering will be refused. See docs/frontend/mobile-apps.md.')
+}
+
 export const apiClient = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5000/api',
+  baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15_000,
 })

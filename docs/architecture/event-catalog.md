@@ -413,7 +413,7 @@ public class SalesOrderShippedEvent : IntegrationEvent
 **Description:** Published when a sales order is cancelled.
 
 **Publisher:** Sales Service  
-**Subscribers:** Warehouse Service, Accounting Service
+**Subscribers:** Warehouse Service, Accounting Service, Notification, Promotion, Reporting, **Payment Service** (2026-10-27, risk R18)
 
 **Event Structure:**
 ```csharp
@@ -432,6 +432,7 @@ public class SalesOrderCancelledEvent : IntegrationEvent
 **Handling:**
 - Warehouse Service: Release reserved inventory
 - Accounting Service: Issue refund
+- Payment Service: close the order's *Pending* / *Authorized* payment (`CancelPendingPaymentForOrderCommand`); a *Captured* payment is never refunded by this event; repeating it changes nothing
 
 ---
 

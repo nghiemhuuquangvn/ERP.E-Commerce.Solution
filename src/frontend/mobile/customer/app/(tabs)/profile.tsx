@@ -45,7 +45,7 @@ export default function ProfileScreen() {
           <Text className="text-3xl">👤</Text>
         </View>
         <Text className="text-xl font-bold text-gray-900">
-          {user?.firstName} {user?.lastName}
+          {user?.fullName || user?.email}
         </Text>
         <Text className="text-gray-500 text-sm">{user?.email}</Text>
       </View>

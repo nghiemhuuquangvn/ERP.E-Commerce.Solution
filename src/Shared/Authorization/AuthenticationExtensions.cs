@@ -1,5 +1,6 @@
 using ERP.Shared.Authorization.TokenRevocation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -48,18 +49,43 @@ public static class AuthenticationExtensions
                 // falls back to using the query value as-is so this stays backward compatible.
                 options.Events.OnMessageReceived = context =>
                 {
-                    var accessToken = context.Request.Query["access_token"];
-                    if (!string.IsNullOrEmpty(accessToken) && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
-                    {
-                        var ticketStore = context.HttpContext.RequestServices.GetService<IHubTicketStore>();
-                        context.Token = ticketStore != null && ticketStore.TryConsumeTicket(accessToken!, out var realToken)
-                            ? realToken
-                            : accessToken;
-                    }
+                    var token = HubTokenResolver.Resolve(context.HttpContext);
+                    if (token != null)
+                        context.Token = token;
                     return Task.CompletedTask;
                 };
             });
 
         return services;
+    }
+}
+
+/// <summary>
+/// The token of a request to a SignalR hub (under /hubs). The JS client sends the negotiate POST with
+/// `Authorization: Bearer <value>` and the WebSocket / SSE request with `?access_token=<value>` - the value its
+/// accessTokenFactory returned, here a single-use IHubTicketStore ticket. Both places are read, and a ticket is exchanged
+/// for the real bearer token; a value that is not a ticket (a real JWT) is used as it is. Without the header branch the
+/// negotiate of every hub was refused with 401 and the admin bell / chat never connected. Null = not a hub request or nothing
+/// to read: the default header handling applies.
+/// </summary>
+public static class HubTokenResolver
+{
+    public static string? Resolve(HttpContext http)
+    {
+        if (!http.Request.Path.StartsWithSegments("/hubs"))
+            return null;
+
+        string? value = http.Request.Query["access_token"];
+        if (string.IsNullOrEmpty(value))
+        {
+            var header = http.Request.Headers.Authorization.ToString();
+            if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                value = header["Bearer ".Length..].Trim();
+        }
+        if (string.IsNullOrEmpty(value))
+            return null;
+
+        var ticketStore = http.RequestServices.GetService<IHubTicketStore>();
+        return ticketStore != null && ticketStore.TryConsumeTicket(value, out var realToken) ? realToken : value;
     }
 }

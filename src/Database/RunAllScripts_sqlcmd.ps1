@@ -1,5 +1,7 @@
 # ============================================================
 # Run All Database Scripts using sqlcmd
+# LEGACY / INCOMPLETE: lists only the first migrations of each service. Use RunAllScripts.ps1 (kept in step with the
+# folders by tests/unit/ERP.Architecture.Tests/DatabaseRunnerTests) or deployment/docker/run-migrations.sh.
 # ============================================================
 $ServerName = "localhost"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path

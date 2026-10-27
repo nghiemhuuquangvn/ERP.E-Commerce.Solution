@@ -39,6 +39,17 @@ $DatabaseScripts = @(
     "Identity\018_AddChatBotAssistantPermission.sql",
     "Identity\019_AddWebhookEndpoints.sql",
     "Identity\020_AddOpenIddictSchema.sql",
+    "Identity\021_EnforcePlatformPermissionScope.sql",
+    "Identity\022_AddTenantDomains.sql",
+    "Identity\023_SeedProductCatalogPermissions.sql",
+    "Identity\024_LogsViewPlatformOnly.sql",
+    "Identity\025_AddMissingColumnsToTokenTables.sql",
+    "Identity\026_AlignExternalLoginsAndUserPermissions.sql",
+    "Identity\027_BlankDeliveredOutboxSecrets.sql",
+    "Identity\028_WidenWebhookSecret.sql",
+    "Identity\029_SeedPurchasingPermissions.sql",
+    "Identity\030_SeedDefaultRolesForAllTenants.sql",
+    "Identity\031_UserNameUniquePerTenant.sql",
 
     # Cross-cutting master data (Department/Position/Employee/UoM/Geography/Language —
     # seed before HRM, which now references Employees/Departments here instead of owning them)
@@ -47,6 +58,8 @@ $DatabaseScripts = @(
     "MasterData\003_AddCurrencySettings.sql",
     "MasterData\004_AddOrganizationEntities.sql",
     "MasterData\005_AddCurrencyAndPaymentTerm.sql",
+    "MasterData\007_TenantIsolation.sql",
+    "MasterData\008_BaseEntityColumns.sql",
 
     # Core business services
     "Sales\001_CreateSalesDB.sql",
@@ -119,11 +132,17 @@ $DatabaseScripts = @(
     "Product\012_FixProductAttributeTablesSchema.sql",
     "Product\013_FixImagesAndAttributeValueOwnerTypeSchema.sql",
     "Product\014_FixMissingProductsRowVersion.sql",
+    "Product\015_TenantIsolation.sql",
+    "Product\016_RepairLegacyExternalMappings.sql",
+    "Product\017_RepairLegacyBaseEntityTables.sql",
+    "Product\018_PriceListsRowVersion.sql",
 
     # Customer-facing services
     "CRM\001_CreateCrmDB.sql",
     "CRM\002_FixCrmEntityColumns.sql",
     "CRM\003_AddContactTags.sql",
+    "CRM\005_BackfillTenantId.sql",
+    "CRM\006_AlignLegacyColumns.sql",
     "Payment\001_CreatePaymentDB.sql",
     "Payment\002_AddInvoiceLinkAndSavedMethodsAndInstallments.sql",
     "Payment\003_AddBaseEntityColumns.sql",
@@ -134,6 +153,9 @@ $DatabaseScripts = @(
     "Shipping\001_CreateShippingDB.sql",
     "Shipping\002_AddReturnsPodAddressRestructure.sql",
     "Shipping\003_AddShippingSettings.sql",
+    "Shipping\005_TenantIsolation.sql",
+    "Shipping\006_AlignEntityColumns.sql",
+    "Shipping\007_BaseEntityColumns.sql",
 
     # HR & Retail
     "HRM\001_CreateHrmDB.sql",
@@ -147,10 +169,17 @@ $DatabaseScripts = @(
     "POS\001_CreatePosDB.sql",
     "POS\002_AddTendersDenominationsAndTypeFixes.sql",
     "POS\003_AddProductAndPromotionCache.sql",
+    "POS\005_TenantIsolation.sql",
+    "POS\006_TransactionItemsTenantId.sql",
+    "POS\007_TransactionPaymentMethodText.sql",
+    "POS\008_BaseEntityColumns.sql",
 
     # Cross-cutting
     "Promotion\001_CreatePromotionDB.sql",
     "PromotionService\002_FixPromotionEntityColumns.sql",
+    "PromotionService\003_TenantIsolation.sql",
+    "PromotionService\004_AlignLegacyColumns.sql",
+    "PromotionService\005_BaseEntityColumns.sql",
     "Notification\001_CreateNotificationDB.sql",
     "Notification\002_AddNotificationEmailSmsSettings.sql",
     "Notification\003_AddWebhookEndpoints.sql",
@@ -171,6 +200,7 @@ $DatabaseScripts = @(
     "Reporting\007_AlignLegacyColumns.sql",
     "Reporting\008_CrmRefundsPayroll.sql",
     "ChatBot\001_CreateChatBotDB.sql",
+    "ChatBot\002_TenantIsolation.sql",
 
     # ============================================================
     # Demo seed data — must run AFTER all schema above, and in this specific
@@ -187,7 +217,7 @@ $DatabaseScripts = @(
     "Purchasing\007_SeedDemoData.sql",
     "Payment\005_SeedDemoData.sql",
     "Shipping\004_SeedDemoData.sql",
-    "Promotion\002_SeedDemoData.sql",
+    "PromotionService\002a_SeedDemoData.sql",
     "POS\004_SeedDemoData.sql",
     "Accounting\005_SeedDemoData.sql",
     "HRM\004_SeedDemoData.sql",
