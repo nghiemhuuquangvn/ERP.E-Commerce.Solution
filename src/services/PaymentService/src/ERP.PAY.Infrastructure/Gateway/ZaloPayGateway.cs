@@ -31,7 +31,7 @@ public class ZaloPayGateway : IPaymentProvider
     public string NewTransactionRef(Guid paymentId, DateTime nowUtc)
     {
         var vn = nowUtc.AddHours(7);
-        return $"{vn:yyMMdd}_{paymentId.ToString("N")[..10]}{vn:HHmmss}";
+        return $"{vn:yyMMdd}_{paymentId.ToString("N")[..10]}{vn:HHmmssfff}";
     }
 
     private string Host(GatewayCredentials c) =>

@@ -33,8 +33,9 @@ public class ZaloPayGatewayTests
         var first = gw.NewTransactionRef(id, Now);
         var later = gw.NewTransactionRef(id, Now.AddMinutes(5));
 
-        first.Should().Be("261027_1111111122100000");
+        first.Should().Be("261027_1111111122100000000");
         later.Should().NotBe(first);
+        gw.NewTransactionRef(id, Now.AddMilliseconds(5)).Should().NotBe(first);   // two attempts in the same second
         first.Length.Should().BeLessThan(40);
     }
 

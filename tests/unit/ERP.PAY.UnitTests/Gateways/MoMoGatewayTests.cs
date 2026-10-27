@@ -50,6 +50,16 @@ public class MoMoGatewayTests
     }
 
     [Fact]
+    public void Two_attempts_in_the_same_second_get_different_references()
+    {
+        var gw = Gateway(Http((_, _) => (HttpStatusCode.OK, "{}")).Factory);
+        var id = Guid.NewGuid();
+
+        gw.NewTransactionRef(id, Now).Should().NotBe(gw.NewTransactionRef(id, Now.AddMilliseconds(3)));
+        gw.NewTransactionRef(id, Now).Length.Should().BeLessThan(50);
+    }
+
+    [Fact]
     public async Task Create_refuses_a_currency_other_than_VND_without_calling_MoMo()
     {
         var (http, seen) = Http((_, _) => (HttpStatusCode.OK, "{}"));

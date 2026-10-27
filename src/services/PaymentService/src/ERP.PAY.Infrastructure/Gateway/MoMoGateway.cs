@@ -28,9 +28,9 @@ public class MoMoGateway : IPaymentProvider
 
     public string Code => "MoMo";
 
-    // MoMo's orderId must be unique per request (max 50 characters).
+    // MoMo's orderId must be unique per request (max 50 characters); the milliseconds keep two attempts in the same second apart.
     public string NewTransactionRef(Guid paymentId, DateTime nowUtc) =>
-        "M" + paymentId.ToString("N")[..12].ToUpperInvariant() + nowUtc.ToString("yyMMddHHmmss");
+        "M" + paymentId.ToString("N")[..12].ToUpperInvariant() + nowUtc.ToString("yyMMddHHmmssfff");
 
     private string Host(GatewayCredentials c) =>
         (c.Sandbox ? _config["MoMo:BaseUrl"] ?? SandboxHost : _config["MoMo:ProductionBaseUrl"] ?? string.Empty).TrimEnd('/');

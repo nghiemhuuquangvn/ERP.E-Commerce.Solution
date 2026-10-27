@@ -27,9 +27,9 @@ public class VnPayGateway : IPaymentProvider
 
     public string Code => "VNPay";
 
-    // VNPay wants a reference that is unique per request: payment id prefix + the time of the attempt.
+    // VNPay wants a reference that is unique per request: payment id prefix + the time of the attempt (to the millisecond).
     public string NewTransactionRef(Guid paymentId, DateTime nowUtc) =>
-        paymentId.ToString("N")[..10].ToUpperInvariant() + nowUtc.AddHours(7).ToString("yyMMddHHmmss");
+        paymentId.ToString("N")[..10].ToUpperInvariant() + nowUtc.AddHours(7).ToString("yyMMddHHmmssfff");
 
     public Task<GatewayCreateResult> CreatePaymentAsync(GatewayCredentials credentials, GatewayPaymentRequest request, CancellationToken ct = default)
     {
