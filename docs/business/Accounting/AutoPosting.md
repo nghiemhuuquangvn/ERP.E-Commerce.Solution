@@ -169,6 +169,13 @@ the invoice / bill / payment is saved and an error is logged (`No journal entry 
 the log service. Fix the profile; entries for documents already saved are not back-filled automatically.
 `Accounting:AutoPosting:Enabled = false` switches automatic posting off (documents only: a person's manual reversal and the period-end closing entry still need the engine, see ChartOfAccounts.md).
 
+### A payment event delivered twice while no period was open (2026-10-27, risk R13)
+
+The ledger entry is the idempotency record of `PaymentProcessed`. When no period is open there is no entry, so the handler also records the payment's
+application to the invoice under the source key `payment:<id>`: a redelivery finds it, does **not** credit the invoice again, and tries the posting again
+(it succeeds once a period is open). Rule: an event handler that changes a document and posts must be idempotent on the document change as well,
+not only on the entry. Payments are still not listed by `posting-gaps` (R22).
+
 ## Known simplifications (follow-up plans)
 
 * Bills for goods received before this release stay on the old Dr Inventory rule; new bills debit GRNI.

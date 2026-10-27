@@ -208,6 +208,8 @@ Tenant & permission scope (2026-10-20):
 - Cross-tenant endpoints: put `[TenantRouteAccess(<platform permission>)]` on the
   controller (backed by `ITenantAccessPolicy`) — don't hand-write tenant checks.
 
+Customer self-service (2026-10-27, docs/business/Identity/CustomerSignup.md): every tenant gets the roles CUSTOMER / STAFF / USER when it is created (`DefaultTenantRoles`; Identity 030 repaired old tenants); `POST /auth/register` takes no tenant code (the host decides), the account name is the e-mail (unique per tenant, Identity 031) and the given name is display only. The default roles hold **no permissions**: a customer-facing endpoint must use an own-resource check (`orders/my`, `orders/{id}` of their own order, payment status), never a permission. SignalR hubs read the single-use ticket from the `Authorization` header (negotiate) and `?access_token=` (transport) - `HubTokenResolver`.
+
 Consumed Events: None
 
 #### Accounting Service (Port 5005, Code: ACC)
@@ -482,7 +484,7 @@ Published Events:
 - SettlementCreated
 - PaymentFailed
 
-Online payments (2026-10-27, P1-10, docs/business/Payment/OnlinePayments.md): VNPay, **MoMo** and **ZaloPay** sit behind `IPaymentProvider` (stateless; the shop's credentials are passed in); `PaymentProviderResolver` returns the provider and the CURRENT shop's keys from `TenantGatewayCredentials` (encrypted with `ISecretProtector`, so PaymentService needs `Security:SettingsEncryptionKey`), refusing a gateway that is off on the platform or the shop or has no keys. Every gateway message (browser return `callback/{provider}`, server `ipn/{provider}`, anonymous by design) goes through `GatewayNotificationService`: find the shop from the payment reference → verify with that shop's keys → the paid amount must equal the payment → apply idempotently. Never add a second path. **Cash on delivery**: the order saga does not wait; Payment captures the pending COD payment on `DeliveryConfirmed`. The order carries `PaymentMethod`; an order cancelled before it was paid asks Payment (empty payment id + order id) to close the pending payment; money arriving for a cancelled payment is flagged, not captured. Gateways settle VND only.
+Online payments (2026-10-27, P1-10, docs/business/Payment/OnlinePayments.md): VNPay, **MoMo** and **ZaloPay** sit behind `IPaymentProvider` (stateless; the shop's credentials are passed in); `PaymentProviderResolver` returns the provider and the CURRENT shop's keys from `TenantGatewayCredentials` (encrypted with `ISecretProtector`, so PaymentService needs `Security:SettingsEncryptionKey`), refusing a gateway that is off on the platform or the shop or has no keys. Every gateway message (browser return `callback/{provider}`, server `ipn/{provider}`, anonymous by design) goes through `GatewayNotificationService`: find the shop from the payment reference → verify with that shop's keys → the paid amount must equal the payment → apply idempotently. Never add a second path. **Cash on delivery**: the order saga does not wait; Payment captures the pending COD payment on `DeliveryConfirmed`. The order carries `PaymentMethod`; an order cancelled before it was paid asks Payment (empty payment id + order id) to close the pending payment; money arriving for a cancelled payment is flagged, not captured. Gateways settle VND only. Payment also consumes `SalesOrderCancelled` (an order cancelled by hand closes its Pending / Authorized payment; a Captured one is never refunded by it).
 
 Consumed Events:
 - SalesOrderCreated

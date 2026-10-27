@@ -100,6 +100,8 @@ Where: **Orders → (an order) → order page**, between the *Status Actions* bl
 ## 10. Permissions
 | Action | Permission |
 |---|---|
+| A customer's own orders (`GET orders/my`, `GET orders/{id}` of their own order, create their own order) | none beyond being signed in (own-resource check, 2026-10-27; another customer's order → 404) — see `docs/business/Identity/CustomerSignup.md` |
+| Any order (`GET orders/{id}`) | `sales_order:read` |
 | See the card (`GET orders/{id}/saga`) | `sales_order:read` |
 | Retry a step (`POST orders/{id}/saga/retry`) | `sales_order:update` |
 | Complete a return | `sales_order:approve` (unchanged) |
