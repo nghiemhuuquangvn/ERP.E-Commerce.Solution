@@ -412,9 +412,12 @@ Published Events:
 - TrackingUpdated
 - DeliveryConfirmed
 
+Carriers (2026-10-27, P1-11, docs/business/Shipping/CarrierIntegration.md): GHTK, Viettel Post, GHN (and a J&T placeholder) sit behind `ICarrierProvider` (stateless; the shop's account is passed in); `CarrierProviderResolver` returns the provider and the CURRENT shop's account from `TenantCarrierCredentials` (encrypted with `ISecretProtector`, so ShippingService needs `Security:SettingsEncryptionKey`), refusing a carrier that is off on the platform or the shop or has an incomplete account. `CarrierBookingService` is the one place a parcel is booked: the shop's `CarrierSelectionRule`s (priority order), then every other usable carrier by cheapest quote; a refusal moves on, and when nobody accepts the saga is told with every reason (never swallowed). Carrier notifications (anonymous `POST /api/v1/shipping-webhooks/{carrier}?hash=<the shop's secret>`) go through `CarrierWebhookService`: find the shop from the tracking code → verify with that shop's secret → apply once (`CarrierWebhookLog`) through `CarrierTrackingService` (the polling `CarrierTrackingSyncJob` uses the same path). Never add a second path. A delivered parcel raises `DeliveryConfirmed`, which captures a cash-on-delivery payment. Carrier hosts come from configuration (`Carriers:*`), never from tenant input. The shop's pickup address (`TenantShippingSettings`) is required to book. The customer is not charged shipping yet (P1-11b).
+
 Consumed Events:
 - SalesOrderApproved
 - InventoryReserved
+- SalesOrderCancelled (a parcel not yet collected is cancelled at the carrier)
 
 ---
 

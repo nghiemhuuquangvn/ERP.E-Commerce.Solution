@@ -136,7 +136,7 @@ Note: `.vscode/tasks.json` / `launch.json` only cover IdentityService today.
 - [x] **P1-9 Replenishment**: min/max, safety stock, purchase request → PO automation. (done 2026-10-26)
 - [x] **P1-10 Payment gateways** (done 2026-10-27; Stripe left to P1-10b): MoMo, ZaloPay (and/or Stripe) behind `IPaymentGateway`;
   storefront/mobile checkout calls Payment (today only a radio button).
-- [ ] **P1-11 Carriers**: GHTK, Viettel Post; carrier selection by rule/price.
+- [x] **P1-11 Carriers** (done 2026-10-27, `feat/p1-11-carriers`; migrations Shipping 008, Sales 014; BA doc `docs/business/Shipping/CarrierIntegration.md`): GHTK, Viettel Post, GHN per shop; selection by rule then cheapest quote; webhooks + polling; cancel at the carrier. Left to P1-11b: shipping fee charged to the customer, ward, product weights, returns through carriers, J&T, a verified Viettel Post.
 - [ ] **P1-12 Notification VN channels**: Zalo ZNS / SMS brandname; template update/delete.
 - [ ] **P1-13 Carried over**: ~25 settings categories not applied at runtime; credit limit before
   approve; Redis `RemoveByPattern`; UserCreated → MasterData `IsEmployee`.
