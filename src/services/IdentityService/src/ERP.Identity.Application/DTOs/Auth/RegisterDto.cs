@@ -9,7 +9,7 @@ namespace ERP.Identity.Application.DTOs.Auth
 {
     public class RegisterDto
     {
-        public record RegisterRequest(string Email, string? UserName, string Password, string TenantCode, UserType UserType, string? FirstName = null, string? LastName = null);
+        public record RegisterRequest(string Email, string? UserName, string Password, string? TenantCode = null, UserType UserType = UserType.Customer, string? FirstName = null, string? LastName = null);
         public record RegisterResponse(bool Succeeded = true, IEnumerable<string>? Errors = null);
     }
 }
