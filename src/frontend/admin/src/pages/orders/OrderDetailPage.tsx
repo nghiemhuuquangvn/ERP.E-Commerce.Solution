@@ -119,6 +119,12 @@ export function OrderDetailPage() {
                 <dd className="text-green-700">-{fmt(order.discountAmount)}</dd>
               </div>
             )}
+            {order.shippingFee != null && (
+              <div className="flex justify-between">
+                <dt className="text-gray-500">{t('orders.shippingFee')}</dt>
+                <dd>{order.shippingFee > 0 ? fmt(order.shippingFee) : t('orders.freeDelivery')}</dd>
+              </div>
+            )}
             <div className="flex justify-between">
               <dt className="text-gray-500">{t('orders.total')}</dt>
               <dd className="font-semibold text-gray-900">{fmt(order.totalAmount)}</dd>

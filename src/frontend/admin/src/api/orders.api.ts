@@ -22,6 +22,8 @@ export type OrderSource = 'Manual' | 'Ecommerce' | 'POS'
 
 export interface Address {
   street: string
+  /** Ward (phuong / xa): GHTK and Viettel Post refuse a parcel without it. */
+  ward?: string
   city: string
   state: string
   postalCode: string
@@ -81,6 +83,8 @@ export interface SalesOrder {
   quotationId: string | null
   promotionId: string | null
   discountAmount: number
+  /** The delivery fee the customer paid, already inside totalAmount (the shop's flat fee, free from a threshold). */
+  shippingFee?: number
   isAnomalous: boolean
   anomalyReason: string | null
 }

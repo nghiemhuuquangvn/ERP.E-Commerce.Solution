@@ -15,6 +15,7 @@
     <div v-if="currentStep === 1" class="card p-6 space-y-4">
       <h2 class="font-semibold text-gray-900">{{ t('checkout.shippingAddress') }}</h2>
       <input v-model="address.street" class="input" :placeholder="t('checkout.streetAddress')" />
+      <input v-model="address.ward" class="input" :placeholder="t('checkout.ward')" />
       <input v-model="phone" type="tel" autocomplete="tel" class="input" :placeholder="t('checkout.phone')" />
       <div class="grid grid-cols-2 gap-3">
         <input v-model="address.city" class="input" :placeholder="t('checkout.city')" />
@@ -53,7 +54,7 @@
     <div v-else class="card p-6 space-y-4">
       <h2 class="font-semibold text-gray-900">{{ t('checkout.reviewYourOrder') }}</h2>
       <div class="text-sm text-gray-600 space-y-1">
-        <p><span class="font-medium">{{ t('checkout.shipTo') }}</span> {{ address.street }}, {{ address.city }}, {{ address.country }}</p>
+        <p><span class="font-medium">{{ t('checkout.shipTo') }}</span> {{ [address.street, address.ward, address.city, address.state, address.country].filter(Boolean).join(', ') }}</p>
         <p><span class="font-medium">{{ t('checkout.payment') }}</span> {{ paymentMethodLabel }}</p>
       </div>
       <div class="border-t pt-3 text-sm space-y-1">
@@ -61,9 +62,23 @@
           <span>{{ item.productName }} × {{ item.quantity }}</span>
           <span>{{ fmt(item.unitPrice * item.quantity) }}</span>
         </div>
+        <div class="flex justify-between pt-1 border-t">
+          <span>{{ t('checkout.goods') }}</span>
+          <span>{{ fmt(total) }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>{{ t('checkout.deliveryFee') }}</span>
+          <span v-if="feeLoading" class="text-gray-400">{{ t('common.loading') }}</span>
+          <span v-else-if="feeError" class="text-amber-700">{{ t('checkout.feeUnavailable') }}</span>
+          <span v-else-if="deliveryFee === 0" class="text-green-700">{{ t('checkout.freeDelivery') }}</span>
+          <span v-else>{{ fmt(deliveryFee) }}</span>
+        </div>
+        <p v-if="!feeLoading && !feeError && !feeQuote?.isFree && feeQuote && feeQuote.freeShippingThreshold > 0 && deliveryFee > 0" class="text-xs text-gray-400">
+          {{ t('checkout.freeFrom', { amount: fmt(feeQuote.freeShippingThreshold) }) }}
+        </p>
         <div class="flex justify-between font-semibold pt-1 border-t">
           <span>{{ t('common.total') }}</span>
-          <span>{{ fmt(total) }}</span>
+          <span>{{ fmt(total + deliveryFee) }}</span>
         </div>
       </div>
       <div class="flex gap-3">
@@ -78,13 +93,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useCartStore } from '@/stores/cart.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { ordersApi } from '@/api/orders.api'
 import { paymentsApi } from '@/api/payments.api'
+import { shippingApi, type ShippingFeeQuote } from '@/api/shipping.api'
 
 const { t } = useI18n()
 const cartStore = useCartStore()
@@ -95,7 +111,7 @@ const currentStep = ref(1)
 const placing = ref(false)
 const error = ref('')
 
-const address = ref({ street: '', city: '', state: '', postalCode: '', country: '' })
+const address = ref({ street: '', ward: '', city: '', state: '', postalCode: '', country: '' })
 // The carrier calls this number: it is part of the delivery address.
 const phone = ref('')
 // What this shop really offers (cash on delivery + the gateways it has set up), not a fixed list.
@@ -127,6 +143,25 @@ const paymentMethodLabel = computed(
 
 const items = computed(() => cartStore.items)
 const total = computed(() => cartStore.total)
+
+// What the shop charges for delivery: shown when the customer reviews the order. It is a preview - the server works the fee out again when the order is placed.
+const feeQuote = ref<ShippingFeeQuote | null>(null)
+const feeLoading = ref(false)
+const feeError = ref(false)
+const deliveryFee = computed(() => feeQuote.value?.fee ?? 0)
+watch(currentStep, async (step) => {
+  if (step !== 3) return
+  feeLoading.value = true
+  feeError.value = false
+  try {
+    feeQuote.value = await shippingApi.fee(total.value)
+  } catch {
+    feeQuote.value = null
+    feeError.value = true
+  } finally {
+    feeLoading.value = false
+  }
+})
 const phoneValid = computed(() => /^\+?[0-9 .()-]{8,20}$/.test(phone.value.trim()) && phone.value.replace(/\D/g, '').length >= 8)
 const addressValid = computed(() =>
   address.value.street && address.value.city && address.value.country && phoneValid.value,

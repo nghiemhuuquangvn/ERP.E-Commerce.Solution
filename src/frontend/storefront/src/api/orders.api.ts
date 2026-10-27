@@ -16,6 +16,8 @@ export interface CreateOrderRequest {
   customerPhone?: string
   shippingAddress: {
     street: string
+    /** Ward (phuong / xa): GHTK and Viettel Post need it to book the parcel. */
+    ward?: string
     city: string
     state: string
     postalCode: string
@@ -32,7 +34,10 @@ export interface Order {
   orderId: string
   orderNo: string
   status: string
+  /** What the customer owes: the goods after any coupon plus the delivery fee. */
   totalAmount: number
+  /** The delivery fee already inside totalAmount; 0 = free (or an order from before it existed). */
+  shippingFee?: number
   orderDate: string
   paymentMethod?: string | null
   lineItems: CartLine[]
