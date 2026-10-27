@@ -41,6 +41,7 @@ import { TransferOrderFormPage } from '@/pages/inventory/TransferOrderFormPage'
 import { BarcodeResolvePage } from '@/pages/inventory/BarcodeResolvePage'
 import { InventoryValuationSnapshotsPage } from '@/pages/inventory/InventoryValuationSnapshotsPage'
 import { PaymentsPage } from '@/pages/payments/PaymentsPage'
+import { ShipmentsPage } from '@/pages/shipping/ShipmentsPage'
 import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { MonitoringPage } from '@/pages/monitoring/MonitoringPage'
 import { LogsPage } from '@/pages/logs/LogsPage'
@@ -179,6 +180,7 @@ export const router = createBrowserRouter([
       { path: 'inventory/valuation-snapshots', element: <InventoryValuationSnapshotsPage /> },
       { path: 'inventory/:productId', element: <InventoryDetailPage /> },
       { path: 'payments', element: <PaymentsPage /> },
+      { path: 'shipping/shipments', element: <ShipmentsPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'customers', element: <CustomersPage /> },
       { path: 'settings', element: <PlaceholderPage title="Settings" /> },

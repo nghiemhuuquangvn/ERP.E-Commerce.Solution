@@ -30,6 +30,8 @@ builder.Services.AddMediatR(cfg =>
 
 builder.Services.AddScoped<IShipmentRepository, ShipmentRepository>();
 builder.Services.AddScoped<ICarrierRepository, CarrierRepository>();
+// P1-11: carrier integrations (GHTK, Viettel Post, GHN, J&T), booking, webhooks, rules, polling job - see CarrierServiceCollectionExtensions.
+ERP.SHP.Infrastructure.CarrierServiceCollectionExtensions.AddCarrierIntegration(builder.Services);
 builder.Services.AddScoped<IReturnShipmentRepository, ReturnShipmentRepository>();
 builder.Services.AddScoped<IShippingUnitOfWork, ShippingUnitOfWork>();
 builder.Services.AddCacheService(builder.Configuration, "shp");
@@ -67,16 +69,6 @@ builder.Services.AddSingleton<IConnection>(_ =>
 builder.Services.AddScoped<ERP.SHP.Infrastructure.EventBus.SagaShipmentRequestProcessor>();
 builder.Services.AddHostedService<SalesOrderRabbitMqConsumer>();
 builder.Services.AddHostedService<WarehouseRabbitMqConsumer>();
-
-// Carrier client — GHN when Token configured, else Null stub.
-// GhnCarrierClient resolves IHttpClientFactory.CreateClient("GHN") — previously
-// AddHttpClient was never called anywhere in this service, so DI would throw the
-// moment GHN was actually configured (the one environment where this client matters).
-builder.Services.AddHttpClient("GHN");
-if (!string.IsNullOrEmpty(builder.Configuration["Ghn:Token"]))
-    builder.Services.AddScoped<ICarrierClient, GhnCarrierClient>();
-else
-    builder.Services.AddScoped<ICarrierClient, NullCarrierClient>();
 
 // Real JWT validation — previously trusted the Gateway's forwarded X-User-*/
 // X-Tenant-* headers with no signature verification; see

@@ -41,7 +41,7 @@ These reflect the code; the per-event sections below are older and partly aspira
 |---|---|---|---|
 | `PurchaseOrderApprovedDomainEvent` | Kafka `purchasing-topic` | Now carries `TotalAmount` + `CurrencyCode` (manager approval below the threshold, or finance approval). PO lines can only change while Draft. | **AccountingService** books the supplier bill from it, once per PO (redelivery-safe). Notification unchanged. |
 | `PurchaseOrderCreatedDomainEvent` | Kafka `purchasing-topic` | — | **No longer** creates a bill (it is raised before any line exists, so every bill was 0). |
-| `CreateShipmentCommand` (saga) | RabbitMQ `sales_order_events` | Now carries `RecipientName`, `RecipientEmail`, `ShippingAddress` (Street/City/State/PostalCode/Country) and `Items` (lines still to ship). | **ShippingService**: City → district, State → province; a command without an address is logged and dropped (no placeholder shipment). |
+| `CreateShipmentCommand` (saga) | RabbitMQ `sales_order_events` | Now carries `RecipientName`, `RecipientEmail`, `ShippingAddress` (Street/City/State/PostalCode/Country) and `Items` (lines still to ship). **P1-11:** also `RecipientPhone`, `PaymentMethod`, `OrderTotal`, `CodAmount` (the order total for COD, else 0) and each line's `UnitPrice`; Shipping chooses the carrier (rules, then cheapest quote) and books it. | **ShippingService**: City → district, State → province; a command without an address is logged and dropped (no placeholder shipment). |
 | `TransactionCreatedEvent` (POS) | Kafka `pos-topic` | Now carries `Lines` (ProductId, ProductName, Quantity). 2026-10-24 (P1-1c): also `Amounts` (SubTotal, DiscountAmount, TaxAmount, Tenders[Method, Amount]), `CashShiftId`, `ExternalPaymentId`; `TransactionVoidedEvent` has `Amounts` + `CashShiftId`; `CashShiftClosedEvent` has `OpeningBalance`, `CountedCash`, `ExpectedCash`, `CashVariance`. Messages are keyed by transaction / shift id. **AccountingService** (`AccountingKafkaConsumer`) posts sale / void / variance. | **WarehouseService** (`PosTransactionConsumer`) takes the lines out of stock — never refuses, stock may go negative + `StockAlert`; reference `POS-{tx}`, idempotent. Reporting unchanged. |
 | `TransactionVoidedEvent` (POS, new) | Kafka `pos-topic` | Raised only when a **completed** sale is voided. | **WarehouseService** puts the lines back (reference `POS-VOID-{tx}`). |
 
@@ -413,7 +413,7 @@ public class SalesOrderShippedEvent : IntegrationEvent
 **Description:** Published when a sales order is cancelled.
 
 **Publisher:** Sales Service  
-**Subscribers:** Warehouse Service, Accounting Service, Notification, Promotion, Reporting, **Payment Service** (2026-10-27, risk R18)
+**Subscribers:** Warehouse Service, Accounting Service, Notification, Promotion, Reporting, **Payment Service** (2026-10-27, risk R18), **Shipping Service** (2026-10-27, P1-11: a parcel not yet collected is cancelled at the carrier)
 
 **Event Structure:**
 ```csharp

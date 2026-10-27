@@ -5,6 +5,7 @@ public interface IShippingUnitOfWork : IDisposable
     IShipmentRepository Shipments { get; }
     ICarrierRepository Carriers { get; }
     IReturnShipmentRepository ReturnShipments { get; }
+    IShippingConfigRepository Config { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 

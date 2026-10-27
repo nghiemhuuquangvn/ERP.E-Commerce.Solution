@@ -36,6 +36,13 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-27 — ROADMAP P1-11: carriers (`feat/p1-11-carriers`, unmerged)
+- **Shipping** (migration **008**; 008 + Sales 014 added to the runner): `ICarrierProvider` (GHTK, GHN, Viettel Post, J&T placeholder) replaces the global `ICarrierClient`; `CarrierProviderResolver` (platform switch → shop switch → complete account; `TenantCarrierCredentials` encrypted); `CarrierBookingService` + `CarrierSelector` (rules, then cheapest quote, failover; failure never swallowed); `CarrierWebhookService` (anonymous, shared secret, idempotent) + `CarrierTrackingService` + `CarrierTrackingSyncJob`; cancel at the carrier (also on `SalesOrderCancelled`); `Shipment.ApplyCarrierStatus` (forward-only state machine); API: shipments list, cancel-at-carrier, rebook, carrier rules CRUD, parcel quote, carrier accounts under settings; the toy per-kg quote removed. Registration lives in `AddCarrierIntegration` (a DI test resolves it).
+- **Sales** (migration **014**): the order records the recipient's phone; the saga's shipment command carries phone, payment method, order total, COD amount and line prices.
+- **Gateway**: anonymous routes `shipping-webhooks/{carrier}`. **Admin**: Settings → Shipping gets Tenant (pickup address) / Carriers / Carrier rules tabs and a system switch per carrier; new Shipments page. **Storefront**: phone at checkout.
+- Tests: SHP 112 (was 9), SO 61 (was 52); Architecture 59/59; admin `tsc -b` and storefront `vue-tsc` clean. Live on `glcheck` against a **fake carrier server** (the real carriers cannot reach this stack): UAT-S1…S10 in the BA doc. Bugs found by the live check: carrier registrations missing from Program (fixed + DI test).
+- Not done (P1-11b): DEFERRED §4v; risk register R26…R32.
+
 ### 2026-10-27 — Risk clean-up before P1-11 (`chore/risk-cleanup-p1-6-10`, on top of the unmerged P1-10 branch)
 - **Identity** (migrations **030**, **031**): `DefaultTenantRoles` seeds CUSTOMER / STAFF / USER for every new tenant (030 repairs existing ones); registration needs no tenant code, uses the e-mail as account name (display name separate), user name unique per tenant (031); `HubTokenResolver` reads the SignalR ticket from the Authorization header as well as the query (the admin bell / chat hub negotiate was 401 everywhere).
 - **Payment**: consumes `SalesOrderCancelled` (pending payment closed; captured never refunded); list filters `provider`, `needsReview`. **Accounting**: `PaymentProcessed` idempotent without a ledger entry. **Sales**: a customer reads their own orders without a permission (404 for others).

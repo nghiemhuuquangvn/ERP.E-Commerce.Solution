@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using ERP.SHP.Application.Commands;
+using ERP.SHP.Application.Handlers;
 
 namespace ERP.SHP.Infrastructure.EventBus
 {
@@ -54,6 +55,7 @@ namespace ERP.SHP.Infrastructure.EventBus
             _channel.ExchangeDeclare(ExchangeName, ExchangeType.Topic, durable: true);
             _channel.QueueDeclare(QueueName, durable: true, exclusive: false, autoDelete: false);
             _channel.QueueBind(QueueName, ExchangeName, "sales_order.CreateShipmentCommand");
+            _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderCancelledEvent");
 
             var consumer = new AsyncEventingBasicConsumer(_channel);
             consumer.Received += OnMessageReceivedAsync;
@@ -93,6 +95,17 @@ namespace ERP.SHP.Infrastructure.EventBus
                             break;
                         orderId = evt.OrderId;
                         await scope.ServiceProvider.GetRequiredService<SagaShipmentRequestProcessor>().ProcessAsync(evt);
+                        break;
+
+                    case "sales_order.SalesOrderCancelledEvent":
+                        // P1-11: a parcel the carrier has not collected is cancelled at the carrier too; one it has is flagged for a person.
+                        var cancelled = JsonSerializer.Deserialize<SalesOrderCancelledContract>(json);
+                        if (cancelled == null)
+                            break;
+                        orderId = null;   // a failure here must not tell the saga the shipment could not be CREATED
+                        var cancelledShipments = await scope.ServiceProvider.GetRequiredService<IMediator>()
+                            .Send(new CancelOrderShipmentsCommand { OrderId = cancelled.OrderId, Reason = string.IsNullOrWhiteSpace(cancelled.CancellationReason) ? "the order was cancelled" : cancelled.CancellationReason });
+                        _logger.LogInformation("Order {OrderId} cancelled: {Count} shipment(s) cancelled", cancelled.OrderId, cancelledShipments);
                         break;
 
                     default:
@@ -160,6 +173,14 @@ namespace ERP.SHP.Infrastructure.EventBus
         }
     }
 
+    // Local mirror of SalesOrderCancelledEvent (ERP.SO.Domain.Events) — only the fields Shipping needs.
+    public class SalesOrderCancelledContract
+    {
+        public Guid OrderId { get; set; }
+        public Guid TenantId { get; set; }
+        public string? CancellationReason { get; set; }
+    }
+
     // Local mirror of OrderFulfillmentSaga's own CreateShipmentCommand message
     // (ERP.SO.Application.Sagas.CreateShipmentCommand) — only the fields Shipping needs.
     public class SagaCreateShipmentCommand
@@ -168,6 +189,11 @@ namespace ERP.SHP.Infrastructure.EventBus
         public Guid TenantId { get; set; }
         public string RecipientName { get; set; } = string.Empty;
         public string? RecipientEmail { get; set; }
+        // P1-11 - absent from messages sent by an older Sales: they deserialize to null / 0.
+        public string? RecipientPhone { get; set; }
+        public string? PaymentMethod { get; set; }
+        public decimal OrderTotal { get; set; }
+        public decimal CodAmount { get; set; }
         public SagaShippingAddress? ShippingAddress { get; set; }
         public List<SagaShipmentLine> Items { get; set; } = new();
 
@@ -179,13 +205,16 @@ namespace ERP.SHP.Infrastructure.EventBus
         /// docs/ROADMAP.md P2-2): City is the district and State the province of a Vietnamese
         /// address, which is how the storefront checkout fills them.
         /// </summary>
-        public CreateShipmentCommand ToCreateShipmentCommand(Guid carrierId) => new()
+        public CreateShipmentCommand ToCreateShipmentCommand() => new()
         {
             OrderId = OrderId,
-            CarrierId = carrierId,
+            CarrierId = null,   // the system picks: the shop's rules, then the cheapest quote
+            CodAmount = CodAmount,
+            DeclaredValue = OrderTotal,
             Recipient = new ShipmentRecipientRequest
             {
                 RecipientName = RecipientName,
+                RecipientPhone = string.IsNullOrWhiteSpace(RecipientPhone) ? null : RecipientPhone,
                 AddressStreet = ShippingAddress?.Street ?? string.Empty,
                 AddressDistrict = ShippingAddress?.City ?? string.Empty,
                 AddressProvince = ShippingAddress?.State ?? string.Empty,
@@ -197,7 +226,8 @@ namespace ERP.SHP.Infrastructure.EventBus
             {
                 ProductId = i.ProductId,
                 ProductName = i.ProductName,
-                Quantity = i.Quantity
+                Quantity = i.Quantity,
+                UnitPrice = i.UnitPrice
             }).ToList()
         };
     }
@@ -216,5 +246,6 @@ namespace ERP.SHP.Infrastructure.EventBus
         public Guid ProductId { get; set; }
         public string ProductName { get; set; } = string.Empty;
         public int Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
     }
 }

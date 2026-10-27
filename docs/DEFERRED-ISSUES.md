@@ -279,6 +279,19 @@ Ship-time COGS through a real sales order; POS sale and POS COGS; redelivery (sa
 | AM8 | The shop's gateway accounts have no history of changes and no test button ("create a 1 VND payment"). | P1-10b |
 | AM9 | Mobile still sends no shipping address and shows amounts without the shop's currency formatting. | P1-10b |
 
+## 4v. Carriers (P1-11 follow-ups)
+
+| # | Issue | Home |
+|---|---|---|
+| AN1 | The customer is not shown or charged a shipping fee; the order has no shipping line (the shop pays the carrier). Needs Sales, tax, payment and invoice to carry it. `DefaultShippingFee` / `FreeShippingThreshold` are still unused. | P1-11b |
+| AN2 | Product weights do not reach Shipping: the parcel weighs items × the shop's default item weight. Needs an internal ProductService → Shipping call (service auth) or weights on the order line. | P1-11b |
+| AN3 | The address has no ward (Sales keeps street / district / province): GHTK and Viettel Post want one and refuse without it; Viettel Post ward ids stay 0. | P1-11b |
+| AN4 | Viettel Post is implemented without its official documentation; J&T Express is a placeholder; GHN cannot quote (needs district ids) so it is reached only through rules. | P1-11b |
+| AN5 | One parcel per order: partial shipments, several parcels and a shipment per warehouse are not modelled (see also AG5). | P1-11b |
+| AN6 | Returns (`ReturnShipment`) do not go through the carrier: no pickup is booked, no return tracking. | P1-11b |
+| AN7 | The cash a carrier says it collected is only compared with the order and flagged; there is no reconciliation of carrier cash remittances. | P1-11b / finance |
+| AN8 | Carrier labels come from the local PDF generator, not from the carrier. | P1-11b |
+
 ## 6. Risk register — to handle after the main roadmap tasks
 
 Latent risks found while working (owner's rule 2026-10-26: record them, fix them after the main tasks). Each task appends its own.
@@ -309,6 +322,14 @@ Latent risks found while working (owner's rule 2026-10-26: record them, fix them
 | R23 | The Payment Settings screen shows the older **VNPay** form (enable + secret) above the new VNPay card (TMN code + hash secret): two places for one account. | Confusion about which one counts (the card's keys win, the old fields are a fallback). | Remove the old form after a release, or fold it into the card. | risk clean-up |
 | R24 | The shop admin of a tenant created by sign-up holds only Identity / System permissions (by design); on `glcheck` the walk-through shows 403 on master-data and identity pages for that admin. | A new tenant admin sees empty / forbidden business pages until roles are granted. | A "business administrator" role template applied at tenant creation. | risk clean-up |
 | R25 | The shared `HubTokenResolver` change was deployed only to NotificationService and ChatBotService (the services with hubs); `deploy-changed.ps1` will rebuild all other services next time because their Shared hash changed. | One long deploy. | Expected, harmless. | risk clean-up |
+| R26 | **No real carrier was called**: the live check used a fake carrier server and simulated notifications; GHTK and GHN were read from their docs, Viettel Post was written without them. The first real sandbox run may show a field, a status code or a webhook detail that differs. | Bookings refused or statuses misread on day one. | Get sandbox accounts (GHTK staging, Viettel Post partnerdev, GHN dev), run through a tunnel, then correct `ViettelPostCarrierProvider` first. | P1-11 |
+| R27 | A carrier outage longer than about 10 seconds makes the consumer give up (5 attempts) and the order is cancelled. | Orders lost to a short outage. | Longer back-off or park the command and retry through the saga timeout. | P1-11 |
+| R28 | Webhook authentication is a shared secret in the callback address (GHTK and GHN do not sign); it can appear in a carrier's logs or a proxy log. | A leaked secret lets someone report fake statuses (e.g. "delivered" → COD payment captured). | Rotate through the Carriers tab; consider also checking the carrier's source network where published. | P1-11 |
+| R29 | A delivered notification captures the COD payment at the order's amount even if the carrier says it collected less (the shipment is only flagged). | Books cash that was not collected. | A finance step that confirms carrier remittances before capture. | P1-11 |
+| R30 | The Viettel Post status is read from its Vietnamese name; a renamed status or a wording not listed is only a tracking line (never a delivery). | Deliveries not applied until the table is checked. | Replace by the official code table when the documentation is available. | P1-11 |
+| R31 | The polling job asks only about parcels silent for 6 hours, 50 per shop per pass, and Viettel Post cannot be polled. | A lost webhook is noticed late. | Shorter interval for COD parcels; a per-carrier poll for Viettel Post. | P1-11 |
+| R32 | Selection by the cheapest quote quotes every usable carrier on every order (one call each) and GHN never quotes. | Slower bookings, carrier rate limits. | Cache quotes per province / weight band. | P1-11 |
+| R33 | One `ERP.Shared.UnitTests` test failed once during a full sequential run of all 16 projects (99/100) and passed in the next three runs (100/100); it was not identified (the output was not captured). Probably a timing-dependent test. | A flaky guard hides real failures. | Re-run the Shared tests with the logger on a few times and fix or quarantine the unstable one. | P1-11 |
 | R10 | Several Database runner entries were missing (Warehouse 007–008, Purchasing 009–013 until now): a fresh database built by `RunAllScripts.ps1` depended on someone remembering to add them. | Fresh install missing columns. | **Resolved 2026-10-27 (risk clean-up).** `DatabaseRunnerTests` (Architecture): every `.sql` is in `RunAllScripts.ps1`, every listed file exists, a service's migrations run in order. 29 more unlisted files were found and added (Identity 021-031, POS 005-008, Product 015-018, Shipping 005-007, MasterData 007-008, CRM 005-006, ChatBot 002, PromotionService 003-005), and the wrong `Promotion\002_SeedDemoData` entry fixed. `RunAllScripts_sqlcmd.ps1` is marked legacy (lists only the first scripts). | P1-8, P1-9 |
 
 ## 5. Roadmap items these issues are waiting for

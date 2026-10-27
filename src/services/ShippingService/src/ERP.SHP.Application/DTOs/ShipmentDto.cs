@@ -26,9 +26,25 @@ public class ShipmentDto
     public string? SignatureUrl { get; set; }
     public string? PhotoUrl { get; set; }
     public decimal TotalWeight { get; set; }
+    public decimal CodAmount { get; set; }
+    public decimal DeclaredValue { get; set; }
+    public decimal? CarrierFee { get; set; }
+    public string? CarrierOrderCode { get; set; }
+    public string? SelectionNote { get; set; }
+    public string? BookingError { get; set; }
+    public string? ReviewNote { get; set; }
+    public DateTime? LastCarrierSyncAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public List<TrackingEventDto> TrackingEvents { get; set; } = new();
     public List<ShipmentItemDto> Items { get; set; } = new();
+}
+
+public class ShipmentListResult
+{
+    public List<ShipmentDto> Items { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int PageNumber { get; set; }
+    public int PageSize { get; set; }
 }
 
 public class ReturnShipmentDto
@@ -67,4 +83,16 @@ public class CarrierDto
     public string Code { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public decimal BaseRatePerKg { get; set; }
+}
+
+/// <summary>A parcel to price with every carrier the shop can use (admin quote panel).</summary>
+public class QuoteParcelRequest
+{
+    public string Province { get; set; } = string.Empty;
+    public string District { get; set; } = string.Empty;
+    public string? Ward { get; set; }
+    public string? Street { get; set; }
+    public int WeightGrams { get; set; } = 1000;
+    public decimal DeclaredValue { get; set; }
+    public decimal CodAmount { get; set; }
 }

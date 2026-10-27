@@ -2,6 +2,7 @@ using ERP.Shared.Core.Domain;
 using ERP.SHP.Application.Commands;
 using ERP.SHP.Application.DTOs;
 using ERP.SHP.Application.Interfaces;
+using ERP.SHP.Application.Services;
 using ERP.SHP.Domain.Entities;
 using ERP.SHP.Domain.Events;
 using ERP.SHP.Infrastructure.EventBus;
@@ -43,14 +44,14 @@ public class SagaShipmentRequestProcessorTests
     };
 
     [Fact]
-    public async Task A_deliverable_command_creates_the_shipment_with_the_first_active_carrier()
+    public async Task A_deliverable_command_asks_for_a_shipment_without_naming_a_carrier()
     {
         var command = Command();
 
         var outcome = await Processor().ProcessAsync(command);
 
         outcome.Should().Be(SagaShipmentOutcome.Created);
-        _mediator.Verify(m => m.Send(It.Is<CreateShipmentCommand>(c => c.OrderId == command.OrderId && c.Recipient.AddressStreet == "12 Le Loi"), It.IsAny<CancellationToken>()), Times.Once);
+        _mediator.Verify(m => m.Send(It.Is<CreateShipmentCommand>(c => c.OrderId == command.OrderId && c.CarrierId == null && c.Recipient.AddressStreet == "12 Le Loi"), It.IsAny<CancellationToken>()), Times.Once);
         _staged.Should().BeEmpty();
     }
 
@@ -68,15 +69,27 @@ public class SagaShipmentRequestProcessorTests
     }
 
     [Fact]
-    public async Task No_active_carrier_is_answered_with_a_creation_failure()
+    public async Task When_no_carrier_accepts_the_parcel_the_failure_carries_every_reason()
     {
-        _carriers.Setup(c => c.GetActiveAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Carrier>());
+        _mediator.Setup(m => m.Send(It.IsAny<CreateShipmentCommand>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new CarrierBookingException("GHTK: Phone invalid; VTP: Viettel Post does not know the district 'X'"));
 
         var outcome = await Processor().ProcessAsync(Command());
 
         outcome.Should().Be(SagaShipmentOutcome.Failed);
-        _staged.OfType<ShipmentCreationFailedEvent>().Single().Reason.Should().Be("there is no active carrier");
-        _mediator.Verify(m => m.Send(It.IsAny<IRequest<ShipmentDto>>(), It.IsAny<CancellationToken>()), Times.Never);
+        _staged.OfType<ShipmentCreationFailedEvent>().Single().Reason.Should().Contain("GHTK: Phone invalid").And.Contain("VTP:");
+    }
+
+    [Fact]
+    public async Task A_carrier_that_could_not_be_reached_is_not_a_verdict_the_consumer_retries_it()
+    {
+        _mediator.Setup(m => m.Send(It.IsAny<CreateShipmentCommand>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new CarrierBookingException("GHTK: the carrier is not reachable: down", isTransient: true));
+
+        var act = () => Processor().ProcessAsync(Command());
+
+        await act.Should().ThrowAsync<CarrierBookingException>();
+        _staged.Should().BeEmpty("no creation failure is announced yet");
     }
 
     [Fact]

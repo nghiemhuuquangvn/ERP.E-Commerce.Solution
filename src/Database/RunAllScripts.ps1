@@ -74,6 +74,7 @@ $DatabaseScripts = @(
     "Sales\011_TenantIsolation.sql",
     "Sales\012_OrderItemsTenantNullable.sql",
     "Sales\013_OrderPaymentMethod.sql",
+    "Sales\014_OrderCustomerPhone.sql",
     "Purchasing\001_CreatePurchasingDB.sql",
     "Purchasing\002_AddOutboxMessages.sql",
     "Purchasing\003_AddReceivingScheduleAndSupplierRatings.sql",
@@ -156,6 +157,7 @@ $DatabaseScripts = @(
     "Shipping\005_TenantIsolation.sql",
     "Shipping\006_AlignEntityColumns.sql",
     "Shipping\007_BaseEntityColumns.sql",
+    "Shipping\008_Carriers.sql",
 
     # HR & Retail
     "HRM\001_CreateHrmDB.sql",

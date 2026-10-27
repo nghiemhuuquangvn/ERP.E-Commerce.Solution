@@ -1,6 +1,8 @@
 # Module 13 — Shipping
 ## Technical Design Specification | ERP.E-Commerce.Solution
 
+> **2026-10-27 (P1-11):** carrier accounts per shop (GHTK, Viettel Post, GHN), carrier selection by rule then cheapest quote, booking with the cash to collect, carrier webhooks, polling, cancel at the carrier and the Shipments screen are described in `docs/business/Shipping/CarrierIntegration.md`. Where this document says GHN is the one real carrier chosen by global configuration, that the first active carrier is used, that a failed carrier call is ignored, or that `calculate-fee` / `{id}/quote` exist, that document wins (the per-kg `quote` endpoint was removed).
+
 > Số module (13) được gán mới trong đợt rà soát 2026-07-29 — ShippingService trước đó chưa có tài liệu BA riêng. Viết theo hướng **reconciliation** hoàn toàn.
 
 ---

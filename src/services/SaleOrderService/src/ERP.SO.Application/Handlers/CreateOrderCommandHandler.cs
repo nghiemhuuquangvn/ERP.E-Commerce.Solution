@@ -99,7 +99,8 @@ namespace ERP.SO.Application.Handlers
                 request.DepartmentId,
                 request.SalesRepId,
                 request.QuotationId,
-                paymentMethod);
+                paymentMethod,
+                NormalizePhone(request.CustomerPhone));
 
             if (!string.IsNullOrWhiteSpace(request.CouponCode))
             {
@@ -117,6 +118,17 @@ namespace ERP.SO.Application.Handlers
                 salesOrder.CustomerId, salesOrder.OrderNo, salesOrder.PaymentMethod);
 
             return MapToDto(salesOrder);
+        }
+
+        /// <summary>A phone number as people type it: digits with an optional leading +, spaces, dots, dashes and brackets removed. Null when empty; refused when it is not a phone number.</summary>
+        public static string? NormalizePhone(string? phone)
+        {
+            if (string.IsNullOrWhiteSpace(phone)) return null;
+            var digits = new string(phone.Where(c => char.IsDigit(c) || c == '+').ToArray());
+            var plain = digits.TrimStart('+');
+            if (plain.Length < 8 || plain.Length > 15 || phone.Any(c => !(char.IsDigit(c) || " +-.()".Contains(c))))
+                throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("Sales", $"'{phone}' is not a valid phone number.");
+            return digits;
         }
 
         private static readonly string[] PaymentMethods = { "COD", "VNPay", "MoMo", "ZaloPay", "Unspecified" };

@@ -17,6 +17,7 @@ namespace ERP.SO.Application.Commands
         public Guid? SalesRepId { get; set; }
         public Guid? QuotationId { get; set; }
         public string? PaymentMethod { get; set; }
+        public string? CustomerPhone { get; set; }
 
         public CreateOrderCommand() { }
 
@@ -33,6 +34,7 @@ namespace ERP.SO.Application.Commands
             DepartmentId = request.DepartmentId;
             SalesRepId = request.SalesRepId;
             PaymentMethod = request.PaymentMethod;
+            CustomerPhone = request.CustomerPhone;
         }
     }
 

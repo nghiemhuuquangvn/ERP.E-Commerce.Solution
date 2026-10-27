@@ -9,12 +9,13 @@ import {
 } from '@/api/settings/shipping.settings.api'
 import { usePermission } from '@/hooks/usePermission'
 import { useAuthStore } from '@/stores/auth.store'
+import { serverMessage } from '@/api/purchasing/procurement.api'
+import { ShippingCarriersCard } from './ShippingCarriersCard'
+import { CarrierRulesCard } from './CarrierRulesCard'
 
-type Tab = 'system' | 'tenant'
+type Tab = 'system' | 'tenant' | 'carriers' | 'rules'
 
-interface SystemFormValues {
-  customCarriersAllowed: boolean
-}
+type SystemFormValues = SystemShippingSettings
 
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation()
@@ -27,7 +28,7 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   })
 
   const { register, handleSubmit, reset } = useForm<SystemFormValues>({
-    defaultValues: { customCarriersAllowed: true },
+    defaultValues: { customCarriersAllowed: true, ghtkAvailable: true, vtpAvailable: true, ghnAvailable: true, jntAvailable: true },
   })
 
   useEffect(() => {
@@ -50,6 +51,22 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
         {t('settings.shipping.customCarriersAllowed')}
       </label>
 
+      <div className="space-y-2 rounded border border-gray-200 p-3">
+        <p className="text-xs text-gray-500">{t('settings.shipping.carriersAvailableHint')}</p>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" disabled={!canManage} {...register('ghtkAvailable')} /> GHTK
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" disabled={!canManage} {...register('vtpAvailable')} /> Viettel Post
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" disabled={!canManage} {...register('ghnAvailable')} /> GHN
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" disabled={!canManage} {...register('jntAvailable')} /> J&amp;T Express
+        </label>
+      </div>
+
       {mutation.isError && <p className="text-xs text-red-600">{t('settings.shipping.failedToSave')}</p>}
 
       {canManage && (
@@ -63,10 +80,7 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   )
 }
 
-interface TenantFormValues {
-  defaultShippingFee: number
-  freeShippingThreshold: number
-}
+type TenantFormValues = Omit<TenantShippingSettings, 'tenantId'>
 
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
   const { t } = useTranslation()
@@ -80,7 +94,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
   })
 
   const { register, handleSubmit, reset } = useForm<TenantFormValues>({
-    defaultValues: { defaultShippingFee: 0, freeShippingThreshold: 0 },
+    defaultValues: { defaultShippingFee: 0, freeShippingThreshold: 0, defaultItemWeightGrams: 500 },
   })
 
   useEffect(() => {
@@ -90,8 +104,10 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
   const mutation = useMutation({
     mutationFn: (values: TenantFormValues) =>
       shippingSettingsApi.updateTenantSettings(tenantId, {
+        ...values,
         defaultShippingFee: Number(values.defaultShippingFee),
         freeShippingThreshold: Number(values.freeShippingThreshold),
+        defaultItemWeightGrams: Number(values.defaultItemWeightGrams),
       }),
     onSuccess: (result: TenantShippingSettings) => {
       queryClient.setQueryData(['settings', 'shipping', 'tenant', tenantId], result)
@@ -101,30 +117,47 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
   if (!tenantId) return <p className="text-sm text-gray-400">{t('settings.shipping.noTenant')}</p>
   if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
 
+  const text = (name: keyof TenantFormValues, label: string) => (
+    <label className="block text-sm text-gray-700">
+      {t(label)}
+      <input disabled={!canManage} {...register(name)} className="input mt-1 w-full" />
+    </label>
+  )
+
   return (
-    <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
+    <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-xl space-y-4">
       <label className="block text-sm text-gray-700">
         {t('settings.shipping.defaultShippingFee')}
-        <input
-          type="number"
-          step="0.01"
-          disabled={!canManage}
-          {...register('defaultShippingFee', { valueAsNumber: true })}
-          className="input mt-1 w-full"
-        />
+        <input type="number" step="0.01" disabled={!canManage} {...register('defaultShippingFee', { valueAsNumber: true })} className="input mt-1 w-full" />
       </label>
       <label className="block text-sm text-gray-700">
         {t('settings.shipping.freeShippingThreshold')}
-        <input
-          type="number"
-          step="0.01"
-          disabled={!canManage}
-          {...register('freeShippingThreshold', { valueAsNumber: true })}
-          className="input mt-1 w-full"
-        />
+        <input type="number" step="0.01" disabled={!canManage} {...register('freeShippingThreshold', { valueAsNumber: true })} className="input mt-1 w-full" />
       </label>
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.shipping.failedToSave')}</p>}
+      <div className="space-y-3 rounded border border-gray-200 p-4">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">{t('settings.shipping.sender.title')}</h3>
+          <p className="text-xs text-gray-500">{t('settings.shipping.sender.hint')}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {text('senderName', 'settings.shipping.sender.name')}
+          {text('senderPhone', 'settings.shipping.sender.phone')}
+        </div>
+        {text('senderAddress', 'settings.shipping.sender.address')}
+        <div className="grid grid-cols-3 gap-3">
+          {text('senderWard', 'settings.shipping.sender.ward')}
+          {text('senderDistrict', 'settings.shipping.sender.district')}
+          {text('senderProvince', 'settings.shipping.sender.province')}
+        </div>
+        <label className="block text-sm text-gray-700">
+          {t('settings.shipping.sender.defaultWeight')}
+          <input type="number" min={1} disabled={!canManage} {...register('defaultItemWeightGrams', { valueAsNumber: true })} className="input mt-1 w-full" />
+          <span className="text-xs text-gray-400">{t('settings.shipping.sender.defaultWeightHint')}</span>
+        </label>
+      </div>
+
+      {mutation.isError && <p className="text-xs text-red-600">{serverMessage(mutation.error, t('settings.shipping.failedToSave'))}</p>}
 
       {canManage && (
         <div className="pt-2">
@@ -145,12 +178,16 @@ export function ShippingSettingsPage() {
   const canViewSystem = hasPermission('settings:shipping:system:view')
   const canManageSystem = hasPermission('settings:shipping:system:manage')
   const canManageTenant = hasPermission('settings:shipping:tenant:manage')
+  const canManageRules = hasPermission('shipping:carriers:manage')
+  const tenantId = user?.tenantId ?? ''
 
   const [tab, setTab] = useState<Tab>(canViewSystem ? 'system' : 'tenant')
 
   const TABS: { key: Tab; label: string }[] = [
     ...(canViewSystem ? [{ key: 'system' as Tab, label: t('settings.shipping.systemTab') }] : []),
     { key: 'tenant' as Tab, label: t('settings.shipping.tenantTab') },
+    { key: 'carriers' as Tab, label: t('settings.shipping.carriersTab') },
+    { key: 'rules' as Tab, label: t('settings.shipping.rulesTab') },
   ]
 
   return (
@@ -174,9 +211,9 @@ export function ShippingSettingsPage() {
       </div>
 
       {tab === 'system' && canViewSystem && <SystemSettingsForm canManage={canManageSystem} />}
-      {tab === 'tenant' && (
-        <TenantSettingsForm canManage={canManageTenant} tenantId={user?.tenantId ?? ''} />
-      )}
+      {tab === 'tenant' && <TenantSettingsForm canManage={canManageTenant} tenantId={tenantId} />}
+      {tab === 'carriers' && <ShippingCarriersCard tenantId={tenantId} canManage={canManageTenant} />}
+      {tab === 'rules' && <CarrierRulesCard canManage={canManageRules} />}
     </div>
   )
 }

@@ -26,6 +26,8 @@ namespace ERP.SO.Domain.Entities
         public Guid? QuotationId { get; private set; }
         /// <summary>What the customer chose to pay with: COD, VNPay, MoMo, ZaloPay, or null / "Unspecified" (an order that did not say; it keeps the pre-P1-10 behaviour of waiting for a payment).</summary>
         public string? PaymentMethod { get; private set; }
+        /// <summary>The recipient's phone: the carriers will not take a parcel without it (ROADMAP P1-11). Null on orders before it existed.</summary>
+        public string? CustomerPhone { get; private set; }
         /// <summary>Cash on delivery: the order does not wait for a payment, the money is collected when the goods are delivered.</summary>
         public bool IsCashOnDelivery => string.Equals(PaymentMethod, "COD", StringComparison.OrdinalIgnoreCase);
         /// <summary>Which promotion produced DiscountAmount, if any — was previously discarded after coupon validation.</summary>
@@ -72,7 +74,8 @@ namespace ERP.SO.Domain.Entities
             Guid? departmentId = null,
             Guid? salesRepId = null,
             Guid? quotationId = null,
-            string? paymentMethod = null)
+            string? paymentMethod = null,
+            string? customerPhone = null)
         {
             var order = new SalesOrder
             {
@@ -90,6 +93,7 @@ namespace ERP.SO.Domain.Entities
                 SalesRepId = salesRepId,
                 QuotationId = quotationId,
                 PaymentMethod = paymentMethod,
+                CustomerPhone = string.IsNullOrWhiteSpace(customerPhone) ? null : customerPhone.Trim(),
                 _lineItems = lineItems
             };
 
