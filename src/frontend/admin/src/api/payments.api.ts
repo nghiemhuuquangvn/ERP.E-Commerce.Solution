@@ -24,7 +24,10 @@ export interface ListPaymentsParams {
   page?: number
   pageSize?: number
   status?: PaymentStatus
-  orderId?: string
+  /** COD, VNPay, MoMo or ZaloPay. */
+  provider?: string
+  /** Only payments flagged for review (e.g. money that arrived for a cancelled order: refund the customer). */
+  needsReview?: boolean
 }
 
 export const paymentsApi = {

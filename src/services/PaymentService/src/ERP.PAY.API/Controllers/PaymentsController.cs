@@ -22,12 +22,13 @@ public class PaymentsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? status = null, CancellationToken ct = default)
+    public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? status = null,
+        [FromQuery] string? provider = null, [FromQuery] bool needsReview = false, CancellationToken ct = default)
     {
         if (!_userContext.HasPermission("payments:view"))
             return Forbid();
 
-        var result = await _mediator.Send(new ListPaymentsQuery { Page = page, PageSize = pageSize, Status = status }, ct);
+        var result = await _mediator.Send(new ListPaymentsQuery { Page = page, PageSize = pageSize, Status = status, Provider = provider, NeedsReview = needsReview }, ct);
         return Ok(result);
     }
 

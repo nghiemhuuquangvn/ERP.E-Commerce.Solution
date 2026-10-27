@@ -795,6 +795,8 @@
       "partiallyRefunded": "Partly refunded"
     },
     "flagged": "Flagged for review",
+    "provider": "Provider",
+    "needsReview": "Needs attention (flagged, e.g. refund the customer)",
     "refund": {
       "button": "Refund",
       "title": "Refund this payment",

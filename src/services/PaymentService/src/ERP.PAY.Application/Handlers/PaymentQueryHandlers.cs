@@ -18,7 +18,7 @@ public class ListPaymentsQueryHandler : IRequestHandler<ListPaymentsQuery, ListP
             status = parsed;
 
         var skip = (request.Page - 1) * request.PageSize;
-        var (items, total) = await _payments.GetPagedAsync(skip, request.PageSize, status, cancellationToken);
+        var (items, total) = await _payments.GetPagedAsync(skip, request.PageSize, status, request.Provider, request.NeedsReview, cancellationToken);
 
         return new ListPaymentsResult
         {
