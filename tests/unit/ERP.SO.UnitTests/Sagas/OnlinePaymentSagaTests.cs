@@ -67,7 +67,7 @@ public class OnlinePaymentSagaTests
     {
         var act = () => CreateOrderCommandHandler.NormalizePaymentMethod("Bitcoin");
 
-        act.Should().Throw<InvalidOperationException>().WithMessage("*Bitcoin*");
+        act.Should().Throw<ERP.Shared.Infrastructure.Exceptions.BusinessRuleException>().WithMessage("*Bitcoin*");
     }
 
     // ── the payment command ───────────────────────────────────────────────

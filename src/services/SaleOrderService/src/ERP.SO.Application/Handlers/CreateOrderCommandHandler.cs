@@ -121,12 +121,12 @@ namespace ERP.SO.Application.Handlers
 
         private static readonly string[] PaymentMethods = { "COD", "VNPay", "MoMo", "ZaloPay", "Unspecified" };
 
-        /// <summary>Canonical spelling of a known payment method; null when none was given. An unknown one is refused (HTTP 400).</summary>
+        /// <summary>Canonical spelling of a known payment method; null when none was given. An unknown one is refused (a business-rule error, HTTP 400).</summary>
         public static string? NormalizePaymentMethod(string? method)
         {
             if (string.IsNullOrWhiteSpace(method)) return null;
             return PaymentMethods.FirstOrDefault(m => string.Equals(m, method.Trim(), StringComparison.OrdinalIgnoreCase))
-                ?? throw new InvalidOperationException($"Unknown payment method '{method}'. Use one of: {string.Join(", ", PaymentMethods)}.");
+                ?? throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("Sales", $"Unknown payment method '{method}'. Use one of: {string.Join(", ", PaymentMethods)}.");
         }
 
         private SalesOrderDto MapToDto(SalesOrder order)
