@@ -7,10 +7,11 @@ export interface Product {
   description: string
   price: number
   imageUrl?: string
-  categoryId: string
+  categoryId?: string | null
   categoryName: string
   stockQuantity: number
-  status: 'Active' | 'Discontinued'
+  /** ProductDto.Status is a number on the wire (not a name). */
+  status: number
   /** The culture code the backend actually returned content in (translated, or fallback default). */
   languageCode?: string
 }

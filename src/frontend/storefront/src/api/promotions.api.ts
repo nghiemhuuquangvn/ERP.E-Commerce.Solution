@@ -1,10 +1,12 @@
 import { apiClient } from './client'
 
+/** PromotionService CouponValidationResult. */
 export interface CouponValidation {
-  valid: boolean
+  isValid: boolean
+  errorMessage?: string | null
   discountAmount: number
-  discountType: 'Percentage' | 'Fixed'
-  promotionName: string
+  promotionId?: string | null
+  couponCode?: string | null
 }
 
 export const promotionsApi = {

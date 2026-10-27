@@ -5,8 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 interface User {
   id: string
   email: string
-  firstName: string
-  lastName: string
+  /** What the Identity service returns (UserSummaryDto.FullName). */
+  fullName?: string | null
 }
 
 interface AuthState {

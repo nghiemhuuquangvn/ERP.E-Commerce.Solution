@@ -18,7 +18,6 @@
           <span :class="statusClass(order.status)" class="badge">{{ order.status }}</span>
         </div>
         <p class="mt-3 text-sm text-gray-600">
-          {{ order.lineItems.length }} item(s) ·
           <span class="font-semibold">{{ fmtCurrency(order.totalAmount) }}</span>
         </p>
       </div>

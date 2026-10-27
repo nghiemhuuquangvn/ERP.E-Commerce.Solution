@@ -54,7 +54,7 @@ export default function CartScreen() {
     try {
       const { data: order } = await apiClient.post<Order>('/v1/orders', {
         customerId: authStore.user!.id,
-        customerName: `${authStore.user!.firstName} ${authStore.user!.lastName}`.trim() || authStore.user!.email,
+        customerName: authStore.user!.fullName?.trim() || authStore.user!.email,
         customerEmail: authStore.user!.email,
         lineItems: cartStore.items.map((i) => ({
           productId: i.productId,

@@ -36,12 +36,15 @@ export interface Order {
   lineItems: CartLine[]
 }
 
+/** One row of GET /v1/orders/my (SalesOrderSummaryDto): no line items - those come with GET /v1/orders/{id}. */
+export type OrderSummary = Omit<Order, 'lineItems' | 'paymentMethod'> & { customerName: string }
+
 export const ordersApi = {
   create: (body: CreateOrderRequest) =>
     apiClient.post<Order>('/v1/orders', body).then((r) => r.data),
 
   myOrders: () =>
-    apiClient.get<Order[]>('/v1/orders/my').then((r) => r.data),
+    apiClient.get<OrderSummary[]>('/v1/orders/my').then((r) => r.data),
 
   get: (id: string) =>
     apiClient.get<Order>(`/v1/orders/${id}`).then((r) => r.data),
