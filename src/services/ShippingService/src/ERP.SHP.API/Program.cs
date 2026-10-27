@@ -31,7 +31,7 @@ builder.Services.AddMediatR(cfg =>
 builder.Services.AddScoped<IShipmentRepository, ShipmentRepository>();
 builder.Services.AddScoped<ICarrierRepository, CarrierRepository>();
 // P1-11: carrier integrations (GHTK, Viettel Post, GHN, J&T), booking, webhooks, rules, polling job - see CarrierServiceCollectionExtensions.
-builder.Services.AddCarrierIntegration();
+ERP.SHP.Infrastructure.CarrierServiceCollectionExtensions.AddCarrierIntegration(builder.Services);
 builder.Services.AddScoped<IReturnShipmentRepository, ReturnShipmentRepository>();
 builder.Services.AddScoped<IShippingUnitOfWork, ShippingUnitOfWork>();
 builder.Services.AddCacheService(builder.Configuration, "shp");
