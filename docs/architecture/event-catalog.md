@@ -940,6 +940,8 @@ public class StockAdjustmentRejectedEvent
 |---|---|---|
 | `InventoryInsufficientEvent` | A reservation request's line(s) couldn't be fully covered | SaleOrderService's saga (compensation path) |
 | `ReceiptCompletedEvent` | Goods received (`ReceiveStockCommand`) | None confirmed |
+| `InitiatePaymentCommand` / `RefundPaymentCommand` (Sales saga → Payment, RabbitMQ `sales_order_events`) | P1-10: `InitiatePaymentCommand` also carries `PaymentMethod` (COD / VNPay / MoMo / ZaloPay / Unspecified), `Currency`, `CustomerId`, `OrderNumber`; a `RefundPaymentCommand` with an empty `PaymentId` and an `OrderId` means "close this order's pending payment" (cancel it; refund it if it was captured). | **PaymentService** `SalesOrderRabbitMqConsumer` |
+| `DeliveryConfirmedEvent` (Shipping) | Kafka `shipping-topic`. P1-10: also consumed by **PaymentService** (`ShippingDeliveryConsumer`) — captures a pending cash-on-delivery payment (publishes `PaymentProcessed`). | Sales (existing), Payment |
 | `StockAlertEvent` | Product's **available** quantity at/below its minimum — once per time below the minimum, again after 24 h while still low (daily scan), when the policy changes, and once more when stock is back above the minimum (AvailableQuantity > MinStock = "no longer low"). P1-9 fields: `ProductSku`, `AvailableQuantity`, `MinStock`, `MaxStock`, `SafetyStock` (old fields kept) | **PurchaseOrderService** (added 2026-07-27, Module 8) — `WarehouseEventRabbitMqConsumer` creates a suggestion-only `PurchaseRequest`; was unconsumed anywhere before this pass |
 | `StocktakeCompletedEvent` | Stocktake variance approved and posted | None confirmed |
 | `TransferOrderCompletedEvent` | Transfer order completed | None confirmed |
