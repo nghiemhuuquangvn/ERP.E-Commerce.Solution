@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using ERP.SHP.Application.Commands;
+using ERP.SHP.Application.Handlers;
 
 namespace ERP.SHP.Infrastructure.EventBus
 {
@@ -54,6 +55,7 @@ namespace ERP.SHP.Infrastructure.EventBus
             _channel.ExchangeDeclare(ExchangeName, ExchangeType.Topic, durable: true);
             _channel.QueueDeclare(QueueName, durable: true, exclusive: false, autoDelete: false);
             _channel.QueueBind(QueueName, ExchangeName, "sales_order.CreateShipmentCommand");
+            _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderCancelledEvent");
 
             var consumer = new AsyncEventingBasicConsumer(_channel);
             consumer.Received += OnMessageReceivedAsync;
@@ -93,6 +95,17 @@ namespace ERP.SHP.Infrastructure.EventBus
                             break;
                         orderId = evt.OrderId;
                         await scope.ServiceProvider.GetRequiredService<SagaShipmentRequestProcessor>().ProcessAsync(evt);
+                        break;
+
+                    case "sales_order.SalesOrderCancelledEvent":
+                        // P1-11: a parcel the carrier has not collected is cancelled at the carrier too; one it has is flagged for a person.
+                        var cancelled = JsonSerializer.Deserialize<SalesOrderCancelledContract>(json);
+                        if (cancelled == null)
+                            break;
+                        orderId = null;   // a failure here must not tell the saga the shipment could not be CREATED
+                        var cancelledShipments = await scope.ServiceProvider.GetRequiredService<IMediator>()
+                            .Send(new CancelOrderShipmentsCommand { OrderId = cancelled.OrderId, Reason = string.IsNullOrWhiteSpace(cancelled.CancellationReason) ? "the order was cancelled" : cancelled.CancellationReason });
+                        _logger.LogInformation("Order {OrderId} cancelled: {Count} shipment(s) cancelled", cancelled.OrderId, cancelledShipments);
                         break;
 
                     default:
@@ -158,6 +171,14 @@ namespace ERP.SHP.Infrastructure.EventBus
             _channel?.Dispose();
             return Task.CompletedTask;
         }
+    }
+
+    // Local mirror of SalesOrderCancelledEvent (ERP.SO.Domain.Events) — only the fields Shipping needs.
+    public class SalesOrderCancelledContract
+    {
+        public Guid OrderId { get; set; }
+        public Guid TenantId { get; set; }
+        public string? CancellationReason { get; set; }
     }
 
     // Local mirror of OrderFulfillmentSaga's own CreateShipmentCommand message

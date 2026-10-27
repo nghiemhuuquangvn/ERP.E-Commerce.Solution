@@ -302,6 +302,32 @@
       }
     },
     {
+      "DownstreamPathTemplate": "/api/v1/shipping-webhooks/{carrier}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "shippingservice",
+          "Port": 5010
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/shipping-webhooks/{carrier}",
+      "UpstreamHttpMethod": [ "POST" ],
+      "Priority": 5
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/shipping-webhooks/{carrier}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "shippingservice",
+          "Port": 5010
+        }
+      ],
+      "UpstreamPathTemplate": "/shp/api/v1/shipping-webhooks/{carrier}",
+      "UpstreamHttpMethod": [ "POST" ],
+      "Priority": 5
+    },
+    {
       "DownstreamPathTemplate": "/api/v1/payment-gateway/callback/{provider}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [

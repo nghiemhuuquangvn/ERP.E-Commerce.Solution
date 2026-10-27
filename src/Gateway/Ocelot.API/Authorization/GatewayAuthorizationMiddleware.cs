@@ -34,6 +34,8 @@ public class GatewayAuthorizationMiddleware
         "/api/v1/payment-gateway/ipn",
         "/pay/api/v1/payment-gateway/callback",
         "/pay/api/v1/payment-gateway/ipn",
+        "/api/v1/shipping-webhooks",   // carrier notifications: authenticated by the shop's shared secret, no bearer token
+        "/shp/api/v1/shipping-webhooks",
         "/api/v1/products",
         "/logs/api/v1/logs/client",
     ];

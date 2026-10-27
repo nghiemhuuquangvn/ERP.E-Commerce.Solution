@@ -18,6 +18,21 @@ public interface IShipmentRepository
 
     Task AddAsync(Shipment shipment, CancellationToken ct = default);
     Task UpdateAsync(Shipment shipment, CancellationToken ct = default);
+
+    /// <summary>Tracked, for a carrier notification or poll that will change it. Null when no shipment of the current tenant has this tracking code.</summary>
+    Task<Shipment?> GetTrackedByTrackingNumberAsync(string trackingNumber, CancellationToken ct = default);
+
+    /// <summary>The tenant that owns a shipment with this tracking code, across tenants (the webhook has no tenant until it is found).</summary>
+    Task<Guid?> FindTenantByTrackingNumberAsync(string trackingNumber, CancellationToken ct = default);
+
+    /// <summary>Shipments a carrier is still handling (not delivered / returned / cancelled) that have not been updated since <paramref name="before"/>.</summary>
+    Task<List<Shipment>> GetStaleInCarrierHandsAsync(DateTime before, int take, CancellationToken ct = default);
+
+    /// <summary>Tenants that have at least one shipment in carrier hands (cross-tenant, ids only).</summary>
+    Task<List<Guid>> GetTenantsWithOpenShipmentsAsync(CancellationToken ct = default);
+
+    Task<bool> WebhookSeenAsync(string carrierCode, string trackingCode, string carrierStatus, DateTime actionTime, CancellationToken ct = default);
+    Task AddWebhookLogAsync(CarrierWebhookLog log, CancellationToken ct = default);
 }
 
 public interface ICarrierRepository

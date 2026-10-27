@@ -1,5 +1,6 @@
 using ERP.SHP.Application.Interfaces;
 using ERP.SHP.Domain.Entities;
+using ERP.SHP.Domain.Enums;
 using ERP.SHP.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,6 +31,34 @@ public class ShipmentRepository : IShipmentRepository
         _db.Shipments.Update(shipment);
         return Task.CompletedTask;
     }
+
+    public async Task<Shipment?> GetTrackedByTrackingNumberAsync(string trackingNumber, CancellationToken ct = default) =>
+        await _db.Shipments.Include(s => s.Items).Include(s => s.TrackingEvents)
+            .FirstOrDefaultAsync(s => s.TrackingNumber == trackingNumber, ct);
+
+    public async Task<Guid?> FindTenantByTrackingNumberAsync(string trackingNumber, CancellationToken ct = default) =>
+        await _db.Shipments
+            .IgnoreQueryFilters() // deliberate: a carrier notification has no tenant until its shipment is found
+            .Where(s => s.TrackingNumber == trackingNumber)
+            .Select(s => (Guid?)s.TenantId)
+            .FirstOrDefaultAsync(ct);
+
+    private static readonly ShipmentStatus[] Final = { ShipmentStatus.Delivered, ShipmentStatus.Returned, ShipmentStatus.Cancelled };
+
+    public async Task<List<Shipment>> GetStaleInCarrierHandsAsync(DateTime before, int take, CancellationToken ct = default) =>
+        await _db.Shipments.Include(s => s.TrackingEvents)
+            .Where(s => s.TrackingNumber != null && !Final.Contains(s.Status) && (s.LastCarrierSyncAt ?? s.CreatedAt) < before)
+            .OrderBy(s => s.LastCarrierSyncAt ?? s.CreatedAt).Take(take).ToListAsync(ct);
+
+    public async Task<List<Guid>> GetTenantsWithOpenShipmentsAsync(CancellationToken ct = default) =>
+        await _db.Shipments.IgnoreQueryFilters() // deliberate: cross-tenant job, tenant ids only
+            .Where(s => s.TrackingNumber != null && !Final.Contains(s.Status)).Select(s => s.TenantId).Distinct().ToListAsync(ct);
+
+    public async Task<bool> WebhookSeenAsync(string carrierCode, string trackingCode, string carrierStatus, DateTime actionTime, CancellationToken ct = default) =>
+        await _db.CarrierWebhookLogs.AnyAsync(l => l.CarrierCode == carrierCode && l.TrackingCode == trackingCode && l.CarrierStatus == carrierStatus && l.ActionTime == actionTime, ct);
+
+    public async Task AddWebhookLogAsync(CarrierWebhookLog log, CancellationToken ct = default) =>
+        await _db.CarrierWebhookLogs.AddAsync(log, ct);
 }
 
 public class ReturnShipmentRepository : IReturnShipmentRepository
