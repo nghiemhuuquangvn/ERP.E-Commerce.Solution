@@ -49,6 +49,7 @@ $DatabaseScripts = @(
     "Identity\028_WidenWebhookSecret.sql",
     "Identity\029_SeedPurchasingPermissions.sql",
     "Identity\030_SeedDefaultRolesForAllTenants.sql",
+    "Identity\031_UserNameUniquePerTenant.sql",
 
     # Cross-cutting master data (Department/Position/Employee/UoM/Geography/Language —
     # seed before HRM, which now references Employees/Departments here instead of owning them)
