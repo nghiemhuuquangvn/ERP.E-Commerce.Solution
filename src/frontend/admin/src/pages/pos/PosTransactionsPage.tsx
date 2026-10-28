@@ -54,7 +54,7 @@ function TransactionDetail({ tx, canVoid, onVoid, onClose }: { tx: PosTransactio
         {tx.voidReason && <p className="text-sm text-red-600">{t('pos.transactions.voidReason')}: {tx.voidReason}</p>}
         {tx.status === 'Completed' && <Receipt id={tx.id} />}
         <div className="flex justify-end gap-3">
-          {canVoid && (tx.status === 'Completed' || tx.status === 'Open') && (
+          {canVoid && tx.status !== 'Voided' && (
             <button className="btn-outline text-red-600" onClick={onVoid}>{t('pos.transactions.void')}</button>
           )}
           <button className="btn-outline" onClick={onClose}>{t('common.close')}</button>

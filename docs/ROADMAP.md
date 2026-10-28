@@ -142,7 +142,7 @@ OpenIddict `urn:` tokens in services — see PROJECT-STATUS §8.
 ### P2 — Missing UI
 | ID | Item |
 |---|---|
-| P2-1 | Admin: Promotion, Shipping (shipments + returns), POS back office, Notification templates/webhooks, `/settings` index (placeholder); replace ~169 hard-coded permission strings. |
+| P2-1 | Admin: Promotion, Shipping (shipments + returns), POS back office, Notification templates/webhooks, `/settings` index (placeholder); replace ~169 hard-coded permission strings. **P2-1a done 2026-10-28 (`feat/p2-1a-admin-promotion-pos`): Promotion + POS back office** (promotions, coupons, flash sales, loyalty, POS terminals / shifts / transactions / Z report; BA `docs/business/Promotion/AdminBackOffice.md`, `docs/business/POS/AdminBackOffice.md`). Left: P2-1b Shipping returns page + Notification webhooks / template edit, P2-1c `/settings` index + permission constants. |
 | P2-2 | Storefront: reset-password, confirm-email, coupon UI, shipment tracking, address book, wishlist, account security, VNPay redirect. |
 | P2-3 | Mobile customer: product detail, payment, push (`expo-notifications`). Staff: real KPIs from Reporting (hard-coded today), barcode scanning (`expo-camera`), i18n in the 5 tab screens. |
 | P2-4 | Reporting/BI: facts for Purchasing, CRM pipeline, GL; DimCustomer/DimEmployee/DimWarehouse; KPI dashboard (revenue, margin, stock turnover, DSO/DPO). |

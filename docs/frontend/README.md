@@ -46,6 +46,9 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
   catch-all) — pick the client per controller, don't assume one client covers
   the whole service. Also covers the cross-service Purchase Requests page
   (PurchaseOrderService), triggered by this domain's `StockAlertEvent`.
+- [promotion-pos-admin-guide.md](promotion-pos-admin-guide.md) — the Promotion (promotions,
+  coupons, flash sales, loyalty) and POS (terminals, shifts, transactions, Z report) back-office
+  pages, their API clients (numeric request enums, `{items,total}` POS lists) and i18n groups.
 - [refactoring-guide.md](refactoring-guide.md) — audit/best-practices notes for
   modernizing the Admin (React) and Storefront (Vue) apps; moved here from the
   repo root, where it was previously misplaced.
