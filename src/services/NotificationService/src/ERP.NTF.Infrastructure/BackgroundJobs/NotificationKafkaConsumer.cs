@@ -154,7 +154,8 @@ public class NotificationKafkaConsumer : IHostedService
                 RecipientEmail = raw.Value<string>("CustomerEmail") ?? raw.Value<string>("Email") ?? string.Empty,
                 RecipientName = raw.Value<string>("CustomerName") ?? string.Empty,
                 Amount = raw.Value<decimal?>("Amount") ?? 0m,
-                Currency = raw.Value<string>("Currency") ?? "VND"
+                Currency = raw.Value<string>("Currency") ?? "VND",
+                CaptureId = GuidOrEmpty(raw, "CaptureId") is var capture && capture != Guid.Empty ? capture : null
             };
             if (evt.PaymentId != Guid.Empty)
                 await mediator.Publish(evt, cancellationToken);

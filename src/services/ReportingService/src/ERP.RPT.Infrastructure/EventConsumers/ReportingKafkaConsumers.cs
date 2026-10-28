@@ -206,23 +206,12 @@ public class PaymentEventConsumer : BackgroundService
                     var paymentId = JDoc.GetGuid(root, "PaymentId", "paymentId");
                     if (paymentId == Guid.Empty) continue;
 
-                    var existing = await db.FactPayments.FindAsync(new object[] { paymentId }, stoppingToken);
-                    if (existing != null) continue;
-
                     var processedAt = JDoc.GetDateTime(root, "ProcessedAt", "processedAt", "AuthorizedAt", "CapturedAt");
-                    db.FactPayments.Add(new FactPayment
-                    {
-                        PaymentId = paymentId,
-                        OrderId = JDoc.GetGuid(root, "OrderId", "orderId"),
-                        Amount = JDoc.GetDecimal(root, "Amount", "amount"),
-                        Currency = JDoc.GetString(root, "Currency", "currency"),
-                        Method = JDoc.GetString(root, "Method", "method", "PaymentMethod", "paymentMethod"),
-                        Status = "Processed",
-                        ProcessedAt = processedAt,
-                        DateKey = DateKeyHelper.ToDateKey(processedAt)
-                    });
-                    await db.SaveChangesAsync(stoppingToken);
-                    _logger.LogInformation("[REPORTING] FactPayment inserted: {PaymentId}", paymentId);
+                    var applied = await ReportingPayments.ApplyProcessedAsync(db, paymentId,
+                        JDoc.GetGuid(root, "CaptureId", "captureId"), JDoc.GetGuid(root, "OrderId", "orderId"),
+                        JDoc.GetDecimal(root, "Amount", "amount"), JDoc.GetString(root, "Currency", "currency"),
+                        JDoc.GetString(root, "Method", "method", "PaymentMethod", "paymentMethod"), processedAt, stoppingToken);
+                    if (applied) _logger.LogInformation("[REPORTING] FactPayment recorded: {PaymentId}", paymentId);
                 }
                 else if (typeName.Contains("PaymentRefunded"))
                 {
@@ -689,6 +678,43 @@ public static class ReportingRefunds
     /// <summary>A refund of part of the amount is PartiallyRefunded; of all of it, Refunded.</summary>
     public static string StatusFor(decimal paid, decimal refunded) =>
         refunded <= 0m ? "Processed" : refunded >= paid ? "Refunded" : "PartiallyRefunded";
+}
+
+/// <summary>
+/// The payment fact (ROADMAP R43). One row per payment; a cash-on-delivery payment sends one event per delivered parcel (CaptureId = the parcel's
+/// shipment id) and each part adds to the row's amount once, a replay of a part changes nothing. An event without a CaptureId (a payment collected
+/// in one go, or published before R43) is recorded once per payment.
+/// </summary>
+public static class ReportingPayments
+{
+    public static async Task<bool> ApplyProcessedAsync(ReportingDbContext db, Guid paymentId, Guid captureId, Guid orderId, decimal amount,
+        string currency, string method, DateTime processedAt, CancellationToken ct)
+    {
+        var existing = await db.FactPayments.FindAsync(new object[] { paymentId }, ct);
+        if (captureId == Guid.Empty)
+        {
+            if (existing != null) return false;
+        }
+        else
+        {
+            if (await db.FactPaymentCaptures.FindAsync(new object[] { captureId }, ct) != null) return false;
+            db.FactPaymentCaptures.Add(new FactPaymentCapture { CaptureId = captureId, PaymentId = paymentId, Amount = amount, CapturedAt = processedAt });
+            if (existing != null)
+            {
+                existing.Amount += amount;
+                await db.SaveChangesAsync(ct);
+                return true;
+            }
+        }
+
+        db.FactPayments.Add(new FactPayment
+        {
+            PaymentId = paymentId, OrderId = orderId, Amount = amount, Currency = currency, Method = method,
+            Status = "Processed", ProcessedAt = processedAt, DateKey = DateKeyHelper.ToDateKey(processedAt)
+        });
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
 }
 
 // ── CRM Consumer ────────────────────────────────────────────────────────────

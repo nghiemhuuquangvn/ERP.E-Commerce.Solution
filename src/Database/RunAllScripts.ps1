@@ -208,6 +208,7 @@ $DatabaseScripts = @(
     "Reporting\006_TenantIsolation.sql",
     "Reporting\007_AlignLegacyColumns.sql",
     "Reporting\008_CrmRefundsPayroll.sql",
+    "Reporting\009_FactPaymentCaptures.sql",
     "ChatBot\001_CreateChatBotDB.sql",
     "ChatBot\002_TenantIsolation.sql",
 
