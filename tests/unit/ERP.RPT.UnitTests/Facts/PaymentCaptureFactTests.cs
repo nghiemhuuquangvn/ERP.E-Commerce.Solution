@@ -40,6 +40,14 @@ public class PaymentCaptureFactTests
     }
 
     [Theory]
+    [InlineData("ERP.PAY.Domain.Events.PaymentProcessedEvent, ERP.PAY.Domain", true)]
+    [InlineData("ERP.PAY.Domain.Events.PaymentCapturedEvent", true)]
+    [InlineData("ERP.PAY.Domain.Events.PaymentAuthorizedEvent, ERP.PAY.Domain", false)]
+    [InlineData("ERP.PAY.Domain.Events.PaymentInitiatedEvent, ERP.PAY.Domain", false)]
+    public void Only_collected_money_makes_a_payment_fact(string type, bool records) =>
+        ReportingPayments.RecordsMoney(type).Should().Be(records);
+
+    [Theory]
     [InlineData("4", "Cash")]
     [InlineData("3", "EWallet")]
     [InlineData("Cash", "Cash")]

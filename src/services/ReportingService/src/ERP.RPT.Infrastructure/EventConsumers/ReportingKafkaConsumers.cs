@@ -208,7 +208,7 @@ public class PaymentEventConsumer : BackgroundService
                 }
                 using var tenantScope = TenantScope.Begin(tenantId);
 
-                if (typeName.Contains("PaymentProcessed") || typeName.Contains("PaymentAuthorized") || typeName.Contains("PaymentCaptured"))
+                if (ReportingPayments.RecordsMoney(typeName))
                 {
                     var paymentId = JDoc.GetGuid(root, "PaymentId", "paymentId");
                     if (paymentId == Guid.Empty) continue;
@@ -694,6 +694,12 @@ public static class ReportingRefunds
 /// </summary>
 public static class ReportingPayments
 {
+    /// <summary>
+    /// Only money that was COLLECTED makes a payment fact. PaymentAuthorized used to create it too, with the whole payment amount; once a cash-on-delivery
+    /// payment is collected part by part (R43) that would count the amount twice, and an authorised payment that never completes is no revenue anyway.
+    /// </summary>
+    public static bool RecordsMoney(string eventTypeName) => eventTypeName.Contains("PaymentProcessed") || eventTypeName.Contains("PaymentCaptured");
+
     private static readonly string[] MethodNames = { "CreditCard", "DebitCard", "BankTransfer", "EWallet", "Cash", "CryptoPayment" };
 
     /// <summary>PaymentService's PaymentMethod enum arrives as a number (4) or a name; the fact stores the name.</summary>
