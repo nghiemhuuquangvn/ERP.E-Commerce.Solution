@@ -53,6 +53,37 @@ export interface ShipmentList {
   pageSize: number
 }
 
+/** One row of the shop's delivery price list: parcels to these provinces in this weight band cost this much. */
+export interface ShippingFeeRule {
+  id: string
+  name: string
+  priority: number
+  isActive: boolean
+  matchProvinces: string | null
+  minWeightGrams: number | null
+  maxWeightGrams: number | null
+  fee: number
+}
+
+export type SaveShippingFeeRule = Omit<ShippingFeeRule, 'id'>
+
+export interface FeeQuoteRequest {
+  merchandiseValue: number
+  province?: string
+  /** Used when no items are given. */
+  weightGrams?: number
+  items: { productId: string; quantity: number }[]
+}
+
+export interface FeeQuote {
+  fee: number
+  isFree: boolean
+  freeShippingThreshold: number
+  ruleName: string | null
+  weightGrams: number
+  weightEstimated: boolean
+}
+
 export interface CarrierRule {
   id: string
   name: string
@@ -96,6 +127,17 @@ export const shippingApi = {
     apiClient.post<Shipment>(`${BASE}/shipments/${id}/cancel-at-carrier`, { reason }).then((r) => r.data),
 
   rebook: (id: string) => apiClient.post<Shipment>(`${BASE}/shipments/${id}/rebook`, {}).then((r) => r.data),
+
+  listFeeRules: () => apiClient.get<ShippingFeeRule[]>(`${BASE}/shipping/fee-rules`).then((r) => r.data),
+
+  createFeeRule: (body: SaveShippingFeeRule) => apiClient.post<ShippingFeeRule>(`${BASE}/shipping/fee-rules`, body).then((r) => r.data),
+
+  updateFeeRule: (id: string, body: SaveShippingFeeRule) => apiClient.put<ShippingFeeRule>(`${BASE}/shipping/fee-rules/${id}`, body).then((r) => r.data),
+
+  deleteFeeRule: (id: string) => apiClient.delete(`${BASE}/shipping/fee-rules/${id}`),
+
+  /** What a customer would pay for these goods to this province (the "try a parcel" box). Charges nothing. */
+  previewFee: (body: FeeQuoteRequest) => apiClient.post<FeeQuote>(`${BASE}/shipping/fee`, body).then((r) => r.data),
 
   listRules: () => apiClient.get<CarrierRule[]>(`${BASE}/carriers/rules`).then((r) => r.data),
 

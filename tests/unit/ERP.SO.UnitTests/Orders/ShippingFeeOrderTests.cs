@@ -135,7 +135,7 @@ public class ShippingFeeOrderTests
     [Fact]
     public async Task The_fee_ShippingService_names_goes_into_the_saved_order_and_the_reply()
     {
-        _shipping.Setup(s => s.GetFeeAsync(200_000m, It.IsAny<CancellationToken>())).ReturnsAsync(30_000m);
+        _shipping.Setup(s => s.GetFeeAsync(200_000m, It.IsAny<string?>(), It.IsAny<IReadOnlyCollection<(Guid ProductId, int Quantity)>>(), It.IsAny<CancellationToken>())).ReturnsAsync(30_000m);
         SalesOrder? saved = null;
         _orders.Setup(o => o.AddAsync(It.IsAny<SalesOrder>(), It.IsAny<CancellationToken>())).Callback<SalesOrder, CancellationToken>((o, _) => saved = o).Returns(Task.CompletedTask);
 
@@ -153,11 +153,11 @@ public class ShippingFeeOrderTests
     {
         _promotions.Setup(p => p.ValidateCouponAsync("SALE", 200_000m, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CouponValidationResult { IsValid = true, DiscountAmount = 80_000m, PromotionId = Guid.NewGuid() });
-        _shipping.Setup(s => s.GetFeeAsync(120_000m, It.IsAny<CancellationToken>())).ReturnsAsync(0m);
+        _shipping.Setup(s => s.GetFeeAsync(120_000m, It.IsAny<string?>(), It.IsAny<IReadOnlyCollection<(Guid ProductId, int Quantity)>>(), It.IsAny<CancellationToken>())).ReturnsAsync(0m);
 
         var dto = await Handler().Handle(Command("SALE"), default);
 
-        _shipping.Verify(s => s.GetFeeAsync(120_000m, It.IsAny<CancellationToken>()), Times.Once);
+        _shipping.Verify(s => s.GetFeeAsync(120_000m, It.IsAny<string?>(), It.IsAny<IReadOnlyCollection<(Guid ProductId, int Quantity)>>(), It.IsAny<CancellationToken>()), Times.Once);
         dto.TotalAmount.Should().Be(120_000m);
         dto.ShippingFee.Should().Be(0m);
     }
@@ -165,11 +165,26 @@ public class ShippingFeeOrderTests
     [Fact]
     public async Task When_the_fee_cannot_be_worked_out_the_order_is_refused_and_nothing_is_saved()
     {
-        _shipping.Setup(s => s.GetFeeAsync(It.IsAny<decimal>(), It.IsAny<CancellationToken>())).ReturnsAsync((decimal?)null);
+        _shipping.Setup(s => s.GetFeeAsync(It.IsAny<decimal>(), It.IsAny<string?>(), It.IsAny<IReadOnlyCollection<(Guid ProductId, int Quantity)>>(), It.IsAny<CancellationToken>())).ReturnsAsync((decimal?)null);
 
         var act = () => Handler().Handle(Command(), default);
 
         await act.Should().ThrowAsync<BusinessRuleException>().WithMessage("*delivery fee*");
         _orders.Verify(o => o.AddAsync(It.IsAny<SalesOrder>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task The_province_and_the_cart_are_sent_so_the_shops_price_list_can_apply()
+    {
+        string? province = null; List<(Guid ProductId, int Quantity)>? items = null;
+        _shipping.Setup(s => s.GetFeeAsync(It.IsAny<decimal>(), It.IsAny<string?>(), It.IsAny<IReadOnlyCollection<(Guid ProductId, int Quantity)>>(), It.IsAny<CancellationToken>()))
+            .Callback<decimal, string?, IReadOnlyCollection<(Guid ProductId, int Quantity)>, CancellationToken>((_, p, i, _) => { province = p; items = i.ToList(); })
+            .ReturnsAsync(20_000m);
+        var command = Command();
+
+        await Handler().Handle(command, default);
+
+        province.Should().Be("Ho Chi Minh");
+        items.Should().ContainSingle().Which.Should().Be((command.LineItems[0].ProductId, 2));
     }
 }

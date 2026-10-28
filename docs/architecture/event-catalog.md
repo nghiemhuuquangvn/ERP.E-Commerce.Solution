@@ -509,6 +509,8 @@ AccountingService are expected to react to this event to actually process the
 refund/reverse the journal entry, but no consumer for it has been confirmed
 yet (see `docs/business/Sales/SalesWorkflow.md`).
 
+**P1-11c:** carries `ShippingFeeRefunded` (the approver gave the delivery fee back with the goods); `RefundAmount` is at most the goods, plus the fee when it is true.
+
 **Publisher:** Sales Service  
 **Subscribers:** **AccountingService** since 2026-10-24 (credit note: Dr Sales returns / Cr Receivables); **WarehouseService** since 2026-10-26 (restock of the shipped `Lines` at the order's issue cost, movement `Returned`); **PaymentService** since 2026-10-26 (refund of `min(RefundAmount, refundable)` through the gateway). ROADMAP P1-5.
 

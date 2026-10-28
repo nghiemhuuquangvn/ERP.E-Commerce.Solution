@@ -18,6 +18,18 @@ namespace ERP.ACC.Domain.Entities
         public decimal TaxRatePercent { get; set; }
         public decimal TaxAmount { get; set; }
 
+        /// <summary>The part of the net amount that is delivery charged to the customer (ROADMAP P1-11c): booked on the shipping revenue key, the rest on sales revenue.</summary>
+        public decimal ShippingNetAmount { get; set; }
+
+        /// <summary>Records how much of the net amount is delivery; it can be neither negative nor more than the net.</summary>
+        public void SetShippingNet(decimal shippingNet)
+        {
+            if (shippingNet < 0m || shippingNet > EffectiveNet)
+                throw new ArgumentException($"The delivery part ({shippingNet}) must be between 0 and the net amount ({EffectiveNet}).");
+            ShippingNetAmount = Math.Round(shippingNet, 2);
+            UpdatedAt = DateTime.UtcNow;
+        }
+
         /// <summary>The amount before VAT; for an invoice created before VAT existed (net 0, tax 0) the whole amount.</summary>
         public decimal EffectiveNet => NetAmount == 0m && TaxAmount == 0m ? Amount : NetAmount;
 

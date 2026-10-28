@@ -76,6 +76,7 @@ $DatabaseScripts = @(
     "Sales\013_OrderPaymentMethod.sql",
     "Sales\014_OrderCustomerPhone.sql",
     "Sales\015_OrderShippingFeeAndWard.sql",
+    "Sales\016_OrderReturnShippingFee.sql",
     "Purchasing\001_CreatePurchasingDB.sql",
     "Purchasing\002_AddOutboxMessages.sql",
     "Purchasing\003_AddReceivingScheduleAndSupplierRatings.sql",
@@ -121,6 +122,7 @@ $DatabaseScripts = @(
     "Accounting\024_VatLinesSettlementEInvoiceKinds.sql",
     "Accounting\025_ForeignCurrencyBankReconciliation.sql",
     "Accounting\026_BillsFromSupplierInvoices.sql",
+    "Accounting\027_InvoiceShippingNet.sql",
     "Product\001_CreateProductDB.sql",
     "Product\002_AddProductTranslations.sql",
     "Product\003_AddProductAttributesAndDimensions.sql",
@@ -159,6 +161,7 @@ $DatabaseScripts = @(
     "Shipping\006_AlignEntityColumns.sql",
     "Shipping\007_BaseEntityColumns.sql",
     "Shipping\008_Carriers.sql",
+    "Shipping\009_ShippingFeeRules.sql",
 
     # HR & Retail
     "HRM\001_CreateHrmDB.sql",

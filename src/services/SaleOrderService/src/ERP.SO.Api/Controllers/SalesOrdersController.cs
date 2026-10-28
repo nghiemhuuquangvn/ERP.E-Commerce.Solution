@@ -292,7 +292,7 @@ namespace ERP.SO.Api.Controllers
 
             try
             {
-                var result = await _mediator.Send(new CompleteReturnCommand { OrderId = id, RefundAmount = request.RefundAmount }, cancellationToken);
+                var result = await _mediator.Send(new CompleteReturnCommand { OrderId = id, RefundAmount = request.RefundAmount, RefundShippingFee = request.RefundShippingFee }, cancellationToken);
                 return Ok(result);
             }
             catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
@@ -537,5 +537,7 @@ namespace ERP.SO.Api.Controllers
     public class CompleteReturnRequest
     {
         public decimal RefundAmount { get; set; }
+        /// <summary>Also give the delivery fee back (default: goods only).</summary>
+        public bool RefundShippingFee { get; set; }
     }
 }

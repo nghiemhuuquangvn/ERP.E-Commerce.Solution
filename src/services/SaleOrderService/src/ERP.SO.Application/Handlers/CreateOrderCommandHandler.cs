@@ -117,7 +117,8 @@ namespace ERP.SO.Application.Handlers
 
             // The delivery fee is the shop's (ShippingService decides it from the goods after the coupon); the client never sends one.
             // Fails closed like the stock check: an order whose fee cannot be fixed would be charged wrongly.
-            var fee = await _shippingServiceClient.GetFeeAsync(salesOrder.MerchandiseTotal, cancellationToken);
+            var fee = await _shippingServiceClient.GetFeeAsync(
+                salesOrder.MerchandiseTotal, salesOrder.ShippingAddress.State, lineItems.Select(li => (li.ProductId, li.Quantity)).ToList(), cancellationToken);
             if (fee is null)
                 throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("Sales", "The delivery fee cannot be worked out right now. Please try again in a moment.");
             salesOrder.SetShippingFee(fee.Value);

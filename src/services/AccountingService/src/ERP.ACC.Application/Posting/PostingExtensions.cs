@@ -69,11 +69,15 @@ namespace ERP.ACC.Application.Posting
         /// <summary>Dr Accounts receivable (gross) / Cr Sales revenue (net) and Cr VAT output (the VAT, ROADMAP P1-3); an invoice without VAT posts the two lines as before.</summary>
         public static PostingRequest ForInvoice(Domain.Entities.Invoice invoice)
         {
+            // What the customer paid for delivery is its own revenue line (ROADMAP P1-11c); the entry still balances: net goods + net delivery + VAT = the gross.
+            var shipping = Math.Min(invoice.ShippingNetAmount, invoice.Amount - invoice.TaxAmount);
             var lines = new List<PostingLine>
             {
                 PostingLine.Dr(PostingKeys.AccountsReceivable, invoice.Amount, invoice.InvoiceNumber),
-                PostingLine.Cr(PostingKeys.SalesRevenue, invoice.Amount - invoice.TaxAmount, invoice.InvoiceNumber),
+                PostingLine.Cr(PostingKeys.SalesRevenue, invoice.Amount - invoice.TaxAmount - shipping, invoice.InvoiceNumber),
             };
+            if (shipping > 0m)
+                lines.Add(PostingLine.Cr(PostingKeys.ShippingRevenue, shipping, invoice.InvoiceNumber));
             if (invoice.TaxAmount > 0m)
                 lines.Add(PostingLine.Cr(PostingKeys.VatOutput, invoice.TaxAmount, invoice.InvoiceNumber));
             return new(Invoice, invoice.Id, invoice.CreatedAt, $"Invoice {invoice.InvoiceNumber}", lines);

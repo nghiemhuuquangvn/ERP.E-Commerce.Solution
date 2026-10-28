@@ -44,7 +44,13 @@ export function OrderDetailPage() {
   const cancelMutation = useMutation({ mutationFn: () => ordersApi.cancel(id!, cancelReason) })
   const rejectMutation = useMutation({ mutationFn: () => ordersApi.reject(id!, rejectReason) })
   const requestReturnMutation = useMutation({ mutationFn: () => ordersApi.requestReturn(id!, 'Return requested by admin') })
-  const completeReturnMutation = useMutation({ mutationFn: () => ordersApi.completeReturn(id!, order?.totalAmount ?? 0) })
+  // The goods are what a return gives back by default; the delivery fee only when the approver ticks it (ROADMAP P1-11c).
+  const goodsTotal = order ? order.totalAmount - (order.shippingFee ?? 0) : 0
+  const [refundAmount, setRefundAmount] = useState<string>('')
+  const [refundFee, setRefundFee] = useState(false)
+  const completeReturnMutation = useMutation({
+    mutationFn: () => ordersApi.completeReturn(id!, refundAmount.trim() === '' ? goodsTotal + (refundFee ? order?.shippingFee ?? 0 : 0) : Number(refundAmount), refundFee),
+  })
 
   if (isLoading) return <div className="text-gray-400">{t('common.loading')}</div>
   if (!order) return <div className="text-gray-400">{t('orders.orderNotFound')}</div>
@@ -199,9 +205,25 @@ export function OrderDetailPage() {
               </button>
             )}
             {hasPermission('sales_order:approve') && order.status === 'ReturnRequested' && (
-              <button onClick={() => runAction(() => completeReturnMutation.mutateAsync())} className="btn-primary text-sm">
-                {t('orders.statusActions.completeReturn')}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="number"
+                  className="input w-40 text-sm"
+                  title={t('orders.return.amount')}
+                  placeholder={t('orders.return.amountPlaceholder', { goods: fmt(goodsTotal + (refundFee ? order.shippingFee ?? 0 : 0)) })}
+                  value={refundAmount}
+                  onChange={(e) => setRefundAmount(e.target.value)}
+                />
+                {(order.shippingFee ?? 0) > 0 && (
+                  <label className="flex items-center gap-1 text-sm text-gray-700">
+                    <input type="checkbox" checked={refundFee} onChange={(e) => setRefundFee(e.target.checked)} />
+                    {t('orders.return.refundFee', { fee: fmt(order.shippingFee ?? 0) })}
+                  </label>
+                )}
+                <button onClick={() => runAction(() => completeReturnMutation.mutateAsync())} className="btn-primary text-sm">
+                  {t('orders.statusActions.completeReturn')}
+                </button>
+              </div>
             )}
             {hasPermission('sales_order:cancel') && canCancel && (
               <div className="flex flex-wrap items-center gap-2">

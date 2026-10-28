@@ -12,8 +12,9 @@ import { useAuthStore } from '@/stores/auth.store'
 import { serverMessage } from '@/api/purchasing/procurement.api'
 import { ShippingCarriersCard } from './ShippingCarriersCard'
 import { CarrierRulesCard } from './CarrierRulesCard'
+import { ShippingFeeRulesCard } from './ShippingFeeRulesCard'
 
-type Tab = 'system' | 'tenant' | 'carriers' | 'rules'
+type Tab = 'system' | 'tenant' | 'fees' | 'carriers' | 'rules'
 
 type SystemFormValues = SystemShippingSettings
 
@@ -187,6 +188,7 @@ export function ShippingSettingsPage() {
   const TABS: { key: Tab; label: string }[] = [
     ...(canViewSystem ? [{ key: 'system' as Tab, label: t('settings.shipping.systemTab') }] : []),
     { key: 'tenant' as Tab, label: t('settings.shipping.tenantTab') },
+    { key: 'fees' as Tab, label: t('settings.shipping.feesTab') },
     { key: 'carriers' as Tab, label: t('settings.shipping.carriersTab') },
     { key: 'rules' as Tab, label: t('settings.shipping.rulesTab') },
   ]
@@ -213,6 +215,7 @@ export function ShippingSettingsPage() {
 
       {tab === 'system' && canViewSystem && <SystemSettingsForm canManage={canManageSystem} />}
       {tab === 'tenant' && <TenantSettingsForm canManage={canManageTenant} tenantId={tenantId} />}
+      {tab === 'fees' && <ShippingFeeRulesCard canManage={canManageRules} />}
       {tab === 'carriers' && <ShippingCarriersCard tenantId={tenantId} canManage={canManageTenant} />}
       {tab === 'rules' && <CarrierRulesCard canManage={canManageRules} />}
     </div>

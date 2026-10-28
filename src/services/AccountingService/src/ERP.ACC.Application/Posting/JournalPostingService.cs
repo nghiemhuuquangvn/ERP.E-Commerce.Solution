@@ -197,7 +197,11 @@ namespace ERP.ACC.Application.Posting
 
         private Account Resolve(Dictionary<string, Account> profile, string? postingKey)
         {
-            if (string.IsNullOrEmpty(postingKey) || !profile.TryGetValue(postingKey, out var account))
+            Account? account = null;
+            if (!string.IsNullOrEmpty(postingKey) && !profile.TryGetValue(postingKey, out account)
+                && PostingKeys.Fallbacks.TryGetValue(postingKey, out var fallbackKey))
+                profile.TryGetValue(fallbackKey, out account);
+            if (string.IsNullOrEmpty(postingKey) || account == null)
                 throw new PostingConfigurationException(postingKey ?? "(none)", $"Posting key '{postingKey}' has no account.");
             if (!account.IsActive)
                 throw new PostingConfigurationException(postingKey,

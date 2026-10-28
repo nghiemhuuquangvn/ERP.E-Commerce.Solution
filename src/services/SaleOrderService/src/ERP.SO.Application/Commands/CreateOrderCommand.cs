@@ -70,6 +70,8 @@ namespace ERP.SO.Application.Commands
     {
         public Guid OrderId { get; set; }
         public decimal RefundAmount { get; set; }
+        /// <summary>The approver also gives the delivery fee back (ROADMAP P1-11c); the refund may then exceed the goods by up to the fee.</summary>
+        public bool RefundShippingFee { get; set; }
     }
 
     public class ApproveOrderCommand : IRequest<SalesOrderDto>

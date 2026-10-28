@@ -18,6 +18,7 @@ public class ShippingDbContext : DbContext, ITenantScopedDbContext
     public DbSet<TenantShippingSettings> TenantShippingSettings => Set<TenantShippingSettings>();
     public DbSet<TenantCarrierCredential> TenantCarrierCredentials => Set<TenantCarrierCredential>();
     public DbSet<CarrierSelectionRule> CarrierSelectionRules => Set<CarrierSelectionRule>();
+    public DbSet<ShippingFeeRule> ShippingFeeRules => Set<ShippingFeeRule>();
     public DbSet<CarrierWebhookLog> CarrierWebhookLogs => Set<CarrierWebhookLog>();
 
     private readonly ITenantProvider _tenantProvider;
@@ -160,6 +161,17 @@ public class ShippingDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.MaxOrderValue).HasPrecision(18, 2);
             e.Property(x => x.CarrierCode).HasMaxLength(20).IsRequired();
             e.HasIndex(x => new { x.TenantId, x.Priority });
+        });
+
+        modelBuilder.Entity<ShippingFeeRule>(e =>
+        {
+            e.ToTable("ShippingFeeRules");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.MatchProvinces).HasMaxLength(1000);
+            e.Property(x => x.Fee).HasPrecision(18, 2);
+            e.HasIndex(x => new { x.TenantId, x.Priority });
+            e.HasIndex(x => new { x.TenantId, x.Name }).IsUnique().HasFilter("[IsDeleted] = 0");
         });
 
         modelBuilder.Entity<CarrierWebhookLog>(e =>

@@ -154,7 +154,11 @@ watch(currentStep, async (step) => {
   feeLoading.value = true
   feeError.value = false
   try {
-    feeQuote.value = await shippingApi.fee(total.value)
+    feeQuote.value = await shippingApi.feeFor(
+      total.value,
+      address.value.state,
+      items.value.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+    )
   } catch {
     feeQuote.value = null
     feeError.value = true
