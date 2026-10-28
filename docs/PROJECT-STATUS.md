@@ -36,6 +36,11 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-28 — ROADMAP R43: cash on delivery captured per parcel (`feat/r43-per-parcel-cod`, unmerged)
+- **Payment** (migration **009**): `PaymentCapture` per shipment (unique key = idempotency), `Payments.CapturedAmount`, status `PartiallyCaptured`, `Payment.CapturePart`; `PaymentProcessed` per parcel with `CaptureId` / `CapturedTotal`; refunds capped at `Collected`; the delivery consumer no longer waits for the last parcel. **Accounting** keys the entry and the invoice credit by capture; **Reporting** (migration **009**, `FactPaymentCaptures`) adds each part once; **Notification** sends one receipt per part; **Admin** shows "Partly collected".
+- Fixes found by the live check: Reporting dropped payment events with a numeric method and counted split payments twice (`PaymentAuthorized` created the fact).
+- Tests: PAY 99, ACC 595, RPT 18, NTF 19, SHP 169, SO 84, Architecture 68, Shared 103; `tsc -b` / `vue-tsc` clean. Live on `glcheck` (fake GHTK): UAT C1…C6 in `OnlinePayments.md` §13. Next in the owner's order: P2-1b, then U1.
+
 ### 2026-10-28 — ROADMAP P2-1a: Promotion + POS back office in the Admin app (`feat/p2-1a-admin-promotion-pos`, unmerged)
 - **Backend** (no migration, no event): Promotion `PUT promotions/{id}` (draft only, `Promotion.Update`; other status = HTTP 400) and `GET promotions/{id}/coupons`; POS `GET pos/transactions` and `GET pos/shifts` (paged, filtered, newest first, last day inclusive, unknown status = 400) and `GET pos/terminals/{id}`.
 - **Admin**: groups *Promotions* (promotions with coupons dialog, flash sales, loyalty) and *Point of sale* (transactions with void, shifts with cash difference, Z report, terminals); `api/promotion/promotion.api.ts`, `api/pos/pos.api.ts`; `promotion.*` / `pos.*` / `nav.*` in en + vi. Guide: `docs/frontend/promotion-pos-admin-guide.md`.
