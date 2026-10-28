@@ -31,6 +31,7 @@ namespace ERP.SO.Application.Handlers
             ReturnedAt = order.ReturnedAt,
             ReturnReason = order.ReturnReason,
             RefundAmount = order.RefundAmount,
+            ReturnShippingFeeRefunded = order.ReturnShippingFeeRefunded,
             OrderNo = order.OrderNo,
             OrderSource = order.OrderSource.ToString(),
             DepartmentId = order.DepartmentId,

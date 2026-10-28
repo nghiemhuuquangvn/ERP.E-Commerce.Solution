@@ -61,6 +61,7 @@ namespace ERP.SO.Infrastructure
                 eb.Property(e => e.Carrier).HasMaxLength(200);
                 eb.Property(e => e.ReturnReason).HasMaxLength(1000);
                 eb.Property(e => e.RefundAmount).HasPrecision(18, 2);
+                eb.Property(e => e.ReturnShippingFeeRefunded).IsRequired();
                 eb.Property(e => e.OrderNo).IsRequired().HasMaxLength(50);
                 eb.Property(e => e.OrderSource).IsRequired();
                 eb.Property(e => e.PaymentMethod).HasMaxLength(20);

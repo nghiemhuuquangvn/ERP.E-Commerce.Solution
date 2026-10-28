@@ -51,6 +51,8 @@ namespace ERP.SO.Domain.Entities
         public DateTime? ReturnedAt { get; private set; }
         public string? ReturnReason { get; private set; }
         public decimal? RefundAmount { get; private set; }
+        /// <summary>True when the approver gave the delivery fee back with the goods (ROADMAP P1-11c); by default a return refunds the goods only.</summary>
+        public bool ReturnShippingFeeRefunded { get; private set; }
 
         /// <summary>Set when a ProductPriceChangedDomainEvent arrives for a product still on this (not-yet-Shipped/Delivered/Cancelled/Returned) order — see the note appended to InternalNotes for details.</summary>
         public bool HasPriceChangeWarning { get; private set; }
@@ -343,19 +345,22 @@ namespace ERP.SO.Domain.Entities
         /// directly (cross-service side effects happen via the published event, not a
         /// synchronous call, same as every other state-changing flow in this system).
         /// </summary>
-        public void CompleteReturn(decimal refundAmount)
+        public void CompleteReturn(decimal refundAmount, bool refundShippingFee = false)
         {
             if (Status != OrderStatus.ReturnRequested)
                 throw new InvalidOperationException($"Cannot complete a return for an order in {Status} status");
 
             // The amount is typed by the approver; the ledger credits the customer with exactly this figure (ROADMAP P1-1e).
-            if (refundAmount <= 0m || refundAmount > TotalAmount)
-                throw new InvalidOperationException($"The refund amount must be greater than 0 and at most the order total ({TotalAmount}).");
+            // The delivery fee comes back only when the approver says so (ROADMAP P1-11c): the cap is the goods, plus the fee when it is ticked.
+            var limit = MerchandiseTotal + (refundShippingFee ? ShippingFee : 0m);
+            if (refundAmount <= 0m || refundAmount > limit)
+                throw new InvalidOperationException($"The refund amount must be greater than 0 and at most {limit} (the goods{(ShippingFee > 0m ? (refundShippingFee ? " and the delivery fee" : "; the delivery fee is refunded only when it is ticked") : "")}).");
 
             var from = Status;
             Status = OrderStatus.Returned;
             ReturnedAt = DateTime.UtcNow;
             RefundAmount = refundAmount;
+            ReturnShippingFeeRefunded = refundShippingFee && ShippingFee > 0m;
             RecordStatusChange(from, Status);
 
             AddDomainEvent(new SalesOrderReturnedEvent
@@ -364,6 +369,7 @@ namespace ERP.SO.Domain.Entities
                 CustomerId = CustomerId,
                 Reason = ReturnReason ?? string.Empty,
                 RefundAmount = refundAmount,
+                ShippingFeeRefunded = ReturnShippingFeeRefunded,
                 ReturnedAt = ReturnedAt.Value,
                 Lines = _lineItems.Where(li => li.ShippedQuantity > 0)
                     .Select(li => new SalesOrderReturnedEvent.ReturnedLine { ProductId = li.ProductId, Quantity = li.ShippedQuantity }).ToList()

@@ -111,7 +111,7 @@ namespace ERP.SO.Application.Handlers
             var order = await _repository.GetByIdAsync(request.OrderId, cancellationToken)
                 ?? throw new InvalidOperationException($"Order {request.OrderId} not found");
 
-            order.CompleteReturn(request.RefundAmount);
+            order.CompleteReturn(request.RefundAmount, request.RefundShippingFee);
             await _repository.UpdateAsync(order, cancellationToken);
 
             return SalesOrderMapper.MapToDto(order);

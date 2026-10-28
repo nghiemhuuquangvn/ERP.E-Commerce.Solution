@@ -1,4 +1,4 @@
-using System.Globalization;
+using System.Net.Http.Json;
 using System.Text.Json;
 using ERP.SO.Application.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -20,12 +20,12 @@ namespace ERP.SO.Infrastructure.ExternalServices
             _httpClient.Timeout = TimeSpan.FromSeconds(5);
         }
 
-        public async Task<decimal?> GetFeeAsync(decimal merchandiseValue, CancellationToken ct)
+        public async Task<decimal?> GetFeeAsync(decimal merchandiseValue, string? province, IReadOnlyCollection<(Guid ProductId, int Quantity)> items, CancellationToken ct)
         {
             try
             {
-                var query = merchandiseValue.ToString(CultureInfo.InvariantCulture);
-                using var response = await _httpClient.GetAsync($"internal/v1/shipping-fee?merchandiseValue={query}", ct);
+                var body = new { merchandiseValue, province, items = items.Select(i => new { productId = i.ProductId, quantity = i.Quantity }).ToList() };
+                using var response = await _httpClient.PostAsJsonAsync("internal/v1/shipping-fee", body, ct);
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogWarning("ShippingService returned {StatusCode} for the delivery fee", (int)response.StatusCode);
