@@ -42,11 +42,46 @@ public class CarrierTrackingService
         await _uow.Shipments.UpdateAsync(shipment, ct);
     }
 
+    /// <summary>A carrier's report on a RETURN parcel (customer → shop): same path as <see cref="ApplyAsync"/>, delivered = the goods are back (<c>ReturnReceived</c>).</summary>
+    public async Task ApplyReturnAsync(ReturnShipment returned, CarrierShipmentStatus status, CancellationToken ct = default)
+    {
+        returned.ApplyCarrierStatus(status);
+        returned.MarkCarrierSynced();
+        await _uow.ReturnShipments.UpdateAsync(returned, ct);
+    }
+
+    /// <summary>The carrier code of a return's carrier row, or null.</summary>
+    public async Task<string?> CarrierCodeOfAsync(ReturnShipment returned, CancellationToken ct = default)
+    {
+        if (returned.CarrierId is not { } id) return null;
+        var row = await _uow.Carriers.GetByIdAsync(id, ct);
+        return CarrierCodes.Normalize(row?.Code);
+    }
+
     /// <summary>The carrier code of a shipment (its <see cref="Carrier"/> row), or null for a shipment that has no integrated carrier.</summary>
     public async Task<string?> CarrierCodeOfAsync(Shipment shipment, CancellationToken ct = default)
     {
         var row = await _uow.Carriers.GetByIdAsync(shipment.CarrierId, ct);
         return CarrierCodes.Normalize(row?.Code);
+    }
+
+    /// <summary>Cancels a booking at the carrier by its code, touching no shipment (used to undo a booking that was never saved). Never throws for a carrier's refusal.</summary>
+    public async Task<(bool Cancelled, string? Problem)> CancelBookingAsync(Guid carrierId, string trackingNumber, string reason, CancellationToken ct = default)
+    {
+        var row = await _uow.Carriers.GetByIdAsync(carrierId, ct);
+        var code = CarrierCodes.Normalize(row?.Code);
+        if (code == null) return (false, "the carrier has no integration");
+        try
+        {
+            var resolved = await _carriers.ResolveAsync(code, ct);
+            var result = await resolved.Provider.CancelAsync(resolved.Credentials, trackingNumber, reason, ct);
+            return (result.Success, result.Error);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Could not undo booking {Tracking} at the carrier", trackingNumber);
+            return (false, ex.Message);
+        }
     }
 
     /// <summary>

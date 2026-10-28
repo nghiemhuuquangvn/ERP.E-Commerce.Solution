@@ -34,6 +34,8 @@ public class ShipmentDto
     public string? BookingError { get; set; }
     public string? ReviewNote { get; set; }
     public DateTime? LastCarrierSyncAt { get; set; }
+    public int ParcelNo { get; set; } = 1;
+    public int ParcelCount { get; set; } = 1;
     public DateTime CreatedAt { get; set; }
     public List<TrackingEventDto> TrackingEvents { get; set; } = new();
     public List<ShipmentItemDto> Items { get; set; } = new();
@@ -57,6 +59,10 @@ public class ReturnShipmentDto
     public string Status { get; set; } = string.Empty;
     public DateTime? PickedUpAt { get; set; }
     public DateTime? ReceivedAt { get; set; }
+    public string? CarrierName { get; set; }
+    public string? CarrierOrderCode { get; set; }
+    public decimal? CarrierFee { get; set; }
+    public string? BookingError { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 

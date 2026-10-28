@@ -61,7 +61,11 @@ public class CarrierTrackingSyncJob : IHostedService
     {
         List<Guid> tenants;
         using (var scope = _services.CreateScope())
-            tenants = await scope.ServiceProvider.GetRequiredService<IShippingUnitOfWork>().Shipments.GetTenantsWithOpenShipmentsAsync(ct);
+        {
+            var uow = scope.ServiceProvider.GetRequiredService<IShippingUnitOfWork>();
+            tenants = (await uow.Shipments.GetTenantsWithOpenShipmentsAsync(ct))
+                .Union(await uow.ReturnShipments.GetTenantsWithOpenReturnsAsync(ct)).ToList();
+        }
 
         var asked = 0;
         foreach (var tenantId in tenants.Where(t => t != Guid.Empty))
@@ -105,6 +109,25 @@ public class CarrierTrackingSyncJob : IHostedService
             catch (ERP.Shared.Infrastructure.Exceptions.BusinessRuleException)
             {
                 shipment.MarkCarrierSynced();       // the shop's account is off: nothing to ask
+            }
+        }
+
+        // the reverse parcels of returns (P1-11d) are asked about the same way
+        foreach (var returned in await uow.ReturnShipments.GetStaleInCarrierHandsAsync(DateTime.UtcNow - staleAfter, BatchPerTenant, ct))
+        {
+            var code = await tracking.CarrierCodeOfAsync(returned, ct);
+            if (code == null) { returned.MarkCarrierSynced(); continue; }
+            try
+            {
+                var resolved = await carriers.ResolveAsync(code, ct);
+                var status = await resolved.Provider.GetStatusAsync(resolved.Credentials, returned.TrackingNumber!, ct);
+                asked++;
+                if (status.Success) await tracking.ApplyReturnAsync(returned, status.Status, ct);
+                else returned.MarkCarrierSynced();
+            }
+            catch (ERP.Shared.Infrastructure.Exceptions.BusinessRuleException)
+            {
+                returned.MarkCarrierSynced();
             }
         }
 

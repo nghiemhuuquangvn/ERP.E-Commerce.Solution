@@ -64,7 +64,7 @@ public class CreateShipmentCommandHandler : IRequestHandler<CreateShipmentComman
         return MapToDto(shipment);
     }
 
-    internal static ShipmentDto MapToDto(Shipment s) => new()
+    public static ShipmentDto MapToDto(Shipment s) => new()
     {
         Id = s.Id,
         OrderId = s.OrderId,
@@ -98,6 +98,8 @@ public class CreateShipmentCommandHandler : IRequestHandler<CreateShipmentComman
         BookingError = s.BookingError,
         ReviewNote = s.ReviewNote,
         LastCarrierSyncAt = s.LastCarrierSyncAt,
+        ParcelNo = s.ParcelNo,
+        ParcelCount = s.ParcelCount,
         CreatedAt = s.CreatedAt,
         Items = s.Items.Select(i => new ShipmentItemDto
         {
@@ -370,7 +372,7 @@ public class RebookShipmentCommandHandler : IRequestHandler<RebookShipmentComman
         }
 
         var parcel = shipment.Items.Select(i => new CarrierParcelItem(i.ProductName, i.Quantity, 0m, (int)Math.Round((i.Weight > 0 ? i.Weight : sender.DefaultItemWeightGrams / 1000m) * 1000m))).ToList();
-        await _booking.BookAsync(shipment, sender.Address, parcel, new BookingOrder($"SO-{shipment.OrderId:N}", $"Order {shipment.OrderId:N}"), only, cancellationToken);
+        await _booking.BookAsync(shipment, sender.Address, parcel, new BookingOrder(shipment.BookingReference, $"Order {shipment.OrderId:N}"), only, cancellationToken);
 
         await _uow.Shipments.UpdateAsync(shipment, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);

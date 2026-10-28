@@ -22,6 +22,7 @@ public class CarrierTrackingTests
     private readonly Mock<IShippingUnitOfWork> _uow = new();
     private readonly Mock<IShipmentRepository> _shipments = new();
     private readonly Mock<ICarrierRepository> _carriers = new();
+    private readonly Mock<IReturnShipmentRepository> _returns = new();
     private readonly Mock<ICarrierProviderResolver> _resolver = new();
     private readonly Mock<ICarrierProvider> _provider = new();
     private readonly List<CarrierWebhookLog> _logs = new();
@@ -31,6 +32,9 @@ public class CarrierTrackingTests
     {
         _uow.SetupGet(u => u.Shipments).Returns(_shipments.Object);
         _uow.SetupGet(u => u.Carriers).Returns(_carriers.Object);
+        _uow.SetupGet(u => u.ReturnShipments).Returns(_returns.Object);
+        _returns.Setup(r => r.GetTenantsWithOpenReturnsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Guid>());
+        _returns.Setup(r => r.GetStaleInCarrierHandsAsync(It.IsAny<DateTime>(), It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync(new List<ReturnShipment>());
         _carriers.Setup(c => c.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(_row);
         _provider.SetupGet(p => p.Code).Returns("GHTK");
         _provider.SetupGet(p => p.Implemented).Returns(true);

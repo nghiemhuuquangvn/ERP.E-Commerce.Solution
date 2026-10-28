@@ -63,6 +63,8 @@ public class ShippingDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.BookingError).HasMaxLength(1000);
             e.Property(x => x.ReviewNote).HasMaxLength(500);
             e.HasIndex(x => x.TrackingNumber);
+            e.Property(x => x.ParcelNo).HasDefaultValue(1);
+            e.Property(x => x.ParcelCount).HasDefaultValue(1);
             // Columns created by 001_CreateShippingDB.sql carry the unit / older name.
             e.Property(x => x.TotalWeight).HasPrecision(10, 3).HasColumnName("TotalWeightKg");
             e.Property(x => x.DeliveredAt).HasColumnName("ActualDelivery");

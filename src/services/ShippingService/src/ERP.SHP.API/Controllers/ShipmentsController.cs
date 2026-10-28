@@ -64,6 +64,18 @@ public class ShipmentsController : ControllerBase
         return Ok(await _mediator.Send(new RebookShipmentCommand { ShipmentId = id, CarrierId = body?.CarrierId }, ct));
     }
 
+    /// <summary>Splits a parcel the carrier has not collected into several parcels (each is booked on its own); all or nothing.</summary>
+    [HttpPost("{id:guid}/split")]
+    public async Task<IActionResult> Split(Guid id, [FromBody] SplitShipmentRequest body, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("shipping:update"))
+            return Forbid();
+
+        var parts = (body?.Parts ?? new()).Select(p => new ERP.SHP.Application.Services.ParcelSplitPart(
+            (p.Items ?? new()).Select(l => new ERP.SHP.Application.Services.ParcelSplitLine(l.ProductId, l.Quantity)).ToList(), p.CodAmount)).ToList();
+        return Ok(await _mediator.Send(new SplitShipmentCommand { ShipmentId = id, Parts = parts }, ct));
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
@@ -359,4 +371,22 @@ public class CancelAtCarrierRequest
 public class RebookRequest
 {
     public Guid? CarrierId { get; set; }
+}
+
+public class SplitShipmentRequest
+{
+    public List<SplitParcelRequest>? Parts { get; set; }
+}
+
+public class SplitParcelRequest
+{
+    public List<SplitLineRequest>? Items { get; set; }
+    /// <summary>Cash the carrier collects on this parcel; leave out on every parcel to share the parcel's cash by units.</summary>
+    public decimal? CodAmount { get; set; }
+}
+
+public class SplitLineRequest
+{
+    public Guid ProductId { get; set; }
+    public int Quantity { get; set; }
 }

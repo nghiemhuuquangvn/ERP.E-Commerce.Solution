@@ -162,6 +162,7 @@ $DatabaseScripts = @(
     "Shipping\007_BaseEntityColumns.sql",
     "Shipping\008_Carriers.sql",
     "Shipping\009_ShippingFeeRules.sql",
+    "Shipping\010_ParcelsAndCarrierReturns.sql",
 
     # HR & Retail
     "HRM\001_CreateHrmDB.sql",

@@ -30,6 +30,7 @@ public static class CarrierServiceCollectionExtensions
         services.AddScoped<IShippingConfigRepository, ShippingConfigRepository>();
         services.AddScoped<CarrierBookingService>();
         services.AddScoped<CarrierTrackingService>();
+        services.AddScoped<ReturnBookingService>();
         services.AddScoped<ICarrierRuleService, CarrierRuleService>();
         services.AddScoped<IShippingFeeRuleService, ShippingFeeRuleService>();
         services.AddScoped<ICarrierWebhookService, CarrierWebhookService>();

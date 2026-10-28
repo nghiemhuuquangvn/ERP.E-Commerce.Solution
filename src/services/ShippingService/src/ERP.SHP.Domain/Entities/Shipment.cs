@@ -33,6 +33,12 @@ public class Shipment : AggregateRoot
     public string? PhotoUrl { get; private set; }
     public decimal TotalWeight { get; private set; }
 
+    // P1-11d: an order may travel in several parcels (a person splits it; every parcel is its own booking and tracking code).
+    /// <summary>1-based number of this parcel within the order.</summary>
+    public int ParcelNo { get; private set; } = 1;
+    /// <summary>How many parcels the order travels in (1 = the order is not split).</summary>
+    public int ParcelCount { get; private set; } = 1;
+
     // P1-11: what the carrier was asked and what it answered.
     /// <summary>Cash the carrier collects from the recipient (0 when the order was paid online).</summary>
     public decimal CodAmount { get; private set; }
@@ -100,6 +106,18 @@ public class Shipment : AggregateRoot
         ClearDomainEvents();
         AddDomainEvent(new ShipmentCreatedEvent(Id, OrderId, CarrierId, CarrierName));
     }
+
+    /// <summary>This parcel is number <paramref name="no"/> of <paramref name="count"/> of the order.</summary>
+    public void SetParcel(int no, int count)
+    {
+        if (count < 1 || no < 1 || no > count) throw new ArgumentOutOfRangeException(nameof(no), "parcel number must be within 1..count");
+        ParcelNo = no;
+        ParcelCount = count;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>The reference the carrier gets as the shop's own order code: the plain order reference for an unsplit order, one per parcel otherwise (a carrier dedupes on it).</summary>
+    public string BookingReference => ParcelCount > 1 ? $"SO-{OrderId:N}-P{ParcelNo}" : $"SO-{OrderId:N}";
 
     public void SetCommercials(decimal codAmount, decimal declaredValue)
     {
@@ -251,7 +269,7 @@ public class Shipment : AggregateRoot
         PhotoUrl = photoUrl;
         UpdatedAt = DateTime.UtcNow;
         AddTrackingEvent("Delivered", location, "Package delivered successfully");
-        AddDomainEvent(new DeliveryConfirmedEvent(Id, OrderId, DeliveredAt.Value));
+        AddDomainEvent(new DeliveryConfirmedEvent(Id, OrderId, DeliveredAt.Value, ParcelNo, ParcelCount, CodAmount));
     }
 
     public void MarkDeliveryFailed(string reason)

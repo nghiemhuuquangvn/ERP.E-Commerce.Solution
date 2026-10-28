@@ -65,10 +65,13 @@ public class CarrierWebhookService : ICarrierWebhookService
             return new CarrierWebhookResult(CarrierWebhookOutcome.Duplicate, null, provider.WebhookReply(true, "already applied"));
 
         var shipment = await _uow.Shipments.GetTrackedByTrackingNumberAsync(peeked, ct);
-        if (shipment == null)
+        if (shipment != null)
+            await _tracking.ApplyAsync(shipment, evt.Status, evt.CarrierStatus, evt.Reason, evt.CodAmount, ct);
+        else if (await _uow.ReturnShipments.GetTrackedByTrackingNumberAsync(peeked, ct) is { } returned)
+            await _tracking.ApplyReturnAsync(returned, evt.Status, ct);   // the reverse parcel of a return (P1-11d)
+        else
             return Reject(provider, CarrierWebhookOutcome.UnknownShipment, "unknown tracking code");
 
-        await _tracking.ApplyAsync(shipment, evt.Status, evt.CarrierStatus, evt.Reason, evt.CodAmount, ct);
         await _uow.Shipments.AddWebhookLogAsync(CarrierWebhookLog.Create(tenantId, code, peeked, evt.CarrierStatus, evt.ActionTime), ct);
         await _uow.SaveChangesAsync(ct);
 

@@ -56,6 +56,11 @@ public class ShipmentRepository : IShipmentRepository
             .IgnoreQueryFilters() // deliberate: a carrier notification has no tenant until its shipment is found
             .Where(s => s.TrackingNumber == trackingNumber)
             .Select(s => (Guid?)s.TenantId)
+            .FirstOrDefaultAsync(ct)
+        // a carrier also reports the reverse parcel of a return (P1-11d): the same notification path finds its shop
+        ?? await _db.ReturnShipments.IgnoreQueryFilters()
+            .Where(r => r.TrackingNumber == trackingNumber)
+            .Select(r => (Guid?)r.TenantId)
             .FirstOrDefaultAsync(ct);
 
     private static readonly ShipmentStatus[] Final = { ShipmentStatus.Delivered, ShipmentStatus.Returned, ShipmentStatus.Cancelled };
@@ -86,6 +91,23 @@ public class ReturnShipmentRepository : IReturnShipmentRepository
 
     public async Task<List<ReturnShipment>> GetByOriginalShipmentIdAsync(Guid originalShipmentId, CancellationToken ct = default) =>
         await _db.ReturnShipments.Where(r => r.OriginalShipmentId == originalShipmentId).AsNoTracking().ToListAsync(ct);
+
+    public async Task<List<ReturnShipment>> GetTrackedByOrderIdAsync(Guid orderId, CancellationToken ct = default) =>
+        await _db.ReturnShipments.Where(r => r.OrderId == orderId).ToListAsync(ct);
+
+    public async Task<ReturnShipment?> GetTrackedByTrackingNumberAsync(string trackingNumber, CancellationToken ct = default) =>
+        await _db.ReturnShipments.FirstOrDefaultAsync(r => r.TrackingNumber == trackingNumber, ct);
+
+    private static readonly ReturnShipmentStatus[] FinalReturn = { ReturnShipmentStatus.Received, ReturnShipmentStatus.Cancelled };
+
+    public async Task<List<ReturnShipment>> GetStaleInCarrierHandsAsync(DateTime before, int take, CancellationToken ct = default) =>
+        await _db.ReturnShipments
+            .Where(r => r.TrackingNumber != null && r.CarrierId != null && !FinalReturn.Contains(r.Status) && (r.LastCarrierSyncAt ?? r.CreatedAt) < before)
+            .OrderBy(r => r.LastCarrierSyncAt ?? r.CreatedAt).Take(take).ToListAsync(ct);
+
+    public async Task<List<Guid>> GetTenantsWithOpenReturnsAsync(CancellationToken ct = default) =>
+        await _db.ReturnShipments.IgnoreQueryFilters() // deliberate: cross-tenant job, tenant ids only
+            .Where(r => r.TrackingNumber != null && r.CarrierId != null && !FinalReturn.Contains(r.Status)).Select(r => r.TenantId).Distinct().ToListAsync(ct);
 
     public async Task AddAsync(ReturnShipment returnShipment, CancellationToken ct = default) =>
         await _db.ReturnShipments.AddAsync(returnShipment, ct);
