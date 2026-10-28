@@ -86,6 +86,7 @@ namespace ERP.ACC.Infrastructure.Persistence
                 e.Property(x => x.AmountPaid).HasColumnType("decimal(18,2)");
                 e.Property(x => x.NetAmount).HasColumnName("SubTotal").HasColumnType("decimal(18,2)");
                 e.Property(x => x.TaxAmount).HasColumnType("decimal(18,2)");
+                e.Property(x => x.ShippingNetAmount).HasColumnType("decimal(18,2)");
                 e.Property(x => x.TaxRatePercent).HasColumnType("decimal(9,4)");
                 e.Property(x => x.ForeignCurrencyCode).HasMaxLength(3);
                 e.Property(x => x.ExchangeRate).HasColumnType("decimal(18,6)");

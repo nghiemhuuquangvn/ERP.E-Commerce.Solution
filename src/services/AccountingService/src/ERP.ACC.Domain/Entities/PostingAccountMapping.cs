@@ -14,6 +14,8 @@ namespace ERP.ACC.Domain.Entities
         public const string AccountsReceivable = "AccountsReceivable";
         public const string AccountsPayable = "AccountsPayable";
         public const string SalesRevenue = "SalesRevenue";
+        /// <summary>What the customer paid for delivery (ROADMAP P1-11c). A tenant whose chart has no account for it books it with the sales revenue.</summary>
+        public const string ShippingRevenue = "ShippingRevenue";
         public const string Inventory = "Inventory";
         public const string VatOutput = "VatOutput";
         /// <summary>VAT paid on purchases and deductible (Vas99 133): debited by an approved bill (ROADMAP P1-3). On the 14-account chart it shares the tax account with VatOutput.</summary>
@@ -64,12 +66,15 @@ namespace ERP.ACC.Domain.Entities
 
         public static readonly IReadOnlyList<string> All = new[]
         {
-            Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, Inventory, VatOutput,
+            Cash, Bank, AccountsReceivable, AccountsPayable, SalesRevenue, ShippingRevenue, Inventory, VatOutput,
             GoodsReceivedNotInvoiced, CostOfGoodsSold, InventoryAdjustment, CashOverShort,
             SalaryExpense, SalariesPayable, PayrollWithholdingsPayable,
             SocialInsurancePayable, HealthInsurancePayable, UnemploymentInsurancePayable, PitPayable, EmployerInsuranceExpense, PurchasePriceVariance,
             SalesReturns, IncomeSummary, RetainedEarnings, LoanPayable, InterestExpense, InterestPayable, VatInput, FxGain, FxLoss, BankFee, BankInterestIncome
         };
+
+        /// <summary>A key whose account may be missing in a tenant's own chart books with another key instead of failing the posting.</summary>
+        public static readonly IReadOnlyDictionary<string, string> Fallbacks = new Dictionary<string, string> { [ShippingRevenue] = SalesRevenue };
 
         /// <summary>Account numbers of the seeded 14-account chart, used when a tenant has no mapping yet.</summary>
         public static readonly IReadOnlyDictionary<string, string> DefaultAccountNumbers = new Dictionary<string, string>
@@ -79,6 +84,7 @@ namespace ERP.ACC.Domain.Entities
             [AccountsReceivable] = "1100",
             [AccountsPayable] = "2000",
             [SalesRevenue] = "4000",
+            [ShippingRevenue] = "4000",            // the simple chart has one revenue account
             [Inventory] = "1200",
             [VatOutput] = "2200",
             [VatInput] = "2200",                   // one tax account on the simple chart: input VAT nets against output VAT

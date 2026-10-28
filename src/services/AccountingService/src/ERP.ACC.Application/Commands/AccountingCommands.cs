@@ -50,6 +50,9 @@ namespace ERP.ACC.Application.Commands
         public decimal Amount { get; set; }
         public DateTime DueDate { get; set; }
 
+        /// <summary>The part of <see cref="Amount"/> that is delivery charged to the customer (ROADMAP P1-11c); it is booked on its own revenue key. 0 = none.</summary>
+        public decimal ShippingAmount { get; set; }
+
         /// <summary>Overrides the tenant's default VAT rate (percent) for this invoice; empty = the default.</summary>
         public decimal? TaxRatePercent { get; set; }
 

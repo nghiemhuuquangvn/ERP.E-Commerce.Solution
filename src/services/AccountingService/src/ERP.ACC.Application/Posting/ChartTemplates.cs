@@ -239,6 +239,7 @@ namespace ERP.ACC.Application.Posting
                 [PostingKeys.AccountsReceivable] = "131",
                 [PostingKeys.AccountsPayable] = "331",
                 [PostingKeys.SalesRevenue] = "5111",
+                [PostingKeys.ShippingRevenue] = "5113",   // revenue from services
                 [PostingKeys.Inventory] = "1561",
                 [PostingKeys.VatOutput] = "3331",
                 [PostingKeys.VatInput] = "1331",

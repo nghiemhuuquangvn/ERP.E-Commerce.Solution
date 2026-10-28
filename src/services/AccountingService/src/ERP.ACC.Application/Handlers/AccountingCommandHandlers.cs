@@ -117,6 +117,9 @@ namespace ERP.ACC.Application.Handlers
                 split.Gross,
                 request.DueDate);
             invoice.ApplyVat(split.Net, split.RatePercent, split.Tax);
+            // The delivery share of the net follows its share of the amount (a document with VAT lines or in a foreign currency keeps it in the sales revenue).
+            if (request.ShippingAmount > 0m && request.Amount > 0m && lines == null && !fx)
+                invoice.SetShippingNet(Math.Round(split.Net * Math.Min(1m, request.ShippingAmount / request.Amount), 2));
             if (fx)
                 invoice.SetForeign(request.CurrencyCode!, FxSupport.ForeignGross(request.ForeignAmount!.Value, request.TaxRatePercent ?? policy.RatePercent, policy.PricesIncludeTax), request.ExchangeRate!.Value);
 
@@ -145,6 +148,7 @@ namespace ERP.ACC.Application.Handlers
             NetAmount = i.EffectiveNet,
             TaxRatePercent = i.TaxRatePercent,
             TaxAmount = i.TaxAmount,
+            ShippingNetAmount = i.ShippingNetAmount,
             ForeignCurrencyCode = i.ForeignCurrencyCode,
             ExchangeRate = i.ExchangeRate,
             ForeignAmount = i.ForeignAmount,

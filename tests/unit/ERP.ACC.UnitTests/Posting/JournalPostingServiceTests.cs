@@ -146,7 +146,7 @@ public class JournalPostingServiceTests
         var posted = await Service().PostAsync(stock);
 
         _addedMappings.Select(m => m.PostingKey).Should().BeEquivalentTo(
-            new[] { PostingKeys.GoodsReceivedNotInvoiced, PostingKeys.CostOfGoodsSold, PostingKeys.InventoryAdjustment, PostingKeys.CashOverShort,
+            new[] { PostingKeys.ShippingRevenue, PostingKeys.GoodsReceivedNotInvoiced, PostingKeys.CostOfGoodsSold, PostingKeys.InventoryAdjustment, PostingKeys.CashOverShort,
                 PostingKeys.SalaryExpense, PostingKeys.SalariesPayable, PostingKeys.PayrollWithholdingsPayable,
                 PostingKeys.SocialInsurancePayable, PostingKeys.HealthInsurancePayable, PostingKeys.UnemploymentInsurancePayable, PostingKeys.PitPayable, PostingKeys.EmployerInsuranceExpense, PostingKeys.PurchasePriceVariance,
                 PostingKeys.SalesReturns, PostingKeys.IncomeSummary, PostingKeys.RetainedEarnings, PostingKeys.LoanPayable, PostingKeys.InterestExpense, PostingKeys.InterestPayable, PostingKeys.VatInput, PostingKeys.FxGain, PostingKeys.FxLoss, PostingKeys.BankFee, PostingKeys.BankInterestIncome });
@@ -323,9 +323,32 @@ public class JournalPostingServiceTests
         result.Should().BeNull();
         _added.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task ATenantWhoseChartHasNoShippingRevenueAccount_StillPostsInvoicesWithDelivery_OnTheSalesRevenue()
+    {
+        // an own chart mapped for every key except the delivery revenue, which has no default account in it
+        foreach (var key in PostingKeys.All.Where(k => k != PostingKeys.ShippingRevenue))
+        {
+            var account = NewAccount("X-" + key);
+            _accounts.Add(account);
+            _mappings.Add(PostingAccountMapping.Create(Tenant, key, account.Id));
+        }
+        OpenPeriod(new DateTime(2026, 10, 1));
+        var request = new PostingRequest("Invoice", Guid.NewGuid(), new DateTime(2026, 10, 23), "Invoice INV-1", new[]
+        {
+            PostingLine.Dr(PostingKeys.AccountsReceivable, 130m), PostingLine.Cr(PostingKeys.SalesRevenue, 100m), PostingLine.Cr(PostingKeys.ShippingRevenue, 30m),
+        });
+
+        var entry = await Service().PostAsync(request);
+
+        var revenue = _accounts.Single(a => a.AccountNumber == "X-" + PostingKeys.SalesRevenue);
+        entry!.Lines.Where(l => l.Credit > 0).Select(l => (l.AccountId, l.Credit)).Should().BeEquivalentTo(new[] { (revenue.Id, 100m), (revenue.Id, 30m) });
+    }
 }
 
 internal static class JournalEntryTestExtensions
 {
     public static string Number(this JournalEntry entry) => entry.EntryNumber;
+
 }

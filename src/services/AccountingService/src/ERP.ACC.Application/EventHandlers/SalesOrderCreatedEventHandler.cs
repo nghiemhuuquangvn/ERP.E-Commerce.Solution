@@ -12,6 +12,8 @@ namespace ERP.ACC.Application.EventHandlers
         public Guid OrderId { get; set; }
         public Guid CustomerId { get; set; }
         public decimal TotalAmount { get; set; }
+        /// <summary>The delivery fee inside TotalAmount (ROADMAP P1-11b); 0 on events published before it.</summary>
+        public decimal ShippingFee { get; set; }
     }
 
     public class SalesOrderCreatedIntegrationEventHandler : INotificationHandler<SalesOrderCreatedIntegrationEvent>
@@ -51,6 +53,7 @@ namespace ERP.ACC.Application.EventHandlers
                 CustomerId = @event.CustomerId,
                 OrderId = @event.OrderId,
                 Amount = @event.TotalAmount,
+                ShippingAmount = @event.ShippingFee,
                 DueDate = DateTime.UtcNow.AddDays(30)
             }, cancellationToken);
 
