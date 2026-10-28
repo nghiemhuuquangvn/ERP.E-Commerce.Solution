@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
 import { ordersApi } from '@/api/orders.api'
+import { shippingApi } from '@/api/shipping.api'
 import { OrderSagaPanel } from '@/components/orders/OrderSagaPanel'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
@@ -26,7 +27,18 @@ export function OrderDetailPage() {
     enabled: Boolean(id),
   })
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['orders', id] })
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['orders', id] })
+    queryClient.invalidateQueries({ queryKey: ['order-returns', id] })
+  }
+
+  // The reverse parcels booked for a returned order (needs shipping:view; without it the panel just shows the order's own fields).
+  const { data: returnParcels } = useQuery({
+    queryKey: ['order-returns', id],
+    queryFn: () => shippingApi.orderReturns(id!),
+    enabled: Boolean(id) && hasPermission('shipping:view'),
+    retry: false,
+  })
 
   const runAction = (fn: () => Promise<unknown>) => {
     setActionError(null)
@@ -48,6 +60,7 @@ export function OrderDetailPage() {
   const goodsTotal = order ? order.totalAmount - (order.shippingFee ?? 0) : 0
   const [refundAmount, setRefundAmount] = useState<string>('')
   const [refundFee, setRefundFee] = useState(false)
+  const approveReturnMutation = useMutation({ mutationFn: () => ordersApi.approveReturn(id!) })
   const completeReturnMutation = useMutation({
     mutationFn: () => ordersApi.completeReturn(id!, refundAmount.trim() === '' ? goodsTotal + (refundFee ? order?.shippingFee ?? 0 : 0) : Number(refundAmount), refundFee),
   })
@@ -204,6 +217,30 @@ export function OrderDetailPage() {
                 {t('orders.statusActions.requestReturn')}
               </button>
             )}
+            {hasPermission('sales_order:approve') && order.status === 'ReturnRequested' && (!order.returnApprovedAt || !order.returnPickupBooked) && (
+              <button onClick={() => runAction(() => approveReturnMutation.mutateAsync())} className="btn-outline text-sm">
+                {order.returnApprovedAt ? t('orders.return.retryPickup') : t('orders.return.approve')}
+              </button>
+            )}
+            {order.status === 'ReturnRequested' && order.returnApprovedAt && (
+              <div className="w-full rounded bg-gray-50 p-2 text-xs text-gray-700">
+                <div>{order.returnPickupNote}</div>
+                {(returnParcels ?? []).map((p) => (
+                  <div key={p.id} className="mt-1 flex flex-wrap items-center gap-2">
+                    <span className="font-mono">{p.trackingNumber ?? '—'}</span>
+                    <span>{p.carrierName}</span>
+                    <StatusBadge status={p.status} />
+                    {p.bookingError && <span className="text-red-600">{p.bookingError}</span>}
+                    {hasPermission('shipping:update') && p.status !== 'Received' && p.status !== 'Cancelled' && (
+                      <button className="btn-outline px-2 py-0.5 text-xs" onClick={() => runAction(() => shippingApi.receiveReturn(p.originalShipmentId, p.id))}>
+                        {t('orders.return.receiveByHand')}
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {order.returnPickupBooked && !order.returnGoodsReceivedAt && <div className="mt-1 text-amber-700">{t('orders.return.waitingForGoods')}</div>}
+              </div>
+            )}
             {hasPermission('sales_order:approve') && order.status === 'ReturnRequested' && (
               <div className="flex flex-wrap items-center gap-2">
                 <input
@@ -220,7 +257,12 @@ export function OrderDetailPage() {
                     {t('orders.return.refundFee', { fee: fmt(order.shippingFee ?? 0) })}
                   </label>
                 )}
-                <button onClick={() => runAction(() => completeReturnMutation.mutateAsync())} className="btn-primary text-sm">
+                <button
+                  disabled={Boolean(order.returnPickupBooked && !order.returnGoodsReceivedAt)}
+                  title={order.returnPickupBooked && !order.returnGoodsReceivedAt ? t('orders.return.waitingForGoods') : undefined}
+                  onClick={() => runAction(() => completeReturnMutation.mutateAsync())}
+                  className="btn-primary text-sm disabled:opacity-50"
+                >
                   {t('orders.statusActions.completeReturn')}
                 </button>
               </div>

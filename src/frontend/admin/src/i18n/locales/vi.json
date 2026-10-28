@@ -258,7 +258,11 @@
     "return": {
       "amount": "Số tiền hoàn",
       "amountPlaceholder": "Hoàn (tiền hàng): {{goods}}",
-      "refundFee": "Hoàn cả phí vận chuyển ({{fee}})"
+      "refundFee": "Hoàn cả phí vận chuyển ({{fee}})",
+      "approve": "Duyệt trả hàng (đặt lấy hàng)",
+      "retryPickup": "Đặt lấy hàng lại",
+      "receiveByHand": "Đã nhận hàng",
+      "waitingForGoods": "Hãng đang mang hàng về: hoàn tiền được sau khi kho nhận hàng."
     },
     "statusActions": {
       "title": "Hành động trạng thái",
@@ -794,6 +798,17 @@
   },
   "shipments": {
     "title": "Vận đơn",
+    "split": {
+      "open": "Chia thành nhiều kiện",
+      "title": "Chia thành nhiều kiện",
+      "hint": "Mỗi kiện mới được đặt riêng tại hãng và đơn cũ bị hủy. Hãng nào từ chối thì không thay đổi gì. Tiền thu hộ (COD) các kiện phải cộng đúng bằng ban đầu.",
+      "parcels": "Số kiện",
+      "item": "Mặt hàng",
+      "parcel": "Kiện {{n}}",
+      "left": "Còn lại",
+      "confirm": "Chia và đặt hãng",
+      "badge": "Kiện {{n}}/{{count}}"
+    },
     "tracking": "Mã vận đơn",
     "carrier": "Hãng",
     "recipient": "Người nhận",
