@@ -56,7 +56,8 @@
       "Failed": "failed",
       "Cancelled": "cancelled",
       "Refunded": "refunded",
-      "PartiallyRefunded": "partly refunded"
+      "PartiallyRefunded": "partly refunded",
+      "PartiallyCaptured": "partly paid"
     }
   },
   "orders": {

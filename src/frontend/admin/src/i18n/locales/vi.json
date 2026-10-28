@@ -860,8 +860,10 @@
       "captured": "Đã thu tiền",
       "failed": "Thất bại",
       "refunded": "Đã hoàn tiền",
-      "partiallyRefunded": "Hoàn một phần"
+      "partiallyRefunded": "Hoàn một phần",
+      "partiallyCaptured": "Đã thu một phần"
     },
+    "collectedOf": "Đã thu {{collected}} {{currency}}",
     "flagged": "Đang chờ xem xét",
     "provider": "Cổng thanh toán",
     "needsReview": "Cần xử lý (đã gắn cờ, ví dụ cần hoàn tiền cho khách)",
