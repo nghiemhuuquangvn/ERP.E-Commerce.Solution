@@ -65,7 +65,19 @@ public class RenameTerminalCommandHandler : IRequestHandler<RenameTerminalComman
     }
 }
 
-public class ListTerminalsQueryHandler : IRequestHandler<ListTerminalsQuery, List<TerminalDto>>
+public class GetTerminalQueryHandler : IRequestHandler<GetTerminalQuery, TerminalDto?>
+{
+    private readonly ITerminalRepository _terminals;
+    public GetTerminalQueryHandler(ITerminalRepository terminals) => _terminals = terminals;
+
+    public async Task<TerminalDto?> Handle(GetTerminalQuery request, CancellationToken cancellationToken)
+    {
+        var terminal = await _terminals.GetByIdAsync(request.TerminalId, cancellationToken);
+        return terminal == null ? null : CreateTerminalCommandHandler.MapToDto(terminal);
+    }
+}
+
+public class ListTerminalsQueryHandler: IRequestHandler<ListTerminalsQuery, List<TerminalDto>>
 {
     private readonly ITerminalRepository _terminals;
     public ListTerminalsQueryHandler(ITerminalRepository terminals) => _terminals = terminals;

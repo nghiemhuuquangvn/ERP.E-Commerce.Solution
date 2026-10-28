@@ -36,6 +36,11 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-28 — ROADMAP P2-1a: Promotion + POS back office in the Admin app (`feat/p2-1a-admin-promotion-pos`, unmerged)
+- **Backend** (no migration, no event): Promotion `PUT promotions/{id}` (draft only, `Promotion.Update`; other status = HTTP 400) and `GET promotions/{id}/coupons`; POS `GET pos/transactions` and `GET pos/shifts` (paged, filtered, newest first, last day inclusive, unknown status = 400) and `GET pos/terminals/{id}`.
+- **Admin**: groups *Promotions* (promotions with coupons dialog, flash sales, loyalty) and *Point of sale* (transactions with void, shifts with cash difference, Z report, terminals); `api/promotion/promotion.api.ts`, `api/pos/pos.api.ts`; `promotion.*` / `pos.*` / `nav.*` in en + vi. Guide: `docs/frontend/promotion-pos-admin-guide.md`.
+- Tests: PRM 17, POS 15, Architecture 68; `tsc -b` clean. Live on `glcheck` (API level, data removed): UAT S1…S6 / S1…S9 in the two `AdminBackOffice.md` docs. Not done: a browser walk-through of the screens. Left in P2-1: P2-1b (Shipping returns page, Notification webhooks / template edit), P2-1c (`/settings` index, permission constants).
+
 ### 2026-10-28 — ROADMAP P1-11d (2/3): several parcels + returns through the carrier (`feat/p1-11d-returns-and-parcels`, unmerged)
 - **Shipping** (migration **010**): `Shipments.ParcelNo/ParcelCount`; `POST shipments/{id}/split` (`SplitShipmentCommandHandler`, `ParcelSplitPlanner`: books the new parcels first, cancels the original, undoes everything on a refusal); `ReturnBookingService` books the way back as the forward booking with the addresses swapped (`internal/v1/returns`); `ReturnShipment` carries the carrier booking and goes through the same webhook / polling path; `DeliveryConfirmed(OtherParcelsPending…)`, `ReturnReceived(OtherReturnsPending)`.
 - **Sales** (migration **017**): `return/approve` (asks Shipping; unreachable = refused, answered-but-nothing-booked = approved by hand), `CompleteReturn` waits for the goods when a pickup is booked, the order is Delivered with the last parcel; the order read is no longer cached. **Payment**: the COD is captured with the last parcel (one payment per order).

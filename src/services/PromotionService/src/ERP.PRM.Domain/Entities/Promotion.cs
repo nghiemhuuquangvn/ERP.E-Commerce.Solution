@@ -68,6 +68,37 @@ public class Promotion : AggregateRoot
         return promo;
     }
 
+    /// <summary>The back office may change a promotion only while it is a draft: once it is live, customers and orders already rely on its terms.</summary>
+    public void Update(string name, string? description, DiscountType discountType, PromotionScope scope, decimal discountValue,
+        decimal? maxDiscountAmount, decimal minOrderAmount, int? maxUsageTotal, int? maxUsagePerUser,
+        int? buyQuantity, int? getQuantity, DateTime startDate, DateTime endDate,
+        IEnumerable<Guid> productIds, IEnumerable<string> categoryIds)
+    {
+        if (Status != PromotionStatus.Draft)
+            throw new InvalidOperationException("Only a draft promotion can be edited.");
+        if (endDate <= startDate)
+            throw new InvalidOperationException("End date must be after start date.");
+        if (discountType == DiscountType.BuyXGetY && (buyQuantity == null || getQuantity == null))
+            throw new InvalidOperationException("BuyQuantity and GetQuantity are required for BuyXGetY promotions.");
+
+        Name = name;
+        Description = description;
+        DiscountType = discountType;
+        Scope = scope;
+        DiscountValue = discountValue;
+        MaxDiscountAmount = maxDiscountAmount;
+        MinOrderAmount = minOrderAmount;
+        MaxUsageTotal = maxUsageTotal;
+        MaxUsagePerUser = maxUsagePerUser;
+        BuyQuantity = buyQuantity;
+        GetQuantity = getQuantity;
+        StartDate = startDate;
+        EndDate = endDate;
+        ApplicableProductIds = productIds.Distinct().ToList();
+        ApplicableCategoryIds = categoryIds.Distinct().ToList();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void Activate()
     {
         if (Status == PromotionStatus.Cancelled)

@@ -47,7 +47,48 @@ public class CreatePromotionCommandHandler : IRequestHandler<CreatePromotionComm
     };
 }
 
-public class ActivatePromotionCommandHandler : IRequestHandler<ActivatePromotionCommand, PromotionDto>
+public class UpdatePromotionCommandHandler : IRequestHandler<UpdatePromotionCommand, PromotionDto>
+{
+    private readonly IPromotionUnitOfWork _uow;
+    public UpdatePromotionCommandHandler(IPromotionUnitOfWork uow) => _uow = uow;
+
+    public async Task<PromotionDto> Handle(UpdatePromotionCommand request, CancellationToken cancellationToken)
+    {
+        var promo = await _uow.Promotions.GetByIdAsync(request.PromotionId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Promotion {request.PromotionId} not found.");
+        if (promo.Status != PromotionStatus.Draft)
+            throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("Promotion.DraftOnly", "Only a draft promotion can be edited.");
+        if (request.EndDate <= request.StartDate)
+            throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("Promotion.Dates", "End date must be after start date.");
+        if (request.DiscountType == DiscountType.BuyXGetY && (request.BuyQuantity == null || request.GetQuantity == null))
+            throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("Promotion.BuyXGetY", "BuyQuantity and GetQuantity are required for BuyXGetY promotions.");
+
+        promo.Update(request.Name, request.Description, request.DiscountType, request.Scope, request.DiscountValue,
+            request.MaxDiscountAmount, request.MinOrderAmount, request.MaxUsageTotal, request.MaxUsagePerUser,
+            request.BuyQuantity, request.GetQuantity, request.StartDate, request.EndDate,
+            request.ApplicableProductIds, request.ApplicableCategoryIds);
+        await _uow.Promotions.UpdateAsync(promo, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
+        return CreatePromotionCommandHandler.MapToDto(promo);
+    }
+}
+
+public class GetPromotionCouponsQueryHandler : IRequestHandler<GetPromotionCouponsQuery, List<CouponDto>>
+{
+    private readonly IPromotionRepository _promotions;
+    public GetPromotionCouponsQueryHandler(IPromotionRepository promotions) => _promotions = promotions;
+
+    public async Task<List<CouponDto>> Handle(GetPromotionCouponsQuery request, CancellationToken cancellationToken)
+    {
+        var promo = await _promotions.GetByIdAsync(request.PromotionId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Promotion {request.PromotionId} not found.");
+        return promo.Coupons.OrderBy(c => c.CreatedAt).ThenBy(c => c.Code)
+            .Select(c => new CouponDto { Id = c.Id, Code = c.Code, IsUsed = c.IsUsed, UsedAt = c.UsedAt, UsedByUserId = c.UsedByUserId, CreatedAt = c.CreatedAt })
+            .ToList();
+    }
+}
+
+public class ActivatePromotionCommandHandler: IRequestHandler<ActivatePromotionCommand, PromotionDto>
 {
     private readonly IPromotionUnitOfWork _uow;
     public ActivatePromotionCommandHandler(IPromotionUnitOfWork uow) => _uow = uow;

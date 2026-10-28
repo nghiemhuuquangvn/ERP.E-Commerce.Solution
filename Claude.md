@@ -511,6 +511,8 @@ Published Events:
 - LoyaltyPointsEarned
 - FlashSaleStarted
 
+Admin back office (P2-1a, docs/business/Promotion/AdminBackOffice.md): `PUT promotions/{id}` edits a **Draft** promotion only (other status = HTTP 400), `GET promotions/{id}/coupons` lists a promotion's coupons; the Admin has Promotions, Flash sales and Loyalty pages (request enums are numeric, responses carry names).
+
 Consumed Events:
 - ProductCreated
 - SalesOrderCreated
@@ -535,6 +537,8 @@ Published Events:
 - TransactionCreated
 - CashShiftClosed
 - RegisterBalanced
+
+Admin back office (P2-1a, docs/business/POS/AdminBackOffice.md): `GET pos/transactions` and `GET pos/shifts` (paged, filtered, last day inclusive, `{items,total,page,pageSize}`), `GET pos/terminals/{id}`; the Admin has Transactions (with void), Shifts (cash difference), Z report and Terminals pages.
 
 Consumed Events:
 - ProductCreated

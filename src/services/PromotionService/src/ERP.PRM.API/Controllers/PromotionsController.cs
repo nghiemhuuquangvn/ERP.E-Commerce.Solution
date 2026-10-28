@@ -56,6 +56,23 @@ public class PromotionsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
 
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePromotionCommand command, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission(PermissionConstants.Promotions_Manage))
+            return Forbid();
+        command.PromotionId = id;
+        return Ok(await _mediator.Send(command, ct));
+    }
+
+    [HttpGet("{id:guid}/coupons")]
+    public async Task<IActionResult> Coupons(Guid id, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission(PermissionConstants.Promotions_Manage))
+            return Forbid();
+        return Ok(await _mediator.Send(new GetPromotionCouponsQuery { PromotionId = id }, ct));
+    }
+
     [HttpPost("{id:guid}/activate")]
     public async Task<IActionResult> Activate(Guid id, CancellationToken ct)
     {

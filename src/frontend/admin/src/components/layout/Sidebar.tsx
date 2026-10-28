@@ -225,6 +225,19 @@ const HRM_CHILDREN: NavItem[] = [
   },
 ]
 
+const PROMOTION_CHILDREN: NavItem[] = [
+  { labelKey: 'nav.promotions', path: '/promotion/promotions', permission: 'promotions:manage', icon: '🏷️' },
+  { labelKey: 'nav.flashSales', path: '/promotion/flash-sales', permission: 'promotions:view', icon: '⚡' },
+  { labelKey: 'nav.loyalty', path: '/promotion/loyalty', permission: 'promotions:view', icon: '⭐' },
+]
+
+const POS_CHILDREN: NavItem[] = [
+  { labelKey: 'nav.posTransactions', path: '/pos/transactions', permission: 'pos:transactions', icon: '🧾' },
+  { labelKey: 'nav.posShifts', path: '/pos/shifts', permission: 'pos:shifts:view', icon: '🕒' },
+  { labelKey: 'nav.posZReport', path: '/pos/z-report', permission: 'pos:reports:view', icon: '📑' },
+  { labelKey: 'nav.posTerminals', path: '/pos/terminals', permission: 'pos:terminals:manage', icon: '🖥️' },
+]
+
 const ACCOUNTING_CHILDREN: NavItem[] = [
   {
     labelKey: 'nav.accountingAccounts',
@@ -465,6 +478,8 @@ const NAV_ITEMS: NavItem[] = [
   },
   { labelKey: 'nav.payments', path: '/payments', permission: 'payments:view', icon: '💳' },
   { labelKey: 'nav.shipments', path: '/shipping/shipments', permission: 'shipping:view', icon: '🚚' },
+  { labelKey: 'nav.promotion', path: '/promotion', icon: '🎁', children: PROMOTION_CHILDREN },
+  { labelKey: 'nav.pos', path: '/pos', icon: '🛒', children: POS_CHILDREN },
   { labelKey: 'nav.chatbot', path: '/chatbot', permission: 'chatbot:assistant:use', icon: '🤖' },
   { labelKey: 'nav.hrm', path: '/hrm', icon: '🧑‍💼', children: HRM_CHILDREN },
   { labelKey: 'nav.accounting', path: '/accounting', icon: '💼', children: ACCOUNTING_CHILDREN },
