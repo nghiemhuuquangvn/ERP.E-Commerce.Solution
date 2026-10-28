@@ -10,15 +10,19 @@ The standard is applied in small steps, **one branch each, started only when the
 | **U4 Storefront** | `feat/ui-u4-storefront` | Vue versions of the library, shell (header, footer, category bar), product list / detail, cart, checkout steps, account area, auth pages; pairs naturally with ROADMAP P2-2 (reset password, confirm e-mail, coupon UI, tracking, address book) | Journeys match [patterns-web.md](patterns-web.md) §3 | Vue component parity with React | DS-5 |
 | **U5 Mobile** | `feat/ui-u5-mobile` | `components/` in both apps (Button, Input, FormField, Card, Badge, Toast, EmptyState, Skeleton, BottomSheet), theme, tab bars with Lucide, safe areas, offline banner, accessibility labels; Staff scan and POS screens; aligns i18next / react-i18next versions with web | Customer and Staff match [patterns-mobile.md](patterns-mobile.md) | Native build and device testing needed (Expo) | DS-6 |
 | **U6 Shared formatting** | `feat/ui-u6-formatting` | `formatMoney / formatNumber / formatDate / formatDateTime / formatRelative` per platform per [content-and-i18n.md](content-and-i18n.md); remove the 38+ local `money` helpers and 124 `toLocale*` calls | Single formatter per app, lint rule forbids new local ones | Rounding / locale differences visible in reports | DS-7 |
+| **U8 Per-shop brand colour** | `feat/ui-u8-shop-brand` | **Backend:** a branding setting per shop (hex colour next to the existing company logo in Identity's company settings; migration, validation that the colour is a hex and passes the derivation rule, `SettingsChanged` event) and an **anonymous read by request host** (`GET …/public/branding`: colour, logo) for Storefront and Customer app. **Frontend:** the derivation function ([foundations.md](foundations.md) §1.4), Admin *Settings → Company* branding card with live preview and contrast message, Storefront sets the CSS variables at start (cached, default rose while loading), Customer app fetches by tenant host and stores it. Needs U1. | A shop with a custom colour passes the contrast rules on every themed component; default unchanged | Tenant isolation of the public read (host decides, never a query tenant); flash of default colour on first load; very light colours refused | DS-9, DS-10 |
 | **U7 Dark mode + a11y audit** | `feat/ui-u7-dark-a11y` | Dark token set with computed contrast, theme switch (system / light / dark), audit of the 131 Admin pages, Storefront and mobile against [accessibility.md](accessibility.md), fixes | Audit report with zero level-A failures | Charts and images in dark | DS-8 |
 
-Order: U1 → U2 → (U3 in parallel batches) → U4 with P2-2 → U5 → U6 → U7. U1 and U2 are the minimum to stop the drift; U3 onward can be paused without harm.
+Order: U1 → U2 → (U3 in parallel batches) → U4 with P2-2 → U5 → U8 (after U1 and the Customer-side U4 / U5) → U6 → U7. U1 and U2 are the minimum to stop the drift; U3 onward can be paused without harm.
 
 ## Definition of done for any UI change after U1
 Tokens only (no hex), components from the library, Lucide icons, the five page states handled, strings in both languages, a11y checklist ticked, screenshots attached, the BA document and the frontend guide updated.
 
-## Open decisions for the owner
-1. Whether to create a shared workspace package (monorepo with `packages/ui-tokens`) in U1 or keep copied files with a drift test (recommended: copied files first; a workspace is a bigger tooling change).
-2. Whether the Storefront keeps Vue + a Vue component library or shares logic through a framework-neutral package later.
-3. Brand shades for tenants: whether shops may pick their own Customer-theme colour (white-label) — the token roles make this a configuration, not a redesign; not planned now.
-4. Design tool: this standard is document-first; a Figma file mirroring the tokens can be added when a designer joins.
+## Decisions (owner, 2026-10-28)
+1. **Token sharing:** copied token files per app with a drift test (as recommended); a workspace package is not created now and can be revisited when a fifth consumer appears.
+2. **White-label:** each shop chooses its own Customer-theme colour (one colour, derived roles, contrast guaranteed) — step U8, rules in [foundations.md](foundations.md) §1.4. Assumption: it applies to the shop's customer-facing apps (Storefront, Customer app); making the Back-office (Admin, Staff) themeable per shop is not planned.
+
+## Still open
+1. Whether the Storefront keeps Vue with a Vue component library or shares logic through a framework-neutral package later.
+2. Design tool: this standard is document-first; a Figma file mirroring the tokens can be added when a designer joins.
+3. Whether a shop may also upload a logo variant for dark backgrounds and a favicon (not designed yet).

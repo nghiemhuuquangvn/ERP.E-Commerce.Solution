@@ -9,7 +9,8 @@ The four frontends share no design foundation: Admin and Staff use sky blue, Sto
 1. **One token set, two themes.** All apps read the same token names; the *Back-office* theme (blue) is used by Admin and Staff, the *Customer* theme (rose) by Storefront and Customer. Switching a theme changes only the brand tokens.
 2. **Lucide icons** replace emoji everywhere (`lucide-react`, `lucide-vue-next`, `lucide-react-native`).
 3. **Document first.** This round writes the standard and a visual preview; code follows in small steps.
-4. Not in this round: dark mode, a full accessibility audit, a shared money / date helper (rules for them are written, implementation is later).
+4. **Per-shop colour:** each shop picks its own Customer-theme colour (derived roles keep contrast; step U8, [foundations.md](foundations.md) §1.4); token files are copied per app with a drift test (no workspace package yet).
+5. Not in this round: dark mode, a full accessibility audit, a shared money / date helper (rules for them are written, implementation is later).
 
 ## Principles
 - **Consistent before clever.** One component per job, one name in every framework, the same states everywhere.
@@ -39,4 +40,5 @@ Related: [../README.md](../README.md) (app stacks), [../i18n-guide.md](../i18n-g
 - "Today" = how the code does it now; "Standard" = the rule from now on.
 
 ## Changelog
+- 2026-10-28 (later) — owner decisions: per-shop brand colour (U8) and copied token files with a drift test.
 - 2026-10-28 — first version (owner decisions above). Colour contrast computed with a script; two existing pairs fail WCAG AA and are corrected in the standard (Back-office button fill, placeholder / input border) — see [accessibility.md](accessibility.md).

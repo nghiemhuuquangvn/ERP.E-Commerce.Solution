@@ -43,6 +43,18 @@ Status → role mapping (replaces the long list in `StatusBadge.tsx`): *Active, 
 
 Today → standard: Admin `primary-500/600/700` and Storefront `brand-500/600` are replaced by the role tokens above; Storefront's current button colour `brand-500 (#e11d48)` becomes `brand-action` with the same hex.
 
+### 1.4 Per-shop brand colour (white-label, decided 2026-10-28)
+Each shop may choose its own **Customer-theme** colour for its Storefront and Customer app (the Back-office theme stays the platform blue). The shop enters **one** colour; the other roles are *derived* so a bad choice cannot break contrast:
+| Role | Derivation from the chosen colour `C` |
+|---|---|
+| `brand-action` | `C`, darkened in 2 % lightness steps until white text on it is **≥ 4.5:1** (at most 40 % darker; otherwise the colour is refused) |
+| `brand-action-hover` | action darkened a further 10 % lightness |
+| `brand-soft` | action mixed 12 % over white |
+| `brand-soft-text` | action darkened until **≥ 7:1** on `brand-soft` |
+| `brand-subtle` | action mixed 5 % over white |
+| `brand-accent` | `C` unchanged (decoration only) |
+Rules: only a hex value is stored (no CSS, no images as theme); semantic colours (success / warning / danger / info) and neutrals are never themed; the platform default (rose) applies until the shop chooses; the shop's logo is shown in the header on a white surface; an invalid or too-light colour shows the nearest accepted colour in the settings preview and cannot be saved unchanged. One shared derivation function per platform (U8) is the only place these rules live; the preview in Settings and the storefront use the same function.
+
 ## 2. Typography
 - **Family:** system UI stack on web `ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif`; mobile uses the platform font (SF Pro / Roboto). No web font is downloaded (Vietnamese diacritics render correctly in all of these; check with "Nguyễn Thị Hương, Đồng Nai, ạ ơ ữ").
 - **Scale (px / line height):** `xs` 12/16 · `sm` 14/20 · `base` 16/24 · `lg` 18/28 · `xl` 20/28 · `2xl` 24/32 · `3xl` 30/36. Back-office body is `sm` (14), customer body is `base` (16).
