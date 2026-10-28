@@ -32,6 +32,15 @@ public class TransactionsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> List([FromQuery] ListTransactionsQuery query, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("pos:transactions"))
+            return Forbid();
+
+        return Ok(await _mediator.Send(query, ct));
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
@@ -156,6 +165,16 @@ public class TerminalsController : ControllerBase
         return Ok(await _mediator.Send(new ListTerminalsQuery { IsActive = isActive }, ct));
     }
 
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("pos:terminals:manage"))
+            return Forbid();
+
+        var result = await _mediator.Send(new GetTerminalQuery { TerminalId = id }, ct);
+        return result == null ? NotFound() : Ok(result);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateTerminalCommand command, CancellationToken ct)
     {
@@ -245,6 +264,15 @@ public class CashShiftsController : ControllerBase
     {
         _mediator = mediator;
         _userContext = userContext;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> List([FromQuery] ListShiftsQuery query, CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("pos:shifts:view"))
+            return Forbid();
+
+        return Ok(await _mediator.Send(query, ct));
     }
 
     [HttpPost("open")]

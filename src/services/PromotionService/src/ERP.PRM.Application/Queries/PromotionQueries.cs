@@ -12,6 +12,11 @@ public class GetPromotionByIdQuery : IRequest<PromotionDto?>
     public Guid PromotionId { get; set; }
 }
 
+public class GetPromotionCouponsQuery : IRequest<List<CouponDto>>
+{
+    public Guid PromotionId { get; set; }
+}
+
 public class ValidateCouponQuery : IRequest<CouponValidationResult>
 {
     public string Code { get; set; } = string.Empty;

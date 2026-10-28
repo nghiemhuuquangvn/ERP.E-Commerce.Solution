@@ -23,6 +23,16 @@ public class PromotionDto
     public List<string> ApplicableCategoryIds { get; set; } = new();
 }
 
+public class CouponDto
+{
+    public Guid Id { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public bool IsUsed { get; set; }
+    public DateTime? UsedAt { get; set; }
+    public string? UsedByUserId { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
 public class CouponValidationResult
 {
     public bool IsValid { get; set; }

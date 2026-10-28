@@ -25,6 +25,20 @@ public class TransactionRepository : ITransactionRepository
             .OrderByDescending(t => t.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
+    public async Task<(List<Transaction> Items, int Total)> SearchAsync(Guid? terminalId, Guid? cashierId, TransactionStatus? status, DateTime? from, DateTime? to, int skip, int take, CancellationToken ct = default)
+    {
+        var query = _db.Transactions.AsNoTracking().AsQueryable();
+        if (terminalId.HasValue) query = query.Where(t => t.TerminalId == terminalId.Value);
+        if (cashierId.HasValue) query = query.Where(t => t.CashierId == cashierId.Value);
+        if (status.HasValue) query = query.Where(t => t.Status == status.Value);
+        if (from.HasValue) query = query.Where(t => t.CreatedAt >= from.Value);
+        if (to.HasValue) query = query.Where(t => t.CreatedAt < to.Value);
+
+        var total = await query.CountAsync(ct);
+        var items = await query.OrderByDescending(t => t.CreatedAt).Skip(skip).Take(take).ToListAsync(ct);
+        return (items, total);
+    }
+
     public async Task AddAsync(Transaction transaction, CancellationToken ct = default) =>
         await _db.Transactions.AddAsync(transaction, ct);
 
@@ -54,6 +68,19 @@ public class CashShiftRepository : ICashShiftRepository
             query = query.Where(s => s.TerminalId == terminalId.Value);
 
         return await query.AsNoTracking().ToListAsync(ct);
+    }
+
+    public async Task<(List<CashShift> Items, int Total)> SearchAsync(Guid? terminalId, CashShiftStatus? status, DateTime? from, DateTime? to, int skip, int take, CancellationToken ct = default)
+    {
+        var query = _db.CashShifts.AsNoTracking().AsQueryable();
+        if (terminalId.HasValue) query = query.Where(s => s.TerminalId == terminalId.Value);
+        if (status.HasValue) query = query.Where(s => s.Status == status.Value);
+        if (from.HasValue) query = query.Where(s => s.OpenedAt >= from.Value);
+        if (to.HasValue) query = query.Where(s => s.OpenedAt < to.Value);
+
+        var total = await query.CountAsync(ct);
+        var items = await query.OrderByDescending(s => s.OpenedAt).Skip(skip).Take(take).ToListAsync(ct);
+        return (items, total);
     }
 
     public async Task AddAsync(CashShift shift, CancellationToken ct = default) =>

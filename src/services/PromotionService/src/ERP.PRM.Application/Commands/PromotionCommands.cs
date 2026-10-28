@@ -23,6 +23,27 @@ public class CreatePromotionCommand : IRequest<PromotionDto>
     public List<string> ApplicableCategoryIds { get; set; } = new();
 }
 
+/// <summary>Edits a draft promotion (the same fields as creating it; the id comes from the route).</summary>
+public class UpdatePromotionCommand : IRequest<PromotionDto>
+{
+    public Guid PromotionId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public DiscountType DiscountType { get; set; }
+    public PromotionScope Scope { get; set; } = PromotionScope.Order;
+    public decimal DiscountValue { get; set; }
+    public decimal? MaxDiscountAmount { get; set; }
+    public decimal MinOrderAmount { get; set; }
+    public int? MaxUsageTotal { get; set; }
+    public int? MaxUsagePerUser { get; set; }
+    public int? BuyQuantity { get; set; }
+    public int? GetQuantity { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public List<Guid> ApplicableProductIds { get; set; } = new();
+    public List<string> ApplicableCategoryIds { get; set; } = new();
+}
+
 public class ActivatePromotionCommand : IRequest<PromotionDto>
 {
     public Guid PromotionId { get; set; }
