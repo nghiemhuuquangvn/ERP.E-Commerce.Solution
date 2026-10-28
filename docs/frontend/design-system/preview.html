@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ERP UI standard — preview</title>
+<style>
+/* Tokens from foundations.md. Two themes: back-office (Admin, Staff) and customer (Storefront, Customer app). */
+:root{
+  --surface:#fff; --surface-muted:#f3f4f6; --page:#f9fafb; --border:#e5e7eb; --border-strong:#6b7280;
+  --text:#111827; --text-secondary:#4b5563; --text-muted:#6b7280;
+  --success:#15803d; --success-soft:#dcfce7; --success-text:#166534;
+  --warning:#b45309; --warning-soft:#fef3c7; --warning-text:#92400e;
+  --danger:#dc2626; --danger-hover:#b91c1c; --danger-soft:#fee2e2; --danger-text:#991b1b;
+  --info-soft:#e0f2fe; --info-text:#075985; --neutral-text:#374151;
+  --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+}
+[data-theme="back-office"]{--brand-action:#0369a1;--brand-action-hover:#075985;--brand-soft:#e0f2fe;--brand-soft-text:#0c4a6e;--brand-subtle:#f0f9ff;--brand-accent:#0ea5e9;--radius-control:6px;--radius-card:8px;--control-h:36px;--body:14px}
+[data-theme="customer"]{--brand-action:#e11d48;--brand-action-hover:#be123c;--brand-soft:#ffe4e6;--brand-soft-text:#881337;--brand-subtle:#fff1f2;--brand-accent:#f43f5e;--radius-control:8px;--radius-card:12px;--control-h:44px;--body:16px}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font);background:#e5e7eb;color:var(--text)}
+header.top{background:#111827;color:#fff;padding:14px 24px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+header.top h1{font-size:18px;margin:0;font-weight:600}
+header.top p{margin:0;color:#d1d5db;font-size:13px}
+.wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:24px;padding:24px}
+@media(max-width:560px){.wrap{grid-template-columns:1fr;padding:12px}}
+.theme{background:var(--page);border-radius:12px;padding:24px;font-size:var(--body);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.theme>h2{margin:0 0 4px;font-size:20px}
+.theme>p.sub{margin:0 0 20px;color:var(--text-secondary);font-size:13px}
+section{margin-bottom:28px}
+h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);margin:0 0 10px;font-weight:600}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.sw{width:92px;font-size:11px;color:var(--text-secondary)}
+.sw i{display:block;height:44px;border-radius:6px;border:1px solid var(--border);margin-bottom:4px}
+svg.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:var(--control-h);padding:0 16px;border-radius:var(--radius-control);border:1px solid transparent;font:600 var(--body)/1 var(--font);cursor:pointer;transition:background .12s}
+.btn:focus-visible,.input:focus-visible,select:focus-visible{outline:2px solid var(--brand-action);outline-offset:2px}
+.btn-primary{background:var(--brand-action);color:#fff}.btn-primary:hover{background:var(--brand-action-hover)}
+.btn-secondary{background:var(--surface-muted);color:var(--text)}
+.btn-outline{background:var(--surface);color:var(--text);border-color:var(--border-strong)}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{background:var(--danger-hover)}
+.btn-ghost{background:transparent;color:var(--brand-action)}
+.btn[disabled]{opacity:.5;pointer-events:none}
+.btn.icon{width:var(--control-h);padding:0}
+/* inputs */
+.field{display:flex;flex-direction:column;gap:4px;min-width:200px;flex:1}
+.field label{font-size:13px;font-weight:500}
+.input,select{height:var(--control-h);border:1px solid var(--border-strong);border-radius:var(--radius-control);padding:0 12px;font:var(--body) var(--font);background:var(--surface);color:var(--text);width:100%}
+.input::placeholder{color:var(--text-muted)}
+.input.err{border-color:var(--danger)}
+.hint{font-size:12px;color:var(--text-secondary)}.error{font-size:12px;color:var(--danger-text)}
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:500}
+.b-success{background:var(--success-soft);color:var(--success-text)}.b-warning{background:var(--warning-soft);color:var(--warning-text)}
+.b-danger{background:var(--danger-soft);color:var(--danger-text)}.b-info{background:var(--info-soft);color:var(--info-text)}
+.b-neutral{background:var(--surface-muted);color:var(--neutral-text)}.b-brand{background:var(--brand-soft);color:var(--brand-soft-text)}
+/* cards, table */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.pad{padding:16px}
+.stat b{display:block;font-size:24px;font-variant-numeric:tabular-nums}.stat span{font-size:12px;color:var(--text-secondary)}
+table{width:100%;border-collapse:collapse}
+th{background:var(--surface-muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:10px 12px;color:var(--text-secondary);font-weight:600}
+td{padding:0 12px;height:44px;border-top:1px solid var(--border);font-size:14px}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.alert{display:flex;gap:10px;padding:12px;border-radius:var(--radius-control);font-size:14px}
+.empty{text-align:center;padding:28px 16px;color:var(--text-secondary)}
+.empty .ico{width:48px;height:48px;margin:0 auto 8px;color:var(--text-muted)}
+.skel{height:14px;border-radius:4px;background:linear-gradient(90deg,var(--surface-muted),#e5e7eb,var(--surface-muted));background-size:200% 100%;animation:sh 1.2s infinite}
+@keyframes sh{to{background-position:-200% 0}}
+@media(prefers-reduced-motion:reduce){.skel{animation:none}}
+.shell{display:grid;grid-template-columns:150px 1fr;min-height:250px;border-radius:var(--radius-card);overflow:hidden;border:1px solid var(--border)}
+.side{background:#111827;color:#d1d5db;padding:10px 8px;font-size:13px}
+.side div{display:flex;gap:8px;align-items:center;padding:7px 8px;border-radius:6px}
+.side .on{background:var(--brand-action);color:#fff}
+.main{background:var(--page);padding:12px}
+.phone{width:260px;border:8px solid #111827;border-radius:30px;background:var(--page);overflow:hidden;margin:0 auto;font-size:14px}
+.phone .bar{background:var(--surface);padding:12px 14px;font-weight:600;border-bottom:1px solid var(--border)}
+.phone .tabs{display:flex;justify-content:space-around;background:var(--surface);border-top:1px solid var(--border);padding:8px 0 12px;font-size:11px;color:var(--text-muted)}
+.phone .tabs div{display:flex;flex-direction:column;align-items:center;gap:2px}.phone .tabs .on{color:var(--brand-action);font-weight:600}
+.phone .item{display:flex;gap:10px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border)}
+.phone .thumb{width:44px;height:44px;border-radius:8px;background:var(--brand-soft);flex:none}
+.phone .cta{margin:12px 14px;height:48px;border-radius:12px;background:var(--brand-action);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600}
+.type div{margin-bottom:6px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+    <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+    <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="home" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></symbol>
+    <symbol id="user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+    <symbol id="cart" viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></symbol>
+    <symbol id="alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></symbol>
+    <symbol id="inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+  </defs>
+</svg>
+
+<header class="top">
+  <h1>ERP UI standard — visual preview</h1>
+  <p>Static reference for docs/frontend/design-system. Left: Back-office theme (Admin, Staff). Right: Customer theme (Storefront, Customer app). Icons are Lucide shapes. Tab through the controls to see the focus ring.</p>
+</header>
+
+<div class="wrap">
+
+<!-- ======================= BACK-OFFICE ======================= -->
+<div class="theme" data-theme="back-office">
+  <h2>Back-office theme</h2>
+  <p class="sub">Dense and calm · control 36 · body 14 · radius 6 / 8 · action #0369a1</p>
+
+  <section><h3>Brand tokens</h3>
+    <div class="row">
+      <div class="sw"><i style="background:var(--brand-action)"></i>action</div>
+      <div class="sw"><i style="background:var(--brand-action-hover)"></i>action-hover</div>
+      <div class="sw"><i style="background:var(--brand-soft)"></i>soft</div>
+      <div class="sw"><i style="background:var(--brand-subtle)"></i>subtle</div>
+      <div class="sw"><i style="background:var(--brand-accent)"></i>accent (decor)</div>
+    </div>
+  </section>
+
+  <section><h3>Buttons</h3>
+    <div class="row">
+      <button class="btn btn-primary"><svg class="i"><use href="#plus"/></svg>Add promotion</button>
+      <button class="btn btn-secondary">Secondary</button>
+      <button class="btn btn-outline">Cancel</button>
+      <button class="btn btn-danger">Void transaction</button>
+      <button class="btn btn-ghost">Ghost</button>
+      <button class="btn btn-primary" disabled>Disabled</button>
+      <button class="btn btn-outline icon" aria-label="Search"><svg class="i"><use href="#search"/></svg></button>
+    </div>
+  </section>
+
+  <section><h3>Form field</h3>
+    <div class="row">
+      <div class="field"><label for="a1">Name <span aria-hidden="true">*</span></label><input id="a1" class="input" placeholder="Spring sale"><span class="hint">Shown to staff only.</span></div>
+      <div class="field"><label for="a2">Total uses</label><input id="a2" class="input err" value="-5"><span class="error">Enter a number greater than zero.</span></div>
+      <div class="field"><label for="a3">Type</label><select id="a3"><option>Percentage</option><option>Fixed amount</option></select></div>
+    </div>
+  </section>
+
+  <section><h3>Badges</h3>
+    <div class="row">
+      <span class="badge b-success">Active</span><span class="badge b-warning">Pending</span><span class="badge b-danger">Cancelled</span>
+      <span class="badge b-info">In transit</span><span class="badge b-neutral">Draft</span><span class="badge b-brand">New</span>
+    </div>
+  </section>
+
+  <section><h3>Alerts</h3>
+    <div class="alert b-danger"><svg class="i"><use href="#alert"/></svg><div><b>The promotion could not be saved.</b> End date must be after start date.</div></div>
+  </section>
+
+  <section><h3>Admin shell · list page</h3>
+    <div class="shell">
+      <div class="side">
+        <div class="on"><svg class="i"><use href="#home"/></svg>Dashboard</div>
+        <div><svg class="i"><use href="#cart"/></svg>Sales</div>
+        <div><svg class="i"><use href="#user"/></svg>Users</div>
+        <div><svg class="i"><use href="#bell"/></svg>Monitoring</div>
+      </div>
+      <div class="main">
+        <div class="row" style="justify-content:space-between;margin-bottom:10px"><b style="font-size:20px">Promotions</b><button class="btn btn-primary"><svg class="i"><use href="#plus"/></svg>New promotion</button></div>
+        <div class="row" style="margin-bottom:10px"><input class="input" style="max-width:200px" placeholder="Search…" aria-label="Search"><select style="max-width:140px" aria-label="Status"><option>All statuses</option></select></div>
+        <div class="card" style="overflow:hidden"><table>
+          <thead><tr><th>Name</th><th>Status</th><th class="n">Used</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Spring sale</td><td><span class="badge b-success">Active</span></td><td class="n">120 / 500</td><td><button class="btn btn-ghost" style="height:28px">Coupons</button></td></tr>
+            <tr><td>Summer draft</td><td><span class="badge b-neutral">Draft</span></td><td class="n">0</td><td><button class="btn btn-ghost" style="height:28px">Edit</button></td></tr>
+            <tr><td>Old campaign</td><td><span class="badge b-danger">Cancelled</span></td><td class="n">87</td><td></td></tr>
+          </tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <section><h3>States</h3>
+    <div class="row" style="align-items:stretch">
+      <div class="card pad stat" style="flex:1"><span>Today's sales</span><b>12.480.000 ₫</b></div>
+      <div class="card pad" style="flex:1"><div class="skel" style="width:70%;margin-bottom:8px"></div><div class="skel" style="width:50%;margin-bottom:8px"></div><div class="skel" style="width:85%"></div></div>
+      <div class="card empty" style="flex:1"><svg class="i ico"><use href="#inbox"/></svg><b style="color:var(--text)">No terminals yet</b><div style="font-size:13px;margin:4px 0 10px">Add the first one to start selling.</div><button class="btn btn-primary">Add terminal</button></div>
+    </div>
+  </section>
+
+  <section class="type"><h3>Type scale</h3>
+    <div style="font-size:30px;line-height:36px;font-weight:600">3xl · 30 / 36</div>
+    <div style="font-size:24px;line-height:32px;font-weight:600">2xl · 24 / 32</div>
+    <div style="font-size:20px;line-height:28px;font-weight:600">xl · 20 / 28 — page title</div>
+    <div style="font-size:18px;line-height:28px;font-weight:600">lg · 18 / 28 — section</div>
+    <div style="font-size:16px;line-height:24px">base · 16 / 24 — customer body</div>
+    <div style="font-size:14px;line-height:20px">sm · 14 / 20 — back-office body · Nguyễn Thị Hương, Đồng Nai</div>
+    <div style="font-size:12px;line-height:16px;color:var(--text-secondary)">xs · 12 / 16 — helper text</div>
+  </section>
+</div>
+
+<!-- ======================= CUSTOMER ======================= -->
+<div class="theme" data-theme="customer">
+  <h2>Customer theme</h2>
+  <p class="sub">Airy and confident · control 44 · body 16 · radius 8 / 12 · action #e11d48</p>
+
+  <section><h3>Brand tokens</h3>
+    <div class="row">
+      <div class="sw"><i style="background:var(--brand-action)"></i>action</div>
+      <div class="sw"><i style="background:var(--brand-action-hover)"></i>action-hover</div>
+      <div class="sw"><i style="background:var(--brand-soft)"></i>soft</div>
+      <div class="sw"><i style="background:var(--brand-subtle)"></i>subtle</div>
+      <div class="sw"><i style="background:var(--brand-accent)"></i>accent (decor)</div>
+    </div>
+  </section>
+
+  <section><h3>Buttons</h3>
+    <div class="row">
+      <button class="btn btn-primary"><svg class="i"><use href="#cart"/></svg>Add to cart</button>
+      <button class="btn btn-secondary">Secondary</button>
+      <button class="btn btn-outline">Continue shopping</button>
+      <button class="btn btn-danger">Remove</button>
+      <button class="btn btn-ghost">Ghost</button>
+      <button class="btn btn-primary" disabled>Disabled</button>
+      <button class="btn btn-outline icon" aria-label="Search"><svg class="i"><use href="#search"/></svg></button>
+    </div>
+  </section>
+
+  <section><h3>Form field</h3>
+    <div class="row">
+      <div class="field"><label for="c1">Full name <span aria-hidden="true">*</span></label><input id="c1" class="input" placeholder="Nguyễn Thị Hương"></div>
+      <div class="field"><label for="c2">Phone</label><input id="c2" class="input err" value="09123"><span class="error">Enter a valid phone number.</span></div>
+      <div class="field"><label for="c3">Province</label><select id="c3"><option>Hồ Chí Minh</option><option>Hà Nội</option></select></div>
+    </div>
+  </section>
+
+  <section><h3>Badges</h3>
+    <div class="row">
+      <span class="badge b-success">Delivered</span><span class="badge b-warning">Awaiting payment</span><span class="badge b-danger">Payment failed</span>
+      <span class="badge b-info">Shipped</span><span class="badge b-neutral">Draft</span><span class="badge b-brand">-20%</span>
+    </div>
+  </section>
+
+  <section><h3>Product tile · cart summary</h3>
+    <div class="row" style="align-items:stretch">
+      <div class="card" style="width:200px;overflow:hidden">
+        <div style="height:120px;background:var(--brand-soft)"></div>
+        <div class="pad"><div style="font-weight:500">Ao thun basic</div>
+          <div style="margin:4px 0 10px"><b style="font-variant-numeric:tabular-nums">185.000 ₫</b> <s style="color:var(--text-muted);font-size:13px">230.000 ₫</s></div>
+          <button class="btn btn-primary" style="width:100%">Add to cart</button></div>
+      </div>
+      <div class="card pad" style="flex:1;min-width:220px">
+        <b>Order summary</b>
+        <table style="margin-top:8px"><tbody>
+          <tr><td>Subtotal</td><td class="n">370.000 ₫</td></tr>
+          <tr><td>Discount</td><td class="n" style="color:var(--danger-text)">−40.000 ₫</td></tr>
+          <tr><td>Delivery</td><td class="n">30.000 ₫</td></tr>
+          <tr><td><b>Total</b></td><td class="n"><b>360.000 ₫</b></td></tr></tbody></table>
+        <button class="btn btn-primary" style="width:100%;margin-top:10px">Pay 360.000 ₫</button>
+      </div>
+    </div>
+  </section>
+
+  <section><h3>Alert · coupon applied</h3>
+    <div class="alert b-success"><svg class="i"><use href="#check"/></svg><div><b>Coupon SPRING10 applied.</b> You save 40.000 ₫.</div></div>
+  </section>
+
+  <section><h3>Customer app · mobile</h3>
+    <div class="phone">
+      <div class="bar">Orders</div>
+      <div class="item"><div class="thumb"></div><div style="flex:1"><div style="font-weight:600;white-space:nowrap;font-size:13px">#SO-20261028</div><div style="font-size:12px;color:var(--text-secondary)">28/10/2026 · 2 items</div></div><div style="text-align:right"><span class="badge b-info">Shipped</span><div style="margin-top:4px;font-weight:600;font-variant-numeric:tabular-nums">360.000 ₫</div></div></div>
+      <div class="item"><div class="thumb"></div><div style="flex:1"><div style="font-weight:600;white-space:nowrap;font-size:13px">#SO-20261012</div><div style="font-size:12px;color:var(--text-secondary)">12/10/2026 · 1 item</div></div><div style="text-align:right"><span class="badge b-success">Delivered</span><div style="margin-top:4px;font-weight:600;font-variant-numeric:tabular-nums">185.000 ₫</div></div></div>
+      <div class="cta">Track order</div>
+      <div class="tabs">
+        <div><svg class="i" style="width:24px;height:24px"><use href="#home"/></svg>Home</div>
+        <div><svg class="i" style="width:24px;height:24px"><use href="#search"/></svg>Search</div>
+        <div><svg class="i" style="width:24px;height:24px"><use href="#cart"/></svg>Cart</div>
+        <div class="on"><svg class="i" style="width:24px;height:24px"><use href="#inbox"/></svg>Orders</div>
+        <div><svg class="i" style="width:24px;height:24px"><use href="#user"/></svg>Profile</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+</div>
+</body>
+</html>

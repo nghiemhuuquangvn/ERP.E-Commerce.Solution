@@ -36,6 +36,11 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-28 — ROADMAP P2-9: UI design standard for Web + Mobile (`docs/ui-design-standard`, document only, unmerged; branched from the P2-1a branch)
+- **Written** in `docs/frontend/design-system/`: README (decisions, principles), foundations (colour roles for two themes, type, space, radius, motion, breakpoints, density, Lucide icons with the emoji → icon map for every nav / tab icon), components (spec + mapping to today's code), patterns-web (page-state matrix, Admin shell / list / form / detail / dashboard / settings, Storefront journeys), patterns-mobile (Customer + Staff screens, offline, scan), content-and-i18n, accessibility (computed contrast table), adoption-roadmap (U1–U7), `preview.html` (both themes, buttons, inputs, badges, tables, states, phone mock-up) and `tools/contrast.js`.
+- **Findings that change today's values:** white on Admin button `#0284c7` is 4.10:1 (fails AA) → Back-office action becomes `#0369a1` (5.93); placeholder `#9ca3af` is 2.54 and control borders `#d1d5db` 1.47 → `#6b7280` (4.83).
+- No code under `src/` changed. Not done: dark mode, accessibility audit of existing pages, shared money / date helpers (rules written). Next: owner chooses U1 or continues the backend.
+
 ### 2026-10-28 — ROADMAP P2-1a: Promotion + POS back office in the Admin app (`feat/p2-1a-admin-promotion-pos`, unmerged)
 - **Backend** (no migration, no event): Promotion `PUT promotions/{id}` (draft only, `Promotion.Update`; other status = HTTP 400) and `GET promotions/{id}/coupons`; POS `GET pos/transactions` and `GET pos/shifts` (paged, filtered, newest first, last day inclusive, unknown status = 400) and `GET pos/terminals/{id}`.
 - **Admin**: groups *Promotions* (promotions with coupons dialog, flash sales, loyalty) and *Point of sale* (transactions with void, shifts with cash difference, Z report, terminals); `api/promotion/promotion.api.ts`, `api/pos/pos.api.ts`; `promotion.*` / `pos.*` / `nav.*` in en + vi. Guide: `docs/frontend/promotion-pos-admin-guide.md`.
