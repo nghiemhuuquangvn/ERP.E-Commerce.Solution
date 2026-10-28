@@ -28,6 +28,7 @@ The entry is staged on the caller's unit of work, so the document, its journal e
 | `CostOfGoodsSold` | 5000 | stock issues (ship, POS sale) |
 | `InventoryAdjustment` | 5000 (a separate key so a VAS chart can use a shrinkage account) | stock gains / losses |
 | `CashOverShort` | 5100 Operating Expenses | POS shift cash difference |
+| `ShippingRevenue` | 4000 (the simple chart has one revenue account; Vas99: 5113 service revenue; a chart with no such account books it with `SalesRevenue`) | the delivery part of an invoice (P1-11c) |
 | `SalesReturns` | 4000 (the default chart has no contra-revenue account; VAS 521 later) | completed returns |
 | `LoanPayable` | 2100 (Accrued Liabilities; Vas99: 341) | loan drawdown and repayment (P1-2j) |
 | `InterestExpense` | 5100 (Operating Expenses; Vas99: 635) | interest of a loan: accrual and the part of a repayment not accrued (P1-2j / P1-2k) |

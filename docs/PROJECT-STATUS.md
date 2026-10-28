@@ -36,7 +36,14 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
-### 2026-10-28 — R38: variants and service-token keys (`fix/r38-variants-and-service-token-keys`, unmerged)
+### 2026-10-28 — ROADMAP P1-11c (1/3): delivery fee table (`feat/p1-11c-fee-table`, unmerged)
+- **Shipping** (migration **009**): `ShippingFeeRules` price list (province × weight band), `ShippingFeePolicy` picks the first matching row by priority else the flat fee, the free threshold on top; `POST api/v1/shipping/fee` + `POST internal/v1/shipping-fee` take the province and the cart (weights from ProductService); `api/v1/shipping/fee-rules` CRUD.
+- **Sales** (migration **016**): the fee request carries province + lines; `CompleteReturn(amount, refundShippingFee)` refunds the goods and the delivery fee only when ticked (the admin used to send the order total, i.e. refund the fee by default).
+- **Accounting** (migration **027**): posting key `ShippingRevenue` (5113 Vas99, 4000 simple, falls back to sales revenue), `Invoice.ShippingNetAmount`, the entry splits goods and delivery.
+- **Admin**: Delivery fees tab with a try-a-parcel box, return dialog with the tick, delivery column on invoices. **Storefront**: preview with province + cart.
+- Tests: SHP 153, SO 78, ACC 593, Architecture 68; `tsc -b` / `vue-tsc` clean. Live on `glcheck`: UAT S7…S11 in `ShippingFee.md` §13.6. Next: `feat/p1-11d-returns-and-parcels`, `feat/p1-11e-jnt-vtp`.
+
+### 2026-10-28 — R38: variants and service-token keys (`fix/r38-variants-and-service-token-keys`, merged as PR #45)
 - **Product**: `IProductVariantRepository.AddAsync`; `CreateProductVariantHandler` adds the variant explicitly (it was tracked as Modified and refused, HTTP 500); a duplicate SKU is now a 400 `BusinessRuleException`.
 - **Shared**: `TrustedCallerKeys` is its own throttled key cache (min 2 s between fetches per caller): a token with an unknown key id triggers a fetch before it is judged, so the first call after a caller restarts is accepted. Receivers redeployed: product, warehouse, promotion, shipping, masterdata, identity.
 - Tests: Architecture 68 (variant creation on the real context, fails on the old handler), Shared 103 (rotation, throttle, caller down while restarting). Live on `glcheck`: variant 0.8 kg created via API (201, stored for the tenant); Sales redeployed and orders placed immediately: all 201. Next: P1-11c fee table (`feat/p1-11c-fee-table`).
