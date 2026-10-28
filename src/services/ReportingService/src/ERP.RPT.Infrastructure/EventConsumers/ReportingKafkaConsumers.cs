@@ -63,7 +63,14 @@ internal static class JDoc
     internal static string GetString(JsonElement root, params string[] names)
     {
         foreach (var n in names)
-            if (root.TryGetProperty(n, out var p)) return p.GetString() ?? "";
+            if (root.TryGetProperty(n, out var p))
+                // Newtonsoft writes an enum (the payment method) as a number: read it as text instead of throwing, which used to lose the whole message.
+                return p.ValueKind switch
+                {
+                    JsonValueKind.String => p.GetString() ?? "",
+                    JsonValueKind.Null or JsonValueKind.Undefined => "",
+                    _ => p.GetRawText()
+                };
         return "";
     }
 
@@ -210,7 +217,7 @@ public class PaymentEventConsumer : BackgroundService
                     var applied = await ReportingPayments.ApplyProcessedAsync(db, paymentId,
                         JDoc.GetGuid(root, "CaptureId", "captureId"), JDoc.GetGuid(root, "OrderId", "orderId"),
                         JDoc.GetDecimal(root, "Amount", "amount"), JDoc.GetString(root, "Currency", "currency"),
-                        JDoc.GetString(root, "Method", "method", "PaymentMethod", "paymentMethod"), processedAt, stoppingToken);
+                        ReportingPayments.MethodName(JDoc.GetString(root, "Method", "method", "PaymentMethod", "paymentMethod")), processedAt, stoppingToken);
                     if (applied) _logger.LogInformation("[REPORTING] FactPayment recorded: {PaymentId}", paymentId);
                 }
                 else if (typeName.Contains("PaymentRefunded"))
@@ -687,6 +694,12 @@ public static class ReportingRefunds
 /// </summary>
 public static class ReportingPayments
 {
+    private static readonly string[] MethodNames = { "CreditCard", "DebitCard", "BankTransfer", "EWallet", "Cash", "CryptoPayment" };
+
+    /// <summary>PaymentService's PaymentMethod enum arrives as a number (4) or a name; the fact stores the name.</summary>
+    public static string MethodName(string raw) =>
+        int.TryParse(raw, out var n) && n >= 0 && n < MethodNames.Length ? MethodNames[n] : raw;
+
     public static async Task<bool> ApplyProcessedAsync(ReportingDbContext db, Guid paymentId, Guid captureId, Guid orderId, decimal amount,
         string currency, string method, DateTime processedAt, CancellationToken ct)
     {

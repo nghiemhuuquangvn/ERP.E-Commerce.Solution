@@ -39,6 +39,23 @@ public class PaymentCaptureFactTests
         (await db.FactPaymentCaptures.CountAsync()).Should().Be(2);
     }
 
+    [Theory]
+    [InlineData("4", "Cash")]
+    [InlineData("3", "EWallet")]
+    [InlineData("Cash", "Cash")]
+    [InlineData("", "")]
+    public void The_payment_method_arrives_as_a_number_or_a_name(string raw, string expected) =>
+        ReportingPayments.MethodName(raw).Should().Be(expected);
+
+    [Fact]
+    public void A_numeric_method_is_read_as_text_instead_of_throwing()
+    {
+        var root = System.Text.Json.JsonDocument.Parse("{\"Method\":4,\"Currency\":\"VND\"}").RootElement;
+        JDoc.GetString(root, "Method").Should().Be("4");
+        JDoc.GetString(root, "Currency").Should().Be("VND");
+        JDoc.GetString(root, "Missing").Should().Be("");
+    }
+
     [Fact]
     public async Task A_payment_collected_in_one_go_is_recorded_once_as_before()
     {
