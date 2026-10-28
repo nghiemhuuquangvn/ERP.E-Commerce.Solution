@@ -159,6 +159,7 @@ $DatabaseScripts = @(
     "Shipping\006_AlignEntityColumns.sql",
     "Shipping\007_BaseEntityColumns.sql",
     "Shipping\008_Carriers.sql",
+    "Shipping\009_ShippingFeeRules.sql",
 
     # HR & Retail
     "HRM\001_CreateHrmDB.sql",

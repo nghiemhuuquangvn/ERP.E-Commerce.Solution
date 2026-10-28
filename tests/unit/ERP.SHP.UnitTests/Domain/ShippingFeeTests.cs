@@ -1,5 +1,7 @@
 using ERP.SHP.Application.Interfaces;
 using ERP.SHP.Application.Services;
+using ERP.SHP.Application.DTOs;
+using ERP.SHP.Domain.Entities;
 using ERP.SHP.Domain.Entities.Settings;
 using FluentAssertions;
 using Moq;
@@ -25,13 +27,16 @@ public class ShippingFeeTests
     public void A_shop_without_settings_charges_nothing() =>
         ShippingFeePolicy.Compute(null, 100000m).Should().Be(0m);
 
-    private static ShippingFeeService ServiceFor(TenantShippingSettings? settings)
+    private static ShippingFeeService ServiceFor(TenantShippingSettings? settings, List<ShippingFeeRule>? rules = null, IReadOnlyDictionary<Guid, int>? weights = null)
     {
         var config = new Mock<IShippingConfigRepository>();
         config.Setup(c => c.GetTenantSettingsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings);
+        config.Setup(c => c.GetFeeRulesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(rules ?? new List<ShippingFeeRule>());
         var uow = new Mock<IShippingUnitOfWork>();
         uow.SetupGet(u => u.Config).Returns(config.Object);
-        return new ShippingFeeService(uow.Object);
+        var client = new Mock<IProductWeightClient>();
+        client.Setup(w => w.GetWeightsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>())).ReturnsAsync(weights ?? new Dictionary<Guid, int>());
+        return new ShippingFeeService(uow.Object, client.Object);
     }
 
     private static TenantShippingSettings Settings(decimal fee, decimal threshold)

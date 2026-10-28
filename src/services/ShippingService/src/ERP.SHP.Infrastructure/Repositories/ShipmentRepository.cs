@@ -105,6 +105,9 @@ public class ShippingConfigRepository : IShippingConfigRepository
     public async Task<List<CarrierSelectionRule>> GetActiveRulesAsync(CancellationToken ct = default) =>
         await _db.CarrierSelectionRules.Where(r => r.IsActive).AsNoTracking().ToListAsync(ct);
 
+    public async Task<List<ERP.SHP.Domain.Entities.ShippingFeeRule>> GetFeeRulesAsync(CancellationToken ct = default) =>
+        await _db.ShippingFeeRules.Where(r => r.IsActive).OrderBy(r => r.Priority).ThenBy(r => r.Name).AsNoTracking().ToListAsync(ct);
+
     public async Task<ERP.SHP.Domain.Entities.Settings.TenantShippingSettings?> GetTenantSettingsAsync(CancellationToken ct = default) =>
         await _db.TenantShippingSettings.AsNoTracking().FirstOrDefaultAsync(ct);
 }

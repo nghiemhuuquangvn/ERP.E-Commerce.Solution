@@ -424,7 +424,7 @@
         }
       ],
       "UpstreamPathTemplate": "/api/v1/shipping/fee",
-      "UpstreamHttpMethod": [ "GET" ],
+      "UpstreamHttpMethod": [ "GET", "POST" ],
       "AuthenticationOptions": {
         "AuthenticationProviderKey": "Bearer"
       }

@@ -52,6 +52,8 @@ public interface ICarrierRepository
 public interface IShippingConfigRepository
 {
     Task<List<CarrierSelectionRule>> GetActiveRulesAsync(CancellationToken ct = default);
+    /// <summary>The shop's delivery price list (active rows), in the order they are tried.</summary>
+    Task<List<ERP.SHP.Domain.Entities.ShippingFeeRule>> GetFeeRulesAsync(CancellationToken ct = default);
     Task<ERP.SHP.Domain.Entities.Settings.TenantShippingSettings?> GetTenantSettingsAsync(CancellationToken ct = default);
 }
 
