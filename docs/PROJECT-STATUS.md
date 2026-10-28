@@ -36,6 +36,12 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-28 — ROADMAP P1-11d (2/3): several parcels + returns through the carrier (`feat/p1-11d-returns-and-parcels`, unmerged)
+- **Shipping** (migration **010**): `Shipments.ParcelNo/ParcelCount`; `POST shipments/{id}/split` (`SplitShipmentCommandHandler`, `ParcelSplitPlanner`: books the new parcels first, cancels the original, undoes everything on a refusal); `ReturnBookingService` books the way back as the forward booking with the addresses swapped (`internal/v1/returns`); `ReturnShipment` carries the carrier booking and goes through the same webhook / polling path; `DeliveryConfirmed(OtherParcelsPending…)`, `ReturnReceived(OtherReturnsPending)`.
+- **Sales** (migration **017**): `return/approve` (asks Shipping; unreachable = refused, answered-but-nothing-booked = approved by hand), `CompleteReturn` waits for the goods when a pickup is booked, the order is Delivered with the last parcel; the order read is no longer cached. **Payment**: the COD is captured with the last parcel (one payment per order).
+- **Admin**: split dialog + parcel badge, return panel (approve / book again / goods received / refund waits).
+- Tests: SHP 169, SO 84, PAY 84, Architecture 68, Shared 103; `tsc -b` clean. Live on `glcheck` (fake GHTK): UAT S12…S17 in `ParcelsAndReturns.md`. Not done: browser walk-through, a carrier refusal live, Viettel Post / GHN reverse orders. Next: `feat/p1-11e-jnt-vtp`.
+
 ### 2026-10-28 — ROADMAP P1-11c (1/3): delivery fee table (`feat/p1-11c-fee-table`, unmerged)
 - **Shipping** (migration **009**): `ShippingFeeRules` price list (province × weight band), `ShippingFeePolicy` picks the first matching row by priority else the flat fee, the free threshold on top; `POST api/v1/shipping/fee` + `POST internal/v1/shipping-fee` take the province and the cart (weights from ProductService); `api/v1/shipping/fee-rules` CRUD.
 - **Sales** (migration **016**): the fee request carries province + lines; `CompleteReturn(amount, refundShippingFee)` refunds the goods and the delivery fee only when ticked (the admin used to send the order total, i.e. refund the fee by default).
