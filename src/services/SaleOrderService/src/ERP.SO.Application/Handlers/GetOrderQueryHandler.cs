@@ -19,10 +19,8 @@ namespace ERP.SO.Application.Handlers
 
         public async Task<SalesOrderDto> Handle(GetOrderQuery request, CancellationToken cancellationToken)
         {
-            var cacheKey = $"so:order:{request.OrderId}";
-            var cached = await _cache.GetAsync<SalesOrderDto>(cacheKey, cancellationToken);
-            if (cached != null) return cached;
-
+            // Not cached (ROADMAP P1-11d): the order changes through events as well (delivered, goods received for a return) and nothing evicted the old
+            // 5-minute copy, so a screen showed a stale status; the key did not carry the tenant either.
             var order = await _repository.GetByIdAsync(request.OrderId, cancellationToken)
                 ?? throw new InvalidOperationException($"Order {request.OrderId} not found");
 
@@ -33,7 +31,6 @@ namespace ERP.SO.Application.Handlers
             dto.IsAnomalous = isAnomalous;
             dto.AnomalyReason = reason;
 
-            await _cache.SetAsync(cacheKey, dto, TimeSpan.FromMinutes(5), cancellationToken);
             return dto;
         }
     }
