@@ -155,6 +155,7 @@ $DatabaseScripts = @(
     "Payment\006_TenantIsolation.sql",
     "Payment\007_AlignEntityColumns.sql",
     "Payment\008_OnlinePayments.sql",
+    "Payment\009_PartialCodCaptures.sql",
     "Shipping\001_CreateShippingDB.sql",
     "Shipping\002_AddReturnsPodAddressRestructure.sql",
     "Shipping\003_AddShippingSettings.sql",
