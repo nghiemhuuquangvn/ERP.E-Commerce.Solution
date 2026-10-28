@@ -1,0 +1,88 @@
+import { useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
+import { loyaltyApi } from '@/api/promotion/promotion.api'
+import type { LoyaltyAccount } from '@/api/promotion/promotion.api'
+import { usePermission } from '@/hooks/usePermission'
+
+const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const errorText = (e: unknown, fallback: string) =>
+  (e as { response?: { status?: number; data?: { detail?: string; message?: string } } })?.response?.data?.detail ??
+  (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback
+
+/** Look a customer's loyalty account up by user id and adjust the points by hand (customer service). */
+export function LoyaltyPage() {
+  const { t } = useTranslation()
+  const { hasPermission } = usePermission()
+  const queryClient = useQueryClient()
+  const canManage = hasPermission('promotions:manage')
+  const [userId, setUserId] = useState('')
+  const [account, setAccount] = useState<LoyaltyAccount | null>(null)
+  const [points, setPoints] = useState(100)
+  const [reason, setReason] = useState('')
+  const validId = GUID.test(userId.trim())
+
+  const lookup = useMutation({
+    mutationFn: () => loyaltyApi.get(userId.trim()),
+    onSuccess: setAccount,
+    onError: () => setAccount(null),
+  })
+  const earn = useMutation({
+    mutationFn: () => loyaltyApi.earn(userId.trim(), { points, reason: reason.trim() }),
+    onSuccess: (a) => { setAccount(a); queryClient.invalidateQueries({ queryKey: ['promotion', 'loyalty'] }) },
+  })
+  const redeem = useMutation({
+    mutationFn: () => loyaltyApi.redeem(userId.trim(), { points }),
+    onSuccess: setAccount,
+  })
+
+  const notFound = (lookup.error as { response?: { status?: number } } | null)?.response?.status === 404
+  const label = 'mb-1 block text-sm font-medium text-gray-700'
+
+  return (
+    <div className="max-w-2xl space-y-4">
+      <h1 className="text-xl font-semibold">{t('promotion.loyalty.title')}</h1>
+
+      <div className="card space-y-3 p-4">
+        <label className={label}>{t('promotion.loyalty.userId')}</label>
+        <div className="flex gap-3">
+          <input className="input flex-1" value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+          <button className="btn-primary" disabled={!validId || lookup.isPending} onClick={() => lookup.mutate()}>{t('promotion.loyalty.lookup')}</button>
+        </div>
+        {userId && !validId && <p className="text-xs text-red-600">{t('promotion.loyalty.invalidId')}</p>}
+        {notFound && <p className="text-xs text-gray-500">{t('promotion.loyalty.noAccount')}</p>}
+        {lookup.isError && !notFound && <p className="text-xs text-red-600">{errorText(lookup.error, t('promotion.loyalty.failed'))}</p>}
+      </div>
+
+      {account && (
+        <div className="card space-y-4 p-4">
+          <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+            <div><dt className="text-gray-500">{t('promotion.loyalty.tier')}</dt><dd className="font-semibold">{t(`promotion.tier.${account.tier}`)}</dd></div>
+            <div><dt className="text-gray-500">{t('promotion.loyalty.available')}</dt><dd className="font-semibold">{account.availablePoints}</dd></div>
+            <div><dt className="text-gray-500">{t('promotion.loyalty.total')}</dt><dd className="font-semibold">{account.totalPoints}</dd></div>
+            <div>
+              <dt className="text-gray-500">{t('promotion.loyalty.toNext')}</dt>
+              <dd className="font-semibold">{account.nextTier ? `${account.pointsToNextTier} → ${t(`promotion.tier.${account.nextTier}`)}` : '—'}</dd>
+            </div>
+          </dl>
+
+          {canManage && (
+            <div className="grid grid-cols-3 items-end gap-3 border-t pt-4">
+              <div>
+                <label className={label}>{t('promotion.loyalty.points')}</label>
+                <input type="number" min={1} className="input" value={points} onChange={(e) => setPoints(Number(e.target.value))} />
+              </div>
+              <div className="col-span-2">
+                <label className={label}>{t('promotion.loyalty.reason')}</label>
+                <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} />
+              </div>
+              <button className="btn-primary" disabled={points < 1 || !reason.trim() || earn.isPending} onClick={() => earn.mutate()}>{t('promotion.loyalty.earn')}</button>
+              <button className="btn-outline" disabled={points < 1 || redeem.isPending} onClick={() => redeem.mutate()}>{t('promotion.loyalty.redeem')}</button>
+            </div>
+          )}
+          {(earn.isError || redeem.isError) && <p className="text-xs text-red-600">{errorText(earn.error ?? redeem.error, t('promotion.loyalty.failed'))}</p>}
+        </div>
+      )}
+    </div>
+  )
+}

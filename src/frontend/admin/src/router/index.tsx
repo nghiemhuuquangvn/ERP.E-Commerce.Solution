@@ -42,6 +42,13 @@ import { BarcodeResolvePage } from '@/pages/inventory/BarcodeResolvePage'
 import { InventoryValuationSnapshotsPage } from '@/pages/inventory/InventoryValuationSnapshotsPage'
 import { PaymentsPage } from '@/pages/payments/PaymentsPage'
 import { ShipmentsPage } from '@/pages/shipping/ShipmentsPage'
+import { PromotionsPage } from '@/pages/promotion/PromotionsPage'
+import { FlashSalesPage } from '@/pages/promotion/FlashSalesPage'
+import { LoyaltyPage } from '@/pages/promotion/LoyaltyPage'
+import { PosTerminalsPage } from '@/pages/pos/PosTerminalsPage'
+import { PosShiftsPage } from '@/pages/pos/PosShiftsPage'
+import { PosTransactionsPage } from '@/pages/pos/PosTransactionsPage'
+import { PosZReportPage } from '@/pages/pos/PosZReportPage'
 import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { MonitoringPage } from '@/pages/monitoring/MonitoringPage'
 import { LogsPage } from '@/pages/logs/LogsPage'
@@ -181,6 +188,13 @@ export const router = createBrowserRouter([
       { path: 'inventory/:productId', element: <InventoryDetailPage /> },
       { path: 'payments', element: <PaymentsPage /> },
       { path: 'shipping/shipments', element: <ShipmentsPage /> },
+      { path: 'promotion/promotions', element: <PromotionsPage /> },
+      { path: 'promotion/flash-sales', element: <FlashSalesPage /> },
+      { path: 'promotion/loyalty', element: <LoyaltyPage /> },
+      { path: 'pos/terminals', element: <PosTerminalsPage /> },
+      { path: 'pos/shifts', element: <PosShiftsPage /> },
+      { path: 'pos/transactions', element: <PosTransactionsPage /> },
+      { path: 'pos/z-report', element: <PosZReportPage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'customers', element: <CustomersPage /> },
       { path: 'settings', element: <PlaceholderPage title="Settings" /> },
