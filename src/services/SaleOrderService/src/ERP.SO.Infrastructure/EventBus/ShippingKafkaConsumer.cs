@@ -97,7 +97,8 @@ namespace ERP.SO.Infrastructure.EventBus
                 typeName.Contains("ShipmentCreatedEvent") ? "Created" :
                 typeName.Contains("ShipmentCreationFailedEvent") ? "CreationFailed" :
                 typeName.Contains("ShipmentFailedEvent") ? "DeliveryFailed" :
-                typeName.Contains("DeliveryConfirmedEvent") ? "Delivered" : null;
+                typeName.Contains("DeliveryConfirmedEvent") ? "Delivered" :
+                typeName.Contains("ReturnReceivedEvent") ? "ReturnReceived" : null;
             if (kind == null)
                 return; // Other shipping-topic events are not consumed by SaleOrderService.
 
@@ -127,7 +128,12 @@ namespace ERP.SO.Infrastructure.EventBus
                     await saga.HandleDeliveryFailedAsync(orderId, reason, raw["DeliveryAttempts"]?.Value<int>() ?? 0, cancellationToken);
                     break;
                 case "Delivered":
-                    await saga.HandleDeliveryConfirmedAsync(orderId, cancellationToken);
+                    await saga.HandleDeliveryConfirmedAsync(orderId, raw["OtherParcelsPending"]?.Value<int>() ?? 0, cancellationToken);
+                    break;
+                case "ReturnReceived":
+                    // Every reverse parcel of the order is back (Shipping counts the others): the refund of a return waiting for the goods may be completed.
+                    if ((raw["OtherReturnsPending"]?.Value<int>() ?? 0) == 0)
+                        await scope.ServiceProvider.GetRequiredService<MediatR.IMediator>().Send(new ERP.SO.Application.Commands.MarkReturnGoodsReceivedCommand { OrderId = orderId }, cancellationToken);
                     break;
             }
         }

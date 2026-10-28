@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
-import { shippingApi, type Shipment } from '@/api/shipping.api'
+import { shippingApi, type Shipment, type SplitPart } from '@/api/shipping.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Pagination } from '@/components/shared/Pagination'
@@ -14,6 +14,94 @@ const STATUS_FILTERS = ['', 'Pending', 'ReadyForPickup', 'PickedUp', 'InTransit'
 
 const money = (n: number) => `${new Intl.NumberFormat('vi-VN').format(n)} ₫`
 
+/** Splits a parcel the carrier has not collected into several: a grid of product quantities per new parcel (every item must go to exactly one parcel). */
+function SplitDialog({ shipment, onClose, onDone }: { shipment: Shipment; onClose: () => void; onDone: () => void }) {
+  const { t } = useTranslation()
+  const items = shipment.items ?? []
+  const [count, setCount] = useState(2)
+  // qty[parcel][item]; the first parcel starts with everything so the person moves items out.
+  const [qty, setQty] = useState<number[][]>(() => [items.map((i) => i.quantity), items.map(() => 0)])
+  const [cod, setCod] = useState<number[]>([])
+
+  const resize = (n: number) => {
+    setCount(n)
+    setQty((q) => Array.from({ length: n }, (_, p) => q[p] ?? items.map(() => 0)))
+    setCod([])
+  }
+  const setCell = (p: number, i: number, v: number) => {
+    setQty((q) => q.map((row, rp) => (rp === p ? row.map((x, ri) => (ri === i ? Math.max(0, v) : x)) : row)))
+    setCod([])
+  }
+
+  const units = qty.map((row) => row.reduce((a, b) => a + b, 0))
+  const totalUnits = units.reduce((a, b) => a + b, 0)
+  const unassigned = items.map((it, i) => it.quantity - qty.reduce((a, row) => a + row[i], 0))
+  const exact = unassigned.every((u) => u === 0) && units.every((u) => u > 0)
+  // The proposed cash follows the units; the last parcel takes the remainder (the server does the same when none is typed).
+  const proposal = qty.map((_, p) => (p === count - 1 ? shipment.codAmount - qty.slice(0, p).reduce((a, _r, rp) => a + Math.round((shipment.codAmount * units[rp]) / Math.max(1, totalUnits)), 0) : Math.round((shipment.codAmount * units[p]) / Math.max(1, totalUnits))))
+  const codValues = shipment.codAmount > 0 ? (cod.length === count ? cod : proposal) : []
+  const codSum = codValues.reduce((a, b) => a + b, 0)
+  const codOk = shipment.codAmount === 0 || codSum === shipment.codAmount
+
+  const split = useMutation({
+    mutationFn: () => {
+      const parts: SplitPart[] = qty.map((row, p) => ({
+        items: items.map((it, i) => ({ productId: it.productId, quantity: row[i] })).filter((l) => l.quantity > 0),
+        codAmount: shipment.codAmount > 0 ? codValues[p] : undefined,
+      }))
+      return shippingApi.split(shipment.id, parts)
+    },
+    onSuccess: onDone,
+  })
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+      <div className="card max-h-[90vh] w-full max-w-3xl space-y-4 overflow-y-auto p-6">
+        <h3 className="text-base font-semibold text-gray-900">{t('shipments.split.title')}</h3>
+        <p className="text-xs text-gray-500">{t('shipments.split.hint')}</p>
+        <label className="flex items-center gap-2 text-sm">
+          {t('shipments.split.parcels')}
+          <input type="number" min={2} max={10} className="input w-20" value={count} onChange={(e) => resize(Math.min(10, Math.max(2, Number(e.target.value) || 2)))} />
+        </label>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-gray-500">
+              <th className="py-1">{t('shipments.split.item')}</th>
+              {qty.map((_, p) => <th key={p} className="w-24 py-1">{t('shipments.split.parcel', { n: p + 1 })}</th>)}
+              <th className="w-24 py-1">{t('shipments.split.left')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((it, i) => (
+              <tr key={it.productId} className="border-t border-gray-100">
+                <td className="py-1">{it.productName} <span className="text-xs text-gray-400">× {it.quantity}</span></td>
+                {qty.map((row, p) => (
+                  <td key={p}><input type="number" min={0} className="input w-20" value={row[i]} onChange={(e) => setCell(p, i, Number(e.target.value) || 0)} /></td>
+                ))}
+                <td className={unassigned[i] === 0 ? 'text-gray-400' : 'font-medium text-red-600'}>{unassigned[i]}</td>
+              </tr>
+            ))}
+            {shipment.codAmount > 0 && (
+              <tr className="border-t border-gray-200">
+                <td className="py-1 font-medium">{t('shipments.cod')}</td>
+                {codValues.map((v, p) => (
+                  <td key={p}><input type="number" min={0} className="input w-24" value={v} onChange={(e) => setCod(codValues.map((x, xp) => (xp === p ? Number(e.target.value) || 0 : x)))} /></td>
+                ))}
+                <td className={codOk ? 'text-gray-400' : 'font-medium text-red-600'}>{money(shipment.codAmount - codSum)}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        {split.isError && <p className="text-xs text-red-600">{serverMessage(split.error, t('common.failedToSave'))}</p>}
+        <div className="flex justify-end gap-3">
+          <button className="btn-outline" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="btn-primary" disabled={!exact || !codOk || split.isPending} onClick={() => split.mutate()}>{t('shipments.split.confirm')}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ShipmentDetail({ shipment, onClose }: { shipment: Shipment; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -24,6 +112,8 @@ function ShipmentDetail({ shipment, onClose }: { shipment: Shipment; onClose: ()
   const cancel = useMutation({ mutationFn: () => shippingApi.cancelAtCarrier(shipment.id), onSuccess: () => { refresh(); onClose() } })
   const rebook = useMutation({ mutationFn: () => shippingApi.rebook(shipment.id), onSuccess: () => { refresh(); onClose() } })
 
+  const [splitting, setSplitting] = useState(false)
+  const splittable = canUpdate && ['Pending', 'ReadyForPickup'].includes(shipment.status) && (shipment.items ?? []).reduce((a, i) => a + i.quantity, 0) > 1
   const cancellable = canUpdate && ['Pending', 'ReadyForPickup'].includes(shipment.status)
   const row = (label: string, value?: string | number | null) =>
     value === undefined || value === null || value === '' ? null : (
@@ -40,6 +130,7 @@ function ShipmentDetail({ shipment, onClose }: { shipment: Shipment; onClose: ()
           <div>
             <h3 className="text-base font-semibold text-gray-900">{shipment.carrierName}</h3>
             <p className="font-mono text-xs text-gray-500">{shipment.trackingNumber ?? t('shipments.noTracking')}</p>
+            {(shipment.parcelCount ?? 1) > 1 && <p className="text-xs font-medium text-indigo-700">{t('shipments.split.badge', { n: shipment.parcelNo, count: shipment.parcelCount })}</p>}
           </div>
           <StatusBadge status={shipment.status} />
         </div>
@@ -81,12 +172,14 @@ function ShipmentDetail({ shipment, onClose }: { shipment: Shipment; onClose: ()
           {canUpdate && !shipment.trackingNumber && shipment.status !== 'Cancelled' && (
             <button className="btn-outline" disabled={rebook.isPending} onClick={() => rebook.mutate()}>{t('shipments.rebook')}</button>
           )}
+          {splittable && <button className="btn-outline" onClick={() => setSplitting(true)}>{t('shipments.split.open')}</button>}
           {cancellable && (
             <button className="btn-outline text-red-600" disabled={cancel.isPending} onClick={() => cancel.mutate()}>{t('shipments.cancelAtCarrier')}</button>
           )}
           <button className="btn-primary" onClick={onClose}>{t('common.close')}</button>
         </div>
       </div>
+      {splitting && <SplitDialog shipment={shipment} onClose={() => setSplitting(false)} onDone={() => { refresh(); onClose() }} />}
     </div>
   )
 }

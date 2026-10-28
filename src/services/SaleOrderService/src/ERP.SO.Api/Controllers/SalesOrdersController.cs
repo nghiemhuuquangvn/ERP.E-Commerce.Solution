@@ -272,6 +272,22 @@ namespace ERP.SO.Api.Controllers
         }
 
         /// <summary>
+        /// Approves a requested return and asks Shipping to book the goods' way back at a carrier (safe to repeat: a refused booking is retried).
+        /// Requires: sales_order:approve permission
+        /// </summary>
+        [HttpPost("{id:guid}/return/approve")]
+        [ProducesResponseType(typeof(SalesOrderDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> ApproveReturn([FromRoute] Guid id, CancellationToken cancellationToken)
+        {
+            if (!_userContext.HasPermission("sales_order:approve"))
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:approve required" });
+
+            try { return Ok(await _mediator.Send(new ApproveReturnCommand { OrderId = id }, cancellationToken)); }
+            catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+        }
+
+        /// <summary>
         /// Marks the return as completed and records the refund amount — publishes
         /// SalesOrderReturnedEvent for Payment/Accounting/Warehouse to react to.
         /// Requires: sales_order:approve permission

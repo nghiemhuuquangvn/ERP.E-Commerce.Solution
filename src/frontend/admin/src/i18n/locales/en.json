@@ -258,7 +258,11 @@
     "return": {
       "amount": "Refund amount",
       "amountPlaceholder": "Refund (goods): {{goods}}",
-      "refundFee": "Also refund the delivery fee ({{fee}})"
+      "refundFee": "Also refund the delivery fee ({{fee}})",
+      "approve": "Approve return (book pickup)",
+      "retryPickup": "Book pickup again",
+      "receiveByHand": "Goods received",
+      "waitingForGoods": "The carrier is bringing the goods back: the refund can be completed once the warehouse has received them."
     },
     "statusActions": {
       "title": "Status Actions",
@@ -794,6 +798,17 @@
   },
   "shipments": {
     "title": "Shipments",
+    "split": {
+      "open": "Split into parcels",
+      "title": "Split into several parcels",
+      "hint": "Each new parcel is booked at a carrier on its own and the original booking is cancelled. If any carrier refuses, nothing changes. Cash on delivery must add up to the original.",
+      "parcels": "Number of parcels",
+      "item": "Item",
+      "parcel": "Parcel {{n}}",
+      "left": "Left",
+      "confirm": "Split and book",
+      "badge": "Parcel {{n}} of {{count}}"
+    },
     "tracking": "Tracking",
     "carrier": "Carrier",
     "recipient": "Recipient",

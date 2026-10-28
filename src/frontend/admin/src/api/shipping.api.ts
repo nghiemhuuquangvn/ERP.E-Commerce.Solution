@@ -42,8 +42,32 @@ export interface Shipment {
   /** Something a person should look at (cash mismatch, the carrier refused to cancel...). */
   reviewNote?: string | null
   lastCarrierSyncAt?: string | null
+  /** 1-based number of this parcel and how many parcels the order travels in (1 / 1 = not split). */
+  parcelNo?: number
+  parcelCount?: number
   createdAt: string
   trackingEvents: TrackingEvent[]
+  items?: { productId: string; productName: string; quantity: number; weight: number }[]
+}
+
+/** The goods' way back (customer to shop) booked at a carrier for a returned order. */
+export interface ReturnParcel {
+  id: string
+  originalShipmentId: string
+  orderId: string
+  reason: string
+  trackingNumber?: string | null
+  status: 'Requested' | 'PickedUp' | 'Received' | 'Cancelled'
+  carrierName?: string | null
+  carrierFee?: number | null
+  bookingError?: string | null
+  receivedAt?: string | null
+}
+
+/** One new parcel of a split: product quantities and, optionally, the cash the carrier collects on it. */
+export interface SplitPart {
+  items: { productId: string; quantity: number }[]
+  codAmount?: number
 }
 
 export interface ShipmentList {
@@ -127,6 +151,16 @@ export const shippingApi = {
     apiClient.post<Shipment>(`${BASE}/shipments/${id}/cancel-at-carrier`, { reason }).then((r) => r.data),
 
   rebook: (id: string) => apiClient.post<Shipment>(`${BASE}/shipments/${id}/rebook`, {}).then((r) => r.data),
+
+  /** Splits a parcel the carrier has not collected into several; all or nothing. */
+  split: (id: string, parts: SplitPart[]) => apiClient.post<Shipment[]>(`${BASE}/shipments/${id}/split`, { parts }).then((r) => r.data),
+
+  /** The return parcels of an order. */
+  orderReturns: (orderId: string) => apiClient.get<ReturnParcel[]>(`${BASE}/shipments/order-returns/${orderId}`).then((r) => r.data),
+
+  /** The goods arrived and nobody told the carrier's system (a person receives them by hand). */
+  receiveReturn: (shipmentId: string, returnId: string) =>
+    apiClient.post<ReturnParcel>(`${BASE}/shipments/${shipmentId}/returns/${returnId}/received`, {}).then((r) => r.data),
 
   listFeeRules: () => apiClient.get<ShippingFeeRule[]>(`${BASE}/shipping/fee-rules`).then((r) => r.data),
 

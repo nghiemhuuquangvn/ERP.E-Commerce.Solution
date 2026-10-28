@@ -61,6 +61,17 @@ public interface IReturnShipmentRepository
 {
     Task<ReturnShipment?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<List<ReturnShipment>> GetByOriginalShipmentIdAsync(Guid originalShipmentId, CancellationToken ct = default);
+
+    /// <summary>Tracked: an order's returns (any state), for a booking that will change them.</summary>
+    Task<List<ReturnShipment>> GetTrackedByOrderIdAsync(Guid orderId, CancellationToken ct = default);
+
+    /// <summary>Tracked, for a carrier notification or poll. Null when no return of the current tenant has this tracking code.</summary>
+    Task<ReturnShipment?> GetTrackedByTrackingNumberAsync(string trackingNumber, CancellationToken ct = default);
+
+    /// <summary>Returns a carrier is still handling (booked, not received / cancelled) that were not updated since <paramref name="before"/>.</summary>
+    Task<List<ReturnShipment>> GetStaleInCarrierHandsAsync(DateTime before, int take, CancellationToken ct = default);
+
+    Task<List<Guid>> GetTenantsWithOpenReturnsAsync(CancellationToken ct = default);
     Task AddAsync(ReturnShipment returnShipment, CancellationToken ct = default);
     Task UpdateAsync(ReturnShipment returnShipment, CancellationToken ct = default);
 }

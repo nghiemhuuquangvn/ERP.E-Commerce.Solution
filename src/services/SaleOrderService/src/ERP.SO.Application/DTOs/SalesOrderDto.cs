@@ -24,6 +24,10 @@ namespace ERP.SO.Application.DTOs
         public string? ReturnReason { get; set; }
         public decimal? RefundAmount { get; set; }
         public bool ReturnShippingFeeRefunded { get; set; }
+        public DateTime? ReturnApprovedAt { get; set; }
+        public bool ReturnPickupBooked { get; set; }
+        public DateTime? ReturnGoodsReceivedAt { get; set; }
+        public string? ReturnPickupNote { get; set; }
         public List<OrderNoteDto> InternalNotes { get; set; } = new();
         public List<OrderStatusHistoryDto> StatusHistory { get; set; } = new();
         public string OrderNo { get; set; } = string.Empty;

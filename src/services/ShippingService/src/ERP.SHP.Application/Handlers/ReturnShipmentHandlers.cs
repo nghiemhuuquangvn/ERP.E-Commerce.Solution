@@ -1,6 +1,7 @@
 using ERP.SHP.Application.Commands;
 using ERP.SHP.Application.DTOs;
 using ERP.SHP.Application.Interfaces;
+using ERP.SHP.Application.Services;
 using ERP.SHP.Domain.Entities;
 using MediatR;
 
@@ -27,7 +28,7 @@ public class InitiateReturnCommandHandler : IRequestHandler<InitiateReturnComman
         return MapToDto(returnShipment);
     }
 
-    internal static ReturnShipmentDto MapToDto(ReturnShipment r) => new()
+    public static ReturnShipmentDto MapToDto(ReturnShipment r) => new()
     {
         Id = r.Id,
         OriginalShipmentId = r.OriginalShipmentId,
@@ -37,6 +38,10 @@ public class InitiateReturnCommandHandler : IRequestHandler<InitiateReturnComman
         Status = r.Status.ToString(),
         PickedUpAt = r.PickedUpAt,
         ReceivedAt = r.ReceivedAt,
+        CarrierName = r.CarrierName,
+        CarrierOrderCode = r.CarrierOrderCode,
+        CarrierFee = r.CarrierFee,
+        BookingError = r.BookingError,
         CreatedAt = r.CreatedAt
     };
 }
@@ -85,6 +90,7 @@ public class MarkReturnReceivedCommandHandler : IRequestHandler<MarkReturnReceiv
         var returnShipment = await _uow.ReturnShipments.GetByIdAsync(request.ReturnShipmentId, cancellationToken)
             ?? throw new InvalidOperationException($"Return shipment {request.ReturnShipmentId} not found.");
 
+        await ParcelProgress.TellOthersPendingAsync(_uow, returnShipment, cancellationToken);
         returnShipment.MarkReceived();
         await _uow.ReturnShipments.UpdateAsync(returnShipment, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);

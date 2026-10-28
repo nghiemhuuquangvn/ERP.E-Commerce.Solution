@@ -1,5 +1,6 @@
 using ERP.SO.Application.Commands;
 using ERP.SO.Application.DTOs;
+using ERP.SO.Application.Interfaces;
 using ERP.SO.Domain.ValueObjects;
 using MediatR;
 
@@ -94,6 +95,55 @@ namespace ERP.SO.Application.Handlers
             await _repository.UpdateAsync(order, cancellationToken);
 
             return SalesOrderMapper.MapToDto(order);
+        }
+    }
+
+    /// <summary>
+    /// Approving a return asks Shipping to book the goods' way back at a carrier (ROADMAP P1-11d). Shipping unreachable: the approval is refused, a person tries again (nothing
+    /// was changed). Shipping answered but booked nothing (nothing went through it, no pickup address, every carrier refused): the return is still approved, the reason is kept,
+    /// and the goods are received by hand as before.
+    /// </summary>
+    public class ApproveReturnCommandHandler : IRequestHandler<ApproveReturnCommand, SalesOrderDto>
+    {
+        private readonly ISalesOrderRepository _repository;
+        private readonly IShippingServiceClient _shipping;
+
+        public ApproveReturnCommandHandler(ISalesOrderRepository repository, IShippingServiceClient shipping)
+        {
+            _repository = repository;
+            _shipping = shipping;
+        }
+
+        public async Task<SalesOrderDto> Handle(ApproveReturnCommand request, CancellationToken cancellationToken)
+        {
+            var order = await _repository.GetByIdAsync(request.OrderId, cancellationToken)
+                ?? throw new InvalidOperationException($"Order {request.OrderId} not found");
+            if (order.Status != ERP.SO.Domain.Entities.OrderStatus.ReturnRequested)
+                throw new InvalidOperationException($"Cannot approve a return for an order in {order.Status} status");
+
+            var answer = await _shipping.BookReturnAsync(order.Id, order.ReturnReason ?? string.Empty, cancellationToken)
+                ?? throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("Sales", "Shipping cannot be reached right now, the return was not approved. Please try again in a moment.");
+
+            var note = answer.Error ?? (answer.Parcels == 0 ? "no reverse parcel" : $"{answer.Booked} of {answer.Parcels} reverse parcel(s) booked at the carrier");
+            order.ApproveReturn(answer.Booked > 0, note);
+            await _repository.UpdateAsync(order, cancellationToken);
+            return SalesOrderMapper.MapToDto(order);
+        }
+    }
+
+    public class MarkReturnGoodsReceivedCommandHandler : IRequestHandler<MarkReturnGoodsReceivedCommand, Unit>
+    {
+        private readonly ISalesOrderRepository _repository;
+
+        public MarkReturnGoodsReceivedCommandHandler(ISalesOrderRepository repository) => _repository = repository;
+
+        public async Task<Unit> Handle(MarkReturnGoodsReceivedCommand request, CancellationToken cancellationToken)
+        {
+            var order = await _repository.GetByIdAsync(request.OrderId, cancellationToken);
+            if (order is null) return Unit.Value;
+            order.MarkReturnGoodsReceived();
+            await _repository.UpdateAsync(order, cancellationToken);
+            return Unit.Value;
         }
     }
 

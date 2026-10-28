@@ -540,7 +540,7 @@ public class SalesOrderReturnedEvent
 
 ### DeliveryConfirmedEvent / ShipmentFailedEvent (ShippingService, consumed since 2026-10-26)
 
-`DeliveryConfirmedEvent(ShipmentId, OrderId, DeliveredAt)` → Sales marks a Shipped order Delivered ("Delivered (carrier confirmation)"). `ShipmentFailedEvent(ShipmentId, OrderId, Reason, DeliveryAttempts)` → Sales records it on the saga (order card); the order is not cancelled. Both on `shipping-topic`.
+`DeliveryConfirmedEvent(ShipmentId, OrderId, DeliveredAt, ParcelNo, ParcelCount, CodAmount, OtherParcelsPending)` → Sales marks a Shipped order Delivered ("Delivered (carrier confirmation)") only when `OtherParcelsPending` is 0 (P1-11d: an order may have several parcels); Payment captures the COD at the same moment. `ReturnReceivedEvent(ReturnShipmentId, OriginalShipmentId, OrderId, OtherReturnsPending)` (P1-11d) → Sales sets `ReturnGoodsReceivedAt` when no other reverse parcel is pending; the refund of a return with a booked pickup waits for it. `ShipmentFailedEvent(ShipmentId, OrderId, Reason, DeliveryAttempts)` → Sales records it on the saga (order card); the order is not cancelled. Both on `shipping-topic`.
 
 ### StockMovementRecordedEvent — new type `Returned` (WarehouseService, 2026-10-26)
 

@@ -87,6 +87,11 @@ export interface SalesOrder {
   shippingFee?: number
   /** The return gave the delivery fee back as well. */
   returnShippingFeeRefunded?: boolean
+  /** The return was approved; a carrier fetches the goods when returnPickupBooked, and the refund waits until they are received. */
+  returnApprovedAt?: string | null
+  returnPickupBooked?: boolean
+  returnGoodsReceivedAt?: string | null
+  returnPickupNote?: string | null
   isAnomalous: boolean
   anomalyReason: string | null
 }
@@ -169,6 +174,9 @@ export const ordersApi = {
 
   requestReturn: (id: string, reason: string) =>
     apiClient.post<SalesOrder>(`/v1/orders/${id}/return`, { reason }).then((r) => r.data),
+
+  /** Approves a requested return; Shipping books the goods' way back at a carrier (repeat it to retry a refused booking). */
+  approveReturn: (id: string) => apiClient.post<SalesOrder>(`/v1/orders/${id}/return/approve`).then((r) => r.data),
 
   /** Completes a return: refundAmount is the goods given back (at most the goods paid); refundShippingFee also gives back the delivery fee. */
   completeReturn: (id: string, refundAmount: number, refundShippingFee = false) =>

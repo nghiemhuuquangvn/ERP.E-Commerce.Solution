@@ -342,8 +342,17 @@ public sealed class OrderFulfillmentSaga
 
     // ── The carrier confirmed the delivery → the order is Delivered (P1-5) ──
     /// <summary>Marks a Shipped order Delivered. Any other status (already Delivered, cancelled, partly shipped — other shipments are still on the way) is left alone.</summary>
-    public async Task<bool> HandleDeliveryConfirmedAsync(Guid orderId, CancellationToken ct)
+    public Task<bool> HandleDeliveryConfirmedAsync(Guid orderId, CancellationToken ct) => HandleDeliveryConfirmedAsync(orderId, 0, ct);
+
+    /// <summary>An order of several parcels is Delivered when the LAST parcel is (ROADMAP P1-11d): Shipping says how many of the order's other parcels are still on the way.</summary>
+    public async Task<bool> HandleDeliveryConfirmedAsync(Guid orderId, int otherParcelsPending, CancellationToken ct)
     {
+        if (otherParcelsPending > 0)
+        {
+            _logger.LogInformation("DeliveryConfirmed for Order {OrderId}: {Pending} other parcel(s) still on the way, the order is not marked delivered yet", orderId, otherParcelsPending);
+            return false;
+        }
+
         var order = await _uow.Orders.GetByIdAsync(orderId, ct);
         if (order is null)
         {

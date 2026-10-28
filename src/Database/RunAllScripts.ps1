@@ -77,6 +77,7 @@ $DatabaseScripts = @(
     "Sales\014_OrderCustomerPhone.sql",
     "Sales\015_OrderShippingFeeAndWard.sql",
     "Sales\016_OrderReturnShippingFee.sql",
+    "Sales\017_OrderReturnPickup.sql",
     "Purchasing\001_CreatePurchasingDB.sql",
     "Purchasing\002_AddOutboxMessages.sql",
     "Purchasing\003_AddReceivingScheduleAndSupplierRatings.sql",
@@ -162,6 +163,7 @@ $DatabaseScripts = @(
     "Shipping\007_BaseEntityColumns.sql",
     "Shipping\008_Carriers.sql",
     "Shipping\009_ShippingFeeRules.sql",
+    "Shipping\010_ParcelsAndCarrierReturns.sql",
 
     # HR & Retail
     "HRM\001_CreateHrmDB.sql",
