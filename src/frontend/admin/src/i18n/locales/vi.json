@@ -255,6 +255,11 @@
       "cancelledAutomatically": "Đơn đã bị hủy tự động; khoản đã thanh toán (nếu có) đang được hoàn lại.",
       "completedAt": "Xử lý xong lúc {{date}}."
     },
+    "return": {
+      "amount": "Số tiền hoàn",
+      "amountPlaceholder": "Hoàn (tiền hàng): {{goods}}",
+      "refundFee": "Hoàn cả phí vận chuyển ({{fee}})"
+    },
     "statusActions": {
       "title": "Hành động trạng thái",
       "submit": "Gửi duyệt",
@@ -1951,6 +1956,7 @@
       "failedToSave": "Lưu cài đặt thất bại. Vui lòng thử lại.",
       "carriersTab": "Hãng vận chuyển",
       "rulesTab": "Quy tắc chọn hãng",
+      "feesTab": "Bảng phí giao hàng",
       "carriersAvailableHint": "Các hãng vận chuyển mà nền tảng cung cấp. Mỗi cửa hàng vẫn cần tài khoản riêng tại từng hãng.",
       "sender": {
         "title": "Địa chỉ lấy hàng",
@@ -1988,6 +1994,31 @@
           "password": "Mật khẩu",
           "webhookSecret": "Mã bí mật thông báo"
         }
+      },
+      "fees": {
+        "title": "Bảng phí giao hàng",
+        "hint": "Khách trả bao nhiêu cho việc giao hàng: dòng đang bật đầu tiên (số ưu tiên nhỏ nhất) khớp với tỉnh và cân nặng kiện hàng sẽ quyết định phí. Kiện không khớp dòng nào thì tính phí cố định ở tab Tenant; tiền hàng đạt ngưỡng miễn phí thì không thu. Đây là giá shop thu của khách, không phải cước của hãng vận chuyển.",
+        "add": "Thêm dòng phí",
+        "edit": "Sửa dòng phí",
+        "name": "Tên",
+        "priority": "Ưu tiên",
+        "fee": "Phí (₫)",
+        "provinces": "Tỉnh/thành",
+        "provincesHint": "Cách nhau bằng dấu phẩy; để trống = mọi tỉnh. Không phân biệt hoa thường, dấu hay \"Tỉnh / Thành phố\".",
+        "minWeight": "Từ cân nặng (g)",
+        "maxWeight": "Đến cân nặng (g)",
+        "active": "Đang bật",
+        "inactive": "đang tắt",
+        "none": "Chưa có dòng phí: mọi kiện tính theo phí cố định.",
+        "allProvinces": "Mọi tỉnh",
+        "weightG": "Cân nặng (g)",
+        "goodsValue": "Tiền hàng (₫)",
+        "province": "Tỉnh/thành",
+        "try": "Thử",
+        "tryTitle": "Thử một kiện hàng",
+        "flatFee": "phí cố định",
+        "result": "Khách trả {{fee}} ₫ ({{row}}).",
+        "resultFree": "Miễn phí vận chuyển: tiền hàng đạt ngưỡng {{threshold}} ₫."
       },
       "rules": {
         "title": "Quy tắc chọn hãng vận chuyển",
@@ -2400,6 +2431,7 @@
       "invoiceNumber": "Số hóa đơn",
       "customerId": "Mã khách hàng",
       "orderId": "Mã đơn hàng",
+      "delivery": "Phí giao hàng",
       "amount": "Số tiền",
       "dueDate": "Ngày đến hạn",
       "markPaid": "Đánh dấu đã thanh toán",

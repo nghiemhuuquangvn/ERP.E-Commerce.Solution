@@ -85,6 +85,8 @@ export interface SalesOrder {
   discountAmount: number
   /** The delivery fee the customer paid, already inside totalAmount (the shop's flat fee, free from a threshold). */
   shippingFee?: number
+  /** The return gave the delivery fee back as well. */
+  returnShippingFeeRefunded?: boolean
   isAnomalous: boolean
   anomalyReason: string | null
 }
@@ -168,6 +170,7 @@ export const ordersApi = {
   requestReturn: (id: string, reason: string) =>
     apiClient.post<SalesOrder>(`/v1/orders/${id}/return`, { reason }).then((r) => r.data),
 
-  completeReturn: (id: string, refundAmount: number) =>
-    apiClient.post<SalesOrder>(`/v1/orders/${id}/return/complete`, { refundAmount }).then((r) => r.data),
+  /** Completes a return: refundAmount is the goods given back (at most the goods paid); refundShippingFee also gives back the delivery fee. */
+  completeReturn: (id: string, refundAmount: number, refundShippingFee = false) =>
+    apiClient.post<SalesOrder>(`/v1/orders/${id}/return/complete`, { refundAmount, refundShippingFee }).then((r) => r.data),
 }

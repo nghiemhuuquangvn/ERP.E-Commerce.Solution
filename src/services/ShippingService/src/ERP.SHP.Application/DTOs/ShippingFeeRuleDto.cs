@@ -13,6 +13,8 @@ public class ShippingFeeRequest
     /// <summary>The province of the delivery address (the order's State).</summary>
     public string? Province { get; set; }
     public List<ShippingFeeItem> Items { get; set; } = new();
+    /// <summary>A parcel weight to price when no products are given (the admin's "try a parcel" box); ignored when products are given.</summary>
+    public int? WeightGrams { get; set; }
 }
 
 public record ShippingFeeItem(Guid ProductId, int Quantity);

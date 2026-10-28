@@ -255,6 +255,11 @@
       "cancelledAutomatically": "The order was cancelled automatically; any payment is being refunded.",
       "completedAt": "Processing finished on {{date}}."
     },
+    "return": {
+      "amount": "Refund amount",
+      "amountPlaceholder": "Refund (goods): {{goods}}",
+      "refundFee": "Also refund the delivery fee ({{fee}})"
+    },
     "statusActions": {
       "title": "Status Actions",
       "submit": "Submit",
@@ -1951,6 +1956,7 @@
       "failedToSave": "Failed to save settings. Please try again.",
       "carriersTab": "Carriers",
       "rulesTab": "Carrier rules",
+      "feesTab": "Delivery fees",
       "carriersAvailableHint": "Which carrier integrations the platform offers. A shop still needs its own account at each one.",
       "sender": {
         "title": "Pickup address",
@@ -1988,6 +1994,31 @@
           "password": "Password",
           "webhookSecret": "Notification secret"
         }
+      },
+      "fees": {
+        "title": "Delivery price list",
+        "hint": "What the customer pays for delivery: the first active row (lowest priority number) that matches the province and the parcel weight sets the fee. A parcel no row matches pays the flat fee of the Tenant tab; goods worth the free-delivery threshold or more are free. This is your price to the customer, not the carrier's cost.",
+        "add": "Add fee row",
+        "edit": "Edit fee row",
+        "name": "Name",
+        "priority": "Priority",
+        "fee": "Fee (₫)",
+        "provinces": "Provinces",
+        "provincesHint": "Comma separated; empty = every province. Case, diacritics and \"Tỉnh / Thành phố\" do not matter.",
+        "minWeight": "From weight (g)",
+        "maxWeight": "Up to weight (g)",
+        "active": "Active",
+        "inactive": "inactive",
+        "none": "No fee rows yet: every parcel pays the flat fee.",
+        "allProvinces": "All provinces",
+        "weightG": "Weight (g)",
+        "goodsValue": "Value of goods (₫)",
+        "province": "Province",
+        "try": "Try",
+        "tryTitle": "Try a parcel",
+        "flatFee": "the flat fee",
+        "result": "The customer pays {{fee}} ₫ ({{row}}).",
+        "resultFree": "Free delivery: the goods reach the threshold of {{threshold}} ₫."
       },
       "rules": {
         "title": "Carrier selection rules",
@@ -2400,6 +2431,7 @@
       "invoiceNumber": "Invoice Number",
       "customerId": "Customer ID",
       "orderId": "Order ID",
+      "delivery": "Delivery",
       "amount": "Amount",
       "dueDate": "Due Date",
       "markPaid": "Mark Paid",

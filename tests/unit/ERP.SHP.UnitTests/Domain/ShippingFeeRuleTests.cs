@@ -191,4 +191,13 @@ public class ShippingFeeRuleTests
             .Should().ThrowAsync<ArgumentOutOfRangeException>();
         await ((Func<Task>)(() => service.QuoteAsync(-1m, default))).Should().ThrowAsync<ArgumentOutOfRangeException>();
     }
+
+    [Fact]
+    public async Task A_weight_given_without_products_is_priced_as_it_is_and_is_not_an_estimate()
+    {
+        var quote = await Service(Settings(40000, 0), PriceList)
+            .QuoteAsync(new ShippingFeeRequest { MerchandiseValue = 1, Province = "Ho Chi Minh", WeightGrams = 2500 }, default);
+
+        (quote.WeightGrams, quote.WeightEstimated, quote.Fee, quote.RuleName).Should().Be((2500, false, 30000m, "HCM heavy"));
+    }
 }

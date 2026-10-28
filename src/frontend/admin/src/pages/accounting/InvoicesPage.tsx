@@ -201,6 +201,11 @@ function InvoicesListTab({ canManage }: { canManage: boolean }) {
         render: (i: InvoiceDto) => i.netAmount.toLocaleString(),
       },
       {
+        key: 'shippingNetAmount',
+        label: t('accounting.invoices.delivery'),
+        render: (i: InvoiceDto) => (i.shippingNetAmount ? i.shippingNetAmount.toLocaleString() : '—'),
+      },
+      {
         key: 'taxAmount',
         label: t('accounting.vat.taxWithRate'),
         render: (i: InvoiceDto) => (i.taxAmount ? `${i.taxAmount.toLocaleString()} (${i.taxRatePercent}%)` : '—'),

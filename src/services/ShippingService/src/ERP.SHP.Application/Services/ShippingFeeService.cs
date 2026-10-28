@@ -31,15 +31,16 @@ public class ShippingFeeService
         var settings = await _uow.Config.GetTenantSettingsAsync(ct);
         var rules = await _uow.Config.GetFeeRulesAsync(ct);
 
-        var (grams, estimated) = await WeightAsync(request.Items, settings?.DefaultItemWeightGrams ?? 500, ct);
+        var (grams, estimated) = await WeightAsync(request, settings?.DefaultItemWeightGrams ?? 500, ct);
         var result = ShippingFeePolicy.Compute(settings, rules, request.Province, grams, request.MerchandiseValue);
         return new ShippingFeeQuote(result.Fee, result.FreeBecauseOfThreshold, settings?.FreeShippingThreshold ?? 0m, result.Rule?.Name, grams, estimated);
     }
 
     /// <summary>The parcel's weight: each product's own weight, else the shop's default item weight. No products given = unknown (0, estimated).</summary>
-    private async Task<(int Grams, bool Estimated)> WeightAsync(List<ShippingFeeItem> items, int defaultItemGrams, CancellationToken ct)
+    private async Task<(int Grams, bool Estimated)> WeightAsync(ShippingFeeRequest request, int defaultItemGrams, CancellationToken ct)
     {
-        if (items.Count == 0) return (0, true);
+        var items = request.Items;
+        if (items.Count == 0) return request.WeightGrams is >= 0 and var given ? (given, false) : (0, true);
 
         var known = await _weights.GetWeightsAsync(items.Select(i => i.ProductId).Distinct().ToList(), ct);
         var estimated = false;

@@ -13,6 +13,8 @@ export interface InvoiceDto {
   netAmount: number
   taxRatePercent: number
   taxAmount: number
+  /** The delivery part of the net amount, booked on its own revenue account (ROADMAP P1-11c). */
+  shippingNetAmount?: number
   dueDate: string
   status: string
   createdAt: string
