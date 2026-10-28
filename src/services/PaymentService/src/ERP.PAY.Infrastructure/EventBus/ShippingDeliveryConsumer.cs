@@ -101,6 +101,12 @@ public class ShippingDeliveryConsumer : IHostedService
 
         var orderId = raw.GuidValue("OrderId") ?? Guid.Empty;
         if (orderId == Guid.Empty) return;
+        // An order in several parcels (ROADMAP P1-11d): the payment is one record for the whole order, so the cash is booked once, when the LAST parcel is delivered.
+        if ((raw["OtherParcelsPending"]?.Value<int>() ?? 0) > 0)
+        {
+            _logger.LogInformation("Parcel of order {OrderId} delivered, {Pending} other parcel(s) still on the way: cash on delivery is collected with the last one", orderId, raw["OtherParcelsPending"]);
+            return;
+        }
         if (!EventTenant.TryRead(json, out var tenantId))
         {
             _logger.LogWarning("DeliveryConfirmed for order {OrderId} has no TenantId — ignored", orderId);

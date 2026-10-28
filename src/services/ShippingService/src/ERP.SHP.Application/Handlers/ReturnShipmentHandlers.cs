@@ -1,6 +1,7 @@
 using ERP.SHP.Application.Commands;
 using ERP.SHP.Application.DTOs;
 using ERP.SHP.Application.Interfaces;
+using ERP.SHP.Application.Services;
 using ERP.SHP.Domain.Entities;
 using MediatR;
 
@@ -89,6 +90,7 @@ public class MarkReturnReceivedCommandHandler : IRequestHandler<MarkReturnReceiv
         var returnShipment = await _uow.ReturnShipments.GetByIdAsync(request.ReturnShipmentId, cancellationToken)
             ?? throw new InvalidOperationException($"Return shipment {request.ReturnShipmentId} not found.");
 
+        await ParcelProgress.TellOthersPendingAsync(_uow, returnShipment, cancellationToken);
         returnShipment.MarkReceived();
         await _uow.ReturnShipments.UpdateAsync(returnShipment, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);

@@ -54,6 +54,15 @@ namespace ERP.SO.Domain.Entities
         /// <summary>True when the approver gave the delivery fee back with the goods (ROADMAP P1-11c); by default a return refunds the goods only.</summary>
         public bool ReturnShippingFeeRefunded { get; private set; }
 
+        // P1-11d: the way back through the carrier.
+        /// <summary>The approver approved the return (Shipping was asked to book the pickup).</summary>
+        public DateTime? ReturnApprovedAt { get; private set; }
+        /// <summary>A reverse parcel is booked at a carrier: the refund waits until the goods are back in the warehouse.</summary>
+        public bool ReturnPickupBooked { get; private set; }
+        public DateTime? ReturnGoodsReceivedAt { get; private set; }
+        /// <summary>What Shipping answered when the return was approved (parcels booked, or why none).</summary>
+        public string? ReturnPickupNote { get; private set; }
+
         /// <summary>Set when a ProductPriceChangedDomainEvent arrives for a product still on this (not-yet-Shipped/Delivered/Cancelled/Returned) order — see the note appended to InternalNotes for details.</summary>
         public bool HasPriceChangeWarning { get; private set; }
 
@@ -339,6 +348,26 @@ namespace ERP.SO.Domain.Entities
         }
 
         /// <summary>
+        /// The approver accepts the return; <paramref name="pickupBooked"/> says a carrier will fetch the goods (then the refund waits for them). Asking again is allowed
+        /// (a refused booking is retried) and never un-books a pickup.
+        /// </summary>
+        public void ApproveReturn(bool pickupBooked, string? note)
+        {
+            if (Status != OrderStatus.ReturnRequested)
+                throw new InvalidOperationException($"Cannot approve a return for an order in {Status} status");
+            ReturnApprovedAt ??= DateTime.UtcNow;
+            ReturnPickupBooked |= pickupBooked;
+            ReturnPickupNote = note is { Length: > 1000 } ? note[..1000] : note;
+        }
+
+        /// <summary>Shipping says every reverse parcel arrived. Counts only for a return waiting on a booked pickup; repeated messages change nothing.</summary>
+        public void MarkReturnGoodsReceived()
+        {
+            if (Status != OrderStatus.ReturnRequested || !ReturnPickupBooked || ReturnGoodsReceivedAt.HasValue) return;
+            ReturnGoodsReceivedAt = DateTime.UtcNow;
+        }
+
+        /// <summary>
         /// Records that the return finished and a refund of the given amount is owed —
         /// PaymentService/AccountingService react to SalesOrderReturnedEvent to actually
         /// process the refund/reverse the journal entry; this method does not call them
@@ -349,6 +378,10 @@ namespace ERP.SO.Domain.Entities
         {
             if (Status != OrderStatus.ReturnRequested)
                 throw new InvalidOperationException($"Cannot complete a return for an order in {Status} status");
+
+            // A carrier is bringing the goods back: the money goes out when they are in the warehouse (a person can receive them by hand in Shipping).
+            if (ReturnPickupBooked && !ReturnGoodsReceivedAt.HasValue)
+                throw new InvalidOperationException("The goods are still on their way back: the refund can be completed when the warehouse has received them.");
 
             // The amount is typed by the approver; the ledger credits the customer with exactly this figure (ROADMAP P1-1e).
             // The delivery fee comes back only when the approver says so (ROADMAP P1-11c): the cap is the goods, plus the fee when it is ticked.

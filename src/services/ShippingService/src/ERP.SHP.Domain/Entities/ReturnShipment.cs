@@ -37,6 +37,10 @@ public class ReturnShipment : AggregateRoot
     /// <summary>Why no carrier took the return (every carrier tried and its error); empty once one accepted it.</summary>
     public string? BookingError { get; private set; }
     public DateTime? LastCarrierSyncAt { get; private set; }
+    /// <summary>Not stored: how many of the order's other return parcels are not received yet (told just before MarkReceived; goes into ReturnReceived).</summary>
+    public int OtherReturnsPending { get; private set; }
+
+    public void SetOtherReturnsPending(int count) => OtherReturnsPending = Math.Max(0, count);
 
     private ReturnShipment() { }
 
@@ -124,7 +128,7 @@ public class ReturnShipment : AggregateRoot
         Status = ReturnShipmentStatus.Received;
         ReceivedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new ReturnReceivedEvent(Id, OriginalShipmentId, OrderId));
+        AddDomainEvent(new ReturnReceivedEvent(Id, OriginalShipmentId, OrderId, OtherReturnsPending));
     }
 
     public void Cancel()

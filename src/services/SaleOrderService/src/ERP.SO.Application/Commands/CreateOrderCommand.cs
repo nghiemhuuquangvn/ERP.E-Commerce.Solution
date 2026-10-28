@@ -66,6 +66,18 @@ namespace ERP.SO.Application.Commands
         public string Reason { get; set; } = string.Empty;
     }
 
+    /// <summary>The approver accepts the return; Shipping is asked to book the goods' way back at a carrier (ROADMAP P1-11d). Safe to repeat.</summary>
+    public class ApproveReturnCommand : IRequest<SalesOrderDto>
+    {
+        public Guid OrderId { get; set; }
+    }
+
+    /// <summary>Shipping told us every reverse parcel of the order was received.</summary>
+    public class MarkReturnGoodsReceivedCommand : IRequest<Unit>
+    {
+        public Guid OrderId { get; set; }
+    }
+
     public class CompleteReturnCommand : IRequest<SalesOrderDto>
     {
         public Guid OrderId { get; set; }

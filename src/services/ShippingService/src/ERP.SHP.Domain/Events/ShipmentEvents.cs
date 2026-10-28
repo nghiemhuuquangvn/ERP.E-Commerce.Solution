@@ -33,11 +33,10 @@ public record ShipmentCreationFailedEvent(Guid OrderId, string Reason) : IDomain
 }
 
 /// <summary>
-/// A parcel was delivered. P1-11d: an order may have several parcels; <paramref name="ParcelCount"/> says how many the order has (Sales marks the order delivered when all
-/// were delivered) and <paramref name="CodAmount"/> is the cash this parcel collected (Payment captures it). An event from before P1-11d carries 1 / 1 / 0 (= the whole order).
+/// A parcel was delivered. P1-11d: an order may have several parcels; <paramref name="ParcelCount"/> says how many the order has (Sales marks the order delivered only when <paramref name="OtherParcelsPending"/> is 0) and <paramref name="CodAmount"/> is the cash this parcel collected (Payment captures it). An event from before P1-11d carries 1 / 1 / 0 (= the whole order).
 /// </summary>
 public record DeliveryConfirmedEvent(
-    Guid ShipmentId, Guid OrderId, DateTime DeliveredAt, int ParcelNo = 1, int ParcelCount = 1, decimal CodAmount = 0m) : IDomainEvent, ITenantEvent
+    Guid ShipmentId, Guid OrderId, DateTime DeliveredAt, int ParcelNo = 1, int ParcelCount = 1, decimal CodAmount = 0m, int OtherParcelsPending = 0) : IDomainEvent, ITenantEvent
 {
     /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
     public Guid TenantId { get; set; }
@@ -64,7 +63,7 @@ public record ReturnInitiatedEvent(
 }
 
 public record ReturnReceivedEvent(
-    Guid ReturnShipmentId, Guid OriginalShipmentId, Guid OrderId) : IDomainEvent, ITenantEvent
+    Guid ReturnShipmentId, Guid OriginalShipmentId, Guid OrderId, int OtherReturnsPending = 0) : IDomainEvent, ITenantEvent
 {
     /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
     public Guid TenantId { get; set; }

@@ -161,6 +161,35 @@ public class ParcelsAndReturnsTests
         (delivered.ParcelNo, delivered.ParcelCount, delivered.CodAmount).Should().Be((2, 3, 430_000m));
     }
 
+    [Fact]
+    public async Task A_delivered_parcel_tells_how_many_other_parcels_of_the_order_are_still_on_the_way()
+    {
+        var orderId = Guid.NewGuid();
+        var first = Parcel(orderId); first.SetParcel(1, 2);
+        var second = Parcel(orderId); second.SetParcel(2, 2);
+        _shipments.Setup(r => r.GetByOrderIdAsync(orderId, It.IsAny<CancellationToken>())).ReturnsAsync(new List<Shipment> { first, second });
+
+        await Tracking().ApplyAsync(first, CarrierShipmentStatus.Delivered, "5", null, null);
+        first.DomainEvents.OfType<DeliveryConfirmedEvent>().Single().OtherParcelsPending.Should().Be(1);
+
+        await Tracking().ApplyAsync(second, CarrierShipmentStatus.Delivered, "5", null, null);
+        second.DomainEvents.OfType<DeliveryConfirmedEvent>().Single().OtherParcelsPending.Should().Be(0);   // the last one
+    }
+
+    [Fact]
+    public async Task The_goods_of_a_return_are_home_only_when_no_other_reverse_parcel_is_pending()
+    {
+        var orderId = Guid.NewGuid();
+        var a = ReturnShipment.Create(Guid.NewGuid(), orderId, "x");
+        var b = ReturnShipment.Create(Guid.NewGuid(), orderId, "x");
+        _addedReturns.AddRange(new[] { a, b });
+
+        await Tracking().ApplyReturnAsync(a, CarrierShipmentStatus.Delivered);
+        a.DomainEvents.OfType<ReturnReceivedEvent>().Single().OtherReturnsPending.Should().Be(1);
+        await Tracking().ApplyReturnAsync(b, CarrierShipmentStatus.Delivered);
+        b.DomainEvents.OfType<ReturnReceivedEvent>().Single().OtherReturnsPending.Should().Be(0);
+    }
+
     // ---- the split command ----
 
     private SplitShipmentCommandHandler Splitter() => new(_uow.Object, Booking(), Tracking(), NullLogger<SplitShipmentCommandHandler>.Instance);

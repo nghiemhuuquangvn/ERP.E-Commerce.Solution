@@ -158,6 +158,7 @@ public class ConfirmDeliveryCommandHandler : IRequestHandler<ConfirmDeliveryComm
         var shipment = await _uow.Shipments.GetByIdAsync(request.ShipmentId, cancellationToken)
             ?? throw new InvalidOperationException($"Shipment {request.ShipmentId} not found.");
 
+        await ParcelProgress.TellSiblingsPendingAsync(_uow, shipment, cancellationToken);
         shipment.MarkAsDelivered(request.Location, request.ReceivedByName, request.SignatureUrl, request.PhotoUrl);
         await _uow.Shipments.UpdateAsync(shipment, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);

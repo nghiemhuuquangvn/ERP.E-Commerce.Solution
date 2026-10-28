@@ -30,6 +30,7 @@ public class CarrierTrackingService
     public async Task ApplyAsync(Shipment shipment, CarrierShipmentStatus status, string carrierStatus, string? reason, decimal? codCollected, CancellationToken ct = default)
     {
         var description = string.IsNullOrWhiteSpace(reason) ? $"Carrier status {carrierStatus}" : $"{reason} (carrier status {carrierStatus})";
+        if (status == CarrierShipmentStatus.Delivered) await ParcelProgress.TellSiblingsPendingAsync(_uow, shipment, ct);
         shipment.ApplyCarrierStatus(status, shipment.CarrierName, description);
 
         if (status == CarrierShipmentStatus.Delivered && codCollected.HasValue && codCollected.Value != shipment.CodAmount)
@@ -45,6 +46,7 @@ public class CarrierTrackingService
     /// <summary>A carrier's report on a RETURN parcel (customer → shop): same path as <see cref="ApplyAsync"/>, delivered = the goods are back (<c>ReturnReceived</c>).</summary>
     public async Task ApplyReturnAsync(ReturnShipment returned, CarrierShipmentStatus status, CancellationToken ct = default)
     {
+        if (status == CarrierShipmentStatus.Delivered) await ParcelProgress.TellOthersPendingAsync(_uow, returned, ct);
         returned.ApplyCarrierStatus(status);
         returned.MarkCarrierSynced();
         await _uow.ReturnShipments.UpdateAsync(returned, ct);
