@@ -111,6 +111,8 @@ Rules: only a hex value is stored (no CSS, no images as theme); semantic colours
 
 Generic actions (used in buttons and menus): add `Plus`, edit `Pencil`, delete `Trash2`, save `Check`, close `X`, search `Search`, filter `SlidersHorizontal`, refresh `RefreshCw`, more `MoreHorizontal`, download `Download`, upload `Upload`, back `ChevronLeft`, expand `ChevronDown`, external `ExternalLink`, success `CheckCircle2`, error `AlertCircle`, warning `AlertTriangle`, info `Info`.
 
-## 7. Implementation shape (for the adoption steps, informative)
+## 7. Implementation shape (U1 done 2026-10-31: see [../tokens-and-icons-guide.md](../tokens-and-icons-guide.md))
+> As built: `tokens/tokens.json` is the source; `tools/build-tokens.js` writes `tokens.css` + `tokens.ts` + `tokens.preset.cjs` (web) and `theme.ts` + `tailwind.tokens.js` (mobile); Tailwind names `border` → `line`, `text` → `ink`, neutral status → `muted`; `--check` tests drift, contrast and hex literals. The text below is the original design.
+
 - Tokens live in **one source file per platform family**, generated from the tables above: web `tokens.css` (CSS variables: `--color-brand-action` …, theme set by `data-theme="back-office|customer"` on `<html>`) + a Tailwind preset that maps them (`colors.brand.action = 'rgb(var(--…))'`); mobile a `theme.ts` exporting the same names and a NativeWind preset. Until a monorepo workspace exists the file is copied per app and a test fails when copies drift (U1 in the roadmap).
 - Components read tokens only; a hex in a component is a review finding.
