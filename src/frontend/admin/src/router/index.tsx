@@ -42,6 +42,7 @@ import { BarcodeResolvePage } from '@/pages/inventory/BarcodeResolvePage'
 import { InventoryValuationSnapshotsPage } from '@/pages/inventory/InventoryValuationSnapshotsPage'
 import { PaymentsPage } from '@/pages/payments/PaymentsPage'
 import { ShipmentsPage } from '@/pages/shipping/ShipmentsPage'
+import { ReturnsPage } from '@/pages/shipping/ReturnsPage'
 import { PromotionsPage } from '@/pages/promotion/PromotionsPage'
 import { FlashSalesPage } from '@/pages/promotion/FlashSalesPage'
 import { LoyaltyPage } from '@/pages/promotion/LoyaltyPage'
@@ -188,6 +189,7 @@ export const router = createBrowserRouter([
       { path: 'inventory/:productId', element: <InventoryDetailPage /> },
       { path: 'payments', element: <PaymentsPage /> },
       { path: 'shipping/shipments', element: <ShipmentsPage /> },
+      { path: 'shipping/returns', element: <ReturnsPage /> },
       { path: 'promotion/promotions', element: <PromotionsPage /> },
       { path: 'promotion/flash-sales', element: <FlashSalesPage /> },
       { path: 'promotion/loyalty', element: <LoyaltyPage /> },

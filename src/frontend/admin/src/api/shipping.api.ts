@@ -59,9 +59,20 @@ export interface ReturnParcel {
   trackingNumber?: string | null
   status: 'Requested' | 'PickedUp' | 'Received' | 'Cancelled'
   carrierName?: string | null
+  carrierOrderCode?: string | null
   carrierFee?: number | null
   bookingError?: string | null
+  pickedUpAt?: string | null
   receivedAt?: string | null
+  lastCarrierSyncAt?: string | null
+  createdAt?: string
+}
+
+export interface ReturnParcelList {
+  items: ReturnParcel[]
+  totalCount: number
+  pageNumber: number
+  pageSize: number
 }
 
 /** One new parcel of a split: product quantities and, optionally, the cash the carrier collects on it. */
@@ -157,6 +168,16 @@ export const shippingApi = {
 
   /** The return parcels of an order. */
   orderReturns: (orderId: string) => apiClient.get<ReturnParcel[]>(`${BASE}/shipments/order-returns/${orderId}`).then((r) => r.data),
+
+  /** Every return parcel of the shop (admin Returns screen). */
+  listReturns: (params: { page?: number; pageSize?: number; status?: string; search?: string; needsAttention?: boolean }) =>
+    apiClient.get<ReturnParcelList>(`${BASE}/shipments/returns`, { params }).then((r) => r.data),
+
+  /** A refused reverse booking: book it at a carrier again. */
+  rebookReturn: (returnId: string) => apiClient.post<ReturnParcel>(`${BASE}/shipments/returns/${returnId}/rebook`, {}).then((r) => r.data),
+
+  /** Cancels the pickup at the carrier first; a refusal comes back as an error and the return stays open. */
+  cancelReturn: (returnId: string) => apiClient.post<ReturnParcel>(`${BASE}/shipments/returns/${returnId}/cancel`, {}).then((r) => r.data),
 
   /** The goods arrived and nobody told the carrier's system (a person receives them by hand). */
   receiveReturn: (shipmentId: string, returnId: string) =>
