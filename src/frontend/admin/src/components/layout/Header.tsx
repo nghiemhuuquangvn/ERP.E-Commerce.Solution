@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { Menu } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
 import { useUiStore, type Locale } from '@/stores/ui.store'
 import { useLogout } from '@/hooks/useAuth'
@@ -23,7 +24,7 @@ export function Header() {
         className="rounded-md p-2 text-gray-500 hover:bg-gray-100"
         aria-label="Toggle sidebar"
       >
-        ☰
+        <Menu size={20} strokeWidth={1.75} aria-hidden="true" />
       </button>
 
       <div className="flex items-center gap-4">

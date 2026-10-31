@@ -3,11 +3,12 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useUiStore } from '@/stores/ui.store'
 import { usePermission } from '@/hooks/usePermission'
+import { Activity, AlarmClock, ArrowLeftRight, BadgeDollarSign, BadgePercent, Banknote, BarChart3, Bell, BookOpen, BookText, Bot, Building, Building2, Calculator, Calendar, CalendarDays, ClipboardCheck, ClipboardList, Clock, Coins, Compass, CreditCard, Database, Factory, FileBarChart, FileSearch, FileText, Flag, FlaskConical, FolderTree, Gift, Globe, HandCoins, HardDrive, KeyRound, Landmark, Languages, LayoutDashboard, Link, Lock, Mail, Map, MapPin, MonitorSmartphone, Package, Percent, Puzzle, Receipt, Ruler, Scale, ScanBarcode, ScrollText, Send, Settings, Settings2, ShieldCheck, ShoppingBag, ShoppingCart, SlidersHorizontal, Smartphone, Star, Store, Tag, Timer, TrendingUp, Truck, Umbrella, Undo2, User, UserCog, Users, UsersRound, Wallet, Warehouse, Webhook, Workflow, Zap, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
 
 interface NavItem {
   labelKey: string
   path: string
-  icon: string
+  icon: LucideIcon
   // Single-permission items use `permission` (null = always visible). Items
   // visible under any of several permissions (OR) use `permissions` instead.
   permission?: string | null
@@ -23,109 +24,109 @@ const SETTINGS_CHILDREN: NavItem[] = [
     labelKey: 'nav.generalSettings',
     path: '/settings/general',
     permissions: ['settings:general:system:view', 'settings:general:tenant:view'],
-    icon: '🛠️',
+    icon: SlidersHorizontal,
   },
   {
     labelKey: 'nav.companySettings',
     path: '/settings/company',
     permissions: ['settings:company:tenant:view'],
-    icon: '🏢',
+    icon: Building2,
   },
   {
     labelKey: 'nav.authSettings',
     path: '/settings/auth',
     permissions: ['settings:system:view', 'settings:tenant:view'],
-    icon: '🔐',
+    icon: Lock,
   },
   {
     labelKey: 'nav.notificationSettings',
     path: '/settings/notification',
     permissions: ['settings:notification:system:view', 'settings:notification:tenant:view'],
-    icon: '🔔',
+    icon: Bell,
   },
   {
     labelKey: 'nav.notificationHistory',
     path: '/settings/notification-history',
     permissions: ['notifications:send'],
-    icon: '📨',
+    icon: Send,
   },
   {
     labelKey: 'nav.notificationTemplates',
     path: '/settings/notification-templates',
     permissions: ['notifications:view'],
-    icon: '📝',
+    icon: FileText,
   },
   {
     labelKey: 'nav.notificationWebhooks',
     path: '/settings/notification-webhooks',
     permissions: ['notifications:webhooks:manage'],
-    icon: '🔗',
+    icon: Webhook,
   },
   {
     labelKey: 'nav.emailSettings',
     path: '/settings/email',
     permissions: ['settings:email:system:view', 'settings:email:tenant:view'],
-    icon: '✉️',
+    icon: Mail,
   },
   {
     labelKey: 'nav.smsSettings',
     path: '/settings/sms',
     permissions: ['settings:sms:system:view', 'settings:sms:tenant:view'],
-    icon: '📱',
+    icon: Smartphone,
   },
   {
     labelKey: 'nav.workflowSettings',
     path: '/settings/workflow',
     permissions: ['settings:workflow:system:view', 'settings:workflow:tenant:view'],
-    icon: '🔀',
+    icon: Workflow,
   },
   {
     labelKey: 'nav.fileStorageSettings',
     path: '/settings/file-storage',
     permissions: ['settings:file-storage:system:view', 'settings:file-storage:tenant:view'],
-    icon: '🗄️',
+    icon: HardDrive,
   },
   {
     labelKey: 'nav.schedulerSettings',
     path: '/settings/scheduler',
     permissions: ['settings:scheduler:system:view', 'settings:scheduler:tenant:view'],
-    icon: '⏱️',
+    icon: Timer,
   },
   {
     labelKey: 'nav.integrationSettings',
     path: '/settings/integration',
     permissions: ['settings:integration:system:view', 'settings:integration:tenant:view'],
-    icon: '🔗',
+    icon: Link,
   },
   {
     labelKey: 'nav.apiSettings',
     path: '/settings/api',
     permissions: ['settings:api:system:view', 'settings:api:tenant:view'],
-    icon: '🧩',
+    icon: Puzzle,
   },
   {
     labelKey: 'nav.auditSettings',
     path: '/settings/audit',
     permissions: ['settings:audit:system:view', 'settings:audit:tenant:view'],
-    icon: '🕵️',
+    icon: FileSearch,
   },
   {
     labelKey: 'nav.advancedSettings',
     path: '/settings/advanced',
     permissions: ['settings:advanced:system:view', 'settings:advanced:tenant:view'],
-    icon: '🧪',
+    icon: FlaskConical,
   },
   {
     labelKey: 'nav.localizationSettings',
     path: '/settings/localization',
     permissions: ['settings:localization:system:view', 'settings:localization:tenant:view'],
-    icon: '🌍',
+    icon: Globe,
   },
   {
     labelKey: 'nav.featureFlagsSettings',
     path: '/settings/feature-flags',
     permissions: ['settings:feature-flags:system:view', 'settings:feature-flags:tenant:view'],
-    icon: '🚩',
+    icon: Flag,
   },
   {
     labelKey: 'nav.licenseSettings',
@@ -140,55 +141,55 @@ const SETTINGS_CHILDREN: NavItem[] = [
       'license:tenant:view',
       'license:tenant:issue',
     ],
-    icon: '🔑',
+    icon: KeyRound,
   },
   {
     labelKey: 'nav.storeProductSettings',
     path: '/settings/store-product',
     permissions: ['settings:store-product:system:view', 'settings:store-product:tenant:view'],
-    icon: '🏬',
+    icon: Store,
   },
   {
     labelKey: 'nav.cartCheckoutSettings',
     path: '/settings/cart-checkout',
     permissions: ['settings:cart-checkout:system:view', 'settings:cart-checkout:tenant:view'],
-    icon: '🛒',
+    icon: ShoppingCart,
   },
   {
     labelKey: 'nav.orderSettings',
     path: '/settings/order',
     permissions: ['settings:order:system:view', 'settings:order:tenant:view'],
-    icon: '🧾',
+    icon: Receipt,
   },
   {
     labelKey: 'nav.inventorySettings',
     path: '/settings/inventory',
     permissions: ['settings:inventory:system:view', 'settings:inventory:tenant:view'],
-    icon: '📦',
+    icon: Package,
   },
   {
     labelKey: 'nav.paymentSettings',
     path: '/settings/payment',
     permissions: ['settings:payment:system:view', 'settings:payment:tenant:view'],
-    icon: '💰',
+    icon: Wallet,
   },
   {
     labelKey: 'nav.shippingSettings',
     path: '/settings/shipping',
     permissions: ['settings:shipping:system:view', 'settings:shipping:tenant:view'],
-    icon: '🚚',
+    icon: Truck,
   },
   {
     labelKey: 'nav.taxSettings',
     path: '/settings/tax',
     permissions: ['settings:tax:system:view', 'settings:tax:tenant:view'],
-    icon: '🧮',
+    icon: Calculator,
   },
   {
     labelKey: 'nav.currencySettings',
     path: '/settings/currency',
     permissions: ['settings:currency:system:view', 'settings:currency:tenant:view'],
-    icon: '💱',
+    icon: Coins,
   },
 ]
 
@@ -197,51 +198,51 @@ const HRM_CHILDREN: NavItem[] = [
     labelKey: 'nav.attendance',
     path: '/hrm/attendance',
     permission: 'hrm:attendance:view',
-    icon: '🕒',
+    icon: Clock,
   },
   {
     labelKey: 'nav.leaveRequests',
     path: '/hrm/leave-requests',
     permission: 'hrm:leave:manage',
-    icon: '🏖️',
+    icon: Umbrella,
   },
   {
     labelKey: 'nav.payroll',
     path: '/hrm/payroll',
     permission: 'hrm:payroll:manage',
-    icon: '💵',
+    icon: Banknote,
   },
   {
     labelKey: 'nav.salaryProfiles',
     path: '/hrm/salary-profiles',
     permission: 'hrm:payroll:manage',
-    icon: '🧾',
+    icon: Receipt,
   },
   {
     labelKey: 'nav.payrollSettings',
     path: '/hrm/payroll-settings',
     permission: 'hrm:payroll:manage',
-    icon: '⚙️',
+    icon: Settings2,
   },
   {
     labelKey: 'nav.workShifts',
     path: '/hrm/work-shifts',
     permission: 'hrm:shifts:view',
-    icon: '⏰',
+    icon: AlarmClock,
   },
 ]
 
 const PROMOTION_CHILDREN: NavItem[] = [
-  { labelKey: 'nav.promotions', path: '/promotion/promotions', permission: 'promotions:manage', icon: '🏷️' },
-  { labelKey: 'nav.flashSales', path: '/promotion/flash-sales', permission: 'promotions:view', icon: '⚡' },
-  { labelKey: 'nav.loyalty', path: '/promotion/loyalty', permission: 'promotions:view', icon: '⭐' },
+  { labelKey: 'nav.promotions', path: '/promotion/promotions', permission: 'promotions:manage', icon: BadgePercent },
+  { labelKey: 'nav.flashSales', path: '/promotion/flash-sales', permission: 'promotions:view', icon: Zap },
+  { labelKey: 'nav.loyalty', path: '/promotion/loyalty', permission: 'promotions:view', icon: Star },
 ]
 
 const POS_CHILDREN: NavItem[] = [
-  { labelKey: 'nav.posTransactions', path: '/pos/transactions', permission: 'pos:transactions', icon: '🧾' },
-  { labelKey: 'nav.posShifts', path: '/pos/shifts', permission: 'pos:shifts:view', icon: '🕒' },
-  { labelKey: 'nav.posZReport', path: '/pos/z-report', permission: 'pos:reports:view', icon: '📑' },
-  { labelKey: 'nav.posTerminals', path: '/pos/terminals', permission: 'pos:terminals:manage', icon: '🖥️' },
+  { labelKey: 'nav.posTransactions', path: '/pos/transactions', permission: 'pos:transactions', icon: Receipt },
+  { labelKey: 'nav.posShifts', path: '/pos/shifts', permission: 'pos:shifts:view', icon: Clock },
+  { labelKey: 'nav.posZReport', path: '/pos/z-report', permission: 'pos:reports:view', icon: FileBarChart },
+  { labelKey: 'nav.posTerminals', path: '/pos/terminals', permission: 'pos:terminals:manage', icon: MonitorSmartphone },
 ]
 
 const ACCOUNTING_CHILDREN: NavItem[] = [
@@ -249,61 +250,61 @@ const ACCOUNTING_CHILDREN: NavItem[] = [
     labelKey: 'nav.accountingAccounts',
     path: '/accounting/accounts',
     permission: 'accounting:accounts:view',
-    icon: '📒',
+    icon: BookOpen,
   },
   {
     labelKey: 'nav.accountingJournalEntries',
     path: '/accounting/journal-entries',
     permission: 'accounting:journals:view',
-    icon: '📓',
+    icon: BookText,
   },
   {
     labelKey: 'nav.accountingInvoices',
     path: '/accounting/invoices',
     permission: 'accounting:invoices:view',
-    icon: '🧾',
+    icon: Receipt,
   },
   {
     labelKey: 'nav.accountingBills',
     path: '/accounting/bills',
     permission: 'accounting:bills:view',
-    icon: '💵',
+    icon: Banknote,
   },
   {
     labelKey: 'nav.accountingFiscalPeriods',
     path: '/accounting/fiscal-periods',
     permission: 'accounting:periods:view',
-    icon: '🗓️',
+    icon: CalendarDays,
   },
   {
     labelKey: 'nav.accountingLoans',
     path: '/accounting/loans',
     permission: 'accounting:bank:view',
-    icon: '🏦',
+    icon: HandCoins,
   },
   {
     labelKey: 'nav.accountingOffBalance',
     path: '/accounting/off-balance',
     permission: 'accounting:journals:view',
-    icon: '📒',
+    icon: BookOpen,
   },
   {
     labelKey: 'nav.accountingTaxRates',
     path: '/accounting/tax-rates',
     permission: 'accounting:tax:view',
-    icon: '🧮',
+    icon: Calculator,
   },
   {
     labelKey: 'nav.accountingBankAccounts',
     path: '/accounting/bank-accounts',
     permission: 'accounting:bank:view',
-    icon: '🏦',
+    icon: Landmark,
   },
   {
     labelKey: 'nav.accountingReports',
     path: '/accounting/reports',
     permission: 'accounting:reports:view',
-    icon: '📊',
+    icon: BarChart3,
   },
 ]
 
@@ -312,131 +313,131 @@ const MASTERDATA_CHILDREN: NavItem[] = [
     labelKey: 'nav.departments',
     path: '/masterdata/departments',
     permission: 'masterdata:departments:view',
-    icon: '🏢',
+    icon: Building2,
   },
   {
     labelKey: 'nav.positions',
     path: '/masterdata/positions',
     permission: 'masterdata:positions:view',
-    icon: '📋',
+    icon: ClipboardList,
   },
   {
     labelKey: 'nav.employees',
     path: '/masterdata/employees',
     permission: 'masterdata:employees:view',
-    icon: '👤',
+    icon: User,
   },
   {
     labelKey: 'nav.unitsOfMeasure',
     path: '/masterdata/units-of-measure',
     permission: 'masterdata:units-of-measure:view',
-    icon: '📏',
+    icon: Ruler,
   },
   {
     labelKey: 'nav.geography',
     path: '/masterdata/geography',
     permission: 'masterdata:geography:view',
-    icon: '🗺️',
+    icon: Map,
   },
   {
     labelKey: 'nav.languages',
     path: '/masterdata/languages',
     permission: 'masterdata:languages:view',
-    icon: '🌐',
+    icon: Languages,
   },
   {
     labelKey: 'nav.companies',
     path: '/masterdata/companies',
     permission: 'masterdata:companies:view',
-    icon: '🏛️',
+    icon: Building,
   },
   {
     labelKey: 'nav.branches',
     path: '/masterdata/branches',
     permission: 'masterdata:branches:view',
-    icon: '🏬',
+    icon: Store,
   },
   {
     labelKey: 'nav.divisions',
     path: '/masterdata/divisions',
     permission: 'masterdata:divisions:view',
-    icon: '🧭',
+    icon: Compass,
   },
   {
     labelKey: 'nav.teams',
     path: '/masterdata/teams',
     permission: 'masterdata:teams:view',
-    icon: '🧑‍🤝‍🧑',
+    icon: Users,
   },
   {
     labelKey: 'nav.businessUnits',
     path: '/masterdata/business-units',
     permission: 'masterdata:business-units:view',
-    icon: '🏭',
+    icon: Factory,
   },
   {
     labelKey: 'nav.costCenters',
     path: '/masterdata/cost-centers',
     permission: 'masterdata:cost-centers:view',
-    icon: '💰',
+    icon: Coins,
   },
   {
     labelKey: 'nav.profitCenters',
     path: '/masterdata/profit-centers',
     permission: 'masterdata:profit-centers:view',
-    icon: '📈',
+    icon: TrendingUp,
   },
   {
     labelKey: 'nav.organizationCalendars',
     path: '/masterdata/organization-calendars',
     permission: 'masterdata:organization-calendars:view',
-    icon: '📅',
+    icon: Calendar,
   },
   {
     labelKey: 'nav.employeeTeamAssignments',
     path: '/masterdata/employee-team-assignments',
     permission: 'masterdata:employee-team-assignments:view',
-    icon: '🔗',
+    icon: Link,
   },
   {
     labelKey: 'nav.currencies',
     path: '/masterdata/currencies',
     permission: 'masterdata:currencies:view',
-    icon: '💲',
+    icon: BadgeDollarSign,
   },
   {
     labelKey: 'nav.paymentTerms',
     path: '/masterdata/payment-terms',
     permission: 'masterdata:payment-terms:view',
-    icon: '🗒️',
+    icon: FileText,
   },
 ]
 
 const PRODUCTS_CHILDREN: NavItem[] = [
-  { labelKey: 'nav.products', path: '/products', permission: 'products:view', icon: '🏷️' },
-  { labelKey: 'nav.brands', path: '/products/brands', permission: 'product:brands:view', icon: '🏷️' },
-  { labelKey: 'nav.categories', path: '/products/categories', permission: 'products:view', icon: '📁' },
-  { labelKey: 'nav.priceLists', path: '/products/pricing', permission: 'products:view', icon: '💲' },
-  { labelKey: 'nav.productAttributes', path: '/products/attributes', permission: 'products:view', icon: '🧩' },
+  { labelKey: 'nav.products', path: '/products', permission: 'products:view', icon: Tag },
+  { labelKey: 'nav.brands', path: '/products/brands', permission: 'product:brands:view', icon: Tag },
+  { labelKey: 'nav.categories', path: '/products/categories', permission: 'products:view', icon: FolderTree },
+  { labelKey: 'nav.priceLists', path: '/products/pricing', permission: 'products:view', icon: BadgeDollarSign },
+  { labelKey: 'nav.productAttributes', path: '/products/attributes', permission: 'products:view', icon: Puzzle },
 ]
 
 const SALES_CHILDREN: NavItem[] = [
-  { labelKey: 'nav.salesOrders', path: '/orders', permission: 'sales_order:read', icon: '📦' },
-  { labelKey: 'nav.quotations', path: '/sales/quotations', permission: 'sales_order:read', icon: '📝' },
-  { labelKey: 'nav.creditLimits', path: '/sales/credit-limits', permission: 'sales_order:read', icon: '💳' },
-  { labelKey: 'nav.commissionPlans', path: '/sales/commission-plans', permission: 'sales_order:read', icon: '💹' },
-  { labelKey: 'nav.commissionRecords', path: '/sales/commissions', permission: 'sales_order:read', icon: '📈' },
+  { labelKey: 'nav.salesOrders', path: '/orders', permission: 'sales_order:read', icon: ShoppingBag },
+  { labelKey: 'nav.quotations', path: '/sales/quotations', permission: 'sales_order:read', icon: FileText },
+  { labelKey: 'nav.creditLimits', path: '/sales/credit-limits', permission: 'sales_order:read', icon: CreditCard },
+  { labelKey: 'nav.commissionPlans', path: '/sales/commission-plans', permission: 'sales_order:read', icon: Percent },
+  { labelKey: 'nav.commissionRecords', path: '/sales/commissions', permission: 'sales_order:read', icon: TrendingUp },
 ]
 
 const INVENTORY_CHILDREN: NavItem[] = [
-  { labelKey: 'nav.inventory', path: '/inventory', permission: 'inventory:view', icon: '🏭' },
-  { labelKey: 'nav.locations', path: '/inventory/locations', permission: 'inventory:view', icon: '📍' },
-  { labelKey: 'nav.warehouses', path: '/inventory/warehouses', permission: 'inventory:view', icon: '🏢' },
-  { labelKey: 'nav.stockAdjustments', path: '/inventory/adjustments', permission: 'inventory:view', icon: '⚖️' },
-  { labelKey: 'nav.stocktakes', path: '/inventory/stocktakes', permission: 'inventory:view', icon: '📋' },
-  { labelKey: 'nav.transfers', path: '/inventory/transfers', permission: 'inventory:view', icon: '🔀' },
-  { labelKey: 'nav.barcode', path: '/inventory/barcode', permission: 'inventory:barcode:view', icon: '🔖' },
-  { labelKey: 'nav.valuationSnapshots', path: '/inventory/valuation-snapshots', permission: 'inventory:view', icon: '📊' },
+  { labelKey: 'nav.inventory', path: '/inventory', permission: 'inventory:view', icon: Warehouse },
+  { labelKey: 'nav.locations', path: '/inventory/locations', permission: 'inventory:view', icon: MapPin },
+  { labelKey: 'nav.warehouses', path: '/inventory/warehouses', permission: 'inventory:view', icon: Building2 },
+  { labelKey: 'nav.stockAdjustments', path: '/inventory/adjustments', permission: 'inventory:view', icon: Scale },
+  { labelKey: 'nav.stocktakes', path: '/inventory/stocktakes', permission: 'inventory:view', icon: ClipboardCheck },
+  { labelKey: 'nav.transfers', path: '/inventory/transfers', permission: 'inventory:view', icon: ArrowLeftRight },
+  { labelKey: 'nav.barcode', path: '/inventory/barcode', permission: 'inventory:barcode:view', icon: ScanBarcode },
+  { labelKey: 'nav.valuationSnapshots', path: '/inventory/valuation-snapshots', permission: 'inventory:view', icon: BarChart3 },
 ]
 
 const PURCHASING_CHILDREN: NavItem[] = [
@@ -444,32 +445,32 @@ const PURCHASING_CHILDREN: NavItem[] = [
     labelKey: 'nav.purchaseOrders',
     path: '/orders/purchase',
     permission: 'purchase_order:read',
-    icon: '🧾',
+    icon: ClipboardList,
   },
   {
     labelKey: 'nav.suppliers',
     path: '/purchasing/suppliers',
     permission: 'supplier:read',
-    icon: '🏭',
+    icon: Factory,
   },
   {
     labelKey: 'nav.purchaseRequests',
     path: '/purchasing/requests',
     permission: 'purchase_request:view',
-    icon: '🔔',
+    icon: Bell,
   },
-  { labelKey: 'nav.rfqs', path: '/purchasing/rfqs', permission: 'rfq:read', icon: '📨' },
-  { labelKey: 'nav.supplierInvoices', path: '/purchasing/supplier-invoices', permission: 'supplier_invoice:read', icon: '🧮' },
-  { labelKey: 'nav.vendorReturns', path: '/purchasing/vendor-returns', permission: 'vendor_return:read', icon: '↩️' },
-  { labelKey: 'nav.purchasingSettings', path: '/purchasing/settings', permission: 'supplier_invoice:read', icon: '⚖️' },
+  { labelKey: 'nav.rfqs', path: '/purchasing/rfqs', permission: 'rfq:read', icon: Send },
+  { labelKey: 'nav.supplierInvoices', path: '/purchasing/supplier-invoices', permission: 'supplier_invoice:read', icon: Receipt },
+  { labelKey: 'nav.vendorReturns', path: '/purchasing/vendor-returns', permission: 'vendor_return:read', icon: Undo2 },
+  { labelKey: 'nav.purchasingSettings', path: '/purchasing/settings', permission: 'supplier_invoice:read', icon: Settings2 },
 ]
 
 const NAV_ITEMS: NavItem[] = [
-  { labelKey: 'nav.dashboard', path: '/dashboard', permission: null, icon: '⊞' },
-  { labelKey: 'nav.sales', path: '/orders', icon: '📦', children: SALES_CHILDREN },
-  { labelKey: 'nav.purchasing', path: '/purchasing', icon: '🧾', children: PURCHASING_CHILDREN },
-  { labelKey: 'nav.productsGroup', path: '/products', icon: '🏷️', children: PRODUCTS_CHILDREN },
-  { labelKey: 'nav.inventoryGroup', path: '/inventory', icon: '🏭', children: INVENTORY_CHILDREN },
+  { labelKey: 'nav.dashboard', path: '/dashboard', permission: null, icon: LayoutDashboard },
+  { labelKey: 'nav.sales', path: '/orders', icon: ShoppingBag, children: SALES_CHILDREN },
+  { labelKey: 'nav.purchasing', path: '/purchasing', icon: ClipboardList, children: PURCHASING_CHILDREN },
+  { labelKey: 'nav.productsGroup', path: '/products', icon: Tag, children: PRODUCTS_CHILDREN },
+  { labelKey: 'nav.inventoryGroup', path: '/inventory', icon: Warehouse, children: INVENTORY_CHILDREN },
   {
     labelKey: 'nav.customers',
     path: '/customers',
@@ -480,29 +481,29 @@ const NAV_ITEMS: NavItem[] = [
       'crm:cases:view',
       'crm:activities:view',
     ],
-    icon: '👥',
+    icon: UsersRound,
   },
-  { labelKey: 'nav.payments', path: '/payments', permission: 'payments:view', icon: '💳' },
-  { labelKey: 'nav.shipments', path: '/shipping/shipments', permission: 'shipping:view', icon: '🚚' },
-  { labelKey: 'nav.shippingReturns', path: '/shipping/returns', permission: 'shipping:view', icon: '↩️' },
-  { labelKey: 'nav.promotion', path: '/promotion', icon: '🎁', children: PROMOTION_CHILDREN },
-  { labelKey: 'nav.pos', path: '/pos', icon: '🛒', children: POS_CHILDREN },
-  { labelKey: 'nav.chatbot', path: '/chatbot', permission: 'chatbot:assistant:use', icon: '🤖' },
-  { labelKey: 'nav.hrm', path: '/hrm', icon: '🧑‍💼', children: HRM_CHILDREN },
-  { labelKey: 'nav.accounting', path: '/accounting', icon: '💼', children: ACCOUNTING_CHILDREN },
-  { labelKey: 'nav.masterData', path: '/masterdata', icon: '🗂️', children: MASTERDATA_CHILDREN },
-  { labelKey: 'nav.reports', path: '/reports', permission: 'reports:view', icon: '📊' },
-  { labelKey: 'nav.settings', path: '/settings', icon: '⚙️', children: SETTINGS_CHILDREN },
-  { labelKey: 'nav.monitoring', path: '/monitoring', permission: 'monitoring:view', icon: '🖥' },
-  { labelKey: 'nav.logs', path: '/logs', permission: 'logs:view', icon: '📜' },
-  { labelKey: 'nav.users', path: '/identity/users', permission: 'identity:users:view', icon: '🧑‍💼' },
+  { labelKey: 'nav.payments', path: '/payments', permission: 'payments:view', icon: Wallet },
+  { labelKey: 'nav.shipments', path: '/shipping/shipments', permission: 'shipping:view', icon: Truck },
+  { labelKey: 'nav.shippingReturns', path: '/shipping/returns', permission: 'shipping:view', icon: Undo2 },
+  { labelKey: 'nav.promotion', path: '/promotion', icon: Gift, children: PROMOTION_CHILDREN },
+  { labelKey: 'nav.pos', path: '/pos', icon: Store, children: POS_CHILDREN },
+  { labelKey: 'nav.chatbot', path: '/chatbot', permission: 'chatbot:assistant:use', icon: Bot },
+  { labelKey: 'nav.hrm', path: '/hrm', icon: Users, children: HRM_CHILDREN },
+  { labelKey: 'nav.accounting', path: '/accounting', icon: Landmark, children: ACCOUNTING_CHILDREN },
+  { labelKey: 'nav.masterData', path: '/masterdata', icon: Database, children: MASTERDATA_CHILDREN },
+  { labelKey: 'nav.reports', path: '/reports', permission: 'reports:view', icon: BarChart3 },
+  { labelKey: 'nav.settings', path: '/settings', icon: Settings, children: SETTINGS_CHILDREN },
+  { labelKey: 'nav.monitoring', path: '/monitoring', permission: 'monitoring:view', icon: Activity },
+  { labelKey: 'nav.logs', path: '/logs', permission: 'logs:view', icon: ScrollText },
+  { labelKey: 'nav.users', path: '/identity/users', permission: 'identity:users:view', icon: UserCog },
   {
     labelKey: 'nav.rolesPermissions',
     path: '/identity/roles',
     permission: 'identity:roles:view',
-    icon: '🛡️',
+    icon: ShieldCheck,
   },
-  { labelKey: 'nav.tenants', path: '/identity/tenants', permission: 'identity:tenants:view', icon: '🏢' },
+  { labelKey: 'nav.tenants', path: '/identity/tenants', permission: 'identity:tenants:view', icon: Building2 },
 ]
 
 function isItemVisible(item: NavItem, hasPermission: (p: string) => boolean, hasAnyPermission: (...p: string[]) => boolean) {
@@ -565,13 +566,14 @@ export function Sidebar() {
               <NavLink
                 key={item.path}
                 to={item.path}
+                title={sidebarCollapsed ? t(item.labelKey) : undefined}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-gray-50 ${
                     isActive ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-600' : 'text-gray-600'
                   }`
                 }
               >
-                <span className="text-base">{item.icon}</span>
+                <item.icon size={20} strokeWidth={1.75} aria-hidden="true" className="shrink-0" />
                 {!sidebarCollapsed && <span>{t(item.labelKey)}</span>}
               </NavLink>
             )
@@ -584,16 +586,17 @@ export function Sidebar() {
             <div key={item.labelKey}>
               <button
                 type="button"
+                title={sidebarCollapsed ? t(item.labelKey) : undefined}
                 onClick={() => toggleGroup(item.labelKey)}
                 className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-gray-50 ${
                   active ? 'text-primary-700' : 'text-gray-600'
                 }`}
               >
-                <span className="text-base">{item.icon}</span>
+                <item.icon size={20} strokeWidth={1.75} aria-hidden="true" className="shrink-0" />
                 {!sidebarCollapsed && (
                   <>
                     <span className="flex-1 text-left">{t(item.labelKey)}</span>
-                    <span className="text-xs">{expanded ? '▾' : '▸'}</span>
+                    {expanded ? <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" /> : <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />}
                   </>
                 )}
               </button>
@@ -611,7 +614,7 @@ export function Sidebar() {
                         }`
                       }
                     >
-                      <span className="text-sm">{child.icon}</span>
+                      <child.icon size={16} strokeWidth={1.75} aria-hidden="true" className="shrink-0" />
                       <span>{t(child.labelKey)}</span>
                     </NavLink>
                   ))}

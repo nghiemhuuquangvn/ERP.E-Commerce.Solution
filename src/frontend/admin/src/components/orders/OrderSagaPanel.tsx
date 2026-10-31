@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { format } from 'date-fns'
 import { useTranslation } from 'react-i18next'
+import { Check, Circle, CircleDot, X } from 'lucide-react'
 import { orderSagaApi } from '@/api/orderSaga.api'
 import type { OrderSagaStep } from '@/api/orderSaga.api'
 import { usePermission } from '@/hooks/usePermission'
@@ -13,7 +14,12 @@ const STATE_STYLE: Record<OrderSagaStep['state'], string> = {
   Failed: 'bg-red-100 text-red-700 border-red-400',
 }
 
-const STATE_MARK: Record<OrderSagaStep['state'], string> = { Done: '✓', Current: '●', Waiting: '○', Failed: '✕' }
+const STATE_MARK: Record<OrderSagaStep['state'], JSX.Element> = {
+  Done: <Check size={14} strokeWidth={1.75} aria-hidden="true" />,
+  Current: <CircleDot size={14} strokeWidth={1.75} aria-hidden="true" />,
+  Waiting: <Circle size={14} strokeWidth={1.75} aria-hidden="true" />,
+  Failed: <X size={14} strokeWidth={1.75} aria-hidden="true" />,
+}
 
 /** Minutes between two moments, shown as "12 min" / "3 h 5 min". */
 function waited(from: string, to: Date) {
@@ -59,7 +65,7 @@ export function OrderSagaPanel({ orderId }: { orderId: string }) {
         {saga.steps.map((s, i) => (
           <li key={s.key} className="flex items-center gap-2">
             <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 ${STATE_STYLE[s.state]}`} aria-current={s.state === 'Current' ? 'step' : undefined}>
-              <span aria-hidden>{STATE_MARK[s.state]}</span>
+              {STATE_MARK[s.state]}
               {t(`orders.saga.step.${s.key}`)}
             </span>
             {i < saga.steps.length - 1 && <span className="text-gray-300">→</span>}

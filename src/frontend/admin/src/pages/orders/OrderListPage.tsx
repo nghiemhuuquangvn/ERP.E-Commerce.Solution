@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { AlertTriangle } from 'lucide-react'
 import axios from 'axios'
 import { ordersApi, OrderStatus } from '@/api/orders.api'
 import { DataTable } from '@/components/shared/DataTable'
@@ -81,7 +82,7 @@ export function OrderListPage() {
               className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700"
               title={o.anomalyReason ?? t('orders.anomalyFlag')}
             >
-              ⚠ {t('orders.anomalyFlag')}
+              <AlertTriangle size={14} strokeWidth={1.75} aria-hidden="true" className="mr-1 inline" /> {t('orders.anomalyFlag')}
             </span>
           )}
         </span>
