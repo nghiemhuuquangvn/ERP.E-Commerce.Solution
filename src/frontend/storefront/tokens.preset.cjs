@@ -19,6 +19,7 @@ module.exports = {
         },
         "on-brand": "rgb(var(--c-on-brand) / <alpha-value>)",
         "brand": {
+          "100": "rgb(var(--c-brand-soft) / <alpha-value>)",
           "500": "rgb(var(--c-brand-action) / <alpha-value>)",
           "600": "rgb(var(--c-brand-action-hover) / <alpha-value>)",
           "action": "rgb(var(--c-brand-action) / <alpha-value>)",

@@ -54,6 +54,7 @@ module.exports = {
         },
         "primary": {
           "50": "rgb(var(--c-brand-subtle) / <alpha-value>)",
+          "100": "rgb(var(--c-brand-soft) / <alpha-value>)",
           "500": "rgb(var(--c-brand-action) / <alpha-value>)",
           "600": "rgb(var(--c-brand-action) / <alpha-value>)",
           "700": "rgb(var(--c-brand-action-hover) / <alpha-value>)"
