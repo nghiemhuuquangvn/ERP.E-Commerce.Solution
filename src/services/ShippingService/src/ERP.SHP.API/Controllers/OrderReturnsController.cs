@@ -48,3 +48,29 @@ public class OrderReturnsController : ControllerBase
     public async Task<IActionResult> ForOrder(Guid orderId, CancellationToken ct) =>
         Ok((await _uow.ReturnShipments.GetTrackedByOrderIdAsync(orderId, ct)).Select(InitiateReturnCommandHandler.MapToDto).ToList());
 }
+
+/// <summary>Admin Returns screen (ROADMAP P2-1b): every return parcel of the shop, and the two actions the screen needs beyond the per-shipment ones.</summary>
+[ApiController]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/shipments/returns")]
+public class ReturnsAdminController : ControllerBase
+{
+    private readonly MediatR.IMediator _mediator;
+
+    public ReturnsAdminController(MediatR.IMediator mediator) => _mediator = mediator;
+
+    [HttpGet]
+    [AuthorizePermission("shipping:view")]
+    public async Task<IActionResult> List([FromQuery] ERP.SHP.Application.Queries.ListReturnsQuery query, CancellationToken ct) =>
+        Ok(await _mediator.Send(query, ct));
+
+    [HttpPost("{returnId:guid}/rebook")]
+    [AuthorizePermission("shipping:update")]
+    public async Task<IActionResult> Rebook(Guid returnId, CancellationToken ct) =>
+        Ok(await _mediator.Send(new ERP.SHP.Application.Commands.RebookReturnCommand { ReturnShipmentId = returnId }, ct));
+
+    [HttpPost("{returnId:guid}/cancel")]
+    [AuthorizePermission("shipping:update")]
+    public async Task<IActionResult> CancelAtCarrier(Guid returnId, CancellationToken ct) =>
+        Ok(await _mediator.Send(new ERP.SHP.Application.Commands.CancelReturnAtCarrierCommand { ReturnShipmentId = returnId }, ct));
+}

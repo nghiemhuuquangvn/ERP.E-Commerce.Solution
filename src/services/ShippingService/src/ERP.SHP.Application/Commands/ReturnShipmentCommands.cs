@@ -29,3 +29,15 @@ public class CancelReturnCommand : IRequest<ReturnShipmentDto>
 {
     public Guid ReturnShipmentId { get; set; }
 }
+
+/// <summary>Admin: book the order's missing reverse parcels again (a carrier refused earlier). Books only what is not booked yet.</summary>
+public class RebookReturnCommand : IRequest<ReturnShipmentDto>
+{
+    public Guid ReturnShipmentId { get; set; }
+}
+
+/// <summary>Admin: cancel a return whose pickup was booked at a carrier and is not collected yet - at the carrier FIRST, then here.</summary>
+public class CancelReturnAtCarrierCommand : IRequest<ReturnShipmentDto>
+{
+    public Guid ReturnShipmentId { get; set; }
+}
