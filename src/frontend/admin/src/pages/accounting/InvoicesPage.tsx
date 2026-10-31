@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { AlertTriangle } from 'lucide-react'
 import { invoicesApi, INVOICE_STATUS } from '@/api/accounting/invoices.api'
 import type { InvoiceDto } from '@/api/accounting/invoices.api'
 import { ReasonDialog } from '@/components/shared/ReasonDialog'
@@ -187,7 +188,7 @@ function InvoicesListTab({ canManage }: { canManage: boolean }) {
             {i.invoiceNumber}
             {i.postedToLedger === false && (
               <span className="ml-1 text-amber-600" title={i.postingWarning ?? ''}>
-                ⚠
+                <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
               </span>
             )}
           </span>

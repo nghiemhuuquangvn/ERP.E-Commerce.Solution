@@ -19,8 +19,8 @@
             <option value="vi">VI</option>
           </select>
 
-          <RouterLink to="/cart" class="relative text-gray-600 hover:text-gray-900">
-            🛒
+          <RouterLink to="/cart" class="relative text-gray-600 hover:text-gray-900" :aria-label="t('nav.cart')">
+            <ShoppingCart :size="24" :stroke-width="1.75" aria-hidden="true" />
             <span
               v-if="cartCount > 0"
               class="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-xs text-white"
@@ -48,6 +48,7 @@
 </template>
 
 <script setup lang="ts">
+import { ShoppingCart } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'

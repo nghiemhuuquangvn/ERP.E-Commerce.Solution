@@ -10,6 +10,8 @@ import {
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { Package, ShoppingCart } from 'lucide-react-native'
+import { colors, icon } from '@/theme/theme'
 import { useCartStore } from '@/stores/cart.store'
 import type { CartItem } from '@/stores/cart.store'
 import { useAuthStore } from '@/stores/auth.store'
@@ -87,7 +89,7 @@ export default function CartScreen() {
     ({ item }) => (
       <View className="flex-row items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50">
         <View className="w-14 h-14 rounded-lg bg-gray-200 items-center justify-center">
-          <Text className="text-2xl">📦</Text>
+          <Package size={24} strokeWidth={icon.stroke} color={colors.inkMuted} />
         </View>
         <View className="flex-1">
           <Text className="font-medium text-gray-800 text-sm">{item.productName}</Text>
@@ -119,7 +121,7 @@ export default function CartScreen() {
   if (items.length === 0) {
     return (
       <View className="flex-1 bg-white items-center justify-center px-6">
-        <Text className="text-4xl mb-4">🛒</Text>
+        <View className="mb-4"><ShoppingCart size={40} strokeWidth={icon.stroke} color={colors.inkMuted} /></View>
         <Text className="text-lg font-semibold text-gray-700 mb-2">{t('cart.emptyTitle')}</Text>
         <TouchableOpacity
           onPress={() => router.push('/(tabs)/search')}

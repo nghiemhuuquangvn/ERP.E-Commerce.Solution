@@ -873,7 +873,9 @@ docs/conventions
 Frontend:
 docs/frontend (app stacks, i18n pattern, Admin Master Data CRUD pattern, Admin HRM
 CRUD pattern — read before adding a new frontend page/entity so existing
-conventions are reused, not re-derived)
+conventions are reused, not re-derived). UI colours come from role tokens generated from
+docs/frontend/design-system/tokens/tokens.json (`npm run check:tokens`; no hex in app code), icons are Lucide
+(docs/frontend/tokens-and-icons-guide.md).
 
 ## Claude Working Rules
 

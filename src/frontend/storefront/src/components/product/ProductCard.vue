@@ -8,7 +8,7 @@
         class="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
         loading="lazy"
       />
-      <div v-else class="flex h-full items-center justify-center text-4xl text-gray-300">📦</div>
+      <div v-else class="flex h-full items-center justify-center text-4xl text-gray-300"><Package :size="40" :stroke-width="1.75" aria-hidden="true" /></div>
     </div>
     <div class="mt-3">
       <p class="text-xs text-gray-400">{{ product.categoryName }}</p>
@@ -24,6 +24,7 @@
 </template>
 
 <script setup lang="ts">
+import { Package } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { Product } from '@/api/products.api'

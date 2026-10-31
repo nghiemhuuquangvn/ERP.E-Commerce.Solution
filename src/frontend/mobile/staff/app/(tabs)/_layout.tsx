@@ -1,38 +1,28 @@
 import { Tabs } from 'expo-router'
+import { Boxes, LayoutDashboard, Store, Truck } from 'lucide-react-native'
+import { colors, icon } from '@/theme/theme'
+
+const tabIcon = (Icon: typeof Store) =>
+  function TabIcon({ color }: { color: string }) {
+    return <Icon color={color} size={24} strokeWidth={icon.stroke} />
+  }
 
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#0284c7',
-        tabBarInactiveTintColor: '#9ca3af',
-        tabBarStyle: { borderTopColor: '#e5e7eb' },
+        tabBarActiveTintColor: colors.brandAction,
+        tabBarInactiveTintColor: colors.inkMuted,
+        tabBarStyle: { borderTopColor: colors.line },
         headerShown: true,
-        headerStyle: { backgroundColor: '#fff' },
-        headerTintColor: '#111827',
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.ink,
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{ title: 'Dashboard', tabBarIcon: ({ color }) => <TabIcon icon="⊞" color={color} /> }}
-      />
-      <Tabs.Screen
-        name="pos"
-        options={{ title: 'POS', tabBarIcon: ({ color }) => <TabIcon icon="🛒" color={color} /> }}
-      />
-      <Tabs.Screen
-        name="inventory"
-        options={{ title: 'Inventory', tabBarIcon: ({ color }) => <TabIcon icon="📦" color={color} /> }}
-      />
-      <Tabs.Screen
-        name="deliveries"
-        options={{ title: 'Deliveries', tabBarIcon: ({ color }) => <TabIcon icon="🚚" color={color} /> }}
-      />
+      <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: tabIcon(LayoutDashboard) }} />
+      <Tabs.Screen name="pos" options={{ title: 'POS', tabBarIcon: tabIcon(Store) }} />
+      <Tabs.Screen name="inventory" options={{ title: 'Inventory', tabBarIcon: tabIcon(Boxes) }} />
+      <Tabs.Screen name="deliveries" options={{ title: 'Deliveries', tabBarIcon: tabIcon(Truck) }} />
     </Tabs>
   )
-}
-
-function TabIcon({ icon, color }: { icon: string; color: string }) {
-  const { Text } = require('react-native')
-  return <Text style={{ fontSize: 18, color }}>{icon}</Text>
 }

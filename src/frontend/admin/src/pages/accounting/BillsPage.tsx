@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { AlertTriangle } from 'lucide-react'
 import { billsApi, BILL_STATUS } from '@/api/accounting/bills.api'
 import type { BillDto } from '@/api/accounting/bills.api'
 import { ForeignCurrencyFields, emptyFx, isForeign, toFxRequest } from '@/components/accounting/ForeignCurrencyFields'
@@ -181,7 +182,7 @@ function BillsListTab({ canManage }: { canManage: boolean }) {
             {b.billNumber}
             {b.postedToLedger === false && (
               <span className="ml-1 text-amber-600" title={b.postingWarning ?? ''}>
-                ⚠
+                <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
               </span>
             )}
           </span>

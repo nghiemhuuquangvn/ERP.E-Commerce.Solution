@@ -4,12 +4,12 @@
 
 @layer components {
   .btn-brand {
-    @apply inline-flex items-center justify-center rounded-md bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 transition-colors disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-md bg-brand-action px-4 py-2 text-sm font-medium text-on-brand transition-colors hover:bg-brand-action-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-action focus-visible:ring-offset-2 disabled:opacity-50;
   }
   .btn-outline {
-    @apply inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors;
+    @apply inline-flex items-center justify-center rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-action focus-visible:ring-offset-2;
   }
   .input {
-    @apply block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500;
+    @apply block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm text-ink shadow-sm placeholder:text-ink-muted focus:border-brand-action focus:outline-none focus:ring-1 focus:ring-brand-action;
   }
 }

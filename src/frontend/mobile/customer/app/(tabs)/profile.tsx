@@ -1,6 +1,8 @@
 import { View, Text, TouchableOpacity, Alert } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { ChevronRight, MessageCircle, Package, Settings, User, type LucideIcon } from 'lucide-react-native'
+import { colors, icon } from '@/theme/theme'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLocaleStore } from '@/stores/locale.store'
 
@@ -42,7 +44,7 @@ export default function ProfileScreen() {
     <View className="flex-1 bg-gray-50">
       <View className="bg-white p-6 border-b border-gray-100">
         <View className="w-16 h-16 rounded-full bg-brand-100 items-center justify-center mb-3">
-          <Text className="text-3xl">👤</Text>
+          <User size={32} strokeWidth={icon.stroke} color={colors.brandAction} />
         </View>
         <Text className="text-xl font-bold text-gray-900">
           {user?.fullName || user?.email}
@@ -51,9 +53,9 @@ export default function ProfileScreen() {
       </View>
 
       <View className="mt-4 mx-4 bg-white rounded-xl overflow-hidden border border-gray-100">
-        <MenuItem label={t('profile.myOrders')} icon="📋" onPress={() => router.push('/(tabs)/orders')} />
-        <MenuItem label={t('profile.settings')} icon="⚙️" onPress={() => {}} />
-        <MenuItem label={t('profile.helpAndSupport')} icon="💬" onPress={() => {}} />
+        <MenuItem label={t('profile.myOrders')} Icon={Package} onPress={() => router.push('/(tabs)/orders')} />
+        <MenuItem label={t('profile.settings')} Icon={Settings} onPress={() => {}} />
+        <MenuItem label={t('profile.helpAndSupport')} Icon={MessageCircle} onPress={() => {}} />
       </View>
 
       <View className="mt-4 mx-4 bg-white rounded-xl border border-gray-100 p-4">
@@ -92,15 +94,15 @@ export default function ProfileScreen() {
   )
 }
 
-function MenuItem({ label, icon, onPress }: { label: string; icon: string; onPress: () => void }) {
+function MenuItem({ label, Icon, onPress }: { label: string; Icon: LucideIcon; onPress: () => void }) {
   return (
     <TouchableOpacity
       onPress={onPress}
       className="flex-row items-center px-4 py-4 border-b border-gray-50"
     >
-      <Text className="text-lg mr-3">{icon}</Text>
+      <View className="mr-3"><Icon size={20} strokeWidth={icon.stroke} color={colors.inkSecondary} /></View>
       <Text className="flex-1 text-gray-800">{label}</Text>
-      <Text className="text-gray-400">›</Text>
+      <ChevronRight size={20} strokeWidth={icon.stroke} color={colors.inkMuted} />
     </TouchableOpacity>
   )
 }

@@ -1,10 +1,12 @@
 import { Tabs } from 'expo-router'
-import { Text } from 'react-native'
+import { Home, Package, Search, ShoppingCart, User } from 'lucide-react-native'
 import { useCartStore } from '@/stores/cart.store'
+import { colors, icon } from '@/theme/theme'
 
-function TabIcon({ icon }: { icon: string }) {
-  return <Text style={{ fontSize: 18 }}>{icon}</Text>
-}
+const tabIcon = (Icon: typeof Home) =>
+  function TabIcon({ color }: { color: string }) {
+    return <Icon color={color} size={24} strokeWidth={icon.stroke} />
+  }
 
 export default function TabsLayout() {
   const cartCount = useCartStore((s) => s.itemCount())
@@ -12,37 +14,25 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#e11d48',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarActiveTintColor: colors.brandAction,
+        tabBarInactiveTintColor: colors.inkMuted,
         headerShown: true,
-        headerStyle: { backgroundColor: '#fff' },
-        headerTintColor: '#111827',
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.ink,
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{ title: 'Home', tabBarIcon: () => <TabIcon icon="🏠" /> }}
-      />
-      <Tabs.Screen
-        name="search"
-        options={{ title: 'Search', tabBarIcon: () => <TabIcon icon="🔍" /> }}
-      />
+      <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: tabIcon(Home) }} />
+      <Tabs.Screen name="search" options={{ title: 'Search', tabBarIcon: tabIcon(Search) }} />
       <Tabs.Screen
         name="cart"
         options={{
           title: 'Cart',
-          tabBarIcon: () => <TabIcon icon="🛒" />,
+          tabBarIcon: tabIcon(ShoppingCart),
           tabBarBadge: cartCount > 0 ? cartCount : undefined,
         }}
       />
-      <Tabs.Screen
-        name="orders"
-        options={{ title: 'Orders', tabBarIcon: () => <TabIcon icon="📋" /> }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{ title: 'Profile', tabBarIcon: () => <TabIcon icon="👤" /> }}
-      />
+      <Tabs.Screen name="orders" options={{ title: 'Orders', tabBarIcon: tabIcon(Package) }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: tabIcon(User) }} />
     </Tabs>
   )
 }

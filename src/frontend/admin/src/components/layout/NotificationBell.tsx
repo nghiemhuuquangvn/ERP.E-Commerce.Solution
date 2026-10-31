@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Bell } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { notificationSignalR } from '@/services/notificationSignalR'
@@ -44,7 +45,7 @@ export function NotificationBell() {
         className="relative rounded-md p-2 text-gray-500 hover:bg-gray-100"
         aria-label={t('notifications.title')}
       >
-        🔔
+        <Bell size={20} strokeWidth={1.75} aria-hidden="true" />
         {unreadCount > 0 && (
           <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white">
             {unreadCount > 99 ? '99+' : unreadCount}

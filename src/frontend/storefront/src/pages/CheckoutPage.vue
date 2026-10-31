@@ -221,6 +221,7 @@ async function placeOrder() {
 </script>
 
 <script lang="ts">
+import { Check } from 'lucide-vue-next'
 import { defineComponent, h } from 'vue'
 
 const StepIndicator = defineComponent({
@@ -237,7 +238,7 @@ const StepIndicator = defineComponent({
               done ? 'bg-green-500 text-white' : active ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-400'
             }`,
           },
-          done ? '✓' : String(props.step),
+          done ? h(Check, { size: 16, strokeWidth: 1.75, 'aria-hidden': 'true' }) : String(props.step),
         ),
         h('span', { class: 'text-xs text-gray-500' }, props.label),
       ])

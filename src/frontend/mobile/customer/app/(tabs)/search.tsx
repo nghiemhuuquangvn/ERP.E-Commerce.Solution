@@ -3,6 +3,8 @@ import { View, Text, TextInput, FlatList, TouchableOpacity, Image, ActivityIndic
 import { useRouter } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Package } from 'lucide-react-native'
+import { colors, icon } from '@/theme/theme'
 import { apiClient } from '@/api/client'
 
 interface Product {
@@ -49,7 +51,7 @@ export default function SearchScreen() {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator className="mt-10" color="#e11d48" />
+        <ActivityIndicator className="mt-10" color={colors.brandAction} />
       ) : (
         <FlatList
           data={data ?? []}
@@ -67,7 +69,7 @@ export default function SearchScreen() {
                 {item.imageUrl ? (
                   <Image source={{ uri: item.imageUrl }} className="w-full h-full" resizeMode="cover" />
                 ) : (
-                  <Text className="text-3xl">📦</Text>
+                  <Package size={32} strokeWidth={icon.stroke} color={colors.inkMuted} />
                 )}
               </View>
               <Text className="text-sm font-medium text-gray-800 line-clamp-2">{item.name}</Text>

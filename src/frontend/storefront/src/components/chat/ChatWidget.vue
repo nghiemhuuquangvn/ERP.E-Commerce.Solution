@@ -11,7 +11,7 @@
           class="text-white/80 hover:text-white"
           :aria-label="t('chat.close')"
           @click="isOpen = false"
-        >✕</button>
+        ><X :size="20" :stroke-width="1.75" aria-hidden="true" /></button>
       </div>
 
       <div ref="messageListEl" class="flex-1 space-y-3 overflow-y-auto px-3 py-3">
@@ -72,11 +72,15 @@
       class="flex h-14 w-14 items-center justify-center rounded-full bg-brand-500 text-2xl text-white shadow-lg hover:bg-brand-600"
       :aria-label="t('chat.toggle')"
       @click="toggleOpen"
-    >{{ isOpen ? '✕' : '💬' }}</button>
+    >
+      <X v-if="isOpen" :size="24" :stroke-width="1.75" aria-hidden="true" />
+      <MessageCircle v-else :size="24" :stroke-width="1.75" aria-hidden="true" />
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
+import { MessageCircle, X } from 'lucide-vue-next'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useChatStore } from '@/stores/chat.store'

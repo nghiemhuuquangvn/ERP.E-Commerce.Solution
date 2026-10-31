@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { colors } from '@/styles/tokens'
+import { CheckCircle2 } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 import {
   BarChart,
@@ -232,8 +234,8 @@ function ApiStatsCard({
               name === 'count' ? 'Requests' : 'Avg Response',
             ]}
           />
-          <Bar dataKey="count" fill="#3B82F6" name="count" radius={[3, 3, 0, 0]} />
-          <Bar dataKey="avgElapsedMs" fill="#10B981" name="avgElapsedMs" radius={[3, 3, 0, 0]} />
+          <Bar dataKey="count" fill={colors.brandAccent} name="count" radius={[3, 3, 0, 0]} />
+          <Bar dataKey="avgElapsedMs" fill={colors.success} name="avgElapsedMs" radius={[3, 3, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -344,7 +346,7 @@ function ExceptionsCard() {
         </div>
       ) : !data || data.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-32 text-gray-400">
-          <span className="text-3xl">✓</span>
+          <CheckCircle2 size={32} strokeWidth={1.75} aria-hidden="true" />
           <span className="text-sm mt-1">{t('monitoring.noExceptions')}</span>
         </div>
       ) : (

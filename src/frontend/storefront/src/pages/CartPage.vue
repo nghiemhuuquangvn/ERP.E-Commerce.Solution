@@ -13,7 +13,7 @@
         <div v-for="item in items" :key="item.productId" class="flex gap-4 rounded-lg border border-gray-200 p-4">
           <div class="h-20 w-20 flex-shrink-0 overflow-hidden rounded-md bg-gray-100">
             <img v-if="item.imageUrl" :src="item.imageUrl" :alt="item.productName" class="h-full w-full object-cover" />
-            <div v-else class="flex h-full items-center justify-center text-2xl text-gray-300">📦</div>
+            <div v-else class="flex h-full items-center justify-center text-2xl text-gray-300"><Package :size="24" :stroke-width="1.75" aria-hidden="true" /></div>
           </div>
           <div class="flex flex-1 flex-col">
             <p class="font-medium text-gray-800">{{ item.productName }}</p>
@@ -55,6 +55,7 @@
 </template>
 
 <script setup lang="ts">
+import { Package } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'

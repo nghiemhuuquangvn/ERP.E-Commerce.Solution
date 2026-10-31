@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Check } from 'lucide-react'
 import {
   pricingApi,
   PriceListChannel,
@@ -285,7 +286,7 @@ function ChannelCurrencyForm({
           {mutation.isPending ? t('common.saving') : t('products.priceLists.updateChannel')}
         </button>
       )}
-      {mutation.isSuccess && <span className="text-xs text-green-600">{t('common.save')} ✓</span>}
+      {mutation.isSuccess && <span className="text-xs text-green-600">{t('common.save')} <Check size={14} strokeWidth={1.75} aria-hidden="true" className="inline" /></span>}
     </form>
   )
 }

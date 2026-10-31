@@ -36,6 +36,11 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-31 — ROADMAP P2-9 U1: design tokens + Lucide icons in the four apps (`feat/ui-u1-tokens-icons`, unmerged; branched from master)
+- **Tokens:** `docs/frontend/design-system/tokens/tokens.json` is the source; `tools/build-tokens.js` generates Admin / Storefront (`tokens.css`, `tokens.ts`, `tokens.preset.cjs`) and Customer / Staff apps (`theme/theme.ts`, `tailwind.tokens.js`); `npm run check:tokens` in each app fails on drift, on a failing contrast pair and on a hex literal in app code. Base classes (`.btn*`, `.input`, `.card`, body, `.btn-brand`) read role tokens; Admin action colour is now `#0369a1` (white text 5.93:1, was 4.10:1), control border and placeholder meet AA / 3:1. Old numeric names (`primary-600`, `brand-500`) are aliases until U3.
+- **Icons:** Lucide replaces emoji in the Admin sidebar (114 items, collapsed items have a title), header, bell, saga marks, warnings; Storefront header / placeholders / checkout / payment result / chat; both mobile tab bars and the Customer cart / profile / search / home screens. Chart colours come from tokens.
+- **Checks:** `tsc -b`, `vue-tsc -b`, `tsc --noEmit` (both mobile apps) clean; Admin and Storefront deployed to Docker and viewed in headless Chrome as `glcheck` (login, Returns, Webhooks, Reports, Storefront home) — the first browser look at the P2-1b screens too. **Not verified:** the mobile bundle / device (R68), pages other than the five seen. New risks R67-R70; DS-1 and DS-3 closed. Guide: `docs/frontend/tokens-and-icons-guide.md`. Next in the owner's order: U2 (core components) or the backend list.
+
 ### 2026-10-31 — User guides for the P2-1b screens (`docs/user-guide-p2-1b`, docs only, unmerged)
 - New folder `docs/user-guides/` (Vietnamese, for shop staff): Returns, Webhooks, Message templates, with an index. Written from the code, the Vietnamese labels and the BA documents; no screenshots yet (the screens have not been walked through in a browser).
 

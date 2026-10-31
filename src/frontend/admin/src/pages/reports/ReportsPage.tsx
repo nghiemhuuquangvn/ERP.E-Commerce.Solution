@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { colors } from '@/styles/tokens'
 import { reportsApi } from '@/api/reports.api'
 import { format, subDays } from 'date-fns'
 import {
@@ -82,7 +83,7 @@ export function ReportsPage() {
         <h2 className="mb-4 text-sm font-semibold text-gray-600">{t('reports.revenueByDay')}</h2>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={salesQuery.data?.revenueByDay ?? []}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <CartesianGrid strokeDasharray="3 3" stroke={colors.line} />
             <XAxis
               dataKey="date"
               tick={{ fontSize: 11 }}
@@ -94,7 +95,7 @@ export function ReportsPage() {
             />
             <Tooltip formatter={(v: number) => fmt.format(v)} />
             <Legend />
-            <Bar dataKey="revenue" name="Revenue" fill="#0284c7" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="revenue" name="Revenue" fill={colors.brandAccent} radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

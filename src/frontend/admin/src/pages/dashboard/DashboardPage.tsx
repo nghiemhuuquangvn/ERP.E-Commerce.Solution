@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { colors } from '@/styles/tokens'
 import { reportsApi } from '@/api/reports.api'
 import {
   LineChart,
@@ -73,7 +74,7 @@ export function DashboardPage() {
         ) : (
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={data?.revenueByDay ?? []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke={colors.line} />
               <XAxis
                 dataKey="date"
                 tick={{ fontSize: 11 }}
@@ -87,7 +88,7 @@ export function DashboardPage() {
               <Line
                 type="monotone"
                 dataKey="revenue"
-                stroke="#0284c7"
+                stroke={colors.brandAccent}
                 strokeWidth={2}
                 dot={false}
               />
