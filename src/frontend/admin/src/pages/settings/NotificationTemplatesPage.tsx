@@ -7,6 +7,7 @@ import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { usePermission } from '@/hooks/usePermission'
 import { useAuthStore } from '@/stores/auth.store'
+import { Alert, Badge, Button, EmptyState, FormField, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
 import { serverMessage } from '@/api/purchasing/procurement.api'
 
 const KEY = ['notifications', 'templates']
@@ -18,6 +19,7 @@ const identifiers = (csv: string | null | undefined) => (csv ?? '').split(',').m
 function TemplateEditor({ template, platformEditable, onClose }: { template: NotificationTemplate | null; platformEditable: boolean; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isNew = !template
   const readOnly = !!template && template.isPlatformDefault && !platformEditable
 
@@ -55,56 +57,63 @@ function TemplateEditor({ template, platformEditable, onClose }: { template: Not
     mutationFn: () => isNew
       ? notificationAdminApi.createTemplate({ code: code.trim(), name: name.trim(), channel: TEMPLATE_CHANNELS[channel as keyof typeof TEMPLATE_CHANNELS], subject, body, variables: variables.trim() || null })
       : notificationAdminApi.updateTemplate(template!.id, { name: name.trim(), subject, body, variables: variables.trim() || null }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: KEY }); onClose() },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: KEY }); toast.success(t('common.saved')); onClose() },
   })
 
-  const label = 'mb-1 block text-sm font-medium text-gray-700'
   const valid = name.trim() && body.trim() && (!isNew || /^[A-Za-z0-9_]{2,100}$/.test(code.trim()))
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4">
-      <div className="card w-full max-w-4xl space-y-4 p-6">
-        <div>
-          <h3 className="text-base font-semibold text-gray-900">
-            {isNew ? t('notificationAdmin.templates.addTitle') : readOnly ? template!.name : t('notificationAdmin.templates.editTitle')}
-          </h3>
-          {readOnly && <p className="mt-1 rounded bg-yellow-50 px-3 py-2 text-xs text-yellow-800">{t('notificationAdmin.templates.platformReadOnly')}</p>}
-        </div>
+    <Modal
+      open
+      size="lg"
+      title={isNew ? t('notificationAdmin.templates.addTitle') : readOnly ? template!.name : t('notificationAdmin.templates.editTitle')}
+      onClose={onClose}
+      closeOnEsc={!save.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{readOnly ? t('common.close') : t('common.cancel')}</Button>
+          {!readOnly && <Button disabled={!valid} loading={save.isPending} onClick={() => save.mutate()}>{save.isPending ? t('common.saving') : t('common.save')}</Button>}
+        </>
+      }
+    >
+      <div className="space-y-4">
+        {readOnly && <Alert variant="warning">{t('notificationAdmin.templates.platformReadOnly')}</Alert>}
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={label}>{t('notificationAdmin.code')}</label>
-                <input className="input font-mono text-xs" value={code} disabled={!isNew} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="ORDER_SHIPPED" />
-              </div>
-              <div>
-                <label className={label}>{t('notificationAdmin.channel')}</label>
-                <select className="input" value={channel} disabled={!isNew} onChange={(e) => setChannel(e.target.value)}>
+              <FormField label={t('notificationAdmin.code')} required={isNew}>
+                <Input className="font-mono text-xs" value={code} disabled={!isNew} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="ORDER_SHIPPED" />
+              </FormField>
+              <FormField label={t('notificationAdmin.channel')}>
+                <Select value={channel} disabled={!isNew} onChange={(e) => setChannel(e.target.value)}>
                   {Object.keys(TEMPLATE_CHANNELS).map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
+                </Select>
+              </FormField>
             </div>
+            <FormField label={t('notificationAdmin.name')} required>
+              <Input value={name} disabled={readOnly} onChange={(e) => setName(e.target.value)} />
+            </FormField>
+            <FormField label={t('notificationAdmin.subject')}>
+              <Input value={subject} disabled={readOnly} onChange={(e) => setSubject(e.target.value)} />
+            </FormField>
+            <FormField label={t('notificationAdmin.body')} required>
+              <Textarea ref={bodyRef} className="min-h-[10rem] font-mono text-xs" value={body} disabled={readOnly} onChange={(e) => setBody(e.target.value)} />
+            </FormField>
             <div>
-              <label className={label}>{t('notificationAdmin.name')}</label>
-              <input className="input" value={name} disabled={readOnly} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div>
-              <label className={label}>{t('notificationAdmin.subject')}</label>
-              <input className="input" value={subject} disabled={readOnly} onChange={(e) => setSubject(e.target.value)} />
-            </div>
-            <div>
-              <label className={label}>{t('notificationAdmin.body')}</label>
-              <textarea ref={bodyRef} className="input min-h-[10rem] font-mono text-xs" value={body} disabled={readOnly} onChange={(e) => setBody(e.target.value)} />
-            </div>
-            <div>
-              <label className={label}>{t('notificationAdmin.variables')}</label>
-              <input className="input font-mono text-xs" value={variables} disabled={readOnly} onChange={(e) => setVariables(e.target.value)} placeholder="orderNumber, customerName" />
-              <p className="mt-1 text-xs text-gray-500">{t('notificationAdmin.templates.variablesHint')}</p>
+              <FormField label={t('notificationAdmin.variables')} hint={t('notificationAdmin.templates.variablesHint')}>
+                <Input className="font-mono text-xs" value={variables} disabled={readOnly} onChange={(e) => setVariables(e.target.value)} placeholder="orderNumber, customerName" />
+              </FormField>
               {!readOnly && declared.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {declared.map((v) => (
-                    <button key={v} type="button" className="badge bg-primary-50 font-mono text-primary-700 hover:bg-primary-100" onClick={() => insert(v)} title={t('notificationAdmin.templates.insert')}>{`{${v}}`}</button>
+                    <button
+                      key={v}
+                      type="button"
+                      className="rounded-full bg-brand-soft px-2.5 py-0.5 font-mono text-xs font-medium text-brand-soft-text hover:bg-brand-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-action"
+                      onClick={() => insert(v)}
+                      title={t('notificationAdmin.templates.insert')}
+                    >{`{${v}}`}</button>
                   ))}
                 </div>
               )}
@@ -112,26 +121,20 @@ function TemplateEditor({ template, platformEditable, onClose }: { template: Not
           </div>
 
           <div className="space-y-3">
-            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t('notificationAdmin.templates.preview')}</div>
-            <div className="rounded-md bg-gray-50 p-3 text-sm">
-              <div className="font-medium text-gray-900">{preview?.subject || <span className="text-gray-400">{t('notificationAdmin.templates.noSubject')}</span>}</div>
-              <pre className="mt-2 whitespace-pre-wrap font-sans text-gray-800">{preview?.body}</pre>
+            <div className="text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('notificationAdmin.templates.preview')}</div>
+            <div className="rounded-md bg-surface-muted p-3 text-sm">
+              <div className="font-medium text-ink">{preview?.subject || <span className="text-ink-secondary">{t('notificationAdmin.templates.noSubject')}</span>}</div>
+              <pre className="mt-2 whitespace-pre-wrap font-sans text-ink">{preview?.body}</pre>
             </div>
             {preview && preview.unknownPlaceholders.length > 0 && (
-              <p className="rounded bg-yellow-50 px-3 py-2 text-xs text-yellow-800" role="alert">
-                {t('notificationAdmin.templates.unknown', { list: preview.unknownPlaceholders.map((p) => `{${p}}`).join(' ') })}
-              </p>
+              <Alert variant="warning">{t('notificationAdmin.templates.unknown', { list: preview.unknownPlaceholders.map((p) => `{${p}}`).join(' ') })}</Alert>
             )}
           </div>
         </div>
 
-        {save.isError && <p className="text-sm text-red-600" role="alert">{serverMessage(save.error, t('notificationAdmin.templates.failedToSave'))}</p>}
-        <div className="flex justify-end gap-3">
-          <button className="btn-outline" onClick={onClose}>{readOnly ? t('common.close') : t('common.cancel')}</button>
-          {!readOnly && <button className="btn-primary" disabled={!valid || save.isPending} onClick={() => save.mutate()}>{save.isPending ? t('common.saving') : t('common.save')}</button>}
-        </div>
+        {save.isError && <Alert variant="danger">{serverMessage(save.error, t('notificationAdmin.templates.failedToSave'))}</Alert>}
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -139,19 +142,19 @@ export function NotificationTemplatesPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [editor, setEditor] = useState<{ open: boolean; template: NotificationTemplate | null }>({ open: false, template: null })
   const [deleting, setDeleting] = useState<NotificationTemplate | null>(null)
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const { data = [], isLoading } = useQuery({ queryKey: KEY, queryFn: notificationAdminApi.templates, staleTime: 60_000 })
 
   const canManage = hasPermission('notifications:templates:manage')
   const isPlatform = useAuthStore((st) => st.user?.tenantId?.toLowerCase() === PLATFORM_TENANT_ID)
   const refresh = () => queryClient.invalidateQueries({ queryKey: KEY })
-  const fail = (e: unknown) => setMessage({ ok: false, text: serverMessage(e, t('notificationAdmin.templates.failed')) })
-  const ok = (text: string) => setMessage({ ok: true, text })
+  const fail = (e: unknown) => toast.error(serverMessage(e, t('notificationAdmin.templates.failed')))
+  const ok = (text: string) => toast.success(text)
 
   const override = useMutation({ mutationFn: (x: NotificationTemplate) => notificationAdminApi.overrideTemplate(x.id), onSuccess: (copy) => { refresh(); ok(t('notificationAdmin.templates.overridden')); setEditor({ open: true, template: copy }) }, onError: fail })
-  const toggle = useMutation({ mutationFn: (x: NotificationTemplate) => notificationAdminApi.setTemplateActive(x.id, !x.isActive), onSuccess: refresh, onError: fail })
+  const toggle = useMutation({ mutationFn: (x: NotificationTemplate) => notificationAdminApi.setTemplateActive(x.id, !x.isActive), onSuccess: () => { refresh(); ok(t('common.saved')) }, onError: fail })
   const remove = useMutation({ mutationFn: (x: NotificationTemplate) => notificationAdminApi.deleteTemplate(x.id), onSuccess: () => { setDeleting(null); ok(t('notificationAdmin.templates.deleted')); refresh() }, onError: (e) => { setDeleting(null); fail(e) } })
 
   // A platform default a shop has overridden is shadowed by the shop's own row with the same code.
@@ -167,17 +170,17 @@ export function NotificationTemplatesPage() {
       label: t('notificationAdmin.origin'),
       render: (x: NotificationTemplate) => (
         <div className="space-y-1">
-          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${x.isPlatformDefault ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-700'}`}>
+          <Badge variant={x.isPlatformDefault ? 'muted' : 'brand'}>
             {x.isPlatformDefault ? t('notificationAdmin.platformDefault') : t('notificationAdmin.tenantOverride')}
-          </span>
-          {x.isPlatformDefault && overridden.has(x.code) && <div className="text-xs text-gray-400">{t('notificationAdmin.templates.shadowed')}</div>}
+          </Badge>
+          {x.isPlatformDefault && overridden.has(x.code) && <div className="text-xs text-ink-secondary">{t('notificationAdmin.templates.shadowed')}</div>}
         </div>
       ),
     },
     {
       key: 'status',
       label: t('common.status'),
-      render: (x: NotificationTemplate) => <span className={`badge ${x.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{x.isActive ? t('common.active') : t('notificationAdmin.templates.off')}</span>,
+      render: (x: NotificationTemplate) => <Badge variant={x.isActive ? 'success' : 'muted'}>{x.isActive ? t('common.active') : t('notificationAdmin.templates.off')}</Badge>,
     },
     {
       key: 'actions',
@@ -185,15 +188,15 @@ export function NotificationTemplatesPage() {
       className: 'text-right',
       render: (x: NotificationTemplate) => (
         <div className="flex flex-wrap justify-end gap-3">
-          <button className="text-xs text-blue-600 hover:underline" onClick={() => setEditor({ open: true, template: x })}>{canManage && (!x.isPlatformDefault || isPlatform) ? t('common.edit') : t('notificationAdmin.view')}</button>
+          <Button variant="link" className="text-xs" onClick={() => setEditor({ open: true, template: x })}>{canManage && (!x.isPlatformDefault || isPlatform) ? t('common.edit') : t('notificationAdmin.view')}</Button>
           {canManage && !isPlatform && x.isPlatformDefault && !overridden.has(x.code) && (
-            <button className="text-xs text-primary-600 hover:underline" disabled={override.isPending} onClick={() => override.mutate(x)}>{t('notificationAdmin.templates.override')}</button>
+            <Button variant="link" className="text-xs" loading={override.isPending && override.variables?.id === x.id} onClick={() => override.mutate(x)}>{t('notificationAdmin.templates.override')}</Button>
           )}
           {canManage && (!x.isPlatformDefault || isPlatform) && (
-            <button className="text-xs text-gray-600 hover:underline" disabled={toggle.isPending} onClick={() => toggle.mutate(x)}>{x.isActive ? t('common.deactivate') : t('common.activate')}</button>
+            <Button variant="link" className="text-xs" loading={toggle.isPending && toggle.variables?.id === x.id} onClick={() => toggle.mutate(x)}>{x.isActive ? t('common.deactivate') : t('common.activate')}</Button>
           )}
           {canManage && !x.isPlatformDefault && (
-            <button className="text-xs text-red-600 hover:underline" onClick={() => setDeleting(x)}>{t('notificationAdmin.templates.revert')}</button>
+            <Button variant="link-danger" className="text-xs" onClick={() => setDeleting(x)}>{t('notificationAdmin.templates.revert')}</Button>
           )}
         </div>
       ),
@@ -205,16 +208,17 @@ export function NotificationTemplatesPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">{t('notificationAdmin.templatesTitle')}</h1>
-          <p className="text-sm text-gray-500">{t('notificationAdmin.templates.hint')}</p>
+          <p className="text-sm text-ink-secondary">{t('notificationAdmin.templates.hint')}</p>
         </div>
-        {canManage && <button className="btn-primary" onClick={() => setEditor({ open: true, template: null })}>{t('notificationAdmin.templates.add')}</button>}
+        {canManage && <Button className="shrink-0" onClick={() => setEditor({ open: true, template: null })}>{t('notificationAdmin.templates.add')}</Button>}
       </div>
 
-      {message && (
-        <div className={`rounded border px-3 py-2 text-sm ${message.ok ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-700'}`} role={message.ok ? 'status' : 'alert'}>{message.text}</div>
-      )}
-
-      <DataTable columns={columns} data={data} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data}
+        isLoading={isLoading}
+        emptyState={<EmptyState title={t('notificationAdmin.templates.empty')} description={t('notificationAdmin.templates.emptyHint')} />}
+      />
 
       {editor.open && <TemplateEditor template={editor.template} platformEditable={isPlatform && canManage} onClose={() => setEditor({ open: false, template: null })} />}
 

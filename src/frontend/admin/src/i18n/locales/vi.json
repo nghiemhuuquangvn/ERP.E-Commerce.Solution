@@ -824,6 +824,8 @@
       "badge": "Kiện {{n}}/{{count}}"
     },
     "returns": {
+      "empty": "Chưa có chuyến hoàn hàng",
+      "emptyHint": "Khi một đơn trả hàng được duyệt, chuyến hoàn về sẽ được đặt tại hãng vận chuyển và hiện ở đây.",
       "title": "Hoàn hàng",
       "hint": "Chặng hoàn hàng của các đơn trả lại, đặt tại hãng vận chuyển. Lần đặt bị hãng từ chối được giữ ở đây để đặt lại.",
       "searchPlaceholder": "Mã đơn, mã vận đơn hoặc mã đơn của hãng",
@@ -1274,6 +1276,7 @@
     "body": "Nội dung",
     "variables": "Biến trong mẫu",
     "webhooks": {
+      "emptyHint": "Thêm địa chỉ của hệ thống bạn để được báo khi một thông báo được gửi hoặc gửi lỗi.",
       "title": "Webhook",
       "hint": "Gửi một tin nhắn HTTPS tới hệ thống của bạn khi một thông báo được gửi hoặc gửi lỗi. Mỗi tin được ký bằng khóa bí mật để bạn kiểm tra nguồn gốc.",
       "add": "Thêm webhook",
@@ -1310,6 +1313,8 @@
       "failedToSave": "Không lưu được webhook."
     },
     "templates": {
+      "empty": "Chưa có mẫu thông báo",
+      "emptyHint": "Mẫu do nền tảng tạo sẵn; hãy thêm mẫu riêng để ghi đè hoặc bổ sung.",
       "hint": "Nội dung của từng tin nhắn tự động. Hệ thống dùng mẫu mặc định của nền tảng, trừ khi công ty bạn có mẫu riêng cùng mã: ghi đè mẫu mặc định để đổi cho công ty bạn, xóa bản của bạn để quay về mặc định.",
       "add": "Thêm mẫu",
       "addTitle": "Thêm mẫu thông báo",

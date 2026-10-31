@@ -824,6 +824,8 @@
       "badge": "Parcel {{n}} of {{count}}"
     },
     "returns": {
+      "empty": "No return parcels",
+      "emptyHint": "When a return is approved, its way back is booked at the carrier and appears here.",
       "title": "Returns",
       "hint": "The way back of returned orders, booked at the carriers. A refused booking is kept here so it can be booked again.",
       "searchPlaceholder": "Order id, tracking number or carrier code",
@@ -1274,6 +1276,7 @@
     "body": "Message",
     "variables": "Placeholders",
     "webhooks": {
+      "emptyHint": "Add an address of your own system to be told when a notification is sent or fails.",
       "title": "Webhooks",
       "hint": "Send an HTTPS message to your own system when something happens to a notification. Every message is signed with the secret so you can check it came from here.",
       "add": "New webhook",
@@ -1310,6 +1313,8 @@
       "failedToSave": "The webhook could not be saved."
     },
     "templates": {
+      "empty": "No templates",
+      "emptyHint": "Templates are created by the platform; add your own to override or extend them.",
       "hint": "The wording of each automatic message. The platform's default is used unless your company has its own template with the same code: override a default to change it for your company, and delete your copy to bring the default back.",
       "add": "New template",
       "addTitle": "New template",
