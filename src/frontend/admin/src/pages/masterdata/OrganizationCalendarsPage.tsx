@@ -12,6 +12,8 @@ import { DataTable } from '@/components/shared/DataTable'
 import { Pagination } from '@/components/shared/Pagination'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, Checkbox, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 type Tab = 'calendars' | 'holidays'
 
@@ -35,6 +37,7 @@ function CalendarModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!calendar
 
   const { register, handleSubmit, formState: { errors } } = useForm<CalendarFormValues>({
@@ -63,76 +66,55 @@ function CalendarModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'organizationCalendars'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit
+    <Modal
+      open
+      size="sm"
+      title={isEdit
             ? t('masterdata.organizationCalendars.editTitle')
             : t('masterdata.organizationCalendars.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          {!isEdit && (
-            <>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  {t('masterdata.organizationCalendars.company')}
-                </label>
-                <select className="input" {...register('companyId', { required: true })}>
-                  <option value="">{t('common.select')}</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.companyId && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {t('masterdata.organizationCalendars.company')} is required.
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  {t('masterdata.organizationCalendars.year')}
-                </label>
-                <input
-                  type="number"
-                  className="input"
-                  {...register('year', { required: true, valueAsNumber: true })}
-                />
-              </div>
-            </>
-          )}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-            {errors.name && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-          </div>
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="isDefault" {...register('isDefault')} />
-            <label htmlFor="isDefault" className="text-sm font-medium text-gray-700">
-              {t('masterdata.organizationCalendars.isDefault')}
-            </label>
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.organizationCalendars.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="calendar-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="calendar-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        {!isEdit && (
+          <>
+            <FormField label={t('masterdata.organizationCalendars.company')} required error={errors.companyId ? t('common.required') : undefined}>
+              <Select {...register('companyId', { required: true })}>
+                <option value="">{t('common.select')}</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label={t('masterdata.organizationCalendars.year')} required error={errors.year ? t('common.required') : undefined}>
+              <Input
+                type="number"
+                {...register('year', { required: true, valueAsNumber: true })}
+              />
+            </FormField>
+          </>
+        )}
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <Checkbox label={t('masterdata.organizationCalendars.isDefault')} {...register('isDefault')} />
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.organizationCalendars.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -153,6 +135,7 @@ function HolidayModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!holiday
 
   const { register, handleSubmit, formState: { errors } } = useForm<HolidayFormValues>({
@@ -180,47 +163,36 @@ function HolidayModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'holidays', calendarId] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('masterdata.organizationCalendars.editHolidayTitle') : t('masterdata.organizationCalendars.addHolidayTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.date')}</label>
-            <input type="date" className="input" {...register('date', { required: true })} />
-            {errors.date && <p className="mt-1 text-xs text-red-600">{t('common.date')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-            {errors.name && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-          </div>
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="isRecurringYearly" {...register('isRecurringYearly')} />
-            <label htmlFor="isRecurringYearly" className="text-sm font-medium text-gray-700">
-              {t('masterdata.organizationCalendars.isRecurringYearly')}
-            </label>
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.organizationCalendars.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={isEdit ? t('masterdata.organizationCalendars.editHolidayTitle') : t('masterdata.organizationCalendars.addHolidayTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="holiday-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="holiday-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('common.date')} required error={errors.date ? t('common.required') : undefined}>
+          <Input type="date" {...register('date', { required: true })} />
+        </FormField>
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <Checkbox label={t('masterdata.organizationCalendars.isRecurringYearly')} {...register('isRecurringYearly')} />
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.organizationCalendars.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -290,12 +262,10 @@ export function OrganizationCalendarsPage() {
         label: '',
         render: (c: OrganizationCalendar) =>
           canManage ? (
-            <button
-              className="text-xs text-primary-600 hover:underline"
-              onClick={() => setCalendarModalState({ open: true, calendar: c })}
-            >
+            <Button variant="link" className="text-xs"
+              onClick={() => setCalendarModalState({ open: true, calendar: c })}>
               {t('common.edit')}
-            </button>
+            </Button>
           ) : null,
       },
     ],
@@ -316,12 +286,10 @@ export function OrganizationCalendarsPage() {
         label: '',
         render: (h: Holiday) =>
           canManage ? (
-            <button
-              className="text-xs text-primary-600 hover:underline"
-              onClick={() => setHolidayModalState({ open: true, holiday: h })}
-            >
+            <Button variant="link" className="text-xs"
+              onClick={() => setHolidayModalState({ open: true, holiday: h })}>
               {t('common.edit')}
-            </button>
+            </Button>
           ) : null,
       },
     ],
@@ -338,18 +306,18 @@ export function OrganizationCalendarsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('masterdata.organizationCalendars.title')}</h1>
         {canManage && tab === 'calendars' && (
-          <button className="btn-primary" onClick={() => setCalendarModalState({ open: true, calendar: null })}>
+          <Button onClick={() => setCalendarModalState({ open: true, calendar: null })}>
             {t('masterdata.organizationCalendars.add')}
-          </button>
+          </Button>
         )}
         {canManage && tab === 'holidays' && calendarId && (
-          <button className="btn-primary" onClick={() => setHolidayModalState({ open: true, holiday: null })}>
+          <Button onClick={() => setHolidayModalState({ open: true, holiday: null })}>
             {t('masterdata.organizationCalendars.addHoliday')}
-          </button>
+          </Button>
         )}
       </div>
 
-      <div className="flex gap-2 border-b border-gray-200">
+      <div className="flex gap-2 border-b border-line">
         {(
           [
             { key: 'calendars' as const, label: t('masterdata.organizationCalendars.calendarsTab') },
@@ -360,7 +328,7 @@ export function OrganizationCalendarsPage() {
             key={x.key}
             onClick={() => switchTab(x.key)}
             className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key ? 'border-b-2 border-primary-600 text-primary-700' : 'text-gray-500 hover:text-gray-700'
+              tab === x.key ? 'border-b-2 border-brand-action text-brand-action' : 'text-ink-secondary hover:text-ink'
             }`}
           >
             {x.label}
@@ -370,8 +338,9 @@ export function OrganizationCalendarsPage() {
 
       {tab === 'calendars' && (
         <>
-          <select
-            className="input max-w-xs"
+          <Select
+            className="max-w-xs"
+        aria-label={t('masterdata.organizationCalendars.allCompanies')}
             value={companyId}
             onChange={(e) => {
               setCompanyId(e.target.value)
@@ -384,7 +353,7 @@ export function OrganizationCalendarsPage() {
                 {c.name}
               </option>
             ))}
-          </select>
+          </Select>
           <DataTable
             columns={calendarColumns}
             data={calendarsQuery.data?.items ?? []}
@@ -401,8 +370,9 @@ export function OrganizationCalendarsPage() {
 
       {tab === 'holidays' && (
         <>
-          <select
-            className="input max-w-xs"
+          <Select
+            className="max-w-xs"
+        aria-label={t('masterdata.organizationCalendars.selectCalendar')}
             value={calendarId}
             onChange={(e) => {
               setCalendarId(e.target.value)
@@ -415,7 +385,7 @@ export function OrganizationCalendarsPage() {
                 {c.name} ({c.year})
               </option>
             ))}
-          </select>
+          </Select>
           <DataTable
             columns={holidayColumns}
             data={holidaysQuery.data?.items ?? []}

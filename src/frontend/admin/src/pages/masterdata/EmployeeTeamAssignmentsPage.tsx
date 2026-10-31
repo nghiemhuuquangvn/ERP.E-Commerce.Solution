@@ -13,6 +13,8 @@ import { Pagination } from '@/components/shared/Pagination'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface CreateAssignmentFormValues {
   employeeId: string
@@ -34,6 +36,7 @@ function CreateAssignmentModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { register, handleSubmit, formState: { errors } } = useForm<CreateAssignmentFormValues>({
     defaultValues: {
@@ -54,84 +57,55 @@ function CreateAssignmentModal({
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'employeeTeamAssignments'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('masterdata.employeeTeamAssignments.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('masterdata.employeeTeamAssignments.employee')}
-            </label>
-            <select className="input" {...register('employeeId', { required: true })}>
-              <option value="">{t('common.select')}</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.fullName}
-                </option>
-              ))}
-            </select>
-            {errors.employeeId && (
-              <p className="mt-1 text-xs text-red-600">
-                {t('masterdata.employeeTeamAssignments.employee')} is required.
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('masterdata.employeeTeamAssignments.team')}
-            </label>
-            <select className="input" {...register('teamId', { required: true })}>
-              <option value="">{t('common.select')}</option>
-              {teams.map((tm) => (
-                <option key={tm.id} value={tm.id}>
-                  {tm.name}
-                </option>
-              ))}
-            </select>
-            {errors.teamId && (
-              <p className="mt-1 text-xs text-red-600">
-                {t('masterdata.employeeTeamAssignments.team')} is required.
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('masterdata.employeeTeamAssignments.positionIdOptional')}
-            </label>
-            <input className="input" {...register('positionId')} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('masterdata.employeeTeamAssignments.effectiveFrom')}
-            </label>
-            <input type="date" className="input" {...register('effectiveFrom', { required: true })} />
-            {errors.effectiveFrom && (
-              <p className="mt-1 text-xs text-red-600">
-                {t('masterdata.employeeTeamAssignments.effectiveFrom')} is required.
-              </p>
-            )}
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.employeeTeamAssignments.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('masterdata.employeeTeamAssignments.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="create-assignment-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="create-assignment-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('masterdata.employeeTeamAssignments.employee')} required error={errors.employeeId ? t('common.required') : undefined}>
+          <Select {...register('employeeId', { required: true })}>
+            <option value="">{t('common.select')}</option>
+            {employees.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.fullName}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('masterdata.employeeTeamAssignments.team')} required error={errors.teamId ? t('common.required') : undefined}>
+          <Select {...register('teamId', { required: true })}>
+            <option value="">{t('common.select')}</option>
+            {teams.map((tm) => (
+              <option key={tm.id} value={tm.id}>
+                {tm.name}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('masterdata.employeeTeamAssignments.positionIdOptional')}>
+          <Input {...register('positionId')} />
+        </FormField>
+        <FormField label={t('masterdata.employeeTeamAssignments.effectiveFrom')} required error={errors.effectiveFrom ? t('common.required') : undefined}>
+          <Input type="date" {...register('effectiveFrom', { required: true })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.employeeTeamAssignments.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -148,6 +122,7 @@ function EndAssignmentModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { register, handleSubmit, formState: { errors } } = useForm<EndAssignmentFormValues>({
     defaultValues: { effectiveTo: new Date().toISOString().slice(0, 10) },
@@ -158,42 +133,32 @@ function EndAssignmentModal({
       employeeTeamAssignmentsApi.end(assignment.id, { effectiveTo: values.effectiveTo }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'employeeTeamAssignments'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('masterdata.employeeTeamAssignments.endTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('masterdata.employeeTeamAssignments.effectiveTo')}
-            </label>
-            <input type="date" className="input" {...register('effectiveTo', { required: true })} />
-            {errors.effectiveTo && (
-              <p className="mt-1 text-xs text-red-600">
-                {t('masterdata.employeeTeamAssignments.effectiveTo')} is required.
-              </p>
-            )}
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.employeeTeamAssignments.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('masterdata.employeeTeamAssignments.end')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('masterdata.employeeTeamAssignments.endTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="end-assignment-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('masterdata.employeeTeamAssignments.end')}</Button>
+        </>
+      }
+    >
+      <form id="end-assignment-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('masterdata.employeeTeamAssignments.effectiveTo')} required error={errors.effectiveTo ? t('common.required') : undefined}>
+          <Input type="date" {...register('effectiveTo', { required: true })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.employeeTeamAssignments.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -261,9 +226,9 @@ export function EmployeeTeamAssignmentsPage() {
         label: '',
         render: (a: EmployeeTeamAssignment) =>
           canManage && !a.effectiveTo ? (
-            <button className="text-xs text-red-600 hover:underline" onClick={() => setEndTarget(a)}>
+            <Button variant="link-danger" className="text-xs" onClick={() => setEndTarget(a)}>
               {t('masterdata.employeeTeamAssignments.end')}
-            </button>
+            </Button>
           ) : null,
       },
     ],
@@ -275,14 +240,15 @@ export function EmployeeTeamAssignmentsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('masterdata.employeeTeamAssignments.title')}</h1>
         {canManage && (
-          <button className="btn-primary" onClick={() => setModalOpen(true)}>
+          <Button onClick={() => setModalOpen(true)}>
             {t('masterdata.employeeTeamAssignments.add')}
-          </button>
+          </Button>
         )}
       </div>
 
-      <select
-        className="input max-w-xs"
+      <Select
+        className="max-w-xs"
+        aria-label={t('masterdata.employeeTeamAssignments.selectEmployee')}
         value={employeeId}
         onChange={(e) => {
           setEmployeeId(e.target.value)
@@ -295,7 +261,7 @@ export function EmployeeTeamAssignmentsPage() {
             {e.fullName}
           </option>
         ))}
-      </select>
+      </Select>
 
       <DataTable
         columns={columns}

@@ -13,6 +13,8 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 type Tab = 'currencies' | 'exchangeRates'
 
@@ -32,6 +34,7 @@ function CurrencyModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!currency
 
   const { register, handleSubmit, formState: { errors } } = useForm<CurrencyFormValues>({
@@ -61,62 +64,46 @@ function CurrencyModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'currencies'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('masterdata.currencies.editTitle') : t('masterdata.currencies.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          {!isEdit && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-              <input className="input" {...register('code', { required: true })} />
-              {errors.code && <p className="mt-1 text-xs text-red-600">{t('common.code')} is required.</p>}
-            </div>
-          )}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-            {errors.name && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('masterdata.currencies.symbol')}
-            </label>
-            <input className="input" {...register('symbol', { required: true })} />
-            {errors.symbol && (
-              <p className="mt-1 text-xs text-red-600">{t('masterdata.currencies.symbol')} is required.</p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('masterdata.currencies.decimalPlaces')}
-            </label>
-            <input
-              type="number"
-              className="input"
-              {...register('decimalPlaces', { required: true, valueAsNumber: true })}
-            />
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.currencies.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={isEdit ? t('masterdata.currencies.editTitle') : t('masterdata.currencies.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="currency-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="currency-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        {!isEdit && (
+          <FormField label={t('common.code')} required error={errors.code ? t('common.required') : undefined}>
+            <Input {...register('code', { required: true })} />
+          </FormField>
+        )}
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <FormField label={t('masterdata.currencies.symbol')} required error={errors.symbol ? t('common.required') : undefined}>
+          <Input {...register('symbol', { required: true })} />
+        </FormField>
+        <FormField label={t('masterdata.currencies.decimalPlaces')} required error={errors.decimalPlaces ? t('common.required') : undefined}>
+          <Input
+            type="number"
+            {...register('decimalPlaces', { required: true, valueAsNumber: true })}
+          />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.currencies.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -139,6 +126,7 @@ function ExchangeRateModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!exchangeRate
 
   const { register, handleSubmit, formState: { errors } } = useForm<ExchangeRateFormValues>({
@@ -165,6 +153,7 @@ function ExchangeRateModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'exchangeRates', fromCurrencyId] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
@@ -172,73 +161,47 @@ function ExchangeRateModal({
   const toCurrencies = currencies.filter((c) => c.id !== fromCurrencyId)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit
+    <Modal
+      open
+      size="sm"
+      title={isEdit
             ? t('masterdata.currencies.editExchangeRateTitle')
             : t('masterdata.currencies.addExchangeRateTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          {!isEdit && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                {t('masterdata.currencies.toCurrency')}
-              </label>
-              <select className="input" {...register('toCurrencyId', { required: true })}>
-                <option value="">{t('common.select')}</option>
-                {toCurrencies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.code} — {c.name}
-                  </option>
-                ))}
-              </select>
-              {errors.toCurrencyId && (
-                <p className="mt-1 text-xs text-red-600">
-                  {t('masterdata.currencies.toCurrency')} is required.
-                </p>
-              )}
-            </div>
-          )}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('masterdata.currencies.rate')}
-            </label>
-            <input
-              type="number"
-              step="0.000001"
-              className="input"
-              {...register('rate', { required: true, valueAsNumber: true })}
-            />
-            {errors.rate && (
-              <p className="mt-1 text-xs text-red-600">{t('masterdata.currencies.rate')} is required.</p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('masterdata.currencies.effectiveDate')}
-            </label>
-            <input type="date" className="input" {...register('effectiveDate', { required: true })} />
-            {errors.effectiveDate && (
-              <p className="mt-1 text-xs text-red-600">
-                {t('masterdata.currencies.effectiveDate')} is required.
-              </p>
-            )}
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.currencies.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="exchange-rate-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="exchange-rate-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        {!isEdit && (
+          <FormField label={t('masterdata.currencies.toCurrency')} required error={errors.toCurrencyId ? t('common.required') : undefined}>
+            <Select {...register('toCurrencyId', { required: true })}>
+              <option value="">{t('common.select')}</option>
+              {toCurrencies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.code} — {c.name}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        )}
+        <FormField label={t('masterdata.currencies.rate')} required error={errors.rate ? t('common.required') : undefined}>
+          <Input
+            type="number"
+            step="0.000001"
+            {...register('rate', { required: true, valueAsNumber: true })}
+          />
+        </FormField>
+        <FormField label={t('masterdata.currencies.effectiveDate')} required error={errors.effectiveDate ? t('common.required') : undefined}>
+          <Input type="date" {...register('effectiveDate', { required: true })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.currencies.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -258,16 +221,12 @@ function EffectiveRateLookupPanel({ currencies }: { currencies: Currency[] }) {
 
   return (
     <div className="card space-y-3 p-4">
-      <h2 className="text-sm font-semibold text-gray-900">
+      <h2 className="text-sm font-semibold text-ink">
         {t('masterdata.currencies.effectiveRateLookup')}
       </h2>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-700">
-            {t('masterdata.currencies.fromCurrency')}
-          </label>
-          <select
-            className="input"
+        <FormField label={t('masterdata.currencies.fromCurrency')}>
+          <Select
             value={fromCurrencyId}
             onChange={(e) => {
               setFromCurrencyId(e.target.value)
@@ -280,14 +239,10 @@ function EffectiveRateLookupPanel({ currencies }: { currencies: Currency[] }) {
                 {c.code} — {c.name}
               </option>
             ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-700">
-            {t('masterdata.currencies.toCurrency')}
-          </label>
-          <select
-            className="input"
+          </Select>
+        </FormField>
+        <FormField label={t('masterdata.currencies.toCurrency')}>
+          <Select
             value={toCurrencyId}
             onChange={(e) => {
               setToCurrencyId(e.target.value)
@@ -300,42 +255,36 @@ function EffectiveRateLookupPanel({ currencies }: { currencies: Currency[] }) {
                 {c.code} — {c.name}
               </option>
             ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-700">
-            {t('masterdata.currencies.asOfDate')}
-          </label>
-          <input
+          </Select>
+        </FormField>
+        <FormField label={t('masterdata.currencies.asOfDate')}>
+          <Input
             type="date"
-            className="input"
             value={asOfDate}
             onChange={(e) => {
               setAsOfDate(e.target.value)
               setResult(undefined)
             }}
           />
-        </div>
+        </FormField>
         <div className="flex items-end">
-          <button
+          <Button fullWidth
             type="button"
-            className="btn-primary w-full"
             disabled={!canLookup || lookupMutation.isPending}
-            onClick={() => lookupMutation.mutate()}
-          >
+            onClick={() => lookupMutation.mutate()}>
             {lookupMutation.isPending ? t('common.loading') : t('masterdata.currencies.lookUp')}
-          </button>
+          </Button>
         </div>
       </div>
       {result !== undefined && (
         <p className="text-sm">
           {result ? (
-            <span className="text-gray-900">
+            <span className="text-ink">
               {t('masterdata.currencies.rate')}: <span className="font-semibold">{result.rate}</span>{' '}
               ({t('masterdata.currencies.effectiveDate')}: {result.effectiveDate.slice(0, 10)})
             </span>
           ) : (
-            <span className="text-gray-500">{t('masterdata.currencies.noRateFound')}</span>
+            <span className="text-ink-secondary">{t('masterdata.currencies.noRateFound')}</span>
           )}
         </p>
       )}
@@ -415,23 +364,19 @@ export function CurrenciesPage() {
         render: (c: Currency) =>
           canManage ? (
             <div className="flex gap-3">
-              <button
-                className="text-xs text-primary-600 hover:underline"
-                onClick={() => setCurrencyModalState({ open: true, currency: c })}
-              >
+              <Button variant="link" className="text-xs"
+                onClick={() => setCurrencyModalState({ open: true, currency: c })}>
                 {t('common.edit')}
-              </button>
+              </Button>
               {c.isActive ? (
-                <button className="text-xs text-red-600 hover:underline" onClick={() => setConfirmTarget(c)}>
+                <Button variant="link-danger" className="text-xs" onClick={() => setConfirmTarget(c)}>
                   {t('common.deactivate')}
-                </button>
+                </Button>
               ) : (
-                <button
-                  className="text-xs text-green-600 hover:underline"
-                  onClick={() => toggleMutation.mutate(c)}
-                >
+                <Button variant="link" className="text-xs"
+                  onClick={() => toggleMutation.mutate(c)}>
                   {t('common.activate')}
-                </button>
+                </Button>
               )}
             </div>
           ) : null,
@@ -458,12 +403,10 @@ export function CurrenciesPage() {
         label: '',
         render: (er: ExchangeRate) =>
           canManage ? (
-            <button
-              className="text-xs text-primary-600 hover:underline"
-              onClick={() => setExchangeRateModalState({ open: true, exchangeRate: er })}
-            >
+            <Button variant="link" className="text-xs"
+              onClick={() => setExchangeRateModalState({ open: true, exchangeRate: er })}>
               {t('common.edit')}
-            </button>
+            </Button>
           ) : null,
       },
     ],
@@ -480,21 +423,19 @@ export function CurrenciesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('masterdata.currencies.title')}</h1>
         {canManage && tab === 'currencies' && (
-          <button className="btn-primary" onClick={() => setCurrencyModalState({ open: true, currency: null })}>
+          <Button onClick={() => setCurrencyModalState({ open: true, currency: null })}>
             {t('masterdata.currencies.add')}
-          </button>
+          </Button>
         )}
         {canManage && tab === 'exchangeRates' && fromCurrencyId && (
-          <button
-            className="btn-primary"
-            onClick={() => setExchangeRateModalState({ open: true, exchangeRate: null })}
-          >
+          <Button
+            onClick={() => setExchangeRateModalState({ open: true, exchangeRate: null })}>
             {t('masterdata.currencies.addExchangeRate')}
-          </button>
+          </Button>
         )}
       </div>
 
-      <div className="flex gap-2 border-b border-gray-200">
+      <div className="flex gap-2 border-b border-line">
         {(
           [
             { key: 'currencies' as const, label: t('masterdata.currencies.currenciesTab') },
@@ -505,7 +446,7 @@ export function CurrenciesPage() {
             key={x.key}
             onClick={() => switchTab(x.key)}
             className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key ? 'border-b-2 border-primary-600 text-primary-700' : 'text-gray-500 hover:text-gray-700'
+              tab === x.key ? 'border-b-2 border-brand-action text-brand-action' : 'text-ink-secondary hover:text-ink'
             }`}
           >
             {x.label}
@@ -533,8 +474,9 @@ export function CurrenciesPage() {
         <>
           <EffectiveRateLookupPanel currencies={currencies} />
 
-          <select
-            className="input max-w-xs"
+          <Select
+            className="max-w-xs"
+        aria-label={t('masterdata.currencies.selectCurrency')}
             value={fromCurrencyId}
             onChange={(e) => {
               setFromCurrencyId(e.target.value)
@@ -547,7 +489,7 @@ export function CurrenciesPage() {
                 {c.code} — {c.name}
               </option>
             ))}
-          </select>
+          </Select>
           <DataTable
             columns={exchangeRateColumns}
             data={exchangeRatesQuery.data?.items ?? []}

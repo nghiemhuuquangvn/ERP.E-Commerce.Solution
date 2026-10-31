@@ -8,6 +8,8 @@ import { DataTable } from '@/components/shared/DataTable'
 import { Pagination } from '@/components/shared/Pagination'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface UomFormValues {
   code: string
@@ -27,6 +29,7 @@ function UnitOfMeasureModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!uom
   const { register, handleSubmit, formState: { errors } } = useForm<UomFormValues>({
     defaultValues: {
@@ -59,79 +62,63 @@ function UnitOfMeasureModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'units-of-measure'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('masterdata.unitsOfMeasure.editTitle') : t('masterdata.unitsOfMeasure.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          {!isEdit && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-              <input className="input" {...register('code', { required: true })} />
-              {errors.code && <p className="mt-1 text-xs text-red-600">{t('common.code')} is required.</p>}
-            </div>
-          )}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.unitsOfMeasure.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-            {errors.name && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.unitsOfMeasure.symbol')}</label>
-            <input className="input" {...register('symbol', { required: true })} />
-            {errors.symbol && <p className="mt-1 text-xs text-red-600">{t('masterdata.unitsOfMeasure.symbol')} is required.</p>}
-          </div>
-          {!isEdit && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.unitsOfMeasure.unitType')}</label>
-              <select className="input" {...register('unitType')}>
-                <option value={UNIT_TYPE.Weight}>{t('masterdata.unitsOfMeasure.unitTypes.weight')}</option>
-                <option value={UNIT_TYPE.Volume}>{t('masterdata.unitsOfMeasure.unitTypes.volume')}</option>
-                <option value={UNIT_TYPE.Length}>{t('masterdata.unitsOfMeasure.unitTypes.length')}</option>
-                <option value={UNIT_TYPE.Count}>{t('masterdata.unitsOfMeasure.unitTypes.count')}</option>
-                <option value={UNIT_TYPE.Area}>{t('masterdata.unitsOfMeasure.unitTypes.area')}</option>
-              </select>
-            </div>
-          )}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('masterdata.unitsOfMeasure.conversionFactor')}
-            </label>
-            <input
-              type="number"
-              step="any"
-              className="input"
-              {...register('conversionFactor', { required: true })}
-            />
-          </div>
-          {!isEdit && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                {t('masterdata.unitsOfMeasure.baseUnitIdOptional')}
-              </label>
-              <input className="input" {...register('baseUnitId')} />
-            </div>
-          )}
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.unitsOfMeasure.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={isEdit ? t('masterdata.unitsOfMeasure.editTitle') : t('masterdata.unitsOfMeasure.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="unit-of-measure-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="unit-of-measure-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        {!isEdit && (
+          <FormField label={t('common.code')} required error={errors.code ? t('common.required') : undefined}>
+            <Input {...register('code', { required: true })} />
+          </FormField>
+        )}
+        <FormField label={t('masterdata.unitsOfMeasure.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <FormField label={t('masterdata.unitsOfMeasure.symbol')} required error={errors.symbol ? t('common.required') : undefined}>
+          <Input {...register('symbol', { required: true })} />
+        </FormField>
+        {!isEdit && (
+          <FormField label={t('masterdata.unitsOfMeasure.unitType')}>
+            <Select {...register('unitType')}>
+              <option value={UNIT_TYPE.Weight}>{t('masterdata.unitsOfMeasure.unitTypes.weight')}</option>
+              <option value={UNIT_TYPE.Volume}>{t('masterdata.unitsOfMeasure.unitTypes.volume')}</option>
+              <option value={UNIT_TYPE.Length}>{t('masterdata.unitsOfMeasure.unitTypes.length')}</option>
+              <option value={UNIT_TYPE.Count}>{t('masterdata.unitsOfMeasure.unitTypes.count')}</option>
+              <option value={UNIT_TYPE.Area}>{t('masterdata.unitsOfMeasure.unitTypes.area')}</option>
+            </Select>
+          </FormField>
+        )}
+        <FormField label={t('masterdata.unitsOfMeasure.conversionFactor')} required error={errors.conversionFactor ? t('common.required') : undefined}>
+          <Input
+            type="number"
+            step="any"
+            {...register('conversionFactor', { required: true })}
+          />
+        </FormField>
+        {!isEdit && (
+          <FormField label={t('masterdata.unitsOfMeasure.baseUnitIdOptional')}>
+            <Input {...register('baseUnitId')} />
+          </FormField>
+        )}
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.unitsOfMeasure.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -164,12 +151,10 @@ export function UnitsOfMeasurePage() {
         label: '',
         render: (u: UnitOfMeasure) =>
           canManage ? (
-            <button
-              className="text-xs text-primary-600 hover:underline"
-              onClick={() => setModalState({ open: true, uom: u })}
-            >
+            <Button variant="link" className="text-xs"
+              onClick={() => setModalState({ open: true, uom: u })}>
               {t('common.edit')}
-            </button>
+            </Button>
           ) : null,
       },
     ],
@@ -181,9 +166,9 @@ export function UnitsOfMeasurePage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('masterdata.unitsOfMeasure.title')}</h1>
         {canManage && (
-          <button className="btn-primary" onClick={() => setModalState({ open: true, uom: null })}>
+          <Button onClick={() => setModalState({ open: true, uom: null })}>
             {t('masterdata.unitsOfMeasure.add')}
-          </button>
+          </Button>
         )}
       </div>
 

@@ -8,6 +8,8 @@ import { Pagination } from '@/components/shared/Pagination'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, Checkbox, FormField, Input, Modal, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface LanguageFormValues {
   code: string
@@ -20,7 +22,8 @@ interface LanguageFormValues {
 function CreateLanguageModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { register, handleSubmit } = useForm<LanguageFormValues>({
+  const toast = useToast()
+  const { register, handleSubmit, formState: { errors } } = useForm<LanguageFormValues>({
     defaultValues: { isDefault: false, sortOrder: 0 },
   })
 
@@ -35,53 +38,45 @@ function CreateLanguageModal({ onClose }: { onClose: () => void }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'languages'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('masterdata.languages.addTitle')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-            <input className="input" placeholder="vi-VN" {...register('code', { required: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.languages.name')}</label>
-            <input className="input" placeholder="Vietnamese" {...register('name', { required: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.languages.nativeName')}</label>
-            <input
-              className="input"
-              placeholder="Tiếng Việt"
-              {...register('nativeName', { required: true })}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.languages.sortOrder')}</label>
-            <input className="input" type="number" {...register('sortOrder')} />
-          </div>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" {...register('isDefault')} />
-            {t('masterdata.languages.defaultLanguage')}
-          </label>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.languages.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('masterdata.languages.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="create-language-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="create-language-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('common.code')} required error={errors.code ? t('common.required') : undefined}>
+          <Input placeholder="vi-VN" {...register('code', { required: true })} />
+        </FormField>
+        <FormField label={t('masterdata.languages.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input placeholder="Vietnamese" {...register('name', { required: true })} />
+        </FormField>
+        <FormField label={t('masterdata.languages.nativeName')} required error={errors.nativeName ? t('common.required') : undefined}>
+          <Input
+            placeholder="Tiếng Việt"
+            {...register('nativeName', { required: true })}
+          />
+        </FormField>
+        <FormField label={t('masterdata.languages.sortOrder')}>
+          <Input type="number" {...register('sortOrder')} />
+        </FormField>
+        <Checkbox label={t('masterdata.languages.defaultLanguage')} {...register('isDefault')} />
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.languages.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -129,9 +124,9 @@ export function LanguagesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('masterdata.languages.title')}</h1>
         {canManage && (
-          <button className="btn-primary" onClick={() => setModalOpen(true)}>
+          <Button onClick={() => setModalOpen(true)}>
             {t('masterdata.languages.add')}
-          </button>
+          </Button>
         )}
       </div>
 
