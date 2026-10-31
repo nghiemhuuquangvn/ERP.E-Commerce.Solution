@@ -7,6 +7,7 @@ import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { ProductPickerModal } from '@/components/shared/ProductPickerModal'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { Alert, Button, EmptyState, FormField, Input, Modal, useToast } from '@/components/ui'
 import { usePermission } from '@/hooks/usePermission'
 
 const KEY = ['promotion', 'flashSales']
@@ -21,6 +22,7 @@ interface Row { productId: string; productName: string; originalPrice: number; s
 function FlashSaleModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [start, setStart] = useState(toLocalInput(new Date(Date.now() + 3600_000)))
@@ -44,47 +46,56 @@ function FlashSaleModal({ onClose }: { onClose: () => void }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEY })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   const patch = (i: number, p: Partial<Row>) => setRows((all) => all.map((r, idx) => (idx === i ? { ...r, ...p } : r)))
-  const label = 'mb-1 block text-sm font-medium text-gray-700'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4">
-      <div className="card w-full max-w-3xl space-y-4 p-6">
-        <h3 className="text-base font-semibold text-gray-900">{t('promotion.flashSales.addTitle')}</h3>
+    <Modal
+      open
+      size="lg"
+      title={t('promotion.flashSales.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button disabled={!valid} loading={mutation.isPending} onClick={() => mutation.mutate()}>
+            {mutation.isPending ? t('common.saving') : t('common.save')}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <label className={label}>{t('common.name')}</label>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="col-span-2">
-            <label className={label}>{t('promotion.promotions.description')}</label>
-            <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
-          </div>
-          <div>
-            <label className={label}>{t('promotion.flashSales.start')}</label>
-            <input type="datetime-local" className="input" value={start} onChange={(e) => setStart(e.target.value)} />
-          </div>
-          <div>
-            <label className={label}>{t('promotion.flashSales.end')}</label>
-            <input type="datetime-local" className="input" value={end} onChange={(e) => setEnd(e.target.value)} />
-          </div>
+          <FormField className="col-span-2" label={t('common.name')} required>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </FormField>
+          <FormField className="col-span-2" label={t('promotion.promotions.description')}>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+          </FormField>
+          <FormField label={t('promotion.flashSales.start')} required>
+            <Input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} />
+          </FormField>
+          <FormField label={t('promotion.flashSales.end')} required>
+            <Input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} />
+          </FormField>
         </div>
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">{t('promotion.flashSales.items')}</span>
-            <button type="button" className="btn-outline" onClick={() => setPicking(true)}>{t('promotion.flashSales.addProducts')}</button>
+            <span className="text-sm font-medium text-ink-secondary">{t('promotion.flashSales.items')}</span>
+            <Button variant="outline" onClick={() => setPicking(true)}>{t('promotion.flashSales.addProducts')}</Button>
           </div>
           {rows.length === 0 ? (
-            <p className="rounded border border-dashed p-4 text-center text-sm text-gray-400">{t('promotion.flashSales.noItems')}</p>
+            <p className="rounded border border-dashed border-line-strong p-4 text-center text-sm text-ink-secondary">{t('promotion.flashSales.noItems')}</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase text-gray-500">
+                <tr className="text-left text-xs uppercase text-ink-secondary">
                   <th className="py-1">{t('promotion.flashSales.product')}</th>
                   <th>{t('promotion.flashSales.originalPrice')}</th>
                   <th>{t('promotion.flashSales.salePrice')}</th>
@@ -94,27 +105,21 @@ function FlashSaleModal({ onClose }: { onClose: () => void }) {
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={r.productId} className="border-t">
+                  <tr key={r.productId} className="border-t border-line">
                     <td className="py-1 pr-2">{r.productName}</td>
-                    <td className="pr-2"><input type="number" min={0} className="input w-28" value={r.originalPrice} onChange={(e) => patch(i, { originalPrice: Number(e.target.value) })} /></td>
-                    <td className="pr-2"><input type="number" min={0} className="input w-28" value={r.salePrice} onChange={(e) => patch(i, { salePrice: Number(e.target.value) })} /></td>
-                    <td className="pr-2"><input type="number" min={1} className="input w-24" value={r.allocatedQuantity} onChange={(e) => patch(i, { allocatedQuantity: Number(e.target.value) })} /></td>
-                    <td><button type="button" className="text-xs text-red-600 hover:underline" onClick={() => setRows((all) => all.filter((_, idx) => idx !== i))}>{t('common.delete')}</button></td>
+                    <td className="pr-2"><Input type="number" min={0} className="w-28" aria-label={`${r.productName} – ${t('promotion.flashSales.originalPrice')}`} value={r.originalPrice} onChange={(e) => patch(i, { originalPrice: Number(e.target.value) })} /></td>
+                    <td className="pr-2"><Input type="number" min={0} className="w-28" aria-label={`${r.productName} – ${t('promotion.flashSales.salePrice')}`} value={r.salePrice} onChange={(e) => patch(i, { salePrice: Number(e.target.value) })} /></td>
+                    <td className="pr-2"><Input type="number" min={1} className="w-24" aria-label={`${r.productName} – ${t('promotion.flashSales.allocated')}`} value={r.allocatedQuantity} onChange={(e) => patch(i, { allocatedQuantity: Number(e.target.value) })} /></td>
+                    <td><Button variant="link-danger" className="text-xs" onClick={() => setRows((all) => all.filter((_, idx) => idx !== i))}>{t('common.delete')}</Button></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
-          <p className="mt-1 text-xs text-gray-400">{t('promotion.flashSales.priceRule')}</p>
+          <p className="mt-1 text-xs text-ink-secondary">{t('promotion.flashSales.priceRule')}</p>
         </div>
 
-        {mutation.isError && <p className="text-xs text-red-600">{errorText(mutation.error, t('promotion.flashSales.failedToSave'))}</p>}
-        <div className="flex justify-end gap-3">
-          <button className="btn-outline" onClick={onClose}>{t('common.cancel')}</button>
-          <button className="btn-primary" disabled={!valid || mutation.isPending} onClick={() => mutation.mutate()}>
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
-        </div>
+        {mutation.isError && <Alert variant="danger">{errorText(mutation.error, t('promotion.flashSales.failedToSave'))}</Alert>}
       </div>
 
       <ProductPickerModal
@@ -130,7 +135,7 @@ function FlashSaleModal({ onClose }: { onClose: () => void }) {
           setPicking(false)
         }}
       />
-    </div>
+    </Modal>
   )
 }
 
@@ -138,6 +143,7 @@ export function FlashSalesPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [creating, setCreating] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [target, setTarget] = useState<{ sale: FlashSale; action: 'start' | 'cancel' } | null>(null)
@@ -149,6 +155,11 @@ export function FlashSalesPage() {
     mutationFn: ({ sale, action }: { sale: FlashSale; action: 'start' | 'cancel' }) => flashSaleApi[action](sale.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEY })
+      toast.success(t('common.saved'))
+      setTarget(null)
+    },
+    onError: (e) => {
+      toast.error(errorText(e, t('common.failedToSave')))
       setTarget(null)
     },
   })
@@ -172,14 +183,14 @@ export function FlashSalesPage() {
         label: '',
         render: (s: FlashSale) => (
           <div className="flex gap-3">
-            <button className="text-xs text-primary-600 hover:underline" onClick={() => setExpanded(expanded === s.id ? null : s.id)}>
+            <Button variant="link" className="text-xs" aria-expanded={expanded === s.id} onClick={() => setExpanded(expanded === s.id ? null : s.id)}>
               {expanded === s.id ? t('promotion.flashSales.hideItems') : t('promotion.flashSales.showItems')}
-            </button>
+            </Button>
             {canManage && s.status === 'Scheduled' && (
-              <button className="text-xs text-green-700 hover:underline" onClick={() => setTarget({ sale: s, action: 'start' })}>{t('promotion.flashSales.startNow')}</button>
+              <Button variant="link" className="text-xs" onClick={() => setTarget({ sale: s, action: 'start' })}>{t('promotion.flashSales.startNow')}</Button>
             )}
             {canManage && (s.status === 'Scheduled' || s.status === 'Active') && (
-              <button className="text-xs text-red-600 hover:underline" onClick={() => setTarget({ sale: s, action: 'cancel' })}>{t('common.cancel')}</button>
+              <Button variant="link-danger" className="text-xs" onClick={() => setTarget({ sale: s, action: 'cancel' })}>{t('common.cancel')}</Button>
             )}
           </div>
         ),
@@ -194,17 +205,28 @@ export function FlashSalesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('promotion.flashSales.title')}</h1>
-        {canManage && <button className="btn-primary" onClick={() => setCreating(true)}>{t('promotion.flashSales.add')}</button>}
+        {canManage && <Button onClick={() => setCreating(true)}>{t('promotion.flashSales.add')}</Button>}
       </div>
 
-      <DataTable columns={columns} data={data ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data ?? []}
+        isLoading={isLoading}
+        emptyState={
+          <EmptyState
+            title={t('promotion.flashSales.empty')}
+            description={t('promotion.flashSales.emptyHint')}
+            action={canManage ? <Button onClick={() => setCreating(true)}>{t('promotion.flashSales.add')}</Button> : undefined}
+          />
+        }
+      />
 
       {open && (
         <div className="card p-4">
           <h2 className="mb-2 text-sm font-semibold">{open.name}</h2>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase text-gray-500">
+              <tr className="text-left text-xs uppercase text-ink-secondary">
                 <th className="py-1">{t('promotion.flashSales.product')}</th>
                 <th>{t('promotion.flashSales.originalPrice')}</th>
                 <th>{t('promotion.flashSales.salePrice')}</th>
@@ -215,7 +237,7 @@ export function FlashSalesPage() {
             </thead>
             <tbody>
               {open.items.map((i) => (
-                <tr key={i.id} className="border-t">
+                <tr key={i.id} className="border-t border-line">
                   <td className="py-1">{i.productName}</td>
                   <td>{money(i.originalPrice)}</td>
                   <td>{money(i.salePrice)}</td>

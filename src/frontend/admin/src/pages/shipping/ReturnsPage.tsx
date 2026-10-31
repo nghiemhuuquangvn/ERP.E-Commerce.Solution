@@ -8,6 +8,7 @@ import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { Pagination } from '@/components/shared/Pagination'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { Button, Checkbox, EmptyState, Input, Select, useToast } from '@/components/ui'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
 import { serverMessage } from '@/api/purchasing/procurement.api'
@@ -21,38 +22,40 @@ export function ReturnsPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { page, pageSize, setPage } = usePagination()
   const [status, setStatus] = useState('')
   const [search, setSearch] = useState('')
   const [needsAttention, setNeedsAttention] = useState(false)
   const [cancelling, setCancelling] = useState<ReturnParcel | null>(null)
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
   const canUpdate = hasPermission('shipping:update')
   const params = { page, pageSize, status: status || undefined, search: search.trim() || undefined, needsAttention: needsAttention || undefined }
   const { data, isLoading } = useQuery({ queryKey: [...KEY, params], queryFn: () => shippingApi.listReturns(params), staleTime: 15_000 })
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: KEY })
-  const fail = (e: unknown) => setMessage({ ok: false, text: serverMessage(e, t('shipments.returns.failed')) })
+  const fail = (e: unknown) => toast.error(serverMessage(e, t('shipments.returns.failed')))
+  const clearFilters = () => { setStatus(''); setSearch(''); setNeedsAttention(false); setPage(1) }
+  const filtered = !!(status || search.trim() || needsAttention)
 
   const rebook = useMutation({
     mutationFn: (r: ReturnParcel) => shippingApi.rebookReturn(r.id),
-    onSuccess: (r) => { setMessage(r.trackingNumber ? { ok: true, text: t('shipments.returns.booked', { tracking: r.trackingNumber }) } : { ok: false, text: r.bookingError ?? t('shipments.returns.notBooked') }); refresh() },
+    onSuccess: (r) => { if (r.trackingNumber) toast.success(t('shipments.returns.booked', { tracking: r.trackingNumber })); else toast.error(r.bookingError ?? t('shipments.returns.notBooked')); refresh() },
     onError: fail,
   })
   const receive = useMutation({
     mutationFn: (r: ReturnParcel) => shippingApi.receiveReturn(r.originalShipmentId, r.id),
-    onSuccess: () => { setMessage({ ok: true, text: t('shipments.returns.receivedDone') }); refresh() },
+    onSuccess: () => { toast.success(t('shipments.returns.receivedDone')); refresh() },
     onError: fail,
   })
   const cancel = useMutation({
     mutationFn: (r: ReturnParcel) => shippingApi.cancelReturn(r.id),
-    onSuccess: () => { setMessage({ ok: true, text: t('shipments.returns.cancelledDone') }); setCancelling(null); refresh() },
+    onSuccess: () => { toast.success(t('shipments.returns.cancelledDone')); setCancelling(null); refresh() },
     onError: (e) => { fail(e); setCancelling(null) },
   })
 
   const columns = [
-    { key: 'order', label: t('shipments.returns.order'), render: (r: ReturnParcel) => <Link className="font-mono text-xs text-primary-600 hover:underline" to={`/orders/${r.orderId}`}>{r.orderId.slice(0, 8)}</Link> },
+    { key: 'order', label: t('shipments.returns.order'), render: (r: ReturnParcel) => <Link className="font-mono text-xs text-brand-action hover:underline" to={`/orders/${r.orderId}`}>{r.orderId.slice(0, 8)}</Link> },
     { key: 'reason', label: t('shipments.returns.reason'), render: (r: ReturnParcel) => <span className="line-clamp-2 max-w-xs">{r.reason}</span> },
     {
       key: 'carrier',
@@ -60,18 +63,18 @@ export function ReturnsPage() {
       render: (r: ReturnParcel) => (
         <div>
           <div>{r.carrierName ?? '—'}</div>
-          <div className="font-mono text-xs text-gray-500">{r.trackingNumber ?? t('shipments.noTracking')}</div>
+          <div className="font-mono text-xs text-ink-secondary">{r.trackingNumber ?? t('shipments.noTracking')}</div>
         </div>
       ),
     },
-    { key: 'fee', label: t('shipments.carrierFee'), className: 'text-right', render: (r: ReturnParcel) => (r.carrierFee != null ? money(r.carrierFee) : '—') },
+    { key: 'fee', label: t('shipments.carrierFee'), align: 'right' as const, render: (r: ReturnParcel) => (r.carrierFee != null ? money(r.carrierFee) : '—') },
     {
       key: 'status',
       label: t('common.status'),
       render: (r: ReturnParcel) => (
         <div className="space-y-1">
           <StatusBadge status={r.status} label={t(`shipments.returns.status.${r.status}`)} />
-          {r.bookingError && !r.trackingNumber && <div className="max-w-xs text-xs text-red-600" title={r.bookingError}>{r.bookingError}</div>}
+          {r.bookingError && !r.trackingNumber && <div className="max-w-xs text-xs text-danger-soft-text" title={r.bookingError}>{r.bookingError}</div>}
         </div>
       ),
     },
@@ -84,11 +87,11 @@ export function ReturnsPage() {
         canUpdate && (r.status === 'Requested' || r.status === 'PickedUp') ? (
           <div className="flex flex-wrap justify-end gap-3">
             {r.status === 'Requested' && !r.trackingNumber && (
-              <button className="text-xs text-primary-600 hover:underline" disabled={rebook.isPending} onClick={() => rebook.mutate(r)}>{t('shipments.returns.bookAgain')}</button>
+              <Button variant="link" className="text-xs" loading={rebook.isPending && rebook.variables?.id === r.id} onClick={() => rebook.mutate(r)}>{t('shipments.returns.bookAgain')}</Button>
             )}
-            <button className="text-xs text-green-700 hover:underline" disabled={receive.isPending} onClick={() => receive.mutate(r)}>{t('shipments.returns.received')}</button>
+            <Button variant="link" className="text-xs" loading={receive.isPending && receive.variables?.id === r.id} onClick={() => receive.mutate(r)}>{t('shipments.returns.received')}</Button>
             {r.status === 'Requested' && (
-              <button className="text-xs text-red-600 hover:underline" onClick={() => setCancelling(r)}>{t('common.cancel')}</button>
+              <Button variant="link-danger" className="text-xs" onClick={() => setCancelling(r)}>{t('shipments.returns.cancelLabel')}</Button>
             )}
           </div>
         ) : null,
@@ -99,27 +102,25 @@ export function ReturnsPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">{t('shipments.returns.title')}</h1>
-        <p className="text-sm text-gray-500">{t('shipments.returns.hint')}</p>
+        <p className="text-sm text-ink-secondary">{t('shipments.returns.hint')}</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <input className="input w-72" placeholder={t('shipments.returns.searchPlaceholder')} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
-        <select className="input w-auto" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }}>
+        <Input className="w-72" aria-label={t('common.search')} placeholder={t('shipments.returns.searchPlaceholder')} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
+        <Select className="w-auto" aria-label={t('common.status')} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }}>
           {STATUS_FILTERS.map((s) => <option key={s} value={s}>{s ? t(`shipments.returns.status.${s}`) : t('common.all')}</option>)}
-        </select>
-        <label className="flex items-center gap-2 text-sm text-gray-600">
-          <input type="checkbox" checked={needsAttention} onChange={(e) => { setNeedsAttention(e.target.checked); setPage(1) }} />
-          {t('shipments.returns.needsAttention')}
-        </label>
+        </Select>
+        <Checkbox label={t('shipments.returns.needsAttention')} checked={needsAttention} onChange={(e) => { setNeedsAttention(e.target.checked); setPage(1) }} />
       </div>
 
-      {message && (
-        <div className={`rounded border px-3 py-2 text-sm ${message.ok ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-700'}`} role={message.ok ? 'status' : 'alert'}>
-          {message.text}
-        </div>
-      )}
-
-      <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data?.items ?? []}
+        isLoading={isLoading}
+        emptyState={filtered
+          ? <EmptyState variant="no-results" title={t('common.noResults')} description={t('common.noResultsHint')} action={<Button variant="outline" onClick={clearFilters}>{t('common.clear')}</Button>} />
+          : <EmptyState title={t('shipments.returns.empty')} description={t('shipments.returns.emptyHint')} />}
+      />
       <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount ?? 0} onPageChange={setPage} />
 
       <ConfirmDialog

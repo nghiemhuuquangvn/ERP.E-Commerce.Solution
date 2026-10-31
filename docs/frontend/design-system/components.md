@@ -2,6 +2,8 @@
 
 One library, three implementations (React for Admin, Vue for Storefront, React Native for the two apps). **Names, props and states are identical**; only the syntax differs. Tokens come from [foundations.md](foundations.md). Today's code that each component builds on is listed so adoption is incremental.
 
+> **Built in the Admin (U2, 2026-10-31):** Button, FormField, Input / Textarea / Select / Checkbox / Switch, Modal (+ ConfirmDialog / ReasonDialog / ProductPickerModal on it), Toast, Alert, EmptyState, Badge / StatusBadge (one status-role map), Skeleton / Spinner, DataTable extras. See [../components-guide.md](../components-guide.md). Not yet: Combobox, DatePicker, Tabs, Drawer, Tooltip, Avatar, Chip, Breadcrumb, MenuButton, Banner, Storefront (Vue) and mobile versions.
+
 ## Conventions
 - **Props:** `variant`, `size` (`sm | md | lg`), `disabled`, `loading`, `error`, `id`, `className` / `class` / `style`, `aria-*` / `accessibilityLabel`. Callbacks `onX` (React / RN), events `x` (Vue).
 - **States every interactive component defines:** default, hover (web), pressed (mobile), focus-visible (2 px ring in `brand-action`, 2 px offset), disabled (50 % opacity, no pointer events, `aria-disabled`), loading (spinner replaces the icon, width does not change, click ignored), error (danger border and message).

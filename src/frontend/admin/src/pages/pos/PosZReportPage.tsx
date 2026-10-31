@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Printer } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { posApi } from '@/api/pos/pos.api'
+import { Button, EmptyState, Input, Select, Skeleton } from '@/components/ui'
 import { TERMINALS_KEY } from './PosTerminalsPage'
 
 const money = (n: number) => `${new Intl.NumberFormat('vi-VN').format(n)} ₫`
@@ -14,7 +16,7 @@ export function PosZReportPage() {
   const [terminalId, setTerminalId] = useState('')
 
   const terminals = useQuery({ queryKey: TERMINALS_KEY, queryFn: ({ signal }) => posApi.terminals(undefined, signal), staleTime: 60_000, retry: false })
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['pos', 'zReport', date, terminalId],
     queryFn: () => posApi.zReport(date, terminalId || undefined),
     enabled: !!date,
@@ -25,39 +27,43 @@ export function PosZReportPage() {
       <h1 className="text-xl font-semibold">{t('pos.zReport.title')}</h1>
 
       <div className="flex flex-wrap items-end gap-3">
-        <input type="date" className="input w-44" value={date} max={today()} onChange={(e) => setDate(e.target.value)} />
+        <Input type="date" className="w-44" aria-label={t('common.date')} value={date} max={today()} onChange={(e) => setDate(e.target.value)} />
         {terminals.data && (
-          <select className="input w-52" value={terminalId} onChange={(e) => setTerminalId(e.target.value)}>
+          <Select className="w-52" aria-label={t('pos.shifts.terminal')} value={terminalId} onChange={(e) => setTerminalId(e.target.value)}>
             <option value="">{t('pos.allTerminals')}</option>
             {terminals.data.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-          </select>
+          </Select>
         )}
-        <button className="btn-outline" onClick={() => window.print()}>{t('pos.zReport.print')}</button>
+        <Button variant="outline" leftIcon={<Printer size={16} strokeWidth={1.75} aria-hidden="true" />} onClick={() => window.print()}>{t('pos.zReport.print')}</Button>
       </div>
 
-      {isLoading && <p className="text-gray-400">{t('common.loading')}</p>}
-      {isError && <p className="text-sm text-red-600">{t('pos.zReport.failed')}</p>}
+      {isLoading && <div className="card space-y-3 p-4" aria-busy="true"><Skeleton className="h-6 w-1/3" /><Skeleton className="h-6 w-1/2" /><Skeleton className="h-6 w-2/3" /></div>}
+      {isError && (
+        <div className="card">
+          <EmptyState variant="error" title={t('pos.zReport.failed')} action={<Button variant="outline" onClick={() => refetch()}>{t('common.retry')}</Button>} />
+        </div>
+      )}
 
       {data && (
         <div className="card space-y-4 p-4">
           <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
-            <div><dt className="text-gray-500">{t('pos.zReport.shifts')}</dt><dd className="text-lg font-semibold">{data.shiftCount}</dd></div>
-            <div><dt className="text-gray-500">{t('pos.shifts.completed')}</dt><dd className="text-lg font-semibold">{data.completedTransactionCount}</dd></div>
-            <div><dt className="text-gray-500">{t('pos.shifts.voided')}</dt><dd className="text-lg font-semibold">{data.voidedTransactionCount}</dd></div>
-            <div><dt className="text-gray-500">{t('pos.shifts.totalSales')}</dt><dd className="text-lg font-semibold">{money(data.totalSales)}</dd></div>
-            <div><dt className="text-gray-500">{t('pos.transactions.discount')}</dt><dd className="text-lg font-semibold">{money(data.totalDiscount)}</dd></div>
-            <div><dt className="text-gray-500">{t('pos.transactions.tax')}</dt><dd className="text-lg font-semibold">{money(data.totalTax)}</dd></div>
+            <div><dt className="text-ink-secondary">{t('pos.zReport.shifts')}</dt><dd className="text-lg font-semibold">{data.shiftCount}</dd></div>
+            <div><dt className="text-ink-secondary">{t('pos.shifts.completed')}</dt><dd className="text-lg font-semibold">{data.completedTransactionCount}</dd></div>
+            <div><dt className="text-ink-secondary">{t('pos.shifts.voided')}</dt><dd className="text-lg font-semibold">{data.voidedTransactionCount}</dd></div>
+            <div><dt className="text-ink-secondary">{t('pos.shifts.totalSales')}</dt><dd className="text-lg font-semibold tabular-nums">{money(data.totalSales)}</dd></div>
+            <div><dt className="text-ink-secondary">{t('pos.transactions.discount')}</dt><dd className="text-lg font-semibold tabular-nums">{money(data.totalDiscount)}</dd></div>
+            <div><dt className="text-ink-secondary">{t('pos.transactions.tax')}</dt><dd className="text-lg font-semibold tabular-nums">{money(data.totalTax)}</dd></div>
           </dl>
 
           <div>
-            <h2 className="mb-1 text-xs font-semibold uppercase text-gray-500">{t('pos.shifts.salesByMethod')}</h2>
+            <h2 className="mb-1 text-xs font-semibold uppercase text-ink-secondary">{t('pos.shifts.salesByMethod')}</h2>
             {Object.keys(data.salesByPaymentMethod).length === 0 ? (
-              <p className="text-sm text-gray-400">{t('common.noRecordsFound')}</p>
+              <p className="text-sm text-ink-secondary">{t('common.noRecordsFound')}</p>
             ) : (
               <table className="text-sm">
                 <tbody>
                   {Object.entries(data.salesByPaymentMethod).map(([method, amount]) => (
-                    <tr key={method}><td className="pr-8">{method}</td><td>{money(amount)}</td></tr>
+                    <tr key={method}><td className="pr-8">{method}</td><td className="tabular-nums">{money(amount)}</td></tr>
                   ))}
                 </tbody>
               </table>

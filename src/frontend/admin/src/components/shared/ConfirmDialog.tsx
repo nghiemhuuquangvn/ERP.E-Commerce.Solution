@@ -1,4 +1,6 @@
 import { useTranslation } from 'react-i18next'
+import { Button } from '@/components/ui/Button'
+import { Modal } from '@/components/ui/Modal'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -10,6 +12,7 @@ interface ConfirmDialogProps {
   danger?: boolean
 }
 
+/** A yes / no question. Esc and Cancel call onCancel; the focus is kept inside until it closes. */
 export function ConfirmDialog({
   open,
   title,
@@ -20,22 +23,25 @@ export function ConfirmDialog({
   danger = false,
 }: ConfirmDialogProps) {
   const { t } = useTranslation()
-  if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-2 text-base font-semibold text-gray-900">{title}</h3>
-        <p className="mb-6 text-sm text-gray-600">{message}</p>
-        <div className="flex justify-end gap-3">
-          <button onClick={onCancel} className="btn-outline">
+    <Modal
+      open={open}
+      title={title}
+      onClose={onCancel}
+      size="sm"
+      footer={
+        <>
+          <Button variant="outline" onClick={onCancel}>
             {t('common.cancel')}
-          </button>
-          <button onClick={onConfirm} className={danger ? 'btn-danger' : 'btn-primary'}>
+          </Button>
+          <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm}>
             {confirmLabel ?? t('common.confirm')}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </>
+      }
+    >
+      <p className="text-sm text-ink-secondary">{message}</p>
+    </Modal>
   )
 }

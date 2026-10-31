@@ -42,3 +42,5 @@ Existing pages still use the old numeric names; the presets map them to the role
 
 ## 5. Checklist for a UI change
 Role classes only (no hex, no new alias use) · Lucide icon with a name where it stands alone · `npm run check:tokens` · `tsc -b` / `vue-tsc -b` · both languages for any new text.
+
+Next layer: [components-guide.md](components-guide.md) (U2) - the components that use these roles.

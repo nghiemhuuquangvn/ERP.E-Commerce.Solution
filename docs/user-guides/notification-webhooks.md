@@ -4,6 +4,8 @@ Dành cho quản trị viên của cửa hàng và người phụ trách kỹ th
 
 > Ghi chú cho người bảo trì: hướng dẫn viết từ mã nguồn, nhãn tiếng Việt và tài liệu nghiệp vụ; chưa có ảnh chụp màn hình vì chưa duyệt thử trên trình duyệt. Chưa thử gửi tới một địa chỉ trả 2xx thật.
 
+Cách hộp thoại, thông báo kết quả và danh sách trống hoạt động chung: xem [common-screen-behaviour.md](common-screen-behaviour.md).
+
 ## 1. Webhook là gì, dùng khi nào
 Webhook là một **địa chỉ web của hệ thống bạn** (ví dụ phần mềm chăm sóc khách hàng, Zapier, hệ thống nội bộ). Mỗi khi ERP **gửi** một thông báo (email, SMS…) hoặc **gửi lỗi**, ERP gửi một tin JSON tới địa chỉ đó để hệ thống của bạn biết.
 

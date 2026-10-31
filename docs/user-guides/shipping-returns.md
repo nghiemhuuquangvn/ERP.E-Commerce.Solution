@@ -4,6 +4,8 @@ Dành cho nhân viên kho / vận chuyển và chăm sóc khách hàng của c�
 
 > Ghi chú cho người bảo trì: hướng dẫn viết từ mã nguồn, nhãn trên màn hình tiếng Việt và tài liệu nghiệp vụ; chưa có ảnh chụp màn hình vì chưa duyệt thử trên trình duyệt. Thêm ảnh sau khi duyệt thử.
 
+Cách hộp thoại, thông báo kết quả và danh sách trống hoạt động chung: xem [common-screen-behaviour.md](common-screen-behaviour.md).
+
 ## 1. Màn hình này dùng để làm gì
 Khi một đơn trả hàng được duyệt, hệ thống tự đặt một chuyến **lấy hàng hoàn về** tại hãng vận chuyển (GHTK, GHN…). Màn hình **Hoàn hàng** cho bạn:
 - xem mọi chuyến hoàn của cửa hàng ở một chỗ;
