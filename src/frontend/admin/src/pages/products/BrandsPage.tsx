@@ -62,7 +62,7 @@ function BrandModal({ brand, onClose }: { brand: Brand | null; onClose: () => vo
       }
     >
       <form id="brand-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-        <FormField label={t('common.code')} error={errors.code ? t('common.required') : undefined}>
+        <FormField label={t('common.code')} required={!isEdit} error={errors.code ? t('common.required') : undefined}>
           <Input disabled={isEdit} {...register('code', { required: !isEdit })} />
         </FormField>
         <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
