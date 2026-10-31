@@ -47,6 +47,7 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
   the whole service. Also covers the cross-service Purchase Requests page
   (PurchaseOrderService), triggered by this domain's `StockAlertEvent`.
 - [shipping-notification-admin-guide.md](shipping-notification-admin-guide.md) — the Shipping *Returns* screen and the Notification *Webhooks* and *Templates* editor (write-only secret, live template preview, platform-vs-shop rows, server messages).
+- [components-guide.md](components-guide.md) — **U2 done**: the Admin component library (`Button`, `FormField` + inputs, `Modal`, `Toast`, `Alert`, `EmptyState`, `Badge` / status map, `DataTable` extras), patterns, how to migrate a page, how to test.
 - [tokens-and-icons-guide.md](tokens-and-icons-guide.md) — **U1 done**: tokens generated from one source into the four apps (`build-tokens.js`, `npm run check:tokens`), the role class names, the temporary aliases, Lucide usage.
 - [design-system/README.md](design-system/README.md) — **UI design standard for Web and Mobile** (proposed 2026-10-28,
   document only): one token set with two themes (Back-office blue for Admin + Staff, Customer rose for Storefront +
