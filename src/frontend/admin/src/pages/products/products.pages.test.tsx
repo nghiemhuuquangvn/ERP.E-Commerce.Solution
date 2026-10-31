@@ -147,3 +147,22 @@ describe('Products: product pages', () => {
     expect(await axe(container)).toHaveNoViolations()
   })
 })
+
+describe('Products: translations', () => {
+  it('every key the Products pages use exists in English and Vietnamese', async () => {
+    const files = import.meta.glob('./*.tsx', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+    const en = (await import('@/i18n/locales/en.json')).default as Record<string, unknown>
+    const vi = (await import('@/i18n/locales/vi.json')).default as Record<string, unknown>
+    const get = (o: Record<string, unknown>, k: string) => k.split('.').reduce<unknown>((a, p) => (a == null ? a : (a as Record<string, unknown>)[p]), o)
+    const missing: string[] = []
+    for (const [file, src] of Object.entries(files)) {
+      if (file.endsWith('.test.tsx')) continue
+      const keys = [...src.matchAll(/\bt\('([a-zA-Z0-9_.]+)'/g), ...src.matchAll(/labelKey: '([a-zA-Z0-9_.]+)'/g)].map((m) => m[1])
+      for (const k of keys) {
+        if (typeof get(en, k) !== 'string') missing.push(`en ${k}`)
+        if (typeof get(vi, k) !== 'string') missing.push(`vi ${k}`)
+      }
+    }
+    expect(missing).toEqual([])
+  })
+})
