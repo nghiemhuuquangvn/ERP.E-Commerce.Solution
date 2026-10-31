@@ -46,6 +46,7 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
   catch-all) — pick the client per controller, don't assume one client covers
   the whole service. Also covers the cross-service Purchase Requests page
   (PurchaseOrderService), triggered by this domain's `StockAlertEvent`.
+- [shipping-notification-admin-guide.md](shipping-notification-admin-guide.md) — the Shipping *Returns* screen and the Notification *Webhooks* and *Templates* editor (write-only secret, live template preview, platform-vs-shop rows, server messages).
 - [promotion-pos-admin-guide.md](promotion-pos-admin-guide.md) — the Promotion (promotions,
   coupons, flash sales, loyalty) and POS (terminals, shifts, transactions, Z report) back-office
   pages, their API clients (numeric request enums, `{items,total}` POS lists) and i18n groups.
