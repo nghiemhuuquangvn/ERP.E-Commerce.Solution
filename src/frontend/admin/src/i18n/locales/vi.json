@@ -2821,6 +2821,8 @@
       "Platinum": "Bạch kim"
     },
     "promotions": {
+      "empty": "Chưa có khuyến mãi nào",
+      "emptyHint": "Khuyến mãi bắt đầu ở trạng thái nháp; kích hoạt khi đã sẵn sàng.",
       "title": "Khuyến mãi",
       "add": "Tạo khuyến mãi",
       "addTitle": "Tạo khuyến mãi",
@@ -2856,6 +2858,8 @@
       "cancelLabel": "Hủy khuyến mãi"
     },
     "coupons": {
+      "empty": "Chưa có mã giảm giá",
+      "generated": "Đã tạo mã giảm giá.",
       "open": "Mã giảm giá",
       "title": "Mã giảm giá của {{name}}",
       "code": "Mã",
@@ -2868,6 +2872,8 @@
       "failed": "Không tạo được mã giảm giá."
     },
     "flashSales": {
+      "empty": "Chưa có flash sale nào",
+      "emptyHint": "Lên lịch một đợt bán có thời hạn với giá và số lượng riêng.",
       "title": "Flash sale",
       "add": "Tạo flash sale",
       "addTitle": "Tạo flash sale",
@@ -2894,6 +2900,7 @@
       "cancelConfirm": "Hủy \"{{name}}\"? Hàng chưa bán được trả lại."
     },
     "loyalty": {
+      "done": "Đã cập nhật điểm.",
       "title": "Điểm tích lũy",
       "userId": "Mã người dùng của khách",
       "lookup": "Tra cứu",

@@ -6,6 +6,9 @@ import type { Product } from '@/api/products.api'
 import { DataTable } from './DataTable'
 import { Pagination } from './Pagination'
 import { usePagination } from '@/hooks/usePagination'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Modal } from '@/components/ui/Modal'
 
 const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 
@@ -73,6 +76,7 @@ export function ProductPickerModal({ open, multiple = true, onConfirm, onClose }
         render: (p: Product) => (
           <input
             type={multiple ? 'checkbox' : 'radio'}
+            aria-label={p.name}
             checked={selected.has(p.id)}
             onChange={() => toggle(p)}
           />
@@ -111,47 +115,46 @@ export function ProductPickerModal({ open, multiple = true, onConfirm, onClose }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card flex max-h-[85vh] w-full max-w-2xl flex-col p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('productPicker.title')}</h3>
-
-        <input
-          className="input mb-3"
-          placeholder={t('productPicker.searchPlaceholder')}
-          value={search}
-          onChange={handleSearchChange}
-        />
-
-        <div className="flex-1 overflow-y-auto">
-          <DataTable columns={columns} data={data?.products ?? []} isLoading={isLoading} />
-        </div>
-
-        {!searchTerm && (
-          <Pagination page={page} pageSize={pageSize} totalCount={data?.total ?? 0} onPageChange={setPage} />
-        )}
-
-        <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
-          <span className="text-sm text-gray-500">
+    <Modal
+      open
+      size="lg"
+      title={t('productPicker.title')}
+      onClose={onClose}
+      footer={
+        <>
+          <span className="mr-auto self-center text-sm text-ink-secondary">
             {t('productPicker.selectedCount', { count: selected.size })}
           </span>
-          <div className="flex gap-3">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button
-              type="button"
-              disabled={selected.size === 0}
-              onClick={() => {
-                onConfirm([...selected.values()])
-                onClose()
-              }}
-              className="btn-primary"
-            >
-              {t('productPicker.confirmSelection')}
-            </button>
-          </div>
-        </div>
+          <Button variant="outline" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            disabled={selected.size === 0}
+            onClick={() => {
+              onConfirm([...selected.values()])
+              onClose()
+            }}
+          >
+            {t('productPicker.confirmSelection')}
+          </Button>
+        </>
+      }
+    >
+      <Input
+        className="mb-3"
+        aria-label={t('productPicker.title')}
+        placeholder={t('productPicker.searchPlaceholder')}
+        value={search}
+        onChange={handleSearchChange}
+      />
+
+      <div className="max-h-[50vh] overflow-y-auto">
+        <DataTable columns={columns} data={data?.products ?? []} isLoading={isLoading} />
       </div>
-    </div>
+
+      {!searchTerm && (
+        <Pagination page={page} pageSize={pageSize} totalCount={data?.total ?? 0} onPageChange={setPage} />
+      )}
+    </Modal>
   )
 }

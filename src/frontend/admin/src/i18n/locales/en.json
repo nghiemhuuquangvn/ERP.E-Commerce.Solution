@@ -2821,6 +2821,8 @@
       "Platinum": "Platinum"
     },
     "promotions": {
+      "empty": "No promotions yet",
+      "emptyHint": "A promotion starts as a draft; activate it when it is ready.",
       "title": "Promotions",
       "add": "New promotion",
       "addTitle": "New promotion",
@@ -2856,6 +2858,8 @@
       "cancelLabel": "Cancel promotion"
     },
     "coupons": {
+      "empty": "No coupons yet",
+      "generated": "Coupons generated.",
       "open": "Coupons",
       "title": "Coupons of {{name}}",
       "code": "Code",
@@ -2868,6 +2872,8 @@
       "failed": "Coupons could not be generated."
     },
     "flashSales": {
+      "empty": "No flash sales yet",
+      "emptyHint": "Schedule a time-limited sale with its own prices and stock.",
       "title": "Flash sales",
       "add": "New flash sale",
       "addTitle": "New flash sale",
@@ -2894,6 +2900,7 @@
       "cancelConfirm": "Cancel \"{{name}}\"? Unsold stock is released."
     },
     "loyalty": {
+      "done": "Points updated.",
       "title": "Loyalty points",
       "userId": "Customer user id",
       "lookup": "Look up",

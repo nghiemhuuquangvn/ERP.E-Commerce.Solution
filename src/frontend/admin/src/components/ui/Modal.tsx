@@ -73,6 +73,8 @@ export function Modal({ open, title, onClose, size = 'md', footer, dismissOnBack
       return
     }
     if (e.key !== 'Tab') return
+    // A dialog opened from inside this one is a React child: it has already handled the key.
+    e.stopPropagation()
     const items = Array.from(panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])
     if (items.length === 0) {
       e.preventDefault()
