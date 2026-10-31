@@ -1,6 +1,6 @@
 <template>
   <div class="mx-auto max-w-lg px-4 py-20 text-center">
-    <div class="text-5xl mb-4">🎉</div>
+    <div class="mb-4 flex justify-center text-brand-action"><CheckCircle2 :size="48" :stroke-width="1.75" aria-hidden="true" /></div>
     <h1 class="text-2xl font-bold text-gray-900">{{ t('orders.orderPlaced') }}</h1>
     <p class="mt-2 text-gray-600">
       {{ t('orders.orderReceived', { orderNumber: order?.orderNo ?? '' }) }}
@@ -23,6 +23,7 @@
 </template>
 
 <script setup lang="ts">
+import { CheckCircle2 } from 'lucide-vue-next'
 import { useRoute, RouterLink } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'

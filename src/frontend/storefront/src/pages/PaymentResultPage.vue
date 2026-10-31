@@ -9,13 +9,13 @@
     <div v-else-if="isLoading || (!payment && !timedOut)" class="mt-8 text-gray-400">{{ t('payment.checking') }}</div>
 
     <div v-else-if="payment?.status === 'Captured' || payment?.status === 'Refunded' || payment?.status === 'PartiallyRefunded'" class="mt-8 space-y-2">
-      <div class="text-5xl">✅</div>
+      <div class="flex justify-center text-green-700"><CheckCircle2 :size="48" :stroke-width="1.75" aria-hidden="true" /></div>
       <p class="text-lg font-semibold text-green-700">{{ t('payment.paid') }}</p>
       <p class="text-sm text-gray-600">{{ t('payment.paidDetail', { amount: money(payment.amount, payment.currency) }) }}</p>
     </div>
 
     <div v-else-if="payment?.status === 'Failed'" class="mt-8 space-y-2">
-      <div class="text-5xl">❌</div>
+      <div class="flex justify-center text-red-700"><XCircle :size="48" :stroke-width="1.75" aria-hidden="true" /></div>
       <p class="text-lg font-semibold text-red-700">{{ t('payment.failed') }}</p>
       <p class="text-sm text-gray-600">{{ t('payment.failedDetail') }}</p>
       <p v-if="payment.failureReason" class="text-xs text-gray-400">{{ payment.failureReason }}</p>
@@ -45,6 +45,7 @@
 </template>
 
 <script setup lang="ts">
+import { CheckCircle2, XCircle } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'

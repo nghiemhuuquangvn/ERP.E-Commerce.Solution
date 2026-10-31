@@ -5,7 +5,7 @@
       <!-- Image -->
       <div class="aspect-square overflow-hidden rounded-xl bg-gray-100">
         <img v-if="product.imageUrl" :src="product.imageUrl" :alt="product.name" class="h-full w-full object-cover" />
-        <div v-else class="flex h-full items-center justify-center text-6xl text-gray-200">📦</div>
+        <div v-else class="flex h-full items-center justify-center text-6xl text-gray-200"><Package :size="64" :stroke-width="1.75" aria-hidden="true" /></div>
       </div>
 
       <!-- Info -->
@@ -37,6 +37,7 @@
 </template>
 
 <script setup lang="ts">
+import { Package } from 'lucide-vue-next'
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
