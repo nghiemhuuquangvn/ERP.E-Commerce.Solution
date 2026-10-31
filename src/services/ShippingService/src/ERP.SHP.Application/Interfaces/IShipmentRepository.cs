@@ -72,6 +72,10 @@ public interface IReturnShipmentRepository
     Task<List<ReturnShipment>> GetStaleInCarrierHandsAsync(DateTime before, int take, CancellationToken ct = default);
 
     Task<List<Guid>> GetTenantsWithOpenReturnsAsync(CancellationToken ct = default);
+
+    /// <summary>Admin list, newest first. <paramref name="search"/> matches the tracking number, the carrier order code or the order id; <paramref name="needsAttention"/> = a booking the carrier refused (no tracking number yet).</summary>
+    Task<(List<ReturnShipment> Items, int Total)> ListAsync(int skip, int take, ReturnShipmentStatus? status, string? search, bool needsAttention, CancellationToken ct = default);
+
     Task AddAsync(ReturnShipment returnShipment, CancellationToken ct = default);
     Task UpdateAsync(ReturnShipment returnShipment, CancellationToken ct = default);
 }

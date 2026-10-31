@@ -67,6 +67,32 @@ else
     builder.Services.AddScoped<IPushSender, NullPushSender>();
 
 builder.Services.AddScoped<IWebhookSender, WebhookSender>();
+builder.Services.AddScoped<ICurrentTenantAccessor, CurrentTenantAccessor>();
+// The webhook client: no redirects, a short timeout, and the SSRF rule checked against the ADDRESSES the host resolves to at connect time
+// (a name that resolves to an internal address is refused; the static URL rule alone cannot see that).
+builder.Services.AddHttpClient("webhook", c => c.Timeout = TimeSpan.FromSeconds(10))
+    .ConfigurePrimaryHttpMessageHandler(() => new System.Net.Http.SocketsHttpHandler
+    {
+        AllowAutoRedirect = false,
+        ConnectCallback = async (context, ct) =>
+        {
+            var addresses = await System.Net.Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, ct);
+            if (addresses.Length == 0 || addresses.Any(ERP.Shared.Security.WebhookUrlRules.IsBlockedAddress))
+                throw new System.Net.Http.HttpRequestException($"The host '{context.DnsEndPoint.Host}' resolves to a blocked (internal / private) address.");
+
+            var socket = new System.Net.Sockets.Socket(System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp) { NoDelay = true };
+            try
+            {
+                await socket.ConnectAsync(addresses, context.DnsEndPoint.Port, ct);
+                return new System.Net.Sockets.NetworkStream(socket, ownsSocket: true);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        }
+    });
 
 // Bell notifications: real-time push over SignalR for Channel.InApp — mirrors
 // ChatBotService's ChatHub/SignalRChatStreamNotifier split. AddMemoryCache +

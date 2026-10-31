@@ -109,6 +109,24 @@ public class ReturnShipmentRepository : IReturnShipmentRepository
         await _db.ReturnShipments.IgnoreQueryFilters() // deliberate: cross-tenant job, tenant ids only
             .Where(r => r.TrackingNumber != null && r.CarrierId != null && !FinalReturn.Contains(r.Status)).Select(r => r.TenantId).Distinct().ToListAsync(ct);
 
+    public async Task<(List<ReturnShipment> Items, int Total)> ListAsync(int skip, int take, ReturnShipmentStatus? status, string? search, bool needsAttention, CancellationToken ct = default)
+    {
+        var query = _db.ReturnShipments.AsNoTracking().AsQueryable();
+        if (status.HasValue) query = query.Where(r => r.Status == status.Value);
+        if (needsAttention) query = query.Where(r => r.BookingError != null && r.TrackingNumber == null && r.Status == ReturnShipmentStatus.Requested);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var q = search.Trim();
+            if (Guid.TryParse(q, out var id))
+                query = query.Where(r => r.OrderId == id || r.OriginalShipmentId == id || r.Id == id);
+            else
+                query = query.Where(r => r.TrackingNumber == q || r.CarrierOrderCode == q || (r.CarrierName != null && r.CarrierName.Contains(q)));
+        }
+        var total = await query.CountAsync(ct);
+        var items = await query.OrderByDescending(r => r.CreatedAt).Skip(skip).Take(take).ToListAsync(ct);
+        return (items, total);
+    }
+
     public async Task AddAsync(ReturnShipment returnShipment, CancellationToken ct = default) =>
         await _db.ReturnShipments.AddAsync(returnShipment, ct);
 

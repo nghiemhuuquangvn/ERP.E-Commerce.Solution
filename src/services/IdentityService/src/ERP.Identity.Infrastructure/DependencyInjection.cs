@@ -1,4 +1,3 @@
-using ERP.Identity.Application.Security;
 using Microsoft.Extensions.DependencyInjection;
 using ERP.Identity.Application.Interfaces;
 using ERP.Identity.Application.Interfaces.Services;
@@ -192,4 +191,4 @@ namespace ERP.Identity.Infrastructure
             return services;
         }
     }
-}
+} 

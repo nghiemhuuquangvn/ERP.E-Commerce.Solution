@@ -35,6 +35,42 @@ public class CreateTemplateCommand : IRequest<NotificationTemplateDto>
     public string? Variables { get; set; }
 }
 
+/// <summary>Changes the wording of a template (code and channel never change).</summary>
+public class UpdateTemplateCommand : IRequest<NotificationTemplateDto>
+{
+    public Guid TemplateId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Subject { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public string? Variables { get; set; }
+}
+
+public class SetTemplateActiveCommand : IRequest<NotificationTemplateDto>
+{
+    public Guid TemplateId { get; set; }
+    public bool IsActive { get; set; }
+}
+
+/// <summary>Deletes a shop's own template (the platform default is used again). A platform template cannot be deleted.</summary>
+public class DeleteTemplateCommand : IRequest<bool>
+{
+    public Guid TemplateId { get; set; }
+}
+
+/// <summary>A shop copies a platform default into a template of its own (same code), to change it for itself.</summary>
+public class OverrideTemplateCommand : IRequest<NotificationTemplateDto>
+{
+    public Guid TemplateId { get; set; }
+}
+
+/// <summary>Renders a text with sample values and lists the placeholders no sample covers. Changes nothing.</summary>
+public class PreviewTemplateCommand : IRequest<TemplatePreviewResult>
+{
+    public string? Subject { get; set; }
+    public string? Body { get; set; }
+    public Dictionary<string, string>? Variables { get; set; }
+}
+
 public class UpdatePreferenceCommand : IRequest<NotificationPreferenceDto>
 {
     public Guid UserId { get; set; }

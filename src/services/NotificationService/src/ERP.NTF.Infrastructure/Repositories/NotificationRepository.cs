@@ -99,9 +99,21 @@ public class TemplateRepository : ITemplateRepository
         // Templates are shared defaults (platform tenant) plus tenant overrides with the same
         // code: the tenant's own template wins.
         await _db.Templates
-            .Where(t => t.Code == code)
+            .Where(t => t.Code == code && t.IsActive)   // a template that was switched off is not used (ROADMAP P2-1b)
             .OrderBy(t => t.TenantId == WellKnownTenants.Platform ? 1 : 0)
             .FirstOrDefaultAsync(ct);
+
+    public async Task<bool> IsSwitchedOffAsync(string code, CancellationToken ct = default) =>
+        await _db.Templates.AnyAsync(t => t.Code == code, ct) && !await _db.Templates.AnyAsync(t => t.Code == code && t.IsActive, ct);
+
+    public async Task<bool> ExistsForTenantAsync(string code, Guid tenantId, CancellationToken ct = default) =>
+        await _db.Templates.AnyAsync(t => t.Code == code && t.TenantId == tenantId, ct);
+
+    public async Task DeleteAsync(NotificationTemplate template, CancellationToken ct = default)
+    {
+        _db.Templates.Remove(template);
+        await _db.SaveChangesAsync(ct);
+    }
 
     public async Task<List<NotificationTemplate>> GetAllAsync(bool? isActive = null, CancellationToken ct = default)
     {
@@ -174,15 +186,40 @@ public class WebhookRepository : IWebhookRepository
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         var endpoint = await _db.WebhookEndpoints.FindAsync(new object[] { id }, ct);
-        if (endpoint != null)
-        {
-            _db.WebhookEndpoints.Remove(endpoint);
-            await _db.SaveChangesAsync(ct);
-        }
+        if (endpoint == null) return false;
+        await _db.WebhookDeliveries.Where(d => d.WebhookEndpointId == id).ExecuteDeleteAsync(ct);
+        _db.WebhookEndpoints.Remove(endpoint);
+        await _db.SaveChangesAsync(ct);
+        return true;
     }
+
+    public async Task AddDeliveryAsync(WebhookDelivery delivery, CancellationToken ct = default)
+    {
+        await _db.WebhookDeliveries.AddAsync(delivery, ct);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<(List<WebhookDelivery> Items, int Total)> ListDeliveriesAsync(Guid endpointId, int skip, int take, CancellationToken ct = default)
+    {
+        var query = _db.WebhookDeliveries.AsNoTracking().Where(d => d.WebhookEndpointId == endpointId);
+        var total = await query.CountAsync(ct);
+        var items = await query.OrderByDescending(d => d.CreatedAt).Skip(skip).Take(take).ToListAsync(ct);
+        return (items, total);
+    }
+
+    public async Task<Dictionary<Guid, WebhookDelivery>> GetLastDeliveriesAsync(IEnumerable<Guid> endpointIds, CancellationToken ct = default)
+    {
+        var ids = endpointIds.ToList();
+        if (ids.Count == 0) return new();
+        var rows = await _db.WebhookDeliveries.AsNoTracking().Where(d => ids.Contains(d.WebhookEndpointId)).ToListAsync(ct);
+        return rows.GroupBy(d => d.WebhookEndpointId).ToDictionary(g => g.Key, g => g.OrderByDescending(d => d.CreatedAt).First());
+    }
+
+    public async Task<int> PurgeDeliveriesAsync(DateTime before, CancellationToken ct = default) =>
+        await _db.WebhookDeliveries.Where(d => d.CreatedAt < before).ExecuteDeleteAsync(ct);
 }
 
 public class RecipientRepository : IRecipientRepository

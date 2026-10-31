@@ -1396,3 +1396,15 @@ NotificationService subscriber)
 - `SupplierInvoiceApprovedDomainEvent(SupplierInvoiceId, InvoiceNumber, SupplierId, PurchaseOrderId, PONumber, InvoiceDate, DueDate, CurrencyCode, NetAmount, TaxAmount, ReceivedValue)` — **Accounting** books the bill (BA-Accounting FR-164).
 - `VendorReturnShippedDomainEvent(VendorReturnId, ReturnNumber, PurchaseOrderId, PONumber, SupplierId, CurrencyCode, Lines[ProductCode, Quantity, UnitPrice])` — **Warehouse** issues the stock (movement `ReturnedToVendor`, 5 attempts).
 - `VendorReturnCreditedDomainEvent(VendorReturnId, ReturnNumber, PurchaseOrderId, PONumber, SupplierId, CurrencyCode, CreditNoteNumber, CreditAmount)` — **Accounting** books the debit note.
+
+## Notification webhooks (ROADMAP P2-1b)
+
+A shop's own HTTPS endpoints (`WebhookEndpoint`, per tenant) receive these events from NotificationService; they are **not** the integration events of the catalog above and are separate from Identity's tenant webhooks.
+
+| Event | When | Payload |
+|---|---|---|
+| `notification.sent` | a notification was delivered | `{Id, RecipientId, RecipientEmail, Channel, Subject, Status, SentAt, Error, RetryCount}` |
+| `notification.failed` | a delivery attempt failed (it may be retried) | same payload, `Error` filled |
+| `webhook.test` | only the Admin *Send test* button, to the tested endpoint | `{Message, SentAt}` |
+
+Headers: `X-Event-Type`, `X-Timestamp` (Unix seconds), and `X-Hub-Signature: sha256=<hex HMAC-SHA256(secret, "<timestamp>.<body>")>` when the endpoint has a secret. Endpoints must be public https addresses (`WebhookUrlRules`); redirects are not followed; every attempt is written to `WebhookDeliveries` (30 days).

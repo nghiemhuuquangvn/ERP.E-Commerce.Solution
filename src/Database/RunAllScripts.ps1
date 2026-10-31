@@ -165,6 +165,7 @@ $DatabaseScripts = @(
     "Shipping\008_Carriers.sql",
     "Shipping\009_ShippingFeeRules.sql",
     "Shipping\010_ParcelsAndCarrierReturns.sql",
+    "Shipping\011_ReturnsListIndexes.sql",
 
     # HR & Retail
     "HRM\001_CreateHrmDB.sql",
@@ -201,6 +202,7 @@ $DatabaseScripts = @(
     "Notification\011_BaseEntityColumns.sql",
     "Notification\012_TemplatesOnEmptyTenantToSystem.sql",
     "Notification\013_CustomerNotifications.sql",
+    "Notification\014_WebhookDeliveries.sql",
     "Reporting\001_CreateReportingDB.sql",
     "Reporting\002_AddMissingEntityColumns.sql",
     "Reporting\004_FixFactPOSTransactionsCashierIdType.sql",

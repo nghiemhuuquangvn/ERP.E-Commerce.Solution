@@ -63,7 +63,18 @@ public class ReturnShipmentDto
     public string? CarrierOrderCode { get; set; }
     public decimal? CarrierFee { get; set; }
     public string? BookingError { get; set; }
+    public Guid? CarrierId { get; set; }
+    public DateTime? LastCarrierSyncAt { get; set; }
     public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>A page of return parcels for the admin Returns screen (same shape as <see cref="ShipmentListResult"/>).</summary>
+public class ReturnShipmentListResult
+{
+    public List<ReturnShipmentDto> Items { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int PageNumber { get; set; }
+    public int PageSize { get; set; }
 }
 
 public class TrackingEventDto

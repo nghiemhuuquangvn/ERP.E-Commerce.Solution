@@ -1,3 +1,4 @@
+using ERP.Shared.Security;
 using Xunit;
 using FluentAssertions;
 using Moq;
@@ -15,7 +16,6 @@ using ERP.Identity.Application.DTOs.Webhook;
 using ERP.Identity.Application.DTOs.Webhook.Validators;
 using ERP.Identity.Application.Interfaces.Repositories;
 using ERP.Identity.Application.Interfaces.Services;
-using ERP.Identity.Application.Security;
 using ERP.Identity.Infrastructure.Persistence;
 using ERP.Shared.Localization;
 using static ERP.Identity.Application.DTOs.Auth.RegisterDto;

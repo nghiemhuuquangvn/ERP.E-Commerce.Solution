@@ -27,7 +27,14 @@ public interface IWebhookRepository
     Task<List<WebhookEndpoint>> GetActiveByEventTypeAsync(string eventType, CancellationToken ct = default);
     Task AddAsync(WebhookEndpoint endpoint, CancellationToken ct = default);
     Task UpdateAsync(WebhookEndpoint endpoint, CancellationToken ct = default);
-    Task DeleteAsync(Guid id, CancellationToken ct = default);
+    /// <summary>Deletes the endpoint and its delivery log. False when there is no such endpoint.</summary>
+    Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
+
+    Task AddDeliveryAsync(WebhookDelivery delivery, CancellationToken ct = default);
+    Task<(List<WebhookDelivery> Items, int Total)> ListDeliveriesAsync(Guid endpointId, int skip, int take, CancellationToken ct = default);
+    Task<Dictionary<Guid, WebhookDelivery>> GetLastDeliveriesAsync(IEnumerable<Guid> endpointIds, CancellationToken ct = default);
+    /// <summary>Removes the delivery log older than <paramref name="before"/> for the current tenant.</summary>
+    Task<int> PurgeDeliveriesAsync(DateTime before, CancellationToken ct = default);
 }
 
 public interface ITemplateRepository
@@ -37,6 +44,11 @@ public interface ITemplateRepository
     Task<List<NotificationTemplate>> GetAllAsync(bool? isActive = null, CancellationToken ct = default);
     Task AddAsync(NotificationTemplate template, CancellationToken ct = default);
     Task UpdateAsync(NotificationTemplate template, CancellationToken ct = default);
+    /// <summary>Whether the current tenant has its OWN template with this code (the platform default does not count).</summary>
+    Task<bool> ExistsForTenantAsync(string code, Guid tenantId, CancellationToken ct = default);
+    /// <summary>True when templates with this code exist but none is active: the message was switched off on purpose.</summary>
+    Task<bool> IsSwitchedOffAsync(string code, CancellationToken ct = default);
+    Task DeleteAsync(NotificationTemplate template, CancellationToken ct = default);
 }
 
 public interface IPreferenceRepository

@@ -1,6 +1,8 @@
 using ERP.Shared.Infrastructure.Exceptions;
+using ERP.SHP.Application.Commands;
 using ERP.SHP.Application.Handlers;
 using ERP.SHP.Application.Interfaces;
+using ERP.SHP.Application.Queries;
 using ERP.SHP.Application.Services;
 using ERP.SHP.Domain.Entities;
 using ERP.SHP.Domain.Entities.Settings;
@@ -328,5 +330,109 @@ public class ParcelsAndReturnsTests
 
         r.ApplyCarrierStatus(CarrierShipmentStatus.Cancelled);   // final states never change
         r.Status.Should().Be(ReturnShipmentStatus.Received);
+    }
+    // ---- the admin Returns screen (ROADMAP P2-1b) ----
+
+    private async Task<ReturnShipment> BookedReturn()
+    {
+        var parcel = Delivered();
+        var r = (await Returner().BookReturnsAsync(parcel.OrderId, "wrong size")).Single();
+        _returns.Setup(x => x.GetByIdAsync(r.Id, It.IsAny<CancellationToken>())).ReturnsAsync(r);
+        return r;
+    }
+
+    [Fact]
+    public async Task Book_again_books_a_refused_return_and_leaves_a_booked_one_alone()
+    {
+        var parcel = Delivered();
+        _carrier.RefuseBookingNumber = "1";
+        var r = (await Returner().BookReturnsAsync(parcel.OrderId, "wrong size")).Single();
+        _returns.Setup(x => x.GetByIdAsync(r.Id, It.IsAny<CancellationToken>())).ReturnsAsync(r);
+        var handler = new RebookReturnCommandHandler(_uow.Object, Returner());
+
+        var again = await handler.Handle(new RebookReturnCommand { ReturnShipmentId = r.Id }, default);
+        again.TrackingNumber.Should().Be("TRK-2");
+        again.BookingError.Should().BeNull();
+
+        await handler.Handle(new RebookReturnCommand { ReturnShipmentId = r.Id }, default);
+        _carrier.Booked.Should().HaveCount(2);            // the second click booked nothing
+    }
+
+    [Fact]
+    public async Task A_received_or_cancelled_return_cannot_be_booked_again()
+    {
+        var r = await BookedReturn();
+        r.MarkReceived();
+        var act = () => new RebookReturnCommandHandler(_uow.Object, Returner()).Handle(new RebookReturnCommand { ReturnShipmentId = r.Id }, default);
+        await act.Should().ThrowAsync<BusinessRuleException>();
+    }
+
+    [Fact]
+    public async Task Cancelling_a_booked_return_cancels_the_pickup_at_the_carrier_first()
+    {
+        var r = await BookedReturn();
+
+        var dto = await new CancelReturnAtCarrierCommandHandler(_uow.Object, Tracking()).Handle(new CancelReturnAtCarrierCommand { ReturnShipmentId = r.Id }, default);
+
+        dto.Status.Should().Be("Cancelled");
+        _carrier.Cancelled.Should().ContainSingle().Which.Should().Be("TRK-1");
+        _uow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task When_the_carrier_will_not_cancel_the_pickup_the_return_stays_open_with_the_reason()
+    {
+        var r = await BookedReturn();
+        _carrier.RefuseCancel = true;
+
+        var act = () => new CancelReturnAtCarrierCommandHandler(_uow.Object, Tracking()).Handle(new CancelReturnAtCarrierCommand { ReturnShipmentId = r.Id }, default);
+
+        await act.Should().ThrowAsync<BusinessRuleException>().WithMessage("*already picked up*");
+        r.Status.Should().Be(ReturnShipmentStatus.Requested);
+    }
+
+    [Fact]
+    public async Task A_return_whose_goods_the_carrier_already_collected_cannot_be_cancelled()
+    {
+        var r = await BookedReturn();
+        r.MarkPickedUp();
+
+        var act = () => new CancelReturnAtCarrierCommandHandler(_uow.Object, Tracking()).Handle(new CancelReturnAtCarrierCommand { ReturnShipmentId = r.Id }, default);
+
+        await act.Should().ThrowAsync<BusinessRuleException>().WithMessage("*already PickedUp*");
+        _carrier.Cancelled.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_return_without_a_carrier_booking_is_cancelled_here_only()
+    {
+        var parcel = Delivered();
+        _carrier.RefuseBookingNumber = "1";
+        var r = (await Returner().BookReturnsAsync(parcel.OrderId, "x")).Single();
+        _returns.Setup(x => x.GetByIdAsync(r.Id, It.IsAny<CancellationToken>())).ReturnsAsync(r);
+
+        var dto = await new CancelReturnAtCarrierCommandHandler(_uow.Object, Tracking()).Handle(new CancelReturnAtCarrierCommand { ReturnShipmentId = r.Id }, default);
+
+        dto.Status.Should().Be("Cancelled");
+        _carrier.Cancelled.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task The_returns_list_pages_filters_and_refuses_an_unknown_status()
+    {
+        var r = ReturnShipment.Create(Guid.NewGuid(), Guid.NewGuid(), "x");
+        _returns.Setup(x => x.ListAsync(100, 100, ReturnShipmentStatus.Requested, "TRK", true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new List<ReturnShipment> { r }, 41));
+        var handler = new ListReturnsQueryHandler(_returns.Object);
+
+        var page = await handler.Handle(new ListReturnsQuery { Page = 2, PageSize = 5000, Status = "requested", Search = "TRK", NeedsAttention = true }, default);
+
+        page.TotalCount.Should().Be(41);
+        page.PageNumber.Should().Be(2);
+        page.PageSize.Should().Be(100);
+        page.Items.Should().ContainSingle().Which.Id.Should().Be(r.Id);
+
+        var act = () => handler.Handle(new ListReturnsQuery { Status = "Floating" }, default);
+        await act.Should().ThrowAsync<BusinessRuleException>();
     }
 }

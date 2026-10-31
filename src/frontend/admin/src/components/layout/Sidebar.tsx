@@ -56,6 +56,12 @@ const SETTINGS_CHILDREN: NavItem[] = [
     icon: '📝',
   },
   {
+    labelKey: 'nav.notificationWebhooks',
+    path: '/settings/notification-webhooks',
+    permissions: ['notifications:webhooks:manage'],
+    icon: '🔗',
+  },
+  {
     labelKey: 'nav.emailSettings',
     path: '/settings/email',
     permissions: ['settings:email:system:view', 'settings:email:tenant:view'],
@@ -478,6 +484,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   { labelKey: 'nav.payments', path: '/payments', permission: 'payments:view', icon: '💳' },
   { labelKey: 'nav.shipments', path: '/shipping/shipments', permission: 'shipping:view', icon: '🚚' },
+  { labelKey: 'nav.shippingReturns', path: '/shipping/returns', permission: 'shipping:view', icon: '↩️' },
   { labelKey: 'nav.promotion', path: '/promotion', icon: '🎁', children: PROMOTION_CHILDREN },
   { labelKey: 'nav.pos', path: '/pos', icon: '🛒', children: POS_CHILDREN },
   { labelKey: 'nav.chatbot', path: '/chatbot', permission: 'chatbot:assistant:use', icon: '🤖' },

@@ -13,6 +13,8 @@ public class NotificationDispatchJob : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<NotificationDispatchJob> _logger;
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan DeliveryLogRetention = TimeSpan.FromDays(30);
+    private DateTime _lastPurge = DateTime.MinValue;
 
     public NotificationDispatchJob(IServiceScopeFactory scopeFactory, ILogger<NotificationDispatchJob> logger)
     {
@@ -31,16 +33,27 @@ public class NotificationDispatchJob : BackgroundService
                 tenants = await lookup.ServiceProvider.GetRequiredService<INotificationRepository>()
                     .GetTenantsWithWorkAsync(stoppingToken);
 
+            var purge = DateTime.UtcNow - _lastPurge > TimeSpan.FromHours(1);
             foreach (var tenantId in tenants.Where(t => t != Guid.Empty))
             {
                 using (TenantScope.Begin(tenantId))
                 {
                     await ProcessPendingAsync(stoppingToken);
                     await ProcessRetriesAsync(stoppingToken);
+                    if (purge) await PurgeDeliveryLogAsync(stoppingToken);
                 }
             }
+            if (purge) _lastPurge = DateTime.UtcNow;
             await Task.Delay(Interval, stoppingToken);
         }
+    }
+
+    /// <summary>The webhook delivery log is a diagnostic aid, not a record: it keeps 30 days.</summary>
+    private async Task PurgeDeliveryLogAsync(CancellationToken ct)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        try { await scope.ServiceProvider.GetRequiredService<IWebhookRepository>().PurgeDeliveriesAsync(DateTime.UtcNow - DeliveryLogRetention, ct); }
+        catch (Exception ex) when (ex is not OperationCanceledException) { _logger.LogWarning(ex, "Purging the webhook delivery log failed"); }
     }
 
     private async Task ProcessPendingAsync(CancellationToken ct)
@@ -63,6 +76,7 @@ public class NotificationDispatchJob : BackgroundService
             {
                 notification.MarkAsFailed(ex.Message);
                 _logger.LogError(ex, "Failed to send notification {Id}", notification.Id);
+                await FireWebhooksAsync(webhooks, webhookSender, "notification.failed", notification, ct);
             }
             await notifications.UpdateAsync(notification, ct);
         }
@@ -90,6 +104,7 @@ public class NotificationDispatchJob : BackgroundService
                 notification.MarkAsFailed(ex.Message);
                 _logger.LogWarning("Retry {Count} failed for notification {Id}: {Error}",
                     notification.RetryCount, notification.Id, ex.Message);
+                await FireWebhooksAsync(webhooks, webhookSender, "notification.failed", notification, ct);
             }
             await notifications.UpdateAsync(notification, ct);
         }
@@ -135,7 +150,7 @@ public class NotificationDispatchJob : BackgroundService
         var endpoints = await webhooks.GetActiveByEventTypeAsync(eventType, ct);
         foreach (var endpoint in endpoints)
         {
-            await sender.SendAsync(endpoint.Url, endpoint.Secret, eventType, new
+            await sender.SendAsync(endpoint, eventType, new
             {
                 notification.Id,
                 notification.RecipientId,
@@ -143,7 +158,9 @@ public class NotificationDispatchJob : BackgroundService
                 Channel = notification.Channel.ToString(),
                 notification.Subject,
                 Status = notification.Status.ToString(),
-                notification.SentAt
+                notification.SentAt,
+                Error = notification.ErrorMessage,
+                notification.RetryCount
             }, ct);
         }
     }

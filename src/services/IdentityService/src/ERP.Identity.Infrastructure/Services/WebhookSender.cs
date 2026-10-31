@@ -1,5 +1,5 @@
+using ERP.Shared.Security;
 using ERP.Identity.Application.Interfaces.Services;
-using ERP.Identity.Application.Security;
 using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Text;

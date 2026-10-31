@@ -62,8 +62,13 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
 
         if (!string.IsNullOrEmpty(request.TemplateCode))
         {
-            var template = await _templates.GetByCodeAsync(request.TemplateCode, cancellationToken)
-                ?? throw new InvalidOperationException($"Template '{request.TemplateCode}' not found.");
+            var template = await _templates.GetByCodeAsync(request.TemplateCode, cancellationToken);
+            if (template == null)
+            {
+                if (await _templates.IsSwitchedOffAsync(request.TemplateCode, cancellationToken))
+                    return new NotificationDto { Status = "Skipped", Subject = request.TemplateCode };   // the shop switched this message off: nothing to send, nothing wrong
+                throw new InvalidOperationException($"Template '{request.TemplateCode}' not found.");
+            }
 
             var variables = request.TemplateVariables ?? new();
             subject = template.RenderSubject(variables);
