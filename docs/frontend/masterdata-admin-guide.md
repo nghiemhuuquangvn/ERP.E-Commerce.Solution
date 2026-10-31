@@ -47,9 +47,14 @@ later — don't re-derive the shape from `ProductListPage.tsx`, it's a different
 
 - Permission strings: `masterdata:{entity-kebab-case}:view` and
   `masterdata:{entity-kebab-case}:manage` (e.g. `masterdata:units-of-measure:view`).
-- Modal styling: fixed-overlay `<div className="fixed inset-0 z-50 flex items-center
-  justify-center bg-black/40">` wrapping a `.card` — copy from any existing
-  `*Page.tsx` in `src/pages/masterdata/`, don't reinvent.
+- **Dialogs and forms (U3, 2026-11-01):** every Master data page uses the component library
+  (`docs/frontend/components-guide.md`): `<Modal open title size onClose closeOnEsc={!mutation.isPending} footer={...}>` with
+  `<form id="x-form">` inside and a footer submit button `type="submit" form="x-form"`; each field is
+  `<FormField label required error={errors.x ? t('common.required') : undefined}>` + `Input` / `Select` / `Textarea` /
+  `Checkbox` (`register()` works unchanged); a refusal is `<Alert variant="danger">{serverMessage(mutation.error, t('...failedToSave'))}</Alert>`
+  (`lib/serverMessage.ts`); success is `toast.success(t('common.saved'))`. Never write a `fixed inset-0` block. Copy
+  `DepartmentsPage.tsx` for a new entity. `masterdata.pages.test.tsx` lists every page: **add the new page to its `PAGES` table**
+  (it checks the empty state, the add dialog, linked required errors, axe and Esc).
 - `StatusBadge` for boolean/enum status columns (see `PositionsPage.tsx`'s
   Active/Inactive), `ConfirmDialog` for destructive/state-changing confirmations
   (deactivate, terminate) — both are shared components, reuse as-is.
