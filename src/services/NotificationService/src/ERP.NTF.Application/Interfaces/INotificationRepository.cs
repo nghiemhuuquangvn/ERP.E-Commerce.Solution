@@ -27,7 +27,14 @@ public interface IWebhookRepository
     Task<List<WebhookEndpoint>> GetActiveByEventTypeAsync(string eventType, CancellationToken ct = default);
     Task AddAsync(WebhookEndpoint endpoint, CancellationToken ct = default);
     Task UpdateAsync(WebhookEndpoint endpoint, CancellationToken ct = default);
-    Task DeleteAsync(Guid id, CancellationToken ct = default);
+    /// <summary>Deletes the endpoint and its delivery log. False when there is no such endpoint.</summary>
+    Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
+
+    Task AddDeliveryAsync(WebhookDelivery delivery, CancellationToken ct = default);
+    Task<(List<WebhookDelivery> Items, int Total)> ListDeliveriesAsync(Guid endpointId, int skip, int take, CancellationToken ct = default);
+    Task<Dictionary<Guid, WebhookDelivery>> GetLastDeliveriesAsync(IEnumerable<Guid> endpointIds, CancellationToken ct = default);
+    /// <summary>Removes the delivery log older than <paramref name="before"/> for the current tenant.</summary>
+    Task<int> PurgeDeliveriesAsync(DateTime before, CancellationToken ct = default);
 }
 
 public interface ITemplateRepository

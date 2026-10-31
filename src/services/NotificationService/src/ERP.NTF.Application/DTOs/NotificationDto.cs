@@ -66,6 +66,43 @@ public class WebhookDto
     public string Name { get; set; } = string.Empty;
     public string Url { get; set; } = string.Empty;
     public bool IsActive { get; set; }
+    /// <summary>Whether a signing secret is stored. The secret itself is never returned.</summary>
+    public bool HasSecret { get; set; }
     public List<string> EventTypes { get; set; } = new();
     public DateTime CreatedAt { get; set; }
+    /// <summary>The most recent delivery attempt, so the list can show whether the endpoint works.</summary>
+    public WebhookDeliveryDto? LastDelivery { get; set; }
+}
+
+public class WebhookDeliveryDto
+{
+    public Guid Id { get; set; }
+    public string EventType { get; set; } = string.Empty;
+    public bool Success { get; set; }
+    public int? StatusCode { get; set; }
+    public string? Error { get; set; }
+    public int DurationMs { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class WebhookDeliveryPage
+{
+    public List<WebhookDeliveryDto> Items { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int PageNumber { get; set; }
+    public int PageSize { get; set; }
+}
+
+public class WebhookEventTypeDto
+{
+    public string Type { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+}
+
+public class WebhookTestResult
+{
+    public bool Success { get; set; }
+    public int? StatusCode { get; set; }
+    public int DurationMs { get; set; }
+    public string? Error { get; set; }
 }

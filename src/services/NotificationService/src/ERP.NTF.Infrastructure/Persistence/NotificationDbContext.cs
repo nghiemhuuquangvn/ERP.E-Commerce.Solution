@@ -16,6 +16,7 @@ public class NotificationDbContext : DbContext, ITenantScopedDbContext
     public DbSet<OrderRecipient> OrderRecipients => Set<OrderRecipient>();
     public DbSet<UserContact> UserContacts => Set<UserContact>();
     public DbSet<WebhookEndpoint> WebhookEndpoints => Set<WebhookEndpoint>();
+    public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<SystemNotificationSettings> SystemNotificationSettings => Set<SystemNotificationSettings>();
     public DbSet<TenantNotificationSettings> TenantNotificationSettings => Set<TenantNotificationSettings>();
@@ -126,6 +127,15 @@ public class NotificationDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.EventTypesRaw).HasColumnName("EventTypes").HasMaxLength(1000);
             e.Ignore(x => x.EventTypes);
             e.HasIndex(x => x.IsActive);
+        });
+
+        modelBuilder.Entity<WebhookDelivery>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.EventType).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Error).HasMaxLength(500);
+            e.HasIndex(x => new { x.TenantId, x.WebhookEndpointId, x.CreatedAt });
         });
 
         modelBuilder.Entity<OutboxMessage>(e =>

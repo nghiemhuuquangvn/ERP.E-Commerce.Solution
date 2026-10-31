@@ -58,3 +58,12 @@ public class GetWebhookQuery : IRequest<WebhookDto?>
 {
     public Guid WebhookId { get; set; }
 }
+
+public class ListWebhookDeliveriesQuery : IRequest<WebhookDeliveryPage>
+{
+    public Guid WebhookId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+}
+
+public class GetWebhookEventTypesQuery : IRequest<List<WebhookEventTypeDto>> { }
