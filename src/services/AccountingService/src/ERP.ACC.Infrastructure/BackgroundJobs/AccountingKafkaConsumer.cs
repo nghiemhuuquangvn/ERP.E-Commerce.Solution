@@ -315,7 +315,8 @@ namespace ERP.ACC.Infrastructure.BackgroundJobs
                     OrderId = raw.GuidValue("OrderId") ?? Guid.Empty,
                     Amount = raw.Value<decimal?>("Amount") ?? 0m,
                     Method = ParsePaymentMethod(raw["Method"]),
-                    ProcessedAt = raw["ProcessedAt"]?.Type == JTokenType.Null ? null : raw.Value<DateTime?>("ProcessedAt")
+                    ProcessedAt = raw["ProcessedAt"]?.Type == JTokenType.Null ? null : raw.Value<DateTime?>("ProcessedAt"),
+                    CaptureId = raw.GuidValue("CaptureId")   // R43: one part of a cash-on-delivery payment
                 };
 
                 if (evt.PaymentId != Guid.Empty)

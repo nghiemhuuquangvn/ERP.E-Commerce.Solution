@@ -27,7 +27,7 @@ Out of scope (kept in DEFERRED-ISSUES): automatic splitting by weight or warehou
 | FR-33 | Each new parcel is booked at a carrier on its own; the original booking is cancelled; **all or nothing**. | Live: carrier received `…-P1` (pick_money 100 000) and `…-P2` (100 000) and one cancel of the original; if a carrier refuses a new parcel, or refuses to cancel the original, the new bookings are undone and nothing is saved. |
 | FR-34 | A parcel knows its number and the order's parcel count. | `Shipments.ParcelNo / ParcelCount`; "Parcel 2 of 2" on the shipment card; reference to the carrier is `SO-<order>` for an unsplit order and `SO-<order>-P<n>` otherwise (carriers dedupe on it). |
 | FR-35 | The order is *Delivered* only when **all** parcels are delivered. | `DeliveryConfirmed` carries `OtherParcelsPending`; Sales ignores it while > 0. Live: after parcel 1 the order stays Shipped, after parcel 2 it is Delivered. |
-| FR-36 | The cash on delivery is booked once, when the last parcel is delivered. | Payment is one record per order; its consumer ignores `DeliveryConfirmed` while `OtherParcelsPending` > 0. Live: payment Pending after parcel 1, Captured after parcel 2. |
+| FR-36 | The cash on delivery is booked **parcel by parcel** (changed by ROADMAP R43; P1-11d first booked it once with the last parcel). | Each delivered parcel captures its own `CodAmount`: payment `PartiallyCaptured` after parcel 1, `Captured` after the last; see [OnlinePayments.md](../Payment/OnlinePayments.md) §13. The *order* is still Delivered with the last parcel (FR-35). |
 
 ### 3.2 Returns through the carrier
 | ID | Requirement | Acceptance criteria |

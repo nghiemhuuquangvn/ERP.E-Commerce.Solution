@@ -1,11 +1,13 @@
 import { apiClient, PaginatedResponse } from './client'
 
-export type PaymentStatus = 'Pending' | 'Authorized' | 'Captured' | 'Failed' | 'Cancelled' | 'Refunded' | 'PartiallyRefunded'
+export type PaymentStatus = 'Pending' | 'Authorized' | 'Captured' | 'Failed' | 'Cancelled' | 'Refunded' | 'PartiallyRefunded' | 'PartiallyCaptured'
 
 export interface Payment {
   id: string
   orderId: string
   amount: number
+  /** Cash collected so far: less than the amount while the parcels of a cash-on-delivery order are still on the way. */
+  capturedAmount?: number
   currency: string
   method: string
   /** What the customer chose at checkout: COD, VNPay, MoMo or ZaloPay. */

@@ -8,7 +8,9 @@ public enum PaymentStatus
     Failed = 3,
     Cancelled = 4,
     Refunded = 5,
-    PartiallyRefunded = 6
+    PartiallyRefunded = 6,
+    /// <summary>Cash on delivery of an order in several parcels: some parcels were delivered and paid, the rest are still on their way (ROADMAP R43).</summary>
+    PartiallyCaptured = 7
 }
 
 public enum PaymentMethod

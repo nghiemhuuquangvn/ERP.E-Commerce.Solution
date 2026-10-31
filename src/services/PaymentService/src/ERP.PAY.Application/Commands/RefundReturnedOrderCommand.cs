@@ -62,13 +62,13 @@ public class RefundReturnedOrderCommandHandler : IRequestHandler<RefundReturnedO
         if (payment.Refunds.Any(r => r.Reason == reason && r.Status != RefundStatus.Failed))
             return RefundReturnedOrderResult.AlreadyDone;
 
-        if (payment.Status != PaymentStatus.Captured && payment.Status != PaymentStatus.PartiallyRefunded)
+        if (payment.Status is not (PaymentStatus.Captured or PaymentStatus.PartiallyRefunded or PaymentStatus.PartiallyCaptured))
         {
             _logger.LogWarning("Returned order {OrderId}: payment {PaymentId} is {Status} — not refunded", request.OrderId, payment.Id, payment.Status);
             return RefundReturnedOrderResult.NotRefundable;
         }
 
-        var refundable = payment.Amount - payment.Refunds.Where(r => r.Status == RefundStatus.Completed).Sum(r => r.Amount);
+        var refundable = payment.Collected - payment.Refunds.Where(r => r.Status == RefundStatus.Completed).Sum(r => r.Amount);
         var amount = Math.Round(Math.Min(request.RefundAmount, refundable), 2);
         if (amount <= 0m)
         {

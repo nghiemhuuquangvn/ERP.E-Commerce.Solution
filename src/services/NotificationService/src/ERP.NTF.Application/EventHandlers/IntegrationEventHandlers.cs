@@ -44,6 +44,8 @@ public class PaymentProcessedIntegrationEvent : INotification
     public string RecipientName { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public string Currency { get; set; } = string.Empty;
+    /// <summary>One part of a cash-on-delivery payment (the parcel's shipment id, ROADMAP R43): each part gets its own receipt. Null = the payment was collected in one go.</summary>
+    public Guid? CaptureId { get; set; }
 }
 
 public class ShipmentCreatedIntegrationEvent : INotification
@@ -210,7 +212,7 @@ public class PaymentProcessedIntegrationEventHandler : INotificationHandler<Paym
     public PaymentProcessedIntegrationEventHandler(OrderNotifier notifier) => _notifier = notifier;
 
     public Task Handle(PaymentProcessedIntegrationEvent @event, CancellationToken cancellationToken) =>
-        _notifier.SendAsync(@event.OrderId, "PAYMENT_RECEIPT", @event.PaymentId.ToString("N"),
+        _notifier.SendAsync(@event.OrderId, "PAYMENT_RECEIPT", (@event.CaptureId ?? @event.PaymentId).ToString("N"),
             new() { ["amount"] = OrderNotifier.Money(@event.Amount, @event.Currency), ["currency"] = @event.Currency },
             NotificationPriority.High, cancellationToken, fallbackEmail: @event.RecipientEmail);
 }

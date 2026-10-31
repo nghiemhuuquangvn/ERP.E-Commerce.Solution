@@ -860,8 +860,10 @@
       "captured": "Captured",
       "failed": "Failed",
       "refunded": "Refunded",
-      "partiallyRefunded": "Partly refunded"
+      "partiallyRefunded": "Partly refunded",
+      "partiallyCaptured": "Partly collected"
     },
+    "collectedOf": "{{collected}} {{currency}} collected so far",
     "flagged": "Flagged for review",
     "provider": "Provider",
     "needsReview": "Needs attention (flagged, e.g. refund the customer)",

@@ -7,6 +7,7 @@ namespace ERP.PAY.Domain.Entities;
 public class Payment : AggregateRoot
 {
     private readonly List<Refund> _refunds = new();
+    private readonly List<PaymentCapture> _captures = new();
 
     public Guid OrderId { get; private set; }
     public Guid? InvoiceId { get; private set; }
@@ -29,7 +30,18 @@ public class Payment : AggregateRoot
     public string? Provider { get; private set; }
     public Guid? CustomerId { get; private set; }
     public string? OrderNumber { get; private set; }
+    /// <summary>Cash collected so far. Equals <see cref="Amount"/> once fully captured; grows parcel by parcel for cash on delivery (ROADMAP R43).</summary>
+    public decimal CapturedAmount { get; private set; }
     public IReadOnlyCollection<Refund> Refunds => _refunds.AsReadOnly();
+    public IReadOnlyCollection<PaymentCapture> Captures => _captures.AsReadOnly();
+
+    /// <summary>
+    /// What was actually collected and can be refunded. A payment captured before R43 has no CapturedAmount (0) but is fully collected, so it
+    /// falls back to the whole amount.
+    /// </summary>
+    public decimal Collected => CapturedAmount > 0 || Status is PaymentStatus.Authorized or PaymentStatus.Pending or PaymentStatus.PartiallyCaptured
+        ? CapturedAmount
+        : Status is PaymentStatus.Captured or PaymentStatus.Refunded or PaymentStatus.PartiallyRefunded ? Amount : 0m;
 
     private Payment() { }
 
@@ -85,6 +97,36 @@ public class Payment : AggregateRoot
     /// <summary>True while the money is still to be collected on delivery (no gateway involved).</summary>
     public bool IsCashOnDelivery => Provider == PaymentProviders.Cod && Status == PaymentStatus.Pending;
 
+    /// <summary>A COD payment that can take the cash of one more parcel (nothing collected yet, or some parcels already paid).</summary>
+    public bool AcceptsCodCapture => Provider == PaymentProviders.Cod && Status is PaymentStatus.Pending or PaymentStatus.Authorized or PaymentStatus.PartiallyCaptured;
+
+    /// <summary>
+    /// Cash on delivery of ONE parcel (ROADMAP R43). Idempotent per shipment: a repeat returns null and changes nothing. The first part authorises
+    /// the payment; the payment is Captured when the parts add up to <see cref="Amount"/>, PartiallyCaptured until then. Raises one
+    /// <see cref="PaymentProcessedEvent"/> per part.
+    /// </summary>
+    public PaymentCapture? CapturePart(Guid shipmentId, decimal amount)
+    {
+        if (_captures.Any(c => c.ShipmentId == shipmentId)) return null;
+        if (!AcceptsCodCapture)
+            throw new InvalidOperationException($"Cannot collect cash on delivery for a payment in {Status} state.");
+        var remaining = Amount - CapturedAmount;
+        if (amount <= 0 || amount > remaining)
+            throw new InvalidOperationException($"The cash of a parcel must be between 0 and the remaining {remaining}.");
+
+        if (Status == PaymentStatus.Pending) Authorize($"COD-{Id:N}", PaymentProviders.Cod);
+
+        var part = PaymentCapture.Create(Id, shipmentId, amount);
+        _captures.Add(part);
+        CapturedAmount += amount;
+        CapturedAt = part.CapturedAt;
+        Status = CapturedAmount >= Amount ? PaymentStatus.Captured : PaymentStatus.PartiallyCaptured;
+        UpdatedAt = DateTime.UtcNow;
+
+        AddDomainEvent(new PaymentProcessedEvent(Id, OrderId, amount, Currency, Method, part.CapturedAt, shipmentId, CapturedAmount));
+        return part;
+    }
+
     public void FlagForReview(string reason)
     {
         IsFlaggedForReview = true;
@@ -112,15 +154,16 @@ public class Payment : AggregateRoot
             throw new InvalidOperationException($"Cannot capture payment in {Status} state.");
 
         Status = PaymentStatus.Captured;
+        CapturedAmount = Amount;
         CapturedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        AddDomainEvent(new PaymentProcessedEvent(Id, OrderId, Amount, Currency, Method, CapturedAt.Value));
+        AddDomainEvent(new PaymentProcessedEvent(Id, OrderId, Amount, Currency, Method, CapturedAt.Value, null, Amount));
     }
 
     public void Fail(string reason)
     {
-        if (Status is PaymentStatus.Captured or PaymentStatus.Refunded)
+        if (Status is PaymentStatus.Captured or PaymentStatus.Refunded or PaymentStatus.PartiallyCaptured)
             throw new InvalidOperationException($"Cannot fail payment in {Status} state.");
 
         Status = PaymentStatus.Failed;
@@ -133,17 +176,17 @@ public class Payment : AggregateRoot
 
     public Refund AddRefund(decimal refundAmount, string reason)
     {
-        if (Status != PaymentStatus.Captured && Status != PaymentStatus.PartiallyRefunded)
+        if (Status is not (PaymentStatus.Captured or PaymentStatus.PartiallyRefunded or PaymentStatus.PartiallyCaptured))
             throw new InvalidOperationException($"Cannot refund payment in {Status} state.");
 
         var totalRefunded = _refunds.Where(r => r.Status == RefundStatus.Completed).Sum(r => r.Amount);
-        if (totalRefunded + refundAmount > Amount)
-            throw new InvalidOperationException("Refund amount exceeds original payment amount.");
+        if (totalRefunded + refundAmount > Collected)
+            throw new InvalidOperationException("Refund amount exceeds the amount collected.");
 
         var refund = Refund.Create(Id, refundAmount, reason);
         _refunds.Add(refund);
 
-        Status = (totalRefunded + refundAmount >= Amount)
+        Status = (totalRefunded + refundAmount >= Collected)
             ? PaymentStatus.Refunded
             : PaymentStatus.PartiallyRefunded;
 
@@ -180,15 +223,15 @@ public class Payment : AggregateRoot
         var totalCompleted = _refunds.Where(r => r.Status == RefundStatus.Completed).Sum(r => r.Amount);
 
         Status = totalCompleted <= 0
-            ? PaymentStatus.Captured
-            : totalCompleted >= Amount ? PaymentStatus.Refunded : PaymentStatus.PartiallyRefunded;
+            ? (CapturedAmount > 0 && CapturedAmount < Amount ? PaymentStatus.PartiallyCaptured : PaymentStatus.Captured)
+            : totalCompleted >= Collected ? PaymentStatus.Refunded : PaymentStatus.PartiallyRefunded;
 
         UpdatedAt = DateTime.UtcNow;
     }
 
     public void Cancel()
     {
-        if (Status is PaymentStatus.Captured or PaymentStatus.Refunded)
+        if (Status is PaymentStatus.Captured or PaymentStatus.Refunded or PaymentStatus.PartiallyCaptured)
             throw new InvalidOperationException($"Cannot cancel payment in {Status} state.");
 
         Status = PaymentStatus.Cancelled;

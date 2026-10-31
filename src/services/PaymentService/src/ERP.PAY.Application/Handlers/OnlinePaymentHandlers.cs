@@ -131,9 +131,19 @@ public class GetPaymentMethodsQueryHandler : IRequestHandler<GetPaymentMethodsQu
 public class CollectCashOnDeliveryCommand : IRequest<bool>
 {
     public Guid OrderId { get; set; }
+    /// <summary>The delivered parcel (idempotency key of its part of the cash). Empty = a message from before R43: the order id is used.</summary>
+    public Guid ShipmentId { get; set; }
+    /// <summary>The cash of this parcel (Shipment.CodAmount). 0 = not known (a message from before R43, or a parcel with no cash).</summary>
+    public decimal Amount { get; set; }
+    /// <summary>Parcels of the order still on the way after this one.</summary>
+    public int OtherParcelsPending { get; set; }
 }
 
-/// <summary>Captures the pending COD payment of a delivered order. Idempotent: a redelivered event, or an order that was not COD, changes nothing (returns false).</summary>
+/// <summary>
+/// Captures the cash of one delivered parcel of a cash-on-delivery order (ROADMAP R43): the parcel's own cash, never more than what is left of the
+/// payment. A message that does not know the parcel's cash (before R43) collects what is left when it is the last parcel. Idempotent per parcel:
+/// a redelivered event, a parcel already paid, or an order that was not COD changes nothing (returns false).
+/// </summary>
 public class CollectCashOnDeliveryCommandHandler : IRequestHandler<CollectCashOnDeliveryCommand, bool>
 {
     private readonly IPaymentUnitOfWork _uow;
@@ -142,10 +152,14 @@ public class CollectCashOnDeliveryCommandHandler : IRequestHandler<CollectCashOn
     public async Task<bool> Handle(CollectCashOnDeliveryCommand request, CancellationToken ct)
     {
         var payment = await _uow.Payments.GetByOrderIdAsync(request.OrderId, ct);
-        if (payment == null || !payment.IsCashOnDelivery) return false;
+        if (payment == null || !payment.AcceptsCodCapture) return false;
 
-        payment.Authorize($"COD-{payment.Id:N}", PaymentProviders.Cod);
-        payment.Capture();
+        var remaining = payment.Amount - payment.CapturedAmount;
+        var part = request.Amount > 0 ? Math.Min(request.Amount, remaining) : request.OtherParcelsPending == 0 ? remaining : 0m;
+        if (part <= 0) return false;
+
+        var shipmentId = request.ShipmentId != Guid.Empty ? request.ShipmentId : request.OrderId;
+        if (payment.CapturePart(shipmentId, part) == null) return false;
         await _uow.Payments.UpdateAsync(payment, ct);
         await _uow.SaveChangesAsync(ct);
         return true;

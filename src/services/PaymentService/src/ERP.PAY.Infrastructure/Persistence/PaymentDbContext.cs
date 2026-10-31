@@ -40,6 +40,7 @@ public class PaymentDbContext : DbContext, ITenantScopedDbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Amount).HasPrecision(18, 2);
+            e.Property(x => x.CapturedAmount).HasPrecision(18, 2);
             e.Property(x => x.Currency).IsRequired().HasMaxLength(3);
             e.Property(x => x.TransactionRef).HasMaxLength(50);
             e.Property(x => x.Provider).HasMaxLength(20);
@@ -60,6 +61,14 @@ public class PaymentDbContext : DbContext, ITenantScopedDbContext
                 r.Property(x => x.GatewayRefundId).HasMaxLength(200);
                 r.Property(x => x.FailureReason).HasMaxLength(500);
                 r.ToTable("PaymentRefunds");
+            });
+            e.OwnsMany(x => x.Captures, c =>
+            {
+                c.HasKey(x => x.Id);
+                c.Property(x => x.Id).ValueGeneratedNever();
+                c.Property(x => x.Amount).HasPrecision(18, 2);
+                c.HasIndex("TenantId", "PaymentId", "ShipmentId").IsUnique();
+                c.ToTable("PaymentCaptures");
             });
         });
 

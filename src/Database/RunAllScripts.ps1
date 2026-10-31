@@ -155,6 +155,7 @@ $DatabaseScripts = @(
     "Payment\006_TenantIsolation.sql",
     "Payment\007_AlignEntityColumns.sql",
     "Payment\008_OnlinePayments.sql",
+    "Payment\009_PartialCodCaptures.sql",
     "Shipping\001_CreateShippingDB.sql",
     "Shipping\002_AddReturnsPodAddressRestructure.sql",
     "Shipping\003_AddShippingSettings.sql",
@@ -207,6 +208,7 @@ $DatabaseScripts = @(
     "Reporting\006_TenantIsolation.sql",
     "Reporting\007_AlignLegacyColumns.sql",
     "Reporting\008_CrmRefundsPayroll.sql",
+    "Reporting\009_FactPaymentCaptures.sql",
     "ChatBot\001_CreateChatBotDB.sql",
     "ChatBot\002_TenantIsolation.sql",
 

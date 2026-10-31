@@ -14,6 +14,7 @@ public class ReportingDbContext : DbContext, ITenantScopedDbContext
     public DbSet<FactPOSTransaction> FactPOSTransactions => Set<FactPOSTransaction>();
     public DbSet<FactHRPayslip> FactHRPayslips => Set<FactHRPayslip>();
     public DbSet<FactPaymentRefund> FactPaymentRefunds => Set<FactPaymentRefund>();
+    public DbSet<FactPaymentCapture> FactPaymentCaptures => Set<FactPaymentCapture>();
     public DbSet<FactCrmOpportunity> FactCrmOpportunities => Set<FactCrmOpportunity>();
     public DbSet<DimDate> DimDates => Set<DimDate>();
     public DbSet<DimProduct> DimProducts => Set<DimProduct>();
@@ -48,6 +49,13 @@ public class ReportingDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.Amount).HasPrecision(18, 2);
             e.Property(x => x.RefundedAmount).HasPrecision(18, 2);
             e.HasIndex(x => x.DateKey);
+        });
+
+        modelBuilder.Entity<FactPaymentCapture>(e =>
+        {
+            e.HasKey(x => x.CaptureId);
+            e.Property(x => x.Amount).HasPrecision(18, 2);
+            e.HasIndex(x => x.PaymentId);
         });
 
         modelBuilder.Entity<FactPaymentRefund>(e =>

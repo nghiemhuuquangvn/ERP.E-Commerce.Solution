@@ -241,6 +241,43 @@ public class AutoPostingFlowTests
     }
 
     [Fact]
+    public async Task CashOnDeliveryOfTwoParcels_IsBookedAndAppliedOncePerParcel_OnTheSamePayment()
+    {
+        // ROADMAP R43: one payment, one PaymentProcessed per delivered parcel (CaptureId = the parcel's shipment).
+        var invoice = NewInvoice(400m);
+        _invoices.Setup(i => i.GetByOrderIdAsync(invoice.OrderId, It.IsAny<CancellationToken>())).ReturnsAsync(invoice);
+        var payment = Guid.NewGuid();
+        var parcel1 = Guid.NewGuid();
+        var parcel2 = Guid.NewGuid();
+
+        await PaymentHandler().Handle(new PaymentProcessedIntegrationEvent { PaymentId = payment, CaptureId = parcel1, OrderId = invoice.OrderId, Amount = 150m, Method = 4 }, default);
+        await PaymentHandler().Handle(new PaymentProcessedIntegrationEvent { PaymentId = payment, CaptureId = parcel2, OrderId = invoice.OrderId, Amount = 250m, Method = 4 }, default);
+
+        _posted.Select(p => p.SourceId).Should().Equal(parcel1, parcel2);                 // two entries, keyed by the parcel
+        invoice.AmountPaid.Should().Be(400m);
+        invoice.Status.Should().Be((int)InvoiceStatus.Paid);
+        _applications.Verify(a => a.AddAsync(It.IsAny<PaymentApplication>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task ARedeliveredParcelPayment_IsIgnored_ButTheOtherParcelIsStillBooked()
+    {
+        var invoice = NewInvoice(400m);
+        _invoices.Setup(i => i.GetByOrderIdAsync(invoice.OrderId, It.IsAny<CancellationToken>())).ReturnsAsync(invoice);
+        var payment = Guid.NewGuid();
+        var parcel1 = Guid.NewGuid();
+        var parcel2 = Guid.NewGuid();
+        _entries.Setup(e => e.GetBySourceKeyAsync(JournalEntry.BuildSourceKey("Payment", parcel1), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(JournalEntry.Create("JE-1", Guid.NewGuid(), "x"));
+
+        await PaymentHandler().Handle(new PaymentProcessedIntegrationEvent { PaymentId = payment, CaptureId = parcel1, OrderId = invoice.OrderId, Amount = 150m }, default);
+        await PaymentHandler().Handle(new PaymentProcessedIntegrationEvent { PaymentId = payment, CaptureId = parcel2, OrderId = invoice.OrderId, Amount = 250m }, default);
+
+        _posted.Should().ContainSingle().Which.SourceId.Should().Be(parcel2);
+        invoice.AmountPaid.Should().Be(250m);
+    }
+
+    [Fact]
     public async Task APaymentWithoutAnInvoice_IsStillBooked_AndZeroAmountsAreIgnored()
     {
         await PaymentHandler().Handle(new PaymentProcessedIntegrationEvent { PaymentId = Guid.NewGuid(), OrderId = Guid.NewGuid(), Amount = 90m }, default);

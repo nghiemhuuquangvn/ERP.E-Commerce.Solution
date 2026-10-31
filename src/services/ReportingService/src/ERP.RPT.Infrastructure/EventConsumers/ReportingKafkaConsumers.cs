@@ -63,7 +63,14 @@ internal static class JDoc
     internal static string GetString(JsonElement root, params string[] names)
     {
         foreach (var n in names)
-            if (root.TryGetProperty(n, out var p)) return p.GetString() ?? "";
+            if (root.TryGetProperty(n, out var p))
+                // Newtonsoft writes an enum (the payment method) as a number: read it as text instead of throwing, which used to lose the whole message.
+                return p.ValueKind switch
+                {
+                    JsonValueKind.String => p.GetString() ?? "",
+                    JsonValueKind.Null or JsonValueKind.Undefined => "",
+                    _ => p.GetRawText()
+                };
         return "";
     }
 
@@ -201,28 +208,17 @@ public class PaymentEventConsumer : BackgroundService
                 }
                 using var tenantScope = TenantScope.Begin(tenantId);
 
-                if (typeName.Contains("PaymentProcessed") || typeName.Contains("PaymentAuthorized") || typeName.Contains("PaymentCaptured"))
+                if (ReportingPayments.RecordsMoney(typeName))
                 {
                     var paymentId = JDoc.GetGuid(root, "PaymentId", "paymentId");
                     if (paymentId == Guid.Empty) continue;
 
-                    var existing = await db.FactPayments.FindAsync(new object[] { paymentId }, stoppingToken);
-                    if (existing != null) continue;
-
                     var processedAt = JDoc.GetDateTime(root, "ProcessedAt", "processedAt", "AuthorizedAt", "CapturedAt");
-                    db.FactPayments.Add(new FactPayment
-                    {
-                        PaymentId = paymentId,
-                        OrderId = JDoc.GetGuid(root, "OrderId", "orderId"),
-                        Amount = JDoc.GetDecimal(root, "Amount", "amount"),
-                        Currency = JDoc.GetString(root, "Currency", "currency"),
-                        Method = JDoc.GetString(root, "Method", "method", "PaymentMethod", "paymentMethod"),
-                        Status = "Processed",
-                        ProcessedAt = processedAt,
-                        DateKey = DateKeyHelper.ToDateKey(processedAt)
-                    });
-                    await db.SaveChangesAsync(stoppingToken);
-                    _logger.LogInformation("[REPORTING] FactPayment inserted: {PaymentId}", paymentId);
+                    var applied = await ReportingPayments.ApplyProcessedAsync(db, paymentId,
+                        JDoc.GetGuid(root, "CaptureId", "captureId"), JDoc.GetGuid(root, "OrderId", "orderId"),
+                        JDoc.GetDecimal(root, "Amount", "amount"), JDoc.GetString(root, "Currency", "currency"),
+                        ReportingPayments.MethodName(JDoc.GetString(root, "Method", "method", "PaymentMethod", "paymentMethod")), processedAt, stoppingToken);
+                    if (applied) _logger.LogInformation("[REPORTING] FactPayment recorded: {PaymentId}", paymentId);
                 }
                 else if (typeName.Contains("PaymentRefunded"))
                 {
@@ -689,6 +685,55 @@ public static class ReportingRefunds
     /// <summary>A refund of part of the amount is PartiallyRefunded; of all of it, Refunded.</summary>
     public static string StatusFor(decimal paid, decimal refunded) =>
         refunded <= 0m ? "Processed" : refunded >= paid ? "Refunded" : "PartiallyRefunded";
+}
+
+/// <summary>
+/// The payment fact (ROADMAP R43). One row per payment; a cash-on-delivery payment sends one event per delivered parcel (CaptureId = the parcel's
+/// shipment id) and each part adds to the row's amount once, a replay of a part changes nothing. An event without a CaptureId (a payment collected
+/// in one go, or published before R43) is recorded once per payment.
+/// </summary>
+public static class ReportingPayments
+{
+    /// <summary>
+    /// Only money that was COLLECTED makes a payment fact. PaymentAuthorized used to create it too, with the whole payment amount; once a cash-on-delivery
+    /// payment is collected part by part (R43) that would count the amount twice, and an authorised payment that never completes is no revenue anyway.
+    /// </summary>
+    public static bool RecordsMoney(string eventTypeName) => eventTypeName.Contains("PaymentProcessed") || eventTypeName.Contains("PaymentCaptured");
+
+    private static readonly string[] MethodNames = { "CreditCard", "DebitCard", "BankTransfer", "EWallet", "Cash", "CryptoPayment" };
+
+    /// <summary>PaymentService's PaymentMethod enum arrives as a number (4) or a name; the fact stores the name.</summary>
+    public static string MethodName(string raw) =>
+        int.TryParse(raw, out var n) && n >= 0 && n < MethodNames.Length ? MethodNames[n] : raw;
+
+    public static async Task<bool> ApplyProcessedAsync(ReportingDbContext db, Guid paymentId, Guid captureId, Guid orderId, decimal amount,
+        string currency, string method, DateTime processedAt, CancellationToken ct)
+    {
+        var existing = await db.FactPayments.FindAsync(new object[] { paymentId }, ct);
+        if (captureId == Guid.Empty)
+        {
+            if (existing != null) return false;
+        }
+        else
+        {
+            if (await db.FactPaymentCaptures.FindAsync(new object[] { captureId }, ct) != null) return false;
+            db.FactPaymentCaptures.Add(new FactPaymentCapture { CaptureId = captureId, PaymentId = paymentId, Amount = amount, CapturedAt = processedAt });
+            if (existing != null)
+            {
+                existing.Amount += amount;
+                await db.SaveChangesAsync(ct);
+                return true;
+            }
+        }
+
+        db.FactPayments.Add(new FactPayment
+        {
+            PaymentId = paymentId, OrderId = orderId, Amount = amount, Currency = currency, Method = method,
+            Status = "Processed", ProcessedAt = processedAt, DateKey = DateKeyHelper.ToDateKey(processedAt)
+        });
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
 }
 
 // ── CRM Consumer ────────────────────────────────────────────────────────────

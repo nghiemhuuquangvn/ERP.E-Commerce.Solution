@@ -56,7 +56,8 @@
       "Failed": "không thành công",
       "Cancelled": "đã hủy",
       "Refunded": "đã hoàn tiền",
-      "PartiallyRefunded": "đã hoàn một phần"
+      "PartiallyRefunded": "đã hoàn một phần",
+      "PartiallyCaptured": "đã thanh toán một phần"
     }
   },
   "orders": {

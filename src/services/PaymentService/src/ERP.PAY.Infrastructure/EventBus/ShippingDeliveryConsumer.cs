@@ -13,7 +13,7 @@ namespace ERP.PAY.Infrastructure.EventBus;
 
 /// <summary>
 /// Consumes ShippingService's "shipping-topic" for DeliveryConfirmedEvent: a cash-on-delivery order is paid when the goods arrive, so
-/// its pending COD payment is captured now (which publishes PaymentProcessed, and Accounting books the cash). Orders that are not COD
+/// the cash of the delivered parcel is captured now (one PaymentProcessed per parcel, and Accounting books each part). Orders that are not COD
 /// are left alone; a redelivered event changes nothing. A failing message is retried 5 times in process, then logged.
 /// </summary>
 public class ShippingDeliveryConsumer : IHostedService
@@ -101,12 +101,6 @@ public class ShippingDeliveryConsumer : IHostedService
 
         var orderId = raw.GuidValue("OrderId") ?? Guid.Empty;
         if (orderId == Guid.Empty) return;
-        // An order in several parcels (ROADMAP P1-11d): the payment is one record for the whole order, so the cash is booked once, when the LAST parcel is delivered.
-        if ((raw["OtherParcelsPending"]?.Value<int>() ?? 0) > 0)
-        {
-            _logger.LogInformation("Parcel of order {OrderId} delivered, {Pending} other parcel(s) still on the way: cash on delivery is collected with the last one", orderId, raw["OtherParcelsPending"]);
-            return;
-        }
         if (!EventTenant.TryRead(json, out var tenantId))
         {
             _logger.LogWarning("DeliveryConfirmed for order {OrderId} has no TenantId — ignored", orderId);
@@ -115,7 +109,14 @@ public class ShippingDeliveryConsumer : IHostedService
 
         using var tenantScope = TenantScope.Begin(tenantId);
         using var scope = _serviceProvider.CreateScope();
-        var collected = await scope.ServiceProvider.GetRequiredService<IMediator>().Send(new CollectCashOnDeliveryCommand { OrderId = orderId }, ct);
-        if (collected) _logger.LogInformation("Cash on delivery collected for order {OrderId}", orderId);
+        var collected = await scope.ServiceProvider.GetRequiredService<IMediator>().Send(new CollectCashOnDeliveryCommand
+        {
+            OrderId = orderId,
+            // Cash of an order in several parcels is collected parcel by parcel (ROADMAP R43).
+            ShipmentId = raw.GuidValue("ShipmentId") ?? Guid.Empty,
+            Amount = raw["CodAmount"]?.Value<decimal>() ?? 0m,
+            OtherParcelsPending = raw["OtherParcelsPending"]?.Value<int>() ?? 0,
+        }, ct);
+        if (collected) _logger.LogInformation("Cash on delivery collected for a parcel of order {OrderId}", orderId);
     }
 }

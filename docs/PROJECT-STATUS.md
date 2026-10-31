@@ -36,6 +36,11 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-28 — ROADMAP R43: cash on delivery captured per parcel (`feat/r43-per-parcel-cod`, unmerged)
+- **Payment** (migration **009**): `PaymentCapture` per shipment (unique key = idempotency), `Payments.CapturedAmount`, status `PartiallyCaptured`, `Payment.CapturePart`; `PaymentProcessed` per parcel with `CaptureId` / `CapturedTotal`; refunds capped at `Collected`; the delivery consumer no longer waits for the last parcel. **Accounting** keys the entry and the invoice credit by capture; **Reporting** (migration **009**, `FactPaymentCaptures`) adds each part once; **Notification** sends one receipt per part; **Admin** shows "Partly collected".
+- Fixes found by the live check: Reporting dropped payment events with a numeric method and counted split payments twice (`PaymentAuthorized` created the fact).
+- Tests: PAY 99, ACC 595, RPT 18, NTF 19, SHP 169, SO 84, Architecture 68, Shared 103; `tsc -b` / `vue-tsc` clean. Live on `glcheck` (fake GHTK): UAT C1…C6 in `OnlinePayments.md` §13. Next in the owner's order: P2-1b, then U1.
+
 ### 2026-10-28 — ROADMAP P2-9: UI design standard for Web + Mobile (`docs/ui-design-standard`, document only, unmerged; branched from the P2-1a branch)
 - **Written** in `docs/frontend/design-system/`: README (decisions, principles), foundations (colour roles for two themes, type, space, radius, motion, breakpoints, density, Lucide icons with the emoji → icon map for every nav / tab icon), components (spec + mapping to today's code), patterns-web (page-state matrix, Admin shell / list / form / detail / dashboard / settings, Storefront journeys), patterns-mobile (Customer + Staff screens, offline, scan), content-and-i18n, accessibility (computed contrast table), adoption-roadmap (U1–U7), `preview.html` (both themes, buttons, inputs, badges, tables, states, phone mock-up) and `tools/contrast.js`.
 - **Findings that change today's values:** white on Admin button `#0284c7` is 4.10:1 (fails AA) → Back-office action becomes `#0369a1` (5.93); placeholder `#9ca3af` is 2.54 and control borders `#d1d5db` 1.47 → `#6b7280` (4.83).

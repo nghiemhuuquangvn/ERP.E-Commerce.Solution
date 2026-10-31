@@ -124,7 +124,7 @@ public class SalesOrderRabbitMqConsumer : IHostedService
                             await mediator.Send(new RefundPaymentCommand
                             {
                                 PaymentId = payment.Id,
-                                Amount = payment.Amount,
+                                Amount = payment.Collected,   // a COD order in several parcels may have collected only part (R43)
                                 Reason = refund.Reason
                             });
                         }

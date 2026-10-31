@@ -15,6 +15,7 @@ const STATUS_FILTERS: { labelKey: string; value: PaymentStatus | '' }[] = [
   { labelKey: 'common.all', value: '' },
   { labelKey: 'payments.statusFilters.pending', value: 'Pending' },
   { labelKey: 'payments.statusFilters.captured', value: 'Captured' },
+  { labelKey: 'payments.statusFilters.partiallyCaptured', value: 'PartiallyCaptured' },
   { labelKey: 'payments.statusFilters.failed', value: 'Failed' },
   { labelKey: 'payments.statusFilters.refunded', value: 'Refunded' },
   { labelKey: 'payments.statusFilters.partiallyRefunded', value: 'PartiallyRefunded' },
@@ -25,7 +26,7 @@ const PROVIDERS = ['COD', 'VNPay', 'MoMo', 'ZaloPay']
 function RefundModal({ payment, onClose }: { payment: Payment; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const [amount, setAmount] = useState(payment.amount)
+  const [amount, setAmount] = useState(payment.capturedAmount && payment.capturedAmount > 0 ? payment.capturedAmount : payment.amount)
   const [reason, setReason] = useState('')
 
   const refund = useMutation({
@@ -99,7 +100,21 @@ export function PaymentsPage() {
         </div>
       ),
     },
-    { key: 'amount', label: t('payments.amount'), render: (p: Payment) => fmt(p), className: 'text-right' },
+    {
+      key: 'amount',
+      label: t('payments.amount'),
+      render: (p: Payment) => (
+        <div>
+          <div>{fmt(p)}</div>
+          {p.status === 'PartiallyCaptured' && (
+            <div className="text-xs text-blue-700">
+              {t('payments.collectedOf', { collected: new Intl.NumberFormat('vi-VN').format(p.capturedAmount ?? 0), currency: p.currency })}
+            </div>
+          )}
+        </div>
+      ),
+      className: 'text-right',
+    },
     {
       key: 'status',
       label: t('common.status'),
@@ -119,7 +134,7 @@ export function PaymentsPage() {
       label: '',
       className: 'text-right',
       render: (p: Payment) =>
-        canRefund && (p.status === 'Captured' || p.status === 'PartiallyRefunded') ? (
+        canRefund && (p.status === 'Captured' || p.status === 'PartiallyRefunded' || p.status === 'PartiallyCaptured') ? (
           <button className="btn-outline text-xs" onClick={() => setRefunding(p)}>{t('payments.refund.button')}</button>
         ) : null,
     },

@@ -21,9 +21,15 @@ public record PaymentAuthorizedEvent(
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
 
+/// <summary>
+/// Money collected for a payment. <c>Amount</c> is the amount of THIS capture: the whole payment for a gateway payment, one parcel's cash for
+/// cash on delivery (ROADMAP R43). <c>CaptureId</c> (the parcel's shipment id) is the idempotency key of one capture and is null for a single
+/// capture and on events published before R43; <c>CapturedTotal</c> is what the payment has collected so far.
+/// </summary>
 public record PaymentProcessedEvent(
     Guid PaymentId, Guid OrderId, decimal Amount, string Currency,
-    PaymentMethod Method, DateTime ProcessedAt) : IDomainEvent, ITenantEvent
+    PaymentMethod Method, DateTime ProcessedAt,
+    Guid? CaptureId = null, decimal? CapturedTotal = null) : IDomainEvent, ITenantEvent
 {
     /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
     public Guid TenantId { get; set; }

@@ -47,6 +47,7 @@ public class InitiatePaymentCommandHandler : IRequestHandler<InitiatePaymentComm
         OrderId = p.OrderId,
         InvoiceId = p.InvoiceId,
         Amount = p.Amount,
+        CapturedAmount = p.Collected,
         Currency = p.Currency,
         Method = p.Method.ToString(),
         Status = p.Status.ToString(),

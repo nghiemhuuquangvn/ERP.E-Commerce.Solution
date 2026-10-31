@@ -33,7 +33,7 @@ No new permission was added.
 3. The customer pays. The gateway (a) sends the **customer's browser** back to `callback/{provider}` and (b) calls the server address `ipn/{provider}`. Both go through one pipeline: find the payment's shop from the reference → verify the signature with **that shop's** keys → check the paid amount equals the payment → apply (idempotent). The browser is then sent on to the shop's result page; the gateway gets the answer it expects (MoMo 204; ZaloPay `return_code 1`; VNPay `RspCode 00`).
 4. Paid → the payment is captured, `PaymentProcessed` is published, the saga reserves stock and the order goes on. Failed → the payment fails and the saga **cancels the order**.
 5. The result page shows the real state of the payment (polling for up to a minute, because the server notification can arrive after the browser does) and offers *Pay now / Pay again* while it is still pending.
-**Cash on delivery.** The order does **not wait**: Payment records a *pending cash* payment and the saga goes straight to reserving stock. When Shipping confirms delivery, Payment captures the payment (`PaymentProcessed`, which Accounting books). If the order is cancelled first, the pending payment is cancelled, not refunded.
+**Cash on delivery.** The order does **not wait**: Payment records a *pending cash* payment and the saga goes straight to reserving stock. When Shipping confirms delivery of a parcel, Payment captures that parcel's cash (`PaymentProcessed`, which Accounting books); an order in several parcels is collected part by part (§13). If the order is cancelled first, the pending payment is cancelled, not refunded.
 **Refund.** From the Payments screen: the refund goes to **the payment's own gateway with the shop's keys** (VNPay, MoMo, ZaloPay) and the payment changes only when the gateway confirms. A payment captured by hand or collected as COD has no gateway call. ZaloPay may answer "still processing": the refund then stays *Processing* (not failed, not confirmed).
 **An order cancelled before it was paid.** If the saga gives up (timeout) or stock is short, it asks Payment to cancel the order's pending payment. Money that still arrives for a cancelled payment is **not captured**: the payment is flagged for review with the reason "paid after the payment was cancelled — refund the customer", and the gateway is answered normally so it stops retrying.
 
@@ -136,3 +136,55 @@ Sales → Payment: `InitiatePaymentCommand` / `RefundPaymentCommand` (RabbitMQ `
 | UAT-O16 | Unknown provider in the callback address | 400 |
 
 Verified live on tenant `glcheck`, 2026-10-27: UAT-O1…O16 (notifications and the delivery event simulated as stated in section 11; UAT-O14 against the real MoMo sandbox, which refuses a fake transaction).
+
+## 13. Cash on delivery of an order in several parcels (ROADMAP R43, 2026-10-28)
+Branch `feat/r43-per-parcel-cod`. Migrations Payment 009, Reporting 009. Builds on [ParcelsAndReturns.md](../Shipping/ParcelsAndReturns.md) (a person splits an order into parcels, each with its share of the cash).
+
+### 13.1 Purpose
+Before: the whole COD payment was captured once, with the LAST parcel. Now: **each delivered parcel captures its own cash**, so Payment, the ledger and the reports follow the money the carrier hands over parcel by parcel. The order is still *Delivered* only with its last parcel (unchanged).
+
+### 13.2 Actors
+Customer (pays the courier per parcel), courier / carrier (delivers and collects), shop accountant (one ledger entry per parcel), finance staff (Admin Payments page shows "collected X of Y").
+
+### 13.3 Requirements and acceptance criteria
+| ID | Requirement | Acceptance criteria |
+|---|---|---|
+| FR-C1 | A delivered parcel captures its cash. | `DeliveryConfirmed.CodAmount` of that shipment is captured; payment `PartiallyCaptured` while parcels remain, `Captured` when the parts add up to the amount. Live: 100 000 of 200 000 after parcel 1, 200 000 after parcel 2. |
+| FR-C2 | Idempotent per parcel. | `PaymentCaptures` has a unique key (tenant, payment, shipment); a redelivered message, or the same webhook again, changes nothing. |
+| FR-C3 | Never more than what is left. | A part is the parcel's cash capped at `Amount − CapturedAmount`. |
+| FR-C4 | Messages from before R43 keep working. | A delivery message with no cash: if it is the last parcel the remainder is captured (old behaviour); otherwise nothing. |
+| FR-C5 | One ledger entry and one invoice credit per parcel. | Accounting keys by the capture (parcel); the invoice's paid amount grows 100 000 → 200 000; a replay adds nothing. |
+| FR-C6 | One receipt per parcel. | Notification dedupe key = capture id. |
+| FR-C7 | Reports count each part once. | Reporting adds each part to the payment fact once (`FactPaymentCaptures`); `PaymentAuthorized` no longer creates the fact. |
+| FR-C8 | Refund / return after (part) collection. | Refund capped at the amount collected (`CapturedAmount`); refund allowed from `PartiallyCaptured`; a return of a fully collected order refunds up to 200 000 and the payment becomes Refunded. |
+| FR-C9 | A partly collected payment cannot be cancelled or failed. | The domain refuses `Cancel` / `Fail` once cash was collected. |
+| FR-C10 | Admin shows it. | Payments page: status "Partly collected" and "100 000 ₫ collected so far"; refund button allowed. |
+
+### 13.4 Business rules
+1. The cash of a parcel is the shop's expected cash (`Shipment.CodAmount`, split by units, the last parcel takes the remainder, typed amounts must add up). A carrier-reported different amount only flags the shipment (R54).
+2. A parcel with no cash (typed all-or-none) captures nothing.
+3. Payment status: Pending → (first part) Authorized → PartiallyCaptured → Captured; refunds then lead to PartiallyRefunded / Refunded.
+4. Settlement and the gateway callbacks only see fully `Captured` payments.
+
+### 13.5 Use cases
+**UC-C1 Split COD order (main).** Order 200 000 split into two parcels of 100 000 → parcel 1 delivered: payment 100 000 / 200 000, ledger entry 1, invoice credited 100 000, receipt 1; order Shipped → parcel 2 delivered: payment Captured, entry 2, invoice paid, receipt 2, order Delivered.
+**UC-C2 Parcel 2 never delivered (exception).** The payment stays `PartiallyCaptured` with 100 000 booked; staff handle the parcel (re-deliver, return); see R55.
+**UC-C3 Return after full collection (alternative).** Return approved and completed → refund 200 000 of the 200 000 collected; payment Refunded.
+**UC-C4 Unsplit order.** One parcel with the whole cash → captured once, status Captured.
+
+### 13.6 Data and events
+`Payments.CapturedAmount`, table `PaymentCaptures`, status `PartiallyCaptured` (7). `PaymentProcessedEvent` gains `CaptureId` (shipment id; null for a single capture) and `CapturedTotal`; its `Amount` is the amount of THIS capture. Consumers: Accounting (key = capture), Reporting (`FactPaymentCaptures`), Notification (receipt per capture); Sales and CRM unchanged.
+
+### 13.7 UAT (all passed live on tenant `glcheck`, fake GHTK; the ledger part with October 2026 opened for the check)
+| # | Scenario | Result |
+|---|---|---|
+| C1 | COD order of 200 000 split into 2 parcels | carrier got two orders of 100 000, original cancelled |
+| C2 | Parcel 1 delivered | order Shipped; payment PartiallyCaptured 100 000 / 200 000; 1 capture; invoice paid 100 000; 1 ledger entry; report fact 100 000; 1 receipt |
+| C3 | Same delivery notice again | nothing changes |
+| C4 | Parcel 2 delivered | order Delivered; payment Captured 200 000; 2 captures; invoice paid 200 000; 2 ledger entries; report fact 200 000 with 2 captures; 2 receipts |
+| C5 | Return completed | refund 200 000 / Completed; payment Refunded |
+| C6 | Unsplit COD order of 100 000 | Captured once, 1 capture, report fact 100 000 |
+Found and fixed by the live check: Reporting lost every payment event with a numeric method, and counted a split payment twice because `PaymentAuthorized` also created the fact (R56, R57). Not done live: a failed parcel (covered by unit tests), a partial return by line.
+
+### 13.8 Open issues
+R54 (expected vs reported cash), R55 (stuck partly collected payments), R56 (day of later parts in reports), R57 (past facts), R58.

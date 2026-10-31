@@ -36,6 +36,16 @@ public class FactPayment : ITenantOwned
     public int DateKey { get; set; }
 }
 
+/// <summary>One part of a payment collected on delivery (ROADMAP R43): its id (the parcel's shipment) makes a replayed event count once.</summary>
+public class FactPaymentCapture : ITenantOwned
+{
+    public Guid CaptureId { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid PaymentId { get; set; }
+    public decimal Amount { get; set; }
+    public DateTime? CapturedAt { get; set; }
+}
+
 /// <summary>One refund of a payment; its id makes a replayed event count once.</summary>
 public class FactPaymentRefund : ITenantOwned
 {
