@@ -10,6 +10,8 @@ import { DataTable } from '@/components/shared/DataTable'
 import { Pagination } from '@/components/shared/Pagination'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface DepartmentFormValues {
   name: string
@@ -30,6 +32,7 @@ function DepartmentModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!department
 
   const { data: employeesPage } = useQuery({
@@ -80,82 +83,69 @@ function DepartmentModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'departments'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('masterdata.departments.editTitle') : t('masterdata.departments.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.departments.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-            {errors.name && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.departments.code')}</label>
-            <input className="input" {...register('code', { required: true })} />
-            {errors.code && <p className="mt-1 text-xs text-red-600">{t('common.code')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.departments.manager')}</label>
-            <select className="input" {...register('managerId')}>
+    <Modal
+      open
+      size="sm"
+      title={isEdit ? t('masterdata.departments.editTitle') : t('masterdata.departments.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="department-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="department-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('masterdata.departments.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <FormField label={t('masterdata.departments.code')} required error={errors.code ? t('common.required') : undefined}>
+          <Input {...register('code', { required: true })} />
+        </FormField>
+        <FormField label={t('masterdata.departments.manager')}>
+          <Select {...register('managerId')}>
+            <option value="">{t('common.none')}</option>
+            {(employeesPage?.items ?? []).map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.fullName}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        {!isEdit && (
+          <FormField label={t('masterdata.departments.parentDepartment')}>
+            <Select {...register('parentDepartmentId')}>
               <option value="">{t('common.none')}</option>
-              {(employeesPage?.items ?? []).map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.fullName}
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.departmentName}
                 </option>
               ))}
-            </select>
-          </div>
-          {!isEdit && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                {t('masterdata.departments.parentDepartment')}
-              </label>
-              <select className="input" {...register('parentDepartmentId')}>
-                <option value="">{t('common.none')}</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.departmentName}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          {isEdit && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                {t('masterdata.departments.division')}
-              </label>
-              <select className="input" {...register('divisionId')}>
-                <option value="">{t('common.none')}</option>
-                {(divisionsPage?.items ?? []).map((div) => (
-                  <option key={div.id} value={div.id}>
-                    {div.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.departments.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+            </Select>
+          </FormField>
+        )}
+        {isEdit && (
+          <FormField label={t('masterdata.departments.division')}>
+            <Select {...register('divisionId')}>
+              <option value="">{t('common.none')}</option>
+              {(divisionsPage?.items ?? []).map((div) => (
+                <option key={div.id} value={div.id}>
+                  {div.name}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        )}
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.departments.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -200,12 +190,10 @@ export function DepartmentsPage() {
         label: '',
         render: (d: Department) =>
           canManage ? (
-            <button
-              className="text-xs text-primary-600 hover:underline"
-              onClick={() => setModalState({ open: true, department: d })}
-            >
+            <Button variant="link" className="text-xs"
+              onClick={() => setModalState({ open: true, department: d })}>
               {t('common.edit')}
-            </button>
+            </Button>
           ) : null,
       },
     ],
@@ -217,12 +205,10 @@ export function DepartmentsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('masterdata.departments.title')}</h1>
         {canManage && (
-          <button
-            className="btn-primary"
-            onClick={() => setModalState({ open: true, department: null })}
-          >
+          <Button
+            onClick={() => setModalState({ open: true, department: null })}>
             {t('masterdata.departments.add')}
-          </button>
+          </Button>
         )}
       </div>
 

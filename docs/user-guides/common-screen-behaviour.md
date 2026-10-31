@@ -1,6 +1,6 @@
 # Hướng dẫn sử dụng: cách các màn hình hoạt động chung
 
-Áp dụng cho mọi màn hình đã được làm mới: **Khuyến mãi, Flash sale, Tích điểm, POS (giao dịch, ca, báo cáo Z, máy POS), Hoàn hàng, Webhook, Mẫu thông báo**, và mọi hộp thoại xác nhận trong hệ thống. Các màn hình còn lại sẽ chuyển dần sang cách làm này.
+Áp dụng cho mọi màn hình đã được làm mới: **Khuyến mãi, Flash sale, Tích điểm, POS (giao dịch, ca, báo cáo Z, máy POS), Hoàn hàng, Webhook, Mẫu thông báo và 17 màn hình Dữ liệu chủ** (xem [masterdata.md](masterdata.md)), và mọi hộp thoại xác nhận trong hệ thống. Các màn hình còn lại sẽ chuyển dần sang cách làm này.
 
 > Ghi chú cho người bảo trì: viết từ mã nguồn và lần duyệt thử bằng Chrome headless trên tenant `glcheck` (14 bước đạt). Chưa có ảnh chụp trong tài liệu này.
 

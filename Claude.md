@@ -876,7 +876,8 @@ CRUD pattern — read before adding a new frontend page/entity so existing
 conventions are reused, not re-derived). UI colours come from role tokens generated from
 docs/frontend/design-system/tokens/tokens.json (`npm run check:tokens`; no hex in app code), icons are Lucide
 (docs/frontend/tokens-and-icons-guide.md). Admin pages use the component library in `admin/src/components/ui/` (Modal, FormField,
-Toast, Alert, EmptyState, Button ...; docs/frontend/components-guide.md) - no inline `fixed inset-0` modal; tests: `npm test` (Vitest + axe).
+Toast, Alert, EmptyState, Button ...; docs/frontend/components-guide.md) - no inline `fixed inset-0` modal; tests: `npm test` (Vitest + axe). Migrated so far: pilot pages + all Master data pages (U3 batch 1); the rest
+are tracked in docs/frontend/components-guide.md "Migration status". Server messages: `lib/serverMessage.ts`.
 
 ## Claude Working Rules
 

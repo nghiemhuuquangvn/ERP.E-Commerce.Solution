@@ -52,3 +52,13 @@ Vitest + Testing Library + axe: `npm test` in `admin/` (54 tests today). A test 
 
 ## Pilot pages (U2)
 Promotions, Flash sales, Loyalty, POS Transactions / Shifts / Z report / Terminals, Shipping Returns, Notification Webhooks and Message templates. The other ~60 pages still use `fixed inset-0` modals and the old classes (DEFERRED R71); an old modal and a new `Modal` share the same stacking level (z-50), the later one opened is on top.
+
+## Migration status (U3)
+| Area | Pages with own modals | Status |
+|---|---|---|
+| Pilot (U2) | 10 | on the library |
+| **Master data** | 17 pages / 25 dialogs | **on the library (U3 batch 1, 2026-11-01)** - worked example: `pages/masterdata/DepartmentsPage.tsx`; smoke test `masterdata.pages.test.tsx` |
+| Accounting 7, Products 6, HRM 6, CRM 5, Inventory 4, Settings 3, Purchasing 3, Identity 3, Orders 2, Sales / Payments / Shipping / Logs 4 | ~46 files | still old (DEFERRED R71); one batch per plan |
+
+### How batch 1 was done (so the next batches repeat it)
+The Master data pages were regular, so the conversion was scripted (field block `div > label + input/select + error <p>` -> `FormField`; the modal frame -> `Modal` with the footer buttons pulled out of the form; `btn-*` and text-link buttons -> `Button`; filter controls -> `Select` / `Input` with an `aria-label`; checkbox + label -> `Checkbox`; required fields without a visible error get one) and then reviewed by `tsc`, the smoke test (axe included) and a browser walk. Anything that did not match the pattern (the Employees terminate dialog with its confirmation) was edited by hand. `lib/serverMessage.ts` is the one helper for server messages (R73 closed).

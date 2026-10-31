@@ -11,6 +11,8 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface DivisionFormValues {
   branchId: string
@@ -31,6 +33,7 @@ function DivisionModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!division
 
   const { register, handleSubmit, formState: { errors } } = useForm<DivisionFormValues>({
@@ -59,55 +62,47 @@ function DivisionModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'divisions'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('masterdata.divisions.editTitle') : t('masterdata.divisions.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          {!isEdit && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.divisions.branch')}</label>
-              <select className="input" {...register('branchId', { required: true })}>
-                <option value="">{t('common.select')}</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-              {errors.branchId && <p className="mt-1 text-xs text-red-600">{t('masterdata.divisions.branch')} is required.</p>}
-            </div>
-          )}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-            {errors.name && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-            <input className="input" {...register('code', { required: true })} />
-            {errors.code && <p className="mt-1 text-xs text-red-600">{t('common.code')} is required.</p>}
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.divisions.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={isEdit ? t('masterdata.divisions.editTitle') : t('masterdata.divisions.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="division-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="division-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        {!isEdit && (
+          <FormField label={t('masterdata.divisions.branch')} required error={errors.branchId ? t('common.required') : undefined}>
+            <Select {...register('branchId', { required: true })}>
+              <option value="">{t('common.select')}</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        )}
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <FormField label={t('common.code')} required error={errors.code ? t('common.required') : undefined}>
+          <Input {...register('code', { required: true })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.divisions.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -172,23 +167,19 @@ export function DivisionsPage() {
         render: (d: Division) =>
           canManage ? (
             <div className="flex gap-3">
-              <button
-                className="text-xs text-primary-600 hover:underline"
-                onClick={() => setModalState({ open: true, division: d })}
-              >
+              <Button variant="link" className="text-xs"
+                onClick={() => setModalState({ open: true, division: d })}>
                 {t('common.edit')}
-              </button>
+              </Button>
               {d.isActive ? (
-                <button className="text-xs text-red-600 hover:underline" onClick={() => setConfirmTarget(d)}>
+                <Button variant="link-danger" className="text-xs" onClick={() => setConfirmTarget(d)}>
                   {t('common.deactivate')}
-                </button>
+                </Button>
               ) : (
-                <button
-                  className="text-xs text-green-600 hover:underline"
-                  onClick={() => toggleMutation.mutate(d)}
-                >
+                <Button variant="link" className="text-xs"
+                  onClick={() => toggleMutation.mutate(d)}>
                   {t('common.activate')}
-                </button>
+                </Button>
               )}
             </div>
           ) : null,
@@ -202,14 +193,15 @@ export function DivisionsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('masterdata.divisions.title')}</h1>
         {canManage && (
-          <button className="btn-primary" onClick={() => setModalState({ open: true, division: null })}>
+          <Button onClick={() => setModalState({ open: true, division: null })}>
             {t('masterdata.divisions.add')}
-          </button>
+          </Button>
         )}
       </div>
 
-      <select
-        className="input max-w-xs"
+      <Select
+        className="max-w-xs"
+        aria-label={t('masterdata.divisions.allBranches')}
         value={branchId}
         onChange={(e) => {
           setBranchId(e.target.value)
@@ -222,7 +214,7 @@ export function DivisionsPage() {
             {b.name}
           </option>
         ))}
-      </select>
+      </Select>
 
       <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />
       <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount ?? 0} onPageChange={setPage} />

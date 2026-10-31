@@ -9,13 +9,11 @@ import { ProductPickerModal } from '@/components/shared/ProductPickerModal'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Alert, Button, EmptyState, FormField, Input, Modal, useToast } from '@/components/ui'
 import { usePermission } from '@/hooks/usePermission'
+import { serverMessage } from '@/lib/serverMessage'
 
 const KEY = ['promotion', 'flashSales']
 const money = (n: number) => `${new Intl.NumberFormat('vi-VN').format(n)} ₫`
 const toLocalInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
-const errorText = (e: unknown, fallback: string) =>
-  (e as { response?: { data?: { detail?: string; message?: string } } })?.response?.data?.detail ??
-  (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback
 
 interface Row { productId: string; productName: string; originalPrice: number; salePrice: number; allocatedQuantity: number }
 
@@ -119,7 +117,7 @@ function FlashSaleModal({ onClose }: { onClose: () => void }) {
           <p className="mt-1 text-xs text-ink-secondary">{t('promotion.flashSales.priceRule')}</p>
         </div>
 
-        {mutation.isError && <Alert variant="danger">{errorText(mutation.error, t('promotion.flashSales.failedToSave'))}</Alert>}
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('promotion.flashSales.failedToSave'))}</Alert>}
       </div>
 
       <ProductPickerModal
@@ -159,7 +157,7 @@ export function FlashSalesPage() {
       setTarget(null)
     },
     onError: (e) => {
-      toast.error(errorText(e, t('common.failedToSave')))
+      toast.error(serverMessage(e, t('common.failedToSave')))
       setTarget(null)
     },
   })

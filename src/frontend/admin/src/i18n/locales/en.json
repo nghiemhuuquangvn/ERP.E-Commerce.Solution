@@ -1,5 +1,6 @@
 {
   "common": {
+    "required": "Required",
     "noResults": "No results",
     "noResultsHint": "No record matches the filters you chose.",
     "retry": "Try again",

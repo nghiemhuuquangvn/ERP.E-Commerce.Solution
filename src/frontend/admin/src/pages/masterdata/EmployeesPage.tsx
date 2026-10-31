@@ -14,6 +14,8 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, FormField, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 // ─── Hire modal ─────────────────────────────────────────────────────────────
 
@@ -31,6 +33,7 @@ interface HireFormValues {
 function HireModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { data: departmentsPage } = useQuery({
     queryKey: ['masterdata', 'departments', 'picker'],
     queryFn: () => departmentsApi.list({ page: 1, pageSize: 100 }),
@@ -64,79 +67,68 @@ function HireModal({ onClose }: { onClose: () => void }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'employees'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('masterdata.employees.hireTitle')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.employees.firstName')}</label>
-              <input className="input" {...register('firstName', { required: true })} />
-              {errors.firstName && <p className="mt-1 text-xs text-red-600">{t('masterdata.employees.required')}</p>}
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.employees.lastName')}</label>
-              <input className="input" {...register('lastName', { required: true })} />
-              {errors.lastName && <p className="mt-1 text-xs text-red-600">{t('masterdata.employees.required')}</p>}
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.employees.email')}</label>
-            <input type="email" className="input" {...register('email')} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.employees.phone')}</label>
-            <input className="input" {...register('phone')} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.employees.department')}</label>
-            <select className="input" {...register('departmentId', { required: true })}>
-              <option value="">{t('common.select')}</option>
-              {(departmentsPage?.items ?? []).map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.departmentName}
-                </option>
-              ))}
-            </select>
-            {errors.departmentId && <p className="mt-1 text-xs text-red-600">{t('masterdata.employees.required')}</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.employees.positionIdOptional')}</label>
-            <input className="input" {...register('positionId')} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.employees.dateOfHire')}</label>
-              <input type="date" className="input" {...register('dateOfHire', { required: true })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.employees.employmentType')}</label>
-              <select className="input" {...register('employmentType')}>
-                <option value={EMPLOYMENT_TYPE.FullTime}>{t('masterdata.employees.employmentTypes.fullTime')}</option>
-                <option value={EMPLOYMENT_TYPE.PartTime}>{t('masterdata.employees.employmentTypes.partTime')}</option>
-                <option value={EMPLOYMENT_TYPE.Contract}>{t('masterdata.employees.employmentTypes.contract')}</option>
-              </select>
-            </div>
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.employees.failedToHire')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('masterdata.employees.hiring') : t('masterdata.employees.hireButton')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('masterdata.employees.hireTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="hire-form" loading={mutation.isPending}>{mutation.isPending ? t('masterdata.employees.hiring') : t('masterdata.employees.hireButton')}</Button>
+        </>
+      }
+    >
+      <form id="hire-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label={t('masterdata.employees.firstName')} required error={errors.firstName ? t('common.required') : undefined}>
+            <Input {...register('firstName', { required: true })} />
+          </FormField>
+          <FormField label={t('masterdata.employees.lastName')} required error={errors.lastName ? t('common.required') : undefined}>
+            <Input {...register('lastName', { required: true })} />
+          </FormField>
+        </div>
+        <FormField label={t('masterdata.employees.email')}>
+          <Input type="email" {...register('email')} />
+        </FormField>
+        <FormField label={t('masterdata.employees.phone')}>
+          <Input {...register('phone')} />
+        </FormField>
+        <FormField label={t('masterdata.employees.department')} required error={errors.departmentId ? t('common.required') : undefined}>
+          <Select {...register('departmentId', { required: true })}>
+            <option value="">{t('common.select')}</option>
+            {(departmentsPage?.items ?? []).map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.departmentName}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('masterdata.employees.positionIdOptional')}>
+          <Input {...register('positionId')} />
+        </FormField>
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label={t('masterdata.employees.dateOfHire')} required error={errors.dateOfHire ? t('common.required') : undefined}>
+            <Input type="date" {...register('dateOfHire', { required: true })} />
+          </FormField>
+          <FormField label={t('masterdata.employees.employmentType')}>
+            <Select {...register('employmentType')}>
+              <option value={EMPLOYMENT_TYPE.FullTime}>{t('masterdata.employees.employmentTypes.fullTime')}</option>
+              <option value={EMPLOYMENT_TYPE.PartTime}>{t('masterdata.employees.employmentTypes.partTime')}</option>
+              <option value={EMPLOYMENT_TYPE.Contract}>{t('masterdata.employees.employmentTypes.contract')}</option>
+            </Select>
+          </FormField>
+        </div>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.employees.failedToHire'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -150,6 +142,7 @@ interface ProfileFormValues {
 function UpdateProfileModal({ employee, onClose }: { employee: Employee; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { register, handleSubmit } = useForm<ProfileFormValues>({
     defaultValues: { email: employee.email ?? '', phone: employee.phone ?? '' },
   })
@@ -162,39 +155,35 @@ function UpdateProfileModal({ employee, onClose }: { employee: Employee; onClose
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'employees'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('masterdata.employees.updateProfileTitle', { name: employee.fullName })}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.employees.email')}</label>
-            <input type="email" className="input" {...register('email')} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.employees.phone')}</label>
-            <input className="input" {...register('phone')} />
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.employees.failedToUpdateProfile')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('masterdata.employees.updateProfileTitle', { name: employee.fullName })}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="update-profile-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="update-profile-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('masterdata.employees.email')}>
+          <Input type="email" {...register('email')} />
+        </FormField>
+        <FormField label={t('masterdata.employees.phone')}>
+          <Input {...register('phone')} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.employees.failedToUpdateProfile'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -207,6 +196,7 @@ interface TransferFormValues {
 function TransferModal({ employee, onClose }: { employee: Employee; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { data: departmentsPage } = useQuery({
     queryKey: ['masterdata', 'departments', 'picker'],
     queryFn: () => departmentsApi.list({ page: 1, pageSize: 100 }),
@@ -222,45 +212,41 @@ function TransferModal({ employee, onClose }: { employee: Employee; onClose: () 
       employeesApi.transfer(employee.id, { newDepartmentId: values.newDepartmentId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'employees'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('masterdata.employees.transferTitle', { name: employee.fullName })}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.employees.newDepartment')}</label>
-            <select className="input" {...register('newDepartmentId', { required: true })}>
-              <option value="">{t('common.select')}</option>
-              {(departmentsPage?.items ?? [])
-                .filter((d) => d.id !== employee.departmentId)
-                .map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.departmentName}
-                  </option>
-                ))}
-            </select>
-            {errors.newDepartmentId && <p className="mt-1 text-xs text-red-600">{t('masterdata.employees.required')}</p>}
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.employees.failedToTransfer')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('masterdata.employees.transferring') : t('masterdata.employees.transfer')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('masterdata.employees.transferTitle', { name: employee.fullName })}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="transfer-form" loading={mutation.isPending}>{mutation.isPending ? t('masterdata.employees.transferring') : t('masterdata.employees.transfer')}</Button>
+        </>
+      }
+    >
+      <form id="transfer-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('masterdata.employees.newDepartment')} required error={errors.newDepartmentId ? t('common.required') : undefined}>
+          <Select {...register('newDepartmentId', { required: true })}>
+            <option value="">{t('common.select')}</option>
+            {(departmentsPage?.items ?? [])
+              .filter((d) => d.id !== employee.departmentId)
+              .map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.departmentName}
+                </option>
+              ))}
+          </Select>
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.employees.failedToTransfer'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -273,6 +259,7 @@ interface TerminateFormValues {
 function TerminateModal({ employee, onClose }: { employee: Employee; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [confirming, setConfirming] = useState(false)
   const { register, handleSubmit, getValues, formState: { errors } } = useForm<TerminateFormValues>({
     defaultValues: { reason: '' },
@@ -283,52 +270,47 @@ function TerminateModal({ employee, onClose }: { employee: Employee; onClose: ()
       employeesApi.terminate(employee.id, { reason: values.reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'employees'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('masterdata.employees.terminateTitle', { name: employee.fullName })}
-        </h3>
-        <form
-          onSubmit={handleSubmit(() => setConfirming(true))}
-          className="space-y-4"
-        >
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.employees.reason')}</label>
-            <textarea className="input" rows={3} {...register('reason', { required: true })} />
-            {errors.reason && <p className="mt-1 text-xs text-red-600">{t('masterdata.employees.reason')} is required.</p>}
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.employees.failedToTerminate')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" className="btn-danger">
-              {t('masterdata.employees.terminate')}
-            </button>
-          </div>
+    <>
+      <Modal
+        open
+        size="sm"
+        title={t('masterdata.employees.terminateTitle', { name: employee.fullName })}
+        onClose={onClose}
+        closeOnEsc={!mutation.isPending && !confirming}
+        footer={
+          <>
+            <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+            <Button variant="danger" type="submit" form="terminate-form" loading={mutation.isPending}>{t('masterdata.employees.terminate')}</Button>
+          </>
+        }
+      >
+        <form id="terminate-form" onSubmit={handleSubmit(() => setConfirming(true))} className="space-y-4">
+          <FormField label={t('masterdata.employees.reason')} required error={errors.reason ? t('common.required') : undefined}>
+            <Textarea rows={3} {...register('reason', { required: true })} />
+          </FormField>
+          {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.employees.failedToTerminate'))}</Alert>}
         </form>
+      </Modal>
 
-        <ConfirmDialog
-          open={confirming}
-          title={t('masterdata.employees.confirmTerminationTitle')}
-          message={t('masterdata.employees.terminateConfirm', { name: employee.fullName })}
-          confirmLabel={t('masterdata.employees.terminate')}
-          danger
-          onConfirm={() => {
-            setConfirming(false)
-            mutation.mutate(getValues())
-          }}
-          onCancel={() => setConfirming(false)}
-        />
-      </div>
-    </div>
+      <ConfirmDialog
+        open={confirming}
+        title={t('masterdata.employees.confirmTerminationTitle')}
+        message={t('masterdata.employees.terminateConfirm', { name: employee.fullName })}
+        confirmLabel={t('masterdata.employees.terminate')}
+        danger
+        onConfirm={() => {
+          setConfirming(false)
+          mutation.mutate(getValues())
+        }}
+        onCancel={() => setConfirming(false)}
+      />
+    </>
   )
 }
 
@@ -409,24 +391,18 @@ export function EmployeesPage() {
         render: (e: Employee) =>
           canManage && e.employmentStatus !== 'Terminated' ? (
             <div className="flex gap-3">
-              <button
-                className="text-xs text-primary-600 hover:underline"
-                onClick={() => openModal('profile', e)}
-              >
+              <Button variant="link" className="text-xs"
+                onClick={() => openModal('profile', e)}>
                 {t('masterdata.employees.updateProfile')}
-              </button>
-              <button
-                className="text-xs text-primary-600 hover:underline"
-                onClick={() => openModal('transfer', e)}
-              >
+              </Button>
+              <Button variant="link" className="text-xs"
+                onClick={() => openModal('transfer', e)}>
                 {t('masterdata.employees.transfer')}
-              </button>
-              <button
-                className="text-xs text-red-600 hover:underline"
-                onClick={() => openModal('terminate', e)}
-              >
+              </Button>
+              <Button variant="link-danger" className="text-xs"
+                onClick={() => openModal('terminate', e)}>
                 {t('masterdata.employees.terminate')}
-              </button>
+              </Button>
             </div>
           ) : null,
       },
@@ -439,15 +415,16 @@ export function EmployeesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('masterdata.employees.title')}</h1>
         {canManage && (
-          <button className="btn-primary" onClick={() => setModal('hire')}>
+          <Button onClick={() => setModal('hire')}>
             {t('masterdata.employees.hire')}
-          </button>
+          </Button>
         )}
       </div>
 
       <div className="flex gap-3">
-        <select
-          className="input max-w-xs"
+        <Select
+          className="max-w-xs"
+        aria-label={t('masterdata.employees.allDepartments')}
           value={departmentFilter}
           onChange={(e) => {
             setDepartmentFilter(e.target.value)
@@ -460,9 +437,9 @@ export function EmployeesPage() {
               {d.departmentName}
             </option>
           ))}
-        </select>
-        <select
-          className="input max-w-xs"
+        </Select>
+        <Select
+          className="max-w-xs"
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value)
@@ -474,7 +451,7 @@ export function EmployeesPage() {
               {o.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />

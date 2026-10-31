@@ -12,54 +12,54 @@ import { DataTable } from '@/components/shared/DataTable'
 import { Pagination } from '@/components/shared/Pagination'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 type Tab = 'countries' | 'provinces' | 'districts' | 'wards'
 
 function CreateCountryModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { register, handleSubmit } = useForm<{ code: string; name: string; phoneCode: string }>()
+  const toast = useToast()
+  const { register, handleSubmit, formState: { errors } } = useForm<{ code: string; name: string; phoneCode: string }>()
 
   const mutation = useMutation({
     mutationFn: (v: { code: string; name: string; phoneCode: string }) =>
       geographyApi.createCountry({ code: v.code, name: v.name, phoneCode: v.phoneCode || null }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'geography', 'countries'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('masterdata.geography.addCountry')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-            <input className="input" {...register('code', { required: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.geography.phoneCode')}</label>
-            <input className="input" {...register('phoneCode')} />
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.geography.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('masterdata.geography.addCountry')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="create-country-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="create-country-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('common.code')} required error={errors.code ? t('common.required') : undefined}>
+          <Input {...register('code', { required: true })} />
+        </FormField>
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <FormField label={t('masterdata.geography.phoneCode')}>
+          <Input {...register('phoneCode')} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.geography.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -72,55 +72,53 @@ function CreateProvinceModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { register, handleSubmit } = useForm<{ countryId: string; code: string; name: string }>()
+  const toast = useToast()
+  const { register, handleSubmit, formState: { errors } } = useForm<{ countryId: string; code: string; name: string }>()
 
   const mutation = useMutation({
     mutationFn: (v: { countryId: string; code: string; name: string }) =>
       geographyApi.createProvince(v.countryId, { code: v.code, name: v.name }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'geography', 'provinces'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('masterdata.geography.addProvince')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.geography.country')}</label>
-            <select className="input" {...register('countryId', { required: true })}>
-              <option value="">{t('common.select')}</option>
-              {countries.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-            <input className="input" {...register('code', { required: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.geography.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('masterdata.geography.addProvince')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="create-province-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="create-province-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('masterdata.geography.country')} required error={errors.countryId ? t('common.required') : undefined}>
+          <Select {...register('countryId', { required: true })}>
+            <option value="">{t('common.select')}</option>
+            {countries.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('common.code')} required error={errors.code ? t('common.required') : undefined}>
+          <Input {...register('code', { required: true })} />
+        </FormField>
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.geography.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -133,110 +131,106 @@ function CreateDistrictModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { register, handleSubmit } = useForm<{ provinceId: string; code: string; name: string }>()
+  const toast = useToast()
+  const { register, handleSubmit, formState: { errors } } = useForm<{ provinceId: string; code: string; name: string }>()
 
   const mutation = useMutation({
     mutationFn: (v: { provinceId: string; code: string; name: string }) =>
       geographyApi.createDistrict(v.provinceId, { code: v.code, name: v.name }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'geography', 'districts'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('masterdata.geography.addDistrict')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.geography.province')}</label>
-            <select className="input" {...register('provinceId', { required: true })}>
-              <option value="">{t('common.select')}</option>
-              {provinces.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-            <input className="input" {...register('code', { required: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.geography.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('masterdata.geography.addDistrict')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="create-district-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="create-district-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('masterdata.geography.province')} required error={errors.provinceId ? t('common.required') : undefined}>
+          <Select {...register('provinceId', { required: true })}>
+            <option value="">{t('common.select')}</option>
+            {provinces.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('common.code')} required error={errors.code ? t('common.required') : undefined}>
+          <Input {...register('code', { required: true })} />
+        </FormField>
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.geography.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
 function CreateWardModal({ districts, onClose }: { districts: District[]; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { register, handleSubmit } = useForm<{ districtId: string; code: string; name: string }>()
+  const toast = useToast()
+  const { register, handleSubmit, formState: { errors } } = useForm<{ districtId: string; code: string; name: string }>()
 
   const mutation = useMutation({
     mutationFn: (v: { districtId: string; code: string; name: string }) =>
       geographyApi.createWard(v.districtId, { code: v.code, name: v.name }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'geography', 'wards'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('masterdata.geography.addWard')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.geography.district')}</label>
-            <select className="input" {...register('districtId', { required: true })}>
-              <option value="">{t('common.select')}</option>
-              {districts.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-            <input className="input" {...register('code', { required: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.geography.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('masterdata.geography.addWard')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="create-ward-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="create-ward-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('masterdata.geography.district')} required error={errors.districtId ? t('common.required') : undefined}>
+          <Select {...register('districtId', { required: true })}>
+            <option value="">{t('common.select')}</option>
+            {districts.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('common.code')} required error={errors.code ? t('common.required') : undefined}>
+          <Input {...register('code', { required: true })} />
+        </FormField>
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.geography.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -338,21 +332,21 @@ export function GeographyPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('masterdata.geography.title')}</h1>
         {canManage && (
-          <button className="btn-primary" onClick={() => setModalOpen(true)}>
+          <Button onClick={() => setModalOpen(true)}>
             {TABS.find((x) => x.key === tab)?.addLabel}
-          </button>
+          </Button>
         )}
       </div>
 
-      <div className="flex gap-2 border-b border-gray-200">
+      <div className="flex gap-2 border-b border-line">
         {TABS.map((x) => (
           <button
             key={x.key}
             onClick={() => switchTab(x.key)}
             className={`px-3 py-2 text-sm font-medium ${
               tab === x.key
-                ? 'border-b-2 border-primary-600 text-primary-700'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'border-b-2 border-brand-action text-brand-action'
+                : 'text-ink-secondary hover:text-ink'
             }`}
           >
             {x.label}
@@ -378,8 +372,9 @@ export function GeographyPage() {
 
       {tab === 'provinces' && (
         <>
-          <select
-            className="input max-w-xs"
+          <Select
+            className="max-w-xs"
+        aria-label={t('masterdata.geography.selectCountry')}
             value={countryId}
             onChange={(e) => setCountryId(e.target.value)}
           >
@@ -389,7 +384,7 @@ export function GeographyPage() {
                 {c.name}
               </option>
             ))}
-          </select>
+          </Select>
           <DataTable
             columns={provinceColumns}
             data={provincesQuery.data?.items ?? []}
@@ -407,8 +402,9 @@ export function GeographyPage() {
 
       {tab === 'districts' && (
         <>
-          <select
-            className="input max-w-xs"
+          <Select
+            className="max-w-xs"
+        aria-label={t('masterdata.geography.selectProvince')}
             value={provinceId}
             onChange={(e) => setProvinceId(e.target.value)}
           >
@@ -418,7 +414,7 @@ export function GeographyPage() {
                 {p.name}
               </option>
             ))}
-          </select>
+          </Select>
           <DataTable
             columns={districtColumns}
             data={districtsQuery.data?.items ?? []}
@@ -438,8 +434,9 @@ export function GeographyPage() {
 
       {tab === 'wards' && (
         <>
-          <select
-            className="input max-w-xs"
+          <Select
+            className="max-w-xs"
+        aria-label={t('masterdata.geography.selectDistrict')}
             value={districtId}
             onChange={(e) => setDistrictId(e.target.value)}
           >
@@ -449,7 +446,7 @@ export function GeographyPage() {
                 {d.name}
               </option>
             ))}
-          </select>
+          </Select>
           <DataTable
             columns={wardColumns}
             data={wardsQuery.data?.items ?? []}

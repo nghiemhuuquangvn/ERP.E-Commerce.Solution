@@ -12,6 +12,8 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface CostCenterFormValues {
   companyId: string
@@ -36,6 +38,7 @@ function CostCenterModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!costCenter
 
   const { register, handleSubmit, formState: { errors } } = useForm<CostCenterFormValues>({
@@ -70,80 +73,64 @@ function CostCenterModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'costCenters'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('masterdata.costCenters.editTitle') : t('masterdata.costCenters.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          {!isEdit && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.costCenters.company')}</label>
-              <select className="input" {...register('companyId', { required: true })}>
-                <option value="">{t('common.select')}</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              {errors.companyId && (
-                <p className="mt-1 text-xs text-red-600">{t('masterdata.costCenters.company')} is required.</p>
-              )}
-            </div>
-          )}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-            {errors.name && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-            <input className="input" {...register('code', { required: true })} />
-            {errors.code && <p className="mt-1 text-xs text-red-600">{t('common.code')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.costCenters.budgetAmount')}</label>
-            <input
-              type="number"
-              step="0.01"
-              className="input"
-              {...register('budgetAmount', { required: true, valueAsNumber: true, min: 0 })}
-            />
-            {errors.budgetAmount && (
-              <p className="mt-1 text-xs text-red-600">{t('masterdata.costCenters.budgetAmount')} is required.</p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.costCenters.departmentOptional')}</label>
-            <select className="input" {...register('departmentId')}>
-              <option value="">{t('common.none')}</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.departmentName}
+    <Modal
+      open
+      size="sm"
+      title={isEdit ? t('masterdata.costCenters.editTitle') : t('masterdata.costCenters.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="cost-center-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="cost-center-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        {!isEdit && (
+          <FormField label={t('masterdata.costCenters.company')} required error={errors.companyId ? t('common.required') : undefined}>
+            <Select {...register('companyId', { required: true })}>
+              <option value="">{t('common.select')}</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
                 </option>
               ))}
-            </select>
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.costCenters.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+            </Select>
+          </FormField>
+        )}
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <FormField label={t('common.code')} required error={errors.code ? t('common.required') : undefined}>
+          <Input {...register('code', { required: true })} />
+        </FormField>
+        <FormField label={t('masterdata.costCenters.budgetAmount')} required error={errors.budgetAmount ? t('common.required') : undefined}>
+          <Input
+            type="number"
+            step="0.01"
+            {...register('budgetAmount', { required: true, valueAsNumber: true, min: 0 })}
+          />
+        </FormField>
+        <FormField label={t('masterdata.costCenters.departmentOptional')}>
+          <Select {...register('departmentId')}>
+            <option value="">{t('common.none')}</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.departmentName}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.costCenters.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -224,23 +211,19 @@ export function CostCentersPage() {
         render: (cc: CostCenter) =>
           canManage ? (
             <div className="flex gap-3">
-              <button
-                className="text-xs text-primary-600 hover:underline"
-                onClick={() => setModalState({ open: true, costCenter: cc })}
-              >
+              <Button variant="link" className="text-xs"
+                onClick={() => setModalState({ open: true, costCenter: cc })}>
                 {t('common.edit')}
-              </button>
+              </Button>
               {cc.isActive ? (
-                <button className="text-xs text-red-600 hover:underline" onClick={() => setConfirmTarget(cc)}>
+                <Button variant="link-danger" className="text-xs" onClick={() => setConfirmTarget(cc)}>
                   {t('common.deactivate')}
-                </button>
+                </Button>
               ) : (
-                <button
-                  className="text-xs text-green-600 hover:underline"
-                  onClick={() => toggleMutation.mutate(cc)}
-                >
+                <Button variant="link" className="text-xs"
+                  onClick={() => toggleMutation.mutate(cc)}>
                   {t('common.activate')}
-                </button>
+                </Button>
               )}
             </div>
           ) : null,
@@ -254,14 +237,15 @@ export function CostCentersPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('masterdata.costCenters.title')}</h1>
         {canManage && (
-          <button className="btn-primary" onClick={() => setModalState({ open: true, costCenter: null })}>
+          <Button onClick={() => setModalState({ open: true, costCenter: null })}>
             {t('masterdata.costCenters.add')}
-          </button>
+          </Button>
         )}
       </div>
 
-      <select
-        className="input max-w-xs"
+      <Select
+        className="max-w-xs"
+        aria-label={t('masterdata.costCenters.allCompanies')}
         value={companyId}
         onChange={(e) => {
           setCompanyId(e.target.value)
@@ -274,7 +258,7 @@ export function CostCentersPage() {
             {c.name}
           </option>
         ))}
-      </select>
+      </Select>
 
       <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />
       <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount ?? 0} onPageChange={setPage} />

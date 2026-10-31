@@ -11,6 +11,8 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, FormField, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface PositionFormValues {
   title: string
@@ -28,6 +30,7 @@ function PositionModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!position
   const { data: departmentsPage } = useQuery({
     queryKey: ['masterdata', 'departments', 'picker'],
@@ -60,62 +63,52 @@ function PositionModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['masterdata', 'positions'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('masterdata.positions.editTitle') : t('masterdata.positions.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.positions.title_field')}</label>
-            <input className="input" {...register('title', { required: true })} />
-            {errors.title && <p className="mt-1 text-xs text-red-600">{t('masterdata.positions.title_field')} is required.</p>}
-          </div>
-          {!isEdit && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-              <input className="input" {...register('code', { required: true })} />
-              {errors.code && <p className="mt-1 text-xs text-red-600">{t('common.code')} is required.</p>}
-            </div>
-          )}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('masterdata.positions.description')}</label>
-            <textarea className="input" rows={3} {...register('description')} />
-          </div>
-          {!isEdit && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                {t('masterdata.positions.departmentIdOptional')}
-              </label>
-              <select className="input" {...register('departmentId')}>
-                <option value="">{t('common.none')}</option>
-                {(departmentsPage?.items ?? []).map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.departmentName}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('masterdata.positions.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={isEdit ? t('masterdata.positions.editTitle') : t('masterdata.positions.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="position-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="position-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('masterdata.positions.title_field')} required error={errors.title ? t('common.required') : undefined}>
+          <Input {...register('title', { required: true })} />
+        </FormField>
+        {!isEdit && (
+          <FormField label={t('common.code')} required error={errors.code ? t('common.required') : undefined}>
+            <Input {...register('code', { required: true })} />
+          </FormField>
+        )}
+        <FormField label={t('masterdata.positions.description')}>
+          <Textarea rows={3} {...register('description')} />
+        </FormField>
+        {!isEdit && (
+          <FormField label={t('masterdata.positions.departmentIdOptional')}>
+            <Select {...register('departmentId')}>
+              <option value="">{t('common.none')}</option>
+              {(departmentsPage?.items ?? []).map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.departmentName}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        )}
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('masterdata.positions.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -168,26 +161,20 @@ export function PositionsPage() {
         render: (p: Position) =>
           canManage ? (
             <div className="flex gap-3">
-              <button
-                className="text-xs text-primary-600 hover:underline"
-                onClick={() => setModalState({ open: true, position: p })}
-              >
+              <Button variant="link" className="text-xs"
+                onClick={() => setModalState({ open: true, position: p })}>
                 {t('common.edit')}
-              </button>
+              </Button>
               {p.isActive ? (
-                <button
-                  className="text-xs text-red-600 hover:underline"
-                  onClick={() => setConfirmTarget(p)}
-                >
+                <Button variant="link-danger" className="text-xs"
+                  onClick={() => setConfirmTarget(p)}>
                   {t('common.deactivate')}
-                </button>
+                </Button>
               ) : (
-                <button
-                  className="text-xs text-green-600 hover:underline"
-                  onClick={() => toggleMutation.mutate(p)}
-                >
+                <Button variant="link" className="text-xs"
+                  onClick={() => toggleMutation.mutate(p)}>
                   {t('common.activate')}
-                </button>
+                </Button>
               )}
             </div>
           ) : null,
@@ -201,12 +188,10 @@ export function PositionsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('masterdata.positions.title')}</h1>
         {canManage && (
-          <button
-            className="btn-primary"
-            onClick={() => setModalState({ open: true, position: null })}
-          >
+          <Button
+            onClick={() => setModalState({ open: true, position: null })}>
             {t('masterdata.positions.add')}
-          </button>
+          </Button>
         )}
       </div>
 

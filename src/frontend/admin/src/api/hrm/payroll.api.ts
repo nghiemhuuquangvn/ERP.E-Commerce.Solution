@@ -97,8 +97,4 @@ export const payrollApi = {
     apiClient.post<PaySlip>(`${HRM_BASE}/payslips/${id}/cancel`, { reason }).then((r) => r.data),
 }
 
-/** The server's refusal text (BusinessRuleException -> ProblemDetails.detail), or the fallback. */
-export function serverMessage(e: unknown, fallback: string): string {
-  const data = (e as { response?: { data?: { detail?: string; message?: string } } } | null)?.response?.data
-  return data?.detail ?? data?.message ?? fallback
-}
+export { serverMessage } from '@/lib/serverMessage'

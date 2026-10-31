@@ -5,6 +5,7 @@ Tài liệu từng bước cho nhân viên cửa hàng, viết bằng tiếng Vi
 | Màn hình | Hướng dẫn |
 |---|---|
 | Mọi màn hình đã làm mới: hộp thoại, lỗi, thông báo kết quả, danh sách trống | [common-screen-behaviour.md](common-screen-behaviour.md) |
+| Dữ liệu chủ (17 màn hình: phòng ban, chức vụ, nhân viên, địa lý, tiền tệ…) | [masterdata.md](masterdata.md) |
 | Vận chuyển → Hoàn hàng | [shipping-returns.md](shipping-returns.md) |
 | Cài đặt → Webhook | [notification-webhooks.md](notification-webhooks.md) |
 | Cài đặt → Mẫu thông báo | [notification-templates.md](notification-templates.md) |

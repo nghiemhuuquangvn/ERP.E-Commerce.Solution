@@ -5,11 +5,9 @@ import { loyaltyApi } from '@/api/promotion/promotion.api'
 import type { LoyaltyAccount } from '@/api/promotion/promotion.api'
 import { Alert, Button, FormField, Input, useToast } from '@/components/ui'
 import { usePermission } from '@/hooks/usePermission'
+import { serverMessage } from '@/lib/serverMessage'
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const errorText = (e: unknown, fallback: string) =>
-  (e as { response?: { status?: number; data?: { detail?: string; message?: string } } })?.response?.data?.detail ??
-  (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback
 
 /** Look a customer's loyalty account up by user id and adjust the points by hand (customer service). */
 export function LoyaltyPage() {
@@ -52,7 +50,7 @@ export function LoyaltyPage() {
           <Button disabled={!validId} loading={lookup.isPending} onClick={() => lookup.mutate()}>{t('promotion.loyalty.lookup')}</Button>
         </div>
         {notFound && <Alert variant="info">{t('promotion.loyalty.noAccount')}</Alert>}
-        {lookup.isError && !notFound && <Alert variant="danger">{errorText(lookup.error, t('promotion.loyalty.failed'))}</Alert>}
+        {lookup.isError && !notFound && <Alert variant="danger">{serverMessage(lookup.error, t('promotion.loyalty.failed'))}</Alert>}
       </div>
 
       {account && (
@@ -79,7 +77,7 @@ export function LoyaltyPage() {
               <Button variant="outline" disabled={points < 1} loading={redeem.isPending} onClick={() => redeem.mutate()}>{t('promotion.loyalty.redeem')}</Button>
             </div>
           )}
-          {(earn.isError || redeem.isError) && <Alert variant="danger">{errorText(earn.error ?? redeem.error, t('promotion.loyalty.failed'))}</Alert>}
+          {(earn.isError || redeem.isError) && <Alert variant="danger">{serverMessage(earn.error ?? redeem.error, t('promotion.loyalty.failed'))}</Alert>}
         </div>
       )}
     </div>
