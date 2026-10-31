@@ -516,6 +516,7 @@
       "bundle": "Bundle"
     },
     "form": {
+      "nameTooShort": "At least 3 characters.",
       "requiredFields": "Name (min 3 chars) and SKU are required.",
       "notEditableAfterCreate": "Cannot be changed after creation.",
       "saveFirstToUnlock": "Save the product first to manage this section.",

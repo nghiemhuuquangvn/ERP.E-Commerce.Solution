@@ -516,6 +516,7 @@
       "bundle": "Combo"
     },
     "form": {
+      "nameTooShort": "Tối thiểu 3 ký tự.",
       "requiredFields": "Tên (tối thiểu 3 ký tự) và SKU là bắt buộc.",
       "notEditableAfterCreate": "Không thể thay đổi sau khi tạo.",
       "saveFirstToUnlock": "Lưu sản phẩm trước để quản lý mục này.",

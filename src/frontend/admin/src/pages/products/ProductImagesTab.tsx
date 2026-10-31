@@ -5,7 +5,10 @@ import { useTranslation } from 'react-i18next'
 import { productsApi } from '@/api/products.api'
 import type { ProductImage, UploadProductImageRequest } from '@/api/products.api'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { DataTable } from '@/components/shared/DataTable'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, Checkbox, FormField, Input, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 // Matches ProductImageFileConstraints on the backend (ERP.PRD.Application/Features/Images/Commands).
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -28,6 +31,7 @@ export function ProductImagesTab({ productId }: { productId: string }) {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const canEdit = hasPermission('products:edit')
 
   const [removeTarget, setRemoveTarget] = useState<ProductImage | null>(null)
@@ -52,7 +56,10 @@ export function ProductImagesTab({ productId }: { productId: string }) {
     queryFn: () => productsApi.listVariants(productId),
   })
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['products', productId, 'images'] })
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['products', productId, 'images'] })
+    toast.success(t('common.saved'))
+  }
 
   const uploadFileMutation = useMutation({
     mutationFn: (file: File) =>
@@ -141,98 +148,66 @@ export function ProductImagesTab({ productId }: { productId: string }) {
     replaceMutation.mutate({ image, file })
   }
 
+  const columns = [
+    {
+      key: 'preview',
+      label: t('products.images.preview'),
+      render: (img: ProductImage) => (
+        <img
+          src={img.imageUrl}
+          alt={img.altText ?? ''}
+          className="h-12 w-12 rounded object-cover"
+          onError={(e) => {
+            ;(e.target as HTMLImageElement).style.visibility = 'hidden'
+          }}
+        />
+      ),
+    },
+    { key: 'altText', label: t('products.images.altText'), render: (img: ProductImage) => img.altText ?? '—' },
+    { key: 'sortOrder', label: t('products.images.sortOrder'), align: 'right' as const },
+    {
+      key: 'isPrimary',
+      label: t('common.status'),
+      render: (img: ProductImage) =>
+        img.isPrimary ? <span className="badge bg-success-soft text-success-soft-text">{t('products.images.primary')}</span> : null,
+    },
+    {
+      key: 'actions',
+      label: '',
+      render: (img: ProductImage) =>
+        canEdit ? (
+          <div className="flex gap-3">
+            {!img.isPrimary && (
+              <Button variant="link" className="text-xs" onClick={() => setPrimaryMutation.mutate(img.id)}>
+                {t('products.images.setPrimary')}
+              </Button>
+            )}
+            <Button
+              variant="link"
+              className="text-xs"
+              disabled={replaceMutation.isPending && replaceTargetId === img.id}
+              onClick={() => {
+                setReplaceTargetId(img.id)
+                replaceInputRef.current?.click()
+              }}
+            >
+              {replaceMutation.isPending && replaceTargetId === img.id
+                ? t('common.saving')
+                : t('products.images.replace')}
+            </Button>
+            <Button variant="link-danger" className="text-xs" onClick={() => setRemoveTarget(img)}>
+              {t('common.delete')}
+            </Button>
+          </div>
+        ) : null,
+    },
+  ]
+
+  const openFilePicker = () => fileInputRef.current?.click()
+
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200 bg-white text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">
-                {t('products.images.preview')}
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">
-                {t('products.images.altText')}
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">
-                {t('products.images.sortOrder')}
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">
-                {t('common.status')}
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {isLoading ? (
-              <tr>
-                <td colSpan={5} className="py-8 text-center text-gray-400">
-                  {t('common.loading')}
-                </td>
-              </tr>
-            ) : sortedImages.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="py-8 text-center text-gray-400">
-                  {t('common.noRecordsFound')}
-                </td>
-              </tr>
-            ) : (
-              sortedImages.map((img) => (
-                <tr key={img.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <img
-                      src={img.imageUrl}
-                      alt={img.altText ?? ''}
-                      className="h-12 w-12 rounded object-cover"
-                      onError={(e) => {
-                        ;(e.target as HTMLImageElement).style.visibility = 'hidden'
-                      }}
-                    />
-                  </td>
-                  <td className="px-4 py-3">{img.altText ?? '—'}</td>
-                  <td className="px-4 py-3">{img.sortOrder}</td>
-                  <td className="px-4 py-3">
-                    {img.isPrimary && (
-                      <span className="badge bg-green-100 text-green-700">{t('products.images.primary')}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {canEdit && (
-                      <div className="flex gap-3">
-                        {!img.isPrimary && (
-                          <button
-                            className="text-xs text-primary-600 hover:underline"
-                            onClick={() => setPrimaryMutation.mutate(img.id)}
-                          >
-                            {t('products.images.setPrimary')}
-                          </button>
-                        )}
-                        <button
-                          className="text-xs text-primary-600 hover:underline disabled:opacity-50"
-                          disabled={replaceMutation.isPending && replaceTargetId === img.id}
-                          onClick={() => {
-                            setReplaceTargetId(img.id)
-                            replaceInputRef.current?.click()
-                          }}
-                        >
-                          {replaceMutation.isPending && replaceTargetId === img.id
-                            ? t('common.saving')
-                            : t('products.images.replace')}
-                        </button>
-                        <button
-                          className="text-xs text-red-600 hover:underline"
-                          onClick={() => setRemoveTarget(img)}
-                        >
-                          {t('common.delete')}
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable columns={columns} data={sortedImages} isLoading={isLoading} />
 
       {/* Hidden input reused by every row's "Replace" action, targeting replaceTargetId */}
       <input
@@ -240,6 +215,8 @@ export function ProductImagesTab({ productId }: { productId: string }) {
         type="file"
         accept={ALLOWED_IMAGE_TYPES.join(',')}
         className="hidden"
+        aria-hidden="true"
+        tabIndex={-1}
         onChange={(e) => {
           const target = sortedImages.find((i) => i.id === replaceTargetId)
           if (target) handleReplaceFiles(e.target.files, target)
@@ -250,46 +227,42 @@ export function ProductImagesTab({ productId }: { productId: string }) {
       {canEdit && (
         <div className="space-y-3">
           <div className="card grid grid-cols-1 gap-3 p-4 sm:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">{t('products.images.altText')}</label>
-              <input
-                className="input"
-                value={pendingAltText}
-                onChange={(e) => setPendingAltText(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">{t('products.images.variant')}</label>
-              <select
-                className="input"
-                value={pendingVariantId}
-                onChange={(e) => setPendingVariantId(e.target.value)}
-              >
+            <FormField label={t('products.images.altText')}>
+              <Input value={pendingAltText} onChange={(e) => setPendingAltText(e.target.value)} />
+            </FormField>
+            <FormField label={t('products.images.variant')}>
+              <Select value={pendingVariantId} onChange={(e) => setPendingVariantId(e.target.value)}>
                 <option value="">{t('common.none')}</option>
                 {(variants ?? []).map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.sku}
                   </option>
                 ))}
-              </select>
-            </div>
+              </Select>
+            </FormField>
             <div className="flex items-end">
-              <label className="flex items-center gap-2 text-xs text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={pendingSetAsPrimary}
-                  onChange={(e) => setPendingSetAsPrimary(e.target.checked)}
-                />
-                {t('products.images.setPrimary')}
-              </label>
+              <Checkbox
+                label={t('products.images.setPrimary')}
+                checked={pendingSetAsPrimary}
+                onChange={(e) => setPendingSetAsPrimary(e.target.checked)}
+              />
             </div>
           </div>
 
           <div
-            className={`card flex cursor-pointer flex-col items-center justify-center gap-2 border-2 border-dashed p-8 text-center transition-colors ${
-              isDragging ? 'border-primary-500 bg-primary-50' : 'border-gray-300'
+            role="button"
+            tabIndex={0}
+            aria-label={t('products.images.dragDropHint')}
+            className={`card flex cursor-pointer flex-col items-center justify-center gap-2 border-2 border-dashed p-8 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-action ${
+              isDragging ? 'border-brand-action bg-info-soft' : 'border-line-strong'
             }`}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={openFilePicker}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                openFilePicker()
+              }
+            }}
             onDragOver={(e) => {
               e.preventDefault()
               setIsDragging(true)
@@ -306,74 +279,67 @@ export function ProductImagesTab({ productId }: { productId: string }) {
               type="file"
               accept={ALLOWED_IMAGE_TYPES.join(',')}
               className="hidden"
+              aria-hidden="true"
+              tabIndex={-1}
+              onClick={(e) => e.stopPropagation()}
               onChange={(e) => {
                 handleFiles(e.target.files)
                 e.target.value = ''
               }}
             />
-            <p className="text-sm text-gray-600">{t('products.images.dragDropHint')}</p>
-            {uploadFileMutation.isPending && <p className="text-xs text-gray-400">{t('common.saving')}</p>}
+            <p className="text-sm text-ink-secondary">{t('products.images.dragDropHint')}</p>
+            {uploadFileMutation.isPending && <p className="text-xs text-ink-secondary">{t('common.saving')}</p>}
           </div>
 
-          {fileError && <p className="text-xs text-red-600">{t(`products.images.${fileError}`)}</p>}
+          {fileError && <Alert variant="danger">{t(`products.images.${fileError}`)}</Alert>}
           {(uploadFileMutation.isError || replaceMutation.isError) && (
-            <p className="text-xs text-red-600">{t('common.failedToSave')}</p>
+            <Alert variant="danger">
+              {serverMessage(uploadFileMutation.error ?? replaceMutation.error, t('common.failedToSave'))}
+            </Alert>
           )}
 
-          <button
-            type="button"
-            className="text-xs text-gray-500 hover:text-gray-700 hover:underline"
-            onClick={() => setShowUrlForm((v) => !v)}
-          >
+          <Button variant="link" className="text-xs" onClick={() => setShowUrlForm((v) => !v)}>
             {showUrlForm ? t('common.cancel') : t('products.images.orPasteUrl')}
-          </button>
+          </Button>
 
           {showUrlForm && (
             <form
               onSubmit={handleSubmit((v) => uploadUrlMutation.mutate(v))}
               className="card grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4"
             >
-              <div className="sm:col-span-2 lg:col-span-2">
-                <label className="mb-1 block text-xs font-medium text-gray-700">
-                  {t('products.images.imageUrl')}
-                </label>
-                <input className="input" {...register('imageUrl', { required: true })} placeholder="https://…" />
-                {errors.imageUrl && (
-                  <p className="mt-1 text-xs text-red-600">{t('products.images.imageUrlRequired')}</p>
-                )}
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">
-                  {t('products.images.altText')}
-                </label>
-                <input className="input" {...register('altText')} />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">
-                  {t('products.images.variant')}
-                </label>
-                <select className="input" {...register('variantId')}>
+              <FormField
+                className="sm:col-span-2 lg:col-span-2"
+                label={t('products.images.imageUrl')}
+                required
+                error={errors.imageUrl ? t('products.images.imageUrlRequired') : undefined}
+              >
+                <Input {...register('imageUrl', { required: true })} placeholder="https://…" />
+              </FormField>
+              <FormField label={t('products.images.altText')}>
+                <Input {...register('altText')} />
+              </FormField>
+              <FormField label={t('products.images.variant')}>
+                <Select {...register('variantId')}>
                   <option value="">{t('common.none')}</option>
                   {(variants ?? []).map((v) => (
                     <option key={v.id} value={v.id}>
                       {v.sku}
                     </option>
                   ))}
-                </select>
-              </div>
+                </Select>
+              </FormField>
               <div className="flex items-end gap-2">
-                <label className="flex items-center gap-2 text-xs text-gray-700">
-                  <input type="checkbox" {...register('setAsPrimary')} />
-                  {t('products.images.setPrimary')}
-                </label>
+                <Checkbox label={t('products.images.setPrimary')} {...register('setAsPrimary')} />
               </div>
-              <div className="sm:col-span-2 lg:col-span-4 flex justify-end">
-                <button type="submit" disabled={uploadUrlMutation.isPending} className="btn-primary">
-                  {uploadUrlMutation.isPending ? t('common.saving') : t('products.images.upload')}
-                </button>
+              <div className="flex justify-end sm:col-span-2 lg:col-span-4">
+                <Button type="submit" loading={uploadUrlMutation.isPending}>
+                  {t('products.images.upload')}
+                </Button>
               </div>
               {uploadUrlMutation.isError && (
-                <p className="sm:col-span-2 lg:col-span-4 text-xs text-red-600">{t('common.failedToSave')}</p>
+                <Alert variant="danger" className="sm:col-span-2 lg:col-span-4">
+                  {serverMessage(uploadUrlMutation.error, t('common.failedToSave'))}
+                </Alert>
               )}
             </form>
           )}
