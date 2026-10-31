@@ -66,11 +66,7 @@ export interface VendorReturn {
 }
 export interface PurchasingSettings { quantityTolerancePercent: number; priceTolerancePercent: number; autoApproveMatched: boolean }
 
-/** The server's refusal text (a business-rule 400), or the fallback. */
-export function serverMessage(e: unknown, fallback: string): string {
-  const data = (e as { response?: { data?: { detail?: string; message?: string } } } | null)?.response?.data
-  return data?.detail ?? data?.message ?? fallback
-}
+export { serverMessage } from '@/lib/serverMessage'
 
 const get = <T,>(url: string, params?: object) => apiClient.get<T>(`${PO_BASE}/${url}`, { params }).then((r) => r.data)
 const post = <T,>(url: string, body?: object) => apiClient.post<T>(`${PO_BASE}/${url}`, body).then((r) => r.data)

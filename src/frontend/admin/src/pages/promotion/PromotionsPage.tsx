@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Alert, Button, EmptyState, FormField, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
 import { usePermission } from '@/hooks/usePermission'
+import { serverMessage } from '@/lib/serverMessage'
 
 const KEY = ['promotion', 'promotions']
 const money = (n: number) => `${new Intl.NumberFormat('vi-VN').format(n)} ₫`
@@ -20,9 +21,6 @@ const toLocalInput = (iso?: string) => {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 }
 const ids = (text: string) => text.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean)
-const errorText = (e: unknown, fallback: string) =>
-  (e as { response?: { data?: { message?: string; detail?: string } } })?.response?.data?.detail ??
-  (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback
 
 interface FormValues {
   name: string
@@ -186,7 +184,7 @@ function PromotionModal({ promotion, onClose }: { promotion: Promotion | null; o
             </FormField>
           )}
         </div>
-        {mutation.isError && <Alert variant="danger">{errorText(mutation.error, t('promotion.promotions.failedToSave'))}</Alert>}
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('promotion.promotions.failedToSave'))}</Alert>}
       </form>
     </Modal>
   )
@@ -237,7 +235,7 @@ function CouponsDialog({ promotion, canManage, onClose }: { promotion: Promotion
             </Button>
           </div>
         )}
-        {generate.isError && <Alert variant="danger">{errorText(generate.error, t('promotion.coupons.failed'))}</Alert>}
+        {generate.isError && <Alert variant="danger">{serverMessage(generate.error, t('promotion.coupons.failed'))}</Alert>}
         <div className="max-h-80 overflow-y-auto">
           <DataTable columns={columns} data={data} isLoading={isLoading} emptyState={<EmptyState title={t('promotion.coupons.empty')} />} />
         </div>
@@ -268,7 +266,7 @@ export function PromotionsPage() {
       setTransition(null)
     },
     onError: (e) => {
-      toast.error(errorText(e, t('common.failedToSave')))
+      toast.error(serverMessage(e, t('common.failedToSave')))
       setTransition(null)
     },
   })

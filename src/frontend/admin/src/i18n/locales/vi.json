@@ -1,5 +1,6 @@
 {
   "common": {
+    "required": "Bắt buộc",
     "noResults": "Không có kết quả",
     "noResultsHint": "Không có bản ghi nào khớp với bộ lọc đã chọn.",
     "retry": "Thử lại",
