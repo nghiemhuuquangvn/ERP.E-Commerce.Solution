@@ -249,6 +249,18 @@ export function ProductImagesTab({ productId }: { productId: string }) {
             </div>
           </div>
 
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ALLOWED_IMAGE_TYPES.join(',')}
+            className="hidden"
+            aria-hidden="true"
+            tabIndex={-1}
+            onChange={(e) => {
+              handleFiles(e.target.files)
+              e.target.value = ''
+            }}
+          />
           <div
             role="button"
             tabIndex={0}
@@ -274,19 +286,6 @@ export function ProductImagesTab({ productId }: { productId: string }) {
               handleFiles(e.dataTransfer.files)
             }}
           >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ALLOWED_IMAGE_TYPES.join(',')}
-              className="hidden"
-              aria-hidden="true"
-              tabIndex={-1}
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => {
-                handleFiles(e.target.files)
-                e.target.value = ''
-              }}
-            />
             <p className="text-sm text-ink-secondary">{t('products.images.dragDropHint')}</p>
             {uploadFileMutation.isPending && <p className="text-xs text-ink-secondary">{t('common.saving')}</p>}
           </div>

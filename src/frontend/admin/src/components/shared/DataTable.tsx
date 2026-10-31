@@ -70,8 +70,10 @@ function DataTableInner<T extends { id: string }>({
                       {col.label}
                       {active ? (sortDir === 'desc' ? <ArrowDown size={14} aria-hidden="true" /> : <ArrowUp size={14} aria-hidden="true" />) : <ArrowUpDown size={14} aria-hidden="true" className="opacity-50" />}
                     </button>
-                  ) : (
+                  ) : col.label ? (
                     col.label
+                  ) : (
+                    <span className="sr-only">{t('common.actions')}</span>
                   )}
                 </th>
               )
