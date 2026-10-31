@@ -1,5 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Alert } from '@/components/ui/Alert'
+import { Button } from '@/components/ui/Button'
+import { FormField } from '@/components/ui/FormField'
+import { Input, Textarea } from '@/components/ui/Input'
+import { Modal } from '@/components/ui/Modal'
 
 interface ReasonDialogProps {
   open: boolean
@@ -33,35 +38,50 @@ export function ReasonDialog({
   const { t } = useTranslation()
   const [reason, setReason] = useState('')
   const [date, setDate] = useState('')
-  if (!open) return null
+
+  // A reopened dialog starts empty instead of showing the last reason.
+  useEffect(() => {
+    if (open) {
+      setReason('')
+      setDate('')
+    }
+  }, [open])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-2 text-base font-semibold text-gray-900">{title}</h3>
-        {message && <p className="mb-4 text-sm text-gray-600">{message}</p>}
-        <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.reason')}</label>
-        <textarea className="input mb-3" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
-        {withDate && (
-          <>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{dateLabel}</label>
-            <input type="date" className="input mb-3" value={date} onChange={(e) => setDate(e.target.value)} />
-          </>
-        )}
-        {error && <p className="mb-3 text-xs text-red-600">{error}</p>}
-        <div className="flex justify-end gap-3">
-          <button onClick={onCancel} className="btn-outline">
+    <Modal
+      open={open}
+      title={title}
+      onClose={onCancel}
+      size="sm"
+      closeOnEsc={!busy}
+      footer={
+        <>
+          <Button variant="outline" onClick={onCancel}>
             {t('common.cancel')}
-          </button>
-          <button
-            disabled={busy || reason.trim().length === 0}
+          </Button>
+          <Button
+            variant={danger ? 'danger' : 'primary'}
+            loading={busy}
+            disabled={reason.trim().length === 0}
             onClick={() => onConfirm(reason.trim(), date)}
-            className={danger ? 'btn-danger' : 'btn-primary'}
           >
             {confirmLabel}
-          </button>
-        </div>
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        {message && <p className="text-sm text-ink-secondary">{message}</p>}
+        <FormField label={t('common.reason')}>
+          <Textarea value={reason} onChange={(e) => setReason(e.target.value)} />
+        </FormField>
+        {withDate && (
+          <FormField label={dateLabel ?? ''}>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </FormField>
+        )}
+        {error && <Alert variant="danger">{error}</Alert>}
       </div>
-    </div>
+    </Modal>
   )
 }
