@@ -43,6 +43,7 @@ import { InventoryValuationSnapshotsPage } from '@/pages/inventory/InventoryValu
 import { PaymentsPage } from '@/pages/payments/PaymentsPage'
 import { ShipmentsPage } from '@/pages/shipping/ShipmentsPage'
 import { ReturnsPage } from '@/pages/shipping/ReturnsPage'
+import { NotificationWebhooksPage } from '@/pages/settings/NotificationWebhooksPage'
 import { PromotionsPage } from '@/pages/promotion/PromotionsPage'
 import { FlashSalesPage } from '@/pages/promotion/FlashSalesPage'
 import { LoyaltyPage } from '@/pages/promotion/LoyaltyPage'
@@ -190,6 +191,7 @@ export const router = createBrowserRouter([
       { path: 'payments', element: <PaymentsPage /> },
       { path: 'shipping/shipments', element: <ShipmentsPage /> },
       { path: 'shipping/returns', element: <ReturnsPage /> },
+      { path: 'settings/notification-webhooks', element: <NotificationWebhooksPage /> },
       { path: 'promotion/promotions', element: <PromotionsPage /> },
       { path: 'promotion/flash-sales', element: <FlashSalesPage /> },
       { path: 'promotion/loyalty', element: <LoyaltyPage /> },

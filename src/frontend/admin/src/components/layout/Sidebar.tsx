@@ -56,6 +56,12 @@ const SETTINGS_CHILDREN: NavItem[] = [
     icon: '📝',
   },
   {
+    labelKey: 'nav.notificationWebhooks',
+    path: '/settings/notification-webhooks',
+    permissions: ['notifications:webhooks:manage'],
+    icon: '🔗',
+  },
+  {
     labelKey: 'nav.emailSettings',
     path: '/settings/email',
     permissions: ['settings:email:system:view', 'settings:email:tenant:view'],
