@@ -19,6 +19,7 @@ module.exports = {
         },
         "on-brand": "#ffffff",
         "brand": {
+          "100": "#ffe4e6",
           "500": "#e11d48",
           "600": "#be123c",
           "action": "#e11d48",

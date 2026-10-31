@@ -2,6 +2,8 @@ import { View, Text, ScrollView, TouchableOpacity, Image, FlatList } from 'react
 import { useRouter } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Package } from 'lucide-react-native'
+import { colors, icon } from '@/theme/theme'
 import { apiClient } from '@/api/client'
 
 interface Product {
@@ -58,7 +60,7 @@ export default function HomeScreen() {
                 {item.imageUrl ? (
                   <Image source={{ uri: item.imageUrl }} className="w-full h-full" resizeMode="cover" />
                 ) : (
-                  <Text className="text-4xl">📦</Text>
+                  <Package size={40} strokeWidth={icon.stroke} color={colors.inkMuted} />
                 )}
               </View>
               <Text className="text-sm font-medium text-gray-800 line-clamp-2">{item.name}</Text>

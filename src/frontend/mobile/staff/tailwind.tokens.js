@@ -53,6 +53,7 @@ module.exports = {
           "soft-text": "#374151"
         },
         "primary": {
+          "50": "#f0f9ff",
           "500": "#0369a1",
           "600": "#0369a1"
         }
