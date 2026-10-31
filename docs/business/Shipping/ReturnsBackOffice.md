@@ -2,6 +2,8 @@
 
 Branch `feat/p2-1b-returns-webhooks-templates` (2026-10-31, stacked on R43). Migration Shipping 011. Builds on [ParcelsAndReturns.md](ParcelsAndReturns.md) (the way back of a returned order is booked at the carrier) and [CarrierIntegration.md](CarrierIntegration.md).
 
+User guide for staff (Vietnamese): [shipping-returns.md](../../user-guides/shipping-returns.md).
+
 ## 1. Purpose and scope
 Since P1-11d every return approval books reverse parcels at the carrier, but staff could see them only inside one order's detail. A refused booking (address not served, ward missing) was therefore easy to overlook, and there was no way to book it again or to cancel a pickup at the carrier. This task adds a **Returns** screen under Shipping that lists every return parcel of the shop and lets staff **book again**, mark **goods received** and **cancel the pickup at the carrier**.
 

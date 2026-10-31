@@ -36,6 +36,9 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-10-31 — User guides for the P2-1b screens (`docs/user-guide-p2-1b`, docs only, unmerged)
+- New folder `docs/user-guides/` (Vietnamese, for shop staff): Returns, Webhooks, Message templates, with an index. Written from the code, the Vietnamese labels and the BA documents; no screenshots yet (the screens have not been walked through in a browser).
+
 ### 2026-10-31 — ROADMAP P2-1b: Shipping returns screen, Notification webhooks and template editing (`feat/p2-1b-returns-webhooks-templates`, stacked on R43, unmerged)
 - **Shipping** (migration **011**): `GET shipments/returns` (paged; status, search, needs attention), `POST returns/{id}/rebook`, `POST returns/{id}/cancel` (at the carrier first). **Notification** (migration **014**): `WebhookUrlRules` moved to `ERP.Shared.Security` (Identity uses it too); webhooks keep a sealed secret that an edit keeps, validate address and events, have an event catalog, `POST test`, a delivery log (`WebhookDelivery`, 30 days) and fire `notification.failed`; templates: update, activate / deactivate, delete, override, preview; a switched-off template skips the message; both controllers moved to attribute authorization (allowlist −2).
 - **Admin**: Returns page, Webhooks page, Templates editor (placeholder chips, live preview), menu, en / vi. Guide: `docs/frontend/shipping-notification-admin-guide.md`.

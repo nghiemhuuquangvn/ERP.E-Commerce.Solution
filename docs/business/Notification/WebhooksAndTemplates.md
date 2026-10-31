@@ -2,6 +2,8 @@
 
 Branch `feat/p2-1b-returns-webhooks-templates` (2026-10-31). Migration Notification 014. Builds on [CustomerNotifications.md](CustomerNotifications.md) (what is sent and when) and [module-21-notification.md](module-21-notification.md).
 
+User guides for staff (Vietnamese): [notification-webhooks.md](../../user-guides/notification-webhooks.md), [notification-templates.md](../../user-guides/notification-templates.md).
+
 ## 1. Purpose and scope
 **Webhooks.** A shop can have Notification POST a signed JSON message to its own HTTPS endpoint when a notification is sent or fails. The API existed but had no screen, kept the secret in plain text, wiped it whenever an edit left it out, accepted any address (including the platform's own internal network), recorded nothing about deliveries and could not be tested. **Templates.** The wording of every automatic message could be read but not changed. This task gives the shop a Webhooks screen and a Templates editor, and hardens the backend behind them.
 
