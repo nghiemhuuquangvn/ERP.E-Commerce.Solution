@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { cx } from './cx'
 import { Spinner } from './Spinner'
 
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost' | 'link'
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost' | 'link' | 'link-danger'
 export type ButtonSize = 'sm' | 'md' | 'lg'
 
 const VARIANT: Record<ButtonVariant, string> = {
@@ -13,6 +13,7 @@ const VARIANT: Record<ButtonVariant, string> = {
   danger: 'bg-danger text-on-brand hover:bg-danger-hover',
   ghost: 'text-ink-secondary hover:bg-surface-muted',
   link: 'text-brand-action underline-offset-2 hover:underline',
+  'link-danger': 'text-danger underline-offset-2 hover:underline',
 }
 const SIZE: Record<ButtonSize, string> = { sm: 'h-8 text-sm', md: 'h-9 text-sm', lg: 'h-11 text-base' }
 const PADDING: Record<ButtonSize, string> = { sm: 'px-3', md: 'px-4', lg: 'px-5' }
@@ -34,7 +35,7 @@ export type ButtonProps = LabelProps | IconOnlyProps
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(props, ref) {
   const { variant = 'primary', size = 'md', loading = false, fullWidth, leftIcon, rightIcon, iconOnly, className, disabled, type = 'button', children, ...rest } = props
-  const isLink = variant === 'link'
+  const isLink = variant === 'link' || variant === 'link-danger'
   return (
     <button
       ref={ref}
