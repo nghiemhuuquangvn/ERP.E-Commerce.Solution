@@ -10,6 +10,7 @@ import { Pagination } from '@/components/shared/Pagination'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
 import type { Product } from '@/api/products.api'
+import { Input } from '@/components/ui'
 
 const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 
@@ -153,8 +154,9 @@ export function ProductListPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <input
-          className="input max-w-xs"
+        <Input
+          className="max-w-xs"
+        aria-label={t('products.searchPlaceholder')}
           placeholder={t('products.searchPlaceholder')}
           value={search}
           onChange={handleSearchChange}

@@ -563,6 +563,8 @@
       "fileTooLarge": "Image exceeds the 5 MB limit."
     },
     "variants": {
+      "weightUnit": "Weight unit",
+      "dimensionUnit": "Dimension unit",
       "add": "+ Add Variant",
       "addTitle": "Add Variant",
       "editTitle": "Edit Variant",
@@ -587,6 +589,7 @@
       "conversionFactorInvalid": "Conversion factor must be greater than 0."
     },
     "attributes": {
+      "codeFormat": "Lower-case letters, digits and underscores only.",
       "title": "Product Attributes",
       "subtitle": "Define new specs (e.g. Material, Color) that admins can assign to products and variants — no code or database changes needed.",
       "add": "+ Add Attribute",

@@ -7,6 +7,8 @@ import type { ProductUomConversion } from '@/api/products.api'
 import { unitsOfMeasureApi } from '@/api/masterdata/unitsOfMeasure.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, EmptyState, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface UomConversionFormValues {
   fromUomId: string
@@ -27,6 +29,7 @@ function UomConversionModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!conversion
 
   const { register, handleSubmit, formState: { errors } } = useForm<UomConversionFormValues>({
@@ -53,69 +56,57 @@ function UomConversionModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products', productId, 'uomConversions'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('products.uomConversions.editTitle') : t('products.uomConversions.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.uomConversions.fromUom')}</label>
-            <select className="input" disabled={isEdit} {...register('fromUomId', { required: !isEdit })}>
-              <option value="">{t('common.select')}</option>
-              {uoms.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} ({u.symbol})
-                </option>
-              ))}
-            </select>
-            {errors.fromUomId && <p className="mt-1 text-xs text-red-600">{t('products.uomConversions.fromUom')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.uomConversions.toUom')}</label>
-            <select className="input" disabled={isEdit} {...register('toUomId', { required: !isEdit })}>
-              <option value="">{t('common.select')}</option>
-              {uoms.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} ({u.symbol})
-                </option>
-              ))}
-            </select>
-            {errors.toUomId && <p className="mt-1 text-xs text-red-600">{t('products.uomConversions.toUom')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('products.uomConversions.conversionFactor')}
-            </label>
-            <input
-              type="number"
-              step="0.000001"
-              className="input"
-              {...register('conversionFactor', { required: true, valueAsNumber: true, min: 0.000001 })}
-            />
-            {errors.conversionFactor && (
-              <p className="mt-1 text-xs text-red-600">{t('products.uomConversions.conversionFactorInvalid')}</p>
-            )}
-          </div>
+    <Modal
+      open
+      size="sm"
+      title={isEdit ? t('products.uomConversions.editTitle') : t('products.uomConversions.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="uom-conversion-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="uom-conversion-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('products.uomConversions.fromUom')} required={!isEdit} error={errors.fromUomId ? t('common.required') : undefined}>
+          <Select disabled={isEdit} {...register('fromUomId', { required: !isEdit })}>
+            <option value="">{t('common.select')}</option>
+            {uoms.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name} ({u.symbol})
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('products.uomConversions.toUom')} required={!isEdit} error={errors.toUomId ? t('common.required') : undefined}>
+          <Select disabled={isEdit} {...register('toUomId', { required: !isEdit })}>
+            <option value="">{t('common.select')}</option>
+            {uoms.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name} ({u.symbol})
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('products.uomConversions.conversionFactor')} required error={errors.conversionFactor ? t('common.required') : undefined}>
+          <Input
+            type="number"
+            step="0.000001"
+            {...register('conversionFactor', { required: true, valueAsNumber: true, min: 0.000001 })}
+          />
+        </FormField>
 
-          {mutation.isError && <p className="text-xs text-red-600">{t('common.failedToSave')}</p>}
-
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -148,7 +139,7 @@ export function ProductUomConversionsTab({ productId }: { productId: string }) {
   }
 
   if (!canView) {
-    return <p className="text-sm text-gray-400">{t('common.noPermission')}</p>
+    return <EmptyState variant="forbidden" title={t('common.noPermission')} />
   }
 
   const columns = [
@@ -165,19 +156,17 @@ export function ProductUomConversionsTab({ productId }: { productId: string }) {
     {
       key: 'conversionFactor',
       label: t('products.uomConversions.conversionFactor'),
-      className: 'text-right',
+      align: 'right' as const,
     },
     {
       key: 'actions',
       label: '',
       render: (c: ProductUomConversion) =>
         canManage ? (
-          <button
-            className="text-xs text-primary-600 hover:underline"
-            onClick={() => setModalState({ open: true, conversion: c })}
-          >
+          <Button variant="link" className="text-xs"
+            onClick={() => setModalState({ open: true, conversion: c })}>
             {t('common.edit')}
-          </button>
+          </Button>
         ) : null,
     },
   ]
@@ -186,9 +175,9 @@ export function ProductUomConversionsTab({ productId }: { productId: string }) {
     <div className="space-y-4">
       {canManage && (
         <div className="flex justify-end">
-          <button className="btn-primary" onClick={() => setModalState({ open: true, conversion: null })}>
+          <Button onClick={() => setModalState({ open: true, conversion: null })}>
             {t('products.uomConversions.add')}
-          </button>
+          </Button>
         </div>
       )}
 

@@ -563,6 +563,8 @@
       "fileTooLarge": "Hình ảnh vượt quá giới hạn 5 MB."
     },
     "variants": {
+      "weightUnit": "Đơn vị khối lượng",
+      "dimensionUnit": "Đơn vị kích thước",
       "add": "+ Thêm biến thể",
       "addTitle": "Thêm biến thể",
       "editTitle": "Sửa biến thể",
@@ -587,6 +589,7 @@
       "conversionFactorInvalid": "Hệ số quy đổi phải lớn hơn 0."
     },
     "attributes": {
+      "codeFormat": "Chỉ gồm chữ thường, chữ số và dấu gạch dưới.",
       "title": "Thuộc tính sản phẩm",
       "subtitle": "Định nghĩa thuộc tính mới (ví dụ: Chất liệu, Màu sắc) để gán cho sản phẩm và biến thể — không cần chỉnh sửa code hay cơ sở dữ liệu.",
       "add": "+ Thêm thuộc tính",

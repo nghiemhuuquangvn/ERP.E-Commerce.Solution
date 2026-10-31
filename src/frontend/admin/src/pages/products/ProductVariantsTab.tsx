@@ -14,6 +14,8 @@ import {
   mapExistingValueToAttrValue,
 } from './dynamicAttributeField'
 import type { AttrValue } from './dynamicAttributeField'
+import { Alert, Button, FormField, Input, Modal, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface VariantFormValues {
   sku: string
@@ -52,6 +54,7 @@ function VariantModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!variant
 
   const { register, handleSubmit, formState: { errors } } = useForm<VariantFormValues>({
@@ -134,89 +137,76 @@ function VariantModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products', productId, 'variants'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-lg p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('products.variants.editTitle') : t('products.variants.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.sku')}</label>
-            <input className="input font-mono" disabled={isEdit} {...register('sku', { required: !isEdit })} />
-            {errors.sku && <p className="mt-1 text-xs text-red-600">{t('products.sku')} is required.</p>}
+    <Modal
+      open
+      size="lg"
+      title={isEdit ? t('products.variants.editTitle') : t('products.variants.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="variant-form" loading={mutation.isPending}>{t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="variant-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="grid grid-cols-2 gap-4">
+        <FormField className="col-span-2" label={t('products.sku')} required={!isEdit} error={errors.sku ? t('common.required') : undefined}>
+          <Input className="font-mono" disabled={isEdit} {...register('sku', { required: !isEdit })} />
+        </FormField>
+        <FormField className="col-span-2" label={t('products.variants.barcode')}>
+          <Input {...register('barcode')} />
+        </FormField>
+        <FormField label={t('products.variants.cost')}>
+          <Input type="number" step="0.01" {...register('cost', { valueAsNumber: true })} />
+        </FormField>
+        <FormField label={t('products.variants.weight')}>
+          <div className="flex gap-2">
+            <Input type="number" step="0.01" {...register('weight', { valueAsNumber: true })} />
+            <Input className="w-20" aria-label={t('products.variants.weightUnit')} {...register('weightUnit')} />
           </div>
-          <div className="col-span-2">
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.variants.barcode')}</label>
-            <input className="input" {...register('barcode')} />
+        </FormField>
+        <FormField label={t('products.variants.length')}>
+          <Input type="number" step="0.01" {...register('length', { valueAsNumber: true })} />
+        </FormField>
+        <FormField label={t('products.variants.width')}>
+          <Input type="number" step="0.01" {...register('width', { valueAsNumber: true })} />
+        </FormField>
+        <FormField label={t('products.variants.height')}>
+          <div className="flex gap-2">
+            <Input type="number" step="0.01" {...register('height', { valueAsNumber: true })} />
+            <Input className="w-20" aria-label={t('products.variants.dimensionUnit')} {...register('dimensionUnit')} />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.variants.cost')}</label>
-            <input type="number" step="0.01" className="input" {...register('cost', { valueAsNumber: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.variants.weight')}</label>
-            <div className="flex gap-2">
-              <input type="number" step="0.01" className="input" {...register('weight', { valueAsNumber: true })} />
-              <input className="input w-20" {...register('weightUnit')} />
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.variants.length')}</label>
-            <input type="number" step="0.01" className="input" {...register('length', { valueAsNumber: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.variants.width')}</label>
-            <input type="number" step="0.01" className="input" {...register('width', { valueAsNumber: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.variants.height')}</label>
-            <div className="flex gap-2">
-              <input type="number" step="0.01" className="input" {...register('height', { valueAsNumber: true })} />
-              <input className="input w-20" {...register('dimensionUnit')} />
-            </div>
-          </div>
+        </FormField>
 
-          {attributes && attributes.length > 0 && (
-            <div className="col-span-2 space-y-3 border-t border-gray-100 pt-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                {t('products.tabs.specifications')}
-              </h4>
-              {attributes.map((attr) => (
-                <div key={attr.id}>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
-                    {attr.name}
-                    {attr.unit ? ` (${attr.unit})` : ''}
-                  </label>
-                  <DynamicAttributeField
-                    attribute={attr}
-                    value={attrValues[attr.id]}
-                    onChange={(value) => setAttrValues((prev) => ({ ...prev, [attr.id]: value }))}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {mutation.isError && (
-            <p className="col-span-2 text-xs text-red-600">{t('common.failedToSave')}</p>
-          )}
-
-          <div className="col-span-2 flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
+        {attributes && attributes.length > 0 && (
+          <div className="col-span-2 space-y-3 border-t border-line pt-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-ink-secondary">
+              {t('products.tabs.specifications')}
+            </h4>
+            {attributes.map((attr) => (
+              <DynamicAttributeField
+                key={attr.id}
+                attribute={attr}
+                label={`${attr.name}${attr.unit ? ` (${attr.unit})` : ''}`}
+                value={attrValues[attr.id]}
+                onChange={(value) => setAttrValues((prev) => ({ ...prev, [attr.id]: value }))}
+              />
+            ))}
           </div>
-        </form>
-      </div>
-    </div>
+        )}
+
+        {mutation.isError && (
+          <Alert variant="danger" className="col-span-2">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>
+        )}
+      </form>
+    </Modal>
   )
 }
 
@@ -224,6 +214,7 @@ export function ProductVariantsTab({ productId, categoryId }: { productId: strin
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const canEdit = hasPermission('products:edit')
   const [modalState, setModalState] = useState<{ open: boolean; variant: ProductVariant | null }>({
     open: false,
@@ -240,7 +231,12 @@ export function ProductVariantsTab({ productId, categoryId }: { productId: strin
     mutationFn: (variantId: string) => productsApi.deleteVariant(productId, variantId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products', productId, 'variants'] })
+      toast.success(t('common.saved'))
       setDeleteTarget(null)
+    },
+    onError: (e) => {
+      setDeleteTarget(null)
+      toast.error(serverMessage(e, t('products.variants.deleteLastError')))
     },
   })
 
@@ -251,7 +247,7 @@ export function ProductVariantsTab({ productId, categoryId }: { productId: strin
       key: 'cost',
       label: t('products.variants.cost'),
       render: (v: ProductVariant) => v.cost.toFixed(2),
-      className: 'text-right',
+      align: 'right' as const,
     },
     {
       key: 'weight',
@@ -272,15 +268,13 @@ export function ProductVariantsTab({ productId, categoryId }: { productId: strin
       render: (v: ProductVariant) =>
         canEdit ? (
           <div className="flex gap-3">
-            <button
-              className="text-xs text-primary-600 hover:underline"
-              onClick={() => setModalState({ open: true, variant: v })}
-            >
+            <Button variant="link" className="text-xs"
+              onClick={() => setModalState({ open: true, variant: v })}>
               {t('common.edit')}
-            </button>
-            <button className="text-xs text-red-600 hover:underline" onClick={() => setDeleteTarget(v)}>
+            </Button>
+            <Button variant="link-danger" className="text-xs" onClick={() => setDeleteTarget(v)}>
               {t('common.delete')}
-            </button>
+            </Button>
           </div>
         ) : null,
     },
@@ -290,9 +284,9 @@ export function ProductVariantsTab({ productId, categoryId }: { productId: strin
     <div className="space-y-4">
       {canEdit && (
         <div className="flex justify-end">
-          <button className="btn-primary" onClick={() => setModalState({ open: true, variant: null })}>
+          <Button onClick={() => setModalState({ open: true, variant: null })}>
             {t('products.variants.add')}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -316,9 +310,6 @@ export function ProductVariantsTab({ productId, categoryId }: { productId: strin
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         onCancel={() => setDeleteTarget(null)}
       />
-      {deleteMutation.isError && (
-        <p className="text-xs text-red-600">{t('products.variants.deleteLastError')}</p>
-      )}
     </div>
   )
 }
