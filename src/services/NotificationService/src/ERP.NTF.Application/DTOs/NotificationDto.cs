@@ -44,6 +44,13 @@ public class NotificationTemplateDto
     public bool IsPlatformDefault { get; set; }
 }
 
+public class TemplatePreviewResult
+{
+    public string Subject { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public List<string> UnknownPlaceholders { get; set; } = new();
+}
+
 public class NotificationPreferenceDto
 {
     public Guid UserId { get; set; }

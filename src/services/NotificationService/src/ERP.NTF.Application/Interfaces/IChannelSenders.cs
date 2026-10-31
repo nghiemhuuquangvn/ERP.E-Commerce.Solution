@@ -26,3 +26,9 @@ public interface IWebhookSender
     /// </summary>
     Task<WebhookSendResult> SendAsync(ERP.NTF.Domain.Entities.WebhookEndpoint endpoint, string eventType, object payload, CancellationToken ct = default);
 }
+
+/// <summary>The tenant of the current request (or consumer message). Lets a handler tell the platform tenant from a shop.</summary>
+public interface ICurrentTenantAccessor
+{
+    Guid? CurrentTenantId { get; }
+}

@@ -44,6 +44,11 @@ public interface ITemplateRepository
     Task<List<NotificationTemplate>> GetAllAsync(bool? isActive = null, CancellationToken ct = default);
     Task AddAsync(NotificationTemplate template, CancellationToken ct = default);
     Task UpdateAsync(NotificationTemplate template, CancellationToken ct = default);
+    /// <summary>Whether the current tenant has its OWN template with this code (the platform default does not count).</summary>
+    Task<bool> ExistsForTenantAsync(string code, Guid tenantId, CancellationToken ct = default);
+    /// <summary>True when templates with this code exist but none is active: the message was switched off on purpose.</summary>
+    Task<bool> IsSwitchedOffAsync(string code, CancellationToken ct = default);
+    Task DeleteAsync(NotificationTemplate template, CancellationToken ct = default);
 }
 
 public interface IPreferenceRepository

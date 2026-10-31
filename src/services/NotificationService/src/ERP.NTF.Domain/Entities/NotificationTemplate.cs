@@ -46,9 +46,9 @@ public class NotificationTemplate : AggregateRoot, ISharedReferenceData
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void Deactivate() => IsActive = false;
+    public void Deactivate() { IsActive = false; UpdatedAt = DateTime.UtcNow; }
 
-    public void Activate() => IsActive = true;
+    public void Activate() { IsActive = true; UpdatedAt = DateTime.UtcNow; }
 
     public string Render(Dictionary<string, string> variables) => Fill(Body, variables);
 

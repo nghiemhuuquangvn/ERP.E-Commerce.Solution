@@ -99,9 +99,21 @@ public class TemplateRepository : ITemplateRepository
         // Templates are shared defaults (platform tenant) plus tenant overrides with the same
         // code: the tenant's own template wins.
         await _db.Templates
-            .Where(t => t.Code == code)
+            .Where(t => t.Code == code && t.IsActive)   // a template that was switched off is not used (ROADMAP P2-1b)
             .OrderBy(t => t.TenantId == WellKnownTenants.Platform ? 1 : 0)
             .FirstOrDefaultAsync(ct);
+
+    public async Task<bool> IsSwitchedOffAsync(string code, CancellationToken ct = default) =>
+        await _db.Templates.AnyAsync(t => t.Code == code, ct) && !await _db.Templates.AnyAsync(t => t.Code == code && t.IsActive, ct);
+
+    public async Task<bool> ExistsForTenantAsync(string code, Guid tenantId, CancellationToken ct = default) =>
+        await _db.Templates.AnyAsync(t => t.Code == code && t.TenantId == tenantId, ct);
+
+    public async Task DeleteAsync(NotificationTemplate template, CancellationToken ct = default)
+    {
+        _db.Templates.Remove(template);
+        await _db.SaveChangesAsync(ct);
+    }
 
     public async Task<List<NotificationTemplate>> GetAllAsync(bool? isActive = null, CancellationToken ct = default)
     {

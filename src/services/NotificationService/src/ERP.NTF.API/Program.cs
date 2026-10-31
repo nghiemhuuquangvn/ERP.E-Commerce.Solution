@@ -67,6 +67,7 @@ else
     builder.Services.AddScoped<IPushSender, NullPushSender>();
 
 builder.Services.AddScoped<IWebhookSender, WebhookSender>();
+builder.Services.AddScoped<ICurrentTenantAccessor, CurrentTenantAccessor>();
 // The webhook client: no redirects, a short timeout, and the SSRF rule checked against the ADDRESSES the host resolves to at connect time
 // (a name that resolves to an internal address is refused; the static URL rule alone cannot see that).
 builder.Services.AddHttpClient("webhook", c => c.Timeout = TimeSpan.FromSeconds(10))

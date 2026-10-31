@@ -9,18 +9,18 @@ namespace ERP.NTF.Application.Handlers;
 public class CreateTemplateCommandHandler : IRequestHandler<CreateTemplateCommand, NotificationTemplateDto>
 {
     private readonly ITemplateRepository _templates;
+    private readonly ICurrentTenantAccessor _tenant;
 
-    public CreateTemplateCommandHandler(ITemplateRepository templates) => _templates = templates;
+    public CreateTemplateCommandHandler(ITemplateRepository templates, ICurrentTenantAccessor tenant) { _templates = templates; _tenant = tenant; }
 
     public async Task<NotificationTemplateDto> Handle(CreateTemplateCommand request, CancellationToken cancellationToken)
     {
-        var template = NotificationTemplate.Create(
-            request.Code,
-            request.Name,
-            request.Channel,
-            request.Subject,
-            request.Body,
-            request.Variables);
+        var code = TemplateRules.NormalizeCode(request.Code);
+        var (name, subject, body, variables) = TemplateRules.CheckContent(request.Name, request.Subject, request.Body, request.Variables);
+        if (_tenant.CurrentTenantId is { } tenant && await _templates.ExistsForTenantAsync(code, tenant, cancellationToken))
+            throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("Template.Code", $"A template with the code {code} already exists.");
+
+        var template = NotificationTemplate.Create(code, name, request.Channel, subject, body, variables);
 
         await _templates.AddAsync(template, cancellationToken);
 
