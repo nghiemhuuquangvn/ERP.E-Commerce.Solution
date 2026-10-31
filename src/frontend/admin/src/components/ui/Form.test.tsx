@@ -112,3 +112,13 @@ describe('Checkbox and Switch', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 })
+
+describe('control width', () => {
+  it('fills its container by default and does not fight a width class the caller sets', () => {
+    render(<div><Input aria-label="a" /><Input aria-label="b" className="font-mono w-52" /><Select aria-label="c" className="w-auto"><option>x</option></Select></div>)
+    expect(screen.getByLabelText('a').className).toContain('w-full')
+    expect(screen.getByLabelText('b').className).not.toContain('w-full')
+    expect(screen.getByLabelText('b').className).toContain('w-52')
+    expect(screen.getByLabelText('c').className).not.toContain('w-full')
+  })
+})

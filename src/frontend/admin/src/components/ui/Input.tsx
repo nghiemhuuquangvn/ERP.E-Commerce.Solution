@@ -4,10 +4,13 @@ import { cx } from './cx'
 import { useFieldProps } from './FormField'
 
 const CONTROL =
-  'block w-full rounded-md border bg-surface px-3 text-sm text-ink shadow-sm placeholder:text-ink-muted ' +
+  'block rounded-md border bg-surface px-3 text-sm text-ink shadow-sm placeholder:text-ink-muted ' +
   'focus:outline-none focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50'
 const OK = 'border-line-strong focus:border-brand-action focus:ring-brand-action'
 const BAD = 'border-danger focus:border-danger focus:ring-danger'
+
+/** A control fills its container unless the caller sets its own width (w-52 ...): both classes together would let the stylesheet order decide. */
+const width = (className?: string) => (className && /(^|\s)w-/.test(className) ? '' : 'w-full')
 
 /** Merges the FormField linkage with the props passed explicitly (explicit wins). */
 function useControl(error: boolean | undefined, rest: { id?: string; 'aria-invalid'?: unknown }) {
@@ -23,19 +26,19 @@ interface ErrorProp {
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & ErrorProp>(function Input({ error, className, ...rest }, ref) {
   const { invalid, props } = useControl(error, rest)
-  return <input ref={ref} {...rest} {...props} className={cx(CONTROL, 'h-9 py-2', invalid ? BAD : OK, className)} />
+  return <input ref={ref} {...rest} {...props} className={cx(CONTROL, width(className), 'h-9 py-2', invalid ? BAD : OK, className)} />
 })
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement> & ErrorProp>(function Textarea({ error, className, rows = 3, ...rest }, ref) {
   const { invalid, props } = useControl(error, rest)
-  return <textarea ref={ref} rows={rows} {...rest} {...props} className={cx(CONTROL, 'py-2', invalid ? BAD : OK, className)} />
+  return <textarea ref={ref} rows={rows} {...rest} {...props} className={cx(CONTROL, width(className), 'py-2', invalid ? BAD : OK, className)} />
 })
 
 /** The native select, styled; use it for a few fixed options. */
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement> & ErrorProp>(function Select({ error, className, children, ...rest }, ref) {
   const { invalid, props } = useControl(error, rest)
   return (
-    <select ref={ref} {...rest} {...props} className={cx(CONTROL, 'h-9 py-1.5', invalid ? BAD : OK, className)}>
+    <select ref={ref} {...rest} {...props} className={cx(CONTROL, width(className), 'h-9 py-1.5', invalid ? BAD : OK, className)}>
       {children}
     </select>
   )
