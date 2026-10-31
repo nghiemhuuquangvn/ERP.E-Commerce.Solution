@@ -6,6 +6,7 @@ import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { logger } from './utils/logger'
 import './i18n'
+import './styles/tokens.css'
 import './index.css'
 
 const queryClient = new QueryClient({
