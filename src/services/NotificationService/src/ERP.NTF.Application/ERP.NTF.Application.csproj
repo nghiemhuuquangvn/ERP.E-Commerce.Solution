@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ERP.NTF.Domain\ERP.NTF.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Security\ERP.Shared.Security.csproj" />
   </ItemGroup>
 
 </Project>

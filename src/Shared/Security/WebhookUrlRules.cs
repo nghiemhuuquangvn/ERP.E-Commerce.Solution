@@ -1,15 +1,15 @@
 using System.Net;
 using System.Net.Sockets;
 
-namespace ERP.Identity.Application.Security;
+namespace ERP.Shared.Security;
 
 /// <summary>
-/// SSRF policy for tenant-configured webhook URLs. A webhook URL is chosen by a tenant
-/// admin and then fetched server-side by IdentityService from inside the platform network,
+/// SSRF policy for tenant-configured webhook URLs (shared by Identity and Notification, ROADMAP P2-1b). A webhook URL is chosen by a tenant
+/// admin and then fetched server-side from inside the platform network,
 /// so without this policy it could target internal hosts (sqlserver, other services,
 /// cloud metadata at 169.254.169.254, ...). Enforced twice: statically when the endpoint is
 /// saved (validators), and at connect time against the actually-resolved IPs
-/// (WebhookSender's ConnectCallback — defeats DNS names that resolve/rebind to internal IPs).
+/// (the sender's ConnectCallback — defeats DNS names that resolve/rebind to internal IPs).
 /// </summary>
 public static class WebhookUrlRules
 {

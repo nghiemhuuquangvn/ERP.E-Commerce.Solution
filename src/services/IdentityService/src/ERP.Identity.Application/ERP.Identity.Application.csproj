@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ERP.Identity.Domain\ERP.Identity.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\Security\ERP.Shared.Security.csproj" />
     <!-- References the specific ERP.Shared.* sub-projects this project actually uses
          (CommonServiceRoadmap.md §7 / Part B1), not the umbrella — makes Identity's real
          dependency surface on Shared explicit and verifiable instead of "everything". -->

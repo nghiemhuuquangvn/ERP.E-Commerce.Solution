@@ -1,4 +1,4 @@
-using ERP.Identity.Application.Security;
+using ERP.Shared.Security;
 using FluentValidation;
 
 namespace ERP.Identity.Application.DTOs.Webhook.Validators;
