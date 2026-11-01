@@ -8,6 +8,8 @@ import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, FormField, Input, Modal, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface WarehouseFormValues {
   code: string
@@ -18,6 +20,7 @@ interface WarehouseFormValues {
 function WarehouseModal({ warehouse, onClose }: { warehouse: Warehouse | null; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!warehouse
 
   const { register, handleSubmit, formState: { errors } } = useForm<WarehouseFormValues>({
@@ -31,45 +34,40 @@ function WarehouseModal({ warehouse, onClose }: { warehouse: Warehouse | null; o
         : warehousesApi.create({ code: values.code, name: values.name, address: values.address || undefined }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['warehouses'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('inventory.warehouses.editTitle') : t('inventory.warehouses.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          {!isEdit && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-              <input className="input" {...register('code', { required: true })} />
-              {errors.code && <p className="mt-1 text-xs text-red-600">{t('common.code')} is required.</p>}
-            </div>
-          )}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-            {errors.name && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('inventory.warehouses.address')}</label>
-            <input className="input" {...register('address')} />
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('common.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={isEdit ? t('inventory.warehouses.editTitle') : t('inventory.warehouses.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="warehouse-form" loading={mutation.isPending}>{t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="warehouse-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        {!isEdit && (
+          <FormField label={t('common.code')} required error={errors.code ? t('common.required') : undefined}>
+            <Input {...register('code', { required: true })} />
+          </FormField>
+        )}
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <FormField label={t('inventory.warehouses.address')}>
+          <Input {...register('address')} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -77,6 +75,7 @@ export function WarehousesPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [modalState, setModalState] = useState<{ open: boolean; warehouse: Warehouse | null }>({ open: false, warehouse: null })
   const [confirmTarget, setConfirmTarget] = useState<Warehouse | null>(null)
 
@@ -92,7 +91,12 @@ export function WarehousesPage() {
     mutationFn: (w: Warehouse) => (w.isActive ? warehousesApi.deactivate(w.id) : warehousesApi.activate(w.id)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['warehouses'] })
+      toast.success(t('common.saved'))
       setConfirmTarget(null)
+    },
+    onError: (e) => {
+      setConfirmTarget(null)
+      toast.error(serverMessage(e, t('common.failedToSave')))
     },
   })
 
@@ -112,17 +116,17 @@ export function WarehousesPage() {
         render: (w: Warehouse) =>
           canManage ? (
             <div className="flex gap-3">
-              <button className="text-xs text-primary-600 hover:underline" onClick={() => setModalState({ open: true, warehouse: w })}>
+              <Button variant="link" className="text-xs" onClick={() => setModalState({ open: true, warehouse: w })}>
                 {t('common.edit')}
-              </button>
+              </Button>
               {w.isActive ? (
-                <button className="text-xs text-red-600 hover:underline" onClick={() => setConfirmTarget(w)}>
+                <Button variant="link-danger" className="text-xs" onClick={() => setConfirmTarget(w)}>
                   {t('common.deactivate')}
-                </button>
+                </Button>
               ) : (
-                <button className="text-xs text-green-600 hover:underline" onClick={() => toggleMutation.mutate(w)}>
+                <Button variant="link" className="text-xs" onClick={() => toggleMutation.mutate(w)}>
                   {t('common.activate')}
-                </button>
+                </Button>
               )}
             </div>
           ) : null,
@@ -136,9 +140,9 @@ export function WarehousesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('inventory.warehouses.title')}</h1>
         {canManage && (
-          <button className="btn-primary" onClick={() => setModalState({ open: true, warehouse: null })}>
+          <Button onClick={() => setModalState({ open: true, warehouse: null })}>
             {t('inventory.warehouses.add')}
-          </button>
+          </Button>
         )}
       </div>
 

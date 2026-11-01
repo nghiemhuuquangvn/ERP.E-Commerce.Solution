@@ -2,17 +2,24 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import axios from 'axios'
 import { stocktakesApi } from '@/api/stocktakes.api'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { DataTable } from '@/components/shared/DataTable'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, EmptyState, Input, Spinner, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
+
+type Confirming = 'complete' | 'approve' | 'cancel' | null
 
 export function StocktakeDetailPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [counts, setCounts] = useState<Record<string, string>>({})
+  const [confirming, setConfirming] = useState<Confirming>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
   const { data: stocktake, isLoading } = useQuery({
@@ -21,109 +28,139 @@ export function StocktakeDetailPage() {
     enabled: Boolean(id),
   })
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['stocktakes', id] })
-
-  const runAction = (fn: () => Promise<unknown>) => {
-    setActionError(null)
-    fn()
-      .then(invalidate)
-      .catch((err) => {
-        const message = axios.isAxiosError(err) ? (err.response?.data as { message?: string })?.message : undefined
-        setActionError(message ?? t('common.failedToSave'))
-      })
+  const after = {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stocktakes', id] })
+      toast.success(t('common.saved'))
+      setConfirming(null)
+      setActionError(null)
+    },
+    onError: (e: unknown) => {
+      setConfirming(null)
+      setActionError(serverMessage(e, t('common.failedToSave')))
+    },
   }
 
   const recordCountMutation = useMutation({
-    mutationFn: (productId: string) =>
-      stocktakesApi.recordCount(id!, productId, Number(counts[productId])),
+    mutationFn: (productId: string) => stocktakesApi.recordCount(id!, productId, Number(counts[productId])),
+    ...after,
   })
+  const completeMutation = useMutation({ mutationFn: () => stocktakesApi.complete(id!), ...after })
+  const approveMutation = useMutation({ mutationFn: () => stocktakesApi.approve(id!), ...after })
+  const cancelMutation = useMutation({ mutationFn: () => stocktakesApi.cancel(id!), ...after })
 
-  const completeMutation = useMutation({ mutationFn: () => stocktakesApi.complete(id!) })
-  const approveMutation = useMutation({ mutationFn: () => stocktakesApi.approve(id!) })
-  const cancelMutation = useMutation({ mutationFn: () => stocktakesApi.cancel(id!) })
-
-  if (isLoading) return <div className="text-gray-400">{t('common.loading')}</div>
-  if (!stocktake) return <div className="text-gray-400">{t('inventory.stocktakes.notFound')}</div>
+  if (isLoading) return <Spinner />
+  if (!stocktake) return <EmptyState variant="error" title={t('inventory.stocktakes.notFound')} />
 
   const canManage = hasPermission('inventory:manage')
   const canApprove = hasPermission('inventory:stocktake:approve')
+  const counting = stocktake.status === 'InProgress'
+  const number = stocktake.stocktakeNumber
+
+  const columns = [
+    { key: 'productId', label: t('orders.product'), className: 'font-mono text-xs' },
+    { key: 'systemQuantity', label: t('inventory.stocktakes.systemQuantity'), align: 'right' as const },
+    {
+      key: 'countedQuantity',
+      label: t('inventory.stocktakes.countedQuantity'),
+      align: 'right' as const,
+      render: (line: (typeof stocktake.lines)[number]) =>
+        counting ? (
+          <Input
+            type="number"
+            className="ml-auto w-24 text-right"
+            aria-label={`${t('inventory.stocktakes.countedQuantity')} ${line.productId}`}
+            placeholder={String(line.countedQuantity ?? '')}
+            value={counts[line.productId] ?? ''}
+            onChange={(e) => setCounts({ ...counts, [line.productId]: e.target.value })}
+          />
+        ) : (
+          (line.countedQuantity ?? '—')
+        ),
+    },
+    {
+      key: 'variance',
+      label: t('inventory.stocktakes.variance'),
+      align: 'right' as const,
+      render: (line: (typeof stocktake.lines)[number]) => (
+        <span className={`tabular-nums ${line.variance > 0 ? 'font-medium text-info-soft-text' : line.variance < 0 ? 'font-medium text-danger-soft-text' : ''}`}>
+          {line.variance > 0 ? `+${line.variance}` : line.variance}
+        </span>
+      ),
+    },
+    ...(counting
+      ? [
+          {
+            key: 'record',
+            label: '',
+            render: (line: (typeof stocktake.lines)[number]) => (
+              <Button
+                variant="link"
+                className="text-xs"
+                disabled={!counts[line.productId]?.trim()}
+                loading={recordCountMutation.isPending && recordCountMutation.variables === line.productId}
+                onClick={() => recordCountMutation.mutate(line.productId)}
+              >
+                {t('inventory.stocktakes.recordCount')}
+              </Button>
+            ),
+          },
+        ]
+      : []),
+  ]
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/inventory/stocktakes" className="text-sm text-gray-500 hover:text-gray-700">
+        <Link to="/inventory/stocktakes" className="text-sm text-ink-secondary hover:text-ink">
           {t('inventory.stocktakes.backToStocktakes')}
         </Link>
-        <h1 className="text-xl font-semibold">{stocktake.stocktakeNumber}</h1>
+        <h1 className="text-xl font-semibold">{number}</h1>
         <StatusBadge status={stocktake.status} />
       </div>
 
-      {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+      {actionError && <Alert variant="danger" onClose={() => setActionError(null)}>{actionError}</Alert>}
 
       <div className="flex gap-2">
-        {canManage && stocktake.status === 'InProgress' && (
-          <button className="btn-primary" onClick={() => runAction(() => completeMutation.mutateAsync())}>
-            {t('inventory.stocktakes.complete')}
-          </button>
+        {canManage && counting && (
+          <Button onClick={() => setConfirming('complete')}>{t('inventory.stocktakes.complete')}</Button>
         )}
         {canApprove && stocktake.status === 'PendingApproval' && (
-          <button className="btn-primary" onClick={() => runAction(() => approveMutation.mutateAsync())}>
-            {t('inventory.stocktakes.approve')}
-          </button>
+          <Button onClick={() => setConfirming('approve')}>{t('inventory.stocktakes.approve')}</Button>
         )}
         {canManage && stocktake.status !== 'Completed' && stocktake.status !== 'Cancelled' && (
-          <button className="btn-outline text-red-600" onClick={() => runAction(() => cancelMutation.mutateAsync())}>
-            {t('inventory.stocktakes.cancel')}
-          </button>
+          <Button variant="outline" onClick={() => setConfirming('cancel')}>{t('inventory.stocktakes.cancel')}</Button>
         )}
       </div>
 
-      <div className="card p-5">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 text-left text-xs text-gray-400 uppercase">
-              <th className="pb-2">{t('orders.product')}</th>
-              <th className="pb-2 text-right">{t('inventory.stocktakes.systemQuantity')}</th>
-              <th className="pb-2 text-right">{t('inventory.stocktakes.countedQuantity')}</th>
-              <th className="pb-2 text-right">{t('inventory.stocktakes.variance')}</th>
-              {stocktake.status === 'InProgress' && <th className="pb-2" />}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {stocktake.lines.map((line) => (
-              <tr key={line.productId}>
-                <td className="py-2 font-mono text-xs">{line.productId}</td>
-                <td className="py-2 text-right">{line.systemQuantity}</td>
-                <td className="py-2 text-right">
-                  {stocktake.status === 'InProgress' ? (
-                    <input
-                      type="number"
-                      className="input w-24 text-right"
-                      placeholder={String(line.countedQuantity ?? '')}
-                      value={counts[line.productId] ?? ''}
-                      onChange={(e) => setCounts({ ...counts, [line.productId]: e.target.value })}
-                    />
-                  ) : (
-                    line.countedQuantity ?? '—'
-                  )}
-                </td>
-                <td className={`py-2 text-right ${line.variance !== 0 ? 'font-medium text-yellow-700' : ''}`}>{line.variance}</td>
-                {stocktake.status === 'InProgress' && (
-                  <td className="py-2 text-right">
-                    <button
-                      disabled={!counts[line.productId]?.trim()}
-                      className="text-xs text-primary-600 hover:underline"
-                      onClick={() => runAction(() => recordCountMutation.mutateAsync(line.productId))}
-                    >
-                      {t('inventory.stocktakes.recordCount')}
-                    </button>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable columns={columns} data={stocktake.lines.map((l) => ({ ...l, id: l.productId }))} isLoading={false} />
+
+      <ConfirmDialog
+        open={confirming === 'complete'}
+        title={t('inventory.stocktakes.completeTitle')}
+        message={t('inventory.stocktakes.completeConfirm', { number })}
+        confirmLabel={t('inventory.stocktakes.complete')}
+        onConfirm={() => completeMutation.mutate()}
+        onCancel={() => setConfirming(null)}
+      />
+      <ConfirmDialog
+        open={confirming === 'approve'}
+        title={t('inventory.stocktakes.approveTitle')}
+        message={t('inventory.stocktakes.approveConfirm', { number })}
+        confirmLabel={t('inventory.stocktakes.approve')}
+        danger
+        onConfirm={() => approveMutation.mutate()}
+        onCancel={() => setConfirming(null)}
+      />
+      <ConfirmDialog
+        open={confirming === 'cancel'}
+        title={t('inventory.stocktakes.cancelTitle')}
+        message={t('inventory.stocktakes.cancelConfirm', { number })}
+        confirmLabel={t('inventory.stocktakes.cancel')}
+        danger
+        onConfirm={() => cancelMutation.mutate()}
+        onCancel={() => setConfirming(null)}
+      />
     </div>
   )
 }

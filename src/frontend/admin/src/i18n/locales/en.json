@@ -770,6 +770,8 @@
       "noLot": "— (average cost)"
     },
     "valuationSnapshot": {
+      "closeTitle": "Close the period",
+      "closeConfirm": "Close period \"{{period}}\"? The valuation is frozen as a snapshot and the period is locked.",
       "title": "Inventory Valuation Snapshot",
       "description": "Close a period-end inventory valuation — immutable once closed. A period can only be closed once.",
       "close": "Close Period",
@@ -784,6 +786,7 @@
       "notFound": "No closed snapshot found for this period."
     },
     "adjustment": {
+      "requested": "Adjustment requested - waiting for approval.",
       "title": "Stock Adjustments",
       "request": "Request Adjustment",
       "requestTitle": "Request Stock Adjustment",
@@ -832,6 +835,13 @@
       "deactivateConfirm": "Are you sure you want to deactivate \"{{name}}\"?"
     },
     "stocktakes": {
+      "completeTitle": "Complete the count",
+      "completeConfirm": "Complete \"{{number}}\"? Counting stops and the variances go to approval; stock is not changed yet.",
+      "approveTitle": "Approve the count",
+      "approveConfirm": "Approve \"{{number}}\"? Stock is adjusted by the variances and this cannot be undone.",
+      "cancelTitle": "Cancel the count",
+      "cancelConfirm": "Cancel \"{{number}}\"? The counted quantities are discarded and stock is not changed.",
+      "startHint": "Counts the whole warehouse.",
       "title": "Stocktakes",
       "start": "+ Start Stocktake",
       "number": "Stocktake #",
@@ -848,6 +858,12 @@
       "cancel": "Cancel Stocktake"
     },
     "transfers": {
+      "shipTitle": "Ship the transfer",
+      "shipConfirm": "Ship \"{{number}}\"? Stock leaves the source location.",
+      "completeTitle": "Receive the transfer",
+      "completeConfirm": "Mark \"{{number}}\" as received? Stock is added to the destination location.",
+      "cancelTitle": "Cancel the transfer",
+      "cancelConfirm": "Cancel \"{{number}}\"?",
       "title": "Transfer Orders",
       "new": "+ New Transfer",
       "number": "Transfer #",
