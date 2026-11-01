@@ -2341,7 +2341,7 @@
       "permissionCatalog": "Permission Catalog",
       "permissionCatalogHint": "Read-only reference of all permission codes available in the system.",
       "deleteTitle": "Delete Role",
-      "deleteConfirm": "Delete the role \"{{name}}\"? Everyone who holds it loses its permissions at once (they are signed out of those rights immediately)."
+      "deleteConfirm": "Delete the role \"{{name}}\"? Everyone who holds it loses its permissions at once."
     },
     "tenants": {
       "empty": "No tenants yet.",

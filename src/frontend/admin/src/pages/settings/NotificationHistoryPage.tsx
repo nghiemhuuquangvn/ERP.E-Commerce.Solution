@@ -34,7 +34,7 @@ function DetailModal({ notification, onClose }: { notification: SentNotification
           </Alert>
         )}
         <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('notificationAdmin.log')}</h4>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('notificationAdmin.log')}</h3>
           <ul className="mt-1 space-y-1 text-xs text-ink-secondary">
             {notification.logs.map((l, i) => (
               <li key={i}>{new Date(l.eventTimestamp).toLocaleString()} — {l.eventType}: {l.details}</li>
