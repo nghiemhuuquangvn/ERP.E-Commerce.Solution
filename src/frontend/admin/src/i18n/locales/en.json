@@ -813,6 +813,7 @@
       }
     },
     "locations": {
+      "warehouse": "Warehouse",
       "title": "Locations",
       "add": "+ Add Location",
       "addTitle": "Add Location",

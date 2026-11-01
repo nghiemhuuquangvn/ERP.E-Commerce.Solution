@@ -813,6 +813,7 @@
       }
     },
     "locations": {
+      "warehouse": "Kho",
       "title": "Vị trí kho",
       "add": "+ Thêm vị trí",
       "addTitle": "Thêm vị trí",

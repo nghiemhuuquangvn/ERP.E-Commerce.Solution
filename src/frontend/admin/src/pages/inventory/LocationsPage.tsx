@@ -87,7 +87,7 @@ function LocationModal({ location, onClose }: { location: WarehouseLocation | nu
               <Input {...register('locationCode', { required: true })} />
             </FormField>
           )}
-          <FormField label={t('inventory.warehouses.title')}>
+          <FormField label={t('inventory.locations.warehouse')}>
             <Select {...register('warehouseId')}>
               <option value="">{t('common.select')}</option>
               {(warehouses ?? []).map((w) => (
