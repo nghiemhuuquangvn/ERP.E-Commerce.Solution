@@ -4,11 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { leadsApi, LEAD_SOURCE, type Lead } from '@/api/crm/leads.api'
 import { contactsApi } from '@/api/crm/contacts.api'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { DataTable } from '@/components/shared/DataTable'
 import { Pagination } from '@/components/shared/Pagination'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, EmptyState, FormField, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 // ─── Create modal ───────────────────────────────────────────────────────────
 
@@ -22,6 +25,7 @@ interface CreateFormValues {
 function CreateLeadModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { data: contactsPage } = useQuery({
     queryKey: ['crm', 'contacts', 'picker'],
     queryFn: () => contactsApi.list({ page: 1, pageSize: 100 }),
@@ -42,57 +46,54 @@ function CreateLeadModal({ onClose }: { onClose: () => void }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['crm', 'leads'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('crm.leads.addTitle')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('crm.leads.leadName')}</label>
-            <input className="input" {...register('leadName', { required: true })} />
-            {errors.leadName && <p className="mt-1 text-xs text-red-600">{t('crm.leads.required')}</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('crm.leads.source')}</label>
-            <select className="input" {...register('leadSource')}>
-              {Object.entries(LEAD_SOURCE).map(([label, value]) => (
-                <option key={value} value={value}>
-                  {t(`crm.leads.sources.${label}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('crm.leads.estimatedValue')}</label>
-            <input type="number" step="0.01" className="input" {...register('estimatedValue')} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('crm.leads.contactOptional')}</label>
-            <select className="input" {...register('contactId')}>
-              <option value="">{t('common.none')}</option>
-              {(contactsPage?.items ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('crm.leads.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('crm.leads.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="create-lead-form" loading={mutation.isPending}>{t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="create-lead-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('crm.leads.leadName')} required error={errors.leadName ? t('common.required') : undefined}>
+          <Input {...register('leadName', { required: true })} />
+        </FormField>
+        <FormField label={t('crm.leads.source')}>
+          <Select {...register('leadSource')}>
+            {Object.entries(LEAD_SOURCE).map(([label, value]) => (
+              <option key={value} value={value}>
+                {t(`crm.leads.sources.${label}`)}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('crm.leads.estimatedValue')}>
+          <Input type="number" step="0.01" {...register('estimatedValue')} />
+        </FormField>
+        <FormField label={t('crm.leads.contactOptional')}>
+          <Select {...register('contactId')}>
+            <option value="">{t('common.none')}</option>
+            {(contactsPage?.items ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('crm.leads.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -101,6 +102,7 @@ function CreateLeadModal({ onClose }: { onClose: () => void }) {
 function LoseLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { register, handleSubmit, formState: { errors } } = useForm<{ reason: string }>({
     defaultValues: { reason: '' },
   })
@@ -109,34 +111,32 @@ function LoseLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
     mutationFn: (values: { reason: string }) => leadsApi.lose(lead.id, { reason: values.reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['crm', 'leads'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('crm.leads.loseTitle', { name: lead.leadName })}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('crm.leads.reason')}</label>
-            <textarea className="input" rows={3} {...register('reason', { required: true })} />
-            {errors.reason && <p className="mt-1 text-xs text-red-600">{t('crm.leads.required')}</p>}
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('crm.leads.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-danger">
-              {t('crm.leads.markLost')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('crm.leads.loseTitle', { name: lead.leadName })}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="lose-lead-form" variant="danger" loading={mutation.isPending}>{t('crm.leads.markLost')}</Button>
+        </>
+      }
+    >
+      <form id="lose-lead-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('crm.leads.reason')} required error={errors.reason ? t('common.required') : undefined}>
+          <Textarea rows={3} {...register('reason', { required: true })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('crm.leads.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -149,7 +149,9 @@ export function LeadsTab() {
   const [statusFilter, setStatusFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [loseTarget, setLoseTarget] = useState<Lead | null>(null)
+  const [qualifyTarget, setQualifyTarget] = useState<Lead | null>(null)
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const STATUS_OPTIONS = [
     { value: '', label: t('crm.leads.statusOptions.all') },
@@ -169,12 +171,25 @@ export function LeadsTab() {
 
   const contactMutation = useMutation({
     mutationFn: (id: string) => leadsApi.contact(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['crm', 'leads'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['crm', 'leads'] })
+      toast.success(t('common.saved'))
+    },
+    onError: (e) => toast.error(serverMessage(e, t('crm.leads.failedToSave'))),
   })
 
   const qualifyMutation = useMutation({
     mutationFn: (id: string) => leadsApi.qualify(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['crm', 'leads'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['crm', 'leads'] })
+      queryClient.invalidateQueries({ queryKey: ['crm', 'opportunities'] })
+      toast.success(t('common.saved'))
+      setQualifyTarget(null)
+    },
+    onError: (e) => {
+      setQualifyTarget(null)
+      toast.error(serverMessage(e, t('crm.leads.failedToSave')))
+    },
   })
 
   const columns = useMemo(
@@ -184,6 +199,7 @@ export function LeadsTab() {
       {
         key: 'estimatedValue',
         label: t('crm.leads.estimatedValue'),
+        align: 'right' as const,
         render: (l: Lead) => l.estimatedValue ?? '—',
       },
       {
@@ -198,22 +214,18 @@ export function LeadsTab() {
           canManage && l.leadStatus !== 'Lost' && l.leadStatus !== 'Qualified' ? (
             <div className="flex gap-3">
               {l.leadStatus === 'New' && (
-                <button
-                  className="text-xs text-primary-600 hover:underline"
-                  onClick={() => contactMutation.mutate(l.id)}
-                >
+                <Button variant="link" className="text-xs"
+                  onClick={() => contactMutation.mutate(l.id)}>
                   {t('crm.leads.markContacted')}
-                </button>
+                </Button>
               )}
-              <button
-                className="text-xs text-primary-600 hover:underline"
-                onClick={() => qualifyMutation.mutate(l.id)}
-              >
+              <Button variant="link" className="text-xs"
+                onClick={() => setQualifyTarget(l)}>
                 {t('crm.leads.qualify')}
-              </button>
-              <button className="text-xs text-red-600 hover:underline" onClick={() => setLoseTarget(l)}>
+              </Button>
+              <Button variant="link-danger" className="text-xs" onClick={() => setLoseTarget(l)}>
                 {t('crm.leads.markLost')}
-              </button>
+              </Button>
             </div>
           ) : null,
       },
@@ -224,8 +236,9 @@ export function LeadsTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <select
-          className="input max-w-xs"
+        <Select
+          className="max-w-xs"
+          aria-label={t('common.status')}
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value)
@@ -237,19 +250,42 @@ export function LeadsTab() {
               {o.label}
             </option>
           ))}
-        </select>
+        </Select>
         {canManage && (
-          <button className="btn-primary" onClick={() => setShowCreate(true)}>
+          <Button onClick={() => setShowCreate(true)}>
             {t('crm.leads.add')}
-          </button>
+          </Button>
         )}
       </div>
 
-      <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data?.items ?? []}
+        isLoading={isLoading}
+        emptyState={
+          statusFilter ? (
+            <EmptyState
+              variant="no-results"
+              title={t('common.noResults')}
+              description={t('common.noResultsHint')}
+              action={<Button variant="outline" onClick={() => { setStatusFilter(''); setPage(1) }}>{t('common.clear')}</Button>}
+            />
+          ) : undefined
+        }
+      />
       <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount ?? 0} onPageChange={setPage} />
 
       {showCreate && <CreateLeadModal onClose={() => setShowCreate(false)} />}
       {loseTarget && <LoseLeadModal lead={loseTarget} onClose={() => setLoseTarget(null)} />}
+
+      <ConfirmDialog
+        open={!!qualifyTarget}
+        title={t('crm.leads.qualifyTitle')}
+        message={t('crm.leads.qualifyConfirm', { name: qualifyTarget?.leadName })}
+        confirmLabel={t('crm.leads.qualify')}
+        onConfirm={() => qualifyTarget && qualifyMutation.mutate(qualifyTarget.id)}
+        onCancel={() => setQualifyTarget(null)}
+      />
     </div>
   )
 }

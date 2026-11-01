@@ -1731,6 +1731,8 @@
       "failedToSave": "Failed to save contact. Please try again."
     },
     "leads": {
+      "qualifyTitle": "Qualify lead",
+      "qualifyConfirm": "Qualifying \"{{name}}\" creates an opportunity with the same contact and estimated value, expected to close in 3 months. The lead cannot be changed afterwards. Continue?",
       "add": "+ Add Lead",
       "addTitle": "Add Lead",
       "leadName": "Lead Name",
@@ -1761,6 +1763,7 @@
       "failedToSave": "Failed to save lead. Please try again."
     },
     "opportunities": {
+      "closeDateFuture": "Choose a date after today.",
       "add": "+ Add Opportunity",
       "addTitle": "Add Opportunity",
       "name": "Name",
@@ -1788,6 +1791,9 @@
       "failedToSave": "Failed to save opportunity. Please try again."
     },
     "cases": {
+      "closeTitle": "Close case",
+      "closeConfirm": "Close case \"{{number}}\"? A closed case cannot be changed.",
+      "reassignTitle": "Reassign — {{number}}",
       "add": "+ Open Case",
       "addTitle": "Open Case",
       "caseNumber": "Case #",
@@ -1814,6 +1820,9 @@
       "failedToSave": "Failed to save case. Please try again."
     },
     "activities": {
+      "cancelTitle": "Cancel activity",
+      "cancelConfirm": "Cancel the scheduled activity \"{{subject}}\"?",
+      "idHint": "Paste the ID from the opportunity or case.",
       "add": "+ Log Activity",
       "addTitle": "Log Activity",
       "contact": "Contact",

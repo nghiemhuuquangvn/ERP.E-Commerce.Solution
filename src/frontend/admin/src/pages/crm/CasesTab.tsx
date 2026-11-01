@@ -5,11 +5,17 @@ import { useTranslation } from 'react-i18next'
 import { casesApi, CASE_PRIORITY, type CrmCase } from '@/api/crm/cases.api'
 import { contactsApi } from '@/api/crm/contacts.api'
 import { usersApi } from '@/api/users.api'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { DataTable } from '@/components/shared/DataTable'
 import { Pagination } from '@/components/shared/Pagination'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Badge, Button, EmptyState, FormField, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
+import type { BadgeVariant } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
+
+const PRIORITY_VARIANT: Record<string, BadgeVariant> = { Low: 'muted', Medium: 'info', High: 'warning', Critical: 'danger' }
 
 // ─── Open case modal ────────────────────────────────────────────────────────
 
@@ -23,6 +29,7 @@ interface OpenFormValues {
 function OpenCaseModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { data: contactsPage } = useQuery({
     queryKey: ['crm', 'contacts', 'picker'],
     queryFn: () => contactsApi.list({ page: 1, pageSize: 100 }),
@@ -43,59 +50,54 @@ function OpenCaseModal({ onClose }: { onClose: () => void }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['crm', 'cases'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('crm.cases.addTitle')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('crm.cases.subject')}</label>
-            <input className="input" {...register('title', { required: true })} />
-            {errors.title && <p className="mt-1 text-xs text-red-600">{t('crm.cases.required')}</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('crm.cases.contact')}</label>
-            <select className="input" {...register('contactId', { required: true })}>
-              <option value="">{t('common.select')}</option>
-              {(contactsPage?.items ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            {errors.contactId && <p className="mt-1 text-xs text-red-600">{t('crm.cases.required')}</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('crm.cases.description')}</label>
-            <textarea className="input" rows={3} {...register('description', { required: true })} />
-            {errors.description && <p className="mt-1 text-xs text-red-600">{t('crm.cases.required')}</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('crm.cases.priority')}</label>
-            <select className="input" {...register('priority')}>
-              {Object.entries(CASE_PRIORITY).map(([label, value]) => (
-                <option key={value} value={value}>
-                  {t(`crm.cases.priorities.${label}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('crm.cases.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('crm.cases.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="open-case-form" loading={mutation.isPending}>{t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="open-case-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('crm.cases.subject')} required error={errors.title ? t('common.required') : undefined}>
+          <Input {...register('title', { required: true })} />
+        </FormField>
+        <FormField label={t('crm.cases.contact')} required error={errors.contactId ? t('common.required') : undefined}>
+          <Select {...register('contactId', { required: true })}>
+            <option value="">{t('common.select')}</option>
+            {(contactsPage?.items ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('crm.cases.description')} required error={errors.description ? t('common.required') : undefined}>
+          <Textarea rows={3} {...register('description', { required: true })} />
+        </FormField>
+        <FormField label={t('crm.cases.priority')}>
+          <Select {...register('priority')}>
+            {Object.entries(CASE_PRIORITY).map(([label, value]) => (
+              <option key={value} value={value}>
+                {t(`crm.cases.priorities.${label}`)}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('crm.cases.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -104,6 +106,7 @@ function OpenCaseModal({ onClose }: { onClose: () => void }) {
 function AssignCaseModal({ crmCase, onClose }: { crmCase: CrmCase; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { data: usersPage } = useQuery({
     queryKey: ['crm', 'users', 'picker'],
     queryFn: () => usersApi.list({ page: 1, pageSize: 100 }),
@@ -117,41 +120,39 @@ function AssignCaseModal({ crmCase, onClose }: { crmCase: CrmCase; onClose: () =
     mutationFn: (values: { assignedToUserId: string }) => casesApi.assign(crmCase.id, values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['crm', 'cases'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('crm.cases.assignTitle', { number: crmCase.caseNumber })}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('crm.cases.assignee')}</label>
-            <select className="input" {...register('assignedToUserId', { required: true })}>
-              <option value="">{t('common.select')}</option>
-              {(usersPage?.items ?? []).map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.fullName ?? u.email}
-                </option>
-              ))}
-            </select>
-            {errors.assignedToUserId && <p className="mt-1 text-xs text-red-600">{t('crm.cases.required')}</p>}
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('crm.cases.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('crm.cases.assign')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t(crmCase.assignedToUserId ? 'crm.cases.reassignTitle' : 'crm.cases.assignTitle', { number: crmCase.caseNumber })}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="assign-case-form" loading={mutation.isPending}>{t('crm.cases.assign')}</Button>
+        </>
+      }
+    >
+      <form id="assign-case-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('crm.cases.assignee')} required error={errors.assignedToUserId ? t('common.required') : undefined}>
+          <Select {...register('assignedToUserId', { required: true })}>
+            <option value="">{t('common.select')}</option>
+            {(usersPage?.items ?? []).map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.fullName ?? u.email}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('crm.cases.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -160,6 +161,7 @@ function AssignCaseModal({ crmCase, onClose }: { crmCase: CrmCase; onClose: () =
 function ResolveCaseModal({ crmCase, onClose }: { crmCase: CrmCase; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { register, handleSubmit, formState: { errors } } = useForm<{ resolution: string }>({
     defaultValues: { resolution: '' },
   })
@@ -168,34 +170,32 @@ function ResolveCaseModal({ crmCase, onClose }: { crmCase: CrmCase; onClose: () 
     mutationFn: (values: { resolution: string }) => casesApi.resolve(crmCase.id, values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['crm', 'cases'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('crm.cases.resolveTitle', { number: crmCase.caseNumber })}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('crm.cases.resolution')}</label>
-            <textarea className="input" rows={3} {...register('resolution', { required: true })} />
-            {errors.resolution && <p className="mt-1 text-xs text-red-600">{t('crm.cases.required')}</p>}
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('crm.cases.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('crm.cases.resolve')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('crm.cases.resolveTitle', { number: crmCase.caseNumber })}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="resolve-case-form" loading={mutation.isPending}>{t('crm.cases.resolve')}</Button>
+        </>
+      }
+    >
+      <form id="resolve-case-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('crm.cases.resolution')} required error={errors.resolution ? t('common.required') : undefined}>
+          <Textarea rows={3} {...register('resolution', { required: true })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('crm.cases.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -210,7 +210,9 @@ export function CasesTab() {
   const [statusFilter, setStatusFilter] = useState('')
   const [modal, setModal] = useState<ModalKind>(null)
   const [activeCase, setActiveCase] = useState<CrmCase | null>(null)
+  const [closeTarget, setCloseTarget] = useState<CrmCase | null>(null)
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const STATUS_OPTIONS = [
     { value: '', label: t('crm.cases.statusOptions.all') },
@@ -230,7 +232,15 @@ export function CasesTab() {
 
   const closeMutation = useMutation({
     mutationFn: (id: string) => casesApi.close(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['crm', 'cases'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['crm', 'cases'] })
+      toast.success(t('common.saved'))
+      setCloseTarget(null)
+    },
+    onError: (e) => {
+      setCloseTarget(null)
+      toast.error(serverMessage(e, t('crm.cases.failedToSave')))
+    },
   })
 
   const openModal = (kind: ModalKind, crmCase: CrmCase) => {
@@ -247,7 +257,11 @@ export function CasesTab() {
     () => [
       { key: 'caseNumber', label: t('crm.cases.caseNumber'), className: 'font-mono text-xs' },
       { key: 'caseSubject', label: t('crm.cases.subject') },
-      { key: 'priority', label: t('crm.cases.priority') },
+      {
+        key: 'priority',
+        label: t('crm.cases.priority'),
+        render: (c: CrmCase) => <Badge variant={PRIORITY_VARIANT[c.priority] ?? 'muted'}>{t(`crm.cases.priorities.${c.priority}`, { defaultValue: c.priority })}</Badge>,
+      },
       { key: 'status', label: t('common.status'), render: (c: CrmCase) => <StatusBadge status={c.status} /> },
       {
         key: 'actions',
@@ -255,18 +269,18 @@ export function CasesTab() {
         render: (c: CrmCase) =>
           canManage && c.status !== 'Closed' ? (
             <div className="flex gap-3">
-              <button className="text-xs text-primary-600 hover:underline" onClick={() => openModal('assign', c)}>
+              <Button variant="link" className="text-xs" onClick={() => openModal('assign', c)}>
                 {t('crm.cases.assign')}
-              </button>
+              </Button>
               {c.status !== 'Resolved' && (
-                <button className="text-xs text-primary-600 hover:underline" onClick={() => openModal('resolve', c)}>
+                <Button variant="link" className="text-xs" onClick={() => openModal('resolve', c)}>
                   {t('crm.cases.resolve')}
-                </button>
+                </Button>
               )}
               {c.status === 'Resolved' && (
-                <button className="text-xs text-green-600 hover:underline" onClick={() => closeMutation.mutate(c.id)}>
+                <Button variant="link" className="text-xs" onClick={() => setCloseTarget(c)}>
                   {t('crm.cases.close')}
-                </button>
+                </Button>
               )}
             </div>
           ) : null,
@@ -278,8 +292,9 @@ export function CasesTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <select
-          className="input max-w-xs"
+        <Select
+          className="max-w-xs"
+          aria-label={t('common.status')}
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value)
@@ -291,20 +306,44 @@ export function CasesTab() {
               {o.label}
             </option>
           ))}
-        </select>
+        </Select>
         {canManage && (
-          <button className="btn-primary" onClick={() => setModal('open')}>
+          <Button onClick={() => setModal('open')}>
             {t('crm.cases.add')}
-          </button>
+          </Button>
         )}
       </div>
 
-      <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data?.items ?? []}
+        isLoading={isLoading}
+        emptyState={
+          statusFilter ? (
+            <EmptyState
+              variant="no-results"
+              title={t('common.noResults')}
+              description={t('common.noResultsHint')}
+              action={<Button variant="outline" onClick={() => { setStatusFilter(''); setPage(1) }}>{t('common.clear')}</Button>}
+            />
+          ) : undefined
+        }
+      />
       <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount ?? 0} onPageChange={setPage} />
 
       {modal === 'open' && <OpenCaseModal onClose={closeModal} />}
       {modal === 'assign' && activeCase && <AssignCaseModal crmCase={activeCase} onClose={closeModal} />}
       {modal === 'resolve' && activeCase && <ResolveCaseModal crmCase={activeCase} onClose={closeModal} />}
+
+      <ConfirmDialog
+        open={!!closeTarget}
+        title={t('crm.cases.closeTitle')}
+        message={t('crm.cases.closeConfirm', { number: closeTarget?.caseNumber })}
+        confirmLabel={t('crm.cases.closeTitle')}
+        danger
+        onConfirm={() => closeTarget && closeMutation.mutate(closeTarget.id)}
+        onCancel={() => setCloseTarget(null)}
+      />
     </div>
   )
 }

@@ -10,6 +10,11 @@ import { Pagination } from '@/components/shared/Pagination'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, EmptyState, FormField, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
+
+/** yyyy-mm-dd, `days` days from today (the server only accepts an expected close date in the future). */
+const dayFromToday = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10)
 
 // ─── Create modal ───────────────────────────────────────────────────────────
 
@@ -24,6 +29,7 @@ interface CreateFormValues {
 function CreateOpportunityModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { data: contactsPage } = useQuery({
     queryKey: ['crm', 'contacts', 'picker'],
     queryFn: () => contactsApi.list({ page: 1, pageSize: 100 }),
@@ -40,7 +46,7 @@ function CreateOpportunityModal({ onClose }: { onClose: () => void }) {
       title: '',
       contactId: '',
       value: '',
-      expectedCloseDate: new Date().toISOString().slice(0, 10),
+      expectedCloseDate: dayFromToday(30),
       assignedToUserId: '',
     },
   })
@@ -56,70 +62,68 @@ function CreateOpportunityModal({ onClose }: { onClose: () => void }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['crm', 'opportunities'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('crm.opportunities.addTitle')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('crm.opportunities.name')}</label>
-            <input className="input" {...register('title', { required: true })} />
-            {errors.title && <p className="mt-1 text-xs text-red-600">{t('crm.opportunities.required')}</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('crm.opportunities.contact')}</label>
-            <select className="input" {...register('contactId', { required: true })}>
-              <option value="">{t('common.select')}</option>
-              {(contactsPage?.items ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            {errors.contactId && <p className="mt-1 text-xs text-red-600">{t('crm.opportunities.required')}</p>}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('crm.opportunities.value')}</label>
-              <input type="number" step="0.01" className="input" {...register('value', { required: true })} />
-              {errors.value && <p className="mt-1 text-xs text-red-600">{t('crm.opportunities.required')}</p>}
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                {t('crm.opportunities.expectedCloseDate')}
-              </label>
-              <input type="date" className="input" {...register('expectedCloseDate', { required: true })} />
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('crm.opportunities.assignedToOptional')}
-            </label>
-            <select className="input" {...register('assignedToUserId')}>
-              <option value="">{t('common.none')}</option>
-              {(usersPage?.items ?? []).map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.fullName ?? u.email}
-                </option>
-              ))}
-            </select>
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('crm.opportunities.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('crm.opportunities.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="create-opportunity-form" loading={mutation.isPending}>{t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="create-opportunity-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('crm.opportunities.name')} required error={errors.title ? t('common.required') : undefined}>
+          <Input {...register('title', { required: true })} />
+        </FormField>
+        <FormField label={t('crm.opportunities.contact')} required error={errors.contactId ? t('common.required') : undefined}>
+          <Select {...register('contactId', { required: true })}>
+            <option value="">{t('common.select')}</option>
+            {(contactsPage?.items ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label={t('crm.opportunities.value')} required error={errors.value ? t('common.required') : undefined}>
+            <Input type="number" step="0.01" {...register('value', { required: true })} />
+          </FormField>
+          <FormField
+            label={t('crm.opportunities.expectedCloseDate')}
+            required
+            error={errors.expectedCloseDate ? (errors.expectedCloseDate.type === 'validate' ? t('crm.opportunities.closeDateFuture') : t('common.required')) : undefined}
+          >
+            <Input
+              type="date"
+              min={dayFromToday(1)}
+              {...register('expectedCloseDate', { required: true, validate: (v) => v >= dayFromToday(1) })}
+            />
+          </FormField>
+        </div>
+        <FormField label={t('crm.opportunities.assignedToOptional')}>
+          <Select {...register('assignedToUserId')}>
+            <option value="">{t('common.none')}</option>
+            {(usersPage?.items ?? []).map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.fullName ?? u.email}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('crm.opportunities.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -128,6 +132,7 @@ function CreateOpportunityModal({ onClose }: { onClose: () => void }) {
 function LoseOpportunityModal({ opportunity, onClose }: { opportunity: Opportunity; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { register, handleSubmit, formState: { errors } } = useForm<{ reason: string }>({
     defaultValues: { reason: '' },
   })
@@ -136,34 +141,32 @@ function LoseOpportunityModal({ opportunity, onClose }: { opportunity: Opportuni
     mutationFn: (values: { reason: string }) => opportunitiesApi.lose(opportunity.id, { reason: values.reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['crm', 'opportunities'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('crm.opportunities.loseTitle', { name: opportunity.opportunityName })}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('crm.opportunities.reason')}</label>
-            <textarea className="input" rows={3} {...register('reason', { required: true })} />
-            {errors.reason && <p className="mt-1 text-xs text-red-600">{t('crm.opportunities.required')}</p>}
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('crm.opportunities.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-danger">
-              {t('crm.opportunities.markLost')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('crm.opportunities.loseTitle', { name: opportunity.opportunityName })}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="lose-opportunity-form" variant="danger" loading={mutation.isPending}>{t('crm.opportunities.markLost')}</Button>
+        </>
+      }
+    >
+      <form id="lose-opportunity-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('crm.opportunities.reason')} required error={errors.reason ? t('common.required') : undefined}>
+          <Textarea rows={3} {...register('reason', { required: true })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('crm.opportunities.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -177,6 +180,7 @@ export function OpportunitiesTab() {
   const [showCreate, setShowCreate] = useState(false)
   const [loseTarget, setLoseTarget] = useState<Opportunity | null>(null)
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const STAGE_OPTIONS = [
     { value: '', label: t('crm.opportunities.stageOptions.all') },
@@ -202,20 +206,28 @@ export function OpportunitiesTab() {
 
   const advanceMutation = useMutation({
     mutationFn: (id: string) => opportunitiesApi.advance(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['crm', 'opportunities'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['crm', 'opportunities'] })
+      toast.success(t('common.saved'))
+    },
+    onError: (e) => toast.error(serverMessage(e, t('crm.opportunities.failedToSave'))),
   })
 
   const winMutation = useMutation({
     mutationFn: (id: string) => opportunitiesApi.win(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['crm', 'opportunities'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['crm', 'opportunities'] })
+      toast.success(t('common.saved'))
+    },
+    onError: (e) => toast.error(serverMessage(e, t('crm.opportunities.failedToSave'))),
   })
 
   const columns = useMemo(
     () => [
       { key: 'opportunityName', label: t('crm.opportunities.name') },
       { key: 'stage', label: t('crm.opportunities.stage'), render: (o: Opportunity) => <StatusBadge status={o.stage} /> },
-      { key: 'probabilityPercent', label: t('crm.opportunities.probability'), render: (o: Opportunity) => `${o.probabilityPercent}%` },
-      { key: 'estimatedValue', label: t('crm.opportunities.value'), render: (o: Opportunity) => o.estimatedValue ?? '—' },
+      { key: 'probabilityPercent', label: t('crm.opportunities.probability'), align: 'right' as const, render: (o: Opportunity) => `${o.probabilityPercent}%` },
+      { key: 'estimatedValue', label: t('crm.opportunities.value'), align: 'right' as const, render: (o: Opportunity) => o.estimatedValue ?? '—' },
       {
         key: 'expectedCloseDate',
         label: t('crm.opportunities.expectedCloseDate'),
@@ -227,18 +239,16 @@ export function OpportunitiesTab() {
         render: (o: Opportunity) =>
           canManage && o.stage !== 'Won' && o.stage !== 'Lost' ? (
             <div className="flex gap-3">
-              <button
-                className="text-xs text-primary-600 hover:underline"
-                onClick={() => advanceMutation.mutate(o.id)}
-              >
+              <Button variant="link" className="text-xs"
+                onClick={() => advanceMutation.mutate(o.id)}>
                 {t('crm.opportunities.advance')}
-              </button>
-              <button className="text-xs text-green-600 hover:underline" onClick={() => winMutation.mutate(o.id)}>
+              </Button>
+              <Button variant="link" className="text-xs" onClick={() => winMutation.mutate(o.id)}>
                 {t('crm.opportunities.win')}
-              </button>
-              <button className="text-xs text-red-600 hover:underline" onClick={() => setLoseTarget(o)}>
+              </Button>
+              <Button variant="link-danger" className="text-xs" onClick={() => setLoseTarget(o)}>
                 {t('crm.opportunities.markLost')}
-              </button>
+              </Button>
             </div>
           ) : null,
       },
@@ -249,19 +259,31 @@ export function OpportunitiesTab() {
   return (
     <div className="space-y-4">
       {summary && (
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-          {(['prospecting', 'qualification', 'proposal', 'negotiation', 'won', 'lost'] as const).map((stage) => (
-            <div key={stage} className="card p-3 text-center">
-              <p className="text-xs uppercase text-gray-500">{t(`crm.opportunities.stages.${stage[0].toUpperCase()}${stage.slice(1)}`)}</p>
-              <p className="text-lg font-semibold text-gray-900">{summary[stage]}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-6" role="group" aria-label={t('crm.opportunities.stage')}>
+          {(['prospecting', 'qualification', 'proposal', 'negotiation', 'won', 'lost'] as const).map((stage) => {
+            const name = `${stage[0].toUpperCase()}${stage.slice(1)}` as keyof typeof OPPORTUNITY_STAGE
+            const value = String(OPPORTUNITY_STAGE[name])
+            const active = stageFilter === value
+            return (
+              <button
+                key={stage}
+                type="button"
+                aria-pressed={active}
+                onClick={() => { setStageFilter(active ? '' : value); setPage(1) }}
+                className={`card p-3 text-center transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-action ${active ? 'border-brand-action ring-1 ring-brand-action' : ''}`}
+              >
+                <span className="block text-xs uppercase text-ink-secondary">{t(`crm.opportunities.stages.${name}`)}</span>
+                <span className="block text-lg font-semibold text-ink">{summary[stage]}</span>
+              </button>
+            )
+          })}
         </div>
       )}
 
       <div className="flex items-center justify-between">
-        <select
-          className="input max-w-xs"
+        <Select
+          className="max-w-xs"
+          aria-label={t('crm.opportunities.stage')}
           value={stageFilter}
           onChange={(e) => {
             setStageFilter(e.target.value)
@@ -273,15 +295,29 @@ export function OpportunitiesTab() {
               {o.label}
             </option>
           ))}
-        </select>
+        </Select>
         {canManage && (
-          <button className="btn-primary" onClick={() => setShowCreate(true)}>
+          <Button onClick={() => setShowCreate(true)}>
             {t('crm.opportunities.add')}
-          </button>
+          </Button>
         )}
       </div>
 
-      <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data?.items ?? []}
+        isLoading={isLoading}
+        emptyState={
+          stageFilter ? (
+            <EmptyState
+              variant="no-results"
+              title={t('common.noResults')}
+              description={t('common.noResultsHint')}
+              action={<Button variant="outline" onClick={() => { setStageFilter(''); setPage(1) }}>{t('common.clear')}</Button>}
+            />
+          ) : undefined
+        }
+      />
       <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount ?? 0} onPageChange={setPage} />
 
       {showCreate && <CreateOpportunityModal onClose={() => setShowCreate(false)} />}
