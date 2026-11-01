@@ -1731,6 +1731,8 @@
       "failedToSave": "Lưu liên hệ thất bại. Vui lòng thử lại."
     },
     "leads": {
+      "qualifyTitle": "Chuyển thành cơ hội",
+      "qualifyConfirm": "Chuyển \"{{name}}\" thành đủ điều kiện sẽ tạo một cơ hội với cùng liên hệ và giá trị dự kiến, dự kiến chốt sau 3 tháng. Sau đó không sửa được khách hàng tiềm năng này nữa. Tiếp tục?",
       "add": "+ Thêm khách hàng tiềm năng",
       "addTitle": "Thêm khách hàng tiềm năng",
       "leadName": "Tên khách hàng tiềm năng",
@@ -1761,6 +1763,7 @@
       "failedToSave": "Lưu khách hàng tiềm năng thất bại. Vui lòng thử lại."
     },
     "opportunities": {
+      "closeDateFuture": "Chọn ngày sau hôm nay.",
       "add": "+ Thêm cơ hội",
       "addTitle": "Thêm cơ hội",
       "name": "Tên",
@@ -1788,6 +1791,9 @@
       "failedToSave": "Lưu cơ hội thất bại. Vui lòng thử lại."
     },
     "cases": {
+      "closeTitle": "Đóng yêu cầu hỗ trợ",
+      "closeConfirm": "Đóng yêu cầu \"{{number}}\"? Yêu cầu đã đóng không thể thay đổi.",
+      "reassignTitle": "Giao lại — {{number}}",
       "add": "+ Mở yêu cầu hỗ trợ",
       "addTitle": "Mở yêu cầu hỗ trợ",
       "caseNumber": "Mã yêu cầu",
@@ -1814,6 +1820,9 @@
       "failedToSave": "Lưu yêu cầu hỗ trợ thất bại. Vui lòng thử lại."
     },
     "activities": {
+      "cancelTitle": "Hủy hoạt động",
+      "cancelConfirm": "Hủy hoạt động đã lên lịch \"{{subject}}\"?",
+      "idHint": "Dán mã từ cơ hội hoặc yêu cầu hỗ trợ.",
       "add": "+ Ghi nhận hoạt động",
       "addTitle": "Ghi nhận hoạt động",
       "contact": "Liên hệ",
