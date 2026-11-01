@@ -9,6 +9,8 @@ import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, EmptyState, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface LocationFormValues {
   warehouseId: string
@@ -24,6 +26,7 @@ interface LocationFormValues {
 function LocationModal({ location, onClose }: { location: WarehouseLocation | null; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!location
 
   const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: warehousesApi.list, staleTime: 60_000 })
@@ -58,71 +61,62 @@ function LocationModal({ location, onClose }: { location: WarehouseLocation | nu
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locations'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-lg p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('inventory.locations.editTitle') : t('inventory.locations.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            {!isEdit && (
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-                <input className="input" {...register('locationCode', { required: true })} />
-                {errors.locationCode && <p className="mt-1 text-xs text-red-600">{t('common.code')} is required.</p>}
-              </div>
-            )}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('inventory.warehouses.title')}</label>
-              <select className="input" {...register('warehouseId')}>
-                <option value="">{t('common.select')}</option>
-                {(warehouses ?? []).map((w) => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-              <input className="input" {...register('name')} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('inventory.locations.zone')}</label>
-              <input className="input" {...register('zone')} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('inventory.locations.aisle')}</label>
-              <input className="input" {...register('aisle', { required: true })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('inventory.locations.bin')}</label>
-              <input className="input" {...register('bin', { required: true })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('inventory.locations.shelf')}</label>
-              <input className="input" {...register('shelf', { required: true })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('inventory.locations.capacity')}</label>
-              <input type="number" className="input" {...register('capacity', { required: true, valueAsNumber: true })} />
-            </div>
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('common.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="md"
+      title={isEdit ? t('inventory.locations.editTitle') : t('inventory.locations.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="location-form" loading={mutation.isPending}>{t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="location-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          {!isEdit && (
+            <FormField label={t('common.code')} required error={errors.locationCode ? t('common.required') : undefined}>
+              <Input {...register('locationCode', { required: true })} />
+            </FormField>
+          )}
+          <FormField label={t('inventory.locations.warehouse')}>
+            <Select {...register('warehouseId')}>
+              <option value="">{t('common.select')}</option>
+              {(warehouses ?? []).map((w) => (
+                <option key={w.id} value={w.id}>{w.name}</option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label={t('common.name')}>
+            <Input {...register('name')} />
+          </FormField>
+          <FormField label={t('inventory.locations.zone')}>
+            <Input {...register('zone')} />
+          </FormField>
+          <FormField label={t('inventory.locations.aisle')} required error={errors.aisle ? t('common.required') : undefined}>
+            <Input {...register('aisle', { required: true })} />
+          </FormField>
+          <FormField label={t('inventory.locations.bin')} required error={errors.bin ? t('common.required') : undefined}>
+            <Input {...register('bin', { required: true })} />
+          </FormField>
+          <FormField label={t('inventory.locations.shelf')} required error={errors.shelf ? t('common.required') : undefined}>
+            <Input {...register('shelf', { required: true })} />
+          </FormField>
+          <FormField label={t('inventory.locations.capacity')} required error={errors.capacity ? t('common.required') : undefined}>
+            <Input type="number" {...register('capacity', { required: true, valueAsNumber: true })} />
+          </FormField>
+        </div>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -130,6 +124,8 @@ export function LocationsPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
+  const [warehouseFilter, setWarehouseFilter] = useState('')
   const [modalState, setModalState] = useState<{ open: boolean; location: WarehouseLocation | null }>({ open: false, location: null })
   const [confirmTarget, setConfirmTarget] = useState<WarehouseLocation | null>(null)
 
@@ -139,13 +135,20 @@ export function LocationsPage() {
     staleTime: 30_000,
   })
 
+  const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: warehousesApi.list, staleTime: 60_000 })
   const canManage = hasPermission('inventory:manage')
+  const rows = (data ?? []).filter((l) => !warehouseFilter || l.warehouseId === warehouseFilter).map((l) => ({ ...l, id: l.locationId }))
 
   const toggleMutation = useMutation({
     mutationFn: (l: WarehouseLocation) => (l.isActive ? locationsApi.deactivate(l.locationId) : locationsApi.activate(l.locationId)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locations'] })
+      toast.success(t('common.saved'))
       setConfirmTarget(null)
+    },
+    onError: (e) => {
+      setConfirmTarget(null)
+      toast.error(serverMessage(e, t('common.failedToSave')))
     },
   })
 
@@ -157,7 +160,22 @@ export function LocationsPage() {
       { key: 'aisle', label: t('inventory.locations.aisle') },
       { key: 'bin', label: t('inventory.locations.bin') },
       { key: 'shelf', label: t('inventory.locations.shelf') },
-      { key: 'currentOccupancy', label: `${t('inventory.locations.capacity')}`, render: (l: WarehouseLocation) => `${l.currentOccupancy} / ${l.capacity}` },
+      {
+        key: 'currentOccupancy',
+        label: t('inventory.locations.capacity'),
+        align: 'right' as const,
+        render: (l: WarehouseLocation) => {
+          const pct = l.capacity > 0 ? Math.min(100, Math.round((l.currentOccupancy / l.capacity) * 100)) : 0
+          return (
+            <div className="ml-auto w-32">
+              <div className="text-right text-xs tabular-nums">{l.currentOccupancy} / {l.capacity}</div>
+              <div className="mt-1 h-1.5 rounded-full bg-surface-muted" role="img" aria-label={`${pct}%`}>
+                <div className={`h-1.5 rounded-full ${pct >= 90 ? 'bg-danger' : 'bg-brand-action'}`} style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          )
+        },
+      },
       {
         key: 'isActive',
         label: t('common.status'),
@@ -169,17 +187,17 @@ export function LocationsPage() {
         render: (l: WarehouseLocation) =>
           canManage ? (
             <div className="flex gap-3">
-              <button className="text-xs text-primary-600 hover:underline" onClick={() => setModalState({ open: true, location: l })}>
+              <Button variant="link" className="text-xs" onClick={() => setModalState({ open: true, location: l })}>
                 {t('common.edit')}
-              </button>
+              </Button>
               {l.isActive ? (
-                <button className="text-xs text-red-600 hover:underline" onClick={() => setConfirmTarget(l)}>
+                <Button variant="link-danger" className="text-xs" onClick={() => setConfirmTarget(l)}>
                   {t('common.deactivate')}
-                </button>
+                </Button>
               ) : (
-                <button className="text-xs text-green-600 hover:underline" onClick={() => toggleMutation.mutate(l)}>
+                <Button variant="link" className="text-xs" onClick={() => toggleMutation.mutate(l)}>
                   {t('common.activate')}
-                </button>
+                </Button>
               )}
             </div>
           ) : null,
@@ -193,16 +211,38 @@ export function LocationsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('inventory.locations.title')}</h1>
         {canManage && (
-          <button className="btn-primary" onClick={() => setModalState({ open: true, location: null })}>
+          <Button onClick={() => setModalState({ open: true, location: null })}>
             {t('inventory.locations.add')}
-          </button>
+          </Button>
         )}
       </div>
 
+      <Select
+        className="max-w-xs"
+        aria-label={t('inventory.warehouses.title')}
+        value={warehouseFilter}
+        onChange={(e) => setWarehouseFilter(e.target.value)}
+      >
+        <option value="">{t('common.all')}</option>
+        {(warehouses ?? []).map((w) => (
+          <option key={w.id} value={w.id}>{w.name}</option>
+        ))}
+      </Select>
+
       <DataTable
         columns={columns}
-        data={(data ?? []).map((l) => ({ ...l, id: l.locationId }))}
+        data={rows}
         isLoading={isLoading}
+        emptyState={
+          warehouseFilter ? (
+            <EmptyState
+              variant="no-results"
+              title={t('common.noResults')}
+              description={t('common.noResultsHint')}
+              action={<Button variant="outline" onClick={() => setWarehouseFilter('')}>{t('common.clear')}</Button>}
+            />
+          ) : undefined
+        }
       />
 
       {modalState.open && (

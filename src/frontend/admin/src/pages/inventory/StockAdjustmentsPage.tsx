@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { stockAdjustmentsApi } from '@/api/stockAdjustments.api'
@@ -7,17 +8,57 @@ import { DataTable } from '@/components/shared/DataTable'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
 import { format } from 'date-fns'
+import { Alert, Button, EmptyState, FormField, Modal, Textarea, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 const STATUS_OPTIONS: StockAdjustmentStatus[] = ['Pending', 'Approved', 'Rejected']
+
+function RejectModal({ adjustment, onClose }: { adjustment: StockAdjustment; onClose: () => void }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const toast = useToast()
+  const { register, handleSubmit, formState: { errors } } = useForm<{ reason: string }>({ defaultValues: { reason: '' } })
+
+  const mutation = useMutation({
+    mutationFn: (values: { reason: string }) => stockAdjustmentsApi.reject(adjustment.id, values.reason.trim()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stockAdjustments'] })
+      toast.success(t('common.saved'))
+      onClose()
+    },
+  })
+
+  return (
+    <Modal
+      open
+      size="sm"
+      title={t('inventory.adjustment.rejectTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="reject-adjustment-form" variant="danger" loading={mutation.isPending}>{t('inventory.adjustment.reject')}</Button>
+        </>
+      }
+    >
+      <form id="reject-adjustment-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('inventory.adjustment.reason')} required error={errors.reason ? t('common.required') : undefined}>
+          <Textarea rows={3} placeholder={t('inventory.adjustment.rejectReasonPlaceholder')} {...register('reason', { required: true, validate: (v) => v.trim().length > 0 })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
+  )
+}
 
 export function StockAdjustmentsPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [status, setStatus] = useState<StockAdjustmentStatus | ''>('Pending')
   const [rejectTarget, setRejectTarget] = useState<StockAdjustment | null>(null)
-  const [rejectReason, setRejectReason] = useState('')
-  const [actionError, setActionError] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['stockAdjustments', status],
@@ -25,21 +66,13 @@ export function StockAdjustmentsPage() {
     staleTime: 15_000,
   })
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['stockAdjustments'] })
-
   const approveMutation = useMutation({
     mutationFn: (id: string) => stockAdjustmentsApi.approve(id),
-    onSuccess: invalidate,
-    onError: () => setActionError(t('common.failedToSave')),
-  })
-
-  const rejectMutation = useMutation({
-    mutationFn: () => stockAdjustmentsApi.reject(rejectTarget!.id, rejectReason),
     onSuccess: () => {
-      invalidate()
-      setRejectTarget(null)
-      setRejectReason('')
+      queryClient.invalidateQueries({ queryKey: ['stockAdjustments'] })
+      toast.success(t('common.saved'))
     },
+    onError: (e) => toast.error(serverMessage(e, t('common.failedToSave'))),
   })
 
   const canApprove = hasPermission('inventory:adjustment:approve')
@@ -47,7 +80,16 @@ export function StockAdjustmentsPage() {
   const columns = useMemo(
     () => [
       { key: 'productId', label: t('orders.product'), className: 'font-mono text-xs' },
-      { key: 'quantityDelta', label: t('inventory.adjustment.quantityDelta'), className: 'text-right', render: (a: StockAdjustment) => (a.quantityDelta > 0 ? `+${a.quantityDelta}` : a.quantityDelta) },
+      {
+        key: 'quantityDelta',
+        label: t('inventory.adjustment.quantityDelta'),
+        align: 'right' as const,
+        render: (a: StockAdjustment) => (
+          <span className={`tabular-nums font-medium ${a.quantityDelta > 0 ? 'text-success-soft-text' : 'text-danger-soft-text'}`}>
+            {a.quantityDelta > 0 ? `+${a.quantityDelta}` : a.quantityDelta}
+          </span>
+        ),
+      },
       { key: 'reason', label: t('inventory.adjustment.reason') },
       { key: 'requestedBy', label: t('inventory.adjustment.requestedBy') },
       { key: 'requestedAt', label: t('common.date'), render: (a: StockAdjustment) => format(new Date(a.requestedAt), 'dd MMM yyyy HH:mm') },
@@ -58,12 +100,12 @@ export function StockAdjustmentsPage() {
         render: (a: StockAdjustment) =>
           canApprove && a.status === 'Pending' ? (
             <div className="flex gap-2">
-              <button className="text-xs text-primary-600 hover:underline" onClick={() => approveMutation.mutate(a.id)}>
+              <Button variant="link" className="text-xs" onClick={() => approveMutation.mutate(a.id)}>
                 {t('inventory.adjustment.approve')}
-              </button>
-              <button className="text-xs text-red-600 hover:underline" onClick={() => setRejectTarget(a)}>
+              </Button>
+              <Button variant="link-danger" className="text-xs" onClick={() => setRejectTarget(a)}>
                 {t('inventory.adjustment.reject')}
-              </button>
+              </Button>
             </div>
           ) : null,
       },
@@ -75,54 +117,34 @@ export function StockAdjustmentsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('inventory.adjustment.title')}</h1>
 
-      {actionError && <p className="text-sm text-red-600">{actionError}</p>}
-
-      <div className="flex gap-1">
-        <button
-          onClick={() => setStatus('')}
-          className={`rounded px-3 py-1.5 text-sm ${status === '' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
-        >
+      <div className="flex gap-1" role="group" aria-label={t('common.status')}>
+        <Button size="sm" variant={status === '' ? 'primary' : 'outline'} aria-pressed={status === ''} onClick={() => setStatus('')}>
           {t('common.all')}
-        </button>
+        </Button>
         {STATUS_OPTIONS.map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatus(s)}
-            className={`rounded px-3 py-1.5 text-sm ${status === s ? 'bg-primary-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
-          >
+          <Button key={s} size="sm" variant={status === s ? 'primary' : 'outline'} aria-pressed={status === s} onClick={() => setStatus(s)}>
             {t(`inventory.adjustment.statuses.${s}`)}
-          </button>
+          </Button>
         ))}
       </div>
 
-      <DataTable columns={columns} data={(data ?? []).map((a) => ({ ...a, id: a.id }))} isLoading={isLoading} />
-
-      {rejectTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="card w-full max-w-md p-6">
-            <h3 className="mb-4 text-base font-semibold text-gray-900">{t('inventory.adjustment.rejectTitle')}</h3>
-            <textarea
-              className="input mb-4"
-              rows={3}
-              placeholder={t('inventory.adjustment.rejectReasonPlaceholder')}
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
+      <DataTable
+        columns={columns}
+        data={(data ?? []).map((a) => ({ ...a, id: a.id }))}
+        isLoading={isLoading}
+        emptyState={
+          status ? (
+            <EmptyState
+              variant="no-results"
+              title={t('common.noResults')}
+              description={t('common.noResultsHint')}
+              action={<Button variant="outline" onClick={() => setStatus('')}>{t('common.clear')}</Button>}
             />
-            <div className="flex justify-end gap-3">
-              <button className="btn-outline" onClick={() => setRejectTarget(null)}>
-                {t('common.cancel')}
-              </button>
-              <button
-                className="btn-primary"
-                disabled={!rejectReason.trim() || rejectMutation.isPending}
-                onClick={() => rejectMutation.mutate()}
-              >
-                {t('inventory.adjustment.reject')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          ) : undefined
+        }
+      />
+
+      {rejectTarget && <RejectModal adjustment={rejectTarget} onClose={() => setRejectTarget(null)} />}
     </div>
   )
 }

@@ -3,7 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { inventoryApi } from '@/api/inventory.api'
 import type { Inventory } from '@/api/inventory.api'
-import { serverMessage } from '@/api/purchasing/procurement.api'
+import { Alert, Badge, Button, FormField, Input, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 /**
  * Replenishment policy of one product (ROADMAP P1-9): when available stock plus goods on order is at or below the minimum,
@@ -12,6 +13,7 @@ import { serverMessage } from '@/api/purchasing/procurement.api'
 export function StockPolicyCard({ inventory, canEdit }: { inventory: Inventory; canEdit: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [min, setMin] = useState(inventory.minStock)
   const [max, setMax] = useState(inventory.maxStock)
   const [safety, setSafety] = useState(inventory.safetyStock)
@@ -24,7 +26,10 @@ export function StockPolicyCard({ inventory, canEdit }: { inventory: Inventory; 
 
   const mutation = useMutation({
     mutationFn: () => inventoryApi.updateStockPolicy(inventory.productId, { minStock: min, maxStock: max, safetyStock: safety }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inventory'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] })
+      toast.success(t('common.saved'))
+    },
   })
 
   const valid = safety >= 0 && min >= safety && max > min
@@ -33,38 +38,28 @@ export function StockPolicyCard({ inventory, canEdit }: { inventory: Inventory; 
   return (
     <div className="card space-y-3 p-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-900">{t('inventory.policy.title')}</h2>
-        {inventory.isLowStock && (
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{t('inventory.policy.belowMinimum')}</span>
-        )}
+        <h2 className="text-sm font-semibold text-ink">{t('inventory.policy.title')}</h2>
+        {inventory.isLowStock && <Badge variant="warning">{t('inventory.policy.belowMinimum')}</Badge>}
       </div>
-      <p className="text-xs text-gray-500">{t('inventory.policy.hint')}</p>
+      <p className="text-xs text-ink-secondary">{t('inventory.policy.hint')}</p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {([
           ['minStock', min, setMin],
           ['safetyStock', safety, setSafety],
           ['maxStock', max, setMax],
         ] as const).map(([key, value, setter]) => (
-          <div key={key}>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t(`inventory.policy.${key}`)}</label>
-            <input
-              type="number"
-              min={0}
-              className="input"
-              value={value}
-              disabled={!canEdit}
-              onChange={(e) => setter(Number(e.target.value))}
-            />
-          </div>
+          <FormField key={key} label={t(`inventory.policy.${key}`)}>
+            <Input type="number" min={0} value={value} disabled={!canEdit} onChange={(e) => setter(Number(e.target.value))} />
+          </FormField>
         ))}
       </div>
-      {!valid && <p className="text-xs text-red-600">{t('inventory.policy.invalid')}</p>}
-      {mutation.isError && <p className="text-xs text-red-600">{serverMessage(mutation.error, t('common.failedToSave'))}</p>}
+      {!valid && <Alert variant="warning">{t('inventory.policy.invalid')}</Alert>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>}
       {canEdit && (
         <div className="flex justify-end">
-          <button className="btn-primary" disabled={!valid || !dirty || mutation.isPending} onClick={() => mutation.mutate()}>
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button disabled={!valid || !dirty} loading={mutation.isPending} onClick={() => mutation.mutate()}>
+            {t('common.save')}
+          </Button>
         </div>
       )}
     </div>

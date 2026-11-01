@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Pagination } from '@/components/shared/Pagination'
 import { usePagination } from '@/hooks/usePagination'
 import type { InventoryListItem } from '@/api/inventory.api'
+import { Button, Checkbox, EmptyState, Input } from '@/components/ui'
 
 export function InventoryListPage() {
   const { t } = useTranslation()
@@ -26,7 +27,7 @@ export function InventoryListPage() {
       key: 'productName',
       label: t('orders.product'),
       render: (i: InventoryListItem) => (
-        <Link to={`/inventory/${i.productId}`} className="text-primary-600 hover:underline">
+        <Link to={`/inventory/${i.productId}`} className="text-brand-action hover:underline">
           {i.productName}
         </Link>
       ),
@@ -34,23 +35,23 @@ export function InventoryListPage() {
     {
       key: 'totalQuantity',
       label: t('inventory.onHand'),
-      className: 'text-right',
+      align: 'right' as const,
       render: (i: InventoryListItem) => (
-        <span className={i.totalQuantity === 0 ? 'font-medium text-red-600' : ''}>{i.totalQuantity}</span>
+        <span className={`tabular-nums ${i.totalQuantity === 0 ? 'font-medium text-danger-soft-text' : ''}`}>{i.totalQuantity}</span>
       ),
     },
     {
       key: 'availableQuantity',
       label: t('inventory.available'),
-      className: 'text-right',
+      align: 'right' as const,
       render: (i: InventoryListItem) => (
-        <span className={i.availableQuantity < 5 ? 'font-medium text-yellow-600' : 'font-medium text-green-600'}>
+        <span className={`font-medium tabular-nums ${i.availableQuantity < 5 ? 'text-warning-soft-text' : 'text-success-soft-text'}`}>
           {i.availableQuantity}
         </span>
       ),
     },
-    { key: 'minStock', label: t('inventory.policy.minStock'), className: 'text-right' },
-    { key: 'maxStock', label: t('inventory.policy.maxStock'), className: 'text-right' },
+    { key: 'minStock', label: t('inventory.policy.minStock'), align: 'right' as const },
+    { key: 'maxStock', label: t('inventory.policy.maxStock'), align: 'right' as const },
     {
       key: 'status',
       label: t('common.status'),
@@ -58,34 +59,44 @@ export function InventoryListPage() {
     },
   ]
 
+  const filtered = Boolean(search) || lowStockOnly
+  const clear = () => { setSearch(''); setLowStockOnly(false); setPage(1) }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('inventory.title')}</h1>
       </div>
 
-      <div className="flex gap-3">
-        <input
-          className="input max-w-xs"
+      <div className="flex items-center gap-3">
+        <Input
+          className="max-w-xs"
+          aria-label={t('inventory.searchPlaceholder')}
           placeholder={t('inventory.searchPlaceholder')}
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1) }}
         />
-        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={lowStockOnly}
-            onChange={(e) => { setLowStockOnly(e.target.checked); setPage(1) }}
-            className="rounded border-gray-300"
-          />
-          {t('inventory.lowStockOnly')}
-        </label>
+        <Checkbox
+          label={t('inventory.lowStockOnly')}
+          checked={lowStockOnly}
+          onChange={(e) => { setLowStockOnly(e.target.checked); setPage(1) }}
+        />
       </div>
 
       <DataTable
         columns={columns}
         data={(data?.items ?? []).map((i) => ({ ...i, id: i.productId }))}
         isLoading={isLoading}
+        emptyState={
+          filtered ? (
+            <EmptyState
+              variant="no-results"
+              title={t('common.noResults')}
+              description={t('common.noResultsHint')}
+              action={<Button variant="outline" onClick={clear}>{t('common.clear')}</Button>}
+            />
+          ) : undefined
+        }
       />
       <Pagination page={page} pageSize={pageSize} totalCount={data?.total ?? 0} onPageChange={setPage} />
     </div>

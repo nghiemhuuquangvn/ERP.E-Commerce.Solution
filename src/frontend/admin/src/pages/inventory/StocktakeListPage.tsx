@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -9,13 +9,15 @@ import { DataTable } from '@/components/shared/DataTable'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
 import { format } from 'date-fns'
+import { Button, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 export function StocktakeListPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const user = useAuthStore((s) => s.user)
-  const [starting, setStarting] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['stocktakes'],
@@ -27,8 +29,9 @@ export function StocktakeListPage() {
     mutationFn: () => stocktakesApi.start({ startedBy: user?.email ?? user?.id ?? 'admin' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stocktakes'] })
-      setStarting(false)
+      toast.success(t('common.saved'))
     },
+    onError: (e) => toast.error(serverMessage(e, t('common.failedToSave'))),
   })
 
   const columns = useMemo(
@@ -37,12 +40,12 @@ export function StocktakeListPage() {
         key: 'stocktakeNumber',
         label: t('inventory.stocktakes.number'),
         render: (s: Stocktake) => (
-          <Link to={`/inventory/stocktakes/${s.stocktakeId}`} className="text-primary-600 hover:underline">
+          <Link to={`/inventory/stocktakes/${s.stocktakeId}`} className="text-brand-action hover:underline">
             {s.stocktakeNumber}
           </Link>
         ),
       },
-      { key: 'lines', label: t('inventory.stocktakes.lineCount'), render: (s: Stocktake) => s.lines.length },
+      { key: 'lines', label: t('inventory.stocktakes.lineCount'), align: 'right' as const, render: (s: Stocktake) => s.lines.length },
       { key: 'status', label: t('common.status'), render: (s: Stocktake) => <StatusBadge status={s.status} /> },
       { key: 'startedBy', label: t('inventory.stocktakes.startedBy') },
       { key: 'startedAt', label: t('common.date'), render: (s: Stocktake) => format(new Date(s.startedAt), 'dd MMM yyyy HH:mm') },
@@ -53,11 +56,14 @@ export function StocktakeListPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{t('inventory.stocktakes.title')}</h1>
+        <div>
+          <h1 className="text-xl font-semibold">{t('inventory.stocktakes.title')}</h1>
+          <p className="text-sm text-ink-secondary">{t('inventory.stocktakes.startHint')}</p>
+        </div>
         {hasPermission('inventory:manage') && (
-          <button className="btn-primary" disabled={starting || startMutation.isPending} onClick={() => { setStarting(true); startMutation.mutate() }}>
+          <Button loading={startMutation.isPending} onClick={() => startMutation.mutate()}>
             {t('inventory.stocktakes.start')}
-          </button>
+          </Button>
         )}
       </div>
 
