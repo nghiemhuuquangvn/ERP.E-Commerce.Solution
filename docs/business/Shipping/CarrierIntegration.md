@@ -120,3 +120,6 @@ Sales → Shipping: `CreateShipmentCommand` now carries `RecipientPhone`, `Payme
 | UAT-S8 | Viettel Post "delivered" with another cash amount | delivered; review note "collecting 90,000 … expected 100,000"; appears under *needs attention* |
 | UAT-S9 | Order cancelled by hand | the carrier received the cancel call; shipment *Cancelled* |
 | UAT-S10 | Customer lists shipments | 403; webhook route without a token → 400 (not 401) |
+
+## Admin screen: Carrier selection rules (U3 batch 6, 2026-11-01)
+Settings → Shipping → *Carrier rules* maintains `CarrierSelectionRule` rows (name, priority, carrier GHTK / VTP / GHN, provinces, weight band, order-value band, COD / prepaid, active). The form refuses a minimum above a maximum and a non-integer priority before sending; the server's reason is shown when it refuses. **Delete asks for confirmation** ("new orders no longer use the rule; parcels already booked are unchanged") — it used to delete at once. "Try a parcel" calls `carriers/quote` and books nothing. Full analysis, acceptance criteria and UAT: [../Identity/AdminBackOffice.md](../Identity/AdminBackOffice.md) §4.4; user guide [../../user-guides/shipping-settings.md](../../user-guides/shipping-settings.md).

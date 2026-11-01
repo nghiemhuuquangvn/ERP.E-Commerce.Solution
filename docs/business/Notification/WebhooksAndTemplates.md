@@ -78,3 +78,6 @@ Not done: a browser walk-through of the two screens; a delivery to an endpoint t
 
 ## 9. Open issues
 R61 (plaintext secrets until re-saved), R62 (no retry or auto-disable of a failing endpoint), R63 (no test-send of a template), R64 (the platform tenant edits platform templates in the same screen; no history of template edits), R65 (delivery log kept 30 days only), R66 (a switched-off template skips silently — no warning on the screen for codes the system needs).
+
+## Admin screen: Sent notifications (U3 batch 6, 2026-11-01)
+Settings → Sent notifications lists `notification-history` (filters: status, channel, search on recipient e-mail / subject; empty and no-result states) and opens a read-only detail dialog (message, error with retry count, delivery log). It has no resend or export. Analysis and UAT: [../Identity/AdminBackOffice.md](../Identity/AdminBackOffice.md) §4.5; user guide [../../user-guides/notification-history.md](../../user-guides/notification-history.md).
