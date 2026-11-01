@@ -11,6 +11,11 @@ describe('serverMessage', () => {
     expect(serverMessage(failure({ message: 'Old style' }), 'fallback')).toBe('Old style')
     expect(serverMessage(failure({}), 'fallback')).toBe('fallback')
   })
+  it('reads the first validation error when there is no detail or message', () => {
+    expect(serverMessage(failure({ errors: { reason: ['The value is not valid.'] } }), 'fallback')).toBe('reason: The value is not valid.')
+    expect(serverMessage(failure({ errors: { $: ['bad json'] } }), 'fallback')).toBe('bad json')
+    expect(serverMessage(failure({ errors: {} }), 'fallback')).toBe('fallback')
+  })
   it('ignores a plain-text body and a request that got no answer', () => {
     expect(serverMessage(failure('<html>502</html>'), 'fallback')).toBe('fallback')
     expect(serverMessage(new Error('Network Error'), 'fallback')).toBe('fallback')

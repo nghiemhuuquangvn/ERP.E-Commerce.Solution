@@ -1,6 +1,8 @@
 import { apiClient, WH_BASE } from './whClient'
 
 export type AdjustmentReason = 'Damaged' | 'Lost' | 'Correction' | 'Other'
+/** The request body carries the enum NUMBER (WareHouseService has no string-enum converter: a name is refused with HTTP 400); responses carry the name. */
+export const ADJUSTMENT_REASON: Record<AdjustmentReason, number> = { Damaged: 0, Lost: 1, Correction: 2, Other: 3 }
 export type StockAdjustmentStatus = 'Pending' | 'Approved' | 'Rejected'
 
 export interface StockAdjustment {
@@ -22,7 +24,7 @@ export interface RequestAdjustmentRequest {
   productId: string
   locationId?: string
   quantityDelta: number
-  reason: AdjustmentReason
+  reason: number
   notes?: string
 }
 

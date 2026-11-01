@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { inventoryApi } from '@/api/inventory.api'
 import { stockAdjustmentsApi } from '@/api/stockAdjustments.api'
+import { ADJUSTMENT_REASON } from '@/api/stockAdjustments.api'
 import type { AdjustmentReason } from '@/api/stockAdjustments.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { usePermission } from '@/hooks/usePermission'
@@ -34,7 +35,7 @@ function RequestAdjustmentModal({ productId, onClose }: { productId: string; onC
       stockAdjustmentsApi.request({
         productId,
         quantityDelta: Number(v.quantityDelta),
-        reason: v.reason,
+        reason: ADJUSTMENT_REASON[v.reason],
         notes: v.notes || undefined,
       }),
     onSuccess: () => {
