@@ -137,3 +137,6 @@ Cancelling an order that was paid refunds the whole payment (nothing shipped), f
 | S9 | COD order, 2 tees (0.8 kg each) to Ho Chi Minh | fee 30 000, total 130 000, GHTK `pick_money` 130 000, weight 0.8 per item, invoice delivery net 30 000 |
 | S10 | Invoice entry (October period reopened for the check, then restored) | Dr 131 130 000 / Cr 5111 100 000 / Cr 5113 30 000 |
 | S11 | Return of a 130 000 order: 130 000 without tick; 100 000; 130 000 with tick; 70 000 with tick on a 1-tee order | 409; 200 (fee not refunded); 200 (refunded); 200 |
+
+## Admin screen: Delivery fee rows (U3 batch 6, 2026-11-01)
+Settings → Shipping → *Delivery fees* maintains `ShippingFeeRule` rows (name, priority, fee ≥ 0, provinces, weight band, active). The form refuses a negative fee, a non-integer priority and a "from" weight above "up to"; **Delete asks for confirmation** (new orders pay the next matching row or the flat fee; placed orders are unchanged). "Try a parcel" calls `shipping/fee` and charges nothing. Analysis and UAT: [../Identity/AdminBackOffice.md](../Identity/AdminBackOffice.md) §4.4; user guide [../../user-guides/shipping-settings.md](../../user-guides/shipping-settings.md).

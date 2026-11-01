@@ -1336,6 +1336,7 @@
     }
   },
   "notificationAdmin": {
+    "empty": "No notifications were sent yet.",
     "historyTitle": "Sent notifications",
     "historyHint": "Every message the system sent or tried to send to your customers and staff.",
     "time": "Time",
@@ -2194,6 +2195,11 @@
         }
       },
       "fees": {
+        "priorityWhole": "Enter a whole number.",
+        "feeMin": "The fee cannot be negative.",
+        "rangeOrder": "The minimum must not be above the maximum.",
+        "deleteTitle": "Delete fee row",
+        "deleteConfirm": "Delete the fee row \"{{name}}\"? New orders pay the next matching row or the flat fee; orders already placed are unchanged.",
         "title": "Delivery price list",
         "hint": "What the customer pays for delivery: the first active row (lowest priority number) that matches the province and the parcel weight sets the fee. A parcel no row matches pays the flat fee of the Tenant tab; goods worth the free-delivery threshold or more are free. This is your price to the customer, not the carrier's cost.",
         "add": "Add fee row",
@@ -2219,6 +2225,10 @@
         "resultFree": "Free delivery: the goods reach the threshold of {{threshold}} ₫."
       },
       "rules": {
+        "priorityWhole": "Enter a whole number.",
+        "rangeOrder": "The minimum must not be above the maximum.",
+        "deleteTitle": "Delete rule",
+        "deleteConfirm": "Delete the rule \"{{name}}\"? New orders no longer use it; parcels already booked are unchanged.",
         "title": "Carrier selection rules",
         "hint": "Orders are offered to the first matching rule's carrier (lowest priority number first). Orders no rule matches go to the cheapest quote. A carrier that refuses passes the parcel to the next one.",
         "add": "Add rule",
@@ -2283,6 +2293,12 @@
   },
   "identity": {
     "users": {
+      "empty": "No users in this tenant yet.",
+      "remove": "Remove",
+      "removeRole": "Remove role {{role}}",
+      "roleToAssign": "Role to assign",
+      "inviteHint": "The person must already have an account. They are added to this tenant (no account is created and no e-mail is sent).",
+      "unlockConfirm": "Unlock \"{{email}}\"? They can sign in again.",
       "title": "Users",
       "email": "Email",
       "fullName": "Full Name",
@@ -2300,9 +2316,9 @@
       "locked": "Locked",
       "lockTitle": "Lock User",
       "unlockTitle": "Unlock User",
-      "lockConfirm": "Are you sure about this action for \"{{email}}\"?",
+      "lockConfirm": "Lock \"{{email}}\"? They are signed out everywhere at once and cannot sign in until unlocked.",
       "deactivateTitle": "Deactivate User",
-      "deactivateConfirm": "Are you sure you want to deactivate \"{{email}}\"?",
+      "deactivateConfirm": "Deactivate \"{{email}}\"? They are signed out everywhere at once and lose access to this tenant.",
       "invite": "Invite User",
       "inviteTitle": "Invite Existing User to This Tenant",
       "roleOptional": "Role (optional)",
@@ -2311,6 +2327,10 @@
       "inviteFailed": "Failed to invite user. Check the email and try again."
     },
     "roles": {
+      "empty": "No roles yet.",
+      "codeHint": "The code cannot be changed later.",
+      "filterPermissions": "Filter permissions",
+      "granted": "{{count}} of {{total}} granted",
       "title": "Roles",
       "add": "Add Role",
       "addTitle": "Add Role",
@@ -2321,9 +2341,11 @@
       "permissionCatalog": "Permission Catalog",
       "permissionCatalogHint": "Read-only reference of all permission codes available in the system.",
       "deleteTitle": "Delete Role",
-      "deleteConfirm": "Are you sure you want to delete \"{{name}}\"?"
+      "deleteConfirm": "Delete the role \"{{name}}\"? Everyone who holds it loses its permissions at once."
     },
     "tenants": {
+      "empty": "No tenants yet.",
+      "codeHint": "The code cannot be changed later.",
       "title": "Tenants",
       "add": "Add Tenant",
       "addTitle": "Add Tenant",

@@ -13,6 +13,8 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
 import { useAuthStore } from '@/stores/auth.store'
+import { Alert, Badge, Button, EmptyState, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface ProfileFormValues {
   fullName: string
@@ -22,6 +24,7 @@ interface ProfileFormValues {
 function EditProfileModal({ user, onClose }: { user: UserDetail; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { register, handleSubmit } = useForm<ProfileFormValues>({
     defaultValues: { fullName: user.fullName ?? '', userName: user.userName ?? '' },
   })
@@ -31,35 +34,36 @@ function EditProfileModal({ user, onClose }: { user: UserDetail; onClose: () => 
       usersApi.updateProfile(user.id, { fullName: values.fullName, userName: values.userName }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['identity', 'users'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('identity.users.editProfileTitle')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('identity.users.fullName')}</label>
-            <input className="input" {...register('fullName')} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('identity.users.userName')}</label>
-            <input className="input" {...register('userName')} />
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('common.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('identity.users.editProfileTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="profile-form" loading={mutation.isPending}>{t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="profile-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <p className="text-sm text-ink-secondary">{user.email}</p>
+        <FormField label={t('identity.users.fullName')}>
+          <Input {...register('fullName')} />
+        </FormField>
+        <FormField label={t('identity.users.userName')}>
+          <Input {...register('userName')} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -74,6 +78,7 @@ function ManageRolesModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [roleCode, setRoleCode] = useState('')
 
   const { data: availableRoles } = useQuery({
@@ -88,13 +93,17 @@ function ManageRolesModal({
     mutationFn: (code: string) => usersApi.assignRole(user.id, code),
     onSuccess: () => {
       invalidate()
+      toast.success(t('common.saved'))
       setRoleCode('')
     },
   })
 
   const removeMutation = useMutation({
     mutationFn: (roleId: string) => usersApi.removeRole(user.id, roleId),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate()
+      toast.success(t('common.saved'))
+    },
   })
 
   const assignableRoles = useMemo(
@@ -102,56 +111,57 @@ function ManageRolesModal({
     [availableRoles, user.roleAssignments],
   )
 
+  const error = assignMutation.isError ? assignMutation.error : removeMutation.isError ? removeMutation.error : null
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('identity.users.manageRolesTitle', { email: user.email })}
-        </h3>
-
-        <ul className="mb-4 space-y-2">
-          {user.roleAssignments.length === 0 && (
-            <li className="text-sm text-gray-400">{t('identity.users.noRoles')}</li>
-          )}
-          {user.roleAssignments.map((ra) => (
-            <li key={ra.roleId} className="flex items-center justify-between rounded border border-gray-200 px-3 py-2">
-              <span className="text-sm text-gray-800">{ra.roleName}</span>
-              <button
-                className="text-xs text-red-600 hover:underline disabled:opacity-40"
-                disabled={removeMutation.isPending}
-                onClick={() => removeMutation.mutate(ra.roleId)}
-              >
-                {t('common.delete')}
-              </button>
-            </li>
-          ))}
-        </ul>
-
-        <div className="flex gap-2">
-          <select className="input flex-1" value={roleCode} onChange={(e) => setRoleCode(e.target.value)}>
-            <option value="">{t('common.select')}</option>
-            {assignableRoles.map((r) => (
-              <option key={r.id} value={r.roleCode}>
-                {r.roleName}
-              </option>
+    <Modal
+      open
+      size="sm"
+      title={t('identity.users.manageRolesTitle', { email: user.email })}
+      onClose={onClose}
+      footer={<Button variant="outline" onClick={onClose}>{t('common.close')}</Button>}
+    >
+      <div className="space-y-4">
+        {user.roleAssignments.length === 0 ? (
+          <p className="text-sm text-ink-secondary">{t('identity.users.noRoles')}</p>
+        ) : (
+          <ul className="space-y-2">
+            {user.roleAssignments.map((ra) => (
+              <li key={ra.roleId} className="flex items-center justify-between rounded border border-line px-3 py-2">
+                <span className="text-sm text-ink">{ra.roleName}</span>
+                <Button
+                  variant="link-danger"
+                  className="text-xs"
+                  aria-label={t('identity.users.removeRole', { role: ra.roleName })}
+                  disabled={removeMutation.isPending}
+                  onClick={() => removeMutation.mutate(ra.roleId)}
+                >
+                  {t('identity.users.remove')}
+                </Button>
+              </li>
             ))}
-          </select>
-          <button
-            className="btn-primary"
-            disabled={!roleCode || assignMutation.isPending}
-            onClick={() => assignMutation.mutate(roleCode)}
-          >
+          </ul>
+        )}
+
+        <div className="flex items-end gap-2">
+          <FormField label={t('identity.users.roleToAssign')} className="flex-1">
+            <Select value={roleCode} onChange={(e) => setRoleCode(e.target.value)}>
+              <option value="">{t('common.select')}</option>
+              {assignableRoles.map((r) => (
+                <option key={r.id} value={r.roleCode}>
+                  {r.roleName}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <Button disabled={!roleCode} loading={assignMutation.isPending} onClick={() => assignMutation.mutate(roleCode)}>
             {t('identity.users.assignRole')}
-          </button>
+          </Button>
         </div>
 
-        <div className="flex justify-end pt-6">
-          <button type="button" onClick={onClose} className="btn-outline">
-            {t('common.close')}
-          </button>
-        </div>
+        {error && <Alert variant="danger">{serverMessage(error, t('common.failedToSave'))}</Alert>}
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -163,7 +173,7 @@ interface InviteFormValues {
 function InviteUserModal({ tenantId, onClose }: { tenantId: string; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { register, handleSubmit, formState: { errors } } = useForm<InviteFormValues>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<InviteFormValues>({
     defaultValues: { email: '', roleCode: '' },
   })
 
@@ -178,52 +188,47 @@ function InviteUserModal({ tenantId, onClose }: { tenantId: string; onClose: () 
       usersApi.invite({ email: values.email, roleCode: values.roleCode || null }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['identity', 'users'] })
-      onClose()
+      reset()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('identity.users.inviteTitle')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('identity.users.email')}</label>
-            <input type="email" className="input" {...register('email', { required: true })} />
-            {errors.email && <p className="mt-1 text-xs text-red-600">{t('identity.users.email')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('identity.users.roleOptional')}
-            </label>
-            <select className="input" {...register('roleCode')}>
-              <option value="">{t('common.none')}</option>
-              {(availableRoles ?? []).map((r) => (
-                <option key={r.id} value={r.roleCode}>
-                  {r.roleName}
-                </option>
-              ))}
-            </select>
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('identity.users.inviteFailed')}</p>}
-          {mutation.isSuccess && (
-            <p className="text-xs text-green-600">
-              {mutation.data.alreadyMember
-                ? t('identity.users.inviteAlreadyMember')
-                : t('identity.users.inviteSuccess')}
-            </p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.close')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('identity.users.invite')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('identity.users.inviteTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.close')}</Button>
+          <Button type="submit" form="invite-form" loading={mutation.isPending}>{t('identity.users.invite')}</Button>
+        </>
+      }
+    >
+      <form id="invite-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <p className="text-sm text-ink-secondary">{t('identity.users.inviteHint')}</p>
+        <FormField label={t('identity.users.email')} required error={errors.email ? t('common.required') : undefined}>
+          <Input type="email" {...register('email', { required: true })} />
+        </FormField>
+        <FormField label={t('identity.users.roleOptional')}>
+          <Select {...register('roleCode')}>
+            <option value="">{t('common.none')}</option>
+            {(availableRoles ?? []).map((r) => (
+              <option key={r.id} value={r.roleCode}>
+                {r.roleName}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('identity.users.inviteFailed'))}</Alert>}
+        {mutation.isSuccess && (
+          <Alert variant={mutation.data.alreadyMember ? 'info' : 'success'}>
+            {mutation.data.alreadyMember ? t('identity.users.inviteAlreadyMember') : t('identity.users.inviteSuccess')}
+          </Alert>
+        )}
+      </form>
+    </Modal>
   )
 }
 
@@ -233,6 +238,7 @@ export function UsersPage() {
   const authUser = useAuthStore((s) => s.user)
   const { page, pageSize, setPage } = usePagination()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const canViewTenants = hasPermission('identity:tenants:view')
   const canManage = hasPermission('identity:users:manage')
@@ -267,7 +273,12 @@ export function UsersPage() {
     mutationFn: (u: UserDetail) => (u.isLocked ? usersApi.unlock(u.id) : usersApi.lock(u.id)),
     onSuccess: () => {
       invalidate()
+      toast.success(t('common.saved'))
       setLockTarget(null)
+    },
+    onError: (e) => {
+      setLockTarget(null)
+      toast.error(serverMessage(e, t('common.failedToSave')))
     },
   })
 
@@ -275,7 +286,12 @@ export function UsersPage() {
     mutationFn: (u: UserDetail) => usersApi.deactivate(u.id),
     onSuccess: () => {
       invalidate()
+      toast.success(t('common.saved'))
       setDeactivateTarget(null)
+    },
+    onError: (e) => {
+      setDeactivateTarget(null)
+      toast.error(serverMessage(e, t('common.failedToSave')))
     },
   })
 
@@ -286,14 +302,23 @@ export function UsersPage() {
       {
         key: 'roles',
         label: t('identity.users.roles'),
-        render: (u: UserDetail) => (u.roles.length ? u.roles.join(', ') : '—'),
+        render: (u: UserDetail) =>
+          u.roles.length ? (
+            <div className="flex flex-wrap gap-1">
+              {u.roles.map((r) => (
+                <Badge key={r}>{r}</Badge>
+              ))}
+            </div>
+          ) : (
+            '—'
+          ),
       },
       {
         key: 'status',
         label: t('common.status'),
         render: (u: UserDetail) => (
           <div className="flex gap-1">
-            <StatusBadge status={u.isActive ? 'Active' : 'Cancelled'} label={u.isActive ? t('common.activate') : t('common.deactivate')} />
+            <StatusBadge status={u.isActive ? 'Active' : 'Inactive'} label={u.isActive ? t('common.active') : t('common.inactive')} />
             {u.isLocked && <StatusBadge status="Failed" label={t('identity.users.locked')} />}
           </div>
         ),
@@ -301,65 +326,85 @@ export function UsersPage() {
       {
         key: 'actions',
         label: '',
-        render: (u: UserDetail) => (
-          <div className="flex flex-wrap gap-3">
-            {canManage && (
-              <button className="text-xs text-primary-600 hover:underline" onClick={() => setRolesTarget(u)}>
-                {t('identity.users.manageRoles')}
-              </button>
-            )}
-            {canEdit && (
-              <button className="text-xs text-primary-600 hover:underline" onClick={() => setEditTarget(u)}>
-                {t('common.edit')}
-              </button>
-            )}
-            {canManage && (
-              <button className="text-xs text-yellow-700 hover:underline" onClick={() => setLockTarget(u)}>
-                {u.isLocked ? t('identity.users.unlock') : t('identity.users.lock')}
-              </button>
-            )}
-            {canDelete && u.isActive && (
-              <button className="text-xs text-red-600 hover:underline" onClick={() => setDeactivateTarget(u)}>
-                {t('common.deactivate')}
-              </button>
-            )}
-          </div>
-        ),
+        render: (u: UserDetail) => {
+          // Locking or deactivating the account you are signed in with would end your own session: not offered on your own row.
+          const isSelf = u.id === authUser?.id
+          return (
+            <div className="flex flex-wrap gap-3">
+              {canManage && (
+                <Button
+                  variant="link"
+                  className="text-xs"
+                  aria-label={`${t('identity.users.manageRoles')} ${u.email}`}
+                  onClick={() => setRolesTarget(u)}
+                >
+                  {t('identity.users.manageRoles')}
+                </Button>
+              )}
+              {canEdit && (
+                <Button
+                  variant="link"
+                  className="text-xs"
+                  aria-label={`${t('common.edit')} ${u.email}`}
+                  onClick={() => setEditTarget(u)}
+                >
+                  {t('common.edit')}
+                </Button>
+              )}
+              {canManage && !isSelf && (
+                <Button
+                  variant="link"
+                  className="text-xs"
+                  aria-label={`${u.isLocked ? t('identity.users.unlock') : t('identity.users.lock')} ${u.email}`}
+                  onClick={() => setLockTarget(u)}
+                >
+                  {u.isLocked ? t('identity.users.unlock') : t('identity.users.lock')}
+                </Button>
+              )}
+              {canDelete && u.isActive && !isSelf && (
+                <Button
+                  variant="link-danger"
+                  className="text-xs"
+                  aria-label={`${t('common.deactivate')} ${u.email}`}
+                  onClick={() => setDeactivateTarget(u)}
+                >
+                  {t('common.deactivate')}
+                </Button>
+              )}
+            </div>
+          )
+        },
       },
     ],
-    [canManage, canEdit, canDelete, t],
+    [canManage, canEdit, canDelete, authUser?.id, t],
   )
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('identity.users.title')}</h1>
-        {canManage && (
-          <button className="btn-primary" onClick={() => setInviteOpen(true)}>
-            {t('identity.users.invite')}
-          </button>
-        )}
+        {canManage && <Button onClick={() => setInviteOpen(true)}>{t('identity.users.invite')}</Button>}
       </div>
 
       {canViewTenants && (
-        <div className="max-w-xs">
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('identity.users.tenant')}</label>
-          <select
-            className="input"
-            value={selectedTenantId}
-            onChange={(e) => setSelectedTenantId(e.target.value)}
-          >
+        <FormField label={t('identity.users.tenant')} className="max-w-xs">
+          <Select value={selectedTenantId} onChange={(e) => setSelectedTenantId(e.target.value)}>
             <option value="">{t('identity.users.myTenant')}</option>
             {(tenants ?? []).map((tn) => (
               <option key={tn.id} value={tn.id}>
                 {tn.tenantName}
               </option>
             ))}
-          </select>
-        </div>
+          </Select>
+        </FormField>
       )}
 
-      <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data?.items ?? []}
+        isLoading={isLoading}
+        emptyState={<EmptyState title={t('identity.users.empty')} />}
+      />
       <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount ?? 0} onPageChange={setPage} />
 
       {editTarget && <EditProfileModal user={editTarget} onClose={() => setEditTarget(null)} />}
@@ -375,7 +420,11 @@ export function UsersPage() {
       <ConfirmDialog
         open={!!lockTarget}
         title={lockTarget?.isLocked ? t('identity.users.unlockTitle') : t('identity.users.lockTitle')}
-        message={t('identity.users.lockConfirm', { email: lockTarget?.email })}
+        message={
+          lockTarget?.isLocked
+            ? t('identity.users.unlockConfirm', { email: lockTarget?.email })
+            : t('identity.users.lockConfirm', { email: lockTarget?.email })
+        }
         confirmLabel={lockTarget?.isLocked ? t('identity.users.unlock') : t('identity.users.lock')}
         danger={!lockTarget?.isLocked}
         onConfirm={() => lockTarget && lockMutation.mutate(lockTarget)}

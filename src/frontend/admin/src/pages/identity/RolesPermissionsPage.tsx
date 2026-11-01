@@ -12,6 +12,8 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
 import { useAuthStore } from '@/stores/auth.store'
+import { Alert, Button, Checkbox, EmptyState, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface RoleFormValues {
   roleCode: string
@@ -29,6 +31,7 @@ function RoleModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!role
   const { register, handleSubmit, formState: { errors } } = useForm<RoleFormValues>({
     defaultValues: { roleCode: role?.roleCode ?? '', roleName: role?.roleName ?? '' },
@@ -44,47 +47,50 @@ function RoleModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['identity', 'roles', tenantId] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('identity.roles.editTitle') : t('identity.roles.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          {!isEdit && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-              <input className="input" {...register('roleCode', { required: true })} />
-              {errors.roleCode && <p className="mt-1 text-xs text-red-600">{t('common.code')} is required.</p>}
-            </div>
-          )}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('roleName', { required: true })} />
-            {errors.roleName && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('common.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={isEdit ? t('identity.roles.editTitle') : t('identity.roles.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="role-form" loading={mutation.isPending}>{t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="role-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        {!isEdit && (
+          <FormField
+            label={t('common.code')}
+            required
+            hint={t('identity.roles.codeHint')}
+            error={errors.roleCode ? t('common.required') : undefined}
+          >
+            <Input {...register('roleCode', { required: true })} />
+          </FormField>
+        )}
+        <FormField label={t('common.name')} required error={errors.roleName ? t('common.required') : undefined}>
+          <Input {...register('roleName', { required: true })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
 function ManagePermissionsModal({ role, onClose }: { role: Role; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
+  const [filter, setFilter] = useState('')
 
   const { data: catalog } = useQuery({
     queryKey: ['identity', 'permissions', 'catalog'],
@@ -101,72 +107,90 @@ function ManagePermissionsModal({ role, onClose }: { role: Role; onClose: () => 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['identity', 'roles', role.id, 'permissions'] })
 
+  // Each tick is saved at once: say so when it worked, and say why when the server refused (the box then goes back).
+  const after = {
+    onSuccess: () => {
+      invalidate()
+      toast.success(t('common.saved'))
+    },
+    onError: (e: unknown) => {
+      invalidate()
+      toast.error(serverMessage(e, t('common.failedToSave')))
+    },
+  }
+
   const assignMutation = useMutation({
     mutationFn: (code: string) => rolesApi.assignPermission(role.id, code),
-    onSuccess: invalidate,
+    ...after,
   })
 
   const removeMutation = useMutation({
     mutationFn: (permissionId: string) => rolesApi.removePermission(role.id, permissionId),
-    onSuccess: invalidate,
+    ...after,
   })
 
   const assignedSet = useMemo(() => new Set(assignedCodes ?? []), [assignedCodes])
+  const busy = assignMutation.isPending || removeMutation.isPending
 
   const grouped = useMemo(() => {
+    const needle = filter.trim().toLowerCase()
     const groups = new Map<string, Permission[]>()
     for (const p of catalog ?? []) {
+      if (needle && !`${p.permissionCode} ${p.permissionName ?? ''}`.toLowerCase().includes(needle)) continue
       const module = p.module ?? 'Other'
       const list = groups.get(module) ?? []
       list.push(p)
       groups.set(module, list)
     }
     return groups
-  }, [catalog])
+  }, [catalog, filter])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-lg max-h-[80vh] overflow-y-auto p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('identity.roles.managePermissionsTitle', { name: role.roleName })}
-        </h3>
-
-        <div className="space-y-4">
-          {Array.from(grouped.entries()).map(([module, perms]) => (
-            <div key={module}>
-              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{module}</h4>
-              <ul className="space-y-1">
-                {perms.map((p) => {
-                  const checked = assignedSet.has(p.permissionCode)
-                  return (
-                    <li key={p.id} className="flex items-center justify-between">
-                      <label className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={assignMutation.isPending || removeMutation.isPending}
-                          onChange={() =>
-                            checked ? removeMutation.mutate(p.id) : assignMutation.mutate(p.permissionCode)
-                          }
-                        />
-                        {p.permissionName ?? p.permissionCode}
-                      </label>
-                      <span className="font-mono text-xs text-gray-400">{p.permissionCode}</span>
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex justify-end pt-6">
-          <button type="button" onClick={onClose} className="btn-outline">
-            {t('common.close')}
-          </button>
-        </div>
+    <Modal
+      open
+      size="md"
+      title={t('identity.roles.managePermissionsTitle', { name: role.roleName })}
+      onClose={onClose}
+      footer={<Button variant="outline" onClick={onClose}>{t('common.close')}</Button>}
+    >
+      <div className="space-y-4">
+        <Input
+          type="search"
+          aria-label={t('identity.roles.filterPermissions')}
+          placeholder={t('identity.roles.filterPermissions')}
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+        {grouped.size === 0 && (
+          <EmptyState
+            variant="no-results"
+            title={t('common.noResults')}
+            action={filter ? <Button variant="outline" size="sm" onClick={() => setFilter('')}>{t('common.clear')}</Button> : undefined}
+          />
+        )}
+        {Array.from(grouped.entries()).map(([module, perms]) => (
+          <fieldset key={module} className="space-y-1">
+            <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-secondary">
+              {module} · {t('identity.roles.granted', { count: perms.filter((p) => assignedSet.has(p.permissionCode)).length, total: perms.length })}
+            </legend>
+            {perms.map((p) => {
+              const checked = assignedSet.has(p.permissionCode)
+              return (
+                <div key={p.id} className="flex items-center justify-between gap-3">
+                  <Checkbox
+                    label={p.permissionName ?? p.permissionCode}
+                    checked={checked}
+                    disabled={busy}
+                    onChange={() => (checked ? removeMutation.mutate(p.id) : assignMutation.mutate(p.permissionCode))}
+                  />
+                  <span className="font-mono text-xs text-ink-secondary">{p.permissionCode}</span>
+                </div>
+              )
+            })}
+          </fieldset>
+        ))}
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -175,6 +199,7 @@ export function RolesPermissionsPage() {
   const { hasPermission } = usePermission()
   const authUser = useAuthStore((s) => s.user)
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const canViewTenants = hasPermission('identity:tenants:view')
   const canCreate = hasPermission('identity:roles:create')
@@ -212,7 +237,12 @@ export function RolesPermissionsPage() {
     mutationFn: (r: Role) => rolesApi.delete(r.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['identity', 'roles', effectiveTenantId] })
+      toast.success(t('common.saved'))
       setDeleteTarget(null)
+    },
+    onError: (e) => {
+      setDeleteTarget(null)
+      toast.error(serverMessage(e, t('common.failedToSave')))
     },
   })
 
@@ -224,7 +254,7 @@ export function RolesPermissionsPage() {
         key: 'isActive',
         label: t('common.status'),
         render: (r: Role) => (
-          <StatusBadge status={r.isActive ? 'Active' : 'Cancelled'} label={r.isActive ? t('common.activate') : t('common.deactivate')} />
+          <StatusBadge status={r.isActive ? 'Active' : 'Inactive'} label={r.isActive ? t('common.active') : t('common.inactive')} />
         ),
       },
       {
@@ -233,22 +263,34 @@ export function RolesPermissionsPage() {
         render: (r: Role) => (
           <div className="flex gap-3">
             {canManage && (
-              <button className="text-xs text-primary-600 hover:underline" onClick={() => setPermsTarget(r)}>
+              <Button
+                variant="link"
+                className="text-xs"
+                aria-label={`${t('identity.roles.managePermissions')} ${r.roleName}`}
+                onClick={() => setPermsTarget(r)}
+              >
                 {t('identity.roles.managePermissions')}
-              </button>
+              </Button>
             )}
             {canEdit && (
-              <button
-                className="text-xs text-primary-600 hover:underline"
+              <Button
+                variant="link"
+                className="text-xs"
+                aria-label={`${t('common.edit')} ${r.roleName}`}
                 onClick={() => setModalState({ open: true, role: r })}
               >
                 {t('common.edit')}
-              </button>
+              </Button>
             )}
             {canDelete && (
-              <button className="text-xs text-red-600 hover:underline" onClick={() => setDeleteTarget(r)}>
+              <Button
+                variant="link-danger"
+                className="text-xs"
+                aria-label={`${t('common.delete')} ${r.roleName}`}
+                onClick={() => setDeleteTarget(r)}
+              >
                 {t('common.delete')}
-              </button>
+              </Button>
             )}
           </div>
         ),
@@ -271,37 +313,33 @@ export function RolesPermissionsPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold">{t('identity.roles.title')}</h1>
-          {canCreate && (
-            <button className="btn-primary" onClick={() => setModalState({ open: true, role: null })}>
-              {t('identity.roles.add')}
-            </button>
-          )}
+          {canCreate && <Button onClick={() => setModalState({ open: true, role: null })}>{t('identity.roles.add')}</Button>}
         </div>
 
         {canViewTenants && (
-          <div className="max-w-xs">
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('identity.users.tenant')}</label>
-            <select
-              className="input"
-              value={selectedTenantId}
-              onChange={(e) => setSelectedTenantId(e.target.value)}
-            >
+          <FormField label={t('identity.users.tenant')} className="max-w-xs">
+            <Select value={selectedTenantId} onChange={(e) => setSelectedTenantId(e.target.value)}>
               <option value="">{t('identity.users.myTenant')}</option>
               {(tenants ?? []).map((tn) => (
                 <option key={tn.id} value={tn.id}>
                   {tn.tenantName}
                 </option>
               ))}
-            </select>
-          </div>
+            </Select>
+          </FormField>
         )}
 
-        <DataTable columns={columns} data={roles ?? []} isLoading={isLoading} />
+        <DataTable
+          columns={columns}
+          data={roles ?? []}
+          isLoading={isLoading}
+          emptyState={<EmptyState title={t('identity.roles.empty')} />}
+        />
       </div>
 
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">{t('identity.roles.permissionCatalog')}</h2>
-        <p className="text-sm text-gray-500">{t('identity.roles.permissionCatalogHint')}</p>
+        <p className="text-sm text-ink-secondary">{t('identity.roles.permissionCatalogHint')}</p>
         <DataTable columns={catalogColumns} data={catalog ?? []} isLoading={catalogLoading} />
       </div>
 

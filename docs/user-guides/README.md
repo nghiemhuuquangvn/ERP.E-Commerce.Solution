@@ -10,6 +10,9 @@ Tài liệu từng bước cho nhân viên cửa hàng, viết bằng tiếng Vi
 | Nhân sự (chấm công, nghỉ phép, bảng lương, hồ sơ lương, thiết lập lương, ca làm việc) | [hrm.md](hrm.md) |
 | Khách hàng (CRM: liên hệ, khách hàng tiềm năng, cơ hội, yêu cầu hỗ trợ, hoạt động) | [crm.md](crm.md) |
 | Tồn kho (tồn kho, kho hàng, vị trí, điều chỉnh, kiểm kê, chuyển kho, mã vạch, chốt định giá) | [inventory.md](inventory.md) |
+| Người dùng, Vai trò, Đơn vị (mời, khóa, vai trò và quyền, đơn vị) | [identity.md](identity.md) |
+| Cài đặt → Vận chuyển (quy tắc chọn hãng, bảng phí giao hàng) | [shipping-settings.md](shipping-settings.md) |
+| Cài đặt → Thông báo đã gửi | [notification-history.md](notification-history.md) |
 | Vận chuyển → Hoàn hàng | [shipping-returns.md](shipping-returns.md) |
 | Cài đặt → Webhook | [notification-webhooks.md](notification-webhooks.md) |
 | Cài đặt → Mẫu thông báo | [notification-templates.md](notification-templates.md) |

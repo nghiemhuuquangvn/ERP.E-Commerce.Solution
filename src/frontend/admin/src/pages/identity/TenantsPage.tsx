@@ -8,6 +8,8 @@ import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, EmptyState, FormField, Input, Modal, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface TenantFormValues {
   tenantCode: string
@@ -17,6 +19,7 @@ interface TenantFormValues {
 function TenantModal({ tenant, onClose }: { tenant: Tenant | null; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!tenant
   const { register, handleSubmit, formState: { errors } } = useForm<TenantFormValues>({
     defaultValues: { tenantCode: tenant?.tenantCode ?? '', tenantName: tenant?.tenantName ?? '' },
@@ -32,41 +35,42 @@ function TenantModal({ tenant, onClose }: { tenant: Tenant | null; onClose: () =
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['identity', 'tenants'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('identity.tenants.editTitle') : t('identity.tenants.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          {!isEdit && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-              <input className="input" {...register('tenantCode', { required: true })} />
-              {errors.tenantCode && <p className="mt-1 text-xs text-red-600">{t('common.code')} is required.</p>}
-            </div>
-          )}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('tenantName', { required: true })} />
-            {errors.tenantName && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('common.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={isEdit ? t('identity.tenants.editTitle') : t('identity.tenants.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="tenant-form" loading={mutation.isPending}>{t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="tenant-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        {!isEdit && (
+          <FormField
+            label={t('common.code')}
+            required
+            hint={t('identity.tenants.codeHint')}
+            error={errors.tenantCode ? t('common.required') : undefined}
+          >
+            <Input {...register('tenantCode', { required: true })} />
+          </FormField>
+        )}
+        <FormField label={t('common.name')} required error={errors.tenantName ? t('common.required') : undefined}>
+          <Input {...register('tenantName', { required: true })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -74,6 +78,7 @@ export function TenantsPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const canCreate = hasPermission('identity:tenants:create')
   const canEdit = hasPermission('identity:tenants:edit')
@@ -92,7 +97,12 @@ export function TenantsPage() {
     mutationFn: (tn: Tenant) => (tn.status === 1 ? tenantsApi.deactivate(tn.id) : tenantsApi.activate(tn.id)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['identity', 'tenants'] })
+      toast.success(t('common.saved'))
       setToggleTarget(null)
+    },
+    onError: (e) => {
+      setToggleTarget(null)
+      toast.error(serverMessage(e, t('common.failedToSave')))
     },
   })
 
@@ -105,8 +115,8 @@ export function TenantsPage() {
         label: t('common.status'),
         render: (tn: Tenant) => (
           <StatusBadge
-            status={tn.status === 1 ? 'Active' : 'Cancelled'}
-            label={tn.status === 1 ? t('common.activate') : t('common.deactivate')}
+            status={tn.status === 1 ? 'Active' : 'Inactive'}
+            label={tn.status === 1 ? t('common.active') : t('common.inactive')}
           />
         ),
       },
@@ -116,20 +126,24 @@ export function TenantsPage() {
         render: (tn: Tenant) => (
           <div className="flex gap-3">
             {canEdit && (
-              <button
-                className="text-xs text-primary-600 hover:underline"
+              <Button
+                variant="link"
+                className="text-xs"
+                aria-label={`${t('common.edit')} ${tn.tenantName}`}
                 onClick={() => setModalState({ open: true, tenant: tn })}
               >
                 {t('common.edit')}
-              </button>
+              </Button>
             )}
             {canManage && (
-              <button
-                className={tn.status === 1 ? 'text-xs text-red-600 hover:underline' : 'text-xs text-primary-600 hover:underline'}
+              <Button
+                variant={tn.status === 1 ? 'link-danger' : 'link'}
+                className="text-xs"
+                aria-label={`${tn.status === 1 ? t('common.deactivate') : t('common.activate')} ${tn.tenantName}`}
                 onClick={() => setToggleTarget(tn)}
               >
                 {tn.status === 1 ? t('common.deactivate') : t('common.activate')}
-              </button>
+              </Button>
             )}
           </div>
         ),
@@ -142,14 +156,15 @@ export function TenantsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('identity.tenants.title')}</h1>
-        {canCreate && (
-          <button className="btn-primary" onClick={() => setModalState({ open: true, tenant: null })}>
-            {t('identity.tenants.add')}
-          </button>
-        )}
+        {canCreate && <Button onClick={() => setModalState({ open: true, tenant: null })}>{t('identity.tenants.add')}</Button>}
       </div>
 
-      <DataTable columns={columns} data={tenants ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={tenants ?? []}
+        isLoading={isLoading}
+        emptyState={<EmptyState title={t('identity.tenants.empty')} />}
+      />
 
       {modalState.open && (
         <TenantModal tenant={modalState.tenant} onClose={() => setModalState({ open: false, tenant: null })} />

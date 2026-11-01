@@ -1,6 +1,6 @@
 # Hướng dẫn sử dụng: cách các màn hình hoạt động chung
 
-Áp dụng cho mọi màn hình đã được làm mới: **Khuyến mãi, Flash sale, Tích điểm, POS (giao dịch, ca, báo cáo Z, máy POS), Hoàn hàng, Webhook, Mẫu thông báo, 17 màn hình Dữ liệu chủ các màn hình Sản phẩm, Nhân sự, Khách hàng (CRM) và Tồn kho** (xem [masterdata.md](masterdata.md), [products.md](products.md), [hrm.md](hrm.md), [crm.md](crm.md), [inventory.md](inventory.md)), và mọi hộp thoại xác nhận trong hệ thống. Các màn hình còn lại sẽ chuyển dần sang cách làm này.
+Áp dụng cho mọi màn hình đã được làm mới: **Khuyến mãi, Flash sale, Tích điểm, POS (giao dịch, ca, báo cáo Z, máy POS), Hoàn hàng, Webhook, Mẫu thông báo, 17 màn hình Dữ liệu chủ các màn hình Sản phẩm, Nhân sự, Khách hàng (CRM), Tồn kho, Người dùng / Vai trò / Đơn vị, Quy tắc vận chuyển và Thông báo đã gửi** (xem [masterdata.md](masterdata.md), [products.md](products.md), [hrm.md](hrm.md), [crm.md](crm.md), [inventory.md](inventory.md), [identity.md](identity.md), [shipping-settings.md](shipping-settings.md), [notification-history.md](notification-history.md)), và mọi hộp thoại xác nhận trong hệ thống. Các màn hình còn lại sẽ chuyển dần sang cách làm này.
 
 > Ghi chú cho người bảo trì: viết từ mã nguồn và lần duyệt thử bằng Chrome headless trên tenant `glcheck` (14 bước đạt). Chưa có ảnh chụp trong tài liệu này.
 
