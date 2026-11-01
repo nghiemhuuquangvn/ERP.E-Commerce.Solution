@@ -4,23 +4,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { leaveRequestsApi, LEAVE_TYPE } from '@/api/hrm/leaveRequests.api'
 import type { LeaveRequest } from '@/api/hrm/leaveRequests.api'
-import { employeeSnapshotsApi } from '@/api/hrm/employeeSnapshots.api'
+import { useEmployeePicker } from './useEmployeePicker'
 import { payrollSettingsApi } from '@/api/hrm/payrollSettings.api'
-import { serverMessage } from '@/api/hrm/payroll.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { Pagination } from '@/components/shared/Pagination'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
-
-function useEmployeePicker() {
-  return useQuery({
-    queryKey: ['hrm', 'employees', 'picker'],
-    queryFn: () => employeeSnapshotsApi.list({ page: 1, pageSize: 200 }),
-    staleTime: 60_000,
-  })
-}
+import { Alert, Button, EmptyState, FormField, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 // ─── Submit modal ───────────────────────────────────────────────────────────
 
@@ -35,6 +28,7 @@ interface SubmitFormValues {
 function SubmitLeaveModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { data: employeesPage } = useEmployeePicker()
   const { register, handleSubmit, watch, formState: { errors } } = useForm<SubmitFormValues>({
     defaultValues: {
@@ -68,68 +62,64 @@ function SubmitLeaveModal({ onClose }: { onClose: () => void }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hrm', 'leaveRequests'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('hrm.leaveRequests.addTitle')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.employee')}</label>
-            <select className="input" {...register('employeeId', { required: true })}>
-              <option value="">{t('common.select')}</option>
-              {(employeesPage?.items ?? []).map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.fullName} ({e.employeeNumber})
-                </option>
-              ))}
-            </select>
-            {errors.employeeId && <p className="mt-1 text-xs text-red-600">{t('hrm.required')}</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.leaveRequests.leaveType')}</label>
-            <select className="input" {...register('leaveType')}>
-              <option value={LEAVE_TYPE.Annual}>{t('hrm.leaveRequests.leaveTypes.annual')}</option>
-              <option value={LEAVE_TYPE.Sick}>{t('hrm.leaveRequests.leaveTypes.sick')}</option>
-              <option value={LEAVE_TYPE.Unpaid}>{t('hrm.leaveRequests.leaveTypes.unpaid')}</option>
-              <option value={LEAVE_TYPE.Maternity}>{t('hrm.leaveRequests.leaveTypes.maternity')}</option>
-              <option value={LEAVE_TYPE.Paternity}>{t('hrm.leaveRequests.leaveTypes.paternity')}</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.leaveRequests.startDate')}</label>
-              <input type="date" className="input" {...register('startDate', { required: true })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.leaveRequests.endDate')}</label>
-              <input type="date" className="input" {...register('endDate', { required: true })} />
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.leaveRequests.reason')}</label>
-            <textarea className="input" rows={3} {...register('reason')} />
-          </div>
-          {annual && Number(leaveType) === LEAVE_TYPE.Annual && (
-            <p className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
-              {t('hrm.leaveRequests.balance', { remaining: annual.remainingDays, total: annual.totalDays, year })}
-            </p>
-          )}
-          {mutation.isError && <p className="text-xs text-red-600">{serverMessage(mutation.error, t('hrm.leaveRequests.failedToSave'))}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('hrm.leaveRequests.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="submit-leave-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="submit-leave-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('hrm.employee')} required error={errors.employeeId ? t('common.required') : undefined}>
+          <Select {...register('employeeId', { required: true })}>
+            <option value="">{t('common.select')}</option>
+            {(employeesPage?.items ?? []).map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.fullName} ({e.employeeNumber})
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('hrm.leaveRequests.leaveType')}>
+          <Select {...register('leaveType')}>
+            <option value={LEAVE_TYPE.Annual}>{t('hrm.leaveRequests.leaveTypes.annual')}</option>
+            <option value={LEAVE_TYPE.Sick}>{t('hrm.leaveRequests.leaveTypes.sick')}</option>
+            <option value={LEAVE_TYPE.Unpaid}>{t('hrm.leaveRequests.leaveTypes.unpaid')}</option>
+            <option value={LEAVE_TYPE.Maternity}>{t('hrm.leaveRequests.leaveTypes.maternity')}</option>
+            <option value={LEAVE_TYPE.Paternity}>{t('hrm.leaveRequests.leaveTypes.paternity')}</option>
+          </Select>
+        </FormField>
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label={t('hrm.leaveRequests.startDate')} required error={errors.startDate ? t('common.required') : undefined}>
+            <Input type="date" {...register('startDate', { required: true })} />
+          </FormField>
+          <FormField label={t('hrm.leaveRequests.endDate')} required error={errors.endDate ? t('common.required') : undefined}>
+            <Input type="date" {...register('endDate', { required: true })} />
+          </FormField>
+        </div>
+        <FormField label={t('hrm.leaveRequests.reason')}>
+          <Textarea rows={3} {...register('reason')} />
+        </FormField>
+        {annual && Number(leaveType) === LEAVE_TYPE.Annual && (
+          <Alert variant="info">
+            {t('hrm.leaveRequests.balance', { remaining: annual.remainingDays, total: annual.totalDays, year })}
+          </Alert>
+        )}
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('hrm.leaveRequests.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -142,6 +132,7 @@ interface RejectFormValues {
 function RejectLeaveModal({ request, onClose }: { request: LeaveRequest; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { register, handleSubmit, formState: { errors } } = useForm<RejectFormValues>({
     defaultValues: { reason: '' },
   })
@@ -150,34 +141,32 @@ function RejectLeaveModal({ request, onClose }: { request: LeaveRequest; onClose
     mutationFn: (values: RejectFormValues) => leaveRequestsApi.reject(request.id, { reason: values.reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hrm', 'leaveRequests'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('hrm.leaveRequests.rejectTitle', { number: request.leaveRequestNumber })}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.leaveRequests.reason')}</label>
-            <textarea className="input" rows={3} {...register('reason', { required: true })} />
-            {errors.reason && <p className="mt-1 text-xs text-red-600">{t('hrm.required')}</p>}
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('hrm.leaveRequests.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-danger">
-              {t('hrm.leaveRequests.reject')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('hrm.leaveRequests.rejectTitle', { number: request.leaveRequestNumber })}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="reject-leave-form" variant="danger" loading={mutation.isPending}>{t('hrm.leaveRequests.reject')}</Button>
+        </>
+      }
+    >
+      <form id="reject-leave-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('hrm.leaveRequests.reason')} required error={errors.reason ? t('common.required') : undefined}>
+          <Textarea rows={3} {...register('reason', { required: true })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('hrm.leaveRequests.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -271,16 +260,14 @@ export function LeaveRequestsPage() {
         render: (r: LeaveRequest) =>
           canManage && r.leaveStatus === 'Pending' ? (
             <div className="flex gap-3">
-              <button
-                className="text-xs text-green-600 hover:underline"
-                onClick={() => approveMutation.mutate(r)}
-              >
+              <Button variant="link" className="text-xs"
+                onClick={() => approveMutation.mutate(r)}>
                 {t('hrm.leaveRequests.approve')}
-              </button>
-              <button className="text-xs text-red-600 hover:underline" onClick={() => setRejectTarget(r)}>
+              </Button>
+              <Button variant="link-danger" className="text-xs" onClick={() => setRejectTarget(r)}>
                 {t('hrm.leaveRequests.reject')}
-              </button>
-              <button className="text-xs text-gray-500 hover:underline" onClick={() => setCancelTarget(r)}>
+              </Button>
+              <button className="text-xs text-ink-secondary hover:underline" onClick={() => setCancelTarget(r)}>
                 {t('hrm.leaveRequests.cancel')}
               </button>
             </div>
@@ -295,15 +282,16 @@ export function LeaveRequestsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('hrm.leaveRequests.title')}</h1>
         {canManage && (
-          <button className="btn-primary" onClick={() => setShowSubmitModal(true)}>
+          <Button onClick={() => setShowSubmitModal(true)}>
             {t('hrm.leaveRequests.add')}
-          </button>
+          </Button>
         )}
       </div>
 
       <div className="flex gap-3">
-        <select
-          className="input max-w-xs"
+        <Select
+          className="max-w-xs"
+        aria-label={t('hrm.allEmployees')}
           value={employeeFilter}
           onChange={(e) => {
             setEmployeeFilter(e.target.value)
@@ -316,9 +304,9 @@ export function LeaveRequestsPage() {
               {e.fullName} ({e.employeeNumber})
             </option>
           ))}
-        </select>
-        <select
-          className="input max-w-xs"
+        </Select>
+        <Select
+          className="max-w-xs"
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value)
@@ -330,13 +318,27 @@ export function LeaveRequestsPage() {
               {o.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {approveMutation.isError && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{serverMessage(approveMutation.error, t('hrm.leaveRequests.failedToSave'))}</p>
+        <Alert variant="danger">{serverMessage(approveMutation.error, t('hrm.leaveRequests.failedToSave'))}</Alert>
       )}
-      <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data?.items ?? []}
+        isLoading={isLoading}
+        emptyState={
+          employeeFilter || statusFilter ? (
+            <EmptyState
+              variant="no-results"
+              title={t('common.noResults')}
+              description={t('common.noResultsHint')}
+              action={<Button variant="outline" onClick={() => { setEmployeeFilter(''); setStatusFilter(''); setPage(1) }}>{t('common.clear')}</Button>}
+            />
+          ) : undefined
+        }
+      />
       <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount ?? 0} onPageChange={setPage} />
 
       {showSubmitModal && <SubmitLeaveModal onClose={() => setShowSubmitModal(false)} />}

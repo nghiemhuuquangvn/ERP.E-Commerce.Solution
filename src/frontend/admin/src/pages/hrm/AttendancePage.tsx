@@ -4,21 +4,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { attendanceApi } from '@/api/hrm/attendance.api'
 import type { Attendance } from '@/api/hrm/attendance.api'
-import { employeeSnapshotsApi } from '@/api/hrm/employeeSnapshots.api'
+import { useEmployeePicker } from './useEmployeePicker'
 import { workShiftsApi } from '@/api/hrm/workShifts.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { Pagination } from '@/components/shared/Pagination'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
-
-function useEmployeePicker() {
-  return useQuery({
-    queryKey: ['hrm', 'employees', 'picker'],
-    queryFn: () => employeeSnapshotsApi.list({ page: 1, pageSize: 200 }),
-    staleTime: 60_000,
-  })
-}
+import { Alert, Button, EmptyState, FormField, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 // ─── Check-In modal ─────────────────────────────────────────────────────────
 
@@ -32,6 +26,7 @@ interface CheckInFormValues {
 function CheckInModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { data: employeesPage } = useEmployeePicker()
   const { data: shifts } = useQuery({
     queryKey: ['hrm', 'workShifts', 'picker'],
@@ -58,58 +53,55 @@ function CheckInModal({ onClose }: { onClose: () => void }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hrm', 'attendance'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('hrm.attendance.checkInTitle')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.employee')}</label>
-            <select className="input" {...register('employeeId', { required: true })}>
-              <option value="">{t('common.select')}</option>
-              {(employeesPage?.items ?? []).map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.fullName} ({e.employeeNumber})
-                </option>
-              ))}
-            </select>
-            {errors.employeeId && <p className="mt-1 text-xs text-red-600">{t('hrm.required')}</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.attendance.checkInTime')}</label>
-            <input type="datetime-local" className="input" {...register('checkInTime', { required: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.attendance.workShiftOptional')}</label>
-            <select className="input" {...register('workShiftId')}>
-              <option value="">{t('common.none')}</option>
-              {(shifts ?? []).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.startTime}–{s.endTime})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.notes')}</label>
-            <textarea className="input" rows={2} {...register('notes')} />
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('hrm.attendance.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('hrm.attendance.checkIn')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('hrm.attendance.checkInTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="check-in-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('hrm.attendance.checkIn')}</Button>
+        </>
+      }
+    >
+      <form id="check-in-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('hrm.employee')} required error={errors.employeeId ? t('common.required') : undefined}>
+          <Select {...register('employeeId', { required: true })}>
+            <option value="">{t('common.select')}</option>
+            {(employeesPage?.items ?? []).map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.fullName} ({e.employeeNumber})
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('hrm.attendance.checkInTime')} required error={errors.checkInTime ? t('common.required') : undefined}>
+          <Input type="datetime-local" {...register('checkInTime', { required: true })} />
+        </FormField>
+        <FormField label={t('hrm.attendance.workShiftOptional')}>
+          <Select {...register('workShiftId')}>
+            <option value="">{t('common.none')}</option>
+            {(shifts ?? []).map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} ({s.startTime}–{s.endTime})
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('hrm.notes')}>
+          <Textarea rows={2} {...register('notes')} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('hrm.attendance.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -123,7 +115,8 @@ interface CheckOutFormValues {
 function CheckOutModal({ record, onClose }: { record: Attendance; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { register, handleSubmit } = useForm<CheckOutFormValues>({
+  const toast = useToast()
+  const { register, handleSubmit, formState: { errors } } = useForm<CheckOutFormValues>({
     defaultValues: { checkOutTime: new Date().toISOString().slice(0, 16), notes: '' },
   })
 
@@ -135,35 +128,35 @@ function CheckOutModal({ record, onClose }: { record: Attendance; onClose: () =>
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hrm', 'attendance'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('hrm.attendance.checkOutTitle')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.attendance.checkOutTime')}</label>
-            <input type="datetime-local" className="input" {...register('checkOutTime', { required: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.notes')}</label>
-            <textarea className="input" rows={2} {...register('notes')} />
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('hrm.attendance.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('hrm.attendance.checkOut')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('hrm.attendance.checkOutTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="check-out-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('hrm.attendance.checkOut')}</Button>
+        </>
+      }
+    >
+      <form id="check-out-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('hrm.attendance.checkOutTime')} required error={errors.checkOutTime ? t('common.required') : undefined}>
+          <Input type="datetime-local" {...register('checkOutTime', { required: true })} />
+        </FormField>
+        <FormField label={t('hrm.notes')}>
+          <Textarea rows={2} {...register('notes')} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('hrm.attendance.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -178,6 +171,7 @@ interface MarkAbsentFormValues {
 function MarkAbsentModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { data: employeesPage } = useEmployeePicker()
   const { register, handleSubmit, formState: { errors } } = useForm<MarkAbsentFormValues>({
     defaultValues: { employeeId: '', date: new Date().toISOString().slice(0, 10), notes: '' },
@@ -192,47 +186,45 @@ function MarkAbsentModal({ onClose }: { onClose: () => void }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hrm', 'attendance'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('hrm.attendance.markAbsentTitle')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.employee')}</label>
-            <select className="input" {...register('employeeId', { required: true })}>
-              <option value="">{t('common.select')}</option>
-              {(employeesPage?.items ?? []).map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.fullName} ({e.employeeNumber})
-                </option>
-              ))}
-            </select>
-            {errors.employeeId && <p className="mt-1 text-xs text-red-600">{t('hrm.required')}</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.date')}</label>
-            <input type="date" className="input" {...register('date', { required: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.notes')}</label>
-            <textarea className="input" rows={2} {...register('notes')} />
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('hrm.attendance.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('hrm.attendance.markAbsent')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('hrm.attendance.markAbsentTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="mark-absent-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('hrm.attendance.markAbsent')}</Button>
+        </>
+      }
+    >
+      <form id="mark-absent-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('hrm.employee')} required error={errors.employeeId ? t('common.required') : undefined}>
+          <Select {...register('employeeId', { required: true })}>
+            <option value="">{t('common.select')}</option>
+            {(employeesPage?.items ?? []).map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.fullName} ({e.employeeNumber})
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('common.date')} required error={errors.date ? t('common.required') : undefined}>
+          <Input type="date" {...register('date', { required: true })} />
+        </FormField>
+        <FormField label={t('hrm.notes')}>
+          <Textarea rows={2} {...register('notes')} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('hrm.attendance.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -315,15 +307,13 @@ export function AttendancePage() {
         label: '',
         render: (a: Attendance) =>
           canManage && a.checkInTime && !a.checkOutTime ? (
-            <button
-              className="text-xs text-primary-600 hover:underline"
+            <Button variant="link" className="text-xs"
               onClick={() => {
                 setActiveRecord(a)
                 setModal('checkOut')
-              }}
-            >
+              }}>
               {t('hrm.attendance.checkOut')}
-            </button>
+            </Button>
           ) : null,
       },
     ],
@@ -336,19 +326,20 @@ export function AttendancePage() {
         <h1 className="text-xl font-semibold">{t('hrm.attendance.title')}</h1>
         {canManage && (
           <div className="flex gap-2">
-            <button className="btn-outline" onClick={() => setModal('markAbsent')}>
+            <Button variant="outline" onClick={() => setModal('markAbsent')}>
               {t('hrm.attendance.markAbsent')}
-            </button>
-            <button className="btn-primary" onClick={() => setModal('checkIn')}>
+            </Button>
+            <Button onClick={() => setModal('checkIn')}>
               {t('hrm.attendance.checkIn')}
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
       <div className="flex gap-3">
-        <select
-          className="input max-w-xs"
+        <Select
+          className="max-w-xs"
+        aria-label={t('hrm.allEmployees')}
           value={employeeFilter}
           onChange={(e) => {
             setEmployeeFilter(e.target.value)
@@ -361,9 +352,9 @@ export function AttendancePage() {
               {e.fullName} ({e.employeeNumber})
             </option>
           ))}
-        </select>
-        <select
-          className="input max-w-xs"
+        </Select>
+        <Select
+          className="max-w-xs"
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value)
@@ -375,10 +366,24 @@ export function AttendancePage() {
               {o.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
-      <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data?.items ?? []}
+        isLoading={isLoading}
+        emptyState={
+          employeeFilter || statusFilter ? (
+            <EmptyState
+              variant="no-results"
+              title={t('common.noResults')}
+              description={t('common.noResultsHint')}
+              action={<Button variant="outline" onClick={() => { setEmployeeFilter(''); setStatusFilter(''); setPage(1) }}>{t('common.clear')}</Button>}
+            />
+          ) : undefined
+        }
+      />
       <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount ?? 0} onPageChange={setPage} />
 
       {modal === 'checkIn' && <CheckInModal onClose={closeModal} />}
