@@ -1336,6 +1336,7 @@
     }
   },
   "notificationAdmin": {
+    "empty": "Chưa có thông báo nào được gửi.",
     "historyTitle": "Thông báo đã gửi",
     "historyHint": "Mọi tin nhắn hệ thống đã gửi (hoặc thử gửi) cho khách hàng và nhân viên.",
     "time": "Thời gian",
@@ -2194,6 +2195,11 @@
         }
       },
       "fees": {
+        "priorityWhole": "Nhập số nguyên.",
+        "feeMin": "Phí không được âm.",
+        "rangeOrder": "Giá trị nhỏ nhất không được lớn hơn giá trị lớn nhất.",
+        "deleteTitle": "Xóa dòng phí",
+        "deleteConfirm": "Xóa dòng phí \"{{name}}\"? Đơn mới sẽ tính theo dòng khớp kế tiếp hoặc phí cố định; đơn đã đặt không đổi.",
         "title": "Bảng phí giao hàng",
         "hint": "Khách trả bao nhiêu cho việc giao hàng: dòng đang bật đầu tiên (số ưu tiên nhỏ nhất) khớp với tỉnh và cân nặng kiện hàng sẽ quyết định phí. Kiện không khớp dòng nào thì tính phí cố định ở tab Tenant; tiền hàng đạt ngưỡng miễn phí thì không thu. Đây là giá shop thu của khách, không phải cước của hãng vận chuyển.",
         "add": "Thêm dòng phí",
@@ -2219,6 +2225,10 @@
         "resultFree": "Miễn phí vận chuyển: tiền hàng đạt ngưỡng {{threshold}} ₫."
       },
       "rules": {
+        "priorityWhole": "Nhập số nguyên.",
+        "rangeOrder": "Giá trị nhỏ nhất không được lớn hơn giá trị lớn nhất.",
+        "deleteTitle": "Xóa quy tắc",
+        "deleteConfirm": "Xóa quy tắc \"{{name}}\"? Đơn mới sẽ không dùng nó nữa; các bưu kiện đã đặt không đổi.",
         "title": "Quy tắc chọn hãng vận chuyển",
         "hint": "Đơn được giao cho hãng của quy tắc đầu tiên khớp (số ưu tiên nhỏ trước). Đơn không khớp quy tắc nào đi theo giá rẻ nhất. Hãng từ chối thì chuyển sang hãng kế tiếp.",
         "add": "Thêm quy tắc",
@@ -2283,6 +2293,12 @@
   },
   "identity": {
     "users": {
+      "empty": "Đơn vị này chưa có người dùng.",
+      "remove": "Gỡ",
+      "removeRole": "Gỡ vai trò {{role}}",
+      "roleToAssign": "Vai trò cần gán",
+      "inviteHint": "Người này phải đã có tài khoản. Họ được thêm vào đơn vị này (không tạo tài khoản mới và không gửi email).",
+      "unlockConfirm": "Mở khóa \"{{email}}\"? Họ đăng nhập lại được.",
       "title": "Người dùng",
       "email": "Email",
       "fullName": "Họ tên",
@@ -2300,9 +2316,9 @@
       "locked": "Đã khóa",
       "lockTitle": "Khóa người dùng",
       "unlockTitle": "Mở khóa người dùng",
-      "lockConfirm": "Bạn có chắc chắn muốn thực hiện hành động này với \"{{email}}\"?",
+      "lockConfirm": "Khóa \"{{email}}\"? Họ bị đăng xuất khỏi mọi nơi ngay và không đăng nhập được cho đến khi mở khóa.",
       "deactivateTitle": "Vô hiệu hóa người dùng",
-      "deactivateConfirm": "Bạn có chắc chắn muốn vô hiệu hóa \"{{email}}\"?",
+      "deactivateConfirm": "Vô hiệu hóa \"{{email}}\"? Họ bị đăng xuất khỏi mọi nơi ngay và mất quyền truy cập đơn vị này.",
       "invite": "Mời người dùng",
       "inviteTitle": "Mời người dùng đã có vào đơn vị này",
       "roleOptional": "Vai trò (không bắt buộc)",
@@ -2311,6 +2327,10 @@
       "inviteFailed": "Mời người dùng thất bại. Vui lòng kiểm tra email và thử lại."
     },
     "roles": {
+      "empty": "Chưa có vai trò nào.",
+      "codeHint": "Mã không đổi được sau khi tạo.",
+      "filterPermissions": "Lọc quyền hạn",
+      "granted": "đã cấp {{count}}/{{total}}",
       "title": "Vai trò",
       "add": "Thêm vai trò",
       "addTitle": "Thêm vai trò",
@@ -2321,9 +2341,11 @@
       "permissionCatalog": "Danh mục quyền hạn",
       "permissionCatalogHint": "Danh sách tham khảo (chỉ đọc) tất cả các mã quyền hạn có trong hệ thống.",
       "deleteTitle": "Xóa vai trò",
-      "deleteConfirm": "Bạn có chắc chắn muốn xóa \"{{name}}\"?"
+      "deleteConfirm": "Xóa vai trò \"{{name}}\"? Mọi người đang giữ vai trò này mất các quyền của nó ngay lập tức."
     },
     "tenants": {
+      "empty": "Chưa có đơn vị nào.",
+      "codeHint": "Mã không đổi được sau khi tạo.",
       "title": "Đơn vị",
       "add": "Thêm đơn vị",
       "addTitle": "Thêm đơn vị",

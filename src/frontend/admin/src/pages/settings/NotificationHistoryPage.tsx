@@ -7,6 +7,7 @@ import { DataTable } from '@/components/shared/DataTable'
 import { Pagination } from '@/components/shared/Pagination'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePagination } from '@/hooks/usePagination'
+import { Alert, Button, EmptyState, Input, Modal, Select } from '@/components/ui'
 
 const STATUSES = ['Queued', 'Sending', 'Sent', 'Delivered', 'Failed', 'Bounced']
 const CHANNELS = ['Email', 'Sms', 'Push', 'InApp']
@@ -14,32 +15,34 @@ const CHANNELS = ['Email', 'Sms', 'Push', 'InApp']
 function DetailModal({ notification, onClose }: { notification: SentNotification; onClose: () => void }) {
   const { t } = useTranslation()
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card max-h-[90vh] w-full max-w-xl overflow-y-auto p-6 text-sm">
-        <div className="mb-3 flex items-start justify-between">
-          <div>
-            <h3 className="text-base font-semibold text-gray-900">{notification.subject}</h3>
-            <p className="text-gray-500">{notification.recipientEmail} · {notification.channel}</p>
-          </div>
+    <Modal
+      open
+      size="md"
+      title={notification.subject}
+      onClose={onClose}
+      footer={<Button variant="outline" onClick={onClose}>{t('common.close')}</Button>}
+    >
+      <div className="space-y-3 text-sm">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-ink-secondary">{notification.recipientEmail} · {notification.channel}</p>
           <StatusBadge status={notification.status} />
         </div>
-        <pre className="whitespace-pre-wrap rounded-md bg-gray-50 p-3 text-gray-800">{notification.body}</pre>
+        <pre className="whitespace-pre-wrap rounded-md bg-surface-muted p-3 text-ink">{notification.body}</pre>
         {notification.errorMessage && (
-          <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+          <Alert variant="danger">
             {t('notificationAdmin.error')}: {notification.errorMessage} ({t('notificationAdmin.retries', { count: notification.retryCount })})
-          </p>
+          </Alert>
         )}
-        <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-gray-500">{t('notificationAdmin.log')}</div>
-        <ul className="mt-1 space-y-1 text-xs text-gray-600">
-          {notification.logs.map((l, i) => (
-            <li key={i}>{new Date(l.eventTimestamp).toLocaleString()} — {l.eventType}: {l.details}</li>
-          ))}
-        </ul>
-        <div className="mt-4 flex justify-end">
-          <button className="btn-outline" onClick={onClose}>{t('common.close')}</button>
+        <div>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('notificationAdmin.log')}</h4>
+          <ul className="mt-1 space-y-1 text-xs text-ink-secondary">
+            {notification.logs.map((l, i) => (
+              <li key={i}>{new Date(l.eventTimestamp).toLocaleString()} — {l.eventType}: {l.details}</li>
+            ))}
+          </ul>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -64,6 +67,8 @@ export function NotificationHistoryPage() {
     staleTime: 10_000,
   })
 
+  const filtering = !!(status || channel || search)
+
   const columns = useMemo(
     () => [
       { key: 'createdAt', label: t('notificationAdmin.time'), render: (n: SentNotification) => new Date(n.createdAt).toLocaleString() },
@@ -74,13 +79,15 @@ export function NotificationHistoryPage() {
       {
         key: 'error',
         label: t('notificationAdmin.error'),
-        render: (n: SentNotification) => (n.errorMessage ? <span className="text-xs text-red-600">{n.errorMessage}</span> : null),
+        render: (n: SentNotification) => (n.errorMessage ? <span className="text-xs text-danger-soft-text">{n.errorMessage}</span> : null),
       },
       {
         key: 'actions',
         label: '',
         render: (n: SentNotification) => (
-          <button className="text-xs text-blue-600 hover:underline" onClick={() => setDetail(n)}>{t('notificationAdmin.view')}</button>
+          <Button variant="link" className="text-xs" aria-label={`${t('notificationAdmin.view')}: ${n.subject}`} onClick={() => setDetail(n)}>
+            {t('notificationAdmin.view')}
+          </Button>
         ),
       },
     ],
@@ -88,25 +95,63 @@ export function NotificationHistoryPage() {
   )
 
   const reset = () => setPage(1)
+  const clear = () => {
+    setStatus('')
+    setChannel('')
+    setSearch('')
+    reset()
+  }
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">{t('notificationAdmin.historyTitle')}</h1>
-        <p className="text-sm text-gray-500">{t('notificationAdmin.historyHint')}</p>
+        <p className="text-sm text-ink-secondary">{t('notificationAdmin.historyHint')}</p>
       </div>
       <div className="flex flex-wrap gap-3">
-        <select className="input max-w-[11rem]" value={status} onChange={(e) => { setStatus(e.target.value); reset() }}>
+        <Select
+          aria-label={t('common.status')}
+          className="max-w-[11rem]"
+          value={status}
+          onChange={(e) => { setStatus(e.target.value); reset() }}
+        >
           <option value="">{t('notificationAdmin.allStatuses')}</option>
           {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select className="input max-w-[11rem]" value={channel} onChange={(e) => { setChannel(e.target.value); reset() }}>
+        </Select>
+        <Select
+          aria-label={t('notificationAdmin.channel')}
+          className="max-w-[11rem]"
+          value={channel}
+          onChange={(e) => { setChannel(e.target.value); reset() }}
+        >
           <option value="">{t('notificationAdmin.allChannels')}</option>
           {CHANNELS.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <input className="input max-w-xs" placeholder={t('notificationAdmin.searchHint')} value={search} onChange={(e) => { setSearch(e.target.value); reset() }} />
+        </Select>
+        <Input
+          type="search"
+          aria-label={t('notificationAdmin.searchHint')}
+          className="max-w-xs"
+          placeholder={t('notificationAdmin.searchHint')}
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); reset() }}
+        />
       </div>
-      <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data?.items ?? []}
+        isLoading={isLoading}
+        emptyState={
+          filtering ? (
+            <EmptyState
+              variant="no-results"
+              title={t('common.noResults')}
+              action={<Button variant="outline" size="sm" onClick={clear}>{t('common.clear')}</Button>}
+            />
+          ) : (
+            <EmptyState title={t('notificationAdmin.empty')} />
+          )
+        }
+      />
       <Pagination page={page} pageSize={pageSize} totalCount={data?.total ?? 0} onPageChange={setPage} />
       {detail && <DetailModal notification={detail} onClose={() => setDetail(null)} />}
     </div>
