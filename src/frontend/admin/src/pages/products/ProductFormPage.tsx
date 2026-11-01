@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { AxiosError } from 'axios'
 import {
   productsApi,
   PRODUCT_TYPE,
@@ -15,6 +14,8 @@ import { unitsOfMeasureApi } from '@/api/masterdata/unitsOfMeasure.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, EmptyState, FormField, Input, Select, Spinner, Textarea, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 import { ProductImagesTab } from './ProductImagesTab'
 import { ProductVariantsTab } from './ProductVariantsTab'
 import { ProductUomConversionsTab } from './ProductUomConversionsTab'
@@ -27,11 +28,6 @@ const PRODUCT_TYPE_OPTIONS = [
   { value: PRODUCT_TYPE.Bundle, labelKey: 'products.types.bundle' },
 ]
 
-function extractErrorMessage(error: unknown): string | null {
-  const axiosError = error as AxiosError<{ message?: string }>
-  return axiosError?.response?.data?.message ?? null
-}
-
 type DetailTab = 'images' | 'variants' | 'specifications' | 'uomConversions'
 
 export function ProductFormPage() {
@@ -39,6 +35,7 @@ export function ProductFormPage() {
   const navigate = useNavigate()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { id } = useParams<{ id: string }>()
   const isEdit = Boolean(id)
   const canEdit = hasPermission('products:edit')
@@ -84,7 +81,7 @@ export function ProductFormPage() {
   const [slug, setSlug] = useState('')
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
-  const [formError, setFormError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; sku?: string }>({})
   const [discontinueConfirmOpen, setDiscontinueConfirmOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<DetailTab>('images')
 
@@ -121,7 +118,10 @@ export function ProductFormPage() {
 
       return created
     },
-    onSuccess: (created) => navigate(`/products/${created.productId}`),
+    onSuccess: (created) => {
+      toast.success(t('common.saved'))
+      navigate(`/products/${created.productId}`)
+    },
   })
 
   // Composite save: dispatches only the granular calls needed for whichever detail
@@ -150,36 +150,47 @@ export function ProductFormPage() {
 
       await Promise.all(calls)
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['products', id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products', id] })
+      toast.success(t('common.saved'))
+    },
   })
 
   const submitForReviewMutation = useMutation({
     mutationFn: () => productsApi.submitForReview(id!),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['products', id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products', id] })
+      toast.success(t('common.saved'))
+    },
   })
 
   const publishMutation = useMutation({
     mutationFn: () => productsApi.publish(id!),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['products', id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products', id] })
+      toast.success(t('common.saved'))
+    },
   })
 
   const discontinueMutation = useMutation({
     mutationFn: () => productsApi.discontinue(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products', id] })
+      toast.success(t('common.saved'))
       setDiscontinueConfirmOpen(false)
     },
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setFormError(null)
 
     if (!isEdit) {
-      if (!name.trim() || name.trim().length < 3 || !sku.trim()) {
-        setFormError(t('products.form.requiredFields'))
-        return
-      }
+      const errs: { name?: string; sku?: string } = {}
+      if (!name.trim()) errs.name = t('common.required')
+      else if (name.trim().length < 3) errs.name = t('products.form.nameTooShort')
+      if (!sku.trim()) errs.sku = t('common.required')
+      setFieldErrors(errs)
+      if (errs.name || errs.sku) return
       createMutation.mutate()
     } else {
       saveDetailsMutation.mutate()
@@ -196,21 +207,25 @@ export function ProductFormPage() {
   const isDiscontinued = isEdit && status === PRODUCT_STATUS.Discontinued
 
   if (isEdit && isLoadingProduct) {
-    return <div className="text-gray-400">{t('common.loading')}</div>
+    return <Spinner />
   }
   if (isEdit && !product) {
-    return <div className="text-gray-400">{t('products.notFound')}</div>
+    return <EmptyState variant="error" title={t('products.notFound')} />
   }
 
   const gated = isEdit ? canEdit : canCreate
   if (!gated) {
-    return <p className="text-sm text-gray-400">{t('common.noPermission')}</p>
+    return <EmptyState variant="forbidden" title={t('common.noPermission')} />
   }
+
+  const saving = createMutation.isPending || saveDetailsMutation.isPending
+  const saveError = createMutation.error ?? saveDetailsMutation.error
+  const actionError = submitForReviewMutation.error ?? publishMutation.error ?? discontinueMutation.error
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/products" className="text-sm text-gray-500 hover:text-gray-700">
+        <Link to="/products" className="text-sm text-ink-secondary hover:text-ink">
           {t('products.backToProducts')}
         </Link>
         <h1 className="text-xl font-semibold">
@@ -221,207 +236,136 @@ export function ProductFormPage() {
 
       <form onSubmit={handleSubmit} className="card space-y-6 p-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.name')}</label>
-            <input
-              className="input"
-              value={name}
-              disabled={isEdit}
-              onChange={(e) => setName(e.target.value)}
-            />
-            {isEdit && <p className="mt-1 text-xs text-gray-400">{t('products.form.notEditableAfterCreate')}</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.sku')}</label>
-            <input
-              className="input font-mono"
-              value={sku}
-              disabled={isEdit}
-              onChange={(e) => setSku(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.productType')}</label>
-            <select
-              className="input"
-              value={productType}
-              disabled={isEdit}
-              onChange={(e) => setProductType(Number(e.target.value))}
-            >
+          <FormField
+            label={t('products.name')}
+            required={!isEdit}
+            error={fieldErrors.name}
+            hint={isEdit ? t('products.form.notEditableAfterCreate') : undefined}
+          >
+            <Input value={name} disabled={isEdit} onChange={(e) => setName(e.target.value)} />
+          </FormField>
+          <FormField label={t('products.sku')} required={!isEdit} error={fieldErrors.sku}>
+            <Input className="font-mono" value={sku} disabled={isEdit} onChange={(e) => setSku(e.target.value)} />
+          </FormField>
+          <FormField label={t('products.productType')}>
+            <Select value={productType} disabled={isEdit} onChange={(e) => setProductType(Number(e.target.value))}>
               {PRODUCT_TYPE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {t(o.labelKey)}
                 </option>
               ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.category')}</label>
-            <select
-              className="input"
-              value={categoryId}
-              disabled={isEdit}
-              onChange={(e) => setCategoryId(e.target.value)}
-            >
+            </Select>
+          </FormField>
+          <FormField label={t('products.category')}>
+            <Select value={categoryId} disabled={isEdit} onChange={(e) => setCategoryId(e.target.value)}>
               <option value="">{t('common.none')}</option>
               {(categories ?? []).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.brand')}</label>
-            <select className="input" value={brandId} onChange={(e) => setBrandId(e.target.value)}>
+            </Select>
+          </FormField>
+          <FormField label={t('products.brand')}>
+            <Select value={brandId} onChange={(e) => setBrandId(e.target.value)}>
               <option value="">{t('common.none')}</option>
               {(brands ?? []).map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
                 </option>
               ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.baseUom')}</label>
-            <select className="input" value={baseUomId} onChange={(e) => setBaseUomId(e.target.value)}>
+            </Select>
+          </FormField>
+          <FormField label={t('products.baseUom')}>
+            <Select value={baseUomId} onChange={(e) => setBaseUomId(e.target.value)}>
               <option value="">{t('common.none')}</option>
               {uoms.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name} ({u.symbol})
                 </option>
               ))}
-            </select>
-          </div>
+            </Select>
+          </FormField>
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.description')}</label>
-          <textarea
-            className="input"
-            rows={3}
-            maxLength={2000}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </div>
+        <FormField label={t('products.description')}>
+          <Textarea rows={3} maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} />
+        </FormField>
 
-        <div className="border-t border-gray-100 pt-4">
-          <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">
+        <div className="border-t border-line pt-4">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-secondary">
             {t('products.seo.title')}
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="sm:col-span-2 lg:col-span-1">
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.seo.slug')}</label>
-              <input className="input" value={slug} onChange={(e) => setSlug(e.target.value)} maxLength={256} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.seo.metaTitle')}</label>
-              <input
-                className="input"
-                value={metaTitle}
-                onChange={(e) => setMetaTitle(e.target.value)}
-                maxLength={200}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.seo.metaDescription')}</label>
-              <input
-                className="input"
-                value={metaDescription}
-                onChange={(e) => setMetaDescription(e.target.value)}
-                maxLength={320}
-              />
-            </div>
+            <FormField className="sm:col-span-2 lg:col-span-1" label={t('products.seo.slug')}>
+              <Input value={slug} onChange={(e) => setSlug(e.target.value)} maxLength={256} />
+            </FormField>
+            <FormField label={t('products.seo.metaTitle')}>
+              <Input value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} maxLength={200} />
+            </FormField>
+            <FormField label={t('products.seo.metaDescription')}>
+              <Input value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} maxLength={320} />
+            </FormField>
           </div>
         </div>
 
-        {formError && <p className="text-sm text-red-600">{formError}</p>}
-        {(createMutation.isError || saveDetailsMutation.isError) && (
-          <p className="text-sm text-red-600">
-            {extractErrorMessage(createMutation.error ?? saveDetailsMutation.error) ?? t('common.failedToSave')}
-          </p>
-        )}
+        {saveError && <Alert variant="danger">{serverMessage(saveError, t('common.failedToSave'))}</Alert>}
 
         <div className="flex justify-end gap-3 pt-2">
           <Link to="/products" className="btn-outline">
             {t('common.cancel')}
           </Link>
-          <button
-            type="submit"
-            disabled={createMutation.isPending || saveDetailsMutation.isPending}
-            className="btn-primary"
-          >
-            {createMutation.isPending || saveDetailsMutation.isPending
-              ? t('common.saving')
-              : t('common.save')}
-          </button>
+          <Button type="submit" loading={saving}>
+            {t('common.save')}
+          </Button>
         </div>
       </form>
 
       <div className="card space-y-3 p-5">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-secondary">
           {t('products.statusActions.title')}
         </h2>
         {!product ? (
-          <p className="text-sm text-gray-400">{t('products.form.statusActionsUnavailable')}</p>
+          <p className="text-sm text-ink-secondary">{t('products.form.statusActionsUnavailable')}</p>
         ) : (
           <>
           <div className="flex flex-wrap gap-3">
             {canSubmitForReview && (
-              <button
-                className="btn-outline"
-                disabled={submitForReviewMutation.isPending}
-                onClick={() => submitForReviewMutation.mutate()}
-              >
+              <Button variant="outline" loading={submitForReviewMutation.isPending} onClick={() => submitForReviewMutation.mutate()}>
                 {t('products.statusActions.submitForReview')}
-              </button>
+              </Button>
             )}
             {canPublish && (
-              <button
-                className="btn-primary"
-                disabled={publishMutation.isPending}
-                onClick={() => publishMutation.mutate()}
-              >
+              <Button loading={publishMutation.isPending} onClick={() => publishMutation.mutate()}>
                 {t('products.statusActions.publish')}
-              </button>
+              </Button>
             )}
             {status !== PRODUCT_STATUS.Draft &&
               status !== PRODUCT_STATUS.PendingReview &&
               (product.variantCount ?? 0) === 0 && (
-                <p className="self-center text-xs text-gray-400">{t('products.statusActions.publishNeedsVariant')}</p>
+                <p className="self-center text-xs text-ink-secondary">{t('products.statusActions.publishNeedsVariant')}</p>
               )}
             {canDiscontinue && (
-              <button
-                className="btn-danger"
-                disabled={discontinueMutation.isPending}
-                onClick={() => setDiscontinueConfirmOpen(true)}
-              >
+              <Button variant="danger" loading={discontinueMutation.isPending} onClick={() => setDiscontinueConfirmOpen(true)}>
                 {t('products.statusActions.discontinue')}
-              </button>
+              </Button>
             )}
             {isDiscontinued && (
-              <button className="btn-outline" disabled title={t('products.statusActions.reactivateUnavailable')}>
+              <Button variant="outline" disabled title={t('products.statusActions.reactivateUnavailable')}>
                 {t('products.statusActions.reactivate')}
-              </button>
+              </Button>
             )}
           </div>
           {isDiscontinued && (
-            <p className="text-xs text-gray-400">{t('products.statusActions.reactivateUnavailable')}</p>
+            <p className="text-xs text-ink-secondary">{t('products.statusActions.reactivateUnavailable')}</p>
           )}
-          {(submitForReviewMutation.isError || publishMutation.isError || discontinueMutation.isError) && (
-            <p className="text-sm text-red-600">
-              {extractErrorMessage(
-                submitForReviewMutation.error ?? publishMutation.error ?? discontinueMutation.error,
-              ) ?? t('common.failedToSave')}
-            </p>
-          )}
+          {actionError && <Alert variant="danger">{serverMessage(actionError, t('common.failedToSave'))}</Alert>}
           </>
         )}
       </div>
 
       <div className="space-y-4">
-        <div className="flex gap-1 border-b border-gray-200">
+        <div role="tablist" className="flex gap-1 border-b border-line">
           {(
             [
               { key: 'images', labelKey: 'products.tabs.images' },
@@ -432,11 +376,14 @@ export function ProductFormPage() {
           ).map((tab) => (
             <button
               key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
                 activeTab === tab.key
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-brand-action text-brand-action'
+                  : 'border-transparent text-ink-secondary hover:text-ink'
               }`}
             >
               {t(tab.labelKey)}
@@ -445,11 +392,11 @@ export function ProductFormPage() {
         </div>
 
         {!product ? (
-          <div className="card p-8 text-center text-sm text-gray-400">
+          <div className="card p-8 text-center text-sm text-ink-secondary">
             {t('products.form.saveFirstToUnlock')}
           </div>
         ) : (
-          <>
+          <div role="tabpanel">
             {activeTab === 'images' && <ProductImagesTab productId={product.id} />}
             {activeTab === 'variants' && (
               <ProductVariantsTab productId={product.id} categoryId={product.categoryId} />
@@ -458,7 +405,7 @@ export function ProductFormPage() {
               <ProductAttributesTab productId={product.id} categoryId={product.categoryId} />
             )}
             {activeTab === 'uomConversions' && <ProductUomConversionsTab productId={product.id} />}
-          </>
+          </div>
         )}
       </div>
 

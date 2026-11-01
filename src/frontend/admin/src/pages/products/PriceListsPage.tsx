@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Check } from 'lucide-react'
 import {
   pricingApi,
   PriceListChannel,
@@ -13,6 +12,8 @@ import { currenciesApi } from '@/api/masterdata/currencies.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, EmptyState, FormField, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 type Tab = 'lists' | 'items'
 
@@ -45,6 +46,7 @@ function CreatePriceListModal({
   onCreated: (id: string, name: string) => void
 }) {
   const { t } = useTranslation()
+  const toast = useToast()
 
   const {
     register,
@@ -83,146 +85,133 @@ function CreatePriceListModal({
       }),
     onSuccess: (result) => {
       onCreated(result.priceListId, result.name)
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card max-h-[90vh] w-full max-w-3xl overflow-y-auto p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('products.priceLists.addTitle')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-              <input className="input" {...register('name', { required: true })} />
-              {errors.name && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                {t('products.priceLists.channel')}
-              </label>
-              <select className="input" {...register('channel', { valueAsNumber: true })}>
-                {PRICE_LIST_CHANNEL_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('products.priceLists.description')}
-            </label>
-            <textarea className="input" rows={2} {...register('description')} />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                {t('products.priceLists.effectiveDate')}
-              </label>
-              <input type="date" className="input" {...register('effectiveDate', { required: true })} />
-              {errors.effectiveDate && (
-                <p className="mt-1 text-xs text-red-600">{t('products.priceLists.effectiveDate')} is required.</p>
-              )}
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                {t('products.priceLists.expiryDate')}
-              </label>
-              <input type="date" className="input" {...register('expiryDate')} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                {t('products.priceLists.currency')}
-              </label>
-              <select className="input" {...register('currencyId')}>
-                <option value="">{t('products.priceLists.tenantDefaultCurrency')}</option>
-                {currencies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.code} — {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <label className="block text-sm font-medium text-gray-700">{t('products.priceLists.items')}</label>
-              <button type="button" className="btn-outline text-xs" onClick={() => append(emptyItem)}>
-                {t('products.priceLists.addItem')}
-              </button>
-            </div>
-            <p className="mb-2 text-xs text-gray-400">{t('products.priceLists.variantIdHint')}</p>
-            <div className="space-y-2">
-              {fields.map((field, index) => (
-                <div key={field.id} className="grid grid-cols-12 items-start gap-2">
-                  <div className="col-span-4">
-                    <input
-                      className="input"
-                      placeholder={t('products.priceLists.variantId') ?? ''}
-                      {...register(`items.${index}.variantId` as const, { required: true })}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="input"
-                      placeholder={t('products.priceLists.basePrice') ?? ''}
-                      {...register(`items.${index}.basePrice` as const, { required: true })}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="input"
-                      placeholder={t('products.priceLists.discountedPrice') ?? ''}
-                      {...register(`items.${index}.discountedPrice` as const)}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      min={1}
-                      step="1"
-                      className="input"
-                      placeholder={t('products.priceLists.minQuantity') ?? ''}
-                      {...register(`items.${index}.minQuantity` as const)}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <button
-                      type="button"
-                      className="text-xs text-red-600 hover:underline disabled:opacity-30"
-                      disabled={fields.length <= 1}
-                      onClick={() => remove(index)}
-                    >
-                      {t('common.delete')}
-                    </button>
-                  </div>
-                </div>
+    <Modal
+      open
+      size="lg"
+      title={t('products.priceLists.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="price-list-form" loading={mutation.isPending}>{t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="price-list-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+            <Input {...register('name', { required: true })} />
+          </FormField>
+          <FormField label={t('products.priceLists.channel')}>
+            <Select {...register('channel', { valueAsNumber: true })}>
+              {PRICE_LIST_CHANNEL_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
               ))}
-            </div>
-          </div>
+            </Select>
+          </FormField>
+        </div>
+        <FormField label={t('products.priceLists.description')}>
+          <Textarea rows={2} {...register('description')} />
+        </FormField>
+        <div className="grid grid-cols-3 gap-4">
+          <FormField label={t('products.priceLists.effectiveDate')} required error={errors.effectiveDate ? t('common.required') : undefined}>
+            <Input type="date" {...register('effectiveDate', { required: true })} />
+          </FormField>
+          <FormField label={t('products.priceLists.expiryDate')}>
+            <Input type="date" {...register('expiryDate')} />
+          </FormField>
+          <FormField label={t('products.priceLists.currency')}>
+            <Select {...register('currencyId')}>
+              <option value="">{t('products.priceLists.tenantDefaultCurrency')}</option>
+              {currencies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.code} — {c.name}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        </div>
 
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('products.priceLists.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
+        <fieldset>
+          <div className="mb-2 flex items-center justify-between">
+            <legend className="text-sm font-medium text-ink">{t('products.priceLists.items')}</legend>
+            <Button variant="outline" size="sm" onClick={() => append(emptyItem)}>
+              {t('products.priceLists.addItem')}
+            </Button>
           </div>
-        </form>
-      </div>
-    </div>
+          <p className="mb-2 text-xs text-ink-secondary">{t('products.priceLists.variantIdHint')}</p>
+          <div className="space-y-2">
+            {fields.map((field, index) => (
+              <div key={field.id} className="grid grid-cols-12 items-start gap-2">
+                <div className="col-span-4">
+                  <Input
+                    aria-label={t('products.priceLists.variantId')}
+                    aria-invalid={errors.items?.[index]?.variantId ? true : undefined}
+                    placeholder={t('products.priceLists.variantId') ?? ''}
+                    {...register(`items.${index}.variantId` as const, { required: true })}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    aria-label={t('products.priceLists.basePrice')}
+                    aria-invalid={errors.items?.[index]?.basePrice ? true : undefined}
+                    placeholder={t('products.priceLists.basePrice') ?? ''}
+                    {...register(`items.${index}.basePrice` as const, { required: true })}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    aria-label={t('products.priceLists.discountedPrice')}
+                    placeholder={t('products.priceLists.discountedPrice') ?? ''}
+                    {...register(`items.${index}.discountedPrice` as const)}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    step="1"
+                    aria-label={t('products.priceLists.minQuantity')}
+                    placeholder={t('products.priceLists.minQuantity') ?? ''}
+                    {...register(`items.${index}.minQuantity` as const)}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Button
+                    variant="link-danger"
+                    className="text-xs"
+                    disabled={fields.length <= 1}
+                    onClick={() => remove(index)}
+                  >
+                    {t('common.delete')}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {(errors.items?.some?.((i) => i?.variantId || i?.basePrice)) && (
+            <p role="alert" className="mt-2 text-xs text-danger-soft-text">{t('common.required')}</p>
+          )}
+        </fieldset>
+
+        {mutation.isError && (
+          <Alert variant="danger">{serverMessage(mutation.error, t('products.priceLists.failedToSave'))}</Alert>
+        )}
+      </form>
+    </Modal>
   )
 }
 
@@ -237,6 +226,7 @@ function ChannelCurrencyForm({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { register, handleSubmit } = useForm<{ channel: PriceListChannel; currencyId: string }>({
     defaultValues: {
       channel: priceList.channel,
@@ -252,41 +242,40 @@ function ChannelCurrencyForm({
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['product', 'priceList', priceList.id] })
+      toast.success(t('common.saved'))
     },
   })
 
   return (
     <form
       onSubmit={handleSubmit((v) => mutation.mutate(v))}
-      className="flex flex-wrap items-end gap-3 rounded-md border border-gray-200 p-3"
+      className="flex flex-wrap items-end gap-3 rounded-md border border-line p-3"
     >
-      <div>
-        <label className="mb-1 block text-xs font-medium text-gray-700">{t('products.priceLists.channel')}</label>
-        <select className="input" disabled={!canManage} {...register('channel', { valueAsNumber: true })}>
+      <FormField label={t('products.priceLists.channel')}>
+        <Select disabled={!canManage} {...register('channel', { valueAsNumber: true })}>
           {PRICE_LIST_CHANNEL_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
           ))}
-        </select>
-      </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-gray-700">{t('products.priceLists.currency')}</label>
-        <select className="input" disabled={!canManage} {...register('currencyId')}>
+        </Select>
+      </FormField>
+      <FormField label={t('products.priceLists.currency')}>
+        <Select disabled={!canManage} {...register('currencyId')}>
           <option value="">{t('products.priceLists.tenantDefaultCurrency')}</option>
           {currencies.map((c) => (
             <option key={c.id} value={c.id}>
               {c.code} — {c.name}
             </option>
           ))}
-        </select>
-      </div>
+        </Select>
+      </FormField>
       {canManage && (
-        <button type="submit" disabled={mutation.isPending} className="btn-primary">
+        <Button type="submit" loading={mutation.isPending}>
           {mutation.isPending ? t('common.saving') : t('products.priceLists.updateChannel')}
-        </button>
+        </Button>
       )}
-      {mutation.isSuccess && <span className="text-xs text-green-600">{t('common.save')} <Check size={14} strokeWidth={1.75} aria-hidden="true" className="inline" /></span>}
+      {mutation.isError && <Alert variant="danger" className="w-full">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>}
     </form>
   )
 }
@@ -340,18 +329,21 @@ export function PriceListsPage() {
       {
         key: 'basePrice',
         label: t('products.priceLists.basePrice'),
+        align: 'right' as const,
         render: (i: PriceListDetail['items'][number]) => i.basePrice.toFixed(2),
       },
       {
         key: 'discountedPrice',
         label: t('products.priceLists.discountedPrice'),
+        align: 'right' as const,
         render: (i: PriceListDetail['items'][number]) =>
           i.discountedPrice != null ? i.discountedPrice.toFixed(2) : '—',
       },
-      { key: 'minQuantity', label: t('products.priceLists.minQuantity') },
+      { key: 'minQuantity', label: t('products.priceLists.minQuantity'), align: 'right' as const },
       {
         key: 'effectivePrice',
         label: t('products.priceLists.effectivePrice'),
+        align: 'right' as const,
         render: (i: PriceListDetail['items'][number]) => i.effectivePrice.toFixed(2),
       },
     ],
@@ -370,13 +362,13 @@ export function PriceListsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('products.priceLists.title')}</h1>
         {canManage && tab === 'lists' && (
-          <button className="btn-primary" onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => setCreateOpen(true)}>
             {t('products.priceLists.add')}
-          </button>
+          </Button>
         )}
       </div>
 
-      <div className="flex gap-2 border-b border-gray-200">
+      <div className="flex gap-2 border-b border-line">
         {(
           [
             { key: 'lists' as const, label: t('products.priceLists.listsTab') },
@@ -387,7 +379,7 @@ export function PriceListsPage() {
             key={x.key}
             onClick={() => setTab(x.key)}
             className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key ? 'border-b-2 border-primary-600 text-primary-700' : 'text-gray-500 hover:text-gray-700'
+              tab === x.key ? 'border-b-2 border-brand-action text-brand-action' : 'text-ink-secondary hover:text-ink'
             }`}
           >
             {x.label}
@@ -396,23 +388,20 @@ export function PriceListsPage() {
       </div>
 
       <div className="flex flex-wrap items-end gap-2">
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-700">
-            {t('products.priceLists.lookupId')}
-          </label>
-          <input
-            className="input w-80"
+        <FormField label={t('products.priceLists.lookupId')}>
+          <Input className="w-80"
             value={lookupId}
             onChange={(e) => setLookupId(e.target.value)}
             placeholder={t('products.priceLists.lookupIdPlaceholder') ?? ''}
           />
-        </div>
-        <button className="btn-outline" onClick={handleLookup}>
+        </FormField>
+        <Button variant="outline" onClick={handleLookup}>
           {t('products.priceLists.load')}
-        </button>
+        </Button>
         {known.length > 0 && (
-          <select
-            className="input max-w-xs"
+          <Select
+            className="max-w-xs"
+        aria-label={t('products.priceLists.recentlyViewed')}
             value={selectedId}
             onChange={(e) => {
               setSelectedId(e.target.value)
@@ -425,12 +414,12 @@ export function PriceListsPage() {
                 {k.name}
               </option>
             ))}
-          </select>
+          </Select>
         )}
       </div>
 
       {detailQuery.isError && (
-        <p className="text-sm text-red-600">{t('products.priceLists.notFound')}</p>
+        <Alert variant="danger">{t('products.priceLists.notFound')}</Alert>
       )}
 
       {detailQuery.data && tab === 'lists' && (
@@ -442,8 +431,8 @@ export function PriceListsPage() {
               label={detailQuery.data.isActive ? t('products.priceLists.active') : t('products.priceLists.inactive')}
             />
           </div>
-          {detailQuery.data.description && <p className="text-sm text-gray-600">{detailQuery.data.description}</p>}
-          <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+          {detailQuery.data.description && <p className="text-sm text-ink-secondary">{detailQuery.data.description}</p>}
+          <div className="grid grid-cols-2 gap-2 text-sm text-ink-secondary">
             <span>
               {t('products.priceLists.effectiveDate')}: {detailQuery.data.effectiveDate.slice(0, 10)}
             </span>
@@ -458,10 +447,10 @@ export function PriceListsPage() {
       {tab === 'items' && (
         <>
           {!detailQuery.data ? (
-            <p className="text-sm text-gray-400">{t('products.priceLists.pickListFirst')}</p>
+            <EmptyState title={t('products.priceLists.pickListFirst')} />
           ) : (
             <>
-              <p className="text-xs text-gray-400">{t('products.priceLists.itemsReadOnlyNote')}</p>
+              <p className="text-xs text-ink-secondary">{t('products.priceLists.itemsReadOnlyNote')}</p>
               <DataTable columns={itemColumns} data={itemRows} isLoading={detailQuery.isLoading} />
             </>
           )}

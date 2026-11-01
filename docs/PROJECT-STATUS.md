@@ -36,6 +36,12 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-01 — ROADMAP P2-9 U3 batch 2: the Products pages on the component library (`refactor/ui-u3-products`, from master, unmerged)
+- **Pages (11 files):** Brands, Categories, Product attributes, Price lists (create dialog with item rows, channel / currency form), Variants tab, UoM conversions tab (their 6 dialogs are `Modal`), the product form (per-field errors, toasts, status actions as `Button`), the product list (no-results state with Clear), the images tab (DataTable, keyboard-reachable drop zone) and the attribute tab / `DynamicAttributeField` (every dynamic input labelled). Scripted for the 4 regular dialogs, the rest by hand.
+- **Found and fixed:** Brands, Categories and Price lists had no en / vi translations at all (raw keys on screen); `DataTable`'s empty actions header had no accessible name; the drop zone nested a control. New test checks every key used by the folder.
+- **Tests:** 89 pass (`products.pages.test.tsx`: dialogs, linked errors, empty / no-results, axe, translations); `tsc -b`, build, `check:tokens` clean.
+- **Live (Docker, headless Chrome, glcheck admin):** 18 checks passed (list, 4 dialog pages, new product errors, product detail with 4 tabs and the variant dialog, a real brand save with toast and a duplicate code refused). Not walked: image upload, variant / price-list item saves. New risks R79, R80; R76 also seen on Brands. Docs: `docs/user-guides/products.md`, components-guide.
+
 ### 2026-11-01 — ROADMAP P2-9 U3 batch 1: the 17 Master data pages on the component library (`refactor/ui-u3-masterdata`, from master, unmerged)
 - **Pages:** Departments, Positions, Employees (4 dialogs), Units of measure, Geography (4), Languages, Companies, Branches, Divisions, Teams, Business units, Cost / Profit centers, Calendars (2), Team assignments (2), Currencies (2), Payment terms: every `fixed inset-0` dialog is a `Modal` (focus trap, Esc, scroll lock), fields are `FormField` + `Input` / `Select` / `Textarea` / `Checkbox` with a visible, linked "Bắt buộc" error (18 required fields had none), refusals are an `Alert` with the server reason, saves show a toast, buttons are `Button`. Mostly scripted (codemod) then reviewed. `lib/serverMessage.ts` replaces the copies (R73).
 - **Tests:** 74 pass (`masterdata.pages.test.tsx`: 17 pages x empty state, add dialog, linked errors, axe, Esc; `serverMessage.test.ts`); `tsc -b`, build, `check:tokens` clean.

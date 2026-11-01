@@ -6,6 +6,8 @@ import { categoriesApi } from '@/api/product/categories.api'
 import type { Category } from '@/api/product/categories.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface CategoryFormValues {
   name: string
@@ -24,6 +26,7 @@ function CategoryModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!category
 
   // Exclude self from the parent picker — the backend doesn't validate against
@@ -53,56 +56,48 @@ function CategoryModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['product', 'categories'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('products.categories.editTitle') : t('products.categories.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-            {errors.name && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-            <input className="input" {...register('code')} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('products.categories.parentCategory')}
-            </label>
-            <select className="input" {...register('parentCategoryId')}>
-              <option value="">{t('common.none')}</option>
-              {parentOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            {isEdit && (
-              <p className="mt-1 text-xs text-gray-400">{t('products.categories.parentCannotClear')}</p>
-            )}
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('products.categories.failedToSave')}</p>
+    <Modal
+      open
+      size="sm"
+      title={isEdit ? t('products.categories.editTitle') : t('products.categories.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="category-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="category-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <FormField label={t('common.code')}>
+          <Input {...register('code')} />
+        </FormField>
+        <FormField label={t('products.categories.parentCategory')}>
+          <Select {...register('parentCategoryId')}>
+            <option value="">{t('common.none')}</option>
+            {parentOptions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+          {isEdit && (
+            <p className="mt-1 text-xs text-ink-secondary">{t('products.categories.parentCannotClear')}</p>
           )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('products.categories.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -146,12 +141,10 @@ export function CategoriesPage() {
         label: '',
         render: (c: Category) =>
           canManage ? (
-            <button
-              className="text-xs text-primary-600 hover:underline"
-              onClick={() => setModalState({ open: true, category: c })}
-            >
+            <Button variant="link" className="text-xs"
+              onClick={() => setModalState({ open: true, category: c })}>
               {t('common.edit')}
-            </button>
+            </Button>
           ) : null,
       },
     ],
@@ -163,9 +156,9 @@ export function CategoriesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('products.categories.title')}</h1>
         {canManage && (
-          <button className="btn-primary" onClick={() => setModalState({ open: true, category: null })}>
+          <Button onClick={() => setModalState({ open: true, category: null })}>
             {t('products.categories.add')}
-          </button>
+          </Button>
         )}
       </div>
 

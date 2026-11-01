@@ -58,7 +58,16 @@ Promotions, Flash sales, Loyalty, POS Transactions / Shifts / Z report / Termina
 |---|---|---|
 | Pilot (U2) | 10 | on the library |
 | **Master data** | 17 pages / 25 dialogs | **on the library (U3 batch 1, 2026-11-01)** - worked example: `pages/masterdata/DepartmentsPage.tsx`; smoke test `masterdata.pages.test.tsx` |
-| Accounting 7, Products 6, HRM 6, CRM 5, Inventory 4, Settings 3, Purchasing 3, Identity 3, Orders 2, Sales / Payments / Shipping / Logs 4 | ~46 files | still old (DEFERRED R71); one batch per plan |
+| **Products** | 11 files (6 dialogs, product form, list, images, attribute tabs) | **on the library (U3 batch 2, 2026-11-01)** - worked examples: `ProductVariantsTab.tsx` (modal + dynamic fields), `ProductFormPage.tsx` (plain-state form, per-field errors); smoke test `products.pages.test.tsx` |
+| Accounting 7, HRM 6, CRM 5, Inventory 4, Settings 3, Purchasing 3, Identity 3, Orders 2, Sales / Payments / Shipping / Logs 4 | ~40 files | still old (DEFERRED R71); one batch per plan |
+
+
+### Batch 2 notes (Products)
+- `DynamicAttributeField` now takes a `label` and renders its own `FormField` (or a `fieldset` for multi-select, a labelled `Checkbox` for yes/no) so every attribute input has a linked label.
+- A file drop zone is a `role="button"` with `tabIndex=0` and Enter / Space; the hidden `<input type="file">` sits **beside** it, never inside (axe: nested interactive control).
+- `DataTable` names an empty column header (the actions column) "Actions" for screen readers (`sr-only`), which fixes axe's empty-table-header on every page that uses it.
+- Links styled as buttons (`<Link className="btn-primary">`, 2 in Products) still use the old `.btn-*` classes: `Button` does not render as a link yet.
+- Batch 2 found that Brands, Categories and Price lists had **no translations at all** (the screens showed raw keys); the new test `Products: translations` checks every key used by the folder exists in en and vi. Copy it into the next batches.
 
 ### How batch 1 was done (so the next batches repeat it)
 The Master data pages were regular, so the conversion was scripted (field block `div > label + input/select + error <p>` -> `FormField`; the modal frame -> `Modal` with the footer buttons pulled out of the form; `btn-*` and text-link buttons -> `Button`; filter controls -> `Select` / `Input` with an `aria-label`; checkbox + label -> `Checkbox`; required fields without a visible error get one) and then reviewed by `tsc`, the smoke test (axe included) and a browser walk. Anything that did not match the pattern (the Employees terminate dialog with its confirmation) was edited by hand. `lib/serverMessage.ts` is the one helper for server messages (R73 closed).

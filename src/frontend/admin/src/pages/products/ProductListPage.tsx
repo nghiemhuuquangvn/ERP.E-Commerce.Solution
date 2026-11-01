@@ -10,6 +10,7 @@ import { Pagination } from '@/components/shared/Pagination'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
 import type { Product } from '@/api/products.api'
+import { Button, EmptyState, Input } from '@/components/ui'
 
 const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 
@@ -87,7 +88,7 @@ export function ProductListPage() {
         key: 'name',
         label: t('common.name'),
         render: (p: Product) => (
-          <Link to={`/products/${p.id}`} className="text-primary-600 hover:underline">
+          <Link to={`/products/${p.id}`} className="text-brand-action hover:underline">
             {p.name}
           </Link>
         ),
@@ -102,7 +103,7 @@ export function ProductListPage() {
         key: 'price',
         label: t('products.price'),
         render: (p: Product) => fmt.format(p.price),
-        className: 'text-right',
+        align: 'right' as const,
       },
       {
         key: 'stockQuantity',
@@ -111,16 +112,16 @@ export function ProductListPage() {
           <span
             className={
               p.stockQuantity === 0
-                ? 'text-red-600'
+                ? 'text-danger-soft-text'
                 : p.stockQuantity < 10
-                  ? 'text-yellow-600'
+                  ? 'text-warning-soft-text'
                   : ''
             }
           >
             {p.stockQuantity}
           </span>
         ),
-        className: 'text-right',
+        align: 'right' as const,
       },
       {
         key: 'status',
@@ -132,7 +133,7 @@ export function ProductListPage() {
         label: '',
         render: (p: Product) =>
           hasPermission('products:edit') ? (
-            <Link to={`/products/${p.id}`} className="text-xs text-primary-600 hover:underline">
+            <Link to={`/products/${p.id}`} className="text-xs text-brand-action hover:underline">
               {t('common.edit')}
             </Link>
           ) : null,
@@ -153,30 +154,43 @@ export function ProductListPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <input
-          className="input max-w-xs"
+        <Input
+          className="max-w-xs"
+        aria-label={t('products.searchPlaceholder')}
           placeholder={t('products.searchPlaceholder')}
           value={search}
           onChange={handleSearchChange}
         />
         <div className="flex gap-1">
           {STATUS_FILTERS.map((f) => (
-            <button
+            <Button
               key={f.labelKey}
+              size="sm"
+              variant={status === f.value ? 'primary' : 'outline'}
+              aria-pressed={status === f.value}
               onClick={() => handleStatusChange(f.value)}
-              className={`rounded px-3 py-1.5 text-sm ${
-                status === f.value
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-              }`}
             >
               {t(f.labelKey)}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
 
-      <DataTable columns={columns} data={data?.products ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data?.products ?? []}
+        isLoading={isLoading}
+        emptyState={
+          searchTerm || status !== '' ? (
+            <EmptyState
+              variant="no-results"
+              title={t('common.noResults')}
+              description={t('common.noResultsHint')}
+              action={<Button variant="outline" onClick={() => { setSearch(''); handleStatusChange('') }}>{t('common.clear')}</Button>}
+            />
+          ) : undefined
+        }
+      />
       {!searchTerm && (
         <Pagination page={page} pageSize={pageSize} totalCount={data?.total ?? 0} onPageChange={setPage} />
       )}

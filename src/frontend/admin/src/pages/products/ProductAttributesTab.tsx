@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { attributesApi } from '@/api/product/attributes.api'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, EmptyState, Spinner, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 import {
   DynamicAttributeField,
   buildSetAttributeValueRequest,
@@ -23,6 +25,7 @@ export function ProductAttributesTab({
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const canEdit = hasPermission('products:edit')
 
   const { data: attributes } = useQuery({
@@ -63,47 +66,40 @@ export function ProductAttributesTab({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products', productId, 'attributes'] })
+      toast.success(t('common.saved'))
     },
   })
 
   if (isLoading) {
-    return <div className="text-gray-400">{t('common.loading')}</div>
+    return <Spinner />
   }
 
   if (!attributes || attributes.length === 0) {
-    return <p className="text-sm text-gray-400">{t('products.attributes.noneDefined')}</p>
+    return <EmptyState title={t('products.attributes.noneDefined')} />
   }
 
   return (
     <div className="card space-y-4 p-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {attributes.map((attr) => (
-          <div key={attr.id}>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {attr.name}
-              {attr.unit ? ` (${attr.unit})` : ''}
-            </label>
-            <DynamicAttributeField
-              attribute={attr}
-              value={attrValues[attr.id]}
-              onChange={(value) => setAttrValues((prev) => ({ ...prev, [attr.id]: value }))}
-            />
-          </div>
+          <DynamicAttributeField
+            key={attr.id}
+            attribute={attr}
+            label={`${attr.name}${attr.unit ? ` (${attr.unit})` : ''}`}
+            value={attrValues[attr.id]}
+            onChange={(value) => setAttrValues((prev) => ({ ...prev, [attr.id]: value }))}
+          />
         ))}
       </div>
 
       {canEdit && (
-        <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
-          <button
-            className="btn-primary"
-            disabled={saveMutation.isPending}
-            onClick={() => saveMutation.mutate()}
-          >
-            {saveMutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+        <div className="flex justify-end gap-3 border-t border-line pt-4">
+          <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()}>
+            {t('common.save')}
+          </Button>
         </div>
       )}
-      {saveMutation.isError && <p className="text-sm text-red-600">{t('common.failedToSave')}</p>}
+      {saveMutation.isError && <Alert variant="danger">{serverMessage(saveMutation.error, t('common.failedToSave'))}</Alert>}
     </div>
   )
 }

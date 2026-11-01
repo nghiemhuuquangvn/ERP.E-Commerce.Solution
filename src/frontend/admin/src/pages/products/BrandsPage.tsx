@@ -8,6 +8,8 @@ import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
+import { serverMessage } from '@/lib/serverMessage'
+import { Alert, Button, EmptyState, FormField, Input, Modal, Select, useToast } from '@/components/ui'
 
 interface BrandFormValues {
   code: string
@@ -18,6 +20,7 @@ interface BrandFormValues {
 function BrandModal({ brand, onClose }: { brand: Brand | null; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!brand
 
   const { register, handleSubmit, formState: { errors } } = useForm<BrandFormValues>({
@@ -39,45 +42,38 @@ function BrandModal({ brand, onClose }: { brand: Brand | null; onClose: () => vo
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['product', 'brands'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('products.brands.editTitle') : t('products.brands.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-            <input className="input" disabled={isEdit} {...register('code', { required: !isEdit })} />
-            {errors.code && <p className="mt-1 text-xs text-red-600">{t('common.code')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-            {errors.name && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.brands.logoUrl')}</label>
-            <input className="input" {...register('logoUrl')} />
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('products.brands.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={isEdit ? t('products.brands.editTitle') : t('products.brands.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="brand-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="brand-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('common.code')} required={!isEdit} error={errors.code ? t('common.required') : undefined}>
+          <Input disabled={isEdit} {...register('code', { required: !isEdit })} />
+        </FormField>
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <FormField label={t('products.brands.logoUrl')}>
+          <Input {...register('logoUrl')} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('products.brands.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -85,6 +81,7 @@ export function BrandsPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [modalState, setModalState] = useState<{ open: boolean; brand: Brand | null }>({
     open: false,
@@ -106,7 +103,12 @@ export function BrandsPage() {
     mutationFn: (b: Brand) => (b.isActive ? brandsApi.deactivate(b.id) : brandsApi.activate(b.id)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['product', 'brands'] })
+      toast.success(t('common.saved'))
       setConfirmTarget(null)
+    },
+    onError: (e) => {
+      setConfirmTarget(null)
+      toast.error(serverMessage(e, t('common.failedToSave')))
     },
   })
 
@@ -135,23 +137,19 @@ export function BrandsPage() {
         render: (b: Brand) =>
           canManage ? (
             <div className="flex gap-3">
-              <button
-                className="text-xs text-primary-600 hover:underline"
-                onClick={() => setModalState({ open: true, brand: b })}
-              >
+              <Button variant="link" className="text-xs"
+                onClick={() => setModalState({ open: true, brand: b })}>
                 {t('common.edit')}
-              </button>
+              </Button>
               {b.isActive ? (
-                <button className="text-xs text-red-600 hover:underline" onClick={() => setConfirmTarget(b)}>
+                <Button variant="link-danger" className="text-xs" onClick={() => setConfirmTarget(b)}>
                   {t('common.deactivate')}
-                </button>
+                </Button>
               ) : (
-                <button
-                  className="text-xs text-green-600 hover:underline"
-                  onClick={() => toggleMutation.mutate(b)}
-                >
+                <Button variant="link" className="text-xs"
+                  onClick={() => toggleMutation.mutate(b)}>
                   {t('common.activate')}
-                </button>
+                </Button>
               )}
             </div>
           ) : null,
@@ -165,23 +163,38 @@ export function BrandsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('products.brands.title')}</h1>
         {canManage && (
-          <button className="btn-primary" onClick={() => setModalState({ open: true, brand: null })}>
+          <Button onClick={() => setModalState({ open: true, brand: null })}>
             {t('products.brands.add')}
-          </button>
+          </Button>
         )}
       </div>
 
-      <select
-        className="input max-w-xs"
+      <Select
+        className="max-w-xs"
+        aria-label={t('common.status')}
         value={activeFilter}
         onChange={(e) => setActiveFilter(e.target.value as 'all' | 'active' | 'inactive')}
       >
         <option value="all">{t('common.all')}</option>
         <option value="active">{t('products.brands.active')}</option>
         <option value="inactive">{t('products.brands.inactive')}</option>
-      </select>
+      </Select>
 
-      <DataTable columns={columns} data={data ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data ?? []}
+        isLoading={isLoading}
+        emptyState={
+          activeFilter !== 'all' ? (
+            <EmptyState
+              variant="no-results"
+              title={t('common.noResults')}
+              description={t('common.noResultsHint')}
+              action={<Button variant="outline" onClick={() => setActiveFilter('all')}>{t('common.clear')}</Button>}
+            />
+          ) : undefined
+        }
+      />
 
       {modalState.open && (
         <BrandModal brand={modalState.brand} onClose={() => setModalState({ open: false, brand: null })} />

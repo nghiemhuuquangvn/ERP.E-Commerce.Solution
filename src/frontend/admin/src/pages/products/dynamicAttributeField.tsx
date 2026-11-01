@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { ATTRIBUTE_DATA_TYPE } from '@/api/product/attributes.api'
+import { Checkbox, FormField, Input, Select } from '@/components/ui'
 import type { AttributeValue, ProductAttribute, SetAttributeValueRequest } from '@/api/product/attributes.api'
 
 // Shared between ProductVariantsTab's per-variant "Color/Size" fields and
@@ -72,10 +73,13 @@ export function mapExistingValueToAttrValue(
 
 export function DynamicAttributeField({
   attribute,
+  label,
   value,
   onChange,
 }: {
   attribute: ProductAttribute
+  /** Visible name of the field (the attribute name, with its unit). */
+  label: string
   value: AttrValue | undefined
   onChange: (value: AttrValue) => void
 }) {
@@ -84,61 +88,66 @@ export function DynamicAttributeField({
   switch (attribute.dataType) {
     case ATTRIBUTE_DATA_TYPE.Number:
       return (
-        <input
-          type="number"
-          step="0.01"
-          className="input"
-          value={value === undefined ? '' : (value as number)}
-          onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
-        />
+        <FormField label={label}>
+          <Input
+            type="number"
+            step="0.01"
+            value={value === undefined ? '' : (value as number)}
+            onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
+          />
+        </FormField>
       )
     case ATTRIBUTE_DATA_TYPE.Boolean:
       return (
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input type="checkbox" checked={Boolean(value)} onChange={(e) => onChange(e.target.checked)} />
-          {t('common.yes')}
-        </label>
+        <div>
+          <span className="mb-1 block text-sm font-medium text-ink-secondary">{label}</span>
+          <Checkbox label={t('common.yes')} checked={Boolean(value)} onChange={(e) => onChange(e.target.checked)} />
+        </div>
       )
     case ATTRIBUTE_DATA_TYPE.Date:
       return (
-        <input
-          type="date"
-          className="input"
-          value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-        />
+        <FormField label={label}>
+          <Input type="date" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} />
+        </FormField>
       )
     case ATTRIBUTE_DATA_TYPE.SingleSelect:
       return (
-        <select className="input" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)}>
-          <option value="">{t('common.none')}</option>
-          {attribute.options.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.value}
-            </option>
-          ))}
-        </select>
+        <FormField label={label}>
+          <Select value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)}>
+            <option value="">{t('common.none')}</option>
+            {attribute.options.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.value}
+              </option>
+            ))}
+          </Select>
+        </FormField>
       )
     case ATTRIBUTE_DATA_TYPE.MultiSelect: {
       const selected = Array.isArray(value) ? value : []
       return (
-        <div className="flex flex-wrap gap-3">
-          {attribute.options.map((o) => (
-            <label key={o.id} className="flex items-center gap-1 text-xs text-gray-700">
-              <input
-                type="checkbox"
+        <fieldset>
+          <legend className="mb-1 block text-sm font-medium text-ink-secondary">{label}</legend>
+          <div className="flex flex-wrap gap-3">
+            {attribute.options.map((o) => (
+              <Checkbox
+                key={o.id}
+                label={o.value}
                 checked={selected.includes(o.id)}
                 onChange={(e) => {
                   onChange(e.target.checked ? [...selected, o.id] : selected.filter((id) => id !== o.id))
                 }}
               />
-              {o.value}
-            </label>
-          ))}
-        </div>
+            ))}
+          </div>
+        </fieldset>
       )
     }
     default:
-      return <input className="input" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} />
+      return (
+        <FormField label={label}>
+          <Input value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} />
+        </FormField>
+      )
   }
 }

@@ -12,6 +12,8 @@ import { categoriesApi } from '@/api/product/categories.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, Checkbox, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 const DATA_TYPE_OPTIONS = [
   { value: ATTRIBUTE_DATA_TYPE.Text, labelKey: 'products.attributes.dataTypes.text' },
@@ -46,6 +48,7 @@ function AttributeModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!attribute
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<AttributeFormValues>({
@@ -98,6 +101,7 @@ function AttributeModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['product', 'attributes'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
@@ -105,130 +109,112 @@ function AttributeModal({
   const existingOptions = attribute?.options ?? []
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-lg space-y-4 p-6">
-        <h3 className="text-base font-semibold text-gray-900">
-          {isEdit ? t('products.attributes.editTitle') : t('products.attributes.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.attributes.code')}</label>
-            <input
-              className="input font-mono"
-              disabled={isEdit}
-              {...register('code', { required: !isEdit, pattern: /^[a-z0-9_]+$/ })}
-              placeholder="e.g. material"
-            />
-            {errors.code && (
-              <p className="mt-1 text-xs text-red-600">{t('products.attributes.codeHint')}</p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.attributes.dataType')}</label>
-            <select className="input" disabled={isEdit} {...register('dataType', { valueAsNumber: true })}>
-              {DATA_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {t(o.labelKey)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.category')}</label>
-            <select className="input" disabled={isEdit} {...register('categoryId')}>
-              <option value="">{t('products.attributes.global')}</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('products.attributes.unit')}</label>
-            <input className="input" {...register('unit')} placeholder="e.g. kg, cm" />
-          </div>
-          <div className="flex flex-col justify-end gap-1">
-            <label className="flex items-center gap-2 text-xs text-gray-700">
-              <input type="checkbox" disabled={isEdit} {...register('isVariantOption')} />
-              {t('products.attributes.isVariantOption')}
-            </label>
-            <label className="flex items-center gap-2 text-xs text-gray-700">
-              <input type="checkbox" {...register('isRequired')} />
-              {t('products.attributes.isRequired')}
-            </label>
-            <label className="flex items-center gap-2 text-xs text-gray-700">
-              <input type="checkbox" {...register('isFilterable')} />
-              {t('products.attributes.isFilterable')}
-            </label>
-          </div>
+    <Modal
+      open
+      size="lg"
+      title={isEdit ? t('products.attributes.editTitle') : t('products.attributes.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="attribute-form" loading={mutation.isPending}>{t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="attribute-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="grid grid-cols-2 gap-4">
+        <FormField
+          label={t('products.attributes.code')}
+          required={!isEdit}
+          error={errors.code ? (errors.code.type === 'pattern' ? t('products.attributes.codeFormat') : t('common.required')) : undefined}
+        >
+          <Input className="font-mono"
+            disabled={isEdit}
+            {...register('code', { required: !isEdit, pattern: /^[a-z0-9_]+$/ })}
+            placeholder="e.g. material"
+          />
+        </FormField>
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <FormField label={t('products.attributes.dataType')}>
+          <Select disabled={isEdit} {...register('dataType', { valueAsNumber: true })}>
+            {DATA_TYPE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {t(o.labelKey)}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('products.category')}>
+          <Select disabled={isEdit} {...register('categoryId')}>
+            <option value="">{t('products.attributes.global')}</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('products.attributes.unit')}>
+          <Input {...register('unit')} placeholder="e.g. kg, cm" />
+        </FormField>
+        <div className="flex flex-col justify-end gap-1">
+          <Checkbox label={t('products.attributes.isVariantOption')} disabled={isEdit} {...register('isVariantOption')} />
+          <Checkbox label={t('products.attributes.isRequired')} {...register('isRequired')} />
+          <Checkbox label={t('products.attributes.isFilterable')} {...register('isFilterable')} />
+        </div>
 
-          {isSelectType && (
-            <div className="col-span-2 space-y-2 border-t border-gray-100 pt-3">
-              <label className="block text-sm font-medium text-gray-700">{t('products.attributes.options')}</label>
-              {existingOptions.length > 0 && (
-                <ul className="flex flex-wrap gap-2">
-                  {existingOptions.map((o) => (
-                    <li key={o.id} className="badge bg-gray-100 text-gray-700">
-                      {o.value}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {newOptions.length > 0 && (
-                <ul className="flex flex-wrap gap-2">
-                  {newOptions.map((value, idx) => (
-                    <li key={`${value}-${idx}`} className="badge bg-primary-50 text-primary-700">
-                      {value}
-                    </li>
-                  ))}
-                </ul>
-              )}
+        {isSelectType && (
+          <div className="col-span-2 space-y-2 border-t border-line pt-3">
+            <FormField label={t('products.attributes.options')}>
               <div className="flex gap-2">
-                <input
-                  className="input"
+                <Input
                   value={optionDraft}
                   onChange={(e) => setOptionDraft(e.target.value)}
                   placeholder={t('products.attributes.addOptionPlaceholder')}
                 />
-                <button
+                <Button variant="outline"
                   type="button"
-                  className="btn-outline"
                   onClick={() => {
                     const value = optionDraft.trim()
                     if (!value) return
                     setNewOptions((prev) => [...prev, value])
                     setOptionDraft('')
-                  }}
-                >
+                  }}>
                   {t('common.add')}
-                </button>
+                </Button>
               </div>
-              {!isEdit && (
-                <p className="text-xs text-gray-400">{t('products.attributes.optionsRequiredHint')}</p>
-              )}
-            </div>
-          )}
-
-          {mutation.isError && (
-            <p className="col-span-2 text-xs text-red-600">{t('common.failedToSave')}</p>
-          )}
-
-          <div className="col-span-2 flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
+            </FormField>
+            {existingOptions.length > 0 && (
+              <ul className="flex flex-wrap gap-2">
+                {existingOptions.map((o) => (
+                  <li key={o.id} className="badge bg-surface-muted text-ink-secondary">
+                    {o.value}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {newOptions.length > 0 && (
+              <ul className="flex flex-wrap gap-2">
+                {newOptions.map((value, idx) => (
+                  <li key={`${value}-${idx}`} className="badge bg-info-soft text-info-soft-text">
+                    {value}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!isEdit && (
+              <p className="text-xs text-ink-secondary">{t('products.attributes.optionsRequiredHint')}</p>
+            )}
           </div>
-        </form>
-      </div>
-    </div>
+        )}
+
+        {mutation.isError && (
+          <Alert variant="danger" className="col-span-2">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>
+        )}
+      </form>
+    </Modal>
   )
 }
 
@@ -236,6 +222,7 @@ export function ProductAttributesPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const canManage = hasPermission('products:edit')
 
   const [modalState, setModalState] = useState<{ open: boolean; attribute: ProductAttribute | null }>({
@@ -265,7 +252,12 @@ export function ProductAttributesPage() {
     mutationFn: (id: string) => attributesApi.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['product', 'attributes'] })
+      toast.success(t('common.saved'))
       setDeleteTarget(null)
+    },
+    onError: (e) => {
+      setDeleteTarget(null)
+      toast.error(serverMessage(e, t('common.failedToSave')))
     },
   })
 
@@ -299,15 +291,13 @@ export function ProductAttributesPage() {
       render: (a: ProductAttribute) =>
         canManage ? (
           <div className="flex gap-3">
-            <button
-              className="text-xs text-primary-600 hover:underline"
-              onClick={() => setModalState({ open: true, attribute: a })}
-            >
+            <Button variant="link" className="text-xs"
+              onClick={() => setModalState({ open: true, attribute: a })}>
               {t('common.edit')}
-            </button>
-            <button className="text-xs text-red-600 hover:underline" onClick={() => setDeleteTarget(a)}>
+            </Button>
+            <Button variant="link-danger" className="text-xs" onClick={() => setDeleteTarget(a)}>
               {t('common.delete')}
-            </button>
+            </Button>
           </div>
         ) : null,
     },
@@ -318,12 +308,12 @@ export function ProductAttributesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">{t('products.attributes.title')}</h1>
-          <p className="text-sm text-gray-500">{t('products.attributes.subtitle')}</p>
+          <p className="text-sm text-ink-secondary">{t('products.attributes.subtitle')}</p>
         </div>
         {canManage && (
-          <button className="btn-primary" onClick={() => setModalState({ open: true, attribute: null })}>
+          <Button onClick={() => setModalState({ open: true, attribute: null })}>
             {t('products.attributes.add')}
-          </button>
+          </Button>
         )}
       </div>
 

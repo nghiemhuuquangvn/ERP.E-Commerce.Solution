@@ -488,6 +488,60 @@
     "confirmSelection": "Thêm đã chọn"
   },
   "products": {
+    "brands": {
+      "title": "Thương hiệu",
+      "add": "+ Thêm thương hiệu",
+      "addTitle": "Thêm thương hiệu",
+      "editTitle": "Sửa thương hiệu",
+      "logoUrl": "Địa chỉ logo",
+      "active": "Đang dùng",
+      "inactive": "Ngừng dùng",
+      "deactivateTitle": "Ngừng dùng thương hiệu",
+      "deactivateConfirm": "Ngừng dùng thương hiệu \"{{name}}\"?",
+      "failedToSave": "Không lưu được thương hiệu."
+    },
+    "categories": {
+      "title": "Danh mục",
+      "add": "+ Thêm danh mục",
+      "addTitle": "Thêm danh mục",
+      "editTitle": "Sửa danh mục",
+      "parentCategory": "Danh mục cha",
+      "sortOrder": "Thứ tự",
+      "parentCannotClear": "Danh mục cha có thể đổi nhưng không thể bỏ sau khi đã chọn.",
+      "failedToSave": "Không lưu được danh mục."
+    },
+    "priceLists": {
+      "title": "Bảng giá",
+      "add": "+ Thêm bảng giá",
+      "addTitle": "Thêm bảng giá",
+      "listsTab": "Bảng giá",
+      "itemsTab": "Mặt hàng",
+      "active": "Đang dùng",
+      "inactive": "Ngừng dùng",
+      "channel": "Kênh bán",
+      "currency": "Tiền tệ",
+      "tenantDefaultCurrency": "Tiền tệ mặc định của cửa hàng",
+      "description": "Mô tả",
+      "effectiveDate": "Ngày hiệu lực",
+      "expiryDate": "Ngày hết hạn",
+      "items": "Mặt hàng",
+      "addItem": "Thêm mặt hàng",
+      "variantId": "Mã biến thể",
+      "variantIdHint": "Dán mã biến thể của từng biến thể sản phẩm được áp giá.",
+      "basePrice": "Giá gốc",
+      "discountedPrice": "Giá khuyến mãi",
+      "minQuantity": "Số lượng tối thiểu",
+      "effectivePrice": "Giá áp dụng",
+      "lookupId": "Mã bảng giá",
+      "lookupIdPlaceholder": "Dán mã bảng giá",
+      "load": "Mở",
+      "recentlyViewed": "Đã xem gần đây",
+      "updateChannel": "Cập nhật kênh",
+      "notFound": "Không tìm thấy bảng giá.",
+      "pickListFirst": "Hãy mở một bảng giá trước để xem mặt hàng.",
+      "itemsReadOnlyNote": "Mặt hàng chỉ xem ở đây; tạo bảng giá mới để đổi giá.",
+      "failedToSave": "Không lưu được bảng giá."
+    },
     "title": "Sản phẩm",
     "addProduct": "+ Thêm sản phẩm",
     "searchPlaceholder": "Tìm theo tên hoặc SKU…",
@@ -516,6 +570,7 @@
       "bundle": "Combo"
     },
     "form": {
+      "nameTooShort": "Tối thiểu 3 ký tự.",
       "requiredFields": "Tên (tối thiểu 3 ký tự) và SKU là bắt buộc.",
       "notEditableAfterCreate": "Không thể thay đổi sau khi tạo.",
       "saveFirstToUnlock": "Lưu sản phẩm trước để quản lý mục này.",
@@ -563,6 +618,8 @@
       "fileTooLarge": "Hình ảnh vượt quá giới hạn 5 MB."
     },
     "variants": {
+      "weightUnit": "Đơn vị khối lượng",
+      "dimensionUnit": "Đơn vị kích thước",
       "add": "+ Thêm biến thể",
       "addTitle": "Thêm biến thể",
       "editTitle": "Sửa biến thể",
@@ -587,6 +644,7 @@
       "conversionFactorInvalid": "Hệ số quy đổi phải lớn hơn 0."
     },
     "attributes": {
+      "codeFormat": "Chỉ gồm chữ thường, chữ số và dấu gạch dưới.",
       "title": "Thuộc tính sản phẩm",
       "subtitle": "Định nghĩa thuộc tính mới (ví dụ: Chất liệu, Màu sắc) để gán cho sản phẩm và biến thể — không cần chỉnh sửa code hay cơ sở dữ liệu.",
       "add": "+ Thêm thuộc tính",
