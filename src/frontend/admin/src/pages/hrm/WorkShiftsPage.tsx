@@ -8,6 +8,8 @@ import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, FormField, Input, Modal, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface WorkShiftFormValues {
   name: string
@@ -18,6 +20,7 @@ interface WorkShiftFormValues {
 function WorkShiftModal({ shift, onClose }: { shift: WorkShift | null; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!shift
   const { register, handleSubmit, formState: { errors } } = useForm<WorkShiftFormValues>({
     defaultValues: {
@@ -34,48 +37,40 @@ function WorkShiftModal({ shift, onClose }: { shift: WorkShift | null; onClose: 
         : workShiftsApi.create(values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hrm', 'workShifts'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('hrm.workShifts.editTitle') : t('hrm.workShifts.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-            {errors.name && <p className="mt-1 text-xs text-red-600">{t('hrm.required')}</p>}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.workShifts.startTime')}</label>
-              <input type="time" className="input" {...register('startTime', { required: true })} />
-              {errors.startTime && <p className="mt-1 text-xs text-red-600">{t('hrm.required')}</p>}
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('hrm.workShifts.endTime')}</label>
-              <input type="time" className="input" {...register('endTime', { required: true })} />
-              {errors.endTime && <p className="mt-1 text-xs text-red-600">{t('hrm.required')}</p>}
-            </div>
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('hrm.workShifts.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={isEdit ? t('hrm.workShifts.editTitle') : t('hrm.workShifts.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="work-shift-form" loading={mutation.isPending}>{mutation.isPending ? t('common.saving') : t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="work-shift-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label={t('hrm.workShifts.startTime')} required error={errors.startTime ? t('common.required') : undefined}>
+            <Input type="time" {...register('startTime', { required: true })} />
+          </FormField>
+          <FormField label={t('hrm.workShifts.endTime')} required error={errors.endTime ? t('common.required') : undefined}>
+            <Input type="time" {...register('endTime', { required: true })} />
+          </FormField>
+        </div>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('hrm.workShifts.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -127,19 +122,15 @@ export function WorkShiftsPage() {
         render: (s: WorkShift) =>
           canManage ? (
             <div className="flex gap-3">
-              <button
-                className="text-xs text-primary-600 hover:underline"
-                onClick={() => setModalState({ open: true, shift: s })}
-              >
+              <Button variant="link" className="text-xs"
+                onClick={() => setModalState({ open: true, shift: s })}>
                 {t('common.edit')}
-              </button>
+              </Button>
               {s.isActive && (
-                <button
-                  className="text-xs text-red-600 hover:underline"
-                  onClick={() => setConfirmTarget(s)}
-                >
+                <Button variant="link-danger" className="text-xs"
+                  onClick={() => setConfirmTarget(s)}>
                   {t('common.deactivate')}
-                </button>
+                </Button>
               )}
             </div>
           ) : null,
@@ -153,9 +144,9 @@ export function WorkShiftsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('hrm.workShifts.title')}</h1>
         {canManage && (
-          <button className="btn-primary" onClick={() => setModalState({ open: true, shift: null })}>
+          <Button onClick={() => setModalState({ open: true, shift: null })}>
             {t('hrm.workShifts.add')}
-          </button>
+          </Button>
         )}
       </div>
 

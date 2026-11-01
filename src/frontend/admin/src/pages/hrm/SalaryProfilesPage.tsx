@@ -4,11 +4,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { payrollSettingsApi } from '@/api/hrm/payrollSettings.api'
 import type { SalaryProfile } from '@/api/hrm/payrollSettings.api'
-import { serverMessage } from '@/api/hrm/payroll.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { Pagination } from '@/components/shared/Pagination'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, Checkbox, FormField, Input, Modal, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 const money = (v: number | null | undefined) => (v == null ? '—' : new Intl.NumberFormat().format(v))
 const thisMonth = () => new Date().toISOString().slice(0, 7)
@@ -29,6 +30,7 @@ interface TermsForm {
 function SalaryTermsModal({ profile, onClose }: { profile: SalaryProfile; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const current = profile.current
   const { register, handleSubmit, formState: { errors } } = useForm<TermsForm>({
     defaultValues: {
@@ -57,66 +59,57 @@ function SalaryTermsModal({ profile, onClose }: { profile: SalaryProfile; onClos
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hrm', 'salaryProfiles'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
-  const field = 'mb-1 block text-sm font-medium text-gray-700'
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card max-h-[90vh] w-full max-w-lg overflow-y-auto p-6">
-        <h3 className="mb-1 text-base font-semibold text-gray-900">{t('hrm.salaryProfiles.termsTitle')}</h3>
-        <p className="mb-4 text-sm text-gray-500">{profile.fullName} ({profile.employeeNumber})</p>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={field}>{t('hrm.salaryProfiles.effectiveFrom')}</label>
-              <input type="month" className="input" {...register('effectiveFrom', { required: true })} />
-            </div>
-            <div>
-              <label className={field}>{t('hrm.salaryProfiles.baseSalary')}</label>
-              <input type="number" step="1" className="input" {...register('baseSalary', { required: true, min: 1, valueAsNumber: true })} />
-              {errors.baseSalary && <p className="mt-1 text-xs text-red-600">{t('hrm.required')}</p>}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={field}>{t('hrm.salaryProfiles.taxableAllowance')}</label>
-              <input type="number" step="1" className="input" {...register('taxableAllowance', { valueAsNumber: true })} />
-            </div>
-            <div>
-              <label className={field}>{t('hrm.salaryProfiles.exemptAllowance')}</label>
-              <input type="number" step="1" className="input" {...register('exemptAllowance', { valueAsNumber: true })} />
-            </div>
-          </div>
-          <div>
-            <label className={field}>{t('hrm.salaryProfiles.insuranceSalary')}</label>
-            <input type="number" step="1" className="input" placeholder={t('hrm.salaryProfiles.insuranceSalaryHint')} {...register('insuranceSalary')} />
-          </div>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" {...register('insuranceEnabled')} />
-            {t('hrm.salaryProfiles.insuranceEnabled')}
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={field}>{t('hrm.salaryProfiles.taxCode')}</label>
-              <input className="input" maxLength={20} {...register('taxCode')} />
-            </div>
-            <div>
-              <label className={field}>{t('hrm.salaryProfiles.insuranceNumber')}</label>
-              <input className="input" maxLength={20} {...register('insuranceNumber')} />
-            </div>
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{serverMessage(mutation.error, t('hrm.payroll.failedToSave'))}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">{t('common.cancel')}</button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="md"
+      title={`${t('hrm.salaryProfiles.termsTitle')} — ${profile.fullName} (${profile.employeeNumber})`}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="salary-terms-form" loading={mutation.isPending}>{t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="salary-terms-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label={t('hrm.salaryProfiles.effectiveFrom')} required error={errors.effectiveFrom ? t('common.required') : undefined}>
+            <Input type="month" {...register('effectiveFrom', { required: true })} />
+          </FormField>
+          <FormField label={t('hrm.salaryProfiles.baseSalary')} required error={errors.baseSalary ? t('common.required') : undefined}>
+            <Input type="number" step="1" {...register('baseSalary', { required: true, min: 1, valueAsNumber: true })} />
+          </FormField>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label={t('hrm.salaryProfiles.taxableAllowance')}>
+            <Input type="number" step="1" {...register('taxableAllowance', { valueAsNumber: true })} />
+          </FormField>
+          <FormField label={t('hrm.salaryProfiles.exemptAllowance')}>
+            <Input type="number" step="1" {...register('exemptAllowance', { valueAsNumber: true })} />
+          </FormField>
+        </div>
+        <FormField label={t('hrm.salaryProfiles.insuranceSalary')}>
+          <Input type="number" step="1" placeholder={t('hrm.salaryProfiles.insuranceSalaryHint')} {...register('insuranceSalary')} />
+        </FormField>
+        <Checkbox label={t('hrm.salaryProfiles.insuranceEnabled')} {...register('insuranceEnabled')} />
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label={t('hrm.salaryProfiles.taxCode')}>
+            <Input maxLength={20} {...register('taxCode')} />
+          </FormField>
+          <FormField label={t('hrm.salaryProfiles.insuranceNumber')}>
+            <Input maxLength={20} {...register('insuranceNumber')} />
+          </FormField>
+        </div>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('hrm.payroll.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -133,9 +126,10 @@ interface DependentForm {
 function DependentsModal({ profile, onClose }: { profile: SalaryProfile; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const key = ['hrm', 'dependents', profile.employeeId]
   const { data: dependents = [], isLoading } = useQuery({ queryKey: key, queryFn: () => payrollSettingsApi.dependents(profile.employeeId) })
-  const { register, handleSubmit, reset } = useForm<DependentForm>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<DependentForm>({
     defaultValues: { fullName: '', relationship: '', taxCode: '', fromMonth: thisMonth(), toMonth: '' },
   })
 
@@ -154,86 +148,86 @@ function DependentsModal({ profile, onClose }: { profile: SalaryProfile; onClose
       }),
     onSuccess: () => {
       reset({ fullName: '', relationship: '', taxCode: '', fromMonth: thisMonth(), toMonth: '' })
+      toast.success(t('common.saved'))
       refresh()
     },
   })
-  const remove = useMutation({ mutationFn: (id: string) => payrollSettingsApi.removeDependent(id), onSuccess: refresh })
+  const remove = useMutation({
+    mutationFn: (id: string) => payrollSettingsApi.removeDependent(id),
+    onSuccess: () => {
+      toast.success(t('common.saved'))
+      refresh()
+    },
+    onError: (e) => toast.error(serverMessage(e, t('hrm.payroll.failedToSave'))),
+  })
 
-  const field = 'mb-1 block text-sm font-medium text-gray-700'
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card max-h-[90vh] w-full max-w-2xl overflow-y-auto p-6">
-        <h3 className="mb-1 text-base font-semibold text-gray-900">{t('hrm.salaryProfiles.dependentsTitle')}</h3>
-        <p className="mb-4 text-sm text-gray-500">{profile.fullName} ({profile.employeeNumber})</p>
-
-        <table className="mb-4 min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
-            <tr>
-              <th className="px-3 py-2">{t('hrm.salaryProfiles.dependentName')}</th>
-              <th className="px-3 py-2">{t('hrm.salaryProfiles.relationship')}</th>
-              <th className="px-3 py-2">{t('hrm.salaryProfiles.fromMonth')}</th>
-              <th className="px-3 py-2">{t('hrm.salaryProfiles.toMonth')}</th>
-              <th />
+    <Modal
+      open
+      size="lg"
+      title={`${t('hrm.salaryProfiles.dependentsTitle')} — ${profile.fullName} (${profile.employeeNumber})`}
+      onClose={onClose}
+      closeOnEsc={!add.isPending}
+      footer={<Button variant="outline" onClick={onClose}>{t('common.close')}</Button>}
+    >
+      <table className="mb-4 min-w-full divide-y divide-line text-sm">
+        <thead className="bg-surface-muted text-left text-xs uppercase text-ink-secondary">
+          <tr>
+            <th className="px-3 py-2">{t('hrm.salaryProfiles.dependentName')}</th>
+            <th className="px-3 py-2">{t('hrm.salaryProfiles.relationship')}</th>
+            <th className="px-3 py-2">{t('hrm.salaryProfiles.fromMonth')}</th>
+            <th className="px-3 py-2">{t('hrm.salaryProfiles.toMonth')}</th>
+            <th><span className="sr-only">{t('common.actions')}</span></th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {isLoading && <tr><td className="px-3 py-3 text-ink-secondary" colSpan={5}>{t('common.loading')}</td></tr>}
+          {!isLoading && dependents.length === 0 && (
+            <tr><td className="px-3 py-3 text-ink-secondary" colSpan={5}>{t('hrm.salaryProfiles.noDependents')}</td></tr>
+          )}
+          {dependents.map((d) => (
+            <tr key={d.id}>
+              <td className="px-3 py-2">{d.fullName}{d.taxCode ? ` · ${d.taxCode}` : ''}</td>
+              <td className="px-3 py-2">{d.relationship}</td>
+              <td className="px-3 py-2">{d.fromMonth.slice(0, 7)}</td>
+              <td className="px-3 py-2">{d.toMonth ? d.toMonth.slice(0, 7) : t('hrm.salaryProfiles.openEnded')}</td>
+              <td className="px-3 py-2 text-right">
+                <Button variant="link-danger" className="text-xs" onClick={() => remove.mutate(d.id)}>
+                  {t('hrm.salaryProfiles.removeDependent')}
+                </Button>
+              </td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {isLoading && <tr><td className="px-3 py-3 text-gray-400" colSpan={5}>{t('common.loading')}</td></tr>}
-            {!isLoading && dependents.length === 0 && (
-              <tr><td className="px-3 py-3 text-gray-400" colSpan={5}>{t('hrm.salaryProfiles.noDependents')}</td></tr>
-            )}
-            {dependents.map((d) => (
-              <tr key={d.id}>
-                <td className="px-3 py-2">{d.fullName}{d.taxCode ? ` · ${d.taxCode}` : ''}</td>
-                <td className="px-3 py-2">{d.relationship}</td>
-                <td className="px-3 py-2">{d.fromMonth.slice(0, 7)}</td>
-                <td className="px-3 py-2">{d.toMonth ? d.toMonth.slice(0, 7) : t('hrm.salaryProfiles.openEnded')}</td>
-                <td className="px-3 py-2 text-right">
-                  <button className="text-xs text-red-600 hover:underline" onClick={() => remove.mutate(d.id)}>
-                    {t('hrm.salaryProfiles.removeDependent')}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          ))}
+        </tbody>
+      </table>
 
-        <form onSubmit={handleSubmit((v) => add.mutate(v))} className="space-y-3 rounded-lg border border-gray-200 p-4">
-          <p className="text-sm font-medium text-gray-700">{t('hrm.salaryProfiles.addDependent')}</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={field}>{t('hrm.salaryProfiles.dependentName')}</label>
-              <input className="input" {...register('fullName', { required: true })} />
-            </div>
-            <div>
-              <label className={field}>{t('hrm.salaryProfiles.relationship')}</label>
-              <input className="input" placeholder={t('hrm.salaryProfiles.relationshipHint')} {...register('relationship', { required: true })} />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className={field}>{t('hrm.salaryProfiles.taxCode')}</label>
-              <input className="input" maxLength={20} {...register('taxCode')} />
-            </div>
-            <div>
-              <label className={field}>{t('hrm.salaryProfiles.fromMonth')}</label>
-              <input type="month" className="input" {...register('fromMonth', { required: true })} />
-            </div>
-            <div>
-              <label className={field}>{t('hrm.salaryProfiles.toMonth')}</label>
-              <input type="month" className="input" {...register('toMonth')} />
-            </div>
-          </div>
-          {add.isError && <p className="text-xs text-red-600">{serverMessage(add.error, t('hrm.payroll.failedToSave'))}</p>}
-          <div className="flex justify-end">
-            <button type="submit" disabled={add.isPending} className="btn-primary">{t('hrm.salaryProfiles.addDependent')}</button>
-          </div>
-        </form>
-
-        <div className="mt-4 flex justify-end">
-          <button type="button" onClick={onClose} className="btn-outline">{t('common.close')}</button>
+      <form onSubmit={handleSubmit((v) => add.mutate(v))} className="space-y-3 rounded-lg border border-line p-4">
+        <p className="text-sm font-medium text-ink">{t('hrm.salaryProfiles.addDependent')}</p>
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label={t('hrm.salaryProfiles.dependentName')} required error={errors.fullName ? t('common.required') : undefined}>
+            <Input {...register('fullName', { required: true })} />
+          </FormField>
+          <FormField label={t('hrm.salaryProfiles.relationship')} required error={errors.relationship ? t('common.required') : undefined}>
+            <Input placeholder={t('hrm.salaryProfiles.relationshipHint')} {...register('relationship', { required: true })} />
+          </FormField>
         </div>
-      </div>
-    </div>
+        <div className="grid grid-cols-3 gap-3">
+          <FormField label={t('hrm.salaryProfiles.taxCode')}>
+            <Input maxLength={20} {...register('taxCode')} />
+          </FormField>
+          <FormField label={t('hrm.salaryProfiles.fromMonth')} required error={errors.fromMonth ? t('common.required') : undefined}>
+            <Input type="month" {...register('fromMonth', { required: true })} />
+          </FormField>
+          <FormField label={t('hrm.salaryProfiles.toMonth')}>
+            <Input type="month" {...register('toMonth')} />
+          </FormField>
+        </div>
+        {add.isError && <Alert variant="danger">{serverMessage(add.error, t('hrm.payroll.failedToSave'))}</Alert>}
+        <div className="flex justify-end">
+          <Button type="submit" loading={add.isPending}>{t('hrm.salaryProfiles.addDependent')}</Button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 
@@ -261,8 +255,9 @@ export function SalaryProfilesPage() {
       {
         key: 'baseSalary',
         label: t('hrm.salaryProfiles.baseSalary'),
+        align: 'right' as const,
         render: (p: SalaryProfile) =>
-          p.current ? money(p.current.baseSalary) : <span className="text-amber-600">{t('hrm.salaryProfiles.noProfile')}</span>,
+          p.current ? money(p.current.baseSalary) : <span className="text-warning-soft-text">{t('hrm.salaryProfiles.noProfile')}</span>,
       },
       {
         key: 'allowances',
@@ -276,15 +271,15 @@ export function SalaryProfilesPage() {
           !p.current ? '—' : !p.current.insuranceEnabled ? t('hrm.salaryProfiles.noInsurance') : money(p.current.insuranceSalary ?? p.current.baseSalary),
       },
       { key: 'taxCode', label: t('hrm.salaryProfiles.taxCode'), render: (p: SalaryProfile) => p.current?.taxCode ?? '—' },
-      { key: 'dependentCount', label: t('hrm.salaryProfiles.dependents') },
+      { key: 'dependentCount', label: t('hrm.salaryProfiles.dependents'), align: 'right' as const },
       {
         key: 'actions',
         label: '',
         render: (p: SalaryProfile) =>
           canManage ? (
             <div className="flex gap-3">
-              <button className="text-xs text-blue-600 hover:underline" onClick={() => setTerms(p)}>{t('hrm.salaryProfiles.editTerms')}</button>
-              <button className="text-xs text-blue-600 hover:underline" onClick={() => setDependents(p)}>{t('hrm.salaryProfiles.manageDependents')}</button>
+              <Button variant="link" className="text-xs" onClick={() => setTerms(p)}>{t('hrm.salaryProfiles.editTerms')}</Button>
+              <Button variant="link" className="text-xs" onClick={() => setDependents(p)}>{t('hrm.salaryProfiles.manageDependents')}</Button>
             </div>
           ) : null,
       },
@@ -296,10 +291,11 @@ export function SalaryProfilesPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">{t('hrm.salaryProfiles.title')}</h1>
-        <p className="text-sm text-gray-500">{t('hrm.salaryProfiles.hint')}</p>
+        <p className="text-sm text-ink-secondary">{t('hrm.salaryProfiles.hint')}</p>
       </div>
-      <input
-        className="input max-w-xs"
+      <Input
+        className="max-w-xs"
+        aria-label={t('common.search')}
         placeholder={t('common.search')}
         value={search}
         onChange={(e) => {
