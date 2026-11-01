@@ -61,7 +61,8 @@ Promotions, Flash sales, Loyalty, POS Transactions / Shifts / Z report / Termina
 | **Products** | 11 files (6 dialogs, product form, list, images, attribute tabs) | **on the library (U3 batch 2, 2026-11-01)** - worked examples: `ProductVariantsTab.tsx` (modal + dynamic fields), `ProductFormPage.tsx` (plain-state form, per-field errors); smoke test `products.pages.test.tsx` |
 | **HRM** | 6 pages / 13 dialogs | **on the library (U3 batch 3, 2026-11-01)** - worked examples: `PayrollPage.tsx` (two-step dialog, detail with a reason flow), `PayrollSettingsPage.tsx` (grid of inputs with aria-labels); smoke test `hrm.pages.test.tsx` |
 | **CRM** | 1 page / 5 tabs / 11 dialogs | **on the library (U3 batch 4, 2026-11-01)** - worked examples: `LeadsTab.tsx` (action with a side effect behind a `ConfirmDialog`), `OpportunitiesTab.tsx` (stage counters as filter buttons, future default date), `CustomersPage.tsx` (URL tab + keyboard tablist); smoke test `crm.pages.test.tsx`; BA spec `docs/business/CRM/AdminBackOffice.md` |
-| Accounting 7, Inventory 4, Settings 3, Purchasing 3, Identity 3, Orders 2, Sales / Payments / Shipping / Logs 4 | ~29 files | still old (DEFERRED R71); one batch per plan |
+| **Inventory / Warehouse** | 12 files (4 dialogs, stocktake and transfer actions, detail page, forms) | **on the library (U3 batch 5, 2026-11-01)** - worked examples: `StocktakeDetailPage.tsx` (state-dependent action bar, one `ConfirmDialog` per irreversible step, mutations sharing `onSuccess` / `onError`), `TransferOrderListPage.tsx` (one confirm dialog driven by a `step` state), `InventoryDetailPage.tsx` (tabs over `DataTable`s); smoke test `inventory.pages.test.tsx`; BA spec `docs/business/Warehouse/AdminBackOffice.md` |
+| Accounting 7, Settings 3, Purchasing 3, Identity 3, Orders 2, Sales / Payments / Shipping / Logs 4 | ~22 files | still old (DEFERRED R71); one batch per plan |
 
 
 ### Batch 2 notes (Products)
@@ -86,6 +87,14 @@ Promotions, Flash sales, Loyalty, POS Transactions / Shifts / Z report / Termina
 - A date input whose server rule is "in the future" proposes a valid default and has `min`.
 - Stage counters that are also filters are real `<button aria-pressed>`s, not clickable cards.
 - Walk lesson: **a cached list can hide a new row** (CRM caches the contact list 5 min without invalidation, R84) - the walk uses an existing contact and seeds anything the API cannot create (R82) by SQL, then deletes it.
+
+### Batch 5 notes (Inventory / Warehouse)
+- **A step that moves stock or locks something gets a `ConfirmDialog` that states the consequence** (not just "Are you sure?") and the confirm button carries the action's own name; the test asserts `post` was NOT called before the confirm click.
+- One confirm dialog for several actions: keep a `step: { kind, order } | null` state and build the title / message keys from `kind` (`inventory.transfers.${kind}Title`); the translations test lists those dynamic keys by hand.
+- `mutation.variables` gives a per-row loading state (`recordCountMutation.variables === line.productId`) without extra state.
+- **The request enum must match the API.** The adjustment request sent `reason: 'Damaged'`; WareHouseService has no string-enum converter and answers 400, so no adjustment could be requested. Check a request enum against the API before trusting a migrated form (`ADJUSTMENT_REASON` in `stockAdjustments.api.ts`). `serverMessage` now also reads a ProblemDetails `errors` map, so a validation refusal shows its reason.
+- A select labelled with a page title ("Warehouses") reads wrongly in a dialog: give a form its own label key (`inventory.locations.warehouse`).
+- The walk lesson: never start a stocktake or approve anything on shared data without a cleanup plan (the walk starts and cancels one stocktake and deletes it by SQL).
 
 ### How batch 1 was done (so the next batches repeat it)
 The Master data pages were regular, so the conversion was scripted (field block `div > label + input/select + error <p>` -> `FormField`; the modal frame -> `Modal` with the footer buttons pulled out of the form; `btn-*` and text-link buttons -> `Button`; filter controls -> `Select` / `Input` with an `aria-label`; checkbox + label -> `Checkbox`; required fields without a visible error get one) and then reviewed by `tsc`, the smoke test (axe included) and a browser walk. Anything that did not match the pattern (the Employees terminate dialog with its confirmation) was edited by hand. `lib/serverMessage.ts` is the one helper for server messages (R73 closed).
