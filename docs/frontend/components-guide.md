@@ -60,7 +60,8 @@ Promotions, Flash sales, Loyalty, POS Transactions / Shifts / Z report / Termina
 | **Master data** | 17 pages / 25 dialogs | **on the library (U3 batch 1, 2026-11-01)** - worked example: `pages/masterdata/DepartmentsPage.tsx`; smoke test `masterdata.pages.test.tsx` |
 | **Products** | 11 files (6 dialogs, product form, list, images, attribute tabs) | **on the library (U3 batch 2, 2026-11-01)** - worked examples: `ProductVariantsTab.tsx` (modal + dynamic fields), `ProductFormPage.tsx` (plain-state form, per-field errors); smoke test `products.pages.test.tsx` |
 | **HRM** | 6 pages / 13 dialogs | **on the library (U3 batch 3, 2026-11-01)** - worked examples: `PayrollPage.tsx` (two-step dialog, detail with a reason flow), `PayrollSettingsPage.tsx` (grid of inputs with aria-labels); smoke test `hrm.pages.test.tsx` |
-| Accounting 7, CRM 5, Inventory 4, Settings 3, Purchasing 3, Identity 3, Orders 2, Sales / Payments / Shipping / Logs 4 | ~34 files | still old (DEFERRED R71); one batch per plan |
+| **CRM** | 1 page / 5 tabs / 11 dialogs | **on the library (U3 batch 4, 2026-11-01)** - worked examples: `LeadsTab.tsx` (action with a side effect behind a `ConfirmDialog`), `OpportunitiesTab.tsx` (stage counters as filter buttons, future default date), `CustomersPage.tsx` (URL tab + keyboard tablist); smoke test `crm.pages.test.tsx`; BA spec `docs/business/CRM/AdminBackOffice.md` |
+| Accounting 7, Inventory 4, Settings 3, Purchasing 3, Identity 3, Orders 2, Sales / Payments / Shipping / Logs 4 | ~29 files | still old (DEFERRED R71); one batch per plan |
 
 
 ### Batch 2 notes (Products)
@@ -77,6 +78,14 @@ Promotions, Flash sales, Loyalty, POS Transactions / Shifts / Z report / Termina
 - `useEmployeePicker` now lives in `pages/hrm/useEmployeePicker.ts` (one query key, three pages).
 - The codemod mangles a component that returns two different `fixed inset-0` blocks (`ProcessPayrollModal`: form step and result step): revert it and write that file by hand.
 - Money-moving actions (process payroll, generate / pay / cancel a pay slip) were migrated without changing a payload or a confirmation step; the browser walk never executes them.
+
+### Batch 4 notes (CRM)
+- A page made of tabs keeps the active tab in the URL (`useSearchParams`, `?tab=`) and implements the tablist keyboard pattern (arrow keys, roving `tabIndex`, `aria-controls` / `aria-labelledby`); the Product form tabs still use the simpler version.
+- A **confirm dialog's confirm button must not have the same name as Cancel or the dialog's X** (the first draft had two buttons called "Cancel" and two called "Close"): use the action's own title ("Close case", "Cancel activity").
+- An action whose result the user cannot see (Qualify creates another record) gets a `ConfirmDialog` that names the side effect.
+- A date input whose server rule is "in the future" proposes a valid default and has `min`.
+- Stage counters that are also filters are real `<button aria-pressed>`s, not clickable cards.
+- Walk lesson: **a cached list can hide a new row** (CRM caches the contact list 5 min without invalidation, R84) - the walk uses an existing contact and seeds anything the API cannot create (R82) by SQL, then deletes it.
 
 ### How batch 1 was done (so the next batches repeat it)
 The Master data pages were regular, so the conversion was scripted (field block `div > label + input/select + error <p>` -> `FormField`; the modal frame -> `Modal` with the footer buttons pulled out of the form; `btn-*` and text-link buttons -> `Button`; filter controls -> `Select` / `Input` with an `aria-label`; checkbox + label -> `Checkbox`; required fields without a visible error get one) and then reviewed by `tsc`, the smoke test (axe included) and a browser walk. Anything that did not match the pattern (the Employees terminate dialog with its confirmation) was edited by hand. `lib/serverMessage.ts` is the one helper for server messages (R73 closed).
