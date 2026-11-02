@@ -547,15 +547,15 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`flex h-full flex-col border-r border-gray-200 bg-white transition-all duration-200 ${
+      className={`flex h-full flex-col border-r border-line bg-surface transition-all duration-200 ${
         sidebarCollapsed ? 'w-16' : 'w-60'
       }`}
     >
-      <div className="flex h-16 items-center px-4 border-b border-gray-200">
+      <div className="flex h-16 items-center px-4 border-b border-line">
         {sidebarCollapsed ? (
-          <span className="text-xl font-bold text-primary-600">E</span>
+          <span className="text-xl font-bold text-brand-action">E</span>
         ) : (
-          <span className="text-lg font-bold text-primary-600">ERP Admin</span>
+          <span className="text-lg font-bold text-brand-action">ERP Admin</span>
         )}
       </div>
 
@@ -568,8 +568,8 @@ export function Sidebar() {
                 to={item.path}
                 title={sidebarCollapsed ? t(item.labelKey) : undefined}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-gray-50 ${
-                    isActive ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-600' : 'text-gray-600'
+                  `flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-surface-muted ${
+                    isActive ? 'bg-brand-subtle text-brand-action border-r-2 border-brand-action' : 'text-ink-secondary'
                   }`
                 }
               >
@@ -588,8 +588,8 @@ export function Sidebar() {
                 type="button"
                 title={sidebarCollapsed ? t(item.labelKey) : undefined}
                 onClick={() => toggleGroup(item.labelKey)}
-                className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-gray-50 ${
-                  active ? 'text-primary-700' : 'text-gray-600'
+                className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-surface-muted ${
+                  active ? 'text-brand-action' : 'text-ink-secondary'
                 }`}
               >
                 <item.icon size={20} strokeWidth={1.75} aria-hidden="true" className="shrink-0" />
@@ -607,10 +607,10 @@ export function Sidebar() {
                       key={child.path}
                       to={child.path}
                       className={({ isActive }) =>
-                        `flex items-center gap-3 py-2 pl-11 pr-4 text-sm font-medium transition-colors hover:bg-gray-50 ${
+                        `flex items-center gap-3 py-2 pl-11 pr-4 text-sm font-medium transition-colors hover:bg-surface-muted ${
                           isActive
-                            ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-600'
-                            : 'text-gray-600'
+                            ? 'bg-brand-subtle text-brand-action border-r-2 border-brand-action'
+                            : 'text-ink-secondary'
                         }`
                       }
                     >

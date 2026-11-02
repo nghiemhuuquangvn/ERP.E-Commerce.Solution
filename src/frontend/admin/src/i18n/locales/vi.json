@@ -2124,6 +2124,9 @@
       "failedToSave": "Lưu cài đặt thất bại. Vui lòng thử lại."
     },
     "featureFlags": {
+      "confirmTitle": "Đổi cờ tính năng",
+      "confirmOn": "Bật \"{{key}}\" cho toàn nền tảng? Mọi cửa hàng không ghi đè sẽ có tính năng này ngay.",
+      "confirmOff": "Tắt \"{{key}}\" cho toàn nền tảng? Mọi cửa hàng không ghi đè sẽ mất tính năng này ngay.",
       "title": "Cờ tính năng",
       "systemTab": "Hệ thống",
       "tenantTab": "Đơn vị",

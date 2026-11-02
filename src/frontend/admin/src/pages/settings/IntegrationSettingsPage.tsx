@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Checkbox, FormField, Input, useToast } from '@/components/ui'
 import {
   integrationSettingsApi,
   type SystemIntegrationSettings,
   type TenantIntegrationSettings,
 } from '@/api/settings/integration.settings.api'
 import { usePermission } from '@/hooks/usePermission'
+import { TabList } from '@/components/shared/PageTabs'
+import { serverMessage } from '@/lib/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
 
 type Tab = 'system' | 'tenant'
@@ -19,6 +22,7 @@ interface SystemFormValues {
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'integration', 'system'],
@@ -38,25 +42,21 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     mutationFn: (values: SystemFormValues) => integrationSettingsApi.updateSystemSettings(values),
     onSuccess: (result: SystemIntegrationSettings) => {
       queryClient.setQueryData(['settings', 'integration', 'system'], result)
+      toast.success(t('common.saved'))
     },
   })
 
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" disabled={!canManage} {...register('externalIntegrationsAllowed')} />
-        {t('settings.integration.externalIntegrationsAllowed')}
-      </label>
+      <Checkbox disabled={!canManage} {...register('externalIntegrationsAllowed')} label={t('settings.integration.externalIntegrationsAllowed')} />
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.integration.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.integration.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -72,6 +72,7 @@ interface TenantFormValues {
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'integration', 'tenant', tenantId],
@@ -100,42 +101,34 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       }),
     onSuccess: (result: TenantIntegrationSettings) => {
       queryClient.setQueryData(['settings', 'integration', 'tenant', tenantId], result)
+      toast.success(t('common.saved'))
     },
   })
 
-  if (!tenantId) return <p className="text-sm text-gray-400">{t('settings.integration.noTenant')}</p>
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (!tenantId) return <p className="text-sm text-ink-muted">{t('settings.integration.noTenant')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="block text-sm text-gray-700">
-        {t('settings.integration.externalApiBaseUrl')}
-        <input type="text" disabled={!canManage} {...register('externalApiBaseUrl')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-gray-700">
-        {t('settings.integration.externalApiKey')}
-        <input
+      <FormField label={t('settings.integration.externalApiBaseUrl')}>
+        <Input type="text" disabled={!canManage} {...register('externalApiBaseUrl')} />
+      </FormField>
+      <FormField label={t('settings.integration.externalApiKey')} hint={t('settings.integration.apiKeyHint')}>
+        <Input
           type="password"
           disabled={!canManage}
           placeholder={data?.hasExternalApiKey ? t('settings.integration.apiKeyPlaceholderSet') : t('settings.integration.apiKeyPlaceholderUnset')}
           autoComplete="new-password"
           {...register('externalApiKey')}
-          className="input mt-1 w-full"
-        />
-        <span className="text-xs text-gray-400">{t('settings.integration.apiKeyHint')}</span>
-      </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" disabled={!canManage} {...register('syncEnabled')} />
-        {t('settings.integration.syncEnabled')}
-      </label>
+ />
+      </FormField>
+      <Checkbox disabled={!canManage} {...register('syncEnabled')} label={t('settings.integration.syncEnabled')} />
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.integration.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.integration.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -162,21 +155,7 @@ export function IntegrationSettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.integration.title')}</h1>
 
-      <div className="flex gap-2 border-b border-gray-200">
-        {TABS.map((x) => (
-          <button
-            key={x.key}
-            onClick={() => setTab(x.key)}
-            className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key
-                ? 'border-b-2 border-primary-600 text-primary-700'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {x.label}
-          </button>
-        ))}
-      </div>
+      <TabList id="integrationsettings" label={t('settings.integration.title')} tabs={TABS} current={tab} onSelect={setTab} />
 
       {tab === 'system' && canViewSystem && <SystemSettingsForm canManage={canManageSystem} />}
       {tab === 'tenant' && (

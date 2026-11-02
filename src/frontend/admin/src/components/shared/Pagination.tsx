@@ -22,7 +22,7 @@ function PaginationInner({ page, pageSize, totalCount, onPageChange }: Paginatio
   if (totalPages <= 1) return null
 
   return (
-    <div className="flex items-center justify-between py-3 text-sm text-gray-600">
+    <div className="flex items-center justify-between py-3 text-sm text-ink-secondary">
       <span>
         {t('common.showingRange', {
           from: (page - 1) * pageSize + 1,
@@ -34,7 +34,7 @@ function PaginationInner({ page, pageSize, totalCount, onPageChange }: Paginatio
         <button
           disabled={page === 1}
           onClick={() => onPageChange(page - 1)}
-          className="rounded px-3 py-1 hover:bg-gray-100 disabled:opacity-40"
+          className="rounded px-3 py-1 hover:bg-surface-muted disabled:opacity-40"
         >
           {t('common.prev')}
         </button>
@@ -43,7 +43,7 @@ function PaginationInner({ page, pageSize, totalCount, onPageChange }: Paginatio
             key={p}
             onClick={() => onPageChange(p)}
             className={`rounded px-3 py-1 ${
-              p === page ? 'bg-primary-600 text-white' : 'hover:bg-gray-100'
+              p === page ? 'bg-brand-action text-on-brand' : 'hover:bg-surface-muted'
             }`}
           >
             {p}
@@ -52,7 +52,7 @@ function PaginationInner({ page, pageSize, totalCount, onPageChange }: Paginatio
         <button
           disabled={page === totalPages}
           onClick={() => onPageChange(page + 1)}
-          className="rounded px-3 py-1 hover:bg-gray-100 disabled:opacity-40"
+          className="rounded px-3 py-1 hover:bg-surface-muted disabled:opacity-40"
         >
           {t('common.next')}
         </button>

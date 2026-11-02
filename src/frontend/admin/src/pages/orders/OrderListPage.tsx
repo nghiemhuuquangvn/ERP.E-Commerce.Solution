@@ -74,12 +74,12 @@ export function OrderListPage() {
       label: t('orders.orderNumber'),
       render: (o: SalesOrderSummary) => (
         <span className="inline-flex items-center gap-1.5">
-          <Link to={`/orders/${o.orderId}`} className="text-primary-600 hover:underline">
+          <Link to={`/orders/${o.orderId}`} className="text-brand-action hover:underline">
             {o.orderNo || o.orderId.slice(0, 8)}
           </Link>
           {o.isAnomalous && (
             <span
-              className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700"
+              className="inline-flex items-center rounded-full bg-danger-soft px-1.5 py-0.5 text-xs font-medium text-danger-soft-text"
               title={o.anomalyReason ?? t('orders.anomalyFlag')}
             >
               <AlertTriangle size={14} strokeWidth={1.75} aria-hidden="true" className="mr-1 inline" /> {t('orders.anomalyFlag')}
@@ -116,13 +116,13 @@ export function OrderListPage() {
                 setApproveError(null)
                 approveMutation.mutate(o.orderId)
               }}
-              className="text-xs text-primary-600 hover:underline"
+              className="text-xs text-brand-action hover:underline"
             >
               {t('orders.approve')}
             </button>
           )}
           {hasPermission('sales_order:cancel') && !['Cancelled', 'Delivered', 'Shipped', 'PartiallyShipped', 'Returned'].includes(o.status) && (
-            <button onClick={() => setCancelId(o.orderId)} className="text-xs text-red-600 hover:underline">
+            <button onClick={() => setCancelId(o.orderId)} className="text-xs text-danger-soft-text hover:underline">
               {t('orders.cancel')}
             </button>
           )}
@@ -142,7 +142,7 @@ export function OrderListPage() {
         )}
       </div>
 
-      {approveError && <p className="text-sm text-red-600">{approveError}</p>}
+      {approveError && <p className="text-sm text-danger-soft-text">{approveError}</p>}
 
       <div className="flex gap-3">
         <select

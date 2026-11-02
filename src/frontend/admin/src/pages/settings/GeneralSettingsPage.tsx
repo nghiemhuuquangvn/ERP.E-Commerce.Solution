@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Checkbox, FormField, Input, useToast } from '@/components/ui'
 import {
   generalSettingsApi,
   type SystemGeneralSettings,
   type TenantGeneralSettings,
 } from '@/api/settings/general.settings.api'
 import { usePermission } from '@/hooks/usePermission'
+import { TabList } from '@/components/shared/PageTabs'
+import { serverMessage } from '@/lib/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
 
 type Tab = 'system' | 'tenant'
@@ -20,6 +23,7 @@ interface SystemFormValues {
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'general', 'system'],
@@ -39,34 +43,28 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     mutationFn: (values: SystemFormValues) => generalSettingsApi.updateSystemSettings(values),
     onSuccess: (result: SystemGeneralSettings) => {
       queryClient.setQueryData(['settings', 'general', 'system'], result)
+      toast.success(t('common.saved'))
     },
   })
 
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" disabled={!canManage} {...register('maintenanceModeEnabled')} />
-        {t('settings.general.maintenanceModeEnabled')}
-      </label>
-      <label className="block text-sm text-gray-700">
-        {t('settings.general.defaultLanguageCode')}
-        <input
+      <Checkbox disabled={!canManage} {...register('maintenanceModeEnabled')} label={t('settings.general.maintenanceModeEnabled')} />
+      <FormField label={t('settings.general.defaultLanguageCode')}>
+        <Input
           type="text"
           disabled={!canManage}
           {...register('defaultLanguageCode')}
-          className="input mt-1 w-full"
-        />
-      </label>
+ />
+      </FormField>
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.general.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.general.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -84,6 +82,7 @@ interface TenantFormValues {
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'general', 'tenant', tenantId],
@@ -110,47 +109,38 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
     mutationFn: (values: TenantFormValues) => generalSettingsApi.updateTenantSettings(tenantId, values),
     onSuccess: (result: TenantGeneralSettings) => {
       queryClient.setQueryData(['settings', 'general', 'tenant', tenantId], result)
+      toast.success(t('common.saved'))
     },
   })
 
-  if (!tenantId) return <p className="text-sm text-gray-400">{t('settings.general.noTenant')}</p>
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (!tenantId) return <p className="text-sm text-ink-muted">{t('settings.general.noTenant')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="block text-sm text-gray-700">
-        {t('settings.general.siteName')}
-        <input type="text" disabled={!canManage} {...register('siteName')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-gray-700">
-        {t('settings.general.defaultLanguageCode')}
-        <input
+      <FormField label={t('settings.general.siteName')}>
+        <Input type="text" disabled={!canManage} {...register('siteName')} />
+      </FormField>
+      <FormField label={t('settings.general.defaultLanguageCode')}>
+        <Input
           type="text"
           disabled={!canManage}
           {...register('defaultLanguageCode')}
-          className="input mt-1 w-full"
-        />
-      </label>
-      <label className="block text-sm text-gray-700">
-        {t('settings.general.timeZone')}
-        <input type="text" disabled={!canManage} {...register('timeZone')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-gray-700">
-        {t('settings.general.dateFormat')}
-        <input type="text" disabled={!canManage} {...register('dateFormat')} className="input mt-1 w-full" />
-      </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" disabled={!canManage} {...register('maintenanceModeEnabled')} />
-        {t('settings.general.maintenanceModeEnabled')}
-      </label>
+ />
+      </FormField>
+      <FormField label={t('settings.general.timeZone')}>
+        <Input type="text" disabled={!canManage} {...register('timeZone')} />
+      </FormField>
+      <FormField label={t('settings.general.dateFormat')}>
+        <Input type="text" disabled={!canManage} {...register('dateFormat')} />
+      </FormField>
+      <Checkbox disabled={!canManage} {...register('maintenanceModeEnabled')} label={t('settings.general.maintenanceModeEnabled')} />
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.general.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.general.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -177,21 +167,7 @@ export function GeneralSettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.general.title')}</h1>
 
-      <div className="flex gap-2 border-b border-gray-200">
-        {TABS.map((x) => (
-          <button
-            key={x.key}
-            onClick={() => setTab(x.key)}
-            className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key
-                ? 'border-b-2 border-primary-600 text-primary-700'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {x.label}
-          </button>
-        ))}
-      </div>
+      <TabList id="generalsettings" label={t('settings.general.title')} tabs={TABS} current={tab} onSelect={setTab} />
 
       {tab === 'system' && canViewSystem && <SystemSettingsForm canManage={canManageSystem} />}
       {tab === 'tenant' && (

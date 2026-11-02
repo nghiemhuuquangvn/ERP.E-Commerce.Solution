@@ -56,12 +56,12 @@ function ProductPicker({
         onChange={(e) => setSearch(e.target.value)}
       />
       {value && (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-ink-muted">
           {t('purchasing.suppliers.items.selectedProduct')}: <strong>{valueLabel ?? value}</strong>
         </p>
       )}
       {data && data.length > 0 && (
-        <div className="max-h-40 overflow-y-auto rounded border border-gray-200">
+        <div className="max-h-40 overflow-y-auto rounded border border-line">
           {data.map((p) => (
             <button
               type="button"
@@ -70,9 +70,9 @@ function ProductPicker({
                 onChange(p)
                 setSearch('')
               }}
-              className="block w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50"
+              className="block w-full px-3 py-1.5 text-left text-sm hover:bg-surface-muted"
             >
-              {p.name} <span className="text-gray-400">({p.sku})</span>
+              {p.name} <span className="text-ink-muted">({p.sku})</span>
             </button>
           ))}
         </div>
@@ -288,7 +288,7 @@ export function SupplierFormPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/purchasing/suppliers" className="text-sm text-gray-500 hover:text-gray-700">
+        <Link to="/purchasing/suppliers" className="text-sm text-ink-muted hover:text-ink">
           {t('purchasing.suppliers.backToSuppliers')}
         </Link>
         <h1 className="text-xl font-semibold">
@@ -297,15 +297,15 @@ export function SupplierFormPage() {
       </div>
 
       {tabs.length > 1 && (
-        <div className="flex gap-1 border-b border-gray-200">
+        <div className="flex gap-1 border-b border-line">
           {tabs.map((tb) => (
             <button
               key={tb.key}
               onClick={() => setTab(tb.key)}
               className={`px-4 py-2 text-sm font-medium ${
                 tab === tb.key
-                  ? 'border-b-2 border-primary-600 text-primary-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'border-b-2 border-brand-action text-brand-action'
+                  : 'text-ink-muted hover:text-ink'
               }`}
             >
               {t(tb.labelKey)}
@@ -319,7 +319,7 @@ export function SupplierFormPage() {
           <form onSubmit={handleSubmit} className="card max-w-2xl space-y-4 p-5">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-ink-secondary">
                   {t('purchasing.suppliers.code')}
                 </label>
                 <input
@@ -330,13 +330,13 @@ export function SupplierFormPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-ink-secondary">
                   {t('purchasing.suppliers.name')}
                 </label>
                 <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-ink-secondary">
                   {t('purchasing.suppliers.contactPerson')}
                 </label>
                 <input
@@ -346,7 +346,7 @@ export function SupplierFormPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-ink-secondary">
                   {t('purchasing.suppliers.email')}
                 </label>
                 <input
@@ -357,19 +357,19 @@ export function SupplierFormPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-ink-secondary">
                   {t('purchasing.suppliers.phone')}
                 </label>
                 <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-ink-secondary">
                   {t('purchasing.suppliers.taxCode')}
                 </label>
                 <input className="input" value={taxCode} onChange={(e) => setTaxCode(e.target.value)} />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-ink-secondary">
                   {t('purchasing.suppliers.currencyCode')}
                 </label>
                 <input
@@ -380,7 +380,7 @@ export function SupplierFormPage() {
               </div>
               {!isEdit && (
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-ink-secondary">
                     {t('purchasing.suppliers.paymentTermDays')}
                   </label>
                   <input
@@ -394,13 +394,13 @@ export function SupplierFormPage() {
               )}
             </div>
 
-            <fieldset className="space-y-3 rounded border border-gray-200 p-4">
-              <legend className="px-1 text-sm font-medium text-gray-700">
+            <fieldset className="space-y-3 rounded border border-line p-4">
+              <legend className="px-1 text-sm font-medium text-ink-secondary">
                 {t('purchasing.suppliers.address.title')}
               </legend>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600">
+                  <label className="mb-1 block text-xs font-medium text-ink-secondary">
                     {t('purchasing.suppliers.address.street')}
                   </label>
                   <input
@@ -410,7 +410,7 @@ export function SupplierFormPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600">
+                  <label className="mb-1 block text-xs font-medium text-ink-secondary">
                     {t('purchasing.suppliers.address.city')}
                   </label>
                   <input
@@ -420,7 +420,7 @@ export function SupplierFormPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600">
+                  <label className="mb-1 block text-xs font-medium text-ink-secondary">
                     {t('purchasing.suppliers.address.state')}
                   </label>
                   <input
@@ -430,7 +430,7 @@ export function SupplierFormPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600">
+                  <label className="mb-1 block text-xs font-medium text-ink-secondary">
                     {t('purchasing.suppliers.address.postalCode')}
                   </label>
                   <input
@@ -440,7 +440,7 @@ export function SupplierFormPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600">
+                  <label className="mb-1 block text-xs font-medium text-ink-secondary">
                     {t('purchasing.suppliers.address.country')}
                   </label>
                   <input
@@ -452,8 +452,8 @@ export function SupplierFormPage() {
               </div>
             </fieldset>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            {saveMutation.isError && <p className="text-sm text-red-600">{t('common.failedToSave')}</p>}
+            {error && <p className="text-sm text-danger-soft-text">{error}</p>}
+            {saveMutation.isError && <p className="text-sm text-danger-soft-text">{t('common.failedToSave')}</p>}
 
             <div className="flex justify-end gap-3 pt-2">
               <Link to="/purchasing/suppliers" className="btn-outline">
@@ -469,13 +469,13 @@ export function SupplierFormPage() {
 
           {isEdit && (
             <form onSubmit={handlePaymentTermSubmit} className="card max-w-2xl space-y-4 p-5">
-              <h2 className="text-base font-semibold text-gray-900">
+              <h2 className="text-base font-semibold text-ink">
                 {t('purchasing.suppliers.paymentTerm.title')}
               </h2>
-              <p className="text-xs text-gray-500">{t('purchasing.suppliers.paymentTerm.hint')}</p>
+              <p className="text-xs text-ink-muted">{t('purchasing.suppliers.paymentTerm.hint')}</p>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-ink-secondary">
                     {t('purchasing.suppliers.paymentTerm.paymentTerm')}
                   </label>
                   <select
@@ -494,7 +494,7 @@ export function SupplierFormPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-ink-secondary">
                     {t('purchasing.suppliers.paymentTermDays')}
                   </label>
                   <input
@@ -507,7 +507,7 @@ export function SupplierFormPage() {
                 </div>
               </div>
               {paymentTermMutation.isError && (
-                <p className="text-sm text-red-600">{t('common.failedToSave')}</p>
+                <p className="text-sm text-danger-soft-text">{t('common.failedToSave')}</p>
               )}
               <div className="flex justify-end pt-2">
                 {canEditDetails && (
@@ -528,29 +528,29 @@ export function SupplierFormPage() {
           <div className="card p-5">
             <div className="mb-4 flex items-center gap-4">
               <div>
-                <p className="text-2xl font-semibold text-gray-900">
+                <p className="text-2xl font-semibold text-ink">
                   {ratingsResult?.averageRating ?? 0}
-                  <span className="text-sm font-normal text-gray-500"> / 5</span>
+                  <span className="text-sm font-normal text-ink-muted"> / 5</span>
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ink-muted">
                   {t('purchasing.suppliers.ratings.totalCount', {
                     count: ratingsResult?.totalRatings ?? 0,
                   })}
                 </p>
               </div>
             </div>
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-line">
               {(ratingsResult?.ratings ?? []).map((r) => (
                 <li key={r.id} className="py-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-gray-900">{r.rating} / 5</span>
-                    <span className="text-xs text-gray-400">{r.ratedBy}</span>
+                    <span className="font-medium text-ink">{r.rating} / 5</span>
+                    <span className="text-xs text-ink-muted">{r.ratedBy}</span>
                   </div>
-                  {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
+                  {r.comment && <p className="mt-1 text-sm text-ink-secondary">{r.comment}</p>}
                 </li>
               ))}
               {(!ratingsResult || ratingsResult.ratings.length === 0) && (
-                <li className="py-6 text-center text-sm text-gray-400">
+                <li className="py-6 text-center text-sm text-ink-muted">
                   {t('purchasing.suppliers.ratings.empty')}
                 </li>
               )}
@@ -565,12 +565,12 @@ export function SupplierFormPage() {
               }}
               className="card space-y-4 p-5"
             >
-              <h3 className="text-sm font-semibold text-gray-900">
+              <h3 className="text-sm font-semibold text-ink">
                 {t('purchasing.suppliers.ratings.addTitle')}
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-ink-secondary">
                     {t('purchasing.suppliers.ratings.rating')}
                   </label>
                   <select
@@ -586,13 +586,13 @@ export function SupplierFormPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-ink-secondary">
                     {t('purchasing.suppliers.ratings.comment')}
                   </label>
                   <input className="input" value={newComment} onChange={(e) => setNewComment(e.target.value)} />
                 </div>
               </div>
-              {rateMutation.isError && <p className="text-sm text-red-600">{t('common.failedToSave')}</p>}
+              {rateMutation.isError && <p className="text-sm text-danger-soft-text">{t('common.failedToSave')}</p>}
               <div className="flex justify-end">
                 <button type="submit" disabled={rateMutation.isPending} className="btn-primary">
                   {rateMutation.isPending ? t('common.saving') : t('purchasing.suppliers.ratings.submit')}
@@ -606,30 +606,30 @@ export function SupplierFormPage() {
       {tab === 'items' && isEdit && (
         <div className="max-w-3xl space-y-6">
           <div className="card overflow-x-auto p-0">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-line text-sm">
+              <thead className="bg-surface-muted">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-ink-muted">
                     {t('purchasing.suppliers.items.product')}
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-ink-muted">
                     {t('purchasing.suppliers.items.itemCode')}
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-ink-muted">
                     {t('purchasing.suppliers.items.lastPurchasePrice')}
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-ink-muted">
                     {t('purchasing.suppliers.items.leadTimeDays')}
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-ink-muted">
                     {t('purchasing.suppliers.items.preferred')}
                   </th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-line">
                 {(items ?? []).map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
+                  <tr key={item.id} className="hover:bg-surface-muted">
                     <td className="px-4 py-3">
                       <ProductNameCell productId={item.productId} />
                     </td>
@@ -643,15 +643,15 @@ export function SupplierFormPage() {
                           checked={Boolean(item.isPreferred)}
                           disabled={!canEditDetails || preferredMutation.isPending}
                           onChange={(e) => preferredMutation.mutate({ itemId: item.id, preferred: e.target.checked })}
-                          className="rounded border-gray-300"
+                          className="rounded border-line-strong"
                         />
-                        {item.isPreferred && <span className="font-medium text-green-700">{t('purchasing.suppliers.items.preferred')}</span>}
+                        {item.isPreferred && <span className="font-medium text-success-soft-text">{t('purchasing.suppliers.items.preferred')}</span>}
                       </label>
                     </td>
                     <td className="px-4 py-3">
                       {canEditDetails && (
                         <button
-                          className="text-xs text-primary-600 hover:underline"
+                          className="text-xs text-brand-action hover:underline"
                           onClick={() => {
                             setEditingItemId(item.id)
                             setItemProductId(item.productId)
@@ -670,7 +670,7 @@ export function SupplierFormPage() {
                 ))}
                 {(!items || items.length === 0) && (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-gray-400">
+                    <td colSpan={6} className="py-8 text-center text-ink-muted">
                       {t('common.noRecordsFound')}
                     </td>
                   </tr>
@@ -681,7 +681,7 @@ export function SupplierFormPage() {
 
           {canEditDetails && (
             <form onSubmit={handleItemSubmit} className="card space-y-4 p-5">
-              <h3 className="text-sm font-semibold text-gray-900">
+              <h3 className="text-sm font-semibold text-ink">
                 {editingItemId
                   ? t('purchasing.suppliers.items.editTitle')
                   : t('purchasing.suppliers.items.addTitle')}
@@ -696,7 +696,7 @@ export function SupplierFormPage() {
               />
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-ink-secondary">
                     {t('purchasing.suppliers.items.variantId')}
                   </label>
                   <input
@@ -707,13 +707,13 @@ export function SupplierFormPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-ink-secondary">
                     {t('purchasing.suppliers.items.itemCode')}
                   </label>
                   <input className="input" value={itemCode} onChange={(e) => setItemCode(e.target.value)} />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-ink-secondary">
                     {t('purchasing.suppliers.items.lastPurchasePrice')}
                   </label>
                   <input
@@ -726,7 +726,7 @@ export function SupplierFormPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-ink-secondary">
                     {t('purchasing.suppliers.items.leadTimeDays')}
                   </label>
                   <input
@@ -738,7 +738,7 @@ export function SupplierFormPage() {
                   />
                 </div>
               </div>
-              {itemMutation.isError && <p className="text-sm text-red-600">{t('common.failedToSave')}</p>}
+              {itemMutation.isError && <p className="text-sm text-danger-soft-text">{t('common.failedToSave')}</p>}
               <div className="flex justify-end gap-3">
                 {editingItemId && (
                   <button type="button" onClick={resetItemForm} className="btn-outline">

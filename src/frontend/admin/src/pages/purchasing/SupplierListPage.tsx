@@ -69,7 +69,7 @@ export function SupplierListPage() {
         key: 'code',
         label: t('purchasing.suppliers.code'),
         render: (s: Supplier) => (
-          <Link to={`/purchasing/suppliers/${s.id}`} className="text-primary-600 hover:underline">
+          <Link to={`/purchasing/suppliers/${s.id}`} className="text-brand-action hover:underline">
             {s.code}
           </Link>
         ),
@@ -107,14 +107,14 @@ export function SupplierListPage() {
         render: (s: Supplier) => (
           <div className="flex gap-2">
             {hasPermission('supplier:update') && (
-              <Link to={`/purchasing/suppliers/${s.id}`} className="text-xs text-primary-600 hover:underline">
+              <Link to={`/purchasing/suppliers/${s.id}`} className="text-xs text-brand-action hover:underline">
                 {t('common.edit')}
               </Link>
             )}
             {hasPermission('supplier:deactivate') && s.isActive && (
               <button
                 onClick={() => setDeactivateId(s.id)}
-                className="text-xs text-red-600 hover:underline"
+                className="text-xs text-danger-soft-text hover:underline"
               >
                 {t('purchasing.suppliers.deactivate')}
               </button>
@@ -144,8 +144,8 @@ export function SupplierListPage() {
             onClick={() => handleFilterChange(f.value)}
             className={`rounded px-3 py-1.5 text-sm ${
               activeFilter === f.value
-                ? 'bg-primary-600 text-white'
-                : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                ? 'bg-brand-action text-on-brand'
+                : 'bg-surface border border-line-strong text-ink-secondary hover:bg-surface-muted'
             }`}
           >
             {t(f.labelKey)}

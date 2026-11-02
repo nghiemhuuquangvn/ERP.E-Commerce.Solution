@@ -28,7 +28,7 @@ export function QuotationListPage() {
       key: 'quotationNo',
       label: t('quotations.quotationNo'),
       render: (q: SalesQuotationSummary) => (
-        <Link to={`/sales/quotations/${q.quotationId}`} className="text-primary-600 hover:underline">
+        <Link to={`/sales/quotations/${q.quotationId}`} className="text-brand-action hover:underline">
           {q.quotationNo}
         </Link>
       ),

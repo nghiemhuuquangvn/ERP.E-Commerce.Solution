@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, FormField, Input } from '@/components/ui'
 import { useQuery } from '@tanstack/react-query'
 import { GoogleOAuthProvider, GoogleLogin, type CredentialResponse } from '@react-oauth/google'
 import { jwtDecode } from 'jwt-decode'
@@ -78,9 +79,9 @@ function MicrosoftLoginButton({ onError }: { onError: (message: string) => void 
   }
 
   return (
-    <button type="button" className="btn-outline w-full" onClick={handleClick}>
+    <Button variant="outline" fullWidth onClick={handleClick}>
       {t('auth.externalLogin.continueWithMicrosoft')}
-    </button>
+    </Button>
   )
 }
 
@@ -121,9 +122,9 @@ function FacebookLoginButton({ onError }: { onError: (message: string) => void }
   }
 
   return (
-    <button type="button" className="btn-outline w-full" onClick={handleClick}>
+    <Button variant="outline" fullWidth onClick={handleClick}>
       {t('auth.externalLogin.continueWithFacebook')}
-    </button>
+    </Button>
   )
 }
 
@@ -140,9 +141,9 @@ function TwitterLoginButton({ onError }: { onError: (message: string) => void })
   }
 
   return (
-    <button type="button" className="btn-outline w-full" onClick={handleClick}>
+    <Button variant="outline" fullWidth onClick={handleClick}>
       {t('auth.externalLogin.continueWithTwitter')}
-    </button>
+    </Button>
   )
 }
 
@@ -172,56 +173,48 @@ function LoginForm() {
     (options.googleEnabled || options.microsoftEnabled || options.facebookEnabled || options.twitterEnabled)
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+    <div className="flex min-h-screen items-center justify-center bg-page">
       <div className="card w-full max-w-sm p-8">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-primary-600">{t('auth.title')}</h1>
-          <p className="mt-1 text-sm text-gray-500">{t('auth.subtitle')}</p>
+          <h1 className="text-2xl font-bold text-brand-action">{t('auth.title')}</h1>
+          <p className="mt-1 text-sm text-ink-muted">{t('auth.subtitle')}</p>
         </div>
 
-        {login.error && (
-          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
-            {t('auth.invalidCredentials')}
-          </div>
-        )}
-        {ssoError && (
-          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{ssoError}</div>
-        )}
+        {login.error && <Alert variant="danger" className="mb-4">{t('auth.invalidCredentials')}</Alert>}
+        {ssoError && <Alert variant="danger" className="mb-4">{ssoError}</Alert>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('auth.email')}</label>
-            <input
+          <FormField label={t('auth.email')} required>
+            <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="input"
               placeholder="admin@example.com"
+              autoComplete="username"
               required
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('auth.password')}</label>
-            <input
+          </FormField>
+          <FormField label={t('auth.password')} required>
+            <Input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="input"
               placeholder="••••••••"
+              autoComplete="current-password"
               required
             />
-          </div>
-          <button type="submit" disabled={login.isPending} className="btn-primary w-full">
+          </FormField>
+          <Button type="submit" fullWidth loading={login.isPending}>
             {login.isPending ? t('auth.signingIn') : t('auth.signIn')}
-          </button>
+          </Button>
         </form>
 
         {options?.twoFactorEnabled && (
-          <p className="mt-3 text-center text-xs text-gray-400">{t('auth.twoFactor.enabledNotice')}</p>
+          <p className="mt-3 text-center text-xs text-ink-muted">{t('auth.twoFactor.enabledNotice')}</p>
         )}
 
         {showSso && (
-          <div className="mt-6 space-y-2 border-t border-gray-100 pt-6">
+          <div className="mt-6 space-y-2 border-t border-line pt-6">
             {options?.googleEnabled && <GoogleLoginButton onError={setSsoError} />}
             {options?.microsoftEnabled && <MicrosoftLoginButton onError={setSsoError} />}
             {options?.facebookEnabled && <FacebookLoginButton onError={setSsoError} />}

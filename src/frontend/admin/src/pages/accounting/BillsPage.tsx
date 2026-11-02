@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { AlertTriangle } from 'lucide-react'
 import { billsApi, BILL_STATUS } from '@/api/accounting/bills.api'
 import type { BillDto } from '@/api/accounting/bills.api'
-import { DocTabs } from '@/components/accounting/DocTabs'
+import { PageTabs } from '@/components/shared/PageTabs'
 import { ForeignCurrencyFields, emptyFx, isForeign, toFxRequest } from '@/components/accounting/ForeignCurrencyFields'
 import type { FxFields } from '@/components/accounting/ForeignCurrencyFields'
 import { PayDialog } from '@/components/accounting/PayDialog'
@@ -403,7 +403,7 @@ export function BillsPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('accounting.bills.title')}</h1>
-      <DocTabs
+      <PageTabs
         id="bills"
         label={t('accounting.bills.title')}
         tabs={[

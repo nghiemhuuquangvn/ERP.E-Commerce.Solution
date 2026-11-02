@@ -82,7 +82,7 @@ export function QuotationFormPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/sales/quotations" className="text-sm text-gray-500 hover:text-gray-700">
+        <Link to="/sales/quotations" className="text-sm text-ink-muted hover:text-ink">
           {t('quotations.backToQuotations')}
         </Link>
         <h1 className="text-xl font-semibold">{t('quotations.newQuotation')}</h1>
@@ -90,22 +90,22 @@ export function QuotationFormPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="card p-5">
-          <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.orderInfo')}</h2>
+          <h2 className="mb-3 text-sm font-semibold text-ink-muted uppercase tracking-wide">{t('orders.orderInfo')}</h2>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('orders.form.customerId')}</label>
+              <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('orders.form.customerId')}</label>
               <input className="input" value={customerId} onChange={(e) => setCustomerId(e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('orders.form.customerName')}</label>
+              <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('orders.form.customerName')}</label>
               <input className="input" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('orders.form.customerEmail')}</label>
+              <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('orders.form.customerEmail')}</label>
               <input className="input" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('quotations.validUntil')}</label>
+              <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('quotations.validUntil')}</label>
               <input className="input" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
             </div>
           </div>
@@ -113,14 +113,14 @@ export function QuotationFormPage() {
 
         <div className="card p-5">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.lineItems')}</h2>
-            <button type="button" onClick={addLine} className="text-xs text-primary-600 hover:underline">
+            <h2 className="text-sm font-semibold text-ink-muted uppercase tracking-wide">{t('orders.lineItems')}</h2>
+            <button type="button" onClick={addLine} className="text-xs text-brand-action hover:underline">
               {t('orders.form.addLine')}
             </button>
           </div>
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 text-left text-xs text-gray-400 uppercase">
+              <tr className="border-b border-line text-left text-xs text-ink-muted uppercase">
                 <th className="pb-2">{t('orders.product')}</th>
                 <th className="pb-2 text-right">{t('orders.qty')}</th>
                 <th className="pb-2 text-right">{t('orders.unitPrice')}</th>
@@ -128,7 +128,7 @@ export function QuotationFormPage() {
                 <th className="pb-2" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-line">
               {lines.map((line) => (
                 <tr key={line.key}>
                   <td className="py-2">
@@ -163,7 +163,7 @@ export function QuotationFormPage() {
                   <td className="py-2 text-right font-medium">{(line.quantity * line.unitPrice).toFixed(2)}</td>
                   <td className="py-2 text-right">
                     {lines.length > 1 && (
-                      <button type="button" onClick={() => removeLine(line.key)} className="text-xs text-red-600 hover:underline">
+                      <button type="button" onClick={() => removeLine(line.key)} className="text-xs text-danger-soft-text hover:underline">
                         {t('orders.form.removeLine')}
                       </button>
                     )}
@@ -172,17 +172,17 @@ export function QuotationFormPage() {
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t border-gray-200">
+              <tr className="border-t border-line">
                 <td colSpan={3} className="pt-3 text-right font-semibold">{t('orders.total')}</td>
-                <td className="pt-3 text-right font-semibold text-gray-900">{total.toFixed(2)}</td>
+                <td className="pt-3 text-right font-semibold text-ink">{total.toFixed(2)}</td>
                 <td />
               </tr>
             </tfoot>
           </table>
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {mutation.isError && <p className="text-sm text-red-600">{t('common.failedToSave')}</p>}
+        {error && <p className="text-sm text-danger-soft-text">{error}</p>}
+        {mutation.isError && <p className="text-sm text-danger-soft-text">{t('common.failedToSave')}</p>}
 
         <div className="flex justify-end gap-3">
           <Link to="/sales/quotations" className="btn-outline">

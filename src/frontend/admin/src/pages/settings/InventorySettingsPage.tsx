@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Checkbox, FormField, Input, useToast } from '@/components/ui'
 import {
   inventorySettingsApi,
   type SystemInventorySettings,
   type TenantInventorySettings,
 } from '@/api/settings/inventory.settings.api'
 import { usePermission } from '@/hooks/usePermission'
+import { TabList } from '@/components/shared/PageTabs'
+import { serverMessage } from '@/lib/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
 
 type Tab = 'system' | 'tenant'
@@ -19,6 +22,7 @@ interface SystemFormValues {
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'inventory', 'system'],
@@ -38,25 +42,21 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     mutationFn: (values: SystemFormValues) => inventorySettingsApi.updateSystemSettings(values),
     onSuccess: (result: SystemInventorySettings) => {
       queryClient.setQueryData(['settings', 'inventory', 'system'], result)
+      toast.success(t('common.saved'))
     },
   })
 
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" disabled={!canManage} {...register('negativeStockAllowed')} />
-        {t('settings.inventory.negativeStockAllowed')}
-      </label>
+      <Checkbox disabled={!canManage} {...register('negativeStockAllowed')} label={t('settings.inventory.negativeStockAllowed')} />
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.inventory.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.inventory.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -72,6 +72,7 @@ interface TenantFormValues {
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'inventory', 'tenant', tenantId],
@@ -97,44 +98,36 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       }),
     onSuccess: (result: TenantInventorySettings) => {
       queryClient.setQueryData(['settings', 'inventory', 'tenant', tenantId], result)
+      toast.success(t('common.saved'))
     },
   })
 
-  if (!tenantId) return <p className="text-sm text-gray-400">{t('settings.inventory.noTenant')}</p>
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (!tenantId) return <p className="text-sm text-ink-muted">{t('settings.inventory.noTenant')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="block text-sm text-gray-700">
-        {t('settings.inventory.lowStockThreshold')}
-        <input
+      <FormField label={t('settings.inventory.lowStockThreshold')}>
+        <Input
           type="number"
           disabled={!canManage}
           {...register('lowStockThreshold', { valueAsNumber: true })}
-          className="input mt-1 w-full"
-        />
-      </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" disabled={!canManage} {...register('backorderAllowed')} />
-        {t('settings.inventory.backorderAllowed')}
-      </label>
-      <label className="block text-sm text-gray-700">
-        {t('settings.inventory.defaultHoldDays')}
-        <input
+ />
+      </FormField>
+      <Checkbox disabled={!canManage} {...register('backorderAllowed')} label={t('settings.inventory.backorderAllowed')} />
+      <FormField label={t('settings.inventory.defaultHoldDays')}>
+        <Input
           type="number"
           disabled={!canManage}
           {...register('defaultHoldDays', { valueAsNumber: true })}
-          className="input mt-1 w-full"
-        />
-      </label>
+ />
+      </FormField>
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.inventory.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.inventory.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -161,21 +154,7 @@ export function InventorySettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.inventory.title')}</h1>
 
-      <div className="flex gap-2 border-b border-gray-200">
-        {TABS.map((x) => (
-          <button
-            key={x.key}
-            onClick={() => setTab(x.key)}
-            className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key
-                ? 'border-b-2 border-primary-600 text-primary-700'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {x.label}
-          </button>
-        ))}
-      </div>
+      <TabList id="inventorysettings" label={t('settings.inventory.title')} tabs={TABS} current={tab} onSelect={setTab} />
 
       {tab === 'system' && canViewSystem && <SystemSettingsForm canManage={canManageSystem} />}
       {tab === 'tenant' && (

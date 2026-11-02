@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Checkbox, FormField, Input, useToast } from '@/components/ui'
 import {
   smsSettingsApi,
   type SystemSmsSettings,
   type TenantSmsSettings,
 } from '@/api/settings/sms.settings.api'
 import { usePermission } from '@/hooks/usePermission'
+import { TabList } from '@/components/shared/PageTabs'
+import { serverMessage } from '@/lib/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
 
 type Tab = 'system' | 'tenant'
@@ -19,6 +22,7 @@ interface SystemFormValues {
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'sms', 'system'],
@@ -38,25 +42,21 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     mutationFn: (values: SystemFormValues) => smsSettingsApi.updateSystemSettings(values),
     onSuccess: (result: SystemSmsSettings) => {
       queryClient.setQueryData(['settings', 'sms', 'system'], result)
+      toast.success(t('common.saved'))
     },
   })
 
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" disabled={!canManage} {...register('customSmsGatewayAllowed')} />
-        {t('settings.sms.customSmsGatewayAllowed')}
-      </label>
+      <Checkbox disabled={!canManage} {...register('customSmsGatewayAllowed')} label={t('settings.sms.customSmsGatewayAllowed')} />
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.sms.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.sms.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -72,6 +72,7 @@ interface TenantFormValues {
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'sms', 'tenant', tenantId],
@@ -100,42 +101,36 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       }),
     onSuccess: (result: TenantSmsSettings) => {
       queryClient.setQueryData(['settings', 'sms', 'tenant', tenantId], result)
+      toast.success(t('common.saved'))
     },
   })
 
-  if (!tenantId) return <p className="text-sm text-gray-400">{t('settings.sms.noTenant')}</p>
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (!tenantId) return <p className="text-sm text-ink-muted">{t('settings.sms.noTenant')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="block text-sm text-gray-700">
-        {t('settings.sms.providerName')}
-        <input type="text" disabled={!canManage} {...register('providerName')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-gray-700">
-        {t('settings.sms.apiKey')}
-        <input
+      <FormField label={t('settings.sms.providerName')}>
+        <Input type="text" disabled={!canManage} {...register('providerName')} />
+      </FormField>
+      <FormField label={t('settings.sms.apiKey')} hint={t('settings.sms.apiKeyHint')}>
+        <Input
           type="password"
           disabled={!canManage}
           placeholder={data?.hasApiKey ? t('settings.sms.apiKeyPlaceholderSet') : t('settings.sms.apiKeyPlaceholderUnset')}
           autoComplete="new-password"
           {...register('apiKey')}
-          className="input mt-1 w-full"
-        />
-        <span className="text-xs text-gray-400">{t('settings.sms.apiKeyHint')}</span>
-      </label>
-      <label className="block text-sm text-gray-700">
-        {t('settings.sms.fromNumber')}
-        <input type="text" disabled={!canManage} {...register('fromNumber')} className="input mt-1 w-full" />
-      </label>
+ />
+      </FormField>
+      <FormField label={t('settings.sms.fromNumber')}>
+        <Input type="text" disabled={!canManage} {...register('fromNumber')} />
+      </FormField>
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.sms.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.sms.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -162,21 +157,7 @@ export function SmsSettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.sms.title')}</h1>
 
-      <div className="flex gap-2 border-b border-gray-200">
-        {TABS.map((x) => (
-          <button
-            key={x.key}
-            onClick={() => setTab(x.key)}
-            className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key
-                ? 'border-b-2 border-primary-600 text-primary-700'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {x.label}
-          </button>
-        ))}
-      </div>
+      <TabList id="smssettings" label={t('settings.sms.title')} tabs={TABS} current={tab} onSelect={setTab} />
 
       {tab === 'system' && canViewSystem && <SystemSettingsForm canManage={canManageSystem} />}
       {tab === 'tenant' && (

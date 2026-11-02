@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Checkbox, FormField, Input, useToast } from '@/components/ui'
 import {
   advancedSettingsApi,
   type SystemAdvancedSettings,
   type TenantAdvancedSettings,
 } from '@/api/settings/advanced.settings.api'
 import { usePermission } from '@/hooks/usePermission'
+import { TabList } from '@/components/shared/PageTabs'
+import { serverMessage } from '@/lib/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
 
 type Tab = 'system' | 'tenant'
@@ -19,6 +22,7 @@ interface SystemFormValues {
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'advanced', 'system'],
@@ -38,25 +42,21 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     mutationFn: (values: SystemFormValues) => advancedSettingsApi.updateSystemSettings(values),
     onSuccess: (result: SystemAdvancedSettings) => {
       queryClient.setQueryData(['settings', 'advanced', 'system'], result)
+      toast.success(t('common.saved'))
     },
   })
 
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" disabled={!canManage} {...register('debugModeAllowed')} />
-        {t('settings.advanced.debugModeAllowed')}
-      </label>
+      <Checkbox disabled={!canManage} {...register('debugModeAllowed')} label={t('settings.advanced.debugModeAllowed')} />
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.advanced.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.advanced.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -72,6 +72,7 @@ interface TenantFormValues {
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'advanced', 'tenant', tenantId],
@@ -99,34 +100,26 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       }),
     onSuccess: (result: TenantAdvancedSettings) => {
       queryClient.setQueryData(['settings', 'advanced', 'tenant', tenantId], result)
+      toast.success(t('common.saved'))
     },
   })
 
-  if (!tenantId) return <p className="text-sm text-gray-400">{t('settings.advanced.noTenant')}</p>
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (!tenantId) return <p className="text-sm text-ink-muted">{t('settings.advanced.noTenant')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" disabled={!canManage} {...register('debugModeEnabled')} />
-        {t('settings.advanced.debugModeEnabled')}
-      </label>
-      <label className="block text-sm text-gray-700">
-        {t('settings.advanced.customCssUrl')}
-        <input type="text" disabled={!canManage} {...register('customCssUrl')} className="input mt-1 w-full" />
-      </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" disabled={!canManage} {...register('dataExportEnabled')} />
-        {t('settings.advanced.dataExportEnabled')}
-      </label>
+      <Checkbox disabled={!canManage} {...register('debugModeEnabled')} label={t('settings.advanced.debugModeEnabled')} />
+      <FormField label={t('settings.advanced.customCssUrl')}>
+        <Input type="text" disabled={!canManage} {...register('customCssUrl')} />
+      </FormField>
+      <Checkbox disabled={!canManage} {...register('dataExportEnabled')} label={t('settings.advanced.dataExportEnabled')} />
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.advanced.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.advanced.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -153,21 +146,7 @@ export function AdvancedSettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.advanced.title')}</h1>
 
-      <div className="flex gap-2 border-b border-gray-200">
-        {TABS.map((x) => (
-          <button
-            key={x.key}
-            onClick={() => setTab(x.key)}
-            className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key
-                ? 'border-b-2 border-primary-600 text-primary-700'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {x.label}
-          </button>
-        ))}
-      </div>
+      <TabList id="advancedsettings" label={t('settings.advanced.title')} tabs={TABS} current={tab} onSelect={setTab} />
 
       {tab === 'system' && canViewSystem && <SystemSettingsForm canManage={canManageSystem} />}
       {tab === 'tenant' && (

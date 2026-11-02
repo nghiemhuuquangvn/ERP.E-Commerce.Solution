@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Checkbox, FormField, Input } from '@/components/ui'
 import { shippingSettingsApi, type CarrierAccount } from '@/api/settings/shipping.settings.api'
 import { serverMessage } from '@/api/purchasing/procurement.api'
 
@@ -50,18 +51,16 @@ function CarrierCard({ tenantId, account, canManage }: { tenantId: string; accou
 
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
   const secretBox = (label: string, value: string, set: (v: string) => void, isSet: boolean) => (
-    <label className="block text-sm text-gray-700">
-      {t(`settings.shipping.carriers.fields.${label}`)}
-      <input
+    <FormField label={t(`settings.shipping.carriers.fields.${label}`)}>
+      <Input
         type="password"
         autoComplete="new-password"
         disabled={!canManage || !account.integrated}
         value={value}
         onChange={(e) => set(e.target.value)}
         placeholder={isSet ? t('settings.shipping.carriers.secretSet') : t('settings.shipping.carriers.secretUnset')}
-        className="input mt-1 w-full"
-      />
-    </label>
+ />
+    </FormField>
   )
 
   const editable = canManage && account.integrated
@@ -69,10 +68,10 @@ function CarrierCard({ tenantId, account, canManage }: { tenantId: string; accou
   return (
     <div className="card space-y-3 p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-900">{account.name}</h3>
+        <h3 className="text-sm font-semibold text-ink">{account.name}</h3>
         <span
           className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-            !account.integrated ? 'bg-amber-100 text-amber-700' : account.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+            !account.integrated ? 'bg-warning-soft text-warning-soft-text' : account.enabled ? 'bg-success-soft text-success-soft-text' : 'bg-surface-muted text-ink-secondary'
           }`}
         >
           {!account.integrated
@@ -83,51 +82,41 @@ function CarrierCard({ tenantId, account, canManage }: { tenantId: string; accou
         </span>
       </div>
 
-      {!account.platformAvailable && <p className="text-xs text-amber-700">{t('settings.shipping.carriers.platformOff')}</p>}
-      {!account.integrated && <p className="text-xs text-gray-500">{t('settings.shipping.carriers.notIntegratedHint')}</p>}
+      {!account.platformAvailable && <p className="text-xs text-warning-soft-text">{t('settings.shipping.carriers.platformOff')}</p>}
+      {!account.integrated && <p className="text-xs text-ink-muted">{t('settings.shipping.carriers.notIntegratedHint')}</p>}
 
       <div className="flex gap-6">
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input type="checkbox" disabled={!editable} checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-          {t('settings.shipping.carriers.enable')}
-        </label>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input type="checkbox" disabled={!editable} checked={sandbox} onChange={(e) => setSandbox(e.target.checked)} />
-          {t('settings.shipping.carriers.sandbox')}
-        </label>
+        <Checkbox disabled={!editable} checked={enabled} onChange={(e) => setEnabled(e.target.checked)} label={t('settings.shipping.carriers.enable')} />
+        <Checkbox disabled={!editable} checked={sandbox} onChange={(e) => setSandbox(e.target.checked)} label={t('settings.shipping.carriers.sandbox')} />
       </div>
 
       {fields.publicId && (
-        <label className="block text-sm text-gray-700">
-          {t(`settings.shipping.carriers.fields.${fields.publicId}`)}
-          <input disabled={!editable} value={publicId} onChange={(e) => setPublicId(e.target.value)} className="input mt-1 w-full" />
-        </label>
+        <FormField label={t(`settings.shipping.carriers.fields.${fields.publicId}`)}>
+          <Input disabled={!editable} value={publicId} onChange={(e) => setPublicId(e.target.value)} />
+        </FormField>
       )}
       {fields.username && (
-        <label className="block text-sm text-gray-700">
-          {t(`settings.shipping.carriers.fields.${fields.username}`)}
-          <input disabled={!editable} value={username} onChange={(e) => setUsername(e.target.value)} className="input mt-1 w-full" />
-        </label>
+        <FormField label={t(`settings.shipping.carriers.fields.${fields.username}`)}>
+          <Input disabled={!editable} value={username} onChange={(e) => setUsername(e.target.value)} />
+        </FormField>
       )}
       {secretBox(fields.secret, secret, setSecret, account.hasSecret)}
       {secretBox('webhookSecret', webhookSecret, setWebhookSecret, account.hasWebhookSecret)}
 
       {account.integrated && (
-        <p className="rounded bg-gray-50 p-2 text-xs text-gray-500">
+        <p className="rounded bg-surface-muted p-2 text-xs text-ink-muted">
           {t('settings.shipping.carriers.webhookHint')}
           <br />
           <span className="break-all font-mono">{`${origin}/api/v1/shipping-webhooks/${account.code.toLowerCase()}?hash=<${t('settings.shipping.carriers.fields.webhookSecret')}>`}</span>
         </p>
       )}
 
-      {save.isError && <p className="text-xs text-red-600">{serverMessage(save.error, t('settings.shipping.failedToSave'))}</p>}
-      {save.isSuccess && <p className="text-xs text-green-700">{t('settings.shipping.carriers.saved')}</p>}
+      {save.isError && <Alert variant="danger">{serverMessage(save.error, t('settings.shipping.failedToSave'))}</Alert>}
+      {save.isSuccess && <p className="text-xs text-success-soft-text">{t('settings.shipping.carriers.saved')}</p>}
 
       {editable && (
         <div className="flex justify-end">
-          <button className="btn-primary" disabled={save.isPending} onClick={() => save.mutate()}>
-            {save.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button loading={save.isPending} onClick={() => save.mutate()}>{t('common.save')}</Button>
         </div>
       )}
     </div>
@@ -143,13 +132,13 @@ export function ShippingCarriersCard({ tenantId, canManage }: { tenantId: string
     enabled: !!tenantId,
   })
 
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <div className="space-y-3">
       <div>
-        <h2 className="text-base font-semibold text-gray-900">{t('settings.shipping.carriers.title')}</h2>
-        <p className="text-xs text-gray-500">{t('settings.shipping.carriers.hint')}</p>
+        <h2 className="text-base font-semibold text-ink">{t('settings.shipping.carriers.title')}</h2>
+        <p className="text-xs text-ink-muted">{t('settings.shipping.carriers.hint')}</p>
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
         {(data ?? []).map((a) => (

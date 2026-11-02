@@ -2124,6 +2124,9 @@
       "failedToSave": "Failed to save settings. Please try again."
     },
     "featureFlags": {
+      "confirmTitle": "Change a feature flag",
+      "confirmOn": "Turn on \"{{key}}\" for the whole platform? Every shop that does not override it gets the feature at once.",
+      "confirmOff": "Turn off \"{{key}}\" for the whole platform? Every shop that does not override it loses the feature at once.",
       "title": "Feature Flags",
       "systemTab": "System",
       "tenantTab": "Tenant",

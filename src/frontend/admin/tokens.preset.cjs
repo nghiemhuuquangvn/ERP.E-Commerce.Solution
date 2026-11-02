@@ -51,13 +51,6 @@ module.exports = {
           "DEFAULT": "rgb(var(--c-muted) / <alpha-value>)",
           "soft": "rgb(var(--c-muted-soft) / <alpha-value>)",
           "soft-text": "rgb(var(--c-muted-soft-text) / <alpha-value>)"
-        },
-        "primary": {
-          "50": "rgb(var(--c-brand-subtle) / <alpha-value>)",
-          "100": "rgb(var(--c-brand-soft) / <alpha-value>)",
-          "500": "rgb(var(--c-brand-action) / <alpha-value>)",
-          "600": "rgb(var(--c-brand-action) / <alpha-value>)",
-          "700": "rgb(var(--c-brand-action-hover) / <alpha-value>)"
         }
       },
       borderRadius: {

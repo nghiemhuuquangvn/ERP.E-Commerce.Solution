@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Checkbox, FormField, Input, Select, useToast } from '@/components/ui'
 import {
   taxSettingsApi,
   type SystemTaxSettings,
@@ -9,6 +10,8 @@ import {
 } from '@/api/settings/tax.settings.api'
 import { invoicesApi } from '@/api/accounting/invoices.api'
 import { usePermission } from '@/hooks/usePermission'
+import { TabList } from '@/components/shared/PageTabs'
+import { serverMessage } from '@/lib/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
 
 type Tab = 'system' | 'tenant'
@@ -20,6 +23,7 @@ interface SystemFormValues {
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'tax', 'system'],
@@ -39,25 +43,21 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     mutationFn: (values: SystemFormValues) => taxSettingsApi.updateSystemSettings(values),
     onSuccess: (result: SystemTaxSettings) => {
       queryClient.setQueryData(['settings', 'tax', 'system'], result)
+      toast.success(t('common.saved'))
     },
   })
 
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" disabled={!canManage} {...register('regionalTaxConfigAllowed')} />
-        {t('settings.tax.regionalTaxConfigAllowed')}
-      </label>
+      <Checkbox disabled={!canManage} {...register('regionalTaxConfigAllowed')} label={t('settings.tax.regionalTaxConfigAllowed')} />
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.tax.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.tax.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -77,6 +77,7 @@ interface TenantFormValues {
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'tax', 'tenant', tenantId],
@@ -116,66 +117,53 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       }),
     onSuccess: (result: TenantTaxSettings) => {
       queryClient.setQueryData(['settings', 'tax', 'tenant', tenantId], result)
+      toast.success(t('common.saved'))
     },
   })
 
   const { data: providers } = useQuery({ queryKey: ['accounting', 'e-invoice-providers'], queryFn: () => invoicesApi.eInvoiceProviders(), staleTime: 300_000 })
 
-  if (!tenantId) return <p className="text-sm text-gray-400">{t('settings.tax.noTenant')}</p>
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (!tenantId) return <p className="text-sm text-ink-muted">{t('settings.tax.noTenant')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="block text-sm text-gray-700">
-        {t('settings.tax.companyTaxCode')}
-        <input type="text" disabled={!canManage} {...register('companyTaxCode')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-gray-700">
-        {t('settings.tax.defaultTaxRatePercent')}
-        <input
+      <FormField label={t('settings.tax.companyTaxCode')}>
+        <Input type="text" disabled={!canManage} {...register('companyTaxCode')} />
+      </FormField>
+      <FormField label={t('settings.tax.defaultTaxRatePercent')}>
+        <Input
           type="number"
           step="0.01"
           disabled={!canManage}
           {...register('defaultTaxRatePercent', { valueAsNumber: true })}
-          className="input mt-1 w-full"
-        />
-      </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" disabled={!canManage} {...register('pricesIncludeTax')} />
-        {t('settings.tax.pricesIncludeTax')}
-      </label>
-      <label className="block text-sm text-gray-700">
-        {t('settings.tax.eInvoiceProvider')}
-        <select disabled={!canManage} {...register('eInvoiceProvider')} className="input mt-1 w-full">
+ />
+      </FormField>
+      <Checkbox disabled={!canManage} {...register('pricesIncludeTax')} label={t('settings.tax.pricesIncludeTax')} />
+      <FormField label={t('settings.tax.eInvoiceProvider')}>
+        <Select disabled={!canManage} {...register('eInvoiceProvider')} >
           <option value="">{t('settings.tax.eInvoiceOff')}</option>
           {(providers ?? []).map((p) => (
             <option key={p} value={p}>
               {p}
             </option>
           ))}
-        </select>
-      </label>
-      <label className="block text-sm text-gray-700">
-        {t('settings.tax.eInvoiceSeries')}
-        <input type="text" disabled={!canManage} {...register('eInvoiceSeries')} className="input mt-1 w-full" placeholder="C26TAA" />
-      </label>
-      <label className="block text-sm text-gray-700">
-        {t('settings.tax.baseCurrency')}
-        <input type="text" maxLength={3} disabled={!canManage} {...register('baseCurrencyCode')} className="input mt-1 w-32 uppercase" placeholder="VND" />
-        <span className="mt-1 block text-xs text-gray-500">{t('settings.tax.baseCurrencyHint')}</span>
-      </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" disabled={!canManage} {...register('autoIssueEInvoice')} />
-        {t('settings.tax.autoIssueEInvoice')}
-      </label>
+        </Select>
+      </FormField>
+      <FormField label={t('settings.tax.eInvoiceSeries')}>
+        <Input type="text" disabled={!canManage} {...register('eInvoiceSeries')}  placeholder="C26TAA" />
+      </FormField>
+      <FormField label={t('settings.tax.baseCurrency')}>
+        <Input type="text" maxLength={3} disabled={!canManage} {...register('baseCurrencyCode')} className="w-32 uppercase" placeholder="VND" />
+        <span className="mt-1 block text-xs text-ink-muted">{t('settings.tax.baseCurrencyHint')}</span>
+      </FormField>
+      <Checkbox disabled={!canManage} {...register('autoIssueEInvoice')} label={t('settings.tax.autoIssueEInvoice')} />
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.tax.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.tax.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -202,21 +190,7 @@ export function TaxSettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.tax.title')}</h1>
 
-      <div className="flex gap-2 border-b border-gray-200">
-        {TABS.map((x) => (
-          <button
-            key={x.key}
-            onClick={() => setTab(x.key)}
-            className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key
-                ? 'border-b-2 border-primary-600 text-primary-700'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {x.label}
-          </button>
-        ))}
-      </div>
+      <TabList id="taxsettings" label={t('settings.tax.title')} tabs={TABS} current={tab} onSelect={setTab} />
 
       {tab === 'system' && canViewSystem && <SystemSettingsForm canManage={canManageSystem} />}
       {tab === 'tenant' && (

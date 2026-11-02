@@ -66,8 +66,8 @@ export function OrderDetailPage() {
     mutationFn: () => ordersApi.completeReturn(id!, refundAmount.trim() === '' ? goodsTotal + (refundFee ? order?.shippingFee ?? 0 : 0) : Number(refundAmount), refundFee),
   })
 
-  if (isLoading) return <div className="text-gray-400">{t('common.loading')}</div>
-  if (!order) return <div className="text-gray-400">{t('orders.orderNotFound')}</div>
+  if (isLoading) return <div className="text-ink-muted">{t('common.loading')}</div>
+  if (!order) return <div className="text-ink-muted">{t('orders.orderNotFound')}</div>
 
   const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
   const canCancel = !['Cancelled', 'Delivered', 'Shipped', 'PartiallyShipped', 'Returned'].includes(order.status)
@@ -75,17 +75,17 @@ export function OrderDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/orders" className="text-sm text-gray-500 hover:text-gray-700">
+        <Link to="/orders" className="text-sm text-ink-muted hover:text-ink">
           {t('orders.backToOrders')}
         </Link>
         <h1 className="text-xl font-semibold">{order.orderNo || order.orderId}</h1>
         <StatusBadge status={order.status} />
         {order.hasPriceChangeWarning && (
-          <span className="text-xs text-orange-600">{t('orders.priceChangeWarning')}</span>
+          <span className="text-xs text-warning-soft-text">{t('orders.priceChangeWarning')}</span>
         )}
         {order.isAnomalous && (
           <span
-            className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
+            className="inline-flex items-center rounded-full bg-danger-soft px-2 py-0.5 text-xs font-medium text-danger-soft-text"
             title={order.anomalyReason ?? undefined}
           >
             <AlertTriangle size={14} strokeWidth={1.75} aria-hidden="true" className="mr-1 inline" /> {order.anomalyReason ?? t('orders.anomalyFlag')}
@@ -93,41 +93,41 @@ export function OrderDetailPage() {
         )}
       </div>
 
-      {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+      {actionError && <p className="text-sm text-danger-soft-text">{actionError}</p>}
 
       <div className="grid grid-cols-2 gap-6">
         <div className="card p-5">
-          <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.orderInfo')}</h2>
+          <h2 className="mb-3 text-sm font-semibold text-ink-muted uppercase tracking-wide">{t('orders.orderInfo')}</h2>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <dt className="text-gray-500">{t('orders.customer')}</dt>
+              <dt className="text-ink-muted">{t('orders.customer')}</dt>
               <dd className="font-medium">{order.customerName}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">{t('common.date')}</dt>
+              <dt className="text-ink-muted">{t('common.date')}</dt>
               <dd>{format(new Date(order.orderDate), 'dd MMM yyyy HH:mm')}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">{t('orders.orderSource')}</dt>
+              <dt className="text-ink-muted">{t('orders.orderSource')}</dt>
               <dd>{order.orderSource}</dd>
             </div>
             {order.salesRepId && (
               <div className="flex justify-between">
-                <dt className="text-gray-500">{t('orders.salesRep')}</dt>
+                <dt className="text-ink-muted">{t('orders.salesRep')}</dt>
                 <dd className="font-mono text-xs">{order.salesRepId}</dd>
               </div>
             )}
             {order.departmentId && (
               <div className="flex justify-between">
-                <dt className="text-gray-500">{t('orders.department')}</dt>
+                <dt className="text-ink-muted">{t('orders.department')}</dt>
                 <dd className="font-mono text-xs">{order.departmentId}</dd>
               </div>
             )}
             {order.quotationId && (
               <div className="flex justify-between">
-                <dt className="text-gray-500">{t('orders.fromQuotation')}</dt>
+                <dt className="text-ink-muted">{t('orders.fromQuotation')}</dt>
                 <dd>
-                  <Link to={`/sales/quotations/${order.quotationId}`} className="text-primary-600 hover:underline">
+                  <Link to={`/sales/quotations/${order.quotationId}`} className="text-brand-action hover:underline">
                     {order.quotationId.slice(0, 8)}
                   </Link>
                 </dd>
@@ -135,25 +135,25 @@ export function OrderDetailPage() {
             )}
             {order.discountAmount > 0 && (
               <div className="flex justify-between">
-                <dt className="text-gray-500">{t('orders.discount')}</dt>
-                <dd className="text-green-700">-{fmt(order.discountAmount)}</dd>
+                <dt className="text-ink-muted">{t('orders.discount')}</dt>
+                <dd className="text-success-soft-text">-{fmt(order.discountAmount)}</dd>
               </div>
             )}
             {order.shippingFee != null && (
               <div className="flex justify-between">
-                <dt className="text-gray-500">{t('orders.shippingFee')}</dt>
+                <dt className="text-ink-muted">{t('orders.shippingFee')}</dt>
                 <dd>{order.shippingFee > 0 ? fmt(order.shippingFee) : t('orders.freeDelivery')}</dd>
               </div>
             )}
             <div className="flex justify-between">
-              <dt className="text-gray-500">{t('orders.total')}</dt>
-              <dd className="font-semibold text-gray-900">{fmt(order.totalAmount)}</dd>
+              <dt className="text-ink-muted">{t('orders.total')}</dt>
+              <dd className="font-semibold text-ink">{fmt(order.totalAmount)}</dd>
             </div>
           </dl>
         </div>
 
         <div className="card p-5">
-          <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.statusActions.title')}</h2>
+          <h2 className="mb-3 text-sm font-semibold text-ink-muted uppercase tracking-wide">{t('orders.statusActions.title')}</h2>
           <div className="flex flex-wrap gap-2">
             {hasPermission('sales_order:update') && order.status === 'Draft' && (
               <button onClick={() => runAction(() => submitMutation.mutateAsync())} className="btn-outline text-sm">
@@ -174,7 +174,7 @@ export function OrderDetailPage() {
                 <button
                   disabled={!rejectReason.trim()}
                   onClick={() => runAction(() => rejectMutation.mutateAsync())}
-                  className="btn-outline text-sm text-red-600"
+                  className="btn-outline text-sm text-danger-soft-text"
                 >
                   {t('orders.statusActions.reject')}
                 </button>
@@ -224,14 +224,14 @@ export function OrderDetailPage() {
               </button>
             )}
             {order.status === 'ReturnRequested' && order.returnApprovedAt && (
-              <div className="w-full rounded bg-gray-50 p-2 text-xs text-gray-700">
+              <div className="w-full rounded bg-surface-muted p-2 text-xs text-ink-secondary">
                 <div>{order.returnPickupNote}</div>
                 {(returnParcels ?? []).map((p) => (
                   <div key={p.id} className="mt-1 flex flex-wrap items-center gap-2">
                     <span className="font-mono">{p.trackingNumber ?? '—'}</span>
                     <span>{p.carrierName}</span>
                     <StatusBadge status={p.status} />
-                    {p.bookingError && <span className="text-red-600">{p.bookingError}</span>}
+                    {p.bookingError && <span className="text-danger-soft-text">{p.bookingError}</span>}
                     {hasPermission('shipping:update') && p.status !== 'Received' && p.status !== 'Cancelled' && (
                       <button className="btn-outline px-2 py-0.5 text-xs" onClick={() => runAction(() => shippingApi.receiveReturn(p.originalShipmentId, p.id))}>
                         {t('orders.return.receiveByHand')}
@@ -239,7 +239,7 @@ export function OrderDetailPage() {
                     )}
                   </div>
                 ))}
-                {order.returnPickupBooked && !order.returnGoodsReceivedAt && <div className="mt-1 text-amber-700">{t('orders.return.waitingForGoods')}</div>}
+                {order.returnPickupBooked && !order.returnGoodsReceivedAt && <div className="mt-1 text-warning-soft-text">{t('orders.return.waitingForGoods')}</div>}
               </div>
             )}
             {hasPermission('sales_order:approve') && order.status === 'ReturnRequested' && (
@@ -253,7 +253,7 @@ export function OrderDetailPage() {
                   onChange={(e) => setRefundAmount(e.target.value)}
                 />
                 {(order.shippingFee ?? 0) > 0 && (
-                  <label className="flex items-center gap-1 text-sm text-gray-700">
+                  <label className="flex items-center gap-1 text-sm text-ink-secondary">
                     <input type="checkbox" checked={refundFee} onChange={(e) => setRefundFee(e.target.checked)} />
                     {t('orders.return.refundFee', { fee: fmt(order.shippingFee ?? 0) })}
                   </label>
@@ -279,7 +279,7 @@ export function OrderDetailPage() {
                 <button
                   disabled={!cancelReason.trim()}
                   onClick={() => runAction(() => cancelMutation.mutateAsync())}
-                  className="btn-outline text-sm text-red-600"
+                  className="btn-outline text-sm text-danger-soft-text"
                 >
                   {t('orders.cancel')}
                 </button>
@@ -292,10 +292,10 @@ export function OrderDetailPage() {
       <OrderSagaPanel orderId={order.orderId} />
 
       <div className="card p-5">
-        <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.lineItems')}</h2>
+        <h2 className="mb-3 text-sm font-semibold text-ink-muted uppercase tracking-wide">{t('orders.lineItems')}</h2>
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-100 text-left text-xs text-gray-400 uppercase">
+            <tr className="border-b border-line text-left text-xs text-ink-muted uppercase">
               <th className="pb-2">{t('orders.product')}</th>
               <th className="pb-2 text-right">{t('orders.qty')}</th>
               <th className="pb-2 text-right">{t('orders.shipped')}</th>
@@ -303,7 +303,7 @@ export function OrderDetailPage() {
               <th className="pb-2 text-right">{t('orders.total')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-line">
             {order.lineItems.map((line) => (
               <tr key={line.productId}>
                 <td className="py-2">{line.productName}</td>
@@ -315,9 +315,9 @@ export function OrderDetailPage() {
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t border-gray-200">
+            <tr className="border-t border-line">
               <td colSpan={4} className="pt-3 text-right font-semibold">{t('orders.total')}</td>
-              <td className="pt-3 text-right font-semibold text-gray-900">{fmt(order.totalAmount)}</td>
+              <td className="pt-3 text-right font-semibold text-ink">{fmt(order.totalAmount)}</td>
             </tr>
           </tfoot>
         </table>
@@ -325,23 +325,23 @@ export function OrderDetailPage() {
 
       {order.statusHistory.length > 0 && (
         <div className="card p-5">
-          <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.statusHistory')}</h2>
+          <h2 className="mb-3 text-sm font-semibold text-ink-muted uppercase tracking-wide">{t('orders.statusHistory')}</h2>
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 text-left text-xs text-gray-400 uppercase">
+              <tr className="border-b border-line text-left text-xs text-ink-muted uppercase">
                 <th className="pb-2">{t('common.date')}</th>
                 <th className="pb-2">{t('orders.statusHistoryFrom')}</th>
                 <th className="pb-2">{t('orders.statusHistoryTo')}</th>
                 <th className="pb-2">{t('orders.statusHistoryReason')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-line">
               {order.statusHistory.map((h, idx) => (
                 <tr key={idx}>
                   <td className="py-2">{format(new Date(h.changedAt), 'dd MMM yyyy HH:mm')}</td>
                   <td className="py-2"><StatusBadge status={h.fromStatus} /></td>
                   <td className="py-2"><StatusBadge status={h.toStatus} /></td>
-                  <td className="py-2 text-gray-500">{h.reason ?? '—'}</td>
+                  <td className="py-2 text-ink-muted">{h.reason ?? '—'}</td>
                 </tr>
               ))}
             </tbody>

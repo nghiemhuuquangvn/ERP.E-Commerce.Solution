@@ -2,12 +2,16 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Checkbox, FormField, Input, useToast } from '@/components/ui'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { serverMessage } from '@/lib/serverMessage'
 import {
   featureFlagsApi,
   type SystemFeatureFlag,
   type TenantFeatureFlag,
 } from '@/api/settings/featureFlags.settings.api'
 import { usePermission } from '@/hooks/usePermission'
+import { TabList } from '@/components/shared/PageTabs'
 import { useAuthStore } from '@/stores/auth.store'
 
 type Tab = 'system' | 'tenant'
@@ -21,6 +25,8 @@ interface NewFlagFormValues {
 function SystemFlagsPanel({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
+  const [confirmFlag, setConfirmFlag] = useState<SystemFeatureFlag | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'feature-flags', 'system'],
@@ -33,7 +39,15 @@ function SystemFlagsPanel({ canManage }: { canManage: boolean }) {
   const toggleMutation = useMutation({
     mutationFn: (flag: SystemFeatureFlag) =>
       featureFlagsApi.upsertSystemFlag(flag.key, { isEnabled: !flag.isEnabled, description: flag.description }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate()
+      setConfirmFlag(null)
+      toast.success(t('common.saved'))
+    },
+    onError: (e) => {
+      setConfirmFlag(null)
+      toast.error(serverMessage(e, t('settings.featureFlags.failedToSave')))
+    },
   })
 
   const { register, handleSubmit, reset } = useForm<NewFlagFormValues>({
@@ -49,39 +63,41 @@ function SystemFlagsPanel({ canManage }: { canManage: boolean }) {
     onSuccess: () => {
       invalidate()
       reset()
+      toast.success(t('common.saved'))
     },
   })
 
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <div className="space-y-6">
       <table className="w-full max-w-2xl text-sm">
         <thead>
-          <tr className="border-b border-gray-200 text-left text-gray-500">
-            <th className="py-2">{t('settings.featureFlags.key')}</th>
-            <th className="py-2">{t('settings.featureFlags.description')}</th>
-            <th className="py-2">{t('settings.featureFlags.enabled')}</th>
+          <tr className="border-b border-line text-left text-ink-muted">
+            <th scope="col" className="py-2">{t('settings.featureFlags.key')}</th>
+            <th scope="col" className="py-2">{t('settings.featureFlags.description')}</th>
+            <th scope="col" className="py-2">{t('settings.featureFlags.enabled')}</th>
           </tr>
         </thead>
         <tbody>
           {(data ?? []).map((flag) => (
-            <tr key={flag.key} className="border-b border-gray-100">
+            <tr key={flag.key} className="border-b border-line">
               <td className="py-2 font-mono text-xs">{flag.key}</td>
-              <td className="py-2 text-gray-600">{flag.description ?? ''}</td>
+              <td className="py-2 text-ink-secondary">{flag.description ?? ''}</td>
               <td className="py-2">
                 <input
                   type="checkbox"
                   checked={flag.isEnabled}
+                  aria-label={`${t('settings.featureFlags.enabled')}: ${flag.key}`}
                   disabled={!canManage || toggleMutation.isPending}
-                  onChange={() => toggleMutation.mutate(flag)}
+                  onChange={() => setConfirmFlag(flag)}
                 />
               </td>
             </tr>
           ))}
           {(data ?? []).length === 0 && (
             <tr>
-              <td colSpan={3} className="py-4 text-gray-400">
+              <td colSpan={3} className="py-4 text-ink-muted">
                 {t('settings.featureFlags.noFlags')}
               </td>
             </tr>
@@ -92,36 +108,35 @@ function SystemFlagsPanel({ canManage }: { canManage: boolean }) {
       {canManage && (
         <form
           onSubmit={handleSubmit((v) => createMutation.mutate(v))}
-          className="max-w-md space-y-3 border-t border-gray-200 pt-4"
+          className="max-w-md space-y-3 border-t border-line pt-4"
         >
-          <h2 className="text-sm font-semibold text-gray-800">{t('settings.featureFlags.addFlag')}</h2>
-          <label className="block text-sm text-gray-700">
-            {t('settings.featureFlags.key')}
-            <input
+          <h2 className="text-sm font-semibold text-ink">{t('settings.featureFlags.addFlag')}</h2>
+          <FormField label={t('settings.featureFlags.key')}>
+            <Input
               type="text"
               placeholder="my-feature-key"
               {...register('key', { required: true })}
-              className="input mt-1 w-full"
             />
-          </label>
-          <label className="block text-sm text-gray-700">
-            {t('settings.featureFlags.description')}
-            <input type="text" {...register('description')} className="input mt-1 w-full" />
-          </label>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" {...register('isEnabled')} />
-            {t('settings.featureFlags.enabled')}
-          </label>
+          </FormField>
+          <FormField label={t('settings.featureFlags.description')}>
+            <Input type="text" {...register('description')} />
+          </FormField>
+          <Checkbox {...register('isEnabled')} label={t('settings.featureFlags.enabled')} />
 
-          {createMutation.isError && (
-            <p className="text-xs text-red-600">{t('settings.featureFlags.failedToSave')}</p>
-          )}
+          {createMutation.isError && <Alert variant="danger">{serverMessage(createMutation.error, t('settings.featureFlags.failedToSave'))}</Alert>}
 
-          <button type="submit" disabled={createMutation.isPending} className="btn-primary">
-            {createMutation.isPending ? t('common.saving') : t('settings.featureFlags.addFlag')}
-          </button>
+          <Button type="submit" loading={createMutation.isPending}>{t('settings.featureFlags.addFlag')}</Button>
         </form>
       )}
+
+      <ConfirmDialog
+        open={!!confirmFlag}
+        title={t('settings.featureFlags.confirmTitle')}
+        message={confirmFlag ? t(confirmFlag.isEnabled ? 'settings.featureFlags.confirmOff' : 'settings.featureFlags.confirmOn', { key: confirmFlag.key }) : ''}
+        confirmLabel={t('common.confirm')}
+        onConfirm={() => confirmFlag && !toggleMutation.isPending && toggleMutation.mutate(confirmFlag)}
+        onCancel={() => setConfirmFlag(null)}
+      />
     </div>
   )
 }
@@ -129,6 +144,7 @@ function SystemFlagsPanel({ canManage }: { canManage: boolean }) {
 function TenantFlagsPanel({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'feature-flags', 'tenant', tenantId],
@@ -140,44 +156,48 @@ function TenantFlagsPanel({ canManage, tenantId }: { canManage: boolean; tenantI
   const toggleMutation = useMutation({
     mutationFn: (flag: TenantFeatureFlag) =>
       featureFlagsApi.setTenantFlagOverride(tenantId, flag.key, { isEnabled: !flag.isEnabled }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['settings', 'feature-flags', 'tenant', tenantId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings', 'feature-flags', 'tenant', tenantId] })
+      toast.success(t('common.saved'))
+    },
+    onError: (e) => toast.error(serverMessage(e, t('settings.featureFlags.failedToSave'))),
   })
 
-  if (!tenantId) return <p className="text-sm text-gray-400">{t('settings.featureFlags.noTenant')}</p>
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (!tenantId) return <p className="text-sm text-ink-muted">{t('settings.featureFlags.noTenant')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <table className="w-full max-w-2xl text-sm">
       <thead>
-        <tr className="border-b border-gray-200 text-left text-gray-500">
-          <th className="py-2">{t('settings.featureFlags.key')}</th>
-          <th className="py-2">{t('settings.featureFlags.description')}</th>
-          <th className="py-2">{t('settings.featureFlags.enabled')}</th>
-          <th className="py-2">{t('settings.featureFlags.overridden')}</th>
+        <tr className="border-b border-line text-left text-ink-muted">
+          <th scope="col" className="py-2">{t('settings.featureFlags.key')}</th>
+          <th scope="col" className="py-2">{t('settings.featureFlags.description')}</th>
+          <th scope="col" className="py-2">{t('settings.featureFlags.enabled')}</th>
+          <th scope="col" className="py-2">{t('settings.featureFlags.overridden')}</th>
         </tr>
       </thead>
       <tbody>
         {(data ?? []).map((flag) => (
-          <tr key={flag.key} className="border-b border-gray-100">
+          <tr key={flag.key} className="border-b border-line">
             <td className="py-2 font-mono text-xs">{flag.key}</td>
-            <td className="py-2 text-gray-600">{flag.description ?? ''}</td>
+            <td className="py-2 text-ink-secondary">{flag.description ?? ''}</td>
             <td className="py-2">
               <input
                 type="checkbox"
                 checked={flag.isEnabled}
+                aria-label={`${t('settings.featureFlags.enabled')}: ${flag.key}`}
                 disabled={!canManage || toggleMutation.isPending}
                 onChange={() => toggleMutation.mutate(flag)}
               />
             </td>
-            <td className="py-2 text-xs text-gray-400">
+            <td className="py-2 text-xs text-ink-muted">
               {flag.isOverridden ? t('settings.featureFlags.overridden') : t('settings.featureFlags.inherited')}
             </td>
           </tr>
         ))}
         {(data ?? []).length === 0 && (
           <tr>
-            <td colSpan={4} className="py-4 text-gray-400">
+            <td colSpan={4} className="py-4 text-ink-muted">
               {t('settings.featureFlags.noFlags')}
             </td>
           </tr>
@@ -207,21 +227,7 @@ export function FeatureFlagsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.featureFlags.title')}</h1>
 
-      <div className="flex gap-2 border-b border-gray-200">
-        {TABS.map((x) => (
-          <button
-            key={x.key}
-            onClick={() => setTab(x.key)}
-            className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key
-                ? 'border-b-2 border-primary-600 text-primary-700'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {x.label}
-          </button>
-        ))}
-      </div>
+      <TabList id="featureflags" label={t('settings.featureFlags.title')} tabs={TABS} current={tab} onSelect={setTab} />
 
       {tab === 'system' && canViewSystem && <SystemFlagsPanel canManage={canManageSystem} />}
       {tab === 'tenant' && (

@@ -46,14 +46,14 @@ export function ReportsPage() {
       <div className="flex items-center gap-4">
         <h1 className="text-xl font-semibold">{t('reports.title')}</h1>
         <div className="ml-auto flex items-center gap-2">
-          <label className="text-sm text-gray-500">{t('reports.from')}</label>
+          <label className="text-sm text-ink-muted">{t('reports.from')}</label>
           <input
             type="date"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
             className="input w-auto"
           />
-          <label className="text-sm text-gray-500">{t('reports.to')}</label>
+          <label className="text-sm text-ink-muted">{t('reports.to')}</label>
           <input
             type="date"
             value={to}
@@ -71,7 +71,7 @@ export function ReportsPage() {
           { label: t('reports.newCustomers'), value: String(salesQuery.data?.newCustomers ?? 0) },
         ].map((kpi) => (
           <div key={kpi.label} className="card p-5">
-            <p className="text-sm text-gray-500">{kpi.label}</p>
+            <p className="text-sm text-ink-muted">{kpi.label}</p>
             <p className="mt-1 text-2xl font-semibold">
               {salesQuery.isLoading ? '—' : kpi.value}
             </p>
@@ -80,7 +80,7 @@ export function ReportsPage() {
       </div>
 
       <div className="card p-5">
-        <h2 className="mb-4 text-sm font-semibold text-gray-600">{t('reports.revenueByDay')}</h2>
+        <h2 className="mb-4 text-sm font-semibold text-ink-secondary">{t('reports.revenueByDay')}</h2>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={salesQuery.data?.revenueByDay ?? []}>
             <CartesianGrid strokeDasharray="3 3" stroke={colors.line} />
@@ -101,17 +101,17 @@ export function ReportsPage() {
       </div>
 
       <div className="card p-5">
-        <h2 className="mb-4 text-sm font-semibold text-gray-600">{t('reports.revenueByPaymentMethod')}</h2>
+        <h2 className="mb-4 text-sm font-semibold text-ink-secondary">{t('reports.revenueByPaymentMethod')}</h2>
         {payQuery.isLoading ? (
-          <div className="text-gray-400">{t('common.loading')}</div>
+          <div className="text-ink-muted">{t('common.loading')}</div>
         ) : (
           <div className="space-y-2">
             {(payQuery.data?.byMethod ?? []).map((m) => (
               <div key={m.method} className="flex items-center gap-3">
-                <span className="w-32 text-sm text-gray-600">{m.method}</span>
-                <div className="flex-1 rounded-full bg-gray-100 h-3">
+                <span className="w-32 text-sm text-ink-secondary">{m.method}</span>
+                <div className="flex-1 rounded-full bg-surface-muted h-3">
                   <div
-                    className="h-3 rounded-full bg-primary-500"
+                    className="h-3 rounded-full bg-brand-action"
                     style={{
                       width: `${payQuery.data ? (m.amount / payQuery.data.totalProcessed) * 100 : 0}%`,
                     }}
@@ -126,15 +126,15 @@ export function ReportsPage() {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="card p-5">
-          <h2 className="mb-4 text-sm font-semibold text-gray-600">{t('reports.topProducts')}</h2>
+          <h2 className="mb-4 text-sm font-semibold text-ink-secondary">{t('reports.topProducts')}</h2>
           {salesQuery.isLoading ? (
-            <div className="text-gray-400">{t('common.loading')}</div>
+            <div className="text-ink-muted">{t('common.loading')}</div>
           ) : (salesQuery.data?.topProducts ?? []).length === 0 ? (
-            <div className="text-sm text-gray-400">{t('reports.noData')}</div>
+            <div className="text-sm text-ink-muted">{t('reports.noData')}</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-500">
+                <tr className="text-left text-ink-muted">
                   <th className="pb-2 font-medium">{t('reports.product')}</th>
                   <th className="pb-2 font-medium text-right">{t('reports.unitsSold')}</th>
                   <th className="pb-2 font-medium text-right">{t('reports.revenue')}</th>
@@ -142,7 +142,7 @@ export function ReportsPage() {
               </thead>
               <tbody>
                 {(salesQuery.data?.topProducts ?? []).map((p) => (
-                  <tr key={p.productId} className="border-t border-gray-100">
+                  <tr key={p.productId} className="border-t border-line">
                     <td className="py-2 truncate max-w-[200px]">{p.productName}</td>
                     <td className="py-2 text-right">{p.unitsSold}</td>
                     <td className="py-2 text-right font-medium">{fmt.format(p.revenue)}</td>
@@ -154,23 +154,23 @@ export function ReportsPage() {
         </div>
 
         <div className="card p-5">
-          <h2 className="mb-4 text-sm font-semibold text-gray-600">{t('reports.inventory')}</h2>
+          <h2 className="mb-4 text-sm font-semibold text-ink-secondary">{t('reports.inventory')}</h2>
           {inventoryQuery.isLoading ? (
-            <div className="text-gray-400">{t('common.loading')}</div>
+            <div className="text-ink-muted">{t('common.loading')}</div>
           ) : (
             <>
               <div className="mb-4 grid grid-cols-3 gap-3">
                 <div>
-                  <p className="text-xs text-gray-500">{t('reports.totalProducts')}</p>
+                  <p className="text-xs text-ink-muted">{t('reports.totalProducts')}</p>
                   <p className="text-lg font-semibold">{inventoryQuery.data?.totalProducts ?? 0}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-amber-600">{t('reports.lowStock')}</p>
-                  <p className="text-lg font-semibold text-amber-600">{inventoryQuery.data?.lowStockCount ?? 0}</p>
+                  <p className="text-xs text-warning-soft-text">{t('reports.lowStock')}</p>
+                  <p className="text-lg font-semibold text-warning-soft-text">{inventoryQuery.data?.lowStockCount ?? 0}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-red-600">{t('reports.outOfStock')}</p>
-                  <p className="text-lg font-semibold text-red-600">{inventoryQuery.data?.outOfStockCount ?? 0}</p>
+                  <p className="text-xs text-danger-soft-text">{t('reports.outOfStock')}</p>
+                  <p className="text-lg font-semibold text-danger-soft-text">{inventoryQuery.data?.outOfStockCount ?? 0}</p>
                 </div>
               </div>
               <div className="max-h-48 overflow-y-auto">
@@ -178,13 +178,13 @@ export function ReportsPage() {
                   .filter((s) => s.stockStatus !== 'InStock')
                   .slice(0, 10)
                   .map((s) => (
-                    <div key={s.productId} className="flex items-center justify-between border-t border-gray-100 py-2 text-sm">
+                    <div key={s.productId} className="flex items-center justify-between border-t border-line py-2 text-sm">
                       <span className="truncate max-w-[220px]">{s.productName}</span>
                       <span
                         className={
                           s.stockStatus === 'OutOfStock'
-                            ? 'text-red-600 font-medium'
-                            : 'text-amber-600 font-medium'
+                            ? 'text-danger-soft-text font-medium'
+                            : 'text-warning-soft-text font-medium'
                         }
                       >
                         {s.availableQuantity} {t('reports.units')}
