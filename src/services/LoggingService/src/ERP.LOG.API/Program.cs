@@ -53,6 +53,9 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
+// Request logging outside the exception handler: it must see the status the handler wrote (a refusal is a 400, not a 500; R100).
+app.UseSerilogRequestLogging();
+
 app.UseGlobalExceptionHandling();
 
 // API documentation is for developers only: never expose the endpoint list in Production.
@@ -61,8 +64,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseSerilogRequestLogging();
 
 app.UseAuthentication();
 app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();

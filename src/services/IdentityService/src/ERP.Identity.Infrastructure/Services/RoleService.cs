@@ -46,7 +46,7 @@ namespace ERP.Identity.Infrastructure.Services
 
             var existingRole = await _unitOfWork.Roles.GetByCodeAsync(request.RoleCode, tenantId, ct);
             if (existingRole != null)
-                throw new InvalidOperationException($"Role '{request.RoleCode}' already exists for this tenant");
+                throw new DuplicateException("Role code", request.RoleCode); // 409 (R99: it was a 500)
 
             var role = Role.Create(request.RoleCode, request.RoleName, tenantId);
             await _unitOfWork.Roles.AddAsync(role, ct);

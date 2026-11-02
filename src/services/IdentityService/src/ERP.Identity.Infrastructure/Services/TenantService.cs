@@ -36,7 +36,7 @@ namespace ERP.Identity.Infrastructure.Services
         {
             var existingTenant = await _unitOfWork.Tenants.ExistsByCodeAsync(request.TenantCode, ct);
             if (existingTenant)
-                throw new InvalidOperationException($"Tenant with code '{request.TenantCode}' already exists");
+                throw new ERP.Shared.Infrastructure.Exceptions.DuplicateException("Tenant code", request.TenantCode);
 
             var tenant = AuthTenant.Create(request.TenantCode, request.TenantName);
             await _unitOfWork.Tenants.AddAsync(tenant, ct);
