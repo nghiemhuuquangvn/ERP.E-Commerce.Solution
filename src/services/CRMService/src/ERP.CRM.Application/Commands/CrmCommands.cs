@@ -60,7 +60,9 @@ public record CreateActivityCommand(
     Guid? OpportunityId,
     Guid? CaseId,
     Guid? AssignedToUserId,
-    string? Source
+    string? Source,
+    // Set by the API from the token (a body value is overwritten); the consumer path uses its own author.
+    string? CreatedBy = null
 ) : IRequest<ActivityDto>;
 
 public record CompleteActivityCommand(Guid ActivityId, string? Notes) : IRequest<ActivityDto>;

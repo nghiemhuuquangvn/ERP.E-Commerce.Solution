@@ -52,7 +52,8 @@ public class SalesOrderCreatedEventHandler : IEventHandler<SalesOrderCreatedInte
             activityType: ActivityType.Note,
             subject: $"Sales order placed — Order #{@event.OrderId:N}",
             notes: $"Order total: {(@event.TotalAmount):C}. Order ID: {@event.OrderId}",
-            source: "SalesOrderService");
+            source: "SalesOrderService",
+            createdBy: "SalesOrderService");
 
         await _activities.AddAsync(activity, cancellationToken);
         // Previously missing — the activity was added to the change tracker and then

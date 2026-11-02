@@ -4,6 +4,7 @@ using ERP.CRM.Application.Interfaces;
 using ERP.CRM.Application.Queries;
 using ERP.CRM.Domain.Entities;
 using ERP.CRM.Domain.Enums;
+using ERP.Shared.Infrastructure.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -33,7 +34,8 @@ public class CreateActivityCommandHandler : IRequestHandler<CreateActivityComman
             request.OpportunityId,
             request.CaseId,
             request.AssignedToUserId,
-            request.Source);
+            request.Source,
+            request.CreatedBy);
 
         await _uow.Activities.AddAsync(activity, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
@@ -65,7 +67,8 @@ public class CompleteActivityCommandHandler : IRequestHandler<CompleteActivityCo
         var activity = await _uow.Activities.GetByIdAsync(request.ActivityId, cancellationToken)
             ?? throw new KeyNotFoundException($"Activity {request.ActivityId} not found.");
 
-        activity.Complete(request.Notes);
+        try { activity.Complete(request.Notes); }
+        catch (InvalidOperationException ex) { throw new BusinessRuleException("ActivityStateInvalid", ex.Message); } // a wrong state is a refusal (400), not a server error
         await _uow.Activities.UpdateAsync(activity, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Activity {ActivityId} completed", request.ActivityId);
@@ -89,7 +92,8 @@ public class CancelActivityCommandHandler : IRequestHandler<CancelActivityComman
         var activity = await _uow.Activities.GetByIdAsync(request.ActivityId, cancellationToken)
             ?? throw new KeyNotFoundException($"Activity {request.ActivityId} not found.");
 
-        activity.Cancel();
+        try { activity.Cancel(); }
+        catch (InvalidOperationException ex) { throw new BusinessRuleException("ActivityStateInvalid", ex.Message); }
         await _uow.Activities.UpdateAsync(activity, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Activity {ActivityId} cancelled", request.ActivityId);

@@ -29,7 +29,8 @@ public class Activity : AggregateRoot
         Guid? opportunityId = null,
         Guid? caseId = null,
         Guid? assignedToUserId = null,
-        string? source = null)
+        string? source = null,
+        string? createdBy = null)
     {
         if (string.IsNullOrWhiteSpace(subject))
             throw new InvalidOperationException("Activity subject is required.");
@@ -50,6 +51,8 @@ public class Activity : AggregateRoot
             CaseId = caseId,
             AssignedToUserId = assignedToUserId,
             Source = source,
+            // Activities.CreatedBy is NOT NULL in the database: without an author every insert failed (R82).
+            CreatedBy = string.IsNullOrWhiteSpace(createdBy) ? "system" : createdBy.Trim(),
             CreatedAt = DateTime.UtcNow
         };
 

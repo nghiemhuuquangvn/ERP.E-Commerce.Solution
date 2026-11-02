@@ -13,8 +13,13 @@ namespace ERP.CRM.API.Controllers;
 public class ActivitiesController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IUserContextService _userContext;
 
-    public ActivitiesController(IMediator mediator) => _mediator = mediator;
+    public ActivitiesController(IMediator mediator, IUserContextService userContext)
+    {
+        _mediator = mediator;
+        _userContext = userContext;
+    }
 
     /// <summary>
     /// List activities with optional contact, opportunity and type filters.
@@ -58,7 +63,8 @@ public class ActivitiesController : ControllerBase
         [FromBody] CreateActivityCommand command,
         CancellationToken cancellationToken = default)
     {
-        var result = await _mediator.Send(command, cancellationToken);
+        // The author comes from the token, never from the body.
+        var result = await _mediator.Send(command with { CreatedBy = _userContext.GetUserId() }, cancellationToken);
         return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
     }
 

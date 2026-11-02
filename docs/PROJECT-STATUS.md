@@ -36,6 +36,13 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-02 — CRM backend: activities can be saved (R82) and lead qualification refuses clearly (R83) (`fix/crm-activity-and-lead-qualify`, from master, unmerged)
+- **R82:** `Activities.CreatedBy` is NOT NULL but nothing set it, so `POST crm/activities` answered 500 and the `SalesOrderCreated` consumer failed on every order and requeued for ever (71 messages stuck). Fix: `Activity.Create` takes the author (token user in the API - a body value is overwritten - `SalesOrderService` for the consumer, else `system`), `CrmDbContext` fills a missing author on every new row, the consumer retries 5 times then drops (Warehouse pattern).
+- **R83:** qualify without a contact (it built the opportunity with an empty contact id), an already qualified / lost lead, complete twice and cancel-a-completed-activity are now business-rule 400s with a message; nothing is added or saved on refusal.
+- **Tests:** CRM 17 (11 new: author, command, consumer note, DbContext safety net, qualify refusals and success, activity state refusals), Architecture 70. **Live:** before: activity 500, qualify 500, queue 71 stuck; after: activity 201, qualify without contact 400, with contact 200, again 400, complete twice 400; the backlog drained into 71 "Sales order placed" notes authored `SalesOrderService` (real contacts now have their order notes - intended). Throw-away rows deleted by SQL.
+- **Found:** R100 - the request-log line of a business-rule refusal reads `responded 500` (exception handler registered before the Serilog request logging), a logging accuracy issue across services.
+- **Docs:** CRM/AdminBackOffice.md (author rule, qualification rules, CRM-8, CRM-9, UAT), user guide crm.md, DEFERRED, CLAUDE.md.
+
 ### 2026-11-02 — Identity backend: invite works (R89) and server-side lock-out guards (R91) (`fix/identity-invite-and-guards`, from master, unmerged)
 - **R89:** `POST users/invite` answered 500 for every account not yet in the tenant (detached graph saved with `Update`, new membership treated as modified). Reproduced live (500), fixed with a tracked load (`GetForInviteAsync`) and no `Update`; 200 after the deploy.
 - **R91:** `AdministratorGuard` (administrator = active, unlocked member with `identity:users:manage`): refuses lock / deactivate of yourself or the last administrator, taking the last admin's role, deleting or stripping the role that makes the only administrators, deleting CUSTOMER / STAFF / USER, deactivating the platform tenant (business-rule 400, en + vi). New `POST users/{id}/activate`.

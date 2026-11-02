@@ -48,7 +48,7 @@ Ghi nhận cuộc gọi, họp… với một liên hệ. Nếu **Thời gian d�
 Khung đỏ trong hộp thoại ghi lý do của hệ thống (ví dụ ngày chốt không hợp lệ). Với nút ngoài hộp thoại (Chuyển giai đoạn, Thắng, Đóng, Hủy) lý do hiện bằng thẻ đỏ ở góc trên bên phải và dữ liệu không đổi.
 
 ## 6. Giới hạn đã biết
-- **Ghi nhận hoạt động đang báo lỗi chung** "Yêu cầu không thể hoàn tất. Lỗi đã được ghi lại." trên hệ thống hiện tại (lỗi phía máy chủ, R82); hoàn thành / hủy hoạt động đã có sẵn vẫn dùng được.
-- **Chuyển thành cơ hội cần khách hàng tiềm năng đã có Liên hệ**; nếu thiếu, máy chủ báo lỗi chung (R83). Khi thêm khách, hãy chọn Liên hệ.
+- Ghi nhận hoạt động đã dùng được (trước đây báo lỗi chung, R82). Mỗi hoạt động ghi **người tạo**: bạn, hoặc "SalesOrderService" với ghi chú tự sinh khi có đơn hàng mới ("Sales order placed"). Hoàn thành hai lần, hoàn thành hoạt động đã hủy hoặc hủy hoạt động đã hoàn thành sẽ hiện lý do rõ ràng trong hộp thoại.
+- **Chuyển thành cơ hội cần khách hàng tiềm năng đã có Liên hệ**; nếu thiếu, hệ thống báo "Link a contact to this lead before qualifying it" và không đổi gì (R83). Khi thêm khách hàng tiềm năng, hãy chọn Liên hệ. Khách hàng tiềm năng đã chuyển hoặc đã mất không chuyển lại được.
 - **Danh sách liên hệ được máy chủ nhớ tạm tối đa 5 phút**: liên hệ vừa tạo có thể chưa hiện trong ô chọn liên hệ của hộp thoại khác ngay lập tức (R84).
 - Ô chọn liên hệ chỉ liệt kê 100 liên hệ đầu; chưa có kiểm tra trùng liên hệ; chưa có SLA cho yêu cầu hỗ trợ; ghi chú hoạt động chưa sửa được sau khi lưu.
