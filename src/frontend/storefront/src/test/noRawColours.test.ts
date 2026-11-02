@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest'
 // Tailwind palette or the old numeric aliases (brand-100/500/600). This test keeps the migration from slipping back.
 const files = import.meta.glob(['../**/*.{vue,ts}', '!../**/*.test.ts', '!../test/**', '!../styles/tokens.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>
 
-const RAW = /(?<![\w-])(?:[a-z0-9[\]-]+:)*(?:text|placeholder|fill|stroke|accent|bg|from|to|via|border(?:-[trblxy])?|divide|ring|outline)-(?:gray|slate|zinc|neutral|red|rose|green|emerald|lime|yellow|amber|orange|blue|sky|indigo|primary|brand)-\d{2,3}(?![\w-])/g
+const RAW = /(?<![\w-])(?:[a-z0-9[\]-]+:)*(?:text|placeholder|fill|stroke|accent|bg|from|to|via|border(?:-[trblxy])?|divide|ring|outline)-(?:gray|slate|zinc|neutral|red|rose|green|emerald|lime|yellow|amber|orange|blue|sky|indigo|purple|violet|pink|fuchsia|teal|cyan|stone|primary|brand)-\d{2,3}(?![\w-])/g
 const WHITE = /(?<![\w-])(?:[a-z0-9[\]-]+:)*(?:bg|text|border)-(?:white|black)(?![\w/-])/g
 
 describe('colour tokens', () => {

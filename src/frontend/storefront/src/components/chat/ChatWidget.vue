@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed bottom-5 right-5 z-50 flex flex-col items-end">
+  <div class="fixed bottom-20 right-4 z-toast flex flex-col items-end md:bottom-5 md:right-5">
     <div
       v-if="isOpen"
       class="mb-3 flex h-[32rem] w-80 flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-xl sm:w-96"

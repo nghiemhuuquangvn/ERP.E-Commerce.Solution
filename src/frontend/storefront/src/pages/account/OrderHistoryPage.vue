@@ -1,53 +1,65 @@
 <template>
-  <div class="mx-auto max-w-3xl px-4 py-10">
-    <h1 class="mb-6 text-2xl font-bold text-ink">My Orders</h1>
+  <div>
+    <h1 class="mb-6 text-2xl font-bold text-ink">{{ t('account.myOrders') }}</h1>
 
-    <div v-if="isLoading" class="text-ink-muted">Loading...</div>
-
-    <div v-else-if="!orders?.length" class="py-10 text-center text-ink-muted">
-      You haven't placed any orders yet.
+    <div v-if="isLoading" class="space-y-4" role="status" :aria-label="t('common.loading')">
+      <Skeleton v-for="n in 3" :key="n" class="h-24" />
     </div>
 
-    <div v-else class="space-y-4">
-      <div v-for="order in orders" :key="order.orderId" class="rounded-lg border border-line p-5">
-        <div class="flex items-start justify-between">
+    <Alert v-else-if="isError" variant="danger">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <span>{{ t('account.ordersLoadFailed') }}</span>
+        <Button variant="outline" size="sm" @click="refetch()">{{ t('common.retry') }}</Button>
+      </div>
+    </Alert>
+
+    <EmptyState v-else-if="!orders?.length" :title="t('orders.noOrdersYet')">
+      <Button to="/products">{{ t('cart.browseProducts') }}</Button>
+    </EmptyState>
+
+    <ul v-else class="space-y-4">
+      <li v-for="order in orders" :key="order.orderId" class="rounded-lg border border-line p-5">
+        <div class="flex items-start justify-between gap-3">
           <div>
             <p class="font-medium text-ink">{{ order.orderNo }}</p>
-            <p class="text-sm text-ink-muted">{{ fmt(new Date(order.orderDate)) }}</p>
+            <p class="text-sm text-ink-secondary">{{ fmtDate(new Date(order.orderDate)) }}</p>
           </div>
-          <span :class="statusClass(order.status)" class="badge">{{ order.status }}</span>
+          <Badge :variant="statusVariant(order.status)">{{ statusLabel(order.status) }}</Badge>
         </div>
-        <p class="mt-3 text-sm text-ink-secondary">
-          <span class="font-semibold">{{ fmtCurrency(order.totalAmount) }}</span>
-        </p>
-      </div>
-    </div>
+        <p class="mt-3"><PriceText :amount="order.totalAmount" /></p>
+      </li>
+    </ul>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query'
 import { format } from 'date-fns'
+import { useI18n } from 'vue-i18n'
 import { ordersApi } from '@/api/orders.api'
+import Alert from '@/components/ui/Alert.vue'
+import Badge, { type BadgeVariant } from '@/components/ui/Badge.vue'
+import Button from '@/components/ui/Button.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import PriceText from '@/components/ui/PriceText.vue'
+import Skeleton from '@/components/ui/Skeleton.vue'
 
-const { data: orders, isLoading } = useQuery({
+const { t, te } = useI18n()
+
+const { data: orders, isLoading, isError, refetch } = useQuery({
   queryKey: ['my-orders'],
   queryFn: ordersApi.myOrders,
 })
 
-const fmt = (d: Date) => format(d, 'dd MMM yyyy')
-const fmtCurrency = (n: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
+const fmtDate = (d: Date) => format(d, 'dd MMM yyyy')
 
-const STATUS_COLORS: Record<string, string> = {
-  Draft: 'bg-surface-muted text-ink-secondary',
-  Confirmed: 'bg-info-soft text-info-soft-text',
-  Shipped: 'bg-purple-100 text-purple-700',
-  Delivered: 'bg-success-soft text-success-soft-text',
-  Cancelled: 'bg-danger-soft text-danger-soft-text',
+const VARIANT: Record<string, BadgeVariant> = {
+  Confirmed: 'brand',
+  Shipped: 'warning',
+  Delivered: 'success',
+  Cancelled: 'danger',
 }
-
-function statusClass(status: string) {
-  return STATUS_COLORS[status] ?? 'bg-surface-muted text-ink-secondary'
-}
+const statusVariant = (status: string): BadgeVariant => VARIANT[status] ?? 'neutral'
+// Known statuses are translated; any other status the back office adds is shown as it comes.
+const statusLabel = (status: string) => (te(`orders.status.${status}`) ? t(`orders.status.${status}`) : status)
 </script>

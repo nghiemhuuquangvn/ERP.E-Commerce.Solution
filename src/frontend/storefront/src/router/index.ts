@@ -33,6 +33,7 @@ const router = createRouter({
         },
         {
           path: 'account',
+          component: () => import('@/layouts/AccountLayout.vue'),
           meta: { requiresAuth: true },
           children: [
             { path: 'orders', name: 'my-orders', component: () => import('@/pages/account/OrderHistoryPage.vue') },

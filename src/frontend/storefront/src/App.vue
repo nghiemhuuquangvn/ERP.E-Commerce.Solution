@@ -1,6 +1,7 @@
 <template>
   <RouterView />
   <ChatWidget />
+  <ToastHost />
 </template>
 
 <script setup lang="ts">
@@ -8,6 +9,7 @@ import { RouterView } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useLocaleStore } from '@/stores/locale.store'
 import ChatWidget from '@/components/chat/ChatWidget.vue'
+import ToastHost from '@/components/ui/ToastHost.vue'
 
 // Sync vue-i18n's active locale with the persisted store on app start
 // (the store's `locale` ref is restored from localStorage before this runs,

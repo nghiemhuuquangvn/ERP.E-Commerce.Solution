@@ -1,101 +1,119 @@
 <template>
   <div class="mx-auto max-w-3xl px-4 py-10">
-    <h1 class="mb-6 text-2xl font-bold text-ink">{{ t('checkout.title') }}</h1>
+    <h1 ref="heading" tabindex="-1" class="mb-6 text-2xl font-bold text-ink outline-none">{{ t('checkout.title') }}</h1>
 
-    <!-- Steps -->
-    <div class="mb-8 flex items-center gap-4">
-      <StepIndicator :step="1" :current="currentStep" :label="t('checkout.stepShipping')" />
-      <div class="flex-1 border-t border-line" />
-      <StepIndicator :step="2" :current="currentStep" :label="t('checkout.stepPayment')" />
-      <div class="flex-1 border-t border-line" />
-      <StepIndicator :step="3" :current="currentStep" :label="t('checkout.stepReview')" />
-    </div>
+    <Stepper
+      class="mb-8"
+      :steps="[t('checkout.stepShipping'), t('checkout.stepPayment'), t('checkout.stepReview')]"
+      :current="currentStep"
+      :label="t('checkout.stepsLabel')"
+    />
 
     <!-- Step 1: Shipping Address -->
-    <div v-if="currentStep === 1" class="card p-6 space-y-4">
+    <form v-if="currentStep === 1" class="rounded-lg border border-line bg-surface shadow-sm space-y-4 p-6" novalidate @submit.prevent="goToPayment">
       <h2 class="font-semibold text-ink">{{ t('checkout.shippingAddress') }}</h2>
-      <input v-model="address.street" class="input" :placeholder="t('checkout.streetAddress')" />
-      <input v-model="address.ward" class="input" :placeholder="t('checkout.ward')" />
-      <input v-model="phone" type="tel" autocomplete="tel" class="input" :placeholder="t('checkout.phone')" />
-      <div class="grid grid-cols-2 gap-3">
-        <input v-model="address.city" class="input" :placeholder="t('checkout.city')" />
-        <input v-model="address.state" class="input" :placeholder="t('checkout.state')" />
+      <FormField :label="t('checkout.streetAddress')" required :error="err('street')">
+        <Input v-model="address.street" autocomplete="street-address" />
+      </FormField>
+      <FormField :label="t('checkout.ward')">
+        <Input v-model="address.ward" />
+      </FormField>
+      <FormField :label="t('checkout.phone')" required :error="err('phone')" :hint="t('checkout.phoneHint')">
+        <Input v-model="phone" type="tel" autocomplete="tel" />
+      </FormField>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <FormField :label="t('checkout.city')" required :error="err('city')">
+          <Input v-model="address.city" autocomplete="address-level2" />
+        </FormField>
+        <FormField :label="t('checkout.state')">
+          <Input v-model="address.state" autocomplete="address-level1" />
+        </FormField>
       </div>
-      <div class="grid grid-cols-2 gap-3">
-        <input v-model="address.postalCode" class="input" :placeholder="t('checkout.postalCode')" />
-        <input v-model="address.country" class="input" :placeholder="t('checkout.country')" />
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <FormField :label="t('checkout.postalCode')">
+          <Input v-model="address.postalCode" autocomplete="postal-code" />
+        </FormField>
+        <FormField :label="t('checkout.country')" required :error="err('country')">
+          <Input v-model="address.country" autocomplete="country-name" />
+        </FormField>
       </div>
-      <button @click="currentStep = 2" :disabled="!addressValid" class="btn-brand disabled:opacity-40">
-        {{ t('checkout.continueArrow') }}
-      </button>
-    </div>
+      <Button type="submit">{{ t('checkout.continueArrow') }}</Button>
+    </form>
 
     <!-- Step 2: Payment -->
-    <div v-else-if="currentStep === 2" class="card p-6 space-y-4">
+    <section v-else-if="currentStep === 2" class="rounded-lg border border-line bg-surface shadow-sm space-y-4 p-6">
       <h2 class="font-semibold text-ink">{{ t('checkout.paymentMethod') }}</h2>
-      <p v-if="methodsLoading" class="text-sm text-ink-muted">{{ t('common.loading') }}</p>
-      <p v-else-if="!paymentMethods.length" class="text-sm text-danger-soft-text">{{ t('checkout.noPaymentMethods') }}</p>
-      <div v-else class="space-y-2">
-        <label v-for="m in paymentMethods" :key="m.value" class="flex items-start gap-3 cursor-pointer">
-          <input type="radio" :value="m.value" v-model="paymentMethod" class="mt-1 accent-brand-action" />
-          <span class="text-sm">
+      <p v-if="methodsLoading" role="status" class="flex items-center gap-2 text-sm text-ink-secondary"><Spinner :size="16" />{{ t('common.loading') }}</p>
+      <Alert v-else-if="!paymentMethods.length" variant="warning">{{ t('checkout.noPaymentMethods') }}</Alert>
+      <fieldset v-else class="space-y-2">
+        <legend class="sr-only">{{ t('checkout.paymentMethod') }}</legend>
+        <label v-for="m in paymentMethods" :key="m.value" class="flex cursor-pointer items-start gap-3 rounded-md border border-line p-3 has-[:checked]:border-brand-action has-[:checked]:bg-brand-subtle">
+          <input v-model="paymentMethod" type="radio" name="payment-method" :value="m.value" class="mt-1 h-4 w-4 accent-brand-action" />
+          <span class="text-sm text-ink">
             {{ m.label }}
-            <span class="block text-xs text-ink-muted">{{ m.hint }}</span>
+            <span class="block text-xs text-ink-secondary">{{ m.hint }}</span>
           </span>
         </label>
-      </div>
+      </fieldset>
       <div class="flex gap-3">
-        <button @click="currentStep = 1" class="btn-outline">{{ t('checkout.backArrow') }}</button>
-        <button @click="currentStep = 3" :disabled="!paymentMethod" class="btn-brand disabled:opacity-40">{{ t('checkout.reviewOrderArrow') }}</button>
+        <Button variant="outline" @click="currentStep = 1">{{ t('checkout.backArrow') }}</Button>
+        <Button :disabled="!paymentMethod" @click="currentStep = 3">{{ t('checkout.reviewOrderArrow') }}</Button>
       </div>
-    </div>
+    </section>
 
     <!-- Step 3: Review & Place -->
-    <div v-else class="card p-6 space-y-4">
+    <section v-else class="rounded-lg border border-line bg-surface shadow-sm space-y-4 p-6">
       <h2 class="font-semibold text-ink">{{ t('checkout.reviewYourOrder') }}</h2>
-      <div class="text-sm text-ink-secondary space-y-1">
-        <p><span class="font-medium">{{ t('checkout.shipTo') }}</span> {{ [address.street, address.ward, address.city, address.state, address.country].filter(Boolean).join(', ') }}</p>
-        <p><span class="font-medium">{{ t('checkout.payment') }}</span> {{ paymentMethodLabel }}</p>
-      </div>
-      <div class="border-t pt-3 text-sm space-y-1">
-        <div v-for="item in items" :key="item.productId" class="flex justify-between">
+      <dl class="space-y-1 text-sm text-ink-secondary">
+        <div class="flex gap-2"><dt class="font-medium text-ink">{{ t('checkout.shipTo') }}</dt><dd>{{ [address.street, address.ward, address.city, address.state, address.country].filter(Boolean).join(', ') }}</dd></div>
+        <div class="flex gap-2"><dt class="font-medium text-ink">{{ t('checkout.payment') }}</dt><dd>{{ paymentMethodLabel }}</dd></div>
+      </dl>
+      <div class="space-y-1 border-t border-line pt-3 text-sm text-ink">
+        <div v-for="item in items" :key="item.productId" class="flex justify-between gap-3">
           <span>{{ item.productName }} × {{ item.quantity }}</span>
-          <span>{{ fmt(item.unitPrice * item.quantity) }}</span>
+          <span class="tabular-nums">{{ fmt(item.unitPrice * item.quantity) }}</span>
         </div>
-        <div class="flex justify-between pt-1 border-t">
+        <div class="flex justify-between border-t border-line pt-1">
           <span>{{ t('checkout.goods') }}</span>
-          <span>{{ fmt(total) }}</span>
+          <span class="tabular-nums">{{ fmt(total) }}</span>
         </div>
         <div class="flex justify-between">
           <span>{{ t('checkout.deliveryFee') }}</span>
-          <span v-if="feeLoading" class="text-ink-muted">{{ t('common.loading') }}</span>
+          <span v-if="feeLoading" class="text-ink-secondary" role="status">{{ t('common.loading') }}</span>
           <span v-else-if="feeError" class="text-warning-soft-text">{{ t('checkout.feeUnavailable') }}</span>
-          <span v-else-if="deliveryFee === 0" class="text-success-soft-text">{{ t('checkout.freeDelivery') }}</span>
-          <span v-else>{{ fmt(deliveryFee) }}</span>
+          <span v-else-if="deliveryFee === 0" class="font-medium text-success-soft-text">{{ t('checkout.freeDelivery') }}</span>
+          <span v-else class="tabular-nums">{{ fmt(deliveryFee) }}</span>
         </div>
-        <p v-if="!feeLoading && !feeError && !feeQuote?.isFree && feeQuote && feeQuote.freeShippingThreshold > 0 && deliveryFee > 0" class="text-xs text-ink-muted">
+        <p v-if="!feeLoading && !feeError && !feeQuote?.isFree && feeQuote && feeQuote.freeShippingThreshold > 0 && deliveryFee > 0" class="text-xs text-ink-secondary">
           {{ t('checkout.freeFrom', { amount: fmt(feeQuote.freeShippingThreshold) }) }}
         </p>
-        <div class="flex justify-between font-semibold pt-1 border-t">
+        <div class="flex justify-between border-t border-line pt-1 font-semibold">
           <span>{{ t('common.total') }}</span>
-          <span>{{ fmt(total + deliveryFee) }}</span>
+          <span class="tabular-nums">{{ fmt(total + deliveryFee) }}</span>
         </div>
       </div>
+      <Alert v-if="error" variant="danger">{{ error }}</Alert>
       <div class="flex gap-3">
-        <button @click="currentStep = 2" class="btn-outline">{{ t('checkout.backArrow') }}</button>
-        <button @click="placeOrder" :disabled="placing" class="btn-brand flex-1 disabled:opacity-40">
-          {{ placing ? t('checkout.placingOrder') : isOnline ? t('checkout.placeOrderAndPay') : t('checkout.placeOrder') }}
-        </button>
+        <Button variant="outline" @click="currentStep = 2">{{ t('checkout.backArrow') }}</Button>
+        <Button class="flex-1" size="lg" :loading="placing" @click="placeOrder">
+          {{ placing ? t('checkout.placingOrder') : placeLabel }}
+        </Button>
       </div>
-      <p v-if="error" class="text-sm text-danger-soft-text">{{ error }}</p>
-    </div>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import Alert from '@/components/ui/Alert.vue'
+import Button from '@/components/ui/Button.vue'
+import FormField from '@/components/ui/FormField.vue'
+import Input from '@/components/ui/Input.vue'
+import Spinner from '@/components/ui/Spinner.vue'
+import Stepper from '@/components/ui/Stepper.vue'
+import { useMoney } from '@/composables/useMoney'
 import { useCartStore } from '@/stores/cart.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { ordersApi } from '@/api/orders.api'
@@ -103,6 +121,7 @@ import { paymentsApi } from '@/api/payments.api'
 import { shippingApi, type ShippingFeeQuote } from '@/api/shipping.api'
 
 const { t } = useI18n()
+const { usd, vnd } = useMoney()
 const cartStore = useCartStore()
 const authStore = useAuthStore()
 const router = useRouter()
@@ -110,6 +129,7 @@ const router = useRouter()
 const currentStep = ref(1)
 const placing = ref(false)
 const error = ref('')
+const heading = ref<HTMLElement | null>(null)
 
 const address = ref({ street: '', ward: '', city: '', state: '', postalCode: '', country: '' })
 // The carrier calls this number: it is part of the delivery address.
@@ -150,6 +170,8 @@ const feeLoading = ref(false)
 const feeError = ref(false)
 const deliveryFee = computed(() => feeQuote.value?.fee ?? 0)
 watch(currentStep, async (step) => {
+  await nextTick()
+  heading.value?.focus()
   if (step !== 3) return
   feeLoading.value = true
   feeError.value = false
@@ -171,11 +193,26 @@ const addressValid = computed(() =>
   address.value.street && address.value.city && address.value.country && phoneValid.value,
 )
 
+// The fields that are needed, and what is wrong with each; shown under the field once the customer tried to continue.
+const attempted = ref(false)
+function err(field: 'street' | 'phone' | 'city' | 'country'): string | undefined {
+  if (!attempted.value) return undefined
+  if (field === 'phone') return phone.value.trim() ? (phoneValid.value ? undefined : t('checkout.phoneInvalid')) : t('common.required')
+  return address.value[field] ? undefined : t('common.required')
+}
+function goToPayment() {
+  attempted.value = true
+  if (addressValid.value) currentStep.value = 2
+}
+
 // Online gateways settle Vietnamese dong; the cart carries plain amounts, so show them as VND when an online method is chosen.
-const fmt = (n: number) =>
-  isOnline.value || paymentMethod.value === 'COD'
-    ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(n)
-    : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
+const fmt = (n: number) => (isOnline.value || paymentMethod.value === 'COD' ? vnd(n) : usd(n))
+
+// The pay button says what will be charged, once the delivery fee is known.
+const placeLabel = computed(() => {
+  const label = isOnline.value ? t('checkout.placeOrderAndPay') : t('checkout.placeOrder')
+  return !feeLoading.value && !feeError.value ? `${label} · ${fmt(total.value + deliveryFee.value)}` : label
+})
 
 async function placeOrder() {
   if (!authStore.user) return
@@ -216,35 +253,4 @@ async function placeOrder() {
     placing.value = false
   }
 }
-
-// Inline step indicator component
-</script>
-
-<script lang="ts">
-import { Check } from 'lucide-vue-next'
-import { defineComponent, h } from 'vue'
-
-const StepIndicator = defineComponent({
-  props: { step: Number, current: Number, label: String },
-  setup(props) {
-    return () => {
-      const done = (props.current ?? 0) > (props.step ?? 0)
-      const active = (props.current ?? 0) === (props.step ?? 0)
-      return h('div', { class: 'flex flex-col items-center gap-1' }, [
-        h(
-          'div',
-          {
-            class: `flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
-              done ? 'bg-success text-on-brand' : active ? 'bg-brand-action text-on-brand' : 'bg-surface-muted text-ink-muted'
-            }`,
-          },
-          done ? h(Check, { size: 16, strokeWidth: 1.75, 'aria-hidden': 'true' }) : String(props.step),
-        ),
-        h('span', { class: 'text-xs text-ink-muted' }, props.label),
-      ])
-    }
-  },
-})
-
-export { StepIndicator }
 </script>
