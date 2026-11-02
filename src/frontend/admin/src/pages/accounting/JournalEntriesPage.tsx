@@ -168,6 +168,7 @@ function JournalEntryCreateModal({
                     <Select
                       aria-label={t('accounting.journalEntries.lineAria', { n, field: t('accounting.journalEntries.account') })}
                       error={!!errors.lines?.[index]?.accountId}
+                      aria-describedby={errors.lines?.[index]?.accountId ? 'journal-line-error' : undefined}
                       {...register(`lines.${index}.accountId` as const, { required: true })}
                     >
                       <option value="">{t('accounting.journalEntries.account')}</option>
@@ -219,7 +220,7 @@ function JournalEntryCreateModal({
             })}
           </div>
           {lineAccountMissing && (
-            <p role="alert" className="text-xs text-danger-soft-text">
+            <p id="journal-line-error" role="alert" className="text-xs text-danger-soft-text">
               {t('accounting.journalEntries.lineAccountRequired')}
             </p>
           )}
