@@ -7,14 +7,22 @@
     "back": "Quay lại",
     "total": "Tổng cộng",
     "language": "Ngôn ngữ",
-    "footer": "© {year} ERP Shop. Đã đăng ký bản quyền."
+    "footer": "© {year} ERP Shop. Đã đăng ký bản quyền.",
+    "close": "Đóng",
+    "retry": "Thử lại",
+    "required": "Bắt buộc"
   },
   "nav": {
     "brand": "ERP Shop",
     "products": "Sản phẩm",
     "cart": "Giỏ hàng",
     "signIn": "Đăng nhập",
-    "signOut": "Đăng xuất"
+    "signOut": "Đăng xuất",
+    "skipToContent": "Bỏ qua, tới nội dung",
+    "openMenu": "Mở menu",
+    "menu": "Menu",
+    "main": "Điều hướng chính",
+    "cartWithCount": "Giỏ hàng, {count} sản phẩm"
   },
   "home": {
     "heroTitle": "Mua sắm bộ sưu tập mới nhất",
@@ -35,7 +43,14 @@
     "outOfStock": "Hết hàng",
     "addToCart": "Thêm vào giỏ",
     "addedToCart": "✓ Đã thêm vào giỏ hàng!",
-    "loadingProduct": "Đang tải..."
+    "loadingProduct": "Đang tải...",
+    "sortBy": "Sắp xếp theo",
+    "noProductsHint": "Không có sản phẩm nào khớp \"{term}\". Hãy thử từ khác.",
+    "clearSearch": "Xóa tìm kiếm",
+    "pagination": "Các trang sản phẩm",
+    "loadFailed": "Không tải được sản phẩm.",
+    "notFound": "Không tìm thấy sản phẩm này.",
+    "inStock": "Còn hàng"
   },
   "cart": {
     "title": "Giỏ hàng của bạn",
@@ -46,7 +61,13 @@
     "orderSummary": "Tóm tắt đơn hàng",
     "subtotal": "Tạm tính",
     "couponDiscount": "Giảm giá phiếu mua hàng",
-    "proceedToCheckout": "Tiến hành thanh toán"
+    "proceedToCheckout": "Tiến hành thanh toán",
+    "quantity": "Số lượng",
+    "decrease": "Giảm một",
+    "increase": "Thêm một",
+    "quantityOf": "Số lượng {name}",
+    "removeItem": "Xóa {name} khỏi giỏ hàng",
+    "deliveryAtCheckout": "Phí giao hàng được tính ở bước thanh toán."
   },
   "checkout": {
     "title": "Thanh toán",
@@ -92,7 +113,10 @@
     "deliveryFee": "Phí vận chuyển",
     "freeDelivery": "Miễn phí",
     "feeUnavailable": "Chưa tính được - sẽ được cộng khi đặt hàng",
-    "freeFrom": "Miễn phí vận chuyển từ {amount}"
+    "freeFrom": "Miễn phí vận chuyển từ {amount}",
+    "stepsLabel": "Các bước thanh toán",
+    "phoneHint": "Nhân viên giao hàng sẽ gọi số này trước khi giao.",
+    "phoneInvalid": "Nhập số điện thoại hợp lệ (ít nhất 8 chữ số)."
   },
   "payment": {
     "resultTitle": "Thanh toán",
@@ -133,13 +157,23 @@
     "noOrdersYet": "Bạn chưa đặt đơn hàng nào.",
     "itemsCount": "{count} sản phẩm ·",
     "totalLine": "Tổng thanh toán: {total}",
-    "includesDelivery": "đã gồm {fee} phí vận chuyển"
+    "includesDelivery": "đã gồm {fee} phí vận chuyển",
+    "status": {
+      "Draft": "Nháp",
+      "Confirmed": "Đã xác nhận",
+      "Shipped": "Đang giao",
+      "Delivered": "Đã giao",
+      "Cancelled": "Đã hủy"
+    }
   },
   "account": {
     "myProfile": "Hồ sơ của tôi",
     "fullName": "Họ và tên",
     "email": "Email",
-    "signOut": "Đăng xuất"
+    "signOut": "Đăng xuất",
+    "menu": "Tài khoản của tôi",
+    "myOrders": "Đơn hàng của tôi",
+    "ordersLoadFailed": "Không tải được đơn hàng của bạn."
   },
   "auth": {
     "signIn": "Đăng nhập",
@@ -155,7 +189,8 @@
     "lastName": "Họ",
     "alreadyHaveAccount": "Đã có tài khoản?",
     "signInLink": "Đăng nhập",
-    "registrationFailed": "Đăng ký không thành công. Vui lòng thử lại."
+    "registrationFailed": "Đăng ký không thành công. Vui lòng thử lại.",
+    "passwordHint": "Ít nhất 8 ký tự."
   },
   "chat": {
     "title": "Hỗ trợ trực tuyến",
@@ -178,5 +213,11 @@
       "connectFailed": "Không thể kết nối tới hỗ trợ trực tuyến. Vui lòng thử lại.",
       "sendFailed": "Gửi tin nhắn không thành công. Vui lòng thử lại."
     }
+  },
+  "footer": {
+    "shop": "Cửa hàng",
+    "help": "Cần trợ giúp?",
+    "helpText": "Hỏi trợ lý của chúng tôi bằng nút chat ở cuối trang.",
+    "payments": "Phương thức thanh toán"
   }
 }

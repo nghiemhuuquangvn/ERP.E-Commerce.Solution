@@ -1,24 +1,32 @@
 <template>
-  <div class="mx-auto max-w-lg px-4 py-10">
-    <h1 class="mb-6 text-2xl font-bold text-gray-900">My Profile</h1>
-    <div class="rounded-lg border border-gray-200 bg-white p-6 space-y-4">
+  <div class="max-w-lg">
+    <h1 class="mb-6 text-2xl font-bold text-ink">{{ t('account.myProfile') }}</h1>
+    <dl class="space-y-4 rounded-lg border border-line bg-surface p-6">
       <div>
-        <label class="mb-1 block text-sm font-medium text-gray-700">Full Name</label>
-        <p class="text-gray-900">{{ authStore.fullName }}</p>
+        <dt class="mb-1 text-sm font-medium text-ink-secondary">{{ t('account.fullName') }}</dt>
+        <dd class="text-ink">{{ authStore.fullName }}</dd>
       </div>
       <div>
-        <label class="mb-1 block text-sm font-medium text-gray-700">Email</label>
-        <p class="text-gray-900">{{ authStore.user?.email }}</p>
+        <dt class="mb-1 text-sm font-medium text-ink-secondary">{{ t('account.email') }}</dt>
+        <dd class="text-ink">{{ authStore.user?.email }}</dd>
       </div>
-      <button @click="authStore.logout(); $router.push('/')" class="btn-outline text-red-600 border-red-200 hover:bg-red-50">
-        Sign Out
-      </button>
-    </div>
+    </dl>
+    <Button variant="outline" class="mt-4" @click="signOut">{{ t('account.signOut') }}</Button>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import Button from '@/components/ui/Button.vue'
 import { useAuthStore } from '@/stores/auth.store'
 
+const { t } = useI18n()
+const router = useRouter()
 const authStore = useAuthStore()
+
+function signOut() {
+  authStore.logout()
+  router.push('/')
+}
 </script>

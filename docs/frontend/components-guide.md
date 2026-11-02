@@ -53,6 +53,19 @@ Vitest + Testing Library + axe: `npm test` in `admin/` (54 tests today). A test 
 ## Pilot pages (U2)
 Promotions, Flash sales, Loyalty, POS Transactions / Shifts / Z report / Terminals, Shipping Returns, Notification Webhooks and Message templates. The other ~60 pages still use `fixed inset-0` modals and the old classes (DEFERRED R71); an old modal and a new `Modal` share the same stacking level (z-50), the later one opened is on top.
 
+## Storefront (Vue) — U4, 2026-11-02
+The Storefront has its own small library in `src/frontend/storefront/src/components/ui/`, the Vue twin of the Admin one (same names, same contracts):
+| Component | Notes |
+|---|---|
+| `Button` | variants primary / outline / ghost / link / danger, sizes, `loading` (spinner, disabled, `aria-busy`), `to` renders a router link styled as a button |
+| `FormField` + `Input` / `Select` / `Textarea` / `Checkbox` | `provide`/`inject` (`composables/useField.ts`): the control gets `id`, `aria-describedby` (hint or error), `aria-invalid`, `aria-required`; `v-model`; the error text is rendered only by FormField |
+| `Alert`, `Badge`, `EmptyState`, `Skeleton`, `Spinner` | `Alert` danger is `role=alert`, the others `status` |
+| `ToastHost` + `useToast()` | module-level queue; success / info disappear after 4 s, an error stays; host mounted once in `App.vue` |
+| `Drawer` | portal, focus trap, Esc, scroll lock, focus returns to the opener (the mobile menu); no `Modal` yet - nothing in the shop needs one |
+| `Pagination`, `QuantityStepper`, `Stepper`, `PriceText` | named buttons, `aria-current="step"`, price bold + tabular, old price struck through with the percentage, "free" in words |
+| `useMoney()` | the shop's two formatters (USD en-US, VND vi-VN) in one place, until U6 |
+Rules: no raw colours or `brand-100/500/600` aliases (`noRawColours.test.ts`); no `.btn-*` / `.input` classes (deleted from `style.css`); every page keeps its business logic in `<script setup>` untouched (`CheckoutPage` still builds the same create-order request - asserted field by field); tests: `npm test` (Vitest + @vue/test-utils + vitest-axe, `src/test/setup.ts` mounts with the real en / vi messages), component tests in `components/ui/ui.test.ts`, page tests in `pages/pages.test.ts`. Worked examples: `CheckoutPage.vue` (stepper, per-field errors shown after the first attempt, radio group in a `fieldset`, pay button naming the amount), `StorefrontLayout.vue` (skip link, drawer, footer), `ProductGrid.vue` (loading / error with retry / empty slot). BA spec: [docs/business/Sales/StorefrontScreens.md](../business/Sales/StorefrontScreens.md).
+
 ## Migration status (U3)
 | Area | Pages with own modals | Status |
 |---|---|---|

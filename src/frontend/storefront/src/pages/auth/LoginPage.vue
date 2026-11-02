@@ -1,27 +1,24 @@
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-    <div class="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
-      <h1 class="mb-6 text-center text-2xl font-bold text-gray-900">Sign In</h1>
+  <div class="flex min-h-screen items-center justify-center bg-page px-4">
+    <div class="w-full max-w-sm rounded-xl border border-line bg-surface p-8 shadow-sm">
+      <RouterLink to="/" class="mb-2 block text-center text-sm font-semibold text-brand-action">{{ t('nav.brand') }}</RouterLink>
+      <h1 class="mb-6 text-center text-2xl font-bold text-ink">{{ t('auth.signIn') }}</h1>
 
-      <p v-if="error" class="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">{{ error }}</p>
+      <Alert v-if="error" variant="danger" class="mb-4">{{ error }}</Alert>
 
-      <form @submit.prevent="submit" class="space-y-4">
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Email</label>
-          <input v-model="email" type="email" class="input" required placeholder="you@example.com" />
-        </div>
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">Password</label>
-          <input v-model="password" type="password" class="input" required placeholder="••••••••" />
-        </div>
-        <button type="submit" :disabled="loading" class="w-full btn-brand disabled:opacity-40">
-          {{ loading ? 'Signing in…' : 'Sign In' }}
-        </button>
+      <form class="space-y-4" @submit.prevent="submit">
+        <FormField :label="t('auth.email')" required>
+          <Input v-model="email" type="email" required autocomplete="username" placeholder="you@example.com" />
+        </FormField>
+        <FormField :label="t('auth.password')" required>
+          <Input v-model="password" type="password" required autocomplete="current-password" placeholder="••••••••" />
+        </FormField>
+        <Button type="submit" full-width :loading="loading">{{ loading ? t('auth.signingIn') : t('auth.signIn') }}</Button>
       </form>
 
-      <p class="mt-4 text-center text-sm text-gray-500">
-        Don't have an account?
-        <RouterLink to="/auth/register" class="text-brand-500 hover:underline">Register</RouterLink>
+      <p class="mt-4 text-center text-sm text-ink-secondary">
+        {{ t('auth.noAccount') }}
+        <RouterLink to="/auth/register" class="font-medium text-brand-action hover:underline">{{ t('auth.register') }}</RouterLink>
       </p>
     </div>
   </div>
@@ -30,8 +27,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import Alert from '@/components/ui/Alert.vue'
+import Button from '@/components/ui/Button.vue'
+import FormField from '@/components/ui/FormField.vue'
+import Input from '@/components/ui/Input.vue'
 import { useAuthStore } from '@/stores/auth.store'
 
+const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
@@ -49,7 +52,7 @@ async function submit() {
     const redirect = (route.query.redirect as string) ?? '/'
     router.push(redirect)
   } catch {
-    error.value = 'Invalid email or password.'
+    error.value = t('auth.invalidCredentials')
   } finally {
     loading.value = false
   }

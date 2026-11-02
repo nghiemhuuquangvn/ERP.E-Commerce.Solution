@@ -7,14 +7,22 @@
     "back": "Back",
     "total": "Total",
     "language": "Language",
-    "footer": "© {year} ERP Shop. All rights reserved."
+    "footer": "© {year} ERP Shop. All rights reserved.",
+    "close": "Close",
+    "retry": "Try again",
+    "required": "Required"
   },
   "nav": {
     "brand": "ERP Shop",
     "products": "Products",
     "cart": "Cart",
     "signIn": "Sign in",
-    "signOut": "Sign Out"
+    "signOut": "Sign Out",
+    "skipToContent": "Skip to content",
+    "openMenu": "Open the menu",
+    "menu": "Menu",
+    "main": "Main navigation",
+    "cartWithCount": "Cart, {count} item(s)"
   },
   "home": {
     "heroTitle": "Shop the Latest Collection",
@@ -35,7 +43,14 @@
     "outOfStock": "Out of stock",
     "addToCart": "Add to Cart",
     "addedToCart": "✓ Added to cart!",
-    "loadingProduct": "Loading..."
+    "loadingProduct": "Loading...",
+    "sortBy": "Sort by",
+    "noProductsHint": "Nothing matches \"{term}\". Try another word.",
+    "clearSearch": "Clear the search",
+    "pagination": "Product pages",
+    "loadFailed": "The products could not be loaded.",
+    "notFound": "This product could not be found.",
+    "inStock": "In stock"
   },
   "cart": {
     "title": "Your Cart",
@@ -46,7 +61,13 @@
     "orderSummary": "Order Summary",
     "subtotal": "Subtotal",
     "couponDiscount": "Coupon discount",
-    "proceedToCheckout": "Proceed to Checkout"
+    "proceedToCheckout": "Proceed to Checkout",
+    "quantity": "Quantity",
+    "decrease": "One fewer",
+    "increase": "One more",
+    "quantityOf": "Quantity of {name}",
+    "removeItem": "Remove {name} from the cart",
+    "deliveryAtCheckout": "The delivery fee is worked out at checkout."
   },
   "checkout": {
     "title": "Checkout",
@@ -92,7 +113,10 @@
     "deliveryFee": "Delivery",
     "freeDelivery": "Free",
     "feeUnavailable": "Could not be worked out - it is added when the order is placed",
-    "freeFrom": "Free delivery from {amount}"
+    "freeFrom": "Free delivery from {amount}",
+    "stepsLabel": "Checkout steps",
+    "phoneHint": "The courier calls this number before delivery.",
+    "phoneInvalid": "Enter a valid phone number (at least 8 digits)."
   },
   "payment": {
     "resultTitle": "Payment",
@@ -133,13 +157,23 @@
     "noOrdersYet": "You haven't placed any orders yet.",
     "itemsCount": "{count} item(s) ·",
     "totalLine": "Total to pay: {total}",
-    "includesDelivery": "including {fee} delivery"
+    "includesDelivery": "including {fee} delivery",
+    "status": {
+      "Draft": "Draft",
+      "Confirmed": "Confirmed",
+      "Shipped": "Shipped",
+      "Delivered": "Delivered",
+      "Cancelled": "Cancelled"
+    }
   },
   "account": {
     "myProfile": "My Profile",
     "fullName": "Full Name",
     "email": "Email",
-    "signOut": "Sign Out"
+    "signOut": "Sign Out",
+    "menu": "My account",
+    "myOrders": "My orders",
+    "ordersLoadFailed": "Your orders could not be loaded."
   },
   "auth": {
     "signIn": "Sign In",
@@ -155,7 +189,8 @@
     "lastName": "Last Name",
     "alreadyHaveAccount": "Already have an account?",
     "signInLink": "Sign in",
-    "registrationFailed": "Registration failed. Please try again."
+    "registrationFailed": "Registration failed. Please try again.",
+    "passwordHint": "At least 8 characters."
   },
   "chat": {
     "title": "Live Support",
@@ -178,5 +213,11 @@
       "connectFailed": "Couldn't connect to live support. Please try again.",
       "sendFailed": "Failed to send message. Please try again."
     }
+  },
+  "footer": {
+    "shop": "Shop",
+    "help": "Need help?",
+    "helpText": "Ask our assistant with the chat button at the bottom of the page.",
+    "payments": "Payment methods"
   }
 }
