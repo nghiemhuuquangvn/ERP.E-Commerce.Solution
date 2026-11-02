@@ -1328,6 +1328,7 @@ Open questions for the chief accountant: (1) is the B03 row mapping right for th
 
 | Task | Date | Requirements | Technical documents | Main tests |
 |---|---|---|---|---|
+| P2-9 U3 batch 10 admin posting screens (journal entries, bills, invoices, e-invoice, missing entries, FX revaluation; every booking step asks first, [AdminPostings.md](AdminPostings.md)) | 2026-11-02 | AP-1 … AP-8; UAT AdminPostings 1 … 9 | AdminPostings.md | `postings.pages.test.tsx` (15 cases incl. axe + translations) + live walk on `glcheck` (23 checks) |
 | P2-9 U3 batch 9 admin set-up screens (tax rates, fiscal periods, chart of accounts, bank accounts and reconciliation; confirmations before booking / locking, [AdminSetup.md](AdminSetup.md)) | 2026-11-02 | AS-1 … AS-8; UAT AdminSetup 1 … 9 | AdminSetup.md | `accounting.pages.test.tsx`, `Modal.nested.test.tsx` + live walk on `glcheck` (43 checks) |
 | P1-1 automatic posting (phase 1) | 2026-10-23 | FR-01 … 04, 13, 14, 36; BR-01 … 08, 12, 14 | AutoPosting.md | `AutoPostingFlowTests`, `JournalPostingServiceTests` |
 | P1-1b stock and cost of goods | 2026-10-24 | FR-05 … 07; BR-09 | AutoPosting.md | `StockMovementPostingTests`, Warehouse `StockMovementCostTests` |

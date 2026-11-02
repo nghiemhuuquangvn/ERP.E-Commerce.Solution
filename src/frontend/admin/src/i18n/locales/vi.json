@@ -2941,7 +2941,7 @@
     },
     "journalEntries": {
       "empty": "Chưa có bút toán nào.",
-      "postsNow": "Bút toán được ghi vào sổ cái ngay khi bấm Ghi sổ, không có bản nháp. Sai thì sửa bằng cách đảo hoặc hủy bút toán.",
+      "postsNow": "Bút toán được ghi vào sổ cái ngay khi bấm Hạch toán, không có bản nháp. Sai thì sửa bằng cách đảo hoặc hủy bút toán.",
       "postedToast": "Đã ghi sổ bút toán.",
       "reversedToast": "Đã đảo bút toán.",
       "voidedToast": "Đã hủy bút toán.",
