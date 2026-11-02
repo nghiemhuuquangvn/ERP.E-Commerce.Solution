@@ -218,3 +218,23 @@ user context) is correct in every service. Authorization and isolation were not.
   never link by email. Twitter/X never links.
 - The link row carries the tenant it was made in; lookups are `(provider, providerKey, tenant, active)`.
 
+
+## Cache keys without a tenant (R84, R86, R97 - 2026-11-02)
+
+**Finding.** `ICacheService` (Redis in Docker / K8s) is one store for every shop. Three places cached tenant-owned data under a key that did not carry the tenant:
+- CRM `ListContacts` (`crm:contacts:page:{p}:size:{n}`, 5 min) and `GetContact` (`crm:contact:{id}`, 5 min);
+- Warehouse `ResolveBarcode` (`wh:barcode:{code}`, 60 s) and `GetInventory` (`wh:inventory:{productId}`, 2 min);
+- Sales `GetOrdersByCustomer` (`so:customer:{id}:orders`, 2 min), also never evicted.
+
+**Reproduced on the running stack before the fix** (two real shops, same Redis): the platform super admin's first page of CRM contacts was the glcheck shop's list; the barcode `R86CHECK`, mapped to a different product in each shop, resolved in shop B to shop A's product, on the first call and on every call after.
+
+**Impact.** Cross-tenant read of customer contacts (name, e-mail, phone) and of product / stock lookups; stale data inside one shop (a new contact missing from pickers, a just-placed order missing from "my orders").
+
+**Fix.**
+- CRM contacts and the Sales customer-order list are **no longer cached** (indexed reads on the tenant-filtered context; no eviction hooks ever existed) - the decision already taken for Accounting accounts and Sales order detail.
+- Warehouse keeps its two caches (scanner path, 12 eviction sites) behind `TenantKeyedCacheService` (`Shared/Infrastructure/Caching`, registered with `AddTenantKeyedCache()`): every key becomes `t:{tenant}:{key}` (in Redis `wh:t:{tenant}:wh:barcode:{code}`), the tenant is read like the DbContext reads it (`TenantScope` → JWT → gateway host), **no tenant means no caching** (never a shared key), and `settings:*` keys are left alone (they carry the tenant or are platform-wide on purpose).
+- **Guard:** `CacheKeyTenantTests` (Architecture tests) fails the build when a service other than a settings / licence service writes to the cache without `AddTenantKeyedCache()`.
+
+**Rule for new code.** Do not cache tenant-owned data unless the service registers the tenant-keyed cache; if it does, any key is safe. Cache invalidation must run in the same tenant scope as the write (consumers and jobs already run inside a `TenantScope`).
+
+**Evidence.** `TenantKeyedCacheTests` (8), `BarcodeCacheTenantTests`, `ContactQueryTests`, `CacheKeyTenantTests`; live re-check after the deploy: each shop sees only its own contacts and its own barcode product (also on the cache hit), Redis holds only tenant-prefixed `wh:t:...` keys.

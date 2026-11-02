@@ -1,3 +1,4 @@
+using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Authorization;
 using ERP.Shared.Extensions;
 using ERP.Shared.Localization;
@@ -54,6 +55,8 @@ try
     // Tenant isolation for WarehouseDbContext: JWT tenant, Gateway host tenant for anonymous
     // requests, or an explicit TenantScope set by consumers and the reservation-expiry job.
     builder.Services.AddRequestTenantProvider();
+    // Every cache key of the warehouse (wh:barcode:*, wh:inventory:*) gets the tenant in front (R86); settings:* keys already carry it.
+    builder.Services.AddTenantKeyedCache();
     builder.Services.AddScoped<UserContext>();
     builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Warehouse));
 

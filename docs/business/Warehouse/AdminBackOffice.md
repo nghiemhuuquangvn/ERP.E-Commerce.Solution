@@ -98,3 +98,6 @@ Locations belong to a warehouse (the warehouse is optional on a location); quant
 7. Warehouses → deactivate → confirmation; reactivate is immediate.
 8. Valuation Snapshots → period code → Close Period → dialog says the period is locked → Esc → nothing closed.
 9. Product detail → Lots / Serials / Cost history tabs → each shows its table or "No records".
+
+## Caching (2026-11-02, R86)
+Two lookups are cached for speed: the **barcode** lookup (60 seconds) and the **stock level of a product** (2 minutes, evicted by every receipt, issue, reservation, adjustment, stocktake and expiry). Since R86 every key carries the shop (`TenantKeyedCacheService`), so the same barcode value in two shops resolves to each shop's own product; a request without a shop is never cached. Stock figures on a screen can lag by up to two minutes only when something writes outside these handlers. See [SecurityReview-2026-10.md](../Identity/SecurityReview-2026-10.md).

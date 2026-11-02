@@ -250,7 +250,7 @@ Reports (docs/business/Accounting/Reports.md): ledger, trial balance (opening / 
 Chart of accounts and closing (docs/business/Accounting/ChartOfAccounts.md): accounts form a tree and a parent takes no postings; charts come from templates
 (`ChartTemplates`: Simple14 default, Vas99 suggested — needs accountant review); a tenant with journal entries cannot switch charts (re-map the posting profile). Closing a fiscal
 period writes one `PeriodClosing` entry (revenue / expenses → IncomeSummary → RetainedEarnings) and locks the period; P&L excludes those entries; reopen voids it. A hand-written
-entry is voided, any posted entry is reversed. Do not cache tenant-owned data under a key without the tenant (ICacheService keys are global).
+entry is voided, any posted entry is reversed. Do not cache tenant-owned data under a key without the tenant (ICacheService keys are global): a service that caches data registers `AddTenantKeyedCache()` (keys become `t:{tenant}:{key}`, no tenant = no caching; `CacheKeyTenantTests` enforces it), otherwise it does not cache (R84 / R86, 2026-11-02).
 
 Automatic GL posting (docs/business/Accounting/AutoPosting.md):
 - Business flows never name an account: they post **posting keys** (`PostingKeys`) through
