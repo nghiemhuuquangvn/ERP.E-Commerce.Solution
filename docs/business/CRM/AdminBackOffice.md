@@ -99,3 +99,6 @@ One shop = one tenant; users are staff of the shop; the Contact picker lists the
 7. Press a stage counter → list filtered and the counter is "pressed"; press again → all.
 8. Search a contact name that does not exist → "Không có kết quả" + Xóa lọc; press it → full list.
 9. Log an activity → expected today: the server refusal box (R82). Cancel a scheduled activity (seeded) → confirmation first.
+
+## Caching (2026-11-02, R84)
+Contact reads (the list and a contact by id) are **not cached**: they always come from the database on the caller's shop. The earlier 5-minute cache had no tenant in its key (another shop could be served the page) and was never evicted (a new contact missing from pickers for up to 5 minutes). See [SecurityReview-2026-10.md](../Identity/SecurityReview-2026-10.md).

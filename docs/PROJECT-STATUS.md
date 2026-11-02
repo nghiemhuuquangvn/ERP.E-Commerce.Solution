@@ -36,6 +36,12 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-02 — Backend security: cache keys without a tenant (R84 CRM, R86 Warehouse, R97 Sales) (`fix/cache-tenant-keys`, from master, unmerged)
+- **Finding (reproduced live first):** the platform super admin was served glcheck's first page of CRM contacts; the same barcode in two shops resolved to the first shop's product. Cause: `ICacheService` keys without the tenant.
+- **Fix:** CRM contact list / contact by id and Sales customer-order list lose their caches; Warehouse caches go through the new `TenantKeyedCacheService` (`AddTenantKeyedCache()` in the Warehouse API; keys `t:{tenant}:{key}`, no tenant = no caching, `settings:` untouched). Guard `CacheKeyTenantTests` in the Architecture tests.
+- **Tests:** Shared 111 (8 new), WH 45, CRM 6, SO 84, Architecture 70 (2 new) - all pass. **Live:** after deploying crmservice, warehouseservice, salesorderservice each shop sees only its own contacts and its own barcode product, also on a cache hit; Redis holds `wh:t:{tenant}:...` keys only. The stock receipts made for the check (two shops) booked 4 journal entries that were deleted by SQL together with the throw-away inventory (R98).
+- **Docs:** SecurityReview-2026-10.md (new section), CRM and Warehouse AdminBackOffice (caching notes), DEFERRED (R84, R86 fixed; R97, R98), CLAUDE.md.
+
 ### 2026-11-02 — ROADMAP P2-9 U3 batch 9: Accounting set-up (Tax rates, Fiscal periods, Chart of accounts, Bank accounts + reconciliation, 5 files) on the component library (`refactor/ui-u3-accounting-setup`, on top of batch 8, unmerged)
 - **Pages:** tax rate dialog and deactivate, fiscal period dialog (end-before-start check, close / reopen with server reasons), chart of accounts (account dialog with locked fields, **Apply template** and **Deactivate** now confirm first), bank accounts (create, statements dialog, add statement) and `BankReconciliationModal` (**Post as fee / interest**, **Delete line** and **Reconcile** now confirm first; difference written in words). **Shared fix:** `Modal` gives the focus to the dialog still open when its opener is gone, so Esc works in stacked dialogs.
 - **BA spec:** `docs/business/Accounting/AdminSetup.md` (linked in the BA-Accounting traceability); user guide `docs/user-guides/accounting-setup.md`.
