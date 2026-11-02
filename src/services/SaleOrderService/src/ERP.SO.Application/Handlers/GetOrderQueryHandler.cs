@@ -118,24 +118,20 @@ namespace ERP.SO.Application.Handlers
     public class GetOrdersByCustomerQueryHandler : IRequestHandler<GetOrdersByCustomerQuery, List<SalesOrderSummaryDto>>
     {
         private readonly ISalesOrderRepository _repository;
-        private readonly ICacheService _cache;
 
-        public GetOrdersByCustomerQueryHandler(ISalesOrderRepository repository, ICacheService cache)
+        public GetOrdersByCustomerQueryHandler(ISalesOrderRepository repository)
         {
             _repository = repository;
-            _cache = cache;
         }
 
         public async Task<List<SalesOrderSummaryDto>> Handle(
             GetOrdersByCustomerQuery request, CancellationToken cancellationToken)
         {
-            var cacheKey = $"so:customer:{request.CustomerId}:orders";
-            var cached = await _cache.GetAsync<List<SalesOrderSummaryDto>>(cacheKey, cancellationToken);
-            if (cached != null) return cached;
-
+            // Not cached (R97): the old key 'so:customer:{id}:orders' had no tenant and nothing evicted it, so a customer who had just ordered
+            // did not see the order in their list for 2 minutes.
             var orders = await _repository.GetByCustomerIdAsync(request.CustomerId, cancellationToken);
 
-            var result = orders
+            return orders
                 .Select(o => new SalesOrderSummaryDto
                 {
                     OrderId = o.Id,
@@ -146,9 +142,6 @@ namespace ERP.SO.Application.Handlers
                     OrderDate = o.OrderDate
                 })
                 .ToList();
-
-            await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(2), cancellationToken);
-            return result;
         }
     }
 }

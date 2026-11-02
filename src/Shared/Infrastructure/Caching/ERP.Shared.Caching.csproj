@@ -16,4 +16,8 @@
     <PackageReference Include="StackExchange.Redis" Version="2.8.12" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Data\ERP.Shared.Data.csproj" />
+  </ItemGroup>
+
 </Project>
