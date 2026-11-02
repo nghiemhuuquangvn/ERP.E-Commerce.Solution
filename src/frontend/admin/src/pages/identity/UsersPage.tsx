@@ -236,7 +236,7 @@ export function UsersPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const authUser = useAuthStore((s) => s.user)
-  const { page, pageSize, setPage } = usePagination()
+  const { page, pageSize, setPage, reset } = usePagination()
   const queryClient = useQueryClient()
   const toast = useToast()
 
@@ -415,7 +415,7 @@ export function UsersPage() {
 
       {canViewTenants && (
         <FormField label={t('identity.users.tenant')} className="max-w-xs">
-          <Select value={selectedTenantId} onChange={(e) => setSelectedTenantId(e.target.value)}>
+          <Select value={selectedTenantId} onChange={(e) => { setSelectedTenantId(e.target.value); reset() }}>
             <option value="">{t('identity.users.myTenant')}</option>
             {(tenants ?? []).map((tn) => (
               <option key={tn.id} value={tn.id}>
