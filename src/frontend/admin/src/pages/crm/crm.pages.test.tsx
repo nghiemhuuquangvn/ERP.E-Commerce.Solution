@@ -130,7 +130,7 @@ describe('CRM: contacts', () => {
 })
 
 describe('CRM: leads', () => {
-  const lead = { id: 'l1', leadName: 'Acme', leadStatus: 'New', leadSource: 'Website', estimatedValue: 5000, createdAt: '', updatedAt: '' }
+  const lead = { id: 'l1', leadName: 'Acme', leadStatus: 'New', leadSource: 'Website', estimatedValue: 5000, contactId: 'c1', createdAt: '', updatedAt: '' }
 
   it('Qualify explains the side effect and calls the API only after confirming', async () => {
     answer(/\/leads$/, [lead])
@@ -148,6 +148,38 @@ describe('CRM: leads', () => {
     renderAt(LeadsTab)
     await userEvent.click(await screen.findByRole('button', { name: 'Mark Lost' }))
     const dialog = await screen.findByRole('dialog')
+    await userEvent.click(within(dialog).getAllByRole('button').find((b) => b.getAttribute('type') === 'submit')!)
+    await waitFor(() => expect(dialog.querySelector('[aria-invalid="true"]')).toBeTruthy())
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it('a lead without a contact cannot be qualified: no Qualify button, a badge says why', async () => {
+    answer(/\/leads$/, [{ ...lead, contactId: null }])
+    renderAt(LeadsTab)
+    expect(await screen.findByText('No contact - cannot qualify')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Qualify' })).toBeNull()
+  })
+
+  it('the create form needs a contact: refused with a linked error, saved once one is chosen', async () => {
+    answer(/\/contacts$/, [{ id: 'c1', name: 'Ada', email: null, phone: null, company: null, contactSource: 'Manual' }])
+    renderAt(LeadsTab)
+    await userEvent.click(await addButton())
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.type(within(dialog).getByLabelText(/Lead name/i), 'Acme deal')
+    await userEvent.click(within(dialog).getAllByRole('button').find((b) => b.getAttribute('type') === 'submit')!)
+    await waitFor(() => expect(dialog.querySelector('[aria-invalid="true"]')).toBeTruthy())
+    expect(post).not.toHaveBeenCalled()
+    await userEvent.selectOptions(within(dialog).getByLabelText(/^Contact/), await within(dialog).findByRole('option', { name: 'Ada' }))
+    await userEvent.click(within(dialog).getAllByRole('button').find((b) => b.getAttribute('type') === 'submit')!)
+    await waitFor(() => expect(post).toHaveBeenCalledWith(expect.stringContaining('/leads'), expect.objectContaining({ contactId: 'c1' })))
+  })
+
+  it('with no contact at all the form says to create one first and saving is refused', async () => {
+    renderAt(LeadsTab)
+    await userEvent.click(await addButton())
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByText(/no contact yet/i)).toBeInTheDocument()
+    await userEvent.type(within(dialog).getByLabelText(/Lead name/i), 'Acme deal')
     await userEvent.click(within(dialog).getAllByRole('button').find((b) => b.getAttribute('type') === 'submit')!)
     await waitFor(() => expect(dialog.querySelector('[aria-invalid="true"]')).toBeTruthy())
     expect(post).not.toHaveBeenCalled()

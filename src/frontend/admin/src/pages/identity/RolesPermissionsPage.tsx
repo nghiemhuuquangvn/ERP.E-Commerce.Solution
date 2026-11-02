@@ -220,6 +220,8 @@ export function RolesPermissionsPage() {
   })
 
   const effectiveTenantId = canViewTenants && selectedTenantId ? selectedTenantId : authUser?.tenantId ?? ''
+  // R90: role actions take the caller's own tenant; another tenant's roles can be read here, not changed.
+  const viewingOther = canViewTenants && !!selectedTenantId && selectedTenantId !== authUser?.tenantId
 
   const { data: roles, isLoading } = useQuery({
     queryKey: ['identity', 'roles', effectiveTenantId],
@@ -260,7 +262,7 @@ export function RolesPermissionsPage() {
       {
         key: 'actions',
         label: '',
-        render: (r: Role) => (
+        render: (r: Role) => viewingOther ? null : (
           <div className="flex gap-3">
             {canManage && (
               <Button
@@ -296,7 +298,7 @@ export function RolesPermissionsPage() {
         ),
       },
     ],
-    [canManage, canEdit, canDelete, t],
+    [canManage, canEdit, canDelete, viewingOther, t],
   )
 
   const catalogColumns = useMemo(
@@ -313,7 +315,7 @@ export function RolesPermissionsPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold">{t('identity.roles.title')}</h1>
-          {canCreate && <Button onClick={() => setModalState({ open: true, role: null })}>{t('identity.roles.add')}</Button>}
+          {canCreate && !viewingOther && <Button onClick={() => setModalState({ open: true, role: null })}>{t('identity.roles.add')}</Button>}
         </div>
 
         {canViewTenants && (
@@ -328,6 +330,8 @@ export function RolesPermissionsPage() {
             </Select>
           </FormField>
         )}
+
+        {viewingOther && <Alert variant="info">{t('identity.roles.otherTenantNotice')}</Alert>}
 
         <DataTable
           columns={columns}

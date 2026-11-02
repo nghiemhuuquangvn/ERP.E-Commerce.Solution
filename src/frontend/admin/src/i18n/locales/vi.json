@@ -1822,6 +1822,10 @@
       "failedToSave": "Lưu liên hệ thất bại. Vui lòng thử lại."
     },
     "leads": {
+      "contact": "Liên hệ",
+      "contactHint": "Khách hàng tiềm năng cần có liên hệ thì mới chuyển thành cơ hội được.",
+      "noContactsYet": "Chưa có liên hệ nào. Hãy tạo liên hệ ở tab Liên hệ trước.",
+      "noContactBadge": "Chưa có liên hệ - chưa chuyển được",
       "qualifyTitle": "Chuyển thành cơ hội",
       "qualifyConfirm": "Chuyển \"{{name}}\" thành đủ điều kiện sẽ tạo một cơ hội với cùng liên hệ và giá trị dự kiến, dự kiến chốt sau 3 tháng. Sau đó không sửa được khách hàng tiềm năng này nữa. Tiếp tục?",
       "add": "+ Thêm khách hàng tiềm năng",
@@ -2366,6 +2370,10 @@
   },
   "identity": {
     "users": {
+      "activate": "Kích hoạt lại",
+      "activateTitle": "Kích hoạt lại người dùng",
+      "activateConfirm": "Kích hoạt lại {{email}}? Họ đăng nhập lại được; vai trò giữ nguyên.",
+      "otherTenantNotice": "Bạn đang xem đơn vị khác. Ở đây chỉ đọc được người dùng của đơn vị đó; muốn thay đổi hãy chọn Đơn vị của tôi.",
       "empty": "Đơn vị này chưa có người dùng.",
       "remove": "Gỡ",
       "removeRole": "Gỡ vai trò {{role}}",
@@ -2400,6 +2408,7 @@
       "inviteFailed": "Mời người dùng thất bại. Vui lòng kiểm tra email và thử lại."
     },
     "roles": {
+      "otherTenantNotice": "Bạn đang xem đơn vị khác. Ở đây chỉ đọc được vai trò của đơn vị đó; muốn thay đổi hãy chọn Đơn vị của tôi.",
       "empty": "Chưa có vai trò nào.",
       "codeHint": "Mã không đổi được sau khi tạo.",
       "filterPermissions": "Lọc quyền hạn",

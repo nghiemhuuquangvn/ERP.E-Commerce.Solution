@@ -1822,6 +1822,10 @@
       "failedToSave": "Failed to save contact. Please try again."
     },
     "leads": {
+      "contact": "Contact",
+      "contactHint": "A lead needs a contact before it can be qualified.",
+      "noContactsYet": "There is no contact yet. Create one in the Contacts tab first.",
+      "noContactBadge": "No contact - cannot qualify",
       "qualifyTitle": "Qualify lead",
       "qualifyConfirm": "Qualifying \"{{name}}\" creates an opportunity with the same contact and estimated value, expected to close in 3 months. The lead cannot be changed afterwards. Continue?",
       "add": "+ Add Lead",
@@ -2366,6 +2370,10 @@
   },
   "identity": {
     "users": {
+      "activate": "Activate",
+      "activateTitle": "Activate user",
+      "activateConfirm": "Activate {{email}}? They can sign in again; their roles are unchanged.",
+      "otherTenantNotice": "You are looking at another tenant. You can read its users here; changing them is only possible in your own tenant (choose My Tenant).",
       "empty": "No users in this tenant yet.",
       "remove": "Remove",
       "removeRole": "Remove role {{role}}",
@@ -2400,6 +2408,7 @@
       "inviteFailed": "Failed to invite user. Check the email and try again."
     },
     "roles": {
+      "otherTenantNotice": "You are looking at another tenant. You can read its roles here; changing them is only possible in your own tenant (choose My Tenant).",
       "empty": "No roles yet.",
       "codeHint": "The code cannot be changed later.",
       "filterPermissions": "Filter permissions",

@@ -10,7 +10,7 @@ import { Pagination } from '@/components/shared/Pagination'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
-import { Alert, Button, EmptyState, FormField, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
+import { Alert, Badge, Button, EmptyState, FormField, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
 import { serverMessage } from '@/lib/serverMessage'
 
 // ─── Create modal ───────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ function CreateLeadModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const toast = useToast()
-  const { data: contactsPage } = useQuery({
+  const { data: contactsPage, isSuccess: contactsLoaded } = useQuery({
     queryKey: ['crm', 'contacts', 'picker'],
     queryFn: () => contactsApi.list({ page: 1, pageSize: 100 }),
     staleTime: 60_000,
@@ -35,6 +35,8 @@ function CreateLeadModal({ onClose }: { onClose: () => void }) {
   const { register, handleSubmit, formState: { errors } } = useForm<CreateFormValues>({
     defaultValues: { leadName: '', leadSource: String(LEAD_SOURCE.Website), estimatedValue: '', contactId: '' },
   })
+
+  const noContacts = contactsLoaded && (contactsPage?.items ?? []).length === 0
 
   const mutation = useMutation({
     mutationFn: (values: CreateFormValues) =>
@@ -65,7 +67,7 @@ function CreateLeadModal({ onClose }: { onClose: () => void }) {
         </>
       }
     >
-      <form id="create-lead-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+      <form id="create-lead-form" noValidate onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
         <FormField label={t('crm.leads.leadName')} required error={errors.leadName ? t('common.required') : undefined}>
           <Input {...register('leadName', { required: true })} />
         </FormField>
@@ -81,9 +83,10 @@ function CreateLeadModal({ onClose }: { onClose: () => void }) {
         <FormField label={t('crm.leads.estimatedValue')}>
           <Input type="number" step="0.01" {...register('estimatedValue')} />
         </FormField>
-        <FormField label={t('crm.leads.contactOptional')}>
-          <Select {...register('contactId')}>
-            <option value="">{t('common.none')}</option>
+        {noContacts && <Alert variant="warning">{t('crm.leads.noContactsYet')}</Alert>}
+        <FormField label={t('crm.leads.contact')} required hint={t('crm.leads.contactHint')} error={errors.contactId ? t('common.required') : undefined}>
+          <Select {...register('contactId', { required: true })}>
+            <option value="">{t('common.select')}</option>
             {(contactsPage?.items ?? []).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -219,10 +222,14 @@ export function LeadsTab() {
                   {t('crm.leads.markContacted')}
                 </Button>
               )}
-              <Button variant="link" className="text-xs"
-                onClick={() => setQualifyTarget(l)}>
-                {t('crm.leads.qualify')}
-              </Button>
+              {l.contactId ? (
+                <Button variant="link" className="text-xs"
+                  onClick={() => setQualifyTarget(l)}>
+                  {t('crm.leads.qualify')}
+                </Button>
+              ) : (
+                <Badge variant="warning">{t('crm.leads.noContactBadge')}</Badge>
+              )}
               <Button variant="link-danger" className="text-xs" onClick={() => setLoseTarget(l)}>
                 {t('crm.leads.markLost')}
               </Button>

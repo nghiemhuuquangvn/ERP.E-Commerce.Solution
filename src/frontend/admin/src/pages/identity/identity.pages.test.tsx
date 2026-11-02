@@ -108,7 +108,65 @@ describe('Identity: tenants', () => {
   })
 })
 
+describe('Identity: users', () => {
+  const inactive = user('u2', 'gone@shop.test', { isActive: false })
+
+  it('Activate is offered on an inactive user, asks first and posts only after the confirm', async () => {
+    answer([[/users$/, { items: [inactive, user('u3', 'ok@shop.test')], totalCount: 2 }]])
+    renderAt(page(UsersPage))
+    await userEvent.click(await screen.findByRole('button', { name: 'Activate gone@shop.test' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/sign in again/)).toBeInTheDocument()
+    expect(post).not.toHaveBeenCalled()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(post).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Activate gone@shop.test' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Activate' }))
+    await waitFor(() => expect(post).toHaveBeenCalledWith(expect.stringContaining('/users/u2/activate')))
+    expect(screen.queryByRole('button', { name: 'Activate ok@shop.test' })).toBeNull()
+  })
+
+  it('a refusal of the server is shown as a toast', async () => {
+    answer([[/users$/, { items: [inactive], totalCount: 1 }]])
+    post.mockImplementationOnce((() => Promise.reject({ response: { status: 400, data: { detail: 'Not allowed.' } } })) as never)
+    renderAt(page(UsersPage))
+    await userEvent.click(await screen.findByRole('button', { name: 'Activate gone@shop.test' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Activate' }))
+    expect(await screen.findByText('Not allowed.')).toBeInTheDocument()
+  })
+
+  it('Activate is not offered on your own row', async () => {
+    answer([[/users$/, { items: [user('me', 'me@b.c', { isActive: false })], totalCount: 1 }]])
+    renderAt(page(UsersPage))
+    expect(await screen.findByText('me@b.c')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Activate/ })).toBeNull()
+  })
+
+  it('looking at another tenant is read-only: a notice, no action buttons; back to My Tenant they return', async () => {
+    answer([[/tenants$/, [tenantRow]], [/users$/, { items: [user('u3', 'ok@shop.test')], totalCount: 1 }]])
+    renderAt(page(UsersPage))
+    await screen.findByRole('button', { name: /Lock ok@shop.test/ })
+    await userEvent.selectOptions(await screen.findByLabelText('Tenant'), await screen.findByRole('option', { name: 'Acme Ltd' }))
+    expect(await screen.findByText(/looking at another tenant/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Lock ok@shop.test/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Invite/ })).toBeNull()
+    await userEvent.selectOptions(screen.getByLabelText('Tenant'), screen.getByRole('option', { name: 'My Tenant' }))
+    expect(await screen.findByRole('button', { name: /Lock ok@shop.test/ })).toBeInTheDocument()
+    expect(screen.queryByText(/looking at another tenant/i)).toBeNull()
+  })
+})
+
 describe('Identity: roles', () => {
+  it('looking at another tenant hides Add, Edit, Delete and the permissions button', async () => {
+    answer([[/tenants$/, [tenantRow]], [/roles$/, [roleRow]]])
+    renderAt(page(RolesPermissionsPage))
+    await screen.findByRole('button', { name: 'Delete Sales rep' })
+    await userEvent.selectOptions(await screen.findByLabelText('Tenant'), await screen.findByRole('option', { name: 'Acme Ltd' }))
+    expect(await screen.findByText(/looking at another tenant/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete Sales rep' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Add Role/ })).toBeNull()
+  })
+
   it('deleting a role states the consequence and sends nothing until confirmed', async () => {
     answer([[/roles$/, [roleRow]]])
     renderAt(page(RolesPermissionsPage))
