@@ -263,7 +263,7 @@ Automatic GL posting (docs/business/Accounting/AutoPosting.md):
 - An incomplete posting profile (`PostingConfigurationException`) is logged and never blocks the document; use `TryPostAsync`.
 - Journal status: 0 Draft, 1 Posted, 2 Voided (ignored by reports), 3 Reversed (counted, offset by its reversal entry). Reports
   filter on `EntryDate`. `AccountType` is 1-based (Asset 1 … Expense 5), `NormalBalance` Debit 1 / Credit 2.
-- Refusals in the Accounting APIs are `BusinessRuleException` (HTTP 400), not `InvalidOperationException` (500).
+- Refusals in every API are `BusinessRuleException` (HTTP 400), `DuplicateException` (409) or `EntityNotFoundException` (404). `GlobalExceptionMiddleware` also answers an `InvalidOperationException` / `ArgumentException` thrown by our own `ERP.*` code as 400 (framework ones stay 500); new code must not add such throws (`RefusalExceptionTests` ratchet, `RefusalBaseline.txt`). `UseSerilogRequestLogging()` goes before `UseGlobalExceptionHandling()` so logs show the real status. See docs/conventions/coding-standard.md.
 
 #### Human Resources Service (Port 5007, Code: HRM)
 

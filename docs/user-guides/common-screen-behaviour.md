@@ -29,6 +29,7 @@
 Mọi trạng thái là một nhãn chữ có màu: **xanh lá** = hoàn tất / đang dùng, **vàng** = đang chờ người xử lý hoặc xử lý dở, **đỏ** = lỗi / đã hủy / bị từ chối, **xanh dương** = đang xử lý, **xám** = nháp / chưa bắt đầu. Màu chỉ giúp nhìn nhanh; ý nghĩa luôn có trong chữ.
 
 ## 6. Thay đổi bạn có thể nhận thấy so với trước
+- Khi hệ thống từ chối một thao tác vì trạng thái hoặc quy tắc (ví dụ "đã đóng rồi", "mã đã tồn tại"), thông báo hiện **lý do cụ thể**; không còn câu chung "Yêu cầu không thể hoàn tất. Lỗi đã được ghi lại." cho các trường hợp đó (R99, 2026-11-02).
 - Nút chính của hệ thống đậm hơn một bậc (để chữ trắng dễ đọc hơn).
 - Hoàn hàng: nút **Hủy lấy hàng** thay cho chữ "Hủy" trên dòng chuyến hoàn.
 - Hộp thoại xác nhận (xóa, hủy, ngưng dùng…) nay đóng được bằng **Esc**; trước đây chỉ bấm nút.
