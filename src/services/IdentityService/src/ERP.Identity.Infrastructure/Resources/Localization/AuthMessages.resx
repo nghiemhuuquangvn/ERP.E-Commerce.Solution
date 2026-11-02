@@ -79,4 +79,19 @@
   <data name="Invite_AmbiguousEmail" xml:space="preserve">
     <value>Multiple accounts share the email '{0}' — cannot invite ambiguously. Ask the person to confirm which account to use.</value>
   </data>
+  <data name="User_CannotLockSelf" xml:space="preserve">
+    <value>You cannot lock your own account.</value>
+  </data>
+  <data name="User_CannotDeactivateSelf" xml:space="preserve">
+    <value>You cannot deactivate your own account.</value>
+  </data>
+  <data name="User_LastAdministrator" xml:space="preserve">
+    <value>This would leave the shop without an administrator (an active, unlocked user who can manage users). Give another user that permission first.</value>
+  </data>
+  <data name="Role_DefaultRoleCannotBeDeleted" xml:space="preserve">
+    <value>The default role '{0}' cannot be deleted: new accounts and sign-ups depend on it.</value>
+  </data>
+  <data name="Tenant_PlatformCannotBeDeactivated" xml:space="preserve">
+    <value>The platform tenant cannot be deactivated: it holds the operators of every shop.</value>
+  </data>
 </root>

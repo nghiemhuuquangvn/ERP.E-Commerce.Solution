@@ -27,8 +27,9 @@ Mọi hộp thoại: con trỏ nằm sẵn ở ô đầu; ô có dấu **\*** đ
 
 ### 3.2 Khóa, mở khóa, vô hiệu hóa
 - **Khóa**: hộp xác nhận nói rõ người đó **bị đăng xuất khỏi mọi nơi ngay** và không đăng nhập được cho đến khi mở khóa. **Mở khóa** cho họ đăng nhập lại.
-- **Vô hiệu hóa**: người đó bị đăng xuất ngay và mất quyền truy cập đơn vị này. Màn hình **chưa có nút kích hoạt lại** (xem mục 5).
-- Trên **dòng của chính bạn** không có nút Khóa và Vô hiệu hóa, để bạn không tự đăng xuất mình.
+- **Vô hiệu hóa**: người đó bị đăng xuất ngay và mất quyền truy cập đơn vị này. Máy chủ đã có thao tác **kích hoạt lại**; nút trên màn hình sẽ được thêm sau (xem mục 5).
+- Trên **dòng của chính bạn** không có nút Khóa và Vô hiệu hóa, để bạn không tự đăng xuất mình. Máy chủ cũng từ chối việc đó.
+- **Hệ thống không cho cửa hàng tự khóa mình ra ngoài.** Quản trị viên là người đang hoạt động, không bị khóa và có vai trò kèm quyền *quản lý người dùng*. Máy chủ từ chối (lý do hiện trong thẻ đỏ) khi: bạn khóa / vô hiệu hóa chính mình; khóa, vô hiệu hóa hoặc gỡ vai trò của **quản trị viên cuối cùng**; xóa vai trò (hoặc gỡ quyền quản lý người dùng khỏi vai trò) mà mọi quản trị viên chỉ có nhờ vai trò đó; xóa vai trò mặc định **CUSTOMER / STAFF / USER**; vô hiệu hóa đơn vị nền tảng. Muốn đổi quản trị viên: cấp quyền cho người mới trước, rồi mới khóa người cũ.
 
 ### 3.3 Gán vai trò
 **Quản lý vai trò** → chọn vai trò ở ô **Vai trò cần gán** → **Gán**. Mỗi vai trò đã có hiện một nút **Gỡ**. Chỉ những vai trò chưa có mới nằm trong ô chọn. Thay đổi có hiệu lực ngay với phiên của người đó.
@@ -46,7 +47,7 @@ Mọi hộp thoại: con trỏ nằm sẵn ở ô đầu; ô có dấu **\*** đ
 Hộp thoại ghi lý do thật của máy chủ (ví dụ "Role code 'X' is reserved", "No account found for email …"). Với các nút ngoài hộp thoại (Khóa, Xóa vai trò, Vô hiệu hóa đơn vị…) lý do hiện bằng thẻ đỏ và dữ liệu không đổi.
 
 ## 5. Giới hạn đã biết
-- **Mời một tài khoản đang thuộc đơn vị khác hiện báo lỗi máy chủ** (R89): chức năng này chưa dùng được; chỉ hai trường hợp "không có tài khoản" và "đã là thành viên" cho kết quả đúng.
+- Mời một tài khoản đang thuộc đơn vị khác nay đã dùng được (trước đây báo lỗi máy chủ, R89). Người được mời vào danh sách người dùng của đơn vị với vai trò đã chọn.
 - Khi quản trị nền tảng chọn **đơn vị khác** ở ô Đơn vị, danh sách hiện người dùng của đơn vị đó nhưng sửa hồ sơ, khóa, vai trò trả lời "không tìm thấy người dùng" (R90).
-- Chưa có nút **kích hoạt lại** người dùng đã vô hiệu hóa; máy chủ không chặn việc khóa hoặc vô hiệu hóa chính mình / quản trị viên cuối cùng (màn hình chỉ ẩn nút ở dòng của bạn), và cho xóa cả các vai trò mặc định CUSTOMER / STAFF / USER (R91).
+- Màn hình **chưa có nút kích hoạt lại** người dùng đã vô hiệu hóa (máy chủ đã có thao tác này, nút sẽ thêm ở một lần cập nhật giao diện).
 - Không tạo được tài khoản người dùng từ màn hình này (tài khoản do người dùng tự đăng ký hoặc đăng nhập bằng dịch vụ ngoài).

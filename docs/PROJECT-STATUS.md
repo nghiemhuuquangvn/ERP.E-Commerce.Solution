@@ -36,6 +36,12 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-02 — Identity backend: invite works (R89) and server-side lock-out guards (R91) (`fix/identity-invite-and-guards`, from master, unmerged)
+- **R89:** `POST users/invite` answered 500 for every account not yet in the tenant (detached graph saved with `Update`, new membership treated as modified). Reproduced live (500), fixed with a tracked load (`GetForInviteAsync`) and no `Update`; 200 after the deploy.
+- **R91:** `AdministratorGuard` (administrator = active, unlocked member with `identity:users:manage`): refuses lock / deactivate of yourself or the last administrator, taking the last admin's role, deleting or stripping the role that makes the only administrators, deleting CUSTOMER / STAFF / USER, deactivating the platform tenant (business-rule 400, en + vi). New `POST users/{id}/activate`.
+- **Tests:** Identity 279 (16 guard tests on the real EF model, 4 invite tests that were red first), Architecture 70. **Live:** invite 200 / again 200, self lock 400, default role 400, platform tenant 400, activate 200 (messages also in Vietnamese); throw-away account and role deleted by SQL. New R99.
+- **Docs:** Identity/AdminBackOffice.md (section 4.6, ID-9, ID-10, UAT 10-12), user guide identity.md, SecurityReview, DEFERRED, CLAUDE.md.
+
 ### 2026-11-02 — Backend security: cache keys without a tenant (R84 CRM, R86 Warehouse, R97 Sales) (`fix/cache-tenant-keys`, from master, unmerged)
 - **Finding (reproduced live first):** the platform super admin was served glcheck's first page of CRM contacts; the same barcode in two shops resolved to the first shop's product. Cause: `ICacheService` keys without the tenant.
 - **Fix:** CRM contact list / contact by id and Sales customer-order list lose their caches; Warehouse caches go through the new `TenantKeyedCacheService` (`AddTenantKeyedCache()` in the Warehouse API; keys `t:{tenant}:{key}`, no tenant = no caching, `settings:` untouched). Guard `CacheKeyTenantTests` in the Architecture tests.

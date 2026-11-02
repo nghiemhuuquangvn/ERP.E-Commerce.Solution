@@ -79,4 +79,19 @@
   <data name="Invite_AmbiguousEmail" xml:space="preserve">
     <value>Có nhiều tài khoản cùng dùng email '{0}' — không thể mời vì không rõ tài khoản nào. Hãy xác nhận với người đó tài khoản cần dùng.</value>
   </data>
+  <data name="User_CannotLockSelf" xml:space="preserve">
+    <value>Bạn không thể khóa chính tài khoản của mình.</value>
+  </data>
+  <data name="User_CannotDeactivateSelf" xml:space="preserve">
+    <value>Bạn không thể ngừng kích hoạt chính tài khoản của mình.</value>
+  </data>
+  <data name="User_LastAdministrator" xml:space="preserve">
+    <value>Thao tác này sẽ khiến cửa hàng không còn quản trị viên nào (người dùng đang hoạt động, không bị khóa và có quyền quản lý người dùng). Hãy cấp quyền đó cho một người khác trước.</value>
+  </data>
+  <data name="Role_DefaultRoleCannotBeDeleted" xml:space="preserve">
+    <value>Không thể xóa vai trò mặc định '{0}': tài khoản mới và đăng ký tự phục vụ cần đến nó.</value>
+  </data>
+  <data name="Tenant_PlatformCannotBeDeactivated" xml:space="preserve">
+    <value>Không thể ngừng kích hoạt tenant nền tảng: nơi đây chứa các nhân viên vận hành của mọi cửa hàng.</value>
+  </data>
 </root>

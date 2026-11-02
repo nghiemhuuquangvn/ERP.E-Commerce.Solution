@@ -14,10 +14,12 @@ namespace ERP.Identity.Infrastructure.Services
     public class RoleService : IRoleService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly AdministratorGuard _guard;
 
-        public RoleService(IUnitOfWork unitOfWork)
+        public RoleService(IUnitOfWork unitOfWork, Microsoft.Extensions.Localization.IStringLocalizer<ERP.Identity.Infrastructure.Localization.AuthMessages>? localizer = null)
         {
             _unitOfWork = unitOfWork;
+            _guard = new AdministratorGuard(unitOfWork, localizer);
         }
 
         public async Task<IReadOnlyList<RoleDto>> ListByTenantAsync(Guid tenantId, CancellationToken ct)
@@ -68,6 +70,9 @@ namespace ERP.Identity.Infrastructure.Services
             var role = await _unitOfWork.Roles.GetByIdInTenantAsync(id, callerTenantId, ct)
                 ?? throw new EntityNotFoundException("Role", id);
 
+            _guard.RefuseDefaultRoleDeletion(role.RoleCode);
+            await _guard.RefuseLosingAdministratorsThroughRoleAsync(id, callerTenantId, ct);
+
             // Resolve holders before the delete cascades their UserRoles away.
             _unitOfWork.Revocations.UsersChanged((await _unitOfWork.Users.GetUserIdsByRoleAsync(id, callerTenantId, ct)).ToArray());
             await _unitOfWork.Roles.DeleteAsync(role, ct);
@@ -110,6 +115,10 @@ namespace ERP.Identity.Infrastructure.Services
         {
             var role = await _unitOfWork.Roles.GetByIdInTenantAsync(roleId, tenantId, ct)
                 ?? throw new EntityNotFoundException("Role", roleId);
+
+            var removing = (await _unitOfWork.Permissions.ListAllAsync(ct))?.FirstOrDefault(p => p.Id == permissionId);
+            if (removing?.PermissionCode == ERP.Shared.Authorization.PermissionConstants.Identity_UsersManage)
+                await _guard.RefuseLosingAdministratorsThroughRoleAsync(roleId, tenantId, ct);
 
             await _unitOfWork.Permissions.RemoveFromRoleAsync(roleId, permissionId, tenantId, ct);
             // Holders of the role must not keep the removed permission until their token expires.

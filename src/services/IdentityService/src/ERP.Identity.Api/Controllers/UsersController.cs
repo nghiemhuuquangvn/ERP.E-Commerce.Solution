@@ -134,7 +134,7 @@ namespace ERP.Identity.Api.Controllers
             if (callerTenantId is null)
                 return Unauthorized();
 
-            await _userService.LockAsync(id, callerTenantId.Value, ct);
+            await _userService.LockAsync(id, callerTenantId.Value, this.GetCallerUserId(), ct);
             return Ok(new { message = "User locked successfully" });
         }
 
@@ -158,8 +158,20 @@ namespace ERP.Identity.Api.Controllers
             if (callerTenantId is null)
                 return Unauthorized();
 
-            await _userService.DeactivateAsync(id, callerTenantId.Value, ct);
+            await _userService.DeactivateAsync(id, callerTenantId.Value, this.GetCallerUserId(), ct);
             return Ok(new { message = "User deleted successfully" });
+        }
+
+        [HttpPost("{id}/activate")]
+        [AuthorizePermission(PermissionConstants.Identity_UsersManage)]
+        public async Task<IActionResult> Activate([FromRoute] Guid id, CancellationToken ct = default)
+        {
+            var callerTenantId = this.GetCallerTenantId();
+            if (callerTenantId is null)
+                return Unauthorized();
+
+            await _userService.ActivateAsync(id, callerTenantId.Value, ct);
+            return Ok(new { message = "User activated successfully" });
         }
 
         [HttpPost("{id}/roles")]

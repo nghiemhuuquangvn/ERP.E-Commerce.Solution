@@ -29,6 +29,11 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         Task<User?> GetByExternalProviderAsync(string provider, string providerKey, Guid tenantId, CancellationToken ct);
         Task<User?> GetByIdWithDetailsAsync(Guid id, CancellationToken ct);
 
+        /// <summary>The account to attach to another tenant, <b>tracked</b> with its memberships and the roles it holds in <paramref name="tenantId"/>.
+        /// The invite adds new membership / role rows to it and saves without <c>UpdateAsync</c>: updating a detached graph marks the new rows as
+        /// modified and the save fails (R89).</summary>
+        Task<User?> GetForInviteAsync(Guid userId, Guid tenantId, CancellationToken ct);
+
         /// <summary>Tenant-boundary-safe fetch — returns null if the user doesn't exist
         /// OR isn't a member (via UserTenants) of the given tenant, collapsing both
         /// outcomes so callers can't distinguish "doesn't exist" from "exists elsewhere."</summary>
@@ -44,5 +49,12 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         /// <summary>All user IDs currently holding roleId within tenantId — used to fan out
         /// a "permission granted to your role" notification to every affected user.</summary>
         Task<IReadOnlyList<Guid>> GetUserIdsByRoleAsync(Guid roleId, Guid tenantId, CancellationToken ct);
+
+        /// <summary>Administrators of the tenant (R91): active, unlocked members holding a role of this tenant that grants <c>identity:users:manage</c>.
+        /// <paramref name="exceptUserId"/> leaves one user out of the count; <paramref name="ignoringRoleId"/> pretends that role grants nothing.</summary>
+        Task<int> CountAdministratorsAsync(Guid tenantId, Guid? exceptUserId, Guid? ignoringRoleId, CancellationToken ct);
+
+        /// <summary>Whether this user is an administrator of the tenant (see <see cref="CountAdministratorsAsync"/>).</summary>
+        Task<bool> IsAdministratorAsync(Guid userId, Guid tenantId, Guid? ignoringRoleId, CancellationToken ct);
     }
 }

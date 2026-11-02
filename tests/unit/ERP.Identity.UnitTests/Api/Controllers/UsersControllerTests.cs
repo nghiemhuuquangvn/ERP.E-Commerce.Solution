@@ -137,7 +137,7 @@ public class UsersControllerTests
         // Arrange
         var userId = Guid.NewGuid();
 
-        _mockUserService.Setup(s => s.LockAsync(userId, _callerTenantId, It.IsAny<CancellationToken>()))
+        _mockUserService.Setup(s => s.LockAsync(userId, _callerTenantId, It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -169,7 +169,7 @@ public class UsersControllerTests
         // Arrange
         var userId = Guid.NewGuid();
 
-        _mockUserService.Setup(s => s.DeactivateAsync(userId, _callerTenantId, It.IsAny<CancellationToken>()))
+        _mockUserService.Setup(s => s.DeactivateAsync(userId, _callerTenantId, It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act

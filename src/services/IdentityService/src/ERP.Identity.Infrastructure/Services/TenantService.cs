@@ -73,6 +73,8 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task DeactivateAsync(Guid id, CancellationToken ct)
         {
+            new AdministratorGuard(_unitOfWork).RefusePlatformTenantDeactivation(id);
+
             var tenant = await _unitOfWork.Tenants.GetByIdAsync(id, ct);
             if (tenant == null)
                 throw new InvalidOperationException($"Tenant with id '{id}' not found");

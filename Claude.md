@@ -171,6 +171,7 @@ Security invariants (2026-10-19 review — docs/business/Identity/SecurityReview
   `RevokeAllForUserAsync` where sessions end too); role permission edits/deletion → the role's
   holders; tenant status and license → `TenantChanged`. Every service, the Gateway and hubs
   reject revoked tokens (`ERP.Shared.Authorization.TokenRevocation`, fail-open if Redis is down).
+- A shop cannot lock itself out (R91, `AdministratorGuard`): lock / deactivate of yourself or of the last administrator (active, unlocked member holding `identity:users:manage`), deleting a default role (CUSTOMER / STAFF / USER) or the last role that makes administrators, and deactivating the platform tenant are refused with a business-rule 400. Inviting an existing account (R89) loads it tracked and inserts the membership - never `Update` a detached graph with new child rows.
 - Client IP comes from `RemoteIpAddress` (after `UseForwardedHeaders` with trusted
   networks and `ForwardedHeaders:TrustedHops` = the number of proxies in front, 2 in the local
   stack), never from the raw `X-Forwarded-For` header. The Gateway rate-limits sign-in / token /
