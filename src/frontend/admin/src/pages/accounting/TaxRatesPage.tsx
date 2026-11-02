@@ -8,6 +8,8 @@ import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, Checkbox, EmptyState, FormField, Input, Modal, Textarea, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface TaxRateFormValues {
   name: string
@@ -25,6 +27,7 @@ function TaxRateModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const isEdit = !!taxRate
 
   const {
@@ -52,61 +55,56 @@ function TaxRateModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting', 'taxRates'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {isEdit ? t('accounting.taxRates.editTitle') : t('accounting.taxRates.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-            {errors.name && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.code')}</label>
-            <input className="input" {...register('code', { required: true })} />
-            {errors.code && <p className="mt-1 text-xs text-red-600">{t('common.code')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('accounting.taxRates.rate')}
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              className="input"
-              {...register('rate', { required: true, valueAsNumber: true })}
-            />
-            {errors.rate && (
-              <p className="mt-1 text-xs text-red-600">{t('accounting.taxRates.rate')} is required.</p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('accounting.taxRates.description')}
-            </label>
-            <textarea className="input" rows={3} {...register('description')} />
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('accounting.taxRates.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="md"
+      title={isEdit ? t('accounting.taxRates.editTitle') : t('accounting.taxRates.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" form="tax-rate-form" loading={mutation.isPending}>
+            {t('common.save')}
+          </Button>
+        </>
+      }
+    >
+      <form id="tax-rate-form" noValidate onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <FormField label={t('common.code')} required error={errors.code ? t('common.required') : undefined}>
+          <Input {...register('code', { required: true })} />
+        </FormField>
+        <FormField
+          label={t('accounting.taxRates.rate')}
+          required
+          hint={t('accounting.taxRates.rateHint')}
+          error={errors.rate ? t('accounting.taxRates.rateRange') : undefined}
+        >
+          <Input
+            type="number"
+            step="0.01"
+            min={0}
+            max={100}
+            {...register('rate', { required: true, valueAsNumber: true, min: 0, max: 100 })}
+          />
+        </FormField>
+        <FormField label={t('accounting.taxRates.description')}>
+          <Textarea {...register('description')} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('accounting.taxRates.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -115,6 +113,7 @@ export function TaxRatesPage() {
   const { hasPermission } = usePermission()
   const canManage = hasPermission('accounting:tax:manage')
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [activeOnly, setActiveOnly] = useState(false)
   const [modalState, setModalState] = useState<{ open: boolean; taxRate: TaxRate | null }>({
     open: false,
@@ -134,7 +133,12 @@ export function TaxRatesPage() {
     mutationFn: (r: TaxRate) => taxRatesApi.deactivate(r.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting', 'taxRates'] })
+      toast.success(t('common.saved'))
       setConfirmTarget(null)
+    },
+    onError: (e) => {
+      setConfirmTarget(null)
+      toast.error(serverMessage(e, t('common.error')))
     },
   })
 
@@ -164,19 +168,13 @@ export function TaxRatesPage() {
         render: (r: TaxRate) =>
           canManage ? (
             <div className="flex gap-3">
-              <button
-                className="text-xs text-primary-600 hover:underline"
-                onClick={() => setModalState({ open: true, taxRate: r })}
-              >
+              <Button variant="link" className="text-xs" aria-label={`${t('common.edit')} ${r.name}`} onClick={() => setModalState({ open: true, taxRate: r })}>
                 {t('common.edit')}
-              </button>
+              </Button>
               {r.isActive && (
-                <button
-                  className="text-xs text-red-600 hover:underline"
-                  onClick={() => setConfirmTarget(r)}
-                >
+                <Button variant="link-danger" className="text-xs" aria-label={`${t('common.deactivate')} ${r.name}`} onClick={() => setConfirmTarget(r)}>
                   {t('common.deactivate')}
-                </button>
+                </Button>
               )}
             </div>
           ) : null,
@@ -190,25 +188,23 @@ export function TaxRatesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('accounting.taxRates.title')}</h1>
         {canManage && (
-          <button
-            className="btn-primary"
-            onClick={() => setModalState({ open: true, taxRate: null })}
-          >
-            {t('accounting.taxRates.add')}
-          </button>
+          <Button onClick={() => setModalState({ open: true, taxRate: null })}>{t('accounting.taxRates.add')}</Button>
         )}
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input
-          type="checkbox"
-          checked={activeOnly}
-          onChange={(e) => setActiveOnly(e.target.checked)}
-        />
-        {t('accounting.taxRates.activeOnly')}
-      </label>
+      <Checkbox checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} label={t('accounting.taxRates.activeOnly')} />
 
-      <DataTable columns={columns} data={data ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data ?? []}
+        isLoading={isLoading}
+        emptyState={
+          <EmptyState
+            title={t('accounting.taxRates.empty')}
+            action={canManage ? <Button onClick={() => setModalState({ open: true, taxRate: null })}>{t('accounting.taxRates.add')}</Button> : undefined}
+          />
+        }
+      />
 
       {modalState.open && (
         <TaxRateModal

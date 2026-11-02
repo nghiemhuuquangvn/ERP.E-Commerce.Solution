@@ -2484,6 +2484,13 @@
   },
   "accounting": {
     "accounts": {
+      "empty": "Chưa có tài khoản nào. Hãy áp mẫu hệ thống tài khoản hoặc thêm tài khoản đầu tiên.",
+      "lockedHint": "Không đổi được sau khi đã tạo tài khoản.",
+      "parentHint": "Chỉ hiện các tài khoản đang dùng cùng loại.",
+      "deactivateTitle": "Ngừng dùng tài khoản",
+      "deactivateConfirm": "Ngừng dùng tài khoản {{number}} - {{name}}? Tài khoản không nhận bút toán mới, lịch sử trong sổ vẫn giữ.",
+      "templateConfirmTitle": "Áp mẫu này?",
+      "templateConfirm": "Thêm {{count}} tài khoản của mẫu \"{{name}}\" vào hệ thống tài khoản và đặt hồ sơ ghi sổ theo mẫu? Chỉ thực hiện được khi chưa có bút toán nào.",
       "title": "Hệ thống tài khoản",
       "add": "Thêm tài khoản",
       "addTitle": "Thêm tài khoản",
@@ -2567,6 +2574,8 @@
       "failed": "Không lưu được bút toán ngoài bảng."
     },
     "fiscalPeriods": {
+      "empty": "Chưa có kỳ kế toán nào. Hãy mở kỳ đầu tiên để bắt đầu ghi sổ.",
+      "endBeforeStart": "Ngày kết thúc không được trước ngày bắt đầu.",
       "title": "Kỳ kế toán",
       "add": "Mở kỳ kế toán",
       "openTitle": "Mở kỳ kế toán",
@@ -2591,6 +2600,9 @@
       "failedToSave": "Mở kỳ kế toán thất bại."
     },
     "taxRates": {
+      "empty": "Chưa có thuế suất nào.",
+      "rateHint": "Nhập 10 nghĩa là 10 % giá trị chưa thuế.",
+      "rateRange": "Nhập thuế suất từ 0 đến 100.",
       "title": "Thuế suất",
       "add": "Thêm thuế suất",
       "addTitle": "Thêm thuế suất",
@@ -2629,6 +2641,20 @@
       "failed": "Không đánh giá lại được."
     },
     "bankRecon": {
+      "differenceOk": "Chênh lệch 0 - sẵn sàng đối chiếu",
+      "differenceOpen": "Chênh lệch {{amount}} - chưa đối chiếu được",
+      "fileLabel": "File CSV của ngân hàng",
+      "candidatesFor": "Dòng sổ cái cùng số tiền",
+      "imported": "Đã nhập các dòng sao kê.",
+      "matchedDone": "Đã ghép xong.",
+      "postFeeTitle": "Hạch toán phí ngân hàng",
+      "postFeeConfirm": "Hạch toán \"{{description}}\" ({{amount}}) là phí ngân hàng? Hệ thống ghi một bút toán.",
+      "postInterestTitle": "Hạch toán lãi ngân hàng",
+      "postInterestConfirm": "Hạch toán \"{{description}}\" ({{amount}}) là thu nhập lãi ngân hàng? Hệ thống ghi một bút toán.",
+      "deleteTitle": "Xóa dòng sao kê",
+      "deleteConfirm": "Xóa \"{{description}}\" ({{amount}}) khỏi sao kê này? Có thể nhập lại file CSV của ngân hàng.",
+      "reconcileConfirm": "Đối chiếu sao kê này? Chênh lệch bằng 0; sao kê bị khóa và không sửa được các dòng nữa.",
+      "reconciled": "Đã đối chiếu sao kê.",
       "title": "Đối chiếu ngân hàng",
       "lines": "Dòng sao kê",
       "autoMatch": "Ghép tự động",
@@ -2911,6 +2937,10 @@
       "createdAt": "Ngày tạo"
     },
     "bankAccounts": {
+      "empty": "Chưa có tài khoản ngân hàng nào.",
+      "statementsEmpty": "Chưa có sao kê nào. Hãy thêm sao kê đầu tiên của tài khoản này.",
+      "linesOf": "Dòng sao kê {{date}}",
+      "reconcileOf": "Đối chiếu {{date}}",
       "title": "Tài khoản ngân hàng",
       "add": "Thêm tài khoản ngân hàng",
       "addTitle": "Thêm tài khoản ngân hàng",
