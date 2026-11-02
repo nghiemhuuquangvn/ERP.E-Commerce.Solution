@@ -15,6 +15,7 @@ Tài liệu từng bước cho nhân viên cửa hàng, viết bằng tiếng Vi
 | Cài đặt → Thông báo đã gửi | [notification-history.md](notification-history.md) |
 | Mua hàng (đơn hàng mua, yêu cầu báo giá, hóa đơn nhà cung cấp, trả hàng, dung sai đối chiếu) | [purchasing.md](purchasing.md) |
 | Thanh toán (hoàn tiền), Vận đơn, Chính sách hoa hồng, Nhật ký hệ thống | [payments-shipping-sales-logs.md](payments-shipping-sales-logs.md) |
+| Kế toán → Thuế suất, Kỳ kế toán, Hệ thống tài khoản, Tài khoản ngân hàng (đối chiếu sao kê) | [accounting-setup.md](accounting-setup.md) |
 | Vận chuyển → Hoàn hàng | [shipping-returns.md](shipping-returns.md) |
 | Cài đặt → Webhook | [notification-webhooks.md](notification-webhooks.md) |
 | Cài đặt → Mẫu thông báo | [notification-templates.md](notification-templates.md) |
