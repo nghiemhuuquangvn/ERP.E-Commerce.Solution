@@ -23,6 +23,7 @@ namespace ERP.Identity.Infrastructure.Services
         private readonly IStringLocalizer<AuthMessages> _localizer;
         private readonly ISessionService _sessionService;
         private readonly IConfiguration _configuration;
+        private readonly AdministratorGuard _guard;
 
         public UserService(
             IUnitOfWork unitOfWork,
@@ -40,6 +41,7 @@ namespace ERP.Identity.Infrastructure.Services
             _passwordPolicyService = passwordPolicyService;
             _localizer = localizer;
             _sessionService = sessionService;
+            _guard = new AdministratorGuard(unitOfWork, localizer);
         }
 
         public async Task<UserDetailDto?> GetByIdAsync(Guid id, Guid callerTenantId, CancellationToken ct)
@@ -147,10 +149,13 @@ namespace ERP.Identity.Infrastructure.Services
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
-        public async Task LockAsync(Guid id, Guid callerTenantId, CancellationToken ct)
+        public async Task LockAsync(Guid id, Guid callerTenantId, Guid? callerUserId, CancellationToken ct)
         {
             var user = await _unitOfWork.Users.GetByIdInTenantAsync(id, callerTenantId, ct)
                 ?? throw new EntityNotFoundException("User", id);
+
+            _guard.RefuseSelf(id, callerUserId, "User_CannotLockSelf", "You cannot lock your own account.");
+            await _guard.RefuseLastAdministratorAsync(id, callerTenantId, ct);
 
             user.Lock();
             await _unitOfWork.Users.UpdateAsync(user, ct);
@@ -172,10 +177,13 @@ namespace ERP.Identity.Infrastructure.Services
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
-        public async Task DeactivateAsync(Guid id, Guid callerTenantId, CancellationToken ct)
+        public async Task DeactivateAsync(Guid id, Guid callerTenantId, Guid? callerUserId, CancellationToken ct)
         {
             var user = await _unitOfWork.Users.GetByIdInTenantAsync(id, callerTenantId, ct)
                 ?? throw new EntityNotFoundException("User", id);
+
+            _guard.RefuseSelf(id, callerUserId, "User_CannotDeactivateSelf", "You cannot deactivate your own account.");
+            await _guard.RefuseLastAdministratorAsync(id, callerTenantId, ct);
 
             user.Deactivate();
             await _unitOfWork.Users.UpdateAsync(user, ct);
@@ -183,6 +191,18 @@ namespace ERP.Identity.Infrastructure.Services
             // Deactivation must end existing sessions too — otherwise the user's refresh
             // token keeps working until it naturally expires.
             await _sessionService.RevokeAllForUserAsync(user.Id, ct);
+            await _securityAuditService.LogAsync("AccountDeactivated", true, user.TenantId, id, user.Email, ct: ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+        }
+
+        public async Task ActivateAsync(Guid id, Guid callerTenantId, CancellationToken ct)
+        {
+            var user = await _unitOfWork.Users.GetByIdInTenantAsync(id, callerTenantId, ct)
+                ?? throw new EntityNotFoundException("User", id);
+
+            user.Activate();
+            await _unitOfWork.Users.UpdateAsync(user, ct);
+            await _securityAuditService.LogAsync("AccountActivated", true, user.TenantId, id, user.Email, ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
@@ -213,6 +233,8 @@ namespace ERP.Identity.Infrastructure.Services
             if (userRole == null)
                 throw new InvalidOperationException($"User doesn't have this role");
 
+            await _guard.RefuseLosingLastAdministratorByRoleRemovalAsync(userId, roleId, tenantId, ct);
+
             // Previously a no-op: this method removed nothing and just called
             // SaveChangesAsync, so DELETE /api/users/{id}/roles/{roleId} always
             // returned 200 OK while leaving the role assigned. A direct repository
@@ -235,10 +257,13 @@ namespace ERP.Identity.Infrastructure.Services
             if (matches.Count > 1)
                 throw new BusinessRuleException("AmbiguousInviteEmail", _localizer["Invite_AmbiguousEmail", request.Email].Value);
 
-            var user = matches[0];
+            if (await _unitOfWork.Users.IsInTenantAsync(matches[0].Id, callerTenantId, ct))
+                return new InviteUserToTenantResponse(matches[0].Id, callerTenantId, AlreadyMember: true);
 
-            if (await _unitOfWork.Users.IsInTenantAsync(user.Id, callerTenantId, ct))
-                return new InviteUserToTenantResponse(user.Id, callerTenantId, AlreadyMember: true);
+            // Tracked, so the new membership / role rows are inserted. The matches above are untracked; saving them through
+            // UpdateAsync marked the new rows as modified and the save answered HTTP 500 (R89).
+            var user = await _unitOfWork.Users.GetForInviteAsync(matches[0].Id, callerTenantId, ct)
+                ?? throw new KeyNotFoundException($"No account found for email '{request.Email}'.");
 
             var tenant = await _unitOfWork.Tenants.GetByIdAsync(callerTenantId, ct)
                 ?? throw new InvalidOperationException("Tenant not found");
@@ -252,7 +277,6 @@ namespace ERP.Identity.Infrastructure.Services
                 user.AssignRole(role, callerTenantId);
             }
 
-            await _unitOfWork.Users.UpdateAsync(user, ct);
             await _securityAuditService.LogAsync("UserInvitedToTenant", true, callerTenantId, user.Id, user.Email, ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
 

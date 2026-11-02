@@ -109,7 +109,7 @@ public class UserServiceTests
         var user = NewUser(_tenantId);
         _mockUserRepository.Setup(r => r.GetByIdInTenantAsync(user.Id, _tenantId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
-        await _userService.LockAsync(user.Id, _tenantId, CancellationToken.None);
+        await _userService.LockAsync(user.Id, _tenantId, Guid.NewGuid(), CancellationToken.None);
 
         user.IsLocked.Should().BeTrue();
         _mockUserRepository.Verify(r => r.UpdateAsync(user, It.IsAny<CancellationToken>()), Times.Once);
@@ -121,7 +121,7 @@ public class UserServiceTests
         var user = NewUser(_tenantId);
         _mockUserRepository.Setup(r => r.GetByIdInTenantAsync(user.Id, _tenantId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
-        await _userService.DeactivateAsync(user.Id, _tenantId, CancellationToken.None);
+        await _userService.DeactivateAsync(user.Id, _tenantId, Guid.NewGuid(), CancellationToken.None);
 
         user.IsActive.Should().BeFalse();
         _mockSessionService.Verify(s => s.RevokeAllForUserAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);

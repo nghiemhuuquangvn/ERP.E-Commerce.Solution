@@ -42,7 +42,7 @@ public class TokenRevocationSignalTests
         var user = NewUser();
         Mock.Get(_uow.Object.Users).Setup(r => r.GetByIdInTenantAsync(user.Id, _tenantId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
-        await UserService().LockAsync(user.Id, _tenantId, CancellationToken.None);
+        await UserService().LockAsync(user.Id, _tenantId, Guid.NewGuid(), CancellationToken.None);
 
         _sessions.Verify(s => s.RevokeAllForUserAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
         user.IsAdministrativelyLocked.Should().BeTrue();

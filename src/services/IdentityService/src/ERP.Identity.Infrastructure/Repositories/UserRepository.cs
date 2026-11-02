@@ -153,6 +153,14 @@ namespace ERP.Identity.Infrastructure.Repositories
                         .ToListAsync(ct);
         }
 
+        public async Task<User?> GetForInviteAsync(Guid userId, Guid tenantId, CancellationToken ct)
+        {
+            return await _dbContext.Users
+                .Include(u => u.UserTenants)
+                .Include(u => u.UserRoles.Where(ur => ur.TenantId == tenantId))
+                .FirstOrDefaultAsync(u => u.Id == userId, ct);
+        }
+
         public async Task<User?> GetByIdWithDetailsAsync(Guid id, CancellationToken ct)
         {
             return await _dbContext.Users
@@ -208,6 +216,23 @@ namespace ERP.Identity.Infrastructure.Repositories
             if (userRole != null)
                 _dbContext.UserRoles.Remove(userRole);
         }
+
+        private IQueryable<User> Administrators(Guid tenantId, Guid? ignoringRoleId)
+        {
+            const string manage = ERP.Shared.Authorization.PermissionConstants.Identity_UsersManage;
+            return _dbContext.Users.Where(u => u.IsActive && !u.IsLocked
+                && u.UserTenants.Any(ut => ut.TenantId == tenantId)
+                && u.UserRoles.Any(ur => ur.TenantId == tenantId
+                    && (ignoringRoleId == null || ur.RoleId != ignoringRoleId)
+                    && ur.Role.TenantId == tenantId && ur.Role.IsActive
+                    && ur.Role.RolePermissions.Any(rp => rp.Permission.PermissionCode == manage)));
+        }
+
+        public Task<int> CountAdministratorsAsync(Guid tenantId, Guid? exceptUserId, Guid? ignoringRoleId, CancellationToken ct) =>
+            Administrators(tenantId, ignoringRoleId).Where(u => exceptUserId == null || u.Id != exceptUserId).CountAsync(ct);
+
+        public Task<bool> IsAdministratorAsync(Guid userId, Guid tenantId, Guid? ignoringRoleId, CancellationToken ct) =>
+            Administrators(tenantId, ignoringRoleId).AnyAsync(u => u.Id == userId, ct);
 
         public async Task<IReadOnlyList<Guid>> GetUserIdsByRoleAsync(Guid roleId, Guid tenantId, CancellationToken ct)
         {

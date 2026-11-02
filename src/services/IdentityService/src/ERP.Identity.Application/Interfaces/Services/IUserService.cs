@@ -12,9 +12,13 @@ public interface IUserService
     Task<PagedResponse<UserDetailDto>> ListByTenantAsync(Guid tenantId, int page, int pageSize, CancellationToken ct);
     Task UpdateProfileAsync(Guid id, Guid callerTenantId, UpdateProfileRequest request, CancellationToken ct);
     Task ChangePasswordAsync(Guid id, ChangePasswordRequest request, CancellationToken ct);
-    Task LockAsync(Guid id, Guid callerTenantId, CancellationToken ct);
+    /// <summary>Refused (business rule) for the caller's own account and for the last administrator of the tenant.</summary>
+    Task LockAsync(Guid id, Guid callerTenantId, Guid? callerUserId, CancellationToken ct);
     Task UnlockAsync(Guid id, Guid callerTenantId, CancellationToken ct);
-    Task DeactivateAsync(Guid id, Guid callerTenantId, CancellationToken ct);
+    /// <summary>Refused (business rule) for the caller's own account and for the last administrator of the tenant.</summary>
+    Task DeactivateAsync(Guid id, Guid callerTenantId, Guid? callerUserId, CancellationToken ct);
+    /// <summary>Re-activates a deactivated member of the caller's tenant (R91: there was no way back).</summary>
+    Task ActivateAsync(Guid id, Guid callerTenantId, CancellationToken ct);
     Task AssignRoleAsync(Guid userId, string roleCode, Guid tenantId, Guid? changedByUserId, string? changedByName, CancellationToken ct);
     Task RemoveRoleAsync(Guid userId, Guid roleId, Guid tenantId, CancellationToken ct);
     /// <summary>Changing 2FA re-asks for the current password (or, for an account that only signs in through an external
