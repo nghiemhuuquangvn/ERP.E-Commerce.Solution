@@ -49,7 +49,7 @@ function CommissionPlanModal({ onClose }: { onClose: () => void }) {
         </>
       }
     >
-      <form id="commission-plan-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+      <form id="commission-plan-form" noValidate onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
         <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
           <Input {...register('name', { required: true })} />
         </FormField>
