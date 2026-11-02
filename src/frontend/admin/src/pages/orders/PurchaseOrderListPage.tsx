@@ -10,6 +10,8 @@ import { Pagination } from '@/components/shared/Pagination'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { usePagination } from '@/hooks/usePagination'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, EmptyState, FormField, Modal, Textarea, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 import { format } from 'date-fns'
 import type { PurchaseOrder } from '@/api/purchaseOrders.api'
 
@@ -33,6 +35,7 @@ interface RejectFormValues {
 function RejectPurchaseOrderModal({ po, onClose }: { po: PurchaseOrder; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { register, handleSubmit, formState: { errors } } = useForm<RejectFormValues>({
     defaultValues: { reason: '' },
   })
@@ -41,36 +44,36 @@ function RejectPurchaseOrderModal({ po, onClose }: { po: PurchaseOrder; onClose:
     mutationFn: (values: RejectFormValues) => purchaseOrdersApi.reject(po.id, values.reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('purchaseOrders.rejectTitle', { number: po.poNumber })}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('purchaseOrders.rejectReason')}</label>
-            <textarea className="input" rows={3} {...register('reason', { required: true })} />
-            {errors.reason && <p className="mt-1 text-xs text-red-600">{t('purchaseOrders.reasonRequired')}</p>}
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('purchaseOrders.rejectFailed')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-danger">
-              {t('orders.reject')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('purchaseOrders.rejectTitle', { number: po.poNumber })}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="reject-po-form" variant="danger" loading={mutation.isPending}>{t('orders.reject')}</Button>
+        </>
+      }
+    >
+      <form id="reject-po-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('purchaseOrders.rejectReason')} required error={errors.reason ? t('purchaseOrders.reasonRequired') : undefined}>
+          <Textarea rows={3} {...register('reason', { required: true })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('purchaseOrders.rejectFailed'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
+
+type Step = { kind: 'approve' | 'financeApprove'; po: PurchaseOrder }
 
 export function PurchaseOrderListPage() {
   const { t } = useTranslation()
@@ -79,7 +82,9 @@ export function PurchaseOrderListPage() {
   const [status, setStatus] = useState<PurchaseOrderStatus | ''>('')
   const [cancelId, setCancelId] = useState<string | null>(null)
   const [rejectTarget, setRejectTarget] = useState<PurchaseOrder | null>(null)
+  const [step, setStep] = useState<Step | null>(null)
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['purchaseOrders', { page, pageSize, status }],
@@ -88,23 +93,24 @@ export function PurchaseOrderListPage() {
     staleTime: 30_000,
   })
 
-  const approveMutation = useMutation({
-    mutationFn: purchaseOrdersApi.approve,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] }),
-  })
-
-  const financeApproveMutation = useMutation({
-    mutationFn: purchaseOrdersApi.approveFinance,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] }),
-  })
-
-  const cancelMutation = useMutation({
-    mutationFn: (id: string) => purchaseOrdersApi.cancel(id),
+  // the approve steps and the cancel share how they report: a toast, never silence
+  const after = {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] })
+      toast.success(t('common.saved'))
+      setStep(null)
       setCancelId(null)
     },
-  })
+    onError: (e: unknown) => {
+      setStep(null)
+      setCancelId(null)
+      toast.error(serverMessage(e, t('common.error')))
+    },
+  }
+
+  const approveMutation = useMutation({ mutationFn: purchaseOrdersApi.approve, ...after })
+  const financeApproveMutation = useMutation({ mutationFn: purchaseOrdersApi.approveFinance, ...after })
+  const cancelMutation = useMutation({ mutationFn: (id: string) => purchaseOrdersApi.cancel(id), ...after })
 
   const handleStatusChange = useCallback(
     (value: PurchaseOrderStatus | '') => {
@@ -118,15 +124,19 @@ export function PurchaseOrderListPage() {
     if (cancelId) cancelMutation.mutate(cancelId)
   }, [cancelId, cancelMutation])
 
-  const { mutate: approvePo } = approveMutation
-  const { mutate: financeApprovePo } = financeApproveMutation
+  const confirmStep = () => {
+    if (!step) return
+    if (step.kind === 'approve') approveMutation.mutate(step.po.id)
+    else financeApproveMutation.mutate(step.po.id)
+  }
+
   const columns = useMemo(
     () => [
       {
         key: 'poNumber',
         label: t('purchaseOrders.poNumber'),
         render: (po: PurchaseOrder) => (
-          <Link to={`/orders/purchase/${po.id}`} className="text-primary-600 hover:underline">
+          <Link to={`/orders/purchase/${po.id}`} className="text-brand-action hover:underline">
             {po.poNumber}
           </Link>
         ),
@@ -139,6 +149,7 @@ export function PurchaseOrderListPage() {
       {
         key: 'totalAmount',
         label: t('orders.total'),
+        align: 'right' as const,
         render: (po: PurchaseOrder) =>
           new Intl.NumberFormat('en-US', { style: 'currency', currency: po.currency || 'USD' }).format(
             po.totalAmount,
@@ -158,45 +169,33 @@ export function PurchaseOrderListPage() {
         key: 'actions',
         label: '',
         render: (po: PurchaseOrder) => (
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             {hasPermission('purchase_order:approve') && po.status === 'SUBMITTED' && (
-              <button
-                onClick={() => approvePo(po.id)}
-                className="text-xs text-primary-600 hover:underline"
-              >
+              <Button variant="link" className="text-xs" aria-label={`${t('orders.approve')} ${po.poNumber}`} onClick={() => setStep({ kind: 'approve', po })}>
                 {t('orders.approve')}
-              </button>
+              </Button>
             )}
             {hasPermission('purchase_order:finance_approve') && po.status === 'PENDING_FINANCE_APPROVAL' && (
-              <button
-                onClick={() => financeApprovePo(po.id)}
-                className="text-xs text-primary-600 hover:underline"
-              >
+              <Button variant="link" className="text-xs" aria-label={`${t('purchaseOrders.financeApprove')} ${po.poNumber}`} onClick={() => setStep({ kind: 'financeApprove', po })}>
                 {t('purchaseOrders.financeApprove')}
-              </button>
+              </Button>
             )}
             {hasPermission('purchase_order:approve') &&
               ['SUBMITTED', 'PENDING_FINANCE_APPROVAL'].includes(po.status) && (
-                <button
-                  onClick={() => setRejectTarget(po)}
-                  className="text-xs text-red-600 hover:underline"
-                >
+                <Button variant="link-danger" className="text-xs" aria-label={`${t('orders.reject')} ${po.poNumber}`} onClick={() => setRejectTarget(po)}>
                   {t('orders.reject')}
-                </button>
+                </Button>
               )}
             {hasPermission('purchase_order:cancel') && !['CANCELLED', 'RECEIVED', 'REJECTED'].includes(po.status) && (
-              <button
-                onClick={() => setCancelId(po.id)}
-                className="text-xs text-red-600 hover:underline"
-              >
+              <Button variant="link-danger" className="text-xs" aria-label={`${t('orders.cancel')} ${po.poNumber}`} onClick={() => setCancelId(po.id)}>
                 {t('orders.cancel')}
-              </button>
+              </Button>
             )}
           </div>
         ),
       },
     ],
-    [hasPermission, approvePo, financeApprovePo, t],
+    [hasPermission, t],
   )
 
   return (
@@ -204,29 +203,43 @@ export function PurchaseOrderListPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('purchaseOrders.title')}</h1>
         {hasPermission('purchase_order:create') && (
-          <Link to="/orders/purchase/new" className="btn-primary">
+          <Link
+            to="/orders/purchase/new"
+            className="inline-flex h-9 items-center rounded-md bg-brand-action px-4 text-sm font-medium text-on-brand hover:bg-brand-action-hover"
+          >
             {t('purchaseOrders.newPurchaseOrder')}
           </Link>
         )}
       </div>
 
-      <div className="flex gap-1">
+      <div className="flex flex-wrap gap-1" role="group" aria-label={t('common.status')}>
         {STATUS_FILTERS.map((f) => (
-          <button
+          <Button
             key={f.value}
+            size="sm"
+            variant={status === f.value ? 'primary' : 'outline'}
+            aria-pressed={status === f.value}
             onClick={() => handleStatusChange(f.value as PurchaseOrderStatus | '')}
-            className={`rounded px-3 py-1.5 text-sm ${
-              status === f.value
-                ? 'bg-primary-600 text-white'
-                : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-            }`}
           >
             {t(f.labelKey)}
-          </button>
+          </Button>
         ))}
       </div>
 
-      <DataTable columns={columns} data={data?.items ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data?.items ?? []}
+        isLoading={isLoading}
+        emptyState={
+          status ? (
+            <EmptyState
+              variant="no-results"
+              title={t('purchaseOrders.noResults')}
+              action={<Button variant="outline" size="sm" onClick={() => handleStatusChange('')}>{t('common.clear')}</Button>}
+            />
+          ) : undefined
+        }
+      />
       <Pagination
         page={page}
         pageSize={pageSize}
@@ -242,6 +255,19 @@ export function PurchaseOrderListPage() {
         danger
         onConfirm={handleCancelConfirm}
         onCancel={() => setCancelId(null)}
+      />
+
+      <ConfirmDialog
+        open={step !== null}
+        title={step?.kind === 'financeApprove' ? t('purchaseOrders.financeApproveTitle') : t('purchaseOrders.approveTitle')}
+        message={
+          step?.kind === 'financeApprove'
+            ? t('purchaseOrders.financeApproveConfirm', { number: step?.po.poNumber })
+            : t('purchaseOrders.approveConfirm', { number: step?.po.poNumber })
+        }
+        confirmLabel={step?.kind === 'financeApprove' ? t('purchaseOrders.financeApprove') : t('orders.approve')}
+        onConfirm={confirmStep}
+        onCancel={() => setStep(null)}
       />
 
       {rejectTarget && (

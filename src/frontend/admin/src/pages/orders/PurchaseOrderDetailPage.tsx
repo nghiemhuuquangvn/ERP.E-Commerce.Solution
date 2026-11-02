@@ -3,22 +3,36 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { purchaseOrdersApi } from '@/api/purchaseOrders.api'
-import { procurementApi, serverMessage } from '@/api/purchasing/procurement.api'
+import { procurementApi } from '@/api/purchasing/procurement.api'
 import { usePermission } from '@/hooks/usePermission'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { Alert, Button, Input, Modal, Spinner, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 import { format } from 'date-fns'
 
-function ReceiveGoodsModal({ poId, lines, onClose }: { poId: string; lines: { id: string; productName: string; remainingQuantity: number }[]; onClose: () => void }) {
+type ReceiveLine = { id: string; productName: string; remainingQuantity: number }
+
+function ReceiveGoodsModal({ poId, lines, onClose }: { poId: string; lines: ReceiveLine[]; onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [accepted, setAccepted] = useState<Record<string, string>>({})
   const [rejected, setRejected] = useState<Record<string, string>>({})
+  const [confirming, setConfirming] = useState(false)
+
+  const num = (v: string | undefined) => Number(v) || 0
+  const totalAccepted = lines.reduce((s, l) => s + num(accepted[l.id]), 0)
+  const totalRejected = lines.reduce((s, l) => s + num(rejected[l.id]), 0)
+  // accepted + rejected of a line may not pass what is still open on the order
+  const exceeding = new Set(lines.filter((l) => num(accepted[l.id]) + num(rejected[l.id]) > l.remainingQuantity).map((l) => l.id))
+
   const receive = useMutation({
     mutationFn: () => {
       const body: Record<string, { quantityAccepted: number; quantityRejected: number }> = {}
       for (const l of lines) {
-        const a = Number(accepted[l.id]) || 0
-        const r = Number(rejected[l.id]) || 0
+        const a = num(accepted[l.id])
+        const r = num(rejected[l.id])
         if (a + r > 0) body[l.id] = { quantityAccepted: a, quantityRejected: r }
       }
       return procurementApi.receiveGoods(poId, body)
@@ -26,34 +40,90 @@ function ReceiveGoodsModal({ poId, lines, onClose }: { poId: string; lines: { id
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchaseOrders', poId] })
       queryClient.invalidateQueries({ queryKey: ['po', 'procurement', poId] })
+      toast.success(t('common.saved'))
       onClose()
     },
+    onError: () => setConfirming(false),
   })
-  const any = lines.some((l) => (Number(accepted[l.id]) || 0) + (Number(rejected[l.id]) || 0) > 0)
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card max-h-[90vh] w-full max-w-2xl overflow-y-auto p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('procurement.receive.title')}</h3>
-        <table className="min-w-full text-sm">
-          <thead><tr className="border-b border-gray-100 text-left text-xs uppercase text-gray-400"><th className="pb-2">{t('orders.product')}</th><th className="pb-2 text-right">{t('procurement.receive.remaining')}</th><th className="pb-2 text-right">{t('procurement.receive.accepted')}</th><th className="pb-2 text-right">{t('procurement.receive.rejected')}</th></tr></thead>
-          <tbody className="divide-y divide-gray-50">
-            {lines.map((l) => (
-              <tr key={l.id}>
-                <td className="py-2">{l.productName}</td>
-                <td className="py-2 text-right">{l.remainingQuantity}</td>
-                <td className="py-2 text-right"><input type="number" min={0} max={l.remainingQuantity} disabled={l.remainingQuantity === 0} className="input w-24 text-right" value={accepted[l.id] ?? ''} onChange={(e) => setAccepted({ ...accepted, [l.id]: e.target.value })} /></td>
-                <td className="py-2 text-right"><input type="number" min={0} max={l.remainingQuantity} disabled={l.remainingQuantity === 0} className="input w-24 text-right" value={rejected[l.id] ?? ''} onChange={(e) => setRejected({ ...rejected, [l.id]: e.target.value })} /></td>
+    <>
+      <Modal
+        open
+        size="lg"
+        title={t('procurement.receive.title')}
+        onClose={onClose}
+        closeOnEsc={!receive.isPending && !confirming}
+        footer={
+          <>
+            <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+            <Button disabled={totalAccepted + totalRejected === 0 || exceeding.size > 0} onClick={() => setConfirming(true)}>
+              {t('procurement.receive.confirm')}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-xs uppercase text-ink-secondary">
+                <th className="pb-2">{t('orders.product')}</th>
+                <th className="pb-2 text-right">{t('procurement.receive.remaining')}</th>
+                <th className="pb-2 text-right">{t('procurement.receive.accepted')}</th>
+                <th className="pb-2 text-right">{t('procurement.receive.rejected')}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {receive.isError && <p className="mt-3 text-xs text-red-600">{serverMessage(receive.error, t('common.error'))}</p>}
-        <div className="mt-4 flex justify-end gap-3">
-          <button className="btn-outline" onClick={onClose}>{t('common.cancel')}</button>
-          <button className="btn-primary" disabled={!any || receive.isPending} onClick={() => receive.mutate()}>{t('procurement.receive.confirm')}</button>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {lines.map((l) => (
+                <tr key={l.id}>
+                  <td className="py-2">{l.productName}</td>
+                  <td className="py-2 text-right tabular-nums">{l.remainingQuantity}</td>
+                  <td className="py-2 text-right">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={l.remainingQuantity}
+                      aria-label={`${t('procurement.receive.accepted')}: ${l.productName}`}
+                      aria-invalid={exceeding.has(l.id) || undefined}
+                      disabled={l.remainingQuantity === 0}
+                      className="ml-auto w-24 text-right"
+                      value={accepted[l.id] ?? ''}
+                      onChange={(e) => setAccepted({ ...accepted, [l.id]: e.target.value })}
+                    />
+                  </td>
+                  <td className="py-2 text-right">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={l.remainingQuantity}
+                      aria-label={`${t('procurement.receive.rejected')}: ${l.productName}`}
+                      aria-invalid={exceeding.has(l.id) || undefined}
+                      disabled={l.remainingQuantity === 0}
+                      className="ml-auto w-24 text-right"
+                      value={rejected[l.id] ?? ''}
+                      onChange={(e) => setRejected({ ...rejected, [l.id]: e.target.value })}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-right text-sm text-ink-secondary" aria-live="polite">
+            {t('procurement.receive.totals', { accepted: totalAccepted, rejected: totalRejected })}
+          </p>
+          {exceeding.size > 0 && <Alert variant="warning">{t('procurement.receive.exceeds')}</Alert>}
+          {receive.isError && <Alert variant="danger">{serverMessage(receive.error, t('common.error'))}</Alert>}
         </div>
-      </div>
-    </div>
+      </Modal>
+      <ConfirmDialog
+        open={confirming}
+        title={t('procurement.receive.confirmTitle')}
+        message={t('procurement.receive.confirmMessage', { accepted: totalAccepted, rejected: totalRejected })}
+        confirmLabel={t('procurement.receive.confirmAction')}
+        onConfirm={() => receive.mutate()}
+        onCancel={() => setConfirming(false)}
+      />
+    </>
   )
 }
 
@@ -68,8 +138,8 @@ export function PurchaseOrderDetailPage() {
     enabled: Boolean(id),
   })
 
-  if (isLoading) return <div className="text-gray-400">{t('common.loading')}</div>
-  if (!po) return <div className="text-gray-400">{t('purchaseOrders.notFound')}</div>
+  if (isLoading) return <Spinner label={t('common.loading')} />
+  if (!po) return <div className="text-ink-secondary">{t('purchaseOrders.notFound')}</div>
 
   const fmt = (n: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: po.currency || 'USD' }).format(n)
@@ -77,45 +147,53 @@ export function PurchaseOrderDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/orders/purchase" className="text-sm text-gray-500 hover:text-gray-700">
+        <Link to="/orders/purchase" className="text-sm text-ink-secondary hover:text-ink">
           {t('purchaseOrders.backToPurchaseOrders')}
         </Link>
         <h1 className="text-xl font-semibold">{po.poNumber}</h1>
         <StatusBadge status={po.status} />
         <div className="ml-auto flex gap-2">
           {hasPermission('purchase_order:receive') && /approved|ordered|partially/i.test(String(po.status).replace(/_/g, '')) && (
-            <button className="btn-primary" onClick={() => setReceiving(true)}>{t('procurement.receive.button')}</button>
+            <Button onClick={() => setReceiving(true)}>{t('procurement.receive.button')}</Button>
           )}
-          {hasPermission('supplier_invoice:read') && <Link className="btn-outline" to={`/purchasing/supplier-invoices?po=${po.id}`}>{t('procurement.links.invoices')}</Link>}
-          {hasPermission('vendor_return:read') && <Link className="btn-outline" to={`/purchasing/vendor-returns?po=${po.id}`}>{t('procurement.links.returns')}</Link>}
+          {hasPermission('supplier_invoice:read') && (
+            <Link className="inline-flex h-9 items-center rounded-md border border-line-strong bg-surface px-4 text-sm font-medium text-ink hover:bg-surface-muted" to={`/purchasing/supplier-invoices?po=${po.id}`}>
+              {t('procurement.links.invoices')}
+            </Link>
+          )}
+          {hasPermission('vendor_return:read') && (
+            <Link className="inline-flex h-9 items-center rounded-md border border-line-strong bg-surface px-4 text-sm font-medium text-ink hover:bg-surface-muted" to={`/purchasing/vendor-returns?po=${po.id}`}>
+              {t('procurement.links.returns')}
+            </Link>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-6">
         <div className="card p-5">
-          <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.orderInfo')}</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-secondary">{t('orders.orderInfo')}</h2>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <dt className="text-gray-500">{t('purchaseOrders.supplier')}</dt>
+              <dt className="text-ink-secondary">{t('purchaseOrders.supplier')}</dt>
               <dd className="font-medium">{po.supplier?.name ?? po.supplierId}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">{t('common.date')}</dt>
+              <dt className="text-ink-secondary">{t('common.date')}</dt>
               <dd>{format(new Date(po.orderDate), 'dd MMM yyyy HH:mm')}</dd>
             </div>
             {po.expectedDeliveryDate && (
               <div className="flex justify-between">
-                <dt className="text-gray-500">{t('purchaseOrders.expectedDelivery')}</dt>
+                <dt className="text-ink-secondary">{t('purchaseOrders.expectedDelivery')}</dt>
                 <dd>{format(new Date(po.expectedDeliveryDate), 'dd MMM yyyy')}</dd>
               </div>
             )}
             <div className="flex justify-between">
-              <dt className="text-gray-500">{t('orders.total')}</dt>
-              <dd className="font-semibold text-gray-900">{fmt(po.totalAmount)}</dd>
+              <dt className="text-ink-secondary">{t('orders.total')}</dt>
+              <dd className="font-semibold text-ink">{fmt(po.totalAmount)}</dd>
             </div>
             {po.notes && (
               <div className="flex justify-between gap-4">
-                <dt className="text-gray-500">{t('purchaseOrders.notes')}</dt>
+                <dt className="text-ink-secondary">{t('purchaseOrders.notes')}</dt>
                 <dd className="text-right">{po.notes}</dd>
               </div>
             )}
@@ -124,10 +202,10 @@ export function PurchaseOrderDetailPage() {
       </div>
 
       <div className="card p-5">
-        <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.lineItems')}</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-secondary">{t('orders.lineItems')}</h2>
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-100 text-left text-xs text-gray-400 uppercase">
+            <tr className="border-b border-line text-left text-xs uppercase text-ink-secondary">
               <th className="pb-2">{t('orders.product')}</th>
               <th className="pb-2 text-right">{t('orders.qty')}</th>
               <th className="pb-2 text-right">{t('purchaseOrders.received')}</th>
@@ -135,7 +213,7 @@ export function PurchaseOrderDetailPage() {
               <th className="pb-2 text-right">{t('orders.total')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-line">
             {po.items.map((line) => (
               <tr key={line.id}>
                 <td className="py-2">{line.productName}</td>
@@ -147,9 +225,9 @@ export function PurchaseOrderDetailPage() {
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t border-gray-200">
+            <tr className="border-t border-line-strong">
               <td colSpan={4} className="pt-3 text-right font-semibold">{t('orders.total')}</td>
-              <td className="pt-3 text-right font-semibold text-gray-900">{fmt(po.totalAmount)}</td>
+              <td className="pt-3 text-right font-semibold text-ink">{fmt(po.totalAmount)}</td>
             </tr>
           </tfoot>
         </table>
