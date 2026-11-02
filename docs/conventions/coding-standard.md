@@ -635,3 +635,17 @@ trim_trailing_whitespace = false
 
 **Last Updated**: 2026-06-13  
 **Version**: 1.0.0
+
+## Refusals are never server errors (2026-11-02, R99 / R100)
+
+| The request cannot be done because ... | Throw | HTTP |
+|---|---|---|
+| the state or a rule forbids it ("Bill is not in Pending status") | `BusinessRuleException(rule, message)` | 400 |
+| a code / name is taken | `DuplicateException(property, value)` | 409 |
+| the thing is not there | `EntityNotFoundException(name, id)` | 404 |
+| another user changed it first | `ConcurrencyException` | 409 |
+| it is our bug (null where a value is guaranteed, a broken invariant) | `InvalidOperationException` and friends | 500 |
+
+- Older code threw `InvalidOperationException` / `ArgumentException` for refusals (about 650 places). `GlobalExceptionMiddleware` answers one **thrown by our own assemblies (`ERP.*`)** as a 400 with its message; the same types raised by EF, the BCL or a library stay 500. This is a safety net, not a style: new code uses the exceptions above.
+- `RefusalExceptionTests` (Architecture tests) counts the old throws per file in `tests/unit/ERP.Architecture.Tests/RefusalBaseline.txt`; a count may only go **down** and a new file may not add one. After tidying a file run `node tests/unit/ERP.Architecture.Tests/regenerate-refusal-baseline.js`.
+- `UseSerilogRequestLogging()` is registered **before** `UseGlobalExceptionHandling()` (also tested): the request log then shows the status the client got.

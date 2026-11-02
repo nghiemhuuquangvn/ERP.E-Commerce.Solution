@@ -105,3 +105,6 @@ One shop = one tenant; users are staff of the shop; the Contact picker lists the
 
 ## Caching (2026-11-02, R84)
 Contact reads (the list and a contact by id) are **not cached**: they always come from the database on the caller's shop. The earlier 5-minute cache had no tenant in its key (another shop could be served the page) and was never evicted (a new contact missing from pickers for up to 5 minutes). See [SecurityReview-2026-10.md](../Identity/SecurityReview-2026-10.md).
+
+## Refusal answers (2026-11-02, R99)
+Actions that are not allowed in the current state are answered with HTTP 400 and the reason, not a server error: advancing an opportunity past Negotiation, closing an already closed opportunity or case, resolving a closed case, qualifying a lead in the wrong state or without a contact, completing or cancelling an activity in the wrong state. The Admin shows the reason in the dialog.

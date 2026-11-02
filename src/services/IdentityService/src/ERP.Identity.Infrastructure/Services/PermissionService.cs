@@ -28,7 +28,7 @@ public class PermissionService : IPermissionService
     {
         var existingPermission = await _unitOfWork.Permissions.ExistsAsync(request.PermissionCode, ct);
         if (existingPermission)
-            throw new InvalidOperationException($"Permission '{request.PermissionCode}' already exists");
+            throw new ERP.Shared.Infrastructure.Exceptions.DuplicateException("Permission code", request.PermissionCode);
 
         var permission = Permission.Create(request.PermissionCode, request.PermissionName, request.Module);
         await _unitOfWork.Permissions.AddAsync(permission, ct);

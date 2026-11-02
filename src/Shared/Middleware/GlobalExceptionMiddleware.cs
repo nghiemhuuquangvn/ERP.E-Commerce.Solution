@@ -98,9 +98,11 @@ namespace ERP.Shared.Middleware
         }
 
         /// <summary>
-        /// Deliberately does NOT map ArgumentException/InvalidOperationException — those are
-        /// used throughout the domain layer as genuine invariant guards (a real bug slipped
-        /// past validation), not as deliberate client-facing signals, and should stay 500.
+        /// An InvalidOperationException / ArgumentException thrown by <b>our own code</b> (the declaring assembly is an ERP.* one) is how the
+        /// services have always said "this cannot be done in this state" ("Bill is not in Pending status", "Role X already exists"): a business
+        /// refusal, HTTP 400 with its message (R99, 2026-11-02; new code should throw BusinessRuleException / DuplicateException /
+        /// EntityNotFoundException, a ratchet test keeps the number of the old throws from growing). The same exception types raised by the
+        /// framework or a library (EF "Sequence contains no elements", dependency injection, HttpClient ...) are real faults and stay 500.
         ///
         /// ExposeDetail controls whether ex.Message reaches the client at all. Most mapped
         /// exceptions carry a message that's safe/expected to show (e.g. "Product with ID X
@@ -123,8 +125,21 @@ namespace ERP.Shared.Middleware
             DuplicateException => (StatusCodes.Status409Conflict, Localize(localizer, "Title_Conflict", "Conflict."), true),
             ConcurrencyException => (StatusCodes.Status409Conflict, Localize(localizer, "Title_Conflict", "Conflict."), true),
             BusinessRuleException => (StatusCodes.Status400BadRequest, Localize(localizer, "Title_BusinessRuleViolation", "Business rule violation."), true),
+            _ when IsRefusalOfOurOwnCode(ex) => (StatusCodes.Status400BadRequest, Localize(localizer, "Title_BusinessRuleViolation", "Business rule violation."), true),
             _ => (StatusCodes.Status500InternalServerError, Localize(localizer, "Title_UnexpectedError", "An unexpected error occurred."), false)
         };
+
+        /// <summary>Public so the mapping can be tested; see <see cref="MapException"/>.</summary>
+        public static bool IsRefusalOfOurOwnCode(Exception ex)
+        {
+            if (ex is not InvalidOperationException && !(ex is ArgumentException && ex is not ArgumentNullException))
+                return false;
+            // Subclasses with their own meaning (ObjectDisposedException, ...) are framework faults.
+            if (ex.GetType() != typeof(InvalidOperationException) && ex.GetType() != typeof(ArgumentException))
+                return false;
+            var assembly = ex.TargetSite?.DeclaringType?.Assembly.GetName().Name;
+            return assembly != null && assembly.StartsWith("ERP.", StringComparison.Ordinal);
+        }
 
         private static string Localize(IStringLocalizer<SharedResource>? localizer, string key, string fallback) =>
             localizer?[key].Value ?? fallback;

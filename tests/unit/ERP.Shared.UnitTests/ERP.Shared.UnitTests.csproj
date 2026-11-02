@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\..\src\Shared\Authorization\ERP.Shared.Authorization.csproj" />
     <ProjectReference Include="..\..\..\src\Shared\Security\ERP.Shared.Security.csproj" />
     <ProjectReference Include="..\..\..\src\Shared\Infrastructure\Caching\ERP.Shared.Caching.csproj" />
+    <ProjectReference Include="..\..\..\src\Shared\Middleware\ERP.Shared.Middleware.csproj" />
   </ItemGroup>
 
 </Project>
