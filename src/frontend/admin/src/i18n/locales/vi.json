@@ -1,5 +1,6 @@
 {
   "common": {
+    "error": "Đã xảy ra lỗi. Vui lòng thử lại.",
     "required": "Bắt buộc",
     "noResults": "Không có kết quả",
     "noResultsHint": "Không có bản ghi nào khớp với bộ lọc đã chọn.",
@@ -357,6 +358,11 @@
     }
   },
   "purchaseOrders": {
+    "approveTitle": "Duyệt đơn mua hàng",
+    "approveConfirm": "Duyệt đơn {{number}}? Đơn chuyển sang bước tiếp theo và không sửa được nữa.",
+    "financeApproveTitle": "Tài chính duyệt",
+    "financeApproveConfirm": "Tài chính duyệt đơn {{number}}? Đơn được duyệt và chuyển tiếp cho nhà cung cấp.",
+    "noResults": "Không có đơn mua hàng nào ở trạng thái này.",
     "title": "Đơn hàng mua",
     "newPurchaseOrder": "+ Đơn mua mới",
     "poNumber": "Số PO",
@@ -1439,6 +1445,11 @@
       "returns": "Trả hàng"
     },
     "receive": {
+      "confirmAction": "Nhập vào kho",
+      "confirmTitle": "Ghi nhận nhập hàng",
+      "confirmMessage": "Nhập {{accepted}} đơn vị đạt vào kho ({{rejected}} bị loại)? Phiếu nhập không hoàn tác được.",
+      "exceeds": "Vượt quá số lượng còn lại.",
+      "totals": "Đạt {{accepted}} · loại {{rejected}}",
       "button": "Nhận hàng",
       "title": "Nhận hàng",
       "remaining": "Còn lại",
@@ -1454,6 +1465,19 @@
       "NotOnOrder": "Không có trong đơn"
     },
     "rfq": {
+      "empty": "Chưa có yêu cầu báo giá.",
+      "sendTitle": "Gửi cho nhà cung cấp",
+      "sendConfirm": "Gửi {{number}} cho các nhà cung cấp được mời? Các dòng hàng không sửa được nữa.",
+      "cancelTitle": "Hủy yêu cầu báo giá",
+      "cancelConfirm": "Hủy {{number}}? Yêu cầu bị đóng, các báo giá vẫn được giữ để tham khảo.",
+      "awardTitle": "Trao cho {{supplier}}",
+      "awardConfirm": "Tạo đơn mua nháp theo giá {{supplier}} đã báo và đóng yêu cầu báo giá.",
+      "declineTitle": "Đánh dấu từ chối",
+      "declineConfirm": "Ghi nhận {{supplier}} từ chối báo giá?",
+      "removeLine": "Xóa dòng {{n}}",
+      "linesRequired": "Thêm ít nhất một dòng có mã hàng.",
+      "priceFor": "Đơn giá: {{name}}",
+      "neededByPast": "Ngày không được ở quá khứ.",
       "listTitle": "Yêu cầu báo giá",
       "hint": "Hỏi giá nhiều nhà cung cấp, so sánh báo giá và chọn một: hệ thống tạo đơn mua nháp theo giá đã báo.",
       "add": "+ Yêu cầu báo giá mới",
@@ -1485,6 +1509,16 @@
       "award": "Chọn nhà cung cấp"
     },
     "invoice": {
+      "empty": "Chưa có hóa đơn nhà cung cấp.",
+      "reasonLabel": "Lý do",
+      "approveTitle": "Duyệt hóa đơn",
+      "approveConfirm": "Duyệt {{number}}? Công nợ được ghi sổ ở Kế toán và hóa đơn không đổi được nữa.",
+      "rejectTitle": "Từ chối hóa đơn",
+      "rejectConfirm": "Từ chối {{number}}? Nhà cung cấp phải gửi hóa đơn mới; không ghi sổ gì.",
+      "noOrders": "Chưa có đơn nào lập hóa đơn được.",
+      "linesRequired": "Thêm ít nhất một dòng hóa đơn.",
+      "lineQty": "Số lượng: {{code}}",
+      "linePrice": "Đơn giá: {{code}}",
       "listTitle": "Hóa đơn nhà cung cấp",
       "hint": "Ghi hóa đơn nhà cung cấp gửi: hệ thống đối chiếu với đơn mua, phiếu nhập và hàng trả. Chỉ hóa đơn được duyệt mới thành khoản phải trả.",
       "record": "+ Ghi hóa đơn",
@@ -1523,6 +1557,13 @@
       "verdict": "Kết quả"
     },
     "return": {
+      "shipTitle": "Xuất trả hàng",
+      "shipConfirm": "Xuất trả {{number}}? Hàng rời khỏi tồn kho ngay; giấy báo có của nhà cung cấp ghi nhận sau.",
+      "cancelTitle": "Hủy phiếu trả hàng",
+      "cancelConfirm": "Hủy phiếu {{number}}? Chưa xuất hàng nên tồn kho không đổi.",
+      "noQuantity": "Nhập số lượng cho ít nhất một dòng.",
+      "noOrders": "Chưa có đơn đã nhận hàng để trả.",
+      "empty": "Chưa có phiếu trả hàng.",
       "listTitle": "Trả hàng nhà cung cấp",
       "hint": "Hàng gửi trả nhà cung cấp. Khi gửi, kho xuất hàng; giấy báo có của nhà cung cấp làm giảm khoản phải trả.",
       "add": "+ Phiếu trả hàng",
@@ -1539,6 +1580,8 @@
       "creditAmount": "Số tiền được trừ"
     },
     "settings": {
+      "autoApproveHint": "Hóa đơn khớp được duyệt không cần người, đồng nghĩa ghi sổ công nợ.",
+      "percent": "Nhập số từ 0 đến 100.",
       "title": "Dung sai đối chiếu",
       "hint": "Hóa đơn được lệch bao nhiêu so với đơn mua và phiếu nhập trước khi bị giữ để người có quyền quyết định.",
       "quantityTolerance": "Dung sai số lượng (%)",

@@ -1,5 +1,6 @@
 {
   "common": {
+    "error": "Something went wrong. Please try again.",
     "required": "Required",
     "noResults": "No results",
     "noResultsHint": "No record matches the filters you chose.",
@@ -357,6 +358,11 @@
     }
   },
   "purchaseOrders": {
+    "approveTitle": "Approve purchase order",
+    "approveConfirm": "Approve {{number}}? It moves on to the next step and can no longer be edited.",
+    "financeApproveTitle": "Finance approval",
+    "financeApproveConfirm": "Give the finance approval for {{number}}? The order is approved and goes on to the supplier.",
+    "noResults": "No purchase order has this status.",
     "title": "Purchase Orders",
     "newPurchaseOrder": "+ New Purchase Order",
     "poNumber": "PO #",
@@ -1439,6 +1445,11 @@
       "returns": "Returns"
     },
     "receive": {
+      "confirmAction": "Receive into stock",
+      "confirmTitle": "Record receipt",
+      "confirmMessage": "Add {{accepted}} accepted unit(s) to stock ({{rejected}} rejected)? A receipt cannot be undone.",
+      "exceeds": "More than the remaining quantity.",
+      "totals": "Accepted {{accepted}} · rejected {{rejected}}",
       "button": "Receive goods",
       "title": "Receive goods",
       "remaining": "Remaining",
@@ -1454,6 +1465,19 @@
       "NotOnOrder": "Not on the order"
     },
     "rfq": {
+      "empty": "No request for quotation yet.",
+      "sendTitle": "Send to suppliers",
+      "sendConfirm": "Send {{number}} to the invited suppliers? The lines can no longer be edited.",
+      "cancelTitle": "Cancel RFQ",
+      "cancelConfirm": "Cancel {{number}}? The request is closed and the quotations are kept for reference.",
+      "awardTitle": "Award to {{supplier}}",
+      "awardConfirm": "A draft purchase order is created at {{supplier}}'s quoted prices and the RFQ is closed.",
+      "declineTitle": "Mark as declined",
+      "declineConfirm": "Record that {{supplier}} declined to quote?",
+      "removeLine": "Remove line {{n}}",
+      "linesRequired": "Add at least one line with a product code.",
+      "priceFor": "Unit price: {{name}}",
+      "neededByPast": "The date cannot be in the past.",
       "listTitle": "Requests for quotation",
       "hint": "Ask several suppliers for a price, compare their quotations and award one: a draft purchase order is created at the quoted prices.",
       "add": "+ New RFQ",
@@ -1485,6 +1509,16 @@
       "award": "Award"
     },
     "invoice": {
+      "empty": "No supplier invoice yet.",
+      "reasonLabel": "Reason",
+      "approveTitle": "Approve invoice",
+      "approveConfirm": "Approve {{number}}? The bill is booked in Accounting and the invoice is final.",
+      "rejectTitle": "Reject invoice",
+      "rejectConfirm": "Reject {{number}}? The supplier must send a new invoice; nothing is booked.",
+      "noOrders": "No order can be invoiced yet.",
+      "linesRequired": "Add at least one line to invoice.",
+      "lineQty": "Quantity: {{code}}",
+      "linePrice": "Price: {{code}}",
       "listTitle": "Supplier invoices",
       "hint": "Record what the supplier invoiced: it is matched against the order, the receipts and the returns. Only an approved invoice becomes a bill.",
       "record": "+ Record invoice",
@@ -1523,6 +1557,13 @@
       "verdict": "Result"
     },
     "return": {
+      "shipTitle": "Ship return",
+      "shipConfirm": "Ship {{number}}? The goods leave the warehouse stock now; the supplier's credit note is recorded later.",
+      "cancelTitle": "Cancel return",
+      "cancelConfirm": "Cancel {{number}}? Nothing has been shipped, so no stock changes.",
+      "noQuantity": "Enter a quantity for at least one line.",
+      "noOrders": "No received order to return goods from.",
+      "empty": "No returns yet.",
       "listTitle": "Returns to vendor",
       "hint": "Goods sent back to a supplier. Shipping takes them out of the stock; the supplier's credit note lowers what you owe.",
       "add": "+ New return",
@@ -1539,6 +1580,8 @@
       "creditAmount": "Credit amount"
     },
     "settings": {
+      "autoApproveHint": "Matched invoices are approved without a person, which books the bill.",
+      "percent": "Enter a number from 0 to 100.",
       "title": "Match settings",
       "hint": "How far an invoice may differ from the order and the receipts before it is held for a person to decide.",
       "quantityTolerance": "Quantity tolerance (%)",

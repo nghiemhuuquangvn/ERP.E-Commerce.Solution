@@ -107,3 +107,6 @@ Purchase requests now carry a quantity, the goods already on order and the produ
 
 ## 13. Stale documents
 `PurchaseOrder.md` §6 (no RFQ), `PurchasingWorkflow.md` (three-way match as a stateless call, bill from the order) and `Supplier.md` §5 are superseded by this document; each carries a pointer.
+
+## Admin screens (U3 batch 7, 2026-11-02)
+The Admin screens for RFQs, supplier invoices (three-way match), returns to vendor, match settings and the purchase order list / detail are analysed in [AdminBackOffice.md](AdminBackOffice.md) (state models, confirmations, acceptance criteria, UAT); Vietnamese user guide [../../user-guides/purchasing.md](../../user-guides/purchasing.md).
