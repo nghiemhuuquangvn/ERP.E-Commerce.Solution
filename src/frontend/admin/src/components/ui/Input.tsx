@@ -51,7 +51,7 @@ interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'typ
 /** A checkbox whose label is part of the click target (min 24 px hit area). */
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox({ label, className, ...rest }, ref) {
   return (
-    <label className={cx('inline-flex min-h-6 cursor-pointer items-center gap-2 text-sm text-ink', rest.disabled && 'cursor-not-allowed opacity-50', className)}>
+    <label className={cx('flex w-fit min-h-6 cursor-pointer items-center gap-2 text-sm text-ink', rest.disabled && 'cursor-not-allowed opacity-50', className)}>
       <input
         ref={ref}
         type="checkbox"

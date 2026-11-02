@@ -15,7 +15,7 @@ module.exports = {
         "ink": {
           "DEFAULT": "#111827",
           "secondary": "#4b5563",
-          "muted": "#6b7280"
+          "muted": "#616876"
         },
         "on-brand": "#ffffff",
         "brand": {

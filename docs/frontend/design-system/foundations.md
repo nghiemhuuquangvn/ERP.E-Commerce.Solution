@@ -14,7 +14,7 @@ All values are the **standard**. "Today" notes show where the code differs. Hex 
 | `border-strong` | `#6b7280` | borders of **controls** (input, select, checkbox) — needed for 3:1, see accessibility |
 | `text` | `#111827` | body text and headings |
 | `text-secondary` | `#4b5563` | helper text, secondary labels |
-| `text-muted` | `#6b7280` | timestamps, placeholders, disabled hints (min 14 px) |
+| `text-muted` | `#616876` | timestamps, placeholders, disabled hints (min 14 px); 5.09 on `surface-muted` (2026-11-02: darkened from #6b7280, which gave 4.39 there) |
 | `text-on-brand` | `#ffffff` | text on the brand action colour |
 | `overlay` | `rgba(17,24,39,.45)` | modal backdrop (Today: `bg-black/40`) |
 

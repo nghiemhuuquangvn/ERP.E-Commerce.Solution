@@ -8,7 +8,7 @@ export const colors = {
   "lineStrong": "#6b7280",
   "ink": "#111827",
   "inkSecondary": "#4b5563",
-  "inkMuted": "#6b7280",
+  "inkMuted": "#616876",
   "onBrand": "#ffffff",
   "success": "#15803d",
   "successSoft": "#dcfce7",

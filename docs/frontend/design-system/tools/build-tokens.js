@@ -163,6 +163,8 @@ const contrastRules = (theme) => {
     rule('ink-secondary on surface', h('ink-secondary'), h('surface'), 4.5),
     rule('ink-muted (placeholder) on surface', h('ink-muted'), h('surface'), 4.5),
     rule('ink-muted on page', h('ink-muted'), h('page'), 4.5),
+    rule('ink-muted on surface-muted', h('ink-muted'), h('surface-muted'), 4.5),
+    rule('ink-muted on brand-soft', h('ink-muted'), h('brand-soft'), 4.5),
     rule('line-strong (control border) on surface', h('line-strong'), h('surface'), 3),
     ...['success', 'warning', 'danger'].map((s) => rule(`on-brand on ${s}`, h('on-brand'), h(s), 4.5)),
     rule('on-brand on danger-hover', h('on-brand'), h('danger-hover'), 4.5),

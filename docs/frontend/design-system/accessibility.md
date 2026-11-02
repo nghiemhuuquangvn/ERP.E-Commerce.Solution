@@ -9,7 +9,7 @@ Text needs 4.5:1 (3:1 for ≥ 24 px or ≥ 19 px bold); boundaries of controls a
 |---|---|---|
 | `text` #111827 on white / on page #f9fafb | 17.74 / 16.98 | AAA |
 | `text-secondary` #4b5563 on white | 7.56 | AAA |
-| `text-muted` #6b7280 on white / on page | 4.83 / 4.63 | AA (min 14 px) |
+| `text-muted` #616876 on white / on page / on surface-muted | 5.60 / 5.36 / 5.09 | AA (min 14 px); the rule is checked by build-tokens for surface, page, surface-muted and brand-soft |
 | white on Back-office action **#0369a1** / hover #075985 | 5.93 / 7.56 | AA |
 | white on Back-office #0284c7 (**today's button**) | **4.10** | **fails AA for 14 px text → replaced** |
 | white on Back-office #0ea5e9 | 2.77 | fails — decoration only |
@@ -21,10 +21,10 @@ Text needs 4.5:1 (3:1 for ≥ 24 px or ≥ 19 px bold); boundaries of controls a
 | white on success #15803d / warning #b45309 / danger #dc2626 | 5.02 / 5.02 / 4.83 | AA |
 | soft texts: success #166534 on #dcfce7 / warning #92400e on #fef3c7 / danger #991b1b on #fee2e2 / info #075985 on #e0f2fe | 6.49 / 6.37 / 6.80 / 6.59 | AA |
 | Sidebar text #d1d5db on #111827 | 12.04 | AAA |
-| Placeholder **#9ca3af** on white (**today**) | **2.54** | **fails → placeholder uses `text-muted` #6b7280 (4.83)** |
+| Placeholder **#9ca3af** on white (**today**) | **2.54** | **fails → placeholder uses `text-muted` #616876 (5.60)** |
 | Control border **#d1d5db** on white (**today**) | **1.47** | **fails 3:1 → `border-strong` #6b7280 (4.83)** |
 
-Consequences adopted in [foundations.md](foundations.md): Back-office action is `#0369a1`; placeholders `#6b7280`; control borders `#6b7280`; small brand-coloured text on Customer soft backgrounds uses `#be123c`; `brand-accent` is decoration only. Decorative borders (cards, table rows) may stay `#e5e7eb`.
+Consequences adopted in [foundations.md](foundations.md): Back-office action is `#0369a1`; placeholders `#616876`; control borders `#6b7280`; small brand-coloured text on Customer soft backgrounds uses `#be123c`; `brand-accent` is decoration only. Decorative borders (cards, table rows) may stay `#e5e7eb`.
 
 ## 2. Rules (checklist for review)
 1. **Focus visible:** every interactive element shows the 2 px `brand-action` ring with 2 px offset; never `outline: none` without a replacement. Focus order = reading order; modals trap focus and return it.
