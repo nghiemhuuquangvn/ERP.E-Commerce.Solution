@@ -27,7 +27,7 @@ Mọi hộp thoại: con trỏ nằm sẵn ở ô đầu; ô có dấu **\*** đ
 
 ### 3.2 Khóa, mở khóa, vô hiệu hóa
 - **Khóa**: hộp xác nhận nói rõ người đó **bị đăng xuất khỏi mọi nơi ngay** và không đăng nhập được cho đến khi mở khóa. **Mở khóa** cho họ đăng nhập lại.
-- **Vô hiệu hóa**: người đó bị đăng xuất ngay và mất quyền truy cập đơn vị này. Máy chủ đã có thao tác **kích hoạt lại**; nút trên màn hình sẽ được thêm sau (xem mục 5).
+- **Vô hiệu hóa**: người đó bị đăng xuất ngay và mất quyền truy cập đơn vị này. Người bị vô hiệu hóa có nút **Kích hoạt lại** trên dòng của họ (cần quyền quản lý người dùng; không có ở dòng của chính bạn): hộp xác nhận nói họ đăng nhập lại được và vai trò giữ nguyên.
 - Trên **dòng của chính bạn** không có nút Khóa và Vô hiệu hóa, để bạn không tự đăng xuất mình. Máy chủ cũng từ chối việc đó.
 - **Hệ thống không cho cửa hàng tự khóa mình ra ngoài.** Quản trị viên là người đang hoạt động, không bị khóa và có vai trò kèm quyền *quản lý người dùng*. Máy chủ từ chối (lý do hiện trong thẻ đỏ) khi: bạn khóa / vô hiệu hóa chính mình; khóa, vô hiệu hóa hoặc gỡ vai trò của **quản trị viên cuối cùng**; xóa vai trò (hoặc gỡ quyền quản lý người dùng khỏi vai trò) mà mọi quản trị viên chỉ có nhờ vai trò đó; xóa vai trò mặc định **CUSTOMER / STAFF / USER**; vô hiệu hóa đơn vị nền tảng. Muốn đổi quản trị viên: cấp quyền cho người mới trước, rồi mới khóa người cũ.
 
@@ -48,6 +48,5 @@ Hộp thoại ghi lý do thật của máy chủ (ví dụ "Role code 'X' is res
 
 ## 5. Giới hạn đã biết
 - Mời một tài khoản đang thuộc đơn vị khác nay đã dùng được (trước đây báo lỗi máy chủ, R89). Người được mời vào danh sách người dùng của đơn vị với vai trò đã chọn.
-- Khi quản trị nền tảng chọn **đơn vị khác** ở ô Đơn vị, danh sách hiện người dùng của đơn vị đó nhưng sửa hồ sơ, khóa, vai trò trả lời "không tìm thấy người dùng" (R90).
-- Màn hình **chưa có nút kích hoạt lại** người dùng đã vô hiệu hóa (máy chủ đã có thao tác này, nút sẽ thêm ở một lần cập nhật giao diện).
+- Khi quản trị nền tảng chọn **đơn vị khác** ở ô Đơn vị, danh sách người dùng và vai trò của đơn vị đó **chỉ để xem**: có dòng thông báo màu xanh và không có nút thao tác nào (Mời, Thêm, Sửa, Khóa, Vô hiệu hóa, Kích hoạt lại, Quản lý vai trò). Muốn thay đổi hãy chọn **Đơn vị của tôi**.
 - Không tạo được tài khoản người dùng từ màn hình này (tài khoản do người dùng tự đăng ký hoặc đăng nhập bằng dịch vụ ngoài).

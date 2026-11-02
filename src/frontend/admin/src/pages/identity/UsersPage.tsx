@@ -236,7 +236,7 @@ export function UsersPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const authUser = useAuthStore((s) => s.user)
-  const { page, pageSize, setPage } = usePagination()
+  const { page, pageSize, setPage, reset } = usePagination()
   const queryClient = useQueryClient()
   const toast = useToast()
 
@@ -251,6 +251,7 @@ export function UsersPage() {
   const [inviteOpen, setInviteOpen] = useState(false)
   const [lockTarget, setLockTarget] = useState<UserDetail | null>(null)
   const [deactivateTarget, setDeactivateTarget] = useState<UserDetail | null>(null)
+  const [activateTarget, setActivateTarget] = useState<UserDetail | null>(null)
 
   const { data: tenants } = useQuery({
     queryKey: ['identity', 'tenants'],
@@ -260,6 +261,8 @@ export function UsersPage() {
   })
 
   const effectiveTenantId = canViewTenants && selectedTenantId ? selectedTenantId : authUser?.tenantId ?? ''
+  // R90: every action takes the caller's own tenant; another tenant's users can be read here, not changed.
+  const viewingOther = canViewTenants && !!selectedTenantId && selectedTenantId !== authUser?.tenantId
 
   const { data, isLoading } = useQuery({
     queryKey: ['identity', 'users', { tenantId: effectiveTenantId, page, pageSize }],
@@ -291,6 +294,19 @@ export function UsersPage() {
     },
     onError: (e) => {
       setDeactivateTarget(null)
+      toast.error(serverMessage(e, t('common.failedToSave')))
+    },
+  })
+
+  const activateMutation = useMutation({
+    mutationFn: (u: UserDetail) => usersApi.activate(u.id),
+    onSuccess: () => {
+      invalidate()
+      toast.success(t('common.saved'))
+      setActivateTarget(null)
+    },
+    onError: (e) => {
+      setActivateTarget(null)
       toast.error(serverMessage(e, t('common.failedToSave')))
     },
   })
@@ -327,6 +343,7 @@ export function UsersPage() {
         key: 'actions',
         label: '',
         render: (u: UserDetail) => {
+          if (viewingOther) return null
           // Locking or deactivating the account you are signed in with would end your own session: not offered on your own row.
           const isSelf = u.id === authUser?.id
           return (
@@ -361,6 +378,16 @@ export function UsersPage() {
                   {u.isLocked ? t('identity.users.unlock') : t('identity.users.lock')}
                 </Button>
               )}
+              {canManage && !u.isActive && !isSelf && (
+                <Button
+                  variant="link"
+                  className="text-xs"
+                  aria-label={`${t('identity.users.activate')} ${u.email}`}
+                  onClick={() => setActivateTarget(u)}
+                >
+                  {t('identity.users.activate')}
+                </Button>
+              )}
               {canDelete && u.isActive && !isSelf && (
                 <Button
                   variant="link-danger"
@@ -376,19 +403,19 @@ export function UsersPage() {
         },
       },
     ],
-    [canManage, canEdit, canDelete, authUser?.id, t],
+    [canManage, canEdit, canDelete, authUser?.id, viewingOther, t],
   )
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('identity.users.title')}</h1>
-        {canManage && <Button onClick={() => setInviteOpen(true)}>{t('identity.users.invite')}</Button>}
+        {canManage && !viewingOther && <Button onClick={() => setInviteOpen(true)}>{t('identity.users.invite')}</Button>}
       </div>
 
       {canViewTenants && (
         <FormField label={t('identity.users.tenant')} className="max-w-xs">
-          <Select value={selectedTenantId} onChange={(e) => setSelectedTenantId(e.target.value)}>
+          <Select value={selectedTenantId} onChange={(e) => { setSelectedTenantId(e.target.value); reset() }}>
             <option value="">{t('identity.users.myTenant')}</option>
             {(tenants ?? []).map((tn) => (
               <option key={tn.id} value={tn.id}>
@@ -398,6 +425,8 @@ export function UsersPage() {
           </Select>
         </FormField>
       )}
+
+      {viewingOther && <Alert variant="info">{t('identity.users.otherTenantNotice')}</Alert>}
 
       <DataTable
         columns={columns}
@@ -429,6 +458,15 @@ export function UsersPage() {
         danger={!lockTarget?.isLocked}
         onConfirm={() => lockTarget && lockMutation.mutate(lockTarget)}
         onCancel={() => setLockTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={!!activateTarget}
+        title={t('identity.users.activateTitle')}
+        message={t('identity.users.activateConfirm', { email: activateTarget?.email })}
+        confirmLabel={t('identity.users.activate')}
+        onConfirm={() => activateTarget && !activateMutation.isPending && activateMutation.mutate(activateTarget)}
+        onCancel={() => setActivateTarget(null)}
       />
 
       <ConfirmDialog

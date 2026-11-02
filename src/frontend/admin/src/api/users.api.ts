@@ -93,6 +93,10 @@ export const usersApi = {
   deactivate: (id: string) =>
     apiClient.delete<MessageResponse>(`${USERS_BASE}/${id}`).then((r) => r.data),
 
+  /** Brings a deactivated member of the caller's tenant back (R91). */
+  activate: (id: string) =>
+    apiClient.post<MessageResponse>(`${USERS_BASE}/${id}/activate`).then((r) => r.data),
+
   assignRole: (id: string, roleCode: string) =>
     apiClient
       .post<MessageResponse>(`${USERS_BASE}/${id}/roles`, { userId: id, roleCode } as AssignRoleRequest)
