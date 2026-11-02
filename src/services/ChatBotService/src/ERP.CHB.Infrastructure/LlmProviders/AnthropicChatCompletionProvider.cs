@@ -29,7 +29,7 @@ public class AnthropicChatCompletionProvider : IChatCompletionProvider
         _httpClient = httpClient;
         _logger = logger;
         _apiKey = configuration["Anthropic:ApiKey"]
-            ?? throw new InvalidOperationException("Anthropic:ApiKey is not configured.");
+            ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Anthropic:ApiKey is not configured.");
         _maxTokens = configuration.GetValue("Anthropic:MaxTokens", 1024);
     }
 

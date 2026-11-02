@@ -344,6 +344,7 @@ if (app.Environment.IsDevelopment())
 // sees the real client IP — see the ForwardedHeadersOptions comment above.
 app.UseForwardedHeaders();
 
+app.UseErpRequestLogging();
 app.UseGlobalExceptionHandling();
 
 app.UseHttpsRedirection();

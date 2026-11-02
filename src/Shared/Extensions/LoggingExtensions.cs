@@ -1,5 +1,6 @@
 using ERP.Shared.Observability;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -24,6 +25,26 @@ public static class LoggingExtensions
     /// logs several Information-level lines per request that aren't useful once shipped to
     /// LoggingService (they duplicate the single "HTTP ... responded ..." request-log line).
     /// </param>
+    /// <summary>
+    /// One request-log line per request ("HTTP GET /x responded 400 in 12 ms"). Register it immediately <b>before</b>
+    /// <c>UseGlobalExceptionHandling()</c> so the line carries the status the handler wrote (R100). Levels: a 5xx or an
+    /// unhandled exception is Error, the container health probe is Verbose (polled every few seconds, no value in the
+    /// central log store), everything else Information (R101).
+    /// </summary>
+    public static WebApplication UseErpRequestLogging(this WebApplication app)
+    {
+        app.UseSerilogRequestLogging(options => options.GetLevel = RequestLogLevel);
+        return app;
+    }
+
+    /// <summary>Public so the policy can be tested; see <see cref="UseErpRequestLogging"/>.</summary>
+    public static LogEventLevel RequestLogLevel(HttpContext context, double elapsedMs, Exception? ex)
+    {
+        if (ex != null || context.Response.StatusCode >= 500) return LogEventLevel.Error;
+        if (context.Request.Path.StartsWithSegments("/health")) return LogEventLevel.Verbose;
+        return LogEventLevel.Information;
+    }
+
     public static WebApplicationBuilder AddSerilogLogging(
         this WebApplicationBuilder builder,
         string serviceName,

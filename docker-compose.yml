@@ -859,6 +859,8 @@ services:
       Gateway__BaseUrl: "http://gateway:5000"
       Anthropic__ApiKey: "${ANTHROPIC_API_KEY}"
       OpenAi__ApiKey: "${OPENAI_API_KEY}"
+      # Service logs are shipped to LoggingService over Kafka (R101: ChatBot now has the shared Serilog host).
+      KafkaSettings__BootstrapServers: kafka:9092
       ChatBotSettings__StorefrontModel: "claude-haiku-4-5"
       ChatBotSettings__AdminModel: "claude-sonnet-5"
       ChatBotSettings__FreeModel: "gpt-4o-mini"

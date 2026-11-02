@@ -20,6 +20,7 @@ using Microsoft.EntityFrameworkCore;
 using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddSerilogLogging("ShippingService");
 
 builder.Services.AddDbContext<ShippingDbContext>(options =>
     options.UseSqlServer(
@@ -102,6 +103,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseErpRequestLogging();
 app.UseGlobalExceptionHandling();
 
 // API documentation is for developers only: never expose the endpoint list in Production.

@@ -645,7 +645,9 @@ trim_trailing_whitespace = false
 | the thing is not there | `EntityNotFoundException(name, id)` | 404 |
 | another user changed it first | `ConcurrencyException` | 409 |
 | it is our bug (null where a value is guaranteed, a broken invariant) | `InvalidOperationException` and friends | 500 |
+| the deployment is incomplete (a configuration value, key or wiring is missing) | `ServiceMisconfiguredException(message)` | 500, generic text; the key name stays in the log (R101) |
 
 - Older code threw `InvalidOperationException` / `ArgumentException` for refusals (about 650 places). `GlobalExceptionMiddleware` answers one **thrown by our own assemblies (`ERP.*`)** as a 400 with its message; the same types raised by EF, the BCL or a library stay 500. This is a safety net, not a style: new code uses the exceptions above.
 - `RefusalExceptionTests` (Architecture tests) counts the old throws per file in `tests/unit/ERP.Architecture.Tests/RefusalBaseline.txt`; a count may only go **down** and a new file may not add one. After tidying a file run `node tests/unit/ERP.Architecture.Tests/regenerate-refusal-baseline.js`.
-- `UseSerilogRequestLogging()` is registered **before** `UseGlobalExceptionHandling()` (also tested): the request log then shows the status the client got.
+- Every service writes a request log: `app.UseErpRequestLogging()` (or `UseSerilogRequestLogging()`) **before** `UseGlobalExceptionHandling()` - tested for every service `Program.cs`, so the log shows the status the client got and a new service cannot ship without one. Level: 5xx Error, `/health` Verbose (not logged), otherwise Information. A service that has no Serilog host calls `builder.AddSerilogLogging("<Name>")` (console + file + Kafka `system-logs-topic`; set `KafkaSettings__BootstrapServers` in its compose / k8s environment).
+- A missing configuration value is never a plain `InvalidOperationException` (the central rule would show it to the client as a 400): throw `ServiceMisconfiguredException`. `ConfigurationFaultsAreNotRefusals` fails the build on a `throw new InvalidOperationException("...onfigur...")` under `src/services` or `src/Shared`.

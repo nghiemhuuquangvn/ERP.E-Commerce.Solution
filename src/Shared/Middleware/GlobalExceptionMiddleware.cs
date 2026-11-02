@@ -125,6 +125,8 @@ namespace ERP.Shared.Middleware
             DuplicateException => (StatusCodes.Status409Conflict, Localize(localizer, "Title_Conflict", "Conflict."), true),
             ConcurrencyException => (StatusCodes.Status409Conflict, Localize(localizer, "Title_Conflict", "Conflict."), true),
             BusinessRuleException => (StatusCodes.Status400BadRequest, Localize(localizer, "Title_BusinessRuleViolation", "Business rule violation."), true),
+            // A deployment fault (missing configuration), not a refusal: 500, the key name stays in the log (R101).
+            ServiceMisconfiguredException => (StatusCodes.Status500InternalServerError, Localize(localizer, "Title_UnexpectedError", "An unexpected error occurred."), false),
             _ when IsRefusalOfOurOwnCode(ex) => (StatusCodes.Status400BadRequest, Localize(localizer, "Title_BusinessRuleViolation", "Business rule violation."), true),
             _ => (StatusCodes.Status500InternalServerError, Localize(localizer, "Title_UnexpectedError", "An unexpected error occurred."), false)
         };

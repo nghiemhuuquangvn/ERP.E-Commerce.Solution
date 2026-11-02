@@ -22,6 +22,7 @@ using Confluent.Kafka;
 using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddSerilogLogging("PurchaseOrderService");
 
 builder.Services.AddControllers();
 builder.Services.AddErpApiVersioning();
@@ -107,6 +108,7 @@ builder.Services.AddHostedService<OutboxProcessor>();
 
 var app = builder.Build();
 
+app.UseErpRequestLogging();
 app.UseGlobalExceptionHandling();
 
 // API documentation is for developers only: never expose the endpoint list in Production.

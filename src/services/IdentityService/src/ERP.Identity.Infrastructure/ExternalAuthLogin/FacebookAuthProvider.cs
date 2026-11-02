@@ -28,9 +28,9 @@ namespace ERP.Identity.Infrastructure.ExternalAuthLogin
         public async Task<ExternalLoginResponse> VerifyAsync(ExternalLoginRequest request, CancellationToken cancellationToken = default)
         {
             var appId = _configuration["Authentication:Facebook:AppId"]
-                ?? throw new InvalidOperationException("Authentication:Facebook:AppId configuration is missing.");
+                ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Authentication:Facebook:AppId configuration is missing.");
             var appSecret = _configuration["Authentication:Facebook:AppSecret"]
-                ?? throw new InvalidOperationException("Authentication:Facebook:AppSecret configuration is missing.");
+                ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Authentication:Facebook:AppSecret configuration is missing.");
 
             var client = _httpClientFactory.CreateClient();
 

@@ -2,6 +2,9 @@
 
 Business analysis of the **System logs** screen as shipped on 2026-11-02 (ROADMAP P2-9, U3 batch 8). The log pipeline (Serilog Kafka sink → LoggingService → Elasticsearch `service-logs*`, anonymous `POST logs/client` for frontend apps) is in the Logging Service section of CLAUDE.md. Vietnamese user guide: [docs/user-guides/payments-shipping-sales-logs.md](../../user-guides/payments-shipping-sales-logs.md).
 
+## 0. Which services write here (R101, 2026-11-02)
+Every backend service writes one **request line** per HTTP request ("HTTP GET /x responded 400 in 12 ms") through the shared `UseErpRequestLogging()` and ships its logs to Kafka `system-logs-topic` with `AddSerilogLogging` (or the equivalent host setup). The line is written outside the exception handler, so it carries the status the client received. Levels: 5xx **Error**, the container `/health` probe is not logged, everything else **Information**. Before R101 Identity, Product, Payment, Shipping, POS, Promotion, Notification, ChatBot, Reporting, Sales and Purchasing wrote no request line (nine of them did not ship logs at all).
+
 ## 1. Purpose and scope
 Let a **platform administrator** search what every service and frontend app logged and read one entry in full (message, exception, stack trace, properties). Read-only. Out of scope: export, saved searches, live tail, tenant-level logs.
 

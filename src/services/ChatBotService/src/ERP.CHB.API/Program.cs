@@ -12,6 +12,7 @@ using MediatR;
 using ERP.Shared.Authorization.ServiceAuth;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddSerilogLogging("ChatBotService");
 
 builder.Services.AddChatBotInfrastructure(builder.Configuration);
 
@@ -102,6 +103,7 @@ var app = builder.Build();
 // made a real bug here ("Conversation.IsDeleted" mapped by convention with no matching
 // column in 001_CreateChatBotDB.sql) show up client-side as an unexplained
 // "Request failed with status code 500" instead of a diagnosable error.
+app.UseErpRequestLogging();
 app.UseGlobalExceptionHandling();
 
 // API documentation is for developers only: never expose the endpoint list in Production.
