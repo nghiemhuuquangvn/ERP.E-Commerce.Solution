@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Checkbox, FormField, Input, useToast } from '@/components/ui'
 import {
   emailSettingsApi,
   type SystemEmailSettings,
   type TenantEmailSettings,
 } from '@/api/settings/email.settings.api'
 import { usePermission } from '@/hooks/usePermission'
+import { TabList } from '@/components/shared/PageTabs'
+import { serverMessage } from '@/lib/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
 
 type Tab = 'system' | 'tenant'
@@ -19,6 +22,7 @@ interface SystemFormValues {
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'email', 'system'],
@@ -38,6 +42,7 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     mutationFn: (values: SystemFormValues) => emailSettingsApi.updateSystemSettings(values),
     onSuccess: (result: SystemEmailSettings) => {
       queryClient.setQueryData(['settings', 'email', 'system'], result)
+      toast.success(t('common.saved'))
     },
   })
 
@@ -45,18 +50,13 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input type="checkbox" disabled={!canManage} {...register('customSmtpAllowed')} />
-        {t('settings.email.customSmtpAllowed')}
-      </label>
+      <Checkbox disabled={!canManage} {...register('customSmtpAllowed')} label={t('settings.email.customSmtpAllowed')} />
 
-      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.email.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.email.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -75,6 +75,7 @@ interface TenantFormValues {
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'email', 'tenant', tenantId],
@@ -120,6 +121,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       }),
     onSuccess: (result: TenantEmailSettings) => {
       queryClient.setQueryData(['settings', 'email', 'tenant', tenantId], result)
+      toast.success(t('common.saved'))
     },
   })
 
@@ -128,51 +130,40 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.email.smtpHost')}
-        <input type="text" disabled={!canManage} {...register('smtpHost')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.email.smtpPort')}
-        <input
+      <FormField label={t('settings.email.smtpHost')}>
+        <Input type="text" disabled={!canManage} {...register('smtpHost')} />
+      </FormField>
+      <FormField label={t('settings.email.smtpPort')}>
+        <Input
           type="number"
           disabled={!canManage}
           {...register('smtpPort', { valueAsNumber: true })}
-          className="input mt-1 w-full"
-        />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.email.smtpUsername')}
-        <input type="text" disabled={!canManage} {...register('smtpUsername')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.email.smtpPassword')}
-        <input
+ />
+      </FormField>
+      <FormField label={t('settings.email.smtpUsername')}>
+        <Input type="text" disabled={!canManage} {...register('smtpUsername')} />
+      </FormField>
+      <FormField label={t('settings.email.smtpPassword')} hint={t('settings.email.passwordHint')}>
+        <Input
           type="password"
           disabled={!canManage}
           placeholder={data?.hasSmtpPassword ? t('settings.email.passwordPlaceholderSet') : t('settings.email.passwordPlaceholderUnset')}
           autoComplete="new-password"
           {...register('smtpPassword')}
-          className="input mt-1 w-full"
-        />
-        <span className="text-xs text-ink-muted">{t('settings.email.passwordHint')}</span>
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.email.fromAddress')}
-        <input type="email" disabled={!canManage} {...register('fromAddress')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.email.fromName')}
-        <input type="text" disabled={!canManage} {...register('fromName')} className="input mt-1 w-full" />
-      </label>
+ />
+      </FormField>
+      <FormField label={t('settings.email.fromAddress')}>
+        <Input type="email" disabled={!canManage} {...register('fromAddress')} />
+      </FormField>
+      <FormField label={t('settings.email.fromName')}>
+        <Input type="text" disabled={!canManage} {...register('fromName')} />
+      </FormField>
 
-      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.email.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.email.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -199,21 +190,7 @@ export function EmailSettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.email.title')}</h1>
 
-      <div className="flex gap-2 border-b border-line">
-        {TABS.map((x) => (
-          <button
-            key={x.key}
-            onClick={() => setTab(x.key)}
-            className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key
-                ? 'border-b-2 border-brand-action text-brand-action'
-                : 'text-ink-muted hover:text-ink'
-            }`}
-          >
-            {x.label}
-          </button>
-        ))}
-      </div>
+      <TabList id="emailsettings" label={t('settings.email.title')} tabs={TABS} current={tab} onSelect={setTab} />
 
       {tab === 'system' && canViewSystem && <SystemSettingsForm canManage={canManageSystem} />}
       {tab === 'tenant' && (

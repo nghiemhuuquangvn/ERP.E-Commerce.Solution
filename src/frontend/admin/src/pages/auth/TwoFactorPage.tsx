@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, FormField, Input } from '@/components/ui'
 import { useVerifyTwoFactor, useResendTwoFactor } from '@/hooks/useAuth'
 
 const RESEND_COOLDOWN_SECONDS = 60
@@ -47,7 +48,7 @@ export function TwoFactorPage() {
   const resendErrors = resend.data && !resend.data.succeeded ? resend.data.errors : null
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-muted">
+    <div className="flex min-h-screen items-center justify-center bg-page">
       <div className="card w-full max-w-sm p-8">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-brand-action">{t('auth.twoFactor.title')}</h1>
@@ -57,50 +58,45 @@ export function TwoFactorPage() {
         </div>
 
         {(verify.isError || verifyErrors) && (
-          <div className="mb-4 rounded-md bg-danger-soft p-3 text-sm text-danger-soft-text">
-            {verifyErrors?.join(', ') || t('auth.twoFactor.verifyFailed')}
-          </div>
+          <Alert variant="danger" className="mb-4">{verifyErrors?.join(', ') || t('auth.twoFactor.verifyFailed')}</Alert>
         )}
 
         {(resend.isError || resendErrors) && (
-          <div className="mb-4 rounded-md bg-danger-soft p-3 text-sm text-danger-soft-text">
-            {resendErrors?.join(', ') || t('auth.twoFactor.resendFailed')}
-          </div>
+          <Alert variant="danger" className="mb-4">{resendErrors?.join(', ') || t('auth.twoFactor.resendFailed')}</Alert>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink-secondary">
-              {t('auth.twoFactor.code')}
-            </label>
-            <input
+          <FormField label={t('auth.twoFactor.code')} required>
+            <Input
               type="text"
               inputMode="numeric"
               pattern="[0-9]*"
               maxLength={6}
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              className="input tracking-widest text-center text-lg"
+              className="text-center text-lg tracking-widest"
+              autoComplete="one-time-code"
               placeholder="000000"
               autoFocus
               required
             />
-          </div>
-          <button type="submit" disabled={verify.isPending} className="btn-primary w-full">
+          </FormField>
+          <Button type="submit" fullWidth loading={verify.isPending}>
             {verify.isPending ? t('auth.twoFactor.verifying') : t('auth.twoFactor.verify')}
-          </button>
+          </Button>
         </form>
 
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          fullWidth
+          className="mt-4"
           onClick={handleResend}
           disabled={resend.isPending || cooldownRemaining > 0}
-          className="btn-outline mt-4 w-full"
         >
           {cooldownRemaining > 0
             ? t('auth.twoFactor.resendCooldown', { seconds: cooldownRemaining })
             : t('auth.twoFactor.resend')}
-        </button>
+        </Button>
       </div>
     </div>
   )

@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Checkbox, FormField, Input, useToast } from '@/components/ui'
 import {
   cartCheckoutSettingsApi,
   type SystemCartCheckoutSettings,
   type TenantCartCheckoutSettings,
 } from '@/api/settings/cartCheckout.settings.api'
 import { usePermission } from '@/hooks/usePermission'
+import { TabList } from '@/components/shared/PageTabs'
+import { serverMessage } from '@/lib/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
 
 type Tab = 'system' | 'tenant'
@@ -19,6 +22,7 @@ interface SystemFormValues {
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'cart-checkout', 'system'],
@@ -38,6 +42,7 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     mutationFn: (values: SystemFormValues) => cartCheckoutSettingsApi.updateSystemSettings(values),
     onSuccess: (result: SystemCartCheckoutSettings) => {
       queryClient.setQueryData(['settings', 'cart-checkout', 'system'], result)
+      toast.success(t('common.saved'))
     },
   })
 
@@ -45,18 +50,13 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input type="checkbox" disabled={!canManage} {...register('guestCheckoutAllowed')} />
-        {t('settings.cartCheckout.guestCheckoutAllowed')}
-      </label>
+      <Checkbox disabled={!canManage} {...register('guestCheckoutAllowed')} label={t('settings.cartCheckout.guestCheckoutAllowed')} />
 
-      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.cartCheckout.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.cartCheckout.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -72,6 +72,7 @@ interface TenantFormValues {
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'cart-checkout', 'tenant', tenantId],
@@ -97,6 +98,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       }),
     onSuccess: (result: TenantCartCheckoutSettings) => {
       queryClient.setQueryData(['settings', 'cart-checkout', 'tenant', tenantId], result)
+      toast.success(t('common.saved'))
     },
   })
 
@@ -105,36 +107,27 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.cartCheckout.cartHoldMinutes')}
-        <input
+      <FormField label={t('settings.cartCheckout.cartHoldMinutes')}>
+        <Input
           type="number"
           disabled={!canManage}
           {...register('cartHoldMinutes', { valueAsNumber: true })}
-          className="input mt-1 w-full"
-        />
-      </label>
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input type="checkbox" disabled={!canManage} {...register('requireRegistrationAtCheckout')} />
-        {t('settings.cartCheckout.requireRegistrationAtCheckout')}
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.cartCheckout.checkoutSteps')}
-        <input
+ />
+      </FormField>
+      <Checkbox disabled={!canManage} {...register('requireRegistrationAtCheckout')} label={t('settings.cartCheckout.requireRegistrationAtCheckout')} />
+      <FormField label={t('settings.cartCheckout.checkoutSteps')}>
+        <Input
           type="number"
           disabled={!canManage}
           {...register('checkoutSteps', { valueAsNumber: true })}
-          className="input mt-1 w-full"
-        />
-      </label>
+ />
+      </FormField>
 
-      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.cartCheckout.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.cartCheckout.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -161,21 +154,7 @@ export function CartCheckoutSettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.cartCheckout.title')}</h1>
 
-      <div className="flex gap-2 border-b border-line">
-        {TABS.map((x) => (
-          <button
-            key={x.key}
-            onClick={() => setTab(x.key)}
-            className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key
-                ? 'border-b-2 border-brand-action text-brand-action'
-                : 'text-ink-muted hover:text-ink'
-            }`}
-          >
-            {x.label}
-          </button>
-        ))}
-      </div>
+      <TabList id="cartcheckoutsettings" label={t('settings.cartCheckout.title')} tabs={TABS} current={tab} onSelect={setTab} />
 
       {tab === 'system' && canViewSystem && <SystemSettingsForm canManage={canManageSystem} />}
       {tab === 'tenant' && (

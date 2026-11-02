@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Checkbox, FormField, Input, useToast } from '@/components/ui'
 import {
   orderSettingsApi,
   type SystemOrderSettings,
   type TenantOrderSettings,
 } from '@/api/settings/order.settings.api'
 import { usePermission } from '@/hooks/usePermission'
+import { TabList } from '@/components/shared/PageTabs'
+import { serverMessage } from '@/lib/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
 
 type Tab = 'system' | 'tenant'
@@ -19,6 +22,7 @@ interface SystemFormValues {
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'order', 'system'],
@@ -38,6 +42,7 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     mutationFn: (values: SystemFormValues) => orderSettingsApi.updateSystemSettings(values),
     onSuccess: (result: SystemOrderSettings) => {
       queryClient.setQueryData(['settings', 'order', 'system'], result)
+      toast.success(t('common.saved'))
     },
   })
 
@@ -45,18 +50,13 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input type="checkbox" disabled={!canManage} {...register('customOrderNumberFormatAllowed')} />
-        {t('settings.order.customOrderNumberFormatAllowed')}
-      </label>
+      <Checkbox disabled={!canManage} {...register('customOrderNumberFormatAllowed')} label={t('settings.order.customOrderNumberFormatAllowed')} />
 
-      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.order.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.order.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -72,6 +72,7 @@ interface TenantFormValues {
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'order', 'tenant', tenantId],
@@ -97,6 +98,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       }),
     onSuccess: (result: TenantOrderSettings) => {
       queryClient.setQueryData(['settings', 'order', 'tenant', tenantId], result)
+      toast.success(t('common.saved'))
     },
   })
 
@@ -105,31 +107,23 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.order.orderNumberPrefix')}
-        <input type="text" disabled={!canManage} {...register('orderNumberPrefix')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.order.autoCancelUnpaidAfterHours')}
-        <input
+      <FormField label={t('settings.order.orderNumberPrefix')}>
+        <Input type="text" disabled={!canManage} {...register('orderNumberPrefix')} />
+      </FormField>
+      <FormField label={t('settings.order.autoCancelUnpaidAfterHours')}>
+        <Input
           type="number"
           disabled={!canManage}
           {...register('autoCancelUnpaidAfterHours', { valueAsNumber: true })}
-          className="input mt-1 w-full"
-        />
-      </label>
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input type="checkbox" disabled={!canManage} {...register('allowEditAfterSubmit')} />
-        {t('settings.order.allowEditAfterSubmit')}
-      </label>
+ />
+      </FormField>
+      <Checkbox disabled={!canManage} {...register('allowEditAfterSubmit')} label={t('settings.order.allowEditAfterSubmit')} />
 
-      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.order.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.order.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -156,21 +150,7 @@ export function OrderSettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.order.title')}</h1>
 
-      <div className="flex gap-2 border-b border-line">
-        {TABS.map((x) => (
-          <button
-            key={x.key}
-            onClick={() => setTab(x.key)}
-            className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key
-                ? 'border-b-2 border-brand-action text-brand-action'
-                : 'text-ink-muted hover:text-ink'
-            }`}
-          >
-            {x.label}
-          </button>
-        ))}
-      </div>
+      <TabList id="ordersettings" label={t('settings.order.title')} tabs={TABS} current={tab} onSelect={setTab} />
 
       {tab === 'system' && canViewSystem && <SystemSettingsForm canManage={canManageSystem} />}
       {tab === 'tenant' && (

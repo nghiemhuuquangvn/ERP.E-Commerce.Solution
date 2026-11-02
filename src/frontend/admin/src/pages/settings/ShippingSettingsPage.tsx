@@ -2,14 +2,16 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Checkbox, FormField, Input, useToast } from '@/components/ui'
 import {
   shippingSettingsApi,
   type SystemShippingSettings,
   type TenantShippingSettings,
 } from '@/api/settings/shipping.settings.api'
 import { usePermission } from '@/hooks/usePermission'
+import { TabList } from '@/components/shared/PageTabs'
+import { serverMessage } from '@/lib/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
-import { serverMessage } from '@/api/purchasing/procurement.api'
 import { ShippingCarriersCard } from './ShippingCarriersCard'
 import { CarrierRulesCard } from './CarrierRulesCard'
 import { ShippingFeeRulesCard } from './ShippingFeeRulesCard'
@@ -21,6 +23,7 @@ type SystemFormValues = SystemShippingSettings
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'shipping', 'system'],
@@ -40,6 +43,7 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     mutationFn: (values: SystemFormValues) => shippingSettingsApi.updateSystemSettings(values),
     onSuccess: (result: SystemShippingSettings) => {
       queryClient.setQueryData(['settings', 'shipping', 'system'], result)
+      toast.success(t('common.saved'))
     },
   })
 
@@ -47,34 +51,21 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input type="checkbox" disabled={!canManage} {...register('customCarriersAllowed')} />
-        {t('settings.shipping.customCarriersAllowed')}
-      </label>
+      <Checkbox disabled={!canManage} {...register('customCarriersAllowed')} label={t('settings.shipping.customCarriersAllowed')} />
 
       <div className="space-y-2 rounded border border-line p-3">
         <p className="text-xs text-ink-muted">{t('settings.shipping.carriersAvailableHint')}</p>
-        <label className="flex items-center gap-2 text-sm text-ink-secondary">
-          <input type="checkbox" disabled={!canManage} {...register('ghtkAvailable')} /> GHTK
-        </label>
-        <label className="flex items-center gap-2 text-sm text-ink-secondary">
-          <input type="checkbox" disabled={!canManage} {...register('vtpAvailable')} /> Viettel Post
-        </label>
-        <label className="flex items-center gap-2 text-sm text-ink-secondary">
-          <input type="checkbox" disabled={!canManage} {...register('ghnAvailable')} /> GHN
-        </label>
-        <label className="flex items-center gap-2 text-sm text-ink-secondary">
-          <input type="checkbox" disabled={!canManage} {...register('jntAvailable')} /> J&amp;T Express
-        </label>
+        <Checkbox disabled={!canManage} {...register('ghtkAvailable')} label="GHTK" />
+        <Checkbox disabled={!canManage} {...register('vtpAvailable')} label="Viettel Post" />
+        <Checkbox disabled={!canManage} {...register('ghnAvailable')} label="GHN" />
+        <Checkbox disabled={!canManage} {...register('jntAvailable')} label="J&T Express" />
       </div>
 
-      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.shipping.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.shipping.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -86,6 +77,7 @@ type TenantFormValues = Omit<TenantShippingSettings, 'tenantId'>
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'shipping', 'tenant', tenantId],
@@ -112,6 +104,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       }),
     onSuccess: (result: TenantShippingSettings) => {
       queryClient.setQueryData(['settings', 'shipping', 'tenant', tenantId], result)
+      toast.success(t('common.saved'))
     },
   })
 
@@ -119,27 +112,24 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
   if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   const text = (name: keyof TenantFormValues, label: string) => (
-    <label className="block text-sm text-ink-secondary">
-      {t(label)}
-      <input disabled={!canManage} {...register(name)} className="input mt-1 w-full" />
-    </label>
+    <FormField label={t(label)}>
+      <Input disabled={!canManage} {...register(name)} />
+    </FormField>
   )
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-xl space-y-4">
       <p className="text-xs text-ink-muted">{t('settings.shipping.feeHint')}</p>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.shipping.defaultShippingFee')}
-        <input type="number" step="0.01" disabled={!canManage} {...register('defaultShippingFee', { valueAsNumber: true })} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.shipping.freeShippingThreshold')}
-        <input type="number" step="0.01" disabled={!canManage} {...register('freeShippingThreshold', { valueAsNumber: true })} className="input mt-1 w-full" />
-      </label>
+      <FormField label={t('settings.shipping.defaultShippingFee')}>
+        <Input type="number" step="0.01" disabled={!canManage} {...register('defaultShippingFee', { valueAsNumber: true })} />
+      </FormField>
+      <FormField label={t('settings.shipping.freeShippingThreshold')}>
+        <Input type="number" step="0.01" disabled={!canManage} {...register('freeShippingThreshold', { valueAsNumber: true })} />
+      </FormField>
 
       <div className="space-y-3 rounded border border-line p-4">
         <div>
-          <h3 className="text-sm font-semibold text-ink">{t('settings.shipping.sender.title')}</h3>
+          <h2 className="text-sm font-semibold text-ink">{t('settings.shipping.sender.title')}</h2>
           <p className="text-xs text-ink-muted">{t('settings.shipping.sender.hint')}</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -152,20 +142,16 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
           {text('senderDistrict', 'settings.shipping.sender.district')}
           {text('senderProvince', 'settings.shipping.sender.province')}
         </div>
-        <label className="block text-sm text-ink-secondary">
-          {t('settings.shipping.sender.defaultWeight')}
-          <input type="number" min={1} disabled={!canManage} {...register('defaultItemWeightGrams', { valueAsNumber: true })} className="input mt-1 w-full" />
-          <span className="text-xs text-ink-muted">{t('settings.shipping.sender.defaultWeightHint')}</span>
-        </label>
+        <FormField label={t('settings.shipping.sender.defaultWeight')} hint={t('settings.shipping.sender.defaultWeightHint')}>
+          <Input type="number" min={1} disabled={!canManage} {...register('defaultItemWeightGrams', { valueAsNumber: true })} />
+        </FormField>
       </div>
 
-      {mutation.isError && <p className="text-xs text-danger-soft-text">{serverMessage(mutation.error, t('settings.shipping.failedToSave'))}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.shipping.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -197,21 +183,7 @@ export function ShippingSettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.shipping.title')}</h1>
 
-      <div className="flex gap-2 border-b border-line">
-        {TABS.map((x) => (
-          <button
-            key={x.key}
-            onClick={() => setTab(x.key)}
-            className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key
-                ? 'border-b-2 border-brand-action text-brand-action'
-                : 'text-ink-muted hover:text-ink'
-            }`}
-          >
-            {x.label}
-          </button>
-        ))}
-      </div>
+      <TabList id="shippingsettings" label={t('settings.shipping.title')} tabs={TABS} current={tab} onSelect={setTab} />
 
       {tab === 'system' && canViewSystem && <SystemSettingsForm canManage={canManageSystem} />}
       {tab === 'tenant' && <TenantSettingsForm canManage={canManageTenant} tenantId={tenantId} />}

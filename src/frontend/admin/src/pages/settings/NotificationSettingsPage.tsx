@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Checkbox, useToast } from '@/components/ui'
 import {
   notificationSettingsApi,
   type SystemNotificationSettings,
   type TenantNotificationSettings,
 } from '@/api/settings/notification.settings.api'
 import { usePermission } from '@/hooks/usePermission'
+import { TabList } from '@/components/shared/PageTabs'
+import { serverMessage } from '@/lib/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
 
 type Tab = 'system' | 'tenant'
@@ -21,6 +24,7 @@ interface SystemFormValues {
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'notification', 'system'],
@@ -40,6 +44,7 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     mutationFn: (values: SystemFormValues) => notificationSettingsApi.updateSystemSettings(values),
     onSuccess: (result: SystemNotificationSettings) => {
       queryClient.setQueryData(['settings', 'notification', 'system'], result)
+      toast.success(t('common.saved'))
     },
   })
 
@@ -47,26 +52,15 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input type="checkbox" disabled={!canManage} {...register('emailChannelAvailable')} />
-        {t('settings.notification.emailChannelAvailable')}
-      </label>
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input type="checkbox" disabled={!canManage} {...register('smsChannelAvailable')} />
-        {t('settings.notification.smsChannelAvailable')}
-      </label>
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input type="checkbox" disabled={!canManage} {...register('pushChannelAvailable')} />
-        {t('settings.notification.pushChannelAvailable')}
-      </label>
+      <Checkbox disabled={!canManage} {...register('emailChannelAvailable')} label={t('settings.notification.emailChannelAvailable')} />
+      <Checkbox disabled={!canManage} {...register('smsChannelAvailable')} label={t('settings.notification.smsChannelAvailable')} />
+      <Checkbox disabled={!canManage} {...register('pushChannelAvailable')} label={t('settings.notification.pushChannelAvailable')} />
 
-      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.notification.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.notification.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -82,6 +76,7 @@ interface TenantFormValues {
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'notification', 'tenant', tenantId],
@@ -103,6 +98,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       notificationSettingsApi.updateTenantSettings(tenantId, values),
     onSuccess: (result: TenantNotificationSettings) => {
       queryClient.setQueryData(['settings', 'notification', 'tenant', tenantId], result)
+      toast.success(t('common.saved'))
     },
   })
 
@@ -111,26 +107,15 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input type="checkbox" disabled={!canManage} {...register('emailEnabledByDefault')} />
-        {t('settings.notification.emailEnabledByDefault')}
-      </label>
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input type="checkbox" disabled={!canManage} {...register('smsEnabledByDefault')} />
-        {t('settings.notification.smsEnabledByDefault')}
-      </label>
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input type="checkbox" disabled={!canManage} {...register('pushEnabledByDefault')} />
-        {t('settings.notification.pushEnabledByDefault')}
-      </label>
+      <Checkbox disabled={!canManage} {...register('emailEnabledByDefault')} label={t('settings.notification.emailEnabledByDefault')} />
+      <Checkbox disabled={!canManage} {...register('smsEnabledByDefault')} label={t('settings.notification.smsEnabledByDefault')} />
+      <Checkbox disabled={!canManage} {...register('pushEnabledByDefault')} label={t('settings.notification.pushEnabledByDefault')} />
 
-      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.notification.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.notification.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -157,21 +142,7 @@ export function NotificationSettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.notification.title')}</h1>
 
-      <div className="flex gap-2 border-b border-line">
-        {TABS.map((x) => (
-          <button
-            key={x.key}
-            onClick={() => setTab(x.key)}
-            className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key
-                ? 'border-b-2 border-brand-action text-brand-action'
-                : 'text-ink-muted hover:text-ink'
-            }`}
-          >
-            {x.label}
-          </button>
-        ))}
-      </div>
+      <TabList id="notificationsettings" label={t('settings.notification.title')} tabs={TABS} current={tab} onSelect={setTab} />
 
       {tab === 'system' && canViewSystem && <SystemSettingsForm canManage={canManageSystem} />}
       {tab === 'tenant' && (

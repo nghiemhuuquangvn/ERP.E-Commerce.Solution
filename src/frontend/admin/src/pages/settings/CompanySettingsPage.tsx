@@ -2,11 +2,13 @@ import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, FormField, Input, useToast } from '@/components/ui'
 import {
   companySettingsApi,
   type TenantCompanySettings,
 } from '@/api/settings/company.settings.api'
 import { usePermission } from '@/hooks/usePermission'
+import { serverMessage } from '@/lib/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
 
 interface TenantFormValues {
@@ -23,6 +25,7 @@ interface TenantFormValues {
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'company', 'tenant', tenantId],
@@ -63,6 +66,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
     mutationFn: (values: TenantFormValues) => companySettingsApi.updateTenantSettings(tenantId, values),
     onSuccess: (result: TenantCompanySettings) => {
       queryClient.setQueryData(['settings', 'company', 'tenant', tenantId], result)
+      toast.success(t('common.saved'))
     },
   })
 
@@ -71,46 +75,36 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.company.companyName')}
-        <input type="text" disabled={!canManage} {...register('companyName')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.company.legalName')}
-        <input type="text" disabled={!canManage} {...register('legalName')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.company.taxCode')}
-        <input type="text" disabled={!canManage} {...register('taxCode')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.company.address')}
-        <input type="text" disabled={!canManage} {...register('address')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.company.phone')}
-        <input type="text" disabled={!canManage} {...register('phone')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.company.email')}
-        <input type="email" disabled={!canManage} {...register('email')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.company.logoUrl')}
-        <input type="text" disabled={!canManage} {...register('logoUrl')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.company.website')}
-        <input type="text" disabled={!canManage} {...register('website')} className="input mt-1 w-full" />
-      </label>
+      <FormField label={t('settings.company.companyName')}>
+        <Input type="text" disabled={!canManage} {...register('companyName')} />
+      </FormField>
+      <FormField label={t('settings.company.legalName')}>
+        <Input type="text" disabled={!canManage} {...register('legalName')} />
+      </FormField>
+      <FormField label={t('settings.company.taxCode')}>
+        <Input type="text" disabled={!canManage} {...register('taxCode')} />
+      </FormField>
+      <FormField label={t('settings.company.address')}>
+        <Input type="text" disabled={!canManage} {...register('address')} />
+      </FormField>
+      <FormField label={t('settings.company.phone')}>
+        <Input type="text" disabled={!canManage} {...register('phone')} />
+      </FormField>
+      <FormField label={t('settings.company.email')}>
+        <Input type="email" disabled={!canManage} {...register('email')} />
+      </FormField>
+      <FormField label={t('settings.company.logoUrl')}>
+        <Input type="text" disabled={!canManage} {...register('logoUrl')} />
+      </FormField>
+      <FormField label={t('settings.company.website')}>
+        <Input type="text" disabled={!canManage} {...register('website')} />
+      </FormField>
 
-      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.company.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.company.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>

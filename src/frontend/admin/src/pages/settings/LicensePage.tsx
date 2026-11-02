@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Checkbox, FormField, Input, Select, Textarea, useToast } from '@/components/ui'
 import {
   licenseApi,
   type LicenseModule,
@@ -10,6 +11,8 @@ import {
 } from '@/api/license/license.api'
 import { tenantsApi } from '@/api/tenants.api'
 import { usePermission } from '@/hooks/usePermission'
+import { TabList } from '@/components/shared/PageTabs'
+import { serverMessage } from '@/lib/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
@@ -19,6 +22,7 @@ type Tab = 'modules' | 'plans' | 'tenant'
 function ModuleRow({ mod, canManage }: { mod: LicenseModule; canManage: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(mod.moduleName)
 
@@ -27,7 +31,9 @@ function ModuleRow({ mod, canManage }: { mod: LicenseModule; canManage: boolean 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['license', 'modules'] })
       setEditing(false)
+      toast.success(t('common.saved'))
     },
+    onError: (e) => toast.error(serverMessage(e, t('common.failedToSave'))),
   })
 
   return (
@@ -35,7 +41,7 @@ function ModuleRow({ mod, canManage }: { mod: LicenseModule; canManage: boolean 
       <td className="py-2 font-mono text-xs">{mod.moduleCode}</td>
       <td className="py-2">
         {editing ? (
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+          <Input aria-label={`${t('license.modules.moduleName')}: ${mod.moduleCode}`} value={name} onChange={(e) => setName(e.target.value)} />
         ) : (
           mod.moduleName
         )}
@@ -43,6 +49,7 @@ function ModuleRow({ mod, canManage }: { mod: LicenseModule; canManage: boolean 
       <td className="py-2">
         <input
           type="checkbox"
+          aria-label={`${t('license.modules.active')}: ${mod.moduleCode}`}
           checked={mod.isActive}
           disabled={!canManage || mutation.isPending}
           onChange={() => mutation.mutate({ moduleName: mod.moduleName, isActive: !mod.isActive })}
@@ -96,10 +103,10 @@ function ModulesPanel({ canManage }: { canManage: boolean }) {
     <table className="w-full max-w-2xl text-sm">
       <thead>
         <tr className="border-b border-line text-left text-ink-muted">
-          <th className="py-2">{t('license.modules.moduleCode')}</th>
-          <th className="py-2">{t('license.modules.moduleName')}</th>
-          <th className="py-2">{t('license.modules.active')}</th>
-          {canManage && <th className="py-2"></th>}
+          <th scope="col" className="py-2">{t('license.modules.moduleCode')}</th>
+          <th scope="col" className="py-2">{t('license.modules.moduleName')}</th>
+          <th scope="col" className="py-2">{t('license.modules.active')}</th>
+          {canManage && <th scope="col" className="py-2"><span className="sr-only">{t('common.actions')}</span></th>}
         </tr>
       </thead>
       <tbody>
@@ -174,57 +181,40 @@ function PlanForm({
       <h2 className="text-sm font-semibold text-ink">
         {isEdit ? t('license.plans.editPlan') : t('license.plans.addPlan')}
       </h2>
-      <label className="block text-sm text-ink-secondary">
-        {t('license.plans.planCode')}
-        <input
+      <FormField label={t('license.plans.planCode')}>
+        <Input
           type="text"
           {...register('planCode', { required: true })}
           disabled={isEdit}
-          className="input mt-1 w-full"
-        />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('license.plans.planName')}
-        <input type="text" {...register('planName', { required: true })} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('license.plans.description')}
-        <input type="text" {...register('description')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('license.plans.maxUsers')}
-        <input type="number" min={0} {...register('maxUsers')} className="input mt-1 w-full" />
-      </label>
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input type="checkbox" {...register('isActive')} />
-        {t('license.plans.active')}
-      </label>
+ />
+      </FormField>
+      <FormField label={t('license.plans.planName')}>
+        <Input type="text" {...register('planName', { required: true })} />
+      </FormField>
+      <FormField label={t('license.plans.description')}>
+        <Input type="text" {...register('description')} />
+      </FormField>
+      <FormField label={t('license.plans.maxUsers')}>
+        <Input type="number" min={0} {...register('maxUsers')} />
+      </FormField>
+      <Checkbox {...register('isActive')} label={t('license.plans.active')} />
 
-      <div>
-        <p className="mb-1 text-sm font-medium text-ink-secondary">{t('license.plans.modules')}</p>
+      <div role="group" aria-labelledby="license-modules-label">
+        <p id="license-modules-label" className="mb-1 text-sm font-medium text-ink-secondary">{t('license.plans.modules')}</p>
         <div className="grid grid-cols-2 gap-1">
           {modules.map((m) => (
-            <label key={m.moduleCode} className="flex items-center gap-2 text-sm text-ink-secondary">
-              <input
-                type="checkbox"
-                checked={moduleCodes.includes(m.moduleCode)}
-                onChange={() => toggleModule(m.moduleCode)}
-              />
-              {m.moduleName} ({m.moduleCode})
-            </label>
+            <Checkbox key={m.moduleCode} checked={moduleCodes.includes(m.moduleCode)} onChange={() => toggleModule(m.moduleCode)} label={`${m.moduleName} (${m.moduleCode})`} />
           ))}
         </div>
       </div>
 
-      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('common.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>}
 
       <div className="flex gap-3 pt-2">
-        <button type="submit" disabled={mutation.isPending} className="btn-primary">
-          {mutation.isPending ? t('common.saving') : t('common.save')}
-        </button>
-        <button type="button" onClick={onCancel} className="btn-outline">
+        <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
+        <Button variant="outline" onClick={onCancel}>
           {t('common.cancel')}
-        </button>
+        </Button>
       </div>
     </form>
   )
@@ -260,12 +250,12 @@ function PlansPanel({ canManage }: { canManage: boolean }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-line text-left text-ink-muted">
-            <th className="py-2">{t('license.plans.planCode')}</th>
-            <th className="py-2">{t('license.plans.planName')}</th>
-            <th className="py-2">{t('license.plans.maxUsers')}</th>
-            <th className="py-2">{t('license.plans.modules')}</th>
-            <th className="py-2">{t('common.status')}</th>
-            {canManage && <th className="py-2"></th>}
+            <th scope="col" className="py-2">{t('license.plans.planCode')}</th>
+            <th scope="col" className="py-2">{t('license.plans.planName')}</th>
+            <th scope="col" className="py-2">{t('license.plans.maxUsers')}</th>
+            <th scope="col" className="py-2">{t('license.plans.modules')}</th>
+            <th scope="col" className="py-2">{t('common.status')}</th>
+            {canManage && <th scope="col" className="py-2"><span className="sr-only">{t('common.actions')}</span></th>}
           </tr>
         </thead>
         <tbody>
@@ -305,9 +295,7 @@ function PlansPanel({ canManage }: { canManage: boolean }) {
       </table>
 
       {canManage && !creating && !editingPlan && (
-        <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
-          {t('license.plans.addPlan')}
-        </button>
+        <Button onClick={() => setCreating(true)}>{t('license.plans.addPlan')}</Button>
       )}
 
       {canManage && (creating || editingPlan) && (
@@ -403,65 +391,51 @@ function IssueOrRenewForm({
         {mode === 'issue' ? t('license.tenant.issueTitle') : t('license.tenant.renewTitle')}
       </h2>
 
-      <label className="block text-sm text-ink-secondary">
-        {t('license.plans.title')}
-        <select className="input mt-1 w-full" value={planId} onChange={(e) => applyPlan(e.target.value)}>
+      <FormField label={t('license.plans.title')}>
+        <Select  value={planId} onChange={(e) => applyPlan(e.target.value)}>
           <option value="">{t('license.tenant.customPlan')}</option>
           {plans.map((p) => (
             <option key={p.id} value={p.id}>
               {p.planName}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </FormField>
 
       {mode === 'issue' && (
-        <label className="block text-sm text-ink-secondary">
-          {t('license.tenant.startsAt')}
-          <input type="date" {...register('startsAt')} className="input mt-1 w-full" />
-        </label>
+        <FormField label={t('license.tenant.startsAt')}>
+          <Input type="date" {...register('startsAt')} />
+        </FormField>
       )}
 
-      <label className="block text-sm text-ink-secondary">
-        {t('license.tenant.expiresAt')}
-        <input type="date" {...register('expiresAt')} className="input mt-1 w-full" />
-      </label>
+      <FormField label={t('license.tenant.expiresAt')}>
+        <Input type="date" {...register('expiresAt')} />
+      </FormField>
 
-      <label className="block text-sm text-ink-secondary">
-        {t('license.plans.maxUsers')}
-        <input type="number" min={0} {...register('maxUsers')} className="input mt-1 w-full" />
-      </label>
+      <FormField label={t('license.plans.maxUsers')}>
+        <Input type="number" min={0} {...register('maxUsers')} />
+      </FormField>
 
-      <div>
-        <p className="mb-1 text-sm font-medium text-ink-secondary">{t('license.plans.modules')}</p>
+      <div role="group" aria-labelledby="license-modules-label">
+        <p id="license-modules-label" className="mb-1 text-sm font-medium text-ink-secondary">{t('license.plans.modules')}</p>
         <div className="grid grid-cols-2 gap-1">
           {modules.map((m) => (
-            <label key={m.moduleCode} className="flex items-center gap-2 text-sm text-ink-secondary">
-              <input
-                type="checkbox"
-                checked={moduleCodes.includes(m.moduleCode)}
-                onChange={() => toggleModule(m.moduleCode)}
-              />
-              {m.moduleName} ({m.moduleCode})
-            </label>
+            <Checkbox key={m.moduleCode} checked={moduleCodes.includes(m.moduleCode)} onChange={() => toggleModule(m.moduleCode)} label={`${m.moduleName} (${m.moduleCode})`} />
           ))}
         </div>
       </div>
 
-      <label className="block text-sm text-ink-secondary">
-        {t('license.tenant.notes')}
-        <textarea {...register('notes')} className="input mt-1 w-full" rows={2} />
-      </label>
+      <FormField label={t('license.tenant.notes')}>
+        <Textarea {...register('notes')}  rows={2} />
+      </FormField>
 
-      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('common.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>}
 
       <div className="flex gap-3 pt-2">
-        <button type="submit" disabled={mutation.isPending} className="btn-primary">
-          {mutation.isPending ? t('common.saving') : t('common.save')}
-        </button>
-        <button type="button" onClick={onCancel} className="btn-outline">
+        <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
+        <Button variant="outline" onClick={onCancel}>
           {t('common.cancel')}
-        </button>
+        </Button>
       </div>
     </form>
   )
@@ -571,18 +545,12 @@ function TenantLicensePanel({ tenantId, canIssue }: { tenantId: string; canIssue
 
           {canIssue && formMode === 'none' && (
             <div className="flex flex-wrap gap-3 border-t border-line pt-3">
-              <button type="button" className="btn-primary" onClick={() => setFormMode('renew')}>
-                {t('license.tenant.renew')}
-              </button>
+              <Button onClick={() => setFormMode('renew')}>{t('license.tenant.renew')}</Button>
               {license.status !== 'Suspended' && (
-                <button type="button" className="btn-outline" onClick={() => setSuspendConfirm(true)}>
-                  {t('license.tenant.suspend')}
-                </button>
+                <Button variant="outline" onClick={() => setSuspendConfirm(true)}>{t('license.tenant.suspend')}</Button>
               )}
               {license.status !== 'Revoked' && (
-                <button type="button" className="btn-danger" onClick={() => setRevokeConfirm(true)}>
-                  {t('license.tenant.revoke')}
-                </button>
+                <Button variant="danger" onClick={() => setRevokeConfirm(true)}>{t('license.tenant.revoke')}</Button>
               )}
             </div>
           )}
@@ -592,9 +560,7 @@ function TenantLicensePanel({ tenantId, canIssue }: { tenantId: string; canIssue
       )}
 
       {canIssue && !license && formMode === 'none' && (
-        <button type="button" className="btn-primary" onClick={() => setFormMode('issue')}>
-          {t('license.tenant.issue')}
-        </button>
+        <Button onClick={() => setFormMode('issue')}>{t('license.tenant.issue')}</Button>
       )}
 
       {canIssue && (formMode === 'issue' || formMode === 'renew') && (
@@ -668,43 +634,23 @@ export function LicensePage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('license.title')}</h1>
 
-      <div className="flex gap-2 border-b border-line">
-        {TABS.map((x) => (
-          <button
-            key={x.key}
-            type="button"
-            onClick={() => setTab(x.key)}
-            className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key
-                ? 'border-b-2 border-brand-action text-brand-action'
-                : 'text-ink-muted hover:text-ink'
-            }`}
-          >
-            {x.label}
-          </button>
-        ))}
-      </div>
+      <TabList id="license" label={t('license.title')} tabs={TABS} current={tab} onSelect={setTab} />
 
       {tab === 'modules' && canManageModules && <ModulesPanel canManage={canManageModules} />}
       {tab === 'plans' && canViewPlans && <PlansPanel canManage={canManagePlans} />}
       {tab === 'tenant' && (canViewTenantLicense || canIssue) && (
         <div className="space-y-4">
           {canViewTenants && (
-            <div className="max-w-xs">
-              <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('license.tenant.tenant')}</label>
-              <select
-                className="input"
-                value={selectedTenantId}
-                onChange={(e) => setSelectedTenantId(e.target.value)}
-              >
+            <FormField label={t('license.tenant.tenant')} className="max-w-xs">
+              <Select value={selectedTenantId} onChange={(e) => setSelectedTenantId(e.target.value)}>
                 <option value="">{t('identity.users.myTenant')}</option>
                 {(tenants ?? []).map((tn) => (
                   <option key={tn.id} value={tn.id}>
                     {tn.tenantName}
                   </option>
                 ))}
-              </select>
-            </div>
+              </Select>
+            </FormField>
           )}
           <TenantLicensePanel tenantId={effectiveTenantId} canIssue={canIssue} />
         </div>

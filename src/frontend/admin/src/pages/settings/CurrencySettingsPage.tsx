@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Checkbox, FormField, Input, useToast } from '@/components/ui'
 import {
   currencySettingsApi,
   type SystemCurrencySettings,
   type TenantCurrencySettings,
 } from '@/api/settings/currency.settings.api'
 import { usePermission } from '@/hooks/usePermission'
+import { TabList } from '@/components/shared/PageTabs'
+import { serverMessage } from '@/lib/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
 
 type Tab = 'system' | 'tenant'
@@ -19,6 +22,7 @@ interface SystemFormValues {
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'currency', 'system'],
@@ -38,6 +42,7 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     mutationFn: (values: SystemFormValues) => currencySettingsApi.updateSystemSettings(values),
     onSuccess: (result: SystemCurrencySettings) => {
       queryClient.setQueryData(['settings', 'currency', 'system'], result)
+      toast.success(t('common.saved'))
     },
   })
 
@@ -45,18 +50,13 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input type="checkbox" disabled={!canManage} {...register('multiCurrencyAllowed')} />
-        {t('settings.currency.multiCurrencyAllowed')}
-      </label>
+      <Checkbox disabled={!canManage} {...register('multiCurrencyAllowed')} label={t('settings.currency.multiCurrencyAllowed')} />
 
-      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.currency.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.currency.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -72,6 +72,7 @@ interface TenantFormValues {
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'currency', 'tenant', tenantId],
@@ -97,6 +98,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       }),
     onSuccess: (result: TenantCurrencySettings) => {
       queryClient.setQueryData(['settings', 'currency', 'tenant', tenantId], result)
+      toast.success(t('common.saved'))
     },
   })
 
@@ -105,39 +107,33 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.currency.defaultCurrencyCode')}
-        <input
+      <FormField label={t('settings.currency.defaultCurrencyCode')}>
+        <Input
           type="text"
           maxLength={3}
           disabled={!canManage}
           {...register('defaultCurrencyCode')}
-          className="input mt-1 w-full uppercase"
-        />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.currency.exchangeRateSource')}
-        <input type="text" disabled={!canManage} {...register('exchangeRateSource')} className="input mt-1 w-full" />
-      </label>
-      <label className="block text-sm text-ink-secondary">
-        {t('settings.currency.decimalDigits')}
-        <input
+          className="uppercase"
+ />
+      </FormField>
+      <FormField label={t('settings.currency.exchangeRateSource')}>
+        <Input type="text" disabled={!canManage} {...register('exchangeRateSource')} />
+      </FormField>
+      <FormField label={t('settings.currency.decimalDigits')}>
+        <Input
           type="number"
           min={0}
           max={6}
           disabled={!canManage}
           {...register('decimalDigits', { valueAsNumber: true })}
-          className="input mt-1 w-full"
-        />
-      </label>
+ />
+      </FormField>
 
-      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.currency.failedToSave')}</p>}
+      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.currency.failedToSave'))}</Alert>}
 
       {canManage && (
         <div className="pt-2">
-          <button type="submit" disabled={mutation.isPending} className="btn-primary">
-            {mutation.isPending ? t('common.saving') : t('common.save')}
-          </button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       )}
     </form>
@@ -164,21 +160,7 @@ export function CurrencySettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.currency.title')}</h1>
 
-      <div className="flex gap-2 border-b border-line">
-        {TABS.map((x) => (
-          <button
-            key={x.key}
-            onClick={() => setTab(x.key)}
-            className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key
-                ? 'border-b-2 border-brand-action text-brand-action'
-                : 'text-ink-muted hover:text-ink'
-            }`}
-          >
-            {x.label}
-          </button>
-        ))}
-      </div>
+      <TabList id="currencysettings" label={t('settings.currency.title')} tabs={TABS} current={tab} onSelect={setTab} />
 
       {tab === 'system' && canViewSystem && <SystemSettingsForm canManage={canManageSystem} />}
       {tab === 'tenant' && (

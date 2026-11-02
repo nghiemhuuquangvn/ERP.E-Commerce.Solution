@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { Alert, Button, Spinner } from '@/components/ui'
 import { authApi } from '@/api/auth.api'
 import { useCompleteLogin } from '@/hooks/useAuth'
 
@@ -41,17 +42,20 @@ export function TwitterCallbackPage() {
   }, [])
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-muted">
+    <div className="flex min-h-screen items-center justify-center bg-page">
       <div className="card w-full max-w-sm p-8 text-center">
         {error ? (
           <>
-            <div className="mb-4 rounded-md bg-danger-soft p-3 text-sm text-danger-soft-text">{error}</div>
-            <button className="btn-primary w-full" onClick={() => navigate('/login')}>
+            <Alert variant="danger" className="mb-4 text-left">{error}</Alert>
+            <Button fullWidth onClick={() => navigate('/login')}>
               {t('auth.signIn')}
-            </button>
+            </Button>
           </>
         ) : (
-          <p className="text-sm text-ink-muted">{t('auth.externalLogin.completingSignIn')}</p>
+          <p role="status" className="flex items-center justify-center gap-2 text-sm text-ink-muted">
+            <Spinner />
+            {t('auth.externalLogin.completingSignIn')}
+          </p>
         )}
       </div>
     </div>
