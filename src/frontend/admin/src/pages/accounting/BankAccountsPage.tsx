@@ -9,6 +9,8 @@ import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, Checkbox, EmptyState, FormField, Input, Modal, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface BankAccountFormValues {
   accountName: string
@@ -21,6 +23,7 @@ interface BankAccountFormValues {
 function BankAccountCreateModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const {
     register,
     handleSubmit,
@@ -46,82 +49,50 @@ function BankAccountCreateModal({ onClose }: { onClose: () => void }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting', 'bank-accounts'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('accounting.bankAccounts.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('accounting.bankAccounts.accountName')}
-            </label>
-            <input className="input" maxLength={200} {...register('accountName', { required: true })} />
-            {errors.accountName && (
-              <p className="mt-1 text-xs text-red-600">
-                {t('accounting.bankAccounts.accountName')} is required.
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('accounting.bankAccounts.bankName')}
-            </label>
-            <input className="input" maxLength={200} {...register('bankName', { required: true })} />
-            {errors.bankName && (
-              <p className="mt-1 text-xs text-red-600">{t('accounting.bankAccounts.bankName')} is required.</p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('accounting.bankAccounts.accountNumber')}
-            </label>
-            <input className="input" maxLength={50} {...register('accountNumber', { required: true })} />
-            {errors.accountNumber && (
-              <p className="mt-1 text-xs text-red-600">
-                {t('accounting.bankAccounts.accountNumber')} is required.
-              </p>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                {t('accounting.bankAccounts.openingBalance')}
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                className="input"
-                {...register('openingBalance', { required: true })}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                {t('accounting.bankAccounts.currencyCode')}
-              </label>
-              <input className="input" maxLength={10} {...register('currencyCode', { required: true })} />
-            </div>
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('accounting.bankAccounts.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="md"
+      title={t('accounting.bankAccounts.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" form="bank-account-form" loading={mutation.isPending}>
+            {t('common.save')}
+          </Button>
+        </>
+      }
+    >
+      <form id="bank-account-form" noValidate onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('accounting.bankAccounts.accountName')} required error={errors.accountName ? t('common.required') : undefined}>
+          <Input maxLength={200} {...register('accountName', { required: true })} />
+        </FormField>
+        <FormField label={t('accounting.bankAccounts.bankName')} required error={errors.bankName ? t('common.required') : undefined}>
+          <Input maxLength={200} {...register('bankName', { required: true })} />
+        </FormField>
+        <FormField label={t('accounting.bankAccounts.accountNumber')} required error={errors.accountNumber ? t('common.required') : undefined}>
+          <Input maxLength={50} {...register('accountNumber', { required: true })} />
+        </FormField>
+        <div className="grid grid-cols-2 gap-4">
+          <FormField label={t('accounting.bankAccounts.openingBalance')} required error={errors.openingBalance ? t('common.required') : undefined}>
+            <Input type="number" step="0.01" min="0" {...register('openingBalance', { required: true })} />
+          </FormField>
+          <FormField label={t('accounting.bankAccounts.currencyCode')} required error={errors.currencyCode ? t('common.required') : undefined}>
+            <Input maxLength={10} {...register('currencyCode', { required: true })} />
+          </FormField>
+        </div>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('accounting.bankAccounts.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -142,6 +113,7 @@ function StatementsModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [addOpen, setAddOpen] = useState(false)
   const [reconcileTarget, setReconcileTarget] = useState<BankStatement | null>(null)
   const [linesOf, setLinesOf] = useState<BankStatement | null>(null)
@@ -172,6 +144,7 @@ function StatementsModal({
       queryClient.invalidateQueries({
         queryKey: ['accounting', 'bank-accounts', account.id, 'statements'],
       })
+      toast.success(t('common.saved'))
       reset()
       setAddOpen(false)
     },
@@ -183,7 +156,12 @@ function StatementsModal({
       queryClient.invalidateQueries({
         queryKey: ['accounting', 'bank-accounts', account.id, 'statements'],
       })
+      toast.success(t('accounting.bankRecon.reconciled'))
       setReconcileTarget(null)
+    },
+    onError: (e) => {
+      setReconcileTarget(null)
+      toast.error(serverMessage(e, t('accounting.bankRecon.failed')))
     },
   })
 
@@ -197,11 +175,13 @@ function StatementsModal({
       {
         key: 'openingBalance',
         label: t('accounting.bankAccounts.openingBalance'),
+        align: 'right' as const,
         render: (s: BankStatement) => s.openingBalance.toFixed(2),
       },
       {
         key: 'closingBalance',
         label: t('accounting.bankAccounts.closingBalance'),
+        align: 'right' as const,
         render: (s: BankStatement) => s.closingBalance.toFixed(2),
       },
       {
@@ -212,108 +192,102 @@ function StatementsModal({
       {
         key: 'actions',
         label: '',
-        render: (s: BankStatement) => (
-          <span className="space-x-3">
-            <button className="text-xs text-primary-600 hover:underline" onClick={() => setLinesOf(s)}>
-              {t('accounting.bankRecon.lines')}
-            </button>
-            {canManage && s.status === 'Open' && (
-              <button className="text-xs text-primary-600 hover:underline" onClick={() => setReconcileTarget(s)}>
-                {t('accounting.bankAccounts.reconcile')}
-              </button>
-            )}
-          </span>
-        ),
+        render: (s: BankStatement) => {
+          const date = new Date(s.statementDate).toLocaleDateString()
+          return (
+            <span className="space-x-3">
+              <Button variant="link" className="text-xs" aria-label={t('accounting.bankAccounts.linesOf', { date })} onClick={() => setLinesOf(s)}>
+                {t('accounting.bankRecon.lines')}
+              </Button>
+              {canManage && s.status === 'Open' && (
+                <Button variant="link" className="text-xs" aria-label={t('accounting.bankAccounts.reconcileOf', { date })} onClick={() => setReconcileTarget(s)}>
+                  {t('accounting.bankAccounts.reconcile')}
+                </Button>
+              )}
+            </span>
+          )
+        },
       },
     ],
     [canManage, t],
   )
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card max-h-[90vh] w-full max-w-3xl overflow-y-auto p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('accounting.bankAccounts.statementsTitle')}: {account.accountName}
-        </h3>
+    <>
+      <Modal
+        open
+        size="lg"
+        title={`${t('accounting.bankAccounts.statementsTitle')}: ${account.accountName}`}
+        onClose={onClose}
+        closeOnEsc={!linesOf && !reconcileTarget}
+        footer={
+          <Button variant="outline" onClick={onClose}>
+            {t('common.close')}
+          </Button>
+        }
+      >
+        <div className="space-y-4">
+          <DataTable
+            columns={columns}
+            data={statements ?? []}
+            isLoading={isLoading}
+            emptyState={
+              <EmptyState
+                title={t('accounting.bankAccounts.statementsEmpty')}
+                action={canManage ? <Button onClick={() => setAddOpen(true)}>{t('accounting.bankAccounts.addStatement')}</Button> : undefined}
+              />
+            }
+          />
 
-        <DataTable columns={columns} data={statements ?? []} isLoading={isLoading} />
-
-        {canManage && (
-          <div className="mt-4">
-            {!addOpen ? (
-              <button className="btn-outline" onClick={() => setAddOpen(true)}>
+          {canManage &&
+            (!addOpen ? (
+              <Button variant="outline" onClick={() => setAddOpen(true)}>
                 {t('accounting.bankAccounts.addStatement')}
-              </button>
+              </Button>
             ) : (
               <form
+                noValidate
                 onSubmit={handleSubmit((v) => addMutation.mutate(v))}
-                className="mt-2 grid grid-cols-4 items-end gap-3 rounded-md border border-gray-200 p-3"
+                className="space-y-3 rounded-md border border-line p-3"
               >
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700">
-                    {t('accounting.bankAccounts.statementDate')}
-                  </label>
-                  <input type="date" className="input" {...register('statementDate', { required: true })} />
-                  {errors.statementDate && <p className="text-xs text-red-600">{t('common.select')}</p>}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <FormField label={t('accounting.bankAccounts.statementDate')} required error={errors.statementDate ? t('common.required') : undefined}>
+                    <Input type="date" {...register('statementDate', { required: true })} />
+                  </FormField>
+                  <FormField label={t('accounting.bankAccounts.openingBalance')} required error={errors.openingBalance ? t('common.required') : undefined}>
+                    <Input type="number" step="0.01" {...register('openingBalance', { required: true })} />
+                  </FormField>
+                  <FormField label={t('accounting.bankAccounts.closingBalance')} required error={errors.closingBalance ? t('common.required') : undefined}>
+                    <Input type="number" step="0.01" {...register('closingBalance', { required: true })} />
+                  </FormField>
                 </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700">
-                    {t('accounting.bankAccounts.openingBalance')}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="input"
-                    {...register('openingBalance', { required: true })}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700">
-                    {t('accounting.bankAccounts.closingBalance')}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="input"
-                    {...register('closingBalance', { required: true })}
-                  />
-                </div>
+                {addMutation.isError && <Alert variant="danger">{serverMessage(addMutation.error, t('accounting.bankAccounts.failedToSave'))}</Alert>}
                 <div className="flex gap-2">
-                  <button type="submit" disabled={addMutation.isPending} className="btn-primary">
-                    {addMutation.isPending ? t('common.saving') : t('common.save')}
-                  </button>
-                  <button type="button" className="btn-outline" onClick={() => setAddOpen(false)}>
+                  <Button type="submit" loading={addMutation.isPending}>
+                    {t('common.save')}
+                  </Button>
+                  <Button variant="outline" onClick={() => setAddOpen(false)}>
                     {t('common.cancel')}
-                  </button>
+                  </Button>
                 </div>
               </form>
-            )}
-            {addMutation.isError && (
-              <p className="mt-2 text-xs text-red-600">{t('accounting.bankAccounts.failedToSave')}</p>
-            )}
-          </div>
-        )}
-
-        {linesOf && <BankReconciliationModal account={account} statement={linesOf} canManage={canManage} onClose={() => setLinesOf(null)} />}
-
-        <div className="flex justify-end pt-4">
-          <button className="btn-outline" onClick={onClose}>
-            {t('common.close')}
-          </button>
+            ))}
         </div>
+      </Modal>
 
-        <ConfirmDialog
-          open={!!reconcileTarget}
-          title={t('accounting.bankAccounts.reconcileTitle')}
-          message={t('accounting.bankAccounts.reconcileConfirm', {
-            statementDate: reconcileTarget ? new Date(reconcileTarget.statementDate).toLocaleDateString() : '',
-          })}
-          confirmLabel={t('accounting.bankAccounts.reconcile')}
-          onConfirm={() => reconcileTarget && reconcileMutation.mutate(reconcileTarget)}
-          onCancel={() => setReconcileTarget(null)}
-        />
-      </div>
-    </div>
+      {linesOf && <BankReconciliationModal account={account} statement={linesOf} canManage={canManage} onClose={() => setLinesOf(null)} />}
+
+      <ConfirmDialog
+        open={!!reconcileTarget}
+        title={t('accounting.bankAccounts.reconcileTitle')}
+        message={t('accounting.bankAccounts.reconcileConfirm', {
+          statementDate: reconcileTarget ? new Date(reconcileTarget.statementDate).toLocaleDateString() : '',
+        })}
+        confirmLabel={t('accounting.bankAccounts.reconcile')}
+        onConfirm={() => reconcileTarget && !reconcileMutation.isPending && reconcileMutation.mutate(reconcileTarget)}
+        onCancel={() => setReconcileTarget(null)}
+      />
+    </>
   )
 }
 
@@ -348,6 +322,7 @@ export function BankAccountsPage() {
       {
         key: 'currentBalance',
         label: t('accounting.bankAccounts.currentBalance'),
+        align: 'right' as const,
         render: (a: BankAccount) => `${a.currentBalance.toFixed(2)} ${a.currencyCode}`,
       },
       {
@@ -364,12 +339,9 @@ export function BankAccountsPage() {
         key: 'actions',
         label: '',
         render: (a: BankAccount) => (
-          <button
-            className="text-xs text-primary-600 hover:underline"
-            onClick={() => setStatementsAccount(a)}
-          >
+          <Button variant="link" className="text-xs" aria-label={`${t('accounting.bankAccounts.viewStatements')}: ${a.accountName}`} onClick={() => setStatementsAccount(a)}>
             {t('accounting.bankAccounts.viewStatements')}
-          </button>
+          </Button>
         ),
       },
     ],
@@ -377,26 +349,29 @@ export function BankAccountsPage() {
   )
 
   if (!canView) {
-    return <p className="text-sm text-gray-400">{t('common.noPermission')}</p>
+    return <p className="text-sm text-ink-muted">{t('common.noPermission')}</p>
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('accounting.bankAccounts.title')}</h1>
-        {canManage && (
-          <button className="btn-primary" onClick={() => setCreateOpen(true)}>
-            {t('accounting.bankAccounts.add')}
-          </button>
-        )}
+        {canManage && <Button onClick={() => setCreateOpen(true)}>{t('accounting.bankAccounts.add')}</Button>}
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} />
-        {t('accounting.bankAccounts.activeOnly')}
-      </label>
+      <Checkbox checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} label={t('accounting.bankAccounts.activeOnly')} />
 
-      <DataTable columns={columns} data={accounts} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={accounts}
+        isLoading={isLoading}
+        emptyState={
+          <EmptyState
+            title={t('accounting.bankAccounts.empty')}
+            action={canManage ? <Button onClick={() => setCreateOpen(true)}>{t('accounting.bankAccounts.add')}</Button> : undefined}
+          />
+        }
+      />
 
       {createOpen && <BankAccountCreateModal onClose={() => setCreateOpen(false)} />}
 

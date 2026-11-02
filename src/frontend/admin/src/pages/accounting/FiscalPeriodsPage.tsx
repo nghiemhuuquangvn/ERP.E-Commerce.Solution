@@ -10,11 +10,14 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { ReasonDialog } from '@/components/shared/ReasonDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, Checkbox, EmptyState, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 /** How the tenant closes its books: a closing entry every period, or one at the end of the fiscal year. */
 function ClosingPolicyPanel({ canManage }: { canManage: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { data } = useQuery({ queryKey: ['accounting', 'closingPolicy'], queryFn: () => fiscalPeriodsApi.closingPolicy(), staleTime: 30_000 })
   const [mode, setMode] = useState<ClosingMode | null>(null)
   const [month, setMonth] = useState<number | null>(null)
@@ -32,46 +35,41 @@ function ClosingPolicyPanel({ canManage }: { canManage: boolean }) {
       setMonth(null)
       setAutoAccrue(null)
       queryClient.invalidateQueries({ queryKey: ['accounting', 'loans'] })
+      toast.success(t('common.saved'))
     },
   })
-  const error = (save.error as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail
 
   return (
     <div className="card space-y-3 p-4">
-      <h2 className="text-sm font-semibold text-gray-900">{t('accounting.fiscalPeriods.policyTitle')}</h2>
+      <h2 className="text-sm font-semibold text-ink">{t('accounting.fiscalPeriods.policyTitle')}</h2>
       <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.fiscalPeriods.policyMode')}</label>
-          <select className="input" disabled={!canManage} value={effectiveMode} onChange={(e) => setMode(e.target.value as ClosingMode)}>
+        <FormField label={t('accounting.fiscalPeriods.policyMode')}>
+          <Select disabled={!canManage} value={effectiveMode} onChange={(e) => setMode(e.target.value as ClosingMode)}>
             <option value="Monthly">{t('accounting.fiscalPeriods.policyMonthly')}</option>
             <option value="YearEnd">{t('accounting.fiscalPeriods.policyYearEnd')}</option>
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.fiscalPeriods.policyMonth')}</label>
-          <select className="input" disabled={!canManage} value={effectiveMonth} onChange={(e) => setMonth(Number(e.target.value))}>
+          </Select>
+        </FormField>
+        <FormField label={t('accounting.fiscalPeriods.policyMonth')}>
+          <Select disabled={!canManage} value={effectiveMonth} onChange={(e) => setMonth(Number(e.target.value))}>
             {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
               <option key={m} value={m}>
                 {m}
               </option>
             ))}
-          </select>
-        </div>
+          </Select>
+        </FormField>
         {canManage && (
-          <button className="btn-primary" disabled={!dirty || save.isPending} onClick={() => save.mutate()}>
+          <Button disabled={!dirty} loading={save.isPending} onClick={() => save.mutate()}>
             {t('common.save')}
-          </button>
+          </Button>
         )}
       </div>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" disabled={!canManage} checked={effectiveAutoAccrue} onChange={(e) => setAutoAccrue(e.target.checked)} />
-        {t('accounting.fiscalPeriods.autoAccrue')}
-      </label>
-      <p className="text-xs text-gray-500">{t('accounting.fiscalPeriods.autoAccrueHint')}</p>
-      <p className="text-xs text-gray-500">
+      <Checkbox disabled={!canManage} checked={effectiveAutoAccrue} onChange={(e) => setAutoAccrue(e.target.checked)} label={t('accounting.fiscalPeriods.autoAccrue')} />
+      <p className="text-xs text-ink-secondary">{t('accounting.fiscalPeriods.autoAccrueHint')}</p>
+      <p className="text-xs text-ink-secondary">
         {effectiveMode === 'YearEnd' ? t('accounting.fiscalPeriods.policyYearEndHint') : t('accounting.fiscalPeriods.policyMonthlyHint')}
       </p>
-      {save.isError && <p className="text-sm text-red-600">{error ?? t('accounting.fiscalPeriods.failedToSave')}</p>}
+      {save.isError && <Alert variant="danger">{serverMessage(save.error, t('common.failedToSave'))}</Alert>}
     </div>
   )
 }
@@ -85,9 +83,11 @@ interface FiscalPeriodFormValues {
 function OpenFiscalPeriodModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<FiscalPeriodFormValues>({
     defaultValues: { periodName: '', startDate: '', endDate: '' },
@@ -102,64 +102,46 @@ function OpenFiscalPeriodModal({ onClose }: { onClose: () => void }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting', 'fiscalPeriods'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {t('accounting.fiscalPeriods.openTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('accounting.fiscalPeriods.periodName')}
-            </label>
-            <input className="input" {...register('periodName', { required: true })} />
-            {errors.periodName && (
-              <p className="mt-1 text-xs text-red-600">
-                {t('accounting.fiscalPeriods.periodName')} is required.
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('accounting.fiscalPeriods.startDate')}
-            </label>
-            <input type="date" className="input" {...register('startDate', { required: true })} />
-            {errors.startDate && (
-              <p className="mt-1 text-xs text-red-600">
-                {t('accounting.fiscalPeriods.startDate')} is required.
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('accounting.fiscalPeriods.endDate')}
-            </label>
-            <input type="date" className="input" {...register('endDate', { required: true })} />
-            {errors.endDate && (
-              <p className="mt-1 text-xs text-red-600">
-                {t('accounting.fiscalPeriods.endDate')} is required.
-              </p>
-            )}
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{t('accounting.fiscalPeriods.failedToSave')}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('accounting.fiscalPeriods.openTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" form="fiscal-period-form" loading={mutation.isPending}>
+            {t('common.save')}
+          </Button>
+        </>
+      }
+    >
+      <form id="fiscal-period-form" noValidate onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('accounting.fiscalPeriods.periodName')} required error={errors.periodName ? t('common.required') : undefined}>
+          <Input {...register('periodName', { required: true })} />
+        </FormField>
+        <FormField label={t('accounting.fiscalPeriods.startDate')} required error={errors.startDate ? t('common.required') : undefined}>
+          <Input type="date" {...register('startDate', { required: true })} />
+        </FormField>
+        <FormField
+          label={t('accounting.fiscalPeriods.endDate')}
+          required
+          error={errors.endDate ? (errors.endDate.type === 'required' ? t('common.required') : t('accounting.fiscalPeriods.endBeforeStart')) : undefined}
+        >
+          <Input type="date" {...register('endDate', { required: true, validate: (v) => !getValues('startDate') || !v || v >= getValues('startDate') })} />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('accounting.fiscalPeriods.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -168,6 +150,7 @@ export function FiscalPeriodsPage() {
   const { hasPermission } = usePermission()
   const canManage = hasPermission('accounting:periods:manage')
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [modalOpen, setModalOpen] = useState(false)
   const [confirmTarget, setConfirmTarget] = useState<FiscalPeriod | null>(null)
   const [reopenTarget, setReopenTarget] = useState<FiscalPeriod | null>(null)
@@ -179,11 +162,17 @@ export function FiscalPeriodsPage() {
     staleTime: 30_000,
   })
 
+  // The API explains refusals (an earlier open period, draft entries, an unbalanced trial balance ...).
   const closeMutation = useMutation({
     mutationFn: (p: FiscalPeriod) => fiscalPeriodsApi.close(p.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting'] })
+      toast.success(t('common.saved'))
       setConfirmTarget(null)
+    },
+    onError: (e) => {
+      setConfirmTarget(null)
+      toast.error(serverMessage(e, t('common.error')))
     },
   })
 
@@ -191,13 +180,10 @@ export function FiscalPeriodsPage() {
     mutationFn: ({ period, reason }: { period: FiscalPeriod; reason: string }) => fiscalPeriodsApi.reopen(period.id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting'] })
+      toast.success(t('common.saved'))
       setReopenTarget(null)
     },
   })
-
-  // The API explains refusals (an earlier open period, draft entries, an unbalanced trial balance ...).
-  const detail = (e: unknown) =>
-    (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? t('accounting.fiscalPeriods.failedToSave')
 
   const columns = useMemo(
     () => [
@@ -214,16 +200,13 @@ export function FiscalPeriodsPage() {
         label: '',
         render: (p: FiscalPeriod) =>
           !canManage ? null : p.status === 'Open' ? (
-            <button
-              className="text-xs text-red-600 hover:underline"
-              onClick={() => setConfirmTarget(p)}
-            >
+            <Button variant="link-danger" className="text-xs" aria-label={`${t('accounting.fiscalPeriods.close')} ${p.periodName}`} onClick={() => setConfirmTarget(p)}>
               {t('accounting.fiscalPeriods.close')}
-            </button>
+            </Button>
           ) : (
-            <button className="text-xs text-primary-600 hover:underline" onClick={() => setReopenTarget(p)}>
+            <Button variant="link" className="text-xs" aria-label={`${t('accounting.fiscalPeriods.reopen')} ${p.periodName}`} onClick={() => setReopenTarget(p)}>
               {t('accounting.fiscalPeriods.reopen')}
-            </button>
+            </Button>
           ),
       },
     ],
@@ -234,18 +217,24 @@ export function FiscalPeriodsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('accounting.fiscalPeriods.title')}</h1>
-        {canManage && (
-          <button className="btn-primary" onClick={() => setModalOpen(true)}>
-            {t('accounting.fiscalPeriods.add')}
-          </button>
-        )}
+        {canManage && <Button onClick={() => setModalOpen(true)}>{t('accounting.fiscalPeriods.add')}</Button>}
       </div>
 
       <ClosingPolicyPanel canManage={canManage} />
 
       <FxRevaluationPanel canManage={canManage} />
 
-      <DataTable columns={columns} data={data ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data ?? []}
+        isLoading={isLoading}
+        emptyState={
+          <EmptyState
+            title={t('accounting.fiscalPeriods.empty')}
+            action={canManage ? <Button onClick={() => setModalOpen(true)}>{t('accounting.fiscalPeriods.add')}</Button> : undefined}
+          />
+        }
+      />
 
       {modalOpen && <OpenFiscalPeriodModal onClose={() => setModalOpen(false)} />}
 
@@ -260,7 +249,6 @@ export function FiscalPeriodsPage() {
         onConfirm={() => confirmTarget && closeMutation.mutate(confirmTarget)}
         onCancel={() => setConfirmTarget(null)}
       />
-      {closeMutation.isError && <p className="text-sm text-red-600">{detail(closeMutation.error)}</p>}
 
       <ReasonDialog
         open={!!reopenTarget}
@@ -268,7 +256,7 @@ export function FiscalPeriodsPage() {
         message={t('accounting.fiscalPeriods.reopenHint', { periodName: reopenTarget?.periodName })}
         confirmLabel={t('accounting.fiscalPeriods.reopen')}
         busy={reopenMutation.isPending}
-        error={reopenMutation.isError ? detail(reopenMutation.error) : null}
+        error={reopenMutation.isError ? serverMessage(reopenMutation.error, t('common.error')) : null}
         onConfirm={(reason) => reopenTarget && reopenMutation.mutate({ period: reopenTarget, reason })}
         onCancel={() => {
           setReopenTarget(null)

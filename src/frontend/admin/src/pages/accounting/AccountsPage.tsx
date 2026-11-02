@@ -10,8 +10,11 @@ import {
 } from '@/api/accounting/accounts.api'
 import type { Account } from '@/api/accounting/accounts.api'
 import { DataTable } from '@/components/shared/DataTable'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, Checkbox, EmptyState, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface AccountFormValues {
   accountNumber: string
@@ -21,12 +24,6 @@ interface AccountFormValues {
   parentAccountId: string
   isCash: boolean
   cashFlowCategory: number // 0 = default
-}
-
-/** The API answers refusals as ProblemDetails with a readable `detail` (duplicate number, parent rules ...). */
-function errorDetail(error: unknown, fallback: string): string {
-  const detail = (error as { response?: { data?: { detail?: string; message?: string } } })?.response?.data
-  return detail?.detail ?? detail?.message ?? fallback
 }
 
 function AccountModal({
@@ -41,6 +38,7 @@ function AccountModal({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const editing = account !== null
   const {
     register,
@@ -85,111 +83,95 @@ function AccountModal({
           }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting', 'accounts'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">
-          {editing ? t('accounting.accounts.editTitle') : t('accounting.accounts.addTitle')}
-        </h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('accounting.accounts.accountNumber')}
-            </label>
-            <input className="input" disabled={editing} {...register('accountNumber', { required: true })} />
-            {errors.accountNumber && (
-              <p className="mt-1 text-xs text-red-600">
-                {t('accounting.accounts.accountNumber')} is required.
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-            {errors.name && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('accounting.accounts.accountType')}
-            </label>
-            <select className="input" disabled={editing} {...register('accountType', { valueAsNumber: true })}>
-              {ACCOUNT_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('accounting.accounts.normalBalance')}
-            </label>
-            <select className="input" disabled={editing} {...register('normalBalance', { valueAsNumber: true })}>
-              {NORMAL_BALANCE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('accounting.accounts.parent')}
-            </label>
-            <select className="input" {...register('parentAccountId')}>
-              <option value="">{t('accounting.accounts.noParent')}</option>
-              {parentChoices.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.accountNumber} — {a.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" {...register('isCash')} />
-            {t('accounting.accounts.isCash')}
-          </label>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t('accounting.accounts.cashFlowCategory')}
-            </label>
-            <select className="input" {...register('cashFlowCategory', { valueAsNumber: true })}>
-              <option value={0}>
-                {t('accounting.accounts.cashFlowDefault')}
-                {editing ? ` (${account?.cashFlowCategory})` : ''}
+    <Modal
+      open
+      size="md"
+      title={editing ? t('accounting.accounts.editTitle') : t('accounting.accounts.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" form="account-form" loading={mutation.isPending}>
+            {t('common.save')}
+          </Button>
+        </>
+      }
+    >
+      <form id="account-form" noValidate onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField
+          label={t('accounting.accounts.accountNumber')}
+          required
+          hint={editing ? t('accounting.accounts.lockedHint') : undefined}
+          error={errors.accountNumber ? t('common.required') : undefined}
+        >
+          <Input disabled={editing} {...register('accountNumber', { required: true })} />
+        </FormField>
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <FormField label={t('accounting.accounts.accountType')} hint={editing ? t('accounting.accounts.lockedHint') : undefined}>
+          <Select disabled={editing} {...register('accountType', { valueAsNumber: true })}>
+            {ACCOUNT_TYPE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
               </option>
-              {CASH_FLOW_CATEGORY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          {mutation.isError && (
-            <p className="text-xs text-red-600">{errorDetail(mutation.error, t('accounting.accounts.failedToSave'))}</p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('accounting.accounts.normalBalance')} hint={editing ? t('accounting.accounts.lockedHint') : undefined}>
+          <Select disabled={editing} {...register('normalBalance', { valueAsNumber: true })}>
+            {NORMAL_BALANCE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t('accounting.accounts.parent')} hint={t('accounting.accounts.parentHint')}>
+          <Select {...register('parentAccountId')}>
+            <option value="">{t('accounting.accounts.noParent')}</option>
+            {parentChoices.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.accountNumber} — {a.name}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <Checkbox label={t('accounting.accounts.isCash')} {...register('isCash')} />
+        <FormField label={t('accounting.accounts.cashFlowCategory')}>
+          <Select {...register('cashFlowCategory', { valueAsNumber: true })}>
+            <option value={0}>
+              {t('accounting.accounts.cashFlowDefault')}
+              {editing ? ` (${account?.cashFlowCategory})` : ''}
+            </option>
+            {CASH_FLOW_CATEGORY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('accounting.accounts.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
 function ApplyTemplateModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [templateId, setTemplateId] = useState('')
+  const [confirming, setConfirming] = useState(false)
 
   const { data: templates } = useQuery({
     queryKey: ['accounting', 'chart-templates'],
@@ -201,45 +183,59 @@ function ApplyTemplateModal({ onClose }: { onClose: () => void }) {
     mutationFn: () => accountsApi.applyTemplate(templateId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting'] })
+      toast.success(t('common.saved'))
       onClose()
     },
+    onError: () => setConfirming(false),
   })
 
   const selected = templates?.find((x) => x.id === templateId)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-2 text-base font-semibold text-gray-900">{t('accounting.accounts.templateTitle')}</h3>
-        <p className="mb-4 text-sm text-gray-600">{t('accounting.accounts.templateHint')}</p>
-        <select className="input mb-3" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
-          <option value="">{t('accounting.accounts.chooseTemplate')}</option>
-          {(templates ?? []).map((x) => (
-            <option key={x.id} value={x.id}>
-              {x.name} ({x.accountCount})
-            </option>
-          ))}
-        </select>
-        {selected && <p className="mb-3 text-xs text-gray-500">{selected.description}</p>}
-        {selected?.id === 'Vas99' && <p className="mb-3 text-xs text-amber-700">{t('accounting.accounts.templateReview')}</p>}
-        {mutation.isError && (
-          <p className="mb-3 text-xs text-red-600">{errorDetail(mutation.error, t('accounting.accounts.failedToSave'))}</p>
-        )}
-        <div className="flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="btn-outline">
-            {t('common.cancel')}
-          </button>
-          <button
-            type="button"
-            disabled={!templateId || mutation.isPending}
-            onClick={() => mutation.mutate()}
-            className="btn-primary"
-          >
-            {mutation.isPending ? t('common.saving') : t('accounting.accounts.applyTemplate')}
-          </button>
+    <>
+      <Modal
+        open
+        size="sm"
+        title={t('accounting.accounts.templateTitle')}
+        onClose={onClose}
+        closeOnEsc={!confirming && !mutation.isPending}
+        footer={
+          <>
+            <Button variant="outline" onClick={onClose}>
+              {t('common.cancel')}
+            </Button>
+            <Button disabled={!templateId} loading={mutation.isPending} onClick={() => setConfirming(true)}>
+              {t('accounting.accounts.applyTemplate')}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-ink-secondary">{t('accounting.accounts.templateHint')}</p>
+          <FormField label={t('accounting.accounts.applyTemplate')}>
+            <Select value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+              <option value="">{t('accounting.accounts.chooseTemplate')}</option>
+              {(templates ?? []).map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name} ({x.accountCount})
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          {selected && <p className="text-xs text-ink-secondary">{selected.description}</p>}
+          {selected?.id === 'Vas99' && <Alert variant="warning">{t('accounting.accounts.templateReview')}</Alert>}
+          {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('accounting.accounts.failedToSave'))}</Alert>}
         </div>
-      </div>
-    </div>
+      </Modal>
+      <ConfirmDialog
+        open={confirming}
+        title={t('accounting.accounts.templateConfirmTitle')}
+        message={t('accounting.accounts.templateConfirm', { name: selected?.name, count: selected?.accountCount })}
+        confirmLabel={t('accounting.accounts.applyTemplate')}
+        onConfirm={() => !mutation.isPending && mutation.mutate()}
+        onCancel={() => setConfirming(false)}
+      />
+    </>
   )
 }
 
@@ -250,7 +246,8 @@ export function AccountsPage() {
   const canManage = hasPermission('accounting:accounts:manage')
   const [modalAccount, setModalAccount] = useState<Account | null | undefined>(undefined) // undefined = closed, null = new
   const [templateOpen, setTemplateOpen] = useState(false)
-  const [actionError, setActionError] = useState<string | null>(null)
+  const [deactivateTarget, setDeactivateTarget] = useState<Account | null>(null)
+  const toast = useToast()
 
   // No pagination — AccountsController.List (ListAccountsQuery) returns the full List<AccountDto>, ordered by number,
   // which already lists a parent right before its sub-accounts for the numbering schemes we ship.
@@ -263,10 +260,14 @@ export function AccountsPage() {
   const toggleActive = useMutation({
     mutationFn: (a: Account) => (a.isActive ? accountsApi.deactivate(a.id) : accountsApi.activate(a.id)),
     onSuccess: () => {
-      setActionError(null)
       queryClient.invalidateQueries({ queryKey: ['accounting', 'accounts'] })
+      toast.success(t('common.saved'))
+      setDeactivateTarget(null)
     },
-    onError: (e) => setActionError(errorDetail(e, t('accounting.accounts.failedToSave'))),
+    onError: (e) => {
+      setDeactivateTarget(null)
+      toast.error(serverMessage(e, t('accounting.accounts.failedToSave')))
+    },
   })
 
   const columns = useMemo(
@@ -302,16 +303,18 @@ export function AccountsPage() {
         render: (a: Account) =>
           canManage ? (
             <span className="flex gap-3">
-              <button className="text-xs text-primary-600 hover:underline" onClick={() => setModalAccount(a)}>
+              <Button variant="link" className="text-xs" aria-label={`${t('common.edit')} ${a.accountNumber}`} onClick={() => setModalAccount(a)}>
                 {t('common.edit')}
-              </button>
-              <button
-                className="text-xs text-gray-600 hover:underline"
+              </Button>
+              <Button
+                variant={a.isActive ? 'link-danger' : 'link'}
+                className="text-xs"
+                aria-label={`${a.isActive ? t('accounting.accounts.deactivate') : t('accounting.accounts.activate')} ${a.accountNumber}`}
                 disabled={toggleActive.isPending}
-                onClick={() => toggleActive.mutate(a)}
+                onClick={() => (a.isActive ? setDeactivateTarget(a) : toggleActive.mutate(a))}
               >
                 {a.isActive ? t('accounting.accounts.deactivate') : t('accounting.accounts.activate')}
-              </button>
+              </Button>
             </span>
           ) : null,
       },
@@ -325,24 +328,40 @@ export function AccountsPage() {
         <h1 className="text-xl font-semibold">{t('accounting.accounts.title')}</h1>
         {canManage && (
           <div className="flex gap-2">
-            <button className="btn-outline" onClick={() => setTemplateOpen(true)}>
+            <Button variant="outline" onClick={() => setTemplateOpen(true)}>
               {t('accounting.accounts.applyTemplate')}
-            </button>
-            <button className="btn-primary" onClick={() => setModalAccount(null)}>
-              {t('accounting.accounts.add')}
-            </button>
+            </Button>
+            <Button onClick={() => setModalAccount(null)}>{t('accounting.accounts.add')}</Button>
           </div>
         )}
       </div>
 
-      {actionError && <p className="text-sm text-red-600">{actionError}</p>}
-
-      <DataTable columns={columns} data={data ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data ?? []}
+        isLoading={isLoading}
+        emptyState={
+          <EmptyState
+            title={t('accounting.accounts.empty')}
+            action={canManage ? <Button onClick={() => setModalAccount(null)}>{t('accounting.accounts.add')}</Button> : undefined}
+          />
+        }
+      />
 
       {modalAccount !== undefined && (
         <AccountModal account={modalAccount} accounts={data ?? []} onClose={() => setModalAccount(undefined)} />
       )}
       {templateOpen && <ApplyTemplateModal onClose={() => setTemplateOpen(false)} />}
+
+      <ConfirmDialog
+        open={!!deactivateTarget}
+        title={t('accounting.accounts.deactivateTitle')}
+        message={t('accounting.accounts.deactivateConfirm', { number: deactivateTarget?.accountNumber, name: deactivateTarget?.name })}
+        confirmLabel={t('accounting.accounts.deactivate')}
+        danger
+        onConfirm={() => deactivateTarget && toggleActive.mutate(deactivateTarget)}
+        onCancel={() => setDeactivateTarget(null)}
+      />
     </div>
   )
 }

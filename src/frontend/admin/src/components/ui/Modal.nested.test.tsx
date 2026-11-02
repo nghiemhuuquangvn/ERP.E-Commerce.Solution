@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { useState } from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Button } from './Button'
 import { Modal } from './Modal'
@@ -30,6 +30,28 @@ describe('nested Modal (a picker opened from a form)', () => {
     expect(onOuterClose).not.toHaveBeenCalled()
     expect(opener).toHaveFocus()
     expect(screen.getByRole('dialog', { name: 'Outer' })).toBeInTheDocument()
+  })
+
+  it('when the opener was drawn again, the focus goes to the dialog below so Esc still works', async () => {
+    const onOuterClose = vi.fn()
+    function Redrawn() {
+      const [inner, setInner] = useState(false)
+      const [key, setKey] = useState(0)
+      return (
+        <Modal open title="Outer" onClose={onOuterClose}>
+          <Button key={key} onClick={() => setInner(true)}>Open inner</Button>
+          <Modal open={inner} title="Inner" onClose={() => { setInner(false); setKey((k) => k + 1) }}>
+            <input aria-label="Search" />
+          </Modal>
+        </Modal>
+      )
+    }
+    render(<Redrawn />)
+    await userEvent.click(screen.getByRole('button', { name: 'Open inner' }))
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Outer' }).contains(document.activeElement)).toBe(true))
+    await userEvent.keyboard('{Escape}')
+    expect(onOuterClose).toHaveBeenCalledTimes(1)
   })
 
   it('Tab stays inside the inner dialog', async () => {

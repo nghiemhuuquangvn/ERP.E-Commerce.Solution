@@ -2484,6 +2484,13 @@
   },
   "accounting": {
     "accounts": {
+      "empty": "No accounts yet. Apply a chart template or add the first account.",
+      "lockedHint": "Cannot be changed after the account is created.",
+      "parentHint": "Only active accounts of the same type are offered.",
+      "deactivateTitle": "Deactivate account",
+      "deactivateConfirm": "Deactivate account {{number}} - {{name}}? It takes no new postings; its history stays in the books.",
+      "templateConfirmTitle": "Apply this chart?",
+      "templateConfirm": "Add the {{count}} accounts of \"{{name}}\" to your chart and point the posting profile at them? Only possible while there are no journal entries.",
       "title": "Chart of Accounts",
       "add": "Add Account",
       "addTitle": "Add Account",
@@ -2567,6 +2574,8 @@
       "failed": "The off-balance entry could not be saved."
     },
     "fiscalPeriods": {
+      "empty": "No fiscal periods yet. Open the first one to start posting.",
+      "endBeforeStart": "The end date must not be before the start date.",
       "title": "Fiscal Periods",
       "add": "Open Period",
       "openTitle": "Open Fiscal Period",
@@ -2591,6 +2600,9 @@
       "failedToSave": "Failed to open fiscal period."
     },
     "taxRates": {
+      "empty": "No tax rates yet.",
+      "rateHint": "10 means 10 % of the net amount.",
+      "rateRange": "Enter a rate from 0 to 100.",
       "title": "Tax Rates",
       "add": "Add Tax Rate",
       "addTitle": "Add Tax Rate",
@@ -2629,6 +2641,20 @@
       "failed": "The revaluation failed."
     },
     "bankRecon": {
+      "differenceOk": "Difference 0 - ready to reconcile",
+      "differenceOpen": "Difference {{amount}} - cannot reconcile yet",
+      "fileLabel": "Bank CSV file",
+      "candidatesFor": "Ledger lines of this amount",
+      "imported": "Statement lines imported.",
+      "matchedDone": "Matching finished.",
+      "postFeeTitle": "Post as bank fee",
+      "postFeeConfirm": "Post \"{{description}}\" ({{amount}}) as a bank fee? A journal entry is booked.",
+      "postInterestTitle": "Post as bank interest",
+      "postInterestConfirm": "Post \"{{description}}\" ({{amount}}) as bank interest income? A journal entry is booked.",
+      "deleteTitle": "Delete statement line",
+      "deleteConfirm": "Delete \"{{description}}\" ({{amount}}) from this statement? You can import the bank's CSV again.",
+      "reconcileConfirm": "Reconcile this statement? The difference is 0; the statement is locked and its lines can no longer be changed.",
+      "reconciled": "Statement reconciled.",
       "title": "Reconciliation",
       "lines": "Lines",
       "autoMatch": "Match automatically",
@@ -2911,6 +2937,10 @@
       "createdAt": "Created At"
     },
     "bankAccounts": {
+      "empty": "No bank accounts yet.",
+      "statementsEmpty": "No statements yet. Add the first statement of this account.",
+      "linesOf": "Lines of {{date}}",
+      "reconcileOf": "Reconcile {{date}}",
       "title": "Bank Accounts",
       "add": "Add Bank Account",
       "addTitle": "Add Bank Account",
