@@ -341,6 +341,9 @@
   },
   "commission": {
     "plans": {
+      "empty": "No commission plan yet.",
+      "rateHint": "5 means 5 % of the order.",
+      "rateRange": "Enter a rate above 0 and up to 100.",
       "title": "Commission Plans",
       "add": "+ Add Plan",
       "addTitle": "Add Commission Plan",
@@ -893,8 +896,22 @@
     }
   },
   "shipments": {
+    "empty": "No shipments yet.",
+    "rebookTitle": "Book again",
+    "rebookConfirm": "Book this parcel with a carrier again? A booking fee may apply.",
+    "cancelTitle": "Cancel at the carrier",
+    "cancelConfirm": "Cancel this parcel at {{carrier}}? The order itself is not cancelled.",
+    "itemParcel": "{{item}}: parcel {{n}}",
+    "codParcel": "Cash to collect: parcel {{n}}",
     "title": "Shipments",
     "split": {
+      "confirmTitle": "Split the parcel",
+      "confirmMessage": "Split into {{count}} parcels and book each at a carrier? The original booking is cancelled and this cannot be undone.",
+      "unassigned": "{{count}} unit(s) are not assigned to a parcel yet.",
+      "overAssigned": "{{count}} unit(s) are assigned more than once.",
+      "allAssigned": "Every item is assigned.",
+      "emptyParcel": "Every parcel needs at least one unit.",
+      "codOff": "Cash on delivery must add up to {{total}}.",
       "open": "Split into parcels",
       "title": "Split into several parcels",
       "hint": "Each new parcel is booked at a carrier on its own and the original booking is cancelled. If any carrier refuses, nothing changes. Cash on delivery must add up to the original.",
@@ -959,6 +976,7 @@
     }
   },
   "payments": {
+    "empty": "No payments yet.",
     "title": "Payments",
     "method": "Method",
     "amount": "Amount",
@@ -976,6 +994,12 @@
     "provider": "Provider",
     "needsReview": "Needs attention (flagged, e.g. refund the customer)",
     "refund": {
+      "confirmTitle": "Confirm refund",
+      "confirmMessage": "Refund {{amount}} to the customer through {{provider}}? The money is sent back and this cannot be undone.",
+      "confirmCod": "Record {{amount}} as refunded? This is cash on delivery: nothing is sent to a gateway.",
+      "confirmAction": "Send refund",
+      "maxHint": "Most you can refund: {{max}}",
+      "amountRange": "Enter an amount from 1 to {{max}}.",
       "button": "Refund",
       "title": "Refund this payment",
       "hint": "The refund is sent to {{provider}} with the shop's own keys; the payment changes only when the gateway confirms it.",
@@ -1029,6 +1053,12 @@
       "message": "Message"
     },
     "filters": {
+      "service": "Service",
+      "level": "Level",
+      "kind": "Kind",
+      "from": "From",
+      "to": "To",
+      "keywordLabel": "Keyword",
       "allServices": "All Services",
       "allLevels": "All Levels",
       "allKinds": "All Kinds",
