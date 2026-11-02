@@ -23,6 +23,7 @@
     <ProjectReference Include="..\Infrastructure\Data\ERP.Shared.Data.csproj" />
     <!-- Service-to-service token signing certificates (ServiceAuth/). -->
     <ProjectReference Include="..\Security\ERP.Shared.Security.csproj" />
+    <ProjectReference Include="..\Infrastructure\Exceptions\ERP.Shared.Exceptions.csproj" />
   </ItemGroup>
 
 </Project>

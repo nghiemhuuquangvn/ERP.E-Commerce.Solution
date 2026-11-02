@@ -76,9 +76,9 @@ public static class ErpJwtBearerOptions
     public static TokenValidationParameters CreateValidationParameters(IConfiguration configuration)
     {
         var issuer = configuration["Jwt:Issuer"]
-            ?? throw new InvalidOperationException("Configuration value 'Jwt:Issuer' is missing.");
+            ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Configuration value 'Jwt:Issuer' is missing.");
         var audience = configuration["Jwt:Audience"]
-            ?? throw new InvalidOperationException("Configuration value 'Jwt:Audience' is missing.");
+            ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Configuration value 'Jwt:Audience' is missing.");
 
         return new TokenValidationParameters
         {

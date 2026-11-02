@@ -78,4 +78,39 @@ public class RefusalExceptionTests
 
         offenders.Should().BeEmpty("UseSerilogRequestLogging must come first, or a handled refusal is logged as 'responded 500' (R100):\n" + string.Join("\n", offenders));
     }
+
+    [Fact]
+    public void EveryServiceLogsItsRequestsBeforeTheExceptionHandler()
+    {
+        var services = Path.Combine(RepositoryRoot(), "src", "services");
+        var offenders = Sources(services, "Program.cs")
+            .Select(f => (File: f, Text: File.ReadAllText(f)))
+            .Where(x => x.Text.Contains("UseGlobalExceptionHandling("))
+            .Where(x =>
+            {
+                var log = new[] { "UseErpRequestLogging(", "UseSerilogRequestLogging(" }
+                    .Select(k => x.Text.IndexOf(k, StringComparison.Ordinal)).Where(i => i >= 0).DefaultIfEmpty(-1).Min();
+                return log < 0 || log > x.Text.IndexOf("UseGlobalExceptionHandling(", StringComparison.Ordinal);
+            })
+            .Select(x => Path.GetRelativePath(services, x.File))
+            .ToList();
+
+        offenders.Should().BeEmpty("a service without a request log leaves nothing to alert on (R101): call app.UseErpRequestLogging() before UseGlobalExceptionHandling():\n" + string.Join("\n", offenders));
+    }
+
+    // A configuration fault is not a refusal: with a plain InvalidOperationException the central rule would answer 400 and show the key name.
+    private static readonly Regex ConfigurationThrow = new(
+        @"throw new (InvalidOperationException|ArgumentException)\(\s*\$?""[^""]*onfigur", RegexOptions.Compiled);
+
+    [Fact]
+    public void ConfigurationFaultsAreNotRefusals()
+    {
+        var root = RepositoryRoot();
+        var offenders = Sources(Path.Combine(root, "src", "services"), "*.cs").Concat(Sources(Path.Combine(root, "src", "Shared"), "*.cs"))
+            .Where(f => ConfigurationThrow.IsMatch(File.ReadAllText(f)))
+            .Select(f => Path.GetRelativePath(root, f).Replace('\\', '/'))
+            .ToList();
+
+        offenders.Should().BeEmpty("throw ServiceMisconfiguredException (500, message kept in the log) for a missing configuration value (R101):\n" + string.Join("\n", offenders));
+    }
 }

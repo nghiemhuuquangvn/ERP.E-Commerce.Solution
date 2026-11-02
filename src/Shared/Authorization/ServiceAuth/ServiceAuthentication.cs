@@ -59,7 +59,7 @@ public static class ServiceAuthenticationExtensions
         if (string.IsNullOrWhiteSpace(name))
             name = callers.Count == 0
                 ? "unnamed"
-                : throw new InvalidOperationException("Configuration value 'ServiceAuth:Name' is missing.");
+                : throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Configuration value 'ServiceAuth:Name' is missing.");
         trustedCallers = callers;
 
         return new TokenValidationParameters

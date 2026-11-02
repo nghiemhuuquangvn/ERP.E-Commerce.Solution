@@ -35,9 +35,9 @@ namespace ERP.Identity.Infrastructure.ExternalAuthLogin
         public async Task<TwitterAuthorizeUrlResponse> GetAuthorizeUrlAsync(string tenantCode, CancellationToken ct)
         {
             var clientId = _configuration["Authentication:Twitter:ClientId"]
-                ?? throw new InvalidOperationException("Authentication:Twitter:ClientId configuration is missing.");
+                ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Authentication:Twitter:ClientId configuration is missing.");
             var redirectUri = _configuration["Authentication:Twitter:RedirectUri"]
-                ?? throw new InvalidOperationException("Authentication:Twitter:RedirectUri configuration is missing.");
+                ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Authentication:Twitter:RedirectUri configuration is missing.");
 
             var oauthState = OAuthState.Create(tenantCode, expiryMinutes: 10, out var codeChallenge);
             await _unitOfWork.OAuthStates.AddAsync(oauthState, ct);
@@ -63,11 +63,11 @@ namespace ERP.Identity.Infrastructure.ExternalAuthLogin
                 throw new UnauthorizedAccessException("OAuth state has expired");
 
             var clientId = _configuration["Authentication:Twitter:ClientId"]
-                ?? throw new InvalidOperationException("Authentication:Twitter:ClientId configuration is missing.");
+                ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Authentication:Twitter:ClientId configuration is missing.");
             var clientSecret = _configuration["Authentication:Twitter:ClientSecret"]
-                ?? throw new InvalidOperationException("Authentication:Twitter:ClientSecret configuration is missing.");
+                ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Authentication:Twitter:ClientSecret configuration is missing.");
             var redirectUri = _configuration["Authentication:Twitter:RedirectUri"]
-                ?? throw new InvalidOperationException("Authentication:Twitter:RedirectUri configuration is missing.");
+                ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Authentication:Twitter:RedirectUri configuration is missing.");
 
             var client = _httpClientFactory.CreateClient();
 

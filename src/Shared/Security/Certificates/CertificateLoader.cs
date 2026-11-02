@@ -30,16 +30,16 @@ public static class CertificateLoader
         if (string.Equals(source, "KeyVault", StringComparison.OrdinalIgnoreCase))
         {
             var vaultUri = settings["KeyVault:VaultUri"]
-                ?? throw new InvalidOperationException($"Configuration value '{section}:KeyVault:VaultUri' is missing.");
+                ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException($"Configuration value '{section}:KeyVault:VaultUri' is missing.");
             var name = settings["KeyVault:CertificateName"]
-                ?? throw new InvalidOperationException($"Configuration value '{section}:KeyVault:CertificateName' is missing.");
+                ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException($"Configuration value '{section}:KeyVault:CertificateName' is missing.");
             return new KeyVaultCertificateSource(new Uri(vaultUri), name, logger: logger);
         }
 
         if (string.Equals(source, "File", StringComparison.OrdinalIgnoreCase))
         {
             var path = settings["File:Path"]
-                ?? throw new InvalidOperationException($"Configuration value '{section}:File:Path' is missing.");
+                ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException($"Configuration value '{section}:File:Path' is missing.");
             var autoCreate = settings.GetValue("File:AutoCreate", false);
             if (autoCreate && !isDevelopment)
                 logger?.LogWarning("{Section}:File:AutoCreate is on outside Development — acceptable for a local Docker stack only; production uses Source=KeyVault.", section);
@@ -57,7 +57,7 @@ public static class CertificateLoader
         if (allowEphemeral && string.Equals(source, "Ephemeral", StringComparison.OrdinalIgnoreCase))
             return new EphemeralCertificateSource(purpose);
 
-        throw new InvalidOperationException(
+        throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException(
             $"Configuration value '{section}:Source' must be 'KeyVault' or 'File'{(allowEphemeral ? " or 'Ephemeral'" : "")} (see docs/business/Identity/SigningKeys.md).");
     }
 

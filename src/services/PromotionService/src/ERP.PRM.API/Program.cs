@@ -19,6 +19,7 @@ using RabbitMQ.Client;
 using ERP.Shared.Authorization.ServiceAuth;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddSerilogLogging("PromotionService");
 
 builder.Services.AddDbContext<PromotionDbContext>(options =>
     options.UseSqlServer(
@@ -94,6 +95,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseErpRequestLogging();
 app.UseGlobalExceptionHandling();
 
 // API documentation is for developers only: never expose the endpoint list in Production.

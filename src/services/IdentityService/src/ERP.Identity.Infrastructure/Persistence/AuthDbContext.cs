@@ -172,7 +172,7 @@ namespace ERP.Identity.Infrastructure.Persistence
                     if (OutboxPayloadProtector.CarriesSecret(type))
                     {
                         content = (_outboxPayloadProtector
-                            ?? throw new InvalidOperationException(
+                            ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException(
                                 $"{type} carries a secret but no OutboxPayloadProtector is configured (Security:SettingsEncryptionKey)."))
                             .Seal(type, content);
                     }

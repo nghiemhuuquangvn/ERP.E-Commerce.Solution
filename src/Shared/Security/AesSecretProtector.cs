@@ -17,7 +17,7 @@ public class AesSecretProtector : ISecretProtector
     public AesSecretProtector(IConfiguration configuration)
     {
         var keyString = configuration["Security:SettingsEncryptionKey"]
-            ?? throw new InvalidOperationException("Configuration value 'Security:SettingsEncryptionKey' is missing.");
+            ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Configuration value 'Security:SettingsEncryptionKey' is missing.");
 
         // SHA-256 the configured passphrase down to a valid 32-byte AES-256 key,
         // so the config value itself doesn't have to be a precisely-sized base64 blob.

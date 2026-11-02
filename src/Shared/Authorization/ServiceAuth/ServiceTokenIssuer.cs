@@ -50,7 +50,7 @@ public sealed class ServiceTokenIssuer
     public ServiceTokenIssuer(string serviceName, CertificateSet certificates, TimeProvider? time = null)
     {
         if (string.IsNullOrWhiteSpace(serviceName))
-            throw new InvalidOperationException("Configuration value 'ServiceAuth:Name' is missing.");
+            throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Configuration value 'ServiceAuth:Name' is missing.");
         ServiceName = serviceName;
         _certificates = certificates;
         _credentials = new X509SigningCredentials(certificates.Current, SecurityAlgorithms.RsaSha256);

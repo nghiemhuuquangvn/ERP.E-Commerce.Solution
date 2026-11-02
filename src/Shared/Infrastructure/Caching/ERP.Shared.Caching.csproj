@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Data\ERP.Shared.Data.csproj" />
+    <ProjectReference Include="..\Exceptions\ERP.Shared.Exceptions.csproj" />
   </ItemGroup>
 
 </Project>

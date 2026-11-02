@@ -29,7 +29,7 @@ public class OpenAiChatCompletionProvider : IChatCompletionProvider
         _httpClient = httpClient;
         _logger = logger;
         _apiKey = configuration["OpenAi:ApiKey"]
-            ?? throw new InvalidOperationException("OpenAi:ApiKey is not configured.");
+            ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("OpenAi:ApiKey is not configured.");
         _maxTokens = configuration.GetValue("OpenAi:MaxTokens", 1024);
     }
 

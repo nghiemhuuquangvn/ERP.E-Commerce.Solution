@@ -45,9 +45,9 @@ namespace ERP.Identity.Infrastructure.Services
             claims.AddRange(permissions.Select(p => new Claim("permission", p)));
             claims.AddRange(licensedModules.Select(m => new Claim("licensed_module", m)));
 
-            var issuer = _configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer configuration is missing.");
-            var audience = _configuration["Jwt:Audience"] ?? throw new InvalidOperationException("Jwt:Audience configuration is missing.");
-            var expirationString = _configuration["Jwt:Expired"] ?? throw new InvalidOperationException("Jwt:AccessTokenExpirationMinutes configuration is missing.");
+            var issuer = _configuration["Jwt:Issuer"] ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Jwt:Issuer configuration is missing.");
+            var audience = _configuration["Jwt:Audience"] ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Jwt:Audience configuration is missing.");
+            var expirationString = _configuration["Jwt:Expired"] ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("Jwt:AccessTokenExpirationMinutes configuration is missing.");
 
             // RS256 with the current signing certificate (private key only here); every service
             // validates with its public key from the JWKS.

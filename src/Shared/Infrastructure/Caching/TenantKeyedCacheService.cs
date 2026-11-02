@@ -67,9 +67,9 @@ public static class TenantKeyedCacheExtensions
     public static IServiceCollection AddTenantKeyedCache(this IServiceCollection services, params string[] platformWidePrefixes)
     {
         var inner = services.LastOrDefault(d => d.ServiceType == typeof(ICacheService))
-            ?? throw new InvalidOperationException("AddTenantKeyedCache must be called after AddCacheService.");
+            ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("AddTenantKeyedCache must be called after AddCacheService.");
         var innerType = inner.ImplementationType
-            ?? throw new InvalidOperationException("AddTenantKeyedCache expects the cache registered by AddCacheService (a concrete type).");
+            ?? throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException("AddTenantKeyedCache expects the cache registered by AddCacheService (a concrete type).");
 
         services.Remove(inner);
         services.AddSingleton(innerType);

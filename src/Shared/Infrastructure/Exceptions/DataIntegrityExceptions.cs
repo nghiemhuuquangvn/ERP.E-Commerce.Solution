@@ -89,3 +89,14 @@ public class DuplicateException : Exception
         PropertyValue = propertyValue;
     }
 }
+
+/// <summary>
+/// A fault of the deployment, not of the request: a configuration value, key or wiring the service needs is missing
+/// ("Authentication:Twitter:ClientId configuration is missing"). Maps to HTTP 500 with a generic message - the key name
+/// goes to the log, never to the client (R101). It derives from <see cref="InvalidOperationException"/> so existing
+/// catch blocks keep working, but the central refusal rule (own-code InvalidOperationException = 400) never applies to it.
+/// </summary>
+public class ServiceMisconfiguredException : InvalidOperationException
+{
+    public ServiceMisconfiguredException(string message) : base(message) { }
+}

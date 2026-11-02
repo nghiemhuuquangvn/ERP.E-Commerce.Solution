@@ -26,6 +26,7 @@ using RabbitMQ.Client;
 using ERP.Shared.Authorization.ServiceAuth;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddSerilogLogging("SalesOrderService");
 
 // Database
 builder.Services.AddDbContext<SalesOrderDbContext>(options =>
@@ -164,6 +165,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseErpRequestLogging();
 app.UseGlobalExceptionHandling();
 
 // API documentation is for developers only: never expose the endpoint list in Production.

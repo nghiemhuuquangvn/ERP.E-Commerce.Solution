@@ -32,8 +32,8 @@ CRMService/src/ERP.CRM.Domain/Entities/Lead.cs|1
 CRMService/src/ERP.CRM.Domain/Entities/Opportunity.cs|3
 ChatBotService/src/ERP.CHB.Domain/Entities/Conversation.cs|2
 ChatBotService/src/ERP.CHB.Infrastructure/Gateway/CrmEscalationClient.cs|2
-ChatBotService/src/ERP.CHB.Infrastructure/LlmProviders/AnthropicChatCompletionProvider.cs|2
-ChatBotService/src/ERP.CHB.Infrastructure/LlmProviders/OpenAiChatCompletionProvider.cs|2
+ChatBotService/src/ERP.CHB.Infrastructure/LlmProviders/AnthropicChatCompletionProvider.cs|1
+ChatBotService/src/ERP.CHB.Infrastructure/LlmProviders/OpenAiChatCompletionProvider.cs|1
 ChatBotService/src/ERP.CHB.Infrastructure/Tools/ErpTools.cs|1
 HRMService/src/ERP.HRM.Application/Handlers/HrmAttendanceHandlers.cs|2
 HRMService/src/ERP.HRM.Application/Handlers/HrmCommandHandlers.cs|3
@@ -77,10 +77,7 @@ IdentityService/src/ERP.Identity.Domain/Entities/TenantWorkflowSettings.cs|1
 IdentityService/src/ERP.Identity.Domain/Entities/TokenBlacklistEntry.cs|1
 IdentityService/src/ERP.Identity.Domain/Entities/TwoFactorChallenge.cs|4
 IdentityService/src/ERP.Identity.Domain/Entities/User.cs|7
-IdentityService/src/ERP.Identity.Infrastructure/ExternalAuthLogin/FacebookAuthProvider.cs|2
-IdentityService/src/ERP.Identity.Infrastructure/ExternalAuthLogin/TwitterOAuthService.cs|5
 IdentityService/src/ERP.Identity.Infrastructure/OpenIddict/ClientCredentialsClaimsHandler.cs|1
-IdentityService/src/ERP.Identity.Infrastructure/Persistence/AuthDbContext.cs|1
 IdentityService/src/ERP.Identity.Infrastructure/Repositories/TenantRepository.cs|1
 IdentityService/src/ERP.Identity.Infrastructure/Repositories/UserRepository.cs|1
 IdentityService/src/ERP.Identity.Infrastructure/Services/ApiKeyService.cs|1
@@ -91,7 +88,6 @@ IdentityService/src/ERP.Identity.Infrastructure/Services/PermissionService.cs|2
 IdentityService/src/ERP.Identity.Infrastructure/Services/RoleService.cs|1
 IdentityService/src/ERP.Identity.Infrastructure/Services/SessionService.cs|1
 IdentityService/src/ERP.Identity.Infrastructure/Services/TenantService.cs|3
-IdentityService/src/ERP.Identity.Infrastructure/Services/TokenService.cs|3
 IdentityService/src/ERP.Identity.Infrastructure/Services/UserService.cs|8
 IdentityService/src/ERP.Identity.Infrastructure/Services/WebhookEndpointService.cs|1
 NotificationService/src/ERP.NTF.Application/Handlers/SendNotificationCommandHandler.cs|3
