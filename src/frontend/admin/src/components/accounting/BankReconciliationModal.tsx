@@ -201,7 +201,9 @@ export function BankReconciliationModal({ account, statement, canManage, onClose
                       <th>{t('accounting.bankRecon.reference')}</th>
                       <th className="text-right">{t('accounting.bankRecon.amount')}</th>
                       <th>{t('common.status')}</th>
-                      <th />
+                      <th>
+                        <span className="sr-only">{t('common.actions')}</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
