@@ -8,6 +8,8 @@ import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { usePermission } from '@/hooks/usePermission'
+import { Alert, Button, EmptyState, FormField, Input, Modal, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface PlanFormValues {
   name: string
@@ -17,6 +19,7 @@ interface PlanFormValues {
 function CommissionPlanModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const { register, handleSubmit, formState: { errors } } = useForm<PlanFormValues>({
     defaultValues: { name: '', ratePercent: 5 },
   })
@@ -27,45 +30,46 @@ function CommissionPlanModal({ onClose }: { onClose: () => void }) {
       commissionPlansApi.create({ name: values.name, rateValue: Number(values.ratePercent) / 100 }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['commissionPlans'] })
+      toast.success(t('common.saved'))
       onClose()
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="card w-full max-w-md p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">{t('commission.plans.addTitle')}</h3>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('common.name')}</label>
-            <input className="input" {...register('name', { required: true })} />
-            {errors.name && <p className="mt-1 text-xs text-red-600">{t('common.name')} is required.</p>}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('commission.plans.ratePercent')}</label>
-            <input
-              type="number"
-              step="0.01"
-              min={0}
-              className="input"
-              {...register('ratePercent', { required: true, valueAsNumber: true, min: 0.01 })}
-            />
-            {errors.ratePercent && (
-              <p className="mt-1 text-xs text-red-600">{t('commission.plans.ratePercent')} must be greater than 0.</p>
-            )}
-          </div>
-          {mutation.isError && <p className="text-xs text-red-600">{t('common.failedToSave')}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-outline">
-              {t('common.cancel')}
-            </button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      title={t('commission.plans.addTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="commission-plan-form" loading={mutation.isPending}>{t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="commission-plan-form" noValidate onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <FormField label={t('common.name')} required error={errors.name ? t('common.required') : undefined}>
+          <Input {...register('name', { required: true })} />
+        </FormField>
+        <FormField
+          label={t('commission.plans.ratePercent')}
+          required
+          hint={t('commission.plans.rateHint')}
+          error={errors.ratePercent ? t('commission.plans.rateRange') : undefined}
+        >
+          <Input
+            type="number"
+            step="0.01"
+            min={0}
+            max={100}
+            {...register('ratePercent', { required: true, valueAsNumber: true, min: 0.01, max: 100 })}
+          />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
   )
 }
 
@@ -73,6 +77,7 @@ export function CommissionPlansPage() {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [modalOpen, setModalOpen] = useState(false)
   const [confirmTarget, setConfirmTarget] = useState<CommissionPlan | null>(null)
 
@@ -88,7 +93,12 @@ export function CommissionPlansPage() {
     mutationFn: (plan: CommissionPlan) => commissionPlansApi.deactivate(plan.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['commissionPlans'] })
+      toast.success(t('common.saved'))
       setConfirmTarget(null)
+    },
+    onError: (e) => {
+      setConfirmTarget(null)
+      toast.error(serverMessage(e, t('common.failedToSave')))
     },
   })
 
@@ -98,6 +108,7 @@ export function CommissionPlansPage() {
       {
         key: 'rateValue',
         label: t('commission.plans.ratePercent'),
+        align: 'right' as const,
         render: (p: CommissionPlan) => `${(p.rateValue * 100).toFixed(2)}%`,
       },
       {
@@ -112,9 +123,9 @@ export function CommissionPlansPage() {
         label: '',
         render: (p: CommissionPlan) =>
           canManage && p.isActive ? (
-            <button className="text-xs text-red-600 hover:underline" onClick={() => setConfirmTarget(p)}>
+            <Button variant="link-danger" className="text-xs" aria-label={`${t('common.deactivate')} ${p.name}`} onClick={() => setConfirmTarget(p)}>
               {t('common.deactivate')}
-            </button>
+            </Button>
           ) : null,
       },
     ],
@@ -125,14 +136,20 @@ export function CommissionPlansPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('commission.plans.title')}</h1>
-        {canManage && (
-          <button className="btn-primary" onClick={() => setModalOpen(true)}>
-            {t('commission.plans.add')}
-          </button>
-        )}
+        {canManage && <Button onClick={() => setModalOpen(true)}>{t('commission.plans.add')}</Button>}
       </div>
 
-      <DataTable columns={columns} data={data ?? []} isLoading={isLoading} />
+      <DataTable
+        columns={columns}
+        data={data ?? []}
+        isLoading={isLoading}
+        emptyState={
+          <EmptyState
+            title={t('commission.plans.empty')}
+            action={canManage ? <Button onClick={() => setModalOpen(true)}>{t('commission.plans.add')}</Button> : undefined}
+          />
+        }
+      />
 
       {modalOpen && <CommissionPlanModal onClose={() => setModalOpen(false)} />}
 
