@@ -73,6 +73,11 @@ namespace ERP.CRM.Infrastructure.Persistence
         {
             ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
 
+            // Safety net (R82): Activities.CreatedBy is NOT NULL, and BaseEntity leaves the author to the application layer.
+            foreach (var added in ChangeTracker.Entries<BaseEntity>().Where(e => e.State == EntityState.Added))
+                if (string.IsNullOrWhiteSpace(added.Entity.CreatedBy))
+                    added.Entity.CreatedBy = "system";
+
             var aggregateRoots = ChangeTracker.Entries<BaseEntity>()
                 .Where(e => e.Entity.DomainEvents.Count != 0)
                 .Select(e => e.Entity)

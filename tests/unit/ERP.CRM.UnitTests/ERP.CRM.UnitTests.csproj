@@ -16,11 +16,13 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.1" />
     <PackageReference Include="FluentAssertions" Version="6.12.0" />
     <PackageReference Include="Moq" Version="4.20.70" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\services\CRMService\src\ERP.CRM.Domain\ERP.CRM.Domain.csproj" />
     <ProjectReference Include="..\..\..\src\services\CRMService\src\ERP.CRM.Application\ERP.CRM.Application.csproj" />
+    <ProjectReference Include="..\..\..\src\services\CRMService\src\ERP.CRM.Infrastructure\ERP.CRM.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

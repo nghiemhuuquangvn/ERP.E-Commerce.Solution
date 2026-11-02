@@ -3,6 +3,7 @@ using ERP.CRM.Application.DTOs;
 using ERP.CRM.Application.Interfaces;
 using ERP.CRM.Domain.Entities;
 using ERP.CRM.Domain.Enums;
+using ERP.Shared.Infrastructure.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -129,10 +130,16 @@ public class QualifyLeadCommandHandler : IRequestHandler<QualifyLeadCommand, Lea
         var lead = await _uow.Leads.GetByIdAsync(request.LeadId, cancellationToken)
             ?? throw new KeyNotFoundException($"Lead {request.LeadId} not found.");
 
+        // Refusals first, before anything is added to the unit of work (R83: an empty contact id used to fail at the insert with a 500).
+        if (lead.ContactId is null || lead.ContactId == Guid.Empty)
+            throw new BusinessRuleException("LeadHasNoContact", "Link a contact to this lead before qualifying it: the opportunity it creates needs one.");
+        if (lead.LeadStatus != (int)LeadStatus.New && lead.LeadStatus != (int)LeadStatus.Contacted)
+            throw new BusinessRuleException("LeadCannotBeQualified", "Only a new or contacted lead can be qualified.");
+
         // Create an opportunity from this lead
         var opportunity = Opportunity.Create(
             lead.LeadName,
-            lead.ContactId ?? Guid.Empty,
+            lead.ContactId.Value,
             lead.EstimatedValue ?? 0,
             DateTime.UtcNow.AddMonths(3)
         );
