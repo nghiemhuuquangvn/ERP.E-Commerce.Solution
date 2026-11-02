@@ -61,6 +61,11 @@ export function Modal({ open, title, onClose, size = 'md', footer, dismissOnBack
     return () => {
       unlockScroll()
       if (previous && document.contains(previous)) previous.focus()
+      // The opener was drawn again (a list refetched under it): give the focus to the dialog still open, so Esc and Tab keep working.
+      else setTimeout(() => {
+        const below = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).pop()
+        if (below && !below.contains(document.activeElement)) below.focus()
+      }, 0)
     }
   }, [open])
 
