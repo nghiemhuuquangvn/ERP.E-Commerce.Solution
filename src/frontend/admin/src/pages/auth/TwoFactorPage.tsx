@@ -47,30 +47,30 @@ export function TwoFactorPage() {
   const resendErrors = resend.data && !resend.data.succeeded ? resend.data.errors : null
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+    <div className="flex min-h-screen items-center justify-center bg-surface-muted">
       <div className="card w-full max-w-sm p-8">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-primary-600">{t('auth.twoFactor.title')}</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-brand-action">{t('auth.twoFactor.title')}</h1>
+          <p className="mt-1 text-sm text-ink-muted">
             {method === 'Sms' ? t('auth.twoFactor.subtitleSms') : t('auth.twoFactor.subtitleEmail')}
           </p>
         </div>
 
         {(verify.isError || verifyErrors) && (
-          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+          <div className="mb-4 rounded-md bg-danger-soft p-3 text-sm text-danger-soft-text">
             {verifyErrors?.join(', ') || t('auth.twoFactor.verifyFailed')}
           </div>
         )}
 
         {(resend.isError || resendErrors) && (
-          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+          <div className="mb-4 rounded-md bg-danger-soft p-3 text-sm text-danger-soft-text">
             {resendErrors?.join(', ') || t('auth.twoFactor.resendFailed')}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">
               {t('auth.twoFactor.code')}
             </label>
             <input

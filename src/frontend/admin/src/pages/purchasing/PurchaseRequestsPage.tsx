@@ -57,9 +57,9 @@ export function PurchaseRequestsPage() {
 
   const link = (r: PurchaseRequest) =>
     r.purchaseOrderId ? (
-      <Link className="text-primary-600 hover:underline" to={`/orders/purchase/${r.purchaseOrderId}`}>{t('purchasing.requests.openOrder')}</Link>
+      <Link className="text-brand-action hover:underline" to={`/orders/purchase/${r.purchaseOrderId}`}>{t('purchasing.requests.openOrder')}</Link>
     ) : r.rfqId ? (
-      <Link className="text-primary-600 hover:underline" to={`/purchasing/rfqs/${r.rfqId}`}>{t('purchasing.requests.openRfq')}</Link>
+      <Link className="text-brand-action hover:underline" to={`/purchasing/rfqs/${r.rfqId}`}>{t('purchasing.requests.openRfq')}</Link>
     ) : null
 
   return (
@@ -67,7 +67,7 @@ export function PurchaseRequestsPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">{t('purchasing.requests.title')}</h1>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500">{t('purchasing.requests.description')}</p>
+          <p className="mt-1 max-w-2xl text-sm text-ink-muted">{t('purchasing.requests.description')}</p>
         </div>
         <div className="flex gap-2">
           {canScan && (
@@ -89,42 +89,42 @@ export function PurchaseRequestsPage() {
         </div>
       </div>
 
-      {scanMessage && <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-800">{scanMessage}</div>}
-      {createOrdersMutation.isError && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{t('common.failedToSave')}</div>}
+      {scanMessage && <div className="rounded-md bg-info-soft p-3 text-sm text-info-soft-text">{scanMessage}</div>}
+      {createOrdersMutation.isError && <div className="rounded-md bg-danger-soft p-3 text-sm text-danger-soft-text">{t('common.failedToSave')}</div>}
 
       {result && (
         <div className="card space-y-2 p-4 text-sm">
-          <p className="font-medium text-gray-900">
+          <p className="font-medium text-ink">
             {t('purchasing.requests.created', { orders: result.purchaseOrders.length, rfq: result.rfq ? 1 : 0 })}
           </p>
           <ul className="list-disc space-y-1 pl-5">
             {result.purchaseOrders.map((o) => (
               <li key={o.id}>
-                <Link className="text-primary-600 hover:underline" to={`/orders/purchase/${o.id}`}>{o.poNumber}</Link>
+                <Link className="text-brand-action hover:underline" to={`/orders/purchase/${o.id}`}>{o.poNumber}</Link>
                 {' — '}{o.supplierName}, {t('purchasing.requests.lines', { count: o.lines })}, {o.total.toLocaleString()} {o.currency}
               </li>
             ))}
             {result.rfq && (
               <li>
-                <Link className="text-primary-600 hover:underline" to={`/purchasing/rfqs/${result.rfq.id}`}>{result.rfq.rfqNumber}</Link>
+                <Link className="text-brand-action hover:underline" to={`/purchasing/rfqs/${result.rfq.id}`}>{result.rfq.rfqNumber}</Link>
                 {' — '}{t('purchasing.requests.rfqSummary', { lines: result.rfq.lines, suppliers: result.rfq.suppliers })}
               </li>
             )}
           </ul>
           {result.skipped.length > 0 && (
-            <p className="text-amber-700">{t('purchasing.requests.skipped', { count: result.skipped.length })}: {result.skipped.map((s) => s.reason).join('; ')}</p>
+            <p className="text-warning-soft-text">{t('purchasing.requests.skipped', { count: result.skipped.length })}: {result.skipped.map((s) => s.reason).join('; ')}</p>
           )}
-          <button className="text-xs text-gray-500 hover:underline" onClick={() => setResult(null)}>{t('common.close')}</button>
+          <button className="text-xs text-ink-muted hover:underline" onClick={() => setResult(null)}>{t('common.close')}</button>
         </div>
       )}
 
-      <div className="flex gap-1 border-b border-gray-200">
+      <div className="flex gap-1 border-b border-line">
         {STATUS_TABS.map((s) => (
           <button
             key={s}
             onClick={() => { setStatusFilter(s); setSelected([]) }}
             className={`px-4 py-2 text-sm font-medium ${
-              statusFilter === s ? 'border-b-2 border-primary-600 text-primary-700' : 'text-gray-500 hover:text-gray-700'
+              statusFilter === s ? 'border-b-2 border-brand-action text-brand-action' : 'text-ink-muted hover:text-ink'
             }`}
           >
             {t(`purchasing.requests.status.${s}`)}
@@ -141,7 +141,7 @@ export function PurchaseRequestsPage() {
             label: '',
             render: (r) =>
               canManage && r.status === 'Suggested' ? (
-                <input type="checkbox" className="rounded border-gray-300" checked={selected.includes(r.id)} onChange={() => toggle(r.id)} />
+                <input type="checkbox" className="rounded border-line-strong" checked={selected.includes(r.id)} onChange={() => toggle(r.id)} />
               ) : null,
           },
           {
@@ -150,7 +150,7 @@ export function PurchaseRequestsPage() {
             render: (r) => (
               <div>
                 <div className="font-medium">{r.productName}</div>
-                <div className="font-mono text-xs text-gray-400">{r.productCode}</div>
+                <div className="font-mono text-xs text-ink-muted">{r.productCode}</div>
               </div>
             ),
           },
@@ -170,12 +170,12 @@ export function PurchaseRequestsPage() {
               r.preferredSupplierId ? (
                 <div>
                   <div>{r.preferredSupplierName ?? r.preferredSupplierId}</div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-xs text-ink-muted">
                     {r.unitPrice != null ? r.unitPrice.toLocaleString() : '—'}{r.leadTimeDays != null ? ` · ${r.leadTimeDays} ${t('purchasing.requests.days')}` : ''}
                   </div>
                 </div>
               ) : (
-                <span className="text-xs text-amber-700">{t('purchasing.requests.noPreferred')}</span>
+                <span className="text-xs text-warning-soft-text">{t('purchasing.requests.noPreferred')}</span>
               ),
           },
           {
@@ -184,7 +184,7 @@ export function PurchaseRequestsPage() {
             render: (r) => (
               <div className="space-y-1">
                 <StatusBadge status={r.status} />
-                {r.note && <div className="text-xs text-gray-400">{r.note}</div>}
+                {r.note && <div className="text-xs text-ink-muted">{r.note}</div>}
                 <div className="text-xs">{link(r)}</div>
               </div>
             ),

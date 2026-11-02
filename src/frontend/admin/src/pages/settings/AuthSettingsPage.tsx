@@ -67,33 +67,33 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     },
   })
 
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('googleEnabled')} />
         {t('settings.auth.googleEnabled')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('microsoftEnabled')} />
         {t('settings.auth.microsoftEnabled')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('facebookEnabled')} />
         {t('settings.auth.facebookEnabled')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('twitterEnabled')} />
         {t('settings.auth.twitterEnabled')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('twoFactorEnabled')} />
         {t('settings.auth.twoFactorEnabled')}
       </label>
 
-      <h2 className="pt-2 text-sm font-semibold text-gray-800">{t('settings.auth.securitySectionTitle')}</h2>
-      <label className="block text-sm text-gray-700">
+      <h2 className="pt-2 text-sm font-semibold text-ink">{t('settings.auth.securitySectionTitle')}</h2>
+      <label className="block text-sm text-ink-secondary">
         {t('settings.auth.minPasswordLength')}
         <input
           type="number"
@@ -102,23 +102,23 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
           className="input mt-1 w-full"
         />
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('requireUppercase')} />
         {t('settings.auth.requireUppercase')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('requireLowercase')} />
         {t('settings.auth.requireLowercase')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('requireDigit')} />
         {t('settings.auth.requireDigit')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('requireSymbol')} />
         {t('settings.auth.requireSymbol')}
       </label>
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.auth.maxLoginAttempts')}
         <input
           type="number"
@@ -127,7 +127,7 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
           className="input mt-1 w-full"
         />
       </label>
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.auth.lockoutDurationMinutes')}
         <input
           type="number"
@@ -136,7 +136,7 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
           className="input mt-1 w-full"
         />
       </label>
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.auth.sessionTimeoutMinutes')}
         <input
           type="number"
@@ -146,7 +146,7 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
         />
       </label>
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.auth.failedToSave')}</p>}
+      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.auth.failedToSave')}</p>}
 
       {canManage && (
         <div className="pt-2">
@@ -217,38 +217,38 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
     },
   })
 
-  if (!tenantId) return <p className="text-sm text-gray-400">{t('settings.auth.noTenant')}</p>
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (!tenantId) return <p className="text-sm text-ink-muted">{t('settings.auth.noTenant')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('googleEnabled')} />
         {t('settings.auth.googleEnabled')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('microsoftEnabled')} />
         {t('settings.auth.microsoftEnabled')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('facebookEnabled')} />
         {t('settings.auth.facebookEnabled')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('twitterEnabled')} />
         {t('settings.auth.twitterEnabled')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('twoFactorEnabled')} />
         {t('settings.auth.twoFactorEnabled')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('twoFactorRequired')} />
         {t('settings.auth.twoFactorRequired')}
       </label>
 
-      <h2 className="pt-2 text-sm font-semibold text-gray-800">{t('settings.auth.securitySectionTitle')}</h2>
-      <label className="block text-sm text-gray-700">
+      <h2 className="pt-2 text-sm font-semibold text-ink">{t('settings.auth.securitySectionTitle')}</h2>
+      <label className="block text-sm text-ink-secondary">
         {t('settings.auth.minPasswordLength')}
         <input
           type="number"
@@ -257,23 +257,23 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
           className="input mt-1 w-full"
         />
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('requireUppercase')} />
         {t('settings.auth.requireUppercase')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('requireLowercase')} />
         {t('settings.auth.requireLowercase')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('requireDigit')} />
         {t('settings.auth.requireDigit')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('requireSymbol')} />
         {t('settings.auth.requireSymbol')}
       </label>
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.auth.maxLoginAttempts')}
         <input
           type="number"
@@ -282,7 +282,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
           className="input mt-1 w-full"
         />
       </label>
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.auth.lockoutDurationMinutes')}
         <input
           type="number"
@@ -291,7 +291,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
           className="input mt-1 w-full"
         />
       </label>
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.auth.sessionTimeoutMinutes')}
         <input
           type="number"
@@ -301,7 +301,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
         />
       </label>
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.auth.failedToSave')}</p>}
+      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.auth.failedToSave')}</p>}
 
       {canManage && (
         <div className="pt-2">
@@ -334,15 +334,15 @@ export function AuthSettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.auth.title')}</h1>
 
-      <div className="flex gap-2 border-b border-gray-200">
+      <div className="flex gap-2 border-b border-line">
         {TABS.map((x) => (
           <button
             key={x.key}
             onClick={() => setTab(x.key)}
             className={`px-3 py-2 text-sm font-medium ${
               tab === x.key
-                ? 'border-b-2 border-primary-600 text-primary-700'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'border-b-2 border-brand-action text-brand-action'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             {x.label}

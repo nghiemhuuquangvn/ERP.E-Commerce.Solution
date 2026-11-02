@@ -31,9 +31,9 @@ const QUERY_KEY = ['reports', 'sales', QUERY_PARAMS.from, QUERY_PARAMS.to] as co
 function KpiCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="card p-5">
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-gray-900">{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-gray-400">{sub}</p>}
+      <p className="text-sm text-ink-muted">{label}</p>
+      <p className="mt-1 text-2xl font-semibold text-ink">{value}</p>
+      {sub && <p className="mt-0.5 text-xs text-ink-muted">{sub}</p>}
     </div>
   )
 }
@@ -48,7 +48,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-gray-900">{t('dashboard.title')}</h1>
+      <h1 className="text-xl font-semibold text-ink">{t('dashboard.title')}</h1>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <KpiCard
@@ -66,9 +66,9 @@ export function DashboardPage() {
       </div>
 
       <div className="card p-5">
-        <h2 className="mb-4 text-sm font-semibold text-gray-700">{t('dashboard.revenueLast30Days')}</h2>
+        <h2 className="mb-4 text-sm font-semibold text-ink-secondary">{t('dashboard.revenueLast30Days')}</h2>
         {isLoading ? (
-          <div className="flex h-48 items-center justify-center text-gray-400">
+          <div className="flex h-48 items-center justify-center text-ink-muted">
             {t('dashboard.loadingChart')}
           </div>
         ) : (

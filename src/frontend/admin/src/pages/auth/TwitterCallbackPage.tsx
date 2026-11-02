@@ -41,17 +41,17 @@ export function TwitterCallbackPage() {
   }, [])
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+    <div className="flex min-h-screen items-center justify-center bg-surface-muted">
       <div className="card w-full max-w-sm p-8 text-center">
         {error ? (
           <>
-            <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+            <div className="mb-4 rounded-md bg-danger-soft p-3 text-sm text-danger-soft-text">{error}</div>
             <button className="btn-primary w-full" onClick={() => navigate('/login')}>
               {t('auth.signIn')}
             </button>
           </>
         ) : (
-          <p className="text-sm text-gray-500">{t('auth.externalLogin.completingSignIn')}</p>
+          <p className="text-sm text-ink-muted">{t('auth.externalLogin.completingSignIn')}</p>
         )}
       </div>
     </div>

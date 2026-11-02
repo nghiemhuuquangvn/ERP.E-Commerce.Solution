@@ -36,7 +36,7 @@ export function PurchaseOrderFormPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/orders/purchase" className="text-sm text-gray-500 hover:text-gray-700">
+        <Link to="/orders/purchase" className="text-sm text-ink-muted hover:text-ink">
           {t('purchaseOrders.backToPurchaseOrders')}
         </Link>
         <h1 className="text-xl font-semibold">{t('purchaseOrders.newPurchaseOrder')}</h1>
@@ -44,11 +44,11 @@ export function PurchaseOrderFormPage() {
 
       <form onSubmit={handleSubmit} className="card max-w-md space-y-4 p-5">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('purchaseOrders.poNumber')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('purchaseOrders.poNumber')}</label>
           <input className="input" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('purchaseOrders.form.supplierId')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('purchaseOrders.form.supplierId')}</label>
           <input
             className="input"
             value={supplierId}
@@ -57,7 +57,7 @@ export function PurchaseOrderFormPage() {
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('purchaseOrders.expectedDelivery')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('purchaseOrders.expectedDelivery')}</label>
           <input
             type="date"
             className="input"
@@ -66,12 +66,12 @@ export function PurchaseOrderFormPage() {
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('purchaseOrders.notes')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('purchaseOrders.notes')}</label>
           <textarea className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {mutation.isError && <p className="text-sm text-red-600">{t('common.failedToSave')}</p>}
+        {error && <p className="text-sm text-danger-soft-text">{error}</p>}
+        {mutation.isError && <p className="text-sm text-danger-soft-text">{t('common.failedToSave')}</p>}
 
         <div className="flex justify-end gap-3 pt-2">
           <Link to="/orders/purchase" className="btn-outline">

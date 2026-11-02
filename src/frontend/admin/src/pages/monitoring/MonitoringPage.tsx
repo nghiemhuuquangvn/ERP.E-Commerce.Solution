@@ -52,8 +52,8 @@ export function MonitoringPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('monitoring.title')}</h1>
-          <p className="text-sm text-gray-500">{t('monitoring.subtitle')}</p>
+          <h1 className="text-2xl font-bold text-ink">{t('monitoring.title')}</h1>
+          <p className="text-sm text-ink-muted">{t('monitoring.subtitle')}</p>
         </div>
       </div>
 
@@ -88,12 +88,12 @@ function ProcessMetricsCard({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('monitoring.gatewayProcess')}</h2>
+    <div className="bg-surface rounded-lg shadow p-6">
+      <h2 className="text-lg font-semibold text-ink mb-4">{t('monitoring.gatewayProcess')}</h2>
       {isLoading ? (
         <div className="animate-pulse space-y-3">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-5 bg-gray-100 rounded" />
+            <div key={i} className="h-5 bg-surface-muted rounded" />
           ))}
         </div>
       ) : process ? (
@@ -107,7 +107,7 @@ function ProcessMetricsCard({
           <MetricItem label="Threads" value={String(process.threadCount)} />
           <MetricItem label="Handles" value={String(process.handleCount)} />
           <div className="col-span-2 pt-2 border-t">
-            <p className="text-xs text-gray-500">GC Collections</p>
+            <p className="text-xs text-ink-muted">GC Collections</p>
             <div className="flex gap-4 mt-1">
               <span className="text-xs">
                 Gen0: <strong>{process.gcGen0Collections}</strong>
@@ -122,7 +122,7 @@ function ProcessMetricsCard({
           </div>
         </dl>
       ) : (
-        <p className="text-sm text-gray-500">{t('monitoring.noData')}</p>
+        <p className="text-sm text-ink-muted">{t('monitoring.noData')}</p>
       )}
     </div>
   )
@@ -139,29 +139,29 @@ function ServicesHealthCard() {
   })
 
   const statusColor: Record<string, string> = {
-    Healthy: 'bg-green-100 text-green-800',
-    Degraded: 'bg-yellow-100 text-yellow-800',
-    Unreachable: 'bg-red-100 text-red-800',
+    Healthy: 'bg-success-soft text-success-soft-text',
+    Degraded: 'bg-warning-soft text-warning-soft-text',
+    Unreachable: 'bg-danger-soft text-danger-soft-text',
   }
 
   const statusDot: Record<string, string> = {
-    Healthy: 'bg-green-400',
-    Degraded: 'bg-yellow-400',
-    Unreachable: 'bg-red-400',
+    Healthy: 'bg-success',
+    Degraded: 'bg-warning',
+    Unreachable: 'bg-danger',
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className="bg-surface rounded-lg shadow p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">{t('monitoring.servicesHealth')}</h2>
-        <button onClick={() => refetch()} className="text-xs text-blue-600 hover:underline">
+        <h2 className="text-lg font-semibold text-ink">{t('monitoring.servicesHealth')}</h2>
+        <button onClick={() => refetch()} className="text-xs text-info-soft-text hover:underline">
           {t('monitoring.refresh')}
         </button>
       </div>
       {isLoading ? (
         <div className="space-y-2">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="h-8 bg-gray-100 rounded animate-pulse" />
+            <div key={i} className="h-8 bg-surface-muted rounded animate-pulse" />
           ))}
         </div>
       ) : (
@@ -170,14 +170,14 @@ function ServicesHealthCard() {
             <div key={svc.serviceName} className="flex items-center justify-between py-1.5">
               <div className="flex items-center gap-2">
                 <span
-                  className={`w-2 h-2 rounded-full ${statusDot[svc.status] ?? 'bg-gray-400'}`}
+                  className={`w-2 h-2 rounded-full ${statusDot[svc.status] ?? 'bg-muted'}`}
                 />
                 <span className="text-sm font-medium">{svc.serviceName}</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-400">{svc.responseTimeMs}ms</span>
+                <span className="text-xs text-ink-muted">{svc.responseTimeMs}ms</span>
                 <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[svc.status] ?? 'bg-gray-100 text-gray-700'}`}
+                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[svc.status] ?? 'bg-surface-muted text-ink-secondary'}`}
                 >
                   {svc.status}
                 </span>
@@ -202,18 +202,18 @@ function ApiStatsCard({
   const topRoutes: RouteStats[] = api?.topRoutes?.slice(0, 8) ?? []
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className="bg-surface rounded-lg shadow p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">{t('monitoring.apiTraffic')}</h2>
+        <h2 className="text-lg font-semibold text-ink">{t('monitoring.apiTraffic')}</h2>
         {api && !isLoading && (
           <div className="flex gap-6 text-sm">
-            <span className="text-gray-600">
+            <span className="text-ink-secondary">
               Total: <strong>{api.totalRequests.toLocaleString()}</strong>
             </span>
-            <span className="text-red-600">
+            <span className="text-danger-soft-text">
               Errors: <strong>{api.totalErrors.toLocaleString()}</strong>
             </span>
-            <span className={api.errorRate > 5 ? 'text-red-600' : 'text-gray-600'}>
+            <span className={api.errorRate > 5 ? 'text-danger-soft-text' : 'text-ink-secondary'}>
               Error Rate: <strong>{api.errorRate}%</strong>
             </span>
           </div>
@@ -254,25 +254,25 @@ function RecentRequestsCard() {
 
   const statusClass = (code: number) =>
     code >= 500
-      ? 'text-red-600 font-semibold'
+      ? 'text-danger-soft-text font-semibold'
       : code >= 400
-        ? 'text-yellow-600 font-semibold'
-        : 'text-green-600'
+        ? 'text-warning-soft-text font-semibold'
+        : 'text-success-soft-text'
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('monitoring.recentRequests')}</h2>
+    <div className="bg-surface rounded-lg shadow p-6">
+      <h2 className="text-lg font-semibold text-ink mb-4">{t('monitoring.recentRequests')}</h2>
       {isLoading ? (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-8 bg-gray-100 rounded animate-pulse" />
+            <div key={i} className="h-8 bg-surface-muted rounded animate-pulse" />
           ))}
         </div>
       ) : (
         <div className="overflow-auto max-h-72">
           <table className="min-w-full text-xs">
             <thead>
-              <tr className="border-b text-gray-500 text-left">
+              <tr className="border-b text-ink-muted text-left">
                 <th className="pb-2 pr-2">Time</th>
                 <th className="pb-2 pr-2">Method</th>
                 <th className="pb-2 pr-2">Path</th>
@@ -281,28 +281,28 @@ function RecentRequestsCard() {
                 <th className="pb-2"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-line">
               {(data ?? []).map((req: ApiRequestLog, i) => (
                 // timestamp+index as key: requests have no unique id, timestamp alone may collide in bursts
-                <tr key={`${req.timestamp}-${i}`} className="hover:bg-gray-50">
-                  <td className="py-1.5 pr-2 text-gray-400 whitespace-nowrap">
+                <tr key={`${req.timestamp}-${i}`} className="hover:bg-surface-muted">
+                  <td className="py-1.5 pr-2 text-ink-muted whitespace-nowrap">
                     {format(new Date(req.timestamp), 'HH:mm:ss')}
                   </td>
                   <td className="pr-2">
-                    <span className="font-mono bg-gray-100 px-1 rounded text-gray-700">
+                    <span className="font-mono bg-surface-muted px-1 rounded text-ink-secondary">
                       {req.method}
                     </span>
                   </td>
-                  <td className="pr-2 max-w-[200px] truncate text-gray-700" title={req.path}>
+                  <td className="pr-2 max-w-[200px] truncate text-ink-secondary" title={req.path}>
                     {req.path}
                   </td>
                   <td className={`pr-2 ${statusClass(req.statusCode)}`}>{req.statusCode}</td>
-                  <td className="text-gray-500 pr-2">{Math.round(req.elapsedMs)}</td>
+                  <td className="text-ink-muted pr-2">{Math.round(req.elapsedMs)}</td>
                   <td>
                     {req.statusCode >= 400 && (
                       <Link
                         to={logsLinkFor(req.requestId, req.statusCode >= 500 ? 'Error' : 'Warning')}
-                        className="text-primary-600 hover:underline whitespace-nowrap"
+                        className="text-brand-action hover:underline whitespace-nowrap"
                       >
                         {t('monitoring.viewLogs')}
                       </Link>
@@ -329,11 +329,11 @@ function ExceptionsCard() {
   })
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className="bg-surface rounded-lg shadow p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">{t('monitoring.recentExceptions')}</h2>
+        <h2 className="text-lg font-semibold text-ink">{t('monitoring.recentExceptions')}</h2>
         {data && data.length > 0 && (
-          <span className="bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+          <span className="bg-danger-soft text-danger-soft-text text-xs font-semibold px-2 py-0.5 rounded-full">
             {data.length}
           </span>
         )}
@@ -341,11 +341,11 @@ function ExceptionsCard() {
       {isLoading ? (
         <div className="space-y-2">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-16 bg-gray-100 rounded animate-pulse" />
+            <div key={i} className="h-16 bg-surface-muted rounded animate-pulse" />
           ))}
         </div>
       ) : !data || data.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-32 text-gray-400">
+        <div className="flex flex-col items-center justify-center h-32 text-ink-muted">
           <CheckCircle2 size={32} strokeWidth={1.75} aria-hidden="true" />
           <span className="text-sm mt-1">{t('monitoring.noExceptions')}</span>
         </div>
@@ -355,24 +355,24 @@ function ExceptionsCard() {
             // exceptionType+timestamp+index as key for stable identity
             <div
               key={`${ex.exceptionType}-${ex.timestamp}-${i}`}
-              className="p-3 bg-red-50 rounded border border-red-100"
+              className="p-3 bg-danger-soft rounded border border-danger/30"
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-red-700">{ex.exceptionType}</span>
-                <span className="text-xs text-gray-400">
+                <span className="text-xs font-semibold text-danger-soft-text">{ex.exceptionType}</span>
+                <span className="text-xs text-ink-muted">
                   {formatDistanceToNow(new Date(ex.timestamp), { addSuffix: true })}
                 </span>
               </div>
-              <p className="text-xs text-gray-800 font-mono truncate">{ex.message}</p>
+              <p className="text-xs text-ink font-mono truncate">{ex.message}</p>
               {ex.path && (
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-ink-muted mt-0.5">
                   {ex.method} {ex.path}
                 </p>
               )}
               {ex.stackTrace && (
-                <p className="text-xs text-gray-400 mt-1 truncate">{ex.stackTrace}</p>
+                <p className="text-xs text-ink-muted mt-1 truncate">{ex.stackTrace}</p>
               )}
-              <Link to={logsLinkFor(ex.requestId, 'Error')} className="text-xs text-primary-600 hover:underline">
+              <Link to={logsLinkFor(ex.requestId, 'Error')} className="text-xs text-brand-action hover:underline">
                 {t('monitoring.viewLogs')}
               </Link>
             </div>
@@ -387,8 +387,8 @@ function ExceptionsCard() {
 function MetricItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs text-gray-500">{label}</dt>
-      <dd className="text-sm font-medium text-gray-900 truncate">{value}</dd>
+      <dt className="text-xs text-ink-muted">{label}</dt>
+      <dd className="text-sm font-medium text-ink truncate">{value}</dd>
     </div>
   )
 }

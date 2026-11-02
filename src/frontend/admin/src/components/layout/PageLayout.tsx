@@ -4,7 +4,7 @@ import { Outlet } from 'react-router-dom'
 
 export function PageLayout() {
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-surface-muted">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />

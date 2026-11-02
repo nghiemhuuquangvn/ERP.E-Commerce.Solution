@@ -276,8 +276,8 @@ export const router = createBrowserRouter([
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
-    <div className="flex h-40 items-center justify-center rounded-lg border-2 border-dashed border-gray-200">
-      <p className="text-gray-400">{title} — coming soon</p>
+    <div className="flex h-40 items-center justify-center rounded-lg border-2 border-dashed border-line">
+      <p className="text-ink-muted">{title} — coming soon</p>
     </div>
   )
 }

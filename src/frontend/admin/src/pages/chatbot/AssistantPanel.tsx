@@ -51,7 +51,7 @@ export function AssistantPanel() {
   }, [messages, toolIndicator])
 
   if (!canUse) {
-    return <div className="flex h-40 items-center justify-center text-gray-400">{t('common.noPermission')}</div>
+    return <div className="flex h-40 items-center justify-center text-ink-muted">{t('common.noPermission')}</div>
   }
 
   const conversationEnded = conversation != null && conversation.status !== 1
@@ -77,10 +77,10 @@ export function AssistantPanel() {
   return (
     <div className="flex h-[calc(100vh-8rem)] gap-4">
       <div className="flex flex-1 flex-col card">
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <div>
-            <h1 className="text-lg font-semibold text-gray-900">{t('chatbot.title')}</h1>
-            <p className="text-xs text-gray-500">{t(`chatbot.status.${connectionStatus}`)}</p>
+            <h1 className="text-lg font-semibold text-ink">{t('chatbot.title')}</h1>
+            <p className="text-xs text-ink-muted">{t(`chatbot.status.${connectionStatus}`)}</p>
           </div>
           <div className="flex items-center gap-2">
             <button type="button" className="btn-outline" onClick={() => setShowHistory((v) => !v)}>
@@ -93,16 +93,16 @@ export function AssistantPanel() {
         </div>
 
         {conversationEnded && (
-          <div className="bg-yellow-50 px-4 py-2 text-xs text-yellow-700">{t('chatbot.conversationEnded')}</div>
+          <div className="bg-warning-soft px-4 py-2 text-xs text-warning-soft-text">{t('chatbot.conversationEnded')}</div>
         )}
 
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
           {isLoadingHistory && (
-            <div className="flex justify-center text-sm text-gray-400">{t('common.loading')}</div>
+            <div className="flex justify-center text-sm text-ink-muted">{t('common.loading')}</div>
           )}
 
           {!isLoadingHistory && messages.length === 0 && (
-            <div className="flex h-full items-center justify-center text-sm text-gray-400">
+            <div className="flex h-full items-center justify-center text-sm text-ink-muted">
               {t('chatbot.emptyState')}
             </div>
           )}
@@ -112,8 +112,8 @@ export function AssistantPanel() {
               <div
                 className={`max-w-[70%] whitespace-pre-wrap rounded-lg px-3 py-2 text-sm ${
                   m.role === 'user'
-                    ? 'bg-primary-600 text-white'
-                    : `bg-gray-100 text-gray-900 ${m.streaming ? 'border border-primary-300' : ''}`
+                    ? 'bg-brand-action text-on-brand'
+                    : `bg-surface-muted text-ink ${m.streaming ? 'border border-brand-accent' : ''}`
                 }`}
               >
                 {m.content}
@@ -124,8 +124,8 @@ export function AssistantPanel() {
 
           {toolIndicator && (
             <div className="flex justify-start">
-              <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-primary-400" />
+              <div className="flex items-center gap-2 rounded-lg bg-surface-muted px-3 py-2 text-xs text-ink-muted">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-brand-accent" />
                 {t(toolIndicator.labelKey, { toolName: toolIndicator.toolName })}
               </div>
             </div>
@@ -135,10 +135,10 @@ export function AssistantPanel() {
         </div>
 
         {error && (
-          <div className="border-t border-gray-200 bg-red-50 px-4 py-2 text-sm text-red-600">{t(error)}</div>
+          <div className="border-t border-line bg-danger-soft px-4 py-2 text-sm text-danger-soft-text">{t(error)}</div>
         )}
 
-        <div className="flex items-end gap-2 border-t border-gray-200 p-3">
+        <div className="flex items-end gap-2 border-t border-line p-3">
           <textarea
             className="input min-h-[44px] flex-1 resize-none"
             placeholder={t('chatbot.inputPlaceholder') as string}
@@ -166,20 +166,20 @@ export function AssistantPanel() {
 
       {showHistory && (
         <div className="w-72 shrink-0 overflow-y-auto card p-3">
-          <h2 className="mb-2 text-sm font-semibold text-gray-900">{t('chatbot.history.title')}</h2>
-          {!conversations?.length && <p className="text-xs text-gray-400">{t('common.noRecordsFound')}</p>}
+          <h2 className="mb-2 text-sm font-semibold text-ink">{t('chatbot.history.title')}</h2>
+          {!conversations?.length && <p className="text-xs text-ink-muted">{t('common.noRecordsFound')}</p>}
           <ul className="space-y-1">
             {conversations?.map((c) => (
               <li key={c.id}>
                 <button
                   type="button"
                   onClick={() => void handleSelectConversation(c.id)}
-                  className={`w-full rounded-md px-2 py-2 text-left text-xs hover:bg-gray-50 ${
-                    conversation?.id === c.id ? 'bg-primary-50 text-primary-700' : 'text-gray-600'
+                  className={`w-full rounded-md px-2 py-2 text-left text-xs hover:bg-surface-muted ${
+                    conversation?.id === c.id ? 'bg-brand-subtle text-brand-action' : 'text-ink-secondary'
                   }`}
                 >
                   <div className="font-medium">{new Date(c.startedAt).toLocaleString()}</div>
-                  <div className="text-gray-400">{t(`chatbot.history.status.${c.status}`)}</div>
+                  <div className="text-ink-muted">{t(`chatbot.history.status.${c.status}`)}</div>
                 </button>
               </li>
             ))}

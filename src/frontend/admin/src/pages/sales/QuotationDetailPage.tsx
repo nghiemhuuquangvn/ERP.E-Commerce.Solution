@@ -43,8 +43,8 @@ export function QuotationDetailPage() {
   const rejectMutation = useMutation({ mutationFn: () => quotationsApi.reject(id!) })
   const convertMutation = useMutation({ mutationFn: () => quotationsApi.convertToOrder(id!, address) })
 
-  if (isLoading) return <div className="text-gray-400">{t('common.loading')}</div>
-  if (!quotation) return <div className="text-gray-400">{t('quotations.notFound')}</div>
+  if (isLoading) return <div className="text-ink-muted">{t('common.loading')}</div>
+  if (!quotation) return <div className="text-ink-muted">{t('quotations.notFound')}</div>
 
   const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
   const addressComplete = address.street.trim() && address.city.trim() && address.state.trim() && address.postalCode.trim()
@@ -52,36 +52,36 @@ export function QuotationDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/sales/quotations" className="text-sm text-gray-500 hover:text-gray-700">
+        <Link to="/sales/quotations" className="text-sm text-ink-muted hover:text-ink">
           {t('quotations.backToQuotations')}
         </Link>
         <h1 className="text-xl font-semibold">{quotation.quotationNo}</h1>
         <StatusBadge status={quotation.status} />
       </div>
 
-      {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+      {actionError && <p className="text-sm text-danger-soft-text">{actionError}</p>}
 
       <div className="grid grid-cols-2 gap-6">
         <div className="card p-5">
-          <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.orderInfo')}</h2>
+          <h2 className="mb-3 text-sm font-semibold text-ink-muted uppercase tracking-wide">{t('orders.orderInfo')}</h2>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <dt className="text-gray-500">{t('orders.customer')}</dt>
+              <dt className="text-ink-muted">{t('orders.customer')}</dt>
               <dd className="font-medium">{quotation.customerName}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">{t('quotations.validUntil')}</dt>
+              <dt className="text-ink-muted">{t('quotations.validUntil')}</dt>
               <dd>{format(new Date(quotation.validUntil), 'dd MMM yyyy')}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">{t('orders.total')}</dt>
-              <dd className="font-semibold text-gray-900">{fmt(quotation.totalAmount)}</dd>
+              <dt className="text-ink-muted">{t('orders.total')}</dt>
+              <dd className="font-semibold text-ink">{fmt(quotation.totalAmount)}</dd>
             </div>
             {quotation.convertedOrderId && (
               <div className="flex justify-between">
-                <dt className="text-gray-500">{t('quotations.convertedOrder')}</dt>
+                <dt className="text-ink-muted">{t('quotations.convertedOrder')}</dt>
                 <dd>
-                  <Link to={`/orders/${quotation.convertedOrderId}`} className="text-primary-600 hover:underline">
+                  <Link to={`/orders/${quotation.convertedOrderId}`} className="text-brand-action hover:underline">
                     {t('quotations.viewOrder')}
                   </Link>
                 </dd>
@@ -91,7 +91,7 @@ export function QuotationDetailPage() {
         </div>
 
         <div className="card p-5">
-          <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.statusActions.title')}</h2>
+          <h2 className="mb-3 text-sm font-semibold text-ink-muted uppercase tracking-wide">{t('orders.statusActions.title')}</h2>
           <div className="flex flex-wrap gap-2">
             {hasPermission('sales_order:update') && quotation.status === 'Draft' && (
               <button onClick={() => runAction(() => sendMutation.mutateAsync())} className="btn-primary text-sm">
@@ -103,14 +103,14 @@ export function QuotationDetailPage() {
                 <button onClick={() => runAction(() => acceptMutation.mutateAsync())} className="btn-primary text-sm">
                   {t('quotations.accept')}
                 </button>
-                <button onClick={() => runAction(() => rejectMutation.mutateAsync())} className="btn-outline text-sm text-red-600">
+                <button onClick={() => runAction(() => rejectMutation.mutateAsync())} className="btn-outline text-sm text-danger-soft-text">
                   {t('quotations.reject')}
                 </button>
               </>
             )}
             {hasPermission('sales_order:create') && quotation.status === 'Accepted' && (
               <div className="w-full space-y-2">
-                <p className="text-xs text-gray-500">{t('quotations.convertNeedsAddress')}</p>
+                <p className="text-xs text-ink-muted">{t('quotations.convertNeedsAddress')}</p>
                 <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
                   <input className="input text-sm" placeholder={t('orders.form.street')} value={address.street} onChange={(e) => setAddress({ ...address, street: e.target.value })} />
                   <input className="input text-sm" placeholder={t('orders.form.city')} value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
@@ -132,17 +132,17 @@ export function QuotationDetailPage() {
       </div>
 
       <div className="card p-5">
-        <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.lineItems')}</h2>
+        <h2 className="mb-3 text-sm font-semibold text-ink-muted uppercase tracking-wide">{t('orders.lineItems')}</h2>
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-100 text-left text-xs text-gray-400 uppercase">
+            <tr className="border-b border-line text-left text-xs text-ink-muted uppercase">
               <th className="pb-2">{t('orders.product')}</th>
               <th className="pb-2 text-right">{t('orders.qty')}</th>
               <th className="pb-2 text-right">{t('orders.unitPrice')}</th>
               <th className="pb-2 text-right">{t('orders.total')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-line">
             {quotation.lineItems.map((line) => (
               <tr key={line.productId}>
                 <td className="py-2">{line.productName}</td>
@@ -153,9 +153,9 @@ export function QuotationDetailPage() {
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t border-gray-200">
+            <tr className="border-t border-line">
               <td colSpan={3} className="pt-3 text-right font-semibold">{t('orders.total')}</td>
-              <td className="pt-3 text-right font-semibold text-gray-900">{fmt(quotation.totalAmount)}</td>
+              <td className="pt-3 text-right font-semibold text-ink">{fmt(quotation.totalAmount)}</td>
             </tr>
           </tfoot>
         </table>

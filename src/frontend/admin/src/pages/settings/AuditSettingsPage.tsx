@@ -41,16 +41,16 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     },
   })
 
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('auditLoggingEnabled')} />
         {t('settings.audit.auditLoggingEnabled')}
       </label>
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.audit.failedToSave')}</p>}
+      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.audit.failedToSave')}</p>}
 
       {canManage && (
         <div className="pt-2">
@@ -96,12 +96,12 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
     },
   })
 
-  if (!tenantId) return <p className="text-sm text-gray-400">{t('settings.audit.noTenant')}</p>
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (!tenantId) return <p className="text-sm text-ink-muted">{t('settings.audit.noTenant')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.audit.retentionDays')}
         <input
           type="number"
@@ -111,20 +111,20 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
           className="input mt-1 w-full"
         />
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('logSuccessfulLogins')} />
         {t('settings.audit.logSuccessfulLogins')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('logFailedLogins')} />
         {t('settings.audit.logFailedLogins')}
       </label>
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('logPermissionChanges')} />
         {t('settings.audit.logPermissionChanges')}
       </label>
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.audit.failedToSave')}</p>}
+      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.audit.failedToSave')}</p>}
 
       {canManage && (
         <div className="pt-2">
@@ -157,15 +157,15 @@ export function AuditSettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.audit.title')}</h1>
 
-      <div className="flex gap-2 border-b border-gray-200">
+      <div className="flex gap-2 border-b border-line">
         {TABS.map((x) => (
           <button
             key={x.key}
             onClick={() => setTab(x.key)}
             className={`px-3 py-2 text-sm font-medium ${
               tab === x.key
-                ? 'border-b-2 border-primary-600 text-primary-700'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'border-b-2 border-brand-action text-brand-action'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             {x.label}

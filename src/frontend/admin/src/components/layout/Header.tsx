@@ -18,10 +18,10 @@ export function Header() {
   }
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-6">
+    <header className="flex h-16 items-center justify-between border-b border-line bg-surface px-6">
       <button
         onClick={toggleSidebar}
-        className="rounded-md p-2 text-gray-500 hover:bg-gray-100"
+        className="rounded-md p-2 text-ink-muted hover:bg-surface-muted"
         aria-label="Toggle sidebar"
       >
         <Menu size={20} strokeWidth={1.75} aria-hidden="true" />
@@ -32,16 +32,16 @@ export function Header() {
         <select
           value={locale}
           onChange={handleLocaleChange}
-          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-600"
+          className="rounded-md border border-line-strong bg-surface px-2 py-1 text-sm text-ink-secondary"
           aria-label="Language"
         >
           <option value="en">EN</option>
           <option value="vi">VI</option>
         </select>
-        <span className="text-sm text-gray-600">{user?.fullName ?? user?.email}</span>
+        <span className="text-sm text-ink-secondary">{user?.fullName ?? user?.email}</span>
         <button
           onClick={logout}
-          className="rounded-md px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+          className="rounded-md px-3 py-1.5 text-sm text-ink-secondary hover:bg-surface-muted"
         >
           {t('common.signOut')}
         </button>

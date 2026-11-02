@@ -50,7 +50,7 @@ function GatewayCard({ tenantId, credential, canManage }: { tenantId: string; cr
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
   const code = credential.provider.toLowerCase()
   const secretBox = (label: string, value: string, set: (v: string) => void, isSet: boolean) => (
-    <label className="block text-sm text-gray-700">
+    <label className="block text-sm text-ink-secondary">
       {t(`settings.payment.gateways.fields.${label}`)}
       <input
         type="password"
@@ -67,24 +67,24 @@ function GatewayCard({ tenantId, credential, canManage }: { tenantId: string; cr
   return (
     <div className="card space-y-3 p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-900">{credential.provider}</h3>
-        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${credential.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+        <h3 className="text-sm font-semibold text-ink">{credential.provider}</h3>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${credential.enabled ? 'bg-success-soft text-success-soft-text' : 'bg-surface-muted text-ink-secondary'}`}>
           {credential.enabled ? t('settings.payment.gateways.on') : t('settings.payment.gateways.off')}
         </span>
       </div>
 
       <div className="flex gap-6">
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 text-sm text-ink-secondary">
           <input type="checkbox" disabled={!canManage} checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
           {t('settings.payment.gateways.enable')}
         </label>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 text-sm text-ink-secondary">
           <input type="checkbox" disabled={!canManage} checked={sandbox} onChange={(e) => setSandbox(e.target.checked)} />
           {t('settings.payment.sandboxMode')}
         </label>
       </div>
 
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t(`settings.payment.gateways.fields.${fields.publicId}`)}
         <input disabled={!canManage} value={publicId} onChange={(e) => setPublicId(e.target.value)} className="input mt-1 w-full" />
       </label>
@@ -93,15 +93,15 @@ function GatewayCard({ tenantId, credential, canManage }: { tenantId: string; cr
       {fields.secret2 && secretBox(fields.secret2, secret2, setSecret2, credential.hasSecret2)}
 
       {credential.provider !== 'VNPay' && (
-        <p className="rounded bg-gray-50 p-2 text-xs text-gray-500">
+        <p className="rounded bg-surface-muted p-2 text-xs text-ink-muted">
           {t('settings.payment.gateways.notifyHint')}
           <br />
           <span className="font-mono">{`${origin}/api/v1/payment-gateway/ipn/${code}`}</span>
         </p>
       )}
 
-      {save.isError && <p className="text-xs text-red-600">{serverMessage(save.error, t('settings.payment.failedToSave'))}</p>}
-      {save.isSuccess && <p className="text-xs text-green-700">{t('settings.payment.gateways.saved')}</p>}
+      {save.isError && <p className="text-xs text-danger-soft-text">{serverMessage(save.error, t('settings.payment.failedToSave'))}</p>}
+      {save.isSuccess && <p className="text-xs text-success-soft-text">{t('settings.payment.gateways.saved')}</p>}
 
       {canManage && (
         <div className="flex justify-end">
@@ -123,13 +123,13 @@ export function PaymentGatewaysCard({ tenantId, canManage }: { tenantId: string;
     enabled: !!tenantId,
   })
 
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <div className="space-y-3">
       <div>
-        <h2 className="text-base font-semibold text-gray-900">{t('settings.payment.gateways.title')}</h2>
-        <p className="text-xs text-gray-500">{t('settings.payment.gateways.hint')}</p>
+        <h2 className="text-base font-semibold text-ink">{t('settings.payment.gateways.title')}</h2>
+        <p className="text-xs text-ink-muted">{t('settings.payment.gateways.hint')}</p>
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {(data ?? []).map((c) => (

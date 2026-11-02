@@ -8,10 +8,10 @@ import type { OrderSagaStep } from '@/api/orderSaga.api'
 import { usePermission } from '@/hooks/usePermission'
 
 const STATE_STYLE: Record<OrderSagaStep['state'], string> = {
-  Done: 'bg-green-100 text-green-700 border-green-300',
-  Current: 'bg-blue-100 text-blue-700 border-blue-400 ring-2 ring-blue-200',
-  Waiting: 'bg-gray-50 text-gray-400 border-gray-200',
-  Failed: 'bg-red-100 text-red-700 border-red-400',
+  Done: 'bg-success-soft text-success-soft-text border-success/30',
+  Current: 'bg-info-soft text-info-soft-text border-brand-action ring-2 ring-info/30',
+  Waiting: 'bg-surface-muted text-ink-muted border-line',
+  Failed: 'bg-danger-soft text-danger-soft-text border-danger',
 }
 
 const STATE_MARK: Record<OrderSagaStep['state'], JSX.Element> = {
@@ -57,8 +57,8 @@ export function OrderSagaPanel({ orderId }: { orderId: string }) {
   return (
     <div className="card p-5" data-testid="order-saga">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{t('orders.saga.title')}</h2>
-        <span className="text-xs text-gray-500">{t(`orders.saga.status.${saga.status}`)}</span>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">{t('orders.saga.title')}</h2>
+        <span className="text-xs text-ink-muted">{t(`orders.saga.status.${saga.status}`)}</span>
       </div>
 
       <ol className="flex flex-wrap items-center gap-2 text-sm">
@@ -68,7 +68,7 @@ export function OrderSagaPanel({ orderId }: { orderId: string }) {
               {STATE_MARK[s.state]}
               {t(`orders.saga.step.${s.key}`)}
             </span>
-            {i < saga.steps.length - 1 && <span className="text-gray-300">→</span>}
+            {i < saga.steps.length - 1 && <span className="text-ink-muted">→</span>}
           </li>
         ))}
       </ol>
@@ -76,35 +76,35 @@ export function OrderSagaPanel({ orderId }: { orderId: string }) {
       {saga.status === 'Running' && (
         <div className="mt-3 space-y-1 text-sm">
           {saga.timeoutMinutes === null ? (
-            <p className="text-gray-600">{t('orders.saga.waitingForPerson')}</p>
+            <p className="text-ink-secondary">{t('orders.saga.waitingForPerson')}</p>
           ) : (
-            <p className={saga.stuck ? 'text-amber-700' : 'text-gray-600'}>
+            <p className={saga.stuck ? 'text-warning-soft-text' : 'text-ink-secondary'}>
               {t('orders.saga.waitingSince', { step: t(`orders.saga.step.${saga.steps.find((s) => s.state === 'Current')?.key ?? 'Done'}`), time: waited(saga.lastUpdatedAt, new Date()), limit: saga.timeoutMinutes })}
               {saga.stuck && ` — ${t('orders.saga.stuck')}`}
             </p>
           )}
-          {saga.retryCount > 0 && <p className="text-xs text-gray-500">{t('orders.saga.retries', { count: saga.retryCount, max: saga.maxRetries })}</p>}
+          {saga.retryCount > 0 && <p className="text-xs text-ink-muted">{t('orders.saga.retries', { count: saga.retryCount, max: saga.maxRetries })}</p>}
           {saga.canRetry && hasPermission('sales_order:update') && (
             <button className="btn-outline mt-1 text-sm" disabled={retry.isPending} onClick={() => retry.mutate()}>
               {retry.isPending ? t('common.saving') : t('orders.saga.retry')}
             </button>
           )}
-          {retry.isError && <p className="text-xs text-red-600">{error ?? t('orders.saga.retryFailed')}</p>}
+          {retry.isError && <p className="text-xs text-danger-soft-text">{error ?? t('orders.saga.retryFailed')}</p>}
         </div>
       )}
 
       {failed && (
-        <div className="mt-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
+        <div className="mt-3 rounded border border-danger/30 bg-danger-soft p-3 text-sm text-danger-soft-text" role="alert">
           <p className="font-medium">{t('orders.saga.cancelledAutomatically')}</p>
           {saga.message && <p className="mt-1 text-xs">{saga.message}</p>}
         </div>
       )}
 
       {saga.status === 'Completed' && !delivery && saga.completedAt && (
-        <p className="mt-3 text-xs text-gray-500">{t('orders.saga.completedAt', { date: format(new Date(saga.completedAt), 'dd MMM yyyy HH:mm') })}</p>
+        <p className="mt-3 text-xs text-ink-muted">{t('orders.saga.completedAt', { date: format(new Date(saga.completedAt), 'dd MMM yyyy HH:mm') })}</p>
       )}
       {delivery && (
-        <p className="mt-3 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800" role="status">
+        <p className="mt-3 rounded border border-warning/30 bg-warning-soft p-2 text-xs text-warning-soft-text" role="status">
           {saga.message}
         </p>
       )}

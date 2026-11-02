@@ -50,7 +50,7 @@ function ExportButton({ path, params, name, disabled, pdf, xml }: { path: string
           {t('accounting.vat.exportXml')}
         </button>
       )}
-      {failed && <span className="text-xs text-red-600">{t('accounting.reports.exportFailed')}</span>}
+      {failed && <span className="text-xs text-danger-soft-text">{t('accounting.reports.exportFailed')}</span>}
     </span>
   )
 }
@@ -86,14 +86,14 @@ function ReportProfilePanel({ canEdit }: { canEdit: boolean }) {
 
   const field = (key: 'companyName' | 'taxCode' | 'address' | 'preparedBy' | 'chiefAccountant' | 'director', label: string, max: number) => (
     <div>
-      <label className="mb-1 block text-sm font-medium text-gray-700">{label}</label>
+      <label className="mb-1 block text-sm font-medium text-ink-secondary">{label}</label>
       <input className="input" maxLength={max} disabled={!canEdit} value={value[key]} onChange={(e) => set({ [key]: e.target.value })} />
     </div>
   )
 
   return (
     <details className="card p-3">
-      <summary className="cursor-pointer text-sm font-semibold text-gray-900">{t('accounting.reports.profileTitle')}</summary>
+      <summary className="cursor-pointer text-sm font-semibold text-ink">{t('accounting.reports.profileTitle')}</summary>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         {field('companyName', t('accounting.reports.companyName'), 200)}
         {field('taxCode', t('accounting.reports.taxCode'), 20)}
@@ -102,7 +102,7 @@ function ReportProfilePanel({ canEdit }: { canEdit: boolean }) {
         {field('chiefAccountant', t('accounting.reports.chiefAccountant'), 300)}
         {field('director', t('accounting.reports.director'), 300)}
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.defaultUnit')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.defaultUnit')}</label>
           <select className="input" disabled={!canEdit} value={value.amountUnit} onChange={(e) => set({ amountUnit: e.target.value as AmountUnit })}>
             <option value="Vnd">{t('accounting.reports.unitVnd')}</option>
             <option value="Thousand">{t('accounting.reports.unitThousand')}</option>
@@ -115,7 +115,7 @@ function ReportProfilePanel({ canEdit }: { canEdit: boolean }) {
           <button className="btn-primary" disabled={!draft || save.isPending} onClick={() => save.mutate()}>
             {t('common.save')}
           </button>
-          {save.isError && <span className="text-sm text-red-600">{error ?? t('accounting.reports.profileFailed')}</span>}
+          {save.isError && <span className="text-sm text-danger-soft-text">{error ?? t('accounting.reports.profileFailed')}</span>}
         </div>
       )}
     </details>
@@ -183,29 +183,29 @@ function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' |
       <div className="flex flex-wrap items-end gap-3">
         {!isBalanceSheet && (
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.fromDate')}</label>
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.fromDate')}</label>
             <input type="date" className="input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
           </div>
         )}
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">
             {isBalanceSheet ? t('accounting.reports.asOfDate') : t('accounting.reports.toDate')}
           </label>
           <input type="date" className="input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
-        <label className="flex items-center gap-2 pb-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 pb-2 text-sm text-ink-secondary">
           <input type="checkbox" checked={compare} onChange={(e) => setCompare(e.target.checked)} />
           {t('accounting.reports.compare')}
         </label>
         {compare && !isBalanceSheet && (
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.compareFrom')}</label>
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.compareFrom')}</label>
             <input type="date" className="input" value={compareFrom} onChange={(e) => setCompareFrom(e.target.value)} />
           </div>
         )}
         {compare && (
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">
               {isBalanceSheet ? t('accounting.reports.compareAsOf') : t('accounting.reports.compareTo')}
             </label>
             <input type="date" className="input" value={compareTo} onChange={(e) => setCompareTo(e.target.value)} />
@@ -213,7 +213,7 @@ function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' |
         )}
         {kind === 'cash-flow' && (
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.method')}</label>
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.method')}</label>
             <select className="input" value={method} onChange={(e) => setMethod(e.target.value as 'direct' | 'indirect')}>
               <option value="direct">{t('accounting.reports.methodDirect')}</option>
               <option value="indirect">{t('accounting.reports.methodIndirect')}</option>
@@ -221,7 +221,7 @@ function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' |
           </div>
         )}
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.unit')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.unit')}</label>
           <select className="input" value={unit} onChange={(e) => setUnit(e.target.value as AmountUnit | '')}>
             <option value="">{t('accounting.reports.unitProfile')}</option>
             <option value="Vnd">{t('accounting.reports.unitVnd')}</option>
@@ -239,7 +239,7 @@ function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' |
       </div>
 
       {data?.header && (
-        <div className="text-sm text-gray-700">
+        <div className="text-sm text-ink-secondary">
           <p className="font-semibold">{data.header.companyName}</p>
           {data.header.taxCode && <p>{t('accounting.reports.taxCode')}: {data.header.taxCode}</p>}
           {data.header.address && <p>{data.header.address}</p>}
@@ -247,13 +247,13 @@ function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' |
       )}
 
       {data && (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-ink-muted">
           {t('accounting.reports.unit')}: {data.unit}
         </p>
       )}
 
       {data && (
-        <p className="text-xs text-amber-700">
+        <p className="text-xs text-warning-soft-text">
           {data.title}
           {data.isDraft ? ` — ${t('accounting.reports.draftWarning')}` : ''}
         </p>
@@ -268,14 +268,14 @@ function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' |
       )}
 
       {data?.isBalanced !== null && data?.isBalanced !== undefined && (
-        <p className={data.isBalanced ? 'text-sm text-green-700' : 'text-sm font-semibold text-red-700'}>
+        <p className={data.isBalanced ? 'text-sm text-success-soft-text' : 'text-sm font-semibold text-danger-soft-text'}>
           {data.isBalanced ? t('accounting.reports.balanced') : t('accounting.reports.notBalanced')}
         </p>
       )}
 
       {data && data.unmapped.length > 0 && (
-        <div className="card space-y-1 border border-amber-300 p-3 text-sm">
-          <p className="font-semibold text-amber-800">{t('accounting.reports.unmappedTitle')}</p>
+        <div className="card space-y-1 border border-warning/30 p-3 text-sm">
+          <p className="font-semibold text-warning-soft-text">{t('accounting.reports.unmappedTitle')}</p>
           {data.unmapped.map((u) => (
             <p key={u.accountNumber} className="font-mono text-xs">
               {u.accountNumber} {u.accountName}: {u.balance.toLocaleString()}
@@ -286,14 +286,14 @@ function StatementPanel({ kind }: { kind: 'balance-sheet' | 'income-statement' |
 
       {data?.header && (data.header.preparedBy || data.header.chiefAccountant || data.header.director) && (
         <div className="grid grid-cols-3 gap-4 pt-4 text-center text-sm">
-          <div><p className="text-xs text-gray-500">{t('accounting.reports.preparedBy')}</p><p>{data.header.preparedBy}</p></div>
-          <div><p className="text-xs text-gray-500">{t('accounting.reports.chiefAccountant')}</p><p>{data.header.chiefAccountant}</p></div>
-          <div><p className="text-xs text-gray-500">{t('accounting.reports.director')}</p><p>{data.header.director}</p></div>
+          <div><p className="text-xs text-ink-muted">{t('accounting.reports.preparedBy')}</p><p>{data.header.preparedBy}</p></div>
+          <div><p className="text-xs text-ink-muted">{t('accounting.reports.chiefAccountant')}</p><p>{data.header.chiefAccountant}</p></div>
+          <div><p className="text-xs text-ink-muted">{t('accounting.reports.director')}</p><p>{data.header.director}</p></div>
         </div>
       )}
 
       {data && data.notes.length > 0 && (
-        <ul className="list-disc space-y-1 pl-5 text-xs text-gray-500">
+        <ul className="list-disc space-y-1 pl-5 text-xs text-ink-muted">
           {data.notes.map((n) => (
             <li key={n}>{n}</li>
           ))}
@@ -355,20 +355,20 @@ function TrialBalancePanel() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">
             {t('accounting.reports.fiscalPeriodId')}
           </label>
           <input className="input" value={fiscalPeriodId} onChange={(e) => setFiscalPeriodId(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.fromDate')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.fromDate')}</label>
           <input type="date" className="input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.toDate')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.toDate')}</label>
           <input type="date" className="input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
-        <label className="flex items-center gap-2 pb-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 pb-2 text-sm text-ink-secondary">
           <input
             type="checkbox"
             checked={hideZeroBalance}
@@ -376,7 +376,7 @@ function TrialBalancePanel() {
           />
           {t('accounting.reports.hideZeroBalance')}
         </label>
-        <label className="flex items-center gap-2 pb-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 pb-2 text-sm text-ink-secondary">
           <input type="checkbox" checked={rollUp} onChange={(e) => setRollUp(e.target.checked)} />
           {t('accounting.reports.rollUp')}
         </label>
@@ -404,7 +404,7 @@ function TrialBalancePanel() {
           <span>{t('accounting.reports.periodCredit')}: {totals.periodCredit.toLocaleString()}</span>
           <span>{t('accounting.reports.closingDebit')}: {totals.closingDebit.toLocaleString()}</span>
           <span>{t('accounting.reports.closingCredit')}: {totals.closingCredit.toLocaleString()}</span>
-          <span className={totals.isBalanced ? 'text-green-700' : 'font-semibold text-red-700'}>
+          <span className={totals.isBalanced ? 'text-success-soft-text' : 'font-semibold text-danger-soft-text'}>
             {totals.isBalanced ? t('accounting.reports.balanced') : t('accounting.reports.notBalanced')}
           </span>
         </div>
@@ -463,7 +463,7 @@ function LedgerPanel() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.account')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.account')}</label>
           <select className="input" value={accountId} onChange={(e) => { setAccountId(e.target.value); setPageNumber(1) }}>
             <option value="">{t('accounting.reports.chooseAccount')}</option>
             {(accounts ?? []).map((a) => (
@@ -474,14 +474,14 @@ function LedgerPanel() {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.fromDate')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.fromDate')}</label>
           <input type="date" className="input" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setPageNumber(1) }} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.toDate')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.toDate')}</label>
           <input type="date" className="input" value={toDate} onChange={(e) => { setToDate(e.target.value); setPageNumber(1) }} />
         </div>
-        <label className="flex items-center gap-2 pb-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 pb-2 text-sm text-ink-secondary">
           <input type="checkbox" checked={includeSubAccounts} onChange={(e) => setIncludeSubAccounts(e.target.checked)} />
           {t('accounting.reports.includeSubAccounts')}
         </label>
@@ -544,7 +544,7 @@ function CashFlowPanel() {
 
   const section = (key: 'operating' | 'investing' | 'financing', s: CashFlowSection) => (
     <div key={key}>
-      <h3 className="mb-2 text-sm font-semibold text-gray-800">
+      <h3 className="mb-2 text-sm font-semibold text-ink">
         {t(`accounting.reports.cashFlow_${key}`)} — {s.net.toLocaleString()}
       </h3>
       <DataTable columns={columns} data={s.lines.map((l) => ({ id: l.accountId, ...l }))} />
@@ -555,25 +555,25 @@ function CashFlowPanel() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.fromDate')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.fromDate')}</label>
           <input type="date" className="input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.toDate')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.toDate')}</label>
           <input type="date" className="input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
         <ExportButton path="cash-flow" params={{ fromDate, toDate }} name="cash-flow.csv" disabled={!fromDate || !toDate} />
       </div>
 
-      {isLoading && <p className="text-sm text-gray-400">{t('common.loading')}</p>}
+      {isLoading && <p className="text-sm text-ink-muted">{t('common.loading')}</p>}
       {data && (
         <div className="space-y-4">
-          {data.cashAccountCount === 0 && <p className="text-sm text-amber-700">{t('accounting.reports.noCashAccounts')}</p>}
+          {data.cashAccountCount === 0 && <p className="text-sm text-warning-soft-text">{t('accounting.reports.noCashAccounts')}</p>}
           <div className="card flex flex-wrap items-center gap-x-6 gap-y-1 p-3 text-sm">
             <span>{t('accounting.reports.openingCash')}: {data.openingCash.toLocaleString()}</span>
             <span>{t('accounting.reports.netChange')}: {data.netChange.toLocaleString()}</span>
             <span>{t('accounting.reports.closingCash')}: {data.closingCash.toLocaleString()}</span>
-            <span className={data.isReconciled ? 'text-green-700' : 'font-semibold text-red-700'}>
+            <span className={data.isReconciled ? 'text-success-soft-text' : 'font-semibold text-danger-soft-text'}>
               {data.isReconciled
                 ? t('accounting.reports.reconciled')
                 : t('accounting.reports.notReconciled', { difference: data.difference.toLocaleString() })}
@@ -582,7 +582,7 @@ function CashFlowPanel() {
           {section('operating', data.operating)}
           {section('investing', data.investing)}
           {section('financing', data.financing)}
-          <p className="text-xs text-gray-500">{t('accounting.reports.cashFlowNote')}</p>
+          <p className="text-xs text-ink-muted">{t('accounting.reports.cashFlowNote')}</p>
         </div>
       )}
     </div>
@@ -620,42 +620,42 @@ function ProfitAndLossPanel() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.fromDate')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.fromDate')}</label>
           <input type="date" className="input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.toDate')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.toDate')}</label>
           <input type="date" className="input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
       </div>
 
       {!fromDate || !toDate ? (
-        <p className="text-sm text-gray-400">{t('accounting.reports.selectDateRange')}</p>
+        <p className="text-sm text-ink-muted">{t('accounting.reports.selectDateRange')}</p>
       ) : isLoading ? (
-        <p className="text-sm text-gray-400">{t('common.loading')}</p>
+        <p className="text-sm text-ink-muted">{t('common.loading')}</p>
       ) : data ? (
         <div className="space-y-6">
           <div className="grid grid-cols-3 gap-4">
             <div className="card p-4">
-              <p className="text-xs uppercase text-gray-500">{t('accounting.reports.totalRevenue')}</p>
+              <p className="text-xs uppercase text-ink-muted">{t('accounting.reports.totalRevenue')}</p>
               <p className="text-lg font-semibold">{data.totalRevenue.toLocaleString()}</p>
             </div>
             <div className="card p-4">
-              <p className="text-xs uppercase text-gray-500">{t('accounting.reports.totalExpenses')}</p>
+              <p className="text-xs uppercase text-ink-muted">{t('accounting.reports.totalExpenses')}</p>
               <p className="text-lg font-semibold">{data.totalExpenses.toLocaleString()}</p>
             </div>
             <div className="card p-4">
-              <p className="text-xs uppercase text-gray-500">{t('accounting.reports.netIncome')}</p>
+              <p className="text-xs uppercase text-ink-muted">{t('accounting.reports.netIncome')}</p>
               <p className="text-lg font-semibold">{data.netIncome.toLocaleString()}</p>
             </div>
           </div>
 
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-gray-800">{t('accounting.reports.revenueLines')}</h3>
+            <h3 className="mb-2 text-sm font-semibold text-ink">{t('accounting.reports.revenueLines')}</h3>
             <DataTable columns={lineColumns} data={toRows(data.revenueLines)} />
           </div>
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-gray-800">{t('accounting.reports.expenseLines')}</h3>
+            <h3 className="mb-2 text-sm font-semibold text-ink">{t('accounting.reports.expenseLines')}</h3>
             <DataTable columns={lineColumns} data={toRows(data.expenseLines)} />
           </div>
         </div>
@@ -692,7 +692,7 @@ function BalanceSheetPanel() {
   return (
     <div className="space-y-4">
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.asOfDate')}</label>
+        <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.asOfDate')}</label>
         <input
           type="date"
           className="input max-w-xs"
@@ -702,34 +702,34 @@ function BalanceSheetPanel() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-gray-400">{t('common.loading')}</p>
+        <p className="text-sm text-ink-muted">{t('common.loading')}</p>
       ) : data ? (
         <div className="space-y-6">
           <div className="grid grid-cols-3 gap-4">
             <div className="card p-4">
-              <p className="text-xs uppercase text-gray-500">{t('accounting.reports.totalAssets')}</p>
+              <p className="text-xs uppercase text-ink-muted">{t('accounting.reports.totalAssets')}</p>
               <p className="text-lg font-semibold">{data.totalAssets.toLocaleString()}</p>
             </div>
             <div className="card p-4">
-              <p className="text-xs uppercase text-gray-500">{t('accounting.reports.totalLiabilities')}</p>
+              <p className="text-xs uppercase text-ink-muted">{t('accounting.reports.totalLiabilities')}</p>
               <p className="text-lg font-semibold">{data.totalLiabilities.toLocaleString()}</p>
             </div>
             <div className="card p-4">
-              <p className="text-xs uppercase text-gray-500">{t('accounting.reports.totalEquity')}</p>
+              <p className="text-xs uppercase text-ink-muted">{t('accounting.reports.totalEquity')}</p>
               <p className="text-lg font-semibold">{data.totalEquity.toLocaleString()}</p>
             </div>
           </div>
 
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-gray-800">{t('accounting.reports.assetLines')}</h3>
+            <h3 className="mb-2 text-sm font-semibold text-ink">{t('accounting.reports.assetLines')}</h3>
             <DataTable columns={lineColumns} data={toRows(data.assetLines)} />
           </div>
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-gray-800">{t('accounting.reports.liabilityLines')}</h3>
+            <h3 className="mb-2 text-sm font-semibold text-ink">{t('accounting.reports.liabilityLines')}</h3>
             <DataTable columns={lineColumns} data={toRows(data.liabilityLines)} />
           </div>
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-gray-800">{t('accounting.reports.equityLines')}</h3>
+            <h3 className="mb-2 text-sm font-semibold text-ink">{t('accounting.reports.equityLines')}</h3>
             <DataTable columns={lineColumns} data={toRows(data.equityLines)} />
           </div>
         </div>
@@ -747,17 +747,17 @@ function NoteTextHistory({ sectionKey, language, fiscalYear, canEdit, onUse }: {
     queryFn: () => reportsApi.noteTextHistory(sectionKey, language, fiscalYear),
     staleTime: 15_000,
   })
-  if (isLoading) return <p className="text-xs text-gray-400">{t('common.loading')}</p>
-  if (!data || data.length === 0) return <p className="text-xs text-gray-500">{t('accounting.reports.notesHistoryEmpty')}</p>
+  if (isLoading) return <p className="text-xs text-ink-muted">{t('common.loading')}</p>
+  if (!data || data.length === 0) return <p className="text-xs text-ink-muted">{t('accounting.reports.notesHistoryEmpty')}</p>
   return (
-    <ul className="space-y-1 rounded border border-gray-200 bg-gray-50 p-2 text-xs">
+    <ul className="space-y-1 rounded border border-line bg-surface-muted p-2 text-xs">
       {data.map((r, i) => (
         <li key={i} className="flex flex-wrap items-baseline gap-2">
-          <span className="text-gray-500">{new Date(r.changedAt).toLocaleString()}</span>
-          <span className="font-medium text-gray-700">{r.changedBy ?? '—'}</span>
-          <span className="min-w-0 flex-1 truncate text-gray-600">{r.text || t('accounting.reports.notesHistoryCleared')}</span>
+          <span className="text-ink-muted">{new Date(r.changedAt).toLocaleString()}</span>
+          <span className="font-medium text-ink-secondary">{r.changedBy ?? '—'}</span>
+          <span className="min-w-0 flex-1 truncate text-ink-secondary">{r.text || t('accounting.reports.notesHistoryCleared')}</span>
           {canEdit && r.text && (
-            <button className="text-primary-700 hover:underline" onClick={() => onUse(r.text)}>
+            <button className="text-brand-action hover:underline" onClick={() => onUse(r.text)}>
               {t('accounting.reports.notesHistoryUse')}
             </button>
           )}
@@ -786,14 +786,14 @@ function NoteTextsEditor({ canEdit, language, fiscalYear }: { canEdit: boolean; 
 
   return (
     <details className="card p-3">
-      <summary className="cursor-pointer text-sm font-semibold text-gray-900">{t('accounting.reports.notesEdit')}</summary>
+      <summary className="cursor-pointer text-sm font-semibold text-ink">{t('accounting.reports.notesEdit')}</summary>
       <div className="mt-3 space-y-3">
         {(data ?? []).map((s) => (
           <div key={s.key}>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">
               {s.number}. {s.title}
               {s.inherited && s.text && (
-                <span className="ml-2 text-xs font-normal text-amber-700">
+                <span className="ml-2 text-xs font-normal text-warning-soft-text">
                   {s.sourceYear === 0 ? t('accounting.reports.notesInheritedAll') : t('accounting.reports.notesInherited', { year: s.sourceYear })}
                 </span>
               )}
@@ -806,7 +806,7 @@ function NoteTextsEditor({ canEdit, language, fiscalYear }: { canEdit: boolean; 
               value={draft[s.key] ?? s.text}
               onChange={(e) => setDraft({ ...draft, [s.key]: e.target.value })}
             />
-            <button className="mt-1 text-xs text-gray-500 hover:underline" onClick={() => setHistoryOf(historyOf === s.key ? null : s.key)}>
+            <button className="mt-1 text-xs text-ink-muted hover:underline" onClick={() => setHistoryOf(historyOf === s.key ? null : s.key)}>
               {t('accounting.reports.notesHistory')}
             </button>
             {historyOf === s.key && (
@@ -819,7 +819,7 @@ function NoteTextsEditor({ canEdit, language, fiscalYear }: { canEdit: boolean; 
             <button className="btn-primary" disabled={Object.keys(draft).length === 0 || save.isPending} onClick={() => save.mutate()}>
               {t('common.save')}
             </button>
-            {save.isError && <span className="text-sm text-red-600">{error ?? t('accounting.reports.notesFailed')}</span>}
+            {save.isError && <span className="text-sm text-danger-soft-text">{error ?? t('accounting.reports.notesFailed')}</span>}
           </div>
         )}
       </div>
@@ -831,12 +831,12 @@ function NoteSectionView({ section }: { section: NoteSection }) {
   const { t } = useTranslation()
   return (
     <div className="space-y-1">
-      <h3 className="text-sm font-semibold text-gray-900">
+      <h3 className="text-sm font-semibold text-ink">
         {section.number}. {section.title}
       </h3>
-      {section.text && <p className="whitespace-pre-line text-sm text-gray-700">{section.text}</p>}
+      {section.text && <p className="whitespace-pre-line text-sm text-ink-secondary">{section.text}</p>}
       {!section.text && !section.table && section.hint && (
-        <p className="text-xs italic text-gray-400">
+        <p className="text-xs italic text-ink-muted">
           {t('accounting.reports.notesEmpty')} — {section.hint}
         </p>
       )}
@@ -844,7 +844,7 @@ function NoteSectionView({ section }: { section: NoteSection }) {
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b text-left text-gray-500">
+              <tr className="border-b text-left text-ink-muted">
                 <th className="p-1">{t('accounting.reports.indicator')}</th>
                 {section.table.columns.map((c) => (
                   <th key={c} className="p-1 text-right">
@@ -900,15 +900,15 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.fromDate')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.fromDate')}</label>
           <input type="date" className="input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.toDate')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.toDate')}</label>
           <input type="date" className="input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.unit')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.unit')}</label>
           <select className="input" value={unit} onChange={(e) => setUnit(e.target.value as AmountUnit | '')}>
             <option value="">{t('accounting.reports.unitProfile')}</option>
             <option value="Vnd">{t('accounting.reports.unitVnd')}</option>
@@ -917,11 +917,11 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesYear')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.notesYear')}</label>
           <input type="number" min="0" max="9999" className="input w-28" value={yearOverride !== '' ? yearOverride : String(fiscalYear)} onChange={(e) => setYearOverride(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesLanguage')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.notesLanguage')}</label>
           <select className="input" value={language} onChange={(e) => setLanguage(e.target.value as NoteLanguage)}>
             <option value="vi">Tiếng Việt</option>
             <option value="en">English</option>
@@ -929,14 +929,14 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
             <option value="zh">中文</option>
             <option value="fr">Français</option>
           </select>
-          {(language === 'ja' || language === 'zh') && <p className="mt-1 text-xs text-amber-700">{t('accounting.reports.notesNoPdf')}</p>}
+          {(language === 'ja' || language === 'zh') && <p className="mt-1 text-xs text-warning-soft-text">{t('accounting.reports.notesNoPdf')}</p>}
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesCompareFrom')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.notesCompareFrom')}</label>
           <input type="date" className="input" value={compareFrom} onChange={(e) => setCompareFrom(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.notesCompareTo')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.notesCompareTo')}</label>
           <input type="date" className="input" value={compareTo} onChange={(e) => setCompareTo(e.target.value)} />
         </div>
         <ExportButton path="statements/notes" params={params} name="notes-b09.csv" disabled={!ready || (!!compareFrom !== !!compareTo)} pdf={language !== 'ja' && language !== 'zh'} />
@@ -944,15 +944,15 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
 
       <NoteTextsEditor canEdit={canEdit} language={language} fiscalYear={fiscalYear} />
 
-      {ready && isLoading && <p className="text-sm text-gray-400">{t('common.loading')}</p>}
+      {ready && isLoading && <p className="text-sm text-ink-muted">{t('common.loading')}</p>}
       {data && (
         <div className="space-y-4">
-          <p className="text-xs text-amber-700">
+          <p className="text-xs text-warning-soft-text">
             {data.title}
             {data.isDraft ? ` — ${t('accounting.reports.draftWarning')}` : ''} · {t('accounting.reports.unit')}: {data.unit}
           </p>
           {data.header && (
-            <div className="text-sm text-gray-700">
+            <div className="text-sm text-ink-secondary">
               <p className="font-semibold">{data.header.companyName}</p>
               {data.header.taxCode && <p>{t('accounting.reports.taxCode')}: {data.header.taxCode}</p>}
             </div>
@@ -960,7 +960,7 @@ function NotesPanel({ canEdit }: { canEdit: boolean }) {
           {data.sections.map((s) => (
             <NoteSectionView key={s.number} section={s} />
           ))}
-          <ul className="list-disc space-y-1 pl-5 text-xs text-gray-500">
+          <ul className="list-disc space-y-1 pl-5 text-xs text-ink-muted">
             {data.notes.map((n) => (
               <li key={n}>{n}</li>
             ))}
@@ -987,7 +987,7 @@ function VatSettlementPanel({ canManage }: { canManage: boolean }) {
   const s = settlement.data
   return (
     <div className="card space-y-2 p-3">
-      <h3 className="text-sm font-semibold text-gray-900">{t('accounting.vat.settlementTitle')}</h3>
+      <h3 className="text-sm font-semibold text-ink">{t('accounting.vat.settlementTitle')}</h3>
       <select className="input w-60" value={periodId} onChange={(e) => setPeriodId(e.target.value)}>
         <option value="">{t('accounting.vat.pickPeriod')}</option>
         {(periods ?? []).map((p) => (
@@ -997,16 +997,16 @@ function VatSettlementPanel({ canManage }: { canManage: boolean }) {
         ))}
       </select>
       {s && (
-        <div className="space-y-1 text-sm text-gray-700">
+        <div className="space-y-1 text-sm text-ink-secondary">
           <p>
             {t('accounting.vat.outputVat')}: <b>{s.outputVat.toLocaleString()}</b> · {t('accounting.vat.inputVat')}: <b>{s.inputVat.toLocaleString()}</b> · {t('accounting.vat.settledAmount')}: <b>{s.amount.toLocaleString()}</b>
           </p>
           <p>
             {t('accounting.vat.payableAfter')}: {s.payableAfter.toLocaleString()} · {t('accounting.vat.carryAfter')}: {s.carryForwardAfter.toLocaleString()}
           </p>
-          {s.settled && <p className="text-green-700">{t('accounting.vat.settledBy', { entry: s.entryNumber })}</p>}
+          {s.settled && <p className="text-success-soft-text">{t('accounting.vat.settledBy', { entry: s.entryNumber })}</p>}
           {s.notes.map((n) => (
-            <p key={n} className="text-xs text-amber-700">
+            <p key={n} className="text-xs text-warning-soft-text">
               {n}
             </p>
           ))}
@@ -1015,7 +1015,7 @@ function VatSettlementPanel({ canManage }: { canManage: boolean }) {
               {t('accounting.vat.settle')}
             </button>
           )}
-          {settle.isError && <p className="text-xs text-red-600">{error ?? t('accounting.vat.failed')}</p>}
+          {settle.isError && <p className="text-xs text-danger-soft-text">{error ?? t('accounting.vat.failed')}</p>}
         </div>
       )}
     </div>
@@ -1047,15 +1047,15 @@ function VatPanel({ canSettle }: { canSettle: boolean }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.fromDate')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.fromDate')}</label>
           <input type="date" className="input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.toDate')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.toDate')}</label>
           <input type="date" className="input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.vat.report')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.vat.report')}</label>
           <select className="input" value={direction} onChange={(e) => setDirection(e.target.value as 'output' | 'input' | 'return')}>
             <option value="output">{t('accounting.vat.listingOutput')}</option>
             <option value="input">{t('accounting.vat.listingInput')}</option>
@@ -1072,7 +1072,7 @@ function VatPanel({ canSettle }: { canSettle: boolean }) {
           <div className="card overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-xs uppercase text-gray-500">
+                <tr className="border-b text-left text-xs uppercase text-ink-muted">
                   <th className="p-2">{t('accounting.vat.kind')}</th>
                   <th className="p-2">{t('accounting.vat.number')}</th>
                   <th className="p-2">{t('accounting.vat.date')}</th>
@@ -1086,7 +1086,7 @@ function VatPanel({ canSettle }: { canSettle: boolean }) {
                   <tr key={i} className="border-b" title={r.description}>
                     <td className="p-2">
                       {r.kind}
-                      {r.category === 'NotTaxable' && <span className="ml-1 text-xs text-gray-500">{t('accounting.vat.notTaxableShort')}</span>}
+                      {r.category === 'NotTaxable' && <span className="ml-1 text-xs text-ink-muted">{t('accounting.vat.notTaxableShort')}</span>}
                     </td>
                     <td className="p-2 font-mono text-xs">{r.number}</td>
                     <td className="p-2">{r.date.slice(0, 10)}</td>
@@ -1096,7 +1096,7 @@ function VatPanel({ canSettle }: { canSettle: boolean }) {
                   </tr>
                 ))}
                 {listing.data.byRate.map((g, i) => (
-                  <tr key={'g' + i} className="bg-gray-50 font-medium">
+                  <tr key={'g' + i} className="bg-surface-muted font-medium">
                     <td className="p-2" colSpan={3}>
                       {t('accounting.vat.subtotal')} {g.category === 'NotTaxable' ? t('accounting.vat.notTaxable') : g.ratePercent === null ? t('accounting.vat.noRate') : `${g.ratePercent}%`}
                     </td>
@@ -1116,12 +1116,12 @@ function VatPanel({ canSettle }: { canSettle: boolean }) {
               </tbody>
             </table>
           </div>
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-ink-secondary">
             {t('accounting.vat.ledger')} ({listing.data.ledgerAccountNumber ?? '—'}): <b>{listing.data.ledgerTax.toLocaleString()}</b> · {t('accounting.vat.difference')}:{' '}
-            <b className={listing.data.isReconciled ? 'text-green-700' : 'text-red-600'}>{listing.data.difference.toLocaleString()}</b>
+            <b className={listing.data.isReconciled ? 'text-success-soft-text' : 'text-danger-soft-text'}>{listing.data.difference.toLocaleString()}</b>
           </p>
           {listing.data.notes.map((n) => (
-            <p key={n} className="text-xs text-amber-700">
+            <p key={n} className="text-xs text-warning-soft-text">
               {n}
             </p>
           ))}
@@ -1130,7 +1130,7 @@ function VatPanel({ canSettle }: { canSettle: boolean }) {
 
       {direction === 'return' && vatReturn.data && (
         <div className="space-y-2">
-          <p className="text-xs text-amber-700">
+          <p className="text-xs text-warning-soft-text">
             {vatReturn.data.title} · {t('accounting.reports.unit')}: {vatReturn.data.unit}
           </p>
           <div className="card overflow-x-auto">
@@ -1148,7 +1148,7 @@ function VatPanel({ canSettle }: { canSettle: boolean }) {
               </tbody>
             </table>
           </div>
-          <ul className="list-disc space-y-1 pl-5 text-xs text-gray-500">
+          <ul className="list-disc space-y-1 pl-5 text-xs text-ink-muted">
             {vatReturn.data.notes.map((n) => (
               <li key={n}>{n}</li>
             ))}
@@ -1179,7 +1179,7 @@ function OffBalancePanel() {
       {
         key: 'closing',
         label: t('accounting.offBalance.closing'),
-        render: (l: OffBalanceLine) => <span className={l.isNegative ? 'font-semibold text-red-700' : ''}>{l.closing.toLocaleString()}</span>,
+        render: (l: OffBalanceLine) => <span className={l.isNegative ? 'font-semibold text-danger-soft-text' : ''}>{l.closing.toLocaleString()}</span>,
       },
     ],
     [t],
@@ -1188,18 +1188,18 @@ function OffBalancePanel() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.fromDate')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.fromDate')}</label>
           <input type="date" className="input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.reports.toDate')}</label>
+          <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.reports.toDate')}</label>
           <input type="date" className="input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
         <ExportButton path="off-balance" params={{ fromDate, toDate }} name="off-balance.csv" disabled={!ready} />
       </div>
       {ready && <DataTable columns={columns} data={(data?.lines ?? []).map((l) => ({ id: l.accountNumber, ...l }))} isLoading={isLoading} />}
       {data && data.notes.length > 0 && (
-        <ul className="list-disc space-y-1 pl-5 text-xs text-gray-500">
+        <ul className="list-disc space-y-1 pl-5 text-xs text-ink-muted">
           {data.notes.map((n) => (
             <li key={n}>{n}</li>
           ))}
@@ -1216,7 +1216,7 @@ export function ReportsPage() {
   const [tab, setTab] = useState<'trial-balance' | 'ledger' | 'profit-and-loss' | 'balance-sheet' | 'cash-flow' | 'b01' | 'b02' | 'b03' | 'b09' | 'mapping' | 'off-balance' | 'vat'>('trial-balance')
 
   if (!canView) {
-    return <p className="text-sm text-gray-400">{t('common.noPermission')}</p>
+    return <p className="text-sm text-ink-muted">{t('common.noPermission')}</p>
   }
 
   const TABS: { key: typeof tab; label: string }[] = [
@@ -1238,14 +1238,14 @@ export function ReportsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('accounting.reports.title')}</h1>
 
-      <div className="flex gap-2 border-b border-gray-200">
+      <div className="flex gap-2 border-b border-line">
         {TABS.map((x) => (
           <button
             key={x.key}
             type="button"
             onClick={() => setTab(x.key)}
             className={`px-3 py-2 text-sm font-medium ${
-              tab === x.key ? 'border-b-2 border-primary-600 text-primary-700' : 'text-gray-500 hover:text-gray-700'
+              tab === x.key ? 'border-b-2 border-brand-action text-brand-action' : 'text-ink-muted hover:text-ink'
             }`}
           >
             {x.label}

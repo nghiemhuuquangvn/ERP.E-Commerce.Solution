@@ -95,51 +95,51 @@ export function LoansPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('accounting.loans.title')}</h1>
-      <p className="text-sm text-gray-500">{t('accounting.loans.hint')}</p>
+      <p className="text-sm text-ink-muted">{t('accounting.loans.hint')}</p>
 
       {canManage && (
         <div className="card space-y-3 p-4">
-          <h2 className="text-sm font-semibold text-gray-900">{t('accounting.loans.add')}</h2>
+          <h2 className="text-sm font-semibold text-ink">{t('accounting.loans.add')}</h2>
           <div className="grid gap-3 md:grid-cols-3">
             {(['loanNumber', 'lender'] as const).map((k) => (
               <div key={k}>
-                <label className="mb-1 block text-sm font-medium text-gray-700">{t(`accounting.loans.${k}`)}</label>
+                <label className="mb-1 block text-sm font-medium text-ink-secondary">{t(`accounting.loans.${k}`)}</label>
                 <input className="input" value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
               </div>
             ))}
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.loans.startDate')}</label>
+              <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.loans.startDate')}</label>
               <input type="date" className="input" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.loans.principal')}</label>
+              <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.loans.principal')}</label>
               <input type="number" min="0" className="input" value={form.principal} onChange={(e) => setForm({ ...form, principal: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.loans.rate')}</label>
+              <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.loans.rate')}</label>
               <input type="number" min="0" className="input" value={form.interestRatePercent} onChange={(e) => setForm({ ...form, interestRatePercent: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.loans.notes')}</label>
+              <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.loans.notes')}</label>
               <input className="input" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
           </div>
 
-          <p className="text-sm font-medium text-gray-700">{t('accounting.loans.schedule')}</p>
+          <p className="text-sm font-medium text-ink-secondary">{t('accounting.loans.schedule')}</p>
           {rows.map((r, i) => (
             <div key={i} className="flex flex-wrap items-end gap-3">
               <input type="date" className="input" value={r.dueDate} onChange={(e) => setRow(i, { dueDate: e.target.value })} />
               <input type="number" min="0" className="input" placeholder={t('accounting.loans.principal')} value={r.principalAmount} onChange={(e) => setRow(i, { principalAmount: e.target.value })} />
               <input type="number" min="0" className="input" placeholder={t('accounting.loans.interest')} value={r.interestAmount} onChange={(e) => setRow(i, { interestAmount: e.target.value })} />
               {rows.length > 1 && (
-                <button className="text-xs text-red-600 hover:underline" onClick={() => setRows(rows.filter((_, j) => j !== i))}>
+                <button className="text-xs text-danger-soft-text hover:underline" onClick={() => setRows(rows.filter((_, j) => j !== i))}>
                   {t('common.delete')}
                 </button>
               )}
             </div>
           ))}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.loans.receivingAccount')}</label>
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.loans.receivingAccount')}</label>
             <select className="input" value={receivingAccountId} onChange={(e) => setReceivingAccountId(e.target.value)}>
               <option value="">{t('accounting.loans.receivingDefault')}</option>
               {assetAccounts.map((a) => (
@@ -150,15 +150,15 @@ export function LoansPage() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.loans.dayCount')}</label>
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.loans.dayCount')}</label>
             <select className="input" value={dayCountBasis} onChange={(e) => setDayCountBasis(e.target.value)}>
               <option value="0">{t('accounting.loans.dayCountSchedule')}</option>
               <option value="1">{t('accounting.loans.dayCount365')}</option>
               <option value="2">{t('accounting.loans.dayCount360')}</option>
             </select>
-            <p className="mt-1 text-xs text-gray-500">{t('accounting.loans.dayCountHint')}</p>
+            <p className="mt-1 text-xs text-ink-muted">{t('accounting.loans.dayCountHint')}</p>
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+          <label className="flex items-center gap-2 text-sm text-ink-secondary">
             <input type="checkbox" checked={postDrawdown} onChange={(e) => setPostDrawdown(e.target.checked)} />
             {t('accounting.loans.postDrawdown')}
           </label>
@@ -166,37 +166,37 @@ export function LoansPage() {
             <button className="btn-outline" onClick={() => setRows([...rows, { dueDate: '', principalAmount: '', interestAmount: '0' }])}>
               {t('accounting.loans.addInstallment')}
             </button>
-            <span className={scheduleOk ? 'text-sm text-green-700' : 'text-sm text-amber-700'}>
+            <span className={scheduleOk ? 'text-sm text-success-soft-text' : 'text-sm text-warning-soft-text'}>
               {t('accounting.loans.scheduleTotal', { total: scheduleTotal.toLocaleString(), principal: (Number(form.principal) || 0).toLocaleString() })}
             </span>
             <button className="btn-primary" disabled={!form.loanNumber || !form.lender || !form.startDate || !scheduleOk || create.isPending} onClick={() => create.mutate()}>
               {t('common.save')}
             </button>
-            {create.isError && <span className="text-sm text-red-600">{detail(create.error, t('accounting.loans.failed'))}</span>}
+            {create.isError && <span className="text-sm text-danger-soft-text">{detail(create.error, t('accounting.loans.failed'))}</span>}
           </div>
         </div>
       )}
 
       <div className="card space-y-2 p-4">
         <div className="flex flex-wrap items-end gap-3">
-          <h2 className="text-sm font-semibold text-gray-900">{t('accounting.loans.reconciliation')}</h2>
+          <h2 className="text-sm font-semibold text-ink">{t('accounting.loans.reconciliation')}</h2>
           <input type="date" className="input" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
         </div>
         {recon && (
-          <div className="text-sm text-gray-700">
+          <div className="text-sm text-ink-secondary">
             <p>
               {t('accounting.loans.ledgerTotal')}: <b>{recon.ledgerTotal.toLocaleString()}</b> · {t('accounting.loans.bookBalance')} ({recon.accountNumber || '—'}):{' '}
               <b>{recon.bookBalance.toLocaleString()}</b> · {t('accounting.loans.difference')}:{' '}
-              <b className={recon.isReconciled ? 'text-green-700' : 'text-red-600'}>{recon.difference.toLocaleString()}</b>
+              <b className={recon.isReconciled ? 'text-success-soft-text' : 'text-danger-soft-text'}>{recon.difference.toLocaleString()}</b>
             </p>
             {recon.interestAccountNumber && (
               <p>
                 {t('accounting.loans.interestCheck')} ({recon.interestAccountNumber}): {recon.interestLedger.toLocaleString()} / {recon.interestBook.toLocaleString()} ·{' '}
-                <b className={recon.interestReconciled ? 'text-green-700' : 'text-red-600'}>{recon.interestDifference.toLocaleString()}</b>
+                <b className={recon.interestReconciled ? 'text-success-soft-text' : 'text-danger-soft-text'}>{recon.interestDifference.toLocaleString()}</b>
               </p>
             )}
             {recon.notes.map((n) => (
-              <p key={n} className="text-xs text-amber-700">
+              <p key={n} className="text-xs text-warning-soft-text">
                 {n}
               </p>
             ))}
@@ -207,27 +207,27 @@ export function LoansPage() {
       {canManage && (
         <div className="card flex flex-wrap items-end gap-3 p-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.loans.accrueUpTo')}</label>
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.loans.accrueUpTo')}</label>
             <input type="date" className="input" value={accrueDate} onChange={(e) => setAccrueDate(e.target.value)} />
           </div>
           <button className="btn-outline" disabled={!accrueDate || accrue.isPending} onClick={() => accrue.mutate()}>
             {t('accounting.loans.accrue')}
           </button>
           {accrue.isSuccess && (
-            <span className="text-sm text-green-700">{t('accounting.loans.accrued', { total: accrue.data.totalAccrued.toLocaleString(), count: accrue.data.lines.filter((l) => l.posted).length })}</span>
+            <span className="text-sm text-success-soft-text">{t('accounting.loans.accrued', { total: accrue.data.totalAccrued.toLocaleString(), count: accrue.data.lines.filter((l) => l.posted).length })}</span>
           )}
-          {accrue.isError && <span className="text-sm text-red-600">{detail(accrue.error, t('accounting.loans.failed'))}</span>}
-          <span className="text-xs text-gray-500">{policy?.autoAccrueLoanInterest ? t('accounting.loans.autoAccrueOn') : t('accounting.loans.autoAccrueOff')}</span>
+          {accrue.isError && <span className="text-sm text-danger-soft-text">{detail(accrue.error, t('accounting.loans.failed'))}</span>}
+          <span className="text-xs text-ink-muted">{policy?.autoAccrueLoanInterest ? t('accounting.loans.autoAccrueOn') : t('accounting.loans.autoAccrueOff')}</span>
         </div>
       )}
 
       {isLoading ? (
-        <p className="text-sm text-gray-400">{t('common.loading')}</p>
+        <p className="text-sm text-ink-muted">{t('common.loading')}</p>
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b text-left text-xs uppercase text-gray-500">
+              <tr className="border-b text-left text-xs uppercase text-ink-muted">
                 <th className="p-2">{t('accounting.loans.loanNumber')}</th>
                 <th className="p-2">{t('accounting.loans.lender')}</th>
                 <th className="p-2 text-right">{t('accounting.loans.principal')}</th>
@@ -241,9 +241,9 @@ export function LoansPage() {
             <tbody>
               {(data ?? []).map((loan) => (
                 <Fragment key={loan.id}>
-                  <tr className="border-b hover:bg-gray-50">
+                  <tr className="border-b hover:bg-surface-muted">
                     <td className="p-2">
-                      <button className="text-primary-700 hover:underline" onClick={() => setOpen(open === loan.id ? null : loan.id)}>
+                      <button className="text-brand-action hover:underline" onClick={() => setOpen(open === loan.id ? null : loan.id)}>
                         {loan.loanNumber}
                       </button>
                     </td>
@@ -254,33 +254,33 @@ export function LoansPage() {
                     <td className="p-2 text-right">{loan.dueLater.toLocaleString()}</td>
                     <td className="p-2">
                       {loan.status === 'Cancelled' ? `${loan.status}: ${loan.cancelReason ?? ''}` : loan.status}
-                      {loan.receivingAccountNumber && <span className="ml-2 text-xs text-gray-500">{loan.receivingAccountNumber}</span>}
-                      {loan.dayCountBasis !== 0 && <span className="ml-2 text-xs text-gray-500">{loan.dayCountBasis === 1 ? '365' : '360'}</span>}
+                      {loan.receivingAccountNumber && <span className="ml-2 text-xs text-ink-muted">{loan.receivingAccountNumber}</span>}
+                      {loan.dayCountBasis !== 0 && <span className="ml-2 text-xs text-ink-muted">{loan.dayCountBasis === 1 ? '365' : '360'}</span>}
                       {loan.status !== 'Cancelled' && (
-                        <span className={loan.postedToLedger ? 'ml-2 text-xs text-green-700' : 'ml-2 text-xs text-gray-400'}>
+                        <span className={loan.postedToLedger ? 'ml-2 text-xs text-success-soft-text' : 'ml-2 text-xs text-ink-muted'}>
                           {loan.postedToLedger ? t('accounting.loans.posted') : t('accounting.loans.notPosted')}
                         </span>
                       )}
                     </td>
                     <td className="p-2 text-right">
                       {canManage && loan.status === 'Active' && !loan.postedToLedger && !loan.installments.some((i) => i.paidOn) && (
-                        <button className="mr-3 text-xs text-blue-600 hover:underline" disabled={post.isPending} onClick={() => post.mutate(loan)}>
+                        <button className="mr-3 text-xs text-info-soft-text hover:underline" disabled={post.isPending} onClick={() => post.mutate(loan)}>
                           {t('accounting.loans.postNow')}
                         </button>
                       )}
                       {canManage && loan.status === 'Active' && !loan.installments.some((i) => i.paidOn) && (
-                        <button className="text-xs text-red-600 hover:underline" onClick={() => setCancelTarget(loan)}>
+                        <button className="text-xs text-danger-soft-text hover:underline" onClick={() => setCancelTarget(loan)}>
                           {t('accounting.loans.cancel')}
                         </button>
                       )}
                     </td>
                   </tr>
                   {open === loan.id && (
-                    <tr className="border-b bg-gray-50">
+                    <tr className="border-b bg-surface-muted">
                       <td colSpan={8} className="p-3">
                         <table className="w-full text-xs">
                           <thead>
-                            <tr className="text-left text-gray-500">
+                            <tr className="text-left text-ink-muted">
                               <th className="p-1">{t('accounting.loans.dueDate')}</th>
                               <th className="p-1 text-right">{t('accounting.loans.principal')}</th>
                               <th className="p-1 text-right">{t('accounting.loans.interest')}</th>
@@ -309,7 +309,7 @@ export function LoansPage() {
                                     />
                                   )}
                                   {canManage && loan.status === 'Active' && !i.paidOn && (
-                                    <button className="text-primary-700 hover:underline" disabled={repay.isPending} onClick={() => repay.mutate({ loan, installmentId: i.id })}>
+                                    <button className="text-brand-action hover:underline" disabled={repay.isPending} onClick={() => repay.mutate({ loan, installmentId: i.id })}>
                                       {t('accounting.loans.repay')}
                                     </button>
                                   )}
@@ -318,7 +318,7 @@ export function LoansPage() {
                             ))}
                           </tbody>
                         </table>
-                        {repay.isError && <p className="mt-2 text-xs text-red-600">{detail(repay.error, t('accounting.loans.failed'))}</p>}
+                        {repay.isError && <p className="mt-2 text-xs text-danger-soft-text">{detail(repay.error, t('accounting.loans.failed'))}</p>}
                       </td>
                     </tr>
                   )}

@@ -52,13 +52,13 @@ function SystemFlagsPanel({ canManage }: { canManage: boolean }) {
     },
   })
 
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <div className="space-y-6">
       <table className="w-full max-w-2xl text-sm">
         <thead>
-          <tr className="border-b border-gray-200 text-left text-gray-500">
+          <tr className="border-b border-line text-left text-ink-muted">
             <th className="py-2">{t('settings.featureFlags.key')}</th>
             <th className="py-2">{t('settings.featureFlags.description')}</th>
             <th className="py-2">{t('settings.featureFlags.enabled')}</th>
@@ -66,9 +66,9 @@ function SystemFlagsPanel({ canManage }: { canManage: boolean }) {
         </thead>
         <tbody>
           {(data ?? []).map((flag) => (
-            <tr key={flag.key} className="border-b border-gray-100">
+            <tr key={flag.key} className="border-b border-line">
               <td className="py-2 font-mono text-xs">{flag.key}</td>
-              <td className="py-2 text-gray-600">{flag.description ?? ''}</td>
+              <td className="py-2 text-ink-secondary">{flag.description ?? ''}</td>
               <td className="py-2">
                 <input
                   type="checkbox"
@@ -81,7 +81,7 @@ function SystemFlagsPanel({ canManage }: { canManage: boolean }) {
           ))}
           {(data ?? []).length === 0 && (
             <tr>
-              <td colSpan={3} className="py-4 text-gray-400">
+              <td colSpan={3} className="py-4 text-ink-muted">
                 {t('settings.featureFlags.noFlags')}
               </td>
             </tr>
@@ -92,10 +92,10 @@ function SystemFlagsPanel({ canManage }: { canManage: boolean }) {
       {canManage && (
         <form
           onSubmit={handleSubmit((v) => createMutation.mutate(v))}
-          className="max-w-md space-y-3 border-t border-gray-200 pt-4"
+          className="max-w-md space-y-3 border-t border-line pt-4"
         >
-          <h2 className="text-sm font-semibold text-gray-800">{t('settings.featureFlags.addFlag')}</h2>
-          <label className="block text-sm text-gray-700">
+          <h2 className="text-sm font-semibold text-ink">{t('settings.featureFlags.addFlag')}</h2>
+          <label className="block text-sm text-ink-secondary">
             {t('settings.featureFlags.key')}
             <input
               type="text"
@@ -104,17 +104,17 @@ function SystemFlagsPanel({ canManage }: { canManage: boolean }) {
               className="input mt-1 w-full"
             />
           </label>
-          <label className="block text-sm text-gray-700">
+          <label className="block text-sm text-ink-secondary">
             {t('settings.featureFlags.description')}
             <input type="text" {...register('description')} className="input mt-1 w-full" />
           </label>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+          <label className="flex items-center gap-2 text-sm text-ink-secondary">
             <input type="checkbox" {...register('isEnabled')} />
             {t('settings.featureFlags.enabled')}
           </label>
 
           {createMutation.isError && (
-            <p className="text-xs text-red-600">{t('settings.featureFlags.failedToSave')}</p>
+            <p className="text-xs text-danger-soft-text">{t('settings.featureFlags.failedToSave')}</p>
           )}
 
           <button type="submit" disabled={createMutation.isPending} className="btn-primary">
@@ -144,13 +144,13 @@ function TenantFlagsPanel({ canManage, tenantId }: { canManage: boolean; tenantI
       queryClient.invalidateQueries({ queryKey: ['settings', 'feature-flags', 'tenant', tenantId] }),
   })
 
-  if (!tenantId) return <p className="text-sm text-gray-400">{t('settings.featureFlags.noTenant')}</p>
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (!tenantId) return <p className="text-sm text-ink-muted">{t('settings.featureFlags.noTenant')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <table className="w-full max-w-2xl text-sm">
       <thead>
-        <tr className="border-b border-gray-200 text-left text-gray-500">
+        <tr className="border-b border-line text-left text-ink-muted">
           <th className="py-2">{t('settings.featureFlags.key')}</th>
           <th className="py-2">{t('settings.featureFlags.description')}</th>
           <th className="py-2">{t('settings.featureFlags.enabled')}</th>
@@ -159,9 +159,9 @@ function TenantFlagsPanel({ canManage, tenantId }: { canManage: boolean; tenantI
       </thead>
       <tbody>
         {(data ?? []).map((flag) => (
-          <tr key={flag.key} className="border-b border-gray-100">
+          <tr key={flag.key} className="border-b border-line">
             <td className="py-2 font-mono text-xs">{flag.key}</td>
-            <td className="py-2 text-gray-600">{flag.description ?? ''}</td>
+            <td className="py-2 text-ink-secondary">{flag.description ?? ''}</td>
             <td className="py-2">
               <input
                 type="checkbox"
@@ -170,14 +170,14 @@ function TenantFlagsPanel({ canManage, tenantId }: { canManage: boolean; tenantI
                 onChange={() => toggleMutation.mutate(flag)}
               />
             </td>
-            <td className="py-2 text-xs text-gray-400">
+            <td className="py-2 text-xs text-ink-muted">
               {flag.isOverridden ? t('settings.featureFlags.overridden') : t('settings.featureFlags.inherited')}
             </td>
           </tr>
         ))}
         {(data ?? []).length === 0 && (
           <tr>
-            <td colSpan={4} className="py-4 text-gray-400">
+            <td colSpan={4} className="py-4 text-ink-muted">
               {t('settings.featureFlags.noFlags')}
             </td>
           </tr>
@@ -207,15 +207,15 @@ export function FeatureFlagsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.featureFlags.title')}</h1>
 
-      <div className="flex gap-2 border-b border-gray-200">
+      <div className="flex gap-2 border-b border-line">
         {TABS.map((x) => (
           <button
             key={x.key}
             onClick={() => setTab(x.key)}
             className={`px-3 py-2 text-sm font-medium ${
               tab === x.key
-                ? 'border-b-2 border-primary-600 text-primary-700'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'border-b-2 border-brand-action text-brand-action'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             {x.label}

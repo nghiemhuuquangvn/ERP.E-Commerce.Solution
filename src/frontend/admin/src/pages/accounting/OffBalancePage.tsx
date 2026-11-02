@@ -69,7 +69,7 @@ export function OffBalancePage() {
         label: '',
         render: (e: OffBalanceEntry) =>
           canManage && e.status === 'Posted' ? (
-            <button className="text-xs text-red-600 hover:underline" onClick={() => setVoidTarget(e)}>
+            <button className="text-xs text-danger-soft-text hover:underline" onClick={() => setVoidTarget(e)}>
               {t('accounting.offBalance.void')}
             </button>
           ) : null,
@@ -81,12 +81,12 @@ export function OffBalancePage() {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('accounting.offBalance.title')}</h1>
-      <p className="text-sm text-gray-500">{t('accounting.offBalance.hint')}</p>
+      <p className="text-sm text-ink-muted">{t('accounting.offBalance.hint')}</p>
 
       {canManage && (
         <div className="card flex flex-wrap items-end gap-3 p-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.offBalance.account')}</label>
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.offBalance.account')}</label>
             <select className="input" value={form.accountId} onChange={(e) => setForm({ ...form, accountId: e.target.value })}>
               <option value="">—</option>
               {offBalanceAccounts.map((a) => (
@@ -97,37 +97,37 @@ export function OffBalancePage() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.offBalance.direction')}</label>
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.offBalance.direction')}</label>
             <select className="input" value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value as OffBalanceDirection })}>
               <option value="In">{t('accounting.offBalance.dirIn')}</option>
               <option value="Out">{t('accounting.offBalance.dirOut')}</option>
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.offBalance.amount')}</label>
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.offBalance.amount')}</label>
             <input type="number" min="0" className="input" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.offBalance.date')}</label>
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.offBalance.date')}</label>
             <input type="date" className="input" value={form.entryDate} onChange={(e) => setForm({ ...form, entryDate: e.target.value })} />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.offBalance.description')}</label>
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.offBalance.description')}</label>
             <input className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.offBalance.reference')}</label>
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.offBalance.reference')}</label>
             <input className="input" value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} />
           </div>
           <button className="btn-primary" disabled={!form.accountId || !(Number(form.amount) > 0) || post.isPending} onClick={() => post.mutate()}>
             {t('accounting.offBalance.add')}
           </button>
-          {post.isError && <span className="text-sm text-red-600">{detail(post.error, t('accounting.offBalance.failed'))}</span>}
+          {post.isError && <span className="text-sm text-danger-soft-text">{detail(post.error, t('accounting.offBalance.failed'))}</span>}
         </div>
       )}
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">{t('accounting.offBalance.filterAccount')}</label>
+        <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('accounting.offBalance.filterAccount')}</label>
         <select className="input" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
           <option value="">{t('accounting.offBalance.allAccounts')}</option>
           {offBalanceAccounts.map((a) => (

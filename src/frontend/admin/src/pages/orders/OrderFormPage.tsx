@@ -96,7 +96,7 @@ export function OrderFormPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/orders" className="text-sm text-gray-500 hover:text-gray-700">
+        <Link to="/orders" className="text-sm text-ink-muted hover:text-ink">
           {t('orders.backToOrders')}
         </Link>
         <h1 className="text-xl font-semibold">{t('orders.newOrder')}</h1>
@@ -104,22 +104,22 @@ export function OrderFormPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="card p-5">
-          <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.orderInfo')}</h2>
+          <h2 className="mb-3 text-sm font-semibold text-ink-muted uppercase tracking-wide">{t('orders.orderInfo')}</h2>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('orders.form.customerId')}</label>
+              <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('orders.form.customerId')}</label>
               <input className="input" value={customerId} onChange={(e) => setCustomerId(e.target.value)} placeholder={t('orders.form.customerIdPlaceholder')} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('orders.form.customerName')}</label>
+              <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('orders.form.customerName')}</label>
               <input className="input" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('orders.form.customerEmail')}</label>
+              <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('orders.form.customerEmail')}</label>
               <input className="input" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('orders.orderSource')}</label>
+              <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('orders.orderSource')}</label>
               <select className="input" value={orderSource} onChange={(e) => setOrderSource(e.target.value as OrderSource)}>
                 <option value="Manual">Manual</option>
                 <option value="Ecommerce">Ecommerce</option>
@@ -127,18 +127,18 @@ export function OrderFormPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('orders.salesRep')}</label>
+              <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('orders.salesRep')}</label>
               <input className="input" value={salesRepId} onChange={(e) => setSalesRepId(e.target.value)} placeholder={t('orders.form.salesRepPlaceholder')} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('orders.form.couponCode')}</label>
+              <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('orders.form.couponCode')}</label>
               <input className="input" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} />
             </div>
           </div>
         </div>
 
         <div className="card p-5">
-          <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.form.shippingAddress')}</h2>
+          <h2 className="mb-3 text-sm font-semibold text-ink-muted uppercase tracking-wide">{t('orders.form.shippingAddress')}</h2>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
             <input className="input" placeholder={t('orders.form.street')} value={address.street} onChange={(e) => setAddress({ ...address, street: e.target.value })} />
             <input className="input" placeholder={t('orders.form.ward')} value={address.ward} onChange={(e) => setAddress({ ...address, ward: e.target.value })} />
@@ -151,14 +151,14 @@ export function OrderFormPage() {
 
         <div className="card p-5">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('orders.lineItems')}</h2>
-            <button type="button" onClick={addLine} className="text-xs text-primary-600 hover:underline">
+            <h2 className="text-sm font-semibold text-ink-muted uppercase tracking-wide">{t('orders.lineItems')}</h2>
+            <button type="button" onClick={addLine} className="text-xs text-brand-action hover:underline">
               {t('orders.form.addLine')}
             </button>
           </div>
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 text-left text-xs text-gray-400 uppercase">
+              <tr className="border-b border-line text-left text-xs text-ink-muted uppercase">
                 <th className="pb-2">{t('orders.product')}</th>
                 <th className="pb-2 text-right">{t('orders.qty')}</th>
                 <th className="pb-2 text-right">{t('orders.unitPrice')}</th>
@@ -166,7 +166,7 @@ export function OrderFormPage() {
                 <th className="pb-2" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-line">
               {lines.map((line) => (
                 <tr key={line.key}>
                   <td className="py-2">
@@ -176,7 +176,7 @@ export function OrderFormPage() {
                         <button
                           type="button"
                           onClick={() => openPickerForRow(line.key)}
-                          className="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-50"
+                          className="rounded border border-line-strong px-2 py-0.5 text-xs text-ink-muted hover:bg-surface-muted"
                         >
                           …
                         </button>
@@ -185,7 +185,7 @@ export function OrderFormPage() {
                       <button
                         type="button"
                         onClick={() => openPickerForRow(line.key)}
-                        className="input w-full text-left text-gray-400"
+                        className="input w-full text-left text-ink-muted"
                       >
                         …
                       </button>
@@ -213,7 +213,7 @@ export function OrderFormPage() {
                   <td className="py-2 text-right font-medium">{(line.quantity * line.unitPrice).toFixed(2)}</td>
                   <td className="py-2 text-right">
                     {lines.length > 1 && (
-                      <button type="button" onClick={() => removeLine(line.key)} className="text-xs text-red-600 hover:underline">
+                      <button type="button" onClick={() => removeLine(line.key)} className="text-xs text-danger-soft-text hover:underline">
                         {t('orders.form.removeLine')}
                       </button>
                     )}
@@ -222,9 +222,9 @@ export function OrderFormPage() {
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t border-gray-200">
+              <tr className="border-t border-line">
                 <td colSpan={3} className="pt-3 text-right font-semibold">{t('orders.total')}</td>
-                <td className="pt-3 text-right font-semibold text-gray-900">{total.toFixed(2)}</td>
+                <td className="pt-3 text-right font-semibold text-ink">{total.toFixed(2)}</td>
                 <td />
               </tr>
             </tfoot>
@@ -238,8 +238,8 @@ export function OrderFormPage() {
           onClose={() => setPickerOpen(false)}
         />
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {mutation.isError && <p className="text-sm text-red-600">{t('common.failedToSave')}</p>}
+        {error && <p className="text-sm text-danger-soft-text">{error}</p>}
+        {mutation.isError && <p className="text-sm text-danger-soft-text">{t('common.failedToSave')}</p>}
 
         <div className="flex justify-end gap-3">
           <Link to="/orders" className="btn-outline">

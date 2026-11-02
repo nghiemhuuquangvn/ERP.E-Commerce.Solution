@@ -43,32 +43,32 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     },
   })
 
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" disabled={!canManage} {...register('customCarriersAllowed')} />
         {t('settings.shipping.customCarriersAllowed')}
       </label>
 
-      <div className="space-y-2 rounded border border-gray-200 p-3">
-        <p className="text-xs text-gray-500">{t('settings.shipping.carriersAvailableHint')}</p>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+      <div className="space-y-2 rounded border border-line p-3">
+        <p className="text-xs text-ink-muted">{t('settings.shipping.carriersAvailableHint')}</p>
+        <label className="flex items-center gap-2 text-sm text-ink-secondary">
           <input type="checkbox" disabled={!canManage} {...register('ghtkAvailable')} /> GHTK
         </label>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 text-sm text-ink-secondary">
           <input type="checkbox" disabled={!canManage} {...register('vtpAvailable')} /> Viettel Post
         </label>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 text-sm text-ink-secondary">
           <input type="checkbox" disabled={!canManage} {...register('ghnAvailable')} /> GHN
         </label>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 text-sm text-ink-secondary">
           <input type="checkbox" disabled={!canManage} {...register('jntAvailable')} /> J&amp;T Express
         </label>
       </div>
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.shipping.failedToSave')}</p>}
+      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.shipping.failedToSave')}</p>}
 
       {canManage && (
         <div className="pt-2">
@@ -115,11 +115,11 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
     },
   })
 
-  if (!tenantId) return <p className="text-sm text-gray-400">{t('settings.shipping.noTenant')}</p>
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (!tenantId) return <p className="text-sm text-ink-muted">{t('settings.shipping.noTenant')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   const text = (name: keyof TenantFormValues, label: string) => (
-    <label className="block text-sm text-gray-700">
+    <label className="block text-sm text-ink-secondary">
       {t(label)}
       <input disabled={!canManage} {...register(name)} className="input mt-1 w-full" />
     </label>
@@ -127,20 +127,20 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-xl space-y-4">
-      <p className="text-xs text-gray-500">{t('settings.shipping.feeHint')}</p>
-      <label className="block text-sm text-gray-700">
+      <p className="text-xs text-ink-muted">{t('settings.shipping.feeHint')}</p>
+      <label className="block text-sm text-ink-secondary">
         {t('settings.shipping.defaultShippingFee')}
         <input type="number" step="0.01" disabled={!canManage} {...register('defaultShippingFee', { valueAsNumber: true })} className="input mt-1 w-full" />
       </label>
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.shipping.freeShippingThreshold')}
         <input type="number" step="0.01" disabled={!canManage} {...register('freeShippingThreshold', { valueAsNumber: true })} className="input mt-1 w-full" />
       </label>
 
-      <div className="space-y-3 rounded border border-gray-200 p-4">
+      <div className="space-y-3 rounded border border-line p-4">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900">{t('settings.shipping.sender.title')}</h3>
-          <p className="text-xs text-gray-500">{t('settings.shipping.sender.hint')}</p>
+          <h3 className="text-sm font-semibold text-ink">{t('settings.shipping.sender.title')}</h3>
+          <p className="text-xs text-ink-muted">{t('settings.shipping.sender.hint')}</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           {text('senderName', 'settings.shipping.sender.name')}
@@ -152,14 +152,14 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
           {text('senderDistrict', 'settings.shipping.sender.district')}
           {text('senderProvince', 'settings.shipping.sender.province')}
         </div>
-        <label className="block text-sm text-gray-700">
+        <label className="block text-sm text-ink-secondary">
           {t('settings.shipping.sender.defaultWeight')}
           <input type="number" min={1} disabled={!canManage} {...register('defaultItemWeightGrams', { valueAsNumber: true })} className="input mt-1 w-full" />
-          <span className="text-xs text-gray-400">{t('settings.shipping.sender.defaultWeightHint')}</span>
+          <span className="text-xs text-ink-muted">{t('settings.shipping.sender.defaultWeightHint')}</span>
         </label>
       </div>
 
-      {mutation.isError && <p className="text-xs text-red-600">{serverMessage(mutation.error, t('settings.shipping.failedToSave'))}</p>}
+      {mutation.isError && <p className="text-xs text-danger-soft-text">{serverMessage(mutation.error, t('settings.shipping.failedToSave'))}</p>}
 
       {canManage && (
         <div className="pt-2">
@@ -197,15 +197,15 @@ export function ShippingSettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{t('settings.shipping.title')}</h1>
 
-      <div className="flex gap-2 border-b border-gray-200">
+      <div className="flex gap-2 border-b border-line">
         {TABS.map((x) => (
           <button
             key={x.key}
             onClick={() => setTab(x.key)}
             className={`px-3 py-2 text-sm font-medium ${
               tab === x.key
-                ? 'border-b-2 border-primary-600 text-primary-700'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'border-b-2 border-brand-action text-brand-action'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             {x.label}

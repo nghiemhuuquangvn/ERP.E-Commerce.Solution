@@ -66,45 +66,45 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
     },
   })
 
-  if (!tenantId) return <p className="text-sm text-gray-400">{t('settings.company.noTenant')}</p>
-  if (isLoading) return <p className="text-sm text-gray-400">{t('common.loading')}</p>
+  if (!tenantId) return <p className="text-sm text-ink-muted">{t('settings.company.noTenant')}</p>
+  if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.company.companyName')}
         <input type="text" disabled={!canManage} {...register('companyName')} className="input mt-1 w-full" />
       </label>
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.company.legalName')}
         <input type="text" disabled={!canManage} {...register('legalName')} className="input mt-1 w-full" />
       </label>
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.company.taxCode')}
         <input type="text" disabled={!canManage} {...register('taxCode')} className="input mt-1 w-full" />
       </label>
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.company.address')}
         <input type="text" disabled={!canManage} {...register('address')} className="input mt-1 w-full" />
       </label>
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.company.phone')}
         <input type="text" disabled={!canManage} {...register('phone')} className="input mt-1 w-full" />
       </label>
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.company.email')}
         <input type="email" disabled={!canManage} {...register('email')} className="input mt-1 w-full" />
       </label>
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.company.logoUrl')}
         <input type="text" disabled={!canManage} {...register('logoUrl')} className="input mt-1 w-full" />
       </label>
-      <label className="block text-sm text-gray-700">
+      <label className="block text-sm text-ink-secondary">
         {t('settings.company.website')}
         <input type="text" disabled={!canManage} {...register('website')} className="input mt-1 w-full" />
       </label>
 
-      {mutation.isError && <p className="text-xs text-red-600">{t('settings.company.failedToSave')}</p>}
+      {mutation.isError && <p className="text-xs text-danger-soft-text">{t('settings.company.failedToSave')}</p>}
 
       {canManage && (
         <div className="pt-2">
