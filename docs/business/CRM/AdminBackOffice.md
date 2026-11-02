@@ -30,7 +30,7 @@ Contacts are the hub: leads, opportunities, cases and activities all point to a 
 |---|---|---|---|
 | — | Create | New | name required; source (Website, Referral, Social media, Email, Phone, Other); estimated value ≥ 0, contact optional |
 | New | Mark contacted | Contacted | only from New |
-| New, Contacted | **Qualify** | Qualified | **creates an opportunity** inheriting name, contact and estimated value, expected close = today + 3 months, stage Prospecting; the lead becomes final |
+| New, Contacted | **Qualify** (needs a linked contact; without one the server answers 400 "Link a contact to this lead before qualifying it", and a lead already Qualified / Lost is refused too - R83, fixed 2026-11-02) | Qualified | **creates an opportunity** inheriting name, contact and estimated value, expected close = today + 3 months, stage Prospecting; the lead becomes final |
 | New, Contacted | Mark lost + **reason** | Lost | reason mandatory; final |
 Qualified and Lost leads have no actions. **Screen:** Qualify opens a confirmation that says the opportunity is created (the side effect was silent before).
 
@@ -46,7 +46,7 @@ Open → (Assign) In progress → (Resolve + **resolution text**) Resolved → (
 - Assign can be repeated (re-assign; the dialog is then titled "Reassign"). Resolve is offered until Resolved; **Close is offered only after Resolved** and asks for confirmation because a closed case is final. (The service would also allow Close from Open / In progress; the screen deliberately does not expose it.)
 
 ### 4.4 Activity (`ActivityStatus`)
-Type Call / Email / Meeting / Note / Task; contact and subject required; optional notes, scheduled time, opportunity ID and case ID (pasted — there is no picker). Status at creation: **Scheduled** if the time is in the future, otherwise **Completed**. While Scheduled: **Complete** (optional notes) or **Cancel** (asks for confirmation). Completed and Cancelled are final.
+Type Call / Email / Meeting / Note / Task; contact and subject required; optional notes, scheduled time, opportunity ID and case ID (pasted — there is no picker). Status at creation: **Scheduled** if the time is in the future, otherwise **Completed**. While Scheduled: **Complete** (optional notes) or **Cancel** (asks for confirmation). Completed and Cancelled are final. **Author (R82, fixed 2026-11-02):** every activity records who created it - the signed-in user for an activity logged in the Admin (taken from the token, a value in the request body is ignored), `SalesOrderService` for the note written when an order is placed; the database column `Activities.CreatedBy` is mandatory. Completing an activity twice, completing a cancelled one or cancelling a completed one is refused with a readable message (HTTP 400).
 
 ### 4.5 Contact and tags
 Name required; e-mail, phone, company optional; source is always "Manual" when created here. Tags are free text per contact (add / remove). No duplicate check on e-mail / phone.
@@ -60,6 +60,8 @@ Name required; e-mail, phone, company optional; source is always "Manual" when c
 | CRM-4 | A successful change is confirmed | Green "Đã lưu." toast, list refreshed |
 | CRM-5 | Qualify never surprises | Confirmation states an opportunity is created; cancelling changes nothing |
 | CRM-6 | Final states are final | Qualified / Lost lead, Won / Lost opportunity, Closed case, Completed / Cancelled activity show no action buttons |
+| CRM-8 | Activities are saved and attributed | Logging an activity returns 201 with its author set (the signed-in user; `SalesOrderService` for order notes); each placed order adds one "Sales order placed" note to the customer's contact, and a message that cannot be processed is retried 5 times and then logged and dropped (it never loops) |
+| CRM-9 | Wrong-state actions are refusals, not server errors | Qualify without contact or twice, complete twice, cancel a completed activity answer 400 with the reason and change nothing |
 | CRM-7 | Irreversible steps are confirmed | Close case, Cancel activity, Qualify ask first; Lose / Resolve ask for their text |
 | CRM-8 | A new opportunity can be saved with the proposed date | Default close date is in the future and accepted by the server |
 | CRM-9 | Filters can be undone | A filter or search with no result shows "Không có kết quả" and a **Xóa lọc** button |
@@ -68,7 +70,7 @@ Name required; e-mail, phone, company optional; source is always "Manual" when c
 ## 6. Use cases
 **UC-1 Work a lead (main):** create the lead (with its contact) → Mark contacted → Qualify (confirm) → the new opportunity appears in Opportunities → Advance through the stages → Win. *Alternatives:* lose with a reason at any open step; qualify directly from New. *Exceptions:* the lead has no contact → the service refuses the qualification with a generic error (DEFERRED R83), link a contact first; the server refuses a value or date → the dialog shows its reason.
 **UC-2 Handle a case:** open (contact, subject, description, priority) → Assign → Resolve with the resolution → Close (confirm). *Alternative:* re-assign. *Exception:* resolve without text → required error.
-**UC-3 Plan and complete an activity:** log with a future time (Scheduled) → Complete with notes, or Cancel (confirm). *Known exception:* **creating an activity currently fails with a generic error in the shipped stack** (database column `Activities.CreatedBy` is not filled by the service; DEFERRED R82); the dialog shows the refusal.
+**UC-3 Plan and complete an activity:** log with a future time (Scheduled) → Complete with notes, or Cancel (confirm). *Exception:* completing a finished activity or cancelling a completed one shows the server's reason in the dialog. (Creating an activity used to fail with a generic error - R82, fixed.)
 **UC-4 Tag a contact:** open Tags → add / remove tags; each action is applied at once.
 
 ## 7. Data model (screen view)
@@ -84,9 +86,9 @@ Only the pipeline counters (count per stage; total and won value are returned by
 One shop = one tenant; users are staff of the shop; the Contact picker lists the first 100 contacts of the shop.
 
 ## 11. Open issues (also in DEFERRED-ISSUES §6)
-- **R82 (high)** Activity creation fails with HTTP 500 (`Activities.CreatedBy` NULL); the Sales-order consumer fails the same way, so order notes never reach CRM.
+- **R82 fixed 2026-11-02:** the author is now set (see 4.4); the order consumer works and drained a backlog of 71 order messages into 71 "Sales order placed" notes.
 - **R84 (high, security)** `ListContactsQuery` caches the contact list for 5 minutes under `crm:contacts:page:{page}:size:{size}` — **no tenant in the key** (another shop can be served this shop's page) and **no invalidation** (a new contact is missing from the picker for up to 5 minutes). Violates the rule "never cache tenant-owned data under a key without the tenant".
-- **R83** Qualifying a lead without a contact answers a generic 500.
+- **R83 fixed 2026-11-02:** qualifying without a contact, or an already qualified / lost lead, answers a clear 400. The lead screen still lets a lead be created without a contact; a "link a contact" step would be a UI follow-up.
 - No duplicate-contact check; no SLA; no tag filter; activity notes cannot be edited from the screen (the API has a PATCH); opportunity / case IDs are pasted text; contact picker limited to 100.
 
 ## 12. UAT scenarios
@@ -98,7 +100,8 @@ One shop = one tenant; users are staff of the shop; the Contact picker lists the
 6. Open a case, resolve it without text → error; with text → Resolved; Close → confirmation; confirm → Closed, no buttons.
 7. Press a stage counter → list filtered and the counter is "pressed"; press again → all.
 8. Search a contact name that does not exist → "Không có kết quả" + Xóa lọc; press it → full list.
-9. Log an activity → expected today: the server refusal box (R82). Cancel a scheduled activity (seeded) → confirmation first.
+9. Log an activity → saved, listed with its note; complete it twice → the second time shows "Activity is already completed." Cancel a scheduled activity (seeded) → confirmation first.
+10. (API) Create a lead without a contact → Qualify → 400 "Link a contact to this lead before qualifying it"; link a contact, Qualify → 200 and an opportunity; Qualify again → 400.
 
 ## Caching (2026-11-02, R84)
 Contact reads (the list and a contact by id) are **not cached**: they always come from the database on the caller's shop. The earlier 5-minute cache had no tenant in its key (another shop could be served the page) and was never evicted (a new contact missing from pickers for up to 5 minutes). See [SecurityReview-2026-10.md](../Identity/SecurityReview-2026-10.md).

@@ -458,6 +458,8 @@ Responsibilities:
 
 Database: CrmDB
 
+Activities (R82, 2026-11-02): `Activities.CreatedBy` is NOT NULL - `Activity.Create` sets it (the signed-in user from the controller, `SalesOrderService` for the order note, else `system`) and `CrmDbContext` fills a missing author on any new row. The `SalesOrderCreated` consumer retries a failing message 5 times (attempt header) and then drops it; it never requeues for ever. Qualifying a lead needs a linked contact and a New / Contacted lead (business-rule 400 otherwise).
+
 Published Events:
 - LeadCreated
 - LeadQualified
