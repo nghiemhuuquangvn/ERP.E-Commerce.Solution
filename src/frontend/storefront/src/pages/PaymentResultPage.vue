@@ -1,40 +1,40 @@
 <template>
   <div class="mx-auto max-w-lg px-4 py-20 text-center">
-    <h1 class="text-2xl font-bold text-gray-900">{{ t('payment.resultTitle') }}</h1>
+    <h1 class="text-2xl font-bold text-ink">{{ t('payment.resultTitle') }}</h1>
 
     <!-- The browser's return is only a hint; the page always shows what the payment really is. -->
-    <p v-if="route.query.status === 'invalid'" class="mt-3 rounded bg-amber-50 p-3 text-sm text-amber-800">{{ t('payment.invalid') }}</p>
+    <p v-if="route.query.status === 'invalid'" class="mt-3 rounded bg-warning-soft p-3 text-sm text-warning-soft-text">{{ t('payment.invalid') }}</p>
 
-    <div v-if="!orderId" class="mt-8 text-gray-500">{{ t('payment.failed') }}</div>
-    <div v-else-if="isLoading || (!payment && !timedOut)" class="mt-8 text-gray-400">{{ t('payment.checking') }}</div>
+    <div v-if="!orderId" class="mt-8 text-ink-muted">{{ t('payment.failed') }}</div>
+    <div v-else-if="isLoading || (!payment && !timedOut)" class="mt-8 text-ink-muted">{{ t('payment.checking') }}</div>
 
     <div v-else-if="payment?.status === 'Captured' || payment?.status === 'Refunded' || payment?.status === 'PartiallyRefunded'" class="mt-8 space-y-2">
-      <div class="flex justify-center text-green-700"><CheckCircle2 :size="48" :stroke-width="1.75" aria-hidden="true" /></div>
-      <p class="text-lg font-semibold text-green-700">{{ t('payment.paid') }}</p>
-      <p class="text-sm text-gray-600">{{ t('payment.paidDetail', { amount: money(payment.amount, payment.currency) }) }}</p>
+      <div class="flex justify-center text-success-soft-text"><CheckCircle2 :size="48" :stroke-width="1.75" aria-hidden="true" /></div>
+      <p class="text-lg font-semibold text-success-soft-text">{{ t('payment.paid') }}</p>
+      <p class="text-sm text-ink-secondary">{{ t('payment.paidDetail', { amount: money(payment.amount, payment.currency) }) }}</p>
     </div>
 
     <div v-else-if="payment?.status === 'Failed'" class="mt-8 space-y-2">
-      <div class="flex justify-center text-red-700"><XCircle :size="48" :stroke-width="1.75" aria-hidden="true" /></div>
-      <p class="text-lg font-semibold text-red-700">{{ t('payment.failed') }}</p>
-      <p class="text-sm text-gray-600">{{ t('payment.failedDetail') }}</p>
-      <p v-if="payment.failureReason" class="text-xs text-gray-400">{{ payment.failureReason }}</p>
+      <div class="flex justify-center text-danger-soft-text"><XCircle :size="48" :stroke-width="1.75" aria-hidden="true" /></div>
+      <p class="text-lg font-semibold text-danger-soft-text">{{ t('payment.failed') }}</p>
+      <p class="text-sm text-ink-secondary">{{ t('payment.failedDetail') }}</p>
+      <p v-if="payment.failureReason" class="text-xs text-ink-muted">{{ payment.failureReason }}</p>
     </div>
 
     <div v-else-if="payment?.status === 'Cancelled'" class="mt-8">
-      <p class="text-lg font-semibold text-gray-700">{{ t('payment.cancelled') }}</p>
+      <p class="text-lg font-semibold text-ink-secondary">{{ t('payment.cancelled') }}</p>
     </div>
 
     <div v-else class="mt-8 space-y-3">
       <div class="text-5xl">⏳</div>
-      <p class="text-lg font-semibold text-gray-800">{{ t('payment.pending') }}</p>
-      <p class="text-sm text-gray-600">
+      <p class="text-lg font-semibold text-ink">{{ t('payment.pending') }}</p>
+      <p class="text-sm text-ink-secondary">
         {{ route.query.status === 'paid' ? t('payment.waitingConfirm') : t('payment.pendingDetail') }}
       </p>
       <button v-if="payment?.provider !== 'COD'" class="btn-brand" :disabled="starting" @click="payAgain">
         {{ route.query.status === 'pending' ? t('payment.payNow') : t('payment.payAgain') }}
       </button>
-      <p v-if="startError" class="text-sm text-red-600">{{ startError }}</p>
+      <p v-if="startError" class="text-sm text-danger-soft-text">{{ startError }}</p>
     </div>
 
     <div class="mt-10 flex justify-center gap-3">

@@ -1,25 +1,25 @@
 <template>
   <div class="mx-auto max-w-5xl px-4 py-10">
-    <div v-if="isLoading" class="text-gray-400">{{ t('product.loadingProduct') }}</div>
+    <div v-if="isLoading" class="text-ink-muted">{{ t('product.loadingProduct') }}</div>
     <div v-else-if="product" class="grid grid-cols-1 gap-10 md:grid-cols-2">
       <!-- Image -->
-      <div class="aspect-square overflow-hidden rounded-xl bg-gray-100">
+      <div class="aspect-square overflow-hidden rounded-xl bg-surface-muted">
         <img v-if="product.imageUrl" :src="product.imageUrl" :alt="product.name" class="h-full w-full object-cover" />
-        <div v-else class="flex h-full items-center justify-center text-6xl text-gray-200"><Package :size="64" :stroke-width="1.75" aria-hidden="true" /></div>
+        <div v-else class="flex h-full items-center justify-center text-6xl text-ink-muted"><Package :size="64" :stroke-width="1.75" aria-hidden="true" /></div>
       </div>
 
       <!-- Info -->
       <div class="flex flex-col">
-        <p class="text-sm text-gray-400">{{ product.categoryName }}</p>
-        <h1 class="mt-1 text-2xl font-bold text-gray-900">{{ product.name }}</h1>
-        <p class="mt-3 text-3xl font-semibold text-gray-900">{{ fmt(product.price) }}</p>
-        <p class="mt-4 text-sm text-gray-600">{{ product.description }}</p>
+        <p class="text-sm text-ink-muted">{{ product.categoryName }}</p>
+        <h1 class="mt-1 text-2xl font-bold text-ink">{{ product.name }}</h1>
+        <p class="mt-3 text-3xl font-semibold text-ink">{{ fmt(product.price) }}</p>
+        <p class="mt-4 text-sm text-ink-secondary">{{ product.description }}</p>
 
         <div class="mt-6 flex items-center gap-3">
-          <div class="flex items-center border border-gray-300 rounded-md">
-            <button @click="qty = Math.max(1, qty - 1)" class="px-3 py-2 text-gray-600 hover:bg-gray-50">−</button>
+          <div class="flex items-center border border-line-strong rounded-md">
+            <button @click="qty = Math.max(1, qty - 1)" class="px-3 py-2 text-ink-secondary hover:bg-surface-muted">−</button>
             <span class="px-4 text-sm font-medium">{{ qty }}</span>
-            <button @click="qty++" class="px-3 py-2 text-gray-600 hover:bg-gray-50">+</button>
+            <button @click="qty++" class="px-3 py-2 text-ink-secondary hover:bg-surface-muted">+</button>
           </div>
           <button
             @click="addToCart"
@@ -30,7 +30,7 @@
           </button>
         </div>
 
-        <p v-if="added" class="mt-3 text-sm text-green-600">{{ t('product.addedToCart') }}</p>
+        <p v-if="added" class="mt-3 text-sm text-success-soft-text">{{ t('product.addedToCart') }}</p>
       </div>
     </div>
   </div>

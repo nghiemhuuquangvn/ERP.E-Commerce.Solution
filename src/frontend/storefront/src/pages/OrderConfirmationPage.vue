@@ -1,17 +1,17 @@
 <template>
   <div class="mx-auto max-w-lg px-4 py-20 text-center">
     <div class="mb-4 flex justify-center text-brand-action"><CheckCircle2 :size="48" :stroke-width="1.75" aria-hidden="true" /></div>
-    <h1 class="text-2xl font-bold text-gray-900">{{ t('orders.orderPlaced') }}</h1>
-    <p class="mt-2 text-gray-600">
+    <h1 class="text-2xl font-bold text-ink">{{ t('orders.orderPlaced') }}</h1>
+    <p class="mt-2 text-ink-secondary">
       {{ t('orders.orderReceived', { orderNumber: order?.orderNo ?? '' }) }}
     </p>
-    <p v-if="order" class="mt-2 text-sm text-gray-700">
+    <p v-if="order" class="mt-2 text-sm text-ink-secondary">
       {{ t('orders.totalLine', { total: money(order.totalAmount) }) }}
-      <span v-if="order.shippingFee" class="text-gray-500">({{ t('orders.includesDelivery', { fee: money(order.shippingFee) }) }})</span>
-      <span v-else class="text-gray-500">({{ t('checkout.freeDelivery') }})</span>
+      <span v-if="order.shippingFee" class="text-ink-muted">({{ t('orders.includesDelivery', { fee: money(order.shippingFee) }) }})</span>
+      <span v-else class="text-ink-muted">({{ t('checkout.freeDelivery') }})</span>
     </p>
-    <p v-if="order?.paymentMethod === 'COD'" class="mt-2 text-sm text-gray-500">{{ t('orders.payOnDelivery') }}</p>
-    <p v-else-if="payment" class="mt-2 text-sm text-gray-500">{{ t('payment.statusLine', { status: t(`payment.status.${payment.status}`) }) }}</p>
+    <p v-if="order?.paymentMethod === 'COD'" class="mt-2 text-sm text-ink-muted">{{ t('orders.payOnDelivery') }}</p>
+    <p v-else-if="payment" class="mt-2 text-sm text-ink-muted">{{ t('payment.statusLine', { status: t(`payment.status.${payment.status}`) }) }}</p>
     <RouterLink v-if="payment?.status === 'Pending' && payment.provider !== 'COD'" :to="`/payment/result?orderId=${route.params.id}&status=pending`" class="btn-brand mt-4 inline-block">
       {{ t('payment.payNow') }}
     </RouterLink>

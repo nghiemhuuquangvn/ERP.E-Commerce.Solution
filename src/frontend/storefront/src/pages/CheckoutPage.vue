@@ -1,19 +1,19 @@
 <template>
   <div class="mx-auto max-w-3xl px-4 py-10">
-    <h1 class="mb-6 text-2xl font-bold text-gray-900">{{ t('checkout.title') }}</h1>
+    <h1 class="mb-6 text-2xl font-bold text-ink">{{ t('checkout.title') }}</h1>
 
     <!-- Steps -->
     <div class="mb-8 flex items-center gap-4">
       <StepIndicator :step="1" :current="currentStep" :label="t('checkout.stepShipping')" />
-      <div class="flex-1 border-t border-gray-200" />
+      <div class="flex-1 border-t border-line" />
       <StepIndicator :step="2" :current="currentStep" :label="t('checkout.stepPayment')" />
-      <div class="flex-1 border-t border-gray-200" />
+      <div class="flex-1 border-t border-line" />
       <StepIndicator :step="3" :current="currentStep" :label="t('checkout.stepReview')" />
     </div>
 
     <!-- Step 1: Shipping Address -->
     <div v-if="currentStep === 1" class="card p-6 space-y-4">
-      <h2 class="font-semibold text-gray-900">{{ t('checkout.shippingAddress') }}</h2>
+      <h2 class="font-semibold text-ink">{{ t('checkout.shippingAddress') }}</h2>
       <input v-model="address.street" class="input" :placeholder="t('checkout.streetAddress')" />
       <input v-model="address.ward" class="input" :placeholder="t('checkout.ward')" />
       <input v-model="phone" type="tel" autocomplete="tel" class="input" :placeholder="t('checkout.phone')" />
@@ -32,15 +32,15 @@
 
     <!-- Step 2: Payment -->
     <div v-else-if="currentStep === 2" class="card p-6 space-y-4">
-      <h2 class="font-semibold text-gray-900">{{ t('checkout.paymentMethod') }}</h2>
-      <p v-if="methodsLoading" class="text-sm text-gray-400">{{ t('common.loading') }}</p>
-      <p v-else-if="!paymentMethods.length" class="text-sm text-red-600">{{ t('checkout.noPaymentMethods') }}</p>
+      <h2 class="font-semibold text-ink">{{ t('checkout.paymentMethod') }}</h2>
+      <p v-if="methodsLoading" class="text-sm text-ink-muted">{{ t('common.loading') }}</p>
+      <p v-else-if="!paymentMethods.length" class="text-sm text-danger-soft-text">{{ t('checkout.noPaymentMethods') }}</p>
       <div v-else class="space-y-2">
         <label v-for="m in paymentMethods" :key="m.value" class="flex items-start gap-3 cursor-pointer">
-          <input type="radio" :value="m.value" v-model="paymentMethod" class="mt-1 accent-brand-500" />
+          <input type="radio" :value="m.value" v-model="paymentMethod" class="mt-1 accent-brand-action" />
           <span class="text-sm">
             {{ m.label }}
-            <span class="block text-xs text-gray-400">{{ m.hint }}</span>
+            <span class="block text-xs text-ink-muted">{{ m.hint }}</span>
           </span>
         </label>
       </div>
@@ -52,8 +52,8 @@
 
     <!-- Step 3: Review & Place -->
     <div v-else class="card p-6 space-y-4">
-      <h2 class="font-semibold text-gray-900">{{ t('checkout.reviewYourOrder') }}</h2>
-      <div class="text-sm text-gray-600 space-y-1">
+      <h2 class="font-semibold text-ink">{{ t('checkout.reviewYourOrder') }}</h2>
+      <div class="text-sm text-ink-secondary space-y-1">
         <p><span class="font-medium">{{ t('checkout.shipTo') }}</span> {{ [address.street, address.ward, address.city, address.state, address.country].filter(Boolean).join(', ') }}</p>
         <p><span class="font-medium">{{ t('checkout.payment') }}</span> {{ paymentMethodLabel }}</p>
       </div>
@@ -68,12 +68,12 @@
         </div>
         <div class="flex justify-between">
           <span>{{ t('checkout.deliveryFee') }}</span>
-          <span v-if="feeLoading" class="text-gray-400">{{ t('common.loading') }}</span>
-          <span v-else-if="feeError" class="text-amber-700">{{ t('checkout.feeUnavailable') }}</span>
-          <span v-else-if="deliveryFee === 0" class="text-green-700">{{ t('checkout.freeDelivery') }}</span>
+          <span v-if="feeLoading" class="text-ink-muted">{{ t('common.loading') }}</span>
+          <span v-else-if="feeError" class="text-warning-soft-text">{{ t('checkout.feeUnavailable') }}</span>
+          <span v-else-if="deliveryFee === 0" class="text-success-soft-text">{{ t('checkout.freeDelivery') }}</span>
           <span v-else>{{ fmt(deliveryFee) }}</span>
         </div>
-        <p v-if="!feeLoading && !feeError && !feeQuote?.isFree && feeQuote && feeQuote.freeShippingThreshold > 0 && deliveryFee > 0" class="text-xs text-gray-400">
+        <p v-if="!feeLoading && !feeError && !feeQuote?.isFree && feeQuote && feeQuote.freeShippingThreshold > 0 && deliveryFee > 0" class="text-xs text-ink-muted">
           {{ t('checkout.freeFrom', { amount: fmt(feeQuote.freeShippingThreshold) }) }}
         </p>
         <div class="flex justify-between font-semibold pt-1 border-t">
@@ -87,7 +87,7 @@
           {{ placing ? t('checkout.placingOrder') : isOnline ? t('checkout.placeOrderAndPay') : t('checkout.placeOrder') }}
         </button>
       </div>
-      <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+      <p v-if="error" class="text-sm text-danger-soft-text">{{ error }}</p>
     </div>
   </div>
 </template>
@@ -235,12 +235,12 @@ const StepIndicator = defineComponent({
           'div',
           {
             class: `flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
-              done ? 'bg-green-500 text-white' : active ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-400'
+              done ? 'bg-success text-on-brand' : active ? 'bg-brand-action text-on-brand' : 'bg-surface-muted text-ink-muted'
             }`,
           },
           done ? h(Check, { size: 16, strokeWidth: 1.75, 'aria-hidden': 'true' }) : String(props.step),
         ),
-        h('span', { class: 'text-xs text-gray-500' }, props.label),
+        h('span', { class: 'text-xs text-ink-muted' }, props.label),
       ])
     }
   },

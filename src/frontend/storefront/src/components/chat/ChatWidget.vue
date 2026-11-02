@@ -2,20 +2,20 @@
   <div class="fixed bottom-5 right-5 z-50 flex flex-col items-end">
     <div
       v-if="isOpen"
-      class="mb-3 flex h-[32rem] w-80 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl sm:w-96"
+      class="mb-3 flex h-[32rem] w-80 flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-xl sm:w-96"
     >
-      <div class="flex items-center justify-between bg-brand-500 px-4 py-3 text-white">
+      <div class="flex items-center justify-between bg-brand-action px-4 py-3 text-on-brand">
         <span class="text-sm font-semibold">{{ t('chat.title') }}</span>
         <button
           type="button"
-          class="text-white/80 hover:text-white"
+          class="text-on-brand/80 hover:text-on-brand"
           :aria-label="t('chat.close')"
           @click="isOpen = false"
         ><X :size="20" :stroke-width="1.75" aria-hidden="true" /></button>
       </div>
 
       <div ref="messageListEl" class="flex-1 space-y-3 overflow-y-auto px-3 py-3">
-        <div v-if="messages.length === 0 && !chatStore.error" class="text-center text-xs text-gray-400">
+        <div v-if="messages.length === 0 && !chatStore.error" class="text-center text-xs text-ink-muted">
           {{ t('chat.greeting') }}
         </div>
 
@@ -28,48 +28,48 @@
           <div
             class="max-w-[85%] whitespace-pre-wrap rounded-lg px-3 py-2 text-sm"
             :class="message.role === 'user'
-              ? 'bg-brand-500 text-white'
-              : 'bg-gray-100 text-gray-800'"
+              ? 'bg-brand-action text-on-brand'
+              : 'bg-surface-muted text-ink'"
           >
             {{ message.content }}<span v-if="message.streaming" class="animate-pulse">▍</span>
           </div>
         </div>
 
-        <div v-if="toolLabel" class="text-xs italic text-gray-400">{{ toolLabel }}</div>
+        <div v-if="toolLabel" class="text-xs italic text-ink-muted">{{ toolLabel }}</div>
 
-        <div v-if="chatStore.error" class="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">
+        <div v-if="chatStore.error" class="rounded-md bg-danger-soft px-3 py-2 text-xs text-danger-soft-text">
           {{ chatStore.error }}
         </div>
 
         <div v-if="isClosed" class="flex flex-col items-center gap-2 py-2">
-          <span class="text-xs text-gray-400">{{ t('chat.conversationClosed') }}</span>
+          <span class="text-xs text-ink-muted">{{ t('chat.conversationClosed') }}</span>
           <button
             type="button"
-            class="rounded-md bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600"
+            class="rounded-md bg-brand-action px-3 py-1.5 text-xs font-medium text-on-brand hover:bg-brand-action-hover"
             @click="startNewConversation"
           >{{ t('chat.newConversation') }}</button>
         </div>
       </div>
 
-      <form class="flex items-center gap-2 border-t border-gray-200 px-3 py-3" @submit.prevent="onSend">
+      <form class="flex items-center gap-2 border-t border-line px-3 py-3" @submit.prevent="onSend">
         <input
           v-model="draft"
           type="text"
           :placeholder="t('chat.inputPlaceholder')"
           :disabled="isClosed || chatStore.connectionStatus === 'connecting'"
-          class="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none disabled:bg-gray-50"
+          class="flex-1 rounded-md border border-line px-3 py-2 text-sm focus:border-brand-action focus:outline-none disabled:bg-surface-muted"
         />
         <button
           type="submit"
           :disabled="!draft.trim() || isClosed || chatStore.connectionStatus === 'connecting'"
-          class="rounded-md bg-brand-500 px-3 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+          class="rounded-md bg-brand-action px-3 py-2 text-sm font-medium text-on-brand hover:bg-brand-action-hover disabled:cursor-not-allowed disabled:opacity-50"
         >{{ t('chat.send') }}</button>
       </form>
     </div>
 
     <button
       type="button"
-      class="flex h-14 w-14 items-center justify-center rounded-full bg-brand-500 text-2xl text-white shadow-lg hover:bg-brand-600"
+      class="flex h-14 w-14 items-center justify-center rounded-full bg-brand-action text-2xl text-on-brand shadow-lg hover:bg-brand-action-hover"
       :aria-label="t('chat.toggle')"
       @click="toggleOpen"
     >

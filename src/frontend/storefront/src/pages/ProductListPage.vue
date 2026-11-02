@@ -16,10 +16,10 @@
     </div>
 
     <div v-if="isLoading" class="grid grid-cols-2 gap-4 md:grid-cols-4">
-      <div v-for="n in 12" :key="n" class="h-64 animate-pulse rounded-lg bg-gray-100" />
+      <div v-for="n in 12" :key="n" class="h-64 animate-pulse rounded-lg bg-surface-muted" />
     </div>
 
-    <div v-else-if="data?.items.length === 0" class="py-20 text-center text-gray-400">
+    <div v-else-if="data?.items.length === 0" class="py-20 text-center text-ink-muted">
       {{ t('product.noProductsFound') }}
     </div>
 
@@ -34,7 +34,7 @@
         @click="page--"
         class="btn-outline disabled:opacity-40"
       >{{ t('product.prev') }}</button>
-      <span class="flex items-center px-3 text-sm text-gray-500">
+      <span class="flex items-center px-3 text-sm text-ink-muted">
         {{ t('product.pageOf', { page, totalPages }) }}
       </span>
       <button
