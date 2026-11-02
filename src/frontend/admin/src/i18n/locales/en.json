@@ -2492,6 +2492,9 @@
     }
   },
   "accounting": {
+    "amountPositive": "The amount must be greater than 0.",
+    "notPosted": "Not posted to the ledger",
+    "markPaidAction": "Mark paid",
     "accounts": {
       "empty": "No accounts yet. Apply a chart template or add the first account.",
       "lockedHint": "Cannot be changed after the account is created.",
@@ -2626,6 +2629,11 @@
       "failedToSave": "Failed to save tax rate."
     },
     "fx": {
+      "paymentRate": "Rate the {{currency}} was paid at (base currency per 1 {{currency}})",
+      "paymentRateRequired": "Enter a rate greater than 0.",
+      "postedToast": "Revaluation posted as entry {{entry}}.",
+      "confirmTitle": "Post the revaluation",
+      "confirmMessage": "Post the revaluation of period {{period}}? One entry dated {{date}} is written to the ledger (net difference {{net}}) and reversed the next day.",
       "currency": "Currency",
       "baseCurrencyHint": "empty = base",
       "foreignAmount": "Amount in the currency",
@@ -2688,6 +2696,15 @@
       "failed": "The action failed."
     },
     "vat": {
+      "lineCategory": "Line {{n}} category",
+      "lineRate": "Line {{n}} rate %",
+      "lineAmountN": "Line {{n}} amount",
+      "lineDescriptionN": "Line {{n}} description",
+      "lineRemove": "Delete line {{n}}",
+      "postMissingConfirm": "{{count}} document(s) get their journal entry now, in the open fiscal period and with the posting profile. Documents that still cannot be posted stay on the list.",
+      "issueConfirm": "Issue the e-invoice of {{number}} with these buyer details? It is sent to the e-invoice provider and the invoice's VAT is locked.",
+      "replaceConfirm": "Issue a replacement e-invoice? The one in force is cancelled and the replacement takes its place.",
+      "adjustConfirm": "Issue an adjustment e-invoice (net {{net}}, VAT {{tax}})? An issued adjustment cannot be withdrawn.",
       "tab": "VAT",
       "report": "Report",
       "listingOutput": "Listing — sales (output)",
@@ -2751,6 +2768,10 @@
       "failed": "The operation failed."
     },
     "invoices": {
+      "empty": "No invoices yet.",
+      "actionFailed": "The action failed.",
+      "payTitle": "Mark invoice {{number}} paid",
+      "payConfirm": "Records the receipt of {{amount}} and books it to the ledger.",
       "title": "Invoices",
       "tabInvoices": "Invoices",
       "tabArAging": "AR Aging",
@@ -2775,6 +2796,12 @@
       "failedToCreate": "Failed to create invoice."
     },
     "bills": {
+      "empty": "No bills yet.",
+      "actionFailed": "The action failed.",
+      "approveTitle": "Approve bill {{number}}",
+      "approveConfirm": "Approving books the bill ({{amount}}) to the ledger as a payable. It cannot be edited afterwards.",
+      "payTitle": "Mark bill {{number}} paid",
+      "payConfirm": "Records the payment of {{amount}} and books it to the ledger.",
       "title": "Bills",
       "tabBills": "Bills",
       "tabApAging": "AP Aging",
@@ -2913,6 +2940,15 @@
       "equityLines": "Equity"
     },
     "journalEntries": {
+      "empty": "No journal entries yet.",
+      "postsNow": "The entry is posted to the ledger as soon as you press Post; there is no draft. Fix a mistake afterwards by reversing or voiding it.",
+      "postedToast": "Entry posted.",
+      "reversedToast": "Entry reversed.",
+      "voidedToast": "Entry voided.",
+      "lineAria": "Line {{n}} {{field}}",
+      "removeLineN": "Remove line {{n}}",
+      "lineAccountRequired": "Every line needs an account.",
+      "difference": "difference {{diff}}",
       "title": "Journal Entries",
       "reverse": "Reverse",
       "reverseTitle": "Reverse {{entryNumber}}",

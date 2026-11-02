@@ -2492,6 +2492,9 @@
     }
   },
   "accounting": {
+    "amountPositive": "Số tiền phải lớn hơn 0.",
+    "notPosted": "Chưa ghi vào sổ cái",
+    "markPaidAction": "Đánh dấu đã thanh toán",
     "accounts": {
       "empty": "Chưa có tài khoản nào. Hãy áp mẫu hệ thống tài khoản hoặc thêm tài khoản đầu tiên.",
       "lockedHint": "Không đổi được sau khi đã tạo tài khoản.",
@@ -2626,6 +2629,11 @@
       "failedToSave": "Lưu thuế suất thất bại."
     },
     "fx": {
+      "paymentRate": "Tỷ giá lúc thanh toán {{currency}} (tiền gốc cho 1 {{currency}})",
+      "paymentRateRequired": "Nhập tỷ giá lớn hơn 0.",
+      "postedToast": "Đã ghi đánh giá lại thành bút toán {{entry}}.",
+      "confirmTitle": "Ghi đánh giá lại ngoại tệ",
+      "confirmMessage": "Ghi đánh giá lại kỳ {{period}}? Một bút toán ngày {{date}} sẽ được ghi vào sổ cái (chênh lệch ròng {{net}}) và tự đảo vào ngày hôm sau.",
       "currency": "Tiền tệ",
       "baseCurrencyHint": "trống = tiền gốc",
       "foreignAmount": "Số tiền ngoại tệ",
@@ -2688,6 +2696,15 @@
       "failed": "Thao tác không thành công."
     },
     "vat": {
+      "lineCategory": "Dòng {{n}}: loại",
+      "lineRate": "Dòng {{n}}: thuế suất %",
+      "lineAmountN": "Dòng {{n}}: số tiền",
+      "lineDescriptionN": "Dòng {{n}}: diễn giải",
+      "lineRemove": "Xóa dòng {{n}}",
+      "postMissingConfirm": "{{count}} chứng từ sẽ được ghi bút toán ngay, vào kỳ đang mở theo hồ sơ định khoản. Chứng từ nào vẫn chưa ghi được thì ở lại danh sách.",
+      "issueConfirm": "Phát hành hóa đơn điện tử của {{number}} với thông tin người mua này? Hóa đơn được gửi tới nhà cung cấp và thuế VAT của hóa đơn bị khóa.",
+      "replaceConfirm": "Phát hành hóa đơn điện tử thay thế? Hóa đơn đang hiệu lực bị hủy và hóa đơn thay thế thế chỗ.",
+      "adjustConfirm": "Phát hành hóa đơn điều chỉnh (chưa thuế {{net}}, VAT {{tax}})? Hóa đơn điều chỉnh đã phát hành không rút lại được.",
       "tab": "VAT",
       "report": "Báo cáo",
       "listingOutput": "Bảng kê bán ra (VAT đầu ra)",
@@ -2751,6 +2768,10 @@
       "failed": "Thao tác không thành công."
     },
     "invoices": {
+      "empty": "Chưa có hóa đơn bán nào.",
+      "actionFailed": "Thao tác không thành công.",
+      "payTitle": "Đánh dấu đã thanh toán hóa đơn bán {{number}}",
+      "payConfirm": "Ghi nhận đã thu {{amount}} và ghi vào sổ cái.",
       "title": "Hóa đơn",
       "tabInvoices": "Hóa đơn",
       "tabArAging": "Tuổi nợ phải thu",
@@ -2775,6 +2796,12 @@
       "failedToCreate": "Tạo hóa đơn thất bại."
     },
     "bills": {
+      "empty": "Chưa có hóa đơn mua nào.",
+      "actionFailed": "Thao tác không thành công.",
+      "approveTitle": "Duyệt hóa đơn mua {{number}}",
+      "approveConfirm": "Duyệt sẽ ghi hóa đơn ({{amount}}) vào sổ cái như một khoản phải trả và không sửa được nữa.",
+      "payTitle": "Đánh dấu đã thanh toán hóa đơn mua {{number}}",
+      "payConfirm": "Ghi nhận đã thanh toán {{amount}} và ghi vào sổ cái.",
       "title": "Hóa đơn mua",
       "tabBills": "Hóa đơn mua",
       "tabApAging": "Tuổi nợ phải trả",
@@ -2913,6 +2940,15 @@
       "equityLines": "Vốn chủ sở hữu"
     },
     "journalEntries": {
+      "empty": "Chưa có bút toán nào.",
+      "postsNow": "Bút toán được ghi vào sổ cái ngay khi bấm Ghi sổ, không có bản nháp. Sai thì sửa bằng cách đảo hoặc hủy bút toán.",
+      "postedToast": "Đã ghi sổ bút toán.",
+      "reversedToast": "Đã đảo bút toán.",
+      "voidedToast": "Đã hủy bút toán.",
+      "lineAria": "Dòng {{n}}: {{field}}",
+      "removeLineN": "Xóa dòng {{n}}",
+      "lineAccountRequired": "Mỗi dòng cần chọn một tài khoản.",
+      "difference": "chênh lệch {{diff}}",
       "title": "Bút toán sổ cái",
       "reverse": "Đảo",
       "reverseTitle": "Đảo bút toán {{entryNumber}}",
