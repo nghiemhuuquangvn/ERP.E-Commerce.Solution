@@ -96,7 +96,7 @@ function CreateReturnModal({ presetOrderId, onClose }: { presetOrderId?: string;
                         min={0}
                         max={l.returnable}
                         aria-label={`${t('procurement.return.quantity')}: ${l.productName}`}
-                        aria-invalid={Number(qty[l.productCode]) > l.returnable || undefined}
+                        error={Number(qty[l.productCode]) > l.returnable}
                         disabled={l.returnable === 0}
                         className="ml-auto w-24 text-right"
                         value={qty[l.productCode] ?? ''}

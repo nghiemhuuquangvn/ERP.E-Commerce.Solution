@@ -261,7 +261,7 @@ function QuotationModal({ rfq, supplierId, onClose }: { rfq: Rfq; supplierId: st
                 min={0}
                 className="col-span-5"
                 aria-label={t('procurement.rfq.priceFor', { name: l.productName })}
-                aria-invalid={(errors.prices && prices[l.id] === '') || undefined}
+                error={!!errors.prices && prices[l.id] === ''}
                 value={prices[l.id]}
                 onChange={(e) => setPrices({ ...prices, [l.id]: e.target.value })}
               />

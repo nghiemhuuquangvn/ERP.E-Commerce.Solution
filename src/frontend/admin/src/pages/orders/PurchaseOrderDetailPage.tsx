@@ -84,7 +84,7 @@ function ReceiveGoodsModal({ poId, lines, onClose }: { poId: string; lines: Rece
                       min={0}
                       max={l.remainingQuantity}
                       aria-label={`${t('procurement.receive.accepted')}: ${l.productName}`}
-                      aria-invalid={exceeding.has(l.id) || undefined}
+                      error={exceeding.has(l.id)}
                       disabled={l.remainingQuantity === 0}
                       className="ml-auto w-24 text-right"
                       value={accepted[l.id] ?? ''}
@@ -97,7 +97,7 @@ function ReceiveGoodsModal({ poId, lines, onClose }: { poId: string; lines: Rece
                       min={0}
                       max={l.remainingQuantity}
                       aria-label={`${t('procurement.receive.rejected')}: ${l.productName}`}
-                      aria-invalid={exceeding.has(l.id) || undefined}
+                      error={exceeding.has(l.id)}
                       disabled={l.remainingQuantity === 0}
                       className="ml-auto w-24 text-right"
                       value={rejected[l.id] ?? ''}
