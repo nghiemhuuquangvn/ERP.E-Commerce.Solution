@@ -28,7 +28,7 @@ Contacts are the hub: leads, opportunities, cases and activities all point to a 
 ### 4.1 Lead (`LeadStatus`)
 | From | Action (who) | To | Rule |
 |---|---|---|---|
-| — | Create | New | name required; source (Website, Referral, Social media, Email, Phone, Other); estimated value ≥ 0, contact optional |
+| — | Create | New | name required; source (Website, Referral, Social media, Email, Phone, Other); estimated value ≥ 0, **contact required in the Admin form** (2026-11-02; the API still accepts none) |
 | New | Mark contacted | Contacted | only from New |
 | New, Contacted | **Qualify** (needs a linked contact; without one the server answers 400 "Link a contact to this lead before qualifying it", and a lead already Qualified / Lost is refused too - R83, fixed 2026-11-02) | Qualified | **creates an opportunity** inheriting name, contact and estimated value, expected close = today + 3 months, stage Prospecting; the lead becomes final |
 | New, Contacted | Mark lost + **reason** | Lost | reason mandatory; final |
@@ -64,6 +64,7 @@ Name required; e-mail, phone, company optional; source is always "Manual" when c
 | CRM-9 | Wrong-state actions are refusals, not server errors | Qualify without contact or twice, complete twice, cancel a completed activity answer 400 with the reason and change nothing |
 | CRM-7 | Irreversible steps are confirmed | Close case, Cancel activity, Qualify ask first; Lose / Resolve ask for their text |
 | CRM-8 | A new opportunity can be saved with the proposed date | Default close date is in the future and accepted by the server |
+| CRM-10 | A lead can always be qualified | The create form refuses an empty contact with a linked error and a hint; with no contact at all it says to create one first; a lead that has no contact (created earlier or by API) shows a "No contact - cannot qualify" badge instead of the Qualify button |
 | CRM-9 | Filters can be undone | A filter or search with no result shows "Không có kết quả" and a **Xóa lọc** button |
 | CRM-10 | The screen is usable by keyboard and screen reader | Dialogs trap focus, tabs have roles, every field has a label, axe finds no violation |
 

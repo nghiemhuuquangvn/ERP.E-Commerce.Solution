@@ -30,7 +30,8 @@ Every message the system sends ──> Sent notifications (status, error, delive
 - The screen hides **Lock and Deactivate on your own row**: ending your own session from the list is never intended. Since 2026-11-02 the API refuses it too (section 4.6).
 - **Edit profile** changes full name and user name. **Manage roles** assigns one role at a time (the list offers only the roles not yet held) and removes one at a time; each change revokes the user's tokens.
 - **Invite** *adds an existing account to this tenant*; it does **not** create an account and sends **no e-mail**. Outcomes: account unknown → "No account found for e-mail …" (404); the same e-mail exists in several tenants → refused as ambiguous; already a member → "already a member"; otherwise the account is added to the caller's tenant with the optional role. Fixed 2026-11-02 (R89): the membership and the role are now inserted (they used to be saved as an UPDATE of rows that do not exist, HTTP 500).
-- All actions apply to users **of the caller's tenant**; the tenant picker (platform operator) lists another tenant's users but the API answers "user not found" for an action on them (R90); the dialog now shows that reason.
+- All actions apply to users **of the caller's tenant**. Since 2026-11-02 (R90) the tenant picker (platform operator) is **read-only for another tenant**: its users / roles are listed under an information notice, and Invite, Add, Edit, Lock, Deactivate, Activate, Manage roles and the role actions are not offered (the API would answer "not found"); choosing My Tenant brings them back, and the page returns to page 1 when the tenant changes. Acting across tenants would need a backend change (`[TenantRouteAccess]`), recorded as R102.
+- **Activate** (2026-11-02) is offered on an inactive user's row to whoever holds `identity:users:manage` (not on your own row): a confirmation says the person can sign in again and keeps their roles; refusals appear as a toast.
 
 ### 4.2 Role
 - Code is unique per tenant, **fixed after creation**; reserved platform codes (`PlatformRoles.IsReserved`) are refused; edit changes the name only.
@@ -69,11 +70,13 @@ Read-only list filtered by status, channel and a text search (recipient e-mail o
 | ID-7 | Lists are usable | Empty states; Sent notifications: filter with no result → "Không có kết quả" + Xóa lọc; row buttons carry the row's name in their accessible name |
 | ID-9 | A shop cannot lock itself out | Locking / deactivating yourself, the last administrator, deleting the only role that makes administrators, deleting a default role and deactivating the platform tenant answer 400 with the message of section 4.6; nothing is saved and no session is revoked |
 | ID-10 | Invite works | An existing account of another tenant is added to the caller's tenant with the optional role (HTTP 200, `alreadyMember:false`), is found in that tenant's user list and can sign in there; a second invite answers `alreadyMember:true` |
+| ID-11 | A deactivated user can come back | An inactive row offers Activate (permission `identity:users:manage`, never on your own row); it asks first, posts only after the confirm, shows the server's refusal as a toast and the row is Active afterwards |
+| ID-12 | Another tenant is read-only | While the picker is on another tenant, Users and Roles show an information notice and no action button; My Tenant restores them |
 | ID-8 | Accessible | Dialogs trap focus, scroll is locked, tab / label / group structure is exposed (fieldset per module), axe finds no violation |
 
 ## 6. Use cases
 **UC-1 Give someone access:** an existing account → Users → Invite (e-mail, optional role) → success message; Manage roles to add more. *Exception:* unknown e-mail → "No account found…"; already a member → says so.
-**UC-2 Remove access:** Users → Lock (confirm; reversible by Unlock) or Deactivate (confirm; no Activate in the Admin). Both end the user's sessions immediately.
+**UC-2 Remove access:** Users → Lock (confirm; reversible by Unlock) or Deactivate (confirm; **Activate** brings the user back, with a confirmation). Both end the user's sessions immediately.
 **UC-3 Define a role:** Roles → Add (code, name) → Permissions → tick; a refused grant shows its reason. *Alternative:* filter permissions by text. **Delete role:** confirm; holders lose the permissions.
 **UC-4 Open or close a shop (platform):** Tenants → Add (code, name); Deactivate / Activate with confirmation.
 **UC-5 Choose the carrier by rule:** Settings → Shipping → Carrier rules → Add (name, priority, carrier, provinces, bands, payment) → Try a parcel to see which rule wins → Edit / Delete (confirm).
@@ -94,8 +97,8 @@ A user belongs to one home tenant and can be a member of others (`UserTenants`);
 
 ## 11. Open issues (also in DEFERRED-ISSUES §6)
 - **R89 fixed 2026-11-02:** *Invite an existing account from another tenant* answered HTTP 500 because the detached account graph was saved with `Update` (new rows treated as modified). The invite now loads the account tracked and saves the new rows as inserts.
-- **R90:** the tenant picker lists another tenant's users, but profile edit, lock, deactivate and role changes answer "user not found" (they take the caller's tenant). Either hide those buttons when the picker is on another tenant or let the platform operator act across tenants.
-- **R91 fixed 2026-11-02** (section 4.6). Still open: the Admin has no **Activate** button yet (the endpoint exists); a role create with a code that already exists answers 500 instead of a business-rule 400 (R99).
+- **R90 fixed 2026-11-02** (read-only other tenant, see 4.1). Cross-tenant actions by a platform operator remain a possible backend feature (R102).
+- **R91 fixed 2026-11-02** (section 4.6). The **Activate** button exists since 2026-11-02. Still open: a role create with a code that already exists answers 500 instead of a business-rule 400 (R99).
 - **R92:** 25 other Settings pages and the 3 sign-in pages still use the pre-library classes (no dialogs): a later batch.
 
 ## 12. UAT scenarios
@@ -105,6 +108,7 @@ A user belongs to one home tenant and can be a member of others (`UserTenants`);
 4. Invite with an empty e-mail → "Bắt buộc"; with an unknown e-mail → "No account found for email …"; with an account already in the tenant → "already a member".
 5. Roles → Add (code, name) → Permissions → tick two → two "Đã lưu." toasts and "2 of n granted"; filter "zzz" → "Không có kết quả" + Xóa lọc.
 6. Delete the role → "Everyone who holds it loses its permissions at once" → Esc keeps it; confirm removes it.
+13. Users → Deactivate a throw-away user (confirm) → the row shows Inactive and **Activate** → Activate asks "…can sign in again" → Esc keeps Inactive → confirm → Active. As a platform operator pick another tenant → notice, no buttons; My Tenant → buttons.
 7. Tenants → Add → Deactivate → confirm names the tenant → Esc keeps Active; confirm → Inactive; Activate → Active.
 8. Carrier rules → Add → minimum weight 900, maximum 100 → refused in the form; fix → saved → Edit → Delete → "New orders no longer use it" → Esc keeps the rule; confirm removes it. Repeat for Delivery fees.
 10. (API) Invite an account of another tenant with a role → 200; invite again → "already a member"; the person appears in the Users list with the role.
