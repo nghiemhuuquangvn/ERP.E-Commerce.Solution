@@ -35,7 +35,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <AuthGuard />
         <Stack screenOptions={{ headerShown: false }} />
-        <ToastHost />
+        <ToastHost top={72} />
       </QueryClientProvider>
     </SafeAreaProvider>
   )

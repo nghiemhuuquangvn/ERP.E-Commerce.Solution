@@ -52,12 +52,12 @@ function ToastRow({ item }: { item: ToastItem }) {
   )
 }
 
-/** Mount once near the root. `bottom` keeps the toasts above the tab bar. */
-export function ToastHost({ bottom = 72 }: { bottom?: number }) {
+/** Mount once near the root. `bottom` keeps the toasts above the tab bar; `top` puts them under the header instead (a screen whose bottom is busy, like the POS). */
+export function ToastHost({ bottom = 72, top }: { bottom?: number; top?: number }) {
   const items = useToastStore((s) => s.items)
   if (items.length === 0) return null
   return (
-    <View pointerEvents="box-none" style={{ position: 'absolute', left: 16, right: 16, bottom }}>
+    <View pointerEvents="box-none" style={top === undefined ? { position: 'absolute', left: 16, right: 16, bottom } : { position: 'absolute', left: 16, right: 16, top }}>
       {items.map((i) => <ToastRow key={i.id} item={i} />)}
     </View>
   )
