@@ -1,25 +1,18 @@
 import { useState, useCallback } from 'react'
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  Alert,
-  ScrollView,
-  ListRenderItem,
-} from 'react-native'
+import { View, Text, FlatList, Pressable, ScrollView, ListRenderItem } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { usePOSStore } from '@/stores/pos.store'
 import type { POSItem } from '@/stores/pos.store'
 import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
+import { formatMoney } from '@/lib/money'
+import { Button, Card, EmptyState, Screen, TextField, useToast } from '@/components/ui'
 
 const PAYMENT_METHODS = ['Cash', 'CreditCard', 'EWallet']
 
-// Module-level formatter — created once per app lifecycle
-const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
-
 export default function POSScreen() {
+  const { t } = useTranslation()
+  const toast = useToast()
   const store = usePOSStore()
   const user = useAuthStore((s) => s.user)
   const [productId, setProductId] = useState('')
@@ -64,67 +57,53 @@ export default function POSScreen() {
       await apiClient.post(`/v1/pos/transactions/${store.transactionId}/complete`, {
         paymentMethod,
       })
-      Alert.alert('Success', `Transaction complete. Total: ${fmt.format(store.total())}`, [
-        { text: 'OK', onPress: () => store.reset() },
-      ])
+      toast.success(t('pos.successMessage', { total: formatMoney(store.total()) }))
+      store.reset()
     } catch {
-      Alert.alert('Error', 'Failed to complete transaction.')
+      toast.error(t('pos.errorCompletingTransaction'))
     } finally {
       setCompleting(false)
     }
-  }, [store, user, paymentMethod])
+  }, [store, user, paymentMethod, toast, t])
 
   // Stable renderItem — FlatList skips re-render of unchanged rows
   const renderItem = useCallback<ListRenderItem<POSItem>>(
     ({ item }) => (
-      <View className="bg-white rounded-xl px-4 py-3 mb-2 flex-row items-center justify-between border border-gray-100">
-        <View className="flex-1">
-          <Text className="font-medium text-gray-800">{item.productName}</Text>
-          <Text className="text-xs text-gray-500">
-            {fmt.format(item.unitPrice)} × {item.quantity}
-          </Text>
-        </View>
-        <Text className="font-semibold text-gray-900">
-          {fmt.format(item.unitPrice * item.quantity)}
-        </Text>
+      <View className="mb-2">
+        <Card>
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1 pr-3">
+              <Text className="font-medium text-ink">{item.productName}</Text>
+              <Text className="text-sm text-ink-secondary">{formatMoney(item.unitPrice)} × {item.quantity}</Text>
+            </View>
+            <Text className="font-semibold text-ink">{formatMoney(item.unitPrice * item.quantity)}</Text>
+          </View>
+        </Card>
       </View>
     ),
     [],
   )
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <Screen scroll={false}>
       {/* Product Add Bar */}
-      <View className="bg-white p-4 border-b border-gray-100">
-        <Text className="text-sm font-semibold text-gray-700 mb-2">Add Product</Text>
-        <View className="flex-row gap-2 mb-2">
-          <TextInput
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            placeholder="Product ID"
-            value={productId}
-            onChangeText={setProductId}
-          />
-          <TextInput
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            placeholder="Name"
-            value={productName}
-            onChangeText={setProductName}
-          />
-        </View>
+      <View className="border-b border-line bg-surface p-4">
+        <Text accessibilityRole="header" className="mb-2 text-sm font-semibold text-ink-secondary">{t('pos.addProduct')}</Text>
         <View className="flex-row gap-2">
-          <TextInput
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            placeholder="Unit Price"
-            value={unitPrice}
-            onChangeText={setUnitPrice}
-            keyboardType="numeric"
-          />
-          <TouchableOpacity
-            onPress={addItem}
-            className="bg-primary-600 rounded-lg px-4 py-2 items-center justify-center"
-          >
-            <Text className="text-white font-medium">+ Add</Text>
-          </TouchableOpacity>
+          <View className="flex-1">
+            <TextField label={t('pos.productIdLabel')} placeholder={t('pos.productIdPlaceholder')} value={productId} onChangeText={setProductId} autoCapitalize="none" returnKeyType="next" />
+          </View>
+          <View className="flex-1">
+            <TextField label={t('pos.nameLabel')} placeholder={t('pos.namePlaceholder')} value={productName} onChangeText={setProductName} returnKeyType="next" />
+          </View>
+        </View>
+        <View className="flex-row items-end gap-2">
+          <View className="flex-1">
+            <TextField label={t('pos.unitPriceLabel')} placeholder={t('pos.unitPricePlaceholder')} value={unitPrice} onChangeText={setUnitPrice} keyboardType="numeric" returnKeyType="done" onSubmitEditing={addItem} />
+          </View>
+          <View className="mb-3">
+            <Button size="lg" fullWidth={false} accessibilityLabel={t('pos.addToSale')} onPress={addItem}>{t('pos.add')}</Button>
+          </View>
         </View>
       </View>
 
@@ -134,56 +113,45 @@ export default function POSScreen() {
         keyExtractor={(i) => i.productId}
         className="flex-1 px-4 pt-3"
         renderItem={renderItem}
-        ListEmptyComponent={
-          <View className="py-12 items-center">
-            <Text className="text-gray-400">No items added yet.</Text>
-          </View>
-        }
+        ListEmptyComponent={<EmptyState title={t('pos.noItems')} hint={t('pos.noItemsHint')} />}
       />
 
       {/* Footer Summary */}
-      <View className="bg-white border-t border-gray-100 p-4">
-        <View className="flex-row justify-between mb-1">
-          <Text className="text-sm text-gray-500">Subtotal</Text>
-          <Text className="text-sm">{fmt.format(store.subtotal())}</Text>
+      <View className="border-t border-line bg-surface p-4">
+        <View className="mb-1 flex-row justify-between">
+          <Text className="text-sm text-ink-secondary">{t('pos.subtotal')}</Text>
+          <Text className="text-sm text-ink">{formatMoney(store.subtotal())}</Text>
         </View>
-        <View className="flex-row justify-between mb-3">
-          <Text className="text-sm text-gray-500">Tax</Text>
-          <Text className="text-sm">{fmt.format(store.taxAmount())}</Text>
+        <View className="mb-3 flex-row justify-between">
+          <Text className="text-sm text-ink-secondary">{t('pos.tax')}</Text>
+          <Text className="text-sm text-ink">{formatMoney(store.taxAmount())}</Text>
         </View>
-        <View className="flex-row justify-between mb-4">
-          <Text className="font-bold text-gray-900">Total</Text>
-          <Text className="text-xl font-bold text-primary-600">{fmt.format(store.total())}</Text>
+        <View className="mb-4 flex-row justify-between">
+          <Text className="font-bold text-ink">{t('pos.total')}</Text>
+          <Text className="text-xl font-bold text-brand-action">{formatMoney(store.total())}</Text>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
-          {PAYMENT_METHODS.map((m) => (
-            <TouchableOpacity
-              key={m}
-              onPress={() => setPaymentMethod(m)}
-              className={`mr-2 rounded-lg px-4 py-2 border ${
-                paymentMethod === m
-                  ? 'bg-primary-600 border-primary-600'
-                  : 'bg-white border-gray-300'
-              }`}
-            >
-              <Text className={paymentMethod === m ? 'text-white text-sm' : 'text-gray-700 text-sm'}>
-                {m}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3" accessibilityRole="radiogroup" accessibilityLabel={t('pos.paymentMethod')}>
+          {PAYMENT_METHODS.map((m) => {
+            const selected = paymentMethod === m
+            return (
+              <Pressable
+                key={m}
+                onPress={() => setPaymentMethod(m)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected, checked: selected }}
+                className={`mr-2 min-h-[52px] justify-center rounded-control border px-5 ${selected ? 'border-brand-action bg-brand-action' : 'border-line-strong bg-surface'}`}
+              >
+                <Text className={selected ? 'font-semibold text-on-brand' : 'text-ink'}>{t(`pos.paymentMethods.${m}`)}</Text>
+              </Pressable>
+            )
+          })}
         </ScrollView>
 
-        <TouchableOpacity
-          onPress={completeTransaction}
-          disabled={completing || store.items.length === 0}
-          className="bg-primary-600 rounded-xl py-4 items-center disabled:opacity-40"
-        >
-          <Text className="text-white font-bold text-base">
-            {completing ? 'Processing…' : 'Complete Transaction'}
-          </Text>
-        </TouchableOpacity>
+        <Button size="lg" onPress={completeTransaction} loading={completing} disabled={store.items.length === 0}>
+          {completing ? t('pos.processing') : t('pos.completeTransaction')}
+        </Button>
       </View>
-    </View>
+    </Screen>
   )
 }

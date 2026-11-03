@@ -7,7 +7,10 @@
     "error": "Error",
     "language": "Language",
     "english": "English",
-    "vietnamese": "Tiếng Việt"
+    "vietnamese": "Tiếng Việt",
+    "retry": "Try again",
+    "loadError": "We could not load this. Please try again.",
+    "close": "Close"
   },
   "home": {
     "welcome": "Welcome to ERP Shop",
@@ -18,7 +21,10 @@
   "search": {
     "placeholder": "Search products…",
     "outOfStock": "Out of stock",
-    "noProducts": "No products found."
+    "noProducts": "No products found.",
+    "label": "Search products",
+    "clear": "Clear the search",
+    "noProductsHint": "Try another word."
   },
   "cart": {
     "signInRequiredTitle": "Sign In Required",
@@ -37,7 +43,12 @@
       "VNPay": "VNPay",
       "MoMo": "MoMo",
       "ZaloPay": "ZaloPay"
-    }
+    },
+    "decrease": "Fewer",
+    "increase": "More",
+    "remove": "Remove",
+    "summary": "Order summary",
+    "paymentNone": "This shop has no payment method switched on yet."
   },
   "order": {
     "notFound": "Order not found.",
@@ -62,7 +73,16 @@
   },
   "orders": {
     "loading": "Loading orders…",
-    "empty": "No orders yet."
+    "empty": "No orders yet.",
+    "status": {
+      "Draft": "Draft",
+      "Confirmed": "Confirmed",
+      "Processing": "Processing",
+      "Shipped": "Shipped",
+      "Delivered": "Delivered",
+      "Cancelled": "Cancelled"
+    },
+    "emptyHint": "Your orders will appear here."
   },
   "profile": {
     "notSignedIn": "Not signed in",
@@ -70,7 +90,8 @@
     "settings": "Settings",
     "helpAndSupport": "Help & Support",
     "signOutConfirmTitle": "Sign Out",
-    "signOutConfirmMessage": "Are you sure you want to sign out?"
+    "signOutConfirmMessage": "Are you sure you want to sign out?",
+    "signInHint": "Sign in to see your orders and settings."
   },
   "auth": {
     "appName": "ERP Shop",
@@ -87,6 +108,19 @@
     "passwordHintPlaceholder": "Password (min 8 chars)",
     "creating": "Creating…",
     "registerError": "Registration failed. Please try again.",
-    "haveAccount": "Already have an account? Sign in →"
+    "haveAccount": "Already have an account? Sign in →",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "firstNameLabel": "First name",
+    "lastNameLabel": "Last name",
+    "passwordHint": "At least 8 characters",
+    "required": "This field is required."
+  },
+  "tabs": {
+    "home": "Home",
+    "search": "Search",
+    "cart": "Cart",
+    "orders": "Orders",
+    "profile": "Profile"
   }
 }

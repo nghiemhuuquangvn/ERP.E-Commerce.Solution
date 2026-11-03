@@ -1,13 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  Alert,
-  Linking,
-  ListRenderItem,
-} from 'react-native'
+import { View, Text, FlatList, Pressable, Alert, Linking, ListRenderItem } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Package, ShoppingCart } from 'lucide-react-native'
@@ -18,13 +10,13 @@ import { useAuthStore } from '@/stores/auth.store'
 import { apiClient } from '@/api/client'
 import { fetchPaymentMethods, startCheckout } from '@/api/payments'
 import type { PaymentMethodOption, Order } from '@/api/payments'
-
-// Module-level formatter — created once per app lifecycle
-const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
+import { formatMoney } from '@/lib/money'
+import { Button, Card, EmptyState, QuantityStepper, Screen, useToast } from '@/components/ui'
 
 export default function CartScreen() {
   const router = useRouter()
   const { t } = useTranslation()
+  const toast = useToast()
   const cartStore = useCartStore()
   const authStore = useAuthStore()
   const [placing, setPlacing] = useState(false)
@@ -78,105 +70,100 @@ export default function CartScreen() {
       }
       router.push(`/order/${order.orderId}`)
     } catch {
-      Alert.alert(t('common.error'), t('cart.errorPlacingOrder'))
+      toast.error(t('cart.errorPlacingOrder'))
     } finally {
       setPlacing(false)
     }
-  }, [authStore, cartStore, router, t, method, methods])
+  }, [authStore, cartStore, router, t, method, methods, toast])
 
   // Stable renderItem — FlatList re-renders only changed rows
   const renderItem = useCallback<ListRenderItem<CartItem>>(
     ({ item }) => (
-      <View className="flex-row items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50">
-        <View className="w-14 h-14 rounded-lg bg-gray-200 items-center justify-center">
-          <Package size={24} strokeWidth={icon.stroke} color={colors.inkMuted} />
+      <Card>
+        <View className="flex-row items-center gap-3">
+          <View className="h-14 w-14 items-center justify-center rounded-control bg-surface-muted" accessibilityElementsHidden>
+            <Package size={24} strokeWidth={icon.stroke} color={colors.inkMuted} />
+          </View>
+          <View className="flex-1">
+            <Text className="text-sm font-medium text-ink">{item.productName}</Text>
+            <Text className="text-sm text-ink-secondary">{formatMoney(item.unitPrice)} {t('cart.each')}</Text>
+          </View>
+          <Text className="text-right text-sm font-semibold text-ink">{formatMoney(item.unitPrice * item.quantity)}</Text>
         </View>
-        <View className="flex-1">
-          <Text className="font-medium text-gray-800 text-sm">{item.productName}</Text>
-          <Text className="text-gray-500 text-xs">{fmt.format(item.unitPrice)} {t('cart.each')}</Text>
-        </View>
-        <View className="flex-row items-center gap-2">
-          <TouchableOpacity
-            onPress={() => cartStore.updateQty(item.productId, item.quantity - 1)}
-            className="w-7 h-7 rounded-full bg-gray-200 items-center justify-center"
+        <View className="mt-3 flex-row items-center justify-between">
+          <QuantityStepper
+            value={item.quantity}
+            name={item.productName}
+            min={0}
+            decreaseLabel={t('cart.decrease')}
+            increaseLabel={t('cart.increase')}
+            onChange={(next) => cartStore.updateQty(item.productId, next)}
+          />
+          <Button
+            variant="ghost"
+            fullWidth={false}
+            accessibilityLabel={`${t('cart.remove')} ${item.productName}`}
+            onPress={() => cartStore.removeItem(item.productId)}
           >
-            <Text className="text-gray-700">−</Text>
-          </TouchableOpacity>
-          <Text className="w-5 text-center text-sm font-medium">{item.quantity}</Text>
-          <TouchableOpacity
-            onPress={() => cartStore.updateQty(item.productId, item.quantity + 1)}
-            className="w-7 h-7 rounded-full bg-gray-200 items-center justify-center"
-          >
-            <Text className="text-gray-700">+</Text>
-          </TouchableOpacity>
+            {t('cart.remove')}
+          </Button>
         </View>
-        <Text className="w-16 text-right font-semibold text-sm">
-          {fmt.format(item.unitPrice * item.quantity)}
-        </Text>
-      </View>
+      </Card>
     ),
     [cartStore, t],
   )
 
   if (items.length === 0) {
     return (
-      <View className="flex-1 bg-white items-center justify-center px-6">
-        <View className="mb-4"><ShoppingCart size={40} strokeWidth={icon.stroke} color={colors.inkMuted} /></View>
-        <Text className="text-lg font-semibold text-gray-700 mb-2">{t('cart.emptyTitle')}</Text>
-        <TouchableOpacity
-          onPress={() => router.push('/(tabs)/search')}
-          className="bg-brand-500 rounded-xl px-6 py-3"
-        >
-          <Text className="text-white font-semibold">{t('cart.browseProducts')}</Text>
-        </TouchableOpacity>
-      </View>
+      <Screen scroll={false}>
+        <EmptyState
+          icon={<ShoppingCart size={40} strokeWidth={icon.stroke} color={colors.inkMuted} />}
+          title={t('cart.emptyTitle')}
+          action={<Button onPress={() => router.push('/(tabs)/search')}>{t('cart.browseProducts')}</Button>}
+        />
+      </Screen>
     )
   }
 
   return (
-    <View className="flex-1 bg-white">
-      <FlatList
-        data={items}
-        keyExtractor={(i) => i.productId}
-        contentContainerClassName="p-4 gap-3"
-        renderItem={renderItem}
-      />
+    <Screen scroll={false}>
+      <FlatList data={items} keyExtractor={(i) => i.productId} contentContainerClassName="p-4 gap-3" renderItem={renderItem} />
 
-      <View className="border-t border-gray-100 p-4">
-        <View className="flex-row justify-between mb-1">
-          <Text className="text-gray-500">{t('cart.subtotal')}</Text>
-          <Text>{fmt.format(cartStore.subtotal())}</Text>
+      <View className="border-t border-line bg-surface p-4">
+        <Text accessibilityRole="header" className="mb-2 text-sm font-semibold text-ink-secondary">{t('cart.summary')}</Text>
+        <View className="mb-1 flex-row justify-between">
+          <Text className="text-ink-secondary">{t('cart.subtotal')}</Text>
+          <Text className="text-ink">{formatMoney(cartStore.subtotal())}</Text>
         </View>
-        <View className="flex-row justify-between mb-4">
-          <Text className="font-bold text-gray-900 text-lg">{t('cart.total')}</Text>
-          <Text className="font-bold text-brand-500 text-lg">{fmt.format(cartStore.total())}</Text>
+        <View className="mb-4 flex-row justify-between">
+          <Text className="text-lg font-bold text-ink">{t('cart.total')}</Text>
+          <Text className="text-lg font-bold text-brand-action">{formatMoney(cartStore.total())}</Text>
         </View>
         {methods.length > 0 && (
-          <View className="mb-4">
-            <Text className="mb-2 text-xs uppercase text-gray-400">{t('cart.paymentMethod')}</Text>
+          <View className="mb-4" accessibilityRole="radiogroup" accessibilityLabel={t('cart.paymentMethod')}>
+            <Text className="mb-2 text-sm text-ink-secondary">{t('cart.paymentMethod')}</Text>
             <View className="flex-row flex-wrap gap-2">
-              {methods.map((m) => (
-                <TouchableOpacity
-                  key={m.code}
-                  onPress={() => setMethod(m.code)}
-                  className={`rounded-full border px-4 py-2 ${method === m.code ? 'border-brand-500 bg-brand-500' : 'border-gray-200 bg-white'}`}
-                >
-                  <Text className={method === m.code ? 'font-semibold text-white' : 'text-gray-700'}>{t(`cart.methods.${m.code}`)}</Text>
-                </TouchableOpacity>
-              ))}
+              {methods.map((m) => {
+                const selected = method === m.code
+                return (
+                  <Pressable
+                    key={m.code}
+                    onPress={() => setMethod(m.code)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected, checked: selected }}
+                    className={`min-h-[44px] justify-center rounded-full border px-4 ${selected ? 'border-brand-action bg-brand-action' : 'border-line-strong bg-surface'}`}
+                  >
+                    <Text className={selected ? 'font-semibold text-on-brand' : 'text-ink'}>{t(`cart.methods.${m.code}`)}</Text>
+                  </Pressable>
+                )
+              })}
             </View>
           </View>
         )}
-        <TouchableOpacity
-          onPress={checkout}
-          disabled={placing || !method}
-          className="bg-brand-500 rounded-xl py-4 items-center"
-        >
-          <Text className="text-white font-bold text-base">
-            {placing ? t('cart.placingOrder') : t('cart.placeOrder')}
-          </Text>
-        </TouchableOpacity>
+        <Button onPress={checkout} loading={placing} disabled={!method}>
+          {placing ? t('cart.placingOrder') : `${t('cart.placeOrder')} · ${formatMoney(cartStore.total())}`}
+        </Button>
       </View>
-    </View>
+    </Screen>
   )
 }

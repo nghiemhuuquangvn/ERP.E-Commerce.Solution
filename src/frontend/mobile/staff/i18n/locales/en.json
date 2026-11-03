@@ -7,7 +7,11 @@
     "error": "Error",
     "language": "Language",
     "english": "English",
-    "vietnamese": "Tiếng Việt"
+    "vietnamese": "Tiếng Việt",
+    "retry": "Try again",
+    "loadError": "We could not load this. Please try again.",
+    "close": "Close",
+    "save": "Save"
   },
   "dashboard": {
     "goodMorning": "Good morning, {{name}} 👋",
@@ -16,14 +20,26 @@
     "lowStock": "Low Stock",
     "pendingShipments": "Pending Shipments",
     "quickActions": "Quick Actions",
-    "quickActionsHint": "Use the tabs below to access POS, Inventory, and Deliveries."
+    "quickActionsHint": "Use the tabs below to access POS, Inventory, and Deliveries.",
+    "salesValue": "$0"
   },
   "deliveries": {
     "loading": "Loading…",
     "order": "Order",
     "markInTransit": "Mark In Transit",
     "empty": "No active shipments.",
-    "errorUpdatingTracking": "Failed to update tracking."
+    "errorUpdatingTracking": "Failed to update tracking.",
+    "statusLabel": "Status",
+    "orderLabel": "Order {{id}}",
+    "tracking": "Tracking number {{number}}",
+    "markInTransitFor": "Mark {{number}} in transit",
+    "statuses": {
+      "Pending": "Pending",
+      "PickedUp": "Picked up",
+      "InTransit": "In transit",
+      "Delivered": "Delivered",
+      "Failed": "Failed"
+    }
   },
   "inventory": {
     "searchPlaceholder": "Search products…",
@@ -31,7 +47,17 @@
     "adjust": "Adjust",
     "adjustStockTitle": "Adjust Stock",
     "adjustStockMessage": "Current: {{quantity}}. Enter new quantity:",
-    "errorAdjustingStock": "Failed to adjust stock."
+    "errorAdjustingStock": "Failed to adjust stock.",
+    "searchLabel": "Search products",
+    "available": "Available",
+    "adjustFor": "Adjust stock of {{name}}",
+    "newQuantity": "New quantity",
+    "currentQuantity": "Current: {{quantity}}",
+    "invalidQuantity": "Enter a whole number.",
+    "empty": "No products found.",
+    "emptyHint": "Try another word.",
+    "adjusted": "Stock updated.",
+    "clear": "Clear the search"
   },
   "pos": {
     "addProduct": "Add Product",
@@ -52,7 +78,16 @@
       "Cash": "Cash",
       "CreditCard": "Credit Card",
       "EWallet": "E-Wallet"
-    }
+    },
+    "productIdLabel": "Product ID",
+    "nameLabel": "Name",
+    "unitPriceLabel": "Unit price",
+    "addToSale": "Add to the sale",
+    "paymentMethod": "Payment method",
+    "noItemsHint": "Add a product above to start a sale.",
+    "quantityStep": "line",
+    "decrease": "Fewer",
+    "increase": "More"
   },
   "auth": {
     "appName": "ERP Staff",
@@ -61,6 +96,15 @@
     "passwordPlaceholder": "Password",
     "signingIn": "Signing in…",
     "signInFailedTitle": "Login Failed",
-    "signInError": "Invalid email or password."
+    "signInError": "Invalid email or password.",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "required": "This field is required."
+  },
+  "tabs": {
+    "dashboard": "Dashboard",
+    "pos": "POS",
+    "inventory": "Inventory",
+    "deliveries": "Deliveries"
   }
 }

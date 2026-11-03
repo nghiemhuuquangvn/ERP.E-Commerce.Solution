@@ -2,7 +2,9 @@ import '@/i18n'
 import { useEffect } from 'react'
 import { Stack, useRouter, useSegments } from 'expo-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { useAuthStore } from '@/stores/auth.store'
+import { ToastHost } from '@/components/ui'
 
 const queryClient = new QueryClient()
 
@@ -22,9 +24,12 @@ function AuthGuard() {
 
 export default function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthGuard />
-      <Stack screenOptions={{ headerShown: false }} />
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthGuard />
+        <Stack screenOptions={{ headerShown: false }} />
+        <ToastHost />
+      </QueryClientProvider>
+    </SafeAreaProvider>
   )
 }
