@@ -15,7 +15,8 @@ Năm tab: **Trang chủ**, **Tìm kiếm**, **Giỏ hàng** (hiện số mặt h
 ## 3. Trang chủ và tìm kiếm
 - **Trang chủ:** banner chào mừng và hàng sản phẩm nổi bật. Lỗi tải: khung đỏ kèm nút **Thử lại**.
 - **Tìm kiếm:** ô **Tìm sản phẩm**; kết quả hiện dạng lưới hai cột, mỗi ô đọc là "tên, giá" (kèm "Hết hàng" nếu hết). Không có kết quả: có thông báo và nút **Xóa tìm kiếm**.
-- *Chưa có:* trang chi tiết sản phẩm và nút thêm vào giỏ (xem mục 7).
+- **Trang sản phẩm:** bấm một ô sản phẩm để mở. Có ảnh (hoặc biểu tượng thay thế), danh mục, tên, giá, "Còn hàng" / "Hết hàng" và mô tả. Nút **Quay lại** ở đầu màn hình.
+- **Thêm vào giỏ:** thanh cố định ở cuối màn hình có bộ chọn **Số lượng** (từ 1 đến số hàng còn) và nút **Thêm vào giỏ**. Bấm xong hiện thông báo xanh "Đã thêm vào giỏ hàng" và số lượng quay về 1. Sản phẩm hết hàng thì nút bị khóa. Muốn xem giỏ: bấm **Quay lại**, rồi mở tab **Giỏ hàng** (có số mặt hàng).
 
 ## 4. Giỏ hàng và đặt hàng
 - Mỗi dòng có nút **Giảm** / **Tăng** (đọc kèm tên sản phẩm) và nút **Xóa**.
@@ -32,6 +33,6 @@ Tên và email, **Đơn hàng của tôi**, chọn ngôn ngữ (**English** / **
 
 ## 7. Lưu ý
 - Giá hiện bằng đô la; bản web của cửa hàng hiện bằng đồng ở bước thanh toán. Sẽ thống nhất ở một bước sau.
-- Ứng dụng chưa có trang sản phẩm và nút thêm vào giỏ, chưa có quên mật khẩu, mã giảm giá, theo dõi vận đơn, thông báo đẩy.
+- Ứng dụng chưa có quên mật khẩu, mã giảm giá, theo dõi vận đơn, thông báo đẩy.
 - Cỡ chữ lớn của điện thoại (đến 130 %) vẫn dùng được: chữ không bị cắt, nút vẫn chạm được.
 - Chưa chạy thử trên máy Android / iPhone thật: cần người phụ trách chạy `npx expo start` và thử theo mục UAT trong tài liệu BA.

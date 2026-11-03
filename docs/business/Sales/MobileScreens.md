@@ -4,8 +4,8 @@ Business analysis of the customer app (`src/frontend/mobile/customer`, Expo / Re
 
 ## 1. Purpose and scope
 Let a customer sign in, browse and search the shop's products, review a cart, place an order with the payment method the shop offers, follow the order and its payment, and choose a language, from a phone.
-In scope: Sign in, Register, Home, Search, Cart, Orders, Order detail with payment, Profile (language, sign out).
-Out of scope / not built: **a product page and "add to cart"** (see §8, R108), reset password, coupon entry, shipment tracking, address book, push notifications, dark mode (U7), offline mode.
+In scope: Sign in, Register, Home, Search, **Product (with Add to cart)**, Cart, Orders, Order detail with payment, Profile (language, sign out).
+Out of scope / not built: reset password, coupon entry, shipment tracking, address book, push notifications, dark mode (U7), offline mode.
 
 ## 2. Actors
 | Actor | Can | Cannot |
@@ -22,6 +22,7 @@ The shop is the tenant of the host in `EXPO_PUBLIC_API_URL` ([mobile-apps.md](..
 | Register | as above | - | danger alert | first name, last name (optional), email, password (hint: at least 8 characters) |
 | Home | three skeleton tiles | "No products found." | alert + **Try again** | hero on the soft brand colour; featured products in a row; each tile is one button named "<product>, <price>" |
 | Search | four skeleton tiles | "No products found." + hint + **Clear the search** | alert + **Try again** | labelled **Search products**; 2-column grid; "Out of stock" in the tile and its name |
+| Product | three skeletons in a live region | "This product could not be found." + **Browse Products** | alert + **Try again** | opened from a Home or Search tile; **Back** button (44 pt) at the top; picture or placeholder, category, name (heading), price, "In stock" / "Out of stock" in words, description; a bar fixed at the bottom with the quantity stepper (named "Fewer / More Quantity", 1 up to the stock) and **Add to cart** (disabled and named "Out of stock" when the stock is 0); adding shows the green toast "Added to your cart" and puts the quantity back to 1; the language of the texts follows the app language |
 | Cart | - (local) | "Your cart is empty" + **Browse Products** | order refused: red toast | each line: stepper named after the product ("More Blue shirt"), **Remove <product>**; summary: subtotal, total; payment methods as a radio group; the order button names the amount ("Place Order · $30.00") |
 | Orders | three skeletons | "No orders yet." + hint + **Browse Products** | alert + **Try again** | each order is one card named "<no>, <status>, <total>, <date>"; translated status chip |
 | Order detail | spinner | "Order not found." + **View my orders** | red alert when the payment failed or the gateway cannot be reached | lines, total (in the payment's currency), payment status, **Pay now** while an online payment is pending; polled every 3 s and when the app returns to the foreground |
@@ -56,10 +57,10 @@ The shop is the tenant of the host in `EXPO_PUBLIC_API_URL` ([mobile-apps.md](..
 **UC-4 Change language.** Profile → Tiếng Việt: every screen switches at once and the choice is remembered.
 
 ## 7. Data and integration
-Gateway routes used: `v1/auth/login`, `v1/auth/register`, `v1/products/featured`, `v1/products`, `v1/products/search`, `v1/orders`, `v1/orders/my`, `v1/orders/{id}`, `v1/payment-gateway/methods`, `v1/payment-gateway/orders/{id}/checkout`, `v1/payment-gateway/orders/{id}/status` (guarded by `ClientApiContractTests`). Cart, session and language are kept on the phone.
+Gateway routes used: `v1/auth/login`, `v1/auth/register`, `v1/products/featured`, `v1/products/{id}` (with `languageCode`), `v1/products`, `v1/products/search`, `v1/orders`, `v1/orders/my`, `v1/orders/{id}`, `v1/payment-gateway/methods`, `v1/payment-gateway/orders/{id}/checkout`, `v1/payment-gateway/orders/{id}/status` (guarded by `ClientApiContractTests`). Cart, session and language are kept on the phone.
 
 ## 8. Assumptions and open issues
-- **R108:** tapping a product opens `/product/<id>`, and that screen does not exist; `addItem` of the cart is never called. Today the cart can only hold what a previous version stored. The product screen and add-to-cart are the first customer-app feature to build.
+- **R108 closed 2026-11-03:** the product screen and Add to cart exist, so the cart can be filled and an order placed from the phone. The cart line carries the same fields as the web shop (product id, name, unit price, image) and the quantity; the quantity is capped by the stock **on the phone only** (the server stays the authority; the web shop does not cap).
 - Money shows US dollars (the web shop's checkout shows dong): U6.
 - Native build and device test: **not done** (R68) - see §9.
 - No push notifications (the package is installed, nothing subscribes), no assets (icon, splash images), no store identifiers in `app.json`.
@@ -75,4 +76,5 @@ Verified: 54 Jest tests, `tsc`, `check:tokens`; `expo export --platform web` and
 4. Cart with a line: **More** / **Fewer** change the total, **Remove** empties it; the order button names the amount.
 5. Place a cash-on-delivery order → Order detail; Orders lists it with a status chip.
 6. Profile → Tiếng Việt: all texts change; Sign Out asks first.
-7. With the phone's font size at 130 %: no text is cut off and every button is still reachable.
+7. Product: open a tile from Search; **More Quantity** twice, **Add to cart** → toast; **Back**, open the Cart tab: the line is there with quantity 2 and the order button names the amount. A product with stock 0 shows "Out of stock" and cannot be added.
+8. With the phone's font size at 130 %: no text is cut off and every button is still reachable.
