@@ -12,6 +12,18 @@ export interface ProductSummary {
   stockQuantity?: number
 }
 
+/** GET /v1/products/{id} (ProductDto): what the product screen shows. */
+export interface ProductDetail {
+  id: string
+  sku?: string
+  name: string
+  description?: string
+  price: number
+  imageUrl?: string
+  categoryName?: string
+  stockQuantity: number
+}
+
 /** One product: picture (or a placeholder), name, price. The whole tile is one button named after the product. */
 export function ProductTile({ product, onPress, size = 'lg' }: { product: ProductSummary; onPress: () => void; size?: 'md' | 'lg' }) {
   const { t } = useTranslation()

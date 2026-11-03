@@ -122,5 +122,16 @@
     "cart": "Giỏ hàng",
     "orders": "Đơn hàng",
     "profile": "Hồ sơ"
+  },
+  "product": {
+    "back": "Quay lại",
+    "loading": "Đang tải sản phẩm…",
+    "loadFailed": "Không tải được sản phẩm này. Vui lòng thử lại.",
+    "notFound": "Không tìm thấy sản phẩm này.",
+    "inStock": "Còn hàng",
+    "outOfStock": "Hết hàng",
+    "addToCart": "Thêm vào giỏ",
+    "addedToCart": "Đã thêm vào giỏ hàng",
+    "quantity": "Số lượng"
   }
 }

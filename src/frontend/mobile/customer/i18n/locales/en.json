@@ -122,5 +122,16 @@
     "cart": "Cart",
     "orders": "Orders",
     "profile": "Profile"
+  },
+  "product": {
+    "back": "Back",
+    "loading": "Loading the product…",
+    "loadFailed": "We could not load this product. Please try again.",
+    "notFound": "This product could not be found.",
+    "inStock": "In stock",
+    "outOfStock": "Out of stock",
+    "addToCart": "Add to cart",
+    "addedToCart": "Added to your cart",
+    "quantity": "Quantity"
   }
 }
