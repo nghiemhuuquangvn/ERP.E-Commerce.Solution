@@ -415,6 +415,60 @@
       }
     },
     {
+      "DownstreamPathTemplate": "/api/v1/shipments",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "shippingservice",
+          "Port": 5010
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/shipments",
+      "UpstreamHttpMethod": [
+        "GET",
+        "POST"
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer"
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/stock-adjustments",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "warehouseservice",
+          "Port": 5004
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/stock-adjustments",
+      "UpstreamHttpMethod": [
+        "GET",
+        "POST"
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer"
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/stock-adjustments/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "warehouseservice",
+          "Port": 5004
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/stock-adjustments/{everything}",
+      "UpstreamHttpMethod": [
+        "GET",
+        "POST"
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer"
+      }
+    },
+    {
       "DownstreamPathTemplate": "/api/v1/shipping/fee",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
