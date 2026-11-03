@@ -71,3 +71,16 @@ pwsh -File src\frontend\mobile\tools\start-emulator.ps1           # tạo + mở
 - Lần đầu build mất 11-23 phút; build lại nhanh hơn nhờ bộ nhớ đệm Gradle.
 - Nếu `npm ci` báo lock lệch: script dùng `npm install` trên bản sao, lock trong repo không đổi.
 - Máy ảo không có hosts hợp lệ thì app đăng nhập thất bại hoặc vào nhầm shop nền tảng (R112): luôn kiểm tra bước 2.
+
+## 7. Khi app đăng nhập / đăng ký không được (đã gặp ngày 2026-11-03)
+App phân biệt hai loại lỗi:
+- **"Invalid email or password."**: server đã trả lời và từ chối (sai email/mật khẩu).
+- **"Cannot reach the server. Check the connection and the server address."**: không có phản hồi nào (không có mạng, sai/không phân giải được tên máy, quá thời gian). Bản APK cũ (trước 2026-11-03) báo cả hai loại bằng câu "Invalid email or password", dễ hiểu nhầm: hãy cài lại bản mới.
+
+Kiểm tra theo thứ tự:
+1. **Trình duyệt trong máy ảo** mở `http://shop.glcheck.lan/api/v1/products/featured`: phải thấy một mảng JSON sản phẩm. Nếu Chrome báo `ERR_ADDRESS_UNREACHABLE`, máy ảo không có đường tới máy tính; `ERR_NAME_NOT_RESOLVED` thì thiếu dòng hosts (mục 2).
+2. **Wi-Fi ảo không có tuyến mặc định** (hay gặp sau khi khởi động lại máy ảo, mọi app đều không ra mạng): `adb shell svc wifi disable` rồi `adb shell svc wifi enable`, đợi 15 giây, thử lại. `start-emulator.ps1` đã tự làm bước này.
+3. Server: `docker ps` có `erp-nginx` (cổng 80) và `erp-gateway`; nginx ghi `POST /api/v1/auth/login` mỗi lần bấm. Không thấy dòng nào nghĩa là yêu cầu chưa tới được máy tính.
+4. **Gõ mật khẩu bằng `adb shell input text`** dễ sai khi bàn phím che ô; nhập tay trong cửa sổ máy ảo cho chắc.
+
+Lưu ý: lệnh `ping`/`nc` chạy từ `adb shell` dùng tuyến mạng khác nên có thể báo "Network is unreachable" dù app vẫn ra mạng; hãy kiểm bằng trình duyệt của máy ảo.

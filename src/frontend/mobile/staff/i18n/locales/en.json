@@ -128,6 +128,7 @@
     "signingIn": "Signing in…",
     "signInFailedTitle": "Login Failed",
     "signInError": "Invalid email or password.",
+    "networkError": "Cannot reach the server. Check the connection and the server address.",
     "emailLabel": "Email",
     "passwordLabel": "Password",
     "required": "This field is required."

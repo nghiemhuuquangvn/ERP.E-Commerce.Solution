@@ -23,13 +23,25 @@ if ($existing -notcontains $Avd) {
 $running = (& adb.exe devices) -match 'emulator-\d+\s+device'
 if (-not $running) {
   Write-Host "== start emulator $Avd"
-  $args = @('-avd', $Avd, '-writable-system', '-no-snapshot', '-gpu', 'host', '-netdelay', 'none', '-netspeed', 'full')
-  if ($Headless) { $args += '-no-window' }
-  Start-Process (Join-Path $env:ANDROID_HOME 'emulator\emulator.exe') -ArgumentList $args -WindowStyle Minimized
+  $emuArgs = @('-avd', $Avd, '-writable-system', '-no-snapshot', '-gpu', 'host', '-netdelay', 'none', '-netspeed', 'full')
+  if ($Headless) { $emuArgs += '-no-window' }
+  Start-Process (Join-Path $env:ANDROID_HOME 'emulator\emulator.exe') -ArgumentList $emuArgs -WindowStyle Minimized
 }
 & adb.exe wait-for-device
 while ((& adb.exe shell getprop sys.boot_completed 2>$null).Trim() -ne '1') { Start-Sleep -Seconds 3 }
 Write-Host 'booted'
+
+# After a cold start the emulated Wi-Fi can come up WITHOUT a default route ("Network is unreachable" / ERR_ADDRESS_UNREACHABLE: every app fails and
+# the sign-in screen says so). Cycling Wi-Fi brings the route back; wait for it instead of trusting the boot flag.
+function Test-Route { (& adb.exe shell "ip route show table all | grep -c 'default via 10.0.2.2 dev wlan0'" 2>$null).Trim() -ge '1' }
+for ($try = 1; $try -le 4 -and -not (Test-Route); $try++) {
+  Write-Host "== Wi-Fi has no default route, cycling it (try $try)"
+  & adb.exe shell svc wifi disable | Out-Null
+  Start-Sleep -Seconds 3
+  & adb.exe shell svc wifi enable | Out-Null
+  Start-Sleep -Seconds 12
+}
+if (-not (Test-Route)) { Write-Warning 'The emulator still has no route to the PC (10.0.2.2): the apps will not connect. Restart it with a cold boot.' } else { Write-Host 'network: default route present' }
 
 $line = "10.0.2.2 $HostName"
 $has = (& adb.exe shell "grep -c '$HostName' /system/etc/hosts" 2>$null).Trim()
