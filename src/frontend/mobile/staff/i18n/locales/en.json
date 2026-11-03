@@ -117,7 +117,8 @@
     "scanAllow": "Allow the camera",
     "scanOpenSettings": "Open settings",
     "scanNotFound": "No product with the barcode {{code}}.",
-    "notAllowed": "You are not allowed to ring up sales."
+    "notAllowed": "You are not allowed to ring up sales.",
+    "noPrice": "{{name}} has no price set, so it cannot be sold. Ask a manager to set its price."
   },
   "auth": {
     "appName": "ERP Staff",

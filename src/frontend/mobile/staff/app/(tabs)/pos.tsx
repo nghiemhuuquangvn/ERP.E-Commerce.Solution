@@ -45,14 +45,23 @@ export default function POSScreen() {
     },
   })
 
-  const addProduct = useCallback((p: PosProduct) => {
-    store.addItem({ productId: p.productId, productName: p.name, unitPrice: p.price, taxRate: TAX_RATE, sku: p.sku })
+  const addProduct = useCallback(async (p: PosProduct) => {
+    let price = p.price
+    if (!(price > 0)) {
+      // The catalogue does not carry a retail price yet (R111); the POS service's own product cache may know one.
+      price = (await findByBarcode(p.sku))?.price ?? 0
+    }
+    if (!(price > 0)) {
+      toast.error(t('pos.noPrice', { name: p.name })) // a sale with a zero amount cannot be completed
+      return
+    }
+    store.addItem({ productId: p.productId, productName: p.name, unitPrice: price, taxRate: TAX_RATE, sku: p.sku })
     toast.success(t('pos.addedProduct', { name: p.name }))
   }, [store, toast, t])
 
   const onScanned = useCallback(async (code: string) => {
     const found = await findByBarcode(code)
-    if (found) addProduct(found)
+    if (found) await addProduct(found)
     else toast.error(t('pos.scanNotFound', { code }))
   }, [addProduct, toast, t])
 

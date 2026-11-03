@@ -117,7 +117,8 @@
     "scanAllow": "Cho phép dùng máy ảnh",
     "scanOpenSettings": "Mở cài đặt",
     "scanNotFound": "Không có sản phẩm nào với mã vạch {{code}}.",
-    "notAllowed": "Bạn không có quyền bán hàng."
+    "notAllowed": "Bạn không có quyền bán hàng.",
+    "noPrice": "{{name}} chưa có giá nên không bán được. Hãy nhờ quản lý đặt giá cho sản phẩm này."
   },
   "auth": {
     "appName": "ERP Staff",
