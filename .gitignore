@@ -379,3 +379,6 @@ deployment/docker/.deploy-state.json
 src/frontend/mobile/*/android/
 src/frontend/mobile/*/ios/
 src/frontend/mobile/*/.expo/
+
+# Local APK builds (R68 emulator run)
+src/frontend/mobile/apk/
