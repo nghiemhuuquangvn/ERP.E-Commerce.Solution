@@ -151,6 +151,7 @@ export default function CartScreen() {
                     onPress={() => setMethod(m.code)}
                     accessibilityRole="radio"
                     accessibilityState={{ selected, checked: selected }}
+                    aria-checked={selected}
                     className={`min-h-[44px] justify-center rounded-full border px-4 ${selected ? 'border-brand-action bg-brand-action' : 'border-line-strong bg-surface'}`}
                   >
                     <Text className={selected ? 'font-semibold text-on-brand' : 'text-ink'}>{t(`cart.methods.${m.code}`)}</Text>

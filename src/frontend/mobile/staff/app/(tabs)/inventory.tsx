@@ -170,6 +170,7 @@ export default function InventoryScreen() {
                     onPress={() => setReason(r.code)}
                     accessibilityRole="radio"
                     accessibilityState={{ selected, checked: selected }}
+                    aria-checked={selected}
                     className={`min-h-[52px] justify-center rounded-control border px-4 ${selected ? 'border-brand-action bg-brand-action' : 'border-line-strong bg-surface'}`}
                   >
                     <Text className={selected ? 'font-semibold text-on-brand' : 'text-ink'}>{t(`inventory.reasons.${r.code}`)}</Text>

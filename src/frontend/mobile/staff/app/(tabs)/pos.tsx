@@ -143,6 +143,7 @@ export default function POSScreen() {
                 onPress={() => setPaymentMethod(m)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected, checked: selected }}
+                    aria-checked={selected}
                 className={`mr-2 min-h-[52px] justify-center rounded-control border px-5 ${selected ? 'border-brand-action bg-brand-action' : 'border-line-strong bg-surface'}`}
               >
                 <Text className={selected ? 'font-semibold text-on-brand' : 'text-ink'}>{t(`pos.paymentMethods.${m}`)}</Text>

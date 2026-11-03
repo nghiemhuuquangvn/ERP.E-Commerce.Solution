@@ -67,6 +67,7 @@ export default function ProfileScreen() {
                   onPress={() => setLocale(code)}
                   accessibilityRole="radio"
                   accessibilityState={{ selected, checked: selected }}
+                    aria-checked={selected}
                   className={`min-h-[48px] flex-1 items-center justify-center rounded-control border ${selected ? 'border-brand-action bg-brand-action' : 'border-line-strong bg-surface'}`}
                 >
                   <Text className={selected ? 'font-medium text-on-brand' : 'font-medium text-ink'}>
