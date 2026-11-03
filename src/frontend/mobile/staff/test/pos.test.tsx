@@ -138,6 +138,22 @@ describe('POS product search', () => {
     expect(usePOSStore.getState().items).toHaveLength(0)
   })
 
+  it('takes the price from the POS product cache when the catalogue says 0 (the catalogue has no retail price yet)', async () => {
+    answer({ '/v1/products/search': [{ ...P1, price: 0 }], '/v1/pos/products/lookup/': { productId: P1.id, name: 'Cozy Sofa', sku: 'SKU-0000010', price: 10000, isActive: true } })
+    open()
+    fireEvent.press(await search('cozy'))
+    await waitFor(() => expect(usePOSStore.getState().items).toHaveLength(1))
+    expect(usePOSStore.getState().items[0].unitPrice).toBe(10000)
+  })
+
+  it('does not put a product with no price on the sale: a sale of 0 cannot be completed', async () => {
+    answer({ '/v1/products/search': [{ ...P1, price: 0 }] })
+    open()
+    fireEvent.press(await search('cozy'))
+    expect(await screen.findByText('Cozy Sofa has no price set, so it cannot be sold. Ask a manager to set its price.')).toBeTruthy()
+    expect(usePOSStore.getState().items).toHaveLength(0)
+  })
+
   it('says when nothing matches', async () => {
     answer({ '/v1/products/search': [] })
     open()

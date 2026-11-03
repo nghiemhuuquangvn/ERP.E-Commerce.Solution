@@ -69,6 +69,8 @@ Gateway routes used: `v1/auth/login`, `v1/auth/register`, `v1/products/featured`
 Found and fixed while verifying: the app had **no `metro.config.js` and no `global.css`**, so NativeWind never turned a class into a style (the app ran unstyled); the lock file pinned `nativewind` 4.2.6, which needs `react-native-worklets`, so `expo export` failed (R68); the sign-in guard navigated before the root layout was ready. Now: `nativewind` 4.1.23 with `react-native-css-interop` 0.1.22, `metro.config.js` (+ `global.css`), a Babel plugin for `import.meta`, a guard that waits for the navigator.
 Verified: 54 Jest tests, `tsc`, `check:tokens`; `expo export --platform web` and a headless-Chrome walk at 375 px (29 of 29: sign in errors, register through the UI, tabs, search empty state, cart steppers and radio group, language switch, touch targets, contrast, no console error). **Not verified: an Android / iOS build or a real device** (no Android SDK on the build machine).
 
+Device test (R68, 2026-11-03): configured for an Android build (identifiers `com.erp.shop`, icon, splash, EAS preview profile, cleartext HTTP to `http://shop.glcheck.lan/api` only in preview) and verified with `expo prebuild` (INTERNET only); the run on a phone is pending: [mobile-device-test.md](../../user-guides/mobile-device-test.md). Prices still show 0 until R111 is solved.
+
 ## 10. UAT scenarios
 1. Open the app signed out: Sign in appears; press **Sign In** empty → two messages, nothing sent.
 2. Wrong password → red alert; right one → Home.
