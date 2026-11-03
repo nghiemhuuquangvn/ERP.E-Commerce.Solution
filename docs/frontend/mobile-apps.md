@@ -29,3 +29,10 @@ sign-in, ordering and payment calls. The apps print a console warning when the v
 `tests/unit/ERP.Architecture.Tests/ClientApiContractTests.cs` fails when the storefront or the customer app calls a `/v1/...` route that no
 controller serves (wrong path or HTTP method). Add new calls through `apiClient` with a literal path so the guard can see them.
 Field names inside requests/responses are not checked by it — keep the typed clients next to the backend DTOs.
+
+## Build and tests (U5, 2026-11-03)
+
+- Tests: `npm test` in each app (jest-expo). Types: `npx tsc --noEmit`. Tokens: `npm run check:tokens`.
+- Web bundle (a quick way to see the screens without a phone): `EXPO_PUBLIC_API_URL=<host>/api npx expo export --platform web --output-dir <dir>`, then serve the folder (a static server with a fall-back to `index.html`). Export to a folder outside the repo: `customer/dist` is tracked.
+- Styling needs `metro.config.js` + `global.css` (NativeWind v4); without them every `className` is ignored. Keep `nativewind` at 4.1.x with Expo SDK 51 / reanimated 3 (4.2.x asks for `react-native-worklets`).
+- **Not done:** a native (Android / iOS) build and a device test. The build machine had no Android SDK. DEFERRED R68.

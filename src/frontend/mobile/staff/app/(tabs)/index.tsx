@@ -1,38 +1,43 @@
-import { View, Text, ScrollView } from 'react-native'
+import { View, Text } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth.store'
+import { Card, Screen } from '@/components/ui'
 
-function KpiCard({ label, value, color }: { label: string; value: string; color: string }) {
+function KpiCard({ label, value, tone }: { label: string; value: string; tone: string }) {
   return (
-    <View className="bg-white rounded-xl p-4 flex-1 border border-gray-100 shadow-sm">
-      <Text className="text-xs text-gray-500 mb-1">{label}</Text>
-      <Text className={`text-2xl font-bold ${color}`}>{value}</Text>
+    <View className="flex-1">
+      <Card>
+        <Text className="mb-1 text-sm text-ink-secondary">{label}</Text>
+        <Text accessibilityLabel={`${label}: ${value}`} className={`text-2xl font-bold ${tone}`}>{value}</Text>
+      </Card>
     </View>
   )
 }
 
 export default function DashboardScreen() {
+  const { t } = useTranslation()
   const user = useAuthStore((s) => s.user)
 
   return (
-    <ScrollView className="flex-1 bg-gray-50 p-4">
-      <Text className="text-lg font-semibold text-gray-900 mb-4">
-        Good morning, {user?.firstName} 👋
+    <Screen>
+      <Text accessibilityRole="header" className="mb-4 text-lg font-semibold text-ink">
+        {t('dashboard.goodMorning', { name: user?.firstName })}
       </Text>
 
-      <View className="flex-row gap-3 mb-4">
-        <KpiCard label="Today's Sales" value="$0" color="text-primary-600" />
-        <KpiCard label="Orders" value="0" color="text-gray-900" />
+      <View className="mb-4 flex-row gap-3">
+        <KpiCard label={t('dashboard.todaysSales')} value={t('dashboard.salesValue')} tone="text-brand-action" />
+        <KpiCard label={t('dashboard.orders')} value="0" tone="text-ink" />
       </View>
 
-      <View className="flex-row gap-3 mb-6">
-        <KpiCard label="Low Stock" value="0" color="text-yellow-600" />
-        <KpiCard label="Pending Shipments" value="0" color="text-purple-600" />
+      <View className="mb-6 flex-row gap-3">
+        <KpiCard label={t('dashboard.lowStock')} value="0" tone="text-warning" />
+        <KpiCard label={t('dashboard.pendingShipments')} value="0" tone="text-info-soft-text" />
       </View>
 
-      <View className="bg-white rounded-xl p-4 border border-gray-100">
-        <Text className="font-semibold text-gray-700 mb-3">Quick Actions</Text>
-        <Text className="text-sm text-gray-500">Use the tabs below to access POS, Inventory, and Deliveries.</Text>
-      </View>
-    </ScrollView>
+      <Card>
+        <Text accessibilityRole="header" className="mb-3 font-semibold text-ink">{t('dashboard.quickActions')}</Text>
+        <Text className="text-sm text-ink-secondary">{t('dashboard.quickActionsHint')}</Text>
+      </Card>
+    </Screen>
   )
 }

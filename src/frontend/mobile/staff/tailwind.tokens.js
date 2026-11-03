@@ -51,11 +51,6 @@ module.exports = {
           "DEFAULT": "#4b5563",
           "soft": "#f3f4f6",
           "soft-text": "#374151"
-        },
-        "primary": {
-          "50": "#f0f9ff",
-          "500": "#0369a1",
-          "600": "#0369a1"
         }
       },
       borderRadius: {

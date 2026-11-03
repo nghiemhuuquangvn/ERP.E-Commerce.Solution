@@ -7,7 +7,11 @@
     "error": "Lỗi",
     "language": "Ngôn ngữ",
     "english": "English",
-    "vietnamese": "Tiếng Việt"
+    "vietnamese": "Tiếng Việt",
+    "retry": "Thử lại",
+    "loadError": "Không tải được nội dung. Vui lòng thử lại.",
+    "close": "Đóng",
+    "save": "Lưu"
   },
   "dashboard": {
     "goodMorning": "Chào buổi sáng, {{name}} 👋",
@@ -16,14 +20,26 @@
     "lowStock": "Sắp hết hàng",
     "pendingShipments": "Chờ giao hàng",
     "quickActions": "Thao tác nhanh",
-    "quickActionsHint": "Sử dụng các tab bên dưới để truy cập POS, Kho hàng và Giao hàng."
+    "quickActionsHint": "Sử dụng các tab bên dưới để truy cập POS, Kho hàng và Giao hàng.",
+    "salesValue": "$0"
   },
   "deliveries": {
     "loading": "Đang tải…",
     "order": "Đơn hàng",
     "markInTransit": "Đánh dấu đang vận chuyển",
     "empty": "Không có lô hàng nào đang hoạt động.",
-    "errorUpdatingTracking": "Cập nhật vận chuyển thất bại."
+    "errorUpdatingTracking": "Cập nhật vận chuyển thất bại.",
+    "statusLabel": "Trạng thái",
+    "orderLabel": "Đơn {{id}}",
+    "tracking": "Mã vận đơn {{number}}",
+    "markInTransitFor": "Đánh dấu {{number}} đang giao",
+    "statuses": {
+      "Pending": "Chờ lấy hàng",
+      "PickedUp": "Đã lấy hàng",
+      "InTransit": "Đang giao",
+      "Delivered": "Đã giao",
+      "Failed": "Thất bại"
+    }
   },
   "inventory": {
     "searchPlaceholder": "Tìm kiếm sản phẩm…",
@@ -31,7 +47,17 @@
     "adjust": "Điều chỉnh",
     "adjustStockTitle": "Điều chỉnh tồn kho",
     "adjustStockMessage": "Hiện tại: {{quantity}}. Nhập số lượng mới:",
-    "errorAdjustingStock": "Điều chỉnh tồn kho thất bại."
+    "errorAdjustingStock": "Điều chỉnh tồn kho thất bại.",
+    "searchLabel": "Tìm sản phẩm",
+    "available": "Có thể bán",
+    "adjustFor": "Điều chỉnh tồn kho của {{name}}",
+    "newQuantity": "Số lượng mới",
+    "currentQuantity": "Hiện có: {{quantity}}",
+    "invalidQuantity": "Hãy nhập một số nguyên.",
+    "empty": "Không tìm thấy sản phẩm.",
+    "emptyHint": "Hãy thử từ khóa khác.",
+    "adjusted": "Đã cập nhật tồn kho.",
+    "clear": "Xóa tìm kiếm"
   },
   "pos": {
     "addProduct": "Thêm sản phẩm",
@@ -52,7 +78,16 @@
       "Cash": "Tiền mặt",
       "CreditCard": "Thẻ tín dụng",
       "EWallet": "Ví điện tử"
-    }
+    },
+    "productIdLabel": "Mã sản phẩm",
+    "nameLabel": "Tên",
+    "unitPriceLabel": "Đơn giá",
+    "addToSale": "Thêm vào đơn bán",
+    "paymentMethod": "Phương thức thanh toán",
+    "noItemsHint": "Thêm sản phẩm ở trên để bắt đầu bán.",
+    "quantityStep": "dòng",
+    "decrease": "Giảm",
+    "increase": "Tăng"
   },
   "auth": {
     "appName": "ERP Staff",
@@ -61,6 +96,15 @@
     "passwordPlaceholder": "Mật khẩu",
     "signingIn": "Đang đăng nhập…",
     "signInFailedTitle": "Đăng nhập thất bại",
-    "signInError": "Email hoặc mật khẩu không đúng."
+    "signInError": "Email hoặc mật khẩu không đúng.",
+    "emailLabel": "Email",
+    "passwordLabel": "Mật khẩu",
+    "required": "Vui lòng nhập mục này."
+  },
+  "tabs": {
+    "dashboard": "Tổng quan",
+    "pos": "Bán hàng",
+    "inventory": "Tồn kho",
+    "deliveries": "Giao hàng"
   }
 }

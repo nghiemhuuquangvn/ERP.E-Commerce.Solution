@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native'
+import { Text, View } from 'react-native'
 import { Link } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
+import { Alert, Button, Screen, TextField } from '@/components/ui'
 
 export default function RegisterScreen() {
   const { t } = useTranslation()
@@ -12,41 +13,47 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const [tried, setTried] = useState(false)
   const { setAuth } = useAuthStore()
 
   async function register() {
+    setTried(true)
     if (!firstName || !email || !password) return
     setLoading(true)
+    setFailed(false)
     try {
       const { data } = await apiClient.post('/v1/auth/register', { firstName, lastName, email, password })
       setAuth(data.user, data.accessToken)
     } catch {
-      Alert.alert(t('common.error'), t('auth.registerError'))
+      setFailed(true)
     } finally {
       setLoading(false)
     }
   }
 
+  const missing = (value: string) => (tried && !value ? t('auth.required') : undefined)
+
   return (
-    <ScrollView contentContainerClassName="flex-grow items-center justify-center px-6 py-12 bg-white">
-      <View className="w-full max-w-sm">
-        <Text className="text-3xl font-bold text-brand-500 mb-1">{t('auth.createAccount')}</Text>
-        <Text className="text-gray-500 mb-8">{t('auth.createAccountSubtitle')}</Text>
+    <Screen center edges={['top', 'bottom', 'left', 'right']}>
+      <View className="w-full max-w-sm self-center">
+        <Text accessibilityRole="header" className="mb-1 text-3xl font-bold text-brand-action">{t('auth.createAccount')}</Text>
+        <Text className="mb-8 text-ink-secondary">{t('auth.createAccountSubtitle')}</Text>
 
-        <View className="flex-row gap-3 mb-3">
-          <TextInput className="flex-1 border border-gray-200 rounded-xl px-4 py-3 bg-gray-50" placeholder={t('auth.firstNamePlaceholder')} value={firstName} onChangeText={setFirstName} />
-          <TextInput className="flex-1 border border-gray-200 rounded-xl px-4 py-3 bg-gray-50" placeholder={t('auth.lastNamePlaceholder')} value={lastName} onChangeText={setLastName} />
+        {failed && <View className="mb-4"><Alert tone="danger">{t('auth.registerError')}</Alert></View>}
+
+        <TextField label={t('auth.firstNameLabel')} placeholder={t('auth.firstNamePlaceholder')} value={firstName} onChangeText={setFirstName} autoComplete="given-name" textContentType="givenName" returnKeyType="next" required error={missing(firstName)} />
+        <TextField label={t('auth.lastNameLabel')} placeholder={t('auth.lastNamePlaceholder')} value={lastName} onChangeText={setLastName} autoComplete="family-name" textContentType="familyName" returnKeyType="next" />
+        <TextField label={t('auth.emailLabel')} placeholder={t('auth.emailPlaceholder')} value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" textContentType="emailAddress" keyboardType="email-address" returnKeyType="next" required error={missing(email)} />
+        <TextField label={t('auth.passwordLabel')} placeholder={t('auth.passwordHintPlaceholder')} hint={t('auth.passwordHint')} value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" textContentType="newPassword" returnKeyType="go" onSubmitEditing={register} required error={missing(password)} />
+
+        <View className="mb-4 mt-3">
+          <Button onPress={register} loading={loading}>{loading ? t('auth.creating') : t('auth.createAccount')}</Button>
         </View>
-        <TextInput className="border border-gray-200 rounded-xl px-4 py-3 mb-3 bg-gray-50" placeholder={t('auth.emailPlaceholder')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-        <TextInput className="border border-gray-200 rounded-xl px-4 py-3 mb-6 bg-gray-50" placeholder={t('auth.passwordHintPlaceholder')} value={password} onChangeText={setPassword} secureTextEntry />
-
-        <TouchableOpacity onPress={register} disabled={loading} className="bg-brand-500 rounded-xl py-4 items-center mb-4">
-          <Text className="text-white font-semibold text-base">{loading ? t('auth.creating') : t('auth.createAccount')}</Text>
-        </TouchableOpacity>
-        <Link href="/(auth)/login" className="text-center text-sm text-brand-500">
+        <Link href="/(auth)/login" accessibilityRole="link" className="min-h-[44px] py-3 text-center text-sm text-brand-action">
           {t('auth.haveAccount')}
         </Link>
       </View>
-    </ScrollView>
+    </Screen>
   )
 }

@@ -19,6 +19,8 @@ Tài liệu từng bước cho nhân viên cửa hàng, viết bằng tiếng Vi
 | Kế toán → Bút toán, Hóa đơn mua, Hóa đơn bán (duyệt, thanh toán, hóa đơn điện tử, đánh giá lại ngoại tệ) | [accounting-postings.md](accounting-postings.md) |
 | Cài đặt (25 màn hình) và Đăng nhập (xác thực hai bước, đăng nhập bằng nhà cung cấp) | [settings-and-sign-in.md](settings-and-sign-in.md) |
 | Cửa hàng trực tuyến cho khách mua hàng (duyệt, giỏ hàng, thanh toán 3 bước, đăng nhập, tài khoản, dùng trên điện thoại) | [storefront.md](storefront.md) |
+| Ứng dụng di động cho khách mua hàng (đăng nhập, tìm kiếm, giỏ hàng, đơn hàng, ngôn ngữ) | [mobile-customer.md](mobile-customer.md) |
+| Ứng dụng di động cho nhân viên (bán hàng POS, tồn kho, giao hàng) | [mobile-staff.md](mobile-staff.md) |
 | Vận chuyển → Hoàn hàng | [shipping-returns.md](shipping-returns.md) |
 | Cài đặt → Webhook | [notification-webhooks.md](notification-webhooks.md) |
 | Cài đặt → Mẫu thông báo | [notification-templates.md](notification-templates.md) |

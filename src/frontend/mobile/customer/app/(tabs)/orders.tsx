@@ -1,9 +1,13 @@
-import { View, Text, FlatList, TouchableOpacity } from 'react-native'
+import { FlatList, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { apiClient } from '@/api/client'
 import { format } from 'date-fns'
+import { Package } from 'lucide-react-native'
+import { colors, icon } from '@/theme/theme'
+import { apiClient } from '@/api/client'
+import { formatMoney } from '@/lib/money'
+import { Alert, Badge, Button, Card, EmptyState, Screen, Skeleton } from '@/components/ui'
 
 // GET /v1/orders/my returns SalesOrderSummaryDto: no line items (those are on GET /v1/orders/{id}, the order screen).
 interface Order {
@@ -14,20 +18,20 @@ interface Order {
   orderDate: string
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  Draft: 'bg-gray-100 text-gray-600',
-  Confirmed: 'bg-blue-100 text-blue-700',
-  Processing: 'bg-yellow-100 text-yellow-700',
-  Shipped: 'bg-purple-100 text-purple-700',
-  Delivered: 'bg-green-100 text-green-700',
-  Cancelled: 'bg-red-100 text-red-700',
+const STATUS_TONE: Record<string, 'neutral' | 'info' | 'warning' | 'brand' | 'success' | 'danger'> = {
+  Draft: 'neutral',
+  Confirmed: 'info',
+  Processing: 'warning',
+  Shipped: 'brand',
+  Delivered: 'success',
+  Cancelled: 'danger',
 }
 
 export default function OrdersScreen() {
   const router = useRouter()
   const { t } = useTranslation()
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['my-orders'],
     queryFn: async () => {
       const { data } = await apiClient.get('/v1/orders/my')
@@ -35,14 +39,16 @@ export default function OrdersScreen() {
     },
   })
 
-  const fmt = (n: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
-
   return (
-    <View className="flex-1 bg-white">
+    <Screen scroll={false}>
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-gray-400">{t('orders.loading')}</Text>
+        <View accessibilityLabel={t('orders.loading')} accessibilityLiveRegion="polite" className="gap-3 p-4">
+          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full" />)}
+        </View>
+      ) : isError ? (
+        <View className="gap-3 p-4">
+          <Alert tone="danger">{t('common.loadError')}</Alert>
+          <Button variant="outline" onPress={() => refetch()}>{t('common.retry')}</Button>
         </View>
       ) : (
         <FlatList
@@ -50,32 +56,29 @@ export default function OrdersScreen() {
           keyExtractor={(o) => o.orderId}
           contentContainerClassName="p-4 gap-3"
           renderItem={({ item }) => {
-            const colorClass = STATUS_COLOR[item.status] ?? 'bg-gray-100 text-gray-600'
+            const date = format(new Date(item.orderDate), 'dd MMM yyyy')
+            const status = t(`orders.status.${item.status}`, { defaultValue: item.status })
             return (
-              <TouchableOpacity
-                className="rounded-xl border border-gray-100 p-4 bg-gray-50"
-                onPress={() => router.push(`/order/${item.orderId}`)}
-              >
-                <View className="flex-row justify-between items-start mb-2">
-                  <Text className="font-semibold text-gray-800">{item.orderNo}</Text>
-                  <View className={`rounded-full px-2.5 py-0.5 ${colorClass}`}>
-                    <Text className="text-xs font-medium">{item.status}</Text>
-                  </View>
+              <Card onPress={() => router.push(`/order/${item.orderId}`)} accessibilityLabel={`${item.orderNo}, ${status}, ${formatMoney(item.totalAmount)}, ${date}`}>
+                <View className="mb-2 flex-row items-start justify-between">
+                  <Text className="font-semibold text-ink">{item.orderNo}</Text>
+                  <Badge tone={STATUS_TONE[item.status] ?? 'neutral'} label={status} />
                 </View>
-                <Text className="text-xs text-gray-400 mb-1">
-                  {format(new Date(item.orderDate), 'dd MMM yyyy')}
-                </Text>
-                <Text className="font-bold text-brand-500">{fmt(item.totalAmount)}</Text>
-              </TouchableOpacity>
+                <Text className="mb-1 text-sm text-ink-secondary">{date}</Text>
+                <Text className="font-bold text-brand-action">{formatMoney(item.totalAmount)}</Text>
+              </Card>
             )
           }}
           ListEmptyComponent={
-            <View className="py-16 items-center">
-              <Text className="text-gray-400">{t('orders.empty')}</Text>
-            </View>
+            <EmptyState
+              icon={<Package size={40} strokeWidth={icon.stroke} color={colors.inkMuted} />}
+              title={t('orders.empty')}
+              hint={t('orders.emptyHint')}
+              action={<Button onPress={() => router.push('/(tabs)/search')}>{t('cart.browseProducts')}</Button>}
+            />
           }
         />
       )}
-    </View>
+    </Screen>
   )
 }

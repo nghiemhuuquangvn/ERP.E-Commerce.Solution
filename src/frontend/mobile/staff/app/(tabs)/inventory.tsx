@@ -1,21 +1,31 @@
 import { useState } from 'react'
-import { View, Text, TextInput, FlatList, TouchableOpacity, Alert } from 'react-native'
+import { FlatList, Text, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
+import { Boxes } from 'lucide-react-native'
+import { colors, icon } from '@/theme/theme'
 import { apiClient } from '@/api/client'
+import { Alert, BottomSheet, Button, Card, EmptyState, Screen, Skeleton, TextField, useToast } from '@/components/ui'
 
+// WareHouseService InventoryListItem (same contract as the Admin's inventory.api.ts): the product id is the key.
 interface InventoryItem {
-  id: string
   productId: string
   productName: string
-  sku: string
-  quantityAvailable: number
-  quantityOnHand: number
+  productSku?: string
+  availableQuantity: number
+  totalQuantity: number
 }
 
 export default function InventoryScreen() {
+  const { t } = useTranslation()
+  const toast = useToast()
   const [search, setSearch] = useState('')
+  const [adjusting, setAdjusting] = useState<InventoryItem | null>(null)
+  const [value, setValue] = useState('')
+  const [invalid, setInvalid] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['inventory', search],
     queryFn: async () => {
       const { data } = await apiClient.get('/v1/inventory', {
@@ -25,75 +35,118 @@ export default function InventoryScreen() {
     },
   })
 
-  function onAdjust(item: InventoryItem) {
-    Alert.prompt(
-      'Adjust Stock',
-      `Current: ${item.quantityOnHand}. Enter new quantity:`,
-      async (value) => {
-        if (!value) return
-        const qty = parseInt(value, 10)
-        if (isNaN(qty)) return
-        try {
-          await apiClient.post('/v1/inventory/adjust', {
-            productId: item.productId,
-            quantity: qty - item.quantityOnHand,
-            reason: 'Staff adjustment',
-          })
-          refetch()
-        } catch {
-          Alert.alert('Error', 'Failed to adjust stock.')
-        }
-      },
-      'plain-text',
-    )
+  function open(item: InventoryItem) {
+    setAdjusting(item)
+    setValue('')
+    setInvalid(false)
+  }
+
+  async function save() {
+    if (!adjusting) return
+    const qty = parseInt(value, 10)
+    if (!value || isNaN(qty)) {
+      setInvalid(true)
+      return
+    }
+    setSaving(true)
+    try {
+      await apiClient.post('/v1/inventory/adjust', {
+        productId: adjusting.productId,
+        quantity: qty - adjusting.totalQuantity,
+        reason: 'Staff adjustment',
+      })
+      setAdjusting(null)
+      toast.success(t('inventory.adjusted'))
+      refetch()
+    } catch {
+      toast.error(t('inventory.errorAdjustingStock'))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <View className="bg-white px-4 py-3 border-b border-gray-100">
-        <TextInput
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          placeholder="Search products…"
+    <Screen scroll={false}>
+      <View className="border-b border-line bg-surface px-4 pt-3">
+        <TextField
+          label={t('inventory.searchLabel')}
+          placeholder={t('inventory.searchPlaceholder')}
           value={search}
           onChangeText={setSearch}
+          returnKeyType="search"
+          autoCapitalize="none"
         />
       </View>
 
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-gray-400">Loading…</Text>
+        <View accessibilityLabel={t('inventory.loading')} accessibilityLiveRegion="polite" className="gap-2 p-4">
+          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-20 w-full" />)}
+        </View>
+      ) : isError ? (
+        <View className="gap-3 p-4">
+          <Alert tone="danger">{t('common.loadError')}</Alert>
+          <Button size="lg" variant="outline" onPress={() => refetch()}>{t('common.retry')}</Button>
         </View>
       ) : (
         <FlatList
           data={data ?? []}
-          keyExtractor={(i) => i.id}
+          keyExtractor={(i) => i.productId}
+          keyboardShouldPersistTaps="handled"
           contentContainerClassName="p-4 gap-2"
           renderItem={({ item }) => (
-            <View className="bg-white rounded-xl p-4 border border-gray-100 flex-row items-center justify-between">
-              <View className="flex-1">
-                <Text className="font-medium text-gray-800">{item.productName}</Text>
-                <Text className="text-xs text-gray-400">{item.sku}</Text>
-              </View>
-              <View className="items-end">
+            <Card>
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1 pr-3">
+                  <Text className="font-medium text-ink">{item.productName}</Text>
+                  <Text className="text-sm text-ink-secondary">{item.productSku}</Text>
+                </View>
                 <Text
-                  className={`text-lg font-bold ${
-                    item.quantityAvailable === 0
-                      ? 'text-red-500'
-                      : item.quantityAvailable < 5
-                      ? 'text-yellow-500'
-                      : 'text-green-600'
-                  }`}
+                  accessibilityLabel={`${t('inventory.available')}: ${item.availableQuantity}`}
+                  className={`text-lg font-bold ${item.availableQuantity === 0 ? 'text-danger' : item.availableQuantity < 5 ? 'text-warning' : 'text-success'}`}
                 >
-                  {item.quantityAvailable}
+                  {item.availableQuantity}
                 </Text>
-                <TouchableOpacity onPress={() => onAdjust(item)}>
-                  <Text className="text-xs text-primary-600">Adjust</Text>
-                </TouchableOpacity>
               </View>
-            </View>
+              <View className="mt-3">
+                <Button size="lg" variant="outline" accessibilityLabel={t('inventory.adjustFor', { name: item.productName })} onPress={() => open(item)}>
+                  {t('inventory.adjust')}
+                </Button>
+              </View>
+            </Card>
           )}
+          ListEmptyComponent={
+            <EmptyState
+              icon={<Boxes size={40} strokeWidth={icon.stroke} color={colors.inkMuted} />}
+              title={t('inventory.empty')}
+              hint={t('inventory.emptyHint')}
+              action={search ? <Button size="lg" variant="outline" onPress={() => setSearch('')}>{t('inventory.clear')}</Button> : undefined}
+            />
+          }
         />
       )}
-    </View>
+
+      <BottomSheet visible={adjusting !== null} title={t('inventory.adjustStockTitle')} onClose={() => setAdjusting(null)} closeLabel={t('common.close')}>
+        {adjusting && (
+          <View>
+            <Text className="mb-1 font-medium text-ink">{adjusting.productName}</Text>
+            <Text className="mb-3 text-sm text-ink-secondary">{t('inventory.currentQuantity', { quantity: adjusting.totalQuantity })}</Text>
+            <TextField
+              label={t('inventory.newQuantity')}
+              value={value}
+              onChangeText={(v) => { setValue(v); setInvalid(false) }}
+              keyboardType="number-pad"
+              returnKeyType="done"
+              onSubmitEditing={save}
+              required
+              error={invalid ? t('inventory.invalidQuantity') : undefined}
+            />
+            <View className="mt-2 gap-2">
+              <Button size="lg" onPress={save} loading={saving}>{t('common.save')}</Button>
+              <Button size="lg" variant="outline" onPress={() => setAdjusting(null)}>{t('common.cancel')}</Button>
+            </View>
+          </View>
+        )}
+      </BottomSheet>
+    </Screen>
   )
 }

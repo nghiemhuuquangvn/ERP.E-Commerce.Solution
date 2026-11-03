@@ -66,6 +66,19 @@ The Storefront has its own small library in `src/frontend/storefront/src/compone
 | `useMoney()` | the shop's two formatters (USD en-US, VND vi-VN) in one place, until U6 |
 Rules: no raw colours or `brand-100/500/600` aliases (`noRawColours.test.ts`); no `.btn-*` / `.input` classes (deleted from `style.css`); every page keeps its business logic in `<script setup>` untouched (`CheckoutPage` still builds the same create-order request - asserted field by field); tests: `npm test` (Vitest + @vue/test-utils + vitest-axe, `src/test/setup.ts` mounts with the real en / vi messages), component tests in `components/ui/ui.test.ts`, page tests in `pages/pages.test.ts`. Worked examples: `CheckoutPage.vue` (stepper, per-field errors shown after the first attempt, radio group in a `fieldset`, pay button naming the amount), `StorefrontLayout.vue` (skip link, drawer, footer), `ProductGrid.vue` (loading / error with retry / empty slot). BA spec: [docs/business/Sales/StorefrontScreens.md](../business/Sales/StorefrontScreens.md).
 
+## Mobile (React Native) — U5, 2026-11-03
+Both Expo apps have the same small library in `components/ui/` (**one copy per app, kept identical** - `customer/test/parity.test.ts` fails when they differ). NativeWind classes with role tokens, no raw colours (`test/noRawColours.test.ts` in each app also forbids hex in `app/`, `components/`, `lib/`).
+| Component | Notes |
+|---|---|
+| `Button` | variants primary / outline / ghost / danger; `size="md"` 48 pt, `"lg"` 52 pt (staff); `loading` (spinner, disabled, busy state); optional `accessibilityLabel` ("Remove Blue shirt") |
+| `TextField` | label (the accessible name; a required field's name ends with " *"), hint or error (error read as an alert and linked through `accessibilityHint`, `aria-invalid`); passes `autoComplete`, `textContentType`, return keys through |
+| `Alert`, `Badge`, `Card`, `EmptyState`, `Skeleton`, `Spinner` | `Alert` is a live region (danger assertive); `Card` with `onPress` is one 48 pt button; Skeleton is hidden from screen readers |
+| `QuantityStepper` | 44 pt buttons named "<Fewer/More> <product>", adjustable value |
+| `ToastHost` + `useToast()` | success / info vanish after 4 s, an error stays; mounted once in the root layout above the tab bar |
+| `BottomSheet` | modal panel with a named close button, back button closes |
+| `Screen` | safe area + keyboard avoiding + optional scroll (`keyboardShouldPersistTaps`); `center` for forms |
+Rules: tab icons and decorative icons are hidden from screen readers, each tab has `tabBarAccessibilityLabel`; every touch target is at least 44 pt; text through i18next (staff included, a test fails on a missing key); money through `lib/money.ts` (US dollars until U6). Tests: `npm test` (jest-expo + @testing-library/react-native; `babel.config.js` drops NativeWind under Jest, so tests assert roles, names and state, not classes). **Build set-up that U5 had to add:** `metro.config.js` (`withNativeWind`, CommonJS entry) + `global.css`, `nativewind` 4.1.23 / `react-native-css-interop` 0.1.22 (4.2.x needs `react-native-worklets`), an `import.meta` Babel plugin, and a sign-in guard that waits for the navigator. BA specs: [Sales/MobileScreens.md](../business/Sales/MobileScreens.md), [POS/StaffAppScreens.md](../business/POS/StaffAppScreens.md).
+
 ## Migration status (U3)
 | Area | Pages with own modals | Status |
 |---|---|---|

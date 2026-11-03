@@ -7,7 +7,10 @@
     "error": "Lỗi",
     "language": "Ngôn ngữ",
     "english": "English",
-    "vietnamese": "Tiếng Việt"
+    "vietnamese": "Tiếng Việt",
+    "retry": "Thử lại",
+    "loadError": "Không tải được nội dung. Vui lòng thử lại.",
+    "close": "Đóng"
   },
   "home": {
     "welcome": "Chào mừng đến với ERP Shop",
@@ -18,7 +21,10 @@
   "search": {
     "placeholder": "Tìm kiếm sản phẩm…",
     "outOfStock": "Hết hàng",
-    "noProducts": "Không tìm thấy sản phẩm nào."
+    "noProducts": "Không tìm thấy sản phẩm nào.",
+    "label": "Tìm sản phẩm",
+    "clear": "Xóa tìm kiếm",
+    "noProductsHint": "Hãy thử từ khóa khác."
   },
   "cart": {
     "signInRequiredTitle": "Yêu cầu đăng nhập",
@@ -37,7 +43,12 @@
       "VNPay": "VNPay",
       "MoMo": "MoMo",
       "ZaloPay": "ZaloPay"
-    }
+    },
+    "decrease": "Giảm",
+    "increase": "Tăng",
+    "remove": "Xóa",
+    "summary": "Tóm tắt đơn hàng",
+    "paymentNone": "Cửa hàng chưa bật phương thức thanh toán nào."
   },
   "order": {
     "notFound": "Không tìm thấy đơn hàng.",
@@ -62,7 +73,16 @@
   },
   "orders": {
     "loading": "Đang tải đơn hàng…",
-    "empty": "Chưa có đơn hàng nào."
+    "empty": "Chưa có đơn hàng nào.",
+    "status": {
+      "Draft": "Nháp",
+      "Confirmed": "Đã xác nhận",
+      "Processing": "Đang xử lý",
+      "Shipped": "Đang giao",
+      "Delivered": "Đã giao",
+      "Cancelled": "Đã hủy"
+    },
+    "emptyHint": "Đơn hàng của bạn sẽ hiện ở đây."
   },
   "profile": {
     "notSignedIn": "Chưa đăng nhập",
@@ -70,7 +90,8 @@
     "settings": "Cài đặt",
     "helpAndSupport": "Trợ giúp & Hỗ trợ",
     "signOutConfirmTitle": "Đăng xuất",
-    "signOutConfirmMessage": "Bạn có chắc chắn muốn đăng xuất không?"
+    "signOutConfirmMessage": "Bạn có chắc chắn muốn đăng xuất không?",
+    "signInHint": "Đăng nhập để xem đơn hàng và cài đặt."
   },
   "auth": {
     "appName": "ERP Shop",
@@ -87,6 +108,19 @@
     "passwordHintPlaceholder": "Mật khẩu (tối thiểu 8 ký tự)",
     "creating": "Đang tạo…",
     "registerError": "Đăng ký thất bại. Vui lòng thử lại.",
-    "haveAccount": "Đã có tài khoản? Đăng nhập →"
+    "haveAccount": "Đã có tài khoản? Đăng nhập →",
+    "emailLabel": "Email",
+    "passwordLabel": "Mật khẩu",
+    "firstNameLabel": "Tên",
+    "lastNameLabel": "Họ",
+    "passwordHint": "Ít nhất 8 ký tự",
+    "required": "Vui lòng nhập mục này."
+  },
+  "tabs": {
+    "home": "Trang chủ",
+    "search": "Tìm kiếm",
+    "cart": "Giỏ hàng",
+    "orders": "Đơn hàng",
+    "profile": "Hồ sơ"
   }
 }

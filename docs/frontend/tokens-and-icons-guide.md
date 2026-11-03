@@ -32,7 +32,7 @@ Tailwind class names (the standard's `border` is `line`, `text` is `ink`, the ne
 A hex in a component is a review finding and fails `check:tokens`. `brand-accent` is for decoration only (charts, illustrations), never text.
 
 ## 3. Compatibility aliases (temporary; gone from the Admin since 2026-11-02)
-> **Admin** (U3 part 2) and **Storefront** (U4, 2026-11-02): the numeric aliases are removed and a `noRawColours.test.ts` in each app keeps them out. The paragraph below still describes the two **mobile apps** (U5).
+> **Admin** (U3 part 2) and **Storefront** (U4, 2026-11-02): the numeric aliases are removed and a `noRawColours.test.ts` in each app keeps them out. The two **mobile apps** followed in U5 (2026-11-03): their aliases are gone too and each has the same guard, so the paragraph below is history.
 Existing pages still use the old numeric names; the presets map them to the roles so nothing had to be mass-edited: Admin `primary-50 / 100 / 500 / 600 / 700` → subtle / soft / action / action / action-hover; Storefront and Customer app `brand-100 / 500 / 600` → soft / action / action-hover; Staff `primary-50 / 500 / 600`. **Do not use them in new code.** They go away page by page in U3 (DEFERRED R69). `primary-300` and `primary-400` exist in one Admin page each and have no role; they stay unstyled as before.
 
 ## 4. Icons (Lucide)
