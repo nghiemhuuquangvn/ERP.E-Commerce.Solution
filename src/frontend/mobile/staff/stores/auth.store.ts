@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useTerminalStore } from '@/stores/terminal.store'
 
 interface User {
   id: string
@@ -29,7 +30,10 @@ export const useAuthStore = create<AuthState>()(
 
       setAuth: (user, accessToken) => set({ user, accessToken, isAuthenticated: true }),
 
-      logout: () => set({ user: null, accessToken: null, isAuthenticated: false }),
+      logout: () => {
+        useTerminalStore.getState().clear() // the next person signing in chooses their own terminal
+        set({ user: null, accessToken: null, isAuthenticated: false })
+      },
 
       hasPermission: (permission: string) => {
         const { user } = get()

@@ -156,10 +156,11 @@ public class TerminalsController : ControllerBase
         _userContext = userContext;
     }
 
+    // A cashier has to see which terminals exist to ring up a sale (staff app, R110); creating, renaming and (de)activating stay "manage".
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] bool? isActive, CancellationToken ct)
     {
-        if (!_userContext.HasPermission("pos:terminals:manage"))
+        if (!_userContext.HasAnyPermission("pos:terminals:manage", "pos:transactions"))
             return Forbid();
 
         return Ok(await _mediator.Send(new ListTerminalsQuery { IsActive = isActive }, ct));
@@ -168,7 +169,7 @@ public class TerminalsController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
-        if (!_userContext.HasPermission("pos:terminals:manage"))
+        if (!_userContext.HasAnyPermission("pos:terminals:manage", "pos:transactions"))
             return Forbid();
 
         var result = await _mediator.Send(new GetTerminalQuery { TerminalId = id }, ct);

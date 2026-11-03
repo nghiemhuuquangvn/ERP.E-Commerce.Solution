@@ -1,49 +1,72 @@
-import { useState, useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { View, Text, FlatList, Pressable, ScrollView, ListRenderItem } from 'react-native'
+import { useQuery } from '@tanstack/react-query'
+import axios from 'axios'
 import { useTranslation } from 'react-i18next'
 import { usePOSStore } from '@/stores/pos.store'
 import type { POSItem } from '@/stores/pos.store'
+import { useTerminalStore } from '@/stores/terminal.store'
 import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import { formatMoney } from '@/lib/money'
-import { Button, Card, EmptyState, Screen, TextField, useToast } from '@/components/ui'
+import { findByBarcode, type PosProduct } from '@/lib/posProducts'
+import { ProductPicker } from '@/components/ProductPicker'
+import { ScanSheet } from '@/components/ScanSheet'
+import { TerminalSheet } from '@/components/TerminalSheet'
+import { Alert, Button, Card, EmptyState, QuantityStepper, Screen, useToast } from '@/components/ui'
 
 const PAYMENT_METHODS = ['Cash', 'CreditCard', 'EWallet']
+// The server does not send a tax rate with a product yet; the app has always used 10 %.
+const TAX_RATE = 10
 
 export default function POSScreen() {
   const { t } = useTranslation()
   const toast = useToast()
   const store = usePOSStore()
   const user = useAuthStore((s) => s.user)
-  const [productId, setProductId] = useState('')
-  const [productName, setProductName] = useState('')
-  const [unitPrice, setUnitPrice] = useState('')
+  const { terminalId, terminalName, choose } = useTerminalStore()
   const [paymentMethod, setPaymentMethod] = useState('Cash')
   const [completing, setCompleting] = useState(false)
+  const [terminalOpen, setTerminalOpen] = useState(false)
+  const [scanOpen, setScanOpen] = useState(false)
 
-  const addItem = useCallback(() => {
-    if (!productId || !unitPrice) return
-    store.addItem({
-      productId,
-      productName: productName || productId,
-      unitPrice: parseFloat(unitPrice),
-      taxRate: 10,
-    })
-    setProductId('')
-    setProductName('')
-    setUnitPrice('')
-  }, [productId, productName, unitPrice, store])
+  // The terminal's open cash shift, when there is one (a sale is attached to it; no shift is not an error, and a role that may not read shifts sells without one).
+  const { data: shiftId } = useQuery({
+    queryKey: ['pos-shift', terminalId],
+    enabled: !!terminalId,
+    retry: false,
+    queryFn: async () => {
+      try {
+        const { data } = await apiClient.get<{ id: string } | null>(`/v1/pos/shifts/active/${terminalId}`)
+        return data?.id ?? null
+      } catch {
+        return null
+      }
+    },
+  })
+
+  const addProduct = useCallback((p: PosProduct) => {
+    store.addItem({ productId: p.productId, productName: p.name, unitPrice: p.price, taxRate: TAX_RATE, sku: p.sku })
+    toast.success(t('pos.addedProduct', { name: p.name }))
+  }, [store, toast, t])
+
+  const onScanned = useCallback(async (code: string) => {
+    const found = await findByBarcode(code)
+    if (found) addProduct(found)
+    else toast.error(t('pos.scanNotFound', { code }))
+  }, [addProduct, toast, t])
 
   const completeTransaction = useCallback(async () => {
-    if (store.items.length === 0) return
+    if (store.items.length === 0 || !terminalId) return
     setCompleting(true)
     try {
       // POSController: POST pos/transactions opens (there is no /open); use the id we just got, not the store snapshot taken before it.
       let transactionId = store.transactionId
       if (!transactionId) {
         const { data: opened } = await apiClient.post('/v1/pos/transactions', {
-          terminalId: 'TERM-001',
+          terminalId,
           cashierId: user?.id,
+          cashShiftId: shiftId ?? undefined,
         })
         transactionId = opened.id as string
         store.setTransactionId(transactionId)
@@ -62,12 +85,12 @@ export default function POSScreen() {
       })
       toast.success(t('pos.successMessage', { total: formatMoney(store.total()) }))
       store.reset()
-    } catch {
-      toast.error(t('pos.errorCompletingTransaction'))
+    } catch (e) {
+      toast.error(axios.isAxiosError(e) && e.response?.status === 403 ? t('pos.notAllowed') : t('pos.errorCompletingTransaction'))
     } finally {
       setCompleting(false)
     }
-  }, [store, user, paymentMethod, toast, t])
+  }, [store, terminalId, shiftId, user, paymentMethod, toast, t])
 
   // Stable renderItem — FlatList skips re-render of unchanged rows
   const renderItem = useCallback<ListRenderItem<POSItem>>(
@@ -81,40 +104,53 @@ export default function POSScreen() {
             </View>
             <Text className="font-semibold text-ink">{formatMoney(item.unitPrice * item.quantity)}</Text>
           </View>
+          <View className="mt-2 flex-row">
+            <QuantityStepper
+              value={item.quantity}
+              name={item.productName}
+              min={0}
+              decreaseLabel={t('pos.decrease')}
+              increaseLabel={t('pos.increase')}
+              onChange={(next) => store.updateQty(item.productId, next)}
+            />
+          </View>
         </Card>
       </View>
     ),
-    [],
+    [store, t],
+  )
+
+  const header = (
+    <View>
+      <View className="mb-3">
+        <Card>
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1 pr-3">
+              <Text className="text-sm text-ink-secondary">{t('pos.terminal')}</Text>
+              <Text accessibilityLabel={terminalName ? `${t('pos.terminal')}: ${terminalName}` : t('pos.noTerminalChosen')} className="font-semibold text-ink">{terminalName ?? t('pos.noTerminalChosen')}</Text>
+            </View>
+            <Button size="lg" fullWidth={false} variant="outline" onPress={() => setTerminalOpen(true)}>{terminalName ? t('pos.changeTerminal') : t('pos.chooseTerminal')}</Button>
+          </View>
+          {!!terminalId && (
+            <Text className="mt-2 text-sm text-ink-secondary">{shiftId ? t('pos.shiftOpen') : t('pos.shiftNone')}</Text>
+          )}
+        </Card>
+      </View>
+      <ProductPicker onPick={addProduct} />
+      <View className="mb-3">
+        <Button size="lg" variant="outline" onPress={() => setScanOpen(true)}>{t('pos.scan')}</Button>
+      </View>
+    </View>
   )
 
   return (
     <Screen scroll={false}>
-      {/* Product Add Bar */}
-      <View className="border-b border-line bg-surface p-4">
-        <Text accessibilityRole="header" className="mb-2 text-sm font-semibold text-ink-secondary">{t('pos.addProduct')}</Text>
-        <View className="flex-row gap-2">
-          <View className="flex-1">
-            <TextField label={t('pos.productIdLabel')} placeholder={t('pos.productIdPlaceholder')} value={productId} onChangeText={setProductId} autoCapitalize="none" returnKeyType="next" />
-          </View>
-          <View className="flex-1">
-            <TextField label={t('pos.nameLabel')} placeholder={t('pos.namePlaceholder')} value={productName} onChangeText={setProductName} returnKeyType="next" />
-          </View>
-        </View>
-        <View className="flex-row items-end gap-2">
-          <View className="flex-1">
-            <TextField label={t('pos.unitPriceLabel')} placeholder={t('pos.unitPricePlaceholder')} value={unitPrice} onChangeText={setUnitPrice} keyboardType="numeric" returnKeyType="done" onSubmitEditing={addItem} />
-          </View>
-          <View className="mb-3">
-            <Button size="lg" fullWidth={false} accessibilityLabel={t('pos.addToSale')} onPress={addItem}>{t('pos.add')}</Button>
-          </View>
-        </View>
-      </View>
-
-      {/* Items List */}
       <FlatList
         data={store.items}
         keyExtractor={(i) => i.productId}
         className="flex-1 px-4 pt-3"
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={header}
         renderItem={renderItem}
         ListEmptyComponent={<EmptyState title={t('pos.noItems')} hint={t('pos.noItemsHint')} />}
       />
@@ -143,7 +179,7 @@ export default function POSScreen() {
                 onPress={() => setPaymentMethod(m)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected, checked: selected }}
-                    aria-checked={selected}
+                aria-checked={selected}
                 className={`mr-2 min-h-[52px] justify-center rounded-control border px-5 ${selected ? 'border-brand-action bg-brand-action' : 'border-line-strong bg-surface'}`}
               >
                 <Text className={selected ? 'font-semibold text-on-brand' : 'text-ink'}>{t(`pos.paymentMethods.${m}`)}</Text>
@@ -152,10 +188,19 @@ export default function POSScreen() {
           })}
         </ScrollView>
 
-        <Button size="lg" onPress={completeTransaction} loading={completing} disabled={store.items.length === 0}>
+        {!terminalId && store.items.length > 0 && <View className="mb-3"><Alert tone="warning">{t('pos.chooseTerminalFirst')}</Alert></View>}
+        <Button size="lg" onPress={completeTransaction} loading={completing} disabled={store.items.length === 0 || !terminalId}>
           {completing ? t('pos.processing') : t('pos.completeTransaction')}
         </Button>
       </View>
+
+      <TerminalSheet
+        visible={terminalOpen}
+        selectedId={terminalId}
+        onClose={() => setTerminalOpen(false)}
+        onChoose={(term) => { choose(term.id, term.name); setTerminalOpen(false) }}
+      />
+      <ScanSheet visible={scanOpen} onClose={() => setScanOpen(false)} onCode={onScanned} />
     </Screen>
   )
 }

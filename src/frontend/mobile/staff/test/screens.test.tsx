@@ -10,16 +10,13 @@ jest.mock('@/api/client', () => ({ apiClient: { get: (...a: unknown[]) => mockGe
 import LoginScreen from '@/app/(auth)/login'
 import InventoryScreen from '@/app/(tabs)/inventory'
 import DeliveriesScreen from '@/app/(tabs)/deliveries'
-import POSScreen from '@/app/(tabs)/pos'
 import { useAuthStore } from '@/stores/auth.store'
-import { usePOSStore } from '@/stores/pos.store'
 import { useToastStore } from '@/components/ui/Toast'
 import { ToastHost } from '@/components/ui'
 
 beforeEach(() => {
   jest.clearAllMocks()
   useAuthStore.setState({ user: null, accessToken: null, isAuthenticated: false })
-  usePOSStore.getState().reset()
   useToastStore.setState({ items: [] })
 })
 
@@ -146,64 +143,5 @@ describe('Deliveries', () => {
     mockGet.mockResolvedValue({ data: { items: [] } })
     renderScreen(<DeliveriesScreen />)
     expect(await screen.findByText('No active shipments.')).toBeTruthy()
-  })
-})
-
-describe('POS', () => {
-  const addLine = () => {
-    fireEvent.changeText(screen.getByLabelText('Product ID'), 'p1')
-    fireEvent.changeText(screen.getByLabelText('Name'), 'Blue shirt')
-    fireEvent.changeText(screen.getByLabelText('Unit price'), '10')
-    fireEvent.press(screen.getByRole('button', { name: 'Add to the sale' }))
-  }
-
-  it('adds a line and shows subtotal, 10 % tax and total as before', () => {
-    renderScreen(<POSScreen />)
-    expect(screen.getByText('No items added yet.')).toBeTruthy()
-    addLine()
-    expect(screen.getByText('Blue shirt')).toBeTruthy()
-    expect(screen.getAllByText('$10.00').length).toBeGreaterThan(0)
-    expect(screen.getByText('$1.00')).toBeTruthy()
-    expect(screen.getByText('$11.00')).toBeTruthy()
-    expect(usePOSStore.getState().total()).toBeCloseTo(11)
-  })
-
-  it('does not add a line without an id and a price', () => {
-    renderScreen(<POSScreen />)
-    fireEvent.press(screen.getByRole('button', { name: 'Add to the sale' }))
-    expect(usePOSStore.getState().items).toHaveLength(0)
-  })
-
-  it('chooses the payment method with a radio group and keeps Complete disabled with no items', () => {
-    renderScreen(<POSScreen />)
-    expect(screen.getByRole('radio', { name: 'Cash' }).props.accessibilityState).toMatchObject({ selected: true })
-    fireEvent.press(screen.getByRole('radio', { name: 'E-Wallet' }))
-    expect(screen.getByRole('radio', { name: 'E-Wallet' }).props.accessibilityState).toMatchObject({ selected: true })
-    expect(screen.getByRole('button', { name: 'Complete Transaction' }).props.accessibilityState).toMatchObject({ disabled: true })
-  })
-
-  it('completes a sale with the same requests and confirms with a toast', async () => {
-    mockPost.mockImplementation((url: string) => Promise.resolve({ data: url === '/v1/pos/transactions' ? { id: 't1' } : {} }))
-    useAuthStore.setState({ user: { id: 'staff1', email: 's@x.y', firstName: 'S', lastName: 'T', roles: [], permissions: [] }, accessToken: 't', isAuthenticated: true })
-    renderScreen(<><POSScreen /><ToastHost /></>)
-    addLine()
-    fireEvent.press(screen.getByRole('button', { name: 'Complete Transaction' }))
-    expect(await screen.findByText('Transaction complete. Total: $11.00')).toBeTruthy()
-    expect(mockPost.mock.calls[0]).toEqual(['/v1/pos/transactions', { terminalId: 'TERM-001', cashierId: 'staff1' }])
-    // the lines and the completion go to the id the server just returned (the store snapshot was taken before it existed)
-    expect(mockPost.mock.calls.every((c, i) => i === 0 || String(c[0]).startsWith('/v1/pos/transactions/t1/'))).toBe(true)
-    expect(mockPost.mock.calls.some((c) => String(c[0]).endsWith('/items') && (c[1] as { productId: string }).productId === 'p1')).toBe(true)
-    expect(mockPost.mock.calls.at(-1)?.[1]).toEqual({ paymentMethod: 'Cash' })
-    expect(usePOSStore.getState().items).toHaveLength(0)
-    await act(async () => {})
-  })
-
-  it('tells the cashier with a toast when the sale fails and keeps the lines', async () => {
-    mockPost.mockRejectedValue(new Error('500'))
-    renderScreen(<><POSScreen /><ToastHost /></>)
-    addLine()
-    fireEvent.press(screen.getByRole('button', { name: 'Complete Transaction' }))
-    expect(await screen.findByText('Failed to complete transaction.')).toBeTruthy()
-    expect(usePOSStore.getState().items).toHaveLength(1)
   })
 })

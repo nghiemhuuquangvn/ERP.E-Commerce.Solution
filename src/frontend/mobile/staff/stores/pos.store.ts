@@ -6,6 +6,7 @@ export interface POSItem {
   unitPrice: number
   quantity: number
   taxRate: number
+  sku?: string
 }
 
 interface POSState {
