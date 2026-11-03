@@ -100,6 +100,7 @@
     "passwordPlaceholder": "Mật khẩu",
     "signingIn": "Đang đăng nhập…",
     "signInError": "Email hoặc mật khẩu không đúng.",
+    "networkError": "Không kết nối được máy chủ. Kiểm tra mạng và địa chỉ máy chủ.",
     "noAccount": "Chưa có tài khoản? Đăng ký →",
     "createAccount": "Tạo tài khoản",
     "createAccountSubtitle": "Tham gia ERP Shop ngay hôm nay",

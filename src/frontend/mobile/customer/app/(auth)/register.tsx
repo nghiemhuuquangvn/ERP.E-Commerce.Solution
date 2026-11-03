@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Text, View } from 'react-native'
 import { Link } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { apiClient } from '@/api/client'
+import { apiClient, isNetworkError } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import { Alert, Button, Screen, TextField } from '@/components/ui'
 
@@ -14,6 +14,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [offline, setOffline] = useState(false)
   const [tried, setTried] = useState(false)
   const { setAuth } = useAuthStore()
 
@@ -22,10 +23,12 @@ export default function RegisterScreen() {
     if (!firstName || !email || !password) return
     setLoading(true)
     setFailed(false)
+    setOffline(false)
     try {
       const { data } = await apiClient.post('/v1/auth/register', { firstName, lastName, email, password })
       setAuth(data.user, data.accessToken)
-    } catch {
+    } catch (e) {
+      setOffline(isNetworkError(e))
       setFailed(true)
     } finally {
       setLoading(false)
@@ -40,7 +43,7 @@ export default function RegisterScreen() {
         <Text accessibilityRole="header" className="mb-1 text-3xl font-bold text-brand-action">{t('auth.createAccount')}</Text>
         <Text className="mb-8 text-ink-secondary">{t('auth.createAccountSubtitle')}</Text>
 
-        {failed && <View className="mb-4"><Alert tone="danger">{t('auth.registerError')}</Alert></View>}
+        {failed && <View className="mb-4"><Alert tone="danger">{offline ? t('auth.networkError') : t('auth.registerError')}</Alert></View>}
 
         <TextField label={t('auth.firstNameLabel')} placeholder={t('auth.firstNamePlaceholder')} value={firstName} onChangeText={setFirstName} autoComplete="given-name" textContentType="givenName" returnKeyType="next" required error={missing(firstName)} />
         <TextField label={t('auth.lastNameLabel')} placeholder={t('auth.lastNamePlaceholder')} value={lastName} onChangeText={setLastName} autoComplete="family-name" textContentType="familyName" returnKeyType="next" />

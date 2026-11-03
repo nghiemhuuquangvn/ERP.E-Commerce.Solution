@@ -15,6 +15,9 @@ if (API_URL === DEFAULT_API_URL) {
   console.warn('EXPO_PUBLIC_API_URL is not set: calls go to localhost, which is no tenant, so sign-in and ordering will be refused. See docs/frontend/mobile-apps.md.')
 }
 
+// No answer at all (offline, wrong address, name not resolved, timeout): not the same as a refused sign-in.
+export const isNetworkError = (e: unknown) => axios.isAxiosError(e) && !e.response
+
 export const apiClient = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },

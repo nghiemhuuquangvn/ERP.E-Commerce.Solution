@@ -47,3 +47,11 @@ Runbook for the owner (Vietnamese): [docs/user-guides/mobile-device-test.md](../
 - **Network:** one custom tenant host (`shop.glcheck.lan`, `TenantDomains` row) serves both apps; do not use `*.local` (Android mDNS); the PC needs inbound TCP 80 (Private profile) and a router DNS record. The local docker-compose has `Tenancy__FallbackTenantCode=SYSTEM`: an unknown host answers as the platform tenant, not 404 - compare data, never trust a bare 200.
 - **Status:** configured and verified without a phone (`expo config`, `prebuild`, Jest, LAN check from this PC). The device run is pending the owner's report; R68 stays open until then.
 
+## Local APK build and emulator run (R68, 2026-11-03)
+
+Guide (Vietnamese): [docs/user-guides/mobile-apk-emulator.md](../user-guides/mobile-apk-emulator.md); scripts in `src/frontend/mobile/tools/` (`setup-android-sdk.ps1`, `build-apk-local.ps1`, `start-emulator.ps1`, `android-env.ps1`).
+- `eas build --local` does not run on Windows: the local route is `expo prebuild` + `gradlew assembleRelease` on a copy of the app in a short path (`D:/b/<app>`, the 260-character limit breaks CMake), JDK 17 + Android SDK under `D:/Android` (portable, nothing set machine-wide). Output `src/frontend/mobile/apk/<app>-preview.apk` (git-ignored), debug-signed, cleartext HTTP, API `http://shop.glcheck.lan/api`.
+- **Permissions:** the merged manifest of a release APK also carries `RECORD_AUDIO`, storage and `SYSTEM_ALERT_WINDOW` (from the Expo template and expo-camera); `android.blockedPermissions` in both `app.json` removes them. Read the merged manifest (`aapt dump badging`), not only `expo prebuild`'s: the earlier "CAMERA only" statement was about the source manifest.
+- **Emulator reaches the stack** at `10.0.2.2`; the shop is chosen by the Host, so the Google-APIs image gets `10.0.2.2 shop.glcheck.lan` in its own `/system/etc/hosts` (`-writable-system`, `adb root`, `adb remount`).
+- Verified on a Pixel 6 / Android 14 emulator: both APKs install and open; staff sign-in reaches the Dashboard (nginx logs `POST /api/v1/auth/login 200` from okhttp); POS "Scan a barcode" shows the system camera dialog ("Allow ERP Staff to take pictures and record video?"), allowing it grants CAMERA and the preview shows. Not verified: a real scan (the emulator camera is a virtual room), a sale, TalkBack, a real phone.
+

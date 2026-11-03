@@ -5,7 +5,7 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), replace: 
 
 const mockGet = jest.fn()
 const mockPost = jest.fn()
-jest.mock('@/api/client', () => ({ apiClient: { get: (...a: unknown[]) => mockGet(...a), post: (...a: unknown[]) => mockPost(...a) } }))
+jest.mock('@/api/client', () => ({ isNetworkError: (e: { response?: unknown }) => !e?.response, apiClient: { get: (...a: unknown[]) => mockGet(...a), post: (...a: unknown[]) => mockPost(...a) } }))
 
 import LoginScreen from '@/app/(auth)/login'
 import InventoryScreen from '@/app/(tabs)/inventory'
@@ -39,12 +39,21 @@ describe('Login', () => {
   })
 
   it('shows a danger alert when refused', async () => {
-    mockPost.mockRejectedValue(new Error('401'))
+    mockPost.mockRejectedValue(Object.assign(new Error('401'), { response: { status: 401 } }))
     renderScreen(<LoginScreen />)
     fireEvent.changeText(screen.getByLabelText('Email *'), 'a@b.c')
     fireEvent.changeText(screen.getByLabelText('Password *'), 'bad')
     fireEvent.press(screen.getByRole('button', { name: 'Sign In' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid email or password.')
+  })
+
+  it('says the server cannot be reached when nothing answers, not that the password is wrong', async () => {
+    mockPost.mockRejectedValue(new Error('Network Error'))
+    renderScreen(<LoginScreen />)
+    fireEvent.changeText(screen.getByLabelText('Email *'), 'a@b.c')
+    fireEvent.changeText(screen.getByLabelText('Password *'), 'secret123')
+    fireEvent.press(screen.getByRole('button', { name: 'Sign In' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Cannot reach the server./)
   })
 })
 

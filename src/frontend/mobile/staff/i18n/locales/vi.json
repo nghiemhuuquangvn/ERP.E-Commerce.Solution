@@ -128,6 +128,7 @@
     "signingIn": "Đang đăng nhập…",
     "signInFailedTitle": "Đăng nhập thất bại",
     "signInError": "Email hoặc mật khẩu không đúng.",
+    "networkError": "Không kết nối được máy chủ. Kiểm tra mạng và địa chỉ máy chủ.",
     "emailLabel": "Email",
     "passwordLabel": "Mật khẩu",
     "required": "Vui lòng nhập mục này."
