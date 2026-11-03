@@ -45,8 +45,6 @@
     "searchPlaceholder": "Tìm kiếm sản phẩm…",
     "loading": "Đang tải…",
     "adjust": "Điều chỉnh",
-    "adjustStockTitle": "Điều chỉnh tồn kho",
-    "adjustStockMessage": "Hiện tại: {{quantity}}. Nhập số lượng mới:",
     "errorAdjustingStock": "Điều chỉnh tồn kho thất bại.",
     "searchLabel": "Tìm sản phẩm",
     "available": "Có thể bán",
@@ -56,8 +54,20 @@
     "invalidQuantity": "Hãy nhập một số nguyên.",
     "empty": "Không tìm thấy sản phẩm.",
     "emptyHint": "Hãy thử từ khóa khác.",
-    "adjusted": "Đã cập nhật tồn kho.",
-    "clear": "Xóa tìm kiếm"
+    "clear": "Xóa tìm kiếm",
+    "requestTitle": "Yêu cầu điều chỉnh tồn kho",
+    "reason": "Lý do",
+    "note": "Ghi chú (không bắt buộc)",
+    "sendRequest": "Gửi yêu cầu",
+    "nothingToChange": "Không có gì để đổi: đây là số lượng hiện tại.",
+    "requested": "Đã gửi yêu cầu điều chỉnh. Tồn kho chỉ đổi khi quản lý phê duyệt.",
+    "notAllowed": "Bạn không có quyền yêu cầu điều chỉnh tồn kho.",
+    "reasons": {
+      "Damaged": "Hư hỏng",
+      "Lost": "Thất lạc",
+      "Correction": "Kiểm đếm lại",
+      "Other": "Khác"
+    }
   },
   "pos": {
     "addProduct": "Thêm sản phẩm",

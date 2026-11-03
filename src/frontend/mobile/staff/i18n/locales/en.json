@@ -45,8 +45,6 @@
     "searchPlaceholder": "Search products…",
     "loading": "Loading…",
     "adjust": "Adjust",
-    "adjustStockTitle": "Adjust Stock",
-    "adjustStockMessage": "Current: {{quantity}}. Enter new quantity:",
     "errorAdjustingStock": "Failed to adjust stock.",
     "searchLabel": "Search products",
     "available": "Available",
@@ -56,8 +54,20 @@
     "invalidQuantity": "Enter a whole number.",
     "empty": "No products found.",
     "emptyHint": "Try another word.",
-    "adjusted": "Stock updated.",
-    "clear": "Clear the search"
+    "clear": "Clear the search",
+    "requestTitle": "Request a stock adjustment",
+    "reason": "Reason",
+    "note": "Note (optional)",
+    "sendRequest": "Send request",
+    "nothingToChange": "Nothing to change: that is the current quantity.",
+    "requested": "Adjustment requested. The stock changes once a manager approves it.",
+    "notAllowed": "You are not allowed to request stock adjustments.",
+    "reasons": {
+      "Damaged": "Damaged",
+      "Lost": "Lost",
+      "Correction": "Correction",
+      "Other": "Other"
+    }
   },
   "pos": {
     "addProduct": "Add Product",

@@ -53,28 +53,63 @@ describe('Login', () => {
 
 describe('Inventory', () => {
   const item = { productId: 'p1', productName: 'Blue shirt', productSku: 'BS-1', availableQuantity: 3, totalQuantity: 10 }
-
-  it('adjusts stock from a sheet and sends the same request as before (difference to the new quantity)', async () => {
+  const openSheet = async () => {
     mockGet.mockResolvedValue({ data: { items: [item] } })
-    mockPost.mockResolvedValue({ data: {} })
     renderScreen(<><InventoryScreen /><ToastHost /></>)
     fireEvent.press(await screen.findByRole('button', { name: 'Adjust stock of Blue shirt' }))
     expect(screen.getByText('Current: 10')).toBeTruthy()
-    fireEvent.changeText(screen.getByLabelText('New quantity *'), '7')
-    fireEvent.press(screen.getByRole('button', { name: 'Save' }))
+  }
+  const type = (v: string) => fireEvent.changeText(screen.getByLabelText('New quantity *'), v)
+  const send = () => fireEvent.press(screen.getByRole('button', { name: 'Send request' }))
+
+  it('files a stock-adjustment REQUEST (difference, numeric reason, note) and says a manager must approve it', async () => {
+    mockPost.mockResolvedValue({ data: {} })
+    await openSheet()
+    type('7')
+    fireEvent.changeText(screen.getByLabelText('Note (optional)'), '  two broken  ')
+    send()
     await waitFor(() => expect(mockPost).toHaveBeenCalled())
-    expect(mockPost).toHaveBeenCalledWith('/v1/inventory/adjust', { productId: 'p1', quantity: -3, reason: 'Staff adjustment' })
-    expect(await screen.findByText('Stock updated.')).toBeTruthy()
+    expect(mockPost).toHaveBeenCalledWith('/v1/stock-adjustments', { productId: 'p1', quantityDelta: -3, reason: 2, notes: 'two broken' })
+    expect(await screen.findByText('Adjustment requested. The stock changes once a manager approves it.')).toBeTruthy()
+    expect(mockGet).toHaveBeenCalledTimes(1) // the stock did not change, so the list is not read again
   })
 
-  it('refuses a quantity that is not a number and sends nothing', async () => {
-    mockGet.mockResolvedValue({ data: { items: [item] } })
-    renderScreen(<InventoryScreen />)
-    fireEvent.press(await screen.findByRole('button', { name: 'Adjust stock of Blue shirt' }))
-    fireEvent.changeText(screen.getByLabelText('New quantity *'), 'abc')
-    fireEvent.press(screen.getByRole('button', { name: 'Save' }))
+  it('offers the four reasons, Correction first selected, and sends the chosen reason as its number', async () => {
+    mockPost.mockResolvedValue({ data: {} })
+    await openSheet()
+    expect(screen.getByRole('radio', { name: 'Correction' }).props.accessibilityState).toMatchObject({ selected: true })
+    for (const r of ['Damaged', 'Lost', 'Other']) expect(screen.getByRole('radio', { name: r })).toBeTruthy()
+    fireEvent.press(screen.getByRole('radio', { name: 'Damaged' }))
+    type('12')
+    send()
+    await waitFor(() => expect(mockPost).toHaveBeenCalled())
+    expect(mockPost).toHaveBeenCalledWith('/v1/stock-adjustments', { productId: 'p1', quantityDelta: 2, reason: 0, notes: undefined })
+  })
+
+  it('refuses a quantity that is not a whole number, or is the current one, without sending anything', async () => {
+    await openSheet()
+    type('abc'); send()
     expect(await screen.findByText('Enter a whole number.')).toBeTruthy()
+    type('-4'); send()
+    expect(await screen.findByText('Enter a whole number.')).toBeTruthy()
+    type('10'); send()
+    expect(await screen.findByText('Nothing to change: that is the current quantity.')).toBeTruthy()
     expect(mockPost).not.toHaveBeenCalled()
+  })
+
+  it('tells the user when the role may not request adjustments (403), and keeps the sheet open', async () => {
+    mockPost.mockRejectedValue(Object.assign(new Error('403'), { isAxiosError: true, response: { status: 403 } }))
+    await openSheet()
+    type('5'); send()
+    expect(await screen.findByText('You are not allowed to request stock adjustments.')).toBeTruthy()
+    expect(screen.getByLabelText('New quantity *')).toBeTruthy()
+  })
+
+  it('shows the generic toast for another failure', async () => {
+    mockPost.mockRejectedValue(new Error('500'))
+    await openSheet()
+    type('5'); send()
+    expect(await screen.findByText('Failed to adjust stock.')).toBeTruthy()
   })
 
   it('has a labelled search, and an error state with retry', async () => {
@@ -94,6 +129,7 @@ describe('Deliveries', () => {
     mockPost.mockResolvedValue({ data: {} })
     renderScreen(<DeliveriesScreen />)
     expect(await screen.findByText('Picked up')).toBeTruthy()
+    expect(mockGet).toHaveBeenCalledWith('/v1/shipments', { params: { pageSize: 50 } })
     fireEvent.press(screen.getByRole('button', { name: 'Mark TN1 in transit' }))
     await waitFor(() => expect(mockPost).toHaveBeenCalled())
     expect(mockPost).toHaveBeenCalledWith('/v1/shipments/s1/tracking', { status: 'InTransit', location: 'Warehouse', description: 'Updated by staff' })
@@ -147,13 +183,15 @@ describe('POS', () => {
   })
 
   it('completes a sale with the same requests and confirms with a toast', async () => {
-    mockPost.mockImplementation((url: string) => Promise.resolve({ data: url.endsWith('/open') ? { id: 't1' } : {} }))
+    mockPost.mockImplementation((url: string) => Promise.resolve({ data: url === '/v1/pos/transactions' ? { id: 't1' } : {} }))
     useAuthStore.setState({ user: { id: 'staff1', email: 's@x.y', firstName: 'S', lastName: 'T', roles: [], permissions: [] }, accessToken: 't', isAuthenticated: true })
     renderScreen(<><POSScreen /><ToastHost /></>)
     addLine()
     fireEvent.press(screen.getByRole('button', { name: 'Complete Transaction' }))
     expect(await screen.findByText('Transaction complete. Total: $11.00')).toBeTruthy()
-    expect(mockPost.mock.calls[0]).toEqual(['/v1/pos/transactions/open', { terminalId: 'TERM-001', cashierId: 'staff1' }])
+    expect(mockPost.mock.calls[0]).toEqual(['/v1/pos/transactions', { terminalId: 'TERM-001', cashierId: 'staff1' }])
+    // the lines and the completion go to the id the server just returned (the store snapshot was taken before it existed)
+    expect(mockPost.mock.calls.every((c, i) => i === 0 || String(c[0]).startsWith('/v1/pos/transactions/t1/'))).toBe(true)
     expect(mockPost.mock.calls.some((c) => String(c[0]).endsWith('/items') && (c[1] as { productId: string }).productId === 'p1')).toBe(true)
     expect(mockPost.mock.calls.at(-1)?.[1]).toEqual({ paymentMethod: 'Cash' })
     expect(usePOSStore.getState().items).toHaveLength(0)

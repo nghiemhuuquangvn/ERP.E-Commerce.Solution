@@ -38,15 +38,18 @@ export default function POSScreen() {
     if (store.items.length === 0) return
     setCompleting(true)
     try {
-      if (!store.transactionId) {
-        const { data: opened } = await apiClient.post('/v1/pos/transactions/open', {
+      // POSController: POST pos/transactions opens (there is no /open); use the id we just got, not the store snapshot taken before it.
+      let transactionId = store.transactionId
+      if (!transactionId) {
+        const { data: opened } = await apiClient.post('/v1/pos/transactions', {
           terminalId: 'TERM-001',
           cashierId: user?.id,
         })
-        store.setTransactionId(opened.id)
+        transactionId = opened.id as string
+        store.setTransactionId(transactionId)
       }
       for (const item of store.items) {
-        await apiClient.post(`/v1/pos/transactions/${store.transactionId}/items`, {
+        await apiClient.post(`/v1/pos/transactions/${transactionId}/items`, {
           productId: item.productId,
           productName: item.productName,
           quantity: item.quantity,
@@ -54,7 +57,7 @@ export default function POSScreen() {
           taxRate: item.taxRate,
         })
       }
-      await apiClient.post(`/v1/pos/transactions/${store.transactionId}/complete`, {
+      await apiClient.post(`/v1/pos/transactions/${transactionId}/complete`, {
         paymentMethod,
       })
       toast.success(t('pos.successMessage', { total: formatMoney(store.total()) }))
@@ -140,6 +143,7 @@ export default function POSScreen() {
                 onPress={() => setPaymentMethod(m)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected, checked: selected }}
+                    aria-checked={selected}
                 className={`mr-2 min-h-[52px] justify-center rounded-control border px-5 ${selected ? 'border-brand-action bg-brand-action' : 'border-line-strong bg-surface'}`}
               >
                 <Text className={selected ? 'font-semibold text-on-brand' : 'text-ink'}>{t(`pos.paymentMethods.${m}`)}</Text>

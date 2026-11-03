@@ -26,7 +26,7 @@ sign-in, ordering and payment calls. The apps print a console warning when the v
 
 ## Contract guard
 
-`tests/unit/ERP.Architecture.Tests/ClientApiContractTests.cs` fails when the storefront or the customer app calls a `/v1/...` route that no
+`tests/unit/ERP.Architecture.Tests/ClientApiContractTests.cs` fails when the storefront, the customer app or the **staff app** calls a `/v1/...` route that (1) no controller serves (wrong path or HTTP method) or (2) the **Gateway does not route** (`src/Gateway/Ocelot.API/ocelot.json`; a `{everything}` catch-all needs at least one more segment, so `/api/v1/shipments/{everything}` does not carry `GET /v1/shipments`). Add new calls through `apiClient` with a literal path so the guard can see them; a missing Gateway route is added to `ocelot.json` (R107).
 controller serves (wrong path or HTTP method). Add new calls through `apiClient` with a literal path so the guard can see them.
 Field names inside requests/responses are not checked by it — keep the typed clients next to the backend DTOs.
 
