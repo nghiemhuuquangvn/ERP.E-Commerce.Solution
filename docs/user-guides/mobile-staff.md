@@ -12,11 +12,14 @@ Nhập **Email** và **Mật khẩu** (bắt buộc). Để trống: mỗi ô hi
 - **Tổng quan:** lời chào và bốn thẻ số liệu (hiện đang là 0, chưa nối dữ liệu).
 
 ## 3. Bán hàng (POS)
-1. Nhập **Mã sản phẩm**, **Tên**, **Đơn giá** rồi bấm **+ Thêm**. Lặp lại cho từng mặt hàng.
-2. Phần dưới màn hình hiện **Tạm tính**, **Thuế (10 %)** và **Tổng**.
-3. Chọn phương thức: **Tiền mặt**, **Thẻ tín dụng**, **Ví điện tử**.
-4. Bấm **Hoàn tất giao dịch** (khóa khi chưa có dòng nào). Thành công: thông báo xanh "Hoàn tất giao dịch. Tổng: …" và đơn bán được xóa để làm đơn mới. Thất bại: thông báo đỏ, **các dòng vẫn còn** để thử lại.
-- Mã máy POS (`TERM-001`) và thuế 10 % đang cố định trong ứng dụng. **Lưu ý (R110):** máy chủ cần mã máy POS và mã sản phẩm thật (dạng Guid); cho tới khi ứng dụng có bước chọn máy POS và tìm sản phẩm, việc hoàn tất giao dịch trên điện thoại có thể bị từ chối. Dùng POS trên trang quản trị khi cần bán thật.
+1. **Chọn máy POS** (lần đầu): thẻ ở đầu màn hình ghi "Chưa chọn máy POS"; bấm **Chọn** và chạm vào máy POS bạn đang đứng bán (chỉ hiện các máy đang hoạt động). Ứng dụng nhớ lựa chọn này cho tới khi bạn đăng xuất; bấm **Đổi** để chọn máy khác. Chưa có máy POS nào thì nhờ quản trị viên tạo trong trang quản trị.
+2. **Ca thu ngân:** dưới tên máy có ghi "Đang có ca thu ngân mở: giao dịch được gắn vào ca đó." hoặc "Chưa mở ca thu ngân: giao dịch không gắn vào ca nào." Không có ca vẫn bán được; mở và đóng ca làm trên trang quản trị.
+3. **Thêm hàng:** gõ tên hoặc SKU vào ô **Tìm sản phẩm** (ít nhất 2 ký tự) rồi chạm vào kết quả để thêm 1 sản phẩm; hàng hết sẽ mờ và không chọn được. Hoặc bấm **Quét mã vạch**: cho phép dùng máy ảnh, hướng vào mã vạch (mã vạch là SKU của sản phẩm). Quét được thì thêm 1 sản phẩm và hiện thông báo; không thấy sản phẩm thì báo "Không có sản phẩm nào với mã vạch …" và máy ảnh vẫn mở để quét món tiếp. Cùng một mã quét lại trong 2 giây chỉ tính một lần. Nếu đã tắt quyền máy ảnh, khung quét sẽ hướng dẫn mở cài đặt.
+4. **Sửa số lượng:** mỗi dòng có nút **Giảm** / **Tăng** (về 0 thì bỏ dòng).
+5. Phần dưới màn hình hiện **Tạm tính**, **Thuế (10 %)** và **Tổng**; chọn phương thức **Tiền mặt**, **Thẻ tín dụng** hoặc **Ví điện tử**.
+6. Bấm **Hoàn tất giao dịch** (khóa khi chưa có dòng nào hoặc chưa chọn máy POS). Thành công: thông báo xanh "Hoàn tất giao dịch. Tổng: …" và đơn bán được xóa để làm đơn mới (máy POS vẫn giữ). Thất bại: thông báo đỏ, **các dòng vẫn còn** để thử lại; "Bạn không có quyền bán hàng." nghĩa là tài khoản thiếu quyền `pos:transactions`.
+- Thuế 10 % đang cố định trong ứng dụng (máy chủ chưa gửi thuế suất theo sản phẩm).
+- Chưa thử quét bằng điện thoại thật: cần người phụ trách thử theo mục UAT trong tài liệu BA.
 
 ## 4. Tồn kho
 - Ô **Tìm sản phẩm**; mỗi dòng có tên, SKU và số **có thể bán** (đỏ khi 0, vàng dưới 5, xanh còn lại).

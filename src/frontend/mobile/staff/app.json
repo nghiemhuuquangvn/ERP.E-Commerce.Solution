@@ -10,7 +10,10 @@
       "resizeMode": "contain",
       "backgroundColor": "#0284c7"
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      ["expo-camera", { "cameraPermission": "ERP Staff uses the camera to scan product barcodes." }]
+    ],
     "experiments": {
       "typedRoutes": true
     }

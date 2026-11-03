@@ -73,6 +73,9 @@ public class ClientApiContractTests
     {
         ClientCalls().Count().Should().BeGreaterThan(15, "the scan must find the apps' API calls, or the guard checks nothing");
         ClientCalls().Count(c => c.File.Contains(Path.Combine("mobile", "staff"))).Should().BeGreaterThan(5, "the staff app must be scanned");
+        // R110: the staff POS screen's terminal, cash-shift and barcode calls are seen (and therefore checked against a controller and the Gateway).
+        foreach (var path in new[] { "/v1/pos/terminals", "/v1/pos/shifts/active/", "/v1/pos/products/lookup/", "/v1/products/search" })
+            ClientCalls().Should().Contain(c => c.File.Contains(Path.Combine("mobile", "staff")) && c.Path.StartsWith(path), $"the staff app calls {path}");
         BackendRoutes().Count.Should().BeGreaterThan(200);
         BackendRoutes().Should().Contain(r => r.Verb == "post" && Matches(r.Segments, Normalize("/v1/orders")));
         GatewayRoutes().Count.Should().BeGreaterThan(40);

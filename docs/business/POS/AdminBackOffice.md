@@ -12,6 +12,7 @@ Out of scope (§8): opening / closing shifts and ringing sales from the Admin ap
 |---|---|
 | Store manager (`pos:shifts:view`, `pos:reports:view`, `pos:transactions`) | Reviews shifts and the Z report, searches transactions, voids a wrong sale |
 | POS administrator (`pos:terminals:manage`) | Creates, renames, deactivates and reactivates terminals |
+| Cashier (`pos:transactions`) | Since R110 may also **read** the terminal list / one terminal (`GET pos/terminals`, `GET pos/terminals/{id}`) so the staff app can pick the till; every change stays with `pos:terminals:manage` |
 | Auditor (`pos:reports:view`, `pos:shifts:view`) | Reads shifts and the Z report only |
 
 ## 3. Requirements and acceptance criteria

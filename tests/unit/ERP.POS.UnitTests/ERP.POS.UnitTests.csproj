@@ -22,6 +22,7 @@
     <ProjectReference Include="..\..\..\src\services\POSService\src\ERP.POS.Domain\ERP.POS.Domain.csproj" />
     <ProjectReference Include="..\..\..\src\services\POSService\src\ERP.POS.Application\ERP.POS.Application.csproj" />
     <ProjectReference Include="..\..\..\src\services\POSService\src\ERP.POS.Infrastructure\ERP.POS.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\src\services\POSService\src\ERP.POS.API\ERP.POS.API.csproj" />
   </ItemGroup>
 
 </Project>
