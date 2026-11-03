@@ -82,11 +82,13 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
     public class CreatePriceListHandler : IRequestHandler<CreatePriceListCommand, CreatePriceListResponse>
     {
         private readonly IProductUnitOfWork _uow;
+        private readonly PriceChangeTracker _changes;
         private readonly ILogger<CreatePriceListHandler> _logger;
 
-        public CreatePriceListHandler(IProductUnitOfWork uow, ILogger<CreatePriceListHandler> logger)
+        public CreatePriceListHandler(IProductUnitOfWork uow, PriceChangeTracker changes, ILogger<CreatePriceListHandler> logger)
         {
             _uow = uow;
+            _changes = changes;
             _logger = logger;
         }
 
@@ -100,17 +102,34 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
             if (request.ExpiryDate.HasValue)
                 priceList.SetExpiry(request.ExpiryDate.Value);
 
+            var productIds = new List<Guid>();
             foreach (var item in request.Items)
             {
                 var variant = await _uow.PriceLists.GetVariantByIdAsync(item.VariantId, cancellationToken);
                 if (variant == null)
                     throw new KeyNotFoundException($"Variant with ID {item.VariantId} not found");
 
+                productIds.Add(variant.ProductId);
+                variant.RequestSearchReindex();
                 priceList.AddItem(item.VariantId, item.BasePrice, item.DiscountedPrice, item.MinQuantity);
             }
 
-            await _uow.PriceLists.AddAsync(priceList, cancellationToken);
-            await _uow.SaveChangesAsync(cancellationToken);
+            // A new list can change what products sell for (a newer retail list wins): tell POS / Sales through ProductPriceChanged.
+            var before = await _changes.SnapshotAsync(productIds, cancellationToken);
+
+            await _uow.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                await _uow.PriceLists.AddAsync(priceList, cancellationToken);
+                await _uow.SaveChangesAsync(cancellationToken);
+                await _changes.PublishChangesAsync(before, cancellationToken);
+                await _uow.CommitTransactionAsync(cancellationToken);
+            }
+            catch
+            {
+                await _uow.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
 
             _logger.LogInformation("Price list created: {PriceListId}, Name: {Name}, Items: {Count}",
                 priceList.Id, priceList.Name, request.Items.Count);

@@ -38,6 +38,8 @@ namespace ERP.PRD.Infrastructure
             services.AddScoped<IProductAttributeValueRepository, ProductAttributeValueRepository>();
             services.AddScoped<IProductImageRepository, ProductImageRepository>();
             services.AddScoped<IPriceListRepository, PriceListRepository>();
+            services.AddScoped<IProductPriceResolver, Pricing.ProductPriceResolver>();
+            services.AddScoped<Application.Features.Pricing.PriceChangeTracker>();
             services.AddScoped<IProductBundleRepository, ProductBundleRepository>();
             services.AddScoped<IProductRelationRepository, ProductRelationRepository>();
             services.AddScoped<IProductReviewRepository, ProductReviewRepository>();

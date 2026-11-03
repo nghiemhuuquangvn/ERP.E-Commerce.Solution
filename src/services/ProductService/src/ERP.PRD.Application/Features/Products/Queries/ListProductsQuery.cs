@@ -23,10 +23,12 @@ namespace ERP.PRD.Application.Features.Products.Queries
     public class ListProductsHandler : IRequestHandler<ListProductsQuery, ListProductsResponse>
     {
         private readonly IProductUnitOfWork _uow;
+        private readonly IProductPriceResolver _prices;
 
-        public ListProductsHandler(IProductUnitOfWork uow)
+        public ListProductsHandler(IProductUnitOfWork uow, IProductPriceResolver prices)
         {
             _uow = uow;
+            _prices = prices;
         }
 
         public async Task<ListProductsResponse> Handle(ListProductsQuery request, CancellationToken cancellationToken)
@@ -36,12 +38,14 @@ namespace ERP.PRD.Application.Features.Products.Queries
                 request.CategoryId, request.Status,
                 cancellationToken);
 
+            var prices = await _prices.GetProductPricesAsync(items.Select(p => p.Id).ToList(), cancellationToken);
+
             return new ListProductsResponse
             {
                 Total = total,
                 Skip = request.Skip,
                 Take = request.Take,
-                Products = items.Select(p => ProductTranslationMapper.MapToDto(p, request.LanguageCode)).ToList()
+                Products = items.Select(p => ProductTranslationMapper.MapToDto(p, request.LanguageCode, prices.TryGetValue(p.Id, out var rp) ? rp.Price : 0m)).ToList()
             };
         }
     }

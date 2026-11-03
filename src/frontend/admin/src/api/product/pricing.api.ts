@@ -74,6 +74,21 @@ export interface SetPriceListChannelRequest {
   currencyId?: string | null
 }
 
+// VariantPriceDto (GetProductPricesQuery): the retail price comes from the price lists, the cost from the variant.
+export interface VariantRetailPrice {
+  variantId: string
+  sku: string
+  cost: number
+  retailPrice?: number | null
+}
+
+// SetProductPriceCommand: one row (quantity 1) in the shop's "Default retail" price list.
+export interface SetVariantPriceRequest {
+  variantId: string
+  basePrice: number
+  discountedPrice?: number | null
+}
+
 export const pricingApi = {
   create: (body: CreatePriceListRequest) =>
     apiClient.post<CreatePriceListResponse>(`${PRD_BASE}/pricing/lists`, body).then((r) => r.data),
@@ -81,6 +96,11 @@ export const pricingApi = {
   // There is no "list all price lists" endpoint — only fetch-by-id. Callers must
   // track known price list IDs themselves (e.g. from create responses).
   get: (id: string) => apiClient.get<PriceListDetail>(`${PRD_BASE}/pricing/lists/${id}`).then((r) => r.data),
+
+  productPrices: (productId: string) =>
+    apiClient.get<VariantRetailPrice[]>(`${PRD_BASE}/pricing/products/${productId}`).then((r) => r.data),
+
+  setVariantPrice: (body: SetVariantPriceRequest) => apiClient.post(`${PRD_BASE}/pricing/variants`, body),
 
   setChannel: (id: string, body: SetPriceListChannelRequest) =>
     apiClient.put(`${PRD_BASE}/pricing/lists/${id}/channel`, body),

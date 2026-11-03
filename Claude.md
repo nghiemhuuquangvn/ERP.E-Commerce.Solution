@@ -372,6 +372,8 @@ Published Events:
 
 Consumed Events: None (upstream source)
 
+Retail price (2026-11-03, R111, docs/business/Product/Pricing.md): a product's selling price is read from the **price lists** with one rule, `RetailPriceRules` / `IProductPriceResolver` (active + effective + not expired lists; Retail channel, else Ecommerce, never Wholesale; newest list, lowest quantity tier; discounted price wins; a product = its cheapest priced variant); `ProductDto.Price` carries it, `POST pricing/variants` writes the shop's "Default retail" list (never `Cost`), and `ProductPriceChanged` (product-level old / new price, raised on `Product` by `PriceChangeTracker`; `POST pricing/republish` re-sends it) refreshes the POS price cache. Sales and POS still trust the unit price a client sends (R113).
+
 #### Warehouse Service (Port 5004, Code: WH)
 
 Responsibilities:

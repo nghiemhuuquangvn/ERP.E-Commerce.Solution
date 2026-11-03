@@ -145,9 +145,9 @@
 | Sales | REST | GetProduct, GetProductBySku, CheckAvailability | — | Product lookup for order |
 | Warehouse | REST | GetProduct, GetProductPrice | — | Product info for inventory |
 | POS | REST | GetProduct, GetProductBySku, GetPrice | ProductPublishedEvent | POS catalog sync |
-| Promotion | REST | GetProduct, CheckEligibility | ProductPriceChangedEvent | Discount rule validation |
+| Promotion | REST | GetProduct, CheckEligibility | — (does not consume ProductPriceChanged; its consumer only seeds a placeholder price) | Discount rule validation |
 | Notification | EVENT | — | ProductCreated, ProductPublished, ProductDiscontinued | Catalog notifications |
-| Reporting | EVENT | — | ProductCreated, ProductPriceChanged | Product dimension table |
+| Reporting | EVENT | — | ProductCreated (no ProductPriceChanged consumer exists) | Product dimension table |
 
 **Criticality:** CRITICAL — Upstream source of product catalog
 
@@ -209,7 +209,7 @@
 
 | Depends On | Type | Method | Event(s) | Purpose |
 |-----------|------|--------|----------|---------|
-| Product | REST | GetProduct, CheckEligibility | ProductPriceChangedEvent | Product validation for promos |
+| Product | REST | GetProduct, CheckEligibility | — | Product validation for promos |
 | Sales | EVENT | — | SalesOrderCreated | Track promotion usage |
 
 | Called By | Type | Method | Event(s) | Purpose |

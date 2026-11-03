@@ -1,9 +1,15 @@
 using ERP.PRD.Application.Interfaces;
+using ERP.PRD.Domain.Entities;
+using ERP.PRD.Domain.Enums;
 using FluentValidation;
 using MediatR;
 
 namespace ERP.PRD.Application.Features.Pricing.Commands
 {
+    /// <summary>
+    /// Sets the RETAIL price of a variant: one row (quantity tier 1) in the shop's "Default retail" price list, created on first use. It used to
+    /// overwrite the variant's Cost, so no client ever saw a selling price (DEFERRED R111); cost is edited through the variant commands.
+    /// </summary>
     public class SetProductPriceCommand : IRequest
     {
         public Guid VariantId { get; set; }
@@ -39,11 +45,13 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
     public class SetProductPriceHandler : IRequestHandler<SetProductPriceCommand>
     {
         private readonly IProductUnitOfWork _uow;
+        private readonly PriceChangeTracker _changes;
         private readonly ILogger<SetProductPriceHandler> _logger;
 
-        public SetProductPriceHandler(IProductUnitOfWork uow, ILogger<SetProductPriceHandler> logger)
+        public SetProductPriceHandler(IProductUnitOfWork uow, PriceChangeTracker changes, ILogger<SetProductPriceHandler> logger)
         {
             _uow = uow;
+            _changes = changes;
             _logger = logger;
         }
 
@@ -53,17 +61,44 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
             if (variant == null)
                 throw new KeyNotFoundException($"Variant with ID {request.VariantId} not found");
 
-            var oldPrice = variant.Cost;
-            variant.Cost = request.BasePrice;
-            variant.UpdatedAt = DateTime.UtcNow;
-            variant.RequestSearchReindex();
-            if (oldPrice != request.BasePrice)
-                variant.RecordPriceChange(oldPrice, request.BasePrice);
+            var before = await _changes.SnapshotAsync(new[] { variant.ProductId }, cancellationToken);
 
-            await _uow.SaveChangesAsync(cancellationToken);
+            await _uow.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var list = await _uow.PriceLists.GetDefaultRetailListAsync(cancellationToken);
+                var isNewList = list == null;
+                list ??= PriceList.Create(PriceList.DefaultRetailName, DateTime.UtcNow, isActive: true, channel: PriceListChannel.Retail);
 
-            _logger.LogInformation("Price set for variant {VariantId}: Base={BasePrice}, Discounted={DiscountedPrice}",
-                request.VariantId, request.BasePrice, request.DiscountedPrice ?? request.BasePrice);
+                var item = list.Items.FirstOrDefault(i => i.VariantId == request.VariantId && i.MinQuantity == 1);
+                if (item != null)
+                {
+                    list.UpdatePrice(request.VariantId, request.BasePrice, request.DiscountedPrice);
+                }
+                else
+                {
+                    list.AddItem(request.VariantId, request.BasePrice, request.DiscountedPrice);
+                    if (isNewList)
+                        await _uow.PriceLists.AddAsync(list, cancellationToken);   // the whole new graph is added together
+                    else
+                        _uow.PriceLists.MarkItemAdded(list.Items.First(i => i.VariantId == request.VariantId && i.MinQuantity == 1));
+                }
+
+                variant.UpdatedAt = DateTime.UtcNow;
+                variant.RequestSearchReindex();
+                await _uow.SaveChangesAsync(cancellationToken);
+
+                var raised = await _changes.PublishChangesAsync(before, cancellationToken);
+                await _uow.CommitTransactionAsync(cancellationToken);
+
+                _logger.LogInformation("Retail price set for variant {VariantId}: Base={BasePrice}, Discounted={DiscountedPrice}, price event raised: {Raised}",
+                    request.VariantId, request.BasePrice, request.DiscountedPrice ?? request.BasePrice, raised > 0);
+            }
+            catch
+            {
+                await _uow.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
         }
     }
 }

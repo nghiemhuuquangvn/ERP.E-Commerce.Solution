@@ -56,3 +56,15 @@ Nếu dữ liệu không hợp lệ theo quy tắc của hệ thống, một **k
 - Chưa thử trên trình duyệt: tải ảnh lên bằng kéo thả / chọn tệp, lưu biến thể kèm thông số, lưu bảng giá có nhiều mặt hàng — các luồng này chỉ được kiểm bằng kiểm thử tự động và mở hộp thoại.
 - Danh sách thương hiệu hiện chưa có khung "thêm thương hiệu đầu tiên" khi trống; danh mục và thuộc tính cũng vậy.
 - Bảng giá: không có màn hình liệt kê, không sửa được mặt hàng sau khi tạo (giới hạn của hệ thống phía sau).
+
+## 7. Đặt giá bán lẻ cho sản phẩm
+Giá bán lẻ là giá khách trả; **giá vốn** (cột "Giá vốn") là chi phí và không dùng để bán.
+1. Vào **Sản phẩm → Sản phẩm**, mở sản phẩm, chọn thẻ **Biến thể**.
+2. Bảng biến thể có cột **Giá bán lẻ** (hiện **Chưa đặt** nếu biến thể chưa có giá). Bấm **Đặt giá** ở dòng biến thể.
+3. Nhập **Giá bán** và, nếu muốn, **Giá khuyến mãi (không bắt buộc)**. Giá khuyến mãi phải **thấp hơn** giá bán, nếu không hộp thoại báo "Giá khuyến mãi phải thấp hơn giá bán." và không gửi gì. Bấm **Lưu**: thẻ xanh **"Đã lưu."** hiện.
+4. Giá được lưu trong bảng giá **"Default retail"** của cửa hàng (tự tạo ở lần đặt giá đầu tiên), không đổi giá vốn. Danh sách sản phẩm, cửa hàng web, app khách và app nhân viên (POS) đều hiện giá mới; quầy POS nhận giá mới trong vài giây.
+
+Quy tắc chọn giá khi có nhiều bảng giá: chỉ tính bảng giá đang bật, đã đến ngày hiệu lực và chưa hết hạn; ưu tiên kênh **Retail**, nếu không có thì kênh **Ecommerce** (bảng giá **Wholesale** không bao giờ là giá bán lẻ); trong cùng kênh, bảng giá có ngày hiệu lực mới nhất thắng; giá khuyến mãi (nếu có) thắng giá gốc. Sản phẩm nhiều biến thể hiện giá của biến thể **rẻ nhất**. Sản phẩm chưa có giá hiện 0.
+
+Cần quyền `products:edit` để thấy nút **Đặt giá**. Nếu quầy POS của một sản phẩm đặt giá từ trước vẫn hiện giá cũ, quản trị viên gọi `POST /prd/api/v1/pricing/republish` một lần để gửi lại giá hiện tại cho mọi sản phẩm (gọi lại nhiều lần vẫn an toàn). Mô tả nghiệp vụ: [Pricing.md](../business/Product/Pricing.md).
+

@@ -237,5 +237,14 @@ namespace ERP.PRD.Domain.Entities
 
             AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(Id));
         }
+
+        /// <summary>
+        /// Tells POS (price cache) and Sales (open orders) that what this product sells for at retail changed. Prices are per product here (POS keeps one
+        /// price per product), so the figures are the product's "from" price; <paramref name="variantId"/> is the variant that carries it.
+        /// </summary>
+        public void RecordPriceChange(Guid variantId, decimal oldPrice, decimal newPrice)
+        {
+            AddDomainEvent(new ProductPriceChangedDomainEvent(Id, variantId, oldPrice, newPrice));
+        }
     }
 }

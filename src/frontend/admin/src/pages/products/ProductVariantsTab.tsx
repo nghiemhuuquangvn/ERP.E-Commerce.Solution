@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { productsApi } from '@/api/products.api'
 import type { ProductVariant } from '@/api/products.api'
 import { attributesApi } from '@/api/product/attributes.api'
+import { pricingApi } from '@/api/product/pricing.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { usePermission } from '@/hooks/usePermission'
@@ -210,6 +211,74 @@ function VariantModal({
   )
 }
 
+interface PriceFormValues {
+  basePrice: number
+  discountedPrice: number | ''
+}
+
+/** Sets the retail price of one variant (the shop's "Default retail" price list); the cost is not touched. */
+function PriceModal({ productId, variant, current, onClose }: { productId: string; variant: ProductVariant; current?: number | null; onClose: () => void }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const toast = useToast()
+  const { register, handleSubmit, getValues, formState: { errors } } = useForm<PriceFormValues>({
+    defaultValues: { basePrice: current ?? 0, discountedPrice: '' },
+  })
+
+  const mutation = useMutation({
+    mutationFn: (values: PriceFormValues) =>
+      pricingApi.setVariantPrice({
+        variantId: variant.id,
+        basePrice: Number(values.basePrice),
+        // an empty number field reads as NaN (valueAsNumber): no discount
+        discountedPrice: values.discountedPrice === '' || Number.isNaN(Number(values.discountedPrice)) ? null : Number(values.discountedPrice),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products', productId, 'retailPrices'] })
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+      toast.success(t('common.saved'))
+      onClose()
+    },
+  })
+
+  return (
+    <Modal
+      open
+      title={t('products.variants.setPriceTitle')}
+      onClose={onClose}
+      closeOnEsc={!mutation.isPending}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" form="variant-price-form" loading={mutation.isPending}>{t('common.save')}</Button>
+        </>
+      }
+    >
+      <form id="variant-price-form" onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+        <p className="text-sm text-ink-secondary">{t('products.variants.setPriceHelp', { sku: variant.sku })}</p>
+        <FormField label={t('products.variants.basePrice')} required error={errors.basePrice ? t('common.required') : undefined}>
+          <Input type="number" step="0.01" min="0" {...register('basePrice', { required: true, valueAsNumber: true, min: 0 })} />
+        </FormField>
+        <FormField
+          label={t('products.variants.discountedPrice')}
+          error={errors.discountedPrice ? t('products.variants.discountedBelowBase') : undefined}
+        >
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            {...register('discountedPrice', {
+              valueAsNumber: true,
+              validate: (value) => value === '' || Number.isNaN(Number(value)) || Number(value) < Number(getValues('basePrice')),
+            })}
+          />
+        </FormField>
+        {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>}
+      </form>
+    </Modal>
+  )
+}
+
 export function ProductVariantsTab({ productId, categoryId }: { productId: string; categoryId?: string | null }) {
   const { t } = useTranslation()
   const { hasPermission } = usePermission()
@@ -221,11 +290,18 @@ export function ProductVariantsTab({ productId, categoryId }: { productId: strin
     variant: null,
   })
   const [deleteTarget, setDeleteTarget] = useState<ProductVariant | null>(null)
+  const [priceTarget, setPriceTarget] = useState<ProductVariant | null>(null)
 
   const { data: variants, isLoading } = useQuery({
     queryKey: ['products', productId, 'variants'],
     queryFn: () => productsApi.listVariants(productId),
   })
+
+  const { data: retailPrices } = useQuery({
+    queryKey: ['products', productId, 'retailPrices'],
+    queryFn: () => pricingApi.productPrices(productId),
+  })
+  const retailOf = (variantId: string) => retailPrices?.find((p) => p.variantId === variantId)?.retailPrice ?? null
 
   const deleteMutation = useMutation({
     mutationFn: (variantId: string) => productsApi.deleteVariant(productId, variantId),
@@ -250,6 +326,12 @@ export function ProductVariantsTab({ productId, categoryId }: { productId: strin
       align: 'right' as const,
     },
     {
+      key: 'retailPrice',
+      label: t('products.variants.retailPrice'),
+      render: (v: ProductVariant) => (retailOf(v.id) != null ? retailOf(v.id)!.toFixed(2) : <span className="text-ink-muted">{t('products.variants.noRetailPrice')}</span>),
+      align: 'right' as const,
+    },
+    {
       key: 'weight',
       label: t('products.variants.weight'),
       render: (v: ProductVariant) => (v.weight != null ? `${v.weight} ${v.weightUnit ?? ''}` : '—'),
@@ -268,6 +350,9 @@ export function ProductVariantsTab({ productId, categoryId }: { productId: strin
       render: (v: ProductVariant) =>
         canEdit ? (
           <div className="flex gap-3">
+            <Button variant="link" className="text-xs" onClick={() => setPriceTarget(v)}>
+              {t('products.variants.setPrice')}
+            </Button>
             <Button variant="link" className="text-xs"
               onClick={() => setModalState({ open: true, variant: v })}>
               {t('common.edit')}
@@ -299,6 +384,10 @@ export function ProductVariantsTab({ productId, categoryId }: { productId: strin
           variant={modalState.variant}
           onClose={() => setModalState({ open: false, variant: null })}
         />
+      )}
+
+      {priceTarget && (
+        <PriceModal productId={productId} variant={priceTarget} current={retailOf(priceTarget.id)} onClose={() => setPriceTarget(null)} />
       )}
 
       <ConfirmDialog

@@ -9,6 +9,9 @@ namespace ERP.PRD.Domain.Entities
     /// </summary>
     public class PriceList : AggregateRoot
     {
+        /// <summary>Name of the list "Set retail price" keeps for a shop (created on first use).</summary>
+        public const string DefaultRetailName = "Default retail";
+
         public string Name { get; set; } = string.Empty;
         public new string? Description { get; set; }
         public DateTime EffectiveDate { get; set; }

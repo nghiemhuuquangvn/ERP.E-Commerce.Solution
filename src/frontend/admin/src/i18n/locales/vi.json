@@ -627,6 +627,14 @@
       "fileTooLarge": "Hình ảnh vượt quá giới hạn 5 MB."
     },
     "variants": {
+      "retailPrice": "Giá bán lẻ",
+      "noRetailPrice": "Chưa đặt",
+      "setPrice": "Đặt giá",
+      "setPriceTitle": "Đặt giá bán lẻ",
+      "setPriceHelp": "Giá khách trả cho {{sku}}. Giá lưu trong bảng giá \"Default retail\" của shop và được gửi tới các quầy POS; giá vốn không đổi.",
+      "basePrice": "Giá bán",
+      "discountedPrice": "Giá khuyến mãi (không bắt buộc)",
+      "discountedBelowBase": "Giá khuyến mãi phải thấp hơn giá bán.",
       "weightUnit": "Đơn vị khối lượng",
       "dimensionUnit": "Đơn vị kích thước",
       "add": "+ Thêm biến thể",
