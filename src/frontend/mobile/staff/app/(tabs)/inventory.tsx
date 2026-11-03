@@ -7,13 +7,13 @@ import { colors, icon } from '@/theme/theme'
 import { apiClient } from '@/api/client'
 import { Alert, BottomSheet, Button, Card, EmptyState, Screen, Skeleton, TextField, useToast } from '@/components/ui'
 
+// WareHouseService InventoryListItem (same contract as the Admin's inventory.api.ts): the product id is the key.
 interface InventoryItem {
-  id: string
   productId: string
   productName: string
-  sku: string
-  quantityAvailable: number
-  quantityOnHand: number
+  productSku?: string
+  availableQuantity: number
+  totalQuantity: number
 }
 
 export default function InventoryScreen() {
@@ -52,7 +52,7 @@ export default function InventoryScreen() {
     try {
       await apiClient.post('/v1/inventory/adjust', {
         productId: adjusting.productId,
-        quantity: qty - adjusting.quantityOnHand,
+        quantity: qty - adjusting.totalQuantity,
         reason: 'Staff adjustment',
       })
       setAdjusting(null)
@@ -90,7 +90,7 @@ export default function InventoryScreen() {
       ) : (
         <FlatList
           data={data ?? []}
-          keyExtractor={(i) => i.id}
+          keyExtractor={(i) => i.productId}
           keyboardShouldPersistTaps="handled"
           contentContainerClassName="p-4 gap-2"
           renderItem={({ item }) => (
@@ -98,13 +98,13 @@ export default function InventoryScreen() {
               <View className="flex-row items-center justify-between">
                 <View className="flex-1 pr-3">
                   <Text className="font-medium text-ink">{item.productName}</Text>
-                  <Text className="text-sm text-ink-secondary">{item.sku}</Text>
+                  <Text className="text-sm text-ink-secondary">{item.productSku}</Text>
                 </View>
                 <Text
-                  accessibilityLabel={`${t('inventory.available')}: ${item.quantityAvailable}`}
-                  className={`text-lg font-bold ${item.quantityAvailable === 0 ? 'text-danger' : item.quantityAvailable < 5 ? 'text-warning' : 'text-success'}`}
+                  accessibilityLabel={`${t('inventory.available')}: ${item.availableQuantity}`}
+                  className={`text-lg font-bold ${item.availableQuantity === 0 ? 'text-danger' : item.availableQuantity < 5 ? 'text-warning' : 'text-success'}`}
                 >
-                  {item.quantityAvailable}
+                  {item.availableQuantity}
                 </Text>
               </View>
               <View className="mt-3">
@@ -129,7 +129,7 @@ export default function InventoryScreen() {
         {adjusting && (
           <View>
             <Text className="mb-1 font-medium text-ink">{adjusting.productName}</Text>
-            <Text className="mb-3 text-sm text-ink-secondary">{t('inventory.currentQuantity', { quantity: adjusting.quantityOnHand })}</Text>
+            <Text className="mb-3 text-sm text-ink-secondary">{t('inventory.currentQuantity', { quantity: adjusting.totalQuantity })}</Text>
             <TextField
               label={t('inventory.newQuantity')}
               value={value}

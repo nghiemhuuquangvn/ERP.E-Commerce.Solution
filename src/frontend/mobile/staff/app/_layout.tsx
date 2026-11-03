@@ -1,6 +1,7 @@
+import '../global.css'
 import '@/i18n'
 import { useEffect } from 'react'
-import { Stack, useRouter, useSegments } from 'expo-router'
+import { Stack, useRootNavigationState, useRouter, useSegments } from 'expo-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { useAuthStore } from '@/stores/auth.store'
@@ -12,15 +13,18 @@ function AuthGuard() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const segments = useSegments()
   const router = useRouter()
+  // Navigating before the root navigator has mounted throws; wait for its key.
+  const navigationReady = !!useRootNavigationState()?.key
 
   useEffect(() => {
+    if (!navigationReady) return
     const inAuth = segments[0] === '(auth)'
     if (!isAuthenticated && !inAuth) {
       router.replace('/(auth)/login')
     } else if (isAuthenticated && inAuth) {
       router.replace('/(tabs)')
     }
-  }, [isAuthenticated, segments])
+  }, [isAuthenticated, segments, navigationReady])
 
   return null
 }

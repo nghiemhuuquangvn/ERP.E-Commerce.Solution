@@ -19,6 +19,7 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.brandAction,
         tabBarInactiveTintColor: colors.inkMuted,
         tabBarLabelStyle: { fontSize: 12 },
+        tabBarBadgeStyle: { backgroundColor: colors.danger, color: colors.onBrand },
         headerShown: true,
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.ink,

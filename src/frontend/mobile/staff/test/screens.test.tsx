@@ -52,7 +52,7 @@ describe('Login', () => {
 })
 
 describe('Inventory', () => {
-  const item = { id: 'i1', productId: 'p1', productName: 'Blue shirt', sku: 'BS-1', quantityAvailable: 3, quantityOnHand: 10 }
+  const item = { productId: 'p1', productName: 'Blue shirt', productSku: 'BS-1', availableQuantity: 3, totalQuantity: 10 }
 
   it('adjusts stock from a sheet and sends the same request as before (difference to the new quantity)', async () => {
     mockGet.mockResolvedValue({ data: { items: [item] } })

@@ -22,7 +22,7 @@ export function Screen({ children, scroll = true, center = false, edges = ['left
     <View className="flex-1">{children}</View>
   )
   return (
-    <SafeAreaView edges={edges} className="flex-1 bg-page">
+    <SafeAreaView edges={edges} className="flex-1 bg-surface">
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
         {body}
       </KeyboardAvoidingView>
