@@ -6,11 +6,11 @@ namespace ERP.PRD.Application.Features.Products.Queries
     /// row exists, the translated Name/Description are returned and LanguageCode on
     /// the DTO reflects the requested language; otherwise the base entity's own
     /// Name/Description (default-language fallback) are returned and LanguageCode
-    /// reflects that no translation was applied.
+    /// reflects that no translation was applied. The caller passes the product's retail price (0 when it has none).
     /// </summary>
     public static class ProductTranslationMapper
     {
-        public static ProductDto MapToDto(Domain.Entities.Product product, string? languageCode)
+        public static ProductDto MapToDto(Domain.Entities.Product product, string? languageCode, decimal price = 0m)
         {
             var translation = string.IsNullOrEmpty(languageCode)
                 ? null
@@ -35,7 +35,7 @@ namespace ERP.PRD.Application.Features.Products.Queries
                 ImageUrl = primaryImage?.ImageUrl,
                 VariantCount = product.Variants.Count,
                 StockQuantity = product.StockQuantity,
-                Price = 0m, // retail price is stored in PriceList; default 0 until pricing endpoint is called
+                Price = price, // the retail "from" price from the price lists (IProductPriceResolver); 0 = no price set
                 LanguageCode = translation != null ? translation.LanguageCode : "default",
                 CreatedAt = product.CreatedAt,
                 UpdatedAt = product.UpdatedAt

@@ -1408,3 +1408,14 @@ A shop's own HTTPS endpoints (`WebhookEndpoint`, per tenant) receive these event
 | `webhook.test` | only the Admin *Send test* button, to the tested endpoint | `{Message, SentAt}` |
 
 Headers: `X-Event-Type`, `X-Timestamp` (Unix seconds), and `X-Hub-Signature: sha256=<hex HMAC-SHA256(secret, "<timestamp>.<body>")>` when the endpoint has a secret. Endpoints must be public https addresses (`WebhookUrlRules`); redirects are not followed; every attempt is written to `WebhookDeliveries` (30 days).
+
+## ProductPriceChanged (R111, 2026-11-03)
+
+Published by ProductService (outbox -> Kafka `product-topic`, tenant-stamped) when the **retail price of a product** changes: `ProductId`, `VariantId` (the variant carrying the product's "from" price), `OldPrice`, `NewPrice` (0 = no price). Raised on the `Product` aggregate by `PriceChangeTracker` after `POST pricing/variants`, `POST pricing/lists` and `PUT pricing/lists/{id}/channel` when the resolved price differs, and by `POST pricing/republish` with old = new for every priced product. The price is resolved by `RetailPriceRules` (see docs/business/Product/Pricing.md); the variant's `Cost` is never published as a price.
+
+| Consumer | What it does |
+|---|---|
+| POSService (`PosKafkaConsumer` -> `PosProductCache.Price`) | refreshes the cached price (one per product) |
+| SaleOrderService (`ProductPriceChangedConsumer`) | flags open orders whose lines contain the product when old != new (an event with old = new is ignored) |
+| PromotionService, ReportingService | **do not** consume it (older docs said they did) |
+

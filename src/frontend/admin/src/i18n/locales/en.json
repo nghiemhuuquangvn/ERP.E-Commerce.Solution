@@ -627,6 +627,14 @@
       "fileTooLarge": "Image exceeds the 5 MB limit."
     },
     "variants": {
+      "retailPrice": "Retail price",
+      "noRetailPrice": "Not set",
+      "setPrice": "Set price",
+      "setPriceTitle": "Set retail price",
+      "setPriceHelp": "The price customers pay for {{sku}}. It is kept in the shop's \"Default retail\" price list and sent to the POS tills; the cost is not changed.",
+      "basePrice": "Price",
+      "discountedPrice": "Discounted price (optional)",
+      "discountedBelowBase": "The discounted price must be lower than the price.",
       "weightUnit": "Weight unit",
       "dimensionUnit": "Dimension unit",
       "add": "+ Add Variant",

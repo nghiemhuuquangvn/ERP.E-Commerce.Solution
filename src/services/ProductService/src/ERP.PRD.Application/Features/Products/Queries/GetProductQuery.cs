@@ -34,10 +34,12 @@ namespace ERP.PRD.Application.Features.Products.Queries
     public class GetProductHandler : IRequestHandler<GetProductQuery, ProductDto>
     {
         private readonly IProductUnitOfWork _uow;
+        private readonly IProductPriceResolver _prices;
 
-        public GetProductHandler(IProductUnitOfWork uow)
+        public GetProductHandler(IProductUnitOfWork uow, IProductPriceResolver prices)
         {
             _uow = uow;
+            _prices = prices;
         }
 
         public async Task<ProductDto> Handle(GetProductQuery request, CancellationToken cancellationToken)
@@ -48,7 +50,8 @@ namespace ERP.PRD.Application.Features.Products.Queries
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {request.ProductId} not found");
 
-            return ProductTranslationMapper.MapToDto(product, request.LanguageCode);
+            var prices = await _prices.GetProductPricesAsync(new[] { product.Id }, cancellationToken);
+            return ProductTranslationMapper.MapToDto(product, request.LanguageCode, prices.TryGetValue(product.Id, out var p) ? p.Price : 0m);
         }
     }
 }

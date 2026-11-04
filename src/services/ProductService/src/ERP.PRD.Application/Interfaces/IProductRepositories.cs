@@ -92,6 +92,14 @@ namespace ERP.PRD.Application.Interfaces
         Task<PriceList?> GetByIdWithItemsAsync(Guid id, CancellationToken ct = default);
         Task<ProductVariant?> GetVariantByIdAsync(Guid variantId, CancellationToken ct = default);
         Task AddAsync(PriceList priceList, CancellationToken ct = default);
+
+        /// <summary>The shop's "Default retail" list (tracked, with its items), or null before the first price was set.</summary>
+        Task<PriceList?> GetDefaultRetailListAsync(CancellationToken ct = default);
+
+        /// <summary>A row added to a list that is already tracked must be marked Added: its Id is client-assigned, so EF would otherwise treat it as existing (same trap as R38).</summary>
+        void MarkItemAdded(PriceListItem item);
+
+        Task<List<Guid>> GetProductIdsOfVariantsAsync(IEnumerable<Guid> variantIds, CancellationToken ct = default);
     }
 
     public interface IBrandRepository

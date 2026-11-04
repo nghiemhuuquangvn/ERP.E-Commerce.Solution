@@ -33,10 +33,12 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
     public class SetPriceListChannelHandler : IRequestHandler<SetPriceListChannelCommand, Unit>
     {
         private readonly IProductUnitOfWork _uow;
+        private readonly PriceChangeTracker _changes;
 
-        public SetPriceListChannelHandler(IProductUnitOfWork uow)
+        public SetPriceListChannelHandler(IProductUnitOfWork uow, PriceChangeTracker changes)
         {
             _uow = uow;
+            _changes = changes;
         }
 
         public async Task<Unit> Handle(SetPriceListChannelCommand request, CancellationToken cancellationToken)
@@ -46,9 +48,23 @@ namespace ERP.PRD.Application.Features.Pricing.Commands
             if (priceList == null)
                 throw new KeyNotFoundException($"Price list with ID {request.PriceListId} not found");
 
-            priceList.SetChannelAndCurrency(request.Channel, request.CurrencyId);
+            // Moving a list to or from the retail channels changes what its products sell for: tell POS / Sales.
+            var productIds = await _uow.PriceLists.GetProductIdsOfVariantsAsync(priceList.Items.Select(i => i.VariantId), cancellationToken);
+            var before = await _changes.SnapshotAsync(productIds, cancellationToken);
 
-            await _uow.SaveChangesAsync(cancellationToken);
+            await _uow.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                priceList.SetChannelAndCurrency(request.Channel, request.CurrencyId);
+                await _uow.SaveChangesAsync(cancellationToken);
+                await _changes.PublishChangesAsync(before, cancellationToken);
+                await _uow.CommitTransactionAsync(cancellationToken);
+            }
+            catch
+            {
+                await _uow.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
 
             return Unit.Value;
         }

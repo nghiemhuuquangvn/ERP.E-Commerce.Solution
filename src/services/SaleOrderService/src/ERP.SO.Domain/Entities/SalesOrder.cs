@@ -325,6 +325,9 @@ namespace ERP.SO.Domain.Entities
         /// <summary>Only meaningful before the order has shipped — after that the price a customer already paid isn't retroactively changed by a later catalog price update.</summary>
         public void FlagPriceChanged(Guid productId, decimal oldPrice, decimal newPrice)
         {
+            if (oldPrice == newPrice)
+                return;   // a re-sent price (Product republish) is not a change
+
             if (Status is OrderStatus.Shipped or OrderStatus.PartiallyShipped or OrderStatus.Delivered or OrderStatus.Cancelled or OrderStatus.Returned)
                 return;
 

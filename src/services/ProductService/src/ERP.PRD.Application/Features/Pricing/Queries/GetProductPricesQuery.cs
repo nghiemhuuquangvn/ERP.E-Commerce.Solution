@@ -13,17 +13,22 @@ namespace ERP.PRD.Application.Features.Pricing.Queries
         public Guid VariantId { get; set; }
         public string Sku { get; set; } = string.Empty;
         public decimal Cost { get; set; }
+
+        /// <summary>What the variant sells for at retail now (price lists, RetailPriceRules); null = no retail price set.</summary>
+        public decimal? RetailPrice { get; set; }
         public DateTime UpdatedAt { get; set; }
     }
 
     public class GetProductPricesHandler : IRequestHandler<GetProductPricesQuery, List<VariantPriceDto>>
     {
         private readonly IProductUnitOfWork _uow;
+        private readonly IProductPriceResolver _prices;
         private readonly ILogger<GetProductPricesHandler> _logger;
 
-        public GetProductPricesHandler(IProductUnitOfWork uow, ILogger<GetProductPricesHandler> logger)
+        public GetProductPricesHandler(IProductUnitOfWork uow, IProductPriceResolver prices, ILogger<GetProductPricesHandler> logger)
         {
             _uow = uow;
+            _prices = prices;
             _logger = logger;
         }
 
@@ -35,11 +40,14 @@ namespace ERP.PRD.Application.Features.Pricing.Queries
 
             var prices = await _uow.Variants.GetPricesByProductIdAsync(request.ProductId, cancellationToken);
 
+            var retail = await _prices.GetVariantPricesAsync(prices.Select(v => v.VariantId).ToList(), cancellationToken);
+
             var dtos = prices.Select(v => new VariantPriceDto
             {
                 VariantId = v.VariantId,
                 Sku = v.Sku,
                 Cost = v.Cost,
+                RetailPrice = retail.TryGetValue(v.VariantId, out var rp) ? rp : null,
                 UpdatedAt = v.UpdatedAt
             }).ToList();
 

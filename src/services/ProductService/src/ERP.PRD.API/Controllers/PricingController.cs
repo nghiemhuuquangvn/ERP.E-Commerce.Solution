@@ -43,6 +43,18 @@ namespace ERP.PRD.API.Controllers
         }
 
         /// <summary>
+        /// Re-sends the current retail price of every priced product to POS and the other consumers (idempotent).
+        /// </summary>
+        [HttpPost("republish")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
+        public async Task<IActionResult> RepublishPrices()
+        {
+            var result = await _mediator.Send(new RepublishPricesCommand());
+            return Ok(result);
+        }
+
+        /// <summary>
         /// Get all prices for a product
         /// </summary>
         /// <param name="productId">Product ID</param>

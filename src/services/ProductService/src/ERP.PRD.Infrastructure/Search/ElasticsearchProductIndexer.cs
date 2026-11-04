@@ -1,3 +1,4 @@
+using ERP.PRD.Application.Interfaces;
 using ERP.PRD.Domain.Entities;
 using ERP.PRD.Domain.Enums;
 using ERP.PRD.Domain.Search;
@@ -19,17 +20,20 @@ namespace ERP.PRD.Infrastructure.Search
     public class ElasticsearchProductIndexer : IProductSearchIndexer
     {
         private readonly ProductDbContext _context;
+        private readonly IProductPriceResolver _prices;
         private readonly ElasticsearchClient _client;
         private readonly ILogger<ElasticsearchProductIndexer> _logger;
         private readonly string _indexName;
 
         public ElasticsearchProductIndexer(
             ProductDbContext context,
+            IProductPriceResolver prices,
             ElasticsearchClient client,
             IConfiguration configuration,
             ILogger<ElasticsearchProductIndexer> logger)
         {
             _context = context;
+            _prices = prices;
             _client = client;
             _logger = logger;
             _indexName = configuration.GetValue<string>("Elasticsearch:IndexName") ?? "products";
@@ -80,20 +84,8 @@ namespace ERP.PRD.Infrastructure.Search
                 attributeValues.Where(v => v.OwnerType == AttributeOwnerType.Product && v.OwnerId == productId),
                 attributes);
 
-            // Price resolution: effective price per variant from active, currently-effective
-            // price lists (PriceListItem.EffectivePrice = DiscountedPrice ?? BasePrice).
-            var now = DateTime.UtcNow;
-            var effectivePrices = await _context.PriceLists
-                .Where(pl => pl.IsActive && pl.EffectiveDate <= now && (pl.ExpiryDate == null || pl.ExpiryDate > now))
-                .SelectMany(pl => pl.Items.Select(i => new { pl.EffectiveDate, i.VariantId, i.BasePrice, i.DiscountedPrice }))
-                .Where(x => variantIds.Contains(x.VariantId))
-                .ToListAsync(cancellationToken);
-
-            var priceByVariant = effectivePrices
-                .GroupBy(x => x.VariantId)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.OrderByDescending(x => x.EffectiveDate).Select(x => x.DiscountedPrice ?? x.BasePrice).First());
+            // Price resolution: the same retail rule the product DTOs use (RetailPriceRules via IProductPriceResolver).
+            var priceByVariant = await _prices.GetVariantPricesAsync(variantIds, cancellationToken);
 
             var variantDocs = new List<ProductVariantSearchDocument>();
             foreach (var variant in variants)
