@@ -3,8 +3,8 @@ import { useAuthStore } from '@/stores/auth.store'
 import { MODULES } from '@/modules'
 import type { ErpModule } from '@/modules/types'
 
-/** The tab bar holds this many modules; the others are listed on the More screen. */
-export const MAX_TAB_MODULES = 4
+/** The tab bar holds this many modules; every visible module is also in the side menu, which is the only way to the others. */
+export const MAX_TAB_MODULES = 3
 
 /**
  * Modules this user may open: the token has one of the module's permissions (never a role name), and, when the token lists

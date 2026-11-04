@@ -2,10 +2,12 @@ import '../global.css'
 import '@/i18n'
 import { useEffect } from 'react'
 import { Stack, useRootNavigationState, useRouter, useSegments } from 'expo-router'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
 import { Spinner, ToastHost } from '@/components/ui'
-import { View } from 'react-native'
+import { SideMenu } from '@/components/SideMenu'
+import { AppState, View } from 'react-native'
 import { useAuthStore } from '@/stores/auth.store'
 import { colors } from '@/theme/theme'
 
@@ -46,7 +48,18 @@ function Booting() {
   )
 }
 
+/** Tells react-query when the app is in the foreground, so the unread-count polling pauses in the background. */
+function useForegroundFocus() {
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => focusManager.setFocused(state === 'active'))
+    return () => sub.remove()
+  }, [])
+}
+
 export default function RootLayout() {
+  const { t } = useTranslation()
+  const signedIn = useAuthStore((s) => s.status === 'signedIn')
+  useForegroundFocus()
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
@@ -57,11 +70,13 @@ export default function RootLayout() {
             headerTintColor: colors.ink,
           }}
         >
+          <Stack.Screen name="notifications/index" options={{ headerShown: true, title: t('notifications.title') }} />
           <Stack.Screen name="purchase/[id]" options={{ headerShown: true }} />
           <Stack.Screen name="sales/[id]" options={{ headerShown: true }} />
           <Stack.Screen name="hrm/leave/[id]" options={{ headerShown: true }} />
           <Stack.Screen name="hrm/employee/[id]" options={{ headerShown: true }} />
         </Stack>
+        {signedIn ? <SideMenu /> : null}
         <AuthGuard />
         <Booting />
         <ToastHost top={72} />

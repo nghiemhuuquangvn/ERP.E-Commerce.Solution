@@ -41,7 +41,6 @@
     "signInError": "Wrong email or password.",
     "networkError": "Cannot reach the server. Check the connection."
   },
-  "tabs": { "more": "More" },
   "modules": {
     "dashboard": "Home",
     "purchase": "Purchasing",
@@ -64,16 +63,48 @@
   },
   "status": {
     "po": {
-      "DRAFT": "Draft", "SUBMITTED": "Submitted", "ORDERED": "Ordered", "PENDING_FINANCE_APPROVAL": "Pending finance",
-      "PARTIALLY_RECEIVED": "Partly received", "APPROVED": "Approved", "RECEIVED": "Received", "REJECTED": "Rejected", "CANCELLED": "Cancelled"
+      "DRAFT": "Draft",
+      "SUBMITTED": "Submitted",
+      "ORDERED": "Ordered",
+      "PENDING_FINANCE_APPROVAL": "Pending finance",
+      "PARTIALLY_RECEIVED": "Partly received",
+      "APPROVED": "Approved",
+      "RECEIVED": "Received",
+      "REJECTED": "Rejected",
+      "CANCELLED": "Cancelled"
     },
     "so": {
-      "Draft": "Draft", "Submitted": "Submitted", "Picked": "Picked", "Shipped": "Shipped", "PartiallyShipped": "Partly shipped",
-      "ReturnRequested": "Return requested", "Approved": "Approved", "Delivered": "Delivered", "Rejected": "Rejected", "Cancelled": "Cancelled", "Returned": "Returned"
+      "Draft": "Draft",
+      "Submitted": "Submitted",
+      "Picked": "Picked",
+      "Shipped": "Shipped",
+      "PartiallyShipped": "Partly shipped",
+      "ReturnRequested": "Return requested",
+      "Approved": "Approved",
+      "Delivered": "Delivered",
+      "Rejected": "Rejected",
+      "Cancelled": "Cancelled",
+      "Returned": "Returned"
     },
-    "leave": { "Pending": "Pending", "Approved": "Approved", "Rejected": "Rejected", "Cancelled": "Cancelled" },
-    "employee": { "Active": "Active", "OnLeave": "On leave", "Terminated": "Terminated" },
-    "attendance": { "Present": "Present", "Late": "Late", "Absent": "Absent", "HalfDay": "Half day", "OnLeave": "On leave", "Holiday": "Holiday" }
+    "leave": {
+      "Pending": "Pending",
+      "Approved": "Approved",
+      "Rejected": "Rejected",
+      "Cancelled": "Cancelled"
+    },
+    "employee": {
+      "Active": "Active",
+      "OnLeave": "On leave",
+      "Terminated": "Terminated"
+    },
+    "attendance": {
+      "Present": "Present",
+      "Late": "Late",
+      "Absent": "Absent",
+      "HalfDay": "Half day",
+      "OnLeave": "On leave",
+      "Holiday": "Holiday"
+    }
   },
   "po": {
     "searchLabel": "Search purchase orders",
@@ -122,7 +153,11 @@
     "cancelled": "{{number}} cancelled."
   },
   "hr": {
-    "tab": { "employees": "Employees", "leave": "Leave", "attendance": "Attendance" },
+    "tab": {
+      "employees": "Employees",
+      "leave": "Leave",
+      "attendance": "Attendance"
+    },
     "searchEmployees": "Search employees",
     "noEmployees": "No employees found.",
     "noLeave": "No leave requests here.",
@@ -149,7 +184,13 @@
     "rejected": "Leave for {{name}} rejected.",
     "cancelled": "Leave for {{name}} cancelled."
   },
-  "leaveType": { "Annual": "Annual leave", "Sick": "Sick leave", "Unpaid": "Unpaid leave", "Maternity": "Maternity leave", "Paternity": "Paternity leave" },
+  "leaveType": {
+    "Annual": "Annual leave",
+    "Sick": "Sick leave",
+    "Unpaid": "Unpaid leave",
+    "Maternity": "Maternity leave",
+    "Paternity": "Paternity leave"
+  },
   "more": {
     "tenant": "Tenant",
     "server": "Server",
@@ -157,5 +198,25 @@
     "signOut": "Sign out",
     "signOutTitle": "Sign out?",
     "signOutHint": "You will need to sign in again to use the app."
+  },
+  "header": {
+    "openMenu": "Open menu",
+    "notifications": "Notifications",
+    "notificationsUnread_one": "Notifications, {{count}} unread",
+    "notificationsUnread_other": "Notifications, {{count}} unread"
+  },
+  "menu": {
+    "close": "Close menu",
+    "notifications": "Notifications",
+    "unreadCount_one": "{{count}} unread",
+    "unreadCount_other": "{{count}} unread"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet.",
+    "emptyHint": "New messages for you appear here.",
+    "unread": "Unread",
+    "read": "Read",
+    "noSubject": "(no subject)"
   }
 }

@@ -35,8 +35,14 @@ Output `src/frontend/mobile/apk/admin-<tenant>-preview.apk` (git-ignored); diffe
 ## Sign-in
 `POST /api/v1/auth/login {email, password, userType: 2}` (the Admin web's user type). `requiresTwoFactor` opens the code step (`2fa/verify {challengeId, code}`, `2fa/resend`). The access token (about 10 KB, it lists every permission) stays in memory; the **refresh token** is the only secret kept (keystore). At start the app refreshes once; a refused token is forgotten, an unreachable server keeps it. Sign out clears both and tells the server.
 
+## Navigation and notifications
+- **Header** (tab screens): menu button (`components/MenuButton`), title, bell (`components/NotificationBell`), tenant chip.
+- **Side menu** `components/SideMenu` is mounted once in `app/_layout.tsx` while signed in; `stores/menu.store.ts` holds open / closed. It is our own `Modal` + `Animated` panel: no drawer library and no native dependency (a drawer library needs gesture-handler and a new APK). It lists `useVisibleModules().visible`, the inbox, language, tenant / server / version and Sign out.
+- **Tab bar** = the first `MAX_TAB_MODULES` (3) visible modules; the rest have `href: null` and are reached from the menu. There is no More tab.
+- **Notifications** `features/notifications/`: `api.ts` (Gateway `/ntf/api/v1/notifications`), `useUnreadCount` (react-query, polling every 60 s, paused in the background by `focusManager` wired to `AppState` in `app/_layout.tsx`), `NotificationsScreen` (route `app/notifications/index.tsx`). Needs `notifications:view`; without it there is no bell and no call.
+
 ## Modules and the registry
-`modules/index.ts` lists every `ErpModule` (`modules/types.ts`). A user sees a module when the token holds **one of its permissions** (an empty list = everybody) and, if the token lists licensed modules at all, the module's code is among them. The first 4 visible modules are tabs (`app/(tabs)/_layout.tsx` builds the tab bar from the registry and hides the rest with `href: null`); the others are listed on **More**.
+`modules/index.ts` lists every `ErpModule` (`modules/types.ts`). A user sees a module in the menu (and, for the first three, in the tab bar) when the token holds **one of its permissions** (an empty list = everybody) and, if the token lists licensed modules at all, the module's code is among them. The first 4 visible modules are tabs (`app/(tabs)/_layout.tsx` builds the tab bar from the registry and hides the rest with `href: null`); the others are listed on **More**.
 
 **Add a module** (e.g. Warehouse):
 1. `modules/warehouse/` with `api.ts` (calls through `gatewayClient`/`apiClient`; normalise the server's paged shape to `{items,total}`), the screens, and `index.ts` exporting an `ErpModule` (`id`, `titleKey`, `icon`, `route`, `permissions`, `licensedModule`, `order`, optional `attention` lines for Home).

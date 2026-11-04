@@ -53,12 +53,12 @@ describe('what a user sees', () => {
     expect(ids(visibleModules(perms, []))).toEqual(['dashboard', 'purchase', 'sales'])
   })
 
-  it('modules beyond the tab limit go to More', () => {
+  it('modules beyond the tab limit are reached from the side menu only', () => {
     const extra: ErpModule[] = Array.from({ length: 3 }, (_, i) => ({ id: `x${i}`, titleKey: 't', icon: MODULES[0].icon, route: `x${i}`, permissions: [], order: 100 + i }))
     const everything = MODULES.flatMap((m) => m.permissions)
     const { tabs, overflow } = splitTabs(visibleModules(everything, [], [...MODULES, ...extra]))
     expect(tabs).toHaveLength(MAX_TAB_MODULES)
-    expect(ids(overflow)).toEqual(['x0', 'x1', 'x2'])
+    expect(ids(overflow)).toEqual(['hrm', 'x0', 'x1', 'x2'])
   })
 })
 

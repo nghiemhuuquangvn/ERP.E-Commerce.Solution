@@ -44,7 +44,9 @@ The mockup is HTML only because it is a picture. The app is Expo / React Native:
 **Purchasing / Sales list** `View` > `SearchField` > `FilterChips` > `FlatList` of `Card` rows (number as mono `Text`, `StatusBadge`, party, amount, date) > `OfflineBanner` on top when offline.
 **Detail** `Screen scroll` > header number + `StatusBadge` > `Card DetailRows` > `Card` of `LineItemRow`s + total > notes `Card` > (Sales) anomaly `Alert warning` > `ApprovalBar` below the scroll. Tapping Approve opens `ConfirmSheet`; Reject / Cancel open `ReasonSheet`; refusal -> `Alert danger` with the server sentence; success -> toast + refreshed item.
 **HR** `SegmentedControl` (Employees | Leave | Attendance) > per segment: `SearchField`/`FilterChips` > `FlatList`. Leave row `Card` + inline Approve / Reject `Button`s (open the same sheets). Employee and attendance rows are read only.
-**More** `Screen` > profile `Card` > `DetailRows` (tenant, language switch, version) > `Button outline danger` Sign out (opens `ConfirmSheet`).
+**Header** `MenuButton` (Lucide `Menu`, label "Open menu"), title, `NotificationBell` (Lucide `Bell`, badge `View` bg-danger with `Text` 1-99 / 99+, label "Notifications, N unread"), `TenantChip`.
+**Side menu** `Modal` > left `Animated.View` panel (84 % of the width, max 340) + right scrim `Pressable` (closes) > `ScrollView`: user name / e-mail / `TenantChip` + Close `X`, then a `menu` of rows (icon, title; selected = bg-brand-soft + `accessibilityState.selected`; the Notifications row shows the unread number), language `SegmentedControl`, `DetailRows` (tenant, server, version), `Button outline` Sign out (opens `ConfirmSheet`).
+**Notifications inbox** `PagedListView` of `Card` rows: unread dot (bg-brand-action), subject (bold when unread), body (2 lines, all when opened), date; label "Unread: ..." / "Read: ..."; `EmptyState` when empty; `NoAccess` on a 403.
 
 ## 5. Status -> `Badge` tone (colour never alone, label always shown)
 | Domain | neutral | info | warning | success | danger |
