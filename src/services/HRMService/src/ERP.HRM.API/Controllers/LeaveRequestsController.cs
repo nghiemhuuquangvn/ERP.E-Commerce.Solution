@@ -21,7 +21,8 @@ public class LeaveRequestsController : ControllerBase
     }
 
     /// <summary>
-    /// List leave requests with optional filtering by employee and status.
+    /// List leave requests with optional filtering by employee, status, a day range (requests whose leave period touches it, both days inclusive)
+    /// and part of the request number.
     /// </summary>
     [HttpGet]
     [AuthorizePermission("hrm:leave:manage")]
@@ -31,12 +32,15 @@ public class LeaveRequestsController : ControllerBase
     public async Task<IActionResult> List(
         [FromQuery] Guid? employeeId = null,
         [FromQuery] int? status = null,
+        [FromQuery] DateOnly? dateFrom = null,
+        [FromQuery] DateOnly? dateTo = null,
+        [FromQuery] string? search = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
         var result = await _mediator.Send(
-            new ListLeaveRequestsQuery(employeeId, status, page, pageSize),
+            new ListLeaveRequestsQuery(employeeId, status, page, pageSize, dateFrom, dateTo, search),
             cancellationToken);
         return Ok(result);
     }

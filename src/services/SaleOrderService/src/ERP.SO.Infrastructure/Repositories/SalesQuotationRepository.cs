@@ -1,3 +1,4 @@
+using ERP.SO.Application.Queries;
 using ERP.SO.Application.Interfaces;
 using ERP.SO.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -36,19 +37,14 @@ namespace ERP.SO.Infrastructure.Repositories
                 .OrderByDescending(q => q.Id)
                 .ToListAsync(ct);
 
-        public async Task<List<SalesQuotation>> GetAllAsync(int skip = 0, int take = 20, CancellationToken ct = default)
-            => await _context.SalesQuotations.AsNoTracking()
-                .OrderByDescending(q => q.Id)
+        public async Task<List<SalesQuotation>> GetAllAsync(int skip, int take, QuotationListFilter filter, CancellationToken ct = default)
+            => await filter.Apply(_context.SalesQuotations.AsNoTracking())
+                .OrderByDescending(q => q.CreatedAt).ThenByDescending(q => q.QuotationNo)
                 .Skip(skip)
                 .Take(take)
                 .ToListAsync(ct);
 
-        public async Task<int> GetTotalCountAsync(Guid? customerId = null, CancellationToken ct = default)
-        {
-            var query = _context.SalesQuotations.AsNoTracking();
-            if (customerId.HasValue)
-                query = query.Where(q => q.CustomerId == customerId);
-            return await query.CountAsync(ct);
-        }
+        public async Task<int> GetTotalCountAsync(QuotationListFilter filter, CancellationToken ct = default)
+            => await filter.Apply(_context.SalesQuotations.AsNoTracking()).CountAsync(ct);
     }
 }

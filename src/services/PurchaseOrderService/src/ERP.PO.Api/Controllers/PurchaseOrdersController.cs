@@ -90,10 +90,13 @@ public class PurchaseOrdersController : ControllerBase
     /// Yêu cầu quyền: purchase_order:read
     /// </summary>
     /// <param name="supplierId">Filter by supplier ID (optional)</param>
-    /// <param name="status">Filter by status (optional)</param>
+    /// <param name="status">Filter by status, e.g. SUBMITTED or PENDING_FINANCE_APPROVAL (optional; an unknown value is refused)</param>
+    /// <param name="dateFrom">First order day, yyyy-MM-dd, inclusive (optional)</param>
+    /// <param name="dateTo">Last order day, yyyy-MM-dd, inclusive (optional)</param>
+    /// <param name="search">Part of the PO number or the supplier name (optional)</param>
     /// <param name="pageNumber">Page number (default: 1)</param>
     /// <param name="pageSize">Page size (default: 10)</param>
-    /// <returns>List of purchase orders</returns>
+    /// <returns>One page of purchase orders: items, totalCount, pageNumber, pageSize</returns>
     [HttpGet]
     [AuthorizePermission(PermissionConstants.PurchaseOrder_Read)]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -102,6 +105,9 @@ public class PurchaseOrdersController : ControllerBase
     public async Task<IActionResult> GetPurchaseOrders(
         [FromQuery] Guid? supplierId = null,
         [FromQuery] string? status = null,
+        [FromQuery] DateOnly? dateFrom = null,
+        [FromQuery] DateOnly? dateTo = null,
+        [FromQuery] string? search = null,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10)
     {
@@ -112,6 +118,9 @@ public class PurchaseOrdersController : ControllerBase
         {
             SupplierId = supplierId,
             Status = status,
+            DateFrom = dateFrom,
+            DateTo = dateTo,
+            Search = search,
             PageNumber = pageNumber,
             PageSize = pageSize
         };

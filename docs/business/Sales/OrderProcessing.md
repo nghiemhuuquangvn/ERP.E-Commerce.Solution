@@ -140,3 +140,6 @@ No new report. The saga status is on the order page only.
 | Task | Date | Requirements | Main tests |
 |---|---|---|---|
 | P1-5 saga completion | 2026-10-26 | FR-S1 … S14, BR-S1 … S9, UC-S1 … S4, UAT-S1 … S14 | `SagaTimeoutTests`, `DeliveryConfirmedTests`, `CompleteReturnTests` (SO); `SagaShipmentRequestProcessorTests` (SHP); `RestockReturnedOrderTests`, `SalesOrderEventContractTests` (WH); `RefundReturnedOrderTests` (PAY); `StockMovementPostingTests` (ACC) |
+
+## List filters (2026-11-04, Admin mobile app)
+`GET orders` and `GET quotations` filter, count and page in the database: `status` (unknown = 400, not a server error), `dateFrom` / `dateTo` (order day, for a quotation the day it was made; inclusive; start after end = 400), `search` (order / quotation number or customer name), `customerId`, `page`, `pageSize` (max 100). The quotation customer filter now runs in the query (it used to run after paging); the quotation summary carries `quotationDate`. Tests: `ListOrdersTests`, `ListQuotationsTests`.

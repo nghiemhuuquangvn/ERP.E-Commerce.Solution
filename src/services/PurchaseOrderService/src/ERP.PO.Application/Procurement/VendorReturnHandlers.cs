@@ -17,7 +17,7 @@ public record ShipVendorReturnCommand(Guid ReturnId) : IRequest<VendorReturnDto>
 public record CancelVendorReturnCommand(Guid ReturnId) : IRequest<VendorReturnDto>;
 public record RecordVendorCreditCommand(Guid ReturnId, string CreditNoteNumber, decimal CreditAmount) : IRequest<VendorReturnDto>;
 public record GetVendorReturnQuery(Guid ReturnId) : IRequest<VendorReturnDto?>;
-public record ListVendorReturnsQuery(Guid? PurchaseOrderId, string? Status) : IRequest<List<VendorReturnSummaryDto>>;
+public record ListVendorReturnsQuery(Guid? PurchaseOrderId, string? Status, DateOnly? DateFrom = null, DateOnly? DateTo = null, string? Search = null) : IRequest<List<VendorReturnSummaryDto>>;
 
 internal static class VendorReturnMapper
 {
@@ -127,8 +127,8 @@ public class ListVendorReturnsQueryHandler : IRequestHandler<ListVendorReturnsQu
 
     public async Task<List<VendorReturnSummaryDto>> Handle(ListVendorReturnsQuery request, CancellationToken ct)
     {
-        VendorReturnStatus? status = Enum.TryParse<VendorReturnStatus>(request.Status, true, out var s) ? s : null;
-        var list = await _store.ListReturnsAsync(request.PurchaseOrderId, status, ct);
+        var status = ListWindow.ParseStatus<VendorReturnStatus>(request.Status, "vendor return");
+        var list = await _store.ListReturnsAsync(request.PurchaseOrderId, status, new ListWindow(request.DateFrom, request.DateTo, request.Search), ct);
         var names = await _store.GetSupplierNamesAsync(list.Select(r => r.SupplierId), ct);
         return list.Select(r => new VendorReturnSummaryDto(r.Id, r.ReturnNumber, r.PONumber, names.GetValueOrDefault(r.SupplierId, string.Empty), r.CurrencyCode, r.Status.ToString(), r.Value, r.CreatedAt)).ToList();
     }

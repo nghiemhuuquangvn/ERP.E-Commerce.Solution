@@ -55,6 +55,22 @@ public class SupplierHandlerTests
     }
 
     [Fact]
+    public async Task GetSuppliers_search_matches_code_or_name_ignoring_case()
+    {
+        _repository.Setup(r => r.GetAllAsync(TenantId, It.IsAny<CancellationToken>())).ReturnsAsync(new[]
+        {
+            NewSupplier("SUP-100", "Alpha Plastics"),
+            NewSupplier("SUP-200", "Bravo Metals"),
+        });
+        var handler = new GetSuppliersQueryHandler(_repository.Object, _userContext.Object, _mapper);
+
+        (await handler.Handle(new GetSuppliersQuery { Search = " metal " }, default)).Select(s => s.Name).Should().Equal("Bravo Metals");
+        (await handler.Handle(new GetSuppliersQuery { Search = "sup-100" }, default)).Select(s => s.Name).Should().Equal("Alpha Plastics");
+        (await handler.Handle(new GetSuppliersQuery { Search = "  " }, default)).Should().HaveCount(2);
+        (await handler.Handle(new GetSuppliersQuery { Search = "zzz" }, default)).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task GetSupplierById_returns_null_when_supplier_is_not_in_the_tenant()
     {
         var handler = new GetSupplierByIdQueryHandler(_repository.Object, _userContext.Object, _mapper);

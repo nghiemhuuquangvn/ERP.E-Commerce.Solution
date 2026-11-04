@@ -124,10 +124,15 @@ namespace ERP.SO.Api.Controllers
         public async Task<IActionResult> ListOrders(
             [FromQuery] Guid? customerId,
             [FromQuery] string? status,
+            [FromQuery] DateOnly? dateFrom = null,
+            [FromQuery] DateOnly? dateTo = null,
+            [FromQuery] string? search = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
         {
+            page = Math.Max(1, page);
+            pageSize = Math.Min(100, Math.Max(1, pageSize));
             if (!_userContext.HasPermission("sales_order:read"))
             {
                 return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:read required" });
@@ -137,6 +142,9 @@ namespace ERP.SO.Api.Controllers
             {
                 CustomerId = customerId,
                 Status = status,
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                Search = search,
                 Skip = (page - 1) * pageSize,
                 Take = pageSize
             };

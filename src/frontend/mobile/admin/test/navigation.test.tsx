@@ -97,7 +97,8 @@ describe('Side menu', () => {
     useMenuStore.setState({ open: true })
     renderScreen(<SideMenu />)
     fireEvent.press(await screen.findByLabelText('HR'))
-    expect(mockNavigate).toHaveBeenCalledWith('/(tabs)/hrm')
+    // the first HR function this account may open (leave requests), not the employees screen it cannot use
+    expect(mockNavigate).toHaveBeenCalledWith('/(tabs)/hrm-leave')
   })
 
   it('shows the Notifications row with the unread number and opens the inbox', async () => {

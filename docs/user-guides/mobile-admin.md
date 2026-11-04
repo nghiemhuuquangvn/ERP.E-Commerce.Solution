@@ -13,7 +13,22 @@ Màn hình ghi "Đăng nhập vào" kèm nhãn tenant của bản cài (ví dụ
 - Tài khoản của tenant khác không đăng nhập được vào bản cài của tenant này.
 
 ## 2. Các tab
-Thanh dưới có tối đa 3 mục (Trang chủ và hai mục tiếp theo). Mục còn lại (ví dụ **Nhân sự** khi tài khoản có đủ bốn mục) mở từ **menu ☰** ở góc trên bên trái. Chỉ hiện mục tài khoản được phép dùng (theo quyền và gói giấy phép của tenant): **Trang chủ**, **Mua hàng**, **Bán hàng**, **Nhân sự**. Góc trên bên phải có **chuông thông báo** và nhãn tenant.
+Thanh dưới **đổi theo nơi anh/chị đang đứng**. Ở **Trang chủ** thanh dưới liệt kê các module (Trang chủ, Mua hàng, Bán hàng, Nhân sự). Khi vào một module, thanh dưới hiện **Trang chủ** (để quay lại) và **các nghiệp vụ của module đó**; nghiệp vụ nào không vừa nằm sau mục **Thêm** (bấm để xem phần còn lại). Chỉ hiện nghiệp vụ tài khoản được phép dùng (theo quyền và gói giấy phép của tenant). Menu ☰ vẫn liệt kê mọi module và mở module ở nghiệp vụ đầu tiên được phép. Góc trên bên phải có **chuông thông báo** và nhãn tenant.
+
+| Module | Nghiệp vụ (mỗi mục cần quyền riêng) |
+|---|---|
+| Mua hàng | Đơn mua · Nhà cung cấp · Hóa đơn NCC · Trả hàng NCC · Yêu cầu báo giá |
+| Bán hàng | Đơn bán · Báo giá · Hoa hồng |
+| Nhân sự | Nhân viên · Nghỉ phép · Chấm công · Bảng lương · Ca làm việc |
+
+Các nghiệp vụ mới (nhà cung cấp, hóa đơn NCC, trả hàng NCC, yêu cầu báo giá, báo giá, hoa hồng, bảng lương, ca làm việc) hiện **chỉ để xem** (danh sách), chưa có màn hình chi tiết; duyệt hóa đơn nhà cung cấp vẫn làm trên web.
+
+### Bộ lọc
+Mọi danh sách có **ô tìm** (mã đơn hoặc tên) và nút **Bộ lọc** (hiện số bộ lọc đang bật). Bấm **Bộ lọc** để chọn:
+- **Trạng thái** (Tất cả hoặc một trạng thái);
+- **Kỳ**: Tất cả · Tháng · Quý · Năm — bấm ‹ › để sang kỳ trước/sau; hoặc **Tùy chọn** để chọn **Từ ngày** và **Đến ngày** trên lịch (cả hai ngày đều được tính). Nếu ngày bắt đầu sau ngày kết thúc, app báo lỗi và chưa lọc;
+- **Đặt lại** đưa về bộ lọc ban đầu, **Xong** đóng bảng. Mỗi bộ lọc đang bật hiện thành một thẻ nhỏ dưới ô tìm; bấm thẻ để bỏ lọc.
+Máy chủ lọc và đếm tổng trên toàn bộ dữ liệu (không chỉ các dòng đã tải). Bảng lương **bắt buộc chọn kỳ** (tháng, quý, năm hoặc khoảng ngày; tối đa 24 tháng).
 
 ### Menu ☰
 Bấm ☰ để mở bảng trượt từ bên trái: tên và email, tenant, danh sách mục được phép dùng (mục đang mở được tô nền), **Thông báo**, **Ngôn ngữ**, địa chỉ máy chủ, phiên bản và **Đăng xuất** (có hỏi xác nhận). Bấm một mục để mở; bấm vùng tối bên ngoài, nút ✕ hoặc phím Back để đóng.

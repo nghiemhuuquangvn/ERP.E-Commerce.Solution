@@ -73,12 +73,12 @@ namespace ERP.SO.Application.Handlers
 
         public async Task<ListOrdersResponse> Handle(ListOrdersQuery request, CancellationToken cancellationToken)
         {
-            var status = string.IsNullOrEmpty(request.Status) ? (OrderStatus?)null : Enum.Parse<OrderStatus>(request.Status);
-            var total = await _repository.GetTotalCountAsync(request.CustomerId, status, cancellationToken);
+            var filter = new OrderListFilter(request.CustomerId, OrderListFilter.ParseStatus(request.Status), request.DateFrom, request.DateTo, request.Search);
+            var total = await _repository.GetTotalCountAsync(filter, cancellationToken);
 
             // The filters belong in the query: filtering a page afterwards showed a page of "all" orders minus the ones that did not
             // match, while the total counted every match (a status filter on page 1 could be empty with hundreds of matches).
-            var orders = await _repository.GetAllAsync(request.Skip, request.Take, request.CustomerId, status, cancellationToken);
+            var orders = await _repository.GetAllAsync(request.Skip, request.Take, filter, cancellationToken);
 
             // One GetByCustomerIdAsync per distinct customer on this page (not per
             // order) — a page is at most `Take` orders, so this is bounded and cheap

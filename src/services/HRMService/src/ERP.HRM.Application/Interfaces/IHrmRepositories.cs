@@ -1,3 +1,4 @@
+using ERP.HRM.Application.Queries;
 using ERP.HRM.Domain.Entities;
 
 namespace ERP.HRM.Application.Interfaces;
@@ -25,8 +26,7 @@ public interface ILeaveRequestRepository
 {
     Task<LeaveRequest?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<LeaveRequest> Items, int TotalCount)> ListAsync(
-        Guid? employeeId,
-        int? status,
+        LeaveRequestFilter filter,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);

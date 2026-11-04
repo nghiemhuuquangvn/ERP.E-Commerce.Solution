@@ -104,6 +104,43 @@
       "HalfDay": "Half day",
       "OnLeave": "On leave",
       "Holiday": "Holiday"
+    },
+    "rfq": {
+      "Draft": "Draft",
+      "Sent": "Sent",
+      "Awarded": "Awarded",
+      "Cancelled": "Cancelled"
+    },
+    "invoice": {
+      "Recorded": "Recorded",
+      "Matched": "Matched",
+      "OnHold": "On hold",
+      "Approved": "Approved",
+      "Rejected": "Rejected"
+    },
+    "vendorReturn": {
+      "Draft": "Draft",
+      "Shipped": "Shipped",
+      "Credited": "Credited",
+      "Cancelled": "Cancelled"
+    },
+    "quotation": {
+      "Draft": "Draft",
+      "Sent": "Sent",
+      "Accepted": "Accepted",
+      "Rejected": "Rejected",
+      "Expired": "Expired",
+      "Converted": "Converted"
+    },
+    "commission": {
+      "Pending": "Pending",
+      "Approved": "Approved",
+      "Paid": "Paid"
+    },
+    "payslip": {
+      "Pending": "Pending",
+      "Paid": "Paid",
+      "Cancelled": "Cancelled"
     }
   },
   "po": {
@@ -182,7 +219,13 @@
     "cancelTitle": "Cancel leave for {{name}}?",
     "approved": "Leave for {{name}} approved.",
     "rejected": "Leave for {{name}} rejected.",
-    "cancelled": "Leave for {{name}} cancelled."
+    "cancelled": "Leave for {{name}} cancelled.",
+    "searchLeave": "Search leave requests",
+    "searchPaySlips": "Search pay slips",
+    "noPaySlips": "No pay slips in this period.",
+    "noShifts": "No work shifts.",
+    "gross": "Gross",
+    "net": "Net"
   },
   "leaveType": {
     "Annual": "Annual leave",
@@ -218,5 +261,95 @@
     "unread": "Unread",
     "read": "Read",
     "noSubject": "(no subject)"
+  },
+  "filters": {
+    "title": "Filters",
+    "open": "Open filters",
+    "openActive_one": "Open filters, {{count}} active",
+    "openActive_other": "Open filters, {{count}} active",
+    "clear": "Clear filter {{name}}",
+    "status": "Status",
+    "period": "Period",
+    "kind": {
+      "all": "All time",
+      "month": "Month",
+      "quarter": "Quarter",
+      "year": "Year",
+      "custom": "Custom"
+    },
+    "previousPeriod": "Previous period",
+    "nextPeriod": "Next period",
+    "from": "From date",
+    "to": "To date",
+    "noDate": "Choose a date",
+    "today": "Today",
+    "clearDate": "Clear date",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "rangeError": "The start date is after the end date.",
+    "reset": "Reset",
+    "done": "Done",
+    "weekday": {
+      "mon": "Mo",
+      "tue": "Tu",
+      "wed": "We",
+      "thu": "Th",
+      "fri": "Fr",
+      "sat": "Sa",
+      "sun": "Su"
+    }
+  },
+  "tabs": {
+    "more": "More"
+  },
+  "sections": {
+    "purchaseOrders": "Orders",
+    "suppliers": "Suppliers",
+    "supplierInvoices": "Invoices",
+    "vendorReturns": "Returns",
+    "rfqs": "RFQs",
+    "salesOrders": "Orders",
+    "quotations": "Quotations",
+    "commissions": "Commissions",
+    "employees": "Employees",
+    "leave": "Leave",
+    "attendance": "Attendance",
+    "payslips": "Pay slips",
+    "shifts": "Shifts"
+  },
+  "lists": {
+    "suppliers": {
+      "search": "Search suppliers",
+      "empty": "No suppliers found.",
+      "active": "Active",
+      "inactive": "Inactive",
+      "terms_one": "Payment terms: {{count}} day",
+      "terms_other": "Payment terms: {{count}} days"
+    },
+    "invoices": {
+      "search": "Search supplier invoices",
+      "empty": "No supplier invoices found.",
+      "due": "due {{date}}"
+    },
+    "returns": {
+      "search": "Search returns to vendors",
+      "empty": "No returns to vendors found."
+    },
+    "rfqs": {
+      "search": "Search requests for quotation",
+      "empty": "No requests for quotation found.",
+      "counts": "{{lines}} lines · {{invited}} invited · {{quoted}} quoted",
+      "needed": "needed by {{date}}"
+    },
+    "quotations": {
+      "search": "Search quotations",
+      "empty": "No quotations found.",
+      "validUntil": "valid until {{date}}"
+    },
+    "commissions": {
+      "search": "Commissions",
+      "empty": "No commissions in this period.",
+      "calculated": "Calculated {{date}}"
+    }
   }
 }

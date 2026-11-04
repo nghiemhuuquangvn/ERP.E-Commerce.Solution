@@ -1,1 +1,1 @@
-export { default } from '@/modules/hrm/HrmScreen'
+export { EmployeesScreen as default } from '@/modules/hrm/HrScreens'

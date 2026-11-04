@@ -18,6 +18,12 @@ export const STATUS_TONE: Record<string, Record<string, Tone>> = {
   },
   leave: { Pending: 'warning', Approved: 'success', Rejected: 'danger', Cancelled: 'neutral' },
   employee: { Active: 'success', OnLeave: 'warning', Terminated: 'neutral' },
+  rfq: { Draft: 'neutral', Sent: 'info', Awarded: 'success', Cancelled: 'danger' },
+  invoice: { Recorded: 'neutral', Matched: 'info', OnHold: 'warning', Approved: 'success', Rejected: 'danger' },
+  vendorReturn: { Draft: 'neutral', Shipped: 'info', Credited: 'success', Cancelled: 'danger' },
+  quotation: { Draft: 'neutral', Sent: 'info', Accepted: 'success', Rejected: 'danger', Expired: 'neutral', Converted: 'success' },
+  commission: { Pending: 'warning', Approved: 'info', Paid: 'success' },
+  payslip: { Pending: 'warning', Paid: 'success', Cancelled: 'neutral' },
   attendance: { Present: 'success', Late: 'warning', Absent: 'danger', HalfDay: 'warning', OnLeave: 'info', Holiday: 'neutral' },
 }
 

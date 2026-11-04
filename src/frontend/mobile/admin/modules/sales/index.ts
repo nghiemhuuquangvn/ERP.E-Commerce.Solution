@@ -1,4 +1,4 @@
-import { Package } from 'lucide-react-native'
+import { BadgePercent, FilePen, Package, ClipboardList } from 'lucide-react-native'
 import type { ErpModule } from '@/modules/types'
 import { salesApi } from '@/modules/sales/api'
 
@@ -8,6 +8,11 @@ export const salesModule: ErpModule = {
   icon: Package,
   route: 'sales',
   permissions: ['sales_order:read'],
+  sections: [
+    { id: 'sales-orders', titleKey: 'sections.salesOrders', icon: ClipboardList, route: 'sales', permissions: ['sales_order:read'], order: 10 },
+    { id: 'sales-quotations', titleKey: 'sections.quotations', icon: FilePen, route: 'sales-quotations', permissions: ['sales_order:read'], order: 20 },
+    { id: 'sales-commissions', titleKey: 'sections.commissions', icon: BadgePercent, route: 'sales-commissions', permissions: ['sales_order:read'], order: 30 },
+  ],
   licensedModule: 'SO',
   order: 30,
   attention: [

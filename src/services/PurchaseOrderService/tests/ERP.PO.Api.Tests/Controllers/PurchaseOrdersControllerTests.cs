@@ -122,10 +122,14 @@ public class PurchaseOrdersControllerTests
     {
         SetupUserContext("user@example.com");
 
-        var poList = new List<PurchaseOrderDto>
+        var poList = new PurchaseOrderPage
         {
+            Items = new List<PurchaseOrderDto>
+            {
             new() { Id = Guid.NewGuid(), PONumber = "PO-2024-003", Status = "Draft" },
             new() { Id = Guid.NewGuid(), PONumber = "PO-2024-004", Status = "Submitted" }
+            },
+            TotalCount = 2, PageNumber = 1, PageSize = 10
         };
 
         _mockMediator.Setup(m => m.Send(It.IsAny<GetPurchaseOrdersQuery>(), It.IsAny<CancellationToken>()))

@@ -59,16 +59,26 @@ namespace ERP.SO.Api.Controllers
         [ProducesResponseType(typeof(ListQuotationsResponse), StatusCodes.Status200OK)]
         public async Task<IActionResult> ListQuotations(
             [FromQuery] Guid? customerId,
+            [FromQuery] string? status,
+            [FromQuery] DateOnly? dateFrom = null,
+            [FromQuery] DateOnly? dateTo = null,
+            [FromQuery] string? search = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
         {
+            page = Math.Max(1, page);
+            pageSize = Math.Min(100, Math.Max(1, pageSize));
             if (!_userContext.HasPermission("sales_order:read"))
                 return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:read required" });
 
             var result = await _mediator.Send(new ListQuotationsQuery
             {
                 CustomerId = customerId,
+                Status = status,
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                Search = search,
                 Skip = (page - 1) * pageSize,
                 Take = pageSize
             }, cancellationToken);

@@ -28,11 +28,9 @@ namespace ERP.SO.Application.Handlers
 
         public async Task<ListQuotationsResponse> Handle(ListQuotationsQuery request, CancellationToken cancellationToken)
         {
-            var total = await _repository.GetTotalCountAsync(request.CustomerId, cancellationToken);
-            var quotations = await _repository.GetAllAsync(request.Skip, request.Take, cancellationToken);
-
-            if (request.CustomerId.HasValue)
-                quotations = quotations.Where(q => q.CustomerId == request.CustomerId).ToList();
+            var filter = new QuotationListFilter(request.CustomerId, QuotationListFilter.ParseStatus(request.Status), request.DateFrom, request.DateTo, request.Search);
+            var total = await _repository.GetTotalCountAsync(filter, cancellationToken);
+            var quotations = await _repository.GetAllAsync(request.Skip, request.Take, filter, cancellationToken);
 
             return new ListQuotationsResponse
             {
@@ -45,7 +43,8 @@ namespace ERP.SO.Application.Handlers
                     QuotationNo = q.QuotationNo,
                     Status = q.Status.ToString(),
                     TotalAmount = q.TotalAmount,
-                    ValidUntil = q.ValidUntil
+                    ValidUntil = q.ValidUntil,
+                    QuotationDate = q.CreatedAt
                 }).ToList()
             };
         }

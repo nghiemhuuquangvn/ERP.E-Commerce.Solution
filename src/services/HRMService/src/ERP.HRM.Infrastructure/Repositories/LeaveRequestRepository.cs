@@ -1,3 +1,4 @@
+using ERP.HRM.Application.Queries;
 using ERP.HRM.Application.Interfaces;
 using ERP.HRM.Domain.Entities;
 using ERP.HRM.Infrastructure.Persistence;
@@ -31,21 +32,12 @@ public class LeaveRequestRepository : ILeaveRequestRepository
     }
 
     public async Task<(IReadOnlyList<LeaveRequest> Items, int TotalCount)> ListAsync(
-        Guid? employeeId,
-        int? status,
+        LeaveRequestFilter filter,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default)
     {
-        var query = _context.LeaveRequests
-            .Where(lr => !lr.IsDeleted)
-            .AsQueryable();
-
-        if (employeeId.HasValue)
-            query = query.Where(lr => lr.EmployeeId == employeeId.Value);
-
-        if (status.HasValue)
-            query = query.Where(lr => lr.LeaveStatus == status.Value);
+        var query = filter.Apply(_context.LeaveRequests.AsQueryable());
 
         var totalCount = await query.CountAsync(cancellationToken);
 
