@@ -16,7 +16,7 @@ namespace ERP.SO.Application.Handlers
         Task AddAsync(SalesOrder order, CancellationToken ct = default);
         Task UpdateAsync(SalesOrder order, CancellationToken ct = default);
         Task<List<SalesOrder>> GetByCustomerIdAsync(Guid customerId, CancellationToken ct = default);
-        Task<List<SalesOrder>> GetAllAsync(int skip = 0, int take = 20, CancellationToken ct = default);
+        Task<List<SalesOrder>> GetAllAsync(int skip = 0, int take = 20, Guid? customerId = null, OrderStatus? status = null, CancellationToken ct = default);
         Task<int> GetTotalCountAsync(Guid? customerId = null, OrderStatus? status = null, CancellationToken ct = default);
         Task<List<SalesOrder>> GetByStatusAsync(OrderStatus status, CancellationToken ct = default);
         Task<List<SalesOrder>> GetOpenOrdersContainingProductAsync(Guid productId, CancellationToken ct = default);

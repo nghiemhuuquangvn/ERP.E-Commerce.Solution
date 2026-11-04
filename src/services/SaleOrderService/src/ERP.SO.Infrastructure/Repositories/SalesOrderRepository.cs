@@ -46,10 +46,13 @@ namespace ERP.SO.Infrastructure.Repositories
                 .ToListAsync(ct);
         }
 
-        public async Task<List<SalesOrder>> GetAllAsync(int skip = 0, int take = 20, CancellationToken ct = default)
+        public async Task<List<SalesOrder>> GetAllAsync(int skip = 0, int take = 20, Guid? customerId = null, OrderStatus? status = null, CancellationToken ct = default)
         {
-            return await _context.SalesOrders
-                .AsNoTracking()
+            var query = _context.SalesOrders.AsNoTracking();
+            if (customerId.HasValue) query = query.Where(o => o.CustomerId == customerId);
+            if (status.HasValue) query = query.Where(o => o.Status == status);
+
+            return await query
                 .OrderByDescending(o => o.OrderDate)
                 .Skip(skip)
                 .Take(take)

@@ -21,6 +21,7 @@ Tài liệu từng bước cho nhân viên cửa hàng, viết bằng tiếng Vi
 | Cửa hàng trực tuyến cho khách mua hàng (duyệt, giỏ hàng, thanh toán 3 bước, đăng nhập, tài khoản, dùng trên điện thoại) | [storefront.md](storefront.md) |
 | Ứng dụng di động cho khách mua hàng (đăng nhập, tìm kiếm, giỏ hàng, đơn hàng, ngôn ngữ) | [mobile-customer.md](mobile-customer.md) |
 | Ứng dụng di động cho nhân viên (bán hàng POS, tồn kho, giao hàng) | [mobile-staff.md](mobile-staff.md) |
+| Ứng dụng quản trị ERP trên điện thoại (trang chủ, duyệt đơn mua / đơn bán / nghỉ phép, nhân sự; mỗi tenant một bản cài) | [mobile-admin.md](mobile-admin.md) |
 | Vận chuyển → Hoàn hàng | [shipping-returns.md](shipping-returns.md) |
 | Cài đặt → Webhook | [notification-webhooks.md](notification-webhooks.md) |
 | Cài đặt → Mẫu thông báo | [notification-templates.md](notification-templates.md) |
