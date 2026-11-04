@@ -16,6 +16,7 @@ public class AddTransactionItemCommand : IRequest<TransactionDto>
     public Guid ProductId { get; set; }
     public string ProductName { get; set; } = string.Empty;
     public int Quantity { get; set; }
+    /// <summary>Ignored since R113: the line is priced by the POS product cache (fed by ProductPriceChanged); the reply carries the real price. Kept so older clients still deserialize.</summary>
     public decimal UnitPrice { get; set; }
     public decimal TaxRate { get; set; }
 }

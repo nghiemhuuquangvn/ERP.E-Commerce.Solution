@@ -9,6 +9,7 @@ using ERP.SO.Api.Middleware;
 using ERP.SO.Application.Handlers;
 using ERP.SO.Application.Interfaces;
 using ERP.SO.Application.Sagas;
+using ERP.SO.Application.Services;
 using ERP.SO.Application.Validators;
 using ERP.SO.Infrastructure;
 using ERP.SO.Infrastructure.BackgroundJobs;
@@ -74,6 +75,11 @@ builder.Services.AddHttpClient<IPromotionServiceClient, PromotionServiceClient>(
 // the order's tenant.
 builder.Services.AddHttpClient<IWarehouseServiceClient, WarehouseServiceClient>()
     .AddServiceToken("warehouse");
+
+// ProductService client + the one pricing rule (R113): an order / quotation line is priced by the server, never by the client; fails closed.
+builder.Services.AddHttpClient<IProductPriceClient, ProductPriceClient>()
+    .AddServiceToken("product");
+builder.Services.AddScoped<LinePricer>();
 
 // ShippingService client - the delivery fee the customer pays (ROADMAP P1-11b); fails closed like the stock check.
 builder.Services.AddHttpClient<IShippingServiceClient, ShippingServiceClient>()

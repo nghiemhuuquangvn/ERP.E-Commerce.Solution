@@ -23,6 +23,7 @@ Năm tab: **Trang chủ**, **Tìm kiếm**, **Giỏ hàng** (hiện số mặt h
 - **Tóm tắt đơn hàng:** tạm tính, tổng cộng. **Thanh toán bằng:** chỉ hiện những gì cửa hàng đang nhận (thanh toán khi nhận hàng, VNPay, MoMo, ZaloPay).
 - Nút đặt hàng ghi sẵn số tiền, ví dụ "Đặt hàng · $30.00". Chưa đăng nhập thì ứng dụng hỏi đăng nhập trước.
 - Đặt không được: thông báo đỏ ở cuối màn hình và **giỏ hàng được giữ nguyên**.
+- **Giá thay đổi:** khi mở tab Giỏ hàng (và mỗi khi giỏ đổi), ứng dụng đối chiếu giá với cửa hàng. Giá đã đổi thì đầu giỏ hiện khung vàng **"Một số giá đã thay đổi"** kèm từng dòng "Sản phẩm: giá cũ → giá mới", giỏ đã được cập nhật; bấm **Đóng** để ẩn. Đặt hàng mà giá vừa đổi: đơn bị từ chối, khung vàng hiện lại, giỏ được giữ; lý do khác (ví dụ sản phẩm chưa có giá) hiện nguyên văn trong thông báo. Sản phẩm chưa có giá ghi **"Chưa có giá"** và nút thêm vào giỏ bị khóa.
 - Thanh toán trực tuyến: ứng dụng mở trang của cổng thanh toán; quay lại ứng dụng, màn hình đơn hàng tự cập nhật kết quả. Nếu chưa vào được cổng, bấm **Thanh toán ngay**.
 
 ## 5. Đơn hàng

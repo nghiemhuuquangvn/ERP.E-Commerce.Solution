@@ -2,6 +2,8 @@
   <div class="mx-auto max-w-3xl px-4 py-10">
     <h1 ref="heading" tabindex="-1" class="mb-6 text-2xl font-bold text-ink outline-none">{{ t('checkout.title') }}</h1>
 
+    <PriceChangeNotice />
+
     <Stepper
       class="mb-8"
       :steps="[t('checkout.stepShipping'), t('checkout.stepPayment'), t('checkout.stepReview')]"
@@ -107,6 +109,7 @@
 import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import PriceChangeNotice from '@/components/cart/PriceChangeNotice.vue'
 import Alert from '@/components/ui/Alert.vue'
 import Button from '@/components/ui/Button.vue'
 import FormField from '@/components/ui/FormField.vue'
@@ -115,6 +118,7 @@ import Spinner from '@/components/ui/Spinner.vue'
 import Stepper from '@/components/ui/Stepper.vue'
 import { useMoney } from '@/composables/useMoney'
 import { useCartStore } from '@/stores/cart.store'
+import { serverMessage } from '@/utils/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
 import { ordersApi } from '@/api/orders.api'
 import { paymentsApi } from '@/api/payments.api'
@@ -148,6 +152,7 @@ const paymentMethods = computed(() =>
 const isOnline = computed(() => offered.value.find((m) => m.code === paymentMethod.value)?.isGateway ?? false)
 
 onMounted(async () => {
+  void cartStore.refreshPrices()   // the remembered cart may carry old prices (R113)
   try {
     offered.value = await paymentsApi.methods()
     paymentMethod.value = offered.value[0]?.code ?? ''
@@ -247,8 +252,11 @@ async function placeOrder() {
       }
     }
     router.push(`/order-confirmation/${order.orderId}`)
-  } catch {
-    error.value = t('checkout.placeOrderError')
+  } catch (e) {
+    // A refusal because a price moved: the cart takes the shop's current prices and the notice lists them (nothing else to say); any other refusal shows the
+    // server's own sentence, else the generic one. The cart is never cleared here (R113).
+    const changes = await cartStore.refreshPrices()
+    error.value = changes.length ? '' : serverMessage(e, t('checkout.placeOrderError'))
   } finally {
     placing.value = false
   }

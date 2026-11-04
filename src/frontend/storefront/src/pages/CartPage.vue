@@ -2,6 +2,8 @@
   <div class="mx-auto max-w-4xl px-4 py-10">
     <h1 class="mb-6 text-2xl font-bold text-ink">{{ t('cart.title') }}</h1>
 
+    <PriceChangeNotice />
+
     <EmptyState v-if="items.length === 0" :title="t('cart.empty')">
       <template #icon><ShoppingCart :size="40" :stroke-width="1.75" aria-hidden="true" /></template>
       <Button to="/products">{{ t('cart.browseProducts') }}</Button>
@@ -57,8 +59,9 @@
 
 <script setup lang="ts">
 import { Package, ShoppingCart, Trash2 } from 'lucide-vue-next'
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import PriceChangeNotice from '@/components/cart/PriceChangeNotice.vue'
 import Button from '@/components/ui/Button.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import PriceText from '@/components/ui/PriceText.vue'
@@ -73,6 +76,11 @@ const items = computed(() => cartStore.items)
 const subtotal = computed(() => cartStore.subtotal)
 const couponDiscount = computed(() => cartStore.couponDiscount)
 const total = computed(() => cartStore.total)
+
+// the cart is remembered between visits: its prices are checked against the shop's current ones when it is opened (R113)
+onMounted(() => {
+  void cartStore.refreshPrices()
+})
 
 function updateQty(productId: string, qty: number) {
   cartStore.updateQuantity(productId, qty)

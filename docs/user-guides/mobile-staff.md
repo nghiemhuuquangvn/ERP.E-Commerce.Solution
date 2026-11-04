@@ -18,6 +18,7 @@ Nhập **Email** và **Mật khẩu** (bắt buộc). Để trống: mỗi ô hi
 4. **Sửa số lượng:** mỗi dòng có nút **Giảm** / **Tăng** (về 0 thì bỏ dòng).
 5. Phần dưới màn hình hiện **Tạm tính**, **Thuế (10 %)** và **Tổng**; chọn phương thức **Tiền mặt**, **Thẻ tín dụng** hoặc **Ví điện tử**.
 6. Bấm **Hoàn tất giao dịch** (khóa khi chưa có dòng nào hoặc chưa chọn máy POS). Thành công: thông báo xanh "Hoàn tất giao dịch. Tổng: …" và đơn bán được xóa để làm đơn mới (máy POS vẫn giữ). Thất bại: thông báo đỏ, **các dòng vẫn còn** để thử lại; "Bạn không có quyền bán hàng." nghĩa là tài khoản thiếu quyền `pos:transactions`.
+- **Máy chủ tính giá:** giá mỗi dòng do máy chủ quyết định (không dùng giá app gửi). Nếu bấm **Hoàn tất giao dịch** mà có giá khác với giá đang hiện, giao dịch **chưa hoàn tất**: giỏ được cập nhật theo giá của máy chủ và hiện khung vàng **"Giá đã thay đổi"** (từng dòng "Sản phẩm: giá cũ → giá mới"); kiểm tra tổng rồi bấm **Hoàn tất giao dịch** lần nữa để xác nhận. Thất bại giữa chừng thì bấm lại an toàn: dòng hàng không bị thêm hai lần. Lý do máy chủ từ chối (ví dụ "… chưa có giá nên không bán được") hiện nguyên văn.
 - Thuế 10 % đang cố định trong ứng dụng (máy chủ chưa gửi thuế suất theo sản phẩm).
 - Chưa thử quét bằng điện thoại thật: cần người phụ trách thử theo mục UAT trong tài liệu BA.
 

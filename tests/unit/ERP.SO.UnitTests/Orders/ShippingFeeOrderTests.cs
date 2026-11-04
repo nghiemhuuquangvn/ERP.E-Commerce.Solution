@@ -6,6 +6,7 @@ using ERP.SO.Application.DTOs;
 using ERP.SO.Application.Handlers;
 using ERP.SO.Application.Interfaces;
 using ERP.SO.Application.Sagas;
+using ERP.SO.Application.Services;
 using ERP.SO.Domain.Entities;
 using ERP.SO.Domain.Events;
 using ERP.SO.Domain.Sagas;
@@ -103,6 +104,7 @@ public class ShippingFeeOrderTests
     private readonly Mock<IPromotionServiceClient> _promotions = new();
     private readonly Mock<IWarehouseServiceClient> _warehouse = new();
     private readonly Mock<IShippingServiceClient> _shipping = new();
+    private readonly Mock<IProductPriceClient> _prices = new();
     private readonly Mock<IMessageBus> _bus = new();
 
     private CreateOrderCommandHandler Handler()
@@ -112,12 +114,15 @@ public class ShippingFeeOrderTests
         _warehouse.Setup(w => w.CheckAvailabilityAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new StockAvailabilityResult { IsAvailable = true, AvailableQuantity = 100 });
         _bus.Setup(b => b.PublishAsync(It.IsAny<object>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        // the system price of every product is the 100,000 the command sends (R113: the server prices the lines)
+        _prices.Setup(p => p.GetPricesAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyCollection<Guid> ids, CancellationToken _) => (IReadOnlyDictionary<Guid, decimal>?)ids.ToDictionary(id => id, _ => 100_000m));
         var user = new Mock<IUserContextService>();
         user.Setup(u => u.GetCurrentUser()).Returns(new UserContext { UserId = "u", TenantId = Tenant.ToString() });
         var numbers = new Mock<IOrderNumberGenerator>();
         numbers.Setup(n => n.NextAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("SO-1");
         var saga = new OrderFulfillmentSaga(_uow.Object, _bus.Object, new Mock<IMediator>().Object, NullLogger<OrderFulfillmentSaga>.Instance);
-        return new CreateOrderCommandHandler(_uow.Object, _promotions.Object, _warehouse.Object, _shipping.Object, saga, user.Object, numbers.Object);
+        return new CreateOrderCommandHandler(_uow.Object, _promotions.Object, _warehouse.Object, _shipping.Object, new LinePricer(_prices.Object), saga, user.Object, numbers.Object);
     }
 
     private static CreateOrderCommand Command(string? coupon = null) => new()
@@ -129,7 +134,7 @@ public class ShippingFeeOrderTests
         PaymentMethod = "COD",
         CouponCode = coupon,
         ShippingAddress = new AddressDto { Street = "1 Le Loi", Ward = "Phuong Ben Nghe", City = "Quan 1", State = "Ho Chi Minh", Country = "Vietnam" },
-        LineItems = new List<OrderLineItemDto> { new() { ProductId = Guid.NewGuid(), ProductName = "Shirt", Quantity = 2, UnitPrice = 100_000m } },
+        LineItems = new List<OrderLineItemInput> { new() { ProductId = Guid.NewGuid(), ProductName = "Shirt", Quantity = 2, UnitPrice = 100_000m } },
     };
 
     [Fact]

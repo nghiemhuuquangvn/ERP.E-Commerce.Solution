@@ -70,7 +70,7 @@
 | Depends On | Type | Method | Event(s) | Purpose |
 |-----------|------|--------|----------|---------|
 | Identity | REST | ValidateUser | — | User/role check |
-| Product | REST | GetProduct, GetProductBySku, CheckAvailability | — | Price lookup, stock check |
+| Product | REST | GetProduct, GetProductBySku, CheckAvailability, `internal/v1/product-prices` (R113) | ProductPriceChanged | Server-side pricing of every order / quotation line (fail closed), stock check |
 | Promotion | REST | ValidateCoupon, GetDiscountRules | — | Apply discount codes |
 | Warehouse | EVENT | — | InventoryReserved | Confirm inventory allocated |
 | Accounting | EVENT | — | InvoiceCreated | Invoice to post |

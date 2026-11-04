@@ -27,6 +27,11 @@
     "noProductsHint": "Hãy thử từ khóa khác."
   },
   "cart": {
+    "priceChangedTitle": "Một số giá đã thay đổi",
+    "priceChangedLine": "{{name}}: {{was}} → {{now}}",
+    "priceRemovedLine": "{{name}}: sản phẩm không còn giá bán nên đã được bỏ khỏi giỏ",
+    "priceChangedHint": "Giỏ hàng đã được cập nhật. Kiểm tra lại tổng tiền rồi đặt hàng.",
+    "priceChangedDismiss": "Đóng",
     "signInRequiredTitle": "Yêu cầu đăng nhập",
     "signInRequiredMessage": "Vui lòng đăng nhập để đặt hàng.",
     "errorPlacingOrder": "Đặt hàng thất bại. Vui lòng thử lại.",
@@ -125,6 +130,7 @@
     "profile": "Hồ sơ"
   },
   "product": {
+    "priceUnavailable": "Chưa có giá",
     "back": "Quay lại",
     "loading": "Đang tải sản phẩm…",
     "loadFailed": "Không tải được sản phẩm này. Vui lòng thử lại.",

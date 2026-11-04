@@ -31,6 +31,7 @@
     "featuredProducts": "Sản phẩm nổi bật"
   },
   "product": {
+    "priceUnavailable": "Chưa có giá",
     "searchPlaceholder": "Tìm kiếm sản phẩm…",
     "sortNewest": "Mới nhất",
     "sortPriceAsc": "Giá: Thấp đến Cao",
@@ -53,6 +54,11 @@
     "inStock": "Còn hàng"
   },
   "cart": {
+    "priceChangedTitle": "Một số giá đã thay đổi",
+    "priceChangedLine": "{name}: {was} → {now}",
+    "priceRemovedLine": "{name}: sản phẩm không còn giá bán nên đã được bỏ khỏi giỏ",
+    "priceChangedHint": "Giỏ hàng đã được cập nhật. Kiểm tra lại tổng tiền rồi đặt hàng.",
+    "priceChangedDismiss": "Đóng",
     "title": "Giỏ hàng của bạn",
     "empty": "Giỏ hàng của bạn đang trống.",
     "browseProducts": "Xem sản phẩm →",

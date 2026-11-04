@@ -41,6 +41,11 @@ spec:
           value: "http://warehouseservice:5004"
         - name: Services__PromotionServiceBaseUrl
           value: "http://promotionservice:5012"
+        - name: Services__ShippingServiceBaseUrl
+          value: "http://shippingservice:5010"
+        # the order is priced by ProductService, never by the client (R113)
+        - name: Services__ProductServiceBaseUrl
+          value: "http://productservice:5008"
         - name: ASPNETCORE_URLS
           value: "http://+:5002"
         - name: Cache__InstanceName

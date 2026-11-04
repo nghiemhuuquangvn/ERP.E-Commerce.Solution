@@ -8,8 +8,11 @@ namespace ERP.SO.Application.Commands
         public Guid CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
         public string CustomerEmail { get; set; } = string.Empty;
-        public List<QuotationLineItemDto> LineItems { get; set; } = new();
+        public List<QuotationLineItemInput> LineItems { get; set; } = new();
         public DateTime ValidUntil { get; set; }
+
+        /// <summary>Set by the controller from the caller's permission (sales_order:price_override); never read from the request body.</summary>
+        public bool AllowPriceOverride { get; set; }
 
         public CreateQuotationCommand() { }
 

@@ -13,6 +13,9 @@ Dành cho khách mua hàng trên web (máy tính và điện thoại). Giao di�
 ## 2. Giỏ hàng
 Mỗi dòng có nút giảm / tăng số lượng (đọc là "Số lượng …") và **Xóa** (đọc tên sản phẩm). Bên phải (hoặc bên dưới trên điện thoại) là **Tóm tắt đơn hàng**: tạm tính, giảm giá từ mã nếu có, ghi chú **phí giao hàng được tính ở bước thanh toán**, tổng cộng. Bấm **Tiến hành thanh toán**. Giỏ trống: có nút **Xem sản phẩm**.
 
+**Giá thay đổi:** giỏ hàng được nhớ giữa các lần ghé, nên khi mở **Giỏ hàng** hoặc **Thanh toán**, cửa hàng đối chiếu giá trong giỏ với giá hiện tại. Nếu có giá đã đổi, đầu trang hiện khung vàng **"Một số giá đã thay đổi"**, mỗi sản phẩm một dòng (ví dụ "Áo thun: $20.00 → $25.00") và dòng "Giỏ hàng đã được cập nhật. Kiểm tra lại tổng tiền rồi đặt hàng."; bấm **Đóng** để ẩn. Tổng tiền đã tính theo giá mới. Sản phẩm không còn giá bán sẽ được bỏ khỏi giỏ (khung vàng nói rõ). Khi bấm **Đặt hàng** mà giá vừa đổi, đơn bị từ chối, giỏ được cập nhật và khung vàng hiện lại; bạn kiểm tra rồi đặt lại. Lý do từ chối khác (ví dụ sản phẩm chưa có giá) hiện nguyên văn trong khung đỏ. Sản phẩm chưa có giá hiện **"Chưa có giá"** và không thêm vào giỏ được.
+
+
 ## 3. Đăng ký và đăng nhập
 - **Đăng ký:** Tên, Họ, Email, Mật khẩu (ít nhất 8 ký tự) → vào trang chủ trong trạng thái đã đăng nhập. Lỗi: khung đỏ "Đăng ký không thành công…".
 - **Đăng nhập:** Email, Mật khẩu. Sai: khung đỏ "Email hoặc mật khẩu không đúng." Đăng nhập xong quay lại đúng trang đang làm dở (ví dụ thanh toán).

@@ -78,3 +78,5 @@ Public: catalog, search. Signed-in customer (token from Identity, tenant from th
 - No product images in the test data: the placeholder icon is shown.
 - Categories and filters need a storefront categories endpoint (not in the client today).
 - Dollar / dong display is inconsistent by design of the earlier code (U6).
+
+**Server-side pricing (R113, 2026-11-04):** the server now prices every order line, so a price the Storefront sends is only a claim. When the shop's price differs from the one in the cart the order is refused and the screen reloads the cart prices (notice "Some prices changed", one line per product, a Close button; a product with no price leaves the cart and shows "Price not available"). Details, rules and UAT: [ServerPricing.md](ServerPricing.md).

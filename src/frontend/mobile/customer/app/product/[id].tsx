@@ -72,9 +72,11 @@ export default function ProductScreen() {
   }
 
   const out = product.stockQuantity === 0
+  // A product with no price cannot be ordered (the server refuses it), so it cannot be added either (R113).
+  const noPrice = product.price <= 0
 
   function add() {
-    if (!product || product.stockQuantity === 0) return
+    if (!product || product.stockQuantity === 0 || product.price <= 0) return
     addItem({ productId: product.id, productName: product.name, unitPrice: product.price, imageUrl: product.imageUrl }, qty)
     toast.success(t('product.addedToCart'))
     setQty(1)
@@ -95,7 +97,11 @@ export default function ProductScreen() {
         </View>
         {!!product.categoryName && <Text className="text-sm text-ink-secondary">{product.categoryName}</Text>}
         <Text accessibilityRole="header" className="mt-1 text-2xl font-bold text-ink">{product.name}</Text>
-        <Text className="mt-3 text-2xl font-bold text-brand-action">{formatMoney(product.price)}</Text>
+        {noPrice ? (
+          <Text className="mt-3 text-xl text-ink-secondary">{t('product.priceUnavailable')}</Text>
+        ) : (
+          <Text className="mt-3 text-2xl font-bold text-brand-action">{formatMoney(product.price)}</Text>
+        )}
         <Text className={`mt-2 text-sm ${out ? 'text-danger-soft-text' : 'text-success-soft-text'}`}>
           {out ? t('product.outOfStock') : t('product.inStock')}
         </Text>
@@ -113,7 +119,7 @@ export default function ProductScreen() {
           increaseLabel={t('cart.increase')}
         />
         <View className="flex-1">
-          <Button disabled={out} onPress={add}>{out ? t('product.outOfStock') : t('product.addToCart')}</Button>
+          <Button disabled={out || noPrice} onPress={add}>{out ? t('product.outOfStock') : noPrice ? t('product.priceUnavailable') : t('product.addToCart')}</Button>
         </View>
       </View>
     </Screen>

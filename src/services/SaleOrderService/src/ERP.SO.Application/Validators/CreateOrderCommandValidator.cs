@@ -26,7 +26,8 @@ namespace ERP.SO.Application.Validators
                 {
                     item.RuleFor(i => i.ProductId).NotEmpty();
                     item.RuleFor(i => i.Quantity).GreaterThan(0);
-                    item.RuleFor(i => i.UnitPrice).GreaterThan(0);
+                    // optional: the server prices the line (R113); a price that is sent must still be positive
+                    item.RuleFor(i => i.UnitPrice).GreaterThan(0).When(i => i.UnitPrice.HasValue);
                 });
 
             RuleFor(x => x.ShippingAddress)
