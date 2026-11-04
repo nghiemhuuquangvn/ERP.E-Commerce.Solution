@@ -76,13 +76,9 @@ namespace ERP.SO.Application.Handlers
             var status = string.IsNullOrEmpty(request.Status) ? (OrderStatus?)null : Enum.Parse<OrderStatus>(request.Status);
             var total = await _repository.GetTotalCountAsync(request.CustomerId, status, cancellationToken);
 
-            var orders = await _repository.GetAllAsync(request.Skip, request.Take, cancellationToken);
-
-            if (request.CustomerId.HasValue)
-                orders = orders.Where(o => o.CustomerId == request.CustomerId).ToList();
-
-            if (status.HasValue)
-                orders = orders.Where(o => o.Status == status).ToList();
+            // The filters belong in the query: filtering a page afterwards showed a page of "all" orders minus the ones that did not
+            // match, while the total counted every match (a status filter on page 1 could be empty with hundreds of matches).
+            var orders = await _repository.GetAllAsync(request.Skip, request.Take, request.CustomerId, status, cancellationToken);
 
             // One GetByCustomerIdAsync per distinct customer on this page (not per
             // order) — a page is at most `Take` orders, so this is bounded and cheap
@@ -106,6 +102,9 @@ namespace ERP.SO.Application.Handlers
                             Status = o.Status.ToString(),
                             TotalAmount = o.TotalAmount,
                             OrderDate = o.OrderDate,
+                            OrderNo = o.OrderNo,
+                            SalesRepId = o.SalesRepId,
+                            DepartmentId = o.DepartmentId,
                             IsAnomalous = isAnomalous,
                             AnomalyReason = reason
                         };

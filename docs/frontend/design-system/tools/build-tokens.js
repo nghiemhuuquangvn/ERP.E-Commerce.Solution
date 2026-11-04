@@ -15,6 +15,7 @@ const APPS = [
   { dir: 'src/frontend/storefront', kind: 'web', theme: 'customer', aliases: {}, code: ['src'] },
   { dir: 'src/frontend/mobile/customer', kind: 'mobile', theme: 'customer', aliases: {}, code: ['app', 'components'] },
   { dir: 'src/frontend/mobile/staff', kind: 'mobile', theme: 'back-office', aliases: {}, code: ['app', 'components'] },
+  { dir: 'src/frontend/mobile/admin', kind: 'mobile', theme: 'back-office', aliases: {}, code: ['app', 'components', 'modules'] },
 ]
 
 // ---- helpers -------------------------------------------------------------------------------
