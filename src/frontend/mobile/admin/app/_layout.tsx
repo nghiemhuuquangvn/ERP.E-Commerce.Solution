@@ -72,6 +72,13 @@ export default function RootLayout() {
         >
           <Stack.Screen name="notifications/index" options={{ headerShown: true, title: t('notifications.title') }} />
           <Stack.Screen name="purchase/[id]" options={{ headerShown: true }} />
+          <Stack.Screen name="purchase/supplier/[id]" options={{ headerShown: true }} />
+          <Stack.Screen name="purchase/rfq/[id]" options={{ headerShown: true }} />
+          <Stack.Screen name="purchase/invoice/[id]" options={{ headerShown: true }} />
+          <Stack.Screen name="purchase/return/[id]" options={{ headerShown: true }} />
+          <Stack.Screen name="sales/quotation/[id]" options={{ headerShown: true }} />
+          <Stack.Screen name="sales/credit/[customerId]" options={{ headerShown: true }} />
+          <Stack.Screen name="hrm/payslip/[id]" options={{ headerShown: true }} />
           <Stack.Screen name="sales/[id]" options={{ headerShown: true }} />
           <Stack.Screen name="hrm/leave/[id]" options={{ headerShown: true }} />
           <Stack.Screen name="hrm/employee/[id]" options={{ headerShown: true }} />

@@ -133,3 +133,6 @@ Verified live on tenant `glcheck` 2026-10-26: UAT-H1…H12 (H13 by unit test).
 
 ## List filters (2026-11-04, Admin mobile app)
 `GET leave-requests` takes `dateFrom` / `dateTo` (a request matches when its leave period touches the range, both days inclusive; start after end = 400) and `search` (part of the request number) besides `employeeId`, `status`, `page`, `pageSize` (max 100). Attendance already had `fromDate` / `toDate`; pay slips are read by `year` and `month` (a quarter or a year is several calls; without a month the call currently fails - DEFERRED R131). Tests: `LeaveRequestListTests`.
+
+## Pay slip PaymentDate fix (2026-11-05, DEFERRED R131)
+`PaySlips.PaymentDate` was nullable in the database (migration 003) while the model needs a value; the demo seed left it empty for pending slips, so `GET payslips` without `year` / `month` failed with HTTP 500. Migration `009_PaySlipPaymentDateNotNull.sql` backfills empty dates with the last day of the slip's month (what `PaySlip.Create` sets) and makes the column NOT NULL (idempotent); the seed now writes the month end. Acceptance: `GET payslips?page=1&pageSize=3` answers 200 with the total. Data note: the seed writes `PaymentStatus = 2` for some slips, which the code reads as Cancelled (seed data quality, not changed).

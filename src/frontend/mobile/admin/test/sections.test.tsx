@@ -146,7 +146,7 @@ describe('Purchasing screens', () => {
     expect(screen.getByText('Price differs')).toBeTruthy()
     fireEvent.press(screen.getByRole('button', { name: 'Open filters' }))
     fireEvent.press(await screen.findByRole('tab', { name: 'Approved' }))
-    await waitFor(() => expect(mockProc.invoices).toHaveBeenLastCalledWith({ status: 'Approved' }))
+    await waitFor(() => expect(mockProc.invoices).toHaveBeenLastCalledWith({ status: 'Approved' }, 1))
   })
 
   it('vendor returns and RFQs list their rows', async () => {
@@ -186,7 +186,7 @@ describe('Sales screens', () => {
     renderScreen(<CommissionsScreen />)
     expect(await screen.findByText('$25.00')).toBeTruthy()
     expect(screen.getByText('Paid')).toBeTruthy()
-    expect(mockExtras.commissions).toHaveBeenCalledWith({ dateFrom: expect.any(String), dateTo: expect.any(String) })
+    expect(mockExtras.commissions).toHaveBeenCalledWith({ dateFrom: expect.any(String), dateTo: expect.any(String) }, 1)
   })
 })
 
@@ -231,7 +231,7 @@ describe('HR screens', () => {
     renderScreen(<PaySlipsScreen />)
     expect(await screen.findByText('PS-1 · 2026-10')).toBeTruthy()
     expect(screen.getByText('Paid')).toBeTruthy()
-    expect(mockHrExtras.paySlips).toHaveBeenCalledWith({ dateFrom: expect.any(String), dateTo: expect.any(String) })
+    expect(mockHrExtras.paySlips).toHaveBeenCalledWith({ dateFrom: expect.any(String), dateTo: expect.any(String) }, 1)
   })
 
   it('work shifts: active ones first, the filter runs on the phone', async () => {

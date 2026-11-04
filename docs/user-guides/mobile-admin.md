@@ -80,3 +80,17 @@ Danh sách đã tải vẫn hiện với dải vàng "Đang ngoại tuyến. Hi�
 
 ## 10. Giới hạn đã biết
 Tìm kiếm đơn mua/đơn bán chỉ lọc trong các dòng đã tải; số chờ duyệt đơn mua tính trong 100 đơn đầu; chưa thử bằng trình đọc màn hình (TalkBack) và chưa thử xác thực hai bước với tài khoản thật (rủi ro R123-R127 trong DEFERRED-ISSUES).
+
+## 11. Màn hình chi tiết và thao tác (phiên bản 1.3)
+Bấm vào một dòng trong danh sách để xem chi tiết: **nhà cung cấp** (liên hệ, địa chỉ, hạn thanh toán, đánh giá, mặt hàng), **yêu cầu báo giá** (dòng hàng, nhà cung cấp được mời, các báo giá — nhãn "thấp nhất" và "được chọn"), **hóa đơn nhà cung cấp** (tổng tiền, lý do tạm giữ, đối chiếu 3 bên), **phiếu trả hàng NCC**, **báo giá**, **phiếu lương** (thu nhập, bảo hiểm và thuế đã trừ, thực nhận). Hoa hồng và ca làm việc không có màn chi tiết vì dòng danh sách đã đủ thông tin.
+Thao tác (đều hỏi xác nhận trước, không chạy ngay khi bấm lần đầu; nếu máy chủ từ chối, lý do hiện ngay trong bảng và bảng vẫn mở):
+| Màn hình | Thao tác | Quyền cần có |
+|---|---|---|
+| Hóa đơn NCC | Duyệt (đã đối chiếu); Duyệt chênh lệch (đang tạm giữ, bắt buộc nhập lý do); Từ chối (bắt buộc lý do) | `supplier_invoice:approve`, `supplier_invoice:approve_variance`, `supplier_invoice:manage` |
+| Trả hàng NCC | Gửi trả, Hủy phiếu (nháp); Ghi nhận báo có (đã gửi: số giấy báo có và số tiền) | `vendor_return:manage` |
+| Báo giá | Gửi (nháp); Khách chấp nhận, Từ chối (đã gửi); Chuyển thành đơn (đã chấp nhận, nhập đủ địa chỉ giao hàng) | `sales_order:update`, `sales_order:create` |
+| Phiếu lương | Trả lương (có thể ghi hình thức trả), Hủy phiếu (bắt buộc lý do) khi đang chờ trả | `hrm:payroll:manage` |
+Số tiền phải là số từ 0 trở lên (dấu phẩy được hiểu là dấu thập phân).
+
+## 12. Hạn mức tín dụng
+**Bán hàng → Hạn mức**: danh sách khách hàng đã có hạn mức, dư nợ cao nhất trước, gồm tên khách (lấy từ đơn gần nhất), hạn mức, dư nợ đang mở, số còn lại và nhãn: **Trong hạn mức**, **Sắp hết** (còn dưới 1/10) hoặc **Vượt hạn mức**. Tìm theo tên hoặc mã khách. Bấm vào khách để xem chi tiết; người có quyền `sales_order:approve` có nút **Đổi hạn mức**. Khách chưa có hạn mức thì đặt hàng không bị giới hạn và không có trong danh sách (chưa đặt được hạn mức đầu tiên trên điện thoại). Hệ thống chỉ kiểm tra hạn mức khi **duyệt** đơn (dư nợ + đơn mới vượt hạn mức thì bị từ chối).

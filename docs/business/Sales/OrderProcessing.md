@@ -143,3 +143,6 @@ No new report. The saga status is on the order page only.
 
 ## List filters (2026-11-04, Admin mobile app)
 `GET orders` and `GET quotations` filter, count and page in the database: `status` (unknown = 400, not a server error), `dateFrom` / `dateTo` (order day, for a quotation the day it was made; inclusive; start after end = 400), `search` (order / quotation number or customer name), `customerId`, `page`, `pageSize` (max 100). The quotation customer filter now runs in the query (it used to run after paging); the quotation summary carries `quotationDate`. Tests: `ListOrdersTests`, `ListQuotationsTests`.
+
+## Credit limit list and paged commissions (2026-11-05, Admin mobile app)
+`GET customer-sales-profiles?search&page&pageSize` (`sales_order:read`) lists the customers that have a credit limit: customer id and name (the name on the customer's latest order, empty when none), limit, open balance, `availableCredit` = limit minus open balance (negative when over), updated; highest open balance first; `search` is a customer id or part of a name. `GET` and `PUT {customerId}` also return the name and the available credit. The limit is enforced when an order is **approved** (409 when open balance + the order exceeds it); no profile = no limit. `GET commissions` is paged (`page`, `pageSize`, at most 100). Tests: `CreditLimitListTests`.

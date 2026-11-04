@@ -123,9 +123,9 @@ describe('the bottom bar changes with the module', () => {
     expect(bar.hasMore).toBe(true)
   })
 
-  it('inside Sales all three functions fit, with no More', () => {
+  it('inside Sales all four functions fit, with no More', () => {
     const bar = barFor('sales-quotations', visible(EVERYTHING), EVERYTHING)
-    expect(bar.items.map((i) => i.route)).toEqual(['index', 'sales', 'sales-quotations', 'sales-commissions'])
+    expect(bar.items.map((i) => i.route)).toEqual(['index', 'sales', 'sales-quotations', 'sales-credit-limits', 'sales-commissions'])
     expect(bar.hasMore).toBe(false)
   })
 
