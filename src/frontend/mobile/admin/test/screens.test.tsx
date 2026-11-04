@@ -253,8 +253,9 @@ describe('Purchase order list', () => {
     renderScreen(<PurchaseListScreen />)
     fireEvent.press(await screen.findByRole('button', { name: /PO-00123, Acme Ltd/ }))
     expect(mockPush).toHaveBeenCalledWith('/purchase/po1')
-    fireEvent.press(screen.getByRole('tab', { name: 'Approved' }))
-    await waitFor(() => expect(mockPo.list).toHaveBeenCalledWith('APPROVED', 1))
+    fireEvent.press(screen.getByRole('button', { name: 'Open filters' }))
+    fireEvent.press(await screen.findByRole('tab', { name: 'Approved' }))
+    await waitFor(() => expect(mockPo.list).toHaveBeenCalledWith({ status: 'APPROVED' }, 1))
   })
 
   it('opens on the status Home linked to', async () => {
@@ -262,7 +263,7 @@ describe('Purchase order list', () => {
     mockParams = { status: 'SUBMITTED' }
     mockPo.list.mockResolvedValue({ items: [], total: 0 })
     renderScreen(<PurchaseListScreen />)
-    await waitFor(() => expect(mockPo.list).toHaveBeenCalledWith('SUBMITTED', 1))
+    await waitFor(() => expect(mockPo.list).toHaveBeenCalledWith({ status: 'SUBMITTED' }, 1))
     expect(await screen.findByText('No purchase orders with this status.')).toBeTruthy()
   })
 

@@ -13,9 +13,15 @@ public class ProcurementStore : IProcurementStore
     public Task<RequestForQuotation?> GetRfqAsync(Guid id, CancellationToken ct) =>
         _db.RequestsForQuotation.FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted, ct);
 
-    public Task<List<RequestForQuotation>> ListRfqsAsync(RfqStatus? status, CancellationToken ct) =>
-        _db.RequestsForQuotation.Where(r => !r.IsDeleted && (status == null || r.Status == status))
+    public Task<List<RequestForQuotation>> ListRfqsAsync(RfqStatus? status, ListWindow window, CancellationToken ct)
+    {
+        var (start, before, text) = (window.Checked().Start, window.Before, window.Text);
+        return _db.RequestsForQuotation
+            .Where(r => !r.IsDeleted && (status == null || r.Status == status)
+                        && (start == null || r.CreatedAt >= start) && (before == null || r.CreatedAt < before)
+                        && (text == null || r.RfqNumber.ToLower().Contains(text) || r.Title.ToLower().Contains(text)))
             .OrderByDescending(r => r.CreatedAt).ToListAsync(ct);
+    }
 
     public void Add(RequestForQuotation rfq) => _db.RequestsForQuotation.Add(rfq);
 
@@ -36,10 +42,16 @@ public class ProcurementStore : IProcurementStore
     public Task<SupplierInvoice?> GetInvoiceAsync(Guid id, CancellationToken ct) =>
         _db.SupplierInvoices.FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted, ct);
 
-    public Task<List<SupplierInvoice>> ListInvoicesAsync(SupplierInvoiceStatus? status, Guid? purchaseOrderId, CancellationToken ct) =>
-        _db.SupplierInvoices
-            .Where(i => !i.IsDeleted && (status == null || i.Status == status) && (purchaseOrderId == null || i.PurchaseOrderId == purchaseOrderId))
+    public Task<List<SupplierInvoice>> ListInvoicesAsync(SupplierInvoiceStatus? status, Guid? purchaseOrderId, ListWindow window, CancellationToken ct)
+    {
+        // An invoice is judged on its invoice date (the day on the paper), not on the day it was typed in.
+        var (start, before, text) = (window.Checked().Start, window.Before, window.Text);
+        return _db.SupplierInvoices
+            .Where(i => !i.IsDeleted && (status == null || i.Status == status) && (purchaseOrderId == null || i.PurchaseOrderId == purchaseOrderId)
+                        && (start == null || i.InvoiceDate >= start) && (before == null || i.InvoiceDate < before)
+                        && (text == null || i.InvoiceNumber.ToLower().Contains(text) || i.PONumber.ToLower().Contains(text)))
             .OrderByDescending(i => i.CreatedAt).ToListAsync(ct);
+    }
 
     public Task<bool> InvoiceNumberExistsAsync(Guid supplierId, string invoiceNumber, CancellationToken ct) =>
         _db.SupplierInvoices.AnyAsync(i => !i.IsDeleted && i.SupplierId == supplierId && i.InvoiceNumber == invoiceNumber, ct);
@@ -60,10 +72,15 @@ public class ProcurementStore : IProcurementStore
     public Task<VendorReturn?> GetReturnAsync(Guid id, CancellationToken ct) =>
         _db.VendorReturns.FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted, ct);
 
-    public Task<List<VendorReturn>> ListReturnsAsync(Guid? purchaseOrderId, VendorReturnStatus? status, CancellationToken ct) =>
-        _db.VendorReturns
-            .Where(r => !r.IsDeleted && (purchaseOrderId == null || r.PurchaseOrderId == purchaseOrderId) && (status == null || r.Status == status))
+    public Task<List<VendorReturn>> ListReturnsAsync(Guid? purchaseOrderId, VendorReturnStatus? status, ListWindow window, CancellationToken ct)
+    {
+        var (start, before, text) = (window.Checked().Start, window.Before, window.Text);
+        return _db.VendorReturns
+            .Where(r => !r.IsDeleted && (purchaseOrderId == null || r.PurchaseOrderId == purchaseOrderId) && (status == null || r.Status == status)
+                        && (start == null || r.CreatedAt >= start) && (before == null || r.CreatedAt < before)
+                        && (text == null || r.ReturnNumber.ToLower().Contains(text) || r.PONumber.ToLower().Contains(text)))
             .OrderByDescending(r => r.CreatedAt).ToListAsync(ct);
+    }
 
     public async Task<Dictionary<string, decimal>> ReturnedQuantitiesAsync(Guid purchaseOrderId, CancellationToken ct)
     {

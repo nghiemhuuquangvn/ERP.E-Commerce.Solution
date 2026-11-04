@@ -38,15 +38,16 @@ public class ListLeaveRequestsQueryHandler : IRequestHandler<ListLeaveRequestsQu
 
     public async Task<PagedResult<LeaveRequestDto>> Handle(ListLeaveRequestsQuery request, CancellationToken cancellationToken)
     {
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Min(100, Math.Max(1, request.PageSize));
         var (items, totalCount) = await _leaveRequestRepository.ListAsync(
-            request.EmployeeId,
-            request.Status,
-            request.Page,
-            request.PageSize,
+            new LeaveRequestFilter(request.EmployeeId, request.Status, request.DateFrom, request.DateTo, request.Search),
+            page,
+            pageSize,
             cancellationToken);
 
         var dtos = items.Select(SubmitLeaveRequestCommandHandler.MapToDto).ToList();
-        return new PagedResult<LeaveRequestDto>(dtos, totalCount, request.Page, request.PageSize);
+        return new PagedResult<LeaveRequestDto>(dtos, totalCount, page, pageSize);
     }
 }
 

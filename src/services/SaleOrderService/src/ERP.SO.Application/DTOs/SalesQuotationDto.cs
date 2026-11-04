@@ -40,6 +40,8 @@ namespace ERP.SO.Application.DTOs
         public string Status { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
         public DateTime ValidUntil { get; set; }
+        /// <summary>The day the quotation was made.</summary>
+        public DateTime QuotationDate { get; set; }
     }
 
     public class CreateQuotationRequest

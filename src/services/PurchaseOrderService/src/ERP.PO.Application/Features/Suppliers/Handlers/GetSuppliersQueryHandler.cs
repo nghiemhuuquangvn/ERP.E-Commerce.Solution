@@ -36,8 +36,14 @@ public class GetSuppliersQueryHandler : IRequestHandler<GetSuppliersQuery, IEnum
         var pageNumber = Math.Max(1, request.PageNumber);
         var pageSize = Math.Clamp(request.PageSize, 1, MaxPageSize);
 
+        var text = request.Search?.Trim();
         var suppliers = (await _repository.GetAllAsync(tenantId, cancellationToken))
             .Where(s => request.IsActive == null || s.IsActive == request.IsActive)
+            .Where(s => string.IsNullOrEmpty(text)
+                        || s.Code.Contains(text, StringComparison.OrdinalIgnoreCase)
+                        || s.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
+                        || (s.Email != null && s.Email.Contains(text, StringComparison.OrdinalIgnoreCase))
+                        || (s.TaxCode != null && s.TaxCode.Contains(text, StringComparison.OrdinalIgnoreCase)))
             .OrderBy(s => s.Name)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)

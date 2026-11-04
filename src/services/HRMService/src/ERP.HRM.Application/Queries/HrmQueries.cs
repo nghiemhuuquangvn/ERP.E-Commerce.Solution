@@ -20,11 +20,17 @@ public record ListEmployeeSnapshotsQuery(
 
 public record GetLeaveRequestQuery(Guid LeaveRequestId) : IRequest<LeaveRequestDto?>;
 
+/// <param name="DateFrom">First day of the range (inclusive): requests whose leave period touches it or later.</param>
+/// <param name="DateTo">Last day of the range (inclusive).</param>
+/// <param name="Search">Part of the request number.</param>
 public record ListLeaveRequestsQuery(
     Guid? EmployeeId = null,
     int? Status = null,
     int Page = 1,
-    int PageSize = 20) : IRequest<PagedResult<LeaveRequestDto>>;
+    int PageSize = 20,
+    DateOnly? DateFrom = null,
+    DateOnly? DateTo = null,
+    string? Search = null) : IRequest<PagedResult<LeaveRequestDto>>;
 
 // ─── PaySlip Queries ───────────────────────────────────────────────────────
 

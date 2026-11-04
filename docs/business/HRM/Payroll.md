@@ -130,3 +130,6 @@ DEFERRED-ISSUES §4q (PIT year-end settlement, overtime premium exemption, senio
 | UAT-H13 | Absent, half days and unpaid leave | paid days = standard − absent − ½ half − unpaid (unit test: 17 of 22) |
 
 Verified live on tenant `glcheck` 2026-10-26: UAT-H1…H12 (H13 by unit test).
+
+## List filters (2026-11-04, Admin mobile app)
+`GET leave-requests` takes `dateFrom` / `dateTo` (a request matches when its leave period touches the range, both days inclusive; start after end = 400) and `search` (part of the request number) besides `employeeId`, `status`, `page`, `pageSize` (max 100). Attendance already had `fromDate` / `toDate`; pay slips are read by `year` and `month` (a quarter or a year is several calls; without a month the call currently fails - DEFERRED R131). Tests: `LeaveRequestListTests`.

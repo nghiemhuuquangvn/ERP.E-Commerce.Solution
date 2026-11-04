@@ -50,7 +50,7 @@ public record RecordQuotationCommand(
 public record DeclineRfqCommand(Guid RfqId, Guid SupplierId) : IRequest<RfqDto>;
 public record AwardRfqCommand(Guid RfqId, Guid SupplierId) : IRequest<RfqDto>;
 public record GetRfqQuery(Guid RfqId) : IRequest<RfqDto?>;
-public record ListRfqsQuery(string? Status) : IRequest<List<RfqSummaryDto>>;
+public record ListRfqsQuery(string? Status, DateOnly? DateFrom = null, DateOnly? DateTo = null, string? Search = null) : IRequest<List<RfqSummaryDto>>;
 public record CompareRfqQuery(Guid RfqId) : IRequest<RfqComparisonDto?>;
 
 // ─── handlers ─────────────────────────────────────────────────────────────
@@ -199,8 +199,8 @@ public class ListRfqsQueryHandler : IRequestHandler<ListRfqsQuery, List<RfqSumma
 
     public async Task<List<RfqSummaryDto>> Handle(ListRfqsQuery request, CancellationToken ct)
     {
-        RfqStatus? status = Enum.TryParse<RfqStatus>(request.Status, true, out var s) ? s : null;
-        var list = await _store.ListRfqsAsync(status, ct);
+        var status = ListWindow.ParseStatus<RfqStatus>(request.Status, "RFQ");
+        var list = await _store.ListRfqsAsync(status, new ListWindow(request.DateFrom, request.DateTo, request.Search), ct);
         return list.Select(r => new RfqSummaryDto(r.Id, r.RfqNumber, r.Title, r.Status.ToString(), r.Lines.Count, r.Invitations.Count,
             r.Invitations.Count(i => i.State == RfqInvitationState.Quoted), r.NeededBy, r.CreatedAt)).ToList();
     }

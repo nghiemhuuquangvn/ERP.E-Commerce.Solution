@@ -1,4 +1,5 @@
 import { gatewayClient } from '@/api/client'
+import type { ListParams } from '@/hooks/useListFilters'
 import type { Page } from '@/modules/usePagedList'
 import { PAGE_SIZE } from '@/modules/usePagedList'
 
@@ -7,6 +8,9 @@ const BASE = '/po/api/v1/purchase-orders'
 
 export type PoStatus =
   | 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'ORDERED' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELLED' | 'REJECTED' | 'PENDING_FINANCE_APPROVAL'
+
+/** Every status an order can be filtered by, in the order of its life. */
+export const PO_STATUSES: PoStatus[] = ["DRAFT", "SUBMITTED", "PENDING_FINANCE_APPROVAL", "APPROVED", "ORDERED", "PARTIALLY_RECEIVED", "RECEIVED", "REJECTED", "CANCELLED"]
 
 export interface PoItem {
   id: string
@@ -36,23 +40,15 @@ interface PoPage {
   totalCount: number
 }
 
-/** How many orders the count badge on Home looks at (the list endpoint gives no total). */
-export const COUNT_LIMIT = 100
-
 export const purchaseApi = {
-  /**
-   * The server answers a bare array (no total) today; a { items, totalCount } page is accepted too. Without a total, a full page
-   * means "there may be another page" (the total is reported as one more than what was loaded), a short page means "that was the end".
-   */
-  async list(status: PoStatus | undefined, page: number, pageSize = PAGE_SIZE): Promise<Page<PurchaseOrder>> {
-    const { data } = await gatewayClient.get<PurchaseOrder[] | PoPage>(BASE, { params: { status, pageNumber: page, pageSize } })
-    if (!Array.isArray(data)) return { items: data.items, total: data.totalCount }
-    const before = (page - 1) * pageSize
-    return { items: data, total: data.length < pageSize ? before + data.length : before + data.length + 1 }
+  /** One page; the server filters, counts and pages in the database ({ items, totalCount }). */
+  async list(params: ListParams, page: number, pageSize = PAGE_SIZE): Promise<Page<PurchaseOrder>> {
+    const { data } = await gatewayClient.get<PoPage>(BASE, { params: { ...params, pageNumber: page, pageSize } })
+    return { items: data.items, total: data.totalCount }
   },
   get: (id: string) => gatewayClient.get<PurchaseOrder>(`${BASE}/${id}`).then((r) => r.data),
-  /** How many orders wait in a status, counted from the first COUNT_LIMIT rows (the list gives no total). */
-  count: (status: PoStatus) => purchaseApi.list(status, 1, COUNT_LIMIT).then((p) => p.items.length),
+  /** How many orders wait in a status (the total of a one-row page). */
+  count: (status: PoStatus) => purchaseApi.list({ status }, 1, 1).then((p) => p.total),
   approve: (id: string) => gatewayClient.post(`${BASE}/${id}/approve`).then((r) => r.data),
   approveFinance: (id: string) => gatewayClient.post(`${BASE}/${id}/finance-approve`).then((r) => r.data),
   reject: (id: string, reason: string) => gatewayClient.post(`${BASE}/${id}/reject`, { reason }).then((r) => r.data),

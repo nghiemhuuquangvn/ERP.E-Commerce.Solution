@@ -97,6 +97,7 @@ public class SuppliersController : ControllerBase
     /// Yêu cầu quyền: supplier:read
     /// </summary>
     /// <param name="isActive">Filter by active status (optional)</param>
+    /// <param name="search">Part of the supplier code, name, e-mail or tax code (optional)</param>
     /// <param name="pageNumber">Page number (default: 1)</param>
     /// <param name="pageSize">Page size (default: 10)</param>
     /// <returns>List of suppliers</returns>
@@ -107,6 +108,7 @@ public class SuppliersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetSuppliers(
         [FromQuery] bool? isActive = null,
+        [FromQuery] string? search = null,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10)
     {
@@ -116,6 +118,7 @@ public class SuppliersController : ControllerBase
         var query = new GetSuppliersQuery
         {
             IsActive = isActive,
+            Search = search,
             PageNumber = pageNumber,
             PageSize = pageSize
         };

@@ -2,29 +2,28 @@ import { View } from 'react-native'
 import { Tabs } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { MenuButton } from '@/components/MenuButton'
+import { ModuleTabBar } from '@/components/ModuleTabBar'
 import { NotificationBell } from '@/components/NotificationBell'
 import { TenantChip } from '@/components/TenantChip'
 import { MODULES } from '@/modules'
-import { useVisibleModules } from '@/modules/visible'
-import { colors, icon } from '@/theme/theme'
+import { colors } from '@/theme/theme'
+
+/** Every screen file the registry names: the module routes and the routes of their sections (one navigator, one file each). */
+const SCREENS = MODULES.flatMap((m) => [...(m.sections ?? []).map((s) => ({ route: s.route, titleKey: s.titleKey })), { route: m.route, titleKey: m.titleKey }])
+  .filter((s, i, all) => all.findIndex((x) => x.route === s.route) === i)
 
 /**
- * The tab bar is built from the module registry (modules/index.ts): a module the user may open and that fits in the bar is a tab;
- * the others are reached from the side menu (components/SideMenu). Every other tab file is hidden with href: null, so a user
- * never sees a tab they cannot use. The header carries the menu button, the notification bell and the tenant chip.
+ * One tab navigator holds every screen of every module; the visible bar is the custom ModuleTabBar, built from the module registry
+ * (modules/index.ts): Home lists the modules, inside a module it lists that module's business functions. A screen the user may not
+ * open is never in the bar. The header carries the menu button, the notification bell and the tenant chip.
  */
 export default function TabsLayout() {
   const { t } = useTranslation()
-  const { tabs } = useVisibleModules()
-  const inBar = new Set(tabs.map((m) => m.route))
 
   return (
     <Tabs
+      tabBar={(props) => <ModuleTabBar {...props} />}
       screenOptions={{
-        tabBarActiveTintColor: colors.brandAction,
-        tabBarInactiveTintColor: colors.inkMuted,
-        tabBarStyle: { borderTopColor: colors.line },
-        tabBarLabelStyle: { fontSize: 12 },
         headerShown: true,
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.ink,
@@ -39,21 +38,9 @@ export default function TabsLayout() {
         headerRightContainerStyle: { paddingRight: 16 },
       }}
     >
-      {MODULES.map((m) => {
-        const Icon = m.icon
-        return (
-          <Tabs.Screen
-            key={m.id}
-            name={m.route}
-            options={{
-              title: t(m.titleKey),
-              tabBarAccessibilityLabel: t(m.titleKey),
-              href: inBar.has(m.route) ? undefined : null,
-              tabBarIcon: ({ color }: { color: string }) => <Icon color={color} size={24} strokeWidth={icon.stroke} />,
-            }}
-          />
-        )
-      })}
+      {SCREENS.map((s) => (
+        <Tabs.Screen key={s.route} name={s.route} options={{ title: t(s.titleKey) }} />
+      ))}
     </Tabs>
   )
 }

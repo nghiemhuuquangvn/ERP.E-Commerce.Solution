@@ -104,6 +104,43 @@
       "HalfDay": "Nửa ngày",
       "OnLeave": "Nghỉ phép",
       "Holiday": "Ngày lễ"
+    },
+    "rfq": {
+      "Draft": "Nháp",
+      "Sent": "Đã gửi",
+      "Awarded": "Đã chọn NCC",
+      "Cancelled": "Đã hủy"
+    },
+    "invoice": {
+      "Recorded": "Đã ghi nhận",
+      "Matched": "Đã đối chiếu",
+      "OnHold": "Tạm giữ",
+      "Approved": "Đã duyệt",
+      "Rejected": "Từ chối"
+    },
+    "vendorReturn": {
+      "Draft": "Nháp",
+      "Shipped": "Đã gửi trả",
+      "Credited": "Đã ghi có",
+      "Cancelled": "Đã hủy"
+    },
+    "quotation": {
+      "Draft": "Nháp",
+      "Sent": "Đã gửi",
+      "Accepted": "Khách chấp nhận",
+      "Rejected": "Từ chối",
+      "Expired": "Hết hạn",
+      "Converted": "Đã chuyển đơn"
+    },
+    "commission": {
+      "Pending": "Chờ",
+      "Approved": "Đã duyệt",
+      "Paid": "Đã trả"
+    },
+    "payslip": {
+      "Pending": "Chưa trả",
+      "Paid": "Đã trả",
+      "Cancelled": "Đã hủy"
     }
   },
   "po": {
@@ -182,7 +219,13 @@
     "cancelTitle": "Hủy nghỉ phép của {{name}}?",
     "approved": "Đã duyệt nghỉ phép của {{name}}.",
     "rejected": "Đã từ chối nghỉ phép của {{name}}.",
-    "cancelled": "Đã hủy nghỉ phép của {{name}}."
+    "cancelled": "Đã hủy nghỉ phép của {{name}}.",
+    "searchLeave": "Tìm đơn nghỉ phép",
+    "searchPaySlips": "Tìm phiếu lương",
+    "noPaySlips": "Không có phiếu lương trong kỳ này.",
+    "noShifts": "Chưa có ca làm việc.",
+    "gross": "Tổng",
+    "net": "Thực nhận"
   },
   "leaveType": {
     "Annual": "Nghỉ phép năm",
@@ -218,5 +261,95 @@
     "unread": "Chưa đọc",
     "read": "Đã đọc",
     "noSubject": "(không có tiêu đề)"
+  },
+  "filters": {
+    "title": "Bộ lọc",
+    "open": "Mở bộ lọc",
+    "openActive_one": "Mở bộ lọc, {{count}} đang bật",
+    "openActive_other": "Mở bộ lọc, {{count}} đang bật",
+    "clear": "Bỏ lọc {{name}}",
+    "status": "Trạng thái",
+    "period": "Kỳ",
+    "kind": {
+      "all": "Tất cả",
+      "month": "Tháng",
+      "quarter": "Quý",
+      "year": "Năm",
+      "custom": "Tùy chọn"
+    },
+    "previousPeriod": "Kỳ trước",
+    "nextPeriod": "Kỳ sau",
+    "from": "Từ ngày",
+    "to": "Đến ngày",
+    "noDate": "Chọn ngày",
+    "today": "Hôm nay",
+    "clearDate": "Xóa ngày",
+    "previousMonth": "Tháng trước",
+    "nextMonth": "Tháng sau",
+    "rangeError": "Ngày bắt đầu sau ngày kết thúc.",
+    "reset": "Đặt lại",
+    "done": "Xong",
+    "weekday": {
+      "mon": "T2",
+      "tue": "T3",
+      "wed": "T4",
+      "thu": "T5",
+      "fri": "T6",
+      "sat": "T7",
+      "sun": "CN"
+    }
+  },
+  "tabs": {
+    "more": "Thêm"
+  },
+  "sections": {
+    "purchaseOrders": "Đơn mua",
+    "suppliers": "Nhà cung cấp",
+    "supplierInvoices": "Hóa đơn NCC",
+    "vendorReturns": "Trả hàng NCC",
+    "rfqs": "Yêu cầu báo giá",
+    "salesOrders": "Đơn bán",
+    "quotations": "Báo giá",
+    "commissions": "Hoa hồng",
+    "employees": "Nhân viên",
+    "leave": "Nghỉ phép",
+    "attendance": "Chấm công",
+    "payslips": "Bảng lương",
+    "shifts": "Ca làm việc"
+  },
+  "lists": {
+    "suppliers": {
+      "search": "Tìm nhà cung cấp",
+      "empty": "Không có nhà cung cấp.",
+      "active": "Hoạt động",
+      "inactive": "Ngừng",
+      "terms_one": "Hạn thanh toán: {{count}} ngày",
+      "terms_other": "Hạn thanh toán: {{count}} ngày"
+    },
+    "invoices": {
+      "search": "Tìm hóa đơn nhà cung cấp",
+      "empty": "Không có hóa đơn nhà cung cấp.",
+      "due": "hạn {{date}}"
+    },
+    "returns": {
+      "search": "Tìm phiếu trả hàng",
+      "empty": "Không có phiếu trả hàng nhà cung cấp."
+    },
+    "rfqs": {
+      "search": "Tìm yêu cầu báo giá",
+      "empty": "Không có yêu cầu báo giá.",
+      "counts": "{{lines}} dòng · mời {{invited}} · đã báo giá {{quoted}}",
+      "needed": "cần trước {{date}}"
+    },
+    "quotations": {
+      "search": "Tìm báo giá",
+      "empty": "Không có báo giá.",
+      "validUntil": "hiệu lực đến {{date}}"
+    },
+    "commissions": {
+      "search": "Hoa hồng",
+      "empty": "Không có hoa hồng trong kỳ này.",
+      "calculated": "Tính ngày {{date}}"
+    }
   }
 }

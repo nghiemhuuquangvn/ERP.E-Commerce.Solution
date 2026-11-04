@@ -19,7 +19,8 @@ public class RfqsController : ControllerBase
 
     [HttpGet]
     [AuthorizePermission(PermissionConstants.Rfq_Read)]
-    public async Task<IActionResult> List([FromQuery] string? status = null) => Ok(await _mediator.Send(new ListRfqsQuery(status)));
+    public async Task<IActionResult> List([FromQuery] string? status = null, [FromQuery] DateOnly? dateFrom = null, [FromQuery] DateOnly? dateTo = null, [FromQuery] string? search = null) =>
+        Ok(await _mediator.Send(new ListRfqsQuery(status, dateFrom, dateTo, search)));
 
     [HttpGet("{id:guid}")]
     [AuthorizePermission(PermissionConstants.Rfq_Read)]
@@ -87,8 +88,9 @@ public class SupplierInvoicesController : ControllerBase
 
     [HttpGet]
     [AuthorizePermission(PermissionConstants.SupplierInvoice_Read)]
-    public async Task<IActionResult> List([FromQuery] string? status = null, [FromQuery] Guid? purchaseOrderId = null) =>
-        Ok(await _mediator.Send(new ListSupplierInvoicesQuery(status, purchaseOrderId)));
+    public async Task<IActionResult> List([FromQuery] string? status = null, [FromQuery] Guid? purchaseOrderId = null,
+        [FromQuery] DateOnly? dateFrom = null, [FromQuery] DateOnly? dateTo = null, [FromQuery] string? search = null) =>
+        Ok(await _mediator.Send(new ListSupplierInvoicesQuery(status, purchaseOrderId, dateFrom, dateTo, search)));
 
     [HttpGet("{id:guid}")]
     [AuthorizePermission(PermissionConstants.SupplierInvoice_Read)]
@@ -136,8 +138,9 @@ public class VendorReturnsController : ControllerBase
 
     [HttpGet]
     [AuthorizePermission(PermissionConstants.VendorReturn_Read)]
-    public async Task<IActionResult> List([FromQuery] Guid? purchaseOrderId = null, [FromQuery] string? status = null) =>
-        Ok(await _mediator.Send(new ListVendorReturnsQuery(purchaseOrderId, status)));
+    public async Task<IActionResult> List([FromQuery] Guid? purchaseOrderId = null, [FromQuery] string? status = null,
+        [FromQuery] DateOnly? dateFrom = null, [FromQuery] DateOnly? dateTo = null, [FromQuery] string? search = null) =>
+        Ok(await _mediator.Send(new ListVendorReturnsQuery(purchaseOrderId, status, dateFrom, dateTo, search)));
 
     [HttpGet("{id:guid}")]
     [AuthorizePermission(PermissionConstants.VendorReturn_Read)]

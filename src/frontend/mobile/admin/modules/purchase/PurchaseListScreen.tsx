@@ -1,45 +1,36 @@
-import { useState } from 'react'
 import { Text, View } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/ui'
-import { FilterChips, type Chip } from '@/components/FilterChips'
-import { SearchField } from '@/components/SearchField'
+import { ListFilters } from '@/components/ListFilters'
 import { StatusBadge } from '@/components/StatusBadge'
 import { PagedListView } from '@/components/PagedListView'
+import { useListFilters } from '@/hooks/useListFilters'
 import { formatOrderMoney } from '@/lib/money'
 import { formatDate } from '@/lib/dates'
 import { usePagedList } from '@/modules/usePagedList'
-import { purchaseApi, type PoStatus, type PurchaseOrder } from '@/modules/purchase/api'
+import { PO_STATUSES, purchaseApi, type PurchaseOrder } from '@/modules/purchase/api'
 
-type Filter = 'ALL' | 'SUBMITTED' | 'PENDING_FINANCE_APPROVAL' | 'APPROVED'
-const FILTERS: Filter[] = ['ALL', 'SUBMITTED', 'PENDING_FINANCE_APPROVAL', 'APPROVED']
-
+/** Purchase orders: filtered by status, order days / period and PO number or supplier, all by the server. */
 export default function PurchaseListScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const params = useLocalSearchParams<{ status?: string }>()
-  const [filter, setFilter] = useState<Filter>(FILTERS.includes(params.status as Filter) ? (params.status as Filter) : 'ALL')
-  const [search, setSearch] = useState('')
-  const status = filter === 'ALL' ? undefined : (filter as PoStatus)
-  const query = usePagedList(['po', 'list', filter], (page) => purchaseApi.list(status, page))
-
-  const chips: Chip<Filter>[] = FILTERS.map((f) => ({ value: f, label: f === 'ALL' ? t('common.all') : t(`status.po.${f}`) }))
-  // The server has no text search for purchase orders: this narrows the rows already loaded.
-  const needle = search.trim().toLowerCase()
-  const shown = needle ? query.items.filter((o) => `${o.poNumber} ${o.supplier?.name ?? ''}`.toLowerCase().includes(needle)) : query.items
+  const filters = useListFilters({ status: PO_STATUSES.includes(params.status as never) ? params.status : '' })
+  const query = usePagedList(['po', 'list', filters.params], (page) => purchaseApi.list(filters.params, page))
 
   return (
     <PagedListView<PurchaseOrder>
-      query={{ ...query, items: shown }}
+      query={query}
       keyOf={(o) => o.id}
       permission="purchase_order:read"
       emptyTitle={t('po.empty')}
       header={
-        <>
-          <SearchField value={search} onChangeText={setSearch} placeholder={t('common.search')} label={t('po.searchLabel')} />
-          <FilterChips chips={chips} value={filter} onChange={setFilter} />
-        </>
+        <ListFilters
+          filters={filters}
+          searchLabel={t('po.searchLabel')}
+          statuses={PO_STATUSES.map((s) => ({ value: s, label: t(`status.po.${s}`) }))}
+        />
       }
       renderItem={(o) => (
         <Card

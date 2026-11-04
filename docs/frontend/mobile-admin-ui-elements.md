@@ -67,3 +67,10 @@ The mockup is HTML only because it is a picture. The app is Expo / React Native:
 
 ## 7. What the mockup does not show (to settle while coding)
 Filtered-list deep links from "Needs your action", the leave detail screen, the employee detail screen, attendance row layout, landscape/tablet (portrait only for v1), pull-to-refresh visual.
+
+## Bottom bar, filters and the new screens (version 1.2)
+**Bottom bar** `ModuleTabBar`: `View` (border-top, bg-surface, bottom safe area) of items (Lucide icon 24 + label 12, min height 56, role `tab`, `accessibilityState.selected`); on Home one item per module, inside a module Home + the module's sections, last item "More" (`MoreHorizontal`) opening the side menu (Home) or a `BottomSheet` of the remaining sections (module).
+**Filters above a list** `ListFilters`: row of `SearchField` + "Filters" `Pressable` (`SlidersHorizontal`, count badge bg-brand-action; label "Open filters, N active"); under it summary chips (`bg-brand-soft`, label + `X`, 44 pt, "Clear filter ...") for the status and the period.
+**Filters sheet** `BottomSheet`: Status `FilterChips` (All + statuses) > Period `SegmentedControl` (All time | Month | Quarter | Year | Custom) > stepper row (`ChevronLeft` previous - label "2026-11" / "Q4 2026" / "2026" - `ChevronRight` next) or, for Custom, two `DateField`s and a danger `Alert` when the start is after the end > Reset (outline) + Done (primary).
+**Date box** `DateField`: bordered row (`CalendarDays`, small label, date or "Choose a date"); opens a `BottomSheet` month grid: month header with previous / next, weekday row (Mo - Su), 7-column grid of 44 pt cells (the chosen day as bg-brand-action, days of other months muted, each cell labelled with its full date), Today and Clear date buttons.
+**List rows (new screens)** `Card`: line 1 number or name (semibold) + `StatusBadge`; line 2 party and amount; line 3 dates (muted). Suppliers: name, code and contact, active badge, payment terms. Invoices: number, supplier and PO, amount, invoice and due date, hold reason in the warning colour. RFQs: number, title, "N lines - N invited - N quoted". Pay slips: name, number and year-month, gross and net.

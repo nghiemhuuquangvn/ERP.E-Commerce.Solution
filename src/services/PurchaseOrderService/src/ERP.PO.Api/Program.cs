@@ -1,3 +1,4 @@
+using ERP.PO.Application.Features.PurchaseOrders;
 using ERP.PO.Application.Mappings;
 using ERP.PO.Application.Features.PurchaseOrders.Validators;
 using ERP.PO.Application.Features.Suppliers.Validators;
@@ -71,6 +72,7 @@ builder.Services.AddDbContext<PurchasingDbContext>(options =>
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IUnitOfWork>(sp => new UnitOfWork(sp.GetRequiredService<PurchasingDbContext>()));
 builder.Services.AddScoped<IPurchaseRequestRepository, PurchaseRequestRepository>();
+builder.Services.AddScoped<IPurchaseOrderSearch, PurchaseOrderSearch>();
 builder.Services.AddScoped<ERP.PO.Application.Procurement.IProcurementStore, ProcurementStore>();
 
 // RabbitMQ connection — first time this service consumes anything (previously

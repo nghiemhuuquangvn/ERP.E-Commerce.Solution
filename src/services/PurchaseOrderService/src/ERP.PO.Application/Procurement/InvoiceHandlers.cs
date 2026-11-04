@@ -66,7 +66,7 @@ public record MatchSupplierInvoiceCommand(Guid InvoiceId) : IRequest<SupplierInv
 public record ApproveSupplierInvoiceCommand(Guid InvoiceId, string? Reason, bool CanApproveVariance) : IRequest<SupplierInvoiceDto>;
 public record RejectSupplierInvoiceCommand(Guid InvoiceId, string Reason) : IRequest<SupplierInvoiceDto>;
 public record GetSupplierInvoiceQuery(Guid InvoiceId) : IRequest<SupplierInvoiceDto?>;
-public record ListSupplierInvoicesQuery(string? Status, Guid? PurchaseOrderId) : IRequest<List<SupplierInvoiceSummaryDto>>;
+public record ListSupplierInvoicesQuery(string? Status, Guid? PurchaseOrderId, DateOnly? DateFrom = null, DateOnly? DateTo = null, string? Search = null) : IRequest<List<SupplierInvoiceSummaryDto>>;
 public record GetOrderProcurementQuery(Guid PurchaseOrderId) : IRequest<OrderProcurementDto?>;
 public record GetPurchasingSettingsQuery : IRequest<PurchasingSettingsDto>;
 public record UpdatePurchasingSettingsCommand(decimal QuantityTolerancePercent, decimal PriceTolerancePercent, bool AutoApproveMatched) : IRequest<PurchasingSettingsDto>;
@@ -192,8 +192,8 @@ public class ListSupplierInvoicesQueryHandler : IRequestHandler<ListSupplierInvo
 
     public async Task<List<SupplierInvoiceSummaryDto>> Handle(ListSupplierInvoicesQuery request, CancellationToken ct)
     {
-        SupplierInvoiceStatus? status = Enum.TryParse<SupplierInvoiceStatus>(request.Status, true, out var s) ? s : null;
-        var list = await _store.ListInvoicesAsync(status, request.PurchaseOrderId, ct);
+        var status = ListWindow.ParseStatus<SupplierInvoiceStatus>(request.Status, "supplier invoice");
+        var list = await _store.ListInvoicesAsync(status, request.PurchaseOrderId, new ListWindow(request.DateFrom, request.DateTo, request.Search), ct);
         var names = await _store.GetSupplierNamesAsync(list.Select(i => i.SupplierId), ct);
         return list.Select(i => new SupplierInvoiceSummaryDto(i.Id, i.InvoiceNumber, names.GetValueOrDefault(i.SupplierId, string.Empty), i.PONumber,
             i.InvoiceDate, i.DueDate, i.CurrencyCode, i.TotalAmount, i.Status.ToString(), i.HoldReasons)).ToList();

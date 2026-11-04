@@ -10,7 +10,7 @@ import { SegmentedControl } from '@/components/SegmentedControl'
 import { TenantChip } from '@/components/TenantChip'
 import { badgeText } from '@/components/NotificationBell'
 import { useCanSeeNotifications, useUnreadCount } from '@/features/notifications/useUnreadCount'
-import { useVisibleModules } from '@/modules/visible'
+import { moduleLanding, owningModule, useVisibleModules } from '@/modules/visible'
 import { tenantConfig } from '@/lib/tenant'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLocaleStore, type Locale } from '@/stores/locale.store'
@@ -21,6 +21,9 @@ const SLIDE_MS = 200
 
 /** First path segment of the current screen, as the module routes name it ('/' is the Home tab, file "index"). */
 export const activeRoute = (pathname: string) => pathname.split('/').filter(Boolean)[0] ?? 'index'
+
+/** Path of a tab screen file: Home is the tab group's root. */
+const landingPath = (route: string) => (route === 'index' ? '/(tabs)' : `/(tabs)/${route}`)
 
 function Row({ label, selected, onPress, children, trailing }: { label: string; selected?: boolean; onPress: () => void; children: React.ReactNode; trailing?: React.ReactNode }) {
   return (
@@ -50,7 +53,9 @@ function MenuPanel({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
   const canNotify = useCanSeeNotifications()
   const unread = useUnreadCount()
   const { locale, setLocale } = useLocaleStore()
+  const permissions = useAuthStore((s) => s.permissions)
   const current = activeRoute(pathname)
+  const currentModule = owningModule(current)?.id
 
   useEffect(() => {
     Animated.timing(slide, { toValue: 0, duration: SLIDE_MS, useNativeDriver: true }).start()
@@ -78,8 +83,8 @@ function MenuPanel({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
 
           <View accessibilityRole="menu" className="gap-1">
             {visible.map((m) => (
-              <Row key={m.id} label={t(m.titleKey)} selected={m.route === current} onPress={() => go(m.route === 'index' ? '/(tabs)' : `/(tabs)/${m.route}`)}>
-                <m.icon color={m.route === current ? colors.brandSoftText : colors.inkSecondary} size={22} strokeWidth={icon.stroke} />
+              <Row key={m.id} label={t(m.titleKey)} selected={m.id === currentModule} onPress={() => go(landingPath(moduleLanding(m, permissions)))}>
+                <m.icon color={m.id === currentModule ? colors.brandSoftText : colors.inkSecondary} size={22} strokeWidth={icon.stroke} />
               </Row>
             ))}
             {canNotify ? (

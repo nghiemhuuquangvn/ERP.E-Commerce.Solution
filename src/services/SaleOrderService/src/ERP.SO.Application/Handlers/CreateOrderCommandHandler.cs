@@ -2,6 +2,7 @@ using ERP.Shared.Authorization;
 using ERP.SO.Application.Commands;
 using ERP.SO.Application.DTOs;
 using ERP.SO.Application.Interfaces;
+using ERP.SO.Application.Queries;
 using ERP.SO.Application.Sagas;
 using ERP.SO.Application.Services;
 using ERP.SO.Domain.Entities;
@@ -16,8 +17,8 @@ namespace ERP.SO.Application.Handlers
         Task AddAsync(SalesOrder order, CancellationToken ct = default);
         Task UpdateAsync(SalesOrder order, CancellationToken ct = default);
         Task<List<SalesOrder>> GetByCustomerIdAsync(Guid customerId, CancellationToken ct = default);
-        Task<List<SalesOrder>> GetAllAsync(int skip = 0, int take = 20, Guid? customerId = null, OrderStatus? status = null, CancellationToken ct = default);
-        Task<int> GetTotalCountAsync(Guid? customerId = null, OrderStatus? status = null, CancellationToken ct = default);
+        Task<List<SalesOrder>> GetAllAsync(int skip, int take, OrderListFilter filter, CancellationToken ct = default);
+        Task<int> GetTotalCountAsync(OrderListFilter filter, CancellationToken ct = default);
         Task<List<SalesOrder>> GetByStatusAsync(OrderStatus status, CancellationToken ct = default);
         Task<List<SalesOrder>> GetOpenOrdersContainingProductAsync(Guid productId, CancellationToken ct = default);
     }
