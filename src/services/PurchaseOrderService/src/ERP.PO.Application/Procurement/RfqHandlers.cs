@@ -1,3 +1,4 @@
+using ERP.PO.Application.DTOs;
 using ERP.PO.Domain.Entities;
 using ERP.PO.Domain.ValueObjects;
 using ERP.Shared.Authorization;
@@ -50,7 +51,7 @@ public record RecordQuotationCommand(
 public record DeclineRfqCommand(Guid RfqId, Guid SupplierId) : IRequest<RfqDto>;
 public record AwardRfqCommand(Guid RfqId, Guid SupplierId) : IRequest<RfqDto>;
 public record GetRfqQuery(Guid RfqId) : IRequest<RfqDto?>;
-public record ListRfqsQuery(string? Status, DateOnly? DateFrom = null, DateOnly? DateTo = null, string? Search = null) : IRequest<List<RfqSummaryDto>>;
+public record ListRfqsQuery(string? Status, DateOnly? DateFrom = null, DateOnly? DateTo = null, string? Search = null, int PageNumber = 1, int PageSize = PagedList<RfqSummaryDto>.DefaultPageSize) : IRequest<PagedList<RfqSummaryDto>>;
 public record CompareRfqQuery(Guid RfqId) : IRequest<RfqComparisonDto?>;
 
 // ─── handlers ─────────────────────────────────────────────────────────────
@@ -192,17 +193,19 @@ public class GetRfqQueryHandler : IRequestHandler<GetRfqQuery, RfqDto?>
     }
 }
 
-public class ListRfqsQueryHandler : IRequestHandler<ListRfqsQuery, List<RfqSummaryDto>>
+public class ListRfqsQueryHandler : IRequestHandler<ListRfqsQuery, PagedList<RfqSummaryDto>>
 {
     private readonly IProcurementStore _store;
     public ListRfqsQueryHandler(IProcurementStore store) => _store = store;
 
-    public async Task<List<RfqSummaryDto>> Handle(ListRfqsQuery request, CancellationToken ct)
+    public async Task<PagedList<RfqSummaryDto>> Handle(ListRfqsQuery request, CancellationToken ct)
     {
         var status = ListWindow.ParseStatus<RfqStatus>(request.Status, "RFQ");
-        var list = await _store.ListRfqsAsync(status, new ListWindow(request.DateFrom, request.DateTo, request.Search), ct);
-        return list.Select(r => new RfqSummaryDto(r.Id, r.RfqNumber, r.Title, r.Status.ToString(), r.Lines.Count, r.Invitations.Count,
+        var (pageNumber, pageSize) = PagedList<RfqSummaryDto>.Clamp(request.PageNumber, request.PageSize);
+        var (list, total) = await _store.ListRfqsAsync(status, new ListWindow(request.DateFrom, request.DateTo, request.Search), pageNumber, pageSize, ct);
+        var rows = list.Select(r => new RfqSummaryDto(r.Id, r.RfqNumber, r.Title, r.Status.ToString(), r.Lines.Count, r.Invitations.Count,
             r.Invitations.Count(i => i.State == RfqInvitationState.Quoted), r.NeededBy, r.CreatedAt)).ToList();
+        return new PagedList<RfqSummaryDto>(rows, total, pageNumber, pageSize);
     }
 }
 

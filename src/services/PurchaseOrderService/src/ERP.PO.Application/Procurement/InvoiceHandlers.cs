@@ -1,3 +1,4 @@
+using ERP.PO.Application.DTOs;
 using ERP.PO.Domain.Entities;
 using ERP.PO.Domain.Enums;
 using ERP.Shared.Authorization;
@@ -66,7 +67,7 @@ public record MatchSupplierInvoiceCommand(Guid InvoiceId) : IRequest<SupplierInv
 public record ApproveSupplierInvoiceCommand(Guid InvoiceId, string? Reason, bool CanApproveVariance) : IRequest<SupplierInvoiceDto>;
 public record RejectSupplierInvoiceCommand(Guid InvoiceId, string Reason) : IRequest<SupplierInvoiceDto>;
 public record GetSupplierInvoiceQuery(Guid InvoiceId) : IRequest<SupplierInvoiceDto?>;
-public record ListSupplierInvoicesQuery(string? Status, Guid? PurchaseOrderId, DateOnly? DateFrom = null, DateOnly? DateTo = null, string? Search = null) : IRequest<List<SupplierInvoiceSummaryDto>>;
+public record ListSupplierInvoicesQuery(string? Status, Guid? PurchaseOrderId, DateOnly? DateFrom = null, DateOnly? DateTo = null, string? Search = null, int PageNumber = 1, int PageSize = PagedList<SupplierInvoiceSummaryDto>.DefaultPageSize) : IRequest<PagedList<SupplierInvoiceSummaryDto>>;
 public record GetOrderProcurementQuery(Guid PurchaseOrderId) : IRequest<OrderProcurementDto?>;
 public record GetPurchasingSettingsQuery : IRequest<PurchasingSettingsDto>;
 public record UpdatePurchasingSettingsCommand(decimal QuantityTolerancePercent, decimal PriceTolerancePercent, bool AutoApproveMatched) : IRequest<PurchasingSettingsDto>;
@@ -185,18 +186,20 @@ public class GetSupplierInvoiceQueryHandler : IRequestHandler<GetSupplierInvoice
     }
 }
 
-public class ListSupplierInvoicesQueryHandler : IRequestHandler<ListSupplierInvoicesQuery, List<SupplierInvoiceSummaryDto>>
+public class ListSupplierInvoicesQueryHandler : IRequestHandler<ListSupplierInvoicesQuery, PagedList<SupplierInvoiceSummaryDto>>
 {
     private readonly IProcurementStore _store;
     public ListSupplierInvoicesQueryHandler(IProcurementStore store) => _store = store;
 
-    public async Task<List<SupplierInvoiceSummaryDto>> Handle(ListSupplierInvoicesQuery request, CancellationToken ct)
+    public async Task<PagedList<SupplierInvoiceSummaryDto>> Handle(ListSupplierInvoicesQuery request, CancellationToken ct)
     {
         var status = ListWindow.ParseStatus<SupplierInvoiceStatus>(request.Status, "supplier invoice");
-        var list = await _store.ListInvoicesAsync(status, request.PurchaseOrderId, new ListWindow(request.DateFrom, request.DateTo, request.Search), ct);
+        var (pageNumber, pageSize) = PagedList<SupplierInvoiceSummaryDto>.Clamp(request.PageNumber, request.PageSize);
+        var (list, total) = await _store.ListInvoicesAsync(status, request.PurchaseOrderId, new ListWindow(request.DateFrom, request.DateTo, request.Search), pageNumber, pageSize, ct);
         var names = await _store.GetSupplierNamesAsync(list.Select(i => i.SupplierId), ct);
-        return list.Select(i => new SupplierInvoiceSummaryDto(i.Id, i.InvoiceNumber, names.GetValueOrDefault(i.SupplierId, string.Empty), i.PONumber,
+        var rows = list.Select(i => new SupplierInvoiceSummaryDto(i.Id, i.InvoiceNumber, names.GetValueOrDefault(i.SupplierId, string.Empty), i.PONumber,
             i.InvoiceDate, i.DueDate, i.CurrencyCode, i.TotalAmount, i.Status.ToString(), i.HoldReasons)).ToList();
+        return new PagedList<SupplierInvoiceSummaryDto>(rows, total, pageNumber, pageSize);
     }
 }
 

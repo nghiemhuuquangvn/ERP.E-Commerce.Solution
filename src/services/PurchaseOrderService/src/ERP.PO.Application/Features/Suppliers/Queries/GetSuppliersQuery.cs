@@ -3,7 +3,7 @@ using ERP.PO.Application.DTOs;
 
 namespace ERP.PO.Application.Features.Suppliers.Queries;
 
-public class GetSuppliersQuery : IRequest<IEnumerable<SupplierDto>>
+public class GetSuppliersQuery : IRequest<PagedList<SupplierDto>>
 {
     public bool? IsActive { get; set; }
     /// <summary>Part of the supplier code, name, e-mail or tax code (case-insensitive).</summary>

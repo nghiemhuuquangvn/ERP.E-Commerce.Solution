@@ -7,7 +7,7 @@ namespace ERP.PO.Application.Procurement;
 public interface IProcurementStore
 {
     Task<RequestForQuotation?> GetRfqAsync(Guid id, CancellationToken ct);
-    Task<List<RequestForQuotation>> ListRfqsAsync(RfqStatus? status, ListWindow window, CancellationToken ct);
+    Task<(List<RequestForQuotation> Items, int Total)> ListRfqsAsync(RfqStatus? status, ListWindow window, int pageNumber, int pageSize, CancellationToken ct);
     void Add(RequestForQuotation rfq);
 
     Task<PurchaseOrder?> GetOrderAsync(Guid id, CancellationToken ct);
@@ -16,14 +16,14 @@ public interface IProcurementStore
     Task<Dictionary<Guid, string>> GetSupplierNamesAsync(IEnumerable<Guid> ids, CancellationToken ct);
 
     Task<SupplierInvoice?> GetInvoiceAsync(Guid id, CancellationToken ct);
-    Task<List<SupplierInvoice>> ListInvoicesAsync(SupplierInvoiceStatus? status, Guid? purchaseOrderId, ListWindow window, CancellationToken ct);
+    Task<(List<SupplierInvoice> Items, int Total)> ListInvoicesAsync(SupplierInvoiceStatus? status, Guid? purchaseOrderId, ListWindow window, int pageNumber, int pageSize, CancellationToken ct);
     Task<bool> InvoiceNumberExistsAsync(Guid supplierId, string invoiceNumber, CancellationToken ct);
     /// <summary>Quantity per product already billed on the order's Matched and Approved invoices (the invoice being matched excluded).</summary>
     Task<Dictionary<string, decimal>> InvoicedQuantitiesAsync(Guid purchaseOrderId, Guid? excludeInvoiceId, CancellationToken ct);
     void Add(SupplierInvoice invoice);
 
     Task<VendorReturn?> GetReturnAsync(Guid id, CancellationToken ct);
-    Task<List<VendorReturn>> ListReturnsAsync(Guid? purchaseOrderId, VendorReturnStatus? status, ListWindow window, CancellationToken ct);
+    Task<(List<VendorReturn> Items, int Total)> ListReturnsAsync(Guid? purchaseOrderId, VendorReturnStatus? status, ListWindow window, int pageNumber, int pageSize, CancellationToken ct);
     /// <summary>Quantity per product on the order's draft, shipped and credited returns (a draft reserves its quantity).</summary>
     Task<Dictionary<string, decimal>> ReturnedQuantitiesAsync(Guid purchaseOrderId, CancellationToken ct);
     void Add(VendorReturn vendorReturn);

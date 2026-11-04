@@ -238,7 +238,7 @@ describe('Purchasing: returns to vendor', () => {
   const draft = { id: 'v1', returnNumber: 'RET-1', poNumber: 'PO-1', supplierName: 'Acme', currencyCode: 'VND', status: 'Draft', value: 500, createdAt: '2031-01-01T00:00:00Z' }
 
   it('Ship says the stock leaves and sends nothing before the confirmation; Cancel asks too', async () => {
-    answer([[/vendor-returns$/, [draft]]])
+    answer([[/vendor-returns$/, { items: [draft], totalCount: 1 }]])
     renderAt(<VendorReturnListPage />)
     await userEvent.click(await screen.findByRole('button', { name: 'Ship RET-1' }))
     let dialog = await screen.findByRole('dialog')
@@ -255,7 +255,7 @@ describe('Purchasing: returns to vendor', () => {
   })
 
   it('a refused Ship is reported with the server reason', async () => {
-    answer([[/vendor-returns$/, [draft]]])
+    answer([[/vendor-returns$/, { items: [draft], totalCount: 1 }]])
     post.mockRejectedValueOnce({ response: { status: 400, data: { detail: 'Not enough stock to ship.' } } })
     renderAt(<VendorReturnListPage />)
     await userEvent.click(await screen.findByRole('button', { name: 'Ship RET-1' }))
@@ -264,7 +264,7 @@ describe('Purchasing: returns to vendor', () => {
   })
 
   it('the new return and credit dialogs validate with linked errors', async () => {
-    answer([[/vendor-returns$/, [{ ...draft, status: 'Shipped' }]]])
+    answer([[/vendor-returns$/, { items: [{ ...draft, status: 'Shipped' }], totalCount: 1 }]])
     renderAt(<VendorReturnListPage />)
     await userEvent.click(await screen.findByRole('button', { name: 'Record credit note RET-1' }))
     let dialog = await screen.findByRole('dialog')
