@@ -126,7 +126,7 @@ export interface CreateOrderRequest {
   customerId: string
   customerName: string
   customerEmail: string
-  lineItems: Array<{ productId: string; productName: string; quantity: number; unitPrice: number }>
+  lineItems: Array<{ productId: string; productName: string; quantity: number; unitPrice?: number }>
   shippingAddress: Address
   notes?: string
   couponCode?: string

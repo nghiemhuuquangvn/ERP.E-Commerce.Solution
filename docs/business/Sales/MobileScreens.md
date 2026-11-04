@@ -80,3 +80,5 @@ Device test (R68, 2026-11-03): configured for an Android build (identifiers `com
 6. Profile → Tiếng Việt: all texts change; Sign Out asks first.
 7. Product: open a tile from Search; **More Quantity** twice, **Add to cart** → toast; **Back**, open the Cart tab: the line is there with quantity 2 and the order button names the amount. A product with stock 0 shows "Out of stock" and cannot be added.
 8. With the phone's font size at 130 %: no text is cut off and every button is still reachable.
+
+**Server-side pricing (R113, 2026-11-04):** the server now prices every order line, so a price the customer app sends is only a claim. When the shop's price differs from the one in the cart the order is refused and the screen reloads the cart prices (notice "Some prices changed", one line per product, a Close button; a product with no price leaves the cart and shows "Price not available"). Details, rules and UAT: [ServerPricing.md](ServerPricing.md).

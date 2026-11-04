@@ -42,8 +42,19 @@ public class SyncOfflineTransactionsCommandHandler : IRequestHandler<SyncOffline
 
                 var transaction = Transaction.Open(req.TerminalId, req.CashierId, req.CashShiftId, req.ClientTransactionId);
 
+                // Offline, the terminal already took the customer's money at the price it showed, so that price stands (the tender must match it); a difference
+                // from the system price is reported, not refused (R113).
+                var warnings = new List<string>();
                 foreach (var item in req.Items)
+                {
                     transaction.AddItem(item.ProductId, item.ProductName, item.Quantity, item.UnitPrice, item.TaxRate);
+
+                    var cached = await _uow.ProductCache.GetByIdAsync(item.ProductId, cancellationToken);
+                    if (cached is null || cached.Price <= 0)
+                        warnings.Add($"{item.ProductName}: sold at {item.UnitPrice:0.00}, no system price known.");
+                    else if (Math.Round(cached.Price, 2) != Math.Round(item.UnitPrice, 2))
+                        warnings.Add($"{item.ProductName}: sold at {item.UnitPrice:0.00}, system price {cached.Price:0.00}.");
+                }
 
                 if (req.DiscountAmount > 0)
                     transaction.ApplyDiscount(req.DiscountAmount);
@@ -69,7 +80,8 @@ public class SyncOfflineTransactionsCommandHandler : IRequestHandler<SyncOffline
                 {
                     ClientTransactionId = req.ClientTransactionId,
                     AlreadySynced = false,
-                    Transaction = OpenTransactionCommandHandler.MapToDto(transaction)
+                    Transaction = OpenTransactionCommandHandler.MapToDto(transaction),
+                    PriceWarnings = warnings
                 });
             }
             catch (Exception ex)

@@ -32,6 +32,8 @@ public static class PermissionConstants
     public const string SalesOrder_Update = "sales_order:update";
     public const string SalesOrder_Approve = "sales_order:approve";
     public const string SalesOrder_Cancel = "sales_order:cancel";
+    /// <summary>Book an order / quotation line at a price that differs from the system price (R113); everyone else gets the system price.</summary>
+    public const string SalesOrder_PriceOverride = "sales_order:price_override";
 
     // Accounting Permissions
     // NOTE: AccountingService's controllers check both a "...:view" (GET) and

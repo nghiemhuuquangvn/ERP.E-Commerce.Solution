@@ -42,7 +42,8 @@ export interface CreateQuotationRequest {
   customerId: string
   customerName: string
   customerEmail: string
-  lineItems: QuotationLineItem[]
+  /** The price is optional: the server prices the line (R113); only a user with sales_order:price_override may send another one. */
+  lineItems: Array<Omit<QuotationLineItem, 'unitPrice'> & { unitPrice?: number }>
   validUntil: string
 }
 

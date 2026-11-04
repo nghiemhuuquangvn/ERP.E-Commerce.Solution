@@ -68,3 +68,11 @@ Quy tắc chọn giá khi có nhiều bảng giá: chỉ tính bảng giá đang
 
 Cần quyền `products:edit` để thấy nút **Đặt giá**. Nếu quầy POS của một sản phẩm đặt giá từ trước vẫn hiện giá cũ, quản trị viên gọi `POST /prd/api/v1/pricing/republish` một lần để gửi lại giá hiện tại cho mọi sản phẩm (gọi lại nhiều lần vẫn an toàn). Mô tả nghiệp vụ: [Pricing.md](../business/Product/Pricing.md).
 
+## 8. Đơn hàng và báo giá luôn dùng giá hệ thống
+Từ 2026-11-04, **máy chủ tự tính giá** mọi dòng của đơn hàng, báo giá và giao dịch POS: không còn ai gõ được giá tùy ý.
+- Trang **Đơn hàng mới** và **Báo giá mới** (Admin): ô **Đơn giá** điền sẵn giá hệ thống và **bị khóa** ("Giá lấy từ bảng giá của hệ thống, không sửa được ở đây."). Sản phẩm chưa có giá hiện "Sản phẩm này chưa có giá bán: hãy đặt giá ở Sản phẩm > Biến thể trước." và không lưu được.
+- Người có quyền **`sales_order:price_override`** (Cài đặt > Vai trò) sửa được ô giá; giá nhập tay thay giá hệ thống và được ghi vào ghi chú nội bộ của đơn ("Manual price for …"). Quyền xét theo danh sách quyền, **không theo tên vai trò**: vai trò Admin mà chưa được cấp quyền này vẫn bị khóa. Mặc định chỉ quản trị nền tảng có quyền.
+- Báo giá chuyển thành đơn giữ nguyên giá đã báo.
+- Lỗi từ máy chủ hiện nguyên văn dưới form (trước đây chỉ ghi "Lưu thất bại").
+Mô tả nghiệp vụ: [ServerPricing.md](../business/Sales/ServerPricing.md).
+

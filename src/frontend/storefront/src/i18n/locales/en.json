@@ -31,6 +31,7 @@
     "featuredProducts": "Featured Products"
   },
   "product": {
+    "priceUnavailable": "Price not available",
     "searchPlaceholder": "Search products…",
     "sortNewest": "Newest",
     "sortPriceAsc": "Price: Low to High",
@@ -53,6 +54,11 @@
     "inStock": "In stock"
   },
   "cart": {
+    "priceChangedTitle": "Some prices changed",
+    "priceChangedLine": "{name}: {was} → {now}",
+    "priceRemovedLine": "{name}: no price is set any more, so it was taken out of your cart",
+    "priceChangedHint": "Your cart was updated. Check the total, then place the order.",
+    "priceChangedDismiss": "Close",
     "title": "Your Cart",
     "empty": "Your cart is empty.",
     "browseProducts": "Browse products →",

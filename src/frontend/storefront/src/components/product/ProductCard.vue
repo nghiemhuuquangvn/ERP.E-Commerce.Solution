@@ -16,7 +16,8 @@
         {{ product.name }}
       </component>
       <div class="mt-1 flex items-center justify-between gap-2">
-        <PriceText :amount="product.price" />
+        <PriceText v-if="product.price > 0" :amount="product.price" />
+        <span v-else class="text-sm text-ink-secondary">{{ t('product.priceUnavailable') }}</span>
         <Badge v-if="product.stockQuantity === 0" variant="danger">{{ t('product.outOfStock') }}</Badge>
       </div>
     </div>

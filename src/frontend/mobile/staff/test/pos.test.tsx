@@ -299,3 +299,117 @@ describe('POS lines and completing a sale', () => {
     expect(useTerminalStore.getState().terminalId).toBeNull()
   })
 })
+
+describe('POS: the server prices the lines (R113)', () => {
+  const seed = () => usePOSStore.getState().addItem({ productId: P1.id, productName: 'Cozy Sofa', unitPrice: 10, taxRate: 10 })
+  const server = (price: number) => (url: string) => {
+    if (url === '/v1/pos/transactions') return Promise.resolve({ data: { id: 'tx-guid' } })
+    if (url.endsWith('/items')) return Promise.resolve({ data: { items: [{ productId: P1.id, unitPrice: price }] } })
+    return Promise.resolve({ data: {} })
+  }
+  const urls = () => mockPost.mock.calls.map((c) => c[0] as string)
+  const complete = () => fireEvent.press(screen.getByRole('button', { name: 'Complete Transaction' }))
+
+  it('does not complete a sale whose price the server changed: the cart takes the new price and the cashier presses Complete again', async () => {
+    answer({})
+    mockPost.mockImplementation(server(12))
+    chooseTerminal()
+    seed()
+    open()
+
+    complete()
+
+    expect(await screen.findByText(/Prices changed/)).toBeTruthy()
+    expect(screen.getByText(/Cozy Sofa: \$10\.00 → \$12\.00/)).toBeTruthy()
+    expect(screen.getByText(/Press Complete again|press Complete again/i)).toBeTruthy()
+    expect(urls()).toEqual(['/v1/pos/transactions', '/v1/pos/transactions/tx-guid/items'])
+    expect(usePOSStore.getState().items[0].unitPrice).toBe(12)
+    expect(usePOSStore.getState().items).toHaveLength(1)
+
+    complete()
+
+    expect(await screen.findByText('Transaction complete. Total: $13.20')).toBeTruthy()
+    expect(urls()).toEqual(['/v1/pos/transactions', '/v1/pos/transactions/tx-guid/items', '/v1/pos/transactions/tx-guid/complete'])
+  })
+
+  it('completes at once when the server confirms the prices shown', async () => {
+    answer({})
+    mockPost.mockImplementation(server(10))
+    chooseTerminal()
+    seed()
+    open()
+
+    complete()
+
+    expect(await screen.findByText('Transaction complete. Total: $11.00')).toBeTruthy()
+    expect(screen.queryByText(/Prices changed/)).toBeNull()
+  })
+
+  it('a retry after a failed completion only completes again: the lines are never added twice', async () => {
+    answer({})
+    mockPost.mockImplementation((url: string) => (url.endsWith('/complete') ? Promise.reject(new Error('500')) : server(10)(url)))
+    chooseTerminal()
+    seed()
+    open()
+    complete()
+    expect(await screen.findByText('Failed to complete transaction.')).toBeTruthy()
+
+    mockPost.mockImplementation(server(10))
+    complete()
+
+    expect(await screen.findByText('Transaction complete. Total: $11.00')).toBeTruthy()
+    expect(urls()).toEqual(['/v1/pos/transactions', '/v1/pos/transactions/tx-guid/items', '/v1/pos/transactions/tx-guid/complete', '/v1/pos/transactions/tx-guid/complete'])
+  })
+
+  it('shows the server\'s own refusal when a line cannot be sold, and the next try starts a fresh transaction', async () => {
+    answer({})
+    const refusal = Object.assign(new Error('400'), { isAxiosError: true, response: { status: 400, data: { detail: 'Cozy Sofa has no price set, so it cannot be sold.' } } })
+    mockPost.mockImplementation((url: string) => (url === '/v1/pos/transactions' ? Promise.resolve({ data: { id: 'tx-1' } }) : Promise.reject(refusal)))
+    chooseTerminal()
+    seed()
+    open()
+
+    complete()
+
+    expect(await screen.findByText('Cozy Sofa has no price set, so it cannot be sold.')).toBeTruthy()
+    expect(usePOSStore.getState().transactionId).toBeNull()
+    expect(usePOSStore.getState().items).toHaveLength(1)
+
+    mockPost.mockClear()
+    mockPost.mockImplementation(server(10))
+    complete()
+    await screen.findByText('Transaction complete. Total: $11.00')
+    expect(urls()[0]).toBe('/v1/pos/transactions')
+    expect(urls()).toHaveLength(3)
+  })
+
+  it('changing the cart after the lines went to the server starts a fresh transaction next time', async () => {
+    answer({})
+    mockPost.mockImplementation(server(12))
+    chooseTerminal()
+    seed()
+    open()
+    complete()
+    await screen.findByText(/Prices changed/)
+    expect(usePOSStore.getState().linesSynced).toBe(true)
+
+    fireEvent.press(screen.getByRole('button', { name: 'More Cozy Sofa' }))
+
+    expect(usePOSStore.getState().linesSynced).toBe(false)
+    expect(usePOSStore.getState().transactionId).toBeNull()
+  })
+
+  it('closing the notice hides it', async () => {
+    answer({})
+    mockPost.mockImplementation(server(12))
+    chooseTerminal()
+    seed()
+    open()
+    complete()
+    await screen.findByText(/Prices changed/)
+
+    fireEvent.press(screen.getByRole('button', { name: 'Close' }))
+
+    await waitFor(() => expect(screen.queryByText(/Prices changed/)).toBeNull())
+  })
+})

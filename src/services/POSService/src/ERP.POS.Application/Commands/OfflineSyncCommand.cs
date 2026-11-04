@@ -36,6 +36,9 @@ public class OfflineSyncResultDto
     public bool AlreadySynced { get; set; }
     public TransactionDto? Transaction { get; set; }
     public string? Error { get; set; }
+
+    /// <summary>Lines sold offline at a price that differs from the system price (R113). The sale is still booked at the price the customer paid; this is for a manager to review.</summary>
+    public List<string> PriceWarnings { get; set; } = new();
 }
 
 public class SyncOfflineTransactionsCommand : IRequest<List<OfflineSyncResultDto>>

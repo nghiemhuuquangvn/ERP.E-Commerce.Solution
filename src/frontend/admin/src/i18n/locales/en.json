@@ -295,6 +295,10 @@
       "cancelReasonPlaceholder": "Cancellation reason"
     },
     "form": {
+      "priceFromList": "Prices come from the system price list; they cannot be changed here.",
+      "priceManualHint": "A price typed here replaces the system price: it is recorded as a manual price on the order.",
+      "noSystemPrice": "This product has no price set: set it in Products > Variants first.",
+      "noSystemPriceManual": "This product has no system price: type the price to use.",
       "customerId": "Customer ID",
       "customerIdPlaceholder": "Enter customer ID",
       "customerName": "Customer Name",

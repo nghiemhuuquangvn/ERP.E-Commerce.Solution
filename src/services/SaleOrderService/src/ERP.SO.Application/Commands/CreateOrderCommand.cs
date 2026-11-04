@@ -8,7 +8,7 @@ namespace ERP.SO.Application.Commands
         public Guid CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
         public string CustomerEmail { get; set; } = string.Empty;
-        public List<OrderLineItemDto> LineItems { get; set; } = new();
+        public List<OrderLineItemInput> LineItems { get; set; } = new();
         public AddressDto ShippingAddress { get; set; } = new();
         public string? Notes { get; set; }
         public string? CouponCode { get; set; }
@@ -18,6 +18,9 @@ namespace ERP.SO.Application.Commands
         public Guid? QuotationId { get; set; }
         public string? PaymentMethod { get; set; }
         public string? CustomerPhone { get; set; }
+
+        /// <summary>Set by the controller from the caller's permission (sales_order:price_override); never read from the request body.</summary>
+        public bool AllowPriceOverride { get; set; }
 
         public CreateOrderCommand() { }
 

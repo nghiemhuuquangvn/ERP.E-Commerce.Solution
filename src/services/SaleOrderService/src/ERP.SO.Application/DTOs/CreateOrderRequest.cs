@@ -5,7 +5,7 @@ namespace ERP.SO.Application.DTOs
         public Guid CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
         public string CustomerEmail { get; set; } = string.Empty;
-        public List<OrderLineItemDto> LineItems { get; set; } = new();
+        public List<OrderLineItemInput> LineItems { get; set; } = new();
         public AddressDto ShippingAddress { get; set; } = new();
         public string? Notes { get; set; }
         public string? CouponCode { get; set; }
@@ -16,6 +16,15 @@ namespace ERP.SO.Application.DTOs
         public string? PaymentMethod { get; set; }
         /// <summary>The recipient's phone (digits, spaces, + - . ( ) allowed); needed by the carrier when the order ships.</summary>
         public string? CustomerPhone { get; set; }
+    }
+
+    /// <summary>A line as a client sends it. The price is optional and only a claim: the server prices the line (R113), see LinePricer.</summary>
+    public class OrderLineItemInput
+    {
+        public Guid ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public int Quantity { get; set; }
+        public decimal? UnitPrice { get; set; }
     }
 
     public class OrderLineItemDto

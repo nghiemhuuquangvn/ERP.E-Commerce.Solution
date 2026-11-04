@@ -151,6 +151,9 @@ public class PosProductCacheRepository : IPosProductCacheRepository
     public async Task<PosProductCache?> GetBySkuAsync(string sku, CancellationToken ct = default) =>
         await _db.ProductCache.FirstOrDefaultAsync(p => p.Sku == sku, ct);
 
+    public async Task<PosProductCache?> GetByIdAsync(Guid productId, CancellationToken ct = default) =>
+        await _db.ProductCache.FindAsync(new object[] { productId }, ct);
+
     public async Task<List<PosProductCache>> GetActiveAsync(CancellationToken ct = default) =>
         await _db.ProductCache.Where(p => p.IsActive).AsNoTracking().ToListAsync(ct);
 }

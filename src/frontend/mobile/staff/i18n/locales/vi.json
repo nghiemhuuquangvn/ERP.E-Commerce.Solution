@@ -70,6 +70,10 @@
     }
   },
   "pos": {
+    "priceChangedTitle": "Giá đã thay đổi",
+    "priceChangedLine": "{{name}}: {{was}} → {{now}}",
+    "priceChangedHint": "Giá đã được cập nhật. Kiểm tra lại tổng tiền rồi bấm Hoàn tất lần nữa.",
+    "priceChangedDismiss": "Đóng",
     "noItems": "Chưa có sản phẩm nào được thêm.",
     "subtotal": "Tạm tính",
     "tax": "Thuế",
