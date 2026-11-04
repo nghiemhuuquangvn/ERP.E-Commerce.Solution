@@ -9,6 +9,7 @@ import { useTerminalStore } from '@/stores/terminal.store'
 import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import { formatMoney } from '@/lib/money'
+import { serverMessage } from '@/lib/serverMessage'
 import { findByBarcode, type PosProduct } from '@/lib/posProducts'
 import { ProductPicker } from '@/components/ProductPicker'
 import { ScanSheet } from '@/components/ScanSheet'
@@ -71,7 +72,7 @@ export default function POSScreen() {
     try {
       // POSController: POST pos/transactions opens (there is no /open); use the id we just got, not the store snapshot taken before it.
       let transactionId = store.transactionId
-      if (!transactionId) {
+      if (!store.linesSynced || !transactionId) {
         const { data: opened } = await apiClient.post('/v1/pos/transactions', {
           terminalId,
           cashierId: user?.id,
@@ -79,15 +80,28 @@ export default function POSScreen() {
         })
         transactionId = opened.id as string
         store.setTransactionId(transactionId)
-      }
-      for (const item of store.items) {
-        await apiClient.post(`/v1/pos/transactions/${transactionId}/items`, {
-          productId: item.productId,
-          productName: item.productName,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          taxRate: item.taxRate,
-        })
+
+        // The server prices every line (R113): the price we send is ignored and the reply carries the real one.
+        let reply: { items?: { productId: string; unitPrice: number }[] } | undefined
+        try {
+          for (const item of store.items) {
+            const { data } = await apiClient.post(`/v1/pos/transactions/${transactionId}/items`, {
+              productId: item.productId,
+              productName: item.productName,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              taxRate: item.taxRate,
+            })
+            reply = data
+          }
+        } catch (e) {
+          store.forgetTransaction()   // part of the lines are on the server: the next attempt starts a fresh transaction, never adds to this one
+          throw e
+        }
+        store.markLinesSynced()
+
+        // A price that differs from the one the cashier saw is NOT charged silently: the cart takes the server's prices and the cashier presses Complete again.
+        if (store.applyServerPrices(reply?.items ?? []).length > 0) return
       }
       await apiClient.post(`/v1/pos/transactions/${transactionId}/complete`, {
         paymentMethod,
@@ -95,7 +109,7 @@ export default function POSScreen() {
       toast.success(t('pos.successMessage', { total: formatMoney(store.total()) }))
       store.reset()
     } catch (e) {
-      toast.error(axios.isAxiosError(e) && e.response?.status === 403 ? t('pos.notAllowed') : t('pos.errorCompletingTransaction'))
+      toast.error(axios.isAxiosError(e) && e.response?.status === 403 ? t('pos.notAllowed') : serverMessage(e, t('pos.errorCompletingTransaction')))
     } finally {
       setCompleting(false)
     }
@@ -145,6 +159,16 @@ export default function POSScreen() {
           )}
         </Card>
       </View>
+      {store.priceChanges.length > 0 && (
+        <View className="mb-3 gap-2">
+          <Alert tone="warning">
+            {`${t('pos.priceChangedTitle')}\n${store.priceChanges
+              .map((c) => t('pos.priceChangedLine', { name: c.productName, was: formatMoney(c.was), now: formatMoney(c.now) }))
+              .join('\n')}\n${t('pos.priceChangedHint')}`}
+          </Alert>
+          <Button variant="ghost" fullWidth={false} onPress={store.dismissPriceChanges}>{t('pos.priceChangedDismiss')}</Button>
+        </View>
+      )}
       <ProductPicker onPick={addProduct} />
       <View className="mb-3">
         <Button size="lg" variant="outline" onPress={() => setScanOpen(true)}>{t('pos.scan')}</Button>

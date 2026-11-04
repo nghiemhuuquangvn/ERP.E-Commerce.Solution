@@ -11,7 +11,8 @@ import { apiClient } from '@/api/client'
 import { fetchPaymentMethods, startCheckout } from '@/api/payments'
 import type { PaymentMethodOption, Order } from '@/api/payments'
 import { formatMoney } from '@/lib/money'
-import { Button, Card, EmptyState, QuantityStepper, Screen, useToast } from '@/components/ui'
+import { serverMessage } from '@/lib/serverMessage'
+import { Alert as Notice, Button, Card, EmptyState, QuantityStepper, Screen, useToast } from '@/components/ui'
 
 export default function CartScreen() {
   const router = useRouter()
@@ -34,6 +35,17 @@ export default function CartScreen() {
   }, [])
 
   const items = cartStore.items
+  const priceChanges = cartStore.priceChanges
+
+  // The cart is remembered between visits, so its prices are checked against the shop's current ones when it opens and whenever its lines change (R113).
+  const { refreshPrices } = cartStore
+  useEffect(() => {
+    void refreshPrices()
+  }, [items.length, refreshPrices])
+
+  const priceNotice = priceChanges
+    .map((c) => (c.now > 0 ? t('cart.priceChangedLine', { name: c.productName, was: formatMoney(c.was), now: formatMoney(c.now) }) : t('cart.priceRemovedLine', { name: c.productName })))
+    .join('\n')
 
   const checkout = useCallback(async () => {
     if (!authStore.isAuthenticated) {
@@ -69,12 +81,15 @@ export default function CartScreen() {
         }
       }
       router.push(`/order/${order.orderId}`)
-    } catch {
-      toast.error(t('cart.errorPlacingOrder'))
+    } catch (e) {
+      // A refusal because a price moved: the cart takes the shop's current prices and the notice lists them; any other refusal shows the server's own sentence,
+      // else the generic one. The cart is never cleared here (R113).
+      const changes = await refreshPrices()
+      if (changes.length === 0) toast.error(serverMessage(e, t('cart.errorPlacingOrder')))
     } finally {
       setPlacing(false)
     }
-  }, [authStore, cartStore, router, t, method, methods, toast])
+  }, [authStore, cartStore, refreshPrices, router, t, method, methods, toast])
 
   // Stable renderItem — FlatList re-renders only changed rows
   const renderItem = useCallback<ListRenderItem<CartItem>>(
@@ -127,7 +142,20 @@ export default function CartScreen() {
 
   return (
     <Screen scroll={false}>
-      <FlatList data={items} keyExtractor={(i) => i.productId} contentContainerClassName="p-4 gap-3" renderItem={renderItem} />
+      <FlatList
+        data={items}
+        keyExtractor={(i) => i.productId}
+        contentContainerClassName="p-4 gap-3"
+        renderItem={renderItem}
+        ListHeaderComponent={
+          priceChanges.length > 0 ? (
+            <View className="mb-3 gap-2">
+              <Notice tone="warning">{`${t('cart.priceChangedTitle')}\n${priceNotice}\n${t('cart.priceChangedHint')}`}</Notice>
+              <Button variant="ghost" fullWidth={false} onPress={cartStore.dismissPriceChanges}>{t('cart.priceChangedDismiss')}</Button>
+            </View>
+          ) : null
+        }
+      />
 
       <View className="border-t border-line bg-surface p-4">
         <Text accessibilityRole="header" className="mb-2 text-sm font-semibold text-ink-secondary">{t('cart.summary')}</Text>

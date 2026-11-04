@@ -46,7 +46,11 @@ namespace ERP.SO.Api.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var command = new CreateOrderCommand(request);
+            var command = new CreateOrderCommand(request)
+            {
+                // never from the body: only a caller who holds the permission may book a price other than the system price
+                AllowPriceOverride = _userContext.HasPermission(PermissionConstants.SalesOrder_PriceOverride)
+            };
             var result = await _mediator.Send(command, cancellationToken);
 
             return CreatedAtAction(nameof(GetOrderById), new { id = result.OrderId }, result);

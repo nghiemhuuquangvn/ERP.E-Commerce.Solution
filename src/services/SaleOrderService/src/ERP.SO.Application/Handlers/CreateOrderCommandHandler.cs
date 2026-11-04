@@ -3,6 +3,7 @@ using ERP.SO.Application.Commands;
 using ERP.SO.Application.DTOs;
 using ERP.SO.Application.Interfaces;
 using ERP.SO.Application.Sagas;
+using ERP.SO.Application.Services;
 using ERP.SO.Domain.Entities;
 using ERP.SO.Domain.ValueObjects;
 using MediatR;
@@ -27,6 +28,7 @@ namespace ERP.SO.Application.Handlers
         private readonly IPromotionServiceClient _promotionServiceClient;
         private readonly IWarehouseServiceClient _warehouseServiceClient;
         private readonly IShippingServiceClient _shippingServiceClient;
+        private readonly LinePricer _linePricer;
         private readonly OrderFulfillmentSaga _saga;
         private readonly IUserContextService _userContextService;
         private readonly IOrderNumberGenerator _orderNumberGenerator;
@@ -36,6 +38,7 @@ namespace ERP.SO.Application.Handlers
             IPromotionServiceClient promotionServiceClient,
             IWarehouseServiceClient warehouseServiceClient,
             IShippingServiceClient shippingServiceClient,
+            LinePricer linePricer,
             OrderFulfillmentSaga saga,
             IUserContextService userContextService,
             IOrderNumberGenerator orderNumberGenerator)
@@ -44,6 +47,7 @@ namespace ERP.SO.Application.Handlers
             _promotionServiceClient = promotionServiceClient;
             _warehouseServiceClient = warehouseServiceClient;
             _shippingServiceClient = shippingServiceClient;
+            _linePricer = linePricer;
             _saga = saga;
             _userContextService = userContextService;
             _orderNumberGenerator = orderNumberGenerator;
@@ -59,8 +63,13 @@ namespace ERP.SO.Application.Handlers
                 request.ShippingAddress.Country,
                 request.ShippingAddress.Ward);
 
+            // The server prices every line (R113): a price the client sends is only a claim; it must equal the system price unless the caller may override.
+            var priced = await _linePricer.PriceAsync(
+                request.LineItems.Select(li => new LineToPrice(li.ProductId, li.ProductName, li.UnitPrice)).ToList(),
+                request.AllowPriceOverride, cancellationToken);
+
             var lineItems = request.LineItems
-                .Select(li => new OrderLineItem(li.ProductId, li.ProductName, li.Quantity, li.UnitPrice))
+                .Select((li, i) => new OrderLineItem(li.ProductId, li.ProductName, li.Quantity, priced[i].UnitPrice))
                 .ToList();
 
             // Stock pre-check — must run before the order is persisted and before
@@ -105,6 +114,15 @@ namespace ERP.SO.Application.Handlers
                 request.QuotationId,
                 paymentMethod,
                 NormalizePhone(request.CustomerPhone));
+
+            for (var i = 0; i < priced.Count; i++)
+            {
+                if (!priced[i].IsManual) continue;
+                var was = priced[i].SystemPrice.HasValue ? LinePricer.Format(priced[i].SystemPrice!.Value) : "none";
+                salesOrder.AddInternalNote(
+                    $"Manual price for {request.LineItems[i].ProductName}: system price {was}, booked at {LinePricer.Format(priced[i].UnitPrice)}.",
+                    $"price-override:{_userContextService.GetCurrentUser().UserId}");
+            }
 
             if (!string.IsNullOrWhiteSpace(request.CouponCode))
             {

@@ -4,6 +4,7 @@ using ERP.POS.Application.Interfaces;
 using ERP.POS.Application.Queries;
 using ERP.POS.Domain.Entities;
 using ERP.POS.Domain.Enums;
+using ERP.Shared.Infrastructure.Exceptions;
 using MediatR;
 
 namespace ERP.POS.Application.Handlers;
@@ -52,7 +53,14 @@ public class AddTransactionItemCommandHandler : IRequestHandler<AddTransactionIt
         var t = await _uow.Transactions.GetByIdAsync(request.TransactionId, cancellationToken)
             ?? throw new InvalidOperationException($"Transaction {request.TransactionId} not found.");
 
-        t.AddItem(request.ProductId, request.ProductName, request.Quantity, request.UnitPrice, request.TaxRate);
+        // The server prices the line (R113): the price the terminal sent is ignored, the cache (fed by ProductPriceChanged) decides. A product the cache does not know,
+        // has switched off or has no price for cannot be sold - never "free".
+        var cached = await _uow.ProductCache.GetByIdAsync(request.ProductId, cancellationToken);
+        var name = string.IsNullOrWhiteSpace(request.ProductName) ? cached?.Name ?? string.Empty : request.ProductName;
+        if (cached is null || !cached.IsActive || cached.Price <= 0)
+            throw new BusinessRuleException("Pos.NoPrice", $"{name} has no price set, so it cannot be sold.");
+
+        t.AddItem(request.ProductId, name, request.Quantity, cached.Price, request.TaxRate);
         await _uow.Transactions.UpdateAsync(t, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
         return OpenTransactionCommandHandler.MapToDto(t);

@@ -70,6 +70,10 @@
     }
   },
   "pos": {
+    "priceChangedTitle": "Prices changed",
+    "priceChangedLine": "{{name}}: {{was}} → {{now}}",
+    "priceChangedHint": "The prices were updated. Check the total, then press Complete again.",
+    "priceChangedDismiss": "Close",
     "noItems": "No items added yet.",
     "subtotal": "Subtotal",
     "tax": "Tax",

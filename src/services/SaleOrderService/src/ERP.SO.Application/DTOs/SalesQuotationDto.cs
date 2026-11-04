@@ -14,6 +14,15 @@ namespace ERP.SO.Application.DTOs
         public List<QuotationLineItemDto> LineItems { get; set; } = new();
     }
 
+    /// <summary>A quotation line as a client sends it: the price is optional and only a claim (R113, see LinePricer).</summary>
+    public class QuotationLineItemInput
+    {
+        public Guid ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public int Quantity { get; set; }
+        public decimal? UnitPrice { get; set; }
+    }
+
     public class QuotationLineItemDto
     {
         public Guid ProductId { get; set; }
@@ -38,7 +47,7 @@ namespace ERP.SO.Application.DTOs
         public Guid CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
         public string CustomerEmail { get; set; } = string.Empty;
-        public List<QuotationLineItemDto> LineItems { get; set; } = new();
+        public List<QuotationLineItemInput> LineItems { get; set; } = new();
         public DateTime ValidUntil { get; set; }
     }
 }

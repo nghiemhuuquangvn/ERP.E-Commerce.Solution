@@ -295,6 +295,10 @@
       "cancelReasonPlaceholder": "Lý do hủy"
     },
     "form": {
+      "priceFromList": "Giá lấy từ bảng giá của hệ thống, không sửa được ở đây.",
+      "priceManualHint": "Giá nhập tay sẽ thay giá hệ thống và được ghi nhận là giá thủ công trên đơn.",
+      "noSystemPrice": "Sản phẩm này chưa có giá bán: hãy đặt giá ở Sản phẩm > Biến thể trước.",
+      "noSystemPriceManual": "Sản phẩm này chưa có giá hệ thống: hãy nhập giá sẽ dùng.",
       "customerId": "Mã khách hàng",
       "customerIdPlaceholder": "Nhập mã khách hàng",
       "customerName": "Tên khách hàng",

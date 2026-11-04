@@ -39,6 +39,7 @@ public interface IPosProductCacheRepository
     Task UpsertAsync(PosProductCache product, CancellationToken ct = default);
     Task UpdatePriceAsync(Guid productId, decimal newPrice, CancellationToken ct = default);
     Task<PosProductCache?> GetBySkuAsync(string sku, CancellationToken ct = default);
+    Task<PosProductCache?> GetByIdAsync(Guid productId, CancellationToken ct = default);
     Task<List<PosProductCache>> GetActiveAsync(CancellationToken ct = default);
 }
 

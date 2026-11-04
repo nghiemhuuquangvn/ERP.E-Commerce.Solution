@@ -1,3 +1,4 @@
+using ERP.SO.Application.Services;
 using ERP.Shared.Authorization;
 using ERP.SO.Application.Commands;
 using ERP.SO.Application.DTOs;
@@ -14,8 +15,11 @@ namespace ERP.SO.Application.Handlers
         private readonly IOrderNumberGenerator _orderNumberGenerator;
         private readonly IUserContextService _userContextService;
 
-        public CreateQuotationCommandHandler(ISalesQuotationRepository repository, IOrderNumberGenerator orderNumberGenerator, IUserContextService userContextService)
+        private readonly LinePricer _linePricer;
+
+        public CreateQuotationCommandHandler(ISalesQuotationRepository repository, IOrderNumberGenerator orderNumberGenerator, IUserContextService userContextService, LinePricer linePricer)
         {
+            _linePricer = linePricer;
             _repository = repository;
             _orderNumberGenerator = orderNumberGenerator;
             _userContextService = userContextService;
@@ -26,8 +30,13 @@ namespace ERP.SO.Application.Handlers
             var tenantId = new Guid(_userContextService.GetCurrentUser().TenantId);
             var quotationNo = await _orderNumberGenerator.NextAsync(tenantId, "QT", cancellationToken);
 
+            // Same rule as an order (R113): the server prices the line, a different price needs sales_order:price_override.
+            var priced = await _linePricer.PriceAsync(
+                request.LineItems.Select(li => new LineToPrice(li.ProductId, li.ProductName, li.UnitPrice)).ToList(),
+                request.AllowPriceOverride, cancellationToken);
+
             var lineItems = request.LineItems
-                .Select(li => new QuotationLineItem(li.ProductId, li.ProductName, li.Quantity, li.UnitPrice))
+                .Select((li, i) => new QuotationLineItem(li.ProductId, li.ProductName, li.Quantity, priced[i].UnitPrice))
                 .ToList();
 
             var quotation = SalesQuotation.Create(

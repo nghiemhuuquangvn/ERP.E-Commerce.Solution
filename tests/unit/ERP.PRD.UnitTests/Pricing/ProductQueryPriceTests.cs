@@ -1,3 +1,4 @@
+using ERP.PRD.Application.Features.Prices;
 using ERP.PRD.Application.Features.Pricing.Queries;
 using ERP.PRD.Application.Features.Products.Queries;
 using ERP.PRD.Application.Interfaces;
@@ -86,5 +87,31 @@ public class ProductQueryPriceTests
         result.Single(v => v.VariantId == priced).RetailPrice.Should().Be(55m);
         result.Single(v => v.VariantId == priced).Cost.Should().Be(10m);
         result.Single(v => v.VariantId == unpriced).RetailPrice.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task The_internal_price_query_returns_only_priced_products_once_each()
+    {
+        var priced = Guid.NewGuid();
+        var unpriced = Guid.NewGuid();
+        var resolver = new Mock<IProductPriceResolver>();
+        resolver.Setup(r => r.GetProductPricesAsync(It.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 2), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, ResolvedProductPrice> { [priced] = new(12500m, Guid.NewGuid()) });
+
+        var result = await new GetProductRetailPricesHandler(resolver.Object)
+            .Handle(new GetProductRetailPricesQuery { ProductIds = new List<Guid> { priced, unpriced, priced } }, CancellationToken.None);
+
+        result.Should().ContainSingle().Which.Should().BeEquivalentTo(new ProductRetailPriceDto { ProductId = priced, Price = 12500m });
+    }
+
+    [Fact]
+    public async Task The_internal_price_query_with_no_ids_asks_nobody()
+    {
+        var resolver = new Mock<IProductPriceResolver>();
+
+        var result = await new GetProductRetailPricesHandler(resolver.Object).Handle(new GetProductRetailPricesQuery(), CancellationToken.None);
+
+        result.Should().BeEmpty();
+        resolver.VerifyNoOtherCalls();
     }
 }

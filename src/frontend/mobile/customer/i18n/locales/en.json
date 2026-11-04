@@ -27,6 +27,11 @@
     "noProductsHint": "Try another word."
   },
   "cart": {
+    "priceChangedTitle": "Some prices changed",
+    "priceChangedLine": "{{name}}: {{was}} → {{now}}",
+    "priceRemovedLine": "{{name}}: no price is set any more, so it was taken out of your cart",
+    "priceChangedHint": "Your cart was updated. Check the total, then place the order.",
+    "priceChangedDismiss": "Close",
     "signInRequiredTitle": "Sign In Required",
     "signInRequiredMessage": "Please sign in to place an order.",
     "errorPlacingOrder": "Failed to place order. Please try again.",
@@ -125,6 +130,7 @@
     "profile": "Profile"
   },
   "product": {
+    "priceUnavailable": "Price not available",
     "back": "Back",
     "loading": "Loading the product…",
     "loadFailed": "We could not load this product. Please try again.",

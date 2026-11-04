@@ -6,6 +6,8 @@ import { ordersApi } from '@/api/orders.api'
 import type { OrderSource } from '@/api/orders.api'
 import type { Product } from '@/api/products.api'
 import { ProductPickerModal } from '@/components/shared/ProductPickerModal'
+import { usePriceOverride } from '@/hooks/usePriceOverride'
+import { serverMessage } from '@/lib/serverMessage'
 
 interface DraftLine {
   key: number
@@ -20,6 +22,8 @@ let nextKey = 1
 export function OrderFormPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  // The server prices every line (R113): the field shows the system price and is locked unless the user holds sales_order:price_override.
+  const canOverridePrice = usePriceOverride()
   const [customerId, setCustomerId] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [customerEmail, setCustomerEmail] = useState('')
@@ -76,6 +80,10 @@ export function OrderFormPage() {
       setError(t('orders.form.lineRequired'))
       return
     }
+    if (validLines.some((l) => l.unitPrice <= 0)) {
+      setError(canOverridePrice ? t('orders.form.noSystemPriceManual') : t('orders.form.noSystemPrice'))
+      return
+    }
     mutation.mutate({
       customerId: customerId.trim(),
       customerName: customerName.trim(),
@@ -84,7 +92,8 @@ export function OrderFormPage() {
         productId: l.productId,
         productName: l.productName,
         quantity: l.quantity,
-        unitPrice: l.unitPrice,
+        // without the permission the price is left out and the server prices the line
+        unitPrice: canOverridePrice ? l.unitPrice : undefined,
       })),
       shippingAddress: address,
       orderSource,
@@ -205,10 +214,15 @@ export function OrderFormPage() {
                       type="number"
                       min={0}
                       step="0.01"
-                      className="input w-28 text-right"
+                      className={`input w-28 text-right ${canOverridePrice ? '' : 'bg-surface-muted'}`}
+                      aria-label={t('orders.unitPrice')}
+                      readOnly={!canOverridePrice}
                       value={line.unitPrice}
                       onChange={(e) => updateLine(line.key, { unitPrice: Number(e.target.value) })}
                     />
+                    {line.productId && line.unitPrice <= 0 && (
+                      <p className="mt-1 text-xs text-danger-soft-text">{canOverridePrice ? t('orders.form.noSystemPriceManual') : t('orders.form.noSystemPrice')}</p>
+                    )}
                   </td>
                   <td className="py-2 text-right font-medium">{(line.quantity * line.unitPrice).toFixed(2)}</td>
                   <td className="py-2 text-right">
@@ -229,6 +243,7 @@ export function OrderFormPage() {
               </tr>
             </tfoot>
           </table>
+          <p className="mt-3 text-xs text-ink-muted">{canOverridePrice ? t('orders.form.priceManualHint') : t('orders.form.priceFromList')}</p>
         </div>
 
         <ProductPickerModal
@@ -239,7 +254,7 @@ export function OrderFormPage() {
         />
 
         {error && <p className="text-sm text-danger-soft-text">{error}</p>}
-        {mutation.isError && <p className="text-sm text-danger-soft-text">{t('common.failedToSave')}</p>}
+        {mutation.isError && <p className="text-sm text-danger-soft-text">{serverMessage(mutation.error, t('common.failedToSave'))}</p>}
 
         <div className="flex justify-end gap-3">
           <Link to="/orders" className="btn-outline">

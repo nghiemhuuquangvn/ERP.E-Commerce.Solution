@@ -30,7 +30,12 @@ namespace ERP.SO.Api.Controllers
             if (!_userContext.HasPermission("sales_order:create"))
                 return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:create required" });
 
-            var result = await _mediator.Send(new CreateQuotationCommand(request), cancellationToken);
+            var command = new CreateQuotationCommand(request)
+            {
+                // never from the body: only a caller who holds the permission may quote a price other than the system price (R113)
+                AllowPriceOverride = _userContext.HasPermission(ERP.Shared.Authorization.PermissionConstants.SalesOrder_PriceOverride)
+            };
+            var result = await _mediator.Send(command, cancellationToken);
             return CreatedAtAction(nameof(GetQuotationById), new { id = result.QuotationId }, result);
         }
 
