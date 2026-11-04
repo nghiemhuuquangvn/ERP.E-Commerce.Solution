@@ -1,13 +1,13 @@
 # ERP Admin mobile app - business analysis
 
-Version 1.0, 2026-11-04. Technical companion: `docs/frontend/mobile-admin-app.md`. Screen elements: `docs/frontend/mobile-admin-ui-elements.md`. Verification record: section 13.
+Version 1.1, 2026-11-04 (1.1: side menu, shorter tab bar, notification bell and inbox - requirements R12-R14, UC8-UC9, section 15). Technical companion: `docs/frontend/mobile-admin-app.md`. Screen elements: `docs/frontend/mobile-admin-ui-elements.md`. Verification record: section 13.
 
 ## 1. Purpose
 Managers and approvers act on work that waits for them (purchase orders, sales orders, leave requests) and watch the sales figures from a phone, without the web back office. One code base, one installable app **per tenant** (default tenant SYSTEM), built so more modules can be added.
 
 ## 2. Scope
-In: sign-in (including the two-step code), Home (sales figures and "needs your action"), Purchasing, Sales, HR (employees, leave requests, attendance), language (en / vi), sign out, tenant build.
-Out (first release): creating or editing orders, hiring / terminating / transferring staff, payroll, shipping steps (pick, ship, return), warehouse and accounting modules, push notifications, offline writes, biometric unlock, tablet layout.
+In: sign-in (including the two-step code), Home (sales figures and "needs your action"), Purchasing, Sales, HR (employees, leave requests, attendance), side menu, notification bell with unread number and inbox, language (en / vi), sign out, tenant build.
+Out (first release): creating or editing orders, hiring / terminating / transferring staff, payroll, shipping steps (pick, ship, return), warehouse and accounting modules, push notifications (the bell reads the in-app inbox by polling; nothing reaches a locked phone), mark-all-as-read, opening the related order from a notification, offline writes, biometric unlock, tablet layout.
 
 ## 3. Actors
 | Actor | Needs |
@@ -32,6 +32,9 @@ Out (first release): creating or editing orders, hiring / terminating / transfer
 | R8 | Buttons follow status and permission | e.g. finance approval only in "Pending finance", for `purchase_order:finance_approve` |
 | R9 | Tenant build | `TENANT_CODE` sets the address, name and package; two tenants install side by side; production builds refuse plain http |
 | R10 | Extensible | a new module needs a folder, one registry line, route files and translations; a test fails otherwise |
+| R12 | Side menu | a button at the top left opens a panel from the left listing every module the account may open (permissions + licence), the inbox, language, tenant / server / version and Sign out; the current module is highlighted and announced as selected; choosing a row opens it and closes the menu; the Close control, the dark area and the Back key close it; sign out still asks first |
+| R13 | Short tab bar | the bar holds Home and at most two more modules (3 in all); a module that is not in the bar is reached from the menu only; there is no "More" tab |
+| R14 | Notification bell and inbox | with `notifications:view` the header shows a bell: no badge at 0, the number up to 99, "99+" beyond, and the label says "Notifications, N unread"; without the permission no bell and no call is made; the inbox lists the user's own notifications newest first (unread in bold with a dot and the word "Unread" in its label); opening an unread row marks it read at once (row and number); pull to refresh, endless paging, empty / error / offline / no-access states; the number is refreshed every 60 s while the app is open |
 | R11 | Accessible | targets from 44 px, labels on every control, status never by colour alone, live regions for errors |
 
 ## 5. Business rules
@@ -50,16 +53,18 @@ Out (first release): creating or editing orders, hiring / terminating / transfer
 **UC4 Decide a leave request.** HR > Leave > Pending > open > Approve or Reject (reason).
 **UC5 Open work from Home.** Home > "3 purchase orders to approve" > the list opens on "Submitted".
 **UC6 Sign in with two steps.** Email + password > code screen > six digits > Home. Alternative: wrong code > message, retry; resend after 30 s.
+**UC8 Open a module from the menu.** Main: top-left menu button > panel > HR > the HR screen opens and the panel closes. Alternative: the account has no HR permission > the row is not listed. Exception: none (navigation only).
+**UC9 Read a notification.** Main: bell with "3" > inbox > tap an unread row > it turns read, the bell shows 2, the full text opens. Alternative: nothing unread > no badge. Exception: the server refuses (403) > "You do not have access to this" with the permission name; the server is unreachable > saved rows stay under an offline banner and no badge is shown.
 **UC7 Build for a tenant.** Operator runs the build with `-Tenant <code> -ApiUrl <tenant host>`; installs the APK; the header shows the tenant.
 
 ## 7. Data and state
 No data is stored by the app except the refresh token (keystore) and the chosen language. Status sets: PO `DRAFT, SUBMITTED, PENDING_FINANCE_APPROVAL, APPROVED, ORDERED, PARTIALLY_RECEIVED, RECEIVED, REJECTED, CANCELLED`; SO `Draft, Submitted, Approved, Picked, Shipped, PartiallyShipped, Delivered, Rejected, Cancelled, ReturnRequested, Returned`; leave `Pending, Approved, Rejected, Cancelled`. Tone table: UI elements doc section 5.
 
 ## 8. Integrations
-Through the tenant host and the Gateway: Identity (`auth/login`, `2fa/verify`, `2fa/resend`, `refresh`, `logout`), Reporting (`reports/sales`), PurchaseOrder, SaleOrder, HRM. No new backend endpoints. Two Sales fixes made for this app (list status filter applied before paging, order number on list rows) - section 11.
+Through the tenant host and the Gateway: Identity (`auth/login`, `2fa/verify`, `2fa/resend`, `refresh`, `logout`), Reporting (`reports/sales`), Notification (`ntf/api/v1/notifications`: `history/{userId}`, `unread-count/{userId}`, `PATCH {id}/read`; the user id is the token's own), PurchaseOrder, SaleOrder, HRM. No new backend endpoints. Two Sales fixes made for this app (list status filter applied before paging, order number on list rows) - section 11.
 
 ## 9. Permissions
-`reports:sales:view`; `purchase_order:read, approve, finance_approve, cancel`; `sales_order:read, approve, cancel`; `hrm:employees:view, hrm:leave:manage, hrm:attendance:view`. Licensed module codes: PO, SO, HRM (Home needs none).
+`reports:sales:view`; `notifications:view`; `purchase_order:read, approve, finance_approve, cancel`; `sales_order:read, approve, cancel`; `hrm:employees:view, hrm:leave:manage, hrm:attendance:view`. Licensed module codes: PO, SO, HRM (Home needs none).
 
 ## 10. Reports
 None of its own. Home shows the Reporting sales dashboard.
@@ -76,6 +81,8 @@ None of its own. Home shows the Reporting sales dashboard.
 5. On a throw-away order press Reject with an empty reason: refused; with a reason: status changes (**the owner presses; the assistant does not act on real data**).
 6. Turn the network off on a list: saved rows stay with an offline banner, nothing is lost.
 7. Sign out and reopen: back at sign-in.
+8. Open the menu: all permitted modules are listed, the current one highlighted; open HR from it (HR is not in the 3-tab bar); the bar has 3 tabs and no More.
+9. A user with `notifications:view` sees the bell; with one unread notification the badge shows 1; opening it in the inbox makes it read and the badge disappears (**the owner presses; the row is the user's own notification**). A user without the permission has no bell and no Notifications row.
 
 ## 13. Verification record
 2026-11-04, Pixel 6 / Android 14 emulator (erp-pixel), Docker stack, **read-only** (no approve / reject / cancel was pressed; the assistant never acts on real data).
@@ -90,3 +97,9 @@ None of its own. Home shows the Reporting sales dashboard.
 
 ## 14. Assumptions and open issues
 Home purchase-order count is capped at 100; the list search narrows loaded rows only (no server text search for PO / SO); the two-step code is covered by tests, not by a real 2FA account; the screen reader pass (TalkBack) is not done; the store release (signing, icon per tenant, `TENANT_ICON`) is not done. Registered in DEFERRED-ISSUES R123-R127.
+
+## 15. Navigation and notifications (version 1.1)
+**Scope decision (owner, 2026-11-04):** left slide-in menu plus a shorter bottom tab bar; bell with unread number and an inbox (REST + polling; no SignalR).
+**Business rules.** (1) The menu lists exactly the modules the visibility rule allows (`useVisibleModules().visible`): permissions only, never role names. (2) The inbox belongs to the signed-in user: the request carries the token's own user id and the server refuses another id. (3) An unread count that cannot be read shows no badge rather than a wrong one. (4) Notification text is shown as plain text (HTML tags of e-mail bodies are removed). (5) Marking read is the only write; nothing is deleted.
+**Data and state.** The app stores nothing new; the unread number and the inbox live in the query cache and are cleared at sign-out.
+**Verification record (2026-11-04, Pixel 6 emulator, Docker stack, SYSTEM build, read-only).** Contract script: the platform administrator holds `notifications:view`; `unread-count` answers `{unreadCount:0}`; `history` answers `{total:7, items}` (e-mail rows "Order #{OrderNumber} Confirmed" and "Your verification code", all already read, bodies empty; the subject shows an unresolved template placeholder - R130). Device: the header shows the menu button, the bell and the SYSTEM chip; the menu lists Home, Purchasing, Sales, HR, Notifications, language, tenant / server / version and Sign out; HR opened from the menu although it is not a tab; the bar shows 3 tabs; the inbox lists the 7 rows. **Not verified on a device:** the badge with a non-zero number and marking a row read (no unread notification exists; Jest covers both), the glcheck build, TalkBack, dark mode.

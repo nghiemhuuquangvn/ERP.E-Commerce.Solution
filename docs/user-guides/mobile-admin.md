@@ -13,7 +13,13 @@ Màn hình ghi "Đăng nhập vào" kèm nhãn tenant của bản cài (ví dụ
 - Tài khoản của tenant khác không đăng nhập được vào bản cài của tenant này.
 
 ## 2. Các tab
-Thanh dưới có tối đa 4 mục + **Thêm**. Chỉ hiện mục tài khoản được phép dùng (theo quyền và gói giấy phép của tenant): **Trang chủ**, **Mua hàng**, **Bán hàng**, **Nhân sự**. Góc trên bên phải luôn ghi tenant.
+Thanh dưới có tối đa 3 mục (Trang chủ và hai mục tiếp theo). Mục còn lại (ví dụ **Nhân sự** khi tài khoản có đủ bốn mục) mở từ **menu ☰** ở góc trên bên trái. Chỉ hiện mục tài khoản được phép dùng (theo quyền và gói giấy phép của tenant): **Trang chủ**, **Mua hàng**, **Bán hàng**, **Nhân sự**. Góc trên bên phải có **chuông thông báo** và nhãn tenant.
+
+### Menu ☰
+Bấm ☰ để mở bảng trượt từ bên trái: tên và email, tenant, danh sách mục được phép dùng (mục đang mở được tô nền), **Thông báo**, **Ngôn ngữ**, địa chỉ máy chủ, phiên bản và **Đăng xuất** (có hỏi xác nhận). Bấm một mục để mở; bấm vùng tối bên ngoài, nút ✕ hoặc phím Back để đóng.
+
+### Chuông thông báo
+Chuông hiện khi tài khoản có quyền `notifications:view`. Số đỏ là số thông báo chưa đọc (quá 99 hiện "99+"); app cập nhật số này mỗi 60 giây khi đang mở. Bấm chuông để xem hộp thư: thông báo chưa đọc in đậm, có chấm xanh; bấm vào để đọc đủ nội dung và đánh dấu đã đọc. Kéo xuống để tải lại. Chưa có nút "đánh dấu tất cả đã đọc".
 
 ## 3. Trang chủ
 - Chọn **7 / 30 / 90 ngày**: hiện **Doanh thu**, **Đơn hàng**, **Giá trị TB/đơn** và biểu đồ doanh thu theo ngày. Kéo xuống để tải lại.
@@ -51,8 +57,8 @@ Ba phần: **Nhân viên | Nghỉ phép | Chấm công** (chỉ hiện phần c�
 | Xem nhân viên / duyệt nghỉ phép / xem chấm công | `hrm:employees:view` / `hrm:leave:manage` / `hrm:attendance:view` |
 Quyền cấp ở **Cài đặt → Vai trò** trên trang quản trị. Quyền theo vai trò, không theo tên vai trò.
 
-## 8. Thêm (cài đặt cá nhân)
-Tên và email, **Ngôn ngữ** (English / Tiếng Việt), tenant, địa chỉ máy chủ, phiên bản, **Đăng xuất** (có hỏi xác nhận). Module không vừa thanh dưới được liệt kê ở đây.
+## 8. Cài đặt cá nhân (trong menu ☰)
+Tên và email, **Ngôn ngữ** (English / Tiếng Việt), tenant, địa chỉ máy chủ, phiên bản, **Đăng xuất** (có hỏi xác nhận).
 
 ## 9. Mất mạng
 Danh sách đã tải vẫn hiện với dải vàng "Đang ngoại tuyến. Hiển thị dữ liệu đã lưu."; bấm duyệt/từ chối khi không có mạng sẽ báo lỗi, không có thao tác nào bị bỏ dở.

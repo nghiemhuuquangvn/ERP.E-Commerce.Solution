@@ -1,6 +1,8 @@
+import { View } from 'react-native'
 import { Tabs } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { MoreHorizontal } from 'lucide-react-native'
+import { MenuButton } from '@/components/MenuButton'
+import { NotificationBell } from '@/components/NotificationBell'
 import { TenantChip } from '@/components/TenantChip'
 import { MODULES } from '@/modules'
 import { useVisibleModules } from '@/modules/visible'
@@ -8,7 +10,8 @@ import { colors, icon } from '@/theme/theme'
 
 /**
  * The tab bar is built from the module registry (modules/index.ts): a module the user may open and that fits in the bar is a tab;
- * the rest are listed on More. Every other tab file is hidden with href: null, so a user never sees a tab they cannot use.
+ * the others are reached from the side menu (components/SideMenu). Every other tab file is hidden with href: null, so a user
+ * never sees a tab they cannot use. The header carries the menu button, the notification bell and the tenant chip.
  */
 export default function TabsLayout() {
   const { t } = useTranslation()
@@ -25,7 +28,14 @@ export default function TabsLayout() {
         headerShown: true,
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.ink,
-        headerRight: () => <TenantChip />,
+        headerLeft: () => <MenuButton />,
+        headerLeftContainerStyle: { paddingLeft: 8 },
+        headerRight: () => (
+          <View className="flex-row items-center gap-1">
+            <NotificationBell />
+            <TenantChip />
+          </View>
+        ),
         headerRightContainerStyle: { paddingRight: 16 },
       }}
     >
@@ -44,14 +54,6 @@ export default function TabsLayout() {
           />
         )
       })}
-      <Tabs.Screen
-        name="more"
-        options={{
-          title: t('tabs.more'),
-          tabBarAccessibilityLabel: t('tabs.more'),
-          tabBarIcon: ({ color }: { color: string }) => <MoreHorizontal color={color} size={24} strokeWidth={icon.stroke} />,
-        }}
-      />
     </Tabs>
   )
 }

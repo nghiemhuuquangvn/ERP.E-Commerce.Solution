@@ -41,7 +41,6 @@
     "signInError": "Sai email hoặc mật khẩu.",
     "networkError": "Không kết nối được máy chủ. Kiểm tra mạng."
   },
-  "tabs": { "more": "Thêm" },
   "modules": {
     "dashboard": "Trang chủ",
     "purchase": "Mua hàng",
@@ -64,16 +63,48 @@
   },
   "status": {
     "po": {
-      "DRAFT": "Nháp", "SUBMITTED": "Đã gửi", "ORDERED": "Đã đặt hàng", "PENDING_FINANCE_APPROVAL": "Chờ tài chính",
-      "PARTIALLY_RECEIVED": "Nhận một phần", "APPROVED": "Đã duyệt", "RECEIVED": "Đã nhận", "REJECTED": "Từ chối", "CANCELLED": "Đã hủy"
+      "DRAFT": "Nháp",
+      "SUBMITTED": "Đã gửi",
+      "ORDERED": "Đã đặt hàng",
+      "PENDING_FINANCE_APPROVAL": "Chờ tài chính",
+      "PARTIALLY_RECEIVED": "Nhận một phần",
+      "APPROVED": "Đã duyệt",
+      "RECEIVED": "Đã nhận",
+      "REJECTED": "Từ chối",
+      "CANCELLED": "Đã hủy"
     },
     "so": {
-      "Draft": "Nháp", "Submitted": "Đã gửi", "Picked": "Đã lấy hàng", "Shipped": "Đã giao vận", "PartiallyShipped": "Giao một phần",
-      "ReturnRequested": "Yêu cầu trả hàng", "Approved": "Đã duyệt", "Delivered": "Đã giao", "Rejected": "Từ chối", "Cancelled": "Đã hủy", "Returned": "Đã trả hàng"
+      "Draft": "Nháp",
+      "Submitted": "Đã gửi",
+      "Picked": "Đã lấy hàng",
+      "Shipped": "Đã giao vận",
+      "PartiallyShipped": "Giao một phần",
+      "ReturnRequested": "Yêu cầu trả hàng",
+      "Approved": "Đã duyệt",
+      "Delivered": "Đã giao",
+      "Rejected": "Từ chối",
+      "Cancelled": "Đã hủy",
+      "Returned": "Đã trả hàng"
     },
-    "leave": { "Pending": "Chờ duyệt", "Approved": "Đã duyệt", "Rejected": "Từ chối", "Cancelled": "Đã hủy" },
-    "employee": { "Active": "Đang làm", "OnLeave": "Đang nghỉ phép", "Terminated": "Đã nghỉ việc" },
-    "attendance": { "Present": "Có mặt", "Late": "Đi muộn", "Absent": "Vắng", "HalfDay": "Nửa ngày", "OnLeave": "Nghỉ phép", "Holiday": "Ngày lễ" }
+    "leave": {
+      "Pending": "Chờ duyệt",
+      "Approved": "Đã duyệt",
+      "Rejected": "Từ chối",
+      "Cancelled": "Đã hủy"
+    },
+    "employee": {
+      "Active": "Đang làm",
+      "OnLeave": "Đang nghỉ phép",
+      "Terminated": "Đã nghỉ việc"
+    },
+    "attendance": {
+      "Present": "Có mặt",
+      "Late": "Đi muộn",
+      "Absent": "Vắng",
+      "HalfDay": "Nửa ngày",
+      "OnLeave": "Nghỉ phép",
+      "Holiday": "Ngày lễ"
+    }
   },
   "po": {
     "searchLabel": "Tìm đơn mua",
@@ -122,7 +153,11 @@
     "cancelled": "Đã hủy {{number}}."
   },
   "hr": {
-    "tab": { "employees": "Nhân viên", "leave": "Nghỉ phép", "attendance": "Chấm công" },
+    "tab": {
+      "employees": "Nhân viên",
+      "leave": "Nghỉ phép",
+      "attendance": "Chấm công"
+    },
     "searchEmployees": "Tìm nhân viên",
     "noEmployees": "Không tìm thấy nhân viên.",
     "noLeave": "Không có đơn nghỉ phép nào ở đây.",
@@ -149,7 +184,13 @@
     "rejected": "Đã từ chối nghỉ phép của {{name}}.",
     "cancelled": "Đã hủy nghỉ phép của {{name}}."
   },
-  "leaveType": { "Annual": "Nghỉ phép năm", "Sick": "Nghỉ ốm", "Unpaid": "Nghỉ không lương", "Maternity": "Nghỉ thai sản", "Paternity": "Nghỉ chăm vợ sinh" },
+  "leaveType": {
+    "Annual": "Nghỉ phép năm",
+    "Sick": "Nghỉ ốm",
+    "Unpaid": "Nghỉ không lương",
+    "Maternity": "Nghỉ thai sản",
+    "Paternity": "Nghỉ chăm vợ sinh"
+  },
   "more": {
     "tenant": "Tenant",
     "server": "Máy chủ",
@@ -157,5 +198,25 @@
     "signOut": "Đăng xuất",
     "signOutTitle": "Đăng xuất?",
     "signOutHint": "Cần đăng nhập lại để dùng app."
+  },
+  "header": {
+    "openMenu": "Mở menu",
+    "notifications": "Thông báo",
+    "notificationsUnread_one": "Thông báo, {{count}} chưa đọc",
+    "notificationsUnread_other": "Thông báo, {{count}} chưa đọc"
+  },
+  "menu": {
+    "close": "Đóng menu",
+    "notifications": "Thông báo",
+    "unreadCount_one": "{{count}} chưa đọc",
+    "unreadCount_other": "{{count}} chưa đọc"
+  },
+  "notifications": {
+    "title": "Thông báo",
+    "empty": "Chưa có thông báo nào.",
+    "emptyHint": "Tin nhắn mới dành cho bạn sẽ hiện ở đây.",
+    "unread": "Chưa đọc",
+    "read": "Đã đọc",
+    "noSubject": "(không có tiêu đề)"
   }
 }
