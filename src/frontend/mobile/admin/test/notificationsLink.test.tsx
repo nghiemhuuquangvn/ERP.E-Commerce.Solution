@@ -2,9 +2,10 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import { renderScreen } from './render'
 
 const mockPush = jest.fn()
+const mockNavigate = jest.fn()
 let mockCount: number | undefined
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush, navigate: jest.fn(), replace: jest.fn() }),
+  useRouter: () => ({ push: mockPush, navigate: mockNavigate, replace: jest.fn() }),
   usePathname: () => '/',
 }))
 jest.mock('@/api/auth', () => ({ ADMIN_USER_TYPE: 2, authApi: { logout: jest.fn().mockResolvedValue(undefined) } }))
@@ -20,6 +21,7 @@ import * as ExpoNotifications from 'expo-notifications'
 import Constants from 'expo-constants'
 import NotificationsScreen from '@/features/notifications/NotificationsScreen'
 import { notificationTarget } from '@/features/notifications/target'
+import { NotificationEffects } from '@/features/notifications/NotificationEffects'
 import { registerThisDevice, unregisterThisDevice } from '@/features/notifications/push'
 import { useNewNotificationAlert } from '@/features/notifications/useNewNotificationAlert'
 import { devicesApi, notificationsApi, type AppNotification } from '@/features/notifications/api'
@@ -176,5 +178,30 @@ describe('push registration', () => {
     extra().pushEnabled = true
     expoN.getDevicePushTokenAsync.mockRejectedValueOnce(new Error('no play services'))
     expect(await registerThisDevice()).toBe(false)
+  })
+})
+
+describe('tapping a phone notification', () => {
+  it('opens the record once with navigate, even when the same response is delivered again', async () => {
+    signInAs(['notifications:view', 'hrm:leave:manage'])
+    const listen = expoN.addNotificationResponseReceivedListener as jest.Mock
+    renderScreen(<NotificationEffects />)
+    await waitFor(() => expect(listen).toHaveBeenCalled())
+    const deliver = listen.mock.calls[listen.mock.calls.length - 1][0]
+    const response = { notification: { request: { identifier: 'tap-1', content: { data: { entityType: 'LeaveRequest', entityId: 'lr-1' } } } } }
+    deliver(response)
+    deliver(response)
+    expect(mockNavigate).toHaveBeenCalledTimes(1)
+    expect(mockNavigate).toHaveBeenCalledWith('/hrm/leave/lr-1')
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('goes to the inbox when the record is not one the user may open', async () => {
+    signInAs(['notifications:view'])
+    const listen = expoN.addNotificationResponseReceivedListener as jest.Mock
+    renderScreen(<NotificationEffects />)
+    await waitFor(() => expect(listen).toHaveBeenCalled())
+    listen.mock.calls[listen.mock.calls.length - 1][0]({ notification: { request: { identifier: 'tap-2', content: { data: { entityType: 'LeaveRequest', entityId: 'lr-2' } } } } })
+    expect(mockNavigate).toHaveBeenCalledWith('/notifications')
   })
 })

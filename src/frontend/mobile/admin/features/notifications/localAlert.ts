@@ -60,11 +60,16 @@ export async function showLocalAlert(n: Pick<AppNotification, 'subject' | 'body'
   }
 }
 
-/** Calls back when the user taps a phone notification (a pushed one or a local one); returns the unsubscribe. */
-export function onAlertTapped(handler: (data: AlertData) => void): () => void {
+const handledResponses = new Set<string>()
+
+/** Calls back once per tapped phone notification (a pushed one or a local one); returns the unsubscribe. */
+export function onAlertTapped(handler: (data: AlertData, responseId: string) => void): () => void {
   try {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      handler((response.notification.request.content.data ?? {}) as AlertData)
+      const id = response.notification.request.identifier
+      if (handledResponses.has(id)) return
+      handledResponses.add(id)
+      handler((response.notification.request.content.data ?? {}) as AlertData, id)
     })
     return () => sub.remove()
   } catch {
