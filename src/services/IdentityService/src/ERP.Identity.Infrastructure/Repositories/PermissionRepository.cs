@@ -55,6 +55,42 @@ namespace ERP.Identity.Infrastructure.Repositories
                 && PermissionScopes.IsGrantableIn(code, tenantId));
         }
 
+        public async Task<IReadOnlyList<Guid>> GetUserIdsWithPermissionAsync(string permissionCode, Guid tenantId, CancellationToken ct)
+        {
+            // Same effectiveness rule as token issuance: a platform permission is only held in the platform tenant.
+            if (string.IsNullOrWhiteSpace(permissionCode) || !PermissionScopes.IsGrantableIn(permissionCode, tenantId))
+                return Array.Empty<Guid>();
+
+            var viaRole =
+                from ur in _dbContext.UserRoles.AsNoTracking()
+                join r in _dbContext.Roles.AsNoTracking() on ur.RoleId equals r.Id
+                join rp in _dbContext.RolePermissions.AsNoTracking() on r.Id equals rp.RoleId
+                join p in _dbContext.Permissions.AsNoTracking() on rp.PermissionId equals p.Id
+                where ur.TenantId == tenantId && r.TenantId == tenantId && r.IsActive && p.PermissionCode == permissionCode
+                select ur.UserId;
+
+            var holders = viaRole;
+            if (PlatformTenant.Is(tenantId) && await _dbContext.Permissions.AsNoTracking().AnyAsync(p => p.PermissionCode == permissionCode, ct))
+            {
+                // EffectivePermissions: the platform super-admin role holds the whole catalog, derived from the role in the platform tenant.
+                var superAdmins =
+                    from ur in _dbContext.UserRoles.AsNoTracking()
+                    join r in _dbContext.Roles.AsNoTracking() on ur.RoleId equals r.Id
+                    where ur.TenantId == tenantId && r.TenantId == tenantId && r.IsActive && r.RoleCode == PlatformRoles.SuperAdmin
+                    select ur.UserId;
+                holders = viaRole.Union(superAdmins);
+            }
+
+            return await (
+                    from userId in holders.Distinct()
+                    join u in _dbContext.Users.AsNoTracking() on userId equals u.Id
+                    join ut in _dbContext.Set<AuthUserTenant>().AsNoTracking() on u.Id equals ut.UserId
+                    where u.IsActive && ut.TenantId == tenantId
+                    select userId)
+                .Distinct()
+                .ToListAsync(ct);
+        }
+
         public async Task<IReadOnlyList<Permission>> ListAllAsync(CancellationToken ct)
         {
             return await _dbContext.Permissions.AsNoTracking().ToListAsync(ct);
