@@ -262,7 +262,8 @@
     "emptyHint": "Tin nhắn mới dành cho bạn sẽ hiện ở đây.",
     "unread": "Chưa đọc",
     "read": "Đã đọc",
-    "noSubject": "(không có tiêu đề)"
+    "noSubject": "(không có tiêu đề)",
+    "markAll": "Đánh dấu tất cả đã đọc"
   },
   "filters": {
     "title": "Bộ lọc",

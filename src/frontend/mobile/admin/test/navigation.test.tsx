@@ -12,7 +12,7 @@ jest.mock('@/api/auth', () => ({ ADMIN_USER_TYPE: 2, authApi: { logout: jest.fn(
 jest.mock('@/api/client', () => ({ isNetworkError: (e: { response?: unknown }) => !e?.response, apiClient: {}, gatewayClient: {} }))
 jest.mock('@/features/notifications/api', () => ({
   ...jest.requireActual('@/features/notifications/api'),
-  notificationsApi: { history: jest.fn(), unreadCount: jest.fn(), markRead: jest.fn() },
+  notificationsApi: { history: jest.fn(), unreadCount: jest.fn(), markRead: jest.fn(), markAllRead: jest.fn() },
 }))
 
 import { SideMenu, activeRoute } from '@/components/SideMenu'

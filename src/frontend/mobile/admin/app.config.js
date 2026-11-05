@@ -10,13 +10,18 @@ module.exports = ({ config }) => {
     ...config,
     name: tenant.appName,
     slug: 'erp-admin',
-    android: { ...config.android, package: tenant.androidPackage },
+    // Real push needs the tenant's Firebase file (GOOGLE_SERVICES_FILE) and PUSH_ENABLED=true; without them the build is the same as before.
+    android: {
+      ...config.android,
+      package: tenant.androidPackage,
+      ...(tenant.googleServicesFile ? { googleServicesFile: tenant.googleServicesFile } : {}),
+    },
     ios: { ...config.ios, bundleIdentifier: tenant.androidPackage },
     splash: { ...config.splash, backgroundColor: tenant.brand },
     plugins: [
       ...(config.plugins ?? []),
       ...(tenant.production ? [] : [['expo-build-properties', { android: { usesCleartextTraffic: true } }]]),
     ],
-    extra: { ...config.extra, tenant: { code: tenant.code, apiUrl: tenant.apiUrl, appName: tenant.appName } },
+    extra: { ...config.extra, tenant: { code: tenant.code, apiUrl: tenant.apiUrl, appName: tenant.appName }, pushEnabled: tenant.pushEnabled },
   }
 }
