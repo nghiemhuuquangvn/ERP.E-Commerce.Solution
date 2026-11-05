@@ -18,6 +18,19 @@ public interface INotificationRepository
     Task UpdateAsync(Notification notification, CancellationToken ct = default);
     Task<int> GetCountByRecipientAsync(string recipientId, CancellationToken ct = default);
     Task<int> GetUnreadCountByRecipientAsync(string recipientId, CancellationToken ct = default);
+    /// <summary>Marks every unread notification of the recipient as read (each keeps its "Read" log row); how many were unread.</summary>
+    Task<int> MarkAllReadAsync(string recipientId, CancellationToken ct = default);
+}
+
+/// <summary>The phones that may get push messages for a user (see <see cref="DeviceToken"/>).</summary>
+public interface IDeviceTokenRepository
+{
+    Task<List<DeviceToken>> GetByUserAsync(Guid userId, CancellationToken ct = default);
+    Task<DeviceToken?> GetByDeviceAsync(Guid userId, string deviceId, CancellationToken ct = default);
+    Task<DeviceToken?> GetByTokenAsync(string token, CancellationToken ct = default);
+    Task AddAsync(DeviceToken token, CancellationToken ct = default);
+    Task UpdateAsync(DeviceToken token, CancellationToken ct = default);
+    Task RemoveAsync(DeviceToken token, CancellationToken ct = default);
 }
 
 public interface IWebhookRepository

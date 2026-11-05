@@ -15,6 +15,7 @@ public class NotificationDbContext : DbContext, ITenantScopedDbContext
     public DbSet<NotificationPreference> Preferences => Set<NotificationPreference>();
     public DbSet<OrderRecipient> OrderRecipients => Set<OrderRecipient>();
     public DbSet<UserContact> UserContacts => Set<UserContact>();
+    public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
     public DbSet<WebhookEndpoint> WebhookEndpoints => Set<WebhookEndpoint>();
     public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
@@ -58,6 +59,9 @@ public class NotificationDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.ReadAt);
             e.HasIndex(x => x.RecipientId);
             e.Property(x => x.DedupKey).HasMaxLength(300);
+            e.Property(x => x.EntityType).HasMaxLength(100);
+            e.Property(x => x.EntityId).HasMaxLength(100);
+            e.Property(x => x.RouteKey).HasMaxLength(200);
             e.HasIndex(x => new { x.TenantId, x.DedupKey }).IsUnique().HasFilter("[DedupKey] IS NOT NULL");
             e.HasIndex(x => x.Status);
             e.HasIndex(x => new { x.Status, x.ScheduledFor });
@@ -193,6 +197,20 @@ public class NotificationDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.ApiKeyEncrypted).HasMaxLength(500);
             e.Property(x => x.FromNumber).HasMaxLength(32);
             e.HasIndex(x => x.TenantId).IsUnique();
+        });
+
+        // A phone that may get push messages for a user (015_NotificationLinksAndDeviceTokens.sql). One row per (tenant, user, device); a token is unique per tenant.
+        modelBuilder.Entity<DeviceToken>(e =>
+        {
+            e.ToTable("DeviceTokens");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Token).IsRequired().HasMaxLength(500);
+            e.Property(x => x.DeviceId).IsRequired().HasMaxLength(200);
+            e.Property(x => x.Platform).IsRequired().HasMaxLength(20);
+            e.HasIndex(x => new { x.TenantId, x.Token }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.UserId, x.DeviceId }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.UserId });
         });
 
         // Last, so it composes with any per-entity filter configured above.

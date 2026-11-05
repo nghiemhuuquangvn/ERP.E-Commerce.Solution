@@ -12,7 +12,23 @@ public interface ISmsSender
 
 public interface IPushSender
 {
-    Task SendAsync(string deviceToken, string title, string body, CancellationToken ct = default);
+    /// <summary>
+    /// Sends one push message to one device. <paramref name="data"/> travels with it (the record the message is about, so a tap can open it).
+    /// Throws <see cref="InvalidPushTokenException"/> when the push service says the token is dead, so the caller can forget it.
+    /// </summary>
+    Task SendAsync(string deviceToken, string title, string body, CancellationToken ct = default, IReadOnlyDictionary<string, string>? data = null);
+}
+
+/// <summary>The push service refused the device token for good (unregistered / invalid): the phone no longer has the app, or its token changed.</summary>
+public class InvalidPushTokenException : Exception
+{
+    public InvalidPushTokenException(string message) : base(message) { }
+}
+
+/// <summary>Whether real push messages can be sent (the push service is configured). When not, no push row is made at all.</summary>
+public interface IPushStatus
+{
+    bool IsEnabled { get; }
 }
 
 /// <summary>What one delivery attempt came to.</summary>

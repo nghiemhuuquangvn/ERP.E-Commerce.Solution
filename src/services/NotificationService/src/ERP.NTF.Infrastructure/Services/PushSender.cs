@@ -8,7 +8,7 @@ public class NullPushSender : IPushSender
     private readonly ILogger<NullPushSender> _logger;
     public NullPushSender(ILogger<NullPushSender> logger) => _logger = logger;
 
-    public Task SendAsync(string deviceToken, string title, string body, CancellationToken ct = default)
+    public Task SendAsync(string deviceToken, string title, string body, CancellationToken ct = default, IReadOnlyDictionary<string, string>? data = null)
     {
         _logger.LogInformation("[DEV] Push to {Token}: {Title}", deviceToken, title);
         return Task.CompletedTask;

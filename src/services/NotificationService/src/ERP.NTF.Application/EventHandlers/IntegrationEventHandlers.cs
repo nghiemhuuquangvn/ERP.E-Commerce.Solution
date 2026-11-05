@@ -326,34 +326,6 @@ public class EmailConfirmationRequestedIntegrationEventHandler : INotificationHa
     }
 }
 
-// Purchasing has no local "Finance team" mailbox/roster to resolve, so these
-// route to a fixed demo address — this is enough to prove the approval-chain
-// -> Kafka -> Notification wiring end-to-end; a real deployment would resolve
-// actual approver contacts (e.g. via IdentityService) before sending.
-public class PurchaseOrderPendingFinanceApprovalIntegrationEventHandler : INotificationHandler<PurchaseOrderPendingFinanceApprovalIntegrationEvent>
-{
-    private readonly IMediator _mediator;
-    public PurchaseOrderPendingFinanceApprovalIntegrationEventHandler(IMediator mediator) => _mediator = mediator;
-
-    public async Task Handle(PurchaseOrderPendingFinanceApprovalIntegrationEvent @event, CancellationToken cancellationToken)
-    {
-        await _mediator.Send(new SendNotificationCommand
-        {
-            RecipientId = @event.PurchaseOrderId.ToString(),
-            RecipientEmail = "finance-team@erp-demo.local",
-            Channel = NotificationChannel.Email,
-            TemplateCode = "PO_PENDING_FINANCE_APPROVAL",
-            TemplateVariables = new()
-            {
-                ["poNumber"] = @event.PONumber,
-                ["totalAmount"] = @event.TotalAmount.ToString("C"),
-                ["managerApprovedBy"] = @event.ManagerApprovedBy
-            },
-            Priority = NotificationPriority.High
-        }, cancellationToken);
-    }
-}
-
 public class PurchaseOrderApprovedIntegrationEventHandler : INotificationHandler<PurchaseOrderApprovedIntegrationEvent>
 {
     private readonly IMediator _mediator;

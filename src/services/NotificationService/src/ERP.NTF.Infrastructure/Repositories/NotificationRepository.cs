@@ -85,6 +85,48 @@ public class NotificationRepository : INotificationRepository
 
     public async Task<int> GetUnreadCountByRecipientAsync(string recipientId, CancellationToken ct = default) =>
         await _db.Notifications.CountAsync(n => n.RecipientId == recipientId && !n.IsRead, ct);
+
+    public async Task<int> MarkAllReadAsync(string recipientId, CancellationToken ct = default)
+    {
+        // Loaded and changed through the entity so every row keeps its "Read" log line (an ExecuteUpdate would skip it); the tenant filter applies.
+        var unread = await _db.Notifications.Include(n => n.Logs).Where(n => n.RecipientId == recipientId && !n.IsRead).ToListAsync(ct);
+        foreach (var n in unread) n.MarkAsRead();
+        if (unread.Count > 0) await _db.SaveChangesAsync(ct);
+        return unread.Count;
+    }
+}
+
+public class DeviceTokenRepository : IDeviceTokenRepository
+{
+    private readonly NotificationDbContext _db;
+    public DeviceTokenRepository(NotificationDbContext db) => _db = db;
+
+    public async Task<List<DeviceToken>> GetByUserAsync(Guid userId, CancellationToken ct = default) =>
+        await _db.DeviceTokens.Where(t => t.UserId == userId).OrderByDescending(t => t.LastSeenAt).ToListAsync(ct);
+
+    public async Task<DeviceToken?> GetByDeviceAsync(Guid userId, string deviceId, CancellationToken ct = default) =>
+        await _db.DeviceTokens.FirstOrDefaultAsync(t => t.UserId == userId && t.DeviceId == deviceId, ct);
+
+    public async Task<DeviceToken?> GetByTokenAsync(string token, CancellationToken ct = default) =>
+        await _db.DeviceTokens.FirstOrDefaultAsync(t => t.Token == token, ct);
+
+    public async Task AddAsync(DeviceToken token, CancellationToken ct = default)
+    {
+        await _db.DeviceTokens.AddAsync(token, ct);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateAsync(DeviceToken token, CancellationToken ct = default)
+    {
+        _db.DeviceTokens.Update(token);
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task RemoveAsync(DeviceToken token, CancellationToken ct = default)
+    {
+        _db.DeviceTokens.Remove(token);
+        await _db.SaveChangesAsync(ct);
+    }
 }
 
 public class TemplateRepository : ITemplateRepository

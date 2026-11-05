@@ -205,6 +205,7 @@ $DatabaseScripts = @(
     "Notification\012_TemplatesOnEmptyTenantToSystem.sql",
     "Notification\013_CustomerNotifications.sql",
     "Notification\014_WebhookDeliveries.sql",
+    "Notification\015_NotificationLinksAndDeviceTokens.sql",
     "Reporting\001_CreateReportingDB.sql",
     "Reporting\002_AddMissingEntityColumns.sql",
     "Reporting\004_FixFactPOSTransactionsCashierIdType.sql",

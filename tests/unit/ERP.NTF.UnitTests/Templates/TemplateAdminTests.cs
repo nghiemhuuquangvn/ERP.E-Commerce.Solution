@@ -210,7 +210,7 @@ public class TemplateAdminTests
         _repo.Setup(r => r.GetByCodeAsync("ORDER_SHIPPED", It.IsAny<CancellationToken>())).ReturnsAsync((NotificationTemplate?)null);
         _repo.Setup(r => r.IsSwitchedOffAsync("ORDER_SHIPPED", It.IsAny<CancellationToken>())).ReturnsAsync(true);
         var handler = new SendNotificationCommandHandler(Mock.Of<INotificationRepository>(), _repo.Object, Mock.Of<IPreferenceRepository>(),
-            Mock.Of<IEmailSender>(), Mock.Of<ISmsSender>(), Mock.Of<IPushSender>(), Mock.Of<IRealtimeNotifier>());
+            Mock.Of<IEmailSender>(), Mock.Of<ISmsSender>(), new ERP.NTF.Application.Services.PushDelivery(Mock.Of<IDeviceTokenRepository>(), Mock.Of<IPushSender>(), Microsoft.Extensions.Logging.Abstractions.NullLogger<ERP.NTF.Application.Services.PushDelivery>.Instance), Mock.Of<IRealtimeNotifier>());
 
         var result = await handler.Handle(new SendNotificationCommand { RecipientId = "x", RecipientEmail = "a@b.c", Channel = NotificationChannel.Email, TemplateCode = "ORDER_SHIPPED" }, default);
 
