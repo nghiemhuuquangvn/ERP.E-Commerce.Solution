@@ -42,6 +42,25 @@ public record LeaveApprovedEvent(
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }
 
+/// <summary>
+/// A leave request was created and waits for a decision. NotificationService tells the holders of <c>hrm:leave:manage</c> (bell, and push
+/// when it is switched on). Published on <c>hrm-topic</c>.
+/// </summary>
+public record LeaveRequestSubmittedEvent(
+    Guid LeaveRequestId,
+    string LeaveRequestNumber,
+    Guid EmployeeId,
+    DateTime StartDate,
+    DateTime EndDate,
+    int DaysRequested,
+    string? Reason) : IDomainEvent, ITenantEvent
+{
+    /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
+    public Guid TenantId { get; set; }
+
+    public DateTime OccurredOn { get; } = DateTime.UtcNow;
+}
+
 public record LeaveRejectedEvent(
     Guid LeaveRequestId,
     Guid EmployeeId,

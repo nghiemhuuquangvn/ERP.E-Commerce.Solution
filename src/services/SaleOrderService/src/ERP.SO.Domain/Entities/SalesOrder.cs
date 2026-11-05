@@ -148,6 +148,15 @@ namespace ERP.SO.Domain.Entities
             var from = Status;
             Status = OrderStatus.Submitted;
             RecordStatusChange(from, Status);
+
+            AddDomainEvent(new SalesOrderSubmittedEvent
+            {
+                OrderId = Id,
+                OrderNo = OrderNo,
+                CustomerId = CustomerId,
+                CustomerName = CustomerName,
+                TotalAmount = TotalAmount
+            });
         }
 
         public void Approve()
