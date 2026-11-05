@@ -92,8 +92,25 @@ export interface PaySlip {
   payPeriod?: string
   grossSalary: number
   deductions: number
+  overtimeHours?: number
+  overtimePay?: number
   netSalary: number
+  paymentDate?: string
   paymentStatus: string
+  // Calculation breakdown (all 0 on a slip entered by hand).
+  baseSalary?: number
+  allowances?: number
+  workedDays?: number
+  standardDays?: number
+  employeeSocial?: number
+  employeeHealth?: number
+  employeeUnemployment?: number
+  employerSocial?: number
+  employerHealth?: number
+  employerUnemployment?: number
+  taxableIncome?: number
+  personalIncomeTax?: number
+  dependentCount?: number
 }
 
 export interface WorkShift {
@@ -110,21 +127,33 @@ export const MAX_PAYSLIP_MONTHS = 24
 
 export const hrmExtrasApi = {
   /**
-   * Pay slips of a period. The endpoint filters by one year and month, so a quarter, a year or a custom range is read month by month
-   * (at most MAX_PAYSLIP_MONTHS calls, in parallel) and put together newest first. Without a range nothing is asked: a period is required.
+   * Pay slips. Without a range the server pages them all; with one it is read month by month (the endpoint filters by one year and
+   * month; at most MAX_PAYSLIP_MONTHS calls, in parallel) and put together newest first.
    */
-  async paySlips(params: { dateFrom?: string; dateTo?: string }) {
-    if (!params.dateFrom || !params.dateTo) return onePage<PaySlip>([])
+  async paySlips(params: { dateFrom?: string; dateTo?: string }, page = 1, pageSize = PAGE_SIZE): Promise<Page<PaySlip>> {
+    if (!params.dateFrom || !params.dateTo) {
+      const { data } = await gatewayClient.get<HrmPage<PaySlip>>(BASE + '/payslips', { params: { page, pageSize } })
+      return toPage(data)
+    }
     const from = parseISO(params.dateFrom)
     const to = parseISO(params.dateTo)
     const wanted: { year: number; month: number }[] = []
     for (let d = new Date(from.getFullYear(), from.getMonth(), 1); d <= to; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) wanted.push({ year: d.getFullYear(), month: d.getMonth() + 1 })
-    const list = wanted.slice(-MAX_PAYSLIP_MONTHS)
     const pages = await Promise.all(
-      list.map((m) => gatewayClient.get<HrmPage<PaySlip>>(BASE + '/payslips', { params: { year: m.year, month: m.month, page: 1, pageSize: 100 } }).then((r) => r.data.items)),
+      wanted.slice(-MAX_PAYSLIP_MONTHS).map((m) => gatewayClient.get<HrmPage<PaySlip>>(BASE + '/payslips', { params: { year: m.year, month: m.month, page: 1, pageSize: 100 } }).then((r) => r.data.items)),
     )
     return onePage(pages.flat().sort((a, b) => b.year - a.year || b.month - a.month || a.paySlipNumber.localeCompare(b.paySlipNumber)))
   },
+  paySlip: (id: string) => gatewayClient.get<PaySlip>(BASE + '/payslips/' + id).then((r) => r.data),
+  payPaySlip: (id: string, paymentMethod?: string) => gatewayClient.post(BASE + '/payslips/' + id + '/pay', { paymentMethod: paymentMethod || undefined }).then((r) => r.data),
+  cancelPaySlip: (id: string, reason: string) => gatewayClient.post(BASE + '/payslips/' + id + '/cancel', { reason }).then((r) => r.data),
   /** The list is short and answers a bare array. */
   shifts: () => gatewayClient.get<WorkShift[]>(BASE + '/work-shifts').then((r) => onePage(r.data)),
+}
+
+export type PaySlipActionKey = 'pay' | 'cancel'
+
+/** A pending pay slip can be paid or cancelled; both need hrm:payroll:manage (the server checks again). */
+export function paySlipActions(status: string, has: (permission: string) => boolean): PaySlipActionKey[] {
+  return status === 'Pending' && has('hrm:payroll:manage') ? ['pay', 'cancel'] : []
 }

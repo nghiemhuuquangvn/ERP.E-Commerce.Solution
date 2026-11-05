@@ -645,7 +645,7 @@ Reuses the same `sales_order:*` permission strings as Orders — no dedicated Qu
 | Permission | Endpoints |
 |-----------|-------------|
 | `sales_order:create` | `POST /api/v1/quotations`, `POST /api/v1/quotations/{id}/convert-to-order` |
-| `sales_order:read` | `GET /api/v1/quotations*`, `GET /api/v1/customer-sales-profiles/{customerId}`, `GET /api/v1/commission-plans`, `GET /api/v1/commissions` |
+| `sales_order:read` | `GET /api/v1/quotations*`, `GET /api/v1/customer-sales-profiles` (list) and `/{customerId}`, `GET /api/v1/commission-plans`, `GET /api/v1/commissions` |
 | `sales_order:update` | `POST /api/v1/quotations/{id}/send`, `/accept`, `/reject` |
 | `sales_order:approve` | `PUT /api/v1/customer-sales-profiles/{customerId}`, `POST /api/v1/commission-plans`, `POST /api/v1/commission-plans/{id}/deactivate` |
 
@@ -681,8 +681,12 @@ Response: 200 OK — a real SalesOrderDto, orderSource "Manual", quotationId set
 ### Credit Limit
 
 ```http
+GET /api/v1/customer-sales-profiles?search=&page=1&pageSize=20          (sales_order:read)
+Response: 200 OK { "items": [ { "customerId": "...", "customerName": "Ann Tran", "creditLimit": 50000, "currentBalance": 12500, "availableCredit": 37500, "updatedAt": "..." } ], "totalCount": 693, "pageNumber": 1, "pageSize": 20 }
+  highest open balance first; search = customer id (exact) or part of the name on the customer's latest order; the name is empty for a customer without orders.
+
 GET /api/v1/customer-sales-profiles/{customerId}
-Response: 200 OK { "customerId": "...", "creditLimit": 50000, "currentBalance": 12500, "updatedAt": "..." }
+Response: 200 OK { "customerId": "...", "customerName": "...", "creditLimit": 50000, "currentBalance": 12500, "availableCredit": 37500, "updatedAt": "..." }
 Response: 404 — no profile configured, treated as "no limit enforced", not an error condition for Approve.
 
 PUT /api/v1/customer-sales-profiles/{customerId}

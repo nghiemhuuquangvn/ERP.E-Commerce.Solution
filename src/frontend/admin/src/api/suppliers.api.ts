@@ -114,16 +114,10 @@ export interface UpdateSupplierItemRequest {
 const BASE = `${PO_BASE}/suppliers`
 
 export const suppliersApi = {
-  // NOTE: SuppliersController's GET / currently returns a plain
-  // IEnumerable<SupplierDto> (not a { items, totalCount, ... } paginated wrapper
-  // like every other list endpoint in this app) — GetSuppliersQueryHandler is
-  // presently a stub that always returns an empty list regardless of the
-  // isActive/pageNumber/pageSize query params it's given. Params are still
-  // passed through here for forward-compatibility once the handler is
-  // implemented; pagination is done client-side in the meantime (see
-  // SupplierListPage.tsx).
+  // GET / is paged and answers { items, totalCount, pageNumber, pageSize } (2026-11-04); the pages here take the first 100 suppliers
+  // unless they pass their own pageSize (the server clamps it to 100).
   list: (params: ListSuppliersParams) =>
-    apiClient.get<Supplier[]>(BASE, { params }).then((r) => r.data),
+    apiClient.get<{ items: Supplier[]; totalCount: number }>(BASE, { params: { pageSize: 100, ...params } }).then((r) => r.data.items),
 
   get: (id: string) => apiClient.get<Supplier>(`${BASE}/${id}`).then((r) => r.data),
 

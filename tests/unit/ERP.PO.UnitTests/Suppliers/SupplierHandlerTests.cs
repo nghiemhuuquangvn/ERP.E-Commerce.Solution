@@ -50,8 +50,11 @@ public class SupplierHandlerTests
         var page2 = await handler.Handle(new GetSuppliersQuery { IsActive = true, PageNumber = 2, PageSize = 2 }, default);
         var inactive = await handler.Handle(new GetSuppliersQuery { IsActive = false }, default);
 
-        page2.Select(s => s.Name).Should().Equal("Charlie");
-        inactive.Select(s => s.Name).Should().Equal("Delta");
+        page2.Items.Select(s => s.Name).Should().Equal("Charlie");
+        page2.TotalCount.Should().Be(3);
+        (page2.PageNumber, page2.PageSize).Should().Be((2, 2));
+        inactive.Items.Select(s => s.Name).Should().Equal("Delta");
+        inactive.TotalCount.Should().Be(1);
     }
 
     [Fact]
@@ -64,10 +67,12 @@ public class SupplierHandlerTests
         });
         var handler = new GetSuppliersQueryHandler(_repository.Object, _userContext.Object, _mapper);
 
-        (await handler.Handle(new GetSuppliersQuery { Search = " metal " }, default)).Select(s => s.Name).Should().Equal("Bravo Metals");
-        (await handler.Handle(new GetSuppliersQuery { Search = "sup-100" }, default)).Select(s => s.Name).Should().Equal("Alpha Plastics");
-        (await handler.Handle(new GetSuppliersQuery { Search = "  " }, default)).Should().HaveCount(2);
-        (await handler.Handle(new GetSuppliersQuery { Search = "zzz" }, default)).Should().BeEmpty();
+        (await handler.Handle(new GetSuppliersQuery { Search = " metal " }, default)).Items.Select(s => s.Name).Should().Equal("Bravo Metals");
+        (await handler.Handle(new GetSuppliersQuery { Search = "sup-100" }, default)).Items.Select(s => s.Name).Should().Equal("Alpha Plastics");
+        (await handler.Handle(new GetSuppliersQuery { Search = "  " }, default)).Items.Should().HaveCount(2);
+        var none = await handler.Handle(new GetSuppliersQuery { Search = "zzz" }, default);
+        none.Items.Should().BeEmpty();
+        none.TotalCount.Should().Be(0);
     }
 
     [Fact]

@@ -25,6 +25,19 @@ namespace ERP.SO.Api.Controllers
             _userContext = userContext;
         }
 
+        /// <summary>The customers that have a credit limit, highest open balance first (Admin web / mobile app). Requires sales_order:read.</summary>
+        [HttpGet]
+        public async Task<IActionResult> List([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+        {
+            if (!_userContext.HasPermission("sales_order:read"))
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:read required" });
+
+            page = Math.Max(1, page);
+            pageSize = Math.Min(100, Math.Max(1, pageSize));
+            var (rows, total) = await _profiles.ListAsync(CreditProfileSearch.Parse(search), (page - 1) * pageSize, pageSize, ct);
+            return Ok(new CreditProfilePage(rows.Select(CustomerSalesProfileDto.From).ToList(), total, page, pageSize));
+        }
+
         [HttpGet("{customerId:guid}")]
         public async Task<IActionResult> Get([FromRoute] Guid customerId, CancellationToken ct)
         {
@@ -35,7 +48,8 @@ namespace ERP.SO.Api.Controllers
             if (profile == null)
                 return NotFound(new { message = "No credit profile configured for this customer — treated as no limit." });
 
-            return Ok(new CustomerSalesProfileDto(profile.CustomerId, profile.CreditLimit, profile.CurrentBalance, profile.UpdatedAt));
+            var name = await _profiles.GetCustomerNameAsync(customerId, ct);
+            return Ok(CustomerSalesProfileDto.From(new CreditProfileRow(profile.CustomerId, name, profile.CreditLimit, profile.CurrentBalance, profile.UpdatedAt)));
         }
 
         [HttpPut("{customerId:guid}")]
@@ -56,10 +70,16 @@ namespace ERP.SO.Api.Controllers
                 await _profiles.UpdateAsync(profile, ct);
             }
 
-            return Ok(new CustomerSalesProfileDto(profile.CustomerId, profile.CreditLimit, profile.CurrentBalance, profile.UpdatedAt));
+            var customerName = await _profiles.GetCustomerNameAsync(customerId, ct);
+            return Ok(CustomerSalesProfileDto.From(new CreditProfileRow(profile.CustomerId, customerName, profile.CreditLimit, profile.CurrentBalance, profile.UpdatedAt)));
         }
     }
 
-    public record CustomerSalesProfileDto(Guid CustomerId, decimal CreditLimit, decimal CurrentBalance, DateTime UpdatedAt);
+    public record CustomerSalesProfileDto(Guid CustomerId, string CustomerName, decimal CreditLimit, decimal CurrentBalance, decimal AvailableCredit, DateTime UpdatedAt)
+    {
+        public static CustomerSalesProfileDto From(CreditProfileRow r) => new(r.CustomerId, r.CustomerName, r.CreditLimit, r.CurrentBalance, r.AvailableCredit, r.UpdatedAt);
+    }
+
+    public record CreditProfilePage(IReadOnlyList<CustomerSalesProfileDto> Items, int TotalCount, int PageNumber, int PageSize);
     public record SetCreditLimitRequest(decimal CreditLimit);
 }

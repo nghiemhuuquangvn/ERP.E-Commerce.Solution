@@ -111,13 +111,14 @@ export function AttendanceScreen() {
   )
 }
 
-/** Pay slips of a period (month, quarter, year or a custom range; a period is required). Search narrows the slips of the period by number or name. */
+/** Pay slips: all of them (paged by the server) or those of a period (month, quarter, year or a custom range, read month by month). Search narrows the loaded slips by number or name. */
 export function PaySlipsScreen() {
   const { t } = useTranslation()
+  const router = useRouter()
   const names = useEmployeeNames()
   const filters = useListFilters({ kind: 'month' })
   const { dateFrom, dateTo, search } = filters.params
-  const query = usePagedList(['hrm', 'payslips', dateFrom, dateTo], () => hrmExtrasApi.paySlips({ dateFrom, dateTo }))
+  const query = usePagedList(['hrm', 'payslips', dateFrom, dateTo], (page) => hrmExtrasApi.paySlips({ dateFrom, dateTo }, page))
   const needle = search?.toLowerCase()
   const shown = needle ? query.items.filter((p) => `${p.paySlipNumber} ${names[p.employeeId] ?? ''}`.toLowerCase().includes(needle)) : query.items
   return (
@@ -126,9 +127,9 @@ export function PaySlipsScreen() {
       keyOf={(p) => p.id}
       permission="hrm:payroll:manage"
       emptyTitle={t('hr.noPaySlips')}
-      header={<ListFilters filters={filters} searchLabel={t('hr.searchPaySlips')} kinds={['month', 'quarter', 'year', 'custom']} />}
+      header={<ListFilters filters={filters} searchLabel={t('hr.searchPaySlips')}  />}
       renderItem={(p) => (
-        <Card accessibilityLabel={`${names[p.employeeId] ?? p.paySlipNumber}, ${p.year}-${String(p.month).padStart(2, '0')}, ${formatOrderMoney(p.netSalary, 'VND')}`}>
+        <Card onPress={() => router.push(`/hrm/payslip/${p.id}`)} accessibilityLabel={`${names[p.employeeId] ?? p.paySlipNumber},${p.year}-${String(p.month).padStart(2, '0')}, ${formatOrderMoney(p.netSalary, 'VND')}`}>
           <View className="flex-row items-center justify-between gap-2">
             <Text className="flex-1 text-base font-semibold text-ink">{names[p.employeeId] ?? p.paySlipNumber}</Text>
             <StatusBadge domain="payslip" status={p.paymentStatus} />

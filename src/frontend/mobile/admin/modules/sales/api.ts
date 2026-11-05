@@ -1,7 +1,7 @@
 import { apiClient, gatewayClient } from '@/api/client'
 import type { ListParams } from '@/hooks/useListFilters'
 import type { Page } from '@/modules/usePagedList'
-import { onePage, PAGE_SIZE } from '@/modules/usePagedList'
+import { PAGE_SIZE } from '@/modules/usePagedList'
 
 // SaleOrderService answers under /api/v1/orders (Gateway route, same as admin/src/api/orders.api.ts).
 export type SoStatus =
@@ -67,6 +67,21 @@ export interface QuotationSummary {
   quotationDate?: string
 }
 
+export interface Quotation extends QuotationSummary {
+  customerId: string
+  customerEmail?: string | null
+  convertedOrderId?: string | null
+  lineItems: { productId: string; productName: string; quantity: number; unitPrice: number }[]
+}
+
+export interface ShippingAddress {
+  street: string
+  city: string
+  state: string
+  postalCode: string
+  country: string
+}
+
 export interface CommissionRecord {
   id: string
   planId: string
@@ -77,16 +92,65 @@ export interface CommissionRecord {
   calculatedAt: string
 }
 
-// Quotations and commissions sit under the Gateway's /so prefix (admin/src/api/quotations.api.ts, commissions.api.ts).
+export interface CreditProfile {
+  customerId: string
+  customerName: string
+  creditLimit: number
+  currentBalance: number
+  availableCredit: number
+  updatedAt: string
+}
+
+interface Paged<T> {
+  items: T[]
+  totalCount: number
+}
+
+const SO = '/so/api/v1'
+
+// Quotations, commissions and credit limits sit under the Gateway's /so prefix (admin/src/api/quotations.api.ts, commissions.api.ts, customerSalesProfiles.api.ts).
 export const salesExtrasApi = {
   /** One page; the server filters (status, days the quotation was made, number / customer text), counts and pages in the database. */
   async quotations(params: ListParams, page: number, pageSize = PAGE_SIZE): Promise<Page<QuotationSummary>> {
-    const { data } = await gatewayClient.get<{ total: number; items: QuotationSummary[] }>('/so/api/v1/quotations', { params: { ...params, page, pageSize } })
+    const { data } = await gatewayClient.get<{ total: number; items: QuotationSummary[] }>(SO + '/quotations', { params: { ...params, page, pageSize } })
     return { items: data.items, total: data.total }
   },
-  /** The endpoint answers a bare array; its range is two date-times, so the last day runs to the end of the day. */
-  commissions: (params: ListParams) =>
+  quotation: (id: string) => gatewayClient.get<Quotation>(SO + '/quotations/' + id).then((r) => r.data),
+  sendQuotation: (id: string) => gatewayClient.post(SO + '/quotations/' + id + '/send').then((r) => r.data),
+  acceptQuotation: (id: string) => gatewayClient.post(SO + '/quotations/' + id + '/accept').then((r) => r.data),
+  rejectQuotation: (id: string) => gatewayClient.post(SO + '/quotations/' + id + '/reject').then((r) => r.data),
+  convertQuotation: (id: string, shippingAddress: ShippingAddress) => gatewayClient.post(SO + '/quotations/' + id + '/convert-to-order', { shippingAddress }).then((r) => r.data),
+
+  /** The range is two date-times, so the last day runs to the end of the day. */
+  commissions: (params: ListParams, page: number, pageSize = PAGE_SIZE): Promise<Page<CommissionRecord>> =>
     gatewayClient
-      .get<CommissionRecord[]>('/so/api/v1/commissions', { params: { from: params.dateFrom, to: params.dateTo ? params.dateTo + 'T23:59:59' : undefined } })
-      .then((r) => onePage(r.data)),
+      .get<Paged<CommissionRecord>>(SO + '/commissions', { params: { from: params.dateFrom, to: params.dateTo ? params.dateTo + 'T23:59:59' : undefined, page, pageSize } })
+      .then((r) => ({ items: r.data.items, total: r.data.totalCount })),
+
+  /** Customers that have a credit limit, highest open balance first; search by customer name or id. */
+  creditLimits: (params: ListParams, page: number, pageSize = PAGE_SIZE): Promise<Page<CreditProfile>> =>
+    gatewayClient
+      .get<Paged<CreditProfile>>(SO + '/customer-sales-profiles', { params: { search: params.search, page, pageSize } })
+      .then((r) => ({ items: r.data.items, total: r.data.totalCount })),
+  /** null when the customer has no profile (no limit). */
+  creditLimit: (customerId: string): Promise<CreditProfile | null> =>
+    gatewayClient
+      .get<CreditProfile>(SO + '/customer-sales-profiles/' + customerId)
+      .then((r) => r.data)
+      .catch((e) => {
+        if ((e as { response?: { status?: number } })?.response?.status === 404) return null
+        throw e
+      }),
+  setCreditLimit: (customerId: string, creditLimit: number) => gatewayClient.put<CreditProfile>(SO + '/customer-sales-profiles/' + customerId, { creditLimit }).then((r) => r.data),
+}
+
+export type QuotationActionKey = 'send' | 'accept' | 'reject' | 'convert'
+
+/** Status decides what is possible, the permission who may (send / accept / reject: sales_order:update; convert to an order: sales_order:create). The server checks both again. */
+export function quotationActions(status: string, has: (permission: string) => boolean): QuotationActionKey[] {
+  const out: QuotationActionKey[] = []
+  if (status === 'Draft' && has('sales_order:update')) out.push('send')
+  if (status === 'Sent' && has('sales_order:update')) out.push('accept', 'reject')
+  if (status === 'Accepted' && has('sales_order:create')) out.push('convert')
+  return out
 }

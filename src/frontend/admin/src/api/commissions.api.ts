@@ -29,5 +29,5 @@ export const commissionPlansApi = {
 
 export const commissionsApi = {
   list: (params: { salesRepId?: string; from?: string; to?: string }) =>
-    apiClient.get<CommissionRecord[]>(`${SO_BASE}/commissions`, { params }).then((r) => r.data),
+    apiClient.get<{ items: CommissionRecord[]; totalCount: number }>(`${SO_BASE}/commissions`, { params: { pageSize: 100, ...params } }).then((r) => r.data.items),
 }

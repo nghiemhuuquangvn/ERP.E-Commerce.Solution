@@ -69,10 +69,13 @@ export interface PurchasingSettings { quantityTolerancePercent: number; priceTol
 export { serverMessage } from '@/lib/serverMessage'
 
 const get = <T,>(url: string, params?: object) => apiClient.get<T>(`${PO_BASE}/${url}`, { params }).then((r) => r.data)
+/** The server pages these lists ({ items, totalCount, pageNumber, pageSize }); the pages here show the first LIST_PAGE rows. */
+const LIST_PAGE = 100
+const getPage = <T,>(url: string, params?: object) => get<{ items: T[]; totalCount: number }>(url, { ...params, pageSize: LIST_PAGE }).then((r) => r.items)
 const post = <T,>(url: string, body?: object) => apiClient.post<T>(`${PO_BASE}/${url}`, body).then((r) => r.data)
 
 export const procurementApi = {
-  rfqs: (status?: string) => get<RfqSummary[]>('rfqs', { status }),
+  rfqs: (status?: string) => getPage<RfqSummary>('rfqs', { status }),
   rfq: (id: string) => get<Rfq>(`rfqs/${id}`),
   comparison: (id: string) => get<RfqComparison>(`rfqs/${id}/comparison`),
   createRfq: (body: CreateRfqRequest) => post<Rfq>('rfqs', body),
@@ -82,7 +85,7 @@ export const procurementApi = {
   declineRfq: (id: string, supplierId: string) => post<Rfq>(`rfqs/${id}/suppliers/${supplierId}/decline`),
   awardRfq: (id: string, supplierId: string) => post<Rfq>(`rfqs/${id}/award`, { supplierId }),
 
-  invoices: (params: { status?: string; purchaseOrderId?: string }) => get<SupplierInvoiceSummary[]>('supplier-invoices', params),
+  invoices: (params: { status?: string; purchaseOrderId?: string }) => getPage<SupplierInvoiceSummary>('supplier-invoices', params),
   invoice: (id: string) => get<SupplierInvoice>(`supplier-invoices/${id}`),
   recordInvoice: (body: RecordInvoiceRequest) => post<SupplierInvoice>('supplier-invoices', body),
   matchInvoice: (id: string) => post<SupplierInvoice>(`supplier-invoices/${id}/match`),
@@ -93,7 +96,7 @@ export const procurementApi = {
   receiveGoods: (poId: string, receivedQuantities: Record<string, { quantityAccepted: number; quantityRejected: number }>) =>
     post<unknown>(`purchase-orders/${poId}/receive`, { receivedQuantities }),
 
-  returns: (params: { purchaseOrderId?: string; status?: string }) => get<VendorReturnSummary[]>('vendor-returns', params),
+  returns: (params: { purchaseOrderId?: string; status?: string }) => getPage<VendorReturnSummary>('vendor-returns', params),
   vendorReturn: (id: string) => get<VendorReturn>(`vendor-returns/${id}`),
   createReturn: (body: { purchaseOrderId: string; reason: string; lines: { productCode: string; quantity: number }[] }) => post<VendorReturn>('vendor-returns', body),
   shipReturn: (id: string) => post<VendorReturn>(`vendor-returns/${id}/ship`),

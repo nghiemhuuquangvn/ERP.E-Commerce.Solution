@@ -1,3 +1,4 @@
+using ERP.PO.Application.DTOs;
 using ERP.PO.Domain.Entities;
 using ERP.Shared.Authorization;
 using ERP.Shared.Infrastructure.Exceptions;
@@ -17,7 +18,7 @@ public record ShipVendorReturnCommand(Guid ReturnId) : IRequest<VendorReturnDto>
 public record CancelVendorReturnCommand(Guid ReturnId) : IRequest<VendorReturnDto>;
 public record RecordVendorCreditCommand(Guid ReturnId, string CreditNoteNumber, decimal CreditAmount) : IRequest<VendorReturnDto>;
 public record GetVendorReturnQuery(Guid ReturnId) : IRequest<VendorReturnDto?>;
-public record ListVendorReturnsQuery(Guid? PurchaseOrderId, string? Status, DateOnly? DateFrom = null, DateOnly? DateTo = null, string? Search = null) : IRequest<List<VendorReturnSummaryDto>>;
+public record ListVendorReturnsQuery(Guid? PurchaseOrderId, string? Status, DateOnly? DateFrom = null, DateOnly? DateTo = null, string? Search = null, int PageNumber = 1, int PageSize = PagedList<VendorReturnSummaryDto>.DefaultPageSize) : IRequest<PagedList<VendorReturnSummaryDto>>;
 
 internal static class VendorReturnMapper
 {
@@ -120,16 +121,18 @@ public class GetVendorReturnQueryHandler : IRequestHandler<GetVendorReturnQuery,
     }
 }
 
-public class ListVendorReturnsQueryHandler : IRequestHandler<ListVendorReturnsQuery, List<VendorReturnSummaryDto>>
+public class ListVendorReturnsQueryHandler : IRequestHandler<ListVendorReturnsQuery, PagedList<VendorReturnSummaryDto>>
 {
     private readonly IProcurementStore _store;
     public ListVendorReturnsQueryHandler(IProcurementStore store) => _store = store;
 
-    public async Task<List<VendorReturnSummaryDto>> Handle(ListVendorReturnsQuery request, CancellationToken ct)
+    public async Task<PagedList<VendorReturnSummaryDto>> Handle(ListVendorReturnsQuery request, CancellationToken ct)
     {
         var status = ListWindow.ParseStatus<VendorReturnStatus>(request.Status, "vendor return");
-        var list = await _store.ListReturnsAsync(request.PurchaseOrderId, status, new ListWindow(request.DateFrom, request.DateTo, request.Search), ct);
+        var (pageNumber, pageSize) = PagedList<VendorReturnSummaryDto>.Clamp(request.PageNumber, request.PageSize);
+        var (list, total) = await _store.ListReturnsAsync(request.PurchaseOrderId, status, new ListWindow(request.DateFrom, request.DateTo, request.Search), pageNumber, pageSize, ct);
         var names = await _store.GetSupplierNamesAsync(list.Select(r => r.SupplierId), ct);
-        return list.Select(r => new VendorReturnSummaryDto(r.Id, r.ReturnNumber, r.PONumber, names.GetValueOrDefault(r.SupplierId, string.Empty), r.CurrencyCode, r.Status.ToString(), r.Value, r.CreatedAt)).ToList();
+        var rows = list.Select(r => new VendorReturnSummaryDto(r.Id, r.ReturnNumber, r.PONumber, names.GetValueOrDefault(r.SupplierId, string.Empty), r.CurrencyCode, r.Status.ToString(), r.Value, r.CreatedAt)).ToList();
+        return new PagedList<VendorReturnSummaryDto>(rows, total, pageNumber, pageSize);
     }
 }

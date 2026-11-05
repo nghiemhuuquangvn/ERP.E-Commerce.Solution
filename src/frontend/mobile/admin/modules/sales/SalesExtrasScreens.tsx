@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native'
+import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/ui'
 import { ListFilters } from '@/components/ListFilters'
@@ -13,6 +14,7 @@ import { QUOTATION_STATUSES, salesExtrasApi, type CommissionRecord, type Quotati
 /** Quotations: status, days / period the quotation was made, quotation number or customer. */
 export function QuotationsScreen() {
   const { t } = useTranslation()
+  const router = useRouter()
   const filters = useListFilters()
   const query = usePagedList(['so', 'quotations', filters.params], (page) => salesExtrasApi.quotations(filters.params, page))
   return (
@@ -23,7 +25,7 @@ export function QuotationsScreen() {
       emptyTitle={t('lists.quotations.empty')}
       header={<ListFilters filters={filters} searchLabel={t('lists.quotations.search')} statuses={QUOTATION_STATUSES.map((s) => ({ value: s, label: t(`status.quotation.${s}`) }))} />}
       renderItem={(q) => (
-        <Card accessibilityLabel={`${q.quotationNo}, ${q.customerName}, ${formatOrderMoney(q.totalAmount)}, ${t(`status.quotation.${q.status}`, { defaultValue: q.status })}`}>
+        <Card onPress={() => router.push(`/sales/quotation/${q.quotationId}`)} accessibilityLabel={`${q.quotationNo}, ${q.customerName}, ${formatOrderMoney(q.totalAmount)}, ${t(`status.quotation.${q.status}`, { defaultValue: q.status })}`}>
           <View className="flex-row items-center justify-between gap-2">
             <Text className="text-base font-semibold text-ink">{q.quotationNo}</Text>
             <StatusBadge domain="quotation" status={q.status} />
@@ -45,7 +47,7 @@ export function QuotationsScreen() {
 export function CommissionsScreen() {
   const { t } = useTranslation()
   const filters = useListFilters({ kind: 'month' })
-  const query = usePagedList(['so', 'commissions', filters.params], () => salesExtrasApi.commissions(filters.params))
+  const query = usePagedList(['so', 'commissions', filters.params], (page) => salesExtrasApi.commissions(filters.params, page))
   return (
     <PagedListView<CommissionRecord>
       query={query}

@@ -27,7 +27,7 @@ describe('purchase order list (the server filters, counts and pages in the datab
   })
 })
 
-describe('lists that answer a bare array', () => {
+describe('paged procurement lists and the helpers for lists answered whole', () => {
   beforeEach(() => get.mockReset())
 
   it('a full page means there may be another one, a short page is the end', () => {
@@ -39,23 +39,24 @@ describe('lists that answer a bare array', () => {
     expect(onePage(rows(3))).toEqual({ items: rows(3), total: 3 })
   })
 
-  it('suppliers: active / inactive become isActive, search and paging go to the server', async () => {
-    get.mockResolvedValue({ data: rows(3) })
-    const page = await procurementApi.suppliers({ status: 'inactive', search: 'plastics' }, 1)
-    expect(page.items).toHaveLength(3)
-    expect(get).toHaveBeenCalledWith('/po/api/v1/suppliers', { params: { isActive: false, search: 'plastics', pageNumber: 1, pageSize: 50 } })
+  it('suppliers: active / inactive become isActive, search and paging go to the server and the total comes back', async () => {
+    get.mockResolvedValue({ data: { items: rows(3), totalCount: 50 } })
+    const page = await procurementApi.suppliers({ status: 'inactive', search: 'plastics' }, 2)
+    expect(page).toEqual({ items: rows(3), total: 50 })
+    expect(get).toHaveBeenCalledWith('/po/api/v1/suppliers', { params: { isActive: false, search: 'plastics', pageNumber: 2, pageSize: 20 } })
     await procurementApi.suppliers({}, 1)
-    expect(get).toHaveBeenLastCalledWith('/po/api/v1/suppliers', { params: { isActive: undefined, search: undefined, pageNumber: 1, pageSize: 50 } })
+    expect(get).toHaveBeenLastCalledWith('/po/api/v1/suppliers', { params: { isActive: undefined, search: undefined, pageNumber: 1, pageSize: 20 } })
   })
 
-  it('invoices, returns and RFQs send status, days and text and come back as one page', async () => {
-    get.mockResolvedValue({ data: rows(2) })
+  it('invoices, returns and RFQs send status, days, text and the page, and read the total', async () => {
+    get.mockResolvedValue({ data: { items: rows(2), totalCount: 31 } })
     const params = { status: 'Approved', dateFrom: '2026-10-01', dateTo: '2026-12-31', search: 'INV' }
-    expect(await procurementApi.invoices(params)).toEqual({ items: rows(2), total: 2 })
-    expect(get).toHaveBeenLastCalledWith('/po/api/v1/supplier-invoices', { params })
-    await procurementApi.returns(params)
-    expect(get).toHaveBeenLastCalledWith('/po/api/v1/vendor-returns', { params })
-    await procurementApi.rfqs(params)
-    expect(get).toHaveBeenLastCalledWith('/po/api/v1/rfqs', { params })
+    const sent = { ...params, pageNumber: 3, pageSize: 20 }
+    expect(await procurementApi.invoices(params, 3)).toEqual({ items: rows(2), total: 31 })
+    expect(get).toHaveBeenLastCalledWith('/po/api/v1/supplier-invoices', { params: sent })
+    await procurementApi.returns(params, 3)
+    expect(get).toHaveBeenLastCalledWith('/po/api/v1/vendor-returns', { params: sent })
+    await procurementApi.rfqs(params, 3)
+    expect(get).toHaveBeenLastCalledWith('/po/api/v1/rfqs', { params: sent })
   })
 })

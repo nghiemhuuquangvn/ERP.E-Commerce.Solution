@@ -22,7 +22,7 @@ namespace ERP.SO.Infrastructure.Repositories
             await _context.SaveChangesAsync(ct);
         }
 
-        public async Task<List<CommissionRecord>> ListAsync(Guid? salesRepId, DateTime? from, DateTime? to, CancellationToken ct = default)
+        public async Task<(List<CommissionRecord> Items, int Total)> ListAsync(Guid? salesRepId, DateTime? from, DateTime? to, int skip, int take, CancellationToken ct = default)
         {
             var query = _context.CommissionRecords.AsNoTracking().AsQueryable();
 
@@ -33,7 +33,9 @@ namespace ERP.SO.Infrastructure.Repositories
             if (to.HasValue)
                 query = query.Where(r => r.CalculatedAt <= to.Value);
 
-            return await query.OrderByDescending(r => r.CalculatedAt).ToListAsync(ct);
+            var total = await query.CountAsync(ct);
+            var items = await query.OrderByDescending(r => r.CalculatedAt).ThenByDescending(r => r.Id).Skip(skip).Take(take).ToListAsync(ct);
+            return (items, total);
         }
     }
 }

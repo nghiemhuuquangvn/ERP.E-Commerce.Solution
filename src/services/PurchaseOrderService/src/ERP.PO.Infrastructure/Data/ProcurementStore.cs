@@ -13,14 +13,17 @@ public class ProcurementStore : IProcurementStore
     public Task<RequestForQuotation?> GetRfqAsync(Guid id, CancellationToken ct) =>
         _db.RequestsForQuotation.FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted, ct);
 
-    public Task<List<RequestForQuotation>> ListRfqsAsync(RfqStatus? status, ListWindow window, CancellationToken ct)
+    public async Task<(List<RequestForQuotation> Items, int Total)> ListRfqsAsync(RfqStatus? status, ListWindow window, int pageNumber, int pageSize, CancellationToken ct)
     {
         var (start, before, text) = (window.Checked().Start, window.Before, window.Text);
-        return _db.RequestsForQuotation
+        var matching = _db.RequestsForQuotation
             .Where(r => !r.IsDeleted && (status == null || r.Status == status)
                         && (start == null || r.CreatedAt >= start) && (before == null || r.CreatedAt < before)
-                        && (text == null || r.RfqNumber.ToLower().Contains(text) || r.Title.ToLower().Contains(text)))
-            .OrderByDescending(r => r.CreatedAt).ToListAsync(ct);
+                        && (text == null || r.RfqNumber.ToLower().Contains(text) || r.Title.ToLower().Contains(text)));
+        var total = await matching.CountAsync(ct);
+        var items = await matching.OrderByDescending(r => r.CreatedAt).ThenByDescending(r => r.RfqNumber)
+            .Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        return (items, total);
     }
 
     public void Add(RequestForQuotation rfq) => _db.RequestsForQuotation.Add(rfq);
@@ -42,15 +45,18 @@ public class ProcurementStore : IProcurementStore
     public Task<SupplierInvoice?> GetInvoiceAsync(Guid id, CancellationToken ct) =>
         _db.SupplierInvoices.FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted, ct);
 
-    public Task<List<SupplierInvoice>> ListInvoicesAsync(SupplierInvoiceStatus? status, Guid? purchaseOrderId, ListWindow window, CancellationToken ct)
+    public async Task<(List<SupplierInvoice> Items, int Total)> ListInvoicesAsync(SupplierInvoiceStatus? status, Guid? purchaseOrderId, ListWindow window, int pageNumber, int pageSize, CancellationToken ct)
     {
         // An invoice is judged on its invoice date (the day on the paper), not on the day it was typed in.
         var (start, before, text) = (window.Checked().Start, window.Before, window.Text);
-        return _db.SupplierInvoices
+        var matching = _db.SupplierInvoices
             .Where(i => !i.IsDeleted && (status == null || i.Status == status) && (purchaseOrderId == null || i.PurchaseOrderId == purchaseOrderId)
                         && (start == null || i.InvoiceDate >= start) && (before == null || i.InvoiceDate < before)
-                        && (text == null || i.InvoiceNumber.ToLower().Contains(text) || i.PONumber.ToLower().Contains(text)))
-            .OrderByDescending(i => i.CreatedAt).ToListAsync(ct);
+                        && (text == null || i.InvoiceNumber.ToLower().Contains(text) || i.PONumber.ToLower().Contains(text)));
+        var total = await matching.CountAsync(ct);
+        var items = await matching.OrderByDescending(i => i.CreatedAt).ThenByDescending(i => i.InvoiceNumber)
+            .Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        return (items, total);
     }
 
     public Task<bool> InvoiceNumberExistsAsync(Guid supplierId, string invoiceNumber, CancellationToken ct) =>
@@ -72,14 +78,17 @@ public class ProcurementStore : IProcurementStore
     public Task<VendorReturn?> GetReturnAsync(Guid id, CancellationToken ct) =>
         _db.VendorReturns.FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted, ct);
 
-    public Task<List<VendorReturn>> ListReturnsAsync(Guid? purchaseOrderId, VendorReturnStatus? status, ListWindow window, CancellationToken ct)
+    public async Task<(List<VendorReturn> Items, int Total)> ListReturnsAsync(Guid? purchaseOrderId, VendorReturnStatus? status, ListWindow window, int pageNumber, int pageSize, CancellationToken ct)
     {
         var (start, before, text) = (window.Checked().Start, window.Before, window.Text);
-        return _db.VendorReturns
+        var matching = _db.VendorReturns
             .Where(r => !r.IsDeleted && (purchaseOrderId == null || r.PurchaseOrderId == purchaseOrderId) && (status == null || r.Status == status)
                         && (start == null || r.CreatedAt >= start) && (before == null || r.CreatedAt < before)
-                        && (text == null || r.ReturnNumber.ToLower().Contains(text) || r.PONumber.ToLower().Contains(text)))
-            .OrderByDescending(r => r.CreatedAt).ToListAsync(ct);
+                        && (text == null || r.ReturnNumber.ToLower().Contains(text) || r.PONumber.ToLower().Contains(text)));
+        var total = await matching.CountAsync(ct);
+        var items = await matching.OrderByDescending(r => r.CreatedAt).ThenByDescending(r => r.ReturnNumber)
+            .Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        return (items, total);
     }
 
     public async Task<Dictionary<string, decimal>> ReturnedQuantitiesAsync(Guid purchaseOrderId, CancellationToken ct)

@@ -12,9 +12,8 @@ namespace ERP.PO.Application.Features.Suppliers.Handlers;
 /// Was a stub that always returned an empty list. Lists the current tenant's suppliers,
 /// optionally filtered by IsActive, ordered by name and paged.
 /// </summary>
-public class GetSuppliersQueryHandler : IRequestHandler<GetSuppliersQuery, IEnumerable<SupplierDto>>
+public class GetSuppliersQueryHandler : IRequestHandler<GetSuppliersQuery, PagedList<SupplierDto>>
 {
-    private const int MaxPageSize = 100;
 
     private readonly IRepository<Supplier> _repository;
     private readonly IUserContextService _userContextService;
@@ -30,14 +29,13 @@ public class GetSuppliersQueryHandler : IRequestHandler<GetSuppliersQuery, IEnum
         _mapper = mapper;
     }
 
-    public async Task<IEnumerable<SupplierDto>> Handle(GetSuppliersQuery request, CancellationToken cancellationToken)
+    public async Task<PagedList<SupplierDto>> Handle(GetSuppliersQuery request, CancellationToken cancellationToken)
     {
         var tenantId = new Guid(_userContextService.GetCurrentUser().TenantId);
-        var pageNumber = Math.Max(1, request.PageNumber);
-        var pageSize = Math.Clamp(request.PageSize, 1, MaxPageSize);
+        var (pageNumber, pageSize) = PagedList<SupplierDto>.Clamp(request.PageNumber, request.PageSize);
 
         var text = request.Search?.Trim();
-        var suppliers = (await _repository.GetAllAsync(tenantId, cancellationToken))
+        var matching = (await _repository.GetAllAsync(tenantId, cancellationToken))
             .Where(s => request.IsActive == null || s.IsActive == request.IsActive)
             .Where(s => string.IsNullOrEmpty(text)
                         || s.Code.Contains(text, StringComparison.OrdinalIgnoreCase)
@@ -45,10 +43,9 @@ public class GetSuppliersQueryHandler : IRequestHandler<GetSuppliersQuery, IEnum
                         || (s.Email != null && s.Email.Contains(text, StringComparison.OrdinalIgnoreCase))
                         || (s.TaxCode != null && s.TaxCode.Contains(text, StringComparison.OrdinalIgnoreCase)))
             .OrderBy(s => s.Name)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
             .ToList();
 
-        return _mapper.Map<IEnumerable<SupplierDto>>(suppliers);
+        var page = matching.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+        return new PagedList<SupplierDto>(_mapper.Map<List<SupplierDto>>(page), matching.Count, pageNumber, pageSize);
     }
 }

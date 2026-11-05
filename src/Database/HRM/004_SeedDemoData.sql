@@ -250,7 +250,7 @@ BEGIN
         StatusVal,
         CASE WHEN StatusVal >= 1 THEN DATEADD(DAY, 2, @PeriodEnd) ELSE NULL END,
         'seed-script',
-        CASE WHEN StatusVal = 2 THEN DATEADD(DAY, 10, @PeriodEnd) ELSE NULL END,
+        CASE WHEN StatusVal = 2 THEN DATEADD(DAY, 10, @PeriodEnd) ELSE @PeriodEnd END,  -- never NULL (009 makes the column NOT NULL)
         CASE WHEN StatusVal = 2 THEN 'PAY-REF-' + CONVERT(VARCHAR(6), K) ELSE NULL END,
         'PS' + CONVERT(VARCHAR(4), YEAR(@PeriodStart)) + RIGHT('00' + CONVERT(VARCHAR(2), MONTH(@PeriodStart)), 2) + RIGHT('0000' + CONVERT(VARCHAR(4), K), 4),
         YEAR(@PeriodStart),

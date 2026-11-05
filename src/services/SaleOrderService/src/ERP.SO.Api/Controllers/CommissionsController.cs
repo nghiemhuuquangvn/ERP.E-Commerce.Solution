@@ -78,17 +78,20 @@ namespace ERP.SO.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> List([FromQuery] Guid? salesRepId, [FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken ct)
+        public async Task<IActionResult> List([FromQuery] Guid? salesRepId, [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
         {
             if (!_userContext.HasPermission("sales_order:read"))
                 return StatusCode(StatusCodes.Status403Forbidden, new { message = "Insufficient permissions: sales_order:read required" });
 
-            var records = await _records.ListAsync(salesRepId, from, to, ct);
-            return Ok(records.Select(r => new CommissionRecordDto(r.Id, r.PlanId, r.SalesRepId, r.OrderId, r.Amount, r.Status.ToString(), r.CalculatedAt)));
+            page = Math.Max(1, page);
+            pageSize = Math.Min(100, Math.Max(1, pageSize));
+            var (records, total) = await _records.ListAsync(salesRepId, from, to, (page - 1) * pageSize, pageSize, ct);
+            return Ok(new CommissionRecordPage(records.Select(r => new CommissionRecordDto(r.Id, r.PlanId, r.SalesRepId, r.OrderId, r.Amount, r.Status.ToString(), r.CalculatedAt)).ToList(), total, page, pageSize));
         }
     }
 
     public record CommissionPlanDto(Guid Id, string Name, string RateType, decimal RateValue, bool IsActive);
     public record CreateCommissionPlanRequest(string Name, decimal RateValue);
     public record CommissionRecordDto(Guid Id, Guid PlanId, Guid SalesRepId, Guid OrderId, decimal Amount, string Status, DateTime CalculatedAt);
+    public record CommissionRecordPage(IReadOnlyList<CommissionRecordDto> Items, int TotalCount, int PageNumber, int PageSize);
 }
