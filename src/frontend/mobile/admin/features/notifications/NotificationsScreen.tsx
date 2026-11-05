@@ -2,14 +2,16 @@ import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { useQueryClient, useMutation, type InfiniteData } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Card } from '@/components/ui'
+import { useRouter } from 'expo-router'
+import { Button, Card } from '@/components/ui'
 import { NoAccess } from '@/components/NoAccess'
 import { PagedListView } from '@/components/PagedListView'
 import { usePagedList, type Page } from '@/modules/usePagedList'
 import { formatDate } from '@/lib/dates'
 import { useAuthStore } from '@/stores/auth.store'
 import { NOTIFICATIONS_PERMISSION, notificationsApi, type AppNotification } from './api'
-import { inboxKey, unreadKey, useCanSeeNotifications } from './useUnreadCount'
+import { notificationTarget } from './target'
+import { inboxKey, unreadKey, useCanSeeNotifications, useUnreadCount } from './useUnreadCount'
 
 /** The signed-in user's notifications, newest first. Without notifications:view nothing is requested. */
 export default function NotificationsScreen() {
@@ -21,6 +23,9 @@ function Inbox() {
   const { t } = useTranslation()
   const userId = useAuthStore((s) => s.user?.id)
   const qc = useQueryClient()
+  const router = useRouter()
+  const hasPermission = useAuthStore((s) => s.hasPermission)
+  const unread = useUnreadCount()
   const [openId, setOpenId] = useState<string | null>(null)
   const query = usePagedList(inboxKey(userId), (page) => notificationsApi.history(userId as string, page))
 
@@ -35,15 +40,40 @@ function Inbox() {
     onError: () => void qc.invalidateQueries({ queryKey: ['notifications'] }),
   })
 
+  const markAll = useMutation({
+    mutationFn: () => notificationsApi.markAllRead(),
+    onMutate: () => {
+      qc.setQueryData<InfiniteData<Page<AppNotification>>>(inboxKey(userId), (old) =>
+        old && { ...old, pages: old.pages.map((p) => ({ ...p, items: p.items.map((n) => ({ ...n, isRead: true })) })) })
+      qc.setQueryData<number>(unreadKey(userId), () => 0)
+    },
+    onError: () => void qc.invalidateQueries({ queryKey: ['notifications'] }),
+  })
+
+  // Marks the row read, then opens its record when it has one the user may see; otherwise the row just expands.
   function press(n: AppNotification) {
-    setOpenId((cur) => (cur === n.id ? null : n.id))
     if (!n.isRead) markRead.mutate(n.id)
+    const target = notificationTarget(n, hasPermission)
+    if (target) {
+      router.push(target as never)
+      return
+    }
+    setOpenId((cur) => (cur === n.id ? null : n.id))
   }
 
   return (
     <PagedListView
       query={query}
       keyOf={(n) => n.id}
+      header={
+        (unread ?? 0) > 0 ? (
+          <View className="pb-3">
+            <Button variant="outline" fullWidth={false} onPress={() => markAll.mutate()} loading={markAll.isPending}>
+              {t('notifications.markAll')}
+            </Button>
+          </View>
+        ) : undefined
+      }
       emptyTitle={t('notifications.empty')}
       emptyHint={t('notifications.emptyHint')}
       permission={NOTIFICATIONS_PERMISSION}

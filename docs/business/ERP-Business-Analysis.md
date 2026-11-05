@@ -1906,7 +1906,7 @@ GET /api/v1/hrm/attendance/employee/{id}/summary?year=2026&month=7
   Username/Password/From`
 - SMS: `TwilioSmsSender` — HTTP POST tới Twilio Messages API, Basic auth; fallback
   `NullSmsSender` khi `Twilio:AccountSid` chưa cấu hình
-- Push: `FcmPushSender` — HTTP POST tới FCM API, Bearer token; fallback `NullPushSender`
+- Push: `FcmV1PushSender` — FCM HTTP v1 (OAuth2 từ service-account JSON), chỉ bật khi có `Fcm:ProjectId` + `Fcm:ServiceAccountPath`; mặc định `NullPushSender` (đổi 2026-11-05, thay cho `FcmPushSender` dùng endpoint legacy đã bị Google tắt)
   khi `Fcm:ServerKey` chưa cấu hình
 - **MỚI 2026-07-04:** `WebhookSender` — HTTP POST JSON với HMAC-SHA256 signature
   (`X-Hub-Signature: sha256=…`) và `X-Event-Type`/`X-Timestamp` headers

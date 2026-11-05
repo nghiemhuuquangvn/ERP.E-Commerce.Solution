@@ -10,7 +10,9 @@ param(
   [string]$Tenant = 'SYSTEM',
   [string]$AppName = '',
   [string]$BrandColor = '',
-  [string]$WorkRoot = 'D:\b'
+  [string]$WorkRoot = 'D:\b',
+  # Real push (admin app): the tenant's Firebase google-services.json (its package_name must equal the APK package). Without it push stays off.
+  [string]$GoogleServicesFile = ''
 )
 $ErrorActionPreference = 'Stop'
 if (-not $ApiUrl) { $ApiUrl = if ($App -eq 'admin') { 'http://admin.erp.local/api' } else { 'http://shop.glcheck.lan/api' } }
@@ -32,6 +34,14 @@ if ($App -eq 'admin') {
   $env:TENANT_CODE = $Tenant
   if ($AppName) { $env:APP_NAME = $AppName }
   if ($BrandColor) { $env:BRAND_COLOR = $BrandColor }
+  if ($GoogleServicesFile) {
+    if (-not (Test-Path $GoogleServicesFile)) { throw "google-services.json not found: $GoogleServicesFile" }
+    Copy-Item $GoogleServicesFile (Join-Path $work 'google-services.json') -Force
+    $env:GOOGLE_SERVICES_FILE = './google-services.json'
+    $env:PUSH_ENABLED = 'true'
+  } else {
+    Remove-Item Env:GOOGLE_SERVICES_FILE, Env:PUSH_ENABLED -ErrorAction SilentlyContinue
+  }
 }
 $env:CI = '1'
 Push-Location $work

@@ -12,6 +12,17 @@ jest.mock('expo-secure-store', () => {
     deleteItemAsync: jest.fn(async (k: string) => void mem.delete(k)),
   }
 })
+// No notification support in Jest: every call is a harmless stub; tests that check the calls use the same mock functions.
+jest.mock('expo-notifications', () => ({
+  setNotificationHandler: jest.fn(),
+  setNotificationChannelAsync: jest.fn().mockResolvedValue(undefined),
+  getPermissionsAsync: jest.fn().mockResolvedValue({ granted: false, canAskAgain: false }),
+  requestPermissionsAsync: jest.fn().mockResolvedValue({ granted: false }),
+  scheduleNotificationAsync: jest.fn().mockResolvedValue('id'),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getDevicePushTokenAsync: jest.fn().mockResolvedValue({ type: 'android', data: 'fcm-token' }),
+  AndroidImportance: { HIGH: 4 },
+}))
 jest.mock('react-native-safe-area-context', () => {
   const React = require('react')
   const { View } = require('react-native')

@@ -14,6 +14,10 @@ export interface AppNotification {
   channel?: string | number
   createdAt: string
   isRead: boolean
+  /** The record the message is about (a purchase order, a sales order, a leave request), when it has one. */
+  entityType?: string | null
+  entityId?: string | null
+  routeKey?: string | null
 }
 
 export const NOTIFICATIONS_PAGE_SIZE = 20
@@ -43,5 +47,23 @@ export const notificationsApi = {
 
   async markRead(id: string): Promise<void> {
     await gatewayClient.patch(`${BASE}/${id}/read`)
+  },
+
+  /** Marks every unread message of the signed-in user as read (the server uses the token's user). */
+  async markAllRead(): Promise<number> {
+    const { data } = await gatewayClient.patch<{ marked?: number }>(`${BASE}/read-all`)
+    return data?.marked ?? 0
+  },
+}
+
+const DEVICES = '/ntf/api/v1/device-tokens'
+
+/** The phone's push token, kept on the server per user and device (used only when push is switched on). */
+export const devicesApi = {
+  async register(token: string, deviceId: string, platform: string): Promise<void> {
+    await gatewayClient.put(DEVICES, { token, deviceId, platform })
+  },
+  async unregister(deviceId: string): Promise<void> {
+    await gatewayClient.delete(`${DEVICES}/${encodeURIComponent(deviceId)}`)
   },
 }

@@ -79,6 +79,17 @@ public class NotificationsController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Marks every unread notification of the signed-in user as read (the caller's own, never an id from the request).</summary>
+    [HttpPatch("read-all")]
+    public async Task<IActionResult> MarkAllAsRead(CancellationToken ct)
+    {
+        if (!_userContext.HasPermission("notifications:view"))
+            return Forbid();
+
+        var marked = await _mediator.Send(new MarkAllNotificationsReadCommand { RecipientId = _userContext.UserId }, ct);
+        return Ok(new { marked });
+    }
+
     [HttpPatch("{id:guid}/read")]
     public async Task<IActionResult> MarkAsRead(Guid id, CancellationToken ct)
     {

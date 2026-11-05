@@ -1,6 +1,7 @@
 using ERP.NTF.Application.Commands;
 using ERP.NTF.Application.DTOs;
 using ERP.NTF.Application.Interfaces;
+using ERP.NTF.Application.Services;
 using ERP.NTF.Domain.Entities;
 using ERP.NTF.Domain.Enums;
 using MediatR;
@@ -15,7 +16,7 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
     private readonly IPreferenceRepository _preferences;
     private readonly IEmailSender _email;
     private readonly ISmsSender _sms;
-    private readonly IPushSender _push;
+    private readonly PushDelivery _push;
     private readonly IRealtimeNotifier _realtime;
 
     public SendNotificationCommandHandler(
@@ -24,7 +25,7 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
         IPreferenceRepository preferences,
         IEmailSender email,
         ISmsSender sms,
-        IPushSender push,
+        PushDelivery push,
         IRealtimeNotifier realtime)
     {
         _notifications = notifications;
@@ -87,7 +88,10 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
             request.RecipientPhone,
             request.RecipientDeviceToken,
             request.ScheduledFor,
-            request.DedupKey);
+            request.DedupKey,
+            request.EntityType,
+            request.EntityId,
+            request.RouteKey);
 
         await _notifications.AddAsync(notification, cancellationToken);
 
@@ -114,8 +118,8 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
                 case NotificationChannel.Sms when notification.RecipientPhone != null:
                     await _sms.SendAsync(notification.RecipientPhone, notification.Body, ct);
                     break;
-                case NotificationChannel.Push when notification.RecipientDeviceToken != null:
-                    await _push.SendAsync(notification.RecipientDeviceToken, notification.Subject, notification.Body, ct);
+                case NotificationChannel.Push:
+                    await _push.DeliverAsync(notification, ct);
                     break;
                 case NotificationChannel.InApp:
                     await _realtime.NotifyAsync(notification.RecipientId, MapToDto(notification), ct);
@@ -148,6 +152,9 @@ public class SendNotificationCommandHandler : IRequestHandler<SendNotificationCo
         CreatedAt = n.CreatedAt,
         IsRead = n.IsRead,
         ReadAt = n.ReadAt,
+        EntityType = n.EntityType,
+        EntityId = n.EntityId,
+        RouteKey = n.RouteKey,
         Logs = n.Logs.Select(l => new NotificationLogDto
         {
             EventType = l.EventType,

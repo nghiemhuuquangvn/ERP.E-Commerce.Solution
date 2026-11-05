@@ -1,3 +1,4 @@
+using ERP.NTF.Application.Services;
 using ERP.Shared.Infrastructure.Data;
 using ERP.NTF.Application.Interfaces;
 using ERP.NTF.Domain.Entities;
@@ -110,14 +111,14 @@ public class NotificationDispatchJob : BackgroundService
         }
     }
 
-    private static (INotificationRepository, IEmailSender, ISmsSender, IPushSender, IWebhookRepository, IWebhookSender) ResolveServices(IServiceScope scope)
+    private static (INotificationRepository, IEmailSender, ISmsSender, PushDelivery, IWebhookRepository, IWebhookSender) ResolveServices(IServiceScope scope)
     {
         var sp = scope.ServiceProvider;
         return (
             sp.GetRequiredService<INotificationRepository>(),
             sp.GetRequiredService<IEmailSender>(),
             sp.GetRequiredService<ISmsSender>(),
-            sp.GetRequiredService<IPushSender>(),
+            sp.GetRequiredService<PushDelivery>(),
             sp.GetRequiredService<IWebhookRepository>(),
             sp.GetRequiredService<IWebhookSender>()
         );
@@ -125,7 +126,7 @@ public class NotificationDispatchJob : BackgroundService
 
     private static async Task SendViaChannelAsync(
         Notification notification,
-        IEmailSender email, ISmsSender sms, IPushSender push,
+        IEmailSender email, ISmsSender sms, PushDelivery push,
         CancellationToken ct)
     {
         switch (notification.Channel)
@@ -136,8 +137,8 @@ public class NotificationDispatchJob : BackgroundService
             case NotificationChannel.Sms when notification.RecipientPhone != null:
                 await sms.SendAsync(notification.RecipientPhone, notification.Body, ct);
                 break;
-            case NotificationChannel.Push when notification.RecipientDeviceToken != null:
-                await push.SendAsync(notification.RecipientDeviceToken, notification.Subject, notification.Body, ct);
+            case NotificationChannel.Push:
+                await push.DeliverAsync(notification, ct);
                 break;
         }
     }

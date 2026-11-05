@@ -23,6 +23,11 @@ public class SendNotificationCommand : IRequest<NotificationDto>
 
     /// <summary>Event handlers: a recipient who turned the channel off is skipped quietly instead of failing the message (and being retried).</summary>
     public bool SkipWhenOptedOut { get; set; }
+
+    /// <summary>The record the message is about (PurchaseOrder, SalesOrder, LeaveRequest) and its id, so a client can open it.</summary>
+    public string? EntityType { get; set; }
+    public string? EntityId { get; set; }
+    public string? RouteKey { get; set; }
 }
 
 public class CreateTemplateCommand : IRequest<NotificationTemplateDto>

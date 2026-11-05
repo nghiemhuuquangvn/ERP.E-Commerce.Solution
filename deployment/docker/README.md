@@ -131,6 +131,13 @@ docker compose -f docker-compose.yml -f docker-compose.localsql.yml up -d --buil
   engine stop answering during the first build.
 - Shell scripts must stay LF (`.gitattributes`); a CRLF checkout makes admin/storefront crash-loop.
 
+## Notification service settings (2026-11-05)
+
+NotificationService asks IdentityService who holds a permission (to tell approvers), so it is a service-to-service caller: `docker-compose.yml` gives it
+`ServiceAuth__Name=notification`, `ServiceAuth__SigningKeys__Source=Ephemeral` and `Identity__BaseUrl=http://identityservice:5001`, and gives identity
+`ServiceAuth__TrustedCallers__notification`. Push to phones is **off** until Firebase is configured: set `Fcm__ProjectId` and `Fcm__ServiceAccountPath`
+(a service-account JSON mounted into the container). Migration `Notification/015` adds the link columns and `DeviceTokens`.
+
 ## Rebuilding only what changed, without piling up build cache (2026-10-26)
 
 `docker compose build` of the whole stack, repeated, once grew Docker's disk image (`docker_data.vhdx`) to ~200 GB, of which ~150 GB was

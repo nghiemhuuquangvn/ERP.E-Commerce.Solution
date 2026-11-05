@@ -28,6 +28,11 @@ public class Notification : AggregateRoot
     public string? DedupKey { get; private set; }
     public bool IsRead { get; private set; }
     public DateTime? ReadAt { get; private set; }
+    /// <summary>The record the message is about ("PurchaseOrder", "SalesOrder", "LeaveRequest") and its id: the app opens that record when the message is tapped.</summary>
+    public string? EntityType { get; private set; }
+    public string? EntityId { get; private set; }
+    /// <summary>Optional hint for the client about which screen to open (the clients map EntityType to a screen themselves).</summary>
+    public string? RouteKey { get; private set; }
     public IReadOnlyCollection<NotificationLog> Logs => _logs.AsReadOnly();
 
     private Notification() { }
@@ -43,7 +48,10 @@ public class Notification : AggregateRoot
         string? recipientPhone = null,
         string? recipientDeviceToken = null,
         DateTime? scheduledFor = null,
-        string? dedupKey = null)
+        string? dedupKey = null,
+        string? entityType = null,
+        string? entityId = null,
+        string? routeKey = null)
     {
         var notification = new Notification
         {
@@ -60,6 +68,9 @@ public class Notification : AggregateRoot
             Status = scheduledFor.HasValue ? NotificationStatus.Queued : NotificationStatus.Queued,
             ScheduledFor = scheduledFor,
             DedupKey = dedupKey,
+            EntityType = entityType,
+            EntityId = entityId,
+            RouteKey = routeKey,
             RetryCount = 0,
             CreatedAt = DateTime.UtcNow
         };

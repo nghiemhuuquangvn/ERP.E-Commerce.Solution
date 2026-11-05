@@ -262,7 +262,8 @@
     "emptyHint": "New messages for you appear here.",
     "unread": "Unread",
     "read": "Read",
-    "noSubject": "(no subject)"
+    "noSubject": "(no subject)",
+    "markAll": "Mark all as read"
   },
   "filters": {
     "title": "Filters",

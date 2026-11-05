@@ -100,6 +100,7 @@ public class PurchaseOrder : BaseEntity
 
         RecalculateTotal();
         Status = PurchaseOrderStatus.Submitted;
+        AddDomainEvent(new PurchaseOrderSubmittedDomainEvent(Id, PONumber, SupplierId, TotalAmount.Amount, TotalAmount.Currency));
     }
 
     /// <summary>

@@ -48,6 +48,7 @@ public class SalesOrderRabbitMqConsumer : IHostedService
         _channel.ExchangeDeclare(ExchangeName, ExchangeType.Topic, durable: true);
         _channel.QueueDeclare(QueueName, durable: true, exclusive: false, autoDelete: false);
         _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderCreatedEvent");
+        _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderSubmittedEvent");
         _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderApprovedEvent");
         _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderShippedEvent");
         _channel.QueueBind(QueueName, ExchangeName, "sales_order.SalesOrderDeliveredEvent");
@@ -86,6 +87,11 @@ public class SalesOrderRabbitMqConsumer : IHostedService
                 case "sales_order.SalesOrderCreatedEvent":
                     var created = JsonSerializer.Deserialize<SalesOrderCreatedIntegrationEvent>(json, Options);
                     if (created != null) await mediator.Publish(created);
+                    break;
+
+                case "sales_order.SalesOrderSubmittedEvent":
+                    var submitted = JsonSerializer.Deserialize<SalesOrderSubmittedIntegrationEvent>(json, Options);
+                    if (submitted != null) await mediator.Publish(submitted);
                     break;
 
                 case "sales_order.SalesOrderApprovedEvent":

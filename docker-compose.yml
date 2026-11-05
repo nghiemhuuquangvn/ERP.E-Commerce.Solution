@@ -247,6 +247,8 @@ services:
       ServiceAuth__Name: "identity"
       ServiceAuth__TrustedCallers__gateway: "http://gateway:5000/internal/jwks.json"
       ServiceAuth__TrustedCallers__chatbot: "http://chatbotservice:5017/internal/jwks.json"
+      # NotificationService asks who holds a permission (the approvers of an order / leave request): internal/v1/permissions/{code}/users
+      ServiceAuth__TrustedCallers__notification: "http://notificationservice:5013/internal/jwks.json"
       Jwt__RequireHttpsMetadata: "false"
       ConnectionStrings__AuthDB: "Server=${SQL_HOST:-sqlserver},1433;Database=AuthDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
@@ -820,6 +822,10 @@ services:
       RabbitMQ__UserName: admin
       RabbitMQ__Password: ${RABBITMQ_PASSWORD}
       KafkaSettings__BootstrapServers: kafka:9092
+      # Service-to-service: this service asks IdentityService who holds a permission (approvers); Identity fetches this service's public key from /internal/jwks.json.
+      ServiceAuth__Name: "notification"
+      ServiceAuth__SigningKeys__Source: "Ephemeral"
+      Identity__BaseUrl: "http://identityservice:5001"
     depends_on:
       db-migrate:
         condition: service_completed_successfully

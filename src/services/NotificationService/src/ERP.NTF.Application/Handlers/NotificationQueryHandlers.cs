@@ -36,6 +36,9 @@ public class GetNotificationQueryHandler : IRequestHandler<GetNotificationQuery,
             CreatedAt = notification.CreatedAt,
             IsRead = notification.IsRead,
             ReadAt = notification.ReadAt,
+            EntityType = notification.EntityType,
+            EntityId = notification.EntityId,
+            RouteKey = notification.RouteKey,
             Logs = notification.Logs.Select(l => new NotificationLogDto
             {
                 EventType = l.EventType,
@@ -67,12 +70,16 @@ public class GetNotificationHistoryQueryHandler : IRequestHandler<GetNotificatio
                 RecipientEmail = n.RecipientEmail,
                 Channel = n.Channel.ToString(),
                 Subject = n.Subject,
+                Body = n.Body,
                 Status = n.Status.ToString(),
                 Priority = n.Priority.ToString(),
                 SentAt = n.SentAt,
                 CreatedAt = n.CreatedAt,
                 IsRead = n.IsRead,
-                ReadAt = n.ReadAt
+                ReadAt = n.ReadAt,
+                EntityType = n.EntityType,
+                EntityId = n.EntityId,
+                RouteKey = n.RouteKey
             }).ToList()
         };
     }

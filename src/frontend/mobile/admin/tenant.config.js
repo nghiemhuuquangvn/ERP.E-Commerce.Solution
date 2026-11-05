@@ -30,6 +30,9 @@ function resolveTenantConfig(env = process.env) {
     brand,
     androidPackage: androidPackage(code),
     production: env.APP_VARIANT === 'production',
+    // Push is off unless asked for AND the Firebase file is given (a push token cannot be had without it).
+    googleServicesFile: env.GOOGLE_SERVICES_FILE || '',
+    pushEnabled: env.PUSH_ENABLED === 'true' && !!env.GOOGLE_SERVICES_FILE,
   }
 }
 

@@ -20,6 +20,10 @@ public class NotificationDto
     public DateTime CreatedAt { get; set; }
     public bool IsRead { get; set; }
     public DateTime? ReadAt { get; set; }
+    /// <summary>The record the message is about and its id (null when it is about nothing in particular).</summary>
+    public string? EntityType { get; set; }
+    public string? EntityId { get; set; }
+    public string? RouteKey { get; set; }
     public List<NotificationLogDto> Logs { get; set; } = new();
 }
 

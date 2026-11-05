@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.SignalR;
 using Confluent.Kafka;
 using ERP.NTF.API.Hubs;
 using ERP.NTF.Application.Handlers;
+using ERP.NTF.Application.Services;
 using ERP.NTF.Application.Interfaces;
 using ERP.NTF.Application.Validators;
 using ERP.NTF.Infrastructure.BackgroundJobs;
@@ -10,6 +11,7 @@ using ERP.NTF.Infrastructure.Persistence;
 using ERP.NTF.Infrastructure.Repositories;
 using ERP.NTF.Infrastructure.Services;
 using ERP.Shared.Authorization;
+using ERP.Shared.Authorization.ServiceAuth;
 using ERP.Shared.Extensions;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.Shared.Localization;
@@ -41,6 +43,9 @@ builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
 builder.Services.AddScoped<IPreferenceRepository, PreferenceRepository>();
 builder.Services.AddScoped<IWebhookRepository, WebhookRepository>();
 builder.Services.AddScoped<IRecipientRepository, RecipientRepository>();
+builder.Services.AddScoped<IDeviceTokenRepository, DeviceTokenRepository>();
+builder.Services.AddScoped<PushDelivery>();
+builder.Services.AddScoped<ERP.NTF.Application.EventHandlers.ApproverNotifier>();
 builder.Services.AddScoped<ERP.NTF.Application.EventHandlers.OrderNotifier>();
 builder.Services.AddScoped<ERP.NTF.Application.EventHandlers.UserNotifier>();
 
@@ -61,11 +66,34 @@ if (!string.IsNullOrEmpty(builder.Configuration["Twilio:AccountSid"]))
 else
     builder.Services.AddScoped<ISmsSender, NullSmsSender>();
 
-// Push: FCM when ServerKey configured, else Null stub
-if (!string.IsNullOrEmpty(builder.Configuration["Fcm:ServerKey"]))
-    builder.Services.AddScoped<IPushSender, FcmPushSender>();
+// Push: Firebase Cloud Messaging HTTP v1 when Fcm:ProjectId + Fcm:ServiceAccountPath are set (a service-account JSON kept as a secret), else a Null stub that only logs.
+// Switched off by default: until the owner provides a Firebase project nothing is sent and no push rows are made (IPushStatus).
+var fcm = builder.Configuration.GetSection("Fcm").Get<FcmOptions>() ?? new FcmOptions();
+builder.Services.AddSingleton(fcm);
+builder.Services.AddSingleton<IPushStatus>(new PushStatus(fcm.IsConfigured));
+if (fcm.IsConfigured)
+{
+    builder.Services.AddSingleton<IFcmAccessTokenProvider>(sp => new FcmServiceAccountTokenProvider(
+        () => File.ReadAllText(fcm.ServiceAccountPath), sp.GetRequiredService<IHttpClientFactory>().CreateClient("fcm-token")));
+    builder.Services.AddHttpClient<IPushSender, FcmV1PushSender>(c =>
+    {
+        c.BaseAddress = new Uri(FcmV1PushSender.DefaultBaseUrl);
+        c.Timeout = TimeSpan.FromSeconds(15);
+    });
+}
 else
+{
     builder.Services.AddScoped<IPushSender, NullPushSender>();
+}
+
+// Who holds a permission (the approvers): IdentityService answers over its internal route with this service's own token (ServiceAuth:Name / SigningKeys);
+// the answer is cached for a minute. app.MapServiceJwks() publishes this service's public key for Identity to verify the token.
+builder.Services.AddHttpClient<IApproverDirectory, ApproverDirectory>(c =>
+{
+    var baseUrl = builder.Configuration["Identity:BaseUrl"] ?? "http://identityservice:5001";
+    c.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+    c.Timeout = TimeSpan.FromSeconds(5);
+}).AddServiceToken("identity");
 
 builder.Services.AddScoped<IWebhookSender, WebhookSender>();
 builder.Services.AddScoped<ICurrentTenantAccessor, CurrentTenantAccessor>();
@@ -219,6 +247,8 @@ app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications").RequireCors("NotificationHubCors");
+// Public key of this service's service-to-service tokens (IdentityService verifies the approver lookup with it).
+app.MapServiceJwks();
 app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();

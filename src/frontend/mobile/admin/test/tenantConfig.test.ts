@@ -51,4 +51,14 @@ describe('tenant build configuration', () => {
       process.env = prev
     }
   })
+
+  it('keeps push off unless it is asked for AND the Firebase file is given', () => {
+    const { resolveTenantConfig } = require('../tenant.config')
+    expect(resolveTenantConfig({}).pushEnabled).toBe(false)
+    expect(resolveTenantConfig({ PUSH_ENABLED: 'true' }).pushEnabled).toBe(false)
+    expect(resolveTenantConfig({ GOOGLE_SERVICES_FILE: './g.json' }).pushEnabled).toBe(false)
+    const on = resolveTenantConfig({ PUSH_ENABLED: 'true', GOOGLE_SERVICES_FILE: './g.json' })
+    expect(on.pushEnabled).toBe(true)
+    expect(on.googleServicesFile).toBe('./g.json')
+  })
 })

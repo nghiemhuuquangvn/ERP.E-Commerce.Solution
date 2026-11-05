@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { Spinner, ToastHost } from '@/components/ui'
 import { SideMenu } from '@/components/SideMenu'
+import { NotificationEffects } from '@/features/notifications/NotificationEffects'
 import { AppState, View } from 'react-native'
 import { useAuthStore } from '@/stores/auth.store'
 import { colors } from '@/theme/theme'
@@ -84,6 +85,7 @@ export default function RootLayout() {
           <Stack.Screen name="hrm/employee/[id]" options={{ headerShown: true }} />
         </Stack>
         {signedIn ? <SideMenu /> : null}
+        {signedIn ? <NotificationEffects /> : null}
         <AuthGuard />
         <Booting />
         <ToastHost top={72} />

@@ -178,7 +178,7 @@ public class CustomerNotificationTests
         var preferences = new Mock<IPreferenceRepository>();
         preferences.Setup(p => p.GetByUserIdAsync(It.IsAny<Guid>(), default)).ReturnsAsync(preference);
         var handler = new SendNotificationCommandHandler(notifications.Object, templates.Object, preferences.Object,
-            Mock.Of<IEmailSender>(), Mock.Of<ISmsSender>(), Mock.Of<IPushSender>(), Mock.Of<IRealtimeNotifier>());
+            Mock.Of<IEmailSender>(), Mock.Of<ISmsSender>(), new ERP.NTF.Application.Services.PushDelivery(Mock.Of<IDeviceTokenRepository>(), Mock.Of<IPushSender>(), Microsoft.Extensions.Logging.Abstractions.NullLogger<ERP.NTF.Application.Services.PushDelivery>.Instance), Mock.Of<IRealtimeNotifier>());
         return (handler, added);
     }
 

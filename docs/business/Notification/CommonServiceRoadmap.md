@@ -83,7 +83,7 @@ The Domain layer (`Notification`, `NotificationTemplate`, `NotificationPreferenc
 Settings entities), the full Application layer (commands, handlers, validators —
 these reference generic types like `SendNotificationCommand`, not ERP concepts), and
 almost all of Infrastructure (repositories, `SmtpEmailSender`/`TwilioSmsSender`/
-`FcmPushSender`/null stubs, `SignalRRealtimeNotifier`, `OutboxProcessor`,
+`FcmV1PushSender` (off unless Firebase is configured; the legacy `FcmPushSender` was removed 2026-11-05)/null stub, `SignalRRealtimeNotifier`, `OutboxProcessor`,
 `WebhookSender`) ship completely unmodified.
 
 ### What's ERP-specific and gets replaced

@@ -260,6 +260,19 @@ public class NotificationKafkaConsumer : IHostedService
             if (evt.EmployeeId != Guid.Empty)
                 await mediator.Publish(evt, cancellationToken);
         }
+        else if (typeName.Contains("PurchaseOrderSubmittedDomainEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new PurchaseOrderSubmittedIntegrationEvent
+            {
+                PurchaseOrderId = GuidOrEmpty(raw, "PurchaseOrderId"),
+                PONumber = raw.Value<string>("PONumber") ?? string.Empty,
+                TotalAmount = raw.Value<decimal?>("TotalAmount") ?? 0m,
+                CurrencyCode = raw.Value<string>("CurrencyCode") ?? string.Empty
+            };
+            if (evt.PurchaseOrderId != Guid.Empty)
+                await mediator.Publish(evt, cancellationToken);
+        }
         else if (typeName.Contains("PurchaseOrderPendingFinanceApprovalDomainEvent"))
         {
             var raw = JObject.Parse(json);
@@ -283,6 +296,22 @@ public class NotificationKafkaConsumer : IHostedService
                 ApprovedBy = raw.Value<string>("ApprovedBy") ?? string.Empty
             };
             if (evt.PurchaseOrderId != Guid.Empty)
+                await mediator.Publish(evt, cancellationToken);
+        }
+        else if (typeName.Contains("LeaveRequestSubmittedEvent"))
+        {
+            var raw = JObject.Parse(json);
+            var evt = new LeaveRequestSubmittedIntegrationEvent
+            {
+                LeaveRequestId = GuidOrEmpty(raw, "LeaveRequestId"),
+                LeaveRequestNumber = raw.Value<string>("LeaveRequestNumber") ?? string.Empty,
+                EmployeeId = GuidOrEmpty(raw, "EmployeeId"),
+                StartDate = raw.Value<DateTime?>("StartDate") ?? DateTime.UtcNow,
+                EndDate = raw.Value<DateTime?>("EndDate") ?? DateTime.UtcNow,
+                DaysRequested = raw.Value<int?>("DaysRequested") ?? 0,
+                Reason = raw.Value<string>("Reason")
+            };
+            if (evt.LeaveRequestId != Guid.Empty)
                 await mediator.Publish(evt, cancellationToken);
         }
         else if (typeName.Contains("LeaveApprovedEvent"))

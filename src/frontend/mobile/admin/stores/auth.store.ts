@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { authApi, type LoginResponse } from '@/api/auth'
 import { readToken } from '@/lib/jwt'
+import { unregisterThisDevice } from '@/features/notifications/push'
 import { clearRefreshToken, loadRefreshToken, saveRefreshToken } from '@/lib/secureStorage'
 
 export interface SessionUser {
@@ -83,6 +84,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   logout: async () => {
     const token = get().refreshToken
+    await unregisterThisDevice() // while the access token still works; a no-op unless push is switched on
     set(signedOut)
     await clearRefreshToken()
     if (token) authApi.logout(token).catch(() => undefined) // best effort: the session is already gone on the phone

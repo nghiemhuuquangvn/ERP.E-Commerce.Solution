@@ -38,6 +38,9 @@ namespace ERP.HRM.Domain.Entities
                 UpdatedAt = DateTime.UtcNow
             };
 
+            leaveRequest.AddDomainEvent(new LeaveRequestSubmittedEvent(
+                leaveRequest.Id, leaveRequestNumber, employeeId, startDate, endDate, daysRequested, reason));
+
             return leaveRequest;
         }
 
