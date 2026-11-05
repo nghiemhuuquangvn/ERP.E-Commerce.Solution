@@ -135,3 +135,62 @@ kiến, không phải hiện trạng.
 ## 10. So sánh & Reconciliation với project hiện tại (2026-07-29)
 
 Phát hiện chính: CLAUDE.md nói sai hiện trạng consumer (nói "chỉ 1 sống" nhưng thực tế có 2 — thiếu `SalesOrderRabbitMqConsumer`). Domain model có 1 property chết (`NotificationPreference.DisabledChannels` — tồn tại nhưng không method nào ghi vào, cơ chế thật dùng 4 cờ boolean). Không phát hiện gap nghiêm trọng khác — toàn bộ vòng đời gửi/retry/log là logic thật đang chạy.
+
+
+---
+
+## 11. Approver notifications, record links, read-all and device tokens (2026-11-05, ROADMAP M5)
+
+### 11.1 Purpose and actors
+People who must decide something (approve a purchase order, a sales order, a leave request) are told **in the bell of the Admin app** at the moment the thing starts waiting for them, and tapping the message opens the record. Before this, nothing was raised at that moment: the finance step e-mailed a hard-coded demo address and the other three steps were silent.
+
+| Actor | Role |
+|---|---|
+| Submitter | Submits a PO / sales order / leave request (also gets the message if they hold the permission - the actor is not excluded). |
+| Approver | Holds the permission that decides the step; receives one bell message per fact. |
+| IdentityService | Answers "who holds permission X in this tenant". |
+| NotificationService | Finds the approvers, creates one in-app message each (and a push row when push is on). |
+| Admin mobile app | Shows the bell, opens the record, marks read, raises a phone alert while open. |
+
+### 11.2 Requirements and acceptance criteria
+| ID | Requirement | Acceptance criterion |
+|---|---|---|
+| N1 | A submitted purchase order tells the holders of `purchase_order:approve`. | Submit a PO on a tenant whose administrator holds the permission -> within seconds that user's history has an InApp row "Purchase order PO-x is waiting for your approval" with `EntityType=PurchaseOrder`, the PO id, `RouteKey=purchase-order`. |
+| N2 | A PO that passed the manager and needs finance approval tells the holders of `purchase_order:finance_approve` (replaces the demo e-mail). | The finance event creates one row per holder; no e-mail to `finance-team@erp-demo.local` is made any more. |
+| N3 | A submitted sales order tells the holders of `sales_order:approve`. | Row with `EntityType=SalesOrder`, `RouteKey=sales-order`. |
+| N4 | A new leave request tells the holders of `hrm:leave:manage`. | Row with `EntityType=LeaveRequest`, `RouteKey=leave-request`. |
+| N5 | The same fact never reaches the same person twice. | `DedupKey = "<event>:<objectId>:<userId>"` (+ `:push`); a redelivered event creates nothing new. |
+| N6 | A person who turned bell messages off is skipped. | `SkipWhenOptedOut` on the command. |
+| N7 | `PATCH notifications/read-all` marks the caller's own unread messages read and answers `{marked:n}`. | Never takes a recipient from the request; a second call answers 0. |
+| N8 | A phone registers / removes its push token. | `PUT device-tokens {token,deviceId,platform}` (upsert per user + device, a token held by another row moves to the caller), `DELETE device-tokens/{deviceId}` (204 even when absent). User id from the token. |
+| N9 | Push is real only when Firebase is configured. | Without `Fcm:ProjectId` + `Fcm:ServiceAccountPath`: `NullPushSender`, no Push rows are created. |
+
+### 11.3 Business rules
+1. **Approvers = permission holders.** NotificationService asks IdentityService (`GET internal/v1/permissions/{code}/users`, service token of caller `notification`, tenant from the token); the answer is cached 60 s per tenant + permission. Identity mirrors how a token gets its permissions: active user of the tenant, active role of the tenant, role holds the permission, `PermissionScopes.IsGrantableIn` (a platform-only permission has no holder in an ordinary tenant); in the platform tenant the SuperAdmin role holds everything. Per-user grants are **not** considered (tokens do not carry them either).
+2. At most **200** approvers per event are told (the rest are logged); more means a wrong role setup.
+3. A failing lookup throws, so the consumer's existing retry (5 times, then drop with a log) applies - nobody is silently skipped.
+4. Messages are English text (the bell shows what the service wrote); translation of server text is a recorded limitation.
+5. Leave **approved / rejected** still go to the demo address `employee-{id}@erp-demo.local` (no employee -> user id) - unchanged, recorded.
+6. A push row is made only when `IPushStatus.IsEnabled`; a delivery goes to every device of the user, a dead token (`UNREGISTERED` / 404 / invalid argument) is removed, one broken device does not stop the others, and the delivery fails (is retried by the dispatch job) only when **no** device could be reached.
+
+### 11.4 Flow
+Main: PO `Submit()` raises `PurchaseOrderSubmittedDomainEvent` -> outbox -> Kafka `purchasing-topic` -> `NotificationKafkaConsumer` (tenant scope from the event) -> `PurchaseOrderSubmittedIntegrationEvent` -> handler -> `ApproverNotifier` -> Identity lookup -> one `SendNotificationCommand` (InApp) per approver -> bell. Sales: `SalesOrderSubmittedEvent` on RabbitMQ `sales_order_events`, routing key `sales_order.SalesOrderSubmittedEvent`. HRM: `LeaveRequestSubmittedEvent` on Kafka `hrm-topic`.
+Alternative: nobody holds the permission -> logged, no message. Exception: Identity down -> message retried, then dropped after 5 tries (R138).
+
+### 11.5 Data model (migration `Notification/015_NotificationLinksAndDeviceTokens.sql`, idempotent)
+* `Notifications.EntityType` (100), `EntityId` (100), `RouteKey` (200), all NULL. Carried through `Notification.Create`, `SendNotificationCommand`, `NotificationDto` (all three builders) and the history body.
+* `DeviceTokens` (BaseEntity columns): `UserId`, `Token` (500), `DeviceId` (200), `Platform` (android / ios), `LastSeenAt`; unique `(TenantId, Token)` and `(TenantId, UserId, DeviceId)`; index `(TenantId, UserId)`. Tenant-filtered like every tenant-owned row.
+
+### 11.6 Integrations and configuration
+* Identity: `InternalPermissionsController` (`[AuthorizeInternalService("notification")]`; never routed in the Gateway). Compose: identity `ServiceAuth__TrustedCallers__notification`; notification `ServiceAuth__Name=notification`, `ServiceAuth__SigningKeys__Source=Ephemeral`, `Identity__BaseUrl`; the service publishes `/internal/jwks.json` (`MapServiceJwks`). **Kubernetes manifests were not updated** (R140).
+* FCM HTTP v1: `Fcm__ProjectId`, `Fcm__ServiceAccountPath` (a service-account JSON mounted as a secret); the old legacy `FcmPushSender` (retired Google endpoint) was deleted.
+* Gateway: `/ntf/api/v1/{everything}` already routes every verb; `/api/v1/notifications/{everything}` does not route DELETE (device tokens use the `/ntf` route).
+
+### 11.7 Permissions
+`notifications:view` for `read-all` and history (in-action check, controller already on the legacy allowlist); `device-tokens` uses `[AuthorizeAnyAuthenticatedUser]` (own account only).
+
+### 11.8 UAT
+1. Submit a PO as a user while the glcheck administrator holds `purchase_order:approve` -> administrator's bell +1, the message names the PO. 2. Redeliver the event -> still +1. 3. `read-all` -> badge 0, second call `{marked:0}`. 4. `PUT device-tokens` with an empty token -> 400; with a token -> 204; `DELETE` -> 204. 5. A tenant where nobody holds `sales_order:approve` -> no message, log line.
+
+### 11.9 Assumptions and open issues
+Record in DEFERRED-ISSUES R138-R143 (Identity lookup lag and retry, approver cap, the submitter is told too, push unverified without Firebase, polling-based phone alert, k8s manifests).

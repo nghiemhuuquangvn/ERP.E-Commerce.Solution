@@ -4,6 +4,8 @@
 > Keep it current: update it at the end of every work session (what changed, what's next).
 > Last updated: **2026-10-23** (ROADMAP P0-1 first Docker run on `fix/docker-first-run`; new P0-9 schema drift; system inventory + roadmap: `docs/ROADMAP.md`).
 
+> **2026-11-05 (branch `feat/mobile-admin-notifications`, not merged):** ROADMAP M5 - approver notifications (PO / sales order / leave submitted), record links, read-all, device tokens, FCM v1 push **off by default**; Admin app opens the record and alerts on the phone while open. Deploy prerequisites: migration `Notification/015`, the NotificationService `ServiceAuth__*` / `Identity__BaseUrl` settings and Identity's `ServiceAuth__TrustedCallers__notification` (compose done, **k8s not**, R140); real push needs the owner's Firebase files (R141). Details: `docs/business/Notification/module-21-notification.md` §11, `docs/business/Mobile/AdminApp.md` §18.
+
 > Business documentation (BA level) per domain: start with `docs/business/Accounting/BA-Accounting.md`; every task must update it (rule 10 in `Claude.md`).
 > Open problems that were deliberately left unfixed: **docs/DEFERRED-ISSUES.md** (read it before picking the next task).
 

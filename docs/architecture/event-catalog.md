@@ -710,6 +710,73 @@ public class PurchaseOrderPendingFinanceApprovalDomainEvent
 **Routing:** Kafka (`purchasing-topic`, Outbox Pattern)
 **Delivery:** Guaranteed
 
+
+**Update 2026-11-05 (ROADMAP M5):** the Notification Service no longer e-mails a hard-coded demo address for this event. It looks up the holders of `purchase_order:finance_approve` in IdentityService (`GET internal/v1/permissions/{code}/users`) and creates one in-app message per holder, linked to the PO (`EntityType=PurchaseOrder`).
+
+---
+
+### PurchaseOrderSubmittedEvent
+
+> Added 2026-11-05 — ROADMAP M5, `docs/business/Notification/module-21-notification.md` §11.
+
+**Description:** Published by `PurchaseOrder.Submit()` when a Draft order (with at least one line) goes to approval. Carries no state change.
+
+**Publisher:** Purchasing Service
+**Subscribers:** Notification Service (`purchasing-topic`) — tells the holders of `purchase_order:approve`
+
+```csharp
+public class PurchaseOrderSubmittedDomainEvent : IDomainEvent, ITenantEvent
+{
+    public Guid PurchaseOrderId { get; }
+    public string PONumber { get; }
+    public Guid SupplierId { get; }
+    public decimal TotalAmount { get; }
+    public string CurrencyCode { get; }
+}
+```
+**Routing:** Kafka (`purchasing-topic`, Outbox Pattern)
+
+---
+
+### SalesOrderSubmittedEvent
+
+> Added 2026-11-05 — ROADMAP M5.
+
+**Description:** Published by `SalesOrder.Submit()` when an order is sent for approval.
+
+**Publisher:** Sales Order Service
+**Subscribers:** Notification Service (`SalesOrderRabbitMqConsumer`) — tells the holders of `sales_order:approve`
+
+```csharp
+public class SalesOrderSubmittedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid OrderId { get; }
+    public string OrderNo { get; }
+    public Guid CustomerId { get; }
+    public string CustomerName { get; }
+    public decimal TotalAmount { get; }
+}
+```
+**Routing:** RabbitMQ exchange `sales_order_events`, routing key `sales_order.SalesOrderSubmittedEvent`
+
+---
+
+### LeaveRequestSubmittedEvent
+
+> Added 2026-11-05 — ROADMAP M5.
+
+**Description:** Published when a leave request is created (`LeaveRequest.Create`, status Pending).
+
+**Publisher:** HRM Service
+**Subscribers:** Notification Service (`hrm-topic`) — tells the holders of `hrm:leave:manage`
+
+```csharp
+public record LeaveRequestSubmittedEvent(
+    Guid LeaveRequestId, string LeaveRequestNumber, Guid EmployeeId,
+    DateTime StartDate, DateTime EndDate, int DaysRequested, string? Reason);
+```
+**Routing:** Kafka (`hrm-topic`, Outbox Pattern)
+
 ---
 
 ### ReceiptScheduledEvent
