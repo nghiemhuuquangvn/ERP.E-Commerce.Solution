@@ -9,7 +9,7 @@ ROADMAP P2-8 asked for an ADR (own service vs inside an existing one) before thi
 1. **Own service.** `ManufacturingService` (`src/services/ManufacturingService`, projects `ERP.MFG.{API,Application,Domain,Infrastructure}`),
    port **5018** (7018), module code **MFG**, database **ManufacturingDB**. Clean Architecture / DDD / CQRS / MediatR like every service.
    The code is `MFG`, not the spec's `PRD`, because `PRD` is ProductService.
-2. **PostgreSQL 16** for this service only (every other service stays on SQL Server). EF Core with Npgsql 10; `Guid` ids from `BaseEntity` + `TenantId`;
+2. **PostgreSQL** for this service only (owner decision 2026-11-06: the server installed on the host machine, `localhost:5432`, not a Docker container; containers reach it as `host.docker.internal`; credentials only in the git-ignored `.env`: `PG_HOST`, `PG_PORT`, `PG_USER`, `PG_PASSWORD`; the local server is PostgreSQL 18, so keep SQL compatible with 16-18) (every other service stays on SQL Server). EF Core with Npgsql 10; `Guid` ids from `BaseEntity` + `TenantId`;
    `timestamptz` (UTC); `numeric(18,6)` quantities, `numeric(18,4)` money; optimistic locking with the `xmin` system column (HTTP 409, BR-GEN-03).
    Tenant isolation is unchanged (`ITenantScopedDbContext`, `ApplyTenantQueryFilters`, `EnforceTenantOnSave`).
 3. **Migrations are append-only, idempotent SQL scripts** in `src/Database/Manufacturing/*.sql`, applied by the `pg-migrate` job

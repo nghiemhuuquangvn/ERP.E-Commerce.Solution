@@ -971,43 +971,23 @@ services:
 
 # ── Volumes & Networks ────────────────────────────────────────────────────────
 
-  # ── ManufacturingService (PostgreSQL, 2026-11-06) ─────────────────────────────────────────
-  # The one service on PostgreSQL (owner decision); every other service stays on SQL Server.
-  postgres:
-    image: postgres:16-alpine
-    container_name: erp-postgres
-    hostname: postgres
-    environment:
-      POSTGRES_USER: erp
-      POSTGRES_PASSWORD: ${PG_PASSWORD:-${SA_PASSWORD}}
-    # No published port (Windows reserves 5432 on some hosts, and only the service talks to it);
-    # use `docker exec -it erp-postgres psql -U erp ManufacturingDB` to look inside.
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-    networks:
-      - erp-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U erp -d postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 15s
-
+  # ── ManufacturingService (PostgreSQL on the host, 2026-11-06) ──────────────────────────
+  # The one service on PostgreSQL; every other service stays on SQL Server.
+  # PostgreSQL is NOT a container: ManufacturingService uses the PostgreSQL installed on the host (owner decision 2026-11-06).
+  # .env: PG_HOST=host.docker.internal  PG_PORT=5432  PG_USER=postgres  PG_PASSWORD=<password>
   # One-shot: creates ManufacturingDB when missing and applies src/Database/Manufacturing/*.sql (idempotent).
   pg-migrate:
     image: postgres:16-alpine
     container_name: erp-pg-migrate
     entrypoint: ["/bin/sh", "/migrations/run-pg-migrations.sh"]
     environment:
-      PG_PASSWORD: ${PG_PASSWORD:-${SA_PASSWORD}}
-      PG_HOST: postgres
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_HOST: ${PG_HOST:-host.docker.internal}
+      PG_PORT: ${PG_PORT:-5432}
+      PG_USER: ${PG_USER:-postgres}
     volumes:
       - ./src/Database:/migrations/database:ro
       - ./deployment/docker/run-pg-migrations.sh:/migrations/run-pg-migrations.sh:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
     restart: "no"
     networks:
       - erp-network
@@ -1029,7 +1009,7 @@ services:
       ServiceAuth__Name: "manufacturing"
       ServiceAuth__SigningKeys__Source: "Ephemeral"
       ConnectionStrings__Redis: "redis:6379"
-      ConnectionStrings__ManufacturingDb: "Host=postgres;Port=5432;Database=ManufacturingDB;Username=erp;Password=${PG_PASSWORD:-${SA_PASSWORD}}"
+      ConnectionStrings__ManufacturingDb: "Host=${PG_HOST:-host.docker.internal};Port=${PG_PORT:-5432};Database=ManufacturingDB;Username=${PG_USER:-postgres};Password=${PG_PASSWORD}"
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
       KafkaSettings__BootstrapServers: kafka:9092
@@ -1045,8 +1025,6 @@ services:
 
 volumes:
   sqlserver_data:
-    driver: local
-  postgres_data:
     driver: local
   identity_signing:
     driver: local
