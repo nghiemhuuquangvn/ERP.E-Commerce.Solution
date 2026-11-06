@@ -392,6 +392,7 @@ services:
       # /internal endpoints accept only these services' tokens (verified with their JWKS).
       ServiceAuth__Name: "warehouse"
       ServiceAuth__TrustedCallers__salesorder: "http://salesorderservice:5002/internal/jwks.json"
+      ServiceAuth__TrustedCallers__manufacturing: "http://manufacturingservice:5018/internal/jwks.json"
       ConnectionStrings__WarehouseDB: "Server=${SQL_HOST:-sqlserver},1433;Database=WarehouseDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
@@ -543,6 +544,7 @@ services:
       # /internal endpoints accept only these services' tokens (verified with their JWKS).
       ServiceAuth__Name: "masterdata"
       ServiceAuth__TrustedCallers__accounting: "http://accountingservice:5005/internal/jwks.json"
+      ServiceAuth__TrustedCallers__manufacturing: "http://manufacturingservice:5018/internal/jwks.json"
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
@@ -605,6 +607,7 @@ services:
       ServiceAuth__Name: "product"
       ServiceAuth__TrustedCallers__shipping: "http://shippingservice:5010/internal/jwks.json"
       ServiceAuth__TrustedCallers__salesorder: "http://salesorderservice:5002/internal/jwks.json"
+      ServiceAuth__TrustedCallers__manufacturing: "http://manufacturingservice:5018/internal/jwks.json"
       ConnectionStrings__ProductDB: "Server=${SQL_HOST:-sqlserver},1433;Database=ProductDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       ConnectionStrings__BlobStorage: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
@@ -1013,6 +1016,10 @@ services:
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
       KafkaSettings__BootstrapServers: kafka:9092
+      # Internal REST clients (service token): item, units of measure, warehouses.
+      Services__ProductServiceBaseUrl: "http://productservice:5008"
+      Services__MasterDataServiceBaseUrl: "http://masterdataservice:5015"
+      Services__WarehouseServiceBaseUrl: "http://warehouseservice:5004"
       Cors__AllowedOrigins__0: "http://localhost:5173"
       Cors__AllowedOrigins__1: "http://localhost:5174"
     depends_on:

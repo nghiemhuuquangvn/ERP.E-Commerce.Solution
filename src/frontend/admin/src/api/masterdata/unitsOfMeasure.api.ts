@@ -17,6 +17,8 @@ export interface UnitOfMeasure {
   unitType: string
   baseUnitId?: string | null
   conversionFactor: number
+  /** Decimals a quantity in this unit may have (0 = whole units); Manufacturing rounds requirements up to it. */
+  decimalPlaces?: number
   languageCode?: string | null
   createdAt: string
   updatedAt: string
@@ -36,6 +38,7 @@ export interface CreateUnitOfMeasureRequest {
   unitType: number
   baseUnitId?: string | null
   conversionFactor?: number
+  decimalPlaces?: number
 }
 
 // UpdateUnitOfMeasureRequest(Name, Symbol, ConversionFactor) — Code/UnitType not editable
@@ -43,6 +46,7 @@ export interface UpdateUnitOfMeasureRequest {
   name: string
   symbol: string
   conversionFactor: number
+  decimalPlaces?: number
 }
 
 export const unitsOfMeasureApi = {

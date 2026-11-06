@@ -655,3 +655,7 @@ All requests have CorrelationId for end-to-end tracing:
 
 **Last Updated:** 2026-06-13  
 **Version:** 1.0
+
+## ManufacturingService (MFG, 2026-11-06)
+
+Own service on PostgreSQL (`ManufacturingDB`, host server). Calls, all service-to-service with its own token and fail-closed: ProductService `internal/v1/product-lookup`, MasterData `internal/v1/units-of-measure/lookup|convert`, WareHouseService `internal/v1/warehouses/lookup`. Nothing calls Manufacturing yet. Later phases add Warehouse stock calls, Sales / Purchasing demand and supply, and events towards Accounting (see `adr-manufacturing-service.md`).

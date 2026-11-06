@@ -1,6 +1,9 @@
 using ERP.MFG.Application.Abstractions;
+using ERP.MFG.Infrastructure.Clients;
 using ERP.MFG.Infrastructure.Persistence;
+using ERP.MFG.Infrastructure.Repositories;
 using ERP.MFG.Infrastructure.Services;
+using ERP.Shared.Authorization.ServiceAuth;
 using ERP.Shared.Infrastructure.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -19,7 +22,31 @@ public static class DependencyInjection
             throw new ServiceMisconfiguredException($"ConnectionStrings:{ConnectionName}");
 
         services.AddDbContext<MfgDbContext>(o => o.UseNpgsql(connection, n => n.EnableRetryOnFailure(3)));
+        services.AddScoped<IMfgUnitOfWork, MfgUnitOfWork>();
         services.AddScoped<IDocumentNumberService, DocumentNumberService>();
+        services.AddScoped<IPlantRepository, PlantRepository>();
+        services.AddScoped<IProductionSettingRepository, ProductionSettingRepository>();
+        services.AddScoped<IItemProfileRepository, ItemProfileRepository>();
+        services.AddScoped<IPlantAccessRepository, PlantAccessRepository>();
+        services.AddScoped<IPlantAccessService, PlantAccessService>();
+        services.AddScoped<IProductionSettingProvider, ProductionSettingProvider>();
+        services.AddSingleton<IOpenOrderGuard, NoOrdersYetGuard>();
+        services.AddMemoryCache();
+
+        // Other services, read through internal endpoints with this service's own token (fail closed, 60 s cache).
+        AddClient<IProductLookupClient, ProductLookupClient>(services, configuration, "Services:ProductServiceBaseUrl", "http://productservice:5008", "product");
+        AddClient<IUnitOfMeasureClient, UnitOfMeasureClient>(services, configuration, "Services:MasterDataServiceBaseUrl", "http://masterdataservice:5015", "masterdata");
+        AddClient<IWarehouseLookupClient, WarehouseLookupClient>(services, configuration, "Services:WarehouseServiceBaseUrl", "http://warehouseservice:5004", "warehouse");
         return services;
+    }
+
+    private static void AddClient<TService, TImpl>(IServiceCollection services, IConfiguration configuration, string key, string fallback, string target)
+        where TService : class where TImpl : class, TService
+    {
+        services.AddHttpClient<TService, TImpl>(c =>
+        {
+            c.BaseAddress = new Uri((configuration[key] ?? fallback).TrimEnd('/') + "/");
+            c.Timeout = TimeSpan.FromSeconds(5);
+        }).AddServiceToken(target);
     }
 }

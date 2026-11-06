@@ -23,7 +23,8 @@ builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Manufacturing));
 // that call Product / MasterData / Warehouse add the token with AddServiceToken (Phase 0 M1).
 builder.Services.AddServiceTokenIssuer();
 
-builder.Services.AddControllers();
+// Requests accept enum names or numbers; responses carry names.
+builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddErpApiVersioning();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c => c.SwaggerDoc("v1", new() { Title = "Manufacturing Service API", Version = "v1" }));

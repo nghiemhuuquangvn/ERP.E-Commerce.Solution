@@ -239,7 +239,8 @@ public class GetUnitOfMeasureQueryHandler : IRequestHandler<GetUnitOfMeasureQuer
             unitOfMeasure.ConversionFactor,
             request.LanguageCode,
             unitOfMeasure.CreatedAt,
-            unitOfMeasure.UpdatedAt);
+            unitOfMeasure.UpdatedAt,
+            unitOfMeasure.DecimalPlaces);
     }
 }
 
@@ -282,7 +283,8 @@ public class ListUnitsOfMeasureQueryHandler : IRequestHandler<ListUnitsOfMeasure
             unitOfMeasure.ConversionFactor,
             languageCode,
             unitOfMeasure.CreatedAt,
-            unitOfMeasure.UpdatedAt);
+            unitOfMeasure.UpdatedAt,
+            unitOfMeasure.DecimalPlaces);
     }
 }
 

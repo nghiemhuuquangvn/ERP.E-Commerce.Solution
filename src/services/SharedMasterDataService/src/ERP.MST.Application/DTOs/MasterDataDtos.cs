@@ -9,7 +9,8 @@ public record DepartmentDto(
     Guid? DivisionId,
     string? LanguageCode,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    int DecimalPlaces = 0);
 
 public record PositionDto(
     Guid Id,
@@ -48,7 +49,8 @@ public record UnitOfMeasureDto(
     decimal ConversionFactor,
     string? LanguageCode,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    int DecimalPlaces = 0);
 
 public record CountryDto(
     Guid Id,

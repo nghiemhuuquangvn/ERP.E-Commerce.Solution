@@ -93,6 +93,10 @@ namespace ERP.Shared.Middleware
                     Instance = context.Request.Path
                 };
 
+                // A business-rule refusal names its rule (e.g. MFG_PO_007) so a client can react to the code, not the wording (BA spec BR-GEN-07).
+                if (ex is BusinessRuleException refusal && !string.IsNullOrWhiteSpace(refusal.RuleName))
+                    problemDetails.Extensions["errorCode"] = refusal.RuleName;
+
                 await context.Response.WriteAsJsonAsync(problemDetails);
             }
         }

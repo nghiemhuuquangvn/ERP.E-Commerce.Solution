@@ -91,10 +91,10 @@ public class UnitsOfMeasureController : ControllerBase
         [FromBody] UpdateUnitOfMeasureRequest request,
         CancellationToken cancellationToken = default)
     {
-        var command = new UpdateUnitOfMeasureCommand(id, request.Name, request.Symbol, request.ConversionFactor);
+        var command = new UpdateUnitOfMeasureCommand(id, request.Name, request.Symbol, request.ConversionFactor, request.DecimalPlaces);
         var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);
     }
 }
 
-public record UpdateUnitOfMeasureRequest(string Name, string Symbol, decimal ConversionFactor);
+public record UpdateUnitOfMeasureRequest(string Name, string Symbol, decimal ConversionFactor, int? DecimalPlaces = null);

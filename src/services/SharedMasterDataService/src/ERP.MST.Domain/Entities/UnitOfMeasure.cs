@@ -11,6 +11,8 @@ namespace ERP.MST.Domain.Entities
         public int UnitType { get; set; }
         public Guid? BaseUnitId { get; set; }
         public decimal ConversionFactor { get; set; } = 1m;
+        /// <summary>Decimals a quantity in this unit may have (0 = whole units). Manufacturing rounds calculated requirements UP to it.</summary>
+        public int DecimalPlaces { get; set; }
 
         public static UnitOfMeasure Create(
             string code,
@@ -18,7 +20,8 @@ namespace ERP.MST.Domain.Entities
             string symbol,
             int unitType,
             Guid? baseUnitId = null,
-            decimal conversionFactor = 1m)
+            decimal conversionFactor = 1m,
+            int decimalPlaces = 0)
         {
             var unitOfMeasure = new UnitOfMeasure
             {
@@ -29,6 +32,7 @@ namespace ERP.MST.Domain.Entities
                 UnitType = unitType,
                 BaseUnitId = baseUnitId,
                 ConversionFactor = conversionFactor,
+                DecimalPlaces = decimalPlaces,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -38,8 +42,9 @@ namespace ERP.MST.Domain.Entities
             return unitOfMeasure;
         }
 
-        public void Update(string name, string symbol, decimal conversionFactor)
+        public void Update(string name, string symbol, decimal conversionFactor, int? decimalPlaces = null)
         {
+            if (decimalPlaces.HasValue) DecimalPlaces = decimalPlaces.Value;
             Name = name;
             Symbol = symbol;
             ConversionFactor = conversionFactor;

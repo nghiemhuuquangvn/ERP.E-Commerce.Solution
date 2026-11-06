@@ -20,6 +20,14 @@ public class UnitOfMeasureRepository : IUnitOfMeasureRepository
             .FirstOrDefaultAsync(u => u.Id == id && !u.IsDeleted, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<UnitOfMeasure>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
+    {
+        return await _context.UnitsOfMeasure
+            .AsNoTracking()
+            .Where(u => ids.Contains(u.Id) && !u.IsDeleted)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<(IReadOnlyList<UnitOfMeasure> Items, int TotalCount)> ListAsync(
         int page,
         int pageSize,
