@@ -51,6 +51,7 @@ $DatabaseScripts = @(
     "Identity\030_SeedDefaultRolesForAllTenants.sql",
     "Identity\031_UserNameUniquePerTenant.sql",
     "Identity\032_SeedPriceOverridePermission.sql",
+    "Identity\033_AddManufacturingModule.sql",
 
     # Cross-cutting master data (Department/Position/Employee/UoM/Geography/Language —
     # seed before HRM, which now references Employees/Departments here instead of owning them)
@@ -61,6 +62,7 @@ $DatabaseScripts = @(
     "MasterData\005_AddCurrencyAndPaymentTerm.sql",
     "MasterData\007_TenantIsolation.sql",
     "MasterData\008_BaseEntityColumns.sql",
+    "MasterData\009_UnitOfMeasureDecimalPlaces.sql",
 
     # Core business services
     "Sales\001_CreateSalesDB.sql",

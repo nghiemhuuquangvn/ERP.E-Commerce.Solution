@@ -30,8 +30,12 @@ public class DatabaseRunnerTests
             .Select(m => m.Groups["path"].Value)
             .ToList();
 
+    /// <summary>Folders of services on PostgreSQL: applied by deployment/docker/run-pg-migrations.sh, not by the SQL Server runners.</summary>
+    private static readonly string[] PostgreSqlFolders = ["Manufacturing"];
+
     private static List<string> OnDisk() =>
         Directory.GetDirectories(DatabaseRoot())
+            .Where(d => !PostgreSqlFolders.Contains(Path.GetFileName(d), StringComparer.OrdinalIgnoreCase))
             .SelectMany(d => Directory.GetFiles(d, "*.sql").Select(f => Path.GetFileName(d) + "\\" + Path.GetFileName(f)))
             .ToList();
 

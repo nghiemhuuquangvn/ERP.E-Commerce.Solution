@@ -445,7 +445,8 @@ public class CreateUnitOfMeasureCommandHandler : IRequestHandler<CreateUnitOfMea
             request.Symbol,
             request.UnitType,
             request.BaseUnitId,
-            request.ConversionFactor);
+            request.ConversionFactor,
+            request.DecimalPlaces);
 
         _unitOfMeasureRepository.Add(unitOfMeasure);
         await _unitOfMeasureRepository.SaveChangesAsync(cancellationToken);
@@ -456,7 +457,7 @@ public class CreateUnitOfMeasureCommandHandler : IRequestHandler<CreateUnitOfMea
     }
 
     internal static UnitOfMeasureDto MapToDto(UnitOfMeasure u, string? languageCode = null) =>
-        new(u.Id, u.Code, u.Name, u.Symbol, ((UnitType)u.UnitType).ToString(), u.BaseUnitId, u.ConversionFactor, languageCode, u.CreatedAt, u.UpdatedAt);
+        new(u.Id, u.Code, u.Name, u.Symbol, ((UnitType)u.UnitType).ToString(), u.BaseUnitId, u.ConversionFactor, languageCode, u.CreatedAt, u.UpdatedAt, u.DecimalPlaces);
 }
 
 public class UpdateUnitOfMeasureCommandHandler : IRequestHandler<UpdateUnitOfMeasureCommand, UnitOfMeasureDto>
@@ -477,7 +478,7 @@ public class UpdateUnitOfMeasureCommandHandler : IRequestHandler<UpdateUnitOfMea
         var unitOfMeasure = await _unitOfMeasureRepository.GetByIdAsync(request.UnitOfMeasureId, cancellationToken)
             ?? throw new KeyNotFoundException($"Unit of measure {request.UnitOfMeasureId} not found.");
 
-        unitOfMeasure.Update(request.Name, request.Symbol, request.ConversionFactor);
+        unitOfMeasure.Update(request.Name, request.Symbol, request.ConversionFactor, request.DecimalPlaces);
         _unitOfMeasureRepository.Update(unitOfMeasure);
         await _unitOfMeasureRepository.SaveChangesAsync(cancellationToken);
 

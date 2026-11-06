@@ -392,6 +392,7 @@ services:
       # /internal endpoints accept only these services' tokens (verified with their JWKS).
       ServiceAuth__Name: "warehouse"
       ServiceAuth__TrustedCallers__salesorder: "http://salesorderservice:5002/internal/jwks.json"
+      ServiceAuth__TrustedCallers__manufacturing: "http://manufacturingservice:5018/internal/jwks.json"
       ConnectionStrings__WarehouseDB: "Server=${SQL_HOST:-sqlserver},1433;Database=WarehouseDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       Cache__Type: "Redis"
@@ -543,6 +544,7 @@ services:
       # /internal endpoints accept only these services' tokens (verified with their JWKS).
       ServiceAuth__Name: "masterdata"
       ServiceAuth__TrustedCallers__accounting: "http://accountingservice:5005/internal/jwks.json"
+      ServiceAuth__TrustedCallers__manufacturing: "http://manufacturingservice:5018/internal/jwks.json"
       # Tokens are validated with IdentityService's public keys (JWKS, internal http).
       Jwt__Authority: "http://identityservice:5001"
       Jwt__RequireHttpsMetadata: "false"
@@ -605,6 +607,7 @@ services:
       ServiceAuth__Name: "product"
       ServiceAuth__TrustedCallers__shipping: "http://shippingservice:5010/internal/jwks.json"
       ServiceAuth__TrustedCallers__salesorder: "http://salesorderservice:5002/internal/jwks.json"
+      ServiceAuth__TrustedCallers__manufacturing: "http://manufacturingservice:5018/internal/jwks.json"
       ConnectionStrings__ProductDB: "Server=${SQL_HOST:-sqlserver},1433;Database=ProductDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       ConnectionStrings__Redis: "redis:6379"
       ConnectionStrings__BlobStorage: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
@@ -970,6 +973,62 @@ services:
       - erp-network
 
 # ── Volumes & Networks ────────────────────────────────────────────────────────
+
+  # ── ManufacturingService (PostgreSQL on the host, 2026-11-06) ──────────────────────────
+  # The one service on PostgreSQL; every other service stays on SQL Server.
+  # PostgreSQL is NOT a container: ManufacturingService uses the PostgreSQL installed on the host (owner decision 2026-11-06).
+  # .env: PG_HOST=host.docker.internal  PG_PORT=5432  PG_USER=postgres  PG_PASSWORD=<password>
+  # One-shot: creates ManufacturingDB when missing and applies src/Database/Manufacturing/*.sql (idempotent).
+  pg-migrate:
+    image: postgres:16-alpine
+    container_name: erp-pg-migrate
+    entrypoint: ["/bin/sh", "/migrations/run-pg-migrations.sh"]
+    environment:
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_HOST: ${PG_HOST:-host.docker.internal}
+      PG_PORT: ${PG_PORT:-5432}
+      PG_USER: ${PG_USER:-postgres}
+    volumes:
+      - ./src/Database:/migrations/database:ro
+      - ./deployment/docker/run-pg-migrations.sh:/migrations/run-pg-migrations.sh:ro
+    restart: "no"
+    networks:
+      - erp-network
+
+  manufacturingservice:
+    image: erp/manufacturing-service:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_PATH: src/services/ManufacturingService/src/ERP.MFG.API
+        PROJECT_FILE: ERP.MFG.API.csproj
+        ASSEMBLY_NAME: ERP.MFG.API
+    container_name: erp-manufacturing-service
+    # No published port: REST goes through the Gateway (/mfg/). For local debugging use docker-compose.debug.yml.
+    environment:
+      ASPNETCORE_URLS: "http://+:5018"
+      ASPNETCORE_ENVIRONMENT: Production
+      ServiceAuth__Name: "manufacturing"
+      ServiceAuth__SigningKeys__Source: "Ephemeral"
+      ConnectionStrings__Redis: "redis:6379"
+      ConnectionStrings__ManufacturingDb: "Host=${PG_HOST:-host.docker.internal};Port=${PG_PORT:-5432};Database=ManufacturingDB;Username=${PG_USER:-postgres};Password=${PG_PASSWORD}"
+      Jwt__Authority: "http://identityservice:5001"
+      Jwt__RequireHttpsMetadata: "false"
+      KafkaSettings__BootstrapServers: kafka:9092
+      # Internal REST clients (service token): item, units of measure, warehouses.
+      Services__ProductServiceBaseUrl: "http://productservice:5008"
+      Services__MasterDataServiceBaseUrl: "http://masterdataservice:5015"
+      Services__WarehouseServiceBaseUrl: "http://warehouseservice:5004"
+      Cors__AllowedOrigins__0: "http://localhost:5173"
+      Cors__AllowedOrigins__1: "http://localhost:5174"
+    depends_on:
+      pg-migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - erp-network
+
 
 volumes:
   sqlserver_data:

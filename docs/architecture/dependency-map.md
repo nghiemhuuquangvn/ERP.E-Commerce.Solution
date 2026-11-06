@@ -393,3 +393,11 @@ Critical Path: POS → Product, Payment, Promotion = 1 hop each (parallel)
 **Asynchronous Dependencies:** 48 Kafka events
 **Maximum Call Depth:** 4 hops
 **Critical Path:** 3 services (Identity, Product, Warehouse)
+
+## ManufacturingService (MFG, 2026-11-06)
+
+| Caller | Target | Endpoint | Purpose |
+|---|---|---|---|
+| manufacturing | product | `internal/v1/product-lookup` | item exists / Active / base unit |
+| manufacturing | masterdata | `internal/v1/units-of-measure/lookup`, `convert` | decimal places, unit conversion |
+| manufacturing | warehouse | `internal/v1/warehouses/lookup` | plant warehouses exist and are active |

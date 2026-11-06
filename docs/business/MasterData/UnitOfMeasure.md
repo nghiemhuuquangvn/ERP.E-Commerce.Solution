@@ -27,3 +27,7 @@ Translatable via `UnitOfMeasureTranslation` (Name, Symbol per language code).
 
 `UnitOfMeasureCreatedEvent` — published to `mst-topic`. No current subscribers;
 consuming services read via `GET /api/v1/masterdata/units-of-measure`.
+
+## Decimal places (2026-11-06)
+
+`DecimalPlaces` (0-6, default 0) says how many decimals a quantity in the unit may have. Editable on the Admin unit screen (create and edit); migration `MasterData/009` set 3 for weight / volume / length / area units that were still at the default and left counted units at 0 (a starting point, R155). ManufacturingService reads it through `POST internal/v1/units-of-measure/lookup` and converts quantities of units sharing a base with `POST internal/v1/units-of-measure/convert` (quantity x from-factor / to-factor; units of different bases are refused). See `docs/business/Manufacturing/PlantSettingsItemProfile.md`.

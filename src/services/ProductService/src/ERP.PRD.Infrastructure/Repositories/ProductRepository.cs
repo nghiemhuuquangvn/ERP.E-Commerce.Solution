@@ -14,6 +14,9 @@ namespace ERP.PRD.Infrastructure.Repositories
         public async Task<Product?> GetByIdAsync(Guid id, CancellationToken ct = default)
             => await _db.Products.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted, ct);
 
+        public async Task<List<Product>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default)
+            => await _db.Products.AsNoTracking().Where(p => ids.Contains(p.Id) && !p.IsDeleted).ToListAsync(ct);
+
         public async Task<Product?> GetByIdWithVariantsAsync(Guid id, CancellationToken ct = default)
             => await _db.Products
                 .Include(p => p.Variants)
