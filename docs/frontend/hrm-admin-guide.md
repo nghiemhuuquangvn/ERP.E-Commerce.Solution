@@ -84,3 +84,11 @@ don't need a cross-service call for something as basic as populating a dropdown.
 Repeat the steps above: read the real controller first, add a `.api.ts` mirroring
 it exactly, confirm the actual permission string(s) rather than assuming
 `hrm:{feature}:view`/`:manage` both exist, then wire page → router → sidebar → i18n.
+
+## Import employees (2026-11-06)
+
+**HRM > Import employees** (`/hrm/employee-import`, permission `masterdata:employees:manage`) opens the shared import dialog (`components/import/ImportDialog`): choose a CSV (UTF-8),
+download the template, tick *Check only* to validate without saving, watch the progress bar and the skipped / invalid rows, cancel, download the problem rows.
+The employees are written in master data (the people appear in the HR pickers a moment later). Columns and rules: `docs/business/MasterData/EmployeeImport.md`.
+The same dialog serves **Products > Import products** (`docs/business/Product/ProductImport.md`); a new import needs endpoints in the shape of `employeesImportEndpoints`
+and the three infrastructure entries of `docs/architecture/streaming-import-pattern.md`.

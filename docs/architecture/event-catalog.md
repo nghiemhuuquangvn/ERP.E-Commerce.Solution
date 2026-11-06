@@ -1150,7 +1150,10 @@ public record EmployeeHiredEvent(
     string EmployeeNumber,
     string FullName,
     string? Email,
-    Guid DepartmentId) : IDomainEvent;
+    Guid DepartmentId) : IDomainEvent
+{
+    public string Source { get; init; } = "hire";   // "hire" (hire form) | "import" (CSV import, 2026-11-06)
+}
 ```
 
 **Routing:** Kafka (`mst-topic`)
@@ -1158,6 +1161,7 @@ public record EmployeeHiredEvent(
 
 **Handling:**
 - HRMService: Upsert local EmployeeSnapshot (used by leave/payroll handlers instead of a synchronous cross-service call)
+- NotificationService: welcome e-mail (`EMPLOYEE_WELCOME`) for `Source = "hire"`; **none for `Source = "import"`** (an imported list must not mail every person on it). Added 2026-11-06 with the employee import (`docs/business/MasterData/EmployeeImport.md`).
 
 ---
 

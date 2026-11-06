@@ -138,6 +138,14 @@ NotificationService asks IdentityService who holds a permission (to tell approve
 `ServiceAuth__TrustedCallers__notification`. Push to phones is **off** until Firebase is configured: set `Fcm__ProjectId` and `Fcm__ServiceAccountPath`
 (a service-account JSON mounted into the container). Migration `Notification/015` adds the link columns and `DeviceTokens`.
 
+## Streaming imports (2026-11-06)
+
+The product and employee CSV imports stream (upload read row by row, NDJSON answer, SSE progress) and need three things in the path:
+the Gateway's `StreamingProxy:Routes` (in `src/Gateway/Ocelot.API/appsettings.json`; Ocelot itself buffers and would cut a request at 90 s), the nginx regex
+locations without buffering (`deployment/nginx/nginx.conf` is a bind mount: edit, then `docker exec erp-nginx nginx -s reload`; the one in
+`src/frontend/admin/nginx.docker.conf` is baked into the `erp-admin` image: rebuild it), and the services. Limits: configuration section `Import`
+(`MaxRows` 20000, `MaxBytes` 25 MB, `BatchSize` 200). Details: `docs/architecture/streaming-import-pattern.md`.
+
 ## Rebuilding only what changed, without piling up build cache (2026-10-26)
 
 `docker compose build` of the whole stack, repeated, once grew Docker's disk image (`docker_data.vhdx`) to ~200 GB, of which ~150 GB was
