@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
+    <!-- PostgreSQL is the database of this service only (owner decision 2026-11-06); every other service stays on SQL Server. -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
+    <PackageReference Include="MediatR" Version="12.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Shared\ERP.Shared.csproj" />
+    <ProjectReference Include="..\ERP.MFG.Domain\ERP.MFG.Domain.csproj" />
+    <ProjectReference Include="..\ERP.MFG.Application\ERP.MFG.Application.csproj" />
+  </ItemGroup>
+
+</Project>

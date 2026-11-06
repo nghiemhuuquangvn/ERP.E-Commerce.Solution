@@ -191,6 +191,11 @@ public class TenantIsolationBehaviorTests
     }
 
     [Fact]
+    public void Manufacturing_DocumentSequences() =>
+        AssertIsolated<ERP.MFG.Infrastructure.Persistence.MfgDbContext, ERP.MFG.Domain.Entities.DocumentSequence>(
+            ERP.MFG.Domain.Entities.DocumentSequence.Create("MO", Guid.NewGuid(), new DateOnly(2026, 11, 1)), e => e.TenantId);
+
+    [Fact]
     public void ChatBot_Conversations() =>
         AssertIsolated<ERP.CHB.Infrastructure.Persistence.ChatBotDbContext, ERP.CHB.Domain.Entities.Conversation>(
             ERP.CHB.Domain.Entities.Conversation.Start(Guid.Empty, ERP.CHB.Domain.Enums.ConversationChannel.Storefront,

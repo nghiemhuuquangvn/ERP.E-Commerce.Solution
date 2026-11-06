@@ -18,6 +18,12 @@ public static class RoleDefinitions
         {
             "Admin",
             [
+                // Manufacturing (Phase 0-2)
+                PermissionConstants.Manufacturing_MasterDataView, PermissionConstants.Manufacturing_MasterDataManage,
+                PermissionConstants.Manufacturing_SettingsManage, PermissionConstants.Manufacturing_ItemProfileManage,
+                PermissionConstants.Manufacturing_BomView, PermissionConstants.Manufacturing_BomManage, PermissionConstants.Manufacturing_BomApprove,
+                PermissionConstants.Manufacturing_RoutingView, PermissionConstants.Manufacturing_RoutingManage, PermissionConstants.Manufacturing_RoutingApprove,
+
                 // Purchase Order
                 PermissionConstants.PurchaseOrder_Create,
                 PermissionConstants.PurchaseOrder_Read,

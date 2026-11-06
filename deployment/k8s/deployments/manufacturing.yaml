@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: manufacturing-service
+  namespace: erp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: manufacturing-service
+  template:
+    metadata:
+      labels:
+        app: manufacturing-service
+        # Azure Workload Identity - DefaultAzureCredential reads this service's
+        # token signing certificate from Key Vault.
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: manufacturing-service
+      containers:
+      - name: manufacturing-service
+        image: erp/manufacturing-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5018
+        envFrom:
+        - configMapRef:
+            name: erp-config
+        env:
+        # Service-to-service tokens signed with this service's own Key Vault certificate
+        # (several replicas share it - never Ephemeral here).
+        - name: ServiceAuth__Name
+          value: "manufacturing"
+        - name: ServiceAuth__SigningKeys__Source
+          value: "KeyVault"
+        - name: ServiceAuth__SigningKeys__KeyVault__VaultUri
+          value: "https://<your-key-vault>.vault.azure.net/"
+        - name: ServiceAuth__SigningKeys__KeyVault__CertificateName
+          value: "svc-manufacturing-signing"
+        - name: ASPNETCORE_URLS
+          value: "http://+:5018"
+        - name: ConnectionStrings__ManufacturingDb
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: pg-manufacturing-db
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5018
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5018
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "384Mi"
+            cpu: "400m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: manufacturingservice
+  namespace: erp
+spec:
+  selector:
+    app: manufacturing-service
+  ports:
+  - port: 5018
+    targetPort: 5018
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: manufacturing-service
+  namespace: erp
+  annotations:
+    # Managed identity with certificates/list + secrets/get on the service-signing certificate.
+    azure.workload.identity/client-id: "<managed-identity-client-id>"

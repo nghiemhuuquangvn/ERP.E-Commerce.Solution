@@ -6,6 +6,19 @@ namespace ERP.Shared.Authorization;
 /// </summary>
 public static class PermissionConstants
 {
+    // Manufacturing (ManufacturingService, code MFG) - Phase 0-2: master data, settings, item profile, BOM, routing.
+    // Later phases add order / material / operation / receipt / quality / planning / cost permissions (BA spec 01 §9).
+    public const string Manufacturing_MasterDataView = "manufacturing:masterdata:view";
+    public const string Manufacturing_MasterDataManage = "manufacturing:masterdata:manage";
+    public const string Manufacturing_SettingsManage = "manufacturing:settings:manage";
+    public const string Manufacturing_ItemProfileManage = "manufacturing:item-profile:manage";
+    public const string Manufacturing_BomView = "manufacturing:bom:view";
+    public const string Manufacturing_BomManage = "manufacturing:bom:manage";
+    public const string Manufacturing_BomApprove = "manufacturing:bom:approve";
+    public const string Manufacturing_RoutingView = "manufacturing:routing:view";
+    public const string Manufacturing_RoutingManage = "manufacturing:routing:manage";
+    public const string Manufacturing_RoutingApprove = "manufacturing:routing:approve";
+
     // Purchase Order Permissions
     public const string PurchaseOrder_Create = "purchase_order:create";
     public const string PurchaseOrder_Read = "purchase_order:read";
@@ -397,6 +410,9 @@ public static class PermissionConstants
     /// </summary>
     public static string[] GetAllPermissions() =>
     [
+        Manufacturing_MasterDataView, Manufacturing_MasterDataManage, Manufacturing_SettingsManage, Manufacturing_ItemProfileManage,
+        Manufacturing_BomView, Manufacturing_BomManage, Manufacturing_BomApprove,
+        Manufacturing_RoutingView, Manufacturing_RoutingManage, Manufacturing_RoutingApprove,
         PurchaseOrder_Create, PurchaseOrder_Read, PurchaseOrder_Update, PurchaseOrder_Delete,
         PurchaseOrder_Approve, PurchaseOrder_FinanceApprove, PurchaseOrder_Cancel, PurchaseOrder_AddItem, PurchaseOrder_RemoveItem,
         PurchaseOrder_Receive,

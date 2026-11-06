@@ -45,6 +45,8 @@ public class LiveSchemaDriftTests(ITestOutputHelper output)
         ["ReportingDbContext"] = "ReportingDB",
     };
 
+    private static readonly HashSet<string> PostgreSqlContexts = new(StringComparer.Ordinal) { "MfgDbContext" };
+
     private sealed class FixedTenantProvider : ITenantProvider
     {
         public Guid? CurrentTenantId => Guid.NewGuid();
@@ -63,6 +65,13 @@ public class LiveSchemaDriftTests(ITestOutputHelper output)
         var report = new StringBuilder();
         foreach (var contextType in TenantIsolationArchitectureTests.AllDbContextTypes().OrderBy(t => t.Name))
         {
+            // ManufacturingService is on PostgreSQL: its scripts (src/Database/Manufacturing) are checked by the PostgreSQL variant of this test.
+            if (PostgreSqlContexts.Contains(contextType.Name))
+            {
+                output.WriteLine($"{contextType.Name}: PostgreSQL - not judged against SQL Server.");
+                continue;
+            }
+
             if (!DatabaseByContext.TryGetValue(contextType.Name, out var database))
             {
                 report.AppendLine($"?? {contextType.Name}: no database mapped in this test");
