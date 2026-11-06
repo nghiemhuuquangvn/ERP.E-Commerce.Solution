@@ -47,6 +47,16 @@ namespace ERP.PRD.Infrastructure.Repositories
         public async Task<bool> SkuExistsAsync(string sku, CancellationToken ct = default)
             => await _db.Products.AnyAsync(p => p.Sku == sku && !p.IsDeleted, ct);
 
+        public async Task<HashSet<string>> GetExistingSkusAsync(IReadOnlyCollection<string> upperCaseSkus, CancellationToken ct = default)
+        {
+            if (upperCaseSkus.Count == 0) return new HashSet<string>();
+            var found = await _db.Products
+                .Where(p => !p.IsDeleted && upperCaseSkus.Contains(p.Sku.ToUpper()))
+                .Select(p => p.Sku.ToUpper())
+                .ToListAsync(ct);
+            return new HashSet<string>(found);
+        }
+
         public async Task<bool> SlugTakenByAnotherAsync(Guid productId, string slug, CancellationToken ct = default)
             => await _db.Products.AnyAsync(
                 p => p.Id != productId && p.Slug == slug.Trim().ToLower(), ct);

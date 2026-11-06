@@ -16,6 +16,9 @@ namespace ERP.PRD.Application.Interfaces
         IBrandRepository Brands { get; }
         IProductUomConversionRepository UomConversions { get; }
 
+        /// <summary>Forgets every tracked entity (a long import commits in batches and must not keep thousands of finished rows in memory).</summary>
+        void ClearTracking();
+
         Task<int> SaveChangesAsync(CancellationToken ct = default);
         Task BeginTransactionAsync(CancellationToken ct = default);
         Task CommitTransactionAsync(CancellationToken ct = default);

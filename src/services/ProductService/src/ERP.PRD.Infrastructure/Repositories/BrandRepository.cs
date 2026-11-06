@@ -20,6 +20,16 @@ namespace ERP.PRD.Infrastructure.Repositories
         public async Task<bool> CodeExistsAsync(string code, CancellationToken ct = default)
             => await _db.Brands.AnyAsync(b => b.Code == code && !b.IsDeleted, ct);
 
+        public async Task<Dictionary<string, Guid>> GetIdsByCodesAsync(IReadOnlyCollection<string> upperCaseCodes, CancellationToken ct = default)
+        {
+            if (upperCaseCodes.Count == 0) return new Dictionary<string, Guid>();
+            var rows = await _db.Brands
+                .Where(b => !b.IsDeleted && b.IsActive && upperCaseCodes.Contains(b.Code.ToUpper()))
+                .Select(b => new { Code = b.Code.ToUpper(), b.Id })
+                .ToListAsync(ct);
+            return rows.GroupBy(r => r.Code).ToDictionary(g => g.Key, g => g.First().Id);
+        }
+
         public async Task<List<Brand>> GetAllAsync(bool? isActive, CancellationToken ct = default)
         {
             var query = _db.Brands.Where(b => !b.IsDeleted).AsQueryable();
