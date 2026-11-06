@@ -30,6 +30,7 @@
     <ProjectReference Include="..\..\..\src\\services\\HRMService\\src\\ERP.HRM.API\\ERP.HRM.API.csproj" />
     <ProjectReference Include="..\..\..\src\\services\\IdentityService\\src\\ERP.Identity.Api\\ERP.Identity.API.csproj" />
     <ProjectReference Include="..\..\..\src\\services\\LoggingService\\src\\ERP.LOG.API\\ERP.LOG.API.csproj" />
+    <ProjectReference Include="..\..\..\src\services\ManufacturingService\src\ERP.MFG.API\ERP.MFG.API.csproj" />
     <ProjectReference Include="..\..\..\src\\services\\NotificationService\\src\\ERP.NTF.API\\ERP.NTF.API.csproj" />
     <ProjectReference Include="..\..\..\src\\services\\POSService\\src\\ERP.POS.API\\ERP.POS.API.csproj" />
     <ProjectReference Include="..\..\..\src\\services\\PaymentService\\src\\ERP.PAY.API\\ERP.PAY.API.csproj" />

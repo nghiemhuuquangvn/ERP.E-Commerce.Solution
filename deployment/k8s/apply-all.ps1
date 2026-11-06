@@ -21,6 +21,7 @@ kubectl apply -f "$k8sDir\infrastructure\rabbitmq.yaml"
 kubectl apply -f "$k8sDir\infrastructure\kafka.yaml"
 kubectl apply -f "$k8sDir\infrastructure\elasticsearch.yaml"
 kubectl apply -f "$k8sDir\infrastructure\azurite.yaml"
+kubectl apply -f "$k8sDir\infrastructure\postgres.yaml"
 
 Write-Host "Waiting for Redis..." -ForegroundColor Gray
 kubectl wait --for=condition=ready pod -l app=redis -n erp --timeout=120s

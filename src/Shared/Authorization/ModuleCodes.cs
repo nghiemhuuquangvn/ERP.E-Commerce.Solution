@@ -24,6 +24,8 @@ public static class ModuleCodes
     public const string Reporting = "RPT";
     public const string SharedMasterData = "MST";
     public const string ChatBot = "CHB";
+    /// <summary>ManufacturingService (BOM, routing, production orders, MRP, costing). Port 5018, PostgreSQL ManufacturingDB.</summary>
+    public const string Manufacturing = "MFG";
 
     /// <summary>
     /// Not a real service — a tier flag layered on top of <see cref="ChatBot"/>.
@@ -41,6 +43,6 @@ public static class ModuleCodes
     [
         SaleOrder, PurchaseOrder, Warehouse, Accounting, Crm, Hrm, Product,
         Payment, Shipping, Pos, Promotion, Notification, Reporting, SharedMasterData,
-        ChatBot, ChatBotPremium
+        ChatBot, ChatBotPremium, Manufacturing
     ];
 }

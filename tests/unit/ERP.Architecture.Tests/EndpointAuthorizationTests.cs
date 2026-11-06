@@ -22,7 +22,7 @@ public class EndpointAuthorizationTests
     private static readonly string[] ApiAssemblies =
     [
         "Ocelot.API", "ERP.ACC.API", "ERP.CRM.API", "ERP.CHB.API", "ERP.HRM.API", "ERP.Identity.API",
-        "ERP.LOG.API", "ERP.NTF.API", "ERP.POS.API", "ERP.PAY.API", "ERP.PRD.API", "ERP.PRM.API",
+        "ERP.LOG.API", "ERP.MFG.API", "ERP.NTF.API", "ERP.POS.API", "ERP.PAY.API", "ERP.PRD.API", "ERP.PRM.API",
         "ERP.PO.Api", "ERP.RPT.API", "ERP.SO.Api", "ERP.MST.API", "ERP.SHP.API", "ERP.WH.API",
     ];
 

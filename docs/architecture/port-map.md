@@ -41,6 +41,7 @@
 | **SharedMasterDataService** | MST | 5015 | 7015 | /swagger | MasterDataDB |
 | **LoggingService** | LOG | 5016 | 7016 | /swagger | — (Elasticsearch `service-logs-*`, no SQL DB) |
 | **ChatBotService** | CHB | 5017 | 7017 | /swagger | ChatBotDB |
+| **ManufacturingService** | MFG | 5018 | 7018 | /swagger | ManufacturingDB (PostgreSQL 16, container `postgres`, not published) |
 
 Note: ChatBotService's SignalR hub (`/hubs/chat`) is deliberately exposed directly on
 port 5017 rather than only through the Gateway (port 5000) — Ocelot does not reliably
