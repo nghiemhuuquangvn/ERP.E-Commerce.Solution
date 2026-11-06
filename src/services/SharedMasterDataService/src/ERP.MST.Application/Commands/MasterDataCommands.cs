@@ -77,13 +77,15 @@ public record CreateUnitOfMeasureCommand(
     string Symbol,
     int UnitType,
     Guid? BaseUnitId,
-    decimal ConversionFactor = 1m) : IRequest<UnitOfMeasureDto>;
+    decimal ConversionFactor = 1m,
+    int DecimalPlaces = 0) : IRequest<UnitOfMeasureDto>;
 
 public record UpdateUnitOfMeasureCommand(
     Guid UnitOfMeasureId,
     string Name,
     string Symbol,
-    decimal ConversionFactor) : IRequest<UnitOfMeasureDto>;
+    decimal ConversionFactor,
+    int? DecimalPlaces = null) : IRequest<UnitOfMeasureDto>;
 
 // ─── Geography Commands ────────────────────────────────────────────────────
 

@@ -139,6 +139,18 @@ public class CreateUnitOfMeasureCommandValidator : AbstractValidator<CreateUnitO
 
         RuleFor(x => x.ConversionFactor)
             .GreaterThan(0).WithMessage("Conversion factor must be greater than 0.");
+
+        RuleFor(x => x.DecimalPlaces)
+            .InclusiveBetween(0, 6).WithMessage("Decimal places must be between 0 and 6.");
+    }
+}
+
+public class UpdateUnitOfMeasureCommandValidator : AbstractValidator<UpdateUnitOfMeasureCommand>
+{
+    public UpdateUnitOfMeasureCommandValidator()
+    {
+        RuleFor(x => x.ConversionFactor).GreaterThan(0).WithMessage("Conversion factor must be greater than 0.");
+        RuleFor(x => x.DecimalPlaces).InclusiveBetween(0, 6).When(x => x.DecimalPlaces.HasValue).WithMessage("Decimal places must be between 0 and 6.");
     }
 }
 

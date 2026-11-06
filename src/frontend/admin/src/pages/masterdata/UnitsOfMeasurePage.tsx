@@ -17,6 +17,7 @@ interface UomFormValues {
   symbol: string
   unitType: string
   conversionFactor: string
+  decimalPlaces: string
   baseUnitId: string
 }
 
@@ -38,6 +39,7 @@ function UnitOfMeasureModal({
       symbol: uom?.symbol ?? '',
       unitType: String(UNIT_TYPE.Count),
       conversionFactor: uom ? String(uom.conversionFactor) : '1',
+      decimalPlaces: String(uom?.decimalPlaces ?? 0),
       baseUnitId: uom?.baseUnitId ?? '',
     },
   })
@@ -49,6 +51,7 @@ function UnitOfMeasureModal({
           name: values.name,
           symbol: values.symbol,
           conversionFactor: Number(values.conversionFactor),
+          decimalPlaces: Number(values.decimalPlaces),
         })
       }
       return unitsOfMeasureApi.create({
@@ -58,6 +61,7 @@ function UnitOfMeasureModal({
         unitType: Number(values.unitType),
         baseUnitId: values.baseUnitId.trim() || null,
         conversionFactor: Number(values.conversionFactor),
+        decimalPlaces: Number(values.decimalPlaces),
       })
     },
     onSuccess: () => {
@@ -111,6 +115,9 @@ function UnitOfMeasureModal({
             {...register('conversionFactor', { required: true })}
           />
         </FormField>
+        <FormField label={t('masterdata.unitsOfMeasure.decimalPlaces')} hint={t('masterdata.unitsOfMeasure.decimalPlacesHint')} error={errors.decimalPlaces ? t('masterdata.unitsOfMeasure.decimalPlacesInvalid') : undefined}>
+          <Input type="number" min={0} max={6} step={1} {...register('decimalPlaces', { required: true, min: 0, max: 6 })} />
+        </FormField>
         {!isEdit && (
           <FormField label={t('masterdata.unitsOfMeasure.baseUnitIdOptional')}>
             <Input {...register('baseUnitId')} />
@@ -146,6 +153,7 @@ export function UnitsOfMeasurePage() {
       { key: 'symbol', label: t('masterdata.unitsOfMeasure.symbol') },
       { key: 'unitType', label: t('masterdata.unitsOfMeasure.unitType') },
       { key: 'conversionFactor', label: t('masterdata.unitsOfMeasure.conversionFactor'), className: 'text-right' },
+      { key: 'decimalPlaces', label: t('masterdata.unitsOfMeasure.decimalPlaces'), className: 'text-right' },
       {
         key: 'actions',
         label: '',

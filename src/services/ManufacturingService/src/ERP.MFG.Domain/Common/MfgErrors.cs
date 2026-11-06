@@ -198,6 +198,9 @@ public static class MfgRules
     public static BusinessRuleException Fail(string code, params (string Name, object? Value)[] args)
         => new(code, MfgErrors.Format(code, args));
 
+    /// <summary>The generic refusal of an invalid value that has no code of its own in the spec (rule name <c>MFG_VALIDATION</c>, message in the caller's words).</summary>
+    public static BusinessRuleException Invalid(string message) => new("MFG_VALIDATION", message);
+
     /// <summary>Throws <see cref="Fail"/> when <paramref name="violated"/> is true.</summary>
     public static void ThrowIf(bool violated, string code, params (string Name, object? Value)[] args)
     {

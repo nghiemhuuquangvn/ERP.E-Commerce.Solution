@@ -38,6 +38,12 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-06 - Manufacturing M1: plants, production parameters, item profiles + internal endpoints (`feat/manufacturing-service`, unmerged)
+- **ManufacturingService** (MFG, PostgreSQL on the host): `Plant` (+ default `ProductionSetting` in the same save, audit of every changed field, 60 s cache), `ItemManufacturingProfile`, plant access (BR-GEN-09); API `api/v1/manufacturing/plants|settings|access|item-profiles`; SQL `Manufacturing/002`. Spec codes are `MFG_*`; answers carry `errorCode`.
+- **Other services:** Product `internal/v1/product-lookup`, MasterData `internal/v1/units-of-measure/lookup|convert` + `UnitsOfMeasure.DecimalPlaces` (migration 009, Admin unit screen), Warehouse `internal/v1/warehouses/lookup` - all `[AuthorizeInternalService("manufacturing")]`.
+- **Tests:** MFG 69, Shared 125, PRD 36, WH 47, MST 8, Architecture 78 (all green). **Live (glcheck, throw-away `ZZ-MFG-*`):** 19 of 19 checks (create / duplicate / warehouse refusal, defaults, audit, costing change, item profile, MFG_ITM_002, 401). Left behind: 2 deactivated plants `ZZ-MFG-NJQDP`, `ZZ-MFG-NP5TX`, product `ZZ-MFG-ITEM-NP5TX`, 3 warehouses `ZZ-MFG-WH0..2`.
+- **Docs:** `docs/business/Manufacturing/PlantSettingsItemProfile.md`. **Risks:** R154-R161. **Next:** M2 (calendars, work centers, machines, reasons, crews).
+
 ### 2026-11-06 — NOT DONE / OPEN (recorded at the start of the Manufacturing work)
 - **Streaming import (M6, branch `feat/streaming-import`, commits e1298546…47bb998c, not pushed / merged):**
   - **Throw-away data still on glcheck** (owner decides what to delete; never delete by "first row of the list"): ~6 800 products `ZZ-IMP-*` / `ZZ-CASE-*`, 151 employees `ZZ*` (no delete API), department `ZZ-DEPT`. A cleanup script (`DELETE /prd/api/v1/products/{id}`) got non-2xx on every call (cause not diagnosed - route / permission / state); a further delete probe was blocked by the permission classifier.

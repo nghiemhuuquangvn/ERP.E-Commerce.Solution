@@ -62,6 +62,7 @@ $DatabaseScripts = @(
     "MasterData\005_AddCurrencyAndPaymentTerm.sql",
     "MasterData\007_TenantIsolation.sql",
     "MasterData\008_BaseEntityColumns.sql",
+    "MasterData\009_UnitOfMeasureDecimalPlaces.sql",
 
     # Core business services
     "Sales\001_CreateSalesDB.sql",

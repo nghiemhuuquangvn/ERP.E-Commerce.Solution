@@ -6,6 +6,8 @@ namespace ERP.PRD.Application.Interfaces
     public interface IProductRepository
     {
         Task<Product?> GetByIdAsync(Guid id, CancellationToken ct = default);
+        /// <summary>The existing (not deleted) products among <paramref name="ids"/> of the current tenant; unknown ids are simply missing.</summary>
+        Task<List<Product>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default);
         Task<Product?> GetByIdWithVariantsAsync(Guid id, CancellationToken ct = default);
         Task<Product?> GetByIdWithTranslationsAsync(Guid id, CancellationToken ct = default);
         Task<Product?> GetByIdWithVariantsAndTranslationsAsync(Guid id, CancellationToken ct = default);

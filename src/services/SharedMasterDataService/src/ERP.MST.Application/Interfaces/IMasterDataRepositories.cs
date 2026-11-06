@@ -51,6 +51,8 @@ public interface IEmployeeRepository
 public interface IUnitOfMeasureRepository
 {
     Task<UnitOfMeasure?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    /// <summary>The existing units among <paramref name="ids"/> (own tenant + shared reference rows); unknown ids are missing.</summary>
+    Task<IReadOnlyList<UnitOfMeasure>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<UnitOfMeasure> Items, int TotalCount)> ListAsync(
         int page,
         int pageSize,
