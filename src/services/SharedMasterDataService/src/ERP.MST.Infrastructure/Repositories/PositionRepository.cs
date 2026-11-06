@@ -44,6 +44,16 @@ public class PositionRepository : IPositionRepository
         return (items, totalCount);
     }
 
+    public async Task<Dictionary<string, Guid>> GetIdsByCodesAsync(IReadOnlyCollection<string> upperCaseCodes, CancellationToken cancellationToken = default)
+    {
+        if (upperCaseCodes.Count == 0) return new Dictionary<string, Guid>();
+        var rows = await _context.Positions
+            .Where(p => !p.IsDeleted && upperCaseCodes.Contains(p.Code.ToUpper()))
+            .Select(p => new { Code = p.Code.ToUpper(), p.Id })
+            .ToListAsync(cancellationToken);
+        return rows.GroupBy(r => r.Code).ToDictionary(g => g.Key, g => g.First().Id);
+    }
+
     public async Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         return await _context.Positions

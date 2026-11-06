@@ -33,6 +33,8 @@ public class ProductImportTests
         public readonly List<Product> Added = new();
         public readonly List<ProductVariant> AddedVariants = new();
         public PriceList? DefaultList;
+        public int Saves;
+        public int SavesWhenPriceListAdded = -1;
         public HashSet<string> ExistingSkus = new();
         public Dictionary<string, Guid> CategoryIds = new();
         public Dictionary<string, Guid> BrandIds = new();
@@ -59,14 +61,14 @@ public class ProductImportTests
                 .Returns(Task.CompletedTask);
             PriceLists.Setup(p => p.GetDefaultRetailListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(() => DefaultList);
             PriceLists.Setup(p => p.AddAsync(It.IsAny<PriceList>(), It.IsAny<CancellationToken>()))
-                .Callback<PriceList, CancellationToken>((l, _) => { DefaultList = l; Resolver.Lists.Add(l); }).Returns(Task.CompletedTask);
+                .Callback<PriceList, CancellationToken>((l, _) => { DefaultList = l; Resolver.Lists.Add(l); SavesWhenPriceListAdded = Saves; }).Returns(Task.CompletedTask);
 
             Uow.SetupGet(u => u.Products).Returns(Products.Object);
             Uow.SetupGet(u => u.Categories).Returns(Categories.Object);
             Uow.SetupGet(u => u.Brands).Returns(Brands.Object);
             Uow.SetupGet(u => u.Variants).Returns(Variants.Object);
             Uow.SetupGet(u => u.PriceLists).Returns(PriceLists.Object);
-            Uow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            Uow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(() => { Saves++; return 1; });
             Uow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             Uow.Setup(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             Uow.Setup(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
@@ -140,6 +142,8 @@ public class ProductImportTests
         h.Added.Single().DomainEvents.OfType<ProductPriceChangedDomainEvent>().Should().ContainSingle();
         h.Uow.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
         h.Uow.Verify(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+        h.SavesWhenPriceListAdded.Should().BeGreaterOrEqualTo(1, "the products and variants are saved BEFORE the price rows that reference them (FK_PriceListItem_Variant)");
+        h.Saves.Should().Be(3, "products + variants, then the price rows, then the ProductPriceChanged events the tracker raises");
     }
 
     [Fact]

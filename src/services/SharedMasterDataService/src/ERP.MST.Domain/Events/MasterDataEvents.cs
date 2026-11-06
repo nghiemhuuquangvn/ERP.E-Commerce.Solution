@@ -42,8 +42,17 @@ public record EmployeeHiredEvent(
     string? Email,
     Guid DepartmentId) : IDomainEvent, ITenantEvent
 {
+    public const string SourceHire = "hire";
+    public const string SourceImport = "import";
+
     /// <summary>Tenant the event belongs to (stamped by the Outbox writer).</summary>
     public Guid TenantId { get; set; }
+
+    /// <summary>
+    /// How the employee came into the system: "hire" (the hire form) or "import" (the CSV import of an existing list). Consumers that greet a NEW
+    /// employee (the welcome e-mail) skip imported ones: importing a list must not mail every person on it.
+    /// </summary>
+    public string Source { get; init; } = SourceHire;
 
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }

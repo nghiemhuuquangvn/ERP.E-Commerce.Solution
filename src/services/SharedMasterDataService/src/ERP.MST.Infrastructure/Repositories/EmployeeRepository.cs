@@ -63,6 +63,42 @@ public class EmployeeRepository : IEmployeeRepository
             .AnyAsync(e => !e.IsDeleted && e.Email == email, cancellationToken);
     }
 
+    public async Task<HashSet<string>> GetExistingEmailsAsync(IReadOnlyCollection<string> lowerCaseEmails, CancellationToken cancellationToken = default)
+    {
+        if (lowerCaseEmails.Count == 0) return new HashSet<string>();
+        var found = await _context.Employees
+            .Where(e => !e.IsDeleted && e.Email != null && lowerCaseEmails.Contains(e.Email.ToLower()))
+            .Select(e => e.Email!.ToLower())
+            .ToListAsync(cancellationToken);
+        return new HashSet<string>(found);
+    }
+
+    public async Task<HashSet<string>> GetExistingNumbersAsync(IReadOnlyCollection<string> upperCaseNumbers, CancellationToken cancellationToken = default)
+    {
+        if (upperCaseNumbers.Count == 0) return new HashSet<string>();
+        var found = await _context.Employees
+            .Where(e => !e.IsDeleted && upperCaseNumbers.Contains(e.EmployeeNumber.ToUpper()))
+            .Select(e => e.EmployeeNumber.ToUpper())
+            .ToListAsync(cancellationToken);
+        return new HashSet<string>(found);
+    }
+
+    public async Task<int> GetMaxNumberSuffixAsync(string prefix, int digits, CancellationToken cancellationToken = default)
+    {
+        var length = prefix.Length + digits;
+        var numbers = await _context.Employees
+            .IgnoreQueryFilters()   // deleted rows too, and only this tenant's (below): a number is never reused
+            .Where(e => e.EmployeeNumber.StartsWith(prefix) && e.EmployeeNumber.Length == length && e.TenantId == _context.CurrentTenantId)
+            .Select(e => e.EmployeeNumber)
+            .ToListAsync(cancellationToken);
+        var max = 0;
+        foreach (var number in numbers)
+            if (int.TryParse(number.AsSpan(prefix.Length), out var suffix) && suffix > max) max = suffix;
+        return max;
+    }
+
+    public void ClearTracking() => _context.ChangeTracker.Clear();
+
     public void Add(Employee employee)
     {
         _context.Employees.Add(employee);

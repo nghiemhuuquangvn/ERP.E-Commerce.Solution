@@ -211,9 +211,7 @@ namespace ERP.PRD.Application.Features.Products.Import
         {
             await _uow.BeginTransactionAsync(ct);
 
-            PriceList? list = null;
-            var newList = false;
-            var pricedProductIds = new List<Guid>();
+            var priced = new List<(Guid ProductId, Guid VariantId, decimal Price, decimal? Discounted)>();
 
             foreach (var (data, categoryId, brandId) in accepted)
             {
@@ -234,27 +232,34 @@ namespace ERP.PRD.Application.Features.Products.Import
                 if (variant != null) await _uow.Variants.AddAsync(variant, ct);   // explicit: the navigation alone leaves it Modified and unstamped (R38)
 
                 if (variant != null && data.Price.HasValue)
-                {
-                    if (list == null)
-                    {
-                        list = await _uow.PriceLists.GetDefaultRetailListAsync(ct);
-                        newList = list == null;
-                        list ??= PriceList.Create(PriceList.DefaultRetailName, DateTime.UtcNow, isActive: true, channel: PriceListChannel.Retail);
-                    }
-                    list.AddItem(variant.Id, data.Price.Value, data.DiscountedPrice);
-                    if (!newList)
-                        _uow.PriceLists.MarkItemAdded(list.Items.First(i => i.VariantId == variant.Id && i.MinQuantity == 1));
-                    pricedProductIds.Add(product.Id);
-                }
+                    priced.Add((product.Id, variant.Id, data.Price.Value, data.DiscountedPrice));
             }
 
-            if (list != null && newList)
-                await _uow.PriceLists.AddAsync(list, ct);   // the whole new graph is added together
-
-            // A new product had no price before: the "before" snapshot is empty, so each priced product raises ProductPriceChanged (POS refreshes from it).
-            var before = new PriceSnapshot(pricedProductIds, new Dictionary<Guid, ResolvedProductPrice>());
+            // Step 1: the products and their variants. The price rows reference the variants by a foreign key that EF does not order for us
+            // (the first live run failed with FK_PriceListItem_Variant when everything was saved at once), so they are saved in a second step.
             await _uow.SaveChangesAsync(ct);
-            if (pricedProductIds.Count > 0) await _changes.PublishChangesAsync(before, ct);
+
+            if (priced.Count > 0)
+            {
+                var list = await _uow.PriceLists.GetDefaultRetailListAsync(ct);
+                var newList = list == null;
+                list ??= PriceList.Create(PriceList.DefaultRetailName, DateTime.UtcNow, isActive: true, channel: PriceListChannel.Retail);
+                foreach (var (_, variantId, price, discounted) in priced)
+                {
+                    list.AddItem(variantId, price, discounted);
+                    if (!newList)
+                        _uow.PriceLists.MarkItemAdded(list.Items.First(i => i.VariantId == variantId && i.MinQuantity == 1));
+                }
+                if (newList)
+                    await _uow.PriceLists.AddAsync(list, ct);   // the whole new graph is added together
+
+                await _uow.SaveChangesAsync(ct);
+
+                // A new product had no price before: the "before" snapshot is empty, so each priced product raises ProductPriceChanged (POS refreshes from it).
+                var before = new PriceSnapshot(priced.Select(p => p.ProductId).ToList(), new Dictionary<Guid, ResolvedProductPrice>());
+                await _changes.PublishChangesAsync(before, ct);
+            }
+
             await _uow.CommitTransactionAsync(ct);
             _uow.ClearTracking();
         }

@@ -255,7 +255,8 @@ public class NotificationKafkaConsumer : IHostedService
                 Email = raw.Value<string>("Email") ?? string.Empty,
                 FirstName = raw.Value<string>("FirstName") ?? string.Empty,
                 LastName = raw.Value<string>("LastName") ?? string.Empty,
-                Department = raw.Value<string>("Department") ?? raw.Value<string>("DepartmentName") ?? string.Empty
+                Department = raw.Value<string>("Department") ?? raw.Value<string>("DepartmentName") ?? string.Empty,
+                Source = raw.Value<string>("Source") ?? "hire"
             };
             if (evt.EmployeeId != Guid.Empty)
                 await mediator.Publish(evt, cancellationToken);

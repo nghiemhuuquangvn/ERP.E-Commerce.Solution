@@ -45,9 +45,9 @@ namespace ERP.MST.Domain.Entities
             return employee;
         }
 
-        public void RaiseHiredEvent()
+        public void RaiseHiredEvent(string source = EmployeeHiredEvent.SourceHire)
         {
-            AddDomainEvent(new EmployeeHiredEvent(Id, EmployeeNumber, FullName, Email, DepartmentId));
+            AddDomainEvent(new EmployeeHiredEvent(Id, EmployeeNumber, FullName, Email, DepartmentId) { Source = source });
         }
 
         public void Terminate(string reason)

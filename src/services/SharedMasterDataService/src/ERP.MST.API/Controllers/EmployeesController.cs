@@ -1,8 +1,11 @@
 using Asp.Versioning;
 using ERP.MST.Application.Commands;
 using ERP.MST.Application.DTOs;
+using ERP.MST.Application.Employees.Import;
 using ERP.MST.Application.Queries;
 using ERP.Shared.Authorization;
+using ERP.Shared.Infrastructure.Exceptions;
+using ERP.Shared.Streaming;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,10 +17,14 @@ namespace ERP.MST.API.Controllers;
 public class EmployeesController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly UserContext _user;
+    private readonly IImportProgressRegistry _imports;
 
-    public EmployeesController(IMediator mediator)
+    public EmployeesController(IMediator mediator, UserContext user, IImportProgressRegistry imports)
     {
         _mediator = mediator;
+        _user = user;
+        _imports = imports;
     }
 
     /// <summary>
@@ -56,6 +63,58 @@ public class EmployeesController : ControllerBase
     {
         var result = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+    }
+
+    /// <summary>
+    /// Streaming import of employees. The body is the raw CSV (Content-Type text/csv), read row by row while it uploads; the answer is NDJSON,
+    /// one line per row, flushed as it is processed (docs/architecture/streaming-import-pattern.md). Follow the progress on
+    /// GET import/{importId}/events with the same importId. Rows that already exist or are invalid are skipped and reported.
+    /// </summary>
+    [HttpPost("import")]
+    [AuthorizePermission("masterdata:employees:manage")]
+    [RequestSizeLimit(30_000_000)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public IActionResult Import([FromQuery] Guid importId, [FromQuery] bool dryRun = false)
+    {
+        if (importId == Guid.Empty)
+            throw new BusinessRuleException("Import.Id", "importId is required: a new GUID made by the client.");
+
+        return new NdjsonResult(_mediator.CreateStream(new ImportEmployeesStreamCommand
+        {
+            Body = Request.Body,
+            ContentLength = Request.ContentLength,
+            TenantId = _user.TenantId,
+            UserId = _user.UserId,
+            ImportId = importId,
+            DryRun = dryRun,
+        }));
+    }
+
+    /// <summary>Server-Sent Events with the progress of an import (events: progress, completed, failed). Only the user who runs the import sees it.</summary>
+    [HttpGet("import/{importId:guid}/events")]
+    [AuthorizePermission("masterdata:employees:manage")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public IActionResult ImportEvents(Guid importId)
+    {
+        var session = _imports.GetOrCreate(_user.TenantId, _user.UserId, importId);
+        return new SseResult(session.SubscribeAsync(HttpContext.RequestAborted));
+    }
+
+    /// <summary>The CSV template of the import (UTF-8 with a BOM so Excel opens it correctly).</summary>
+    [HttpGet("import/template")]
+    [AuthorizePermission("masterdata:employees:manage")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public IActionResult ImportTemplate()
+    {
+        var bytes = System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(EmployeeImportParser.TemplateCsv)).ToArray();
+        return File(bytes, "text/csv; charset=utf-8", "employees-import-template.csv");
     }
 
     /// <summary>
