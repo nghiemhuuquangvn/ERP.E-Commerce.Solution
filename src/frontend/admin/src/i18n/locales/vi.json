@@ -94,6 +94,7 @@
     "accounting": "Kế toán",
     "attendance": "Chấm công",
     "leaveRequests": "Đơn nghỉ phép",
+    "employeeImport": "Nhập nhân viên",
     "payroll": "Bảng lương",
       "salaryProfiles": "Hồ sơ lương",
       "payrollSettings": "Thiết lập lương",
@@ -3271,6 +3272,47 @@
       "print": "In",
       "shifts": "Số ca",
       "failed": "Không tải được báo cáo."
+    }
+  },
+  "import": {
+    "chooseFile": "Tệp CSV (UTF-8)",
+    "columns": "Các cột",
+    "downloadTemplate": "Tải tệp mẫu",
+    "templateFailed": "Không tải được tệp mẫu.",
+    "dryRun": "Chỉ kiểm tra (không lưu gì)",
+    "start": "Bắt đầu nhập",
+    "startDryRun": "Bắt đầu kiểm tra",
+    "cancel": "Huỷ nhập",
+    "close": "Đóng",
+    "running": "Đang nhập…",
+    "progress": "Tiến độ nhập",
+    "processed": "Đã xử lý",
+    "created": "Đã tạo",
+    "wouldCreate": "Sẽ được tạo",
+    "skipped": "Bỏ qua",
+    "failed": "Lỗi",
+    "rowsTitle": "Các dòng bị bỏ qua và dòng lỗi",
+    "rowLine": "Dòng {{line}}",
+    "more": "Hiển thị {{count}} dòng đầu; hãy tải danh sách đầy đủ.",
+    "downloadProblems": "Tải các dòng có vấn đề (CSV)",
+    "doneTitle": "Đã nhập xong",
+    "doneDryRun": "Đã kiểm tra xong: chưa lưu gì.",
+    "summary": "{{processed}} dòng: {{created}} đã tạo, {{skipped}} bỏ qua, {{failed}} lỗi ({{seconds}} giây).",
+    "summaryDryRun": "{{processed}} dòng: {{created}} sẽ được tạo, {{skipped}} bỏ qua, {{failed}} không hợp lệ ({{seconds}} giây).",
+    "cancelled": "Đã huỷ nhập. Các dòng đã lưu vẫn được giữ.",
+    "stopped": "Việc nhập đã dừng: {{message}}",
+    "failedGeneric": "Không hoàn tất được việc nhập. Hãy kiểm tra kết nối và thử lại.",
+    "noFile": "Hãy chọn một tệp CSV trước.",
+    "products": {
+      "title": "Nhập sản phẩm",
+      "columns": "Bắt buộc: sku, name. Tuỳ chọn: description, productType (Physical, Digital, Service, Bundle), categoryCode, brandCode, price, discountedPrice, cost, barcode, weightKg, status (Draft hoặc Active)."
+    },
+    "employees": {
+      "title": "Nhập nhân viên",
+      "columns": "Bắt buộc: firstName, lastName, departmentCode, dateOfHire (yyyy-MM-dd hoặc dd/MM/yyyy). Tuỳ chọn: employeeNumber (tự sinh nếu để trống), email, phone, positionCode, employmentType (FullTime, PartTime, Contract). Không tạo tài khoản đăng nhập.",
+      "open": "Nhập nhân viên",
+      "pageTitle": "Nhập nhân viên",
+      "pageIntro": "Thêm nhiều nhân viên cùng lúc từ tệp CSV. Nhân viên được lưu ở dữ liệu chủ; nhân sự thấy họ ngay sau khi nhập."
     }
   }
 }

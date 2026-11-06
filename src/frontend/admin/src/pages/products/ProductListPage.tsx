@@ -1,8 +1,10 @@
 import { useState, useMemo, useCallback } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { productsApi, PRODUCT_STATUS, PRODUCT_STATUS_LABELS } from '@/api/products.api'
+import { productsApi, productsImportEndpoints, PRODUCT_STATUS, PRODUCT_STATUS_LABELS } from '@/api/products.api'
+import { ImportDialog } from '@/components/import/ImportDialog'
+import { FileUp } from 'lucide-react'
 import { brandsApi } from '@/api/product/brands.api'
 import { DataTable } from '@/components/shared/DataTable'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -28,6 +30,8 @@ export function ProductListPage() {
   const { page, pageSize, setPage } = usePagination()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<number | ''>('')
+  const [importOpen, setImportOpen] = useState(false)
+  const queryClient = useQueryClient()
 
   const searchTerm = search.trim()
 
@@ -146,12 +150,30 @@ export function ProductListPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('products.title')}</h1>
-        {hasPermission('products:create') && (
-          <Link to="/products/new" className="btn-primary">
-            {t('products.addProduct')}
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          {hasPermission('products:manage') && (
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <FileUp size={16} strokeWidth={1.75} aria-hidden="true" />
+              {t('import.products.title')}
+            </Button>
+          )}
+          {hasPermission('products:create') && (
+            <Link to="/products/new" className="btn-primary">
+              {t('products.addProduct')}
+            </Link>
+          )}
+        </div>
       </div>
+
+      <ImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        titleKey="import.products.title"
+        columnsKey="import.products.columns"
+        endpoints={productsImportEndpoints}
+        templateFileName="products-import-template.csv"
+        onFinished={() => void queryClient.invalidateQueries({ queryKey: ['products'] })}
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <Input

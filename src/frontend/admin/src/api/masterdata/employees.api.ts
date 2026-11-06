@@ -88,3 +88,10 @@ export const employeesApi = {
   updateProfile: (id: string, body: UpdateEmployeeProfileRequest) =>
     apiClient.put<Employee>(`${MST_BASE}/employees/${id}/profile`, body).then((r) => r.data),
 }
+
+/** The streaming CSV import of employees (POST body text/csv -> NDJSON rows, GET events -> SSE progress). Paths are Gateway-rooted. */
+export const employeesImportEndpoints = {
+  upload: `${MST_BASE}/employees/import`,
+  events: (importId: string) => `${MST_BASE}/employees/import/${importId}/events`,
+  template: `${MST_BASE}/employees/import/template`,
+}
