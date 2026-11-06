@@ -24,6 +24,8 @@ public interface IItemProfileRepository
 {
     Task<ItemManufacturingProfile?> GetAsync(Guid itemId, Guid plantId, CancellationToken ct = default);
     Task<(List<ItemManufacturingProfile> Items, int Total)> ListAsync(Guid plantId, string? search, int page, int pageSize, CancellationToken ct = default);
+    /// <summary>Every profile of the plant, tracked (the low-level codes are rewritten when a BOM is approved or made obsolete).</summary>
+    Task<List<ItemManufacturingProfile>> ListByPlantAsync(Guid plantId, CancellationToken ct = default);
     void Add(ItemManufacturingProfile profile);
 }
 

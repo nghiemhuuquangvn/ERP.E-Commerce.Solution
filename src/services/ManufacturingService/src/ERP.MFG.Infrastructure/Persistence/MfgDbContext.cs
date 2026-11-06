@@ -38,6 +38,8 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
     public DbSet<ReasonCode> ReasonCodes => Set<ReasonCode>();
     public DbSet<Crew> Crews => Set<Crew>();
     public DbSet<CrewMember> CrewMembers => Set<CrewMember>();
+    public DbSet<Bom> Boms => Set<Bom>();
+    public DbSet<BomLine> BomLines => Set<BomLine>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -202,6 +204,38 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.ToTable("CrewMembers");
             e.Property(x => x.LaborRatePerHour).HasPrecision(18, 4);
             e.HasIndex(x => new { x.TenantId, x.EmployeeId });
+        });
+
+        modelBuilder.Entity<Bom>(e =>
+        {
+            e.ToTable("Boms");
+            e.Property(x => x.ItemCode).HasMaxLength(100).IsRequired();
+            e.Property(x => x.ItemName).HasMaxLength(255).IsRequired();
+            e.Property(x => x.BaseQuantity).HasPrecision(18, 6);
+            e.Property(x => x.YieldPct).HasPrecision(5, 2);
+            e.Property(x => x.Status).HasConversion<short>();
+            e.Property(x => x.ApprovedBy).HasMaxLength(200);
+            e.Ignore(x => x.Lines);
+            e.HasIndex(x => new { x.TenantId, x.ItemId, x.PlantId, x.Version }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.PlantId, x.Status });
+            e.HasMany(x => x.AllLines).WithOne().HasForeignKey(l => l.BomId);
+            e.Navigation(x => x.AllLines).UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<BomLine>(e =>
+        {
+            e.ToTable("BomLines");
+            e.Property(x => x.LineType).HasConversion<short>();
+            e.Property(x => x.ComponentCode).HasMaxLength(100).IsRequired();
+            e.Property(x => x.ComponentName).HasMaxLength(255).IsRequired();
+            e.Property(x => x.Quantity).HasPrecision(18, 6);
+            e.Property(x => x.ScrapPct).HasPrecision(5, 2);
+            e.Property(x => x.CostAllocationPct).HasPrecision(5, 2);
+            e.Property(x => x.IssueMethod).HasConversion<short>();
+            e.Property(x => x.AlternativeGroup).HasMaxLength(20);
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.HasIndex(x => new { x.TenantId, x.BomId, x.LineNo }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.ComponentItemId });
         });
 
         ConfigureBaseEntities(modelBuilder);

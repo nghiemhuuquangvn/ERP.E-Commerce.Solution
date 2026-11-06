@@ -118,6 +118,7 @@ namespace ERP.PRD.Application.Interfaces
     {
         Task<ProductUomConversion?> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task<List<ProductUomConversion>> GetByProductIdAsync(Guid productId, CancellationToken ct = default);
+        Task<List<ProductUomConversion>> GetByProductIdsAsync(IReadOnlyCollection<Guid> productIds, CancellationToken ct = default);
         Task<bool> PairExistsAsync(Guid productId, Guid fromUomId, Guid toUomId, CancellationToken ct = default);
         Task AddAsync(ProductUomConversion conversion, CancellationToken ct = default);
         void Update(ProductUomConversion conversion);

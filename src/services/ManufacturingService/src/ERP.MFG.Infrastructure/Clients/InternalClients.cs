@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ERP.MFG.Application.Abstractions;
+using ERP.MFG.Domain.Engineering;
 using ERP.MFG.Domain.Common;
 using ERP.Shared.Infrastructure.Data;
 using Microsoft.Extensions.Caching.Memory;
@@ -94,6 +95,22 @@ public sealed class ProductLookupClient(HttpClient http, IMemoryCache cache, ITe
         if (distinct.Count == 0) return [];
         return await Cached<IReadOnlyList<ProductInfo>>(CacheKey("lookup", distinct), async () =>
             (await PostAsync<Answer>("internal/v1/product-lookup", new { productIds = distinct }, ct)).Items);
+    }
+}
+
+public sealed class ProductUomConversionClient(HttpClient http, IMemoryCache cache, ITenantProvider tenant, ILogger<ProductUomConversionClient> logger)
+    : InternalClientBase(http, cache, tenant, logger, "product"), IProductUomConversionClient
+{
+    private sealed record Row(Guid ProductId, Guid FromUomId, Guid ToUomId, decimal ConversionFactor);
+    private sealed record Answer(List<Row> Items);
+
+    public async Task<IReadOnlyList<ProductConversionFacts>> LookupAsync(IReadOnlyCollection<Guid> productIds, CancellationToken ct = default)
+    {
+        var distinct = productIds.Distinct().ToList();
+        if (distinct.Count == 0) return [];
+        return await Cached<IReadOnlyList<ProductConversionFacts>>(CacheKey("uom-conversions", distinct), async () =>
+            (await PostAsync<Answer>("internal/v1/product-uom-conversions/lookup", new { productIds = distinct }, ct)).Items
+                .Select(r => new ProductConversionFacts(r.ProductId, r.FromUomId, r.ToUomId, r.ConversionFactor)).ToList());
     }
 }
 

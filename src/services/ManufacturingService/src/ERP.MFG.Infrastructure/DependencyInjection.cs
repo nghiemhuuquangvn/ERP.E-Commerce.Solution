@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IReasonCodeRepository, ReasonCodeRepository>();
         services.AddScoped<IReferenceChecker, ReferenceChecker>();
         services.AddScoped<IWorkingTimeService, WorkingTimeService>();
+        services.AddScoped<IBomRepository, BomRepository>();
         services.AddScoped<IProductionSettingProvider, ProductionSettingProvider>();
         services.AddSingleton<IOpenOrderGuard, NoOrdersYetGuard>();
         services.AddMemoryCache();
@@ -42,6 +43,7 @@ public static class DependencyInjection
         // Other services, read through internal endpoints with this service's own token (fail closed, 60 s cache).
         AddClient<IProductLookupClient, ProductLookupClient>(services, configuration, "Services:ProductServiceBaseUrl", "http://productservice:5008", "product");
         AddClient<IUnitOfMeasureClient, UnitOfMeasureClient>(services, configuration, "Services:MasterDataServiceBaseUrl", "http://masterdataservice:5015", "masterdata");
+        AddClient<IProductUomConversionClient, ProductUomConversionClient>(services, configuration, "Services:ProductServiceBaseUrl", "http://productservice:5008", "product");
         AddClient<IWarehouseLookupClient, WarehouseLookupClient>(services, configuration, "Services:WarehouseServiceBaseUrl", "http://warehouseservice:5004", "warehouse");
         AddClient<IEmployeeLookupClient, EmployeeLookupClient>(services, configuration, "Services:MasterDataServiceBaseUrl", "http://masterdataservice:5015", "masterdata");
         return services;

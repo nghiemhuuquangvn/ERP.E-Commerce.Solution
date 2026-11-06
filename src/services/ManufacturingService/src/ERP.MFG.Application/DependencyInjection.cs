@@ -17,6 +17,9 @@ public static class DependencyInjection
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         services.AddScoped<ICapacityService, CapacityService>();
         services.AddScoped<ILaborRateResolver, LaborRateResolver>();
+        services.AddScoped<IBomResolver, BomResolver>();
+        services.AddScoped<IBomSnapshotFactory, BomSnapshotFactory>();
+        services.AddScoped<IBomExplosionService, BomExplosionService>();
         return services;
     }
 }

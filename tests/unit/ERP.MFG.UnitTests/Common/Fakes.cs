@@ -1,5 +1,7 @@
 using ERP.MFG.Application.Abstractions;
 using ERP.MFG.Domain.Common;
+using ERP.MFG.Domain.Engineering;
+using ERP.MFG.UnitTests.Boms;
 using ERP.MFG.Domain.Entities;
 using ERP.MFG.Domain.Scheduling;
 using ERP.Shared.Core.Domain;
@@ -35,6 +37,9 @@ public sealed class Fakes
 
     public readonly Dictionary<Guid, WarehouseInfo> Warehouses = [];
     public readonly Dictionary<Guid, ProductInfo> Products = [];
+    public readonly List<Bom> Boms = [];
+    public readonly Dictionary<Guid, UnitInfo> Units = [];
+    public readonly List<ProductConversionFacts> ProductConversions = [];
     public bool OpenOrders;
     public bool Unreachable;
 
@@ -43,6 +48,9 @@ public sealed class Fakes
     public IItemProfileRepository ProfileRepo => new ProfileRepo(this);
     public IPlantAccessRepository AccessRepo => new AccessRepo(this);
     public IMfgUnitOfWork Uow => new Uow(this);
+    public IBomRepository BomRepo => new BomFake(this);
+    public IUnitOfMeasureClient UnitClient => new UnitFake(this);
+    public IProductUomConversionClient ConversionClient => new ConversionFake(this);
     public IWarehouseLookupClient WarehouseClient => new WarehouseClient(this);
     public IProductLookupClient ProductClient => new ProductClient(this);
     public IOpenOrderGuard Guard => new Guard(this);
@@ -112,6 +120,7 @@ internal sealed class ProfileRepo(Fakes f) : IItemProfileRepository
         var all = f.Profiles.Where(p => p.PlantId == plantId && (string.IsNullOrWhiteSpace(search) || p.ItemCode.Contains(search, StringComparison.OrdinalIgnoreCase))).OrderBy(p => p.ItemCode).ToList();
         return Task.FromResult((all.Skip((page - 1) * pageSize).Take(pageSize).ToList(), all.Count));
     }
+    public Task<List<ItemManufacturingProfile>> ListByPlantAsync(Guid plantId, CancellationToken ct = default) => Task.FromResult(f.Profiles.Where(p => p.PlantId == plantId).ToList());
     public void Add(ItemManufacturingProfile profile) => f.Profiles.Add(profile);
 }
 

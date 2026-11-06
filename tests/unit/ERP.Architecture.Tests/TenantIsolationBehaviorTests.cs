@@ -201,6 +201,11 @@ public class TenantIsolationBehaviorTests
             ERP.MFG.Domain.Entities.ReasonCode.Create(ERP.MFG.Domain.Common.ReasonType.Scrap, "SCRAP-01", "Scrap", null), e => e.TenantId);
 
     [Fact]
+    public void Manufacturing_Boms() =>
+        AssertIsolated<ERP.MFG.Infrastructure.Persistence.MfgDbContext, ERP.MFG.Domain.Entities.Bom>(
+            ERP.MFG.Domain.Entities.Bom.Create(Guid.NewGuid(), Guid.NewGuid(), "TP-BAN01", "Table", 1, 1m, 100m, new DateOnly(2026, 1, 1), null, null), e => e.TenantId);
+
+    [Fact]
     public void Manufacturing_DocumentSequences() =>
         AssertIsolated<ERP.MFG.Infrastructure.Persistence.MfgDbContext, ERP.MFG.Domain.Entities.DocumentSequence>(
             ERP.MFG.Domain.Entities.DocumentSequence.Create("MO", Guid.NewGuid(), new DateOnly(2026, 11, 1)), e => e.TenantId);

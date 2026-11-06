@@ -38,6 +38,12 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-06 - Manufacturing M3: bills of materials (`feat/manufacturing-service`, unmerged)
+- **ManufacturingService:** BOM with versions (Draft -> Approved -> Obsolete, copy as next version), lines (components, by-products, co-products, phantom, alternatives, fixed quantity, scrap, yield, issue method, operation), approval that closes the open earlier version, refuses overlaps, cycles (with path) and too deep trees and rewrites the low-level codes in one save; explosion (single level with phantoms, indented multi-level), where-used, compare, low-level-codes; units convert through the product's own conversion or MasterData; SQL `Manufacturing/004`.
+- **ProductService:** `POST internal/v1/product-uom-conversions/lookup` (caller `manufacturing`).
+- **Tests:** MFG 204 (62 new, DS-01 numbers asserted: 7 lines / paint 52.50, 3.68 rounding, phantom, alternatives, 1.100 m3 + 25 kg sawdust, 0.022, low-level codes, versions, cycle path), Product 38, Architecture 81 (all green). **Live (glcheck, throw-away plant `ZZ-MFG-M3ND79` and products `ZZ-M3-*-ND79`):** 46 of 46 checks. Left behind: the deactivated plant, 12 products, their BOMs and profiles.
+- **Docs:** `docs/business/Manufacturing/Bom.md`. **Risks:** R167-R172. **Next:** M4 (routing, lead time, BOM / routing check, CSV import).
+
 ### 2026-11-06 - Manufacturing M2: calendars, work centers, machines, standard operations, reason codes, crews (`feat/manufacturing-service`, unmerged)
 - **ManufacturingService:** shifts and work calendars (weekly pattern + exceptions) with the working-time calculator (add / subtract working minutes and days, month view), work centers with capacity and rates, machines (Active / UnderMaintenance / Retired), standard operations, reason codes (11 defaults per tenant on first use), crews with members and own labor rate, delete-vs-deactivate rule (BR-GEN-02); SQL `Manufacturing/003`; the plant's default calendar now has a key.
 - **MasterData:** `POST internal/v1/employees/lookup` (caller `manufacturing`).

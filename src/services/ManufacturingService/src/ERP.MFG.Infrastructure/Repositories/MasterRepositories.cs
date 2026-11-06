@@ -93,3 +93,21 @@ public sealed class ReferenceChecker(MfgDbContext db) : IReferenceChecker
     public Task<bool> ReasonIsUsedAsync(Guid reasonId, CancellationToken ct = default) => Task.FromResult(false);         // order history, reports: Phase 3-4
     public Task<bool> CrewIsUsedAsync(Guid crewId, CancellationToken ct = default) => Task.FromResult(false);
 }
+
+public sealed class BomRepository(MfgDbContext db) : IBomRepository
+{
+    private IQueryable<Bom> Full => db.Boms.Include(b => b.AllLines).Where(b => !b.IsDeleted);
+
+    public Task<Bom?> GetAsync(Guid id, CancellationToken ct = default) => Full.FirstOrDefaultAsync(b => b.Id == id, ct);
+
+    public Task<List<Bom>> ListAsync(Guid plantId, Guid? itemId, VersionStatus? status, CancellationToken ct = default)
+        => Full.Where(b => b.PlantId == plantId && (itemId == null || b.ItemId == itemId) && (status == null || b.Status == status)).ToListAsync(ct);
+
+    public Task<List<Bom>> ListApprovedAsync(Guid plantId, CancellationToken ct = default)
+        => Full.Where(b => b.PlantId == plantId && b.Status == VersionStatus.Approved).ToListAsync(ct);
+
+    public async Task<int> MaxVersionAsync(Guid itemId, Guid plantId, CancellationToken ct = default)
+        => await db.Boms.Where(b => b.ItemId == itemId && b.PlantId == plantId).Select(b => (int?)b.Version).MaxAsync(ct) ?? 0; // deleted drafts keep their number
+
+    public void Add(Bom bom) => db.Boms.Add(bom);
+}

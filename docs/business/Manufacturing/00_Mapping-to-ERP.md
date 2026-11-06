@@ -21,3 +21,6 @@ so the specs stay readable as they are. Decision record: `docs/architecture/adr-
 | `IEmployeeQuery` (HR) | MasterData `internal/v1/employees/lookup` (employees are MasterData's, HRM only keeps a snapshot) |
 | `WorkingTimeService` cached by month (T1.1.3) | cached per calendar for 60 s per tenant (a calendar is small); month data come from the same calculator |
 | Reason code seed (T1.5.1) as migration seed | written per tenant on first read / `seed-defaults` (a SQL seed cannot know the tenants) |
+| `IUomConversionService` (T2.1.4) | pure `UomRules` over MasterData units (`internal/v1/units-of-measure/lookup`) and the product's own conversions (`internal/v1/product-uom-conversions/lookup`); one batched read per tree |
+| `IBomCycleDetector`, `ILowLevelCodeCalculator`, `IBomExplosionService` (T2.2-T2.3) | pure `BomGraph` / `BomExplosionCalculator` in the Domain plus `BomExplosionService` loading the approved versions in one read |
+| Approval in one DB transaction | one `SaveChanges`: status, closing of the earlier version and the low-level codes of the plant |
