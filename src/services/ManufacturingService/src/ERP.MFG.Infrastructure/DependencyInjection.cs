@@ -29,6 +29,12 @@ public static class DependencyInjection
         services.AddScoped<IItemProfileRepository, ItemProfileRepository>();
         services.AddScoped<IPlantAccessRepository, PlantAccessRepository>();
         services.AddScoped<IPlantAccessService, PlantAccessService>();
+        services.AddScoped<IPlantCatalog, PlantCatalog>();
+        services.AddScoped<ICalendarRepository, CalendarRepository>();
+        services.AddScoped<ICrewRepository, CrewRepository>();
+        services.AddScoped<IReasonCodeRepository, ReasonCodeRepository>();
+        services.AddScoped<IReferenceChecker, ReferenceChecker>();
+        services.AddScoped<IWorkingTimeService, WorkingTimeService>();
         services.AddScoped<IProductionSettingProvider, ProductionSettingProvider>();
         services.AddSingleton<IOpenOrderGuard, NoOrdersYetGuard>();
         services.AddMemoryCache();
@@ -37,6 +43,7 @@ public static class DependencyInjection
         AddClient<IProductLookupClient, ProductLookupClient>(services, configuration, "Services:ProductServiceBaseUrl", "http://productservice:5008", "product");
         AddClient<IUnitOfMeasureClient, UnitOfMeasureClient>(services, configuration, "Services:MasterDataServiceBaseUrl", "http://masterdataservice:5015", "masterdata");
         AddClient<IWarehouseLookupClient, WarehouseLookupClient>(services, configuration, "Services:WarehouseServiceBaseUrl", "http://warehouseservice:5004", "warehouse");
+        AddClient<IEmployeeLookupClient, EmployeeLookupClient>(services, configuration, "Services:MasterDataServiceBaseUrl", "http://masterdataservice:5015", "masterdata");
         return services;
     }
 

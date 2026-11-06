@@ -1,4 +1,6 @@
+using ERP.MFG.Application.Abstractions;
 using ERP.MFG.Application.Behaviors;
+using ERP.MFG.Application.Services;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +15,8 @@ public static class DependencyInjection
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<ValidationMarker>());
         services.AddValidatorsFromAssemblyContaining<ValidationMarker>();
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+        services.AddScoped<ICapacityService, CapacityService>();
+        services.AddScoped<ILaborRateResolver, LaborRateResolver>();
         return services;
     }
 }

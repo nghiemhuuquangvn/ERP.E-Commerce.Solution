@@ -35,6 +35,7 @@ public sealed class ProductionSettingProvider(IProductionSettingRepository repo,
 public sealed class NoOrdersYetGuard : IOpenOrderGuard
 {
     public Task<bool> HasOpenOrdersAsync(Guid plantId, CancellationToken ct = default) => Task.FromResult(false);
+    public Task<bool> HasOpenOperationsAsync(Guid workCenterId, CancellationToken ct = default) => Task.FromResult(false);
 }
 
 /// <summary>BR-GEN-09. Holders of <c>manufacturing:settings:manage</c> see every plant; everybody else only the plants they were granted.</summary>

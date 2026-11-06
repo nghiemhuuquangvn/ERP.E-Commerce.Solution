@@ -191,6 +191,16 @@ public class TenantIsolationBehaviorTests
     }
 
     [Fact]
+    public void Manufacturing_Shifts() =>
+        AssertIsolated<ERP.MFG.Infrastructure.Persistence.MfgDbContext, ERP.MFG.Domain.Entities.Shift>(
+            ERP.MFG.Domain.Entities.Shift.Create(Guid.NewGuid(), "CA1", "Shift", new TimeOnly(6, 0), new TimeOnly(14, 0), 30), e => e.TenantId);
+
+    [Fact]
+    public void Manufacturing_ReasonCodes() =>
+        AssertIsolated<ERP.MFG.Infrastructure.Persistence.MfgDbContext, ERP.MFG.Domain.Entities.ReasonCode>(
+            ERP.MFG.Domain.Entities.ReasonCode.Create(ERP.MFG.Domain.Common.ReasonType.Scrap, "SCRAP-01", "Scrap", null), e => e.TenantId);
+
+    [Fact]
     public void Manufacturing_DocumentSequences() =>
         AssertIsolated<ERP.MFG.Infrastructure.Persistence.MfgDbContext, ERP.MFG.Domain.Entities.DocumentSequence>(
             ERP.MFG.Domain.Entities.DocumentSequence.Create("MO", Guid.NewGuid(), new DateOnly(2026, 11, 1)), e => e.TenantId);

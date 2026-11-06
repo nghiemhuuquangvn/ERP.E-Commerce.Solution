@@ -35,6 +35,7 @@ public interface IPositionRepository
 public interface IEmployeeRepository
 {
     Task<Employee?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Employee>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<Employee> Items, int TotalCount)> ListAsync(
         Guid? departmentId,
         int? status,

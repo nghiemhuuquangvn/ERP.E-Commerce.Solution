@@ -128,6 +128,20 @@ public sealed class UnitOfMeasureClient(HttpClient http, IMemoryCache cache, ITe
     }
 }
 
+public sealed class EmployeeLookupClient(HttpClient http, IMemoryCache cache, ITenantProvider tenant, ILogger<EmployeeLookupClient> logger)
+    : InternalClientBase(http, cache, tenant, logger, "masterdata"), IEmployeeLookupClient
+{
+    private sealed record Answer(List<EmployeeInfo> Items);
+
+    public async Task<IReadOnlyList<EmployeeInfo>> LookupAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default)
+    {
+        var distinct = ids.Distinct().ToList();
+        if (distinct.Count == 0) return [];
+        return await Cached<IReadOnlyList<EmployeeInfo>>(CacheKey("employees", distinct), async () =>
+            (await PostAsync<Answer>("internal/v1/employees/lookup", new { ids = distinct }, ct)).Items);
+    }
+}
+
 public sealed class WarehouseLookupClient(HttpClient http, IMemoryCache cache, ITenantProvider tenant, ILogger<WarehouseLookupClient> logger)
     : InternalClientBase(http, cache, tenant, logger, "warehouse"), IWarehouseLookupClient
 {

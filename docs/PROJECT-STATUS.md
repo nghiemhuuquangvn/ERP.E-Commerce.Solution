@@ -38,6 +38,12 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-06 - Manufacturing M2: calendars, work centers, machines, standard operations, reason codes, crews (`feat/manufacturing-service`, unmerged)
+- **ManufacturingService:** shifts and work calendars (weekly pattern + exceptions) with the working-time calculator (add / subtract working minutes and days, month view), work centers with capacity and rates, machines (Active / UnderMaintenance / Retired), standard operations, reason codes (11 defaults per tenant on first use), crews with members and own labor rate, delete-vs-deactivate rule (BR-GEN-02); SQL `Manufacturing/003`; the plant's default calendar now has a key.
+- **MasterData:** `POST internal/v1/employees/lookup` (caller `manufacturing`).
+- **Tests:** MFG 142, MST 10, Architecture 80 (all green); DS-01 numbers asserted (450 / 900 / 1620 / 720 / Saturday minute 350). **Live (glcheck, throw-away plant `ZZ-MFG-M21G0X`):** 49 of 49 checks after a small fix (crew member response shows names). Left behind: deactivated plants `ZZ-MFG-M21G0X` (+ earlier `ZZ-MFG-NJQDP`, `ZZ-MFG-NP5TX`), their shifts / calendar / work centers / machine / crews.
+- **Docs:** `docs/business/Manufacturing/CalendarsWorkCenters.md`. **Risks:** R162-R166. **Next:** M3 (BOM: versions, approval, explosion, cycle detection).
+
 ### 2026-11-06 - Manufacturing M1: plants, production parameters, item profiles + internal endpoints (`feat/manufacturing-service`, unmerged)
 - **ManufacturingService** (MFG, PostgreSQL on the host): `Plant` (+ default `ProductionSetting` in the same save, audit of every changed field, 60 s cache), `ItemManufacturingProfile`, plant access (BR-GEN-09); API `api/v1/manufacturing/plants|settings|access|item-profiles`; SQL `Manufacturing/002`. Spec codes are `MFG_*`; answers carry `errorCode`.
 - **Other services:** Product `internal/v1/product-lookup`, MasterData `internal/v1/units-of-measure/lookup|convert` + `UnitsOfMeasure.DecimalPlaces` (migration 009, Admin unit screen), Warehouse `internal/v1/warehouses/lookup` - all `[AuthorizeInternalService("manufacturing")]`.

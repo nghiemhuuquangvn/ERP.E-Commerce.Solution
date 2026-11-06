@@ -401,3 +401,4 @@ Critical Path: POS → Product, Payment, Promotion = 1 hop each (parallel)
 | manufacturing | product | `internal/v1/product-lookup` | item exists / Active / base unit |
 | manufacturing | masterdata | `internal/v1/units-of-measure/lookup`, `convert` | decimal places, unit conversion |
 | manufacturing | warehouse | `internal/v1/warehouses/lookup` | plant warehouses exist and are active |
+| manufacturing | masterdata | `internal/v1/employees/lookup` | crew members / leaders exist and are employed (M2) |

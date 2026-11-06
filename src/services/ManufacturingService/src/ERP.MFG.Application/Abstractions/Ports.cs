@@ -85,6 +85,9 @@ public interface IWarehouseLookupClient
 public interface IOpenOrderGuard
 {
     Task<bool> HasOpenOrdersAsync(Guid plantId, CancellationToken ct = default);
+
+    /// <summary>Are there operations of Released / InProgress / OnHold orders on the work center (BR-WC-03)?</summary>
+    Task<bool> HasOpenOperationsAsync(Guid workCenterId, CancellationToken ct = default);
 }
 
 /// <summary>The production parameters of a plant, cached for 60 s per tenant and plant; every service reads parameters through this (T0.4.1).</summary>

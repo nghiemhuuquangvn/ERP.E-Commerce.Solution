@@ -65,7 +65,7 @@ public class PlantTests
 
     // ── Create: BR-SET-01, BR-PLT-01, BR-PLT-02 ──────────────────────────────────────────────────────────
 
-    private static CreatePlantHandler Create(Fakes f) => new(f.PlantRepo, f.SettingRepo, f.WarehouseClient, f.Uow);
+    private static CreatePlantHandler Create(Fakes f) => new(f.PlantRepo, f.SettingRepo, f.WarehouseClient, f.CalendarRepo, f.Uow);
 
     private static CreatePlantCommand Command(Fakes f, string code = "PL01") =>
         new(code, "Plant", null, f.AddWarehouse(code + "-RM"), f.AddWarehouse(code + "-FG"), f.AddWarehouse(code + "-QC"), null, null);
