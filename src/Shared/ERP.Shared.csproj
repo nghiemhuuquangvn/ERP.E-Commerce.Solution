@@ -32,6 +32,7 @@
     <ProjectReference Include="Extensions\ERP.Shared.Extensions.csproj" />
     <ProjectReference Include="Security\ERP.Shared.Security.csproj" />
     <ProjectReference Include="Versioning\ERP.Shared.Versioning.csproj" />
+    <ProjectReference Include="Streaming\ERP.Shared.Streaming.csproj" />
   </ItemGroup>
 
 </Project>

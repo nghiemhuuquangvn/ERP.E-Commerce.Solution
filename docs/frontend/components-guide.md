@@ -18,6 +18,7 @@ All components live in `admin/src/components/ui/` and are imported from the barr
 | `EmptyState` | nothing to show | `variant` empty / no-results (action: clear filters) / error (action: retry) / forbidden; `title`, `description`, one `action`. |
 | `Badge`, `StatusBadge` | status and tags | `Badge variant` success / warning / danger / info / muted / brand, `dot`. `StatusBadge status label` picks the role from **one map**, `components/ui/statusRoles.ts` (unknown = muted). Add a new status there, never as a colour in a page. |
 | `Spinner`, `Skeleton`, `SkeletonRows` | loading | Skeleton rows replace "Loading..." text; motion stops under reduced-motion. |
+| `Progress` | a bar for work that takes a while | `value` 0-100 (leave it out while unknown), `label` (the accessible name: it is a `role=progressbar` with `aria-valuenow`); role tokens only, motion stops under reduced-motion. Used by `components/import/ImportDialog` (streaming CSV imports: `docs/architecture/streaming-import-pattern.md`; client helpers `lib/streamingFetch.ts`, `lib/streamingImport.ts`). |
 | `DataTable` | lists | Old props unchanged (`columns`, `data`, `isLoading`, `emptyMessage`). New: `emptyState` (e.g. no-results with a Clear button), `stickyHeader`, column `align: 'right'` for numbers, `sortable` + `sortKey` / `sortDir` / `onSort` (`aria-sort`). While loading it shows skeleton rows and `aria-busy`. |
 
 ## Patterns

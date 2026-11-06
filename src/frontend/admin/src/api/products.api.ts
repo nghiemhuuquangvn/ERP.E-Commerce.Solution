@@ -7,6 +7,13 @@ import { apiClient } from './client'
 // `apiClient` with no extra gateway-root prefix.
 
 // Matches ERP.PRD.Domain.Enums.ProductType
+/** The streaming CSV import of products (POST body text/csv -> NDJSON rows, GET events -> SSE progress). Paths are Gateway-rooted. */
+export const productsImportEndpoints = {
+  upload: '/prd/api/v1/products/import',
+  events: (importId: string) => `/prd/api/v1/products/import/${importId}/events`,
+  template: '/prd/api/v1/products/import/template',
+}
+
 export const PRODUCT_TYPE = {
   Physical: 0,
   Digital: 1,

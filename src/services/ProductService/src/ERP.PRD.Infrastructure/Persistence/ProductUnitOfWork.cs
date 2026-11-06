@@ -55,6 +55,8 @@ namespace ERP.PRD.Infrastructure.Persistence
         public IBrandRepository Brands { get; }
         public IProductUomConversionRepository UomConversions { get; }
 
+        public void ClearTracking() => _db.ChangeTracker.Clear();
+
         public async Task<int> SaveChangesAsync(CancellationToken ct = default)
             => await _db.SaveChangesAsync(ct);
 

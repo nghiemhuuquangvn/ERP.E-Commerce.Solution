@@ -4,6 +4,7 @@ using ERP.Shared.Authorization;
 using ERP.Shared.Authorization.ServiceAuth;
 using ERP.Shared.Extensions;
 using ERP.Shared.Localization;
+using ERP.Shared.Streaming;
 using ERP.Shared.Versioning;
 using Serilog;
 using Serilog.Events;
@@ -52,6 +53,7 @@ try
     // (countries, languages, currencies, UoM) of the platform tenant is visible to everyone.
     builder.Services.AddRequestTenantProvider();
     builder.Services.AddScoped<UserContext>();
+    builder.Services.AddStreamingImport(builder.Configuration);   // progress registry + Import:* limits for the streaming import
     builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.SharedMasterData));
 
     builder.Services

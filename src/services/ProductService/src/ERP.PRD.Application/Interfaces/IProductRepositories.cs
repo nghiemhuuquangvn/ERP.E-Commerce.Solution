@@ -15,6 +15,9 @@ namespace ERP.PRD.Application.Interfaces
         Task<Product?> GetBySkuAsync(string sku, CancellationToken ct = default);
         Task<bool> ExistsAsync(Guid id, CancellationToken ct = default);
         Task<bool> SkuExistsAsync(string sku, CancellationToken ct = default);
+
+        /// <summary>Which of the given SKUs (compared in upper case) already belong to a product of this shop: one query for a whole import batch.</summary>
+        Task<HashSet<string>> GetExistingSkusAsync(IReadOnlyCollection<string> upperCaseSkus, CancellationToken ct = default);
         Task<bool> SlugTakenByAnotherAsync(Guid productId, string slug, CancellationToken ct = default);
         Task<(List<Product> Items, int Total)> GetPagedAsync(
             int skip, int take,
@@ -32,6 +35,9 @@ namespace ERP.PRD.Application.Interfaces
         Task<Category?> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task<Category?> GetByIdWithTranslationsAsync(Guid id, CancellationToken ct = default);
         Task<bool> ExistsAsync(Guid id, CancellationToken ct = default);
+
+        /// <summary>Category ids by code (the keys are upper case); codes that match nothing are absent.</summary>
+        Task<Dictionary<string, Guid>> GetIdsByCodesAsync(IReadOnlyCollection<string> upperCaseCodes, CancellationToken ct = default);
         Task<List<Category>> GetByParentIdAsync(Guid? parentId, CancellationToken ct = default);
         Task AddAsync(Category category, CancellationToken ct = default);
         void Update(Category category);
@@ -109,6 +115,9 @@ namespace ERP.PRD.Application.Interfaces
         Task<Brand?> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task<bool> ExistsAsync(Guid id, CancellationToken ct = default);
         Task<bool> CodeExistsAsync(string code, CancellationToken ct = default);
+
+        /// <summary>Ids of the ACTIVE brands by code (the keys are upper case); codes that match nothing are absent.</summary>
+        Task<Dictionary<string, Guid>> GetIdsByCodesAsync(IReadOnlyCollection<string> upperCaseCodes, CancellationToken ct = default);
         Task<List<Brand>> GetAllAsync(bool? isActive, CancellationToken ct = default);
         Task AddAsync(Brand brand, CancellationToken ct = default);
         void Update(Brand brand);

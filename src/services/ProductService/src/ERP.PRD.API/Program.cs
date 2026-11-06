@@ -4,6 +4,7 @@ using ERP.Shared.Authorization;
 using ERP.Shared.Authorization.ServiceAuth;
 using ERP.Shared.Extensions;
 using ERP.Shared.Localization;
+using ERP.Shared.Streaming;
 using ERP.Shared.Versioning;
 using Microsoft.OpenApi;
 
@@ -29,6 +30,7 @@ builder.Services.AddScoped<IUserContextService, JwtClaimsUserContextService>();
 // for the anonymous storefront catalog, or an explicit TenantScope (consumers, indexer).
 builder.Services.AddRequestTenantProvider();
 builder.Services.AddScoped<UserContext>();
+builder.Services.AddStreamingImport(builder.Configuration);   // progress registry + Import:* limits for the streaming import
 builder.Services.AddSingleton(new ModuleIdentity(ModuleCodes.Product));
 
 builder.Services.AddEndpointsApiExplorer();
