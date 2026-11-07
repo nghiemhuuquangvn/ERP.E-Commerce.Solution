@@ -18,6 +18,14 @@ public sealed record PlantDto(
 /// <summary>The plant's warehouses must exist, belong to the caller's tenant and be active (BR-PLT-02). The Warehouse service has no company, so "same company" cannot be checked (risk R-MFG-1).</summary>
 internal static class PlantWarehouseCheck
 {
+    /// <summary>The default calendar, when given, must be a calendar of this plant (BR-PLT-03).</summary>
+    public static async Task EnsureCalendarAsync(ICalendarRepository calendars, Plant plant, CancellationToken ct)
+    {
+        if (plant.DefaultCalendarId is not { } id) return;
+        var calendar = await calendars.GetAsync(id, ct);
+        if (calendar is null || calendar.PlantId != plant.Id) throw MfgRules.Invalid("The default calendar does not exist in this plant.");
+    }
+
     public static async Task EnsureUsableAsync(IWarehouseLookupClient warehouses, Plant plant, CancellationToken ct)
     {
         var ids = plant.WarehouseIds();
@@ -36,7 +44,7 @@ internal static class PlantWarehouseCheck
 public sealed record CreatePlantCommand(string Code, string Name, string? TimeZoneId, Guid RawMaterialWarehouseId, Guid FinishedGoodsWarehouseId,
     Guid QuarantineWarehouseId, Guid? ScrapWarehouseId, Guid? DefaultCalendarId) : IRequest<PlantDto>;
 
-public sealed class CreatePlantHandler(IPlantRepository plants, IProductionSettingRepository settings, IWarehouseLookupClient warehouses, IMfgUnitOfWork uow)
+public sealed class CreatePlantHandler(IPlantRepository plants, IProductionSettingRepository settings, IWarehouseLookupClient warehouses, ICalendarRepository calendars, IMfgUnitOfWork uow)
     : IRequestHandler<CreatePlantCommand, PlantDto>
 {
     public async Task<PlantDto> Handle(CreatePlantCommand r, CancellationToken ct)
@@ -45,6 +53,7 @@ public sealed class CreatePlantHandler(IPlantRepository plants, IProductionSetti
         var plant = Plant.Create(r.Code, r.Name, r.TimeZoneId, r.RawMaterialWarehouseId, r.FinishedGoodsWarehouseId, r.QuarantineWarehouseId, r.ScrapWarehouseId, r.DefaultCalendarId);
         if (await plants.CodeExistsAsync(plant.Code, null, ct)) throw MfgRules.Fail(MfgErrors.Gen006, ("code", plant.Code));
         await PlantWarehouseCheck.EnsureUsableAsync(warehouses, plant, ct);
+        if (plant.DefaultCalendarId is not null) throw MfgRules.Invalid("A new plant has no calendar yet: create the calendar for the plant, then set it as the default.");
 
         plants.Add(plant);
         settings.Add(ProductionSetting.CreateDefault(plant.Id)); // BR-SET-01: the plant's one settings row, in the same save
@@ -58,7 +67,7 @@ public sealed class CreatePlantHandler(IPlantRepository plants, IProductionSetti
 public sealed record UpdatePlantCommand(Guid Id, string Name, string? TimeZoneId, Guid RawMaterialWarehouseId, Guid FinishedGoodsWarehouseId,
     Guid QuarantineWarehouseId, Guid? ScrapWarehouseId, Guid? DefaultCalendarId) : IRequest<PlantDto>;
 
-public sealed class UpdatePlantHandler(IPlantAccessService access, IWarehouseLookupClient warehouses, IMfgUnitOfWork uow)
+public sealed class UpdatePlantHandler(IPlantAccessService access, IWarehouseLookupClient warehouses, ICalendarRepository calendars, IMfgUnitOfWork uow)
     : IRequestHandler<UpdatePlantCommand, PlantDto>
 {
     public async Task<PlantDto> Handle(UpdatePlantCommand r, CancellationToken ct)
@@ -66,6 +75,7 @@ public sealed class UpdatePlantHandler(IPlantAccessService access, IWarehouseLoo
         var plant = await access.GetVisiblePlantAsync(r.Id, ct);
         plant.Update(r.Name, r.TimeZoneId, r.RawMaterialWarehouseId, r.FinishedGoodsWarehouseId, r.QuarantineWarehouseId, r.ScrapWarehouseId, r.DefaultCalendarId);
         await PlantWarehouseCheck.EnsureUsableAsync(warehouses, plant, ct);
+        await PlantWarehouseCheck.EnsureCalendarAsync(calendars, plant, ct);
         await uow.SaveChangesAsync(ct);
         return PlantDto.From(plant);
     }

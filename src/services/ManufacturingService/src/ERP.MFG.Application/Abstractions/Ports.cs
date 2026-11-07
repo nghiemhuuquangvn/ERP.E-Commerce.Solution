@@ -24,6 +24,8 @@ public interface IItemProfileRepository
 {
     Task<ItemManufacturingProfile?> GetAsync(Guid itemId, Guid plantId, CancellationToken ct = default);
     Task<(List<ItemManufacturingProfile> Items, int Total)> ListAsync(Guid plantId, string? search, int page, int pageSize, CancellationToken ct = default);
+    /// <summary>Every profile of the plant, tracked (the low-level codes are rewritten when a BOM is approved or made obsolete).</summary>
+    Task<List<ItemManufacturingProfile>> ListByPlantAsync(Guid plantId, CancellationToken ct = default);
     void Add(ItemManufacturingProfile profile);
 }
 
@@ -53,6 +55,9 @@ public interface IProductLookupClient
 {
     /// <summary>The known products among <paramref name="ids"/>; an unknown id is missing from the list. Throws MFG_INT_001 when the service cannot be reached - never an empty answer.</summary>
     Task<IReadOnlyList<ProductInfo>> LookupAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default);
+
+    /// <summary>The products with these SKUs (any case). A SKU that matches two products comes back twice - the caller reports it as ambiguous. MFG_INT_001 when the service cannot be reached.</summary>
+    Task<IReadOnlyList<ProductInfo>> LookupBySkuAsync(IReadOnlyCollection<string> skus, CancellationToken ct = default);
 }
 
 /// <summary>A unit of measure (MasterData <c>internal/v1/units-of-measure</c>).</summary>
@@ -63,6 +68,9 @@ public sealed record ConvertedQuantity(decimal Quantity, int ToDecimalPlaces);
 public interface IUnitOfMeasureClient
 {
     Task<IReadOnlyList<UnitInfo>> LookupAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default);
+
+    /// <summary>The units with these codes (any case); unknown codes are missing.</summary>
+    Task<IReadOnlyList<UnitInfo>> LookupByCodeAsync(IReadOnlyCollection<string> codes, CancellationToken ct = default);
 
     /// <summary>The quantity expressed in another unit of the same base; null when a unit is unknown; MFG_INT_001 when the service cannot be reached.</summary>
     Task<ConvertedQuantity?> ConvertAsync(Guid fromUomId, Guid toUomId, decimal quantity, CancellationToken ct = default);
@@ -85,6 +93,9 @@ public interface IWarehouseLookupClient
 public interface IOpenOrderGuard
 {
     Task<bool> HasOpenOrdersAsync(Guid plantId, CancellationToken ct = default);
+
+    /// <summary>Are there operations of Released / InProgress / OnHold orders on the work center (BR-WC-03)?</summary>
+    Task<bool> HasOpenOperationsAsync(Guid workCenterId, CancellationToken ct = default);
 }
 
 /// <summary>The production parameters of a plant, cached for 60 s per tenant and plant; every service reads parameters through this (T0.4.1).</summary>

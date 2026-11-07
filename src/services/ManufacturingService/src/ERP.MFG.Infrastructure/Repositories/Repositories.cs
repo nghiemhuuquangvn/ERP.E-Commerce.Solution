@@ -60,6 +60,9 @@ public sealed class ItemProfileRepository(MfgDbContext db) : IItemProfileReposit
         return (items, total);
     }
 
+    public Task<List<ItemManufacturingProfile>> ListByPlantAsync(Guid plantId, CancellationToken ct = default)
+        => db.ItemProfiles.Where(p => p.PlantId == plantId && !p.IsDeleted).ToListAsync(ct);
+
     public void Add(ItemManufacturingProfile profile) => db.ItemProfiles.Add(profile);
 }
 

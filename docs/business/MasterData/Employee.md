@@ -52,3 +52,7 @@ data is needed by more than just HR workflows (e.g. any service that needs to kn
 was extracted into SharedMasterDataService. See CLAUDE.md's Service Boundaries section
 and `docs/architecture/domain-map.md`'s User Provisioning Cycle for the updated event
 flow.
+
+## Internal lookup for Manufacturing (2026-11-06)
+
+`POST internal/v1/employees/lookup` (service token of `manufacturing`, at most 200 ids) answers employee number, full name and whether the person is still employed (status other than Terminated; on leave counts as employed). ManufacturingService uses it to accept only real, employed people as crew members and leaders. See `docs/business/Manufacturing/CalendarsWorkCenters.md`.

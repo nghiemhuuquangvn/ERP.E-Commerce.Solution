@@ -8,6 +8,8 @@ namespace ERP.PRD.Application.Interfaces
         Task<Product?> GetByIdAsync(Guid id, CancellationToken ct = default);
         /// <summary>The existing (not deleted) products among <paramref name="ids"/> of the current tenant; unknown ids are simply missing.</summary>
         Task<List<Product>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default);
+        /// <summary>The products whose SKU equals one of the (any case) SKUs; a SKU used by two products returns both.</summary>
+        Task<List<Product>> GetBySkusAsync(IReadOnlyCollection<string> skus, CancellationToken ct = default);
         Task<Product?> GetByIdWithVariantsAsync(Guid id, CancellationToken ct = default);
         Task<Product?> GetByIdWithTranslationsAsync(Guid id, CancellationToken ct = default);
         Task<Product?> GetByIdWithVariantsAndTranslationsAsync(Guid id, CancellationToken ct = default);
@@ -127,6 +129,7 @@ namespace ERP.PRD.Application.Interfaces
     {
         Task<ProductUomConversion?> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task<List<ProductUomConversion>> GetByProductIdAsync(Guid productId, CancellationToken ct = default);
+        Task<List<ProductUomConversion>> GetByProductIdsAsync(IReadOnlyCollection<Guid> productIds, CancellationToken ct = default);
         Task<bool> PairExistsAsync(Guid productId, Guid fromUomId, Guid toUomId, CancellationToken ct = default);
         Task AddAsync(ProductUomConversion conversion, CancellationToken ct = default);
         void Update(ProductUomConversion conversion);

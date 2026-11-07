@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ERP.MFG.Application.Abstractions;
+using ERP.MFG.Domain.Engineering;
 using ERP.MFG.Domain.Common;
 using ERP.Shared.Infrastructure.Data;
 using Microsoft.Extensions.Caching.Memory;
@@ -95,6 +96,32 @@ public sealed class ProductLookupClient(HttpClient http, IMemoryCache cache, ITe
         return await Cached<IReadOnlyList<ProductInfo>>(CacheKey("lookup", distinct), async () =>
             (await PostAsync<Answer>("internal/v1/product-lookup", new { productIds = distinct }, ct)).Items);
     }
+
+    public async Task<IReadOnlyList<ProductInfo>> LookupBySkuAsync(IReadOnlyCollection<string> skus, CancellationToken ct = default)
+    {
+        var distinct = skus.Select(s => s.Trim()).Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (distinct.Count == 0) return [];
+        var result = new List<ProductInfo>();
+        foreach (var chunk in distinct.Chunk(200))
+            result.AddRange((await PostAsync<Answer>("internal/v1/product-lookup/by-sku", new { skus = chunk }, ct)).Items);
+        return result;
+    }
+}
+
+public sealed class ProductUomConversionClient(HttpClient http, IMemoryCache cache, ITenantProvider tenant, ILogger<ProductUomConversionClient> logger)
+    : InternalClientBase(http, cache, tenant, logger, "product"), IProductUomConversionClient
+{
+    private sealed record Row(Guid ProductId, Guid FromUomId, Guid ToUomId, decimal ConversionFactor);
+    private sealed record Answer(List<Row> Items);
+
+    public async Task<IReadOnlyList<ProductConversionFacts>> LookupAsync(IReadOnlyCollection<Guid> productIds, CancellationToken ct = default)
+    {
+        var distinct = productIds.Distinct().ToList();
+        if (distinct.Count == 0) return [];
+        return await Cached<IReadOnlyList<ProductConversionFacts>>(CacheKey("uom-conversions", distinct), async () =>
+            (await PostAsync<Answer>("internal/v1/product-uom-conversions/lookup", new { productIds = distinct }, ct)).Items
+                .Select(r => new ProductConversionFacts(r.ProductId, r.FromUomId, r.ToUomId, r.ConversionFactor)).ToList());
+    }
 }
 
 public sealed class UnitOfMeasureClient(HttpClient http, IMemoryCache cache, ITenantProvider tenant, ILogger<UnitOfMeasureClient> logger)
@@ -108,6 +135,16 @@ public sealed class UnitOfMeasureClient(HttpClient http, IMemoryCache cache, ITe
         if (distinct.Count == 0) return [];
         return await Cached<IReadOnlyList<UnitInfo>>(CacheKey("uom", distinct), async () =>
             (await PostAsync<Answer>("internal/v1/units-of-measure/lookup", new { ids = distinct }, ct)).Items);
+    }
+
+    public async Task<IReadOnlyList<UnitInfo>> LookupByCodeAsync(IReadOnlyCollection<string> codes, CancellationToken ct = default)
+    {
+        var distinct = codes.Select(c => c.Trim()).Where(c => c.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (distinct.Count == 0) return [];
+        var result = new List<UnitInfo>();
+        foreach (var chunk in distinct.Chunk(200))
+            result.AddRange((await PostAsync<Answer>("internal/v1/units-of-measure/by-code", new { codes = chunk }, ct)).Items);
+        return result;
     }
 
     public async Task<ConvertedQuantity?> ConvertAsync(Guid fromUomId, Guid toUomId, decimal quantity, CancellationToken ct = default)
@@ -125,6 +162,20 @@ public sealed class UnitOfMeasureClient(HttpClient http, IMemoryCache cache, ITe
         {
             throw Unavailable();
         }
+    }
+}
+
+public sealed class EmployeeLookupClient(HttpClient http, IMemoryCache cache, ITenantProvider tenant, ILogger<EmployeeLookupClient> logger)
+    : InternalClientBase(http, cache, tenant, logger, "masterdata"), IEmployeeLookupClient
+{
+    private sealed record Answer(List<EmployeeInfo> Items);
+
+    public async Task<IReadOnlyList<EmployeeInfo>> LookupAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default)
+    {
+        var distinct = ids.Distinct().ToList();
+        if (distinct.Count == 0) return [];
+        return await Cached<IReadOnlyList<EmployeeInfo>>(CacheKey("employees", distinct), async () =>
+            (await PostAsync<Answer>("internal/v1/employees/lookup", new { ids = distinct }, ct)).Items);
     }
 }
 

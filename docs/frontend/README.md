@@ -143,3 +143,4 @@ talks only to the Ocelot Gateway (`http://localhost:5000`) over REST.
   mapping in every app's `client.ts` *and* every backend service's
   `appsettings.json` `Localization:SupportedCultures` — it is not purely a frontend
   change.
+- `manufacturing-admin-guide.md` - Manufacturing screens (BOM tree, routing drag and drop, calendars, work centers, CSV import) and their patterns (2026-11-07)

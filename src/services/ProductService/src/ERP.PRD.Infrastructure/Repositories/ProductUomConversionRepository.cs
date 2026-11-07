@@ -20,6 +20,11 @@ namespace ERP.PRD.Infrastructure.Repositories
                 .OrderBy(c => c.CreatedAt)
                 .ToListAsync(ct);
 
+        public async Task<List<ProductUomConversion>> GetByProductIdsAsync(IReadOnlyCollection<Guid> productIds, CancellationToken ct = default)
+            => await _db.ProductUomConversions.AsNoTracking()
+                .Where(c => productIds.Contains(c.ProductId))
+                .ToListAsync(ct);
+
         public async Task<bool> PairExistsAsync(Guid productId, Guid fromUomId, Guid toUomId, CancellationToken ct = default)
             => await _db.ProductUomConversions.AnyAsync(
                 c => c.ProductId == productId && c.FromUomId == fromUomId && c.ToUomId == toUomId, ct);

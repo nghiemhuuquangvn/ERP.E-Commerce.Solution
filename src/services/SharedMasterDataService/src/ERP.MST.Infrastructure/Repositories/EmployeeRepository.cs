@@ -14,6 +14,13 @@ public class EmployeeRepository : IEmployeeRepository
         _context = context;
     }
 
+    public async Task<IReadOnlyList<Employee>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
+    {
+        return await _context.Employees.AsNoTracking()
+            .Where(e => ids.Contains(e.Id) && !e.IsDeleted)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<Employee?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Employees

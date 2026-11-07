@@ -43,6 +43,14 @@ import { InventoryValuationSnapshotsPage } from '@/pages/inventory/InventoryValu
 import { PaymentsPage } from '@/pages/payments/PaymentsPage'
 import { ShipmentsPage } from '@/pages/shipping/ShipmentsPage'
 import { ReturnsPage } from '@/pages/shipping/ReturnsPage'
+import { PlantsPage } from '@/pages/manufacturing/PlantsPage'
+import { SettingsPage as MfgSettingsPage } from '@/pages/manufacturing/SettingsPage'
+import { ItemProfilesPage } from '@/pages/manufacturing/ItemProfilesPage'
+import { CalendarsPage } from '@/pages/manufacturing/CalendarsPage'
+import { WorkCentersPage } from '@/pages/manufacturing/WorkCentersPage'
+import { CatalogsPage } from '@/pages/manufacturing/CatalogsPage'
+import { BomListPage, BomEditorPage, WhereUsedPage } from '@/pages/manufacturing/BomPages'
+import { RoutingListPage, RoutingEditorPage } from '@/pages/manufacturing/RoutingPages'
 import { NotificationWebhooksPage } from '@/pages/settings/NotificationWebhooksPage'
 import { PromotionsPage } from '@/pages/promotion/PromotionsPage'
 import { FlashSalesPage } from '@/pages/promotion/FlashSalesPage'
@@ -192,6 +200,18 @@ export const router = createBrowserRouter([
       { path: 'payments', element: <PaymentsPage /> },
       { path: 'shipping/shipments', element: <ShipmentsPage /> },
       { path: 'shipping/returns', element: <ReturnsPage /> },
+      { path: 'manufacturing', element: <Navigate to="/manufacturing/boms" replace /> },
+      { path: 'manufacturing/plants', element: <PlantsPage /> },
+      { path: 'manufacturing/settings', element: <MfgSettingsPage /> },
+      { path: 'manufacturing/item-profiles', element: <ItemProfilesPage /> },
+      { path: 'manufacturing/calendars', element: <CalendarsPage /> },
+      { path: 'manufacturing/work-centers', element: <WorkCentersPage /> },
+      { path: 'manufacturing/catalogs', element: <CatalogsPage /> },
+      { path: 'manufacturing/boms', element: <BomListPage /> },
+      { path: 'manufacturing/boms/:id', element: <BomEditorPage /> },
+      { path: 'manufacturing/where-used', element: <WhereUsedPage /> },
+      { path: 'manufacturing/routings', element: <RoutingListPage /> },
+      { path: 'manufacturing/routings/:id', element: <RoutingEditorPage /> },
       { path: 'settings/notification-webhooks', element: <NotificationWebhooksPage /> },
       { path: 'promotion/promotions', element: <PromotionsPage /> },
       { path: 'promotion/flash-sales', element: <FlashSalesPage /> },

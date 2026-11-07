@@ -27,3 +27,10 @@ public static class DocumentTypes
     public static string Format(string docType, DateTime date, long sequence)
         => $"{docType}-{date:yyMM}-{sequence:D5}";
 }
+
+/// <summary>A master record that belongs to a plant and has a code unique within it (shift, calendar, work center, machine, standard operation, crew).</summary>
+public interface IPlantCoded
+{
+    Guid PlantId { get; }
+    string Code { get; }
+}

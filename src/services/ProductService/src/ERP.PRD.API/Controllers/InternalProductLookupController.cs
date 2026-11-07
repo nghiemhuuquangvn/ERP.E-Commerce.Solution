@@ -19,6 +19,19 @@ public class InternalProductLookupController : ControllerBase
         public List<Guid> ProductIds { get; set; } = new();
     }
 
+    public class SkuLookupRequest
+    {
+        public List<string> Skus { get; set; } = new();
+    }
+
+    [HttpPost("by-sku")]
+    [AuthorizeInternalService("manufacturing")]
+    public async Task<IActionResult> GetBySku([FromBody] SkuLookupRequest request, CancellationToken ct)
+    {
+        if (request.Skus.Count > 200) return BadRequest(new { message = "At most 200 SKUs per call." });
+        return Ok(new { items = await _mediator.Send(new GetProductLookupBySkuQuery { Skus = request.Skus }, ct) });
+    }
+
     [HttpPost]
     [AuthorizeInternalService("manufacturing")]
     public async Task<IActionResult> Get([FromBody] LookupRequest request, CancellationToken ct)

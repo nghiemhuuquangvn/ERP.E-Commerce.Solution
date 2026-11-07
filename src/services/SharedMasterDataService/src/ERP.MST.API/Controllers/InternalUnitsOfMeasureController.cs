@@ -34,6 +34,19 @@ public class InternalUnitsOfMeasureController : ControllerBase
         return Ok(new { items = await _mediator.Send(new LookupUnitsOfMeasureQuery(request.Ids), ct) });
     }
 
+    public class CodeLookupRequest
+    {
+        public List<string> Codes { get; set; } = new();
+    }
+
+    [HttpPost("by-code")]
+    [AuthorizeInternalService("manufacturing")]
+    public async Task<IActionResult> ByCode([FromBody] CodeLookupRequest request, CancellationToken ct)
+    {
+        if (request.Codes.Count > 200) return BadRequest(new { message = "At most 200 codes per call." });
+        return Ok(new { items = await _mediator.Send(new LookupUnitsByCodeQuery(request.Codes), ct) });
+    }
+
     [HttpPost("convert")]
     [AuthorizeInternalService("manufacturing")]
     public async Task<IActionResult> Convert([FromBody] ConvertRequest request, CancellationToken ct)
