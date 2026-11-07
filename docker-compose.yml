@@ -1020,6 +1020,7 @@ services:
       Services__ProductServiceBaseUrl: "http://productservice:5008"
       Services__MasterDataServiceBaseUrl: "http://masterdataservice:5015"
       Services__WarehouseServiceBaseUrl: "http://warehouseservice:5004"
+      Manufacturing__EnableDemoSeed: "${MFG_DEMO_SEED:-false}"
       Cors__AllowedOrigins__0: "http://localhost:5173"
       Cors__AllowedOrigins__1: "http://localhost:5174"
     depends_on:
