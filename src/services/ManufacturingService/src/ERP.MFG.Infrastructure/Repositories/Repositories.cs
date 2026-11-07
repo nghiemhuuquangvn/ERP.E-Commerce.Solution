@@ -1,4 +1,5 @@
 using ERP.MFG.Application.Abstractions;
+using ERP.MFG.Domain.Common;
 using ERP.MFG.Domain.Entities;
 using ERP.MFG.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +8,18 @@ namespace ERP.MFG.Infrastructure.Repositories;
 
 public sealed class MfgUnitOfWork(MfgDbContext db) : IMfgUnitOfWork
 {
-    public Task<int> SaveChangesAsync(CancellationToken ct = default) => db.SaveChangesAsync(ct);
+    /// <summary>BR-GEN-03: a row changed by someone else since it was read (<c>xmin</c>), or a unique key taken by a parallel request, is a 409 with the MFG_GEN_001 text - never a 500.</summary>
+    public async Task<int> SaveChangesAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            return await db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex) when (ex is DbUpdateConcurrencyException || ex is DbUpdateException { InnerException: Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation } })
+        {
+            throw new ERP.Shared.Infrastructure.Exceptions.ConcurrencyException(MfgErrors.Format(MfgErrors.Gen001), ex);
+        }
+    }
 }
 
 public sealed class PlantRepository(MfgDbContext db) : IPlantRepository

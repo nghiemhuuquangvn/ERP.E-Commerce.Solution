@@ -40,6 +40,12 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-07 - Manufacturing M6: demo data, full live check, wrap-up (`feat/manufacturing-m6`, unmerged)
+- **DS-01 seeder** (`POST mfg/.../seed/ds01`, off unless `Manufacturing:EnableDemoSeed`, compose `MFG_DEMO_SEED`) builds plant, settings, shifts, calendar, work centers, machines, profiles and approved BOMs / routings through the real commands and the CSV import; idempotent; `scripts/seed-ds01-products.js` creates the 12 products. Stock, QC plan and orders are not seedable yet.
+- **Defect found and fixed by the live check:** two parallel approvals of one item answered 500 for the loser; now 409 (MFG_GEN_001) for concurrency and unique-key races.
+- **Live (glcheck):** `mfg-m6.js` all OK (DS-01 numbers, idempotent second run, 403 for a user without approve, 3 parallel approvals = 1 winner); M4 and M5 scripts re-run OK. MFG 263 tests, Architecture 82.
+- **Docs:** `docs/business/Manufacturing/README.md` (index + Phase 0-2 acceptance), `DemoData-DS01.md`. **Risks:** R182-R186. **Open:** browser click-through (R179/R185), second tenant (R186). **Next:** Warehouse upgrade epic (plan first), then Phase 3.
+
 ### 2026-11-07 - Manufacturing M5: Admin screens (`feat/manufacturing-service`, unmerged)
 - **Admin SPA:** sidebar group Manufacturing and 11 routes: plants (+ who may work there), production settings (+ change history), item profiles, shifts and calendars (weekly pattern, exceptions, month view, working-time calculator), work centers (+ capacity chart), catalogs (machines, standard operations, reason codes, crews), BOM list and editor (lines, tree, requirements, versions + compare, approve / obsolete / copy with warnings), where-used, routing list and editor (native drag-and-drop re-sequencing with Up / Down buttons, lead time, versions + compare), shared CSV import dialog (check, then import). Frontend only; no backend change.
 - **Tests:** Admin 31 files / 370 tests (40 new + sidebar), `tsc -b` and `npm run check:tokens` clean; admin image rebuilt and redeployed; requests of the screens checked through the SPA container (16 checks OK). Not clicked in a browser (R179).
