@@ -40,6 +40,11 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-07 - Manufacturing M5: Admin screens (`feat/manufacturing-service`, unmerged)
+- **Admin SPA:** sidebar group Manufacturing and 11 routes: plants (+ who may work there), production settings (+ change history), item profiles, shifts and calendars (weekly pattern, exceptions, month view, working-time calculator), work centers (+ capacity chart), catalogs (machines, standard operations, reason codes, crews), BOM list and editor (lines, tree, requirements, versions + compare, approve / obsolete / copy with warnings), where-used, routing list and editor (native drag-and-drop re-sequencing with Up / Down buttons, lead time, versions + compare), shared CSV import dialog (check, then import). Frontend only; no backend change.
+- **Tests:** Admin 31 files / 370 tests (40 new + sidebar), `tsc -b` and `npm run check:tokens` clean; admin image rebuilt and redeployed; requests of the screens checked through the SPA container (16 checks OK). Not clicked in a browser (R179).
+- **Docs:** `docs/frontend/manufacturing-admin-guide.md`, "Screens" sections in the four Manufacturing BA documents. **Risks:** R179-R181. **Next:** M6 (wrap-up: DS-01 seeder, CLAUDE.md, memory), then the Warehouse upgrade epic.
+
 ### 2026-11-07 - Manufacturing M4: routings, operation times, lead time, BOM / routing check, CSV import (`feat/manufacturing-service`, unmerged; PR #88 holds only M0-M1, so M2-M4 need a new PR)
 - **ManufacturingService:** routing with versions (same rules as BOM, now one generic `DocumentVersioning`), operations (free entry or copied from a standard operation, renumber 10, 20, 30), work center checks (active, same plant, subcontract), pure `OperationTimeCalculator` (standard / calendar minutes) and `RoutingLeadTimeCalculator` (backwards over the calendars of the work centers, queue and move as working minutes), `BomRoutingCheck` (BOM approval and routing approval return warnings), CSV import of a BOM and of a routing (all-or-nothing, line errors, dry run, template); SQL `Manufacturing/005`.
 - **ProductService / MasterData:** `internal/v1/product-lookup/by-sku`, `internal/v1/units-of-measure/by-code` (caller `manufacturing`). The branch merged `origin/master` (streaming import) to reuse the CSV reader.

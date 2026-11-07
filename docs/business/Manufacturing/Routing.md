@@ -117,3 +117,11 @@ Assumption: the calendar of a work center is the one that governs its operations
 6. Try to delete WC-ASM -> refused (used); deactivate instead.
 7. Fill the BOM template with 10 lines, one unknown SKU: dry run lists exactly that line, a real import writes nothing; fix it, import -> Draft next version; open it, approve.
 8. Routing file with an unknown work center, a duplicate number and a batch operation without size: three errors with their lines; fix and import.
+
+## 14. Screens (M5)
+Route `/manufacturing/routings` (list, **New routing**, **Import routing from CSV**) and `/manufacturing/routings/:id` (editor). Guide: `docs/frontend/manufacturing-admin-guide.md`.
+- **Operations tab (S09):** the operation grid. In a Draft each row can be **dragged** to a new place (a grip icon, or the Up / Down buttons for keyboard and touch); on drop the screen sends the new order and the server renumbers 10, 20, 30 ... An approved routing cannot be dragged or edited. *Add operation* is free entry or **from a standard operation** (values copied), with work center, setup, run, per unit or per batch, queue, move and the subcontract flag; a refused value (`MFG_RT_*`) shows in the dialog.
+- **Lead time tab:** quantity and the date the order must finish -> total calendar minutes, start date and time, and per operation the standard minutes, calendar minutes, start and end (DS-01: 100 tables ending 2026-11-13 -> 2003 minutes, start 2026-11-11, painting 630 standard / 788 calendar).
+- **Versions tab:** the versions of the item and the **comparison** of this version with another by operation number (added, removed, changed work center / times).
+- **Approve** shows the BOM lines the routing does not cover as a warning box (BR-RT-08).
+- **UAT:** (1) build the table routing with three operations; drag Packing to the top: it becomes 10 and the others 20, 30; the same with the arrows; (2) Lead time for 100 ending 13/11: 2003 minutes, 11/11; (3) approve: the grid loses its drag handles; (4) copy, change a time, open *Versions*: one changed operation; (5) approve a routing that lacks an operation named by an approved BOM line: warning box.

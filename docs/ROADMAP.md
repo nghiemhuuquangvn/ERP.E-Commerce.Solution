@@ -164,6 +164,6 @@ Each needs an ADR first (own service vs inside an existing one, port/code, event
 | P2-5 | Fixed assets & depreciation (asset register, depreciation schedules, automatic depreciation entries via P1-1). |
 | P2-6 | Shared workflow / approval engine replacing the hand-written approvals in Purchasing, Sales, HRM leave, Warehouse adjustments. |
 | P2-7 | HRM extension: recruitment, training, performance/KPI reviews (7 of 11 BA sub-modules missing). |
-| P2-8 | Manufacturing: BOM, routing, MRP, work orders — linked to Product, Warehouse, Purchasing, Accounting. **In progress (2026-11-06):** own service MFG on PostgreSQL (`docs/architecture/adr-manufacturing-service.md`); M0 foundation, M1 plants / parameters / item profiles, M2 calendars / work centers / machines / reasons / crews and M3 bills of materials and M4 routings / lead time / CSV import done, M5-M6 (Admin screens, wrap-up) next, Phase 3+ after the Warehouse upgrade. |
+| P2-8 | Manufacturing: BOM, routing, MRP, work orders — linked to Product, Warehouse, Purchasing, Accounting. **In progress (2026-11-06):** own service MFG on PostgreSQL (`docs/architecture/adr-manufacturing-service.md`); M0 foundation, M1 plants / parameters / item profiles, M2 calendars / work centers / machines / reasons / crews and M3 bills of materials, M4 routings / lead time / CSV import and M5 Admin screens done, M6 (wrap-up) next, Phase 3+ after the Warehouse upgrade. |
 
 Candidates, not confirmed: budgeting per cost center, shared document management, CRM campaigns.

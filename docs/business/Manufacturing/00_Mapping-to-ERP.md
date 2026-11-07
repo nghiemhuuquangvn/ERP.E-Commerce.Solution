@@ -28,3 +28,4 @@ so the specs stay readable as they are. Decision record: `docs/architecture/adr-
 | BR-RT-08 shared function (T2.7.1) | pure `BomRoutingCheck.Warnings` (BOM and routing approval) and `AssignOperation` (orders, Phase 3) |
 | Excel import (T2.9.1) | **CSV** (UTF-8) instead of Excel, all-or-nothing, reusing `CsvImportReader` of `ERP.Shared.Streaming` for parsing; not streamed (a document is small) |
 | One versioning rule for BOM and routing | generic `DocumentVersioning` over `IVersionedDocument` |
+| Screens S01-S09 (T1.7, T2.8) | routes `/manufacturing/...`: S01 plants, S02 settings, S03 item profiles, S04 calendars, S05 work centers, S06 catalogs, S08 BOM (tree), S09 routing (drag and drop); S07 (reason codes / crews) is a tab of S06; drag-and-drop is native HTML5 with arrow buttons |

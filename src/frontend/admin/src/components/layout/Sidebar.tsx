@@ -471,6 +471,18 @@ const PURCHASING_CHILDREN: NavItem[] = [
   { labelKey: 'nav.purchasingSettings', path: '/purchasing/settings', permission: 'supplier_invoice:read', icon: Settings2 },
 ]
 
+const MANUFACTURING_CHILDREN: NavItem[] = [
+  { labelKey: 'mfg.nav.boms', path: '/manufacturing/boms', permission: 'manufacturing:bom:view', icon: FolderTree },
+  { labelKey: 'mfg.nav.routings', path: '/manufacturing/routings', permission: 'manufacturing:routing:view', icon: Workflow },
+  { labelKey: 'mfg.nav.whereUsed', path: '/manufacturing/where-used', permission: 'manufacturing:bom:view', icon: Link },
+  { labelKey: 'mfg.nav.itemProfiles', path: '/manufacturing/item-profiles', permission: 'manufacturing:masterdata:view', icon: ClipboardList },
+  { labelKey: 'mfg.nav.workCenters', path: '/manufacturing/work-centers', permission: 'manufacturing:masterdata:view', icon: Factory },
+  { labelKey: 'mfg.nav.calendars', path: '/manufacturing/calendars', permission: 'manufacturing:masterdata:view', icon: CalendarDays },
+  { labelKey: 'mfg.nav.catalogs', path: '/manufacturing/catalogs', permission: 'manufacturing:masterdata:view', icon: Database },
+  { labelKey: 'mfg.nav.plants', path: '/manufacturing/plants', permission: 'manufacturing:masterdata:view', icon: Building2 },
+  { labelKey: 'mfg.nav.settings', path: '/manufacturing/settings', permission: 'manufacturing:masterdata:view', icon: Settings2 },
+]
+
 const NAV_ITEMS: NavItem[] = [
   { labelKey: 'nav.dashboard', path: '/dashboard', permission: null, icon: LayoutDashboard },
   { labelKey: 'nav.sales', path: '/orders', icon: ShoppingBag, children: SALES_CHILDREN },
@@ -495,6 +507,7 @@ const NAV_ITEMS: NavItem[] = [
   { labelKey: 'nav.promotion', path: '/promotion', icon: Gift, children: PROMOTION_CHILDREN },
   { labelKey: 'nav.pos', path: '/pos', icon: Store, children: POS_CHILDREN },
   { labelKey: 'nav.chatbot', path: '/chatbot', permission: 'chatbot:assistant:use', icon: Bot },
+  { labelKey: 'nav.manufacturing', path: '/manufacturing', icon: Factory, children: MANUFACTURING_CHILDREN },
   { labelKey: 'nav.hrm', path: '/hrm', icon: Users, children: HRM_CHILDREN },
   { labelKey: 'nav.accounting', path: '/accounting', icon: Landmark, children: ACCOUNTING_CHILDREN },
   { labelKey: 'nav.masterData', path: '/masterdata', icon: Database, children: MASTERDATA_CHILDREN },
