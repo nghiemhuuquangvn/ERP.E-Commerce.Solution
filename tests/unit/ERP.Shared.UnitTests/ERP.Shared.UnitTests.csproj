@@ -29,6 +29,7 @@
     <ProjectReference Include="..\..\..\src\Shared\Infrastructure\Caching\ERP.Shared.Caching.csproj" />
     <ProjectReference Include="..\..\..\src\Shared\Middleware\ERP.Shared.Middleware.csproj" />
     <ProjectReference Include="..\..\..\src\Shared\Extensions\ERP.Shared.Extensions.csproj" />
+    <ProjectReference Include="..\..\..\src\Shared\Streaming\ERP.Shared.Streaming.csproj" />
   </ItemGroup>
 
 </Project>

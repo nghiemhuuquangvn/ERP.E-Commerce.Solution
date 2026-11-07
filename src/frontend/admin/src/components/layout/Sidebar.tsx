@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useUiStore } from '@/stores/ui.store'
 import { usePermission } from '@/hooks/usePermission'
-import { Activity, AlarmClock, ArrowLeftRight, BadgeDollarSign, BadgePercent, Banknote, BarChart3, Bell, BookOpen, BookText, Bot, Building, Building2, Calculator, Calendar, CalendarDays, ClipboardCheck, ClipboardList, Clock, Coins, Compass, CreditCard, Database, Factory, FileBarChart, FileSearch, FileText, Flag, FlaskConical, FolderTree, Gift, Globe, HandCoins, HardDrive, KeyRound, Landmark, Languages, LayoutDashboard, Link, Lock, Mail, Map, MapPin, MonitorSmartphone, Package, Percent, Puzzle, Receipt, Ruler, Scale, ScanBarcode, ScrollText, Send, Settings, Settings2, ShieldCheck, ShoppingBag, ShoppingCart, SlidersHorizontal, Smartphone, Star, Store, Tag, Timer, TrendingUp, Truck, Umbrella, Undo2, User, UserCog, Users, UsersRound, Wallet, Warehouse, Webhook, Workflow, Zap, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
+import { Activity, AlarmClock, ArrowLeftRight, BadgeDollarSign, BadgePercent, Banknote, BarChart3, Bell, BookOpen, BookText, Bot, Building, Building2, Calculator, Calendar, CalendarDays, ClipboardCheck, ClipboardList, Clock, Coins, Compass, CreditCard, Database, Factory, FileBarChart, FileSearch, FileText, Flag, FlaskConical, FolderTree, Gift, Globe, HandCoins, HardDrive, KeyRound, Landmark, Languages, LayoutDashboard, Link, Lock, Mail, Map, MapPin, MonitorSmartphone, Package, Percent, Puzzle, Receipt, Ruler, Scale, ScanBarcode, ScrollText, Send, Settings, Settings2, ShieldCheck, ShoppingBag, ShoppingCart, SlidersHorizontal, Smartphone, Star, Store, Tag, Timer, TrendingUp, Truck, Umbrella, Undo2, User, UserCog, Users, UsersRound, Wallet, Warehouse, Webhook, Workflow, Zap, FileUp, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
 
 interface NavItem {
   labelKey: string
@@ -199,6 +199,12 @@ const HRM_CHILDREN: NavItem[] = [
     path: '/hrm/attendance',
     permission: 'hrm:attendance:view',
     icon: Clock,
+  },
+  {
+    labelKey: 'nav.employeeImport',
+    path: '/hrm/employee-import',
+    permission: 'masterdata:employees:manage',
+    icon: FileUp,
   },
   {
     labelKey: 'nav.leaveRequests',

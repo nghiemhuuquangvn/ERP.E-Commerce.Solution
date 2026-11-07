@@ -22,6 +22,16 @@ namespace ERP.PRD.Infrastructure.Repositories
         public async Task<bool> ExistsAsync(Guid id, CancellationToken ct = default)
             => await _db.Categories.AnyAsync(c => c.Id == id && !c.IsDeleted, ct);
 
+        public async Task<Dictionary<string, Guid>> GetIdsByCodesAsync(IReadOnlyCollection<string> upperCaseCodes, CancellationToken ct = default)
+        {
+            if (upperCaseCodes.Count == 0) return new Dictionary<string, Guid>();
+            var rows = await _db.Categories
+                .Where(c => !c.IsDeleted && c.Code != null && upperCaseCodes.Contains(c.Code.ToUpper()))
+                .Select(c => new { Code = c.Code!.ToUpper(), c.Id })
+                .ToListAsync(ct);
+            return rows.GroupBy(r => r.Code).ToDictionary(g => g.Key, g => g.First().Id);
+        }
+
         public async Task<List<Category>> GetByParentIdAsync(Guid? parentId, CancellationToken ct = default)
         {
             var query = _db.Categories

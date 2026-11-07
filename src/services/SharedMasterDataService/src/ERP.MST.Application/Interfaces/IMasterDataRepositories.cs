@@ -11,6 +11,9 @@ public interface IDepartmentRepository
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Department>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
+
+    /// <summary>Department ids by code (the keys are upper case); codes that match nothing are absent.</summary>
+    Task<Dictionary<string, Guid>> GetIdsByCodesAsync(IReadOnlyCollection<string> upperCaseCodes, CancellationToken cancellationToken = default);
     Task<DepartmentTranslation?> GetTranslationAsync(Guid ownerId, string languageCode, CancellationToken cancellationToken = default);
     void Add(Department department);
     void Update(Department department);
@@ -26,6 +29,9 @@ public interface IPositionRepository
         int pageSize,
         CancellationToken cancellationToken = default);
     Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
+
+    /// <summary>Position ids by code (the keys are upper case); codes that match nothing are absent.</summary>
+    Task<Dictionary<string, Guid>> GetIdsByCodesAsync(IReadOnlyCollection<string> upperCaseCodes, CancellationToken cancellationToken = default);
     Task<PositionTranslation?> GetTranslationAsync(Guid ownerId, string languageCode, CancellationToken cancellationToken = default);
     void Add(Position position);
     void Update(Position position);
@@ -44,6 +50,18 @@ public interface IEmployeeRepository
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Employee>> GetActiveEmployeesAsync(CancellationToken cancellationToken = default);
     Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default);
+
+    /// <summary>Which of the given e-mails (lower case) already belong to an employee: one query for a whole import batch.</summary>
+    Task<HashSet<string>> GetExistingEmailsAsync(IReadOnlyCollection<string> lowerCaseEmails, CancellationToken cancellationToken = default);
+
+    /// <summary>Which of the given employee numbers (upper case) are taken.</summary>
+    Task<HashSet<string>> GetExistingNumbersAsync(IReadOnlyCollection<string> upperCaseNumbers, CancellationToken cancellationToken = default);
+
+    /// <summary>The highest numeric suffix among the numbers that are exactly prefix + digits digits (0 when none): where a generated number sequence continues.</summary>
+    Task<int> GetMaxNumberSuffixAsync(string prefix, int digits, CancellationToken cancellationToken = default);
+
+    /// <summary>Forgets every tracked entity (a long import commits in batches).</summary>
+    void ClearTracking();
     void Add(Employee employee);
     void Update(Employee employee);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

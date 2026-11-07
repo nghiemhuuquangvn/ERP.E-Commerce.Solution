@@ -65,6 +65,8 @@ public class EmployeeHiredIntegrationEvent : INotification
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string Department { get; set; } = string.Empty;
+    /// <summary>"hire" or "import" (MST EmployeeHiredEvent.Source); an imported employee is not greeted.</summary>
+    public string Source { get; set; } = "hire";
 }
 
 public class TwoFactorCodeGeneratedIntegrationEvent : INotification
@@ -235,6 +237,9 @@ public class EmployeeHiredIntegrationEventHandler : INotificationHandler<Employe
 
     public async Task Handle(EmployeeHiredIntegrationEvent @event, CancellationToken cancellationToken)
     {
+        // A CSV import brings existing people into the system: no welcome e-mail for each of them.
+        if (string.Equals(@event.Source, "import", StringComparison.OrdinalIgnoreCase)) return;
+
         await _mediator.Send(new SendNotificationCommand
         {
             RecipientId = @event.EmployeeId.ToString(),

@@ -6,6 +6,8 @@
 
 > **2026-11-05 (branch `feat/mobile-admin-notifications`, not merged):** ROADMAP M5 - approver notifications (PO / sales order / leave submitted), record links, read-all, device tokens, FCM v1 push **off by default**; Admin app opens the record and alerts on the phone while open. Deploy prerequisites: migration `Notification/015`, the NotificationService `ServiceAuth__*` / `Identity__BaseUrl` settings and Identity's `ServiceAuth__TrustedCallers__notification` (compose done, **k8s not**, R140); real push needs the owner's Firebase files (R141). Details: `docs/business/Notification/module-21-notification.md` §11, `docs/business/Mobile/AdminApp.md` §18.
 
+> **2026-11-06 (branch `feat/streaming-import`, not merged):** ROADMAP M6 - streaming CSV import of products and employees (HTTP streaming upload, NDJSON result, SSE progress). Deploy prerequisites: Gateway rebuilt (`StreamingProxy` in appsettings), nginx regex locations (edge `deployment/nginx/nginx.conf` bind mount -> reload; the SPA image `erp-admin` must be rebuilt), productservice, masterdataservice, notificationservice (welcome-mail skip). **k8s manifests / ingress were not updated** for the nginx streaming settings (R147). Details: `docs/architecture/streaming-import-pattern.md`.
+
 > Business documentation (BA level) per domain: start with `docs/business/Accounting/BA-Accounting.md`; every task must update it (rule 10 in `Claude.md`).
 > Open problems that were deliberately left unfixed: **docs/DEFERRED-ISSUES.md** (read it before picking the next task).
 

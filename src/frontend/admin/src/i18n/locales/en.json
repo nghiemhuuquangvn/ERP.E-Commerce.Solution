@@ -94,6 +94,7 @@
     "accounting": "Accounting",
     "attendance": "Attendance",
     "leaveRequests": "Leave Requests",
+    "employeeImport": "Import employees",
     "payroll": "Payroll",
       "salaryProfiles": "Salary profiles",
       "payrollSettings": "Payroll settings",
@@ -3274,6 +3275,47 @@
       "print": "Print",
       "shifts": "Shifts",
       "failed": "The report could not be loaded."
+    }
+  },
+  "import": {
+    "chooseFile": "CSV file (UTF-8)",
+    "columns": "Columns",
+    "downloadTemplate": "Download the template",
+    "templateFailed": "The template could not be downloaded.",
+    "dryRun": "Check only (nothing is saved)",
+    "start": "Start import",
+    "startDryRun": "Start check",
+    "cancel": "Cancel import",
+    "close": "Close",
+    "running": "Importing…",
+    "progress": "Import progress",
+    "processed": "Processed",
+    "created": "Created",
+    "wouldCreate": "Would be created",
+    "skipped": "Skipped",
+    "failed": "Failed",
+    "rowsTitle": "Skipped and invalid rows",
+    "rowLine": "Line {{line}}",
+    "more": "Showing the first {{count}} rows; download the full list.",
+    "downloadProblems": "Download problem rows (CSV)",
+    "doneTitle": "Import finished",
+    "doneDryRun": "Check finished: nothing was saved.",
+    "summary": "{{processed}} rows: {{created}} created, {{skipped}} skipped, {{failed}} failed ({{seconds}} s).",
+    "summaryDryRun": "{{processed}} rows: {{created}} would be created, {{skipped}} skipped, {{failed}} invalid ({{seconds}} s).",
+    "cancelled": "The import was cancelled. Rows already saved stay saved.",
+    "stopped": "The import stopped: {{message}}",
+    "failedGeneric": "The import could not be completed. Check the connection and try again.",
+    "noFile": "Choose a CSV file first.",
+    "products": {
+      "title": "Import products",
+      "columns": "Required: sku, name. Optional: description, productType (Physical, Digital, Service, Bundle), categoryCode, brandCode, price, discountedPrice, cost, barcode, weightKg, status (Draft or Active)."
+    },
+    "employees": {
+      "title": "Import employees",
+      "columns": "Required: firstName, lastName, departmentCode, dateOfHire (yyyy-MM-dd or dd/MM/yyyy). Optional: employeeNumber (generated when blank), email, phone, positionCode, employmentType (FullTime, PartTime, Contract). No login is created.",
+      "open": "Import employees",
+      "pageTitle": "Import employees",
+      "pageIntro": "Add many employees at once from a CSV file. Employees are stored in master data; HR sees them a moment after the import."
     }
   }
 }

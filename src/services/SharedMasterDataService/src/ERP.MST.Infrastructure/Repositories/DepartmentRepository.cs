@@ -48,6 +48,16 @@ public class DepartmentRepository : IDepartmentRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<Dictionary<string, Guid>> GetIdsByCodesAsync(IReadOnlyCollection<string> upperCaseCodes, CancellationToken cancellationToken = default)
+    {
+        if (upperCaseCodes.Count == 0) return new Dictionary<string, Guid>();
+        var rows = await _context.Departments
+            .Where(d => !d.IsDeleted && upperCaseCodes.Contains(d.Code.ToUpper()))
+            .Select(d => new { Code = d.Code.ToUpper(), d.Id })
+            .ToListAsync(cancellationToken);
+        return rows.GroupBy(r => r.Code).ToDictionary(g => g.Key, g => g.First().Id);
+    }
+
     public async Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         return await _context.Departments

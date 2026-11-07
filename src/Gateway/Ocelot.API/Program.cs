@@ -6,6 +6,7 @@ using Ocelot.API.Monitoring;
 using Ocelot.API.RateLimiting;
 using ERP.Shared.Authorization;
 using ERP.Shared.Extensions;
+using ERP.Shared.Streaming;
 using Serilog;
 using Serilog.Events;
 using ERP.Shared.Authorization.ServiceAuth;
@@ -56,6 +57,9 @@ try
     // Outer per-client-IP limit on sign-in / token / chat endpoints (see GatewayRateLimiter).
     builder.Services.AddGatewayRateLimiting(builder.Configuration);
 
+    // Streaming imports (and their SSE progress) bypass Ocelot, which buffers whole answers: see StreamingProxyMiddleware.
+    builder.Services.AddStreamingProxy(builder.Configuration);
+
     // Tenant-from-host resolution (IdentityService owns tenants + their domains).
     builder.Services.AddTenantHostResolver(builder.Configuration);
 
@@ -103,6 +107,9 @@ try
         }
         await next(context);
     });
+
+    // The few streaming routes (imports, SSE progress): passed through unbuffered, AFTER the authentication and the tenant-from-host check above.
+    app.UseStreamingProxy();
 
     // Ocelot — forwards all other requests downstream
     await app.UseOcelot();
