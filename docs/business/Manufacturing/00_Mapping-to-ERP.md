@@ -24,3 +24,7 @@ so the specs stay readable as they are. Decision record: `docs/architecture/adr-
 | `IUomConversionService` (T2.1.4) | pure `UomRules` over MasterData units (`internal/v1/units-of-measure/lookup`) and the product's own conversions (`internal/v1/product-uom-conversions/lookup`); one batched read per tree |
 | `IBomCycleDetector`, `ILowLevelCodeCalculator`, `IBomExplosionService` (T2.2-T2.3) | pure `BomGraph` / `BomExplosionCalculator` in the Domain plus `BomExplosionService` loading the approved versions in one read |
 | Approval in one DB transaction | one `SaveChanges`: status, closing of the earlier version and the low-level codes of the plant |
+| `IOperationTimeCalculator` (T2.6.1), `GetRoutingLeadTime` (T2.6.2) | pure `OperationTimeCalculator` and `RoutingLeadTimeCalculator` in the Domain, loaded with work centers and calendars by `OperationTimeService`; lead time is scheduled backwards from the end of a day |
+| BR-RT-08 shared function (T2.7.1) | pure `BomRoutingCheck.Warnings` (BOM and routing approval) and `AssignOperation` (orders, Phase 3) |
+| Excel import (T2.9.1) | **CSV** (UTF-8) instead of Excel, all-or-nothing, reusing `CsvImportReader` of `ERP.Shared.Streaming` for parsing; not streamed (a document is small) |
+| One versioning rule for BOM and routing | generic `DocumentVersioning` over `IVersionedDocument` |

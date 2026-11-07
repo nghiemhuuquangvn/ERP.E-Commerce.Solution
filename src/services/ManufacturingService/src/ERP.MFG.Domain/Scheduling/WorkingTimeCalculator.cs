@@ -110,6 +110,29 @@ public sealed class WorkingTimeCalculator(CalendarSnapshot calendar)
         return last ?? point.Date.ToDateTime(TimeOnly.MinValue);
     }
 
+    /// <summary>
+    /// The latest point of working time at or before a clock time (used to hand a schedule from one calendar to another): the working minutes of its
+    /// day that lie before it, or the end of the previous working day when the day has not started yet.
+    /// </summary>
+    public WorkPoint FromDateTime(DateTime time)
+    {
+        var day = DateOnly.FromDateTime(time);
+        for (var i = 0; i <= HorizonDays; i++, day = day.AddDays(-1))
+        {
+            var intervals = GetWorkingIntervals(day);
+            if (intervals.Count == 0 || intervals[0].Start > time) continue;
+            var minutes = 0;
+            foreach (var (start, end) in intervals)
+            {
+                if (time >= end) minutes += (int)(end - start).TotalMinutes;
+                else if (time > start) { minutes += (int)(time - start).TotalMinutes; break; }
+                else break;
+            }
+            return new WorkPoint(day, minutes);
+        }
+        throw NoWorkingTime();
+    }
+
     /// <summary>Moves forward by working minutes. A result that lands exactly on the end of a day's work stays on that day.</summary>
     public WorkPoint AddWorkingMinutes(WorkPoint from, int minutes)
     {

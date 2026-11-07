@@ -23,6 +23,35 @@ namespace ERP.PRD.Application.Features.Lookup
         public Guid? BaseUomId { get; set; }
     }
 
+    /// <summary>The same facts for products named by SKU (any case). Two products with one SKU are both returned, so the caller can refuse the SKU as ambiguous.</summary>
+    public class GetProductLookupBySkuQuery : IRequest<List<ProductLookupDto>>
+    {
+        public List<string> Skus { get; set; } = new();
+    }
+
+    public class GetProductLookupBySkuHandler : IRequestHandler<GetProductLookupBySkuQuery, List<ProductLookupDto>>
+    {
+        private readonly IProductUnitOfWork _uow;
+
+        public GetProductLookupBySkuHandler(IProductUnitOfWork uow) => _uow = uow;
+
+        public async Task<List<ProductLookupDto>> Handle(GetProductLookupBySkuQuery request, CancellationToken ct)
+        {
+            var skus = request.Skus.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (skus.Count == 0) return new();
+
+            var products = await _uow.Products.GetBySkusAsync(skus, ct);
+            return products.Select(p => new ProductLookupDto
+            {
+                Id = p.Id,
+                Sku = p.Sku,
+                Name = p.Name,
+                IsActive = p.Status == ProductStatus.Active,
+                BaseUomId = p.BaseUomId,
+            }).ToList();
+        }
+    }
+
     public class GetProductLookupHandler : IRequestHandler<GetProductLookupQuery, List<ProductLookupDto>>
     {
         private readonly IProductUnitOfWork _uow;

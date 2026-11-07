@@ -81,7 +81,7 @@ public class BomLine : BaseEntity
 /// A bill of materials: what one <see cref="BaseQuantity"/> of the item is made of, in one version (BR-BOM-02). Draft is editable;
 /// Approved and Obsolete never change (a change is a new version made by <see cref="CopyAsNewDraft"/>), except the end of an obsolete version.
 /// </summary>
-public class Bom : BaseEntity
+public class Bom : BaseEntity, ERP.MFG.Domain.Engineering.IVersionedDocument
 {
     private readonly List<BomLine> _allLines = [];
 
@@ -217,7 +217,7 @@ public class Bom : BaseEntity
     // ── Life cycle ──────────────────────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Draft -> Approved (BR-BOM-02). The caller has already planned the overlap with other versions (<see cref="BomVersioning.PlanApproval"/>).
+    /// Draft -> Approved (BR-BOM-02). The caller has already planned the overlap with other versions (<see cref="ERP.MFG.Domain.Engineering.DocumentVersioning"/>).
     /// </summary>
     public void Approve(string approvedBy, DateTime approvedAt)
     {
@@ -249,7 +249,7 @@ public class Bom : BaseEntity
     }
 
     /// <summary>Used when a newer version starts: this approved version ends the day before (BR-BOM-03).</summary>
-    internal void CloseOn(DateOnly effectiveTo)
+    public void CloseOn(DateOnly effectiveTo)
     {
         EffectiveTo = effectiveTo;
         UpdatedAt = DateTime.UtcNow;

@@ -21,10 +21,32 @@ internal sealed class BomFake(Fakes f) : IBomRepository
     public void Add(Bom bom) => f.Boms.Add(bom);
 }
 
+internal sealed class RoutingFake(Fakes f) : IRoutingRepository
+{
+    public Task<Routing?> GetAsync(Guid id, CancellationToken ct = default) => Task.FromResult(f.Routings.FirstOrDefault(r => r.Id == id && !r.IsDeleted));
+
+    public Task<List<Routing>> ListAsync(Guid plantId, Guid? itemId, VersionStatus? status, CancellationToken ct = default)
+        => Task.FromResult(f.Routings.Where(r => !r.IsDeleted && r.PlantId == plantId && (itemId == null || r.ItemId == itemId) && (status == null || r.Status == status)).ToList());
+
+    public Task<List<Routing>> ListApprovedAsync(Guid plantId, CancellationToken ct = default)
+        => Task.FromResult(f.Routings.Where(r => !r.IsDeleted && r.PlantId == plantId && r.Status == VersionStatus.Approved).ToList());
+
+    public Task<int> MaxVersionAsync(Guid itemId, Guid plantId, CancellationToken ct = default)
+        => Task.FromResult(f.Routings.Where(r => r.ItemId == itemId && r.PlantId == plantId).Select(r => r.Version).DefaultIfEmpty(0).Max());
+
+    public Task<bool> WorkCenterIsUsedAsync(Guid workCenterId, CancellationToken ct = default)
+        => Task.FromResult(f.Routings.Any(r => !r.IsDeleted && r.Operations.Any(o => o.WorkCenterId == workCenterId)));
+
+    public void Add(Routing routing) => f.Routings.Add(routing);
+}
+
 internal sealed class UnitFake(Fakes f) : IUnitOfMeasureClient
 {
     public Task<IReadOnlyList<UnitInfo>> LookupAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<UnitInfo>>(ids.Where(f.Units.ContainsKey).Select(i => f.Units[i]).ToList());
+
+    public Task<IReadOnlyList<UnitInfo>> LookupByCodeAsync(IReadOnlyCollection<string> codes, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<UnitInfo>>(f.Units.Values.Where(u => codes.Contains(u.Code, StringComparer.OrdinalIgnoreCase)).ToList());
 
     public Task<ConvertedQuantity?> ConvertAsync(Guid fromUomId, Guid toUomId, decimal quantity, CancellationToken ct = default) => Task.FromResult<ConvertedQuantity?>(null);
 }

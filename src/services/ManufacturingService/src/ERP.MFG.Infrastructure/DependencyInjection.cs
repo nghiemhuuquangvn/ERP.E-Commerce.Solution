@@ -36,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IReferenceChecker, ReferenceChecker>();
         services.AddScoped<IWorkingTimeService, WorkingTimeService>();
         services.AddScoped<IBomRepository, BomRepository>();
+        services.AddScoped<IRoutingRepository, RoutingRepository>();
         services.AddScoped<IProductionSettingProvider, ProductionSettingProvider>();
         services.AddSingleton<IOpenOrderGuard, NoOrdersYetGuard>();
         services.AddMemoryCache();

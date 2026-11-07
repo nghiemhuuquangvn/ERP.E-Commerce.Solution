@@ -9,7 +9,7 @@ namespace ERP.MFG.Application.Services;
 public sealed class BomResolver(IBomRepository boms) : IBomResolver
 {
     public async Task<Bom?> GetEffectiveBomAsync(Guid itemId, Guid plantId, DateOnly date, CancellationToken ct = default)
-        => BomVersioning.Resolve((await boms.ListApprovedAsync(plantId, ct)).Where(b => b.ItemId == itemId), date);
+        => DocumentVersioning.Resolve((await boms.ListApprovedAsync(plantId, ct)).Where(b => b.ItemId == itemId), date);
 }
 
 /// <summary>Reads the products, units and conversions of a set of BOMs in three batched calls and fills the unit factors (BR-BOM-07).</summary>
@@ -53,6 +53,32 @@ public sealed class BomSnapshotFactory(IProductLookupClient products, IUnitOfMea
 
         var (factor, decimals, _) = Convert(product.Id, product.Sku, uomId, productMap, unitMap, conversionMap);
         return new ResolvedComponent(product.Id, product.Sku, product.Name, factor, decimals);
+    }
+
+    public async Task<IReadOnlyDictionary<(Guid ItemId, Guid UomId), ComponentResolution>> ResolveComponentsAsync(IReadOnlyCollection<(Guid ItemId, Guid UomId)> pairs, CancellationToken ct = default)
+    {
+        var itemIds = pairs.Select(p => p.ItemId).Distinct().ToList();
+        var productMap = (await Batched<ProductInfo>(itemIds, products.LookupAsync, ct)).ToDictionary(p => p.Id);
+        var conversionMap = (await Batched<ProductConversionFacts>(itemIds, conversions.LookupAsync, ct)).GroupBy(c => c.ProductId).ToDictionary(g => g.Key, g => g.ToList());
+        var unitIds = pairs.Select(p => p.UomId).Concat(productMap.Values.Where(p => p.BaseUomId is not null).Select(p => p.BaseUomId!.Value)).Distinct().ToList();
+        var unitMap = (await Batched<UnitInfo>(unitIds, units.LookupAsync, ct)).Select(ToFacts).ToDictionary(u => u.Id);
+
+        var result = new Dictionary<(Guid, Guid), ComponentResolution>();
+        foreach (var pair in pairs.Distinct())
+        {
+            try
+            {
+                if (!productMap.TryGetValue(pair.ItemId, out var product)) throw MfgRules.Invalid($"Item {pair.ItemId} does not exist.");
+                if (!product.IsActive) throw MfgRules.Fail(MfgErrors.Bom001);
+                var (factor, decimals, _) = Convert(product.Id, product.Sku, pair.UomId, productMap, unitMap, conversionMap);
+                result[pair] = new ComponentResolution(new ResolvedComponent(product.Id, product.Sku, product.Name, factor, decimals), null);
+            }
+            catch (BusinessRuleException ex)
+            {
+                result[pair] = new ComponentResolution(null, ex.Message);
+            }
+        }
+        return result;
     }
 
     private static (decimal Factor, int Decimals, string? Name) Convert(Guid itemId, string code, Guid lineUomId, IReadOnlyDictionary<Guid, ProductInfo> products,
@@ -105,11 +131,11 @@ public sealed class BomExplosionService(IBomRepository boms, IBomSnapshotFactory
         }
         else
         {
-            rootBom = BomVersioning.Resolve(approved.Where(b => b.ItemId == itemId), date)
+            rootBom = DocumentVersioning.Resolve(approved.Where(b => b.ItemId == itemId), date)
                       ?? throw MfgRules.Fail(MfgErrors.Po004, ("date", date.ToString("yyyy-MM-dd")));
         }
 
-        var byItem = approved.GroupBy(b => b.ItemId).ToDictionary(g => g.Key, g => BomVersioning.Resolve(g, date));
+        var byItem = approved.GroupBy(b => b.ItemId).ToDictionary(g => g.Key, g => DocumentVersioning.Resolve(g, date));
         var needed = new Dictionary<Guid, Bom> { [rootBom.Id] = rootBom };
         var frontier = new List<Bom> { rootBom };
         for (var level = 1; level <= maxLevels && frontier.Count > 0; level++) // one level deeper than allowed is still read so the calculator can refuse it by name

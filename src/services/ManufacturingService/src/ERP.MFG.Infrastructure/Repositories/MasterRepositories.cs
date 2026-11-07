@@ -86,7 +86,8 @@ public sealed class ReferenceChecker(MfgDbContext db) : IReferenceChecker
     public async Task<bool> WorkCenterIsUsedAsync(Guid workCenterId, CancellationToken ct = default)
         => await db.Machines.AnyAsync(m => m.WorkCenterId == workCenterId && !m.IsDeleted, ct)
            || await db.StandardOperations.AnyAsync(o => o.DefaultWorkCenterId == workCenterId && !o.IsDeleted, ct)
-           || await db.Crews.AnyAsync(c => c.WorkCenterId == workCenterId && !c.IsDeleted, ct);
+           || await db.Crews.AnyAsync(c => c.WorkCenterId == workCenterId && !c.IsDeleted, ct)
+           || await db.RoutingOperations.AnyAsync(o => o.WorkCenterId == workCenterId && !o.IsDeleted, ct); // routings join the check (R165)
 
     public Task<bool> MachineIsUsedAsync(Guid machineId, CancellationToken ct = default) => Task.FromResult(false);      // downtime / operation reports: Phase 3-4
     public Task<bool> StandardOperationIsUsedAsync(Guid id, CancellationToken ct = default) => Task.FromResult(false);    // copied into routings, never linked (BR-OPS-01)
@@ -110,4 +111,25 @@ public sealed class BomRepository(MfgDbContext db) : IBomRepository
         => await db.Boms.Where(b => b.ItemId == itemId && b.PlantId == plantId).Select(b => (int?)b.Version).MaxAsync(ct) ?? 0; // deleted drafts keep their number
 
     public void Add(Bom bom) => db.Boms.Add(bom);
+}
+
+public sealed class RoutingRepository(MfgDbContext db) : IRoutingRepository
+{
+    private IQueryable<Routing> Full => db.Routings.Include(r => r.AllOperations).Where(r => !r.IsDeleted);
+
+    public Task<Routing?> GetAsync(Guid id, CancellationToken ct = default) => Full.FirstOrDefaultAsync(r => r.Id == id, ct);
+
+    public Task<List<Routing>> ListAsync(Guid plantId, Guid? itemId, VersionStatus? status, CancellationToken ct = default)
+        => Full.Where(r => r.PlantId == plantId && (itemId == null || r.ItemId == itemId) && (status == null || r.Status == status)).ToListAsync(ct);
+
+    public Task<List<Routing>> ListApprovedAsync(Guid plantId, CancellationToken ct = default)
+        => Full.Where(r => r.PlantId == plantId && r.Status == VersionStatus.Approved).ToListAsync(ct);
+
+    public async Task<int> MaxVersionAsync(Guid itemId, Guid plantId, CancellationToken ct = default)
+        => await db.Routings.Where(r => r.ItemId == itemId && r.PlantId == plantId).Select(r => (int?)r.Version).MaxAsync(ct) ?? 0;
+
+    public Task<bool> WorkCenterIsUsedAsync(Guid workCenterId, CancellationToken ct = default)
+        => db.RoutingOperations.AnyAsync(o => o.WorkCenterId == workCenterId && !o.IsDeleted, ct);
+
+    public void Add(Routing routing) => db.Routings.Add(routing);
 }

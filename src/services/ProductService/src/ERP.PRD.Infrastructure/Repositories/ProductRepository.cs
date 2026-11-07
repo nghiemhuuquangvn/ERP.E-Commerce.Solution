@@ -17,6 +17,12 @@ namespace ERP.PRD.Infrastructure.Repositories
         public async Task<List<Product>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default)
             => await _db.Products.AsNoTracking().Where(p => ids.Contains(p.Id) && !p.IsDeleted).ToListAsync(ct);
 
+        public async Task<List<Product>> GetBySkusAsync(IReadOnlyCollection<string> skus, CancellationToken ct = default)
+        {
+            var lower = skus.Select(s => s.Trim().ToLower()).Distinct().ToList();
+            return await _db.Products.AsNoTracking().Where(p => lower.Contains(p.Sku.ToLower()) && !p.IsDeleted).ToListAsync(ct);
+        }
+
         public async Task<Product?> GetByIdWithVariantsAsync(Guid id, CancellationToken ct = default)
             => await _db.Products
                 .Include(p => p.Variants)

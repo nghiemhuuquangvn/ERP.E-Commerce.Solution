@@ -29,6 +29,8 @@ public interface IProductUomConversionClient
 /// <summary>A BOM line's component after the checks of BR-BOM-01 and BR-BOM-07.</summary>
 public sealed record ResolvedComponent(Guid ItemId, string Code, string Name, decimal FactorToBase, int BaseDecimals);
 
+public sealed record ComponentResolution(ResolvedComponent? Component, string? Error);
+
 public interface IBomSnapshotFactory
 {
     /// <summary>
@@ -39,6 +41,12 @@ public interface IBomSnapshotFactory
 
     /// <summary>The component of a line being added: it exists and is active (<c>MFG_BOM_001</c>) and its unit converts to the item's base unit (<c>MFG_BOM_006</c>).</summary>
     Task<ResolvedComponent> ResolveComponentAsync(Guid componentItemId, Guid uomId, CancellationToken ct = default);
+
+    /// <summary>
+    /// The same checks for many (item, unit) pairs with one read per service (the CSV import). A pair that fails has its refusal text instead of a component;
+    /// an unreachable service still throws <c>MFG_INT_001</c> for the whole call.
+    /// </summary>
+    Task<IReadOnlyDictionary<(Guid ItemId, Guid UomId), ComponentResolution>> ResolveComponentsAsync(IReadOnlyCollection<(Guid ItemId, Guid UomId)> pairs, CancellationToken ct = default);
 }
 
 public interface IBomExplosionService

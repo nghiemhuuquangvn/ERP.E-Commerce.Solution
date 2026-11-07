@@ -38,6 +38,7 @@ public sealed class Fakes
     public readonly Dictionary<Guid, WarehouseInfo> Warehouses = [];
     public readonly Dictionary<Guid, ProductInfo> Products = [];
     public readonly List<Bom> Boms = [];
+    public readonly List<Routing> Routings = [];
     public readonly Dictionary<Guid, UnitInfo> Units = [];
     public readonly List<ProductConversionFacts> ProductConversions = [];
     public bool OpenOrders;
@@ -49,6 +50,7 @@ public sealed class Fakes
     public IPlantAccessRepository AccessRepo => new AccessRepo(this);
     public IMfgUnitOfWork Uow => new Uow(this);
     public IBomRepository BomRepo => new BomFake(this);
+    public IRoutingRepository RoutingRepo => new RoutingFake(this);
     public IUnitOfMeasureClient UnitClient => new UnitFake(this);
     public IProductUomConversionClient ConversionClient => new ConversionFake(this);
     public IWarehouseLookupClient WarehouseClient => new WarehouseClient(this);
@@ -153,6 +155,11 @@ internal sealed class ProductClient(Fakes f) : IProductLookupClient
         => f.Unreachable
             ? throw ERP.MFG.Domain.Common.MfgRules.Fail(ERP.MFG.Domain.Common.MfgErrors.Int001, ("service", "product"))
             : Task.FromResult<IReadOnlyList<ProductInfo>>(ids.Where(f.Products.ContainsKey).Select(i => f.Products[i]).ToList());
+
+    public Task<IReadOnlyList<ProductInfo>> LookupBySkuAsync(IReadOnlyCollection<string> skus, CancellationToken ct = default)
+        => f.Unreachable
+            ? throw ERP.MFG.Domain.Common.MfgRules.Fail(ERP.MFG.Domain.Common.MfgErrors.Int001, ("service", "product"))
+            : Task.FromResult<IReadOnlyList<ProductInfo>>(f.Products.Values.Where(p => skus.Contains(p.Sku, StringComparer.OrdinalIgnoreCase)).ToList());
 }
 
 internal sealed class Guard(Fakes f) : IOpenOrderGuard

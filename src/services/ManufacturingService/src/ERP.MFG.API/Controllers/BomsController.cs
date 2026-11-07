@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using ERP.MFG.Application.Features.Boms;
+using ERP.MFG.Application.Features.Imports;
 using ERP.MFG.Domain.Common;
 using ERP.Shared.Authorization;
 using MediatR;
@@ -102,6 +103,21 @@ public class BomsController(IMediator mediator) : ControllerBase
     [AuthorizePermission(PermissionConstants.Manufacturing_BomView)]
     public async Task<IActionResult> Compare([FromQuery] Guid left, [FromQuery] Guid right, CancellationToken ct)
         => Ok(await mediator.Send(new CompareBomsQuery(left, right), ct));
+
+    /// <summary>
+    /// Imports the lines of a BOM from a CSV body (<c>text/csv</c>) as a new Draft version of <c>itemId</c>. All-or-nothing: every problem is reported with its line
+    /// and nothing is written unless the file is clean and <c>dryRun</c> is false (T2.9).
+    /// </summary>
+    [HttpPost("import")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_BomManage)]
+    public async Task<IActionResult> Import([FromQuery] Guid plantId, [FromQuery] Guid itemId, [FromQuery] DateOnly? effectiveFrom, [FromQuery] decimal? baseQuantity,
+        [FromQuery] decimal? yieldPct, [FromQuery] bool dryRun, CancellationToken ct)
+        => Ok(await mediator.Send(new ImportBomCommand(plantId, itemId, effectiveFrom, baseQuantity, yieldPct, dryRun, Request.Body), ct));
+
+    [HttpGet("import/template")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_BomView)]
+    public IActionResult ImportTemplate()
+        => File(System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(BomCsvTemplate.Csv)).ToArray(), "text/csv", "bom-import-template.csv");
 
     [HttpGet("low-level-codes")]
     [AuthorizePermission(PermissionConstants.Manufacturing_BomView)]

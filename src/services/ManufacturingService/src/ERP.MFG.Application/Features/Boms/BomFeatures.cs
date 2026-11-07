@@ -165,7 +165,7 @@ public sealed class RemoveBomLineHandler(IPlantAccessService access, IBomReposit
 public sealed record ApproveBomCommand(Guid Id) : IRequest<BomDto>;
 
 public sealed class ApproveBomHandler(IPlantAccessService access, IBomRepository boms, IItemProfileRepository profiles, IProductionSettingProvider settings,
-    IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<ApproveBomCommand, BomDto>
+    IRoutingRepository routings, IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<ApproveBomCommand, BomDto>
 {
     public async Task<BomDto> Handle(ApproveBomCommand r, CancellationToken ct)
     {
@@ -177,7 +177,7 @@ public sealed class ApproveBomHandler(IPlantAccessService access, IBomRepository
         if (profile is not null && profile.MakeOrBuy == MakeOrBuy.Buy) throw MfgRules.Fail(MfgErrors.Bom001);
 
         var approved = (await boms.ListApprovedAsync(bom.PlantId, ct)).Where(b => b.Id != bom.Id).ToList();
-        var plan = BomVersioning.PlanApproval(bom, approved);
+        var plan = DocumentVersioning.PlanApproval(bom, approved);
 
         var all = approved.Append(bom).ToList();
         var edges = BomGraph.EdgesOf(all);
@@ -191,11 +191,15 @@ public sealed class ApproveBomHandler(IPlantAccessService access, IBomRepository
         var maxLevels = (await settings.GetAsync(bom.PlantId, ct)).MaxBomLevels;
         MfgRules.ThrowIf(BomGraph.LowLevelCodes(edges).Values.DefaultIfEmpty(0).Max() > maxLevels, MfgErrors.Bom008, ("max", maxLevels));
 
-        BomVersioning.Apply(plan);
+        DocumentVersioning.Apply(plan);
         bom.Approve(user.GetUserId(), DateTime.UtcNow);
         await BomScope.RewriteLowLevelCodesAsync(profiles, bom.PlantId, all, ct);
         await uow.SaveChangesAsync(ct);
-        return BomDto.From(bom, warnings: []); // BR-RT-08 (an operation the routing does not have) is checked from M4 on
+
+        // BR-RT-08: the operations the lines name must exist in the routing that applies (warning only; no routing = nothing to check, BR-RT-07)
+        var routing = DocumentVersioning.Resolve((await routings.ListApprovedAsync(bom.PlantId, ct)).Where(x => x.ItemId == bom.ItemId), bom.EffectiveFrom);
+        var warnings = BomRoutingCheck.Warnings(bom.Lines, routing?.Operations.Select(o => o.OperationSeq).ToList(), routing?.Version ?? 0);
+        return BomDto.From(bom, warnings);
     }
 }
 

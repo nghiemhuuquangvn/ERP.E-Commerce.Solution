@@ -19,7 +19,7 @@ internal sealed class FixedSettings(int maxBomLevels) : IProductionSettingProvid
 /// The engineering part of the QA data set DS-01 (test cases §1.4-1.5) on the real handlers and calculators with in-memory stores:
 /// units, the twelve items, their profiles and the approved BOMs of TP-BAN01, BTP-MAT01, BTP-CHAN01 and KIT-PKG01.
 /// </summary>
-internal sealed class BomCtx
+internal class BomCtx
 {
     public static readonly DateOnly Jan1 = new(2026, 1, 1);
     public static readonly DateOnly Nov4 = new(2026, 11, 4);
@@ -44,13 +44,13 @@ internal sealed class BomCtx
     {
         Plant = F.AddPlant("PL01");
         Access = new PlantAccessService(F.PlantRepo, F.AccessRepo, User);
-        Unit(Piece, "Cai", 0);
-        Unit(Set, "Bo", 0);
-        Unit(M3, "m3", 3);
-        Unit(Litre, "Lit", 2);
-        Unit(Kg, "Kg", 2);
-        F.Units[Gram] = new UnitInfo(Gram, "g", "Gram", 0, Kg, 0.001m);
-        F.Units[Box] = new UnitInfo(Box, "Hop", "Hop", 0, Piece, 100m); // 1 box = 100 pieces
+        Unit(Piece, "PCS", 0);
+        Unit(Set, "SET", 0);
+        Unit(M3, "M3", 3);
+        Unit(Litre, "L", 2);
+        Unit(Kg, "KG", 2);
+        F.Units[Gram] = new UnitInfo(Gram, "G", "Gram", 0, Kg, 0.001m);
+        F.Units[Box] = new UnitInfo(Box, "BOX", "Box", 0, Piece, 100m); // 1 box = 100 pieces
     }
 
     private void Unit(Guid id, string code, int decimals) => F.Units[id] = new UnitInfo(id, code, code, decimals, null, 1m);
@@ -87,7 +87,7 @@ internal sealed class BomCtx
             .Handle(new AddBomLineCommand(bomId, Line(Items[component], quantity, uom, scrap, op, issue, phantom, fixedQty, group, priority, type, allocation)), default);
 
     public Task<BomDto> ApproveAsync(Guid bomId)
-        => new ApproveBomHandler(Access, F.BomRepo, F.ProfileRepo, Settings, User, F.Uow).Handle(new ApproveBomCommand(bomId), default);
+        => new ApproveBomHandler(Access, F.BomRepo, F.ProfileRepo, Settings, F.RoutingRepo, User, F.Uow).Handle(new ApproveBomCommand(bomId), default);
 
     public Task<BomDto> ObsoleteAsync(Guid bomId, DateOnly? to = null)
         => new ObsoleteBomHandler(Access, F.BomRepo, F.ProfileRepo, F.Uow).Handle(new ObsoleteBomCommand(bomId, to), default);

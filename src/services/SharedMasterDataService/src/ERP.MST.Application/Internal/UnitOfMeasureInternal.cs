@@ -21,6 +21,19 @@ public class LookupUnitsOfMeasureQueryHandler(IUnitOfMeasureRepository units) : 
     }
 }
 
+public record LookupUnitsByCodeQuery(IReadOnlyCollection<string> Codes) : IRequest<List<UnitLookupDto>>;
+
+public class LookupUnitsByCodeQueryHandler(IUnitOfMeasureRepository units) : IRequestHandler<LookupUnitsByCodeQuery, List<UnitLookupDto>>
+{
+    public async Task<List<UnitLookupDto>> Handle(LookupUnitsByCodeQuery request, CancellationToken ct)
+    {
+        var codes = request.Codes.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (codes.Count == 0) return new();
+        var found = await units.GetByCodesAsync(codes, ct);
+        return found.Select(u => new UnitLookupDto(u.Id, u.Code, u.Name, u.DecimalPlaces, u.BaseUnitId, u.ConversionFactor, u.UnitType)).ToList();
+    }
+}
+
 public record ConvertUnitQuery(Guid FromUomId, Guid ToUomId, decimal Quantity) : IRequest<ConvertedQuantityDto?>;
 
 public record ConvertedQuantityDto(decimal Quantity, int ToDecimalPlaces);

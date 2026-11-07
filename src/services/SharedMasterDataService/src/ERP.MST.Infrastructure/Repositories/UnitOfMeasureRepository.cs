@@ -20,6 +20,15 @@ public class UnitOfMeasureRepository : IUnitOfMeasureRepository
             .FirstOrDefaultAsync(u => u.Id == id && !u.IsDeleted, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<UnitOfMeasure>> GetByCodesAsync(IReadOnlyCollection<string> codes, CancellationToken cancellationToken = default)
+    {
+        var lower = codes.Select(c => c.Trim().ToLower()).Distinct().ToList();
+        return await _context.UnitsOfMeasure
+            .AsNoTracking()
+            .Where(u => lower.Contains(u.Code.ToLower()) && !u.IsDeleted)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<UnitOfMeasure>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
     {
         return await _context.UnitsOfMeasure

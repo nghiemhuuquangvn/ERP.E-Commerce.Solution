@@ -1,7 +1,7 @@
 # Manufacturing - Bills of materials (M3)
 
 > Service: ManufacturingService (MFG). Source specs: `docs/business/M/01_PRODUCTION_BA_SPEC.md` §5.8 (BR-BOM-01..15), §7.2, error codes `PRD_BOM_*` (here `MFG_BOM_*`); tasks T2.1-T2.4 of `02_PRODUCTION_DEV_TASKS.md`; tests TC-BOM-001..021, 030..040, 050, 051, TC-INT-001 of `03_PRODUCTION_TEST_CASES.md`.
-> Differences from the specs: `00_Mapping-to-ERP.md`. Previous milestone: `CalendarsWorkCenters.md`. Status: built and checked live 2026-11-06 (milestone M3, 46 of 46 live checks). Screens are milestone M5; routing and the BOM / routing check (BR-RT-08) are M4; CSV import (T2.9) is M4.
+> Differences from the specs: `00_Mapping-to-ERP.md`. Previous milestone: `CalendarsWorkCenters.md`. Status: built and checked live 2026-11-06 (milestone M3, 46 of 46 live checks). Screens are milestone M5. Added in M4 (see `Routing.md`): the BOM / routing check (BR-RT-08, warnings at approval) and the CSV import of a BOM (§14).
 
 ## 1. Purpose and scope
 A bill of materials (BOM) says what one `BaseQuantity` of an item is made of: components, with quantity, unit, scrap, the operation that consumes them and how they are issued, plus the by-products and co-products the work yields.
@@ -108,3 +108,7 @@ Assumption: units of the same family convert exactly (`factor(from) / factor(to)
 7. Open low-level codes: table 0, parts 1, wood / carton / foam 2. Make the table's BOM obsolete -> parts drop to 0.
 8. Where-used of wood: two sub-assemblies, then the table. Indented tree for 1 table: wood 0.022 under both.
 9. A user without `bom:approve` presses Approve -> 403. A user who may not see the plant -> 404.
+
+## 14. Added in M4: operation warnings and CSV import
+- **Warning at approval (BR-RT-08):** approving a BOM returns `warnings`: one line for every operation number that BOM lines name and the routing effective on the BOM's start date does not have (example: line at operation 40, routing 10-30). The approval is never blocked; an item without a routing, or a line without an operation, gives no warning. The routing screen shows the same check when a routing is approved. Details: `Routing.md` M4-12.
+- **CSV import (T2.9):** `POST boms/import?plantId&itemId&effectiveFrom&baseQuantity&yieldPct&dryRun` with the file as the body, all-or-nothing, every problem with its line number, a clean file creates the next Draft version; columns and rules in `Routing.md` §8. UAT: fill the template with 10 lines, one with an unknown SKU - the dry run names exactly that line and a real import writes nothing; fix and import - a Draft appears.

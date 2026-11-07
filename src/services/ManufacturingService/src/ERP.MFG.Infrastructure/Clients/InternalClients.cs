@@ -96,6 +96,16 @@ public sealed class ProductLookupClient(HttpClient http, IMemoryCache cache, ITe
         return await Cached<IReadOnlyList<ProductInfo>>(CacheKey("lookup", distinct), async () =>
             (await PostAsync<Answer>("internal/v1/product-lookup", new { productIds = distinct }, ct)).Items);
     }
+
+    public async Task<IReadOnlyList<ProductInfo>> LookupBySkuAsync(IReadOnlyCollection<string> skus, CancellationToken ct = default)
+    {
+        var distinct = skus.Select(s => s.Trim()).Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (distinct.Count == 0) return [];
+        var result = new List<ProductInfo>();
+        foreach (var chunk in distinct.Chunk(200))
+            result.AddRange((await PostAsync<Answer>("internal/v1/product-lookup/by-sku", new { skus = chunk }, ct)).Items);
+        return result;
+    }
 }
 
 public sealed class ProductUomConversionClient(HttpClient http, IMemoryCache cache, ITenantProvider tenant, ILogger<ProductUomConversionClient> logger)
@@ -125,6 +135,16 @@ public sealed class UnitOfMeasureClient(HttpClient http, IMemoryCache cache, ITe
         if (distinct.Count == 0) return [];
         return await Cached<IReadOnlyList<UnitInfo>>(CacheKey("uom", distinct), async () =>
             (await PostAsync<Answer>("internal/v1/units-of-measure/lookup", new { ids = distinct }, ct)).Items);
+    }
+
+    public async Task<IReadOnlyList<UnitInfo>> LookupByCodeAsync(IReadOnlyCollection<string> codes, CancellationToken ct = default)
+    {
+        var distinct = codes.Select(c => c.Trim()).Where(c => c.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (distinct.Count == 0) return [];
+        var result = new List<UnitInfo>();
+        foreach (var chunk in distinct.Chunk(200))
+            result.AddRange((await PostAsync<Answer>("internal/v1/units-of-measure/by-code", new { codes = chunk }, ct)).Items);
+        return result;
     }
 
     public async Task<ConvertedQuantity?> ConvertAsync(Guid fromUomId, Guid toUomId, decimal quantity, CancellationToken ct = default)

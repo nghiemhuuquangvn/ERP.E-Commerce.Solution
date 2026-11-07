@@ -40,6 +40,8 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
     public DbSet<CrewMember> CrewMembers => Set<CrewMember>();
     public DbSet<Bom> Boms => Set<Bom>();
     public DbSet<BomLine> BomLines => Set<BomLine>();
+    public DbSet<Routing> Routings => Set<Routing>();
+    public DbSet<RoutingOperation> RoutingOperations => Set<RoutingOperation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -236,6 +238,34 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.Notes).HasMaxLength(500);
             e.HasIndex(x => new { x.TenantId, x.BomId, x.LineNo }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.ComponentItemId });
+        });
+
+        modelBuilder.Entity<Routing>(e =>
+        {
+            e.ToTable("Routings");
+            e.Property(x => x.ItemCode).HasMaxLength(100).IsRequired();
+            e.Property(x => x.ItemName).HasMaxLength(255).IsRequired();
+            e.Property(x => x.Status).HasConversion<short>();
+            e.Property(x => x.ApprovedBy).HasMaxLength(200);
+            e.Ignore(x => x.Operations);
+            e.HasIndex(x => new { x.TenantId, x.ItemId, x.PlantId, x.Version }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.PlantId, x.Status });
+            e.HasMany(x => x.AllOperations).WithOne().HasForeignKey(o => o.RoutingId);
+            e.Navigation(x => x.AllOperations).UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<RoutingOperation>(e =>
+        {
+            e.ToTable("RoutingOperations");
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.WorkCenterCode).HasMaxLength(20).IsRequired();
+            e.Property(x => x.SetupTimeMinutes).HasPrecision(10, 2);
+            e.Property(x => x.RunTimeMinutes).HasPrecision(10, 4);
+            e.Property(x => x.RunTimeBasis).HasConversion<short>();
+            e.Property(x => x.BatchSize).HasPrecision(18, 6);
+            e.Property(x => x.Instructions).HasMaxLength(2000);
+            e.HasIndex(x => new { x.TenantId, x.RoutingId, x.OperationSeq }).IsUnique().HasFilter("\"IsDeleted\" = false");
+            e.HasIndex(x => new { x.TenantId, x.WorkCenterId });
         });
 
         ConfigureBaseEntities(modelBuilder);
