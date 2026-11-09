@@ -191,6 +191,6 @@ public sealed class SeedDs01Handler(IMediator mediator, IProductLookupClient pro
         }
 
         return new Ds01SeedResult(pid, plant.Code, _created, _skipped,
-            ["Opening stock (spec 1.7): needs the Warehouse upgrade", "Quality plan QP-BAN01: Phase 4", "Production order MO-A: Phase 3"]);
+            ["Opening stock (spec 1.7): entered in the Warehouse by scripts/seed-ds01-products.js --stock (stock is not Manufacturing data)","Quality plan QP-BAN01: Phase 4", "Production order MO-A: Phase 3"]);
     }
 }

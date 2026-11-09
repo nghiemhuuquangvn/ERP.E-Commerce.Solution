@@ -292,6 +292,63 @@ public class ProductionIntegrationTests
         (await TotalAsync(product)).Should().Be(4m);
     }
 
+    // ── expired lots (TC-MAT-009) ───────────────────────────────────────────────────────────────────
+
+    private async Task<(Guid Product, Guid Expired, Guid Fresh)> SeedWithExpiredLotAsync()
+    {
+        var c = Open();
+        var item = new InventoryEntity(Guid.NewGuid(), "Paint", 0, 0);
+        item.SetValuationMethod(ValuationMethod.Average);
+        await c.Uow.Inventories.AddAsync(item, default);
+        var expired = await c.Ledger.ReceiveAsync(item, 20m, 10m, new StockTarget(_main, null), new NewLot("L-X", 10m, DateTime.UtcNow.AddDays(-9), null), default);
+        var fresh = await c.Ledger.ReceiveAsync(item, 30m, 10m, new StockTarget(_main, null), new NewLot("L-A", 10m, DateTime.UtcNow.AddDays(20), null), default);
+        await c.Uow.SaveChangesAsync(default);
+        return (item.ProductId, expired!.LotId, fresh!.LotId);
+    }
+
+    [Fact]
+    public async Task Issuing_from_an_expired_lot_is_refused_and_a_fresh_lot_is_accepted()
+    {
+        var (product, expired, fresh) = await SeedWithExpiredLotAsync();
+
+        var act = () => RunAsync(Open(), new(MovementType.ProductionIssue, product, 5m, "MO-9#1", LotId: expired));
+        (await act.Should().ThrowAsync<BusinessRuleException>()).Which.RuleName.Should().Be("WH_LOT_EXPIRED");
+        (await TotalAsync(product)).Should().Be(50m);
+
+        (await RunAsync(Open(), new(MovementType.ProductionIssue, product, 5m, "MO-9#2", LotId: fresh))).Replayed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task An_expired_lot_can_still_be_scrapped_and_returned_to()
+    {
+        var (product, expired, _) = await SeedWithExpiredLotAsync();
+
+        (await RunAsync(Open(), new(MovementType.ProductionScrap, product, 20m, "MO-9#S", LotId: expired))).Replayed.Should().BeFalse();
+        (await RunAsync(Open(), new(MovementType.ProductionReturn, product, 1m, "MO-9#R", LotId: expired, UnitCost: 10m))).Replayed.Should().BeFalse();
+        (await TotalAsync(product)).Should().Be(31m);
+    }
+
+    [Fact]
+    public async Task A_reservation_whose_lot_expired_after_it_was_made_cannot_be_consumed_from_that_lot()
+    {
+        var (product, lot) = await SeedAsync();   // L-1: 10 in lot, 4 lot-less
+        var c = Open();
+        var reservation = await new ReserveForSourceCommandHandler(c.Uow, c.Ledger, c.Cache).Handle(new ReserveForSourceCommand
+        {
+            SourceId = Guid.NewGuid(),
+            WarehouseId = _main,
+            Lines = [new SourceReservationLineDto { ProductId = product, Quantity = 5m }]
+        }, default);
+
+        var e = Open();
+        e.Db.Entry(await e.Db.InventoryLots.SingleAsync(l => l.LotId == lot)).Property(nameof(InventoryLot.ExpiryDate)).CurrentValue = DateTime.UtcNow.AddDays(-1);
+        await e.Db.SaveChangesAsync();
+
+        var act = () => RunAsync(Open(), new(MovementType.ProductionIssue, product, 2m, "MO-9#X", ReservationId: reservation.ReservationId));
+        (await act.Should().ThrowAsync<BusinessRuleException>()).Which.RuleName.Should().Be("WH_LOT_EXPIRED");
+        (await TotalAsync(product)).Should().Be(14m);
+    }
+
     // ── lot status and release ──────────────────────────────────────────────────────────────────────
 
     [Fact]
