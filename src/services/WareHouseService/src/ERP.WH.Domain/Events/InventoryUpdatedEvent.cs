@@ -8,8 +8,8 @@ public class InventoryUpdatedEvent : ITenantEvent
     public Guid TenantId { get; set; }
 
     public Guid ProductId { get; set; }
-    public int PreviousQuantity { get; set; }
-    public int CurrentQuantity { get; set; }
+    public decimal PreviousQuantity { get; set; }
+    public decimal CurrentQuantity { get; set; }
     public required string MovementType { get; set; }
     public Guid? ReferenceId { get; set; }
     public DateTime UpdatedAt { get; set; }

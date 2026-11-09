@@ -69,6 +69,7 @@ export function StocktakeDetailPage() {
           <Input
             type="number"
             className="ml-auto w-24 text-right"
+            step="any"
             aria-label={`${t('inventory.stocktakes.countedQuantity')} ${line.productId}`}
             placeholder={String(line.countedQuantity ?? '')}
             value={counts[line.productId] ?? ''}

@@ -49,7 +49,7 @@ export function StockPolicyCard({ inventory, canEdit }: { inventory: Inventory; 
           ['maxStock', max, setMax],
         ] as const).map(([key, value, setter]) => (
           <FormField key={key} label={t(`inventory.policy.${key}`)}>
-            <Input type="number" min={0} value={value} disabled={!canEdit} onChange={(e) => setter(Number(e.target.value))} />
+            <Input type="number" min={0} step="any" value={value} disabled={!canEdit} onChange={(e) => setter(Number(e.target.value))} />
           </FormField>
         ))}
       </div>

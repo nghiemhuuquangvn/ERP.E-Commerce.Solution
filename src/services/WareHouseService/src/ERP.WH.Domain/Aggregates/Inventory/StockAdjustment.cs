@@ -21,7 +21,7 @@ public class StockAdjustment : ITenantOwned
     public Guid TenantId { get; private set; }
     public Guid ProductId { get; private set; }
     public Guid? LocationId { get; private set; }
-    public int QuantityDelta { get; private set; }
+    public decimal QuantityDelta { get; private set; }
     public AdjustmentReason Reason { get; private set; }
     public string? Notes { get; private set; }
     public StockAdjustmentStatus Status { get; private set; }
@@ -33,7 +33,7 @@ public class StockAdjustment : ITenantOwned
 
     private StockAdjustment() { }
 
-    public StockAdjustment(Guid productId, int quantityDelta, AdjustmentReason reason, string requestedBy, Guid? locationId = null, string? notes = null)
+    public StockAdjustment(Guid productId, decimal quantityDelta, AdjustmentReason reason, string requestedBy, Guid? locationId = null, string? notes = null)
     {
         if (quantityDelta == 0)
             throw new InvalidOperationException("Adjustment quantity delta must not be zero");

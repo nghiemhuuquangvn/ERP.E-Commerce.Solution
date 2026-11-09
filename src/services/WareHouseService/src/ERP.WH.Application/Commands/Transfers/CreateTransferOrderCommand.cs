@@ -7,7 +7,7 @@ namespace ERP.WH.Application.Commands.Transfers;
 public class TransferLineInput
 {
     public Guid ProductId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
 }
 
 public class CreateTransferOrderCommand : IRequest<TransferOrderDto>
@@ -21,7 +21,7 @@ public class CreateTransferOrderCommand : IRequest<TransferOrderDto>
 public class TransferOrderLineDto
 {
     public Guid ProductId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
 }
 
 public class TransferOrderDto

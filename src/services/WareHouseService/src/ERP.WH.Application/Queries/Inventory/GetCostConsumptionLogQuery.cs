@@ -15,7 +15,7 @@ public class CostConsumptionLogDto
     public Guid Id { get; set; }
     public Guid ProductId { get; set; }
     public Guid? LotId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
     public decimal UnitCost { get; set; }
     public decimal TotalCost { get; set; }
     public Guid SourceOrderId { get; set; }

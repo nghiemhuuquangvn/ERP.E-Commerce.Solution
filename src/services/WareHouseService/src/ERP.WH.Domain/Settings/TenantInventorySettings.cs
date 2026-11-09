@@ -5,7 +5,7 @@ public class TenantInventorySettings : ERP.Shared.Core.Domain.ITenantOwned
 {
     public Guid Id { get; private set; }
     public Guid TenantId { get; private set; }
-    public int LowStockThreshold { get; private set; } = 10;
+    public decimal LowStockThreshold { get; private set; } = 10;
     public bool BackorderAllowed { get; private set; } = false;
     public int DefaultHoldDays { get; private set; } = 7;
     public string? CreatedBy { get; private set; }
@@ -32,7 +32,7 @@ public class TenantInventorySettings : ERP.Shared.Core.Domain.ITenantOwned
         };
     }
 
-    public void Update(int lowStockThreshold, bool backorderAllowed, int defaultHoldDays)
+    public void Update(decimal lowStockThreshold, bool backorderAllowed, int defaultHoldDays)
     {
         LowStockThreshold = lowStockThreshold;
         BackorderAllowed = backorderAllowed;

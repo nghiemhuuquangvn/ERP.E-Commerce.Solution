@@ -21,7 +21,7 @@ public class StockMovement : ITenantOwned
     public Guid MovementId { get; private set; }
     public Guid TenantId { get; private set; }
     public Guid ProductId { get; private set; }
-    public int Quantity { get; private set; }
+    public decimal Quantity { get; private set; }
     public MovementType MovementType { get; private set; }
     public string? FromLocation { get; private set; }
     public string? ToLocation { get; private set; }
@@ -33,7 +33,7 @@ public class StockMovement : ITenantOwned
     public StockMovement(
         Guid tenantId,
         Guid productId,
-        int quantity,
+        decimal quantity,
         MovementType movementType,
         string? fromLocation,
         string? toLocation,

@@ -40,6 +40,12 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-09 - Warehouse upgrade W1: decimal quantities end to end (`feat/warehouse-w1`, unmerged)
+- **Every Warehouse quantity is decimal(18,6)** (SQL `Warehouse/010`, idempotent, defaults and nullability kept, computed `AvailableQuantity` and two indexes recreated); events carry decimals. **Consumers first:** Product (`Product/019`), Purchasing (`Purchasing/014`), Sales client, Reporting (`Reporting/010`, `GetDecimal`) widened and deployed before the Warehouse; the two `(int)` casts of the PO / vendor-return consumer removed. Admin inputs `step="any"`, staff app decimal keyboard, storefront / customer app `<= 0`.
+- **Tests:** Warehouse 61 (14 new fractional), PO 107, Sales 142, Product 68, Reporting 22, POS 27, Shared 151, Shipping 176, Accounting 595, Architecture 82; Admin 370, staff 64, customer 72, storefront 46. `LiveSchemaDriftTests` against the live databases: no drift.
+- **Live (glcheck = SYSTEM host standard):** `wh-w1.js` pre (old Warehouse + widened consumers) and post: whole-number order / reserve / release / manual sale OK; fractions 2.5 kg receive, reserve 1.25, lot 2.5, sold 0.5, adjustment -0.25, Product shows 1.75, Purchasing request current 1.75 suggests 10.75; M4-M6 Manufacturing scripts still OK.
+- **Docs:** `docs/business/Warehouse/DecimalQuantities.md`, module-07 section 14, Replenishment, event-catalog, ADR (accepted + tenant-scope note). **Risks:** R187-R191. **Next:** W2 (StockBalance per warehouse / lot, StockLedger, Product lot flags) after the owner's OK.
+
 ### 2026-11-09 - Warehouse upgrade epic started (W0: ADR, no code; `feat/warehouse-upgrade`)
 - ADR `docs/architecture/adr-warehouse-upgrade.md` (StockBalance next to Inventory, all quantities decimal, production movements, reservations by source, FEFO suggestion, idempotent internal write API). Milestones W1-W6 follow, each waiting for the owner. Needed before Manufacturing Phase 3.
 

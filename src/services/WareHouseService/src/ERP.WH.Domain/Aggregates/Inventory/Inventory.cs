@@ -8,17 +8,17 @@ public class Inventory : ITenantOwned
     public Guid TenantId { get; private set; }
     public string ProductName { get; private set; }
     public string? ProductSku { get; private set; }
-    public int TotalQuantity { get; private set; }
-    public int ReservedQuantity { get; private set; }
-    public int LockedQuantity { get; private set; }
-    public int AvailableQuantity => TotalQuantity - ReservedQuantity - LockedQuantity;
-    public int ReorderPoint { get; private set; }
-    public int ReorderQuantity { get; private set; }
+    public decimal TotalQuantity { get; private set; }
+    public decimal ReservedQuantity { get; private set; }
+    public decimal LockedQuantity { get; private set; }
+    public decimal AvailableQuantity => TotalQuantity - ReservedQuantity - LockedQuantity;
+    public decimal ReorderPoint { get; private set; }
+    public decimal ReorderQuantity { get; private set; }
     /// <summary>Replenishment policy: order when available stock (plus goods on order) is at or below MinStock, up to MaxStock. ReorderPoint mirrors MinStock for older readers.</summary>
-    public int MinStock { get; private set; }
-    public int MaxStock { get; private set; }
+    public decimal MinStock { get; private set; }
+    public decimal MaxStock { get; private set; }
     /// <summary>Part of MinStock kept for demand and delivery surprises; shown to the buyer, never ordered separately.</summary>
-    public int SafetyStock { get; private set; }
+    public decimal SafetyStock { get; private set; }
     /// <summary>When a low-stock alert was last sent; null while stock is above MinStock, so a movement does not repeat the alert.</summary>
     public DateTime? LowStockAlertedAt { get; private set; }
     public decimal Cost { get; private set; }
@@ -27,7 +27,7 @@ public class Inventory : ITenantOwned
     public DateTime LastMovementDate { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
-    public Inventory(Guid productId, string productName, int reorderPoint = 100, int reorderQuantity = 500, string? productSku = null)
+    public Inventory(Guid productId, string productName, decimal reorderPoint = 100, decimal reorderQuantity = 500, string? productSku = null)
     {
         ProductId = productId;
         ProductName = productName;
@@ -45,7 +45,7 @@ public class Inventory : ITenantOwned
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void ReceiveStock(int quantity, decimal unitCost)
+    public void ReceiveStock(decimal quantity, decimal unitCost)
     {
         if (unitCost > 0)
         {
@@ -71,11 +71,11 @@ public class Inventory : ITenantOwned
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void SetReorderLevels(int reorderPoint, int reorderQuantity) =>
+    public void SetReorderLevels(decimal reorderPoint, decimal reorderQuantity) =>
         SetStockPolicy(reorderPoint, reorderPoint + reorderQuantity, Math.Min(SafetyStock, reorderPoint));
 
     /// <summary>0 ≤ safety ≤ min &lt; max. ReorderPoint / ReorderQuantity follow, so every older reader sees the same numbers.</summary>
-    public void SetStockPolicy(int minStock, int maxStock, int safetyStock)
+    public void SetStockPolicy(decimal minStock, decimal maxStock, decimal safetyStock)
     {
         if (safetyStock < 0) throw new ArgumentOutOfRangeException(nameof(safetyStock), "Safety stock cannot be negative.");
         if (minStock < safetyStock) throw new ArgumentOutOfRangeException(nameof(minStock), "Minimum stock cannot be below the safety stock.");
@@ -89,9 +89,9 @@ public class Inventory : ITenantOwned
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public bool CanReserve(int quantity) => AvailableQuantity >= quantity;
+    public bool CanReserve(decimal quantity) => AvailableQuantity >= quantity;
 
-    public void ReserveStock(int quantity)
+    public void ReserveStock(decimal quantity)
     {
         if (!CanReserve(quantity))
             throw new InvalidOperationException($"Insufficient stock. Available: {AvailableQuantity}, Requested: {quantity}");
@@ -100,13 +100,13 @@ public class Inventory : ITenantOwned
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void ReleaseReservation(int quantity)
+    public void ReleaseReservation(decimal quantity)
     {
         ReservedQuantity = Math.Max(0, ReservedQuantity - quantity);
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void SellStock(int quantity)
+    public void SellStock(decimal quantity)
     {
         if (TotalQuantity < quantity)
             throw new InvalidOperationException("Insufficient stock for sale");
@@ -122,7 +122,7 @@ public class Inventory : ITenantOwned
     /// unlike SellStock it never refuses: stock may go negative (signals a count mismatch,
     /// raised as a StockAlert). It doesn't consume online reservations either.
     /// </summary>
-    public void RecordPointOfSaleSale(int quantity)
+    public void RecordPointOfSaleSale(decimal quantity)
     {
         if (quantity <= 0)
             throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be positive.");
@@ -132,7 +132,7 @@ public class Inventory : ITenantOwned
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void AdjustStock(int quantity)
+    public void AdjustStock(decimal quantity)
     {
         TotalQuantity += quantity;
         LastMovementDate = DateTime.UtcNow;

@@ -111,7 +111,7 @@ public class ShippingFeeOrderTests
     {
         _uow.SetupGet(u => u.Orders).Returns(_orders.Object);
         _uow.SetupGet(u => u.Sagas).Returns(_sagas.Object);
-        _warehouse.Setup(w => w.CheckAvailabilityAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+        _warehouse.Setup(w => w.CheckAvailabilityAsync(It.IsAny<Guid>(), It.IsAny<decimal>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new StockAvailabilityResult { IsAvailable = true, AvailableQuantity = 100 });
         _bus.Setup(b => b.PublishAsync(It.IsAny<object>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         // the system price of every product is the 100,000 the command sends (R113: the server prices the lines)

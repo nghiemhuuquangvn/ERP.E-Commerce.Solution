@@ -9,7 +9,7 @@ public class StockMovementRecordedEvent : ITenantEvent
 
     public Guid MovementId { get; set; }
     public Guid ProductId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
     public required string MovementType { get; set; }
     public string? FromLocation { get; set; }
     public string? ToLocation { get; set; }

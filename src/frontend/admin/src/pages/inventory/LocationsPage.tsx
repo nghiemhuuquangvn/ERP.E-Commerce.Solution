@@ -111,7 +111,7 @@ function LocationModal({ location, onClose }: { location: WarehouseLocation | nu
             <Input {...register('shelf', { required: true })} />
           </FormField>
           <FormField label={t('inventory.locations.capacity')} required error={errors.capacity ? t('common.required') : undefined}>
-            <Input type="number" {...register('capacity', { required: true, valueAsNumber: true })} />
+            <Input type="number" step="any" {...register('capacity', { required: true, valueAsNumber: true })} />
           </FormField>
         </div>
         {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('common.failedToSave'))}</Alert>}

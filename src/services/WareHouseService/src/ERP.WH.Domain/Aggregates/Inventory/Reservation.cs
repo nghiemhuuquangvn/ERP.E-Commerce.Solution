@@ -13,13 +13,13 @@ public enum ReservationStatus
 public class LotAllocation
 {
     public Guid LotId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
 }
 
 public class ReservedItem
 {
     public Guid ProductId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
     public string WarehouseLocation { get; set; } = null!;
     /// <summary>Every lot (and quantity) actually allocated by FEFO picking, if the product is
     /// lot-tracked — empty for non-lot-tracked products. Replaces a previous single nullable

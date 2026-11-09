@@ -9,7 +9,7 @@ public interface IPurchaseRequestRepository
     Task<List<PurchaseRequest>> ListAsync(PurchaseRequestStatus? status, CancellationToken cancellationToken);
     Task<List<PurchaseRequest>> GetOpenByIdsAsync(IReadOnlyCollection<Guid>? ids, CancellationToken cancellationToken);
     /// <summary>Open quantity (ordered - received) of the product on orders that are neither finished nor cancelled; drafts count so a second request is not made for goods already being ordered.</summary>
-    Task<int> GetOnOrderQuantityAsync(string productCode, CancellationToken cancellationToken);
+    Task<decimal> GetOnOrderQuantityAsync(string productCode, CancellationToken cancellationToken);
     Task<SupplierItem?> GetPreferredSupplierItemAsync(Guid productId, CancellationToken cancellationToken);
     /// <summary>Active suppliers that have a supplier item for any of the products.</summary>
     Task<List<Guid>> GetSupplierIdsForProductsAsync(IReadOnlyCollection<Guid> productIds, CancellationToken cancellationToken);

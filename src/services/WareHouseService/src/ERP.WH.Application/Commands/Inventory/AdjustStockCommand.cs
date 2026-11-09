@@ -8,7 +8,7 @@ public class RequestStockAdjustmentCommand : IRequest<StockAdjustmentDto>
 {
     public Guid ProductId { get; set; }
     public Guid? LocationId { get; set; }
-    public int QuantityDelta { get; set; }
+    public decimal QuantityDelta { get; set; }
     public AdjustmentReason Reason { get; set; }
     public string? Notes { get; set; }
     public string RequestedBy { get; set; } = string.Empty;
@@ -32,7 +32,7 @@ public class StockAdjustmentDto
     public Guid Id { get; set; }
     public Guid ProductId { get; set; }
     public Guid? LocationId { get; set; }
-    public int QuantityDelta { get; set; }
+    public decimal QuantityDelta { get; set; }
     public string Reason { get; set; } = string.Empty;
     public string? Notes { get; set; }
     public string Status { get; set; } = string.Empty;
@@ -46,8 +46,8 @@ public class StockAdjustmentDto
 public class AdjustStockResponse
 {
     public Guid ProductId { get; set; }
-    public int PreviousQuantity { get; set; }
-    public int CurrentQuantity { get; set; }
+    public decimal PreviousQuantity { get; set; }
+    public decimal CurrentQuantity { get; set; }
     public Guid MovementId { get; set; }
     public DateTime AdjustedAt { get; set; }
 }

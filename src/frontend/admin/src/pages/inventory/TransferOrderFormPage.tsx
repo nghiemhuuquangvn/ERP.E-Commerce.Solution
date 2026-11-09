@@ -128,7 +128,8 @@ export function TransferOrderFormPage() {
                   <td className="py-2 text-right">
                     <Input
                       type="number"
-                      min={1}
+                      min={0.000001}
+                      step="any"
                       className="ml-auto w-24 text-right"
                       aria-label={t('orders.qty')}
                       value={line.quantity}

@@ -211,3 +211,6 @@ bug chặn đường, cả hai đều đã tồn tại từ trước, không ph�
 Đã kiểm chứng trực tiếp: bán 20 sản phẩm khiến tồn kho giảm dưới điểm đặt
 hàng lại (reorder point) đã seed sẵn → hệ thống tự tạo đúng 1 `PurchaseRequest`
 gợi ý số lượng cần nhập.
+
+## 14. Số lượng thập phân (W1 của Warehouse upgrade, 2026-11-09)
+Mọi số lượng tồn kho (tồn, giữ chỗ, khoá, mức đặt hàng / min / max / safety, lô, tồn theo vị trí, phiếu di chuyển, điều chỉnh, kiểm kê, chuyển kho, nhật ký giá vốn, dòng định giá, sức chứa vị trí) là `decimal(18,6)` thay cho `int`; sự kiện mang số thập phân, các service nhận đọc được cả số nguyên lẫn thập phân. Chi tiết, thứ tự triển khai, UAT: `DecimalQuantities.md`. Dòng đơn hàng và dòng POS vẫn là số nguyên.

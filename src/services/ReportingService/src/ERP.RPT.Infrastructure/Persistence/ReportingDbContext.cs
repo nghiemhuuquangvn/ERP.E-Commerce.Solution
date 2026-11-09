@@ -76,6 +76,7 @@ public class ReportingDbContext : DbContext, ITenantScopedDbContext
         modelBuilder.Entity<FactInventoryMovement>(e =>
         {
             e.HasKey(x => x.MovementId);
+            e.Property(x => x.Quantity).HasPrecision(18, 6);
             e.HasIndex(x => x.DateKey);
             e.HasIndex(x => x.ProductId);
         });
@@ -118,6 +119,7 @@ public class ReportingDbContext : DbContext, ITenantScopedDbContext
         {
             e.HasKey(x => x.ProductId);
             e.Property(x => x.Price).HasPrecision(18, 2);
+            e.Property(x => x.StockQuantity).HasPrecision(18, 6);
             e.HasIndex(x => x.Category);
         });
 

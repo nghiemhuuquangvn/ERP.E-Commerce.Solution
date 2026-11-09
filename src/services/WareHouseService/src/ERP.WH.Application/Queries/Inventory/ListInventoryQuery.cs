@@ -20,12 +20,12 @@ public class InventoryItemDto
 {
     public Guid ProductId { get; set; }
     public required string ProductName { get; set; }
-    public int TotalQuantity { get; set; }
-    public int AvailableQuantity { get; set; }
-    public int ReorderPoint { get; set; }
-    public int MinStock { get; set; }
-    public int MaxStock { get; set; }
-    public int SafetyStock { get; set; }
+    public decimal TotalQuantity { get; set; }
+    public decimal AvailableQuantity { get; set; }
+    public decimal ReorderPoint { get; set; }
+    public decimal MinStock { get; set; }
+    public decimal MaxStock { get; set; }
+    public decimal SafetyStock { get; set; }
     public string? ProductSku { get; set; }
     public required string Status { get; set; }
 }

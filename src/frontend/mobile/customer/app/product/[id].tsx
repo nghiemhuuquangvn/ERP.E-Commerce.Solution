@@ -71,12 +71,12 @@ export default function ProductScreen() {
     )
   }
 
-  const out = product.stockQuantity === 0
+  const out = product.stockQuantity <= 0
   // A product with no price cannot be ordered (the server refuses it), so it cannot be added either (R113).
   const noPrice = product.price <= 0
 
   function add() {
-    if (!product || product.stockQuantity === 0 || product.price <= 0) return
+    if (!product || product.stockQuantity <= 0 || product.price <= 0) return
     addItem({ productId: product.id, productName: product.name, unitPrice: product.price, imageUrl: product.imageUrl }, qty)
     toast.success(t('product.addedToCart'))
     setQty(1)
@@ -114,7 +114,7 @@ export default function ProductScreen() {
           onChange={setQty}
           name={t('product.quantity')}
           min={1}
-          max={product.stockQuantity > 0 ? product.stockQuantity : undefined}
+          max={product.stockQuantity > 0 ? Math.floor(product.stockQuantity) : undefined}
           decreaseLabel={t('cart.decrease')}
           increaseLabel={t('cart.increase')}
         />

@@ -11,7 +11,7 @@ public class CreateLocationCommand : IRequest<LocationDto>
     public string Aisle { get; set; } = string.Empty;
     public string Bin { get; set; } = string.Empty;
     public string Shelf { get; set; } = string.Empty;
-    public int Capacity { get; set; } = 1000;
+    public decimal Capacity { get; set; } = 1000;
 }
 
 public class LocationDto
@@ -24,8 +24,8 @@ public class LocationDto
     public string Aisle { get; set; } = string.Empty;
     public string Bin { get; set; } = string.Empty;
     public string Shelf { get; set; } = string.Empty;
-    public int Capacity { get; set; }
-    public int CurrentOccupancy { get; set; }
+    public decimal Capacity { get; set; }
+    public decimal CurrentOccupancy { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
 }

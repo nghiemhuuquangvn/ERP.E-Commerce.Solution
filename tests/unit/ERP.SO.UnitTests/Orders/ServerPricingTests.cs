@@ -151,7 +151,7 @@ public class ServerPricingTests
         _uow.SetupGet(u => u.Sagas).Returns(_sagas.Object);
         _orders.Setup(o => o.AddAsync(It.IsAny<SalesOrder>(), It.IsAny<CancellationToken>()))
             .Callback<SalesOrder, CancellationToken>((o, _) => _saved = o).Returns(Task.CompletedTask);
-        _warehouse.Setup(w => w.CheckAvailabilityAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+        _warehouse.Setup(w => w.CheckAvailabilityAsync(It.IsAny<Guid>(), It.IsAny<decimal>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new StockAvailabilityResult { IsAvailable = true, AvailableQuantity = 100 });
         _shipping.Setup(s => s.GetFeeAsync(It.IsAny<decimal>(), It.IsAny<string?>(), It.IsAny<IReadOnlyCollection<(Guid ProductId, int Quantity)>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0m);
@@ -192,7 +192,7 @@ public class ServerPricingTests
 
         await act.Should().ThrowAsync<BusinessRuleException>();
         _orders.Verify(o => o.AddAsync(It.IsAny<SalesOrder>(), It.IsAny<CancellationToken>()), Times.Never);
-        _warehouse.Verify(w => w.CheckAvailabilityAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+        _warehouse.Verify(w => w.CheckAvailabilityAsync(It.IsAny<Guid>(), It.IsAny<decimal>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

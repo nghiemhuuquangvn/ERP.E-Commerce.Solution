@@ -8,8 +8,8 @@ public class LotDto
     public Guid LotId { get; set; }
     public Guid ProductId { get; set; }
     public string LotNumber { get; set; } = string.Empty;
-    public int ReceivedQuantity { get; set; }
-    public int RemainingQuantity { get; set; }
+    public decimal ReceivedQuantity { get; set; }
+    public decimal RemainingQuantity { get; set; }
     public decimal UnitCost { get; set; }
     public DateTime ReceivedDate { get; set; }
     public DateTime? ExpiryDate { get; set; }

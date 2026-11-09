@@ -13,7 +13,7 @@ public class ReserveInventoryCommand : IRequest<ReserveInventoryResponse?>
 public class ReservationItemDto
 {
     public Guid ProductId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
 }
 
 public class ReserveInventoryResponse
@@ -28,6 +28,6 @@ public class ReserveInventoryResponse
 public class ReservedItemResponse
 {
     public Guid ProductId { get; set; }
-    public int ReservedQuantity { get; set; }
+    public decimal ReservedQuantity { get; set; }
     public required string Location { get; set; }
 }

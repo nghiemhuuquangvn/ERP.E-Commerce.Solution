@@ -24,7 +24,7 @@ namespace ERP.PRD.Application.Features.Products.Queries
         public bool HasImage { get; set; }
         public string? ImageUrl { get; set; }
         public int VariantCount { get; set; }
-        public int StockQuantity { get; set; }
+        public decimal StockQuantity { get; set; }
         public decimal Price { get; set; }
         public string LanguageCode { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }

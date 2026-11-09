@@ -8,7 +8,7 @@ public class ReceiptCompletedEvent : ITenantEvent
     public Guid TenantId { get; set; }
 
     public Guid ProductId { get; set; }
-    public int QuantityReceived { get; set; }
+    public decimal QuantityReceived { get; set; }
     public string? LotNumber { get; set; }
     public Guid? PurchaseOrderId { get; set; }
     public string? Reference { get; set; }

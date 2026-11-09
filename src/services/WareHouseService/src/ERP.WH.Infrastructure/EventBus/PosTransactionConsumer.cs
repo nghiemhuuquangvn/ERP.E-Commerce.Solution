@@ -108,7 +108,7 @@ public class PosTransactionConsumer : IHostedService
         {
             ProductId = l.GuidValue("ProductId") ?? Guid.Empty,
             ProductName = l.Value<string?>("ProductName") ?? string.Empty,
-            Quantity = l.Value<int?>("Quantity") ?? 0
+            Quantity = l.Value<decimal?>("Quantity") ?? 0m
         }).ToList() ?? new List<PointOfSaleLine>();
 
         return new RecordPointOfSaleStockCommand { TransactionId = transactionId, IsReturn = isReturn, Lines = lines };

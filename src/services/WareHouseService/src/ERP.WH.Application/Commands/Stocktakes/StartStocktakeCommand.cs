@@ -8,9 +8,9 @@ namespace ERP.WH.Application.Commands.Stocktakes;
 public class StocktakeLineDto
 {
     public Guid ProductId { get; set; }
-    public int SystemQuantity { get; set; }
-    public int? CountedQuantity { get; set; }
-    public int Variance { get; set; }
+    public decimal SystemQuantity { get; set; }
+    public decimal? CountedQuantity { get; set; }
+    public decimal Variance { get; set; }
     public string? VarianceReason { get; set; }
 }
 

@@ -15,14 +15,14 @@ public class StocktakeLine
     public Guid LineId { get; private set; }
     public Guid StocktakeId { get; private set; }
     public Guid ProductId { get; private set; }
-    public int SystemQuantity { get; private set; }
-    public int? CountedQuantity { get; private set; }
+    public decimal SystemQuantity { get; private set; }
+    public decimal? CountedQuantity { get; private set; }
     public string? VarianceReason { get; private set; }
-    public int Variance => (CountedQuantity ?? SystemQuantity) - SystemQuantity;
+    public decimal Variance => (CountedQuantity ?? SystemQuantity) - SystemQuantity;
 
     private StocktakeLine() { }
 
-    public StocktakeLine(Guid stocktakeId, Guid productId, int systemQuantity)
+    public StocktakeLine(Guid stocktakeId, Guid productId, decimal systemQuantity)
     {
         LineId = Guid.NewGuid();
         StocktakeId = stocktakeId;
@@ -30,7 +30,7 @@ public class StocktakeLine
         SystemQuantity = systemQuantity;
     }
 
-    public void RecordCount(int countedQuantity, string? varianceReason = null)
+    public void RecordCount(decimal countedQuantity, string? varianceReason = null)
     {
         CountedQuantity = countedQuantity;
         VarianceReason = varianceReason;
@@ -64,7 +64,7 @@ public class Stocktake : ITenantOwned
         StartedAt = DateTime.UtcNow;
     }
 
-    public void AddLine(Guid productId, int systemQuantity)
+    public void AddLine(Guid productId, decimal systemQuantity)
     {
         if (Status != StocktakeStatus.InProgress)
             throw new InvalidOperationException("Cannot add lines to a completed or cancelled stocktake");
@@ -72,7 +72,7 @@ public class Stocktake : ITenantOwned
         Lines.Add(new StocktakeLine(StocktakeId, productId, systemQuantity));
     }
 
-    public void RecordCount(Guid productId, int countedQuantity, string? varianceReason = null)
+    public void RecordCount(Guid productId, decimal countedQuantity, string? varianceReason = null)
     {
         if (Status != StocktakeStatus.InProgress)
             throw new InvalidOperationException("Cannot record counts on a completed or cancelled stocktake");

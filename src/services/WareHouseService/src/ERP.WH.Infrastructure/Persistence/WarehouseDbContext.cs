@@ -144,6 +144,7 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
                 items.Property<int>("Id");
                 items.HasKey("Id");
                 items.Property(i => i.WarehouseLocation).HasMaxLength(100);
+                items.Property(i => i.Quantity).HasPrecision(18, 6);
 
                 // Persisted as JSON rather than a second-level owned collection — EF Core
                 // supports nested OwnsMany but it requires its own composite-key plumbing
@@ -348,8 +349,32 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
                 .HasFilter("[ProcessedOnUtc] IS NULL");
         });
 
+        // Every stock quantity is decimal(18,6) since the Warehouse upgrade W1 (SQL Warehouse/010). A bare decimal would map to (18,2).
+        ConfigureQuantityPrecision(modelBuilder);
+
         // Last, so it composes with any per-entity filter configured above.
         modelBuilder.ApplyTenantQueryFilters(this);
+    }
+
+    private static void ConfigureQuantityPrecision(ModelBuilder modelBuilder)
+    {
+        void Set<T>(params System.Linq.Expressions.Expression<Func<T, decimal>>[] quantities) where T : class
+        {
+            foreach (var quantity in quantities) modelBuilder.Entity<T>().Property(quantity).HasPrecision(18, 6);
+        }
+
+        Set<Inventory>(e => e.TotalQuantity, e => e.ReservedQuantity, e => e.LockedQuantity, e => e.ReorderPoint, e => e.ReorderQuantity, e => e.MinStock, e => e.MaxStock, e => e.SafetyStock);
+        Set<InventoryLot>(e => e.ReceivedQuantity, e => e.RemainingQuantity, e => e.ReservedQuantity);
+        Set<InventoryLocationStock>(e => e.Quantity, e => e.ReservedQuantity, e => e.LockedQuantity);
+        Set<StockMovement>(e => e.Quantity);
+        Set<StockAdjustment>(e => e.QuantityDelta);
+        Set<CostConsumptionLog>(e => e.Quantity);
+        Set<InventoryValuationSnapshotLine>(e => e.Quantity);
+        Set<WarehouseLocation>(e => e.Capacity, e => e.CurrentOccupancy);
+        Set<TransferOrderLine>(e => e.Quantity);
+        Set<StocktakeLine>(e => e.SystemQuantity);
+        modelBuilder.Entity<StocktakeLine>().Property(e => e.CountedQuantity).HasPrecision(18, 6);
+        Set<TenantInventorySettings>(e => e.LowStockThreshold);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
