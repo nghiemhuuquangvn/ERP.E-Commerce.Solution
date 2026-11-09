@@ -405,3 +405,6 @@ Critical Path: POS → Product, Payment, Promotion = 1 hop each (parallel)
 | manufacturing | product | `internal/v1/product-uom-conversions/lookup` | the product's own unit conversions for BOM lines (M3) |
 | manufacturing | product | `internal/v1/product-lookup/by-sku` | components of a BOM CSV file by SKU (M4) |
 | manufacturing | masterdata | `internal/v1/units-of-measure/by-code` | units of a BOM CSV file by code (M4) |
+
+### Manufacturing -> Warehouse stock calls (2026-11-10, Warehouse upgrade W5)
+ManufacturingService calls WareHouseService `internal/v1/stock/*` (availability, suggest-lots, production reservation, production movements, lot status) with its service token (`IWarehouseStockClient`, no cache, idempotency key `<doc>#<line>`). Warehouse trusts caller `manufacturing` (already configured). Phase 3 production orders will use it.

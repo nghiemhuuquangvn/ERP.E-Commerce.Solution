@@ -658,4 +658,4 @@ All requests have CorrelationId for end-to-end tracing:
 
 ## ManufacturingService (MFG, 2026-11-06)
 
-Own service on PostgreSQL (`ManufacturingDB`, host server). Calls, all service-to-service with its own token and fail-closed: ProductService `internal/v1/product-lookup`, MasterData `internal/v1/units-of-measure/lookup|convert`, WareHouseService `internal/v1/warehouses/lookup`. Nothing calls Manufacturing yet. Later phases add Warehouse stock calls, Sales / Purchasing demand and supply, and events towards Accounting (see `adr-manufacturing-service.md`).
+Own service on PostgreSQL (`ManufacturingDB`, host server). Calls, all service-to-service with its own token and fail-closed: ProductService `internal/v1/product-lookup`, MasterData `internal/v1/units-of-measure/lookup|convert`, WareHouseService `internal/v1/warehouses/lookup` and (since W5, 2026-11-10) `internal/v1/stock/*` (availability, lot suggestion, production reservation, production movements, lot status; `IWarehouseStockClient`). Nothing calls Manufacturing yet. Later phases add Sales / Purchasing demand and supply, and events towards Accounting (see `adr-manufacturing-service.md`).

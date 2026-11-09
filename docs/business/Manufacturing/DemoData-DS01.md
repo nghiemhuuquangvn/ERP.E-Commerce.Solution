@@ -45,3 +45,6 @@ The BOMs and routings are written as CSV and created by the **import handlers**,
 
 ## 6. Open issues
 The set is for development and training, not for production; stock, lots, QC plan and orders follow with their phases; the units are the tenant's MasterData units (the seeder does not create them - the script does for M3).
+
+## Stock cycle runner (2026-11-10, Warehouse upgrade W5)
+`POST /mfg/api/v1/manufacturing/seed/stock-cycle` (same switch `Manufacturing:EnableDemoSeed`, permission `manufacturing:settings:manage`, 404 otherwise) plays one production order against the Warehouse internal stock API with this service's token: reserve, issue in two pieces, return, scrap, receipt under quality hold, release, block, reverse and three refusal probes. Body: `orderNumber`, `componentProductId`, `finishedProductId`, `rawWarehouseId`, `quarantineWarehouseId` (+ optional quantities). It **changes stock** of the products named and writes nothing in Manufacturing's tables. Check script: `wh-w5.js`. Detail: docs/business/Warehouse/ProductionIntegration.md.

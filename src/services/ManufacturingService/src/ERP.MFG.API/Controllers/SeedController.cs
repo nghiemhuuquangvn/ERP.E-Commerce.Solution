@@ -23,4 +23,16 @@ public class SeedController(IMediator mediator, IConfiguration configuration) : 
         if (!configuration.GetValue<bool>("Manufacturing:EnableDemoSeed")) return NotFound();
         return Ok(await mediator.Send(new SeedDs01Command(body.PlantCode ?? "PL01", body.SkuPrefix ?? "", body.Warehouses, body.Units), ct));
     }
+
+    /// <summary>
+    /// Plays one production-order cycle against the Warehouse's internal stock API (reserve, issue, return, scrap, receipt under QC hold, release, block, reverse)
+    /// to prove the service-to-service contract on a live stack. Changes stock of the products named, writes nothing in Manufacturing. Same switch as DS-01.
+    /// </summary>
+    [HttpPost("stock-cycle")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_SettingsManage)]
+    public async Task<IActionResult> StockCycle([FromBody] StockCycleRequest body, CancellationToken ct)
+    {
+        if (!configuration.GetValue<bool>("Manufacturing:EnableDemoSeed")) return NotFound();
+        return Ok(await mediator.Send(new RunStockCycleCommand(body), ct));
+    }
 }

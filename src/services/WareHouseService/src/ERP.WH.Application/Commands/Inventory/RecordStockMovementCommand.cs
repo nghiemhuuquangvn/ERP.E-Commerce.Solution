@@ -30,6 +30,11 @@ public class RecordStockMovementCommand : IRequest<RecordStockMovementResponse>
     public Guid? ReservationId { get; set; }
     /// <summary>The reservation line (production order component) to take from, when the item appears on more than one.</summary>
     public Guid? SourceLineId { get; set; }
+
+    /// <summary>Production movements: the item is lot-controlled (flag read from Product by the caller; internal API only - the user endpoint leaves it unchecked).</summary>
+    public bool RequiresLot { get; set; }
+    /// <summary>Production movements: the item is serial-controlled; refused (WH_SERIAL_NOT_SUPPORTED) because per-serial tracking is not on the production path yet.</summary>
+    public bool RequiresSerial { get; set; }
 }
 
 public class RecordStockMovementResponse

@@ -23,7 +23,16 @@ public class ReleaseReservationCommandHandler : IRequestHandler<ReleaseReservati
     {
         var reservation = await _uow.Reservations.GetByIdAsync(request.ReservationId, cancellationToken);
         if (reservation == null)
-            throw new InvalidOperationException($"Reservation {request.ReservationId} not found");
+            throw new ERP.Shared.Infrastructure.Exceptions.EntityNotFoundException("Reservation", request.ReservationId);
+
+        // Idempotent: a reservation that is no longer open (released, expired, fulfilled) is answered as it is - releasing again would free stock twice.
+        if (reservation.Status != ReservationStatus.Reserved)
+            return new ReleaseReservationResponse
+            {
+                ReservationId = reservation.ReservationId,
+                Status = reservation.Status.ToString(),
+                ReleasedAt = reservation.ReleasedAt ?? DateTime.UtcNow
+            };
 
         await _ledger.ReleaseAsync(reservation, cancellationToken);
 
