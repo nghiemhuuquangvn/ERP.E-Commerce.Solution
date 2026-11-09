@@ -8,6 +8,8 @@ public class TenantInventorySettings : ERP.Shared.Core.Domain.ITenantOwned
     public decimal LowStockThreshold { get; private set; } = 10;
     public bool BackorderAllowed { get; private set; } = false;
     public int DefaultHoldDays { get; private set; } = 7;
+    /// <summary>Where stock without a warehouse goes (legacy stock, a receipt that names none). Null = the tenant's MAIN / first active warehouse.</summary>
+    public Guid? DefaultWarehouseId { get; private set; }
     public string? CreatedBy { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public string? UpdatedBy { get; private set; }
@@ -32,11 +34,12 @@ public class TenantInventorySettings : ERP.Shared.Core.Domain.ITenantOwned
         };
     }
 
-    public void Update(decimal lowStockThreshold, bool backorderAllowed, int defaultHoldDays)
+    public void Update(decimal lowStockThreshold, bool backorderAllowed, int defaultHoldDays, Guid? defaultWarehouseId = null)
     {
         LowStockThreshold = lowStockThreshold;
         BackorderAllowed = backorderAllowed;
         DefaultHoldDays = defaultHoldDays;
+        DefaultWarehouseId = defaultWarehouseId;
         UpdatedAt = DateTime.UtcNow;
     }
 }

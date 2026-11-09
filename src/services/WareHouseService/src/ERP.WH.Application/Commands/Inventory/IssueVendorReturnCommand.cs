@@ -1,5 +1,6 @@
 using ERP.Shared.Infrastructure.Caching;
 using ERP.WH.Application.Interfaces;
+using ERP.WH.Application.Services;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
 using MediatR;
@@ -44,13 +45,15 @@ public class IssueVendorReturnCommandHandler : IRequestHandler<IssueVendorReturn
     private readonly IEventOutboxWriter _outboxWriter;
     private readonly ICacheService _cache;
     private readonly ILogger<IssueVendorReturnCommandHandler> _logger;
+    private readonly IStockLedger _ledger;
 
-    public IssueVendorReturnCommandHandler(IWarehouseUnitOfWork uow, IEventOutboxWriter outboxWriter, ICacheService cache, ILogger<IssueVendorReturnCommandHandler> logger)
+    public IssueVendorReturnCommandHandler(IWarehouseUnitOfWork uow, IEventOutboxWriter outboxWriter, ICacheService cache, ILogger<IssueVendorReturnCommandHandler> logger, IStockLedger ledger)
     {
         _uow = uow;
         _outboxWriter = outboxWriter;
         _cache = cache;
         _logger = logger;
+        _ledger = ledger;
     }
 
     public async Task<IssueVendorReturnResult> Handle(IssueVendorReturnCommand request, CancellationToken ct)
@@ -83,7 +86,7 @@ public class IssueVendorReturnCommandHandler : IRequestHandler<IssueVendorReturn
 
             var previousQuantity = inventory.TotalQuantity;
             var unitCost = inventory.Cost;
-            inventory.AdjustStock(-line.Quantity);
+            await _ledger.AdjustAsync(inventory, -line.Quantity, await _ledger.TargetAsync(null, null, ct), ct);
             await _uow.Inventories.UpdateAsync(inventory, ct);
 
             var movement = new StockMovement(

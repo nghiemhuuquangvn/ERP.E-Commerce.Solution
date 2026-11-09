@@ -1,5 +1,6 @@
 using MediatR;
 using ERP.WH.Application.Interfaces;
+using ERP.WH.Application.Services;
 using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
@@ -51,15 +52,18 @@ public class ApproveStocktakeCommandHandler : IRequestHandler<ApproveStocktakeCo
     private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventOutboxWriter _outboxWriter;
     private readonly ICacheService _cache;
+    private readonly IStockLedger _ledger;
 
     public ApproveStocktakeCommandHandler(
         IWarehouseUnitOfWork uow,
         IEventOutboxWriter outboxWriter,
-        ICacheService cache)
+        ICacheService cache,
+        IStockLedger ledger)
     {
         _uow = uow;
         _outboxWriter = outboxWriter;
         _cache = cache;
+        _ledger = ledger;
     }
 
     public async Task<StocktakeDto> Handle(ApproveStocktakeCommand request, CancellationToken cancellationToken)
@@ -77,21 +81,9 @@ public class ApproveStocktakeCommandHandler : IRequestHandler<ApproveStocktakeCo
                 continue;
 
             var previousQuantity = inventory.TotalQuantity;
-            inventory.AdjustStock(line.Variance);
+            await _ledger.AdjustAsync(inventory, line.Variance, await _ledger.TargetAsync(null, stocktake.LocationId, cancellationToken), cancellationToken);
             await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
             await _cache.RemoveAsync($"wh:inventory:{line.ProductId}", cancellationToken);
-
-            if (stocktake.LocationId.HasValue)
-            {
-                var locationStock = await _uow.InventoryLocationStocks.GetAsync(line.ProductId, stocktake.LocationId.Value, cancellationToken);
-                if (locationStock == null)
-                {
-                    locationStock = new InventoryLocationStock(line.ProductId, stocktake.LocationId.Value);
-                    await _uow.InventoryLocationStocks.AddAsync(locationStock, cancellationToken);
-                }
-                locationStock.AdjustStock(line.Variance);
-                await _uow.InventoryLocationStocks.UpdateAsync(locationStock, cancellationToken);
-            }
 
             var movement = new StockMovement(
                 Guid.Empty, // stamped with the current tenant on save (see RecordStockMovementCommandHandler)

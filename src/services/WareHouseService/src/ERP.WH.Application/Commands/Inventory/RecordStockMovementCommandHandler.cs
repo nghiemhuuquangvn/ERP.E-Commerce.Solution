@@ -1,5 +1,6 @@
 using MediatR;
 using ERP.WH.Application.Interfaces;
+using ERP.WH.Application.Services;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
 using ERP.Shared.Infrastructure.Caching;
@@ -11,15 +12,18 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
     private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventOutboxWriter _outboxWriter;
     private readonly ICacheService _cache;
+    private readonly IStockLedger _ledger;
 
     public RecordStockMovementCommandHandler(
         IWarehouseUnitOfWork uow,
         IEventOutboxWriter outboxWriter,
-        ICacheService cache)
+        ICacheService cache,
+        IStockLedger ledger)
     {
         _uow = uow;
         _outboxWriter = outboxWriter;
         _cache = cache;
+        _ledger = ledger;
     }
 
     public async Task<RecordStockMovementResponse> Handle(RecordStockMovementCommand request, CancellationToken cancellationToken)
@@ -32,21 +36,23 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
 
         var movementType = Enum.Parse<MovementType>(request.MovementType);
 
+        var target = await _ledger.TargetAsync(null, null, cancellationToken);
         switch (movementType)
         {
             case MovementType.Received:
-                inventory.ReceiveStock(request.Quantity, 0);
+                await _ledger.ReceiveAsync(inventory, request.Quantity, 0, target, null, cancellationToken);
                 break;
             case MovementType.Sold:
-                inventory.SellStock(request.Quantity);
-                if (inventory.ValuationMethod != ValuationMethod.Average)
-                    await DepleteLotsAsync(inventory, request.Quantity, cancellationToken);
+                // cost layers: under Average costing the lots are not depleted; FIFO / LIFO deplete them in that order
+                var depletion = inventory.ValuationMethod == ValuationMethod.Average ? LotDepletion.None
+                    : inventory.ValuationMethod == ValuationMethod.LIFO ? LotDepletion.Lifo : LotDepletion.Fifo;
+                await _ledger.IssueAsync(inventory, request.Quantity, target, IssuePolicy.Refuse, depletion, cancellationToken);
                 break;
             case MovementType.Adjusted:
-                inventory.AdjustStock(request.Quantity);
+                await _ledger.AdjustAsync(inventory, request.Quantity, target, cancellationToken);
                 break;
             case MovementType.Damaged:
-                inventory.AdjustStock(-request.Quantity);
+                await _ledger.AdjustAsync(inventory, -request.Quantity, target, cancellationToken);
                 break;
             default:
                 throw new InvalidOperationException($"Unknown movement type: {request.MovementType}");
@@ -116,37 +122,6 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
             Quantity = request.Quantity,
             RecordedAt = DateTime.UtcNow
         };
-    }
-
-    /// <summary>
-    /// Depletes cost layers so GetInventoryValuationQuery reflects which lots are
-    /// actually still on hand under the product's chosen costing method. Best-effort:
-    /// not all quantity may be lot-tracked (e.g. stock received before lot tracking
-    /// was used), so this depletes whatever lot quantity is available up to the sold
-    /// amount rather than requiring an exact match.
-    /// </summary>
-    private async Task DepleteLotsAsync(Domain.Aggregates.Inventory.Inventory inventory, decimal quantitySold, CancellationToken cancellationToken)
-    {
-        var lots = await _uow.InventoryLots.GetByProductIdAsync(inventory.ProductId, includeDepleted: false, cancellationToken);
-
-        var ordered = inventory.ValuationMethod == ValuationMethod.LIFO
-            ? lots.OrderByDescending(l => l.ReceivedDate).ToList()
-            : lots.OrderBy(l => l.ReceivedDate).ToList();
-
-        var remainingToDeplete = quantitySold;
-        foreach (var lot in ordered)
-        {
-            if (remainingToDeplete <= 0)
-                break;
-
-            var depleteFromLot = Math.Min(lot.RemainingQuantity, remainingToDeplete);
-            if (depleteFromLot <= 0)
-                continue;
-
-            lot.Deplete(depleteFromLot);
-            await _uow.InventoryLots.UpdateAsync(lot, cancellationToken);
-            remainingToDeplete -= depleteFromLot;
-        }
     }
 }
 

@@ -1,5 +1,6 @@
 using MediatR;
 using ERP.WH.Application.Interfaces;
+using ERP.WH.Application.Services;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
 using ERP.Shared.Infrastructure.Caching;
@@ -12,15 +13,18 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
     private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventOutboxWriter _outboxWriter;
     private readonly ICacheService _cache;
+    private readonly IStockLedger _ledger;
 
     public ReserveInventoryCommandHandler(
         IWarehouseUnitOfWork uow,
         IEventOutboxWriter outboxWriter,
-        ICacheService cache)
+        ICacheService cache,
+        IStockLedger ledger)
     {
         _uow = uow;
         _outboxWriter = outboxWriter;
         _cache = cache;
+        _ledger = ledger;
     }
 
     public async Task<ReserveInventoryResponse?> Handle(ReserveInventoryCommand request, CancellationToken cancellationToken)
@@ -91,11 +95,12 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
         foreach (var item in request.Items)
         {
             var inventory = inventories[item.ProductId];
-            inventory.ReserveStock(item.Quantity);
+            var target = await _ledger.TargetAsync(null, null, cancellationToken);
+            var held = await _ledger.ReserveAsync(inventory, item.Quantity, target, cancellationToken);
             await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
 
-            var location = await ReserveAtLocationAsync(item.ProductId, item.Quantity, cancellationToken);
-            var lotAllocations = await AllocateFefoLotAsync(item.ProductId, item.Quantity, cancellationToken);
+            var location = held.Location;
+            var lotAllocations = held.Allocations.ToList();
 
             reservedItems.Add(new ReservedItem
             {
@@ -147,61 +152,6 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
             Status = "Reserved",
             ReservedAt = DateTime.UtcNow
         };
-    }
-
-    /// <summary>
-    /// First-fit: picks the first location whose own AvailableQuantity covers the full
-    /// requested quantity — does not split one line's reservation across multiple
-    /// locations. Falls back to "DEFAULT_LOCATION" (previous hardcoded behavior) when the
-    /// product has no location-level stock rows yet (bin-level tracking is additive; not
-    /// every product has been received against a specific location).
-    /// </summary>
-    private async Task<string> ReserveAtLocationAsync(Guid productId, decimal quantity, CancellationToken cancellationToken)
-    {
-        var locationStocks = await _uow.InventoryLocationStocks.GetByProductIdAsync(productId, cancellationToken);
-        var candidate = locationStocks.FirstOrDefault(s => s.CanReserve(quantity));
-        if (candidate == null)
-            return "DEFAULT_LOCATION";
-
-        candidate.ReserveStock(quantity);
-        await _uow.InventoryLocationStocks.UpdateAsync(candidate, cancellationToken);
-        return candidate.LocationId.ToString();
-    }
-
-    /// <summary>
-    /// FEFO: earliest ExpiryDate first (nulls last), then earliest ReceivedDate. Places a
-    /// soft hold (Reserve, not Deplete) across lots until the requested quantity is
-    /// covered — RemainingQuantity is untouched here; real depletion happens later, at
-    /// ship time, via IReservationFulfillmentService consuming exactly these allocations.
-    /// Returns an empty list for non-lot-tracked products (no lots exist).
-    /// </summary>
-    private async Task<List<LotAllocation>> AllocateFefoLotAsync(Guid productId, decimal quantity, CancellationToken cancellationToken)
-    {
-        var lots = await _uow.InventoryLots.GetByProductIdAsync(productId, includeDepleted: false, cancellationToken);
-        var ordered = lots
-            .OrderBy(l => l.ExpiryDate ?? DateTime.MaxValue)
-            .ThenBy(l => l.ReceivedDate)
-            .ToList();
-
-        var allocations = new List<LotAllocation>();
-        var remaining = quantity;
-
-        foreach (var lot in ordered)
-        {
-            if (remaining <= 0)
-                break;
-
-            var take = Math.Min(lot.AvailableQuantity, remaining);
-            if (take <= 0)
-                continue;
-
-            lot.Reserve(take);
-            await _uow.InventoryLots.UpdateAsync(lot, cancellationToken);
-            allocations.Add(new LotAllocation { LotId = lot.LotId, Quantity = take });
-            remaining -= take;
-        }
-
-        return allocations;
     }
 }
 

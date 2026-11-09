@@ -31,6 +31,8 @@ namespace ERP.PRD.Application.Features.Products.Queries
                 CategoryName = string.Empty, // populated at query level when category join is available
                 BrandId = product.BrandId,
                 BaseUomId = product.BaseUomId,
+                IsLotControlled = product.IsLotControlled,
+                IsSerialControlled = product.IsSerialControlled,
                 HasImage = product.HasImage,
                 ImageUrl = primaryImage?.ImageUrl,
                 VariantCount = product.Variants.Count,

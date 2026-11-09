@@ -22,6 +22,7 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
     public DbSet<SystemInventorySettings> SystemInventorySettings { get; set; }
     public DbSet<TenantInventorySettings> TenantInventorySettings { get; set; }
     public DbSet<InventoryLocationStock> InventoryLocationStocks { get; set; }
+    public DbSet<StockBalance> StockBalances { get; set; }
     public DbSet<StockAdjustment> StockAdjustments { get; set; }
     public DbSet<Warehouse> Warehouses { get; set; }
     public DbSet<BarcodeMapping> BarcodeMappings { get; set; }
@@ -59,6 +60,7 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
             entity.HasKey(e => e.ProductId);
             entity.Property(e => e.ProductName).IsRequired().HasMaxLength(255);
             entity.Property(e => e.ProductSku).HasMaxLength(100);
+            entity.Property(e => e.RowVersion).IsRowVersion();
             entity.Property(e => e.TotalQuantity).IsRequired();
             entity.Property(e => e.ReservedQuantity).IsRequired();
             entity.Property(e => e.LockedQuantity).IsRequired();
@@ -83,6 +85,10 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
             entity.Property(e => e.ReservedQuantity).IsRequired();
             entity.Property(e => e.UnitCost).HasPrecision(18, 2);
             entity.Property(e => e.ReceivedDate).IsRequired();
+            entity.Property(e => e.Status).HasConversion<byte>().HasDefaultValue(LotStatus.Available);
+            entity.Property(e => e.Source).HasConversion<byte>().HasDefaultValue(LotSource.Receipt);
+            entity.Property(e => e.ManufactureDate).HasColumnType("date");
+            entity.Property(e => e.RowVersion).IsRowVersion();
 
             entity.HasIndex(e => new { e.ProductId, e.RemainingQuantity });
             entity.HasIndex(e => e.ExpiryDate);
@@ -160,6 +166,15 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
             entity.HasIndex(e => e.OrderId);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.HoldUntil);
+        });
+
+        modelBuilder.Entity<StockBalance>(entity =>
+        {
+            entity.ToTable("StockBalances");
+            entity.HasKey(e => e.BalanceId);
+            entity.Property(e => e.RowVersion).IsRowVersion();
+            entity.HasIndex(e => new { e.TenantId, e.ProductId, e.WarehouseId, e.LotId }).IsUnique().HasDatabaseName("UX_StockBalances_Key");
+            entity.HasIndex(e => new { e.TenantId, e.WarehouseId, e.ProductId }).HasDatabaseName("IX_StockBalances_Warehouse");
         });
 
         modelBuilder.Entity<InventoryLocationStock>(entity =>
@@ -366,6 +381,7 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
         Set<Inventory>(e => e.TotalQuantity, e => e.ReservedQuantity, e => e.LockedQuantity, e => e.ReorderPoint, e => e.ReorderQuantity, e => e.MinStock, e => e.MaxStock, e => e.SafetyStock);
         Set<InventoryLot>(e => e.ReceivedQuantity, e => e.RemainingQuantity, e => e.ReservedQuantity);
         Set<InventoryLocationStock>(e => e.Quantity, e => e.ReservedQuantity, e => e.LockedQuantity);
+        Set<StockBalance>(e => e.Quantity, e => e.ReservedQuantity, e => e.LockedQuantity);
         Set<StockMovement>(e => e.Quantity);
         Set<StockAdjustment>(e => e.QuantityDelta);
         Set<CostConsumptionLog>(e => e.Quantity);
@@ -380,12 +396,30 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
-        return base.SaveChanges(acceptAllChangesOnSuccess);
+        try
+        {
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw Conflict(ex);
+        }
     }
 
-    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
-        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        try
+        {
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw Conflict(ex);
+        }
     }
+
+    /// <summary>Stock rows carry a RowVersion: someone else changed the same row first, so the caller must read again and retry (HTTP 409).</summary>
+    private static ERP.Shared.Infrastructure.Exceptions.ConcurrencyException Conflict(DbUpdateConcurrencyException ex)
+        => new("The stock was changed by another request at the same time. Read it again and retry.", ex);
 }

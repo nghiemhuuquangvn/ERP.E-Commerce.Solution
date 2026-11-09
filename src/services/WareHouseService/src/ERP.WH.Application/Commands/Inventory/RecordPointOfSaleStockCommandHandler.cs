@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using ERP.WH.Application.Interfaces;
+using ERP.WH.Application.Services;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
 using ERP.Shared.Infrastructure.Caching;
@@ -21,17 +22,20 @@ public class RecordPointOfSaleStockCommandHandler : IRequestHandler<RecordPointO
     private readonly IEventOutboxWriter _outboxWriter;
     private readonly ICacheService _cache;
     private readonly ILogger<RecordPointOfSaleStockCommandHandler> _logger;
+    private readonly IStockLedger _ledger;
 
     public RecordPointOfSaleStockCommandHandler(
         IWarehouseUnitOfWork uow,
         IEventOutboxWriter outboxWriter,
         ICacheService cache,
-        ILogger<RecordPointOfSaleStockCommandHandler> logger)
+        ILogger<RecordPointOfSaleStockCommandHandler> logger,
+        IStockLedger ledger)
     {
         _uow = uow;
         _outboxWriter = outboxWriter;
         _cache = cache;
         _logger = logger;
+        _ledger = ledger;
     }
 
     public static string ReferenceFor(Guid transactionId, bool isReturn) =>
@@ -68,13 +72,14 @@ public class RecordPointOfSaleStockCommandHandler : IRequestHandler<RecordPointO
             }
 
             var previousQuantity = inventory.TotalQuantity;
+            var target = await _ledger.TargetAsync(null, null, cancellationToken);
             if (request.IsReturn)
             {
-                inventory.AdjustStock(line.Quantity);
+                await _ledger.AdjustAsync(inventory, line.Quantity, target, cancellationToken);
             }
             else
             {
-                inventory.RecordPointOfSaleSale(line.Quantity);
+                await _ledger.IssueAsync(inventory, line.Quantity, target, IssuePolicy.AllowNegative, LotDepletion.None, cancellationToken);
                 await _uow.CostConsumptionLogs.AddAsync(
                     new CostConsumptionLog(line.ProductId, lotId: null, line.Quantity, inventory.Cost, request.TransactionId),
                     cancellationToken);

@@ -74,6 +74,26 @@ export interface InventoryLot {
   receivedDate: string
   expiryDate: string | null
   purchaseOrderId: string | null
+  /** Available | QcHold | Blocked — only an Available lot may be allocated. */
+  status?: 'Available' | 'QcHold' | 'Blocked'
+  warehouseId?: string | null
+  manufactureDate?: string | null
+  source?: 'Receipt' | 'Production' | 'Return'
+}
+
+/** One row of "how much is where": a warehouse (null = unassigned) and a lot (null = not attributed to a lot). */
+export interface StockBalance {
+  warehouseId: string | null
+  warehouseCode: string | null
+  warehouseName: string | null
+  lotId: string | null
+  lotNumber: string | null
+  lotStatus: 'Available' | 'QcHold' | 'Blocked' | null
+  expiryDate: string | null
+  quantity: number
+  reservedQuantity: number
+  lockedQuantity: number
+  availableQuantity: number
 }
 
 // Per-sale COGS audit trail (Module 8 reconciliation) — written once per lot consumed
@@ -151,6 +171,9 @@ export const inventoryApi = {
   setSerialStatus: (serialNumber: string, status: InventorySerial['status']) =>
     apiClient.post(`/v1/inventory/serials/${serialNumber}/status`, { status }),
 
+  balances: (productId: string) =>
+    apiClient.get<StockBalance[]>(`/v1/inventory/${productId}/balances`).then((r) => r.data),
+
   receive: (body: {
     productId: string
     productName?: string
@@ -158,8 +181,10 @@ export const inventoryApi = {
     quantity: number
     unitCost: number
     locationId?: string
+    warehouseId?: string
     lotNumber?: string
     expiryDate?: string
+    manufactureDate?: string
     serialNumbers?: string[]
     reference?: string
     purchaseOrderId?: string

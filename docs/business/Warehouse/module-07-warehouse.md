@@ -214,3 +214,6 @@ gợi ý số lượng cần nhập.
 
 ## 14. Số lượng thập phân (W1 của Warehouse upgrade, 2026-11-09)
 Mọi số lượng tồn kho (tồn, giữ chỗ, khoá, mức đặt hàng / min / max / safety, lô, tồn theo vị trí, phiếu di chuyển, điều chỉnh, kiểm kê, chuyển kho, nhật ký giá vốn, dòng định giá, sức chứa vị trí) là `decimal(18,6)` thay cho `int`; sự kiện mang số thập phân, các service nhận đọc được cả số nguyên lẫn thập phân. Chi tiết, thứ tự triển khai, UAT: `DecimalQuantities.md`. Dòng đơn hàng và dòng POS vẫn là số nguyên.
+
+## 15. Tồn kho theo kho và lô (W2 của Warehouse upgrade, 2026-11-10)
+Bảng `StockBalances` giữ tồn theo (mặt hàng, kho, lô); `Inventories` vẫn là tổng theo mặt hàng cho Sales / POS / Replenishment. Mọi thay đổi tồn đi qua một dịch vụ ghi duy nhất `StockLedger` (một giao dịch DB cùng phiếu di chuyển và outbox). Lô có trạng thái (Available / QcHold / Blocked), kho, ngày sản xuất; lô chờ kiểm tra không được cấp phát. Kho mặc định là cài đặt theo tenant. Xung đột ghi đồng thời trả 409 (RowVersion). Chi tiết, UAT: `StockByWarehouseAndLot.md`.

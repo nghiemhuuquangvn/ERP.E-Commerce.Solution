@@ -79,7 +79,7 @@ namespace ERP.WH.Infrastructure.BackgroundJobs
 
             foreach (var reservation in expired)
             {
-                await ReleaseReservationCommandHandler.ReleaseAllocationsAsync(uow, reservation, cancellationToken);
+                await scope.ServiceProvider.GetRequiredService<ERP.WH.Application.Services.IStockLedger>().ReleaseAsync(reservation, cancellationToken);
                 reservation.Expire();
                 await uow.Reservations.UpdateAsync(reservation, cancellationToken);
                 await uow.SaveChangesAsync(cancellationToken);

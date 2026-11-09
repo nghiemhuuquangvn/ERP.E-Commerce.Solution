@@ -38,6 +38,9 @@ public static class DependencyInjection
         services.AddScoped<IWarehouseRepository, WarehouseRepository>();
         services.AddScoped<IBarcodeMappingRepository, BarcodeMappingRepository>();
         services.AddScoped<ICostConsumptionLogRepository, CostConsumptionLogRepository>();
+        services.AddScoped<IStockBalanceRepository, StockBalanceRepository>();
+        services.AddScoped<IWarehouseResolver, Services.WarehouseResolver>();
+        services.AddScoped<IStockLedger, StockLedger>();
         services.AddScoped<Application.Commands.Inventory.IInventoryValuationSnapshotRepository, InventoryValuationSnapshotRepository>();
         services.AddScoped<IWarehouseUnitOfWork, WarehouseUnitOfWork>();
         services.AddScoped<IEventPublisher, EventPublisher>();

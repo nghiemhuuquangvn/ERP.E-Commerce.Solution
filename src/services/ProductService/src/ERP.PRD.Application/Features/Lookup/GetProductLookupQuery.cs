@@ -21,6 +21,8 @@ namespace ERP.PRD.Application.Features.Lookup
         /// <summary>True when the product is Active (not Draft, Discontinued or pending review).</summary>
         public bool IsActive { get; set; }
         public Guid? BaseUomId { get; set; }
+        public bool IsLotControlled { get; set; }
+        public bool IsSerialControlled { get; set; }
     }
 
     /// <summary>The same facts for products named by SKU (any case). Two products with one SKU are both returned, so the caller can refuse the SKU as ambiguous.</summary>
@@ -48,6 +50,8 @@ namespace ERP.PRD.Application.Features.Lookup
                 Name = p.Name,
                 IsActive = p.Status == ProductStatus.Active,
                 BaseUomId = p.BaseUomId,
+                IsLotControlled = p.IsLotControlled,
+                IsSerialControlled = p.IsSerialControlled,
             }).ToList();
         }
     }
@@ -71,6 +75,8 @@ namespace ERP.PRD.Application.Features.Lookup
                 Name = p.Name,
                 IsActive = p.Status == ProductStatus.Active,
                 BaseUomId = p.BaseUomId,
+                IsLotControlled = p.IsLotControlled,
+                IsSerialControlled = p.IsSerialControlled,
             }).ToList();
         }
     }

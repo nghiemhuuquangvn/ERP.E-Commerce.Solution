@@ -14,6 +14,12 @@ public class LotDto
     public DateTime ReceivedDate { get; set; }
     public DateTime? ExpiryDate { get; set; }
     public bool IsExpired { get; set; }
+    public decimal ReservedQuantity { get; set; }
+    public decimal AvailableQuantity { get; set; }
+    public string Status { get; set; } = "Available";
+    public Guid? WarehouseId { get; set; }
+    public DateTime? ManufactureDate { get; set; }
+    public string Source { get; set; } = "Receipt";
 }
 
 public class GetLotsByProductQuery : IRequest<List<LotDto>>
@@ -47,7 +53,13 @@ public class GetLotsByProductQueryHandler : IRequestHandler<GetLotsByProductQuer
                 UnitCost = l.UnitCost,
                 ReceivedDate = l.ReceivedDate,
                 ExpiryDate = l.ExpiryDate,
-                IsExpired = l.IsExpired()
+                IsExpired = l.IsExpired(),
+                ReservedQuantity = l.ReservedQuantity,
+                AvailableQuantity = l.AvailableQuantity,
+                Status = l.Status.ToString(),
+                WarehouseId = l.WarehouseId,
+                ManufactureDate = l.ManufactureDate,
+                Source = l.Source.ToString()
             }).ToList();
     }
 }
@@ -83,7 +95,13 @@ public class GetExpiringLotsQueryHandler : IRequestHandler<GetExpiringLotsQuery,
                 UnitCost = l.UnitCost,
                 ReceivedDate = l.ReceivedDate,
                 ExpiryDate = l.ExpiryDate,
-                IsExpired = l.IsExpired()
+                IsExpired = l.IsExpired(),
+                ReservedQuantity = l.ReservedQuantity,
+                AvailableQuantity = l.AvailableQuantity,
+                Status = l.Status.ToString(),
+                WarehouseId = l.WarehouseId,
+                ManufactureDate = l.ManufactureDate,
+                Source = l.Source.ToString()
             }).ToList();
     }
 }

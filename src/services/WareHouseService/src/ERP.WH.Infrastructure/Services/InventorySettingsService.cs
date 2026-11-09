@@ -71,14 +71,18 @@ public class InventorySettingsService : IInventorySettingsService
         {
             var settings = await GetOrCreateTenantAsync(tenantId, ct);
             await _dbContext.SaveChangesAsync(ct);
-            return new TenantInventorySettingsDto(settings.TenantId, settings.LowStockThreshold, settings.BackorderAllowed, settings.DefaultHoldDays);
+            return new TenantInventorySettingsDto(settings.TenantId, settings.LowStockThreshold, settings.BackorderAllowed, settings.DefaultHoldDays, settings.DefaultWarehouseId);
         }, TimeSpan.FromMinutes(15), ct);
     }
 
     public async Task<TenantInventorySettingsDto> UpdateTenantSettingsAsync(Guid tenantId, UpdateTenantInventorySettingsRequest request, CancellationToken ct)
     {
         var settings = await GetOrCreateTenantAsync(tenantId, ct);
-        settings.Update(request.LowStockThreshold, request.BackorderAllowed, request.DefaultHoldDays);
+        if (request.DefaultWarehouseId.HasValue
+            && !await _dbContext.Warehouses.AnyAsync(w => w.Id == request.DefaultWarehouseId.Value && w.IsActive, ct))
+            throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("WH_DEFAULT_WAREHOUSE", "The default warehouse must be an active warehouse of this tenant.");
+
+        settings.Update(request.LowStockThreshold, request.BackorderAllowed, request.DefaultHoldDays, request.DefaultWarehouseId);
 
         var @event = new SettingsChangedIntegrationEvent
         {
@@ -92,10 +96,10 @@ public class InventorySettingsService : IInventorySettingsService
 
         await _dbContext.SaveChangesAsync(ct);
         await _cache.RemoveAsync(TenantCacheKey(tenantId), ct);
-        return new(settings.TenantId, settings.LowStockThreshold, settings.BackorderAllowed, settings.DefaultHoldDays);
+        return new(settings.TenantId, settings.LowStockThreshold, settings.BackorderAllowed, settings.DefaultHoldDays, settings.DefaultWarehouseId);
     }
 
-    private static string TenantCacheKey(Guid tenantId) => $"settings:warehouse:inventory:tenant:{tenantId}";
+    private static string TenantCacheKey(Guid tenantId) => $"settings:warehouse:inventory:tenant:v2:{tenantId}";
 
     private async Task<SystemInventorySettings> GetOrCreateSystemAsync(CancellationToken ct)
     {

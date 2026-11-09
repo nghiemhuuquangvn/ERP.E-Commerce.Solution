@@ -1,5 +1,6 @@
 using MediatR;
 using ERP.WH.Application.Interfaces;
+using ERP.WH.Application.Services;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
 using ERP.Shared.Infrastructure.Caching;
@@ -55,12 +56,14 @@ public class ApproveStockAdjustmentCommandHandler : IRequestHandler<ApproveStock
     private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventOutboxWriter _outboxWriter;
     private readonly ICacheService _cache;
+    private readonly IStockLedger _ledger;
 
-    public ApproveStockAdjustmentCommandHandler(IWarehouseUnitOfWork uow, IEventOutboxWriter outboxWriter, ICacheService cache)
+    public ApproveStockAdjustmentCommandHandler(IWarehouseUnitOfWork uow, IEventOutboxWriter outboxWriter, ICacheService cache, IStockLedger ledger)
     {
         _uow = uow;
         _outboxWriter = outboxWriter;
         _cache = cache;
+        _ledger = ledger;
     }
 
     public async Task<AdjustStockResponse> Handle(ApproveStockAdjustmentCommand request, CancellationToken cancellationToken)
@@ -76,20 +79,9 @@ public class ApproveStockAdjustmentCommandHandler : IRequestHandler<ApproveStock
 
         var previousQuantity = inventory.TotalQuantity;
 
-        inventory.AdjustStock(adjustment.QuantityDelta);
+        var target = await _ledger.TargetAsync(null, adjustment.LocationId, cancellationToken);
+        await _ledger.AdjustAsync(inventory, adjustment.QuantityDelta, target, cancellationToken);
         await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
-
-        if (adjustment.LocationId.HasValue)
-        {
-            var locationStock = await _uow.InventoryLocationStocks.GetAsync(adjustment.ProductId, adjustment.LocationId.Value, cancellationToken);
-            if (locationStock == null)
-            {
-                locationStock = new InventoryLocationStock(adjustment.ProductId, adjustment.LocationId.Value);
-                await _uow.InventoryLocationStocks.AddAsync(locationStock, cancellationToken);
-            }
-            locationStock.AdjustStock(adjustment.QuantityDelta);
-            await _uow.InventoryLocationStocks.UpdateAsync(locationStock, cancellationToken);
-        }
 
         var movementType = adjustment.Reason == AdjustmentReason.Damaged ? MovementType.Damaged : MovementType.Adjusted;
         var reasonText = string.IsNullOrWhiteSpace(adjustment.Notes)

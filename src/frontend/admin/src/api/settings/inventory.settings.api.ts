@@ -14,6 +14,8 @@ export interface TenantInventorySettings {
   lowStockThreshold: number
   backorderAllowed: boolean
   defaultHoldDays: number
+  /** Where stock without a warehouse goes; null = the MAIN / first active warehouse. */
+  defaultWarehouseId?: string | null
 }
 
 export type UpdateTenantInventorySettingsRequest = Omit<TenantInventorySettings, 'tenantId'>
