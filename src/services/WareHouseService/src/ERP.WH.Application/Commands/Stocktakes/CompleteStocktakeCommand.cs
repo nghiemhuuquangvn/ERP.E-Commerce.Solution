@@ -81,7 +81,8 @@ public class ApproveStocktakeCommandHandler : IRequestHandler<ApproveStocktakeCo
                 continue;
 
             var previousQuantity = inventory.TotalQuantity;
-            await _ledger.AdjustAsync(inventory, line.Variance, await _ledger.TargetAsync(null, stocktake.LocationId, cancellationToken), cancellationToken);
+            var countTarget = await _ledger.TargetAsync(null, stocktake.LocationId, cancellationToken);
+            await _ledger.AdjustAsync(inventory, line.Variance, countTarget, cancellationToken);
             await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
             await _cache.RemoveAsync($"wh:inventory:{line.ProductId}", cancellationToken);
 
@@ -93,7 +94,8 @@ public class ApproveStocktakeCommandHandler : IRequestHandler<ApproveStocktakeCo
                 fromLocation: null,
                 toLocation: null,
                 reference: stocktake.StocktakeNumber,
-                reason: line.VarianceReason ?? "Stocktake variance");
+                reason: line.VarianceReason ?? "Stocktake variance")
+                .Describe(countTarget.WarehouseId, null, inventory.Cost, Math.Round(line.Variance * inventory.Cost, 2), line.Variance);
 
             await _uow.StockMovements.AddAsync(movement, cancellationToken);
 

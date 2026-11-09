@@ -92,4 +92,28 @@ public class StockMovementPostingTests
         legacy.ValueDelta.Should().Be(0m);
         WarehouseRabbitMqConsumer.ParseMovement("""{"MovementType":"Sold"}""").Should().BeNull();
     }
+
+    [Theory]
+    [InlineData("ProductionIssue")]
+    [InlineData("ProductionReturn")]
+    [InlineData("ProductionReceipt")]
+    [InlineData("ProductionScrap")]
+    [InlineData("QcRelease")]
+    [InlineData("SubcontractTransfer")]
+    public void Production_movements_are_not_booked_until_WIP_posting_exists(string type)
+    {
+        // Warehouse upgrade W3: the stock value moves, the general ledger does not (recorded risk)
+        PostingRules.ForStockMovement(Guid.NewGuid(), type, 250m, Day, "MO-1#1").Should().BeNull();
+        StockMovementRecordedIntegrationEventHandler.ProductionMovementTypes.Should().Contain(type);
+    }
+
+    [Fact]
+    public void The_consumer_reads_the_new_optional_fields_of_the_event_without_trouble()
+    {
+        var parsed = WarehouseRabbitMqConsumer.ParseMovement(
+            $$"""{"TenantId":"{{Guid.NewGuid()}}","MovementId":"{{Guid.NewGuid()}}","MovementType":"ProductionIssue","ValueDelta":-25.0,"WarehouseId":"{{Guid.NewGuid()}}","LotId":null,"StockDelta":-2.500000,"RecordedAt":"2026-11-10T08:30:00Z"}""");
+        parsed.Should().NotBeNull();
+        parsed!.MovementType.Should().Be("ProductionIssue");
+        parsed.ValueDelta.Should().Be(-25m);
+    }
 }

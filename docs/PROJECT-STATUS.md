@@ -40,6 +40,12 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-10 - Warehouse upgrade W3: production movements, cost on the movement, idempotency (`feat/warehouse-w3`, unmerged)
+- **Six production movement types** (7-12) through `ProductionMovementService` on the ledger; `StockMovement` stores warehouse, lot, unit cost, value and signed delta (also for the 9 older write sites); production reference `DocNo#line` is unique per (tenant, product, type) - replay returns the first result, a race answers 409; QcRelease; subcontract transfer; Accounting logs and skips production movements.
+- **SQL** `Warehouse/012` (rehearsed on a restored copy twice; report: 750 repeated groups among the older types, so the unique index covers production types only).
+- **Tests:** Warehouse 86 (12 new, real EF context, parity after each), Accounting 602 (+7), Architecture 84 (refusal baseline regenerated), `LiveSchemaDriftTests` no drift. **Live (glcheck):** `wh-w3.js` all OK (issue/replay/parallel 201+409/receipt on QcHold/release/return/scrap/subcontract/history/reconciliation; Accounting books no production movement while a manual sale is booked); `wh-w2.js`, `wh-w1.js post`, `mfg-m4/m5/m6` still OK. Defect found by the tests: updating a lot created in the same save tripped the tenant guard (fixed). Admin: no movement-history screen exists (API type only).
+- **Docs:** `docs/business/Warehouse/ProductionMovements.md`, module-07 section 16, ADR "W3 as built", event-catalog. **Risks:** R197-R200. **Next:** W4 (reservations by source, partial consume, FEFO suggest) after the owner's OK.
+
 ### 2026-11-10 - Warehouse upgrade W2: stock per warehouse and lot (`feat/warehouse-w2`, unmerged)
 - **`StockBalance`** per (item, warehouse, lot) beside `Inventories`; **`StockLedger`** is the single stock writer (9 write sites + Reserve / Release / expiry moved; architecture test forbids bypassing it); lot status / warehouse / manufacture date / source; RowVersion on Inventory, lots and balances (409 on a race); tenant **default warehouse** setting; `GET inventory/{id}/balances` and `inventory/reconciliation`; Product **lot / serial flags** (`PUT products/{id}/tracking`, lookup, Admin form); Admin tab *By warehouse / lot*, lot status column, default-warehouse select.
 - **SQL** `Warehouse/011` (rehearsed on a restored copy, twice; 1 045 balances backfilled, parity checked) and `Product/020`.

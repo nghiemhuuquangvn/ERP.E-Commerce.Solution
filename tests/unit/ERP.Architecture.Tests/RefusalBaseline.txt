@@ -184,7 +184,6 @@ WareHouseService/src/ERP.WH.Application/Commands/Inventory/AdjustStockCommandHan
 WareHouseService/src/ERP.WH.Application/Commands/Inventory/CloseInventoryValuationSnapshotCommand.cs|1
 WareHouseService/src/ERP.WH.Application/Commands/Inventory/IssueVendorReturnCommand.cs|1
 WareHouseService/src/ERP.WH.Application/Commands/Inventory/ReceiveStockCommandHandler.cs|1
-WareHouseService/src/ERP.WH.Application/Commands/Inventory/RecordStockMovementCommandHandler.cs|2
 WareHouseService/src/ERP.WH.Application/Commands/Inventory/ReleaseReservationCommandHandler.cs|1
 WareHouseService/src/ERP.WH.Application/Commands/Inventory/UpdateStockPolicyCommand.cs|2
 WareHouseService/src/ERP.WH.Application/Commands/Locations/CreateLocationCommandHandler.cs|1

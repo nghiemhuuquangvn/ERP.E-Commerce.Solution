@@ -51,7 +51,8 @@ public class CompleteTransferOrderCommandHandler : IRequestHandler<CompleteTrans
                 MovementType.Transferred,
                 fromLocation: order.FromLocationId.ToString(),
                 toLocation: order.ToLocationId.ToString(),
-                reference: order.TransferNumber);
+                reference: order.TransferNumber)
+                .Describe((await _ledger.TargetAsync(null, order.FromLocationId, cancellationToken)).WarehouseId, null, 0m, 0m, 0m);
 
             await _uow.StockMovements.AddAsync(movement, cancellationToken);
 

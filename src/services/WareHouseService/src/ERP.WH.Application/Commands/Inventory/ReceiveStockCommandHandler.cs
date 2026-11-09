@@ -99,7 +99,8 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
             toLocation: request.LocationId?.ToString(),
             reference: request.Reference,
             reason: null,
-            sourceOrderId: request.PurchaseOrderId);
+            sourceOrderId: request.PurchaseOrderId)
+            .Describe(target.WarehouseId, lot?.LotId, request.UnitCost, Math.Round(request.Quantity * request.UnitCost, 2), request.Quantity);
 
         await _uow.StockMovements.AddAsync(movement, cancellationToken);
 

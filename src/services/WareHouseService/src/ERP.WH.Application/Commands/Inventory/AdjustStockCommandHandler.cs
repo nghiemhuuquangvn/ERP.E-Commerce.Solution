@@ -96,7 +96,8 @@ public class ApproveStockAdjustmentCommandHandler : IRequestHandler<ApproveStock
             fromLocation: null,
             toLocation: null,
             reference: null,
-            reason: reasonText);
+            reason: reasonText)
+            .Describe(target.WarehouseId, null, inventory.Cost, Math.Round(adjustment.QuantityDelta * inventory.Cost, 2), adjustment.QuantityDelta);
 
         await _uow.StockMovements.AddAsync(movement, cancellationToken);
 

@@ -28,4 +28,11 @@ public class StockMovementDto
     public string? Reference { get; set; }
     public string? Reason { get; set; }
     public DateTime RecordedAt { get; set; }
+
+    // From W3; null for older rows ("not recorded")
+    public Guid? WarehouseId { get; set; }
+    public Guid? LotId { get; set; }
+    public decimal? UnitCost { get; set; }
+    public decimal? ValueDelta { get; set; }
+    public decimal? StockDelta { get; set; }
 }
