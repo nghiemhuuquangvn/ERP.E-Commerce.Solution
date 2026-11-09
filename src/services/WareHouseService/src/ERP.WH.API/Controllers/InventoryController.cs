@@ -130,6 +130,32 @@ public class InventoryController : ControllerBase
         }
     }
 
+    /// <summary>First-expiry-first lots for a quantity (same rule the reservation uses); nothing is changed.</summary>
+    [HttpGet("{productId}/suggest-lots")]
+    [AuthorizePermission("inventory:view")]
+    [ProducesResponseType(typeof(SuggestLotsResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<SuggestLotsResponse>> SuggestLots(Guid productId, [FromQuery] decimal quantity, [FromQuery] Guid? warehouseId) =>
+        Ok(await _mediator.Send(new SuggestLotsQuery { ProductId = productId, Quantity = quantity, WarehouseId = warehouseId }));
+
+    /// <summary>Holds stock for a production order in one warehouse (one open reservation per order; asking again answers the first).</summary>
+    [HttpPost("reservations/source")]
+    [AuthorizePermission("inventory:manage")]
+    [ProducesResponseType(typeof(SourceReservationDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<SourceReservationDto>> ReserveForSource([FromBody] ReserveForSourceCommand command) =>
+        Ok(await _mediator.Send(command));
+
+    /// <summary>The newest reservation of a source document, with what has been consumed.</summary>
+    [HttpGet("reservations/source/{sourceType}/{sourceId}")]
+    [AuthorizePermission("inventory:view")]
+    [ProducesResponseType(typeof(SourceReservationDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<SourceReservationDto>> GetSourceReservation(string sourceType, Guid sourceId)
+    {
+        var found = await _mediator.Send(new GetSourceReservationQuery { SourceType = sourceType, SourceId = sourceId });
+        return found == null ? NotFound(new { message = "No reservation for this source." }) : Ok(found);
+    }
+
     [HttpPost("release")]
     [ProducesResponseType(typeof(ReleaseReservationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

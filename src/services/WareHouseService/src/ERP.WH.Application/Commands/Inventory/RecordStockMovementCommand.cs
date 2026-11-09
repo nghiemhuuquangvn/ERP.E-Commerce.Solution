@@ -25,6 +25,11 @@ public class RecordStockMovementCommand : IRequest<RecordStockMovementResponse>
     /// <summary>"Available" (default), "QcHold" or "Blocked" - the status a received lot starts in.</summary>
     public string? InitialLotStatus { get; set; }
     public bool AllowNegative { get; set; }
+
+    /// <summary>ProductionIssue only: take the stock out of this production reservation (partial allowed) instead of from free stock.</summary>
+    public Guid? ReservationId { get; set; }
+    /// <summary>The reservation line (production order component) to take from, when the item appears on more than one.</summary>
+    public Guid? SourceLineId { get; set; }
 }
 
 public class RecordStockMovementResponse

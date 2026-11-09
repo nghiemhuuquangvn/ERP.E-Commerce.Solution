@@ -108,10 +108,28 @@ public class Inventory : ITenantOwned
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Stock out that is not a reserved shipment (manual sale, production issue without a reservation): only what is <b>available</b>
+    /// (total - reserved - locked) may leave, and the reservations of others are left alone. A shipment of a reserved quantity uses
+    /// <see cref="ConsumeReserved"/> instead.
+    /// </summary>
     public void SellStock(decimal quantity)
     {
+        if (AvailableQuantity < quantity)
+            throw InsufficientForSale();
+
+        TotalQuantity -= quantity;
+        LastMovementDate = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    private static InvalidOperationException InsufficientForSale() => new("Insufficient stock for sale");
+
+    /// <summary>A reserved quantity leaves (shipment, production issue against a reservation): the total and the reservation go down together.</summary>
+    public void ConsumeReserved(decimal quantity)
+    {
         if (TotalQuantity < quantity)
-            throw new InvalidOperationException("Insufficient stock for sale");
+            throw InsufficientForSale();
 
         TotalQuantity -= quantity;
         ReservedQuantity = Math.Max(0, ReservedQuantity - quantity);

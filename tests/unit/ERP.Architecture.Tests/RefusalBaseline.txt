@@ -198,7 +198,7 @@ WareHouseService/src/ERP.WH.Application/Commands/Warehouses/WarehouseCommands.cs
 WareHouseService/src/ERP.WH.Application/Queries/Inventory/GetInventoryQueryHandler.cs|1
 WareHouseService/src/ERP.WH.Application/Queries/Inventory/GetInventoryValuationQuery.cs|1
 WareHouseService/src/ERP.WH.Application/Queries/Inventory/GetInventoryValuationSnapshotQuery.cs|1
-WareHouseService/src/ERP.WH.Domain/Aggregates/Inventory/Inventory.cs|2
+WareHouseService/src/ERP.WH.Domain/Aggregates/Inventory/Inventory.cs|1
 WareHouseService/src/ERP.WH.Domain/Aggregates/Inventory/InventoryLocationStock.cs|2
 WareHouseService/src/ERP.WH.Domain/Aggregates/Inventory/InventoryLot.cs|4
 WareHouseService/src/ERP.WH.Domain/Aggregates/Inventory/InventorySerial.cs|2

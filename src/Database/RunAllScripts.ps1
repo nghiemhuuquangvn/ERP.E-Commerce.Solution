@@ -105,6 +105,7 @@ $DatabaseScripts = @(
     "Warehouse\010_DecimalQuantities.sql",
     "Warehouse\011_StockBalance.sql",
     "Warehouse\012_StockMovementCostAndIdempotency.sql",
+    "Warehouse\013_ReservationSource.sql",
     "Accounting\001_CreateAccountingDB.sql",
     "Accounting\002_AddTaxSettings.sql",
     "Accounting\003_AddTaxRatesBankAccountsAndStatements.sql",
