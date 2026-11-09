@@ -18,6 +18,14 @@ public sealed class OperationTimeService(IPlantCatalog catalog, IWorkingTimeServ
 {
     public async Task<RoutingLeadTime> LeadTimeAsync(Routing routing, decimal quantity, DateOnly endDate, CancellationToken ct = default)
     {
+        var inputs = await BuildInputsAsync(routing, quantity, ct);
+        var last = inputs.OrderByDescending(i => i.OperationSeq).First();
+        var end = new WorkPoint(endDate, last.Calendar.GetWorkingMinutes(endDate)); // the end of that day's work
+        return RoutingLeadTimeCalculator.Backward(inputs.ToList(), end, last.Calendar);
+    }
+
+    public async Task<IReadOnlyList<ScheduledOperationInput>> BuildInputsAsync(Routing routing, decimal quantity, CancellationToken ct = default)
+    {
         var operations = routing.Operations.ToList();
         if (operations.Count == 0) throw MfgRules.Invalid("The routing has no operations.");
 
@@ -32,9 +40,6 @@ public sealed class OperationTimeService(IPlantCatalog catalog, IWorkingTimeServ
             inputs.Add(new ScheduledOperationInput(op.OperationSeq, op.Name, center.Code, OperationTimeCalculator.StandardMinutes(op, quantity), center.EfficiencyPct,
                 op.QueueTimeMinutes, op.MoveTimeMinutes, center.CalendarId, calendar));
         }
-
-        var last = inputs.OrderByDescending(i => i.OperationSeq).First();
-        var end = new WorkPoint(endDate, last.Calendar.GetWorkingMinutes(endDate)); // the end of that day's work
-        return RoutingLeadTimeCalculator.Backward(inputs, end, last.Calendar);
+        return inputs;
     }
 }

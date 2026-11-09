@@ -1505,3 +1505,11 @@ Quantity fields of the Warehouse events - `StockMovementRecorded.Quantity`, `Inv
 
 ### Internal stock API (2026-11-10, Warehouse upgrade W5)
 No new event. Production movements booked through `internal/v1/stock/movements` raise the same `StockMovementRecorded` / `InventoryUpdated` as before (a replay raises nothing); a production reservation still raises none. Details: docs/business/Warehouse/ProductionIntegration.md.
+
+### Manufacturing - production order events (2026-11-10, Phase 3 P3-1)
+Kafka topic `manufacturing-topic` (key = order id), written to the service's outbox in the same transaction as the change. Both implement `ITenantEvent`. No consumer yet (costing is Phase 6).
+| Event | Raised when | Payload |
+|---|---|---|
+| `ProductionOrderCreatedEvent` | an order is created | `OrderId`, `OrderNo`, `PlantId`, `ItemId`, `ItemCode`, `Quantity` (decimal), `DueDate`, `SourceType` |
+| `ProductionOrderStatusChangedEvent` | any status change (Release, Hold, Complete ...) | `OrderId`, `OrderNo`, `PlantId`, `ItemId`, `Quantity`, `FromStatus`, `ToStatus`, `ReasonCodeId`, `Note`, `ChangedBy` |
+The later Phase 3 events (`ProductionOrderReleased/Completed/Closed`, `MaterialIssued/Returned/Backflushed`, `OperationReported`, `FinishedGoodsReceived`) are added with their milestones.

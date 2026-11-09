@@ -18,6 +18,24 @@ public static class PermissionConstants
     public const string Manufacturing_RoutingView = "manufacturing:routing:view";
     public const string Manufacturing_RoutingManage = "manufacturing:routing:manage";
     public const string Manufacturing_RoutingApprove = "manufacturing:routing:approve";
+    // Phase 3 (production orders, material, operations, finished goods, interim quality release, stock documents) - BA spec 01 section 9; Identity 034.
+    public const string Manufacturing_OrderView = "manufacturing:order:view";
+    public const string Manufacturing_OrderCreate = "manufacturing:order:create";
+    public const string Manufacturing_OrderRelease = "manufacturing:order:release";
+    public const string Manufacturing_OrderCancel = "manufacturing:order:cancel";
+    public const string Manufacturing_OrderHold = "manufacturing:order:hold";
+    public const string Manufacturing_OrderChangeQty = "manufacturing:order:change-qty";
+    public const string Manufacturing_OrderShortClose = "manufacturing:order:short-close";
+    public const string Manufacturing_OrderReopen = "manufacturing:order:reopen";
+    public const string Manufacturing_OrderClose = "manufacturing:order:close";
+    public const string Manufacturing_MaterialIssue = "manufacturing:material:issue";
+    public const string Manufacturing_MaterialReturn = "manufacturing:material:return";
+    public const string Manufacturing_MaterialOverIssue = "manufacturing:material:over-issue";
+    public const string Manufacturing_OperationExecute = "manufacturing:operation:execute";
+    public const string Manufacturing_OperationCompleteManual = "manufacturing:operation:complete-manual";
+    public const string Manufacturing_ReceiptPost = "manufacturing:receipt:post";
+    public const string Manufacturing_QcDisposition = "manufacturing:qc:disposition";
+    public const string Manufacturing_StockDocumentRetry = "manufacturing:stock-document:retry";
 
     // Purchase Order Permissions
     public const string PurchaseOrder_Create = "purchase_order:create";
@@ -413,6 +431,7 @@ public static class PermissionConstants
         Manufacturing_MasterDataView, Manufacturing_MasterDataManage, Manufacturing_SettingsManage, Manufacturing_ItemProfileManage,
         Manufacturing_BomView, Manufacturing_BomManage, Manufacturing_BomApprove,
         Manufacturing_RoutingView, Manufacturing_RoutingManage, Manufacturing_RoutingApprove,
+        Manufacturing_OrderView, Manufacturing_OrderCreate, Manufacturing_OrderRelease, Manufacturing_OrderCancel, Manufacturing_OrderHold, Manufacturing_OrderChangeQty, Manufacturing_OrderShortClose, Manufacturing_OrderReopen, Manufacturing_OrderClose, Manufacturing_MaterialIssue, Manufacturing_MaterialReturn, Manufacturing_MaterialOverIssue, Manufacturing_OperationExecute, Manufacturing_OperationCompleteManual, Manufacturing_ReceiptPost, Manufacturing_QcDisposition, Manufacturing_StockDocumentRetry,
         PurchaseOrder_Create, PurchaseOrder_Read, PurchaseOrder_Update, PurchaseOrder_Delete,
         PurchaseOrder_Approve, PurchaseOrder_FinanceApprove, PurchaseOrder_Cancel, PurchaseOrder_AddItem, PurchaseOrder_RemoveItem,
         PurchaseOrder_Receive,

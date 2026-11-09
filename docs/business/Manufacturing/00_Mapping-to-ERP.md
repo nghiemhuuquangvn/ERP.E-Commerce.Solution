@@ -31,3 +31,16 @@ so the specs stay readable as they are. Decision record: `docs/architecture/adr-
 | Screens S01-S09 (T1.7, T2.8) | routes `/manufacturing/...`: S01 plants, S02 settings, S03 item profiles, S04 calendars, S05 work centers, S06 catalogs, S08 BOM (tree), S09 routing (drag and drop); S07 (reason codes / crews) is a tab of S06; drag-and-drop is native HTML5 with arrow buttons |
 | Seeder `ProductionTestDataSeeder` (T3.14.1) | `SeedDs01Handler` (Phase 0-2 part only) behind `POST seed/ds01`, switch `Manufacturing:EnableDemoSeed` (off by default); products by `scripts/seed-ds01-products.js`; see `DemoData-DS01.md` |
 | Concurrency 409 (BR-GEN-03, `PRD_GEN_001`) | `MfgUnitOfWork` turns `DbUpdateConcurrencyException` (xmin) and a unique-key race into `ConcurrencyException` = HTTP 409 with the MFG_GEN_001 text |
+
+## Phase 3 - production orders (P3-1, 2026-11-10)
+| Spec says | Implemented as |
+|---|---|
+| Permissions `Production.Order.View` / `Create` / `Release` / `Cancel` / `Hold` / `ChangeQty` / `ShortClose` / `Reopen` / `Close` | `manufacturing:order:view` / `create` / `release` / `cancel` / `hold` / `change-qty` / `short-close` / `reopen` / `close` |
+| `Production.Material.Issue` / `Return` / `OverIssue`, `Production.Operation.Execute` / `CompleteManual`, `Production.Receipt.Post`, `Production.Qc.Disposition` | `manufacturing:material:issue` / `return` / `over-issue`, `manufacturing:operation:execute` / `complete-manual`, `manufacturing:receipt:post`, `manufacturing:qc:disposition` (interim use: release of received goods from quality hold); new `manufacturing:stock-document:retry` (Identity 034) |
+| Document number sequence per type + plant + month (BR-GEN-04) | For orders per **tenant** + month (plant = empty): the number is the idempotency key in the Warehouse (`<DocNo>#<line>`), so it must be unique in the tenant |
+| Material issue method: BOM line -> item profile -> plant default (T3.2.2) | The BOM line's value (a line always carries Manual or Backflush, there is no "inherit") |
+| `PlannedStart` = start of the first operation; BOM / routing effective at `PlannedStart` (BR-PO-04) | Reference date = plant today for a new order, the old plan start (if still ahead) when a Draft is regenerated; a version can always be chosen by id |
+| Serial-controlled items (BR-MAT-04, BR-FG-03) | Refused with new code `MFG_MAT_011` until the Warehouse supports serials in production (R206) |
+| `IOpenOrderGuard` stub (M1/M2) | `OrderBackedOpenOrderGuard`: Released, InProgress, OnHold, Completed count as open |
+| Domain events "handled in the same transaction" | Outbox in the same transaction, Kafka topic `manufacturing-topic` |
+| T3.1 / T3.2 / T3.3 / T3.11 | P3-1 (this milestone); T3.4 / T3.9 P3-2; T3.5 / T3.6 P3-3; T3.7 + T4.1 backflush P3-4; T3.8 / T3.10 P3-5; T3.12 P3-6; T3.14 P3-7 |

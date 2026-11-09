@@ -408,3 +408,6 @@ Critical Path: POS → Product, Payment, Promotion = 1 hop each (parallel)
 
 ### Manufacturing -> Warehouse stock calls (2026-11-10, Warehouse upgrade W5)
 ManufacturingService calls WareHouseService `internal/v1/stock/*` (availability, suggest-lots, production reservation, production movements, lot status) with its service token (`IWarehouseStockClient`, no cache, idempotency key `<doc>#<line>`). Warehouse trusts caller `manufacturing` (already configured). Phase 3 production orders will use it.
+
+### Manufacturing -> Kafka (2026-11-10, Phase 3 P3-1)
+ManufacturingService produces to `manufacturing-topic` (`ProductionOrderCreated`, `ProductionOrderStatusChanged`) via its outbox. Consumers: none yet.

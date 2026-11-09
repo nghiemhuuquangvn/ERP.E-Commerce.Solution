@@ -31,4 +31,10 @@ public interface IOperationTimeService
 {
     /// <summary>BR-RT-04 / -05: the lead time of a routing for a quantity, scheduled backwards from the end of <paramref name="endDate"/>'s work.</summary>
     Task<RoutingLeadTime> LeadTimeAsync(Routing routing, decimal quantity, DateOnly endDate, CancellationToken ct = default);
+
+    /// <summary>
+    /// The operations of a routing for a quantity with their work-center efficiency and calendar (the input of both the backward lead time and the forward
+    /// scheduling of a production order). <c>MFG_RT_003</c> when a work center no longer exists.
+    /// </summary>
+    Task<IReadOnlyList<ScheduledOperationInput>> BuildInputsAsync(Routing routing, decimal quantity, CancellationToken ct = default);
 }
