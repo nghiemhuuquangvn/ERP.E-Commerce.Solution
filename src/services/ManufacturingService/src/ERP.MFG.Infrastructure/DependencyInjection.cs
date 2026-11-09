@@ -47,16 +47,18 @@ public static class DependencyInjection
         AddClient<IProductUomConversionClient, ProductUomConversionClient>(services, configuration, "Services:ProductServiceBaseUrl", "http://productservice:5008", "product");
         AddClient<IWarehouseLookupClient, WarehouseLookupClient>(services, configuration, "Services:WarehouseServiceBaseUrl", "http://warehouseservice:5004", "warehouse");
         AddClient<IEmployeeLookupClient, EmployeeLookupClient>(services, configuration, "Services:MasterDataServiceBaseUrl", "http://masterdataservice:5015", "masterdata");
+        // stock reads and writes (W5): a movement touches several tables in one transaction, so it gets a longer timeout than a lookup
+        AddClient<IWarehouseStockClient, WarehouseStockClient>(services, configuration, "Services:WarehouseServiceBaseUrl", "http://warehouseservice:5004", "warehouse", timeoutSeconds: 15);
         return services;
     }
 
-    private static void AddClient<TService, TImpl>(IServiceCollection services, IConfiguration configuration, string key, string fallback, string target)
+    private static void AddClient<TService, TImpl>(IServiceCollection services, IConfiguration configuration, string key, string fallback, string target, int timeoutSeconds = 5)
         where TService : class where TImpl : class, TService
     {
         services.AddHttpClient<TService, TImpl>(c =>
         {
             c.BaseAddress = new Uri((configuration[key] ?? fallback).TrimEnd('/') + "/");
-            c.Timeout = TimeSpan.FromSeconds(5);
+            c.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
         }).AddServiceToken(target);
     }
 }

@@ -23,7 +23,9 @@ public sealed record ProductionMovementRequest(
     string? Reason = null,
     Guid? SourceOrderId = null,
     Guid? ReservationId = null,
-    Guid? SourceLineId = null);
+    Guid? SourceLineId = null,
+    bool RequiresLot = false,
+    bool RequiresSerial = false);
 
 /// <summary>What happened. <c>Replayed</c> = the same reference had been booked before, so nothing was changed.</summary>
 public sealed record ProductionMovementResult(
@@ -58,11 +60,22 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
         if (r.Type != MovementType.QcRelease && r.Quantity <= 0)
             throw new BusinessRuleException("WH_QUANTITY", "The quantity must be greater than zero.");
 
+        // Serial-controlled items: no per-serial tracking on the production path yet (docs/business/Warehouse/ProductionIntegration.md) - refuse before anything is read or changed.
+        if (r.RequiresSerial && r.Type != MovementType.QcRelease)
+            throw new BusinessRuleException("WH_SERIAL_NOT_SUPPORTED", "Serial-controlled items cannot be moved by production movements yet.");
+
         // Replay: the same document line was booked before - answer with the first result and touch nothing.
         var reference = r.Reference.Trim();
         var existing = await uow.StockMovements.FindByKeyAsync(r.ProductId, reference, r.Type, ct);
         if (existing != null)
         {
+            // The key names one document line: the same key with a different payload is a caller error, never a silent replay.
+            if ((r.Type != MovementType.QcRelease && existing.Quantity != r.Quantity)
+                || (r.WarehouseId.HasValue && existing.WarehouseId.HasValue && existing.WarehouseId != r.WarehouseId)
+                || (r.LotId.HasValue && existing.LotId.HasValue && existing.LotId != r.LotId))
+                throw new ConcurrencyException("WH_IDEMPOTENCY_CONFLICT",
+                    $"The reference {reference} was already booked with a different quantity, warehouse or lot ({existing.Quantity}).");
+
             var inv = await uow.Inventories.GetByProductIdAsync(r.ProductId, ct);
             var now = inv?.TotalQuantity ?? 0;
             return new ProductionMovementResult(existing, true, now, now, existing.UnitCost ?? 0, existing.ValueDelta ?? 0,
@@ -80,6 +93,8 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
             if (lot == null || lot.ProductId != r.ProductId)
                 throw new BusinessRuleException("WH_LOT_NOT_FOUND", "The lot does not exist for this product.");
         }
+
+        if (r.RequiresLot) AssertLotNamed(r);
 
         var target = await ledger.TargetAsync(r.WarehouseId ?? lot?.WarehouseId, null, ct);
         var policy = r.AllowNegative ? IssuePolicy.AllowNegative : IssuePolicy.Refuse;
@@ -99,6 +114,10 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
                     throw new BusinessRuleException("WH_RESERVATION_NOT_OPEN", "The reservation is not an open production reservation.");
                 var item = reservation.ReservedItems.FirstOrDefault(i => i.ProductId == r.ProductId && (!r.SourceLineId.HasValue || i.SourceLineId == r.SourceLineId))
                     ?? throw new BusinessRuleException("WH_RESERVATION_LINE", "The reservation has no such line for this item.");
+
+                // a lot-controlled item may only leave from lots: the recorded lot split (or the named lot) must cover the quantity
+                if (r.RequiresLot && !r.LotId.HasValue && item.LotAllocations.Sum(a => a.Remaining) < quantity)
+                    throw new BusinessRuleException("WH_LOT_REQUIRED", "A lot-controlled item can only be issued from lots: the reservation holds less in lots than the quantity asked.");
 
                 var taken = await ledger.ConsumeAsync(inventory, item, quantity, r.LotId, ct);
                 var lotValue = taken.Sum(t => t.Quantity * (inventory.ValuationMethod != ValuationMethod.Average && t.Lot.UnitCost > 0 ? t.Lot.UnitCost : inventory.Cost));
@@ -181,6 +200,23 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
         await uow.StockMovements.AddAsync(movement, ct);
 
         return new ProductionMovementResult(movement, false, previous, inventory.TotalQuantity, unitCost, valueDelta, stockDelta, warehouseId, lotId);
+    }
+
+    /// <summary>
+    /// Lot-controlled items (flag passed by the caller): a receipt creates a lot (number required); a return, scrap or transfer names the lot;
+    /// an issue names the lot unless it is taken from a reservation (checked where the reservation is read).
+    /// </summary>
+    private static void AssertLotNamed(ProductionMovementRequest r)
+    {
+        var missing = r.Type switch
+        {
+            MovementType.ProductionReceipt => string.IsNullOrWhiteSpace(r.LotNumber),
+            MovementType.ProductionIssue => !r.ReservationId.HasValue && !r.LotId.HasValue,
+            MovementType.ProductionReturn or MovementType.ProductionScrap or MovementType.SubcontractTransfer => !r.LotId.HasValue,
+            _ => false
+        };
+        if (missing)
+            throw new BusinessRuleException("WH_LOT_REQUIRED", $"{r.Type} of a lot-controlled item needs a lot ({(r.Type == MovementType.ProductionReceipt ? "lot number" : "lot id")}).");
     }
 
     /// <summary>Average valuation issues at the item's average cost; FIFO / LIFO at the cost of the lot taken from (else the item cost).</summary>

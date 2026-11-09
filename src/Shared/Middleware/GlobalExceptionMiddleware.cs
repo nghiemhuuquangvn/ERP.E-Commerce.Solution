@@ -96,6 +96,8 @@ namespace ERP.Shared.Middleware
                 // A business-rule refusal names its rule (e.g. MFG_PO_007) so a client can react to the code, not the wording (BA spec BR-GEN-07).
                 if (ex is BusinessRuleException refusal && !string.IsNullOrWhiteSpace(refusal.RuleName))
                     problemDetails.Extensions["errorCode"] = refusal.RuleName;
+                else if (ex is ConcurrencyException conflict && !string.IsNullOrWhiteSpace(conflict.ErrorCode))
+                    problemDetails.Extensions["errorCode"] = conflict.ErrorCode;
 
                 await context.Response.WriteAsJsonAsync(problemDetails);
             }

@@ -1498,3 +1498,6 @@ Quantity fields of the Warehouse events - `StockMovementRecorded.Quantity`, `Inv
 
 ### Reservations by source (2026-11-10, Warehouse upgrade W4)
 `InventoryReserved` is still raised only for sales-order reservations (Shipping consumes it). A production-order reservation raises no integration event; its stock leaves through the `StockMovementRecorded` of the `ProductionIssue` that consumes it. Details: docs/business/Warehouse/ReservationsBySource.md.
+
+### Internal stock API (2026-11-10, Warehouse upgrade W5)
+No new event. Production movements booked through `internal/v1/stock/movements` raise the same `StockMovementRecorded` / `InventoryUpdated` as before (a replay raises nothing); a production reservation still raises none. Details: docs/business/Warehouse/ProductionIntegration.md.

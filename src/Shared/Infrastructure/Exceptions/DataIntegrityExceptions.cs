@@ -8,10 +8,22 @@ public class ConcurrencyException : Exception
 {
     public Guid? EntityId { get; }
 
+    /// <summary>
+    /// Set when the conflict is a caller error that retrying cannot fix (e.g. WH_IDEMPOTENCY_CONFLICT: the same key with another payload);
+    /// a plain optimistic-locking conflict leaves it empty and may be retried. Answered as <c>errorCode</c> beside HTTP 409.
+    /// </summary>
+    public string? ErrorCode { get; }
+
     public ConcurrencyException(string message, Guid? entityId = null)
         : base(message)
     {
         EntityId = entityId;
+    }
+
+    public ConcurrencyException(string errorCode, string message)
+        : base(message)
+    {
+        ErrorCode = errorCode;
     }
 
     public ConcurrencyException(string message, Exception innerException, Guid? entityId = null)
