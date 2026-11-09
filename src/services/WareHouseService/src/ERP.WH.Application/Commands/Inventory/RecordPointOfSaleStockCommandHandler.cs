@@ -95,7 +95,8 @@ public class RecordPointOfSaleStockCommandHandler : IRequestHandler<RecordPointO
                 toLocation: null,
                 reference: reference,
                 reason: request.IsReturn ? "POS sale voided" : "POS sale",
-                sourceOrderId: request.TransactionId);
+                sourceOrderId: request.TransactionId)
+                .Describe(target.WarehouseId, null, inventory.Cost, Math.Round((request.IsReturn ? 1 : -1) * line.Quantity * inventory.Cost, 2), (request.IsReturn ? 1 : -1) * line.Quantity);
             await _uow.StockMovements.AddAsync(movement, cancellationToken);
 
             _outboxWriter.Stage(new StockMovementRecordedEvent

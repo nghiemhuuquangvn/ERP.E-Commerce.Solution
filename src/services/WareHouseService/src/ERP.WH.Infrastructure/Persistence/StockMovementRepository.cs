@@ -40,6 +40,13 @@ public class StockMovementRepository : IStockMovementRepository
         return await query.ToListAsync(cancellationToken);
     }
 
+    public async Task<StockMovement?> FindByKeyAsync(Guid productId, string reference, MovementType movementType, CancellationToken cancellationToken)
+    {
+        return await _context.StockMovements.FirstOrDefaultAsync(
+            m => m.ProductId == productId && m.Reference == reference && m.MovementType == movementType,
+            cancellationToken);
+    }
+
     public async Task<bool> ExistsAsync(Guid productId, string? reference, MovementType movementType, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(reference))

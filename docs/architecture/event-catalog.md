@@ -1492,3 +1492,6 @@ Published by ProductService (outbox -> Kafka `product-topic`, tenant-stamped) wh
 
 ### Warehouse quantities are decimal (2026-11-09, Warehouse upgrade W1)
 Quantity fields of the Warehouse events - `StockMovementRecorded.Quantity`, `InventoryUpdated.PreviousQuantity / CurrentQuantity`, `InventoryReserved` item quantity, `InventoryInsufficient`, `ReceiptCompleted.QuantityReceived`, `StockAdjustmentApproved.QuantityDelta`, `StockAlert` (current, reorder point / quantity, available, min, max, safety) - are `decimal` (serialised with up to 6 decimals, e.g. `5.000000`). A consumer must read a decimal and still accept an integer; an integer reader throws on `5.000000`. Deploy consumers before the Warehouse. Details: docs/business/Warehouse/DecimalQuantities.md.
+
+### StockMovementRecordedEvent - production movement types and optional fields (2026-11-10, Warehouse upgrade W3)
+`MovementType` can now also be `ProductionIssue`, `ProductionReturn`, `ProductionReceipt`, `ProductionScrap`, `QcRelease`, `SubcontractTransfer`; new optional fields `WarehouseId`, `LotId`, `StockDelta` (signed effect on the item total); `UnitCost` / `ValueDelta` carry the persisted values. Accounting posts nothing for the six production types until WIP posting (phase 6) and logs the skip; Reporting does not consume this event. Details: docs/business/Warehouse/ProductionMovements.md.

@@ -86,7 +86,8 @@ public class IssueVendorReturnCommandHandler : IRequestHandler<IssueVendorReturn
 
             var previousQuantity = inventory.TotalQuantity;
             var unitCost = inventory.Cost;
-            await _ledger.AdjustAsync(inventory, -line.Quantity, await _ledger.TargetAsync(null, null, ct), ct);
+            var vendorTarget = await _ledger.TargetAsync(null, null, ct);
+            await _ledger.AdjustAsync(inventory, -line.Quantity, vendorTarget, ct);
             await _uow.Inventories.UpdateAsync(inventory, ct);
 
             var movement = new StockMovement(
@@ -97,7 +98,8 @@ public class IssueVendorReturnCommandHandler : IRequestHandler<IssueVendorReturn
                 fromLocation: null,
                 toLocation: null,
                 reference: reference,
-                reason: $"Return {request.ReturnNumber} to supplier");
+                reason: $"Return {request.ReturnNumber} to supplier")
+                .Describe(vendorTarget.WarehouseId, null, unitCost, -Math.Round(line.Quantity * unitCost, 2), -line.Quantity);
             await _uow.StockMovements.AddAsync(movement, ct);
 
             _outboxWriter.Stage(new StockMovementRecordedEvent

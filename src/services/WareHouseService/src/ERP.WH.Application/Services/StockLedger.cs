@@ -62,6 +62,18 @@ public interface IStockLedger
 
     /// <summary>A bin-to-bin move; the balances follow when the bins are in different warehouses.</summary>
     Task TransferAsync(Guid productId, Guid fromLocationId, Guid toLocationId, decimal quantity, CancellationToken ct);
+
+    /// <summary>Production issue / scrap out of one named lot (no reservation involved): the item total, the lot and its balance go down.</summary>
+    Task IssueFromLotAsync(InventoryEntity inventory, InventoryLot lot, decimal quantity, IssuePolicy policy, CancellationToken ct);
+
+    /// <summary>Stock back into the lot it came from (production return): the item total is re-averaged at the cost passed.</summary>
+    Task ReturnToLotAsync(InventoryEntity inventory, InventoryLot lot, decimal quantity, decimal unitCost, CancellationToken ct);
+
+    /// <summary>Changes the status of a lot (hold, release, block). The only place a lot status is written.</summary>
+    Task SetLotStatusAsync(InventoryLot lot, LotStatus status, CancellationToken ct);
+
+    /// <summary>Moves lot-less stock, or a whole lot, from one warehouse to another; the item total does not change.</summary>
+    Task MoveBetweenWarehousesAsync(Guid productId, Guid? fromWarehouseId, Guid? toWarehouseId, decimal quantity, InventoryLot? lot, CancellationToken ct);
 }
 
 public sealed class StockLedger(IWarehouseUnitOfWork uow, IWarehouseResolver warehouses) : IStockLedger
@@ -274,6 +286,59 @@ public sealed class StockLedger(IWarehouseUnitOfWork uow, IWarehouseResolver war
             await TakeFromPoolAsync(productId, fromWarehouse, quantity, ct);
             await AddToPoolAsync(productId, toWarehouse, quantity, ct);
         }
+    }
+
+    // ── production movements (W3) ────────────────────────────────────────────────────────────────────────────
+    public async Task IssueFromLotAsync(InventoryEntity inventory, InventoryLot lot, decimal quantity, IssuePolicy policy, CancellationToken ct)
+    {
+        if (policy == IssuePolicy.Refuse) inventory.SellStock(quantity);
+        else inventory.RecordPointOfSaleSale(quantity);
+
+        lot.Deplete(quantity);
+        await uow.InventoryLots.UpdateAsync(lot, ct);
+        (await BalanceAsync(inventory.ProductId, lot.WarehouseId, lot.LotId, ct)).Add(-quantity);
+    }
+
+    public async Task ReturnToLotAsync(InventoryEntity inventory, InventoryLot lot, decimal quantity, decimal unitCost, CancellationToken ct)
+    {
+        inventory.ReceiveStock(quantity, unitCost);
+        lot.Replenish(quantity);
+        await uow.InventoryLots.UpdateAsync(lot, ct);
+        (await BalanceAsync(inventory.ProductId, lot.WarehouseId, lot.LotId, ct)).Add(quantity);
+    }
+
+    public Task SetLotStatusAsync(InventoryLot lot, LotStatus status, CancellationToken ct)
+    {
+        // The lot is already tracked (loaded, or added a moment ago by a receipt). Update() would turn an Added lot into Modified and the
+        // tenant guard refuses a Modified row that has no tenant yet.
+        lot.SetStatus(status);
+        return Task.CompletedTask;
+    }
+
+    public async Task MoveBetweenWarehousesAsync(Guid productId, Guid? fromWarehouseId, Guid? toWarehouseId, decimal quantity, InventoryLot? lot, CancellationToken ct)
+    {
+        if (fromWarehouseId == toWarehouseId) return;
+
+        if (lot == null)
+        {
+            await TakeFromPoolAsync(productId, fromWarehouseId, quantity, ct);
+            await AddToPoolAsync(productId, toWarehouseId, quantity, ct);
+            return;
+        }
+
+        // a lot sits in exactly one warehouse, so only the whole lot can move
+        if (quantity != lot.RemainingQuantity)
+            throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("WH_PARTIAL_LOT_MOVE", "A lot moves to another warehouse as a whole: the quantity must equal what is left in the lot.");
+
+        var from = await BalanceAsync(productId, lot.WarehouseId, lot.LotId, ct);
+        var reserved = from.ReservedQuantity;
+        from.Add(-quantity);
+        from.AddReserved(-reserved);
+        lot.AssignWarehouse(toWarehouseId);
+        await uow.InventoryLots.UpdateAsync(lot, ct);
+        var to = await BalanceAsync(productId, toWarehouseId, lot.LotId, ct);
+        to.Add(quantity);
+        to.AddReserved(reserved);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────────────────────────────────────

@@ -217,3 +217,6 @@ Mọi số lượng tồn kho (tồn, giữ chỗ, khoá, mức đặt hàng / m
 
 ## 15. Tồn kho theo kho và lô (W2 của Warehouse upgrade, 2026-11-10)
 Bảng `StockBalances` giữ tồn theo (mặt hàng, kho, lô); `Inventories` vẫn là tổng theo mặt hàng cho Sales / POS / Replenishment. Mọi thay đổi tồn đi qua một dịch vụ ghi duy nhất `StockLedger` (một giao dịch DB cùng phiếu di chuyển và outbox). Lô có trạng thái (Available / QcHold / Blocked), kho, ngày sản xuất; lô chờ kiểm tra không được cấp phát. Kho mặc định là cài đặt theo tenant. Xung đột ghi đồng thời trả 409 (RowVersion). Chi tiết, UAT: `StockByWarehouseAndLot.md`.
+
+## 16. Production movements, cost on the movement, idempotency (W3 of Warehouse upgrade, 2026-11-10)
+Six movement types for Manufacturing (ProductionIssue / Return / Receipt / Scrap, QcRelease, SubcontractTransfer, enum 7-12); every movement now stores warehouse, lot, unit cost, value and signed stock effect; a production movement carries a reference `DocNo#line` that is unique per (tenant, product, type): the same request twice is one movement (`replayed: true`), two at once answer 201 + 409. Accounting books none of them until WIP posting (phase 6). Detail, UAT: `ProductionMovements.md`.

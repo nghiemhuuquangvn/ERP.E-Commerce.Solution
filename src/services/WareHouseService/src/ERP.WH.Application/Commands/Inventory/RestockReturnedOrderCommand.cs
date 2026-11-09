@@ -105,7 +105,8 @@ public class RestockReturnedOrderCommandHandler : IRequestHandler<RestockReturne
                 toLocation: null,
                 reference: reference,
                 reason: "Customer return",
-                sourceOrderId: request.OrderId);
+                sourceOrderId: request.OrderId)
+                .Describe(target.WarehouseId, null, unitCost, Math.Round(line.Quantity * unitCost, 2), line.Quantity);
             await _uow.StockMovements.AddAsync(movement, ct);
 
             _outboxWriter.Stage(new StockMovementRecordedEvent

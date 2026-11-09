@@ -35,7 +35,12 @@ public class GetMovementHistoryQueryHandler : IRequestHandler<GetMovementHistory
                 ToLocation = m.ToLocation,
                 Reference = m.Reference,
                 Reason = m.Reason,
-                RecordedAt = m.RecordedAt
+                RecordedAt = m.RecordedAt,
+                WarehouseId = m.WarehouseId,
+                LotId = m.LotId,
+                UnitCost = m.UnitCost,
+                ValueDelta = m.ValueDelta,
+                StockDelta = m.StockDelta
             })
             .ToList();
 

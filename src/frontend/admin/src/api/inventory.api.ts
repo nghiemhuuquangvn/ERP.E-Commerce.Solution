@@ -191,7 +191,25 @@ export const inventoryApi = {
   }) => apiClient.post(`/v1/inventory/receive`, body).then((r) => r.data),
 }
 
+/** One stock movement. From the Warehouse upgrade W3 the cost, value, warehouse and lot are filled (null on older rows). */
+export interface StockMovement {
+  movementId: string
+  productId: string
+  movementType: string
+  quantity: number
+  fromLocation?: string | null
+  toLocation?: string | null
+  reference?: string | null
+  reason?: string | null
+  recordedAt: string
+  warehouseId?: string | null
+  lotId?: string | null
+  unitCost?: number | null
+  valueDelta?: number | null
+  stockDelta?: number | null
+}
+
 export const movementsApi = {
   list: (productId: string, params?: { startDate?: string; endDate?: string; skip?: number; take?: number }) =>
-    apiClient.get(`${WH_BASE}/movements/${productId}`, { params }).then((r) => r.data),
+    apiClient.get<{ total: number; items: StockMovement[] }>(`${WH_BASE}/movements/${productId}`, { params }).then((r) => r.data),
 }

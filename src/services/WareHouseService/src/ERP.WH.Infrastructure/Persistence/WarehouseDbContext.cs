@@ -122,8 +122,16 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
             // recorded through the real API (only ever seeded directly before).
             entity.Property(e => e.SourceOrderId).HasColumnName("ReferenceId");
 
+            entity.Property(e => e.UnitCost).HasPrecision(18, 6);
+            entity.Property(e => e.ValueDelta).HasPrecision(18, 2);
+            entity.Property(e => e.StockDelta).HasPrecision(18, 6);
+
             entity.HasIndex(e => e.ProductId);
             entity.HasIndex(e => e.RecordedAt);
+            // One production movement per document line (SQL 012); older types are not protected (repeated rows exist).
+            entity.HasIndex(e => new { e.TenantId, e.ProductId, e.Reference, e.MovementType })
+                .IsUnique().HasDatabaseName("UX_StockMovements_Idempotency")
+                .HasFilter("[Reference] IS NOT NULL AND [MovementType] >= 7");
         });
 
         modelBuilder.Entity<Reservation>(entity =>
@@ -404,6 +412,10 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
         {
             throw Conflict(ex);
         }
+        catch (DbUpdateException ex) when (IsIdempotencyViolation(ex))
+        {
+            throw Conflict(ex);
+        }
     }
 
     public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
@@ -417,9 +429,18 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
         {
             throw Conflict(ex);
         }
+        catch (DbUpdateException ex) when (IsIdempotencyViolation(ex))
+        {
+            throw Conflict(ex);
+        }
     }
 
+    /// <summary>The same production movement arrived twice at once and the unique index let only one through: the caller retries and gets the first result.</summary>
+    private static bool IsIdempotencyViolation(DbUpdateException ex)
+        => ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 } sql
+           && sql.Message.Contains("UX_StockMovements_Idempotency", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Stock rows carry a RowVersion: someone else changed the same row first, so the caller must read again and retry (HTTP 409).</summary>
-    private static ERP.Shared.Infrastructure.Exceptions.ConcurrencyException Conflict(DbUpdateConcurrencyException ex)
+    private static ERP.Shared.Infrastructure.Exceptions.ConcurrencyException Conflict(DbUpdateException ex)
         => new("The stock was changed by another request at the same time. Read it again and retry.", ex);
 }

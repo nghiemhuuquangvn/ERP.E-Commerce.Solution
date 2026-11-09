@@ -24,6 +24,12 @@ namespace ERP.ACC.Application.EventHandlers
     /// </summary>
     public class StockMovementRecordedIntegrationEventHandler : INotificationHandler<StockMovementRecordedIntegrationEvent>
     {
+        /// <summary>Warehouse upgrade W3: the movement types of the production flows.</summary>
+        public static readonly HashSet<string> ProductionMovementTypes = new(StringComparer.Ordinal)
+        {
+            "ProductionIssue", "ProductionReturn", "ProductionReceipt", "ProductionScrap", "QcRelease", "SubcontractTransfer"
+        };
+
         private readonly IAccountingUnitOfWork _uow;
         private readonly IJournalPostingService _posting;
         private readonly ILogger<StockMovementRecordedIntegrationEventHandler> _logger;
@@ -42,6 +48,14 @@ namespace ERP.ACC.Application.EventHandlers
             var request = PostingRules.ForStockMovement(@event.MovementId, @event.MovementType, @event.ValueDelta, date, @event.Reference);
             if (request == null)
             {
+                if (ProductionMovementTypes.Contains(@event.MovementType))
+                {
+                    // Production movements change the stock value but are booked only by the WIP posting of Manufacturing phase 6,
+                    // so the stock card and the general ledger differ by these amounts until then (DEFERRED-ISSUES).
+                    _logger.LogInformation("Stock movement {MovementId} ({Type}, value {Value}) is a production movement: not booked until WIP posting exists",
+                        @event.MovementId, @event.MovementType, @event.ValueDelta);
+                    return;
+                }
                 _logger.LogDebug("Stock movement {MovementId} ({Type}) changes no stock value, nothing to post", @event.MovementId, @event.MovementType);
                 return;
             }

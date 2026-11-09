@@ -75,7 +75,9 @@ public class ReservationFulfillmentService : IReservationFulfillmentService
                 toLocation: null,
                 reference: null,
                 reason: "Order shipped",
-                sourceOrderId: reservation.OrderId);
+                sourceOrderId: reservation.OrderId)
+                .Describe(consumed.Count == 1 ? consumed[0].Lot.WarehouseId : null, consumed.Count == 1 ? consumed[0].Lot.LotId : null,
+                    item.Quantity > 0 ? Math.Round(issuedCost / item.Quantity, 4) : 0m, -Math.Round(issuedCost, 2), -item.Quantity);
 
             await _uow.StockMovements.AddAsync(movement, cancellationToken);
 

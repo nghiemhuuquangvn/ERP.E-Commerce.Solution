@@ -27,4 +27,9 @@ public class StockMovementRecordedEvent : ITenantEvent
     /// this and <see cref="MovementType"/> only — <see cref="Quantity"/> has no consistent sign across movement sources.</summary>
     public decimal ValueDelta { get; set; }
     public DateTime EventCreatedAt { get; set; }
+
+    // From W3 (optional, additive): where and in which lot the movement happened, and its signed effect on the item total.
+    public Guid? WarehouseId { get; set; }
+    public Guid? LotId { get; set; }
+    public decimal? StockDelta { get; set; }
 }
