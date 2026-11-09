@@ -27,9 +27,23 @@ public class DecimalQuantityTests
         inventory.ReserveStock(1.25m);
         inventory.AvailableQuantity.Should().Be(1.25m);
 
-        inventory.SellStock(1.25m);
+        inventory.ConsumeReserved(1.25m);
         inventory.TotalQuantity.Should().Be(1.25m);
         inventory.ReservedQuantity.Should().Be(0m);
+    }
+
+    [Fact]
+    public void A_manual_sale_takes_only_available_stock_and_leaves_reservations_alone()
+    {
+        var inventory = Stock(2.5m);
+        inventory.ReserveStock(1.25m);
+
+        var tooMuch = () => inventory.SellStock(1.5m);
+        tooMuch.Should().Throw<InvalidOperationException>();
+
+        inventory.SellStock(1.25m);
+        inventory.TotalQuantity.Should().Be(1.25m);
+        inventory.ReservedQuantity.Should().Be(1.25m, "a sale of free stock must not eat someone else's reservation");
     }
 
     [Fact]

@@ -21,7 +21,9 @@ public sealed record ProductionMovementRequest(
     LotStatus? InitialLotStatus = null,
     bool AllowNegative = false,
     string? Reason = null,
-    Guid? SourceOrderId = null);
+    Guid? SourceOrderId = null,
+    Guid? ReservationId = null,
+    Guid? SourceLineId = null);
 
 /// <summary>What happened. <c>Replayed</c> = the same reference had been booked before, so nothing was changed.</summary>
 public sealed record ProductionMovementResult(
@@ -88,6 +90,30 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
 
         switch (r.Type)
         {
+            case MovementType.ProductionIssue when r.ReservationId.HasValue:
+            {
+                // issue against a production reservation: the reserved quantity leaves (partial allowed), the stock taken is valued lot by lot
+                var reservation = await uow.Reservations.GetByIdAsync(r.ReservationId.Value, ct)
+                    ?? throw new BusinessRuleException("WH_RESERVATION_NOT_FOUND", "The reservation does not exist.");
+                if (reservation.Status != ReservationStatus.Reserved || reservation.SourceType != ReservationSource.ProductionOrder)
+                    throw new BusinessRuleException("WH_RESERVATION_NOT_OPEN", "The reservation is not an open production reservation.");
+                var item = reservation.ReservedItems.FirstOrDefault(i => i.ProductId == r.ProductId && (!r.SourceLineId.HasValue || i.SourceLineId == r.SourceLineId))
+                    ?? throw new BusinessRuleException("WH_RESERVATION_LINE", "The reservation has no such line for this item.");
+
+                var taken = await ledger.ConsumeAsync(inventory, item, quantity, r.LotId, ct);
+                var lotValue = taken.Sum(t => t.Quantity * (inventory.ValuationMethod != ValuationMethod.Average && t.Lot.UnitCost > 0 ? t.Lot.UnitCost : inventory.Cost));
+                var fromPool = quantity - taken.Sum(t => t.Quantity);
+                var total = lotValue + fromPool * inventory.Cost;
+                unitCost = quantity > 0 ? Math.Round(total / quantity, 6) : 0;
+                valueDelta = -Math.Round(total, 2);
+                stockDelta = -quantity;
+                warehouseId = taken.Count == 1 ? taken[0].Lot.WarehouseId : item.WarehouseId;
+                lotId = taken.Count == 1 ? taken[0].Lot.LotId : null;
+                if (reservation.IsFullyConsumed()) reservation.Fulfill();
+                await uow.Reservations.UpdateAsync(reservation, ct);
+                break;
+            }
+
             case MovementType.ProductionIssue:
             case MovementType.ProductionScrap:
                 if (lot != null && r.Type == MovementType.ProductionIssue && !lot.IsUsable())

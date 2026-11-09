@@ -152,7 +152,7 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
         var result = await _production.RecordAsync(new ProductionMovementRequest(
             movementType, request.ProductId, request.Quantity, request.Reference ?? string.Empty,
             request.WarehouseId, request.ToWarehouseId, request.LotId, request.LotNumber, request.ExpiryDate, request.ManufactureDate,
-            request.UnitCost, initial, request.AllowNegative, request.Reason, request.SourceOrderId), ct);
+            request.UnitCost, initial, request.AllowNegative, request.Reason, request.SourceOrderId, request.ReservationId, request.SourceLineId), ct);
 
         var movement = result.Movement;
         if (!result.Replayed)

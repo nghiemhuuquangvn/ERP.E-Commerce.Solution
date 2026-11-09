@@ -60,6 +60,15 @@ public interface IStockLedger
     /// <summary>Ships a reserved item: the stock leaves the item total, the bin, the lots and the balances. Returns what each lot gave.</summary>
     Task<IReadOnlyList<ConsumedLot>> ConsumeAsync(InventoryEntity inventory, ReservedItem item, CancellationToken ct);
 
+    /// <summary>Takes part of a reserved line out (partial consume): the named lot first, else the recorded lot split in order, then the warehouse pool.</summary>
+    Task<IReadOnlyList<ConsumedLot>> ConsumeAsync(InventoryEntity inventory, ReservedItem item, decimal quantity, Guid? lotId, CancellationToken ct);
+
+    /// <summary>Holds stock for a source document (production order) in ONE warehouse: its usable lots first-expiry-first, then its lot-less stock. A pinned lot is the only one used.</summary>
+    Task<ReserveResult> ReserveForSourceAsync(InventoryEntity inventory, decimal quantity, Guid? warehouseId, Guid? pinnedLotId, CancellationToken ct);
+
+    /// <summary>What a warehouse can still give to a new reservation: usable lot quantity not held plus lot-less quantity not held.</summary>
+    Task<decimal> AvailableInWarehouseAsync(Guid productId, Guid? warehouseId, CancellationToken ct);
+
     /// <summary>A bin-to-bin move; the balances follow when the bins are in different warehouses.</summary>
     Task TransferAsync(Guid productId, Guid fromLocationId, Guid toLocationId, decimal quantity, CancellationToken ct);
 
@@ -136,8 +145,8 @@ public sealed class StockLedger(IWarehouseUnitOfWork uow, IWarehouseResolver war
             }
         }
 
+        // a sale of free stock leaves every reservation alone (since W4 SellStock no longer lowers the item reservation either)
         if (remaining > 0) await TakeFromPoolAsync(inventory.ProductId, target.WarehouseId, remaining, ct);
-        if (policy == IssuePolicy.Refuse) await ReleaseFromPoolsAsync(inventory.ProductId, target.WarehouseId, quantity, ct);
     }
 
     public async Task AdjustAsync(InventoryEntity inventory, decimal delta, StockTarget target, CancellationToken ct)
@@ -172,17 +181,13 @@ public sealed class StockLedger(IWarehouseUnitOfWork uow, IWarehouseResolver war
         // first-expiry-first over the lots that may be allocated; the soft hold leaves RemainingQuantity alone
         var lots = await uow.InventoryLots.GetByProductIdAsync(inventory.ProductId, includeDepleted: false, ct);
         var allocations = new List<LotAllocation>();
-        var remaining = quantity;
-        foreach (var lot in lots.Where(l => l.IsUsable()).OrderBy(l => l.ExpiryDate ?? DateTime.MaxValue).ThenBy(l => l.ReceivedDate))
+        var (picks, _) = LotPicker.Pick(lots, quantity, null, restrictToWarehouse: false, DateTime.UtcNow);
+        foreach (var (lot, take) in picks)
         {
-            if (remaining <= 0) break;
-            var take = Math.Min(lot.AvailableQuantity, remaining);
-            if (take <= 0) continue;
             lot.Reserve(take);
             await uow.InventoryLots.UpdateAsync(lot, ct);
             (await BalanceAsync(inventory.ProductId, lot.WarehouseId, lot.LotId, ct)).AddReserved(take);
             allocations.Add(new LotAllocation { LotId = lot.LotId, Quantity = take });
-            remaining -= take;
         }
 
         // what no lot covers is held on the lot-less balance of the warehouse
@@ -198,9 +203,10 @@ public sealed class StockLedger(IWarehouseUnitOfWork uow, IWarehouseResolver war
         foreach (var item in reservation.ReservedItems)
         {
             var inventory = await uow.Inventories.GetByProductIdAsync(item.ProductId, ct);
+            var held = item.RemainingQuantity;
             if (inventory != null)
             {
-                inventory.ReleaseReservation(item.Quantity);
+                inventory.ReleaseReservation(held);
                 await uow.Inventories.UpdateAsync(inventory, ct);
             }
 
@@ -209,61 +215,136 @@ public sealed class StockLedger(IWarehouseUnitOfWork uow, IWarehouseResolver war
                 var locationStock = await uow.InventoryLocationStocks.GetAsync(item.ProductId, locationId, ct);
                 if (locationStock != null)
                 {
-                    locationStock.ReleaseReservation(item.Quantity);
+                    locationStock.ReleaseReservation(held);
                     await uow.InventoryLocationStocks.UpdateAsync(locationStock, ct);
                 }
             }
 
             foreach (var allocation in item.LotAllocations)
             {
+                if (allocation.Remaining <= 0) continue;
                 var lot = await uow.InventoryLots.GetByIdAsync(allocation.LotId, ct);
                 if (lot == null) continue;
-                lot.ReleaseReservation(allocation.Quantity);
+                lot.ReleaseReservation(allocation.Remaining);
                 await uow.InventoryLots.UpdateAsync(lot, ct);
-                (await BalanceAsync(item.ProductId, lot.WarehouseId, lot.LotId, ct)).AddReserved(-allocation.Quantity);
+                (await BalanceAsync(item.ProductId, lot.WarehouseId, lot.LotId, ct)).AddReserved(-allocation.Remaining);
             }
 
-            var unattributed = item.Quantity - item.LotAllocations.Sum(a => a.Quantity);
-            if (unattributed > 0) await ReleaseFromPoolsAsync(item.ProductId, null, unattributed, ct);
+            var unattributed = held - item.LotAllocations.Sum(a => a.Remaining);
+            if (unattributed > 0) await ReleaseFromPoolsAsync(item.ProductId, item.WarehouseId, unattributed, ct);
         }
     }
 
-    public async Task<IReadOnlyList<ConsumedLot>> ConsumeAsync(InventoryEntity inventory, ReservedItem item, CancellationToken ct)
+    public Task<IReadOnlyList<ConsumedLot>> ConsumeAsync(InventoryEntity inventory, ReservedItem item, CancellationToken ct)
+        => ConsumeAsync(inventory, item, item.RemainingQuantity, null, ct);
+
+    public async Task<IReadOnlyList<ConsumedLot>> ConsumeAsync(InventoryEntity inventory, ReservedItem item, decimal quantity, Guid? lotId, CancellationToken ct)
     {
-        inventory.SellStock(item.Quantity);
+        if (quantity <= 0 || quantity > item.RemainingQuantity)
+            throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("WH_RESERVATION_EXCEEDED",
+                $"Only {item.RemainingQuantity} of the reserved quantity is left to take; {quantity} was asked.");
+
+        inventory.ConsumeReserved(quantity);
 
         if (Guid.TryParse(item.WarehouseLocation, out var locationId))
         {
             var locationStock = await uow.InventoryLocationStocks.GetAsync(item.ProductId, locationId, ct);
             if (locationStock != null)
             {
-                locationStock.SellStock(item.Quantity);
+                locationStock.SellStock(quantity);
                 await uow.InventoryLocationStocks.UpdateAsync(locationStock, ct);
             }
         }
 
+        // the allocations are changed in place; the value comparer of the mapping sees the difference
+        var remaining = quantity;
         var consumed = new List<ConsumedLot>();
-        foreach (var allocation in item.LotAllocations)
+        var allocations = lotId.HasValue
+            ? item.LotAllocations.Where(a => a.LotId == lotId.Value).ToList()
+            : item.LotAllocations.ToList();
+        foreach (var allocation in allocations)
         {
+            if (remaining <= 0) break;
+            var take = Math.Min(allocation.Remaining, remaining);
+            if (take <= 0) continue;
             var lot = await uow.InventoryLots.GetByIdAsync(allocation.LotId, ct);
             if (lot == null) continue;
-            lot.Consume(allocation.Quantity);
+            lot.Consume(take);
             await uow.InventoryLots.UpdateAsync(lot, ct);
             var balance = await BalanceAsync(item.ProductId, lot.WarehouseId, lot.LotId, ct);
-            balance.Add(-allocation.Quantity);
-            balance.AddReserved(-allocation.Quantity);
-            consumed.Add(new ConsumedLot(lot, allocation.Quantity));
+            balance.Add(-take);
+            balance.AddReserved(-take);
+            allocation.Consumed += take;
+            consumed.Add(new ConsumedLot(lot, take));
+            remaining -= take;
         }
 
-        var unattributed = item.Quantity - item.LotAllocations.Sum(a => a.Quantity);
-        if (unattributed > 0)
+        if (lotId.HasValue && remaining > 0)
+            throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("WH_RESERVATION_EXCEEDED",
+                "The named lot holds less of this reservation than asked.");
+
+        // what no lot covers comes off the lot-less stock of the line's warehouse
+        if (remaining > 0)
         {
-            var preferred = (await TargetAsync(null, Guid.TryParse(item.WarehouseLocation, out var l2) ? l2 : null, ct)).WarehouseId;
-            await TakeFromPoolAsync(item.ProductId, preferred, unattributed, ct);
-            await ReleaseFromPoolsAsync(item.ProductId, preferred, unattributed, ct);
+            var preferred = item.WarehouseId ?? (await TargetAsync(null, Guid.TryParse(item.WarehouseLocation, out var l2) ? l2 : null, ct)).WarehouseId;
+            await TakeFromPoolAsync(item.ProductId, preferred, remaining, ct);
+            await ReleaseFromPoolsAsync(item.ProductId, preferred, remaining, ct);
         }
 
+        item.ConsumedQuantity += quantity;
         return consumed;
+    }
+
+    // ── reservation for a source document (W4) ───────────────────────────────────────────────────────────────
+    public async Task<decimal> AvailableInWarehouseAsync(Guid productId, Guid? warehouseId, CancellationToken ct)
+    {
+        var lots = await uow.InventoryLots.GetByProductIdAsync(productId, includeDepleted: false, ct);
+        var fromLots = LotPicker.Candidates(lots, warehouseId, restrictToWarehouse: true, DateTime.UtcNow).Sum(l => l.AvailableQuantity);
+        var pool = await uow.StockBalances.GetAsync(productId, warehouseId, null, ct);
+        return fromLots + (pool == null ? 0 : Math.Max(pool.Quantity - pool.ReservedQuantity - pool.LockedQuantity, 0));
+    }
+
+    public async Task<ReserveResult> ReserveForSourceAsync(InventoryEntity inventory, decimal quantity, Guid? warehouseId, Guid? pinnedLotId, CancellationToken ct)
+    {
+        inventory.ReserveStock(quantity);
+
+        var lots = await uow.InventoryLots.GetByProductIdAsync(inventory.ProductId, includeDepleted: false, ct);
+        var allocations = new List<LotAllocation>();
+        var now = DateTime.UtcNow;
+
+        if (pinnedLotId.HasValue)
+        {
+            var pinned = lots.Where(l => l.LotId == pinnedLotId.Value);
+            var (picks, shortfall) = LotPicker.Pick(pinned, quantity, warehouseId, restrictToWarehouse: true, now);
+            if (shortfall > 0)
+                throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("WH_LOT_NOT_AVAILABLE",
+                    "The named lot is not available in this warehouse for the quantity asked (on hold, expired, in another warehouse or already held).");
+            foreach (var (lot, take) in picks) await HoldLotAsync(inventory.ProductId, lot, take, allocations, ct);
+        }
+        else
+        {
+            var (picks, shortfall) = LotPicker.Pick(lots, quantity, warehouseId, restrictToWarehouse: true, now);
+            foreach (var (lot, take) in picks) await HoldLotAsync(inventory.ProductId, lot, take, allocations, ct);
+            if (shortfall > 0)
+            {
+                var pool = await BalanceAsync(inventory.ProductId, warehouseId, null, ct);
+                var free = pool.Quantity - pool.ReservedQuantity - pool.LockedQuantity;
+                if (shortfall > free)
+                    throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("WH_INSUFFICIENT_IN_WAREHOUSE",
+                        $"The warehouse cannot cover {quantity}: {Math.Max(quantity - shortfall + free, 0)} is available there.");
+                pool.AddReserved(shortfall);
+            }
+        }
+
+        return new ReserveResult("DEFAULT_LOCATION", allocations);
+    }
+
+    private async Task HoldLotAsync(Guid productId, InventoryLot lot, decimal take, List<LotAllocation> allocations, CancellationToken ct)
+    {
+        lot.Reserve(take);
+        await uow.InventoryLots.UpdateAsync(lot, ct);
+        (await BalanceAsync(productId, lot.WarehouseId, lot.LotId, ct)).AddReserved(take);
+        allocations.Add(new LotAllocation { LotId = lot.LotId, Quantity = take });
     }
 
     // ── transfer ─────────────────────────────────────────────────────────────────────────────────────────────

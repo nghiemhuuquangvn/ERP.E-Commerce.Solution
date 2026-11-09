@@ -1495,3 +1495,6 @@ Quantity fields of the Warehouse events - `StockMovementRecorded.Quantity`, `Inv
 
 ### StockMovementRecordedEvent - production movement types and optional fields (2026-11-10, Warehouse upgrade W3)
 `MovementType` can now also be `ProductionIssue`, `ProductionReturn`, `ProductionReceipt`, `ProductionScrap`, `QcRelease`, `SubcontractTransfer`; new optional fields `WarehouseId`, `LotId`, `StockDelta` (signed effect on the item total); `UnitCost` / `ValueDelta` carry the persisted values. Accounting posts nothing for the six production types until WIP posting (phase 6) and logs the skip; Reporting does not consume this event. Details: docs/business/Warehouse/ProductionMovements.md.
+
+### Reservations by source (2026-11-10, Warehouse upgrade W4)
+`InventoryReserved` is still raised only for sales-order reservations (Shipping consumes it). A production-order reservation raises no integration event; its stock leaves through the `StockMovementRecorded` of the `ProductionIssue` that consumes it. Details: docs/business/Warehouse/ReservationsBySource.md.

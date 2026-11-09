@@ -141,6 +141,8 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
             entity.Property(e => e.Status).IsRequired();
             entity.Property(e => e.HoldUntil).IsRequired();
             entity.Property(e => e.ReservedAt).IsRequired();
+            entity.Property(e => e.SourceType).HasConversion<byte>().HasDefaultValue(ReservationSource.SalesOrder);
+            entity.Property(e => e.SourceReference).HasMaxLength(100);
 
             // Previously unconfigured — EF Core cannot map a bare List<ReservedItem>
             // navigation with no owner/key convention it recognizes, which throws at
@@ -159,6 +161,7 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
                 items.HasKey("Id");
                 items.Property(i => i.WarehouseLocation).HasMaxLength(100);
                 items.Property(i => i.Quantity).HasPrecision(18, 6);
+                items.Property(i => i.ConsumedQuantity).HasPrecision(18, 6);
 
                 // Persisted as JSON rather than a second-level owned collection — EF Core
                 // supports nested OwnsMany but it requires its own composite-key plumbing
@@ -168,11 +171,17 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
                         v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
                         v => System.Text.Json.JsonSerializer.Deserialize<List<LotAllocation>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<LotAllocation>())
                     .HasColumnName("LotAllocationsJson")
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("nvarchar(max)")
+                    // the list is changed in place when a reservation is partly consumed: compare by content
+                    .Metadata.SetValueComparer(new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<LotAllocation>>(
+                        (x, y) => System.Text.Json.JsonSerializer.Serialize(x, (System.Text.Json.JsonSerializerOptions?)null) == System.Text.Json.JsonSerializer.Serialize(y, (System.Text.Json.JsonSerializerOptions?)null),
+                        v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null).GetHashCode(),
+                        v => System.Text.Json.JsonSerializer.Deserialize<List<LotAllocation>>(System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null), (System.Text.Json.JsonSerializerOptions?)null) ?? new List<LotAllocation>()));
             });
 
             entity.HasIndex(e => e.OrderId);
             entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => new { e.TenantId, e.SourceType, e.OrderId }).HasDatabaseName("IX_Reservations_Source");
             entity.HasIndex(e => e.HoldUntil);
         });
 
