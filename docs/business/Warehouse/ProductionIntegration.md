@@ -41,6 +41,7 @@ Until W5 the production movements and the production reservation could only be r
 | PI-R7 | The reversal of a receipt is an issue of the lot under a new key (`<doc>#FG1-REV`); there is no separate reversal type. |
 | PI-R8 | Production movements are not booked in the general ledger until the WIP posting of Manufacturing phase 6 (W3 rule, unchanged). |
 | PI-R9 | Releasing a reservation that is no longer open (released, expired, fulfilled) answers its state and frees nothing. |
+| PI-R10 | (W6) A `ProductionIssue` from an **expired** lot - named, or drawn from a reservation whose lot expired after the reservation was made - is refused `WH_LOT_EXPIRED` (TC-MAT-009). Scrap, return, transfer and quality release of an expired lot stay allowed so that it can be written off or moved. |
 
 ## 4. Use cases
 **UC-1 Produce one order (main).** Manufacturing asks availability and lot suggestion, reserves the components in the raw-material warehouse, issues them in pieces against the reservation (`MO#1`, `MO#2`), receives the finished goods under quality hold at the actual cost (`MO#FG1`), releases the lot (`MO#QC1`).
@@ -89,3 +90,4 @@ Service-to-service only (`[AuthorizeInternalService("manufacturing")]` on every 
 4. Raw total 7.5, nothing reserved; finished total 1; reconciliation has no line for these items; Accounting has no entry for the production movements.
 5. A serial-controlled component stops the cycle with `WH_SERIAL_NOT_SUPPORTED` and leaves stock untouched.
 6. Without a service token: 401; through the Gateway: 404.
+7. (W6) Issue 5 from an expired lot: 400 `WH_LOT_EXPIRED`, stock unchanged; scrap the same lot: accepted.

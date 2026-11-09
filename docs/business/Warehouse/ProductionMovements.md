@@ -80,3 +80,6 @@ Unchanged: the production types use the permission of `POST movements`. W5 adds 
 6. `ProductionReturn` 1 kg into LA at cost 4, `ProductionScrap` 0.5 kg of FG-1: values +4 and -4.5.
 7. `SubcontractTransfer` 1 kg of a lot-less item from warehouse A to B: A 2, B 1, total 3.
 8. Open `inventory/reconciliation`: no quantity or lot line. Check the journal: no entry for the production movements.
+
+## Addendum W6 (2026-11-10): expired lots
+A `ProductionIssue` from an expired lot is refused `WH_LOT_EXPIRED` (TC-MAT-009 of the Manufacturing test book); `ProductionScrap`, `ProductionReturn`, `SubcontractTransfer` and `QcRelease` of an expired lot are still allowed. See ProductionIntegration.md (PI-R10).

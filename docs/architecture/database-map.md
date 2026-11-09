@@ -323,6 +323,14 @@ reservations, stock adjustment/stocktake approval, warehouse sites, barcode reso
 - StockAdjustments (approval-gated — see below)
 - Warehouses (physical sites) / WarehouseLocations (zone/aisle/bin/shelf)
 - BarcodeMappings
+- **StockBalances** (Warehouse upgrade W2, 2026-11-10): stock per (item, warehouse, lot) next to the per-item total - see "Warehouse upgrade" below
+
+**Warehouse upgrade W1-W4 (2026-11-09 / 10, SQL `Warehouse/010-013`; docs/business/Warehouse/UpgradeEpic.md):**
+- **Quantities are `DECIMAL(18,6)`** everywhere (010): Inventories (Total / Reserved / Locked / Reorder / Min / Max / Safety; `AvailableQuantity` stays a persisted computed column), StockMovements, Reservation_ReservedItems, InventoryLots, InventoryLocationStocks, StockAdjustments, TransferOrderLines, StocktakeLines, CostConsumptionLogs, valuation lines, WarehouseLocations.
+- **StockBalances** (011): `BalanceId` (PK), `TenantId`, `ProductId`, `WarehouseId` (NULL = unassigned), `LotId` (NULL = not in a lot), `Quantity`, `ReservedQuantity`, `LockedQuantity`, `RowVersion`, unique `(TenantId, ProductId, WarehouseId, LotId)`. Sum of a product's balances = `Inventories.TotalQuantity` (reconciliation: `GET inventory/reconciliation`).
+- **InventoryLots** (011): + `WarehouseId`, `Status` (0 Available / 1 QcHold / 2 Blocked), `ManufactureDate`, `Source` (0 Receipt / 1 Production / 2 Return), `RowVersion`. `Inventories` + `RowVersion`. `TenantInventorySettings` + `DefaultWarehouseId`. Product (ProductDB 020): `IsLotControlled`, `IsSerialControlled`.
+- **StockMovements** (012): + `WarehouseId`, `LotId`, `UnitCost`, `ValueDelta`, `StockDelta` (all nullable: older rows stay NULL); `MovementType` 7-12 = ProductionIssue / ProductionReturn / ProductionReceipt / ProductionScrap / QcRelease / SubcontractTransfer; filtered unique index `UX_StockMovements_Idempotency (TenantId, ProductId, Reference, MovementType) WHERE Reference IS NOT NULL AND MovementType >= 7` (reference `<doc>#<line>`).
+- **Reservations** (013): + `SourceType` (0 SalesOrder / 1 ProductionOrder), `SourceReference`; `Reservation_ReservedItems` + `SourceLineId`, `WarehouseId`, `ConsumedQuantity`; the lot split JSON carries `Consumed`; index `IX_Reservations_Source (TenantId, SourceType, OrderId)`.
 
 **Critical Tables:**
 

@@ -1,3 +1,4 @@
+using ERP.MFG.Application.Abstractions;
 using ERP.MFG.Application.Features.Imports;
 using ERP.MFG.Domain.Common;
 using ERP.MFG.Domain.Entities;
@@ -50,6 +51,23 @@ public class ImportTests
         bom.Lines.Single(l => l.ComponentCode == "NVL-KEO02").AlternativeGroup.Should().Be("G1");
         bom.Lines.Single(l => l.ComponentCode == "NVL-SON01").Notes.Should().Be("Two coats");
         bom.Lines.Single(l => l.ComponentCode == "PP-MUN01").LineType.Should().Be(BomLineType.ByProduct);
+    }
+
+    [Fact]
+    public async Task A_Unit_Code_That_Matches_Two_Units_Resolves_To_The_Unit_The_Component_Uses()
+    {
+        var c = Seeded();
+        // a platform unit and the tenant's own unit share the code "L"; the other one is listed first
+        var all = c.F.Units.ToList();
+        c.F.Units.Clear();
+        var other = Guid.NewGuid();
+        c.F.Units[other] = new UnitInfo(other, "L", "Litre (platform)", 2, null, 1m);
+        foreach (var (id, unit) in all) c.F.Units[id] = unit;
+
+        var result = await ImportBom(c, false, BomHeader, "NVL-SON01,0.5,L,5,20,Manual,Component,false,false,,,,");
+
+        result.Errors.Should().BeEmpty();
+        c.F.Boms.Single().Lines.Single().UomId.Should().Be(c.Litre);
     }
 
     [Fact]

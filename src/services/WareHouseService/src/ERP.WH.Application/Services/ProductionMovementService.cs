@@ -119,6 +119,9 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
                 if (r.RequiresLot && !r.LotId.HasValue && item.LotAllocations.Sum(a => a.Remaining) < quantity)
                     throw new BusinessRuleException("WH_LOT_REQUIRED", "A lot-controlled item can only be issued from lots: the reservation holds less in lots than the quantity asked.");
 
+                // consumption never uses an expired lot, also when it expired after the reservation was made
+                await AssertNoExpiredLotAsync(item, quantity, r.LotId, ct);
+
                 var taken = await ledger.ConsumeAsync(inventory, item, quantity, r.LotId, ct);
                 var lotValue = taken.Sum(t => t.Quantity * (inventory.ValuationMethod != ValuationMethod.Average && t.Lot.UnitCost > 0 ? t.Lot.UnitCost : inventory.Cost));
                 var fromPool = quantity - taken.Sum(t => t.Quantity);
@@ -137,6 +140,8 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
             case MovementType.ProductionScrap:
                 if (lot != null && r.Type == MovementType.ProductionIssue && !lot.IsUsable())
                     throw new BusinessRuleException("WH_LOT_NOT_USABLE", $"Lot {lot.LotNumber} is on {lot.Status}: it cannot be issued.");
+                if (lot != null && r.Type == MovementType.ProductionIssue && lot.IsExpired())
+                    throw ExpiredLot(lot);
                 unitCost = IssueCost(inventory, lot);
                 if (lot != null) await ledger.IssueFromLotAsync(inventory, lot, quantity, policy, ct);
                 else await ledger.IssueAsync(inventory, quantity, target, policy, LotDepletion.None, ct);
@@ -200,6 +205,33 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
         await uow.StockMovements.AddAsync(movement, ct);
 
         return new ProductionMovementResult(movement, false, previous, inventory.TotalQuantity, unitCost, valueDelta, stockDelta, warehouseId, lotId);
+    }
+
+    private static BusinessRuleException ExpiredLot(InventoryLot lot)
+        => new("WH_LOT_EXPIRED", $"Lot {lot.LotNumber} expired on {lot.ExpiryDate:yyyy-MM-dd}: it cannot be issued (scrap or return it instead).");
+
+    /// <summary>The lots a consume of <paramref name="quantity"/> would draw from (the named lot, else the recorded split in order) must not be expired.</summary>
+    private async Task AssertNoExpiredLotAsync(ReservedItem item, decimal quantity, Guid? namedLotId, CancellationToken ct)
+    {
+        var ids = new List<Guid>();
+        if (namedLotId.HasValue) ids.Add(namedLotId.Value);
+        else
+        {
+            var left = quantity;
+            foreach (var a in item.LotAllocations)
+            {
+                if (left <= 0) break;
+                if (a.Remaining <= 0) continue;
+                ids.Add(a.LotId);
+                left -= a.Remaining;
+            }
+        }
+
+        foreach (var id in ids)
+        {
+            var lot = await uow.InventoryLots.GetByIdAsync(id, ct);
+            if (lot != null && lot.IsExpired()) throw ExpiredLot(lot);
+        }
     }
 
     /// <summary>

@@ -875,7 +875,7 @@ public class InventoryReservedEvent : IntegrationEvent
 public class ReservedItem
 {
     public Guid ProductId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }   // decimal since Warehouse upgrade W1
     public string WarehouseLocation { get; set; }
 }
 ```
@@ -910,8 +910,8 @@ public class ReservedItem
 public class InventoryUpdatedEvent : IntegrationEvent
 {
     public Guid ProductId { get; set; }
-    public int PreviousQuantity { get; set; }
-    public int CurrentQuantity { get; set; }
+    public decimal PreviousQuantity { get; set; }   // decimal since Warehouse upgrade W1
+    public decimal CurrentQuantity { get; set; }
     public string MovementType { get; set; } // "Received", "Sold", "Adjusted", "Damaged"
     public Guid? ReferenceId { get; set; } // OrderId, PurchaseOrderId, etc.
     public DateTime UpdatedAt { get; set; }
@@ -943,13 +943,17 @@ public class StockMovementRecordedEvent : IntegrationEvent
 {
     public Guid MovementId { get; set; }
     public Guid ProductId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }   // decimal since Warehouse upgrade W1; production types: always positive, the type gives the direction
     public string MovementType { get; set; }
     public string Reason { get; set; }
     public Guid? SourceOrderId { get; set; }
     public DateTime RecordedAt { get; set; }
     public decimal UnitCost { get; set; }   // 2026-10-24 (P1-1b); 0 = unknown
     public decimal ValueDelta { get; set; } // signed change of the stock value: receipt +, issue -, gain +, loss -
+    public Guid? WarehouseId { get; set; }  // W3, production movements: where the stock moved
+    public Guid? LotId { get; set; }        // W3: the lot
+    public decimal? StockDelta { get; set; } // W3: signed effect on the item total
+    public string? Reference { get; set; }  // W3: "<doc>#<line>" of a production movement
 }
 ```
 
@@ -979,7 +983,7 @@ public class StockAdjustmentApprovedEvent
 {
     public Guid AdjustmentId { get; set; }
     public Guid ProductId { get; set; }
-    public int QuantityDelta { get; set; }
+    public decimal QuantityDelta { get; set; }   // decimal since Warehouse upgrade W1
     public string ApprovedBy { get; set; }
     public DateTime ApprovedAt { get; set; }
     public DateTime EventCreatedAt { get; set; }

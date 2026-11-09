@@ -104,11 +104,14 @@ public sealed class ImportBomHandler(IPlantAccessService access, IBomRepository 
         var skus = rows.Select(x => x.Get("componentsku")).Where(s => s.Length > 0).ToList();
         var bySku = (await products.LookupBySkuAsync(skus, ct)).GroupBy(p => p.Sku, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
         var byCode = (await units.LookupByCodeAsync(rows.Select(x => x.Get("uom")).Where(s => s.Length > 0).ToList(), ct))
-            .GroupBy(u => u.Code, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            .GroupBy(u => u.Code, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+        // A code can match two units (a platform unit and the tenant's own): the one the component product itself uses wins, else the first.
+        UnitInfo? PickUnit(string code, ProductInfo product)
+            => byCode.TryGetValue(code, out var candidates) ? candidates.FirstOrDefault(u => u.Id == product.BaseUomId) ?? candidates[0] : null;
 
         var pairs = new List<(Guid, Guid)>();
         foreach (var row in rows)
-            if (bySku.TryGetValue(row.Get("componentsku"), out var found) && found.Count == 1 && byCode.TryGetValue(row.Get("uom"), out var unit)) pairs.Add((found[0].Id, unit.Id));
+            if (bySku.TryGetValue(row.Get("componentsku"), out var found) && found.Count == 1 && PickUnit(row.Get("uom"), found[0]) is { } unit) pairs.Add((found[0].Id, unit.Id));
         var resolved = pairs.Count == 0 ? new Dictionary<(Guid ItemId, Guid UomId), ComponentResolution>() : (await snapshots.ResolveComponentsAsync(pairs, ct)).ToDictionary(k => k.Key, k => k.Value);
 
         var version = await boms.MaxVersionAsync(r.ItemId, plant.Id, ct) + 1;
@@ -123,7 +126,7 @@ public sealed class ImportBomHandler(IPlantAccessService access, IBomRepository 
             if (sku.Length == 0) { Fail("componentSku is required."); continue; }
             if (!bySku.TryGetValue(sku, out var matches)) { Fail($"No item with SKU {sku}."); continue; }
             if (matches.Count > 1) { Fail($"SKU {sku} matches {matches.Count} items; it must be unique."); continue; }
-            if (!byCode.TryGetValue(row.Get("uom"), out var unit)) { Fail($"Unknown unit of measure '{row.Get("uom")}'."); continue; }
+            if (PickUnit(row.Get("uom"), matches[0]) is not { } unit) { Fail($"Unknown unit of measure '{row.Get("uom")}'."); continue; }
             if (!resolved.TryGetValue((matches[0].Id, unit.Id), out var resolution) || resolution.Component is null) { Fail(resolution?.Error ?? "The component could not be checked."); continue; }
 
             var quantity = CsvCells.Decimal(row.Get("quantity"), out var qOk);
