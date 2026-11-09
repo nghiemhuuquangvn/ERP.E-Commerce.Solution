@@ -30,3 +30,13 @@ public enum ReasonType : short
 
 /// <summary>Downtime reason category (BR-RSN-02) - feeds OEE.</summary>
 public enum DowntimeCategory : short { Planned = 1, Unplanned = 2 }
+
+public enum OrderType : short { Standard = 1, Rework = 2, Subcontract = 3 }
+
+public enum OrderSourceType : short { Manual = 1, SalesOrder = 2, Mrp = 3, Ncr = 4, ParentOrder = 5 }
+
+/// <summary>BA spec 01 §4.2. Closed and Cancelled are final.</summary>
+public enum OrderStatus : short { Draft = 1, Released = 2, InProgress = 3, OnHold = 4, Completed = 5, Closed = 6, Cancelled = 7 }
+
+/// <summary>BA spec 01 §4.3.</summary>
+public enum OperationStatus : short { Pending = 1, Ready = 2, Running = 3, Paused = 4, Completed = 5 }

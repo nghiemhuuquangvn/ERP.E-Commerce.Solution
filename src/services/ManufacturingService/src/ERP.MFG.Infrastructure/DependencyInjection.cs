@@ -38,7 +38,14 @@ public static class DependencyInjection
         services.AddScoped<IBomRepository, BomRepository>();
         services.AddScoped<IRoutingRepository, RoutingRepository>();
         services.AddScoped<IProductionSettingProvider, ProductionSettingProvider>();
-        services.AddSingleton<IOpenOrderGuard, NoOrdersYetGuard>();
+        services.AddScoped<IOpenOrderGuard, OrderBackedOpenOrderGuard>();
+        services.AddScoped<IProductionOrderRepository, ProductionOrderRepository>();
+
+        // Domain events leave through the outbox (written by MfgDbContext in the same transaction) onto Kafka topic manufacturing-topic.
+        var kafkaServers = configuration["KafkaSettings:BootstrapServers"] ?? "localhost:9092";
+        services.AddSingleton<Confluent.Kafka.IProducer<string, string>>(new Confluent.Kafka.ProducerBuilder<string, string>(new Confluent.Kafka.ProducerConfig { BootstrapServers = kafkaServers, AllowAutoCreateTopics = true }).Build());
+        services.AddScoped<ERP.Shared.Messaging.IMessageBus, MessageBus.KafkaMessageBus>();
+        services.AddHostedService<BackgroundJobs.OutboxProcessor>();
         services.AddMemoryCache();
 
         // Other services, read through internal endpoints with this service's own token (fail closed, 60 s cache).

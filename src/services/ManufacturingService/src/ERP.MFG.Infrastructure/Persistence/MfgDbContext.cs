@@ -1,7 +1,9 @@
 using ERP.MFG.Domain.Entities;
 using ERP.Shared.Core.Domain;
 using ERP.Shared.Infrastructure.Data;
+using ERP.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace ERP.MFG.Infrastructure.Persistence;
 
@@ -42,6 +44,12 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
     public DbSet<BomLine> BomLines => Set<BomLine>();
     public DbSet<Routing> Routings => Set<Routing>();
     public DbSet<RoutingOperation> RoutingOperations => Set<RoutingOperation>();
+    public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
+    public DbSet<ProductionOrderMaterial> ProductionOrderMaterials => Set<ProductionOrderMaterial>();
+    public DbSet<ProductionOrderOperation> ProductionOrderOperations => Set<ProductionOrderOperation>();
+    public DbSet<ProductionOrderOutput> ProductionOrderOutputs => Set<ProductionOrderOutput>();
+    public DbSet<ProductionOrderStatusHistory> ProductionOrderStatusHistories => Set<ProductionOrderStatusHistory>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -268,6 +276,102 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.HasIndex(x => new { x.TenantId, x.WorkCenterId });
         });
 
+        modelBuilder.Entity<ProductionOrder>(e =>
+        {
+            e.ToTable("ProductionOrders");
+            e.Property(x => x.OrderNo).HasMaxLength(30).IsRequired();
+            e.Property(x => x.ItemCode).HasMaxLength(100).IsRequired();
+            e.Property(x => x.ItemName).HasMaxLength(255).IsRequired();
+            e.Property(x => x.Quantity).HasPrecision(18, 6);
+            e.Property(x => x.CompletedQty).HasPrecision(18, 6);
+            e.Property(x => x.ScrappedQty).HasPrecision(18, 6);
+            e.Property(x => x.OrderType).HasConversion<short>();
+            e.Property(x => x.Status).HasConversion<short>();
+            e.Property(x => x.StatusBeforeHold).HasConversion<short?>();
+            e.Property(x => x.SourceType).HasConversion<short>();
+            e.Property(x => x.Priority).HasConversion<short>();
+            e.Property(x => x.Notes).HasMaxLength(1000);
+            e.Ignore(x => x.Materials);
+            e.Ignore(x => x.Operations);
+            e.Ignore(x => x.Outputs);
+            e.Ignore(x => x.History);
+            e.HasIndex(x => new { x.TenantId, x.OrderNo }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.PlantId, x.Status, x.DueDate });
+            e.HasIndex(x => new { x.TenantId, x.ItemId, x.Status });
+            e.HasMany(x => x.AllMaterials).WithOne().HasForeignKey(m => m.OrderId);
+            e.Navigation(x => x.AllMaterials).HasField("_materials").UsePropertyAccessMode(PropertyAccessMode.Field);
+            e.HasMany(x => x.AllOperations).WithOne().HasForeignKey(o => o.OrderId);
+            e.Navigation(x => x.AllOperations).HasField("_operations").UsePropertyAccessMode(PropertyAccessMode.Field);
+            e.HasMany(x => x.AllOutputs).WithOne().HasForeignKey(o => o.OrderId);
+            e.Navigation(x => x.AllOutputs).HasField("_outputs").UsePropertyAccessMode(PropertyAccessMode.Field);
+            e.HasMany(x => x.AllHistory).WithOne().HasForeignKey(h => h.OrderId);
+            e.Navigation(x => x.AllHistory).HasField("_history").UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<ProductionOrderMaterial>(e =>
+        {
+            e.ToTable("ProductionOrderMaterials");
+            e.Property(x => x.ComponentCode).HasMaxLength(100).IsRequired();
+            e.Property(x => x.ComponentName).HasMaxLength(255).IsRequired();
+            foreach (var q in new[] { nameof(ProductionOrderMaterial.RequiredQty), nameof(ProductionOrderMaterial.IssuedQty), nameof(ProductionOrderMaterial.ReturnedQty),
+                         nameof(ProductionOrderMaterial.ConsumedQty), nameof(ProductionOrderMaterial.ReservedQty) })
+                e.Property(q).HasPrecision(18, 6);
+            e.Property(x => x.ScrapPct).HasPrecision(5, 2);
+            e.Property(x => x.IssueMethod).HasConversion<short>();
+            e.Property(x => x.AlternativeGroup).HasMaxLength(20);
+            e.Ignore(x => x.NetIssuedQty);
+            e.HasIndex(x => new { x.TenantId, x.OrderId, x.LineNo }).IsUnique().HasFilter("\"IsDeleted\" = false");
+            e.HasIndex(x => new { x.TenantId, x.ComponentItemId });
+        });
+
+        modelBuilder.Entity<ProductionOrderOperation>(e =>
+        {
+            e.ToTable("ProductionOrderOperations");
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.WorkCenterCode).HasMaxLength(20).IsRequired();
+            e.Property(x => x.SetupTimeMinutes).HasPrecision(10, 2);
+            e.Property(x => x.RunTimeMinutes).HasPrecision(10, 4);
+            e.Property(x => x.StandardMinutes).HasPrecision(12, 2);
+            e.Property(x => x.BatchSize).HasPrecision(18, 6);
+            e.Property(x => x.RunTimeBasis).HasConversion<short>();
+            e.Property(x => x.Status).HasConversion<short>();
+            foreach (var q in new[] { nameof(ProductionOrderOperation.GoodQty), nameof(ProductionOrderOperation.ScrapQty), nameof(ProductionOrderOperation.ReworkQty), nameof(ProductionOrderOperation.IpqcPassedQty) })
+                e.Property(q).HasPrecision(18, 6);
+            e.HasIndex(x => new { x.TenantId, x.OrderId, x.OperationSeq }).IsUnique().HasFilter("\"IsDeleted\" = false");
+            e.HasIndex(x => new { x.TenantId, x.WorkCenterId, x.Status });
+        });
+
+        modelBuilder.Entity<ProductionOrderOutput>(e =>
+        {
+            e.ToTable("ProductionOrderOutputs");
+            e.Property(x => x.ItemCode).HasMaxLength(100).IsRequired();
+            e.Property(x => x.ItemName).HasMaxLength(255).IsRequired();
+            e.Property(x => x.LineType).HasConversion<short>();
+            e.Property(x => x.PlannedQty).HasPrecision(18, 6);
+            e.Property(x => x.ReceivedQty).HasPrecision(18, 6);
+            e.Property(x => x.CostAllocationPct).HasPrecision(5, 2);
+            e.HasIndex(x => new { x.TenantId, x.OrderId, x.LineNo }).IsUnique().HasFilter("\"IsDeleted\" = false");
+        });
+
+        modelBuilder.Entity<ProductionOrderStatusHistory>(e =>
+        {
+            e.ToTable("ProductionOrderStatusHistories");
+            e.Property(x => x.FromStatus).HasConversion<short>();
+            e.Property(x => x.ToStatus).HasConversion<short>();
+            e.Property(x => x.Note).HasMaxLength(500);
+            e.Property(x => x.ChangedBy).HasMaxLength(200).IsRequired();
+            e.HasIndex(x => new { x.TenantId, x.OrderId, x.ChangedAt });
+        });
+
+        // The outbox is not tenant-owned: the tenant travels inside every event (EventTenant).
+        modelBuilder.Entity<OutboxMessage>(e =>
+        {
+            e.ToTable("OutboxMessages");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Type).HasMaxLength(500).IsRequired();
+            e.HasIndex(x => x.OccurredOnUtc).HasFilter("\"ProcessedOnUtc\" IS NULL");
+        });
+
         ConfigureBaseEntities(modelBuilder);
 
         // Last, so it composes with any per-entity filter configured above.
@@ -297,12 +401,35 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        WriteOutbox();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         ChangeTracker.EnforceTenantOnSave(CurrentTenantId);
+        WriteOutbox();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    /// <summary>
+    /// Outbox rule: the events an aggregate raised leave in the same transaction as its change. The rows were stamped with their tenant just above, so each
+    /// event gets the tenant first, is then serialised with its type (TypeNameHandling.All, so the processor can restore it) and the aggregate's list is cleared.
+    /// </summary>
+    private void WriteOutbox()
+    {
+        foreach (var entity in ChangeTracker.Entries<BaseEntity>().Select(e => e.Entity).Where(e => e.DomainEvents.Count > 0).ToList())
+        {
+            EventTenant.StampFrom(entity);
+            foreach (var domainEvent in entity.DomainEvents)
+                OutboxMessages.Add(new OutboxMessage
+                {
+                    Id = Guid.NewGuid(),
+                    Type = domainEvent.GetType().AssemblyQualifiedName ?? domainEvent.GetType().Name,
+                    Content = JsonConvert.SerializeObject(domainEvent, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All }),
+                    OccurredOnUtc = domainEvent.OccurredOn,
+                });
+            entity.ClearDomainEvents();
+        }
     }
 }

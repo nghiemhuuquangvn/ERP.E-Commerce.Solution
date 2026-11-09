@@ -659,3 +659,5 @@ All requests have CorrelationId for end-to-end tracing:
 ## ManufacturingService (MFG, 2026-11-06)
 
 Own service on PostgreSQL (`ManufacturingDB`, host server). Calls, all service-to-service with its own token and fail-closed: ProductService `internal/v1/product-lookup`, MasterData `internal/v1/units-of-measure/lookup|convert`, WareHouseService `internal/v1/warehouses/lookup` and (since W5, 2026-11-10) `internal/v1/stock/*` (availability, lot suggestion, production reservation, production movements, lot status; `IWarehouseStockClient`). Nothing calls Manufacturing yet. Later phases add Sales / Purchasing demand and supply, and events towards Accounting (see `adr-manufacturing-service.md`).
+
+**Phase 3 (2026-11-10, P3-1):** ManufacturingService now also publishes Kafka topic `manufacturing-topic` through an outbox (production order events; no consumer yet) and runs its first hosted service (`OutboxProcessor`). Orders do not call the Warehouse yet; Release (P3-2) and the stock documents (P3-3) will, through `IWarehouseStockClient`.

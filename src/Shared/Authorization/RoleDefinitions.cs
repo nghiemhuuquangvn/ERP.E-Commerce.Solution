@@ -23,6 +23,8 @@ public static class RoleDefinitions
                 PermissionConstants.Manufacturing_SettingsManage, PermissionConstants.Manufacturing_ItemProfileManage,
                 PermissionConstants.Manufacturing_BomView, PermissionConstants.Manufacturing_BomManage, PermissionConstants.Manufacturing_BomApprove,
                 PermissionConstants.Manufacturing_RoutingView, PermissionConstants.Manufacturing_RoutingManage, PermissionConstants.Manufacturing_RoutingApprove,
+                // Manufacturing (Phase 3)
+                PermissionConstants.Manufacturing_OrderView, PermissionConstants.Manufacturing_OrderCreate, PermissionConstants.Manufacturing_OrderRelease, PermissionConstants.Manufacturing_OrderCancel, PermissionConstants.Manufacturing_OrderHold, PermissionConstants.Manufacturing_OrderChangeQty, PermissionConstants.Manufacturing_OrderShortClose, PermissionConstants.Manufacturing_OrderReopen, PermissionConstants.Manufacturing_OrderClose, PermissionConstants.Manufacturing_MaterialIssue, PermissionConstants.Manufacturing_MaterialReturn, PermissionConstants.Manufacturing_MaterialOverIssue, PermissionConstants.Manufacturing_OperationExecute, PermissionConstants.Manufacturing_OperationCompleteManual, PermissionConstants.Manufacturing_ReceiptPost, PermissionConstants.Manufacturing_QcDisposition, PermissionConstants.Manufacturing_StockDocumentRetry,
 
                 // Purchase Order
                 PermissionConstants.PurchaseOrder_Create,

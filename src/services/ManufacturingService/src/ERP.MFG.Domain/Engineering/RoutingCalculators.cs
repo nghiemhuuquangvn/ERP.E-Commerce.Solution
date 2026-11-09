@@ -100,6 +100,41 @@ public static class RoutingLeadTimeCalculator
     }
 }
 
+/// <summary>Forward scheduling (BR-PO-06, an order that cannot be placed backwards): the same per-operation arithmetic as <see cref="RoutingLeadTimeCalculator.Backward"/> run the other way.</summary>
+public static class RoutingForwardScheduler
+{
+    /// <summary>
+    /// Places the operations one after the other starting at the earliest working moment at or after <paramref name="notBefore"/> (a clock time of the first
+    /// operation's calendar). For each operation, on its own calendar: queue, then the calendar minutes, then the move time (all working minutes); the next
+    /// operation starts at the earliest working moment of its calendar at or after the clock time the previous one ended.
+    /// </summary>
+    public static RoutingLeadTime Forward(IReadOnlyList<ScheduledOperationInput> operations, DateTime notBefore)
+    {
+        MfgRules.ThrowIf(operations.Count == 0, MfgErrors.Rt001, ("seq", 0));
+        var placed = new List<ScheduledOperation>();
+        var time = notBefore;
+        var total = 0;
+
+        foreach (var op in operations.OrderBy(o => o.OperationSeq))
+        {
+            var calendarMinutes = OperationTimeCalculator.CalendarMinutes(op.StandardMinutes, op.EfficiencyPct);
+            var calendar = op.Calendar;
+            var start = calendar.FromDateTimeForward(time);
+            var workStart = calendar.AddWorkingMinutes(start, op.QueueMinutes);
+            var workEnd = calendar.AddWorkingMinutes(workStart, calendarMinutes);
+            var end = calendar.AddWorkingMinutes(workEnd, op.MoveMinutes);
+
+            placed.Add(new ScheduledOperation(op.OperationSeq, op.Name, op.WorkCenterCode, op.StandardMinutes, calendarMinutes, op.QueueMinutes, op.MoveMinutes,
+                start, end, calendar.ToDateTime(start), calendar.ToDateTime(end)));
+            total += op.QueueMinutes + calendarMinutes + op.MoveMinutes;
+            time = calendar.ToDateTime(end);
+        }
+
+        var first = placed[0];
+        return new RoutingLeadTime(placed, total, first.Start, first.Start.Date, first.StartTime);
+    }
+}
+
 /// <summary>BR-RT-08 (T2.7): does every operation named by a BOM line exist in the routing that applies?</summary>
 public static class BomRoutingCheck
 {

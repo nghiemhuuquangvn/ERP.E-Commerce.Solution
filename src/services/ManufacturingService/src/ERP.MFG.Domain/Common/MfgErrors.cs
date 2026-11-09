@@ -68,6 +68,7 @@ public static class MfgErrors
     public const string Mat008 = "MFG_MAT_008";
     public const string Mat009 = "MFG_MAT_009";
     public const string Mat010 = "MFG_MAT_010";
+    public const string Mat011 = "MFG_MAT_011"; // not in the spec: serial-controlled items cannot be produced yet (Warehouse refuses them, R206)
     public const string Op001 = "MFG_OP_001";
     public const string Op002 = "MFG_OP_002";
     public const string Op003 = "MFG_OP_003";
@@ -153,6 +154,7 @@ public static class MfgErrors
         [Mat007] = "Số lượng serial không khớp số lượng.",
         [Mat008] = "Không đủ tồn để trừ tự động vật tư {item} (thiếu {shortage}).",
         [Mat009] = "Vật tư thay thế không thuộc nhóm thay thế của định mức.",
+        [Mat011] = "Mặt hàng {item} quản lý theo số serial, chưa hỗ trợ sản xuất/tiêu hao theo serial.",
         [Mat010] = "Số lượng yêu cầu vượt số lượng còn được cấp ({remaining}).",
         [Op001] = "Công đoạn chưa sẵn sàng hoặc lệnh đang tạm dừng.",
         [Op002] = "Số lượng báo cáo không hợp lệ.",

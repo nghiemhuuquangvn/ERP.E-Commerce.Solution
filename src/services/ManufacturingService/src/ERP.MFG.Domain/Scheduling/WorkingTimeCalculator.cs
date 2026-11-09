@@ -133,6 +133,25 @@ public sealed class WorkingTimeCalculator(CalendarSnapshot calendar)
         throw NoWorkingTime();
     }
 
+    /// <summary>
+    /// The earliest point of working time at or after a clock time (the start of a forward schedule, or the hand-over to the next calendar):
+    /// inside a shift the minutes already worked that day, otherwise the start of the next shift. A time at the very end of a day's work moves to the next working day.
+    /// </summary>
+    public WorkPoint FromDateTimeForward(DateTime time)
+    {
+        var day = DateOnly.FromDateTime(time);
+        for (var i = 0; i <= HorizonDays; i++, day = day.AddDays(1))
+        {
+            var minutes = 0;
+            foreach (var (start, end) in GetWorkingIntervals(day))
+            {
+                if (time >= end) { minutes += (int)(end - start).TotalMinutes; continue; }
+                return new WorkPoint(day, time > start ? minutes + (int)(time - start).TotalMinutes : minutes);
+            }
+        }
+        throw NoWorkingTime();
+    }
+
     /// <summary>Moves forward by working minutes. A result that lands exactly on the end of a day's work stays on that day.</summary>
     public WorkPoint AddWorkingMinutes(WorkPoint from, int minutes)
     {

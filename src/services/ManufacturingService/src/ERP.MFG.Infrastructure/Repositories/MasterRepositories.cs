@@ -87,11 +87,13 @@ public sealed class ReferenceChecker(MfgDbContext db) : IReferenceChecker
         => await db.Machines.AnyAsync(m => m.WorkCenterId == workCenterId && !m.IsDeleted, ct)
            || await db.StandardOperations.AnyAsync(o => o.DefaultWorkCenterId == workCenterId && !o.IsDeleted, ct)
            || await db.Crews.AnyAsync(c => c.WorkCenterId == workCenterId && !c.IsDeleted, ct)
-           || await db.RoutingOperations.AnyAsync(o => o.WorkCenterId == workCenterId && !o.IsDeleted, ct); // routings join the check (R165)
+           || await db.RoutingOperations.AnyAsync(o => o.WorkCenterId == workCenterId && !o.IsDeleted, ct)  // routings join the check (R165)
+           || await db.ProductionOrderOperations.AnyAsync(o => o.WorkCenterId == workCenterId && !o.IsDeleted, ct); // and the operations of orders
 
     public Task<bool> MachineIsUsedAsync(Guid machineId, CancellationToken ct = default) => Task.FromResult(false);      // downtime / operation reports: Phase 3-4
     public Task<bool> StandardOperationIsUsedAsync(Guid id, CancellationToken ct = default) => Task.FromResult(false);    // copied into routings, never linked (BR-OPS-01)
-    public Task<bool> ReasonIsUsedAsync(Guid reasonId, CancellationToken ct = default) => Task.FromResult(false);         // order history, reports: Phase 3-4
+    public Task<bool> ReasonIsUsedAsync(Guid reasonId, CancellationToken ct = default)                                    // order history (reports: Phase 3 P3-4)
+        => db.ProductionOrderStatusHistories.AnyAsync(h => h.ReasonCodeId == reasonId, ct);
     public Task<bool> CrewIsUsedAsync(Guid crewId, CancellationToken ct = default) => Task.FromResult(false);
 }
 
