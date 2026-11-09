@@ -1,3 +1,4 @@
+using ERP.WH.UnitTests.Support;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Application.Interfaces;
@@ -46,7 +47,7 @@ public class RestockReturnedOrderTests
     }
 
     private RestockReturnedOrderCommandHandler Handler() =>
-        new(_uow.Object, _outbox.Object, Mock.Of<ICacheService>(), NullLogger<RestockReturnedOrderCommandHandler>.Instance);
+        new(_uow.Object, _outbox.Object, Mock.Of<ICacheService>(), NullLogger<RestockReturnedOrderCommandHandler>.Instance, TestLedger.For(_uow));
 
     private InventoryEntity Stocked(Guid productId, int quantity, decimal cost)
     {

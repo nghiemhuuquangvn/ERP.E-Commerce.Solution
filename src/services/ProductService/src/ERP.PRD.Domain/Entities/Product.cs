@@ -25,6 +25,12 @@ namespace ERP.PRD.Domain.Entities
         public Guid? BaseUomId { get; set; }
         public bool HasImage { get; set; }
 
+        /// <summary>The item is received, stored and issued by lot (lot number, expiry): the Warehouse and Manufacturing ask for a lot on every movement.</summary>
+        public bool IsLotControlled { get; set; }
+
+        /// <summary>The item carries a serial number per unit.</summary>
+        public bool IsSerialControlled { get; set; }
+
         // SEO fields for storefront (product detail page <title>/<meta>/canonical URL)
         public string? Slug { get; set; }
         public string? MetaTitle { get; set; }
@@ -143,6 +149,13 @@ namespace ERP.PRD.Domain.Entities
             BrandId = brandId;
             UpdatedAt = DateTime.UtcNow;
             AddDomainEvent(new ProductSearchIndexRequestedDomainEvent(Id));
+        }
+
+        public void SetTracking(bool isLotControlled, bool isSerialControlled)
+        {
+            IsLotControlled = isLotControlled;
+            IsSerialControlled = isSerialControlled;
+            UpdatedAt = DateTime.UtcNow;
         }
 
         public void SetBaseUom(Guid? baseUomId)

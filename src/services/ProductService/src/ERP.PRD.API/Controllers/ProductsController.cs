@@ -200,6 +200,20 @@ namespace ERP.PRD.API.Controllers
         }
 
         /// <summary>
+        /// Set whether a product is tracked by lot and / or serial number
+        /// </summary>
+        [HttpPut("{id}/tracking")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [AuthorizePermission(PermissionConstants.Products_Edit)]
+        public async Task<IActionResult> SetTracking(Guid id, [FromBody] SetProductTrackingCommand command)
+        {
+            command.ProductId = id;
+            await _mediator.Send(command);
+            return NoContent();
+        }
+
+        /// <summary>
         /// Bulk-create products from a CSV payload (header row: Sku,Name,Description,ProductType,CategoryId)
         /// </summary>
         [HttpPost("bulk-import")]

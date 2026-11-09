@@ -1,3 +1,4 @@
+using ERP.WH.UnitTests.Support;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Application.Interfaces;
@@ -34,7 +35,7 @@ public class RecordPointOfSaleStockTests
     }
 
     private RecordPointOfSaleStockCommandHandler Handler() =>
-        new(_uow.Object, _outbox.Object, Mock.Of<ICacheService>(), NullLogger<RecordPointOfSaleStockCommandHandler>.Instance);
+        new(_uow.Object, _outbox.Object, Mock.Of<ICacheService>(), NullLogger<RecordPointOfSaleStockCommandHandler>.Instance, TestLedger.For(_uow));
 
     private InventoryEntity Stocked(Guid productId, int quantity, int reorderPoint = 0)
     {

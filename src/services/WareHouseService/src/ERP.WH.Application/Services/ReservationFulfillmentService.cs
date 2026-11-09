@@ -24,12 +24,14 @@ public class ReservationFulfillmentService : IReservationFulfillmentService
     private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventOutboxWriter _outboxWriter;
     private readonly ICacheService _cache;
+    private readonly IStockLedger _ledger;
 
-    public ReservationFulfillmentService(IWarehouseUnitOfWork uow, IEventOutboxWriter outboxWriter, ICacheService cache)
+    public ReservationFulfillmentService(IWarehouseUnitOfWork uow, IEventOutboxWriter outboxWriter, ICacheService cache, IStockLedger ledger)
     {
         _uow = uow;
         _outboxWriter = outboxWriter;
         _cache = cache;
+        _ledger = ledger;
     }
 
     public async Task ConsumeAsync(Reservation reservation, CancellationToken cancellationToken)
@@ -41,34 +43,18 @@ public class ReservationFulfillmentService : IReservationFulfillmentService
                 continue;
 
             var previousQuantity = inventory.TotalQuantity;
-            inventory.SellStock(item.Quantity);
+            // the ledger takes the stock out of the item total, the bin, the lots and the warehouse balances
+            var consumed = await _ledger.ConsumeAsync(inventory, item, cancellationToken);
             await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
-
-            if (Guid.TryParse(item.WarehouseLocation, out var locationId))
-            {
-                var locationStock = await _uow.InventoryLocationStocks.GetAsync(item.ProductId, locationId, cancellationToken);
-                if (locationStock != null)
-                {
-                    locationStock.SellStock(item.Quantity);
-                    await _uow.InventoryLocationStocks.UpdateAsync(locationStock, cancellationToken);
-                }
-            }
 
             var issuedCost = 0m;
             if (item.LotAllocations.Count > 0)
             {
-                foreach (var allocation in item.LotAllocations)
+                foreach (var taken in consumed)
                 {
-                    var lot = await _uow.InventoryLots.GetByIdAsync(allocation.LotId, cancellationToken);
-                    if (lot == null)
-                        continue;
-
-                    lot.Consume(allocation.Quantity);
-                    await _uow.InventoryLots.UpdateAsync(lot, cancellationToken);
-
-                    var log = new CostConsumptionLog(item.ProductId, lot.LotId, allocation.Quantity, lot.UnitCost, reservation.OrderId);
+                    var log = new CostConsumptionLog(item.ProductId, taken.Lot.LotId, taken.Quantity, taken.Lot.UnitCost, reservation.OrderId);
                     await _uow.CostConsumptionLogs.AddAsync(log, cancellationToken);
-                    issuedCost += allocation.Quantity * lot.UnitCost;
+                    issuedCost += taken.Quantity * taken.Lot.UnitCost;
                 }
             }
             else

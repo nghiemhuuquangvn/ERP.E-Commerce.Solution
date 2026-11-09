@@ -103,6 +103,7 @@ $DatabaseScripts = @(
     "Warehouse\008_AlignEntityColumns.sql",
     "Warehouse\009_StockPolicy.sql",
     "Warehouse\010_DecimalQuantities.sql",
+    "Warehouse\011_StockBalance.sql",
     "Accounting\001_CreateAccountingDB.sql",
     "Accounting\002_AddTaxSettings.sql",
     "Accounting\003_AddTaxRatesBankAccountsAndStatements.sql",
@@ -147,6 +148,7 @@ $DatabaseScripts = @(
     "Product\017_RepairLegacyBaseEntityTables.sql",
     "Product\018_PriceListsRowVersion.sql",
     "Product\019_StockQuantityDecimal.sql",
+    "Product\020_LotSerialFlags.sql",
 
     # Customer-facing services
     "CRM\001_CreateCrmDB.sql",

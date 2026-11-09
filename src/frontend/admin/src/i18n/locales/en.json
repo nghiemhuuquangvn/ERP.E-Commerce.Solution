@@ -568,6 +568,8 @@
     "name": "Product Name",
     "productType": "Product Type",
     "baseUom": "Base Unit of Measure",
+    "lotControlled": "Tracked by lot (lot number and expiry on every movement)",
+    "serialControlled": "Tracked by serial number",
     "description": "Description",
     "backToProducts": "← Back to Products",
     "newProduct": "New Product",
@@ -774,12 +776,20 @@
     "backToInventory": "← Inventory",
     "noBinLevelData": "No bin-level stock data tracked yet for this product — showing the product-level total.",
     "lotNumber": "Lot Number",
+    "lotStatus": { "Available": "Available", "QcHold": "On quality hold", "Blocked": "Blocked" },
+    "balances": {
+      "hint": "Stock per warehouse and lot. A lot on quality hold or blocked is counted but cannot be allocated. \"Unassigned\" appears only for a tenant without any warehouse.",
+      "warehouse": "Warehouse",
+      "unassigned": "Unassigned",
+      "noLot": "— (not in a lot)"
+    },
     "remaining": "Remaining",
     "unitCost": "Unit Cost",
     "expiryDate": "Expiry Date",
     "serialNumber": "Serial Number",
     "tabs": {
       "locations": "Locations",
+      "balances": "By warehouse / lot",
       "lots": "Lots",
       "serials": "Serials",
       "costHistory": "Cost History"
@@ -2200,6 +2210,9 @@
       "lowStockThreshold": "Low stock threshold",
       "backorderAllowed": "Allow backorders",
       "defaultHoldDays": "Default hold period (days)",
+      "defaultWarehouse": "Default warehouse",
+      "defaultWarehouseHint": "Where stock without a warehouse goes (receipts and movements that name none).",
+      "defaultWarehouseAuto": "Automatic (MAIN, else the first active warehouse)",
       "noTenant": "No tenant found for the current user.",
       "failedToSave": "Failed to save settings. Please try again."
     },

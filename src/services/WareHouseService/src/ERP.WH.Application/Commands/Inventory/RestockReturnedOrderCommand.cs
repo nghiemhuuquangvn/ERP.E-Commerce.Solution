@@ -1,5 +1,6 @@
 using ERP.Shared.Infrastructure.Caching;
 using ERP.WH.Application.Interfaces;
+using ERP.WH.Application.Services;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
 using MediatR;
@@ -48,13 +49,15 @@ public class RestockReturnedOrderCommandHandler : IRequestHandler<RestockReturne
     private readonly IEventOutboxWriter _outboxWriter;
     private readonly ICacheService _cache;
     private readonly ILogger<RestockReturnedOrderCommandHandler> _logger;
+    private readonly IStockLedger _ledger;
 
-    public RestockReturnedOrderCommandHandler(IWarehouseUnitOfWork uow, IEventOutboxWriter outboxWriter, ICacheService cache, ILogger<RestockReturnedOrderCommandHandler> logger)
+    public RestockReturnedOrderCommandHandler(IWarehouseUnitOfWork uow, IEventOutboxWriter outboxWriter, ICacheService cache, ILogger<RestockReturnedOrderCommandHandler> logger, IStockLedger ledger)
     {
         _uow = uow;
         _outboxWriter = outboxWriter;
         _cache = cache;
         _logger = logger;
+        _ledger = ledger;
     }
 
     public async Task<RestockReturnedOrderResult> Handle(RestockReturnedOrderCommand request, CancellationToken ct)
@@ -88,11 +91,10 @@ public class RestockReturnedOrderCommandHandler : IRequestHandler<RestockReturne
                 _logger.LogWarning("Returned order {OrderId}: no cost was logged for product {ProductId}; restocked at its current cost {Cost}", request.OrderId, line.ProductId, unitCost);
 
             var previousQuantity = inventory.TotalQuantity;
-            inventory.ReceiveStock(line.Quantity, unitCost);
+            var target = await _ledger.TargetAsync(null, null, ct);
+            await _ledger.ReceiveAsync(inventory, line.Quantity, unitCost, target,
+                new NewLot($"RET-{request.OrderId:N}"[..12], unitCost, null, null, null, LotSource.Return), ct);
             await _uow.Inventories.UpdateAsync(inventory, ct);
-
-            var lot = new InventoryLot(line.ProductId, $"RET-{request.OrderId:N}"[..12], line.Quantity, unitCost, null, null);
-            await _uow.InventoryLots.AddAsync(lot, ct);
 
             var movement = new StockMovement(
                 Guid.Empty, // stamped with the current tenant on save

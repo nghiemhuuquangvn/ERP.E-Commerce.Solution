@@ -1,5 +1,6 @@
 using MediatR;
 using ERP.WH.Application.Interfaces;
+using ERP.WH.Application.Services;
 using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
@@ -21,13 +22,16 @@ public class CompleteTransferOrderCommandHandler : IRequestHandler<CompleteTrans
 {
     private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventOutboxWriter _outboxWriter;
+    private readonly IStockLedger _ledger;
 
     public CompleteTransferOrderCommandHandler(
         IWarehouseUnitOfWork uow,
-        IEventOutboxWriter outboxWriter)
+        IEventOutboxWriter outboxWriter,
+        IStockLedger ledger)
     {
         _uow = uow;
         _outboxWriter = outboxWriter;
+        _ledger = ledger;
     }
 
     public async Task<TransferOrderDto> Handle(CompleteTransferOrderCommand request, CancellationToken cancellationToken)
@@ -61,21 +65,7 @@ public class CompleteTransferOrderCommandHandler : IRequestHandler<CompleteTrans
             // Bin-level breakdown: move quantity out of the source location (if tracked
             // there) and into the destination location, additive to the product-level
             // rollup handled above.
-            var fromStock = await _uow.InventoryLocationStocks.GetAsync(line.ProductId, order.FromLocationId, cancellationToken);
-            if (fromStock != null)
-            {
-                fromStock.TransferOut(line.Quantity);
-                await _uow.InventoryLocationStocks.UpdateAsync(fromStock, cancellationToken);
-            }
-
-            var toStock = await _uow.InventoryLocationStocks.GetAsync(line.ProductId, order.ToLocationId, cancellationToken);
-            if (toStock == null)
-            {
-                toStock = new InventoryLocationStock(line.ProductId, order.ToLocationId);
-                await _uow.InventoryLocationStocks.AddAsync(toStock, cancellationToken);
-            }
-            toStock.TransferIn(line.Quantity);
-            await _uow.InventoryLocationStocks.UpdateAsync(toStock, cancellationToken);
+            await _ledger.TransferAsync(line.ProductId, order.FromLocationId, order.ToLocationId, line.Quantity, cancellationToken);
 
             _outboxWriter.Stage(new StockMovementRecordedEvent
             {

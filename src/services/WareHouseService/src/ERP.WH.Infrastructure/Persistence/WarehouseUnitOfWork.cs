@@ -27,7 +27,8 @@ public class WarehouseUnitOfWork : IWarehouseUnitOfWork
         IStockAdjustmentRepository stockAdjustments,
         IWarehouseRepository warehouses,
         IBarcodeMappingRepository barcodeMappings,
-        ICostConsumptionLogRepository costConsumptionLogs)
+        ICostConsumptionLogRepository costConsumptionLogs,
+        IStockBalanceRepository stockBalances)
     {
         _dbContext = dbContext;
         Inventories = inventories;
@@ -43,6 +44,7 @@ public class WarehouseUnitOfWork : IWarehouseUnitOfWork
         Warehouses = warehouses;
         BarcodeMappings = barcodeMappings;
         CostConsumptionLogs = costConsumptionLogs;
+        StockBalances = stockBalances;
     }
 
     public IInventoryRepository Inventories { get; }
@@ -58,6 +60,7 @@ public class WarehouseUnitOfWork : IWarehouseUnitOfWork
     public IWarehouseRepository Warehouses { get; }
     public IBarcodeMappingRepository BarcodeMappings { get; }
     public ICostConsumptionLogRepository CostConsumptionLogs { get; }
+    public IStockBalanceRepository StockBalances { get; }
 
     public async Task<int> SaveChangesAsync(CancellationToken ct) =>
         await _dbContext.SaveChangesAsync(ct);

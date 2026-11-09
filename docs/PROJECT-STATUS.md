@@ -40,6 +40,13 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-10 - Warehouse upgrade W2: stock per warehouse and lot (`feat/warehouse-w2`, unmerged)
+- **`StockBalance`** per (item, warehouse, lot) beside `Inventories`; **`StockLedger`** is the single stock writer (9 write sites + Reserve / Release / expiry moved; architecture test forbids bypassing it); lot status / warehouse / manufacture date / source; RowVersion on Inventory, lots and balances (409 on a race); tenant **default warehouse** setting; `GET inventory/{id}/balances` and `inventory/reconciliation`; Product **lot / serial flags** (`PUT products/{id}/tracking`, lookup, Admin form); Admin tab *By warehouse / lot*, lot status column, default-warehouse select.
+- **SQL** `Warehouse/011` (rehearsed on a restored copy, twice; 1 045 balances backfilled, parity checked) and `Product/020`.
+- **Tests:** Warehouse 74 (13 ledger tests on a real EF context with a parity assertion after each), Product 68, Manufacturing 263, Sales 142, Purchasing 107, Architecture 84 (+ `NoStockMutationOutsideTheLedgerTests`, StockBalance tenant isolation), `LiveSchemaDriftTests` on the live databases: no drift; Admin 371.
+- **Live (glcheck):** `wh-w2.js` all OK (per warehouse / lot balances, default warehouse, unknown default refused, QcHold lot skipped, release, reconciliation clean, race 409 + 201, flags); `wh-w1.js` post, M4-M6 still OK. Defect found live and fixed: the first reconciliation query did not translate to SQL (InMemory accepted it).
+- **Docs:** `docs/business/Warehouse/StockByWarehouseAndLot.md`, module-07 section 15, ADR "W2 as built". **Risks:** R192-R196. **Next:** W3 (production movement types, persisted cost, unique idempotency index) after the owner's OK.
+
 ### 2026-11-09 - Warehouse upgrade W1: decimal quantities end to end (`feat/warehouse-w1`, unmerged)
 - **Every Warehouse quantity is decimal(18,6)** (SQL `Warehouse/010`, idempotent, defaults and nullability kept, computed `AvailableQuantity` and two indexes recreated); events carry decimals. **Consumers first:** Product (`Product/019`), Purchasing (`Purchasing/014`), Sales client, Reporting (`Reporting/010`, `GetDecimal`) widened and deployed before the Warehouse; the two `(int)` casts of the PO / vendor-return consumer removed. Admin inputs `step="any"`, staff app decimal keyboard, storefront / customer app `<= 0`.
 - **Tests:** Warehouse 61 (14 new fractional), PO 107, Sales 142, Product 68, Reporting 22, POS 27, Shared 151, Shipping 176, Accounting 595, Architecture 82; Admin 370, staff 64, customer 72, storefront 46. `LiveSchemaDriftTests` against the live databases: no drift.

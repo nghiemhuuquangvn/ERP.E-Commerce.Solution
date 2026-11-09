@@ -1,5 +1,6 @@
 using MediatR;
 using ERP.WH.Application.Interfaces;
+using ERP.WH.Application.Services;
 using ERP.WH.Domain.Aggregates.Inventory;
 using ERP.WH.Domain.Events;
 using ERP.Shared.Infrastructure.Caching;
@@ -20,15 +21,18 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
     private readonly IWarehouseUnitOfWork _uow;
     private readonly IEventOutboxWriter _outboxWriter;
     private readonly ICacheService _cache;
+    private readonly IStockLedger _ledger;
 
     public ReceiveStockCommandHandler(
         IWarehouseUnitOfWork uow,
         IEventOutboxWriter outboxWriter,
-        ICacheService cache)
+        ICacheService cache,
+        IStockLedger ledger)
     {
         _uow = uow;
         _outboxWriter = outboxWriter;
         _cache = cache;
+        _ledger = ledger;
     }
 
     public async Task<ReceiveStockResponse> Handle(ReceiveStockCommand request, CancellationToken cancellationToken)
@@ -71,7 +75,12 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
 
         var previousQuantity = inventory.TotalQuantity;
 
-        inventory.ReceiveStock(request.Quantity, request.UnitCost);
+        // the ledger moves the item total, the bin, the lot and the warehouse balance together
+        var target = await _ledger.TargetAsync(request.WarehouseId, request.LocationId, cancellationToken);
+        var newLot = string.IsNullOrWhiteSpace(request.LotNumber)
+            ? null
+            : new NewLot(request.LotNumber, request.UnitCost, request.ExpiryDate, request.PurchaseOrderId, request.ManufactureDate);
+        var lot = await _ledger.ReceiveAsync(inventory, request.Quantity, request.UnitCost, target, newLot, cancellationToken);
 
         if (request.LocationId.HasValue && inventory.LocationId == null)
             inventory.AssignLocation(request.LocationId);
@@ -80,20 +89,6 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
         // (EnforceTenantOnSave) refuses a Modified row that has no tenant yet. Receiving a product for the first time failed on this.
         if (!isNewInventory)
             await _uow.Inventories.UpdateAsync(inventory, cancellationToken);
-
-        if (request.LocationId.HasValue)
-        {
-            var locationStock = await _uow.InventoryLocationStocks.GetAsync(request.ProductId, request.LocationId.Value, cancellationToken);
-            if (locationStock == null)
-            {
-                locationStock = new InventoryLocationStock(request.ProductId, request.LocationId.Value);
-                await _uow.InventoryLocationStocks.AddAsync(locationStock, cancellationToken);
-            }
-            var isNewLocationStock = locationStock.TenantId == Guid.Empty;
-            locationStock.Receive(request.Quantity);
-            if (!isNewLocationStock)
-                await _uow.InventoryLocationStocks.UpdateAsync(locationStock, cancellationToken);
-        }
 
         var movement = new StockMovement(
             Guid.Empty, // stamped with the current tenant on save (see RecordStockMovementCommandHandler)
@@ -108,20 +103,9 @@ public class ReceiveStockCommandHandler : IRequestHandler<ReceiveStockCommand, R
 
         await _uow.StockMovements.AddAsync(movement, cancellationToken);
 
-        Guid? lotId = null;
-        if (!string.IsNullOrWhiteSpace(request.LotNumber))
+        Guid? lotId = lot?.LotId;
+        if (lot != null)
         {
-            var lot = new InventoryLot(
-                request.ProductId,
-                request.LotNumber,
-                request.Quantity,
-                request.UnitCost,
-                request.ExpiryDate,
-                request.PurchaseOrderId);
-
-            await _uow.InventoryLots.AddAsync(lot, cancellationToken);
-            lotId = lot.LotId;
-
             if (request.SerialNumbers != null)
             {
                 foreach (var serialNumber in request.SerialNumbers)

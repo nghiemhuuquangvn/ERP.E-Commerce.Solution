@@ -14,7 +14,7 @@ import { unitsOfMeasureApi } from '@/api/masterdata/unitsOfMeasure.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { usePermission } from '@/hooks/usePermission'
-import { Alert, Button, EmptyState, FormField, Input, Select, Spinner, Textarea, useToast } from '@/components/ui'
+import { Alert, Button, Checkbox, EmptyState, FormField, Input, Select, Spinner, Textarea, useToast } from '@/components/ui'
 import { serverMessage } from '@/lib/serverMessage'
 import { ProductImagesTab } from './ProductImagesTab'
 import { ProductVariantsTab } from './ProductVariantsTab'
@@ -78,6 +78,8 @@ export function ProductFormPage() {
   const [description, setDescription] = useState('')
   const [brandId, setBrandId] = useState('')
   const [baseUomId, setBaseUomId] = useState('')
+  const [isLotControlled, setIsLotControlled] = useState(false)
+  const [isSerialControlled, setIsSerialControlled] = useState(false)
   const [slug, setSlug] = useState('')
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
@@ -94,6 +96,8 @@ export function ProductFormPage() {
     setDescription(product.description ?? '')
     setBrandId(product.brandId ?? '')
     setBaseUomId(product.baseUomId ?? '')
+    setIsLotControlled(Boolean(product.isLotControlled))
+    setIsSerialControlled(Boolean(product.isSerialControlled))
   }, [product])
 
   const createMutation = useMutation({
@@ -106,6 +110,8 @@ export function ProductFormPage() {
         categoryId: categoryId || null,
         brandId: brandId || null,
         baseUomId: baseUomId || null,
+        isLotControlled,
+        isSerialControlled,
       })
 
       if (slug.trim() || metaTitle.trim() || metaDescription.trim()) {
@@ -139,6 +145,9 @@ export function ProductFormPage() {
       }
       if ((baseUomId || null) !== (product.baseUomId ?? null)) {
         calls.push(productsApi.setBaseUom(product.id, baseUomId || null))
+      }
+      if (isLotControlled !== Boolean(product.isLotControlled) || isSerialControlled !== Boolean(product.isSerialControlled)) {
+        calls.push(productsApi.setTracking(product.id, isLotControlled, isSerialControlled))
       }
       calls.push(
         productsApi.setSeo(product.id, {
@@ -286,6 +295,11 @@ export function ProductFormPage() {
               ))}
             </Select>
           </FormField>
+        </div>
+
+        <div className="flex flex-wrap gap-6">
+          <Checkbox checked={isLotControlled} onChange={(e) => setIsLotControlled(e.target.checked)} label={t('products.lotControlled')} />
+          <Checkbox checked={isSerialControlled} onChange={(e) => setIsSerialControlled(e.target.checked)} label={t('products.serialControlled')} />
         </div>
 
         <FormField label={t('products.description')}>

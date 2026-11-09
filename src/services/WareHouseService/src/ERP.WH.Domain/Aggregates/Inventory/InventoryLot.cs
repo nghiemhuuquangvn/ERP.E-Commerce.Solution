@@ -16,6 +16,13 @@ public class InventoryLot : ITenantOwned
     public DateTime ReceivedDate { get; private set; }
     public DateTime? ExpiryDate { get; private set; }
     public Guid? PurchaseOrderId { get; private set; }
+    /// <summary>Warehouse the lot sits in; null only for a tenant without any warehouse ("unassigned").</summary>
+    public Guid? WarehouseId { get; private set; }
+    public LotStatus Status { get; private set; } = LotStatus.Available;
+    public DateTime? ManufactureDate { get; private set; }
+    public LotSource Source { get; private set; } = LotSource.Receipt;
+    /// <summary>Optimistic concurrency token (SQL ROWVERSION): a conflicting write answers HTTP 409.</summary>
+    public byte[] RowVersion { get; private set; } = [];
 
     // EF Core cannot bind a constructor parameter named "quantity" to either
     // ReceivedQuantity or RemainingQuantity by convention (ambiguous), so materialization
@@ -28,7 +35,10 @@ public class InventoryLot : ITenantOwned
         decimal quantity,
         decimal unitCost,
         DateTime? expiryDate = null,
-        Guid? purchaseOrderId = null)
+        Guid? purchaseOrderId = null,
+        Guid? warehouseId = null,
+        DateTime? manufactureDate = null,
+        LotSource source = LotSource.Receipt)
     {
         if (quantity <= 0)
             throw new InvalidOperationException("Lot quantity must be positive");
@@ -42,11 +52,21 @@ public class InventoryLot : ITenantOwned
         ReceivedDate = DateTime.UtcNow;
         ExpiryDate = expiryDate;
         PurchaseOrderId = purchaseOrderId;
+        WarehouseId = warehouseId;
+        ManufactureDate = manufactureDate;
+        Source = source;
     }
 
     public bool IsExpired() => ExpiryDate.HasValue && ExpiryDate.Value < DateTime.UtcNow;
 
     public bool IsDepleted() => RemainingQuantity <= 0;
+
+    /// <summary>Only an Available lot may be allocated or issued; QcHold waits for quality control, Blocked is withdrawn.</summary>
+    public bool IsUsable() => Status == LotStatus.Available;
+
+    public void SetStatus(LotStatus status) => Status = status;
+
+    public void AssignWarehouse(Guid? warehouseId) => WarehouseId = warehouseId;
 
     /// <summary>
     /// Direct, destructive depletion — used only by the manual "Sold" stock-movement

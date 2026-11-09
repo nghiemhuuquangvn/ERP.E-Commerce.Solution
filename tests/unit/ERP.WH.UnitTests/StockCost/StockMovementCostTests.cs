@@ -1,3 +1,4 @@
+using ERP.WH.UnitTests.Support;
 using ERP.Shared.Infrastructure.Caching;
 using ERP.WH.Application.Commands.Inventory;
 using ERP.WH.Application.Interfaces;
@@ -49,7 +50,7 @@ public class StockMovementCostTests
         var productId = Guid.NewGuid();
         _inventories.Setup(i => i.GetByProductIdAsync(productId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((InventoryEntity?)null);
-        var handler = new ReceiveStockCommandHandler(_uow.Object, _outbox.Object, Mock.Of<ICacheService>());
+        var handler = new ReceiveStockCommandHandler(_uow.Object, _outbox.Object, Mock.Of<ICacheService>(), TestLedger.For(_uow));
 
         await handler.Handle(new ReceiveStockCommand
         {
@@ -68,7 +69,7 @@ public class StockMovementCostTests
         var productId = Guid.NewGuid();
         _inventories.Setup(i => i.GetByProductIdAsync(productId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((InventoryEntity?)null);
-        var handler = new ReceiveStockCommandHandler(_uow.Object, _outbox.Object, Mock.Of<ICacheService>());
+        var handler = new ReceiveStockCommandHandler(_uow.Object, _outbox.Object, Mock.Of<ICacheService>(), TestLedger.For(_uow));
 
         await handler.Handle(new ReceiveStockCommand { ProductId = productId, Quantity = 10, UnitCost = 0m }, default);
 
@@ -83,7 +84,7 @@ public class StockMovementCostTests
         var reservation = new Reservation(Guid.NewGuid(),
             new List<ReservedItem> { new() { ProductId = productId, Quantity = 3, WarehouseLocation = "A" } },
             DateTime.UtcNow.AddHours(1));
-        var service = new ReservationFulfillmentService(_uow.Object, _outbox.Object, Mock.Of<ICacheService>());
+        var service = new ReservationFulfillmentService(_uow.Object, _outbox.Object, Mock.Of<ICacheService>(), TestLedger.For(_uow));
 
         await service.ConsumeAsync(reservation, default);
 
@@ -112,7 +113,7 @@ public class StockMovementCostTests
                 }
             },
             DateTime.UtcNow.AddHours(1));
-        var service = new ReservationFulfillmentService(_uow.Object, _outbox.Object, Mock.Of<ICacheService>());
+        var service = new ReservationFulfillmentService(_uow.Object, _outbox.Object, Mock.Of<ICacheService>(), TestLedger.For(_uow));
 
         await service.ConsumeAsync(reservation, default);
 
@@ -125,7 +126,7 @@ public class StockMovementCostTests
         var productId = Guid.NewGuid();
         Stocked(productId, 10, 50m);
         var handler = new RecordPointOfSaleStockCommandHandler(
-            _uow.Object, _outbox.Object, Mock.Of<ICacheService>(), NullLogger<RecordPointOfSaleStockCommandHandler>.Instance);
+            _uow.Object, _outbox.Object, Mock.Of<ICacheService>(), NullLogger<RecordPointOfSaleStockCommandHandler>.Instance, TestLedger.For(_uow));
 
         RecordPointOfSaleStockCommand Cmd(bool isReturn) => new()
         {

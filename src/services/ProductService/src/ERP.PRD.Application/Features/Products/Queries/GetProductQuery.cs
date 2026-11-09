@@ -21,6 +21,8 @@ namespace ERP.PRD.Application.Features.Products.Queries
         public string CategoryName { get; set; } = string.Empty;
         public Guid? BrandId { get; set; }
         public Guid? BaseUomId { get; set; }
+        public bool IsLotControlled { get; set; }
+        public bool IsSerialControlled { get; set; }
         public bool HasImage { get; set; }
         public string? ImageUrl { get; set; }
         public int VariantCount { get; set; }

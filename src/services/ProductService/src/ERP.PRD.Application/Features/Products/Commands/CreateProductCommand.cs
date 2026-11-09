@@ -17,6 +17,12 @@ namespace ERP.PRD.Application.Features.Products.Commands
         /// no database FK — see CLAUDE.md database ownership rules).
         /// </summary>
         public Guid? BaseUomId { get; set; }
+
+        /// <summary>Tracked by lot (default false).</summary>
+        public bool IsLotControlled { get; set; }
+
+        /// <summary>Tracked by serial number (default false).</summary>
+        public bool IsSerialControlled { get; set; }
     }
 
     public class CreateProductResponse
@@ -59,6 +65,9 @@ namespace ERP.PRD.Application.Features.Products.Commands
 
             if (request.BaseUomId.HasValue)
                 product.SetBaseUom(request.BaseUomId);
+
+            if (request.IsLotControlled || request.IsSerialControlled)
+                product.SetTracking(request.IsLotControlled, request.IsSerialControlled);
 
             await _uow.Products.AddAsync(product, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);

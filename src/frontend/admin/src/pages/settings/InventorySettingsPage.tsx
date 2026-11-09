@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Alert, Button, Checkbox, FormField, Input, useToast } from '@/components/ui'
+import { Alert, Button, Checkbox, FormField, Input, Select, useToast } from '@/components/ui'
+import { warehousesApi } from '@/api/warehouses.api'
 import {
   inventorySettingsApi,
   type SystemInventorySettings,
@@ -67,6 +68,7 @@ interface TenantFormValues {
   lowStockThreshold: number
   backorderAllowed: boolean
   defaultHoldDays: number
+  defaultWarehouseId: string
 }
 
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
@@ -82,11 +84,13 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
   })
 
   const { register, handleSubmit, reset } = useForm<TenantFormValues>({
-    defaultValues: { lowStockThreshold: 10, backorderAllowed: false, defaultHoldDays: 7 },
+    defaultValues: { lowStockThreshold: 10, backorderAllowed: false, defaultHoldDays: 7, defaultWarehouseId: '' },
   })
 
+  const warehouses = useQuery({ queryKey: ['warehouses'], queryFn: () => warehousesApi.list(), staleTime: 60_000 })
+
   useEffect(() => {
-    if (data) reset(data)
+    if (data) reset({ ...data, defaultWarehouseId: data.defaultWarehouseId ?? '' })
   }, [data, reset])
 
   const mutation = useMutation({
@@ -95,6 +99,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
         lowStockThreshold: Number(values.lowStockThreshold),
         backorderAllowed: values.backorderAllowed,
         defaultHoldDays: Number(values.defaultHoldDays),
+        defaultWarehouseId: values.defaultWarehouseId || null,
       }),
     onSuccess: (result: TenantInventorySettings) => {
       queryClient.setQueryData(['settings', 'inventory', 'tenant', tenantId], result)
@@ -113,6 +118,14 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
           disabled={!canManage}
           {...register('lowStockThreshold', { valueAsNumber: true })}
  />
+      </FormField>
+      <FormField label={t('settings.inventory.defaultWarehouse')} hint={t('settings.inventory.defaultWarehouseHint')}>
+        <Select disabled={!canManage} {...register('defaultWarehouseId')}>
+          <option value="">{t('settings.inventory.defaultWarehouseAuto')}</option>
+          {(warehouses.data ?? []).filter((w) => w.isActive).map((w) => (
+            <option key={w.id} value={w.id}>{w.code} — {w.name}</option>
+          ))}
+        </Select>
       </FormField>
       <Checkbox disabled={!canManage} {...register('backorderAllowed')} label={t('settings.inventory.backorderAllowed')} />
       <FormField label={t('settings.inventory.defaultHoldDays')}>

@@ -49,7 +49,7 @@ public interface IMfgUnitOfWork
 // ── Other services (internal REST, service token, fail closed) ──────────────────────────────────────────────
 
 /// <summary>Product facts ManufacturingService needs (ProductService <c>internal/v1/product-lookup</c>).</summary>
-public sealed record ProductInfo(Guid Id, string Sku, string Name, bool IsActive, Guid? BaseUomId);
+public sealed record ProductInfo(Guid Id, string Sku, string Name, bool IsActive, Guid? BaseUomId, bool IsLotControlled = false, bool IsSerialControlled = false);
 
 public interface IProductLookupClient
 {

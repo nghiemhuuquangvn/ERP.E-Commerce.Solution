@@ -568,6 +568,8 @@
     "name": "Tên sản phẩm",
     "productType": "Loại sản phẩm",
     "baseUom": "Đơn vị tính cơ bản",
+    "lotControlled": "Quản lý theo lô (số lô và hạn dùng trên mỗi phiếu)",
+    "serialControlled": "Quản lý theo số serial",
     "description": "Mô tả",
     "backToProducts": "← Quay lại Sản phẩm",
     "newProduct": "Sản phẩm mới",
@@ -774,12 +776,20 @@
     "backToInventory": "← Tồn kho",
     "noBinLevelData": "Chưa có dữ liệu tồn kho theo vị trí cụ thể cho sản phẩm này — hiển thị tổng tồn kho.",
     "lotNumber": "Số lô",
+    "lotStatus": { "Available": "Sẵn sàng", "QcHold": "Đang chờ kiểm tra chất lượng", "Blocked": "Bị khoá" },
+    "balances": {
+      "hint": "Tồn kho theo kho và lô. Lô đang chờ kiểm tra hoặc bị khoá vẫn được tính nhưng không thể cấp phát. \"Chưa gán kho\" chỉ xuất hiện với tenant chưa có kho nào.",
+      "warehouse": "Kho",
+      "unassigned": "Chưa gán kho",
+      "noLot": "— (không thuộc lô)"
+    },
     "remaining": "Còn lại",
     "unitCost": "Giá vốn đơn vị",
     "expiryDate": "Hạn sử dụng",
     "serialNumber": "Số serial",
     "tabs": {
       "locations": "Vị trí",
+      "balances": "Theo kho / lô",
       "lots": "Lô hàng",
       "serials": "Serial",
       "costHistory": "Lịch sử giá vốn"
@@ -2200,6 +2210,9 @@
       "lowStockThreshold": "Ngưỡng cảnh báo tồn kho thấp",
       "backorderAllowed": "Cho phép đặt hàng chờ (backorder)",
       "defaultHoldDays": "Thời gian giữ hàng mặc định (ngày)",
+      "defaultWarehouse": "Kho mặc định",
+      "defaultWarehouseHint": "Nơi nhận tồn kho khi phiếu không nêu kho (nhập kho, di chuyển không chỉ định kho).",
+      "defaultWarehouseAuto": "Tự động (MAIN, nếu không có thì kho hoạt động đầu tiên)",
       "noTenant": "Không tìm thấy đơn vị cho người dùng hiện tại.",
       "failedToSave": "Lưu cài đặt thất bại. Vui lòng thử lại."
     },

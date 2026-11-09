@@ -140,13 +140,39 @@ describe('Inventory: product stock detail', () => {
     answer([[/inventory\/p-1$/, inventory]])
     renderAt(detail(), '/inventory/p-1')
     expect(await screen.findByText('Widget')).toBeInTheDocument()
-    expect(screen.getAllByRole('tab').length).toBe(4)
+    expect(screen.getAllByRole('tab').length).toBe(5)
     await userEvent.click(await screen.findByRole('button', { name: 'Request Adjustment' }))
     const dialog = await screen.findByRole('dialog')
     expect(await axe(dialog)).toHaveNoViolations()
     await userEvent.click(submitOf(dialog))
     await waitFor(() => expect(dialog.querySelector('[aria-invalid="true"]')).toBeTruthy())
     expect(post).not.toHaveBeenCalled()
+  })
+})
+
+describe('Inventory: stock by warehouse and lot', () => {
+  const inventory = {
+    productId: 'p-1', productName: 'Widget', totalQuantity: 4, availableQuantity: 3.5, reservedQuantity: 0.5, lockedQuantity: 0, reorderPoint: 3, reorderQuantity: 5,
+    minStock: 2, maxStock: 20, safetyStock: 1, isLowStock: false, locations: [], lastUpdated: '2031-01-01T00:00:00Z',
+  }
+  const balances = [
+    { warehouseId: 'w1', warehouseCode: 'MAIN', warehouseName: 'Main', lotId: 'l1', lotNumber: 'L-1', lotStatus: 'QcHold', expiryDate: null, quantity: 2.5, reservedQuantity: 0, lockedQuantity: 0, availableQuantity: 2.5 },
+    { warehouseId: null, warehouseCode: null, warehouseName: null, lotId: null, lotNumber: null, lotStatus: null, expiryDate: null, quantity: 1.5, reservedQuantity: 0.5, lockedQuantity: 0, availableQuantity: 1 },
+  ]
+  const detail = () => (
+    <Routes>
+      <Route path="/inventory/:productId" element={<InventoryDetailPage />} />
+    </Routes>
+  )
+
+  it('shows the quantity per warehouse and lot, the quality-hold status and the unassigned bucket', async () => {
+    answer([[/inventory\/p-1\/balances/, balances], [/inventory\/p-1$/, inventory]])
+    renderAt(detail(), '/inventory/p-1')
+    await userEvent.click(await screen.findByRole('tab', { name: 'By warehouse / lot' }))
+    expect(await screen.findByText('MAIN — Main')).toBeInTheDocument()
+    expect(screen.getByText('On quality hold')).toBeInTheDocument()
+    expect(screen.getByText('Unassigned')).toBeInTheDocument()
+    expect(screen.getByText('2.5', { selector: 'td' })).toBeInTheDocument()
   })
 })
 

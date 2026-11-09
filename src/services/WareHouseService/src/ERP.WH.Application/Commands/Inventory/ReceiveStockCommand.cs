@@ -10,8 +10,11 @@ public class ReceiveStockCommand : IRequest<ReceiveStockResponse>
     public decimal Quantity { get; set; }
     public decimal UnitCost { get; set; }
     public Guid? LocationId { get; set; }
+    /// <summary>Warehouse the goods go to; without it the bin's warehouse, else the tenant's default warehouse.</summary>
+    public Guid? WarehouseId { get; set; }
     public string? LotNumber { get; set; }
     public DateTime? ExpiryDate { get; set; }
+    public DateTime? ManufactureDate { get; set; }
     public List<string>? SerialNumbers { get; set; }
     public string? Reference { get; set; }
     public Guid? PurchaseOrderId { get; set; }

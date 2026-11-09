@@ -21,6 +21,7 @@ public interface IWarehouseUnitOfWork : IDisposable
     IWarehouseRepository Warehouses { get; }
     IBarcodeMappingRepository BarcodeMappings { get; }
     ICostConsumptionLogRepository CostConsumptionLogs { get; }
+    IStockBalanceRepository StockBalances { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct);
     Task BeginTransactionAsync(CancellationToken ct);

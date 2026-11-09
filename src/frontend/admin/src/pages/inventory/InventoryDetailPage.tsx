@@ -14,8 +14,8 @@ import { format } from 'date-fns'
 import { Alert, Button, EmptyState, FormField, Input, Modal, Select, Spinner, Textarea, useToast } from '@/components/ui'
 import { serverMessage } from '@/lib/serverMessage'
 
-type Tab = 'locations' | 'lots' | 'serials' | 'costHistory'
-const TABS: Tab[] = ['locations', 'lots', 'serials', 'costHistory']
+type Tab = 'locations' | 'balances' | 'lots' | 'serials' | 'costHistory'
+const TABS: Tab[] = ['locations', 'balances', 'lots', 'serials', 'costHistory']
 
 interface AdjustmentFormValues {
   quantityDelta: number
@@ -107,6 +107,12 @@ export function InventoryDetailPage() {
     enabled: Boolean(productId),
   })
 
+  const balancesQuery = useQuery({
+    queryKey: ['inventory', productId, 'balances'],
+    queryFn: () => inventoryApi.balances(productId!),
+    enabled: Boolean(productId) && tab === 'balances',
+  })
+
   const lotsQuery = useQuery({
     queryKey: ['inventory', productId, 'lots'],
     queryFn: () => inventoryApi.lotsByProduct(productId!),
@@ -190,6 +196,25 @@ export function InventoryDetailPage() {
           </>
         )}
 
+        {tab === 'balances' && (
+          <>
+            <p className="mb-3 text-xs text-ink-secondary">{t('inventory.balances.hint')}</p>
+            <DataTable
+              columns={[
+                { key: 'warehouse', label: t('inventory.balances.warehouse'), render: (r) => (r.warehouseCode ? `${r.warehouseCode} — ${r.warehouseName ?? ''}` : t('inventory.balances.unassigned')) },
+                { key: 'lot', label: t('inventory.lotNumber'), className: 'font-mono text-xs', render: (r) => r.lotNumber ?? t('inventory.balances.noLot') },
+                { key: 'lotStatus', label: t('common.status'), render: (r) => (r.lotStatus ? t(`inventory.lotStatus.${r.lotStatus}`) : '—') },
+                { key: 'expiryDate', label: t('inventory.expiryDate'), render: (r) => (r.expiryDate ? format(new Date(r.expiryDate), 'dd MMM yyyy') : '—') },
+                { key: 'quantity', label: t('inventory.onHand'), align: right },
+                { key: 'reservedQuantity', label: t('inventory.reserved'), align: right },
+                { key: 'availableQuantity', label: t('inventory.available'), align: right, render: (r) => <span className="text-success-soft-text">{r.availableQuantity}</span> },
+              ]}
+              data={(balancesQuery.data ?? []).map((r) => ({ ...r, id: `${r.warehouseId ?? 'none'}:${r.lotId ?? 'none'}` }))}
+              isLoading={balancesQuery.isLoading}
+            />
+          </>
+        )}
+
         {tab === 'lots' && (
           <DataTable
             columns={[
@@ -199,6 +224,7 @@ export function InventoryDetailPage() {
               { key: 'availableQuantity', label: t('inventory.available'), align: right, render: (l) => <span className="text-success-soft-text">{l.availableQuantity}</span> },
               { key: 'unitCost', label: t('inventory.unitCost'), align: right, render: (l) => l.unitCost.toFixed(2) },
               { key: 'expiryDate', label: t('inventory.expiryDate'), render: (l) => (l.expiryDate ? format(new Date(l.expiryDate), 'dd MMM yyyy') : '—') },
+              { key: 'status', label: t('common.status'), render: (l) => (l.status ? t(`inventory.lotStatus.${l.status}`) : '—') },
             ]}
             data={(lotsQuery.data ?? []).map((l) => ({ ...l, id: l.lotId }))}
             isLoading={lotsQuery.isLoading}

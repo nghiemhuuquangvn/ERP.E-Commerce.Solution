@@ -26,6 +26,8 @@ public class Inventory : ITenantOwned
     public ValuationMethod ValuationMethod { get; private set; }
     public DateTime LastMovementDate { get; private set; }
     public DateTime UpdatedAt { get; private set; }
+    /// <summary>Optimistic concurrency token (SQL ROWVERSION): a conflicting write answers HTTP 409.</summary>
+    public byte[] RowVersion { get; private set; } = [];
 
     public Inventory(Guid productId, string productName, decimal reorderPoint = 100, decimal reorderQuantity = 500, string? productSku = null)
     {

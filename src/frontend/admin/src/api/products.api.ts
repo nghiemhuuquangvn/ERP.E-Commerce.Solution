@@ -55,6 +55,8 @@ export interface Product {
   categoryName: string
   brandId?: string | null
   baseUomId?: string | null
+  isLotControlled?: boolean
+  isSerialControlled?: boolean
   hasImage: boolean
   imageUrl?: string | null
   variantCount: number
@@ -92,6 +94,8 @@ export interface CreateProductRequest {
   categoryId?: string | null
   brandId?: string | null
   baseUomId?: string | null
+  isLotControlled?: boolean
+  isSerialControlled?: boolean
 }
 
 export interface CreateProductResponse {
@@ -228,6 +232,9 @@ export const productsApi = {
 
   setBaseUom: (id: string, baseUomId: string | null) =>
     apiClient.put(`/v1/products/${id}/base-uom`, { baseUomId }),
+
+  setTracking: (id: string, isLotControlled: boolean, isSerialControlled: boolean) =>
+    apiClient.put(`/v1/products/${id}/tracking`, { isLotControlled, isSerialControlled }),
 
   submitForReview: (id: string) => apiClient.post(`/v1/products/${id}/submit-for-review`),
 

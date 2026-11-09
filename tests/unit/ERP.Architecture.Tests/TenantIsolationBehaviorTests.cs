@@ -93,6 +93,11 @@ public class TenantIsolationBehaviorTests
             new ERP.WH.Domain.Aggregates.Inventory.BarcodeMapping("8930001", Guid.NewGuid()), e => e.TenantId);
 
     [Fact]
+    public void Warehouse_StockBalances() =>
+        AssertIsolated<ERP.WH.Infrastructure.Persistence.WarehouseDbContext, ERP.WH.Domain.Aggregates.Inventory.StockBalance>(
+            new ERP.WH.Domain.Aggregates.Inventory.StockBalance(Guid.NewGuid(), Guid.NewGuid(), null), e => e.TenantId);
+
+    [Fact]
     public void PurchaseOrder_PurchaseRequests() =>
         AssertIsolated<ERP.PO.Infrastructure.Data.PurchasingDbContext, ERP.PO.Domain.Entities.PurchaseRequest>(
             ERP.PO.Domain.Entities.PurchaseRequest.Create(Guid.NewGuid(), "Widget", 1, 5, 10), e => e.TenantId);

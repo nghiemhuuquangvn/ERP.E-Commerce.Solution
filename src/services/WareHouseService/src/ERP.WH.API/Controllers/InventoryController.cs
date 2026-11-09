@@ -24,6 +24,28 @@ public class InventoryController : ControllerBase
         _userContextService = userContextService;
     }
 
+    /// <summary>How much is where: the item's stock per warehouse and lot (reserved, locked, available).</summary>
+    [HttpGet("{productId}/balances")]
+    [ProducesResponseType(typeof(List<StockBalanceDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<StockBalanceDto>>> GetBalances(Guid productId)
+    {
+        if (!_userContextService.HasPermission("inventory:view"))
+            return Forbid();
+
+        return Ok(await _mediator.Send(new GetStockBalancesQuery { ProductId = productId }));
+    }
+
+    /// <summary>Items and lots whose item total / lot figures disagree with their warehouse balances (empty = in step).</summary>
+    [HttpGet("reconciliation")]
+    [ProducesResponseType(typeof(List<StockDriftDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<StockDriftDto>>> Reconcile([FromQuery] int take = 200)
+    {
+        if (!_userContextService.HasPermission("inventory:view"))
+            return Forbid();
+
+        return Ok(await _mediator.Send(new GetStockReconciliationQuery { Take = take }));
+    }
+
     [HttpGet("{productId}")]
     [ProducesResponseType(typeof(GetInventoryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
