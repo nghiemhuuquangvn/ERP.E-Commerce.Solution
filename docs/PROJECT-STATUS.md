@@ -40,6 +40,9 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-09 - Warehouse upgrade epic started (W0: ADR, no code; `feat/warehouse-upgrade`)
+- ADR `docs/architecture/adr-warehouse-upgrade.md` (StockBalance next to Inventory, all quantities decimal, production movements, reservations by source, FEFO suggestion, idempotent internal write API). Milestones W1-W6 follow, each waiting for the owner. Needed before Manufacturing Phase 3.
+
 ### 2026-11-07 - Manufacturing M6: demo data, full live check, wrap-up (`feat/manufacturing-m6`, unmerged)
 - **DS-01 seeder** (`POST mfg/.../seed/ds01`, off unless `Manufacturing:EnableDemoSeed`, compose `MFG_DEMO_SEED`) builds plant, settings, shifts, calendar, work centers, machines, profiles and approved BOMs / routings through the real commands and the CSV import; idempotent; `scripts/seed-ds01-products.js` creates the 12 products. Stock, QC plan and orders are not seedable yet.
 - **Defect found and fixed by the live check:** two parallel approvals of one item answered 500 for the loser; now 409 (MFG_GEN_001) for concurrency and unique-key races.
