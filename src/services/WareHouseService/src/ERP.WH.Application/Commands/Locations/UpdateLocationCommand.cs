@@ -12,7 +12,7 @@ public class UpdateLocationCommand : IRequest<LocationDto>
     public string Aisle { get; set; } = string.Empty;
     public string Bin { get; set; } = string.Empty;
     public string Shelf { get; set; } = string.Empty;
-    public int Capacity { get; set; }
+    public decimal Capacity { get; set; }
 }
 
 public class UpdateLocationCommandHandler : MediatR.IRequestHandler<UpdateLocationCommand, LocationDto>

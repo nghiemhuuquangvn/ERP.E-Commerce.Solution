@@ -15,10 +15,10 @@ public class InventoryLocationStock : ITenantOwned
     public Guid TenantId { get; private set; }
     public Guid ProductId { get; private set; }
     public Guid LocationId { get; private set; }
-    public int Quantity { get; private set; }
-    public int ReservedQuantity { get; private set; }
-    public int LockedQuantity { get; private set; }
-    public int AvailableQuantity => Quantity - ReservedQuantity - LockedQuantity;
+    public decimal Quantity { get; private set; }
+    public decimal ReservedQuantity { get; private set; }
+    public decimal LockedQuantity { get; private set; }
+    public decimal AvailableQuantity => Quantity - ReservedQuantity - LockedQuantity;
     public DateTime UpdatedAt { get; private set; }
 
     private InventoryLocationStock() { }
@@ -31,15 +31,15 @@ public class InventoryLocationStock : ITenantOwned
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public bool CanReserve(int quantity) => AvailableQuantity >= quantity;
+    public bool CanReserve(decimal quantity) => AvailableQuantity >= quantity;
 
-    public void Receive(int quantity)
+    public void Receive(decimal quantity)
     {
         Quantity += quantity;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void ReserveStock(int quantity)
+    public void ReserveStock(decimal quantity)
     {
         if (!CanReserve(quantity))
             throw new InvalidOperationException($"Insufficient stock at this location. Available: {AvailableQuantity}, Requested: {quantity}");
@@ -48,27 +48,27 @@ public class InventoryLocationStock : ITenantOwned
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void ReleaseReservation(int quantity)
+    public void ReleaseReservation(decimal quantity)
     {
         ReservedQuantity = Math.Max(0, ReservedQuantity - quantity);
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void SellStock(int quantity)
+    public void SellStock(decimal quantity)
     {
         Quantity = Math.Max(0, Quantity - quantity);
         ReservedQuantity = Math.Max(0, ReservedQuantity - quantity);
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void AdjustStock(int delta)
+    public void AdjustStock(decimal delta)
     {
         Quantity += delta;
         UpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>Moves quantity out of this location (transfer source side) — does not touch ReservedQuantity.</summary>
-    public void TransferOut(int quantity)
+    public void TransferOut(decimal quantity)
     {
         if (Quantity < quantity)
             throw new InvalidOperationException($"Insufficient stock at this location to transfer. Available: {Quantity}, Requested: {quantity}");
@@ -78,7 +78,7 @@ public class InventoryLocationStock : ITenantOwned
     }
 
     /// <summary>Moves quantity into this location (transfer destination side).</summary>
-    public void TransferIn(int quantity)
+    public void TransferIn(decimal quantity)
     {
         Quantity += quantity;
         UpdatedAt = DateTime.UtcNow;

@@ -125,7 +125,7 @@ public class PurchaseOrderReceivedConsumer : IHostedService
                     Lines = lines.Select(l => new VendorReturnLine
                     {
                         ProductCode = l.Value<string>("ProductCode") ?? string.Empty,
-                        Quantity = (int)(l.Value<decimal?>("Quantity") ?? 0m)
+                        Quantity = l.Value<decimal?>("Quantity") ?? 0m
                     }).ToList()
                 }, cancellationToken);
                 return;
@@ -194,7 +194,7 @@ public class PurchaseOrderReceivedConsumer : IHostedService
             await mediator.Send(new ReceiveStockCommand
             {
                 ProductId = inventory.ProductId,
-                Quantity = (int)quantityReceived,
+                Quantity = quantityReceived,
                 UnitCost = item.Value<decimal?>("UnitPrice") ?? 0m,
                 // One receipt (GRN) per delivery: a second partial receipt of the same product on the same order is new stock,
                 // not a redelivery. Events from before the GRN id existed keep the old per-order reference.

@@ -188,7 +188,7 @@ public class SalesOrderReturnedContract
 public class SalesOrderReturnedLine
 {
     public Guid ProductId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
 }
 
 // Local mirror of OrderFulfillmentSaga's own ReserveInventoryCommand message
@@ -203,5 +203,5 @@ public class SagaReserveInventoryCommand
 public class SagaLineItemContract
 {
     public Guid ProductId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
 }

@@ -340,7 +340,7 @@ public class InventoryEventConsumer : BackgroundService
                         MovementId = movementId,
                         ProductId = JDoc.GetGuid(root, "ProductId", "productId"),
                         MovementType = JDoc.GetString(root, "MovementType", "movementType", "Type", "type"),
-                        Quantity = JDoc.GetInt(root, "Quantity", "quantity"),
+                        Quantity = JDoc.GetDecimal(root, "Quantity", "quantity"),
                         OccurredAt = occurredAt,
                         DateKey = DateKeyHelper.ToDateKey(occurredAt)
                     });

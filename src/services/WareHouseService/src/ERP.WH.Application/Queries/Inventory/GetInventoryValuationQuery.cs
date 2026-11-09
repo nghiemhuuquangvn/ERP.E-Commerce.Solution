@@ -7,7 +7,7 @@ namespace ERP.WH.Application.Queries.Inventory;
 public class InventoryValuationLotDto
 {
     public string LotNumber { get; set; } = string.Empty;
-    public int RemainingQuantity { get; set; }
+    public decimal RemainingQuantity { get; set; }
     public decimal UnitCost { get; set; }
     public decimal LineValue { get; set; }
     public DateTime ReceivedDate { get; set; }
@@ -17,7 +17,7 @@ public class GetInventoryValuationResponse
 {
     public Guid ProductId { get; set; }
     public string ValuationMethod { get; set; } = string.Empty;
-    public int TotalQuantity { get; set; }
+    public decimal TotalQuantity { get; set; }
     public decimal TotalValue { get; set; }
     public decimal AverageUnitCost { get; set; }
     public List<InventoryValuationLotDto> Lots { get; set; } = new();

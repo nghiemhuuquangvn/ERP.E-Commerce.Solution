@@ -21,7 +21,7 @@ public class TopProductDto
 {
     public Guid ProductId { get; set; }
     public string ProductName { get; set; } = string.Empty;
-    public int UnitsSold { get; set; }
+    public decimal UnitsSold { get; set; }
     public decimal Revenue { get; set; }
 }
 
@@ -51,7 +51,7 @@ public class StockLevelDto
 {
     public Guid ProductId { get; set; }
     public string ProductName { get; set; } = string.Empty;
-    public int AvailableQuantity { get; set; }
+    public decimal AvailableQuantity { get; set; }
     public string StockStatus { get; set; } = string.Empty;
 }
 

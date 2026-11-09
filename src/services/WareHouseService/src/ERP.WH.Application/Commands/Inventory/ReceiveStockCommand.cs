@@ -7,7 +7,7 @@ public class ReceiveStockCommand : IRequest<ReceiveStockResponse>
     public Guid ProductId { get; set; }
     public string? ProductName { get; set; }
     public string? ProductSku { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
     public decimal UnitCost { get; set; }
     public Guid? LocationId { get; set; }
     public string? LotNumber { get; set; }
@@ -20,7 +20,7 @@ public class ReceiveStockCommand : IRequest<ReceiveStockResponse>
 public class ReceiveStockResponse
 {
     public Guid ProductId { get; set; }
-    public int TotalQuantity { get; set; }
+    public decimal TotalQuantity { get; set; }
     public Guid MovementId { get; set; }
     public Guid? LotId { get; set; }
     public DateTime ReceivedAt { get; set; }

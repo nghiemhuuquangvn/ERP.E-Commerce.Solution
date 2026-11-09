@@ -104,7 +104,7 @@ namespace ERP.PRD.Infrastructure.EventBus
         private class InventoryUpdatedPayload
         {
             public Guid ProductId { get; set; }
-            public int CurrentQuantity { get; set; }
+            public decimal CurrentQuantity { get; set; }
         }
     }
 }

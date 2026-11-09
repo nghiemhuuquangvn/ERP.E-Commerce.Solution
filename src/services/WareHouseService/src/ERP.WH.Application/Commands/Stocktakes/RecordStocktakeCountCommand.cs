@@ -7,7 +7,7 @@ public class RecordStocktakeCountCommand : IRequest<StocktakeDto>
 {
     public Guid StocktakeId { get; set; }
     public Guid ProductId { get; set; }
-    public int CountedQuantity { get; set; }
+    public decimal CountedQuantity { get; set; }
     public string? VarianceReason { get; set; }
 }
 

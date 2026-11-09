@@ -14,7 +14,7 @@ public class CloseInventoryValuationSnapshotCommand : IRequest<InventoryValuatio
 public class InventoryValuationSnapshotLineDto
 {
     public Guid ProductId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
     public decimal UnitCost { get; set; }
     public decimal TotalValue { get; set; }
 }

@@ -55,6 +55,9 @@ namespace ERP.PRD.Infrastructure.Persistence
             // Apply entity configurations from this assembly
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
+            // Read-optimised copy of the warehouse quantity: decimal(18,6) since the Warehouse upgrade W1 (SQL Product/019).
+            modelBuilder.Entity<Product>().Property(p => p.StockQuantity).HasPrecision(18, 6);
+
             modelBuilder.Entity<SystemStoreProductSettings>(entity =>
             {
                 entity.ToTable("SystemStoreProductSettings");

@@ -8,18 +8,18 @@ namespace ERP.WH.Application.Commands.Inventory;
 public class UpdateStockPolicyCommand : IRequest<StockPolicyResponse>
 {
     public Guid ProductId { get; set; }
-    public int MinStock { get; set; }
-    public int MaxStock { get; set; }
-    public int SafetyStock { get; set; }
+    public decimal MinStock { get; set; }
+    public decimal MaxStock { get; set; }
+    public decimal SafetyStock { get; set; }
 }
 
 public class StockPolicyResponse
 {
     public Guid ProductId { get; set; }
-    public int MinStock { get; set; }
-    public int MaxStock { get; set; }
-    public int SafetyStock { get; set; }
-    public int AvailableQuantity { get; set; }
+    public decimal MinStock { get; set; }
+    public decimal MaxStock { get; set; }
+    public decimal SafetyStock { get; set; }
+    public decimal AvailableQuantity { get; set; }
     public bool IsLowStock { get; set; }
 }
 

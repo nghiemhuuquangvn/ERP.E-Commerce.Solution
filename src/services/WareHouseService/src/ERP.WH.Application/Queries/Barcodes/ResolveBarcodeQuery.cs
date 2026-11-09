@@ -13,7 +13,7 @@ public class ResolveBarcodeResponse
 {
     public Guid ProductId { get; set; }
     public string ProductName { get; set; } = string.Empty;
-    public int AvailableQuantity { get; set; }
+    public decimal AvailableQuantity { get; set; }
     public Guid? LotId { get; set; }
     public string? SerialNumber { get; set; }
 }

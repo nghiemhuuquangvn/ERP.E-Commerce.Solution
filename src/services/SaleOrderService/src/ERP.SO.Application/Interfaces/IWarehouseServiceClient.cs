@@ -10,13 +10,13 @@ namespace ERP.SO.Application.Interfaces
     /// </summary>
     public interface IWarehouseServiceClient
     {
-        Task<StockAvailabilityResult> CheckAvailabilityAsync(Guid productId, int requestedQuantity, CancellationToken ct);
+        Task<StockAvailabilityResult> CheckAvailabilityAsync(Guid productId, decimal requestedQuantity, CancellationToken ct);
     }
 
     public class StockAvailabilityResult
     {
         public bool IsAvailable { get; set; }
-        public int AvailableQuantity { get; set; }
+        public decimal AvailableQuantity { get; set; }
         public string? ErrorMessage { get; set; }
     }
 }

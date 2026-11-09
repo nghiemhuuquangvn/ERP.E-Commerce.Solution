@@ -34,7 +34,7 @@ namespace ERP.PRD.Domain.Entities
         // InventoryUpdatedEvent (RabbitMQ, warehouse_exchange) — SQL there remains the
         // system-of-record; this is only for fast "in stock?" display/filtering here
         // without a synchronous cross-service call on every catalog read.
-        public int StockQuantity { get; set; }
+        public decimal StockQuantity { get; set; }
         public DateTime? LastStockSyncAt { get; set; }
 
         // Opaque escape hatch for arbitrary structured data (never queried via SQL JSON functions)
@@ -166,7 +166,7 @@ namespace ERP.PRD.Domain.Entities
         /// that event is for other services to resync, and Warehouse is the one that just
         /// told us this, so re-publishing it back out would be a pointless echo.
         /// </summary>
-        public void SyncStockQuantity(int quantity)
+        public void SyncStockQuantity(decimal quantity)
         {
             StockQuantity = quantity;
             LastStockSyncAt = DateTime.UtcNow;

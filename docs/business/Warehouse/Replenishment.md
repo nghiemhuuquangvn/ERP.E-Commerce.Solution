@@ -101,3 +101,6 @@ Warehouse → Purchasing: `StockAlertEvent` over RabbitMQ (fields in section 4),
 | UAT-R11 | User without `inventory:manage` calls the policy or scan endpoints | 403 (attribute; checked by the architecture test) |
 
 Verified live on tenant `glcheck` 2026-10-26: UAT-R1…R8 and R10; UAT-R9 (one preferred supplier per product) by unit test; UAT-R11 by the architecture test.
+
+## Decimal thresholds (W1, 2026-11-09)
+MinStock, MaxStock, SafetyStock, ReorderPoint and every figure of the StockAlert and of the Purchasing proposal are decimals (for example min 3.5, max 12.5, available 1.75 -> suggest 10.75). The rule itself is unchanged (low stock = available <= minimum; suggested = max - (available + on order)); the on-order quantity is no longer rounded up to a whole number. See `DecimalQuantities.md`.

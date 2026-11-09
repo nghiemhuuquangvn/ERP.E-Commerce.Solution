@@ -18,7 +18,7 @@ namespace ERP.SO.Infrastructure.ExternalServices
             _httpClient.BaseAddress = new Uri(configuration["Services:WarehouseServiceBaseUrl"] ?? "http://localhost:5004");
         }
 
-        public async Task<StockAvailabilityResult> CheckAvailabilityAsync(Guid productId, int requestedQuantity, CancellationToken ct)
+        public async Task<StockAvailabilityResult> CheckAvailabilityAsync(Guid productId, decimal requestedQuantity, CancellationToken ct)
         {
             try
             {
@@ -75,7 +75,7 @@ namespace ERP.SO.Infrastructure.ExternalServices
         private class AvailabilityPayload
         {
             public Guid ProductId { get; set; }
-            public int AvailableQuantity { get; set; }
+            public decimal AvailableQuantity { get; set; }
         }
     }
 }

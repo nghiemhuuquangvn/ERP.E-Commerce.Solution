@@ -24,6 +24,6 @@ public class InventoryInsufficientEvent : ITenantEvent
 public class InsufficientItemDto
 {
     public Guid ProductId { get; set; }
-    public int RequestedQuantity { get; set; }
-    public int AvailableQuantity { get; set; }
+    public decimal RequestedQuantity { get; set; }
+    public decimal AvailableQuantity { get; set; }
 }

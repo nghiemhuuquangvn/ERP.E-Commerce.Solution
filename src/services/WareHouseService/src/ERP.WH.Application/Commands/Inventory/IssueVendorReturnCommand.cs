@@ -11,7 +11,7 @@ namespace ERP.WH.Application.Commands.Inventory;
 public class VendorReturnLine
 {
     public string ProductCode { get; set; } = string.Empty;
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
 }
 
 /// <summary>Goods leave for the supplier (ROADMAP P1-8): the stock is issued and Accounting reverses the receipt accrual.</summary>

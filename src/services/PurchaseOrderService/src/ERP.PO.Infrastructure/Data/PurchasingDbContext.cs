@@ -169,6 +169,10 @@ public class PurchasingDbContext : DbContext, IUnitOfWork, ITenantScopedDbContex
         purchaseRequestBuilder.Property(pr => pr.ProductName).HasMaxLength(255).IsRequired();
         purchaseRequestBuilder.Property(pr => pr.ProductCode).HasMaxLength(100).IsRequired();
         purchaseRequestBuilder.Property(pr => pr.UnitPrice).HasPrecision(18, 2);
+        // Warehouse quantities are decimal(18,6) since the Warehouse upgrade W1 (SQL Purchasing/014).
+        foreach (var quantity in new System.Linq.Expressions.Expression<Func<PurchaseRequest, decimal>>[]
+                 { pr => pr.CurrentQuantity, pr => pr.ReorderPoint, pr => pr.SuggestedQuantity, pr => pr.AvailableQuantity, pr => pr.OnOrderQuantity, pr => pr.MinStock, pr => pr.MaxStock, pr => pr.SafetyStock })
+            purchaseRequestBuilder.Property(quantity).HasPrecision(18, 6);
         purchaseRequestBuilder.Property(pr => pr.Note).HasMaxLength(500);
         purchaseRequestBuilder.HasIndex(pr => new { pr.TenantId, pr.ProductCode });
         purchaseRequestBuilder.Property(pr => pr.Status).IsRequired();

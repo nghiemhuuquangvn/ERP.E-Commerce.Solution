@@ -93,6 +93,7 @@ $DatabaseScripts = @(
     "Purchasing\011_BaseEntityColumns.sql",
     "Purchasing\012_RfqSupplierInvoicesVendorReturns.sql",
     "Purchasing\013_ReplenishmentRequests.sql",
+    "Purchasing\014_ReplenishmentQuantitiesDecimal.sql",
     "Warehouse\001_CreateWarehouseDB.sql",
     "Warehouse\002_AddLotsSerialsTransfersStocktakes.sql",
     "Warehouse\003_AddInventorySettings.sql",
@@ -101,6 +102,7 @@ $DatabaseScripts = @(
     "Warehouse\007_TenantIsolation.sql",
     "Warehouse\008_AlignEntityColumns.sql",
     "Warehouse\009_StockPolicy.sql",
+    "Warehouse\010_DecimalQuantities.sql",
     "Accounting\001_CreateAccountingDB.sql",
     "Accounting\002_AddTaxSettings.sql",
     "Accounting\003_AddTaxRatesBankAccountsAndStatements.sql",
@@ -144,6 +146,7 @@ $DatabaseScripts = @(
     "Product\016_RepairLegacyExternalMappings.sql",
     "Product\017_RepairLegacyBaseEntityTables.sql",
     "Product\018_PriceListsRowVersion.sql",
+    "Product\019_StockQuantityDecimal.sql",
 
     # Customer-facing services
     "CRM\001_CreateCrmDB.sql",
@@ -216,6 +219,7 @@ $DatabaseScripts = @(
     "Reporting\007_AlignLegacyColumns.sql",
     "Reporting\008_CrmRefundsPayroll.sql",
     "Reporting\009_FactPaymentCaptures.sql",
+    "Reporting\010_InventoryQuantitiesDecimal.sql",
     "ChatBot\001_CreateChatBotDB.sql",
     "ChatBot\002_TenantIsolation.sql",
 

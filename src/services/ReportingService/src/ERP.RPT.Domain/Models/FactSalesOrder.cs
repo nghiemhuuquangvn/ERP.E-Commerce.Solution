@@ -75,7 +75,7 @@ public class FactInventoryMovement : ITenantOwned
     public Guid TenantId { get; set; }
     public Guid ProductId { get; set; }
     public string MovementType { get; set; } = string.Empty;
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
     public DateTime OccurredAt { get; set; }
     public int DateKey { get; set; }
 }
@@ -138,5 +138,5 @@ public class DimProduct : ITenantOwned
     public string Category { get; set; } = string.Empty;
     public decimal Price { get; set; }
     public bool IsActive { get; set; }
-    public int StockQuantity { get; set; }
+    public decimal StockQuantity { get; set; }
 }

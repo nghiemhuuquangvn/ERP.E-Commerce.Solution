@@ -156,7 +156,7 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
     /// product has no location-level stock rows yet (bin-level tracking is additive; not
     /// every product has been received against a specific location).
     /// </summary>
-    private async Task<string> ReserveAtLocationAsync(Guid productId, int quantity, CancellationToken cancellationToken)
+    private async Task<string> ReserveAtLocationAsync(Guid productId, decimal quantity, CancellationToken cancellationToken)
     {
         var locationStocks = await _uow.InventoryLocationStocks.GetByProductIdAsync(productId, cancellationToken);
         var candidate = locationStocks.FirstOrDefault(s => s.CanReserve(quantity));
@@ -175,7 +175,7 @@ public class ReserveInventoryCommandHandler : IRequestHandler<ReserveInventoryCo
     /// ship time, via IReservationFulfillmentService consuming exactly these allocations.
     /// Returns an empty list for non-lot-tracked products (no lots exist).
     /// </summary>
-    private async Task<List<LotAllocation>> AllocateFefoLotAsync(Guid productId, int quantity, CancellationToken cancellationToken)
+    private async Task<List<LotAllocation>> AllocateFefoLotAsync(Guid productId, decimal quantity, CancellationToken cancellationToken)
     {
         var lots = await _uow.InventoryLots.GetByProductIdAsync(productId, includeDepleted: false, cancellationToken);
         var ordered = lots

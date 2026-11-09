@@ -125,7 +125,7 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
     /// was used), so this depletes whatever lot quantity is available up to the sold
     /// amount rather than requiring an exact match.
     /// </summary>
-    private async Task DepleteLotsAsync(Domain.Aggregates.Inventory.Inventory inventory, int quantitySold, CancellationToken cancellationToken)
+    private async Task DepleteLotsAsync(Domain.Aggregates.Inventory.Inventory inventory, decimal quantitySold, CancellationToken cancellationToken)
     {
         var lots = await _uow.InventoryLots.GetByProductIdAsync(inventory.ProductId, includeDepleted: false, cancellationToken);
 

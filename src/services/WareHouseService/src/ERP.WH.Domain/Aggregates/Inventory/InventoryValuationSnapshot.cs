@@ -8,13 +8,13 @@ public class InventoryValuationSnapshotLine : ITenantOwned
     public Guid TenantId { get; private set; }
     public Guid SnapshotId { get; private set; }
     public Guid ProductId { get; private set; }
-    public int Quantity { get; private set; }
+    public decimal Quantity { get; private set; }
     public decimal UnitCost { get; private set; }
     public decimal TotalValue { get; private set; }
 
     private InventoryValuationSnapshotLine() { }
 
-    public InventoryValuationSnapshotLine(Guid snapshotId, Guid productId, int quantity, decimal unitCost)
+    public InventoryValuationSnapshotLine(Guid snapshotId, Guid productId, decimal quantity, decimal unitCost)
     {
         Id = Guid.NewGuid();
         SnapshotId = snapshotId;
@@ -53,7 +53,7 @@ public class InventoryValuationSnapshot : ITenantOwned
         Lines = new List<InventoryValuationSnapshotLine>();
     }
 
-    public void AddLine(Guid productId, int quantity, decimal unitCost)
+    public void AddLine(Guid productId, decimal quantity, decimal unitCost)
     {
         Lines.Add(new InventoryValuationSnapshotLine(Id, productId, quantity, unitCost));
     }

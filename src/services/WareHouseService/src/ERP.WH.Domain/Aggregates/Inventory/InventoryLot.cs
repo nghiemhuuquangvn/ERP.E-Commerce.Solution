@@ -8,10 +8,10 @@ public class InventoryLot : ITenantOwned
     public Guid TenantId { get; private set; }
     public Guid ProductId { get; private set; }
     public string LotNumber { get; private set; } = null!;
-    public int ReceivedQuantity { get; private set; }
-    public int RemainingQuantity { get; private set; }
-    public int ReservedQuantity { get; private set; }
-    public int AvailableQuantity => RemainingQuantity - ReservedQuantity;
+    public decimal ReceivedQuantity { get; private set; }
+    public decimal RemainingQuantity { get; private set; }
+    public decimal ReservedQuantity { get; private set; }
+    public decimal AvailableQuantity => RemainingQuantity - ReservedQuantity;
     public decimal UnitCost { get; private set; }
     public DateTime ReceivedDate { get; private set; }
     public DateTime? ExpiryDate { get; private set; }
@@ -25,7 +25,7 @@ public class InventoryLot : ITenantOwned
     public InventoryLot(
         Guid productId,
         string lotNumber,
-        int quantity,
+        decimal quantity,
         decimal unitCost,
         DateTime? expiryDate = null,
         Guid? purchaseOrderId = null)
@@ -54,7 +54,7 @@ public class InventoryLot : ITenantOwned
     /// consume from. Do NOT call this from the reservation flow; use Reserve/Consume
     /// instead so a reservation is a soft hold, not an immediate write-off.
     /// </summary>
-    public void Deplete(int quantity)
+    public void Deplete(decimal quantity)
     {
         if (quantity > RemainingQuantity)
             throw new InvalidOperationException($"Cannot deplete {quantity} from lot {LotNumber}; only {RemainingQuantity} remaining");
@@ -62,13 +62,13 @@ public class InventoryLot : ITenantOwned
         RemainingQuantity -= quantity;
     }
 
-    public void Replenish(int quantity)
+    public void Replenish(decimal quantity)
     {
         RemainingQuantity += quantity;
     }
 
     /// <summary>Soft hold at reservation time — does not touch RemainingQuantity.</summary>
-    public void Reserve(int quantity)
+    public void Reserve(decimal quantity)
     {
         if (quantity > AvailableQuantity)
             throw new InvalidOperationException($"Cannot reserve {quantity} from lot {LotNumber}; only {AvailableQuantity} available");
@@ -77,7 +77,7 @@ public class InventoryLot : ITenantOwned
     }
 
     /// <summary>Releases a soft hold (cancel/expire) — does not touch RemainingQuantity.</summary>
-    public void ReleaseReservation(int quantity)
+    public void ReleaseReservation(decimal quantity)
     {
         ReservedQuantity = Math.Max(0, ReservedQuantity - quantity);
     }
@@ -86,7 +86,7 @@ public class InventoryLot : ITenantOwned
     /// Real depletion of a previously soft-reserved quantity, at ship/sell time —
     /// releases the hold and writes off the stock in one step.
     /// </summary>
-    public void Consume(int quantity)
+    public void Consume(decimal quantity)
     {
         if (quantity > RemainingQuantity)
             throw new InvalidOperationException($"Cannot consume {quantity} from lot {LotNumber}; only {RemainingQuantity} remaining");

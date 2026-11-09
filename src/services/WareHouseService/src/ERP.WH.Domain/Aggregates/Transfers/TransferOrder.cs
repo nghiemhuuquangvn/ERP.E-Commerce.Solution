@@ -14,11 +14,11 @@ public class TransferOrderLine
     public Guid LineId { get; private set; }
     public Guid TransferOrderId { get; private set; }
     public Guid ProductId { get; private set; }
-    public int Quantity { get; private set; }
+    public decimal Quantity { get; private set; }
 
     private TransferOrderLine() { }
 
-    public TransferOrderLine(Guid transferOrderId, Guid productId, int quantity)
+    public TransferOrderLine(Guid transferOrderId, Guid productId, decimal quantity)
     {
         LineId = Guid.NewGuid();
         TransferOrderId = transferOrderId;
@@ -58,7 +58,7 @@ public class TransferOrder : ITenantOwned
         CreatedAt = DateTime.UtcNow;
     }
 
-    public void AddLine(Guid productId, int quantity)
+    public void AddLine(Guid productId, decimal quantity)
     {
         if (Status != TransferOrderStatus.Draft)
             throw new InvalidOperationException("Cannot add lines once a transfer order has shipped");

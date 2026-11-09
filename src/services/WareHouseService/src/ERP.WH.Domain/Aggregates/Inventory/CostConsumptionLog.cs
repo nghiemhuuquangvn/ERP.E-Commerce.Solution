@@ -14,7 +14,7 @@ public class CostConsumptionLog : ITenantOwned
     public Guid TenantId { get; private set; }
     public Guid ProductId { get; private set; }
     public Guid? LotId { get; private set; }
-    public int Quantity { get; private set; }
+    public decimal Quantity { get; private set; }
     public decimal UnitCost { get; private set; }
     public decimal TotalCost { get; private set; }
     public Guid SourceOrderId { get; private set; }
@@ -22,7 +22,7 @@ public class CostConsumptionLog : ITenantOwned
 
     private CostConsumptionLog() { }
 
-    public CostConsumptionLog(Guid productId, Guid? lotId, int quantity, decimal unitCost, Guid sourceOrderId)
+    public CostConsumptionLog(Guid productId, Guid? lotId, decimal quantity, decimal unitCost, Guid sourceOrderId)
     {
         Id = Guid.NewGuid();
         ProductId = productId;

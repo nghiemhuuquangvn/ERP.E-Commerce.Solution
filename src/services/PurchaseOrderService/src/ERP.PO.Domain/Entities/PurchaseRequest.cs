@@ -28,19 +28,19 @@ public class PurchaseRequest : ITenantOwned
     public string ProductCode { get; private set; } = string.Empty;
     public string ProductName { get; private set; } = string.Empty;
     /// <summary>Total quantity when the alert was raised (older rows) — see <see cref="AvailableQuantity"/> for the figure used now.</summary>
-    public int CurrentQuantity { get; private set; }
-    public int ReorderPoint { get; private set; }
-    public int SuggestedQuantity { get; private set; }
+    public decimal CurrentQuantity { get; private set; }
+    public decimal ReorderPoint { get; private set; }
+    public decimal SuggestedQuantity { get; private set; }
     public PurchaseRequestStatus Status { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime? ResolvedAt { get; private set; }
 
-    public int AvailableQuantity { get; private set; }
+    public decimal AvailableQuantity { get; private set; }
     /// <summary>Open quantity (ordered − received) on this product's purchase orders that are not finished or cancelled.</summary>
-    public int OnOrderQuantity { get; private set; }
-    public int MinStock { get; private set; }
-    public int MaxStock { get; private set; }
-    public int SafetyStock { get; private set; }
+    public decimal OnOrderQuantity { get; private set; }
+    public decimal MinStock { get; private set; }
+    public decimal MaxStock { get; private set; }
+    public decimal SafetyStock { get; private set; }
     public Guid? PreferredSupplierId { get; private set; }
     public decimal? UnitPrice { get; private set; }
     public int? LeadTimeDays { get; private set; }
@@ -54,7 +54,7 @@ public class PurchaseRequest : ITenantOwned
     /// <summary>Open = still waiting for a decision.</summary>
     public bool IsOpen => Status == PurchaseRequestStatus.Suggested;
 
-    public static PurchaseRequest Create(Guid productId, string productName, int currentQuantity, int reorderPoint, int suggestedQuantity)
+    public static PurchaseRequest Create(Guid productId, string productName, decimal currentQuantity, decimal reorderPoint, decimal suggestedQuantity)
     {
         return new PurchaseRequest
         {
@@ -143,16 +143,16 @@ public class PurchaseRequest : ITenantOwned
 }
 
 /// <summary>The figures a replenishment decision is made on.</summary>
-public record ReplenishmentNeed(int Available, int OnOrder, int Min, int Max, int Safety)
+public record ReplenishmentNeed(decimal Available, decimal OnOrder, decimal Min, decimal Max, decimal Safety)
 {
     /// <summary>Stock the warehouse has or has coming.</summary>
-    public int Covered => Available + OnOrder;
+    public decimal Covered => Available + OnOrder;
 
     /// <summary>A request is needed when available stock plus goods on order is at or below the minimum.</summary>
     public bool IsNeeded => Covered <= Min;
 
     /// <summary>Quantity that brings covered stock up to the maximum; 0 when nothing is needed.</summary>
-    public int SuggestedQuantity => IsNeeded ? Math.Max(0, Max - Covered) : 0;
+    public decimal SuggestedQuantity => IsNeeded ? Math.Max(0, Max - Covered) : 0;
 }
 
 public static class ReplenishmentCalculator
@@ -161,7 +161,7 @@ public static class ReplenishmentCalculator
     /// The need for one product. An alert from an older Warehouse (no max) carries only the reorder point and quantity:
     /// then Min = reorder point and Max = reorder point + reorder quantity, and the total quantity stands for the available one.
     /// </summary>
-    public static ReplenishmentNeed From(int available, int onOrder, int min, int max, int safety, int reorderPoint, int reorderQuantity) =>
+    public static ReplenishmentNeed From(decimal available, decimal onOrder, decimal min, decimal max, decimal safety, decimal reorderPoint, decimal reorderQuantity) =>
         max > 0
             ? new ReplenishmentNeed(available, onOrder, min, max, safety)
             : new ReplenishmentNeed(available, onOrder, reorderPoint, reorderPoint + reorderQuantity, 0);

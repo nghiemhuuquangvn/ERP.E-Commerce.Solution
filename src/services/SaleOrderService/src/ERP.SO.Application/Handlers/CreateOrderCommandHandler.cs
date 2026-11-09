@@ -87,7 +87,7 @@ namespace ERP.SO.Application.Handlers
                 if (!availability.IsAvailable)
                 {
                     throw new InvalidOperationException(
-                        $"Insufficient stock for product {item.ProductId}: requested {item.Quantity}, available {availability.AvailableQuantity}." +
+                        $"Insufficient stock for product {item.ProductId}: requested {item.Quantity}, available {availability.AvailableQuantity:0.######}." +
                         (availability.ErrorMessage != null ? $" ({availability.ErrorMessage})" : string.Empty));
                 }
             }

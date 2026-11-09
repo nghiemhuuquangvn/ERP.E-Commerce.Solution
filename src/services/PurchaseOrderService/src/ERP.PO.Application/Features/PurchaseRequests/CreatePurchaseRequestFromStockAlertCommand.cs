@@ -16,14 +16,14 @@ public class CreatePurchaseRequestFromStockAlertCommand : IRequest<PurchaseReque
     public required string ProductName { get; set; }
     /// <summary>Warehouse SKU = product code of purchase orders. Null from an older Warehouse.</summary>
     public string? ProductSku { get; set; }
-    public int CurrentQuantity { get; set; }
+    public decimal CurrentQuantity { get; set; }
     /// <summary>Total minus reserved and locked. Older senders leave it 0 together with MaxStock = 0.</summary>
-    public int AvailableQuantity { get; set; }
-    public int ReorderPoint { get; set; }
-    public int ReorderQuantity { get; set; }
-    public int MinStock { get; set; }
-    public int MaxStock { get; set; }
-    public int SafetyStock { get; set; }
+    public decimal AvailableQuantity { get; set; }
+    public decimal ReorderPoint { get; set; }
+    public decimal ReorderQuantity { get; set; }
+    public decimal MinStock { get; set; }
+    public decimal MaxStock { get; set; }
+    public decimal SafetyStock { get; set; }
 }
 
 public class CreatePurchaseRequestFromStockAlertCommandHandler : IRequestHandler<CreatePurchaseRequestFromStockAlertCommand, PurchaseRequestDto?>

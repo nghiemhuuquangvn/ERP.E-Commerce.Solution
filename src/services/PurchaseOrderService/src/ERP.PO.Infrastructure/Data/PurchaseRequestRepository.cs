@@ -38,7 +38,7 @@ public class PurchaseRequestRepository : IPurchaseRequestRepository
         PurchaseOrderStatus.Approved, PurchaseOrderStatus.Ordered, PurchaseOrderStatus.PartiallyReceived
     };
 
-    public async Task<int> GetOnOrderQuantityAsync(string productCode, CancellationToken cancellationToken)
+    public async Task<decimal> GetOnOrderQuantityAsync(string productCode, CancellationToken cancellationToken)
     {
         var open = await _context.PurchaseOrders
             .Where(o => !o.IsDeleted && OpenOrderStatuses.Contains(o.Status))
@@ -46,7 +46,7 @@ public class PurchaseRequestRepository : IPurchaseRequestRepository
             .Where(i => i.ProductCode == productCode && i.Status != PurchaseOrderItemStatus.Cancelled)
             .Select(i => i.Quantity - i.ReceivedQuantity)
             .ToListAsync(cancellationToken);
-        return (int)Math.Ceiling(open.Where(q => q > 0).Sum());
+        return open.Where(q => q > 0).Sum();
     }
 
     public async Task<SupplierItem?> GetPreferredSupplierItemAsync(Guid productId, CancellationToken cancellationToken)

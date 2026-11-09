@@ -63,6 +63,7 @@ function RequestAdjustmentModal({ productId, onClose }: { productId: string; onC
         <FormField label={t('inventory.adjustment.quantityDelta')} required error={errors.quantityDelta ? t('common.required') : undefined}>
           <Input
             type="number"
+            step="any"
             {...register('quantityDelta', { required: true, valueAsNumber: true, validate: (v) => v !== 0 })}
           />
         </FormField>

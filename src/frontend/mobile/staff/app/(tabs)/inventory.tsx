@@ -57,12 +57,12 @@ export default function InventoryScreen() {
 
   async function save() {
     if (!adjusting) return
-    const qty = parseInt(value, 10)
-    if (!/^\d+$/.test(value.trim()) || isNaN(qty)) {
+    const qty = Number(value.trim().replace(",", "."))
+    if (!/^\d+([.,]\d{1,6})?$/.test(value.trim()) || isNaN(qty)) {
       setProblem('invalid')
       return
     }
-    const quantityDelta = qty - adjusting.totalQuantity
+    const quantityDelta = Math.round((qty - adjusting.totalQuantity) * 1e6) / 1e6
     if (quantityDelta === 0) {
       setProblem('same')
       return
@@ -154,7 +154,7 @@ export default function InventoryScreen() {
               label={t('inventory.newQuantity')}
               value={value}
               onChangeText={(v) => { setValue(v); setProblem('') }}
-              keyboardType="number-pad"
+              keyboardType="decimal-pad"
               returnKeyType="done"
               onSubmitEditing={save}
               required

@@ -11,7 +11,7 @@ namespace ERP.WH.Application.Commands.Inventory;
 public class ReturnedOrderLine
 {
     public Guid ProductId { get; set; }
-    public int Quantity { get; set; }
+    public decimal Quantity { get; set; }
 }
 
 /// <summary>

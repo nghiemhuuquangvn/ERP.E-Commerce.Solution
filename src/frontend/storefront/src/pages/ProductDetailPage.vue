@@ -29,15 +29,15 @@
           <PriceText v-if="product.price > 0" :amount="product.price" size="lg" />
           <span v-else class="text-lg text-ink-secondary">{{ t('product.priceUnavailable') }}</span>
         </p>
-        <p class="mt-2 text-sm" :class="product.stockQuantity === 0 ? 'text-danger-soft-text' : 'text-success-soft-text'">
-          {{ product.stockQuantity === 0 ? t('product.outOfStock') : t('product.inStock') }}
+        <p class="mt-2 text-sm" :class="product.stockQuantity <= 0 ? 'text-danger-soft-text' : 'text-success-soft-text'">
+          {{ product.stockQuantity <= 0 ? t('product.outOfStock') : t('product.inStock') }}
         </p>
         <p class="mt-4 text-sm text-ink-secondary">{{ product.description }}</p>
 
         <div class="mt-6 hidden items-center gap-3 md:flex">
           <QuantityStepper v-model="qty" :label="t('cart.quantity')" :decrease-label="t('cart.decrease')" :increase-label="t('cart.increase')" />
-          <Button size="lg" class="flex-1" :disabled="product.stockQuantity === 0 || product.price <= 0" @click="addToCart">
-            {{ product.stockQuantity === 0 ? t('product.outOfStock') : product.price <= 0 ? t('product.priceUnavailable') : t('product.addToCart') }}
+          <Button size="lg" class="flex-1" :disabled="product.stockQuantity <= 0 || product.price <= 0" @click="addToCart">
+            {{ product.stockQuantity <= 0 ? t('product.outOfStock') : product.price <= 0 ? t('product.priceUnavailable') : t('product.addToCart') }}
           </Button>
         </div>
       </div>
@@ -46,8 +46,8 @@
     <!-- Below md the add-to-cart controls stay in reach at the bottom of the screen (the chat button sits above this bar). -->
     <div v-if="product" class="fixed inset-x-0 bottom-0 z-dropdown flex items-center gap-3 border-t border-line bg-surface px-4 py-3 md:hidden">
       <QuantityStepper v-model="qty" :label="t('cart.quantity')" :decrease-label="t('cart.decrease')" :increase-label="t('cart.increase')" />
-      <Button size="lg" class="flex-1" :disabled="product.stockQuantity === 0 || product.price <= 0" @click="addToCart">
-        {{ product.stockQuantity === 0 ? t('product.outOfStock') : product.price <= 0 ? t('product.priceUnavailable') : t('product.addToCart') }}
+      <Button size="lg" class="flex-1" :disabled="product.stockQuantity <= 0 || product.price <= 0" @click="addToCart">
+        {{ product.stockQuantity <= 0 ? t('product.outOfStock') : product.price <= 0 ? t('product.priceUnavailable') : t('product.addToCart') }}
       </Button>
     </div>
   </div>

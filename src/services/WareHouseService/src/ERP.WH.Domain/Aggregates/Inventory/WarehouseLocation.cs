@@ -14,8 +14,8 @@ public class WarehouseLocation : ITenantOwned
     public string Aisle { get; private set; }
     public string Bin { get; private set; }
     public string Shelf { get; private set; }
-    public int Capacity { get; private set; }
-    public int CurrentOccupancy { get; private set; }
+    public decimal Capacity { get; private set; }
+    public decimal CurrentOccupancy { get; private set; }
     public bool IsActive { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
@@ -25,7 +25,7 @@ public class WarehouseLocation : ITenantOwned
         string aisle,
         string bin,
         string shelf,
-        int capacity,
+        decimal capacity,
         string? name = null,
         string? zone = null)
     {
@@ -61,7 +61,7 @@ public class WarehouseLocation : ITenantOwned
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void Update(string? name, string? zone, string aisle, string bin, string shelf, int capacity)
+    public void Update(string? name, string? zone, string aisle, string bin, string shelf, decimal capacity)
     {
         Name = name;
         Zone = zone;

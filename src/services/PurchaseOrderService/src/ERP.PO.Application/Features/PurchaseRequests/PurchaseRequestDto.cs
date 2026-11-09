@@ -8,14 +8,14 @@ public class PurchaseRequestDto
     public Guid ProductId { get; set; }
     public string ProductCode { get; set; } = string.Empty;
     public string ProductName { get; set; } = string.Empty;
-    public int CurrentQuantity { get; set; }
-    public int AvailableQuantity { get; set; }
-    public int OnOrderQuantity { get; set; }
-    public int ReorderPoint { get; set; }
-    public int MinStock { get; set; }
-    public int MaxStock { get; set; }
-    public int SafetyStock { get; set; }
-    public int SuggestedQuantity { get; set; }
+    public decimal CurrentQuantity { get; set; }
+    public decimal AvailableQuantity { get; set; }
+    public decimal OnOrderQuantity { get; set; }
+    public decimal ReorderPoint { get; set; }
+    public decimal MinStock { get; set; }
+    public decimal MaxStock { get; set; }
+    public decimal SafetyStock { get; set; }
+    public decimal SuggestedQuantity { get; set; }
     public Guid? PreferredSupplierId { get; set; }
     public string? PreferredSupplierName { get; set; }
     public decimal? UnitPrice { get; set; }
