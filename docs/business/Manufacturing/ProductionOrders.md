@@ -174,3 +174,5 @@ Release, cancel, hold, resume and change-quantity answer `{order, shortages, res
 7. Switch `BlockReleaseOnShortage` on: the 100-piece order is refused (`MFG_PO_007`), a 10-piece order is released; switch it off. Switch `RequireSequentialOperations` off: every operation is Ready on release.
 8. Stop the Warehouse service: releasing a new order is refused (`MFG_INT_001`), cancelling a released one succeeds with "reservation pending"; start the service: within a minute the flag clears and the reservation is released.
 9. A user without the permission gets 403 on each action; after cancelling every test order the Warehouse reserved figures are back to what they were.
+
+**Screens (P3-6):** the S15 list and S16 detail with their actions are described in `ProductionOrderScreens.md` (buttons by status and permission, dialogs, pending-document behaviour, UAT walk-through).

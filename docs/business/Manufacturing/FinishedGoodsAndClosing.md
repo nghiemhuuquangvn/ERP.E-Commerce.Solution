@@ -111,3 +111,5 @@ None new. The receipt list (Pending / Failed) and the close checklist are the co
 6. BTP-MAT01 x 50: by-product 26.26: refused; main 48 + by-product 24: two receipt lines, by-product received 24.
 7. Stop the Warehouse: a receipt of an item without lot and backflush answers 202 and the order cannot be completed; a receipt of a lot item is refused `MFG_INT_001`; start the service: the receipt is posted once.
 8. A user without the permissions gets 403 on every endpoint above.
+
+**Screens (P3-6):** the receipt dialog S19, the interim quality release, the complete / short-close / reopen buttons and the close checklist dialog are described in `ProductionOrderScreens.md`.
