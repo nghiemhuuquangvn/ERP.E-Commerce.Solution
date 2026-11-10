@@ -84,6 +84,7 @@ public class ReceiptTests
         var line = result.Document.Lines.Single(l => l.Kind == StockLineKind.Receipt);
         (line.LotNumber, line.IsQcHold, line.WarehouseId, line.Qty).Should().Be(("TP-BAN01-261104-01", true, c.Plant.QuarantineWarehouseId, 100m));
         line.ExpiryDate!.Value.Date.Should().Be(new DateTime(2027, 5, 3));                 // TC-FG-007: 2026-11-04 + 180 days
+        line.ManufactureDate!.Value.Date.Should().Be(new DateTime(2026, 11, 4));           // P3-6: the Receipts tab shows the manufacture date too
         var stored = c.Stock.Balances[c.Items["TP-BAN01"].Id].Single();
         (stored.LotNumber, stored.LotStatus, stored.WarehouseId).Should().Be(("TP-BAN01-261104-01", "QcHold", c.Plant.QuarantineWarehouseId));
         order.CompletedQty.Should().Be(100m);

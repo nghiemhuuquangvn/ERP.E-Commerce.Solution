@@ -118,3 +118,5 @@ None new. The stock-document list shows Pending / Failed backflush documents; th
 7. Second order: screws in stock 400, report Good 100: `MFG_MAT_008`, nothing stored. Switch on negative stock on backflush, report again: posted, screws -1 200, flagged. Switch off.
 8. Stop the Warehouse service: a report on operation 30 (backflush): `MFG_INT_001`, nothing stored; a report on operation 20: accepted; time logs work. Start the service.
 9. A user without the permissions gets 403 on every endpoint above.
+
+**Screen (P3-6):** the Operations tab of S16 (start, pause, resume, stop, add time, report output, complete / reopen by hand, operation reports) is described in `ProductionOrderScreens.md`.

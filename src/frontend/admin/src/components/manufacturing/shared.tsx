@@ -85,6 +85,24 @@ export function ActiveBadge({ active }: { active: boolean }) {
 
 export const fmtQty = (n: number | null | undefined, max = 6) => (n == null ? '' : new Intl.NumberFormat('en-US', { maximumFractionDigits: max }).format(n))
 export const todayIso = () => new Date().toISOString().slice(0, 10)
+/** An instant from the API shown in the browser's zone (the plant's own zone is not applied: R-P3-6). */
+export const fmtDateTime = (s: string | null | undefined) => (s ? new Date(s).toLocaleString() : '')
+export const fmtDate = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString() : '')
+/** A fresh key for one dialog: sent on every submit of that dialog so a double click or a retry cannot post twice. */
+export const newIdempotencyKey = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `k-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+
+/**
+ * One Idempotency-Key per request body: the same body (a double click, a retry after a timeout) keeps its key and so cannot post twice;
+ * a changed body gets a new key (the server refuses one key for two different requests, MFG_GEN_007).
+ */
+export function useIdempotencyKey() {
+  const last = useRef<{ body: string; key: string } | null>(null)
+  return (body: unknown) => {
+    const text = JSON.stringify(body)
+    if (!last.current || last.current.body !== text) last.current = { body: text, key: newIdempotencyKey() }
+    return last.current.key
+  }
+}
 
 // ── CSV import dialog (BOM and routing, T2.9): dry run first, nothing is written while the file has errors ──
 

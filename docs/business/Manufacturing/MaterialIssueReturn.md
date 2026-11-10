@@ -108,3 +108,5 @@ None new. The stock-document list is the control report: Pending (not yet in the
 8. Stop the Warehouse service: an issue is refused (`MFG_INT_001`); a return answers 202 and shows as pending; the order cannot be cancelled; retry now still pending; start the service: within about a minute the document is Posted, once.
 9. Stop the service again, post a return (pending) and abandon it: Failed (ABANDONED), order unchanged, not pending any more.
 10. A user without the permissions gets 403 on every endpoint above.
+
+**Screen (P3-6):** the issue / return dialog S18 (typed or scanned lots, suggest lots, over-issue reason on demand, idempotency key per request) is described in `ProductionOrderScreens.md`.

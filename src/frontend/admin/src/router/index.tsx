@@ -51,6 +51,9 @@ import { WorkCentersPage } from '@/pages/manufacturing/WorkCentersPage'
 import { CatalogsPage } from '@/pages/manufacturing/CatalogsPage'
 import { BomListPage, BomEditorPage, WhereUsedPage } from '@/pages/manufacturing/BomPages'
 import { RoutingListPage, RoutingEditorPage } from '@/pages/manufacturing/RoutingPages'
+import { ProductionOrderListPage } from '@/pages/manufacturing/OrderListPage'
+import { ProductionOrderDetailPage } from '@/pages/manufacturing/OrderDetailPage'
+import { StockDocumentsPage } from '@/pages/manufacturing/StockDocumentsPage'
 import { NotificationWebhooksPage } from '@/pages/settings/NotificationWebhooksPage'
 import { PromotionsPage } from '@/pages/promotion/PromotionsPage'
 import { FlashSalesPage } from '@/pages/promotion/FlashSalesPage'
@@ -201,6 +204,9 @@ export const router = createBrowserRouter([
       { path: 'shipping/shipments', element: <ShipmentsPage /> },
       { path: 'shipping/returns', element: <ReturnsPage /> },
       { path: 'manufacturing', element: <Navigate to="/manufacturing/boms" replace /> },
+      { path: 'manufacturing/orders', element: <ProductionOrderListPage /> },
+      { path: 'manufacturing/orders/:id', element: <ProductionOrderDetailPage /> },
+      { path: 'manufacturing/stock-documents', element: <StockDocumentsPage /> },
       { path: 'manufacturing/plants', element: <PlantsPage /> },
       { path: 'manufacturing/settings', element: <MfgSettingsPage /> },
       { path: 'manufacturing/item-profiles', element: <ItemProfilesPage /> },

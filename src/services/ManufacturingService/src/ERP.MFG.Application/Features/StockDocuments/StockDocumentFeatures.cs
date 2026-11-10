@@ -17,10 +17,11 @@ namespace ERP.MFG.Application.Features.StockDocuments;
 public sealed record StockDocumentLineDto(
     int LineNo, Guid? OrderMaterialId, int? MaterialLineNo, Guid ItemId, string ItemCode, Guid WarehouseId, Guid? LotId, decimal Qty, bool IsFromReservation, string MovementKey,
     StockLineStatus Status, decimal? UnitCost, decimal? Amount, Guid? PostedLotId, string? Error, StockLineKind Kind = StockLineKind.Material, int? OutputLineNo = null, string? LotNumber = null,
-    DateTime? ExpiryDate = null, bool IsQcHold = false, DateTime? QcReleasedAt = null, bool IsNegativeStock = false)
+    DateTime? ExpiryDate = null, bool IsQcHold = false, DateTime? QcReleasedAt = null, bool IsNegativeStock = false, DateTime? ManufactureDate = null)
 {
     public static StockDocumentLineDto From(MaterialTransactionLine l) => new(l.LineNo, l.OrderMaterialId, l.MaterialLineNo, l.ItemId, l.ItemCode, l.WarehouseId, l.LotId, l.Qty,
-        l.IsFromReservation, l.MovementKey, l.Status, l.UnitCost, l.Amount, l.PostedLotId, l.Error, l.Kind, l.OutputLineNo, l.LotNumber, l.ExpiryDate, l.IsQcHold, l.QcReleasedAt, l.IsNegativeStock);
+        l.IsFromReservation, l.MovementKey, l.Status, l.UnitCost, l.Amount, l.PostedLotId, l.Error, l.Kind, l.OutputLineNo, l.LotNumber, l.ExpiryDate, l.IsQcHold, l.QcReleasedAt, l.IsNegativeStock,
+        l.ManufactureDate);
 }
 
 public sealed record StockDocumentDto(

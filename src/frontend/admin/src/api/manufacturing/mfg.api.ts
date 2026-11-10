@@ -116,6 +116,94 @@ export interface WorkPoint { date: string; workingMinute: number }
 export interface ScheduledOperation { operationSeq: number; name: string; workCenterCode: string; standardMinutes: number; calendarMinutes: number; queueMinutes: number; moveMinutes: number; start: WorkPoint; end: WorkPoint; startTime: string; endTime: string }
 export interface RoutingLeadTime { operations: ScheduledOperation[]; totalMinutes: number; start: WorkPoint; startDate: string; startTime: string }
 
+// ── Production orders (P3-1..P3-5) ───────────────────────────────────────────────────────────────────────
+export type OrderStatus = 'Draft' | 'Released' | 'InProgress' | 'OnHold' | 'Completed' | 'Closed' | 'Cancelled'
+export type OperationStatus = 'Pending' | 'Ready' | 'Running' | 'Paused' | 'Completed'
+export type StockDocumentType = 'Issue' | 'Return' | 'Backflush' | 'Receipt'
+export type StockDocumentStatus = 'Pending' | 'Posted' | 'Failed'
+export type StockLineStatus = 'Pending' | 'Posted' | 'Refused' | 'Compensated'
+export type StockLineKind = 'Material' | 'Receipt'
+export type OperationReportStatus = 'Pending' | 'Posted' | 'Failed'
+/** The reason types the order screens ask for (the API enum has more: Downtime, UnplannedMaterial). */
+export type OrderReasonType = 'Scrap' | 'Rework' | 'Cancel' | 'Hold' | 'ShortClose' | 'OverIssue'
+
+export interface OrderMaterial {
+  lineNo: number; componentItemId: string; componentCode: string; componentName: string; uomId: string; operationSeq?: number | null; requiredQty: number
+  issuedQty: number; returnedQty: number; consumedQty: number; reservedQty: number; scrapPct: number; issueMethod: IssueMethod; warehouseId: string
+  isSubstitute: boolean; alternativeGroup?: string | null; isUnplanned: boolean
+}
+export interface OrderOperation {
+  operationSeq: number; name: string; workCenterId: string; workCenterCode: string; setupTimeMinutes: number; runTimeMinutes: number; runTimeBasis: RunTimeBasis
+  batchSize?: number | null; queueTimeMinutes: number; moveTimeMinutes: number; isSubcontract: boolean; status: OperationStatus; standardMinutes: number; calendarMinutes: number
+  plannedStart?: string | null; plannedEnd?: string | null; actualStart?: string | null; actualEnd?: string | null; goodQty: number; scrapQty: number; reworkQty: number
+}
+export interface OrderOutput { lineNo: number; lineType: BomLineType; itemId: string; itemCode: string; itemName: string; uomId: string; plannedQty: number; receivedQty: number; costAllocationPct?: number | null }
+export interface Order {
+  id: string; orderNo: string; plantId: string; orderType: string; itemId: string; itemCode: string; itemName: string; quantity: number; uomId: string; bomId: string; routingId?: string | null
+  status: OrderStatus; statusBeforeHold?: OrderStatus | null; priority: number; dueDate: string; plannedStart: string; plannedEnd: string; actualStart?: string | null; actualEnd?: string | null
+  isLate: boolean; outputWarehouseId: string; sourceType: string; sourceRefId?: string | null; parentOrderId?: string | null; completedQty: number; scrappedQty: number; isRework: boolean
+  notes?: string | null; reservationId?: string | null; reservationSyncPending: boolean; reservationSyncError?: string | null
+  materials: OrderMaterial[]; operations: OrderOperation[]; outputs: OrderOutput[]; warnings: string[]; pendingStockDocuments: number
+}
+export interface OrderListItem {
+  id: string; orderNo: string; itemId: string; itemCode: string; itemName: string; quantity: number; completedQty: number; status: OrderStatus; priority: number
+  dueDate: string; plannedStart: string; plannedEnd: string; isLate: boolean
+}
+export interface OrderPage { items: OrderListItem[]; total: number; page: number; pageSize: number }
+export interface OrderListFilter { plantId: string; status?: OrderStatus; isLate?: boolean; priority?: number; dueFrom?: string; dueTo?: string; search?: string; page: number; pageSize: number }
+export interface OrderHistory { fromStatus: OrderStatus; toStatus: OrderStatus; reasonCodeId?: string | null; note?: string | null; changedBy: string; changedAt: string }
+export interface MaterialAvailability { lineNo: number; componentItemId: string; componentCode: string; componentName: string; requiredQty: number; need: number; allocatable: number; shortage: number }
+export interface OrderAvailability { orderId: string; hasShortage: boolean; materials: MaterialAvailability[] }
+export interface OrderActionResult { order: Order; shortages: MaterialAvailability[]; reservationPending: boolean }
+export interface OrderCreateBody {
+  plantId: string; itemId: string; quantity: number; dueDate: string; priority?: number | null; bomId?: string | null; routingId?: string | null; outputWarehouseId?: string | null; notes?: string | null
+}
+export interface OrderUpdateBody { quantity: number; dueDate: string; priority?: number | null; bomId?: string | null; routingId?: string | null; outputWarehouseId?: string | null; notes?: string | null }
+
+export interface StockDocumentLine {
+  lineNo: number; orderMaterialId?: string | null; materialLineNo?: number | null; itemId: string; itemCode: string; warehouseId: string; lotId?: string | null; qty: number
+  isFromReservation: boolean; movementKey: string; status: StockLineStatus; unitCost?: number | null; amount?: number | null; postedLotId?: string | null; error?: string | null
+  kind: StockLineKind; outputLineNo?: number | null; lotNumber?: string | null; expiryDate?: string | null; isQcHold: boolean; qcReleasedAt?: string | null
+  isNegativeStock: boolean; manufactureDate?: string | null
+}
+export interface StockDocument {
+  id: string; docNo: string; plantId: string; orderId: string; orderNo: string; type: StockDocumentType; status: StockDocumentStatus; mode: 'Forward' | 'Rollback'; postingDate: string
+  reasonCodeId?: string | null; note?: string | null; attempts: number; nextAttemptAt?: string | null; lastError?: string | null; lastErrorCode?: string | null; postedAt?: string | null
+  createdAt: string; createdBy?: string | null; lines: StockDocumentLine[]
+}
+export interface StockDocumentPage { items: StockDocument[]; total: number; page: number; pageSize: number }
+export interface StockDocumentFilter { plantId: string; status?: StockDocumentStatus; type?: StockDocumentType; orderId?: string; search?: string; page: number; pageSize: number }
+/** The answer of a document call: 201 Posted, 202 still Pending (the Warehouse is told again later). */
+export interface DocumentAnswer { document: StockDocument; pending: boolean }
+export interface MaterialLineBody { lineNo: number; quantity: number; lotId?: string | null }
+export interface MaterialBody { lines: MaterialLineBody[]; reasonCodeId?: string | null; note?: string | null }
+export interface ReceiptLineBody { outputLineNo?: number | null; quantity: number; lotNumber?: string | null }
+export interface SuggestedLot { lotId: string; lotNumber: string; warehouseId?: string | null; expiryDate?: string | null; availableQuantity: number; take: number }
+export interface LotSuggestion { productId: string; warehouseId?: string | null; quantity: number; lots: SuggestedLot[]; shortfall: number; lotLessAvailable: number }
+export interface MaterialLotSuggestion {
+  lineNo: number; componentCode: string; warehouseId: string; quantity: number; reservedRemaining: number
+  reservedLots: { lotId: string; lotNumber?: string | null; remaining: number }[]; suggestion: LotSuggestion
+}
+
+export interface CloseCondition { code: string; met: boolean; message: string }
+export interface CloseChecklist { orderId: string; orderNo: string; status: OrderStatus; canClose: boolean; conditions: CloseCondition[] }
+
+export interface TimeLog {
+  id: string; orderId: string; operationSeq: number; employeeId: string; employeeNumber: string; employeeName: string; machineId?: string | null; startAt: string; endAt?: string | null
+  pausedAt?: string | null; pausedMinutes: number; durationMinutes?: number | null; laborRatePerHour?: number | null; isManual: boolean; state: 'Running' | 'Paused' | 'Stopped'
+}
+export interface OperationDetail { operation: OrderOperation; timeLogs: TimeLog[] }
+export interface OperationReport {
+  id: string; docNo: string; plantId: string; orderId: string; orderNo: string; operationSeq: number; reportedAt: string; postingDate: string; goodQty: number; scrapQty: number; reworkQty: number
+  scrapReasonId?: string | null; reworkReasonId?: string | null; machineId?: string | null; reportedBy: string; status: OperationReportStatus; backflushDocumentId?: string | null
+  failureCode?: string | null; failureMessage?: string | null; note?: string | null; postedAt?: string | null
+}
+/** 201 when the report counts, 202 (`isPending`) while its backflush document is on its way to the Warehouse. */
+export interface OperationReportAnswer { report: OperationReport; isPending: boolean; backflush?: StockDocument | null }
+export interface OperationReportBody {
+  goodQty: number; scrapQty: number; reworkQty: number; scrapReasonId?: string | null; reworkReasonId?: string | null; machineId?: string | null; note?: string | null
+}
+
 // ── CSV import ───────────────────────────────────────────────────────────────────────────────────────────
 export interface ImportRowError { line: number; key?: string | null; message: string }
 export interface ImportResult { dryRun: boolean; rowCount: number; createdId?: string | null; version?: number | null; errors: ImportRowError[] }
@@ -124,6 +212,10 @@ const get = <T>(path: string, params?: object) => client.get<T>(`${BASE}${path}`
 const post = <T>(path: string, body?: unknown) => client.post<T>(`${BASE}${path}`, body).then((r) => r.data)
 const put = <T>(path: string, body?: unknown) => client.put<T>(`${BASE}${path}`, body).then((r) => r.data)
 const del = <T = void>(path: string) => client.delete<T>(`${BASE}${path}`).then((r) => r.data)
+const idem = (key?: string) => (key ? { headers: { 'Idempotency-Key': key } } : undefined)
+/** A stock-document call: the status code tells Posted (201 / 200) from still Pending (202). */
+const postDocument = (path: string, body?: unknown, key?: string): Promise<DocumentAnswer> =>
+  client.post<StockDocument>(`${BASE}${path}`, body, idem(key)).then((r) => ({ document: r.data, pending: r.status === 202 }))
 const csv = async (path: string, params: object, file: File) =>
   client.post<ImportResult>(`${BASE}${path}`, await file.text(), { params, headers: { 'Content-Type': 'text/csv' }, transformRequest: [(d: unknown) => d] }).then((r) => r.data)
 
@@ -227,6 +319,45 @@ export const mfgApi = {
   leadTime: (id: string, quantity: number, endDate: string) => get<RoutingLeadTime>(`/routings/${id}/lead-time`, { quantity, endDate }),
   importRouting: (file: File, params: { plantId: string; itemId: string; effectiveFrom?: string; dryRun: boolean }) => csv('/routings/import', params, file),
   routingTemplateUrl: `${BASE}/routings/import/template`,
+  // production orders
+  listOrders: (f: OrderListFilter) => get<OrderPage>('/orders', f),
+  getOrder: (id: string) => get<Order>(`/orders/${id}`),
+  orderHistory: (id: string) => get<OrderHistory[]>(`/orders/${id}/history`),
+  orderAvailability: (id: string) => get<OrderAvailability>(`/orders/${id}/availability`),
+  createOrder: (body: OrderCreateBody) => post<Order>('/orders', body),
+  updateOrder: (id: string, body: OrderUpdateBody) => put<Order>(`/orders/${id}`, body),
+  releaseOrder: (id: string) => post<OrderActionResult>(`/orders/${id}/release`),
+  unreleaseOrder: (id: string) => post<OrderActionResult>(`/orders/${id}/unrelease`),
+  cancelOrder: (id: string, reasonCodeId: string | null, note?: string | null) => post<OrderActionResult>(`/orders/${id}/cancel`, { reasonCodeId, note }),
+  holdOrder: (id: string, reasonCodeId: string | null, note?: string | null) => post<OrderActionResult>(`/orders/${id}/hold`, { reasonCodeId, note }),
+  resumeOrder: (id: string) => post<OrderActionResult>(`/orders/${id}/resume`),
+  changeQuantity: (id: string, quantity: number, note?: string | null) => post<OrderActionResult>(`/orders/${id}/change-quantity`, { quantity, note }),
+  completeOrder: (id: string, reasonCodeId?: string | null, note?: string | null) => post<OrderActionResult>(`/orders/${id}/complete`, { reasonCodeId: reasonCodeId ?? null, note: note ?? null }),
+  reopenOrder: (id: string) => post<OrderActionResult>(`/orders/${id}/reopen`),
+  closeChecklist: (id: string, confirmConsumeRemaining = false) => get<CloseChecklist>(`/orders/${id}/close-checklist`, { confirmConsumeRemaining }),
+  closeOrder: (id: string, confirmConsumeRemaining: boolean) => post<Order>(`/orders/${id}/close`, { confirmConsumeRemaining }),
+  // material issue / return, receipts, stock documents
+  issueMaterial: (id: string, body: MaterialBody, key?: string) => postDocument(`/orders/${id}/material-issues`, body, key),
+  returnMaterial: (id: string, body: MaterialBody, key?: string) => postDocument(`/orders/${id}/material-returns`, body, key),
+  suggestLots: (id: string, lineNo: number, quantity: number) => get<MaterialLotSuggestion>(`/orders/${id}/material-issues/suggest-lots`, { lineNo, quantity }),
+  receiveGoods: (id: string, body: { lines: ReceiptLineBody[]; note?: string | null }, key?: string) => postDocument(`/orders/${id}/receipts`, body, key),
+  orderDocuments: (id: string) => get<StockDocument[]>(`/orders/${id}/stock-documents`),
+  listDocuments: (f: StockDocumentFilter) => get<StockDocumentPage>('/stock-documents', f),
+  retryDocument: (id: string) => postDocument(`/stock-documents/${id}/retry`),
+  abandonDocument: (id: string) => postDocument(`/stock-documents/${id}/abandon`),
+  qcRelease: (id: string) => post<StockDocument>(`/stock-documents/${id}/qc-release`),
+  // operations
+  orderOperations: (id: string) => get<OperationDetail[]>(`/orders/${id}/operations`),
+  operationReports: (id: string) => get<OperationReport[]>(`/orders/${id}/operation-reports`),
+  startOperation: (id: string, seq: number, employeeId: string, machineId?: string | null) => post<TimeLog>(`/orders/${id}/operations/${seq}/start`, { employeeId, machineId: machineId ?? null }),
+  addManualTime: (id: string, seq: number, body: { employeeId: string; machineId?: string | null; startAt: string; endAt: string }) => post<TimeLog>(`/orders/${id}/operations/${seq}/time-logs`, body),
+  pauseLog: (id: string, seq: number, logId: string) => post<TimeLog>(`/orders/${id}/operations/${seq}/time-logs/${logId}/pause`),
+  resumeLog: (id: string, seq: number, logId: string) => post<TimeLog>(`/orders/${id}/operations/${seq}/time-logs/${logId}/resume`),
+  stopLog: (id: string, seq: number, logId: string) => post<TimeLog>(`/orders/${id}/operations/${seq}/time-logs/${logId}/stop`),
+  reportOperation: (id: string, seq: number, body: OperationReportBody, key?: string) =>
+    client.post<OperationReportAnswer>(`${BASE}/orders/${id}/operations/${seq}/report`, body, idem(key)).then((r) => r.data),
+  completeOperation: (id: string, seq: number) => post<OrderOperation>(`/orders/${id}/operations/${seq}/complete`),
+  reopenOperation: (id: string, seq: number) => post<OrderOperation>(`/orders/${id}/operations/${seq}/reopen`),
 }
 
 /** Downloads a CSV template with the user's token (an anchor cannot send the Authorization header). */
