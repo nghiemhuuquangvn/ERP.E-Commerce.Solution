@@ -32,7 +32,8 @@ export function IssueReturnDialog({ order, mode, initialLineNo, onClose, onDone 
   const { t } = useTranslation()
   const toast = useToast()
   const keyFor = useIdempotencyKey()
-  const candidates = order.materials.filter((m) => (mode === 'issue' ? true : netIssued(m) > 0))
+  // R234: a backflush material is booked by the operation report / receipt, never issued by hand
+  const candidates = order.materials.filter((m) => (mode === 'issue' ? m.issueMethod !== 'Backflush' : netIssued(m) > 0))
   const first = candidates.find((m) => m.lineNo === initialLineNo)
   const [nextId, setNextId] = useState(2)
   const [entries, setEntries] = useState<Entry[]>(first ? [{ id: 1, lineNo: first.lineNo, quantity: defaultQuantity(first, mode), lotText: '', lotId: null }] : [])

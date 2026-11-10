@@ -176,3 +176,16 @@ Release, cancel, hold, resume and change-quantity answer `{order, shortages, res
 9. A user without the permission gets 403 on each action; after cancelling every test order the Warehouse reserved figures are back to what they were.
 
 **Screens (P3-6):** the S15 list and S16 detail with their actions are described in `ProductionOrderScreens.md` (buttons by status and permission, dialogs, pending-document behaviour, UAT walk-through).
+
+---
+
+# Part 3 - Phase 3 overview and the plant guard (P3-7, 2026-11-10)
+
+**Where to read what.** Orders, release, reservation, hold, cancel, change of quantity: this document. Material issue and return: `MaterialIssueReturn.md`. Operations, time logs, report and backflush: `OperationsAndBackflush.md`. Receipt, lots, complete, short-close, reopen, close: `FinishedGoodsAndClosing.md`. Screens: `ProductionOrderScreens.md`. Acceptance, deviations from the specification, deployment: `Phase3-Acceptance.md`. Architecture: `docs/architecture/adr-manufacturing-phase3.md`.
+
+## 23. Rule: a plant with unfinished orders cannot be deactivated (R219, owner decision 2026-11-10)
+| ID | Rule | Acceptance |
+|---|---|---|
+| BR-PLT-04 (new) | Deactivating a plant is refused with `MFG_PLT_001` while any of its orders is **not Closed or Cancelled** (a Draft counts: an order of an inactive plant answers "not found" and could never be released or cancelled). The message names how many orders and one example number. Activating a plant is always allowed. | Unit: `R219_*` (refusal with 3 unfinished orders, allowed with none, activation never asked); guard over every status (`R219_The_Guard_Counts_Every_Order...`); live: `mfg-p37-e2e.js` (a Draft blocks, after its cancellation the plant is deactivated). |
+
+Use case: the planner presses *Deactivate* on a plant with a Released order -> 400 `MFG_PLT_001` "N orders are not closed or cancelled (for example MO-2611-00001)". Alternative: close or cancel those orders first. Exception: none. The work-center and costing-method guards (`HasOpenOrdersAsync`, `HasOpenOperationsAsync`) are unchanged.

@@ -110,3 +110,12 @@ None new. The stock-document list is the control report: Pending (not yet in the
 10. A user without the permissions gets 403 on every endpoint above.
 
 **Screen (P3-6):** the issue / return dialog S18 (typed or scanned lots, suggest lots, over-issue reason on demand, idempotency key per request) is described in `ProductionOrderScreens.md`.
+
+---
+
+## Addendum P3-7 (2026-11-10): a backflush material is never issued by hand (R234, owner decision)
+| ID | Rule | Acceptance |
+|---|---|---|
+| BR-MAT-13 (new) | A material whose issue method is **Backflush** cannot be issued by hand: the whole request is refused with `MFG_MAT_013` naming the first such material, **before** any Warehouse read and before a document is stored. Its stock is taken by the operation report or the receipt (`OperationsAndBackflush.md`, `FinishedGoodsAndClosing.md`). A **return** keeps its old limits (net issued, so in practice nothing to return for a pure backflush line). To issue such a material by hand, change its method on the BOM line / plan first. | Unit `A_material_booked_by_backflush_cannot_be_issued_by_hand_and_nothing_is_stored_or_sent` (also a mixed request is refused whole, no document, no movement); live `mfg-p37-e2e.js` step 4; Admin: the issue dialog and *Issue the rest* do not offer Backflush lines (`mfg.orders.pages.test`). |
+
+Why: the backflush formula counts only the consumption it booked itself, so an issue by hand and a backflush could consume the same material twice. Closes R234. Consequence: when a backflush is short of stock (`MFG_MAT_008`) the remedy is to receive stock or allow negative stock for backflush, not to issue by hand.

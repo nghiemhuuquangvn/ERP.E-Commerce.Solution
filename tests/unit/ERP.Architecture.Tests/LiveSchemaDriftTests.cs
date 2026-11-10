@@ -65,7 +65,7 @@ public class LiveSchemaDriftTests(ITestOutputHelper output)
         var report = new StringBuilder();
         foreach (var contextType in TenantIsolationArchitectureTests.AllDbContextTypes().OrderBy(t => t.Name))
         {
-            // ManufacturingService is on PostgreSQL: its scripts (src/Database/Manufacturing) are checked by the PostgreSQL variant of this test.
+            // ManufacturingService is on PostgreSQL: its scripts (src/Database/Manufacturing) are checked by PostgreSqlSchemaDriftTests (ERP_DRIFT_PG).
             if (PostgreSqlContexts.Contains(contextType.Name))
             {
                 output.WriteLine($"{contextType.Name}: PostgreSQL - not judged against SQL Server.");

@@ -1,4 +1,4 @@
-// Manufacturing P3-6 contract check (node scripts/mfg-p36-contract-check.js; needs the stack up, the Gateway on 127.0.0.1:5000 and Docker for the Warehouse-stopped part): drives an order through every call the Admin screens make and asserts that the JSON has every key the TypeScript
+// Manufacturing P3-6 contract check (node scripts/manufacturing-live/mfg-p36-contract-check.js; needs the stack up, the Gateway on 127.0.0.1:5000 and Docker for the Warehouse-stopped part): drives an order through every call the Admin screens make and asserts that the JSON has every key the TypeScript
 // interfaces of src/frontend/admin/src/api/manufacturing/mfg.api.ts declare (and that enum values are members of the declared unions).
 // Default host = glcheck; MFG_HOST / MFG_EMAIL / MFG_PASSWORD switch tenant (SYSTEM: admin.erp.local / superadmin@system.local / SuperAdmin@123).
 const http = require('http')
@@ -7,7 +7,7 @@ const { execFileSync } = require('child_process')
 const host = process.env.MFG_HOST || 'glcheck.erp.local'
 const email = process.env.MFG_EMAIL || 'admin@glcheck.test'
 const password = process.env.MFG_PASSWORD || 'Gl-Check-Passw0rd!'
-const repo = require('path').resolve(__dirname, '..')
+const repo = require('path').resolve(__dirname, '..', '..')
 const call = (method, path, headers = {}, body) =>
   new Promise((resolve, reject) => {
     const req = http.request({ host: '127.0.0.1', port: 5000, method, path, headers: { ...headers, Host: host } }, (res) => {

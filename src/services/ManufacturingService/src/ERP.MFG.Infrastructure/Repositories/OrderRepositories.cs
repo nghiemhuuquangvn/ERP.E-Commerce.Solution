@@ -61,6 +61,13 @@ public sealed class OrderBackedOpenOrderGuard(MfgDbContext db) : IOpenOrderGuard
         => db.ProductionOrders.AnyAsync(o => o.PlantId == plantId && !o.IsDeleted
             && (o.Status == OrderStatus.Released || o.Status == OrderStatus.InProgress || o.Status == OrderStatus.OnHold || o.Status == OrderStatus.Completed), ct);
 
+    public async Task<(int Count, string? Example)> GetUnfinishedOrdersAsync(Guid plantId, CancellationToken ct = default)
+    {
+        var open = db.ProductionOrders.Where(o => o.PlantId == plantId && !o.IsDeleted && o.Status != OrderStatus.Closed && o.Status != OrderStatus.Cancelled);
+        var count = await open.CountAsync(ct);
+        return (count, count == 0 ? null : await open.OrderBy(o => o.OrderNo).Select(o => o.OrderNo).FirstAsync(ct));
+    }
+
     public Task<bool> HasOpenOperationsAsync(Guid workCenterId, CancellationToken ct = default)
         => db.ProductionOrderOperations.AnyAsync(op => op.WorkCenterId == workCenterId && !op.IsDeleted && op.Status != OperationStatus.Completed
             && db.ProductionOrders.Any(o => o.Id == op.OrderId && !o.IsDeleted

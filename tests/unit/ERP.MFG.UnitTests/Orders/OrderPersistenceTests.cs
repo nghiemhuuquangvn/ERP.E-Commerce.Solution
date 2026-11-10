@@ -84,6 +84,26 @@ public class OrderPersistenceTests
         (await new OrderBackedOpenOrderGuard(db).HasOpenOrdersAsync(PlantId)).Should().Be(open);
     }
 
+    [Theory] // R219: unfinished = anything that is not Closed or Cancelled, a Draft included
+    [InlineData(OrderStatus.Draft, 1)]
+    [InlineData(OrderStatus.Released, 1)]
+    [InlineData(OrderStatus.InProgress, 1)]
+    [InlineData(OrderStatus.OnHold, 1)]
+    [InlineData(OrderStatus.Completed, 1)]
+    [InlineData(OrderStatus.Closed, 0)]
+    [InlineData(OrderStatus.Cancelled, 0)]
+    public async Task R219_The_Guard_Counts_Every_Order_That_Is_Not_Closed_Or_Cancelled(OrderStatus status, int expected)
+    {
+        await using var db = await SeededAsync("unfinished-" + status, ("MO-7", status, WorkCenterA));
+        var guard = new OrderBackedOpenOrderGuard(db);
+
+        var (count, example) = await guard.GetUnfinishedOrdersAsync(PlantId);
+
+        count.Should().Be(expected);
+        example.Should().Be(expected == 0 ? null : "MO-7");
+        (await guard.GetUnfinishedOrdersAsync(Guid.NewGuid())).Count.Should().Be(0);   // another plant
+    }
+
     [Fact]
     public async Task The_Guard_Does_Not_Look_At_Another_Plant()
     {

@@ -153,6 +153,9 @@ public sealed class IssueMaterialHandler(
         MaterialDocuments.EnsureOpenForMaterial(order);
         var plant = await access.GetVisiblePlantAsync(order.PlantId, ct);
         var wanted = await MaterialDocuments.ResolveLinesAsync(order, r.Lines ?? [], units, ct);
+        // R234: a material that the operation report / receipt books by backflush is never issued by hand (it would be consumed twice)
+        var byHand = wanted.Select(w => w.Material).FirstOrDefault(m => m.IssueMethod == IssueMethod.Backflush);
+        MfgRules.ThrowIf(byHand is not null, MfgErrors.Mat013, ("item", byHand?.ComponentCode ?? ""));
         var items = await MaterialDocuments.ProductsAsync(products, wanted.Select(w => w.Material), ct);
 
         // BR-MAT-07: an issue consumes the reservation, so the reservation must be the one the order believes in (R218)

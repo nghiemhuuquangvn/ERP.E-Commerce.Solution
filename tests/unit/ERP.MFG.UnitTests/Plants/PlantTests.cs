@@ -176,4 +176,36 @@ public class PlantTests
         await new RevokePlantAccessHandler(admin, f.AccessRepo, f.Uow).Handle(new RevokePlantAccessCommand(plant.Id, user), default);
         f.Access.Should().BeEmpty();
     }
+
+    // ── R219 (owner decision 2026-11-10): a plant with unfinished orders cannot be deactivated ──────────────────────
+
+    private static SetPlantActiveHandler DeactivationHandler(Fakes f) =>
+        new(new PlantAccessService(f.PlantRepo, f.AccessRepo, new FakeUser(Guid.NewGuid(), PermissionConstants.Manufacturing_SettingsManage)), f.Guard, f.Uow);
+
+    [Fact]
+    public async Task R219_A_plant_with_unfinished_orders_is_not_deactivated()
+    {
+        var f = new Fakes { UnfinishedOrders = 3 };
+        var plant = f.AddPlant();
+
+        var act = () => DeactivationHandler(f).Handle(new SetPlantActiveCommand(plant.Id, false), default);
+
+        var refusal = (await act.Should().ThrowAsync<BusinessRuleException>()).Which;
+        refusal.RuleName.Should().Be(MfgErrors.Plt001);
+        refusal.Message.Should().Contain("3").And.Contain("MO-2611-00001");
+        plant.IsActive.Should().BeTrue();
+        f.Saves.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task R219_A_plant_with_only_closed_or_cancelled_orders_is_deactivated_and_activation_is_never_blocked()
+    {
+        var f = new Fakes { UnfinishedOrders = 0 };
+        var plant = f.AddPlant();
+
+        (await DeactivationHandler(f).Handle(new SetPlantActiveCommand(plant.Id, false), default)).IsActive.Should().BeFalse();
+
+        f.UnfinishedOrders = 5;                               // activating asks nothing
+        (await DeactivationHandler(f).Handle(new SetPlantActiveCommand(plant.Id, true), default)).IsActive.Should().BeTrue();
+    }
 }

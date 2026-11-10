@@ -46,7 +46,7 @@ A user sees only the plants granted to them (the plant selector lists those); an
 | UI-14 | Operations tab: time logs per operation with the actions the log's state allows; start needs an employee (and a machine of the work center if any); a report needs a reason for scrap and for rework quantities; a report answered 202 says it counts when its material booking reaches the Warehouse. | Tests in "Operations tab". |
 | UI-15 | *Stock documents* (menu): documents of the plant, default view Pending + Failed, filters status / type / text, each linked to its order. | Test "the plant list asks for Pending and Failed". |
 | UI-16 | Accessibility: dialogs trap focus and close on Esc, tables have captions, tabs use arrow keys, no information by colour alone; axe finds no violation on the pages and dialogs tested. | axe in the page tests. |
-| UI-17 | The TypeScript types match the API: every key the types declare is present in the real JSON and enum values belong to the declared unions. | `scripts/mfg-p36-contract-check.js` on both tenants. |
+| UI-17 | The TypeScript types match the API: every key the types declare is present in the real JSON and enum values belong to the declared unions. | `scripts/manufacturing-live/mfg-p36-contract-check.js` on both tenants. |
 
 ## 4. Buttons by status and permission (TC-UI-001)
 `orderActions(status, hasPermission)` is the single source; the server re-checks everything.
@@ -73,7 +73,7 @@ Quality release (`qc:disposition`) shows on a receipt with a held lot in any sta
 - *Stock documents:* every issue, return, backflush and receipt of the order, lines expandable as a table, status, attempts / next attempt, error.
 - *History:* when, from, to, reason (name), note, by.
 
-**S18 dialog.** Per row: material (the order's lines; a return offers lines with net issued > 0), quantity (defaults to what is still to issue / return), lot (typed / scanned, with the known lots as suggestions), *Suggest lots* (issue), remove; line figures (required, issued, returned, reserved); note; over-issue reason after `MFG_MAT_002`.
+**S18 dialog.** Per row: material (the order's lines **except Backflush materials, which are never issued by hand (R234, `MFG_MAT_013`)**; a return offers lines with net issued > 0), quantity (defaults to what is still to issue / return), lot (typed / scanned, with the known lots as suggestions), *Suggest lots* (issue), remove; line figures (required, issued, returned, reserved); note; over-issue reason after `MFG_MAT_002`.
 
 **S19 dialog.** Rows as above; quantity received, lot number (placeholder "automatic"); note.
 
@@ -120,7 +120,7 @@ None in this task (printing dropped by decision). CSV / PDF export of orders is 
 ## 12. UAT scenarios (walk TC-E2E-001 in the browser)
 1. Sign in as a planner. *Production orders* -> *New order*: TP-BAN01, 100, due Friday -> order MO-... in Draft with 7 materials and 3 operations.
 2. *Release*: Released, shortage warning for BTP-CHAN01 (need 400, have 300); operation 10 is Ready.
-3. *Materials* -> *Issue material*: KEO01 10 -> document posted; try 10.31 of a line whose tolerance is 10.30 -> refusal text appears; give the over-issue reason as a user with the permission.
+3. *Materials* -> *Issue material* (the screws, a backflush material, are not offered): KEO01 10 -> document posted; try 10.31 of a line whose tolerance is 10.30 -> refusal text appears; give the over-issue reason as a user with the permission.
 4. *Operations* -> start operation 10 as an employee, pause, resume, stop; *Report output*: good 60, scrap 2 with reason Cracked -> VIT consumed 992 in *Materials*; the report appears in the list.
 5. Report the rest of operations 10, 20, 30 until each is completed.
 6. *Finished goods* -> *Receive finished goods* 100 -> lot on hold in the quarantine warehouse; order Completed. *Release from quality hold*.

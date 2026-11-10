@@ -236,7 +236,7 @@ public class CreateOrderTests
         (await act.Should().ThrowAsync<BusinessRuleException>()).Which.Message.Should().Contain("priority");
     }
 
-    [Fact]
+    [Fact] // TC-ITM-001
     public async Task A_Buy_Item_Cannot_Be_Produced()
     {
         var ctx = await SeededAsync();

@@ -42,6 +42,8 @@ public sealed class Fakes
     public readonly Dictionary<Guid, UnitInfo> Units = [];
     public readonly List<ProductConversionFacts> ProductConversions = [];
     public bool OpenOrders;
+    /// <summary>Orders of the plant that are neither Closed nor Cancelled (R219).</summary>
+    public int UnfinishedOrders;
     public bool Unreachable;
 
     public IPlantRepository PlantRepo => new PlantRepo(this);
@@ -166,6 +168,7 @@ internal sealed class Guard(Fakes f) : IOpenOrderGuard
 {
     public Task<bool> HasOpenOrdersAsync(Guid plantId, CancellationToken ct = default) => Task.FromResult(f.OpenOrders);
     public Task<bool> HasOpenOperationsAsync(Guid workCenterId, CancellationToken ct = default) => Task.FromResult(f.OpenOrders || f.WorkCenterBusy);
+    public Task<(int Count, string? Example)> GetUnfinishedOrdersAsync(Guid plantId, CancellationToken ct = default) => Task.FromResult((f.UnfinishedOrders, f.UnfinishedOrders > 0 ? "MO-2611-00001" : (string?)null));
 }
 
 /// <summary>A signed-in user with chosen permissions.</summary>

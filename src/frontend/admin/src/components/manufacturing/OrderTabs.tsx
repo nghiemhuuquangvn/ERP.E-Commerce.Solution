@@ -82,7 +82,7 @@ export function MaterialsTab({ order, can, onIssue, onReturn }: { order: Order; 
                 <td className={num}>{fmtQty(m.requiredQty)}</td><td className={num}>{fmtQty(m.reservedQty)}</td><td className={num}>{fmtQty(m.issuedQty)}</td>
                 <td className={num}>{fmtQty(m.returnedQty)}</td><td className={num}>{fmtQty(m.consumedQty)}</td>
                 <td className={td}><div className="w-24"><Progress label={t('mfg.order.issuedOf', { code: m.componentCode })} value={m.requiredQty > 0 ? ((net(m) + m.consumedQty) / m.requiredQty) * 100 : 0} /></div></td>
-                <td className={td}>{can.issue && rest > 0 && <Button size="sm" variant="ghost" onClick={() => onIssue(m.lineNo)}>{t('mfg.order.issueRest')}</Button>}</td>
+                <td className={td}>{can.issue && rest > 0 && m.issueMethod !== 'Backflush' && <Button size="sm" variant="ghost" onClick={() => onIssue(m.lineNo)}>{t('mfg.order.issueRest')}</Button>}</td>
               </tr>
             )
           })}
