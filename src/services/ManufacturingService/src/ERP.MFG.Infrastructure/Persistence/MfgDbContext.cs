@@ -322,12 +322,13 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.ComponentCode).HasMaxLength(100).IsRequired();
             e.Property(x => x.ComponentName).HasMaxLength(255).IsRequired();
             foreach (var q in new[] { nameof(ProductionOrderMaterial.RequiredQty), nameof(ProductionOrderMaterial.IssuedQty), nameof(ProductionOrderMaterial.ReturnedQty),
-                         nameof(ProductionOrderMaterial.ConsumedQty), nameof(ProductionOrderMaterial.ReservedQty) })
+                         nameof(ProductionOrderMaterial.ConsumedQty), nameof(ProductionOrderMaterial.ReservedQty), nameof(ProductionOrderMaterial.SettledIssueQty) })
                 e.Property(q).HasPrecision(18, 6);
             e.Property(x => x.ScrapPct).HasPrecision(5, 2);
             e.Property(x => x.IssueMethod).HasConversion<short>();
             e.Property(x => x.AlternativeGroup).HasMaxLength(20);
             e.Ignore(x => x.NetIssuedQty);
+            e.Ignore(x => x.UnsettledIssue);
             e.Ignore(x => x.OpenNeed);
             e.HasIndex(x => new { x.TenantId, x.OrderId, x.LineNo }).IsUnique().HasFilter("\"IsDeleted\" = false");
             e.HasIndex(x => new { x.TenantId, x.ComponentItemId });
@@ -393,6 +394,8 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Ignore(x => x.RollbackComplete);
             e.Ignore(x => x.IsIssue);
             e.Ignore(x => x.IsConsumption);
+            e.Ignore(x => x.ReceiptLines);
+            e.Ignore(x => x.MaterialLines);
             e.HasIndex(x => new { x.TenantId, x.SourceOperationReportId }).HasFilter("\"SourceOperationReportId\" IS NOT NULL");
             e.HasIndex(x => new { x.TenantId, x.DocNo }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
@@ -413,6 +416,9 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.UnitCost).HasPrecision(18, 6);
             e.Property(x => x.Amount).HasPrecision(18, 4);
             e.Property(x => x.Error).HasMaxLength(500);
+            e.Property(x => x.Kind).HasConversion<short>();
+            e.Property(x => x.LotNumber).HasMaxLength(100);
+            e.HasIndex(x => new { x.TenantId, x.LotNumber }).HasFilter("\"LotNumber\" IS NOT NULL");
             e.Ignore(x => x.CompensationKey);
             e.HasIndex(x => new { x.TenantId, x.TransactionId, x.LineNo }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.MovementKey }).IsUnique();

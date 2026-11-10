@@ -411,5 +411,7 @@ ManufacturingService calls WareHouseService `internal/v1/stock/*` (availability,
 
 Since P3-4 (2026-11-10) the operation report also reads availability / reservation / lot suggestion before it is stored (a shortage is `MFG_MAT_008`) and books the backflush as `ProductionIssue` movements under the keys of a `BF-yymm-nnnnn` document; MasterData `internal/v1/employees/lookup` checks the employee of a time log (`IEmployeeLookupClient`, cached).
 
+Since P3-5 (2026-11-10) Manufacturing also calls the Warehouse for a receipt: `GET internal/v1/stock/{productId}/lots` (all lots, to keep lot numbers unique), `ProductionReceipt` with name and SKU (creates the record of a new item), `ProductionScrap` for a reversal, `SubcontractTransfer` and `QcRelease` for the interim quality release (`IWarehouseStockClient`).
+
 ### Manufacturing -> Kafka (2026-11-10, Phase 3 P3-1)
 ManufacturingService produces to `manufacturing-topic` (`ProductionOrderCreated`, `ProductionOrderStatusChanged`) via its outbox. Consumers: none yet.

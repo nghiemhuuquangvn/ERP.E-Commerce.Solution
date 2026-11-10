@@ -36,6 +36,9 @@ public sealed class WarehouseStockClient : InternalClientBase, IWarehouseStockCl
         => SendAsync<LotSuggestion>(HttpMethod.Get,
             $"internal/v1/stock/{productId}/suggest-lots{Query(("quantity", quantity.ToString(System.Globalization.CultureInfo.InvariantCulture)), ("warehouseId", warehouseId))}", null, ct)!;
 
+    public async Task<IReadOnlyList<StockLotInfo>> ListLotsAsync(Guid productId, CancellationToken ct = default)
+        => await SendAsync<List<StockLotInfo>>(HttpMethod.Get, $"internal/v1/stock/{productId}/lots", null, ct) ?? [];
+
     public Task<StockReservation> ReserveAsync(Guid productionOrderId, string? orderNumber, Guid? warehouseId, IReadOnlyList<StockReservationLine> lines, CancellationToken ct = default)
         => SendAsync<StockReservation>(HttpMethod.Post, "internal/v1/stock/reservations", new
         {

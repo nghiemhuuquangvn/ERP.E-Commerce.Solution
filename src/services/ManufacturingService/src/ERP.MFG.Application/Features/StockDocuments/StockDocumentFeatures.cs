@@ -15,11 +15,12 @@ namespace ERP.MFG.Application.Features.StockDocuments;
 // ── DTOs ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 public sealed record StockDocumentLineDto(
-    int LineNo, Guid OrderMaterialId, int MaterialLineNo, Guid ItemId, string ItemCode, Guid WarehouseId, Guid? LotId, decimal Qty, bool IsFromReservation, string MovementKey,
-    StockLineStatus Status, decimal? UnitCost, decimal? Amount, Guid? PostedLotId, string? Error)
+    int LineNo, Guid? OrderMaterialId, int? MaterialLineNo, Guid ItemId, string ItemCode, Guid WarehouseId, Guid? LotId, decimal Qty, bool IsFromReservation, string MovementKey,
+    StockLineStatus Status, decimal? UnitCost, decimal? Amount, Guid? PostedLotId, string? Error, StockLineKind Kind = StockLineKind.Material, int? OutputLineNo = null, string? LotNumber = null,
+    DateTime? ExpiryDate = null, bool IsQcHold = false, DateTime? QcReleasedAt = null, bool IsNegativeStock = false)
 {
     public static StockDocumentLineDto From(MaterialTransactionLine l) => new(l.LineNo, l.OrderMaterialId, l.MaterialLineNo, l.ItemId, l.ItemCode, l.WarehouseId, l.LotId, l.Qty,
-        l.IsFromReservation, l.MovementKey, l.Status, l.UnitCost, l.Amount, l.PostedLotId, l.Error);
+        l.IsFromReservation, l.MovementKey, l.Status, l.UnitCost, l.Amount, l.PostedLotId, l.Error, l.Kind, l.OutputLineNo, l.LotNumber, l.ExpiryDate, l.IsQcHold, l.QcReleasedAt, l.IsNegativeStock);
 }
 
 public sealed record StockDocumentDto(
@@ -45,12 +46,16 @@ internal static class MaterialDocuments
     public const int MaxKeyLength = 100;
     public static readonly TimeSpan FirstAttemptDelay = TimeSpan.FromSeconds(20);
 
-    /// <summary>BR-MAT-01: only Released and InProgress orders take material; OnHold has its own code, Closed and Cancelled are final.</summary>
-    public static void EnsureOpenForMaterial(ProductionOrder order)
+    /// <summary>
+    /// BR-MAT-01: only Released and InProgress orders take material; OnHold has its own code, Closed and Cancelled are final. A <b>return</b> is also accepted on a Completed order
+    /// (deviation, P3-5): unused material is given back before the order is closed.
+    /// </summary>
+    public static void EnsureOpenForMaterial(ProductionOrder order, bool isReturn = false)
     {
         order.EnsureEditable();
         MfgRules.ThrowIf(order.Status == OrderStatus.OnHold, MfgErrors.Po011);
-        MfgRules.ThrowIf(order.Status is not (OrderStatus.Released or OrderStatus.InProgress), MfgErrors.Mat001);
+        var allowed = order.Status is OrderStatus.Released or OrderStatus.InProgress || (isReturn && order.Status == OrderStatus.Completed);
+        MfgRules.ThrowIf(!allowed, MfgErrors.Mat001);
     }
 
     public static string Hash(StockDocumentType type, Guid orderId, IReadOnlyList<MaterialLineBody> lines, Guid? reasonCodeId, string? note)
@@ -250,7 +255,7 @@ public sealed class ReturnMaterialHandler(
         var repeat = await MaterialDocuments.FindRepeatAsync(documents, r.IdempotencyKey, hash, order.Id, ct);
         if (repeat is not null) return new StockDocumentResultDto(StockDocumentDto.From(repeat), repeat.Status == StockDocumentStatus.Pending);
 
-        MaterialDocuments.EnsureOpenForMaterial(order);
+        MaterialDocuments.EnsureOpenForMaterial(order, isReturn: true);
         var plant = await access.GetVisiblePlantAsync(order.PlantId, ct);
         var wanted = await MaterialDocuments.ResolveLinesAsync(order, r.Lines ?? [], units, ct);
         var items = await MaterialDocuments.ProductsAsync(products, wanted.Select(w => w.Material), ct);

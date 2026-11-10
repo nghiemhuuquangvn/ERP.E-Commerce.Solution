@@ -30,6 +30,13 @@ public class InternalStockController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> SuggestLots(Guid productId, [FromQuery] decimal quantity, [FromQuery] Guid? warehouseId, CancellationToken ct) =>
         Ok(await mediator.Send(new SuggestLotsQuery { ProductId = productId, Quantity = quantity, WarehouseId = warehouseId }, ct));
 
+    /// <summary>Every lot of the item, depleted ones included (P3-5: unique lot numbers of finished goods).</summary>
+    [HttpGet("{productId:guid}/lots")]
+    [AuthorizeInternalService("manufacturing")]
+    [ProducesResponseType(typeof(List<ProductLotDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Lots(Guid productId, CancellationToken ct) =>
+        Ok(await mediator.Send(new ListProductLotsQuery { ProductId = productId }, ct));
+
     [HttpPost("reservations")]
     [AuthorizeInternalService("manufacturing")]
     [ProducesResponseType(typeof(SourceReservationDto), StatusCodes.Status200OK)]

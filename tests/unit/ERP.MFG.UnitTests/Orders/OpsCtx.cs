@@ -1,6 +1,8 @@
 using ERP.MFG.Application.Abstractions;
 using ERP.MFG.Application.Features.Operations;
 using ERP.MFG.Application.Features.Orders;
+using ERP.MFG.Application.Features.Receipts;
+using ERP.MFG.Application.Features.StockDocuments;
 using ERP.MFG.Application.Services;
 using ERP.MFG.Domain.Common;
 using ERP.MFG.Domain.Entities;
@@ -33,7 +35,7 @@ internal sealed class TimeLogRepoFake : ITimeLogRepository
 }
 
 /// <summary>DS-01, a released order, a fake Warehouse and the P3-4 handlers (test cases TC-OP-*, TC-BF-*).</summary>
-internal sealed class OpsCtx : StockCtx
+internal class OpsCtx : StockCtx
 {
     public Guid Emp1 { get; }
     public Guid Emp2 { get; }
@@ -48,6 +50,8 @@ internal sealed class OpsCtx : StockCtx
         ReworkReason = ReasonCode.Create(ReasonType.Rework, "RWK-01", "Repaint", null);
         F.Reasons.Add(ScrapReason);
         F.Reasons.Add(ReworkReason);
+        ShortCloseReason = ReasonCode.Create(ReasonType.ShortClose, "SC-01", "Customer accepts less", null);
+        F.Reasons.Add(ShortCloseReason);
     }
 
     public BackflushPlanner Planner => new(Stock, F.ProductClient, F.UnitClient);
@@ -76,6 +80,48 @@ internal sealed class OpsCtx : StockCtx
 
     public Task<OrderOperationDto> ReopenOperationAsync(ProductionOrder order, int seq)
         => new ReopenOperationHandler(Access, Repo, User, F.Uow).Handle(new ReopenOperationCommand(order.Id, seq), default);
+
+    // ── Finished goods, complete, reopen, close (P3-5) ──────────────────────────────────────────────────────
+
+    public Task<StockDocumentResultDto> ReceiveAsync(ProductionOrder order, IReadOnlyList<ReceiptLineBody> lines, string? key = null, IStockPostingService? posting = null)
+        => new ReceiveFinishedGoodsHandler(Access, Repo, Documents, Stock, F.ProductClient, F.UnitClient, F.ProfileRepo, PlantSettings, Planner, Numbers, PlantTime, posting ?? Posting, User, F.Uow)
+            .Handle(new ReceiveFinishedGoodsCommand(order.Id, lines, null, key), default);
+
+    public Task<StockDocumentResultDto> ReceiveMainAsync(ProductionOrder order, decimal quantity, string? lot = null, string? key = null)
+        => ReceiveAsync(order, [new ReceiptLineBody(null, quantity, lot)], key);
+
+    public Task<OrderActionResultDto> CompleteOrderAsync(ProductionOrder order, Guid? reason = null, params string[] permissions)
+        => new CompleteOrderHandler(Access, Repo, Documents, Reports, F.ReasonRepo, PlantSettings, Closer, Sync, PlantTime, permissions.Length == 0 ? User : UserWith(permissions), F.Uow)
+            .Handle(new CompleteOrderCommand(order.Id, reason, "done"), default);
+
+    public Task<OrderActionResultDto> ReopenOrderAsync(ProductionOrder order)
+        => new ReopenOrderHandler(Access, Repo, Sync, User, F.Uow).Handle(new ReopenOrderCommand(order.Id), default);
+
+    public Task<CloseChecklistDto> ChecklistAsync(ProductionOrder order, bool confirm = false)
+        => new GetCloseChecklistHandler(Access, Repo, TimeLogs, Documents, Reports).Handle(new GetCloseChecklistQuery(order.Id, confirm), default);
+
+    public Task<OrderDto> CloseOrderAsync(ProductionOrder order, bool confirm = false)
+        => new CloseOrderHandler(Access, Repo, TimeLogs, Documents, Reports, User, F.Uow).Handle(new CloseOrderCommand(order.Id, confirm), default);
+
+    public Task<StockDocumentDto> QcReleaseAsync(Guid documentId)
+        => new QcReleaseReceiptHandler(Access, Documents, Repo, Stock, PlantTime, F.Uow).Handle(new QcReleaseReceiptCommand(documentId), default);
+
+    public ReasonCode ShortCloseReason { get; set; } = null!;
+
+    /// <summary>Makes TP-BAN01 a lot-controlled finished good that may need final inspection, with a shelf life.</summary>
+    public void FinishedGoodIs(bool lotControlled, bool fqc, int shelfLifeDays = 0, string code = "TP-BAN01")
+    {
+        Replace(code, p => p with { IsLotControlled = lotControlled });
+        var item = Items[code];
+        F.Profiles.RemoveAll(p => p.ItemId == item.Id);
+        F.Profiles.Add(ItemManufacturingProfile.Create(item.Id, Plant.Id, item.Sku, item.Name, ItemManufacturingProfile.DefaultValues with { RequiresFqc = fqc, ShelfLifeDays = shelfLifeDays }));
+    }
+
+    /// <summary>Reports Good on every operation of the DS-01 route so that the order can receive that quantity.</summary>
+    public async Task ProduceAsync(ProductionOrder order, decimal good)
+    {
+        foreach (var seq in new[] { 10, 20, 30 }) await ReportAsync(order, seq, good);
+    }
 
     public ProductionOrderOperation Op(ProductionOrder order, int seq) => order.OperationOf(seq);
 

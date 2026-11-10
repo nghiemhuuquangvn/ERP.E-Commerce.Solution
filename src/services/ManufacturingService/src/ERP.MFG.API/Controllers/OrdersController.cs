@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using ERP.MFG.Application.Features.Orders;
+using ERP.MFG.Application.Features.Receipts;
 using ERP.MFG.Application.Features.StockDocuments;
 using ERP.MFG.Domain.Common;
 using ERP.Shared.Authorization;
@@ -21,6 +22,9 @@ public class OrdersController(IMediator mediator) : ControllerBase
     public sealed record ReasonBody(Guid? ReasonCodeId, string? Note);
     public sealed record QuantityBody(decimal Quantity, string? Note);
     public sealed record MaterialBody(IReadOnlyList<MaterialLineBody> Lines, Guid? ReasonCodeId, string? Note);
+    public sealed record ReceiptBody(IReadOnlyList<ReceiptLineBody> Lines, string? Note);
+    public sealed record CompleteBody(Guid? ReasonCodeId, string? Note);
+    public sealed record CloseBody(bool ConfirmConsumeRemaining);
     public sealed record UpdateBody(decimal Quantity, DateOnly DueDate, int? Priority, Guid? BomId, Guid? RoutingId, Guid? OutputWarehouseId, string? Notes);
 
     [HttpGet]
@@ -102,6 +106,38 @@ public class OrdersController(IMediator mediator) : ControllerBase
     [HttpGet("{id:guid}/stock-documents")]
     [AuthorizePermission(PermissionConstants.Manufacturing_OrderView)]
     public async Task<IActionResult> StockDocuments(Guid id, CancellationToken ct) => Ok(await mediator.Send(new GetOrderStockDocumentsQuery(id), ct));
+
+    // ── Finished goods, complete, reopen, close (P3-5) ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Receives finished goods (document FR): the main product and optionally co- / by-products, with lots, quality hold for items that need final inspection and the backflush of
+    /// materials no operation owns. 201 when every line is in the Warehouse, 202 while the document waits for it. Receiving all of the quantity completes the order.
+    /// </summary>
+    [HttpPost("{id:guid}/receipts")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_ReceiptPost)]
+    public async Task<IActionResult> Receive(Guid id, [FromBody] ReceiptBody b, [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey, CancellationToken ct)
+        => Answer(await mediator.Send(new ReceiveFinishedGoodsCommand(id, b.Lines, b.Note, idempotencyKey), ct));
+
+    /// <summary>InProgress -> Completed by hand. At or above the under-completion tolerance no reason is needed; below it a short-close needs <c>order:short-close</c> and a ShortClose reason.</summary>
+    [HttpPost("{id:guid}/complete")]
+    [AuthorizeAnyPermission(PermissionConstants.Manufacturing_OperationCompleteManual, PermissionConstants.Manufacturing_OrderShortClose)]
+    public async Task<IActionResult> Complete(Guid id, [FromBody] CompleteBody b, CancellationToken ct) => Ok(await mediator.Send(new CompleteOrderCommand(id, b.ReasonCodeId, b.Note), ct));
+
+    /// <summary>Completed -> InProgress.</summary>
+    [HttpPost("{id:guid}/reopen")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_OrderReopen)]
+    public async Task<IActionResult> Reopen(Guid id, CancellationToken ct) => Ok(await mediator.Send(new ReopenOrderCommand(id), ct));
+
+    /// <summary>The conditions of BR-PO-16 and whether each is met (optionally as they would be if the rest of the issued material is carried to consumption).</summary>
+    [HttpGet("{id:guid}/close-checklist")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_OrderView)]
+    public async Task<IActionResult> CloseChecklist(Guid id, [FromQuery] bool confirmConsumeRemaining = false, CancellationToken ct = default)
+        => Ok(await mediator.Send(new GetCloseChecklistQuery(id, confirmConsumeRemaining), ct));
+
+    /// <summary>Completed -> Closed; read only afterwards. With <c>confirmConsumeRemaining</c> the issued material nobody returned is carried to consumption.</summary>
+    [HttpPost("{id:guid}/close")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_OrderClose)]
+    public async Task<IActionResult> Close(Guid id, [FromBody] CloseBody b, CancellationToken ct) => Ok(await mediator.Send(new CloseOrderCommand(id, b.ConfirmConsumeRemaining), ct));
 
     private IActionResult Answer(StockDocumentResultDto result) => StatusCode(result.IsPending ? StatusCodes.Status202Accepted : StatusCodes.Status201Created, result.Document);
 

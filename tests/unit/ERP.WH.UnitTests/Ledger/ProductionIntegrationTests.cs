@@ -418,4 +418,38 @@ public class ProductionIntegrationTests
         var unknown = () => handler.Handle(new ReleaseReservationCommand { ReservationId = Guid.NewGuid(), Reason = "x" }, default);
         await unknown.Should().ThrowAsync<EntityNotFoundException>();
     }
+
+    // ── lot list for Manufacturing (P3-5) ───────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task The_lot_list_shows_every_lot_of_the_item_also_the_used_up_ones()
+    {
+        var (product, lot) = await SeedAsync();
+        await RunAsync(Open(), new(MovementType.ProductionIssue, product, 10m, "MO-1#1", LotId: lot));       // lot L-1 is now used up
+
+        var c = Open();
+        var lots = await new ERP.WH.Application.Queries.Inventory.ListProductLotsQueryHandler(c.Uow)
+            .Handle(new ERP.WH.Application.Queries.Inventory.ListProductLotsQuery { ProductId = product }, default);
+
+        var l1 = lots.Should().ContainSingle().Subject;
+        (l1.LotNumber, l1.RemainingQuantity, l1.WarehouseId, l1.Status).Should().Be(("L-1", 0m, _main, "Available"));
+        (await new ERP.WH.Application.Queries.Inventory.ListProductLotsQueryHandler(Open().Uow)
+            .Handle(new ERP.WH.Application.Queries.Inventory.ListProductLotsQuery { ProductId = Guid.NewGuid() }, default)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task The_first_receipt_of_an_item_the_warehouse_never_held_creates_its_record_and_other_movements_still_need_one()
+    {
+        var product = Guid.NewGuid();
+
+        var issue = () => RunAsync(Open(), new(MovementType.ProductionIssue, product, 1m, "MO-9#1"));
+        await issue.Should().ThrowAsync<EntityNotFoundException>();
+
+        var receipt = await RunAsync(Open(), new(MovementType.ProductionReceipt, product, 5m, "FR-9#1", WarehouseId: _main, LotNumber: "FG-1", ProductName: "Table", ProductSku: "TP-BAN01"));
+
+        receipt.Replayed.Should().BeFalse();
+        var inventory = await Open().Db.Inventories.SingleAsync(i => i.ProductId == product);
+        (inventory.ProductName, inventory.ProductSku, inventory.TotalQuantity).Should().Be(("Table", "TP-BAN01", 5m));
+        (await Open().Db.InventoryLots.SingleAsync(l => l.ProductId == product)).LotNumber.Should().Be("FG-1");
+    }
 }

@@ -35,6 +35,10 @@ public class RecordStockMovementCommand : IRequest<RecordStockMovementResponse>
     public bool RequiresLot { get; set; }
     /// <summary>Production movements: the item is serial-controlled; refused (WH_SERIAL_NOT_SUPPORTED) because per-serial tracking is not on the production path yet.</summary>
     public bool RequiresSerial { get; set; }
+
+    /// <summary>ProductionReceipt of an item the Warehouse has never held: the inventory record is created with this name and SKU.</summary>
+    public string? ProductName { get; set; }
+    public string? ProductSku { get; set; }
 }
 
 public class RecordStockMovementResponse

@@ -1527,4 +1527,10 @@ P3-4 (2026-11-10) adds the operation and backflush events (both `ITenantEvent`, 
 |---|---|---|
 | `OperationReportedEvent` | an operation report is applied (its backflush, if any, is Posted) | `ReportId`, `DocNo`, `OrderId`, `OrderNo`, `PlantId`, `OperationSeq`, `GoodQty`, `ScrapQty`, `ReworkQty`, `ScrapReasonId`, `ReworkReasonId`, `MachineId`, `ReportedBy` |
 | `MaterialBackflushedEvent` | a backflush document is Posted | `DocumentId`, `DocNo` (BF-...), `OrderId`, `OrderNo`, `PlantId`, `PostingDate`, `SourceOperationReportId`, `Lines[]` (as `MaterialIssuedEvent`) |
-The later Phase 3 events (`ProductionOrderCompleted/Closed`, `FinishedGoodsReceived`) are added with their milestones.
+P3-5 (2026-11-10) adds the receipt and closing events (all `ITenantEvent`):
+| Event | Raised when | Payload |
+|---|---|---|
+| `FinishedGoodsReceivedEvent` | a receipt document is Posted | `DocumentId`, `DocNo` (FR-...), `OrderId`, `OrderNo`, `PlantId`, `PostingDate`, `Lines[]` (`ItemId`, `ItemCode`, `WarehouseId`, `LotId`, `LotNumber`, `ExpiryDate`, `IsQcHold`, `OutputLineNo`, `Quantity`, `UnitCost`, `Amount`); the backflush part of the same receipt leaves as `MaterialBackflushedEvent` |
+| `ProductionOrderCompletedEvent` | an order is completed (by the last receipt, by hand, or short-closed) | `OrderId`, `OrderNo`, `PlantId`, `ItemId`, `Quantity`, `CompletedQty`, `ScrappedQty`, `Automatic`, `ShortClosed`, `ReasonCodeId` |
+| `ProductionOrderClosedEvent` | an order is closed | `OrderId`, `OrderNo`, `PlantId`, `CompletedQty`, `UnsettledMaterialCarriedToConsumption`, `ClosedBy` |
+All Phase 3 events listed in the specification (§8.1) except the reversal events of T4.2 are now defined.

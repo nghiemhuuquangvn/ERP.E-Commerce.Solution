@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using ERP.MFG.Application.Features.Receipts;
 using ERP.MFG.Application.Features.StockDocuments;
 using ERP.MFG.Domain.Common;
 using ERP.Shared.Authorization;
@@ -35,6 +36,11 @@ public class StockDocumentsController(IMediator mediator) : ControllerBase
     [HttpPost("{id:guid}/abandon")]
     [AuthorizePermission(PermissionConstants.Manufacturing_StockDocumentRetry)]
     public async Task<IActionResult> Abandon(Guid id, CancellationToken ct) => Answer(await mediator.Send(new AbandonStockDocumentCommand(id), ct));
+
+    /// <summary>Interim quality release (Phase 4 replaces it by the final inspection): the lots of a posted receipt on hold move to the finished-goods warehouse and become Available.</summary>
+    [HttpPost("{id:guid}/qc-release")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_QcDisposition)]
+    public async Task<IActionResult> QcRelease(Guid id, CancellationToken ct) => Ok(await mediator.Send(new QcReleaseReceiptCommand(id), ct));
 
     private IActionResult Answer(StockDocumentResultDto result) => StatusCode(result.IsPending ? StatusCodes.Status202Accepted : StatusCodes.Status200OK, result.Document);
 }

@@ -34,7 +34,10 @@ public enum DowntimeCategory : short { Planned = 1, Unplanned = 2 }
 public enum OrderType : short { Standard = 1, Rework = 2, Subcontract = 3 }
 
 /// <summary>Stock documents: a material issue or return (P3-3), a backflush consumption triggered by an operation report (P3-4); receipts join in P3-5.</summary>
-public enum StockDocumentType : short { Issue = 1, Return = 2, Backflush = 3 }
+public enum StockDocumentType : short { Issue = 1, Return = 2, Backflush = 3, Receipt = 4 }
+
+/// <summary>A line of a stock document moves a material of the order (issue, return, backflush) or brings a finished / co / by-product into stock (receipt, P3-5).</summary>
+public enum StockLineKind : short { Material = 1, Receipt = 2 }
 
 /// <summary>Pending = waiting for its backflush document to reach the Warehouse; Posted = applied to the order; Failed = the Warehouse refused its backflush (nothing applied).</summary>
 public enum OperationReportStatus : short { Pending = 1, Posted = 2, Failed = 3 }

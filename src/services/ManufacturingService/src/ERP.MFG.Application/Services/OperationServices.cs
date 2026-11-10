@@ -16,11 +16,19 @@ public sealed class BackflushPlanner(IWarehouseStockClient stock, IProductLookup
     public static List<ProductionOrderMaterial> TargetsOf(ProductionOrder order, ProductionOrderOperation op)
         => order.Materials.Where(m => m.IssueMethod == IssueMethod.Backflush && m.OperationSeq == op.OperationSeq).ToList();
 
+    /// <summary>The materials consumed when finished goods are received: backflush materials that no operation owns (BR-FG-05).</summary>
+    public static List<ProductionOrderMaterial> ReceiptTargetsOf(ProductionOrder order)
+        => order.Materials.Where(m => m.IssueMethod == IssueMethod.Backflush && m.OperationSeq is null).ToList();
+
     /// <summary>The lines to store for a report that brings the operation's cumulative output to <paramref name="cumulativeOutput"/> (good + scrap, pending reports included).</summary>
-    public async Task<List<NewStockLine>> PlanAsync(ProductionOrder order, ProductionOrderOperation op, decimal cumulativeOutput, IReadOnlyList<StockFlowLine> flows,
+    public Task<List<NewStockLine>> PlanAsync(ProductionOrder order, ProductionOrderOperation op, decimal cumulativeOutput, IReadOnlyList<StockFlowLine> flows,
+        bool allowNegative, DateTime now, CancellationToken ct)
+        => PlanAsync(order, TargetsOf(order, op), cumulativeOutput, flows, allowNegative, now, ct);
+
+    /// <summary>The lines to take <paramref name="targets"/> out of stock for the cumulative output (an operation's good + scrap, or the main product received), pending consumption included.</summary>
+    public async Task<List<NewStockLine>> PlanAsync(ProductionOrder order, IReadOnlyList<ProductionOrderMaterial> targets, decimal cumulativeOutput, IReadOnlyList<StockFlowLine> flows,
         bool allowNegative, DateTime now, CancellationToken ct)
     {
-        var targets = TargetsOf(order, op);
         var lines = new List<NewStockLine>();
         if (targets.Count == 0) return lines;
 
@@ -31,7 +39,7 @@ public sealed class BackflushPlanner(IWarehouseStockClient stock, IProductLookup
 
         foreach (var material in targets)
         {
-            var pending = flows.Where(f => f.OrderMaterialId == material.Id && f.Type == StockDocumentType.Backflush && f.DocumentStatus == StockDocumentStatus.Pending
+            var pending = flows.Where(f => f.OrderMaterialId == material.Id && f.IsBackflushConsumption && f.DocumentStatus == StockDocumentStatus.Pending
                 && f.DocumentMode == StockDocumentMode.Forward).Sum(f => f.Qty);
             var qty = BackflushCalculator.Quantity(cumulativeOutput, material.RequiredQty, order.Quantity, decimals.GetValueOrDefault(material.UomId, 6), material.ConsumedQty + pending);
             if (qty <= 0) continue;

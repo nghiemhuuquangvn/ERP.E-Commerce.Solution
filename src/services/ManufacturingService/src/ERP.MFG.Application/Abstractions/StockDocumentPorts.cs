@@ -10,8 +10,12 @@ public sealed record StockDocumentFilter(Guid PlantId, StockDocumentStatus? Stat
 /// One line of a stock document seen from the material it moves: used for the limits (pending quantities count), the lot caps of a return and the cost of a return.
 /// Only lines of Pending (still going out) and Posted documents are returned, and only lines that are Pending or Posted.
 /// </summary>
-public sealed record StockFlowLine(Guid OrderMaterialId, StockDocumentType Type, StockDocumentStatus DocumentStatus, StockDocumentMode DocumentMode, StockLineStatus LineStatus,
-    decimal Qty, Guid? LotId, decimal? UnitCost);
+public sealed record StockFlowLine(Guid? OrderMaterialId, StockDocumentType Type, StockDocumentStatus DocumentStatus, StockDocumentMode DocumentMode, StockLineStatus LineStatus,
+    decimal Qty, Guid? LotId, decimal? UnitCost, StockLineKind Kind = StockLineKind.Material, Guid? OrderOutputId = null)
+{
+    /// <summary>Consumption by backflush, whether it sits in a backflush document or in the material part of a receipt.</summary>
+    public bool IsBackflushConsumption => Kind == StockLineKind.Material && Type is StockDocumentType.Backflush or StockDocumentType.Receipt;
+}
 
 public interface IStockDocumentRepository
 {
@@ -26,6 +30,12 @@ public interface IStockDocumentRepository
     Task<List<MaterialTransaction>> ListForOrderAsync(Guid orderId, CancellationToken ct = default);
 
     Task<List<StockFlowLine>> FlowsAsync(Guid orderId, CancellationToken ct = default);
+
+    /// <summary>Lot numbers already used (or about to be) by receipt lines of this item in Manufacturing: lines that are Pending or Posted.</summary>
+    Task<List<string>> LotNumbersInUseAsync(Guid itemId, CancellationToken ct = default);
+
+    /// <summary>Receipt lines of the order whose lot is still on quality hold (Posted, not released yet).</summary>
+    Task<int> CountHeldLotsAsync(Guid orderId, CancellationToken ct = default);
 
     /// <summary>How many documents of the order are Pending (still to reach the Warehouse, or being reversed).</summary>
     Task<int> CountPendingAsync(Guid orderId, CancellationToken ct = default);

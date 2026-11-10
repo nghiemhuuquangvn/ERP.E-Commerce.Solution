@@ -25,7 +25,9 @@ public sealed record ProductionMovementRequest(
     Guid? ReservationId = null,
     Guid? SourceLineId = null,
     bool RequiresLot = false,
-    bool RequiresSerial = false);
+    bool RequiresSerial = false,
+    string? ProductName = null,
+    string? ProductSku = null);
 
 /// <summary>What happened. <c>Replayed</c> = the same reference had been booked before, so nothing was changed.</summary>
 public sealed record ProductionMovementResult(
@@ -82,8 +84,16 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
                 existing.StockDelta ?? 0, existing.WarehouseId, existing.LotId);
         }
 
-        var inventory = await uow.Inventories.GetByProductIdAsync(r.ProductId, ct)
-            ?? throw new EntityNotFoundException("Inventory", r.ProductId);
+        var inventory = await uow.Inventories.GetByProductIdAsync(r.ProductId, ct);
+        var createdNow = false;
+        if (inventory is null)
+        {
+            // the first receipt of a finished good the Warehouse has never held creates its record (every other movement needs stock that exists)
+            if (r.Type != MovementType.ProductionReceipt) throw new EntityNotFoundException("Inventory", r.ProductId);
+            inventory = new InventoryEntity(r.ProductId, r.ProductName ?? $"Product-{r.ProductId}", 0, 0, r.ProductSku);
+            await uow.Inventories.AddAsync(inventory, ct);
+            createdNow = true;
+        }
         var previous = inventory.TotalQuantity;
 
         InventoryLot? lot = null;
@@ -198,7 +208,7 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
                 throw new BusinessRuleException("WH_MOVEMENT_TYPE", $"{r.Type} is not a production movement.");
         }
 
-        await uow.Inventories.UpdateAsync(inventory, ct);
+        if (!createdNow) await uow.Inventories.UpdateAsync(inventory, ct);   // a record added in this call is saved as new (an Update would mark it modified)
 
         var movement = new StockMovement(Guid.Empty, r.ProductId, quantity, r.Type, null, null, reference, r.Reason, r.SourceOrderId)
             .Describe(warehouseId, lotId, unitCost, valueDelta, stockDelta);

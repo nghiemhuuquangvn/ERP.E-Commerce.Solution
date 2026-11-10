@@ -126,3 +126,51 @@ public class OperationReportedEvent : IntegrationEventBase, ITenantEvent
     public Guid? MachineId { get; set; }
     public string? ReportedBy { get; set; }
 }
+
+/// <summary>One line of a posted receipt: the item received, its lot, where it went and whether the lot is on quality hold.</summary>
+public class ReceiptMovementLine : StockMovementLine
+{
+    /// <summary>Null = the main product; otherwise the line number of the co- / by-product on the order.</summary>
+    public int? OutputLineNo { get; set; }
+    public string? LotNumber { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+    public bool IsQcHold { get; set; }
+}
+
+public class FinishedGoodsReceivedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid DocumentId { get; set; }
+    public string DocNo { get; set; } = string.Empty;
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public DateOnly PostingDate { get; set; }
+    public List<ReceiptMovementLine> Lines { get; set; } = [];
+}
+
+public class ProductionOrderCompletedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public Guid ItemId { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal CompletedQty { get; set; }
+    public decimal ScrappedQty { get; set; }
+    public bool Automatic { get; set; }
+    public bool ShortClosed { get; set; }
+    public Guid? ReasonCodeId { get; set; }
+}
+
+public class ProductionOrderClosedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public decimal CompletedQty { get; set; }
+    public bool UnsettledMaterialCarriedToConsumption { get; set; }
+    public string? ClosedBy { get; set; }
+}
