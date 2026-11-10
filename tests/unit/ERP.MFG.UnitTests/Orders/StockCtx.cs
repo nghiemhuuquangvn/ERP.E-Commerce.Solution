@@ -26,10 +26,18 @@ internal sealed class StockDocRepoFake : IStockDocumentRepository
 
     public Task<List<StockFlowLine>> FlowsAsync(Guid orderId, CancellationToken ct = default)
         => Task.FromResult(Docs.Where(d => d.OrderId == orderId && d.Status is StockDocumentStatus.Pending or StockDocumentStatus.Posted)
-            .SelectMany(d => d.Lines.Where(l => l.Status is StockLineStatus.Pending or StockLineStatus.Posted).Select(l => new StockFlowLine(l.OrderMaterialId, d.Type, d.Status, d.Mode, l.Status, l.Qty, l.PostedLotId ?? l.LotId, l.UnitCost)))
+            .SelectMany(d => d.Lines.Where(l => l.Status is StockLineStatus.Pending or StockLineStatus.Posted).Select(l => new StockFlowLine(l.OrderMaterialId, d.Type, d.Status, d.Mode, l.Status, l.Qty, l.PostedLotId ?? l.LotId, l.UnitCost, l.Kind, l.OrderOutputId)))
             .ToList());
 
     public Task<int> CountPendingAsync(Guid orderId, CancellationToken ct = default) => Task.FromResult(Docs.Count(d => d.OrderId == orderId && d.Status == StockDocumentStatus.Pending));
+
+    public Task<List<string>> LotNumbersInUseAsync(Guid itemId, CancellationToken ct = default)
+        => Task.FromResult(Docs.Where(d => d.Status is StockDocumentStatus.Pending or StockDocumentStatus.Posted)
+            .SelectMany(d => d.Lines.Where(l => l.Kind == StockLineKind.Receipt && l.ItemId == itemId && l.LotNumber != null && l.Status is StockLineStatus.Pending or StockLineStatus.Posted).Select(l => l.LotNumber!)).ToList());
+
+    public Task<int> CountHeldLotsAsync(Guid orderId, CancellationToken ct = default)
+        => Task.FromResult(Docs.Where(d => d.OrderId == orderId && d.Status == StockDocumentStatus.Posted)
+            .SelectMany(d => d.Lines).Count(l => l.Kind == StockLineKind.Receipt && l.IsQcHold && l.QcReleasedAt == null && l.Status == StockLineStatus.Posted));
 
     public Task<List<(Guid TenantId, Guid DocumentId)>> ListDueAsync(DateTime nowUtc, int take, CancellationToken ct = default)
         => Task.FromResult(Docs.Where(d => d.Status == StockDocumentStatus.Pending && (d.NextAttemptAt == null || d.NextAttemptAt <= nowUtc)).Take(take).Select(d => (d.TenantId, d.Id)).ToList());
@@ -38,10 +46,10 @@ internal sealed class StockDocRepoFake : IStockDocumentRepository
 }
 
 /// <summary>DS-01, a released order, a fake Warehouse that books movements, and the P3-3 handlers (test cases TC-MAT-*, TC-GEN-010).</summary>
-internal sealed class StockCtx : ReleaseCtx
+internal class StockCtx : ReleaseCtx
 {
     public ReasonCode OverIssueReason { get; }
-    public StockPostingService Posting => new(Stock, F.ProductClient, Repo, F.Uow, PlantTime, Sync, NullLogger<StockPostingService>.Instance);
+    public StockPostingService Posting => new(Stock, F.ProductClient, Repo, F.Uow, PlantTime, Sync, Reports, new OperationLogCloser(TimeLogs, PlantTime), PlantSettings, NullLogger<StockPostingService>.Instance);
 
     public StockCtx()
     {

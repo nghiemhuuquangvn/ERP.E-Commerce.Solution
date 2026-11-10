@@ -94,3 +94,83 @@ public class MaterialReturnedEvent : IntegrationEventBase, ITenantEvent
     public Guid? ReasonCodeId { get; set; }
     public List<StockMovementLine> Lines { get; set; } = [];
 }
+
+public class MaterialBackflushedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid DocumentId { get; set; }
+    public string DocNo { get; set; } = string.Empty;
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public DateOnly PostingDate { get; set; }
+    public Guid? SourceOperationReportId { get; set; }
+    public List<StockMovementLine> Lines { get; set; } = [];
+}
+
+/// <summary>An operation report is applied to the order (BA spec 01 §8.1): the figures of one report, after its backflush (if any) reached the Warehouse.</summary>
+public class OperationReportedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid ReportId { get; set; }
+    public string DocNo { get; set; } = string.Empty;
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public int OperationSeq { get; set; }
+    public decimal GoodQty { get; set; }
+    public decimal ScrapQty { get; set; }
+    public decimal ReworkQty { get; set; }
+    public Guid? ScrapReasonId { get; set; }
+    public Guid? ReworkReasonId { get; set; }
+    public Guid? MachineId { get; set; }
+    public string? ReportedBy { get; set; }
+}
+
+/// <summary>One line of a posted receipt: the item received, its lot, where it went and whether the lot is on quality hold.</summary>
+public class ReceiptMovementLine : StockMovementLine
+{
+    /// <summary>Null = the main product; otherwise the line number of the co- / by-product on the order.</summary>
+    public int? OutputLineNo { get; set; }
+    public string? LotNumber { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+    public bool IsQcHold { get; set; }
+}
+
+public class FinishedGoodsReceivedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid DocumentId { get; set; }
+    public string DocNo { get; set; } = string.Empty;
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public DateOnly PostingDate { get; set; }
+    public List<ReceiptMovementLine> Lines { get; set; } = [];
+}
+
+public class ProductionOrderCompletedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public Guid ItemId { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal CompletedQty { get; set; }
+    public decimal ScrappedQty { get; set; }
+    public bool Automatic { get; set; }
+    public bool ShortClosed { get; set; }
+    public Guid? ReasonCodeId { get; set; }
+}
+
+public class ProductionOrderClosedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public decimal CompletedQty { get; set; }
+    public bool UnsettledMaterialCarriedToConsumption { get; set; }
+    public string? ClosedBy { get; set; }
+}

@@ -85,6 +85,7 @@ public static class MfgErrors
     public const string Fg002 = "MFG_FG_002";
     public const string Fg003 = "MFG_FG_003";
     public const string Fg004 = "MFG_FG_004";
+    public const string Fg005 = "MFG_FG_005"; // not in the spec: finished goods are received only on a Released or InProgress order (P3-5)
     public const string Qc001 = "MFG_QC_001";
     public const string Qc002 = "MFG_QC_002";
     public const string Qc003 = "MFG_QC_003";
@@ -174,6 +175,7 @@ public static class MfgErrors
         [Fg002] = "Số lô {lot} đã tồn tại.",
         [Fg003] = "Số serial không khớp hoặc bị trùng.",
         [Fg004] = "Không thể đảo phiếu nhập kho: {reason}.",
+        [Fg005] = "Chỉ được nhập kho thành phẩm cho lệnh ở trạng thái Đã phát hành hoặc Đang sản xuất.",
         [Qc001] = "Cỡ mẫu không đúng kế hoạch kiểm tra (yêu cầu {sample}).",
         [Qc002] = "Phiếu kiểm tra đã hoàn tất, không thể chỉnh sửa.",
         [Qc003] = "Chưa nhập đủ kết quả cho các tiêu chí kiểm tra.",

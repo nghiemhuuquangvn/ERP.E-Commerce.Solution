@@ -5,7 +5,13 @@ using ERP.Shared.Core.Domain;
 namespace ERP.MFG.Domain.Entities;
 
 /// <summary>A line to store: ONE Warehouse movement of one material of the order.</summary>
-public sealed record NewStockLine(Guid OrderMaterialId, int MaterialLineNo, Guid ItemId, string ItemCode, Guid WarehouseId, Guid? LotId, decimal Qty, bool IsFromReservation, decimal? UnitCost);
+public sealed record NewStockLine(Guid? OrderMaterialId, int? MaterialLineNo, Guid ItemId, string ItemCode, Guid WarehouseId, Guid? LotId, decimal Qty, bool IsFromReservation, decimal? UnitCost, bool IsNegativeStock = false,
+    StockLineKind Kind = StockLineKind.Material, Guid? OrderOutputId = null, int? OutputLineNo = null, string? LotNumber = null, DateTime? ExpiryDate = null, DateTime? ManufactureDate = null, bool IsQcHold = false)
+{
+    /// <summary>A line that brings the main product (<paramref name="outputId"/> null) or a co- / by-product into stock (P3-5). The lot is created by the Warehouse from <paramref name="lotNumber"/>.</summary>
+    public static NewStockLine Receipt(Guid itemId, string itemCode, Guid warehouseId, decimal qty, Guid? outputId, int? outputLineNo, string? lotNumber, DateTime? expiry, DateTime? manufactured, bool qcHold)
+        => new(null, null, itemId, itemCode, warehouseId, null, qty, false, null, false, StockLineKind.Receipt, outputId, outputLineNo, lotNumber, expiry, manufactured, qcHold);
+}
 
 /// <summary>
 /// One line of a stock document = one movement in the Warehouse. Its key (<c>&lt;DocNo&gt;#&lt;n&gt;</c>; a free-stock issue ends with <c>F</c>, the reversal of
@@ -17,8 +23,24 @@ public class MaterialTransactionLine : BaseEntity
 
     public Guid TransactionId { get; private set; }
     public int LineNo { get; private set; }
-    public Guid OrderMaterialId { get; private set; }
-    public int MaterialLineNo { get; private set; }
+    /// <summary>The material of the order this line moves; null on a receipt line.</summary>
+    public Guid? OrderMaterialId { get; private set; }
+    public int? MaterialLineNo { get; private set; }
+    public StockLineKind Kind { get; private set; } = StockLineKind.Material;
+
+    /// <summary>Receipt line: the co- / by-product of the order it brings in (null = the main product).</summary>
+    public Guid? OrderOutputId { get; private set; }
+    public int? OutputLineNo { get; private set; }
+
+    /// <summary>Receipt line: the lot the Warehouse creates, its dates, and whether it starts on quality hold (BR-FG-02, BR-FG-04).</summary>
+    public string? LotNumber { get; private set; }
+    public DateTime? ExpiryDate { get; private set; }
+    public DateTime? ManufactureDate { get; private set; }
+    public bool IsQcHold { get; private set; }
+
+    /// <summary>When the interim quality release moved the held lot to the finished-goods warehouse and made it Available.</summary>
+    public DateTime? QcReleasedAt { get; private set; }
+
     public Guid ItemId { get; private set; }
     public string ItemCode { get; private set; } = string.Empty;
     public Guid WarehouseId { get; private set; }
@@ -27,6 +49,9 @@ public class MaterialTransactionLine : BaseEntity
 
     /// <summary>An issue taken from the order's Warehouse reservation (consumes it) rather than from free stock.</summary>
     public bool IsFromReservation { get; private set; }
+
+    /// <summary>A backflush line that takes stock below zero (allowed by <c>AllowNegativeStockOnBackflush</c>, BR-MAT-08): sent with <c>AllowNegative</c>.</summary>
+    public bool IsNegativeStock { get; private set; }
 
     public string MovementKey { get; private set; } = string.Empty;
     public StockLineStatus Status { get; private set; } = StockLineStatus.Pending;
@@ -46,8 +71,9 @@ public class MaterialTransactionLine : BaseEntity
     internal static MaterialTransactionLine Create(Guid transactionId, string docNo, StockDocumentType type, int lineNo, NewStockLine v) => new()
     {
         Id = Guid.NewGuid(), TransactionId = transactionId, LineNo = lineNo, OrderMaterialId = v.OrderMaterialId, MaterialLineNo = v.MaterialLineNo, ItemId = v.ItemId, ItemCode = v.ItemCode,
-        WarehouseId = v.WarehouseId, LotId = v.LotId, Qty = v.Qty, IsFromReservation = v.IsFromReservation, UnitCost = v.UnitCost,
-        MovementKey = KeyFor(docNo, lineNo, type == StockDocumentType.Issue && !v.IsFromReservation),
+        WarehouseId = v.WarehouseId, LotId = v.LotId, Qty = v.Qty, IsFromReservation = v.IsFromReservation, UnitCost = v.UnitCost, IsNegativeStock = v.IsNegativeStock,
+        Kind = v.Kind, OrderOutputId = v.OrderOutputId, OutputLineNo = v.OutputLineNo, LotNumber = v.LotNumber, ExpiryDate = v.ExpiryDate, ManufactureDate = v.ManufactureDate, IsQcHold = v.IsQcHold,
+        MovementKey = KeyFor(docNo, lineNo, v.Kind == StockLineKind.Material && type != StockDocumentType.Return && !v.IsFromReservation),
     };
 
     internal static string KeyFor(string docNo, int lineNo, bool free) => $"{docNo}#{lineNo}{(free ? "F" : "")}";
@@ -74,6 +100,12 @@ public class MaterialTransactionLine : BaseEntity
     {
         Status = StockLineStatus.Compensated;
         CompensationMovementId = movementId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    internal void MarkQcReleased(DateTime now)
+    {
+        QcReleasedAt = now;
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -116,22 +148,37 @@ public class MaterialTransaction : BaseEntity
     public DateTime? PostedAt { get; private set; }
     public Guid? ReversalOfId { get; private set; }
 
+    /// <summary>For a backflush: the operation report whose output it consumes for (applied together with it).</summary>
+    public Guid? SourceOperationReportId { get; private set; }
+
     public IReadOnlyList<MaterialTransactionLine> Lines => _lines.Where(l => !l.IsDeleted).OrderBy(l => l.LineNo).ToList();
 
     /// <summary>Persistence access to the loaded lines (EF fills the field).</summary>
     public IReadOnlyList<MaterialTransactionLine> AllLines => _lines;
 
+    /// <summary>The finished-goods lines of a receipt (empty on every other document).</summary>
+    public IEnumerable<MaterialTransactionLine> ReceiptLines => Lines.Where(l => l.Kind == StockLineKind.Receipt);
+
+    /// <summary>The material lines: what an issue, a return or a backflush moves, and the backflush part of a receipt.</summary>
+    public IEnumerable<MaterialTransactionLine> MaterialLines => Lines.Where(l => l.Kind == StockLineKind.Material);
+
+    /// <summary>True when the line takes stock out (an issue, a backflush, or the backflush part of a receipt) rather than bringing it in (a return, a receipt line).</summary>
+    public bool TakesStockOut(MaterialTransactionLine line) => line.Kind == StockLineKind.Material && Type != StockDocumentType.Return;
+
     public bool IsIssue => Type == StockDocumentType.Issue;
 
+    /// <summary>Stock leaves the warehouse: an issue or a backflush (a return brings it back).</summary>
+    public bool IsConsumption => Type is StockDocumentType.Issue or StockDocumentType.Backflush;
+
     public static MaterialTransaction Create(string docNo, StockDocumentType type, Guid plantId, Guid orderId, string orderNo, DateOnly postingDate, Guid? reasonCodeId, string? note,
-        string? idempotencyKey, string? requestHash, IReadOnlyList<NewStockLine> lines, string createdBy)
+        string? idempotencyKey, string? requestHash, IReadOnlyList<NewStockLine> lines, string createdBy, Guid? sourceOperationReportId = null)
     {
         MfgRules.ThrowIf(string.IsNullOrWhiteSpace(docNo), MfgErrors.Gen002);
         MfgRules.ThrowIf(lines.Count == 0 || lines.Any(l => l.Qty <= 0), MfgErrors.Mat001);
         var doc = new MaterialTransaction
         {
             Id = Guid.NewGuid(), DocNo = docNo, Type = type, PlantId = plantId, OrderId = orderId, OrderNo = orderNo, PostingDate = postingDate, ReasonCodeId = reasonCodeId,
-            Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(), IdempotencyKey = idempotencyKey, RequestHash = requestHash, CreatedBy = createdBy, UpdatedBy = createdBy,
+            Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(), IdempotencyKey = idempotencyKey, RequestHash = requestHash, SourceOperationReportId = sourceOperationReportId, CreatedBy = createdBy, UpdatedBy = createdBy,
         };
         var no = 0;
         foreach (var line in lines) doc._lines.Add(MaterialTransactionLine.Create(doc.Id, docNo, type, ++no, line));
@@ -156,6 +203,13 @@ public class MaterialTransaction : BaseEntity
     }
 
     public void ConvertLineToFree(MaterialTransactionLine line) => line.ConvertToFree();
+
+    /// <summary>The interim quality release moved the line's lot to the finished-goods warehouse and made it Available.</summary>
+    public void RecordQcReleased(MaterialTransactionLine line, DateTime now)
+    {
+        line.MarkQcReleased(now);
+        UpdatedAt = DateTime.UtcNow;
+    }
 
     /// <summary>The Warehouse could not be reached or answered a conflict: stay Pending, remember why, try again at <paramref name="next"/>. Never fails the document by counting attempts (a half-posted document would be inconsistent).</summary>
     public void RecordTransientFailure(string error, DateTime next)
@@ -214,7 +268,28 @@ public class MaterialTransaction : BaseEntity
         {
             ItemId = l.ItemId, ItemCode = l.ItemCode, WarehouseId = l.WarehouseId, LotId = l.PostedLotId ?? l.LotId, Quantity = l.Qty, UnitCost = l.UnitCost, Amount = l.Amount,
         }).ToList();
-        if (IsIssue)
+        if (Type == StockDocumentType.Receipt)
+        {
+            AddDomainEvent(new FinishedGoodsReceivedEvent
+            {
+                DocumentId = Id, DocNo = DocNo, OrderId = OrderId, OrderNo = OrderNo, PlantId = PlantId, PostingDate = PostingDate,
+                Lines = ReceiptLines.Where(l => l.Status == StockLineStatus.Posted).Select(l => new ReceiptMovementLine
+                {
+                    ItemId = l.ItemId, ItemCode = l.ItemCode, WarehouseId = l.WarehouseId, LotId = l.PostedLotId, Quantity = l.Qty, UnitCost = l.UnitCost, Amount = l.Amount,
+                    OutputLineNo = l.OutputLineNo, LotNumber = l.LotNumber, ExpiryDate = l.ExpiryDate, IsQcHold = l.IsQcHold,
+                }).ToList(),
+            });
+            var consumed = MaterialLines.Where(l => l.Status == StockLineStatus.Posted).ToList();
+            if (consumed.Count > 0)
+                AddDomainEvent(new MaterialBackflushedEvent
+                {
+                    DocumentId = Id, DocNo = DocNo, OrderId = OrderId, OrderNo = OrderNo, PlantId = PlantId, PostingDate = PostingDate,
+                    Lines = consumed.Select(l => new StockMovementLine { ItemId = l.ItemId, ItemCode = l.ItemCode, WarehouseId = l.WarehouseId, LotId = l.PostedLotId ?? l.LotId, Quantity = l.Qty, UnitCost = l.UnitCost, Amount = l.Amount }).ToList(),
+                });
+        }
+        else if (Type == StockDocumentType.Backflush)
+            AddDomainEvent(new MaterialBackflushedEvent { DocumentId = Id, DocNo = DocNo, OrderId = OrderId, OrderNo = OrderNo, PlantId = PlantId, PostingDate = PostingDate, SourceOperationReportId = SourceOperationReportId, Lines = lines });
+        else if (IsIssue)
             AddDomainEvent(new MaterialIssuedEvent { DocumentId = Id, DocNo = DocNo, OrderId = OrderId, OrderNo = OrderNo, PlantId = PlantId, PostingDate = PostingDate, ReasonCodeId = ReasonCodeId, Lines = lines });
         else
             AddDomainEvent(new MaterialReturnedEvent { DocumentId = Id, DocNo = DocNo, OrderId = OrderId, OrderNo = OrderNo, PlantId = PlantId, PostingDate = PostingDate, ReasonCodeId = ReasonCodeId, Lines = lines });

@@ -27,6 +27,8 @@ public static class DependencyInjection
         services.AddScoped<IOrderReservationSync, OrderReservationSync>();
         services.AddScoped<IOrderTransactionGuard, OrderTransactionGuard>();
         services.AddScoped<IStockPostingService, StockPostingService>();
+        services.AddScoped<BackflushPlanner>();
+        services.AddScoped<OperationLogCloser>();
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IPlantClock, PlantClock>();
         return services;

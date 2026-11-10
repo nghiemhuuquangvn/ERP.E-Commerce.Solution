@@ -51,6 +51,8 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
     public DbSet<ProductionOrderStatusHistory> ProductionOrderStatusHistories => Set<ProductionOrderStatusHistory>();
     public DbSet<MaterialTransaction> MaterialTransactions => Set<MaterialTransaction>();
     public DbSet<MaterialTransactionLine> MaterialTransactionLines => Set<MaterialTransactionLine>();
+    public DbSet<OperationReport> OperationReports => Set<OperationReport>();
+    public DbSet<LaborTimeLog> LaborTimeLogs => Set<LaborTimeLog>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -281,6 +283,7 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
         modelBuilder.Entity<ProductionOrder>(e =>
         {
             e.ToTable("ProductionOrders");
+            e.Ignore(x => x.CompletedOperations);
             e.Property(x => x.OrderNo).HasMaxLength(30).IsRequired();
             e.Property(x => x.ItemCode).HasMaxLength(100).IsRequired();
             e.Property(x => x.ItemName).HasMaxLength(255).IsRequired();
@@ -319,12 +322,13 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.ComponentCode).HasMaxLength(100).IsRequired();
             e.Property(x => x.ComponentName).HasMaxLength(255).IsRequired();
             foreach (var q in new[] { nameof(ProductionOrderMaterial.RequiredQty), nameof(ProductionOrderMaterial.IssuedQty), nameof(ProductionOrderMaterial.ReturnedQty),
-                         nameof(ProductionOrderMaterial.ConsumedQty), nameof(ProductionOrderMaterial.ReservedQty) })
+                         nameof(ProductionOrderMaterial.ConsumedQty), nameof(ProductionOrderMaterial.ReservedQty), nameof(ProductionOrderMaterial.SettledIssueQty) })
                 e.Property(q).HasPrecision(18, 6);
             e.Property(x => x.ScrapPct).HasPrecision(5, 2);
             e.Property(x => x.IssueMethod).HasConversion<short>();
             e.Property(x => x.AlternativeGroup).HasMaxLength(20);
             e.Ignore(x => x.NetIssuedQty);
+            e.Ignore(x => x.UnsettledIssue);
             e.Ignore(x => x.OpenNeed);
             e.HasIndex(x => new { x.TenantId, x.OrderId, x.LineNo }).IsUnique().HasFilter("\"IsDeleted\" = false");
             e.HasIndex(x => new { x.TenantId, x.ComponentItemId });
@@ -389,6 +393,10 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Ignore(x => x.AllLinesPosted);
             e.Ignore(x => x.RollbackComplete);
             e.Ignore(x => x.IsIssue);
+            e.Ignore(x => x.IsConsumption);
+            e.Ignore(x => x.ReceiptLines);
+            e.Ignore(x => x.MaterialLines);
+            e.HasIndex(x => new { x.TenantId, x.SourceOperationReportId }).HasFilter("\"SourceOperationReportId\" IS NOT NULL");
             e.HasIndex(x => new { x.TenantId, x.DocNo }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
             e.HasIndex(x => new { x.TenantId, x.OrderId });
@@ -408,10 +416,52 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.UnitCost).HasPrecision(18, 6);
             e.Property(x => x.Amount).HasPrecision(18, 4);
             e.Property(x => x.Error).HasMaxLength(500);
+            e.Property(x => x.Kind).HasConversion<short>();
+            e.Property(x => x.LotNumber).HasMaxLength(100);
+            e.HasIndex(x => new { x.TenantId, x.LotNumber }).HasFilter("\"LotNumber\" IS NOT NULL");
             e.Ignore(x => x.CompensationKey);
             e.HasIndex(x => new { x.TenantId, x.TransactionId, x.LineNo }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.MovementKey }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.OrderMaterialId });
+        });
+
+        modelBuilder.Entity<OperationReport>(e =>
+        {
+            e.ToTable("OperationReports");
+            e.Property(x => x.DocNo).HasMaxLength(30).IsRequired();
+            e.Property(x => x.OrderNo).HasMaxLength(30).IsRequired();
+            e.Property(x => x.ReportedBy).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Status).HasConversion<short>();
+            e.Property(x => x.GoodQty).HasPrecision(18, 6);
+            e.Property(x => x.ScrapQty).HasPrecision(18, 6);
+            e.Property(x => x.ReworkQty).HasPrecision(18, 6);
+            e.Property(x => x.FailureCode).HasMaxLength(60);
+            e.Property(x => x.FailureMessage).HasMaxLength(500);
+            e.Property(x => x.IdempotencyKey).HasMaxLength(100);
+            e.Property(x => x.RequestHash).HasMaxLength(64);
+            e.Property(x => x.Note).HasMaxLength(500);
+            e.Ignore(x => x.OutputQty);
+            e.Ignore(x => x.TotalQty);
+            e.HasIndex(x => new { x.TenantId, x.PlantId, x.DocNo }).IsUnique();   // numbered per plant and month (BR-GEN-04)
+            e.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
+            e.HasIndex(x => new { x.TenantId, x.OrderId });
+            e.HasIndex(x => new { x.TenantId, x.OrderOperationId, x.Status });
+        });
+
+        modelBuilder.Entity<LaborTimeLog>(e =>
+        {
+            e.ToTable("LaborTimeLogs");
+            e.Property(x => x.EmployeeNumber).HasMaxLength(50).IsRequired();
+            e.Property(x => x.EmployeeName).HasMaxLength(200).IsRequired();
+            e.Property(x => x.PausedMinutes).HasPrecision(10, 2);
+            e.Property(x => x.DurationMinutes).HasPrecision(10, 2);
+            e.Property(x => x.LaborRatePerHour).HasPrecision(18, 4);
+            e.Ignore(x => x.IsOpen);
+            e.Ignore(x => x.IsRunning);
+            e.Ignore(x => x.IsPaused);
+            e.HasIndex(x => new { x.TenantId, x.EmployeeId, x.StartAt });
+            e.HasIndex(x => new { x.TenantId, x.OrderOperationId }).HasFilter("\"EndAt\" IS NULL");
+            e.HasIndex(x => new { x.TenantId, x.OrderId });
         });
 
         // The outbox is not tenant-owned: the tenant travels inside every event (EventTenant).

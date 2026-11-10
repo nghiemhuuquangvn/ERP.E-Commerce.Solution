@@ -179,6 +179,8 @@ public class StockCycleTests
         public Task<StockAvailability> GetAvailabilityAsync(Guid productId, Guid? warehouseId, CancellationToken ct = default)
             => Task.FromResult(new StockAvailability(productId, 10, 0, 0, 10, 10m, []));
 
+        public Task<IReadOnlyList<StockLotInfo>> ListLotsAsync(Guid productId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<StockLotInfo>>([]);
+
         public Task<LotSuggestion> SuggestLotsAsync(Guid productId, decimal quantity, Guid? warehouseId, CancellationToken ct = default)
         {
             var lots = _lotStatus.Where(l => l.Value == "Available").Select(l => new SuggestedLotInfo(l.Key, "FG", warehouseId, null, quantity, quantity)).ToList();

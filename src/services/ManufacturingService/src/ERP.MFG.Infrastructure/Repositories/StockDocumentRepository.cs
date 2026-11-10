@@ -43,10 +43,19 @@ public sealed class StockDocumentRepository(MfgDbContext db) : IStockDocumentRep
         var rows = await db.MaterialTransactions.AsNoTracking()
             .Where(d => d.OrderId == orderId && !d.IsDeleted && (d.Status == StockDocumentStatus.Pending || d.Status == StockDocumentStatus.Posted))
             .SelectMany(d => d.AllLines.Where(l => !l.IsDeleted && (l.Status == StockLineStatus.Pending || l.Status == StockLineStatus.Posted)),
-                (d, l) => new { l.OrderMaterialId, d.Type, DocumentStatus = d.Status, DocumentMode = d.Mode, LineStatus = l.Status, l.Qty, Lot = l.PostedLotId ?? l.LotId, l.UnitCost })
+                (d, l) => new { l.OrderMaterialId, d.Type, DocumentStatus = d.Status, DocumentMode = d.Mode, LineStatus = l.Status, l.Qty, Lot = l.PostedLotId ?? l.LotId, l.UnitCost, l.Kind, l.OrderOutputId })
             .ToListAsync(ct);
-        return rows.Select(r => new StockFlowLine(r.OrderMaterialId, r.Type, r.DocumentStatus, r.DocumentMode, r.LineStatus, r.Qty, r.Lot, r.UnitCost)).ToList();
+        return rows.Select(r => new StockFlowLine(r.OrderMaterialId, r.Type, r.DocumentStatus, r.DocumentMode, r.LineStatus, r.Qty, r.Lot, r.UnitCost, r.Kind, r.OrderOutputId)).ToList();
     }
+
+    public Task<List<string>> LotNumbersInUseAsync(Guid itemId, CancellationToken ct = default)
+        => db.MaterialTransactions.Where(d => !d.IsDeleted && (d.Status == StockDocumentStatus.Pending || d.Status == StockDocumentStatus.Posted))
+            .SelectMany(d => d.AllLines.Where(l => !l.IsDeleted && l.Kind == StockLineKind.Receipt && l.ItemId == itemId && l.LotNumber != null
+                && (l.Status == StockLineStatus.Pending || l.Status == StockLineStatus.Posted)).Select(l => l.LotNumber!)).ToListAsync(ct);
+
+    public Task<int> CountHeldLotsAsync(Guid orderId, CancellationToken ct = default)
+        => db.MaterialTransactions.Where(d => d.OrderId == orderId && !d.IsDeleted && d.Status == StockDocumentStatus.Posted)
+            .SelectMany(d => d.AllLines.Where(l => !l.IsDeleted && l.Kind == StockLineKind.Receipt && l.IsQcHold && l.QcReleasedAt == null && l.Status == StockLineStatus.Posted)).CountAsync(ct);
 
     public Task<int> CountPendingAsync(Guid orderId, CancellationToken ct = default)
         => db.MaterialTransactions.CountAsync(d => d.OrderId == orderId && !d.IsDeleted && d.Status == StockDocumentStatus.Pending, ct);

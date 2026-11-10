@@ -56,6 +56,12 @@ public class ProductionOrderMaterial : BaseEntity
     public string? AlternativeGroup { get; private set; }
     public bool IsUnplanned { get; private set; }
 
+    /// <summary>How much of the net issued quantity was carried to consumption when the order was closed (BR-PO-16, condition 4).</summary>
+    public decimal SettledIssueQty { get; private set; }
+
+    /// <summary>Issued material that is neither consumed nor returned yet: it must be settled before the order closes.</summary>
+    public decimal UnsettledIssue => Math.Max(NetIssuedQty - SettledIssueQty, 0m);
+
     /// <summary>Net quantity still out on the shop floor: issued minus returned (BR-MAT-02).</summary>
     public decimal NetIssuedQty => IssuedQty - ReturnedQty;
 
@@ -64,6 +70,18 @@ public class ProductionOrderMaterial : BaseEntity
 
     internal void RegisterIssued(decimal qty) { IssuedQty += qty; UpdatedAt = DateTime.UtcNow; }
     internal void RegisterReturned(decimal qty) { ReturnedQty += qty; UpdatedAt = DateTime.UtcNow; }
+
+    /// <summary>Backflush took this much out of the stock for the output reported so far (BR-MAT-08).</summary>
+    internal void RegisterConsumed(decimal qty) { ConsumedQty += qty; UpdatedAt = DateTime.UtcNow; }
+
+    /// <summary>Close with "carry the rest to consumption": what is still out becomes consumed.</summary>
+    internal void Settle()
+    {
+        var rest = UnsettledIssue;
+        ConsumedQty += rest;
+        SettledIssueQty = NetIssuedQty;
+        UpdatedAt = DateTime.UtcNow;
+    }
     internal void SetRequired(decimal required) { RequiredQty = required; UpdatedAt = DateTime.UtcNow; }
     internal void SetReserved(decimal reserved) { ReservedQty = reserved; UpdatedAt = DateTime.UtcNow; }
 
@@ -133,6 +151,65 @@ public class ProductionOrderOperation : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>Everything the operation has taken in so far: good, scrap and rework (BR-OP-04, BR-OP-06).</summary>
+    public decimal TakenQty => GoodQty + ScrapQty + ReworkQty;
+
+    internal void MarkWorkStarted(DateTime now)
+    {
+        ActualStart ??= now;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    internal void RegisterReport(decimal good, decimal scrap, decimal rework, DateTime now)
+    {
+        GoodQty += good;
+        ScrapQty += scrap;
+        ReworkQty += rework;
+        ActualStart ??= now;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    internal void MarkCompleted(DateTime now)
+    {
+        TransitionTo(OperationStatus.Completed);
+        ActualStart ??= now;
+        ActualEnd = now;
+    }
+
+    /// <summary>The order is done: whatever state the operation is in, it ends Completed (Pending and Paused walk through Ready / Running first).</summary>
+    internal void ForceComplete(DateTime now)
+    {
+        if (Status == OperationStatus.Completed) return;
+        if (Status == OperationStatus.Pending) TransitionTo(OperationStatus.Ready);
+        if (Status == OperationStatus.Paused) TransitionTo(OperationStatus.Running);
+        MarkCompleted(now);
+    }
+
+    internal void MarkReopened()
+    {
+        TransitionTo(OperationStatus.Ready);
+        ActualEnd = null;
+    }
+
+    /// <summary>
+    /// The status follows the time logs of the operation (BR-OP-02): Running while one runs, Paused while some are open and all paused, Ready again when the last
+    /// one stops. Only Running / Paused operations move.
+    /// </summary>
+    public void FollowLogs(int runningLogs, int openLogs)
+    {
+        if (Status is not (OperationStatus.Running or OperationStatus.Paused)) return;
+        var target = openLogs == 0 ? OperationStatus.Ready : runningLogs > 0 ? OperationStatus.Running : OperationStatus.Paused;
+        if (Status == target) return;
+        if (Status == OperationStatus.Paused && target == OperationStatus.Ready) TransitionTo(OperationStatus.Running);   // the machine goes Paused -> Running -> Ready
+        TransitionTo(target);
+    }
+
+    /// <summary>Hold (BR-PO-11): a Running operation pauses.</summary>
+    internal void PauseForHold()
+    {
+        if (Status == OperationStatus.Running) TransitionTo(OperationStatus.Paused);
+    }
+
     internal void MarkDeleted() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 }
 
@@ -159,6 +236,8 @@ public class ProductionOrderOutput : BaseEntity
     };
 
     internal void SetPlanned(decimal planned) { PlannedQty = planned; UpdatedAt = DateTime.UtcNow; }
+
+    internal void RegisterReceived(decimal qty) { ReceivedQty += qty; UpdatedAt = DateTime.UtcNow; }
 
     internal void MarkDeleted() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 }
@@ -411,6 +490,7 @@ public class ProductionOrder : BaseEntity
         EnsureEditable();
         MfgRules.ThrowIf(reasonCodeId is null || reasonCodeId == Guid.Empty, MfgErrors.Po009);
         TransitionTo(OrderStatus.OnHold, by, reasonCodeId, note);
+        foreach (var op in _operations.Where(o => !o.IsDeleted)) op.PauseForHold();   // the caller pauses their time logs (BR-PO-11)
     }
 
     /// <summary>BR-PO-11: back to the status the order was held from.</summary>
@@ -457,16 +537,228 @@ public class ProductionOrder : BaseEntity
     /// </summary>
     public void ApplyPostedDocument(MaterialTransaction document, string by)
     {
-        foreach (var group in document.PostedLines.GroupBy(l => l.OrderMaterialId))
+        foreach (var group in document.PostedLines.Where(l => l.Kind == StockLineKind.Material).GroupBy(l => l.OrderMaterialId))
         {
             var material = _materials.FirstOrDefault(m => m.Id == group.Key && !m.IsDeleted)
                 ?? throw MfgRules.Invalid($"The material line of {document.DocNo} no longer exists on order {OrderNo}.");
             var qty = group.Sum(l => l.Qty);
-            if (document.Type == StockDocumentType.Issue) material.RegisterIssued(qty); else material.RegisterReturned(qty);
+            switch (document.Type)
+            {
+                case StockDocumentType.Issue: material.RegisterIssued(qty); break;
+                case StockDocumentType.Return: material.RegisterReturned(qty); break;
+                default: material.RegisterConsumed(qty); break;                 // backflush, or the backflush part of a receipt
+            }
         }
+
+        if (document.Type == StockDocumentType.Receipt)
+        {
+            // BR-FG-05, BR-PO-19: the main product counts at once (also while its lot waits for quality), co- / by-products go to their output line
+            foreach (var line in document.PostedLines.Where(l => l.Kind == StockLineKind.Receipt))
+            {
+                if (line.OrderOutputId is null) CompletedQty += line.Qty;
+                else (_outputs.FirstOrDefault(o => o.Id == line.OrderOutputId && !o.IsDeleted)
+                    ?? throw MfgRules.Invalid($"The output line of {document.DocNo} no longer exists on order {OrderNo}.")).RegisterReceived(line.Qty);
+            }
+            BeginExecution(by, $"First receipt {document.DocNo}");
+        }
+
         if (document.Type == StockDocumentType.Issue && Status == OrderStatus.Released)
             TransitionTo(OrderStatus.InProgress, by, null, $"First material issue {document.DocNo}");
         MarkReservationSync();
+        Touch(by);
+    }
+
+    // ── Complete, reopen, close (P3-5) ────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// BR-PO-14a: all of the quantity is received and the plant completes by itself: InProgress -> Completed. Returns true when the order was completed.
+    /// </summary>
+    public bool TryAutoComplete(bool autoComplete, string by, DateTime now)
+    {
+        if (!autoComplete || Status != OrderStatus.InProgress || CompletedQty < Quantity) return false;
+        FinishOrder(by, now, null, "All of the quantity was received", automatic: true, shortClosed: false);
+        return true;
+    }
+
+    /// <summary>
+    /// BR-PO-14b/c: a supervisor completes the order by hand. No operation may be Running and no stock document may be on its way (<c>MFG_PO_013</c>). At or above
+    /// <c>Quantity x (1 - under-completion tolerance)</c> no reason is needed; below it only a short-close with the permission and a ShortClose reason is accepted
+    /// (<c>MFG_PO_012</c>).
+    /// </summary>
+    public void Complete(string by, DateTime now, decimal underCompletionPct, bool canShortClose, bool reasonIsShortClose, Guid? reasonCodeId, string? note, int pendingDocuments)
+    {
+        EnsureEditable();
+        OrderStateMachine.EnsureTransition(Status, OrderStatus.Completed);
+        var running = _operations.Count(o => !o.IsDeleted && o.Status == OperationStatus.Running);
+        var problems = new List<string>();
+        if (running > 0) problems.Add($"{running} công đoạn đang chạy");
+        if (pendingDocuments > 0) problems.Add($"{pendingDocuments} chứng từ kho đang chờ");
+        MfgRules.ThrowIf(problems.Count > 0, MfgErrors.Po013, ("conditions", string.Join("; ", problems)));
+
+        var shortClosed = !OrderCompletion.MeetsThreshold(CompletedQty, Quantity, underCompletionPct);
+        MfgRules.ThrowIf(shortClosed && !(canShortClose && reasonIsShortClose && reasonCodeId is not null), MfgErrors.Po012);
+        FinishOrder(by, now, shortClosed ? reasonCodeId : null, note, automatic: false, shortClosed);
+    }
+
+    private void FinishOrder(string by, DateTime now, Guid? reasonCodeId, string? note, bool automatic, bool shortClosed)
+    {
+        foreach (var op in _operations.Where(o => !o.IsDeleted)) op.ForceComplete(now);          // the caller closes their open time logs
+        TransitionTo(OrderStatus.Completed, by, reasonCodeId, note);
+        MarkReservationSync();                                                                   // what is still reserved goes back to the Warehouse
+        AddDomainEvent(new ProductionOrderCompletedEvent
+        {
+            OrderId = Id, OrderNo = OrderNo, PlantId = PlantId, ItemId = ItemId, Quantity = Quantity, CompletedQty = CompletedQty, ScrappedQty = ScrappedQty,
+            Automatic = automatic, ShortClosed = shortClosed, ReasonCodeId = reasonCodeId,
+        });
+    }
+
+    /// <summary>BR-PO-15: Completed -> InProgress. The reservation is rebuilt for what is still needed; operations stay as they are.</summary>
+    public void Reopen(string by)
+    {
+        EnsureEditable();
+        TransitionTo(OrderStatus.InProgress, by, null, "Reopened");
+        MarkReservationSync();
+    }
+
+    /// <summary>
+    /// The conditions of BR-PO-16 for the close checklist. (1) open material requests and (5) costing belong to later phases and are met; (4) is met when nothing issued is
+    /// left unsettled or the user confirms that the rest is carried to consumption.
+    /// </summary>
+    public IReadOnlyList<CloseCondition> CloseConditions(int openTimeLogs, int heldLots, int pendingDocuments, bool confirmConsumeRemaining)
+    {
+        var unsettled = _materials.Where(m => !m.IsDeleted && m.UnsettledIssue > 0).ToList();
+        var detail = string.Join(", ", unsettled.Select(m => $"{m.ComponentCode} {m.UnsettledIssue:0.######}"));
+        return
+        [
+            new("OPEN_MATERIAL_REQUESTS", true, "Không còn yêu cầu cấp vật tư đang mở."),
+            new("OPEN_TIME_LOGS", openTimeLogs == 0, openTimeLogs == 0 ? "Không còn phiên làm việc đang mở." : $"Còn {openTimeLogs} phiên làm việc đang mở."),
+            new("QUALITY_HOLD", heldLots == 0, heldLots == 0 ? "Không còn lô thành phẩm chờ kiểm." : $"Còn {heldLots} lô thành phẩm đang chờ kiểm."),
+            new("UNSETTLED_MATERIAL", unsettled.Count == 0 || confirmConsumeRemaining,
+                unsettled.Count == 0 ? "Vật tư đã xuất đã được quyết toán." : confirmConsumeRemaining ? $"Phần còn lại sẽ kết chuyển tiêu hao: {detail}." : $"Vật tư đã xuất chưa quyết toán: {detail}."),
+            new("COSTING", true, "Giá thành chưa áp dụng (Giai đoạn 6)."),
+            new("PENDING_DOCUMENTS", pendingDocuments == 0, pendingDocuments == 0 ? "Không còn chứng từ kho đang chờ." : $"Còn {pendingDocuments} chứng từ kho / báo cáo đang chờ."),
+        ];
+    }
+
+    /// <summary>BR-PO-16: Completed -> Closed when every condition is met; with <paramref name="confirmConsumeRemaining"/> the unsettled issued material is carried to consumption.</summary>
+    public void Close(string by, int openTimeLogs, int heldLots, int pendingDocuments, bool confirmConsumeRemaining)
+    {
+        EnsureEditable();
+        OrderStateMachine.EnsureTransition(Status, OrderStatus.Closed);
+        var unmet = CloseConditions(openTimeLogs, heldLots, pendingDocuments, confirmConsumeRemaining).Where(c => !c.Met).Select(c => c.Message).ToList();
+        MfgRules.ThrowIf(unmet.Count > 0, MfgErrors.Po013, ("conditions", string.Join("; ", unmet)));
+
+        var carried = confirmConsumeRemaining && _materials.Any(m => !m.IsDeleted && m.UnsettledIssue > 0);
+        if (confirmConsumeRemaining) foreach (var m in _materials.Where(x => !x.IsDeleted)) m.Settle();
+        TransitionTo(OrderStatus.Closed, by, null, carried ? "Closed; the rest of the issued material was carried to consumption" : "Closed");
+        AddDomainEvent(new ProductionOrderClosedEvent { OrderId = Id, OrderNo = OrderNo, PlantId = PlantId, CompletedQty = CompletedQty, UnsettledMaterialCarriedToConsumption = carried, ClosedBy = by });
+    }
+
+    // ── Execution of operations (P3-4) ────────────────────────────────────────────────────────────────────────
+
+    public ProductionOrderOperation OperationOf(int operationSeq)
+        => _operations.FirstOrDefault(o => o.OperationSeq == operationSeq && !o.IsDeleted)
+            ?? throw MfgRules.Invalid($"Order {OrderNo} has no operation {operationSeq}.");
+
+    /// <summary>
+    /// Shop-floor work needs a Released or InProgress order: a closed or cancelled order is final, an order on hold has its own code (BR-PO-11), any other status
+    /// is "not ready" (<c>MFG_OP_001</c>).
+    /// </summary>
+    public void EnsureOpenForWork()
+    {
+        EnsureEditable();
+        MfgRules.ThrowIf(Status == OrderStatus.OnHold, MfgErrors.Po011);
+        MfgRules.ThrowIf(Status is not (OrderStatus.Released or OrderStatus.InProgress), MfgErrors.Op001);
+    }
+
+    /// <summary>BR-PO-10: the first transaction (issue, start, report, receipt) moves a Released order to InProgress.</summary>
+    private void BeginExecution(string by, string note)
+    {
+        if (Status == OrderStatus.Released) TransitionTo(OrderStatus.InProgress, by, null, note);
+    }
+
+    /// <summary>
+    /// BR-OP-02: somebody starts working on the operation. It must be Ready, Paused or already Running (several people may share it); a Pending operation, or an order
+    /// that is not open, answers <c>MFG_OP_001</c>; a finished operation <c>MFG_OP_009</c>. The first start also starts the order.
+    /// </summary>
+    public void StartOperationWork(int operationSeq, string by, DateTime now)
+    {
+        EnsureEditable();
+        var op = OperationOf(operationSeq);
+        MfgRules.ThrowIf(Status is not (OrderStatus.Released or OrderStatus.InProgress), MfgErrors.Op001);
+        MfgRules.ThrowIf(op.Status == OperationStatus.Completed, MfgErrors.Op009);
+        MfgRules.ThrowIf(op.Status == OperationStatus.Pending, MfgErrors.Op001);
+        if (op.Status != OperationStatus.Running) op.TransitionTo(OperationStatus.Running);
+        op.MarkWorkStarted(now);
+        BeginExecution(by, $"First operation start {op.OperationSeq}");
+        Touch(by);
+    }
+
+    /// <summary>The operation before <paramref name="operationSeq"/> (null for the first).</summary>
+    public ProductionOrderOperation? PreviousOperation(int operationSeq)
+        => Operations.Where(o => o.OperationSeq < operationSeq).OrderByDescending(o => o.OperationSeq).FirstOrDefault();
+
+    /// <summary>
+    /// A report is Posted (its backflush, if any, reached the Warehouse): its figures enter the operation and the order (BR-OP-03, BR-OP-06, BR-PO-19), the next
+    /// operation becomes Ready (BR-OP-01), operations that now have taken all their input complete (cascading down the route), the first transaction starts the
+    /// order (BR-PO-10) and the event leaves with the same save.
+    /// </summary>
+    public void ApplyOperationReport(OperationReport report, string by, DateTime now)
+    {
+        EnsureEditable();
+        var op = OperationOf(report.OperationSeq);
+        op.RegisterReport(report.GoodQty, report.ScrapQty, report.ReworkQty, now);
+        ScrappedQty += report.ScrapQty;
+        BeginExecution(by, $"First operation report {report.DocNo}");
+
+        var next = Operations.FirstOrDefault(o => o.OperationSeq > op.OperationSeq);
+        if (next is { Status: OperationStatus.Pending } && op.GoodQty > 0) next.TransitionTo(OperationStatus.Ready);   // BR-OP-01
+        CompleteSatisfiedOperations(now);
+        AddDomainEvent(report.ToEvent());
+        Touch(by);
+    }
+
+    /// <summary>BR-OP-06: walks the route and completes every open operation whose input is all taken, so finishing one can finish the next.</summary>
+    private void CompleteSatisfiedOperations(DateTime now)
+    {
+        var ops = Operations.ToList();
+        for (var i = 0; i < ops.Count; i++)
+        {
+            var op = ops[i];
+            if (op.Status is not (OperationStatus.Ready or OperationStatus.Running)) continue;
+            var previous = i == 0 ? null : ops[i - 1];
+            if (OperationInput.IsComplete(i == 0, previous?.Status == OperationStatus.Completed, Quantity, previous?.GoodQty ?? 0m, op.TakenQty))
+                op.MarkCompleted(now);
+        }
+    }
+
+    /// <summary>The operations that finished: the caller closes their open time logs.</summary>
+    public IEnumerable<ProductionOrderOperation> CompletedOperations => Operations.Where(o => o.Status == OperationStatus.Completed);
+
+    /// <summary>A supervisor completes an operation by hand (BR-OP-06): it must be Ready or Running. The route is walked again, so later operations may complete too.</summary>
+    public void CompleteOperation(int operationSeq, string by, DateTime now)
+    {
+        EnsureOpenForWork();
+        var op = OperationOf(operationSeq);
+        MfgRules.ThrowIf(op.Status == OperationStatus.Completed, MfgErrors.Op009);
+        MfgRules.ThrowIf(op.Status is not (OperationStatus.Ready or OperationStatus.Running), MfgErrors.Op001);
+        op.MarkCompleted(now);
+        CompleteSatisfiedOperations(now);
+        Touch(by);
+    }
+
+    /// <summary>
+    /// A supervisor reopens a completed operation: it is Ready again. Refused (<c>MFG_OP_007</c>) when the next operation already has work, because that work was fed
+    /// by the output of this one.
+    /// </summary>
+    public void ReopenOperation(int operationSeq, string by)
+    {
+        EnsureOpenForWork();
+        var op = OperationOf(operationSeq);
+        MfgRules.ThrowIf(op.Status != OperationStatus.Completed, MfgErrors.Po002, ("from", op.Status), ("to", OperationStatus.Ready));
+        var next = Operations.FirstOrDefault(o => o.OperationSeq > operationSeq);
+        MfgRules.ThrowIf(next is { HasWork: true }, MfgErrors.Op007);
+        op.MarkReopened();
         Touch(by);
     }
 

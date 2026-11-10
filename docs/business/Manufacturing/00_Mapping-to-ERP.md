@@ -53,4 +53,25 @@ so the specs stay readable as they are. Decision record: `docs/architecture/adr-
 | Return lot limit "<= quantity issued from that lot" (BR-MAT-05) | As specified when the lot of the issue is known; issues drawn by the reservation from several lots have no recorded lot, so they widen every lot's limit |
 | Posting date chosen by the user, open cost period (BR-GEN-08) | Always plant today; no period lock until Phase 6 |
 | New codes | `MFG_MAT_012` (reservation being updated), `MFG_GEN_007` (Idempotency-Key reused for another request) |
-| T3.1 / T3.2 / T3.3 / T3.11 | P3-1 (done); T3.4 / T3.9 P3-2 (done); T3.5 / T3.6 P3-3 (done, 2026-11-10); T3.7 + T4.1 backflush P3-4; T3.8 / T3.10 P3-5; T3.12 P3-6; T3.14 P3-7 |
+| Backflush runs synchronously in the same transaction as the operation report / receipt (T4.1.3) | Backflush is a stock document (type Backflush, prefix `BF`); the report is stored Pending and applied when the document is Posted; a shortage is checked before anything is stored (`MFG_MAT_008`, TC-BF-005); a Warehouse refusal fails document and report; an outage leaves both Pending (202) for the retry job (P3-4) |
+| Backflush on the output "Good + Scrap" of the report (BR-MAT-08) | Same; **rework is not output**. Quantity on the cumulative output rounded up to the unit decimals minus consumption recorded **including backflush still pending** |
+| Negative backflush line (TC-BF-006, `IsNegativeStock`) | A flagged line sent with `AllowNegative`; refused for lot-controlled items (no lot to name) |
+| Operation report: first-operation input limit "Quantity x (1 + OverTol%)" and "no report on a Completed operation" (`PRD_OP_009`) | Input limit is checked first, so a report that also passes the input is `MFG_OP_004` (TC-OP-013) and one within it on a completed operation `MFG_OP_009` (TC-OP-016) |
+| IPQC "only the Passed good quantity of the previous operation" (BR-OP-04, BR-QC-05) | Deferred to Phase 4 (no inspection plans yet); the previous operation's good output is used |
+| Start "Ready/Paused and the order not OnHold" (BR-OP-02) | Ready, Paused **or Running** (several workers share an operation); an order on hold gives `MFG_OP_001`, a report on a held order `MFG_PO_011` |
+| Operation status "Running" while someone works | The status follows the open time logs (Running / Paused / back to Ready when the last one stops); a report needs no time log and does not change the status |
+| Time log employee is the signed-in user | The caller names the employee (active in MasterData); Manufacturing has no user-to-employee link |
+| Document numbers `OR` per plant and month | As specified (unique index per plant); `BF` per tenant and month like MI / MR (Warehouse key) |
+| Receipt + backflush atomic with the inventory transaction (T3.8.2, BR-FG-05) | One stock document (type Receipt, `FR`) with receipt lines and the backflush material lines, posted by the pending-document engine; a refusal reverses the booked lines (scrap of the created lot) and fails the receipt (P3-5) |
+| `ILotService.CreateAsync` for the finished lot (T3.8.2) | The Warehouse creates the lot from the lot number in the `ProductionReceipt` movement; a duplicate number is not refused there, so Manufacturing checks the Warehouse lot list (new internal read) and its own pending lines |
+| Receipt into a warehouse the Warehouse knows | The first receipt of an item the Warehouse never held creates its inventory record (product name and SKU travel with the movement) |
+| Lot number format `{ItemCode}-{yyMMdd}-{seq2}` with "seq in the day" | Smallest free sequence of the item and day, over the Warehouse lots and receipts on their way; `{yyyyMMdd}` and `{seqN}` also accepted |
+| FQC document created at receipt (T3.8.4, BR-FG-04) | Phase 4. Until then the lot is on quality hold in the quarantine warehouse and the interim release (`qc:disposition`) moves it to the finished-goods warehouse and makes it Available |
+| Document numbers FR per plant and month | Per **tenant** and month: the number is the Warehouse key |
+| Unit cost of a receipt from the order cost (BR-CST) | Not sent; the Warehouse values it at the item cost until Phase 6 |
+| Return only on Released / InProgress orders (BR-MAT-01) | A return is also accepted on a Completed order so the issued material can be settled before the close (E2E-001 step 11); an issue is not |
+| Complete (b) permission not named in the spec | `operation:complete-manual` (supervisor, manager) or `order:short-close`; a short-close needs `order:short-close` and a ShortClose reason |
+| Close condition (4) "NetIssued not consumed or returned, or confirmed" | Tracked with `SettledIssueQty` per material line, separate from backflush consumption |
+| Conditions (1) open material requests and (5) costing | Always met until material requests (Phase 4) and costing (Phase 6) exist |
+| New code | `MFG_FG_005` (finished goods only on a Released / InProgress order) |
+| T3.1 / T3.2 / T3.3 / T3.11 | P3-1 (done); T3.4 / T3.9 P3-2 (done); T3.5 / T3.6 P3-3 (done, 2026-11-10); T3.7 + T4.1 (operation trigger) P3-4 (done, 2026-11-10); T3.8 / T3.10 + the receipt trigger of backflush P3-5 (done, 2026-11-10); T3.12 P3-6; T3.14 P3-7 |

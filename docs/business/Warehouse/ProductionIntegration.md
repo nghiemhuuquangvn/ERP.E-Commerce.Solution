@@ -91,3 +91,5 @@ Service-to-service only (`[AuthorizeInternalService("manufacturing")]` on every 
 5. A serial-controlled component stops the cycle with `WH_SERIAL_NOT_SUPPORTED` and leaves stock untouched.
 6. Without a service token: 401; through the Gateway: 404.
 7. (W6) Issue 5 from an expired lot: 400 `WH_LOT_EXPIRED`, stock unchanged; scrap the same lot: accepted.
+8. (P3-4) Backflush of an operation report is the second caller of `ProductionIssue`: keys `BF-yymm-nnnnn#n` (reserved part) and `...#nF` (free stock, one line per lot); a shortage is refused before anything is booked, a flagged negative line is sent with `AllowNegative`; a refused line is reversed with `ProductionReturn` under `...R`. See `docs/business/Manufacturing/OperationsAndBackflush.md`.
+9. (P3-5) `GET internal/v1/stock/{productId}/lots` lists every lot of an item including used-up ones; the first `ProductionReceipt` of an item with no inventory record creates it from the optional product name and SKU (any other movement of such an item: `WH_NOT_FOUND`). A duplicate lot number is not refused by the Warehouse; the caller checks the list. See `docs/business/Manufacturing/FinishedGoodsAndClosing.md`.

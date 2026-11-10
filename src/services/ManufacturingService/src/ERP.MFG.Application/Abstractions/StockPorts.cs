@@ -49,10 +49,15 @@ public sealed record StockMovementRequest(
     Guid? ReservationId = null,
     Guid? SourceLineId = null,
     bool RequiresLot = false,
-    bool RequiresSerial = false);
+    bool RequiresSerial = false,
+    string? ProductName = null,
+    string? ProductSku = null);
 
 public sealed record StockMovementResult(Guid MovementId, string MovementType, decimal Quantity, DateTime RecordedAt, decimal? UnitCost, decimal? ValueDelta,
     Guid? WarehouseId, Guid? LotId, bool Replayed);
+
+/// <summary>A lot of an item as the Warehouse lists it (depleted lots included): used to keep lot numbers of finished goods unique (BR-FG-02).</summary>
+public sealed record StockLotInfo(Guid LotId, string LotNumber, Guid? WarehouseId, string Status, decimal RemainingQuantity, DateTime? ExpiryDate, DateTime? ManufactureDate);
 
 public sealed record LotStatusResult(Guid LotId, string LotNumber, string Status, bool Unchanged);
 
@@ -68,6 +73,9 @@ public interface IWarehouseStockClient
     Task<StockAvailability> GetAvailabilityAsync(Guid productId, Guid? warehouseId, CancellationToken ct = default);
 
     Task<LotSuggestion> SuggestLotsAsync(Guid productId, decimal quantity, Guid? warehouseId, CancellationToken ct = default);
+
+    /// <summary>Every lot of the item, used-up ones included (no cache).</summary>
+    Task<IReadOnlyList<StockLotInfo>> ListLotsAsync(Guid productId, CancellationToken ct = default);
 
     /// <summary>Holds components for a production order in one warehouse; asking again for the same order answers the first reservation (<c>Replayed</c>).</summary>
     Task<StockReservation> ReserveAsync(Guid productionOrderId, string? orderNumber, Guid? warehouseId, IReadOnlyList<StockReservationLine> lines, CancellationToken ct = default);

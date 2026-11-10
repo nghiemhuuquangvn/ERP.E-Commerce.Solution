@@ -1522,4 +1522,15 @@ P3-3 (2026-11-10) adds the stock-document events (both `ITenantEvent`, raised wh
 |---|---|---|
 | `MaterialIssuedEvent` | a material issue document is Posted | `DocumentId`, `DocNo`, `OrderId`, `OrderNo`, `PlantId`, `PostingDate`, `ReasonCodeId`, `Lines[]` (`ItemId`, `ItemCode`, `WarehouseId`, `LotId`, `Quantity`, `UnitCost`, `Amount`) |
 | `MaterialReturnedEvent` | a material return document is Posted | same shape |
-The later Phase 3 events (`ProductionOrderCompleted/Closed`, `MaterialIssued/Returned/Backflushed`, `OperationReported`, `FinishedGoodsReceived`) are added with their milestones.
+P3-4 (2026-11-10) adds the operation and backflush events (both `ITenantEvent`, raised when the report / document is applied to the order):
+| Event | Raised when | Payload |
+|---|---|---|
+| `OperationReportedEvent` | an operation report is applied (its backflush, if any, is Posted) | `ReportId`, `DocNo`, `OrderId`, `OrderNo`, `PlantId`, `OperationSeq`, `GoodQty`, `ScrapQty`, `ReworkQty`, `ScrapReasonId`, `ReworkReasonId`, `MachineId`, `ReportedBy` |
+| `MaterialBackflushedEvent` | a backflush document is Posted | `DocumentId`, `DocNo` (BF-...), `OrderId`, `OrderNo`, `PlantId`, `PostingDate`, `SourceOperationReportId`, `Lines[]` (as `MaterialIssuedEvent`) |
+P3-5 (2026-11-10) adds the receipt and closing events (all `ITenantEvent`):
+| Event | Raised when | Payload |
+|---|---|---|
+| `FinishedGoodsReceivedEvent` | a receipt document is Posted | `DocumentId`, `DocNo` (FR-...), `OrderId`, `OrderNo`, `PlantId`, `PostingDate`, `Lines[]` (`ItemId`, `ItemCode`, `WarehouseId`, `LotId`, `LotNumber`, `ExpiryDate`, `IsQcHold`, `OutputLineNo`, `Quantity`, `UnitCost`, `Amount`); the backflush part of the same receipt leaves as `MaterialBackflushedEvent` |
+| `ProductionOrderCompletedEvent` | an order is completed (by the last receipt, by hand, or short-closed) | `OrderId`, `OrderNo`, `PlantId`, `ItemId`, `Quantity`, `CompletedQty`, `ScrappedQty`, `Automatic`, `ShortClosed`, `ReasonCodeId` |
+| `ProductionOrderClosedEvent` | an order is closed | `OrderId`, `OrderNo`, `PlantId`, `CompletedQty`, `UnsettledMaterialCarriedToConsumption`, `ClosedBy` |
+All Phase 3 events listed in the specification (§8.1) except the reversal events of T4.2 are now defined.

@@ -41,6 +41,8 @@ public static class DependencyInjection
         services.AddScoped<IOpenOrderGuard, OrderBackedOpenOrderGuard>();
         services.AddScoped<IProductionOrderRepository, ProductionOrderRepository>();
         services.AddScoped<IStockDocumentRepository, StockDocumentRepository>();
+        services.AddScoped<IOperationReportRepository, OperationReportRepository>();
+        services.AddScoped<ITimeLogRepository, TimeLogRepository>();
 
         // Domain events leave through the outbox (written by MfgDbContext in the same transaction) onto Kafka topic manufacturing-topic.
         var kafkaServers = configuration["KafkaSettings:BootstrapServers"] ?? "localhost:9092";

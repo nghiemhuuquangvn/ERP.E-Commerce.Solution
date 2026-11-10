@@ -45,7 +45,36 @@ internal sealed class FakeStock : IWarehouseStockClient
         return Task.FromResult(new StockAvailability(productId, total, held, 0, Math.Max(total - held, 0), 0m, rows));
     }
 
-    public Task<LotSuggestion> SuggestLotsAsync(Guid productId, decimal quantity, Guid? warehouseId, CancellationToken ct = default) => throw new NotSupportedException();
+    /// <summary>Lots that were used up (not in the balances any more) but still exist in the Warehouse: their numbers stay taken.</summary>
+    public readonly Dictionary<Guid, List<string>> DepletedLotNumbers = [];
+
+    public Task<IReadOnlyList<StockLotInfo>> ListLotsAsync(Guid productId, CancellationToken ct = default)
+    {
+        Check();
+        var lots = (Balances.GetValueOrDefault(productId) ?? []).Where(b => b.LotId != null)
+            .Select(b => new StockLotInfo(b.LotId!.Value, b.LotNumber ?? "", b.WarehouseId, b.LotStatus ?? "Available", b.Quantity, b.ExpiryDate, null)).ToList();
+        lots.AddRange((DepletedLotNumbers.GetValueOrDefault(productId) ?? []).Select(n => new StockLotInfo(Guid.NewGuid(), n, null, "Available", 0m, null, null)));
+        return Task.FromResult<IReadOnlyList<StockLotInfo>>(lots);
+    }
+
+    /// <summary>First-expiry-first over the usable lots (a lot without expiry comes last), like the Warehouse's <c>LotPicker</c>.</summary>
+    public Task<LotSuggestion> SuggestLotsAsync(Guid productId, decimal quantity, Guid? warehouseId, CancellationToken ct = default)
+    {
+        Check();
+        var rows = (Balances.GetValueOrDefault(productId) ?? [])
+            .Where(b => b.LotId != null && b.LotStatus == "Available" && (b.ExpiryDate is null || b.ExpiryDate > DateTime.UtcNow) && b.AvailableQuantity > 0)
+            .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue).ToList();
+        var left = quantity;
+        var lots = new List<SuggestedLotInfo>();
+        foreach (var row in rows)
+        {
+            if (left <= 0) break;
+            var take = Math.Min(row.AvailableQuantity, left);
+            lots.Add(new SuggestedLotInfo(row.LotId!.Value, row.LotNumber ?? "", row.WarehouseId, row.ExpiryDate, row.AvailableQuantity, take));
+            left -= take;
+        }
+        return Task.FromResult(new LotSuggestion(productId, warehouseId, quantity, lots, left, 0m));
+    }
 
     public Task<StockReservation> ReserveAsync(Guid productionOrderId, string? orderNumber, Guid? warehouseId, IReadOnlyList<StockReservationLine> lines, CancellationToken ct = default)
     {
@@ -102,6 +131,7 @@ internal sealed class FakeStock : IWarehouseStockClient
         }
 
         decimal unitCost;
+        Guid? createdLot = null;
         if (r.MovementType == "ProductionIssue")
         {
             unitCost = CostOf(r.ProductId);
@@ -128,7 +158,7 @@ internal sealed class FakeStock : IWarehouseStockClient
                     if (row.ExpiryDate is { } expiry && expiry <= DateTime.UtcNow) throw new BusinessRuleException("WH_LOT_EXPIRED", "Lot expired.");
                     if (row.Quantity < r.Quantity) throw new BusinessRuleException("WH_INSUFFICIENT_STOCK", "Not enough in the lot.");
                 }
-                if (rows.Sum(b => b.Quantity) - held < r.Quantity) throw new BusinessRuleException("WH_INSUFFICIENT_STOCK", "Not enough free stock.");
+                if (!r.AllowNegative && rows.Sum(b => b.Quantity) - held < r.Quantity) throw new BusinessRuleException("WH_INSUFFICIENT_STOCK", "Not enough free stock.");
             }
             Adjust(r.ProductId, r.LotId, -r.Quantity);
         }
@@ -137,12 +167,49 @@ internal sealed class FakeStock : IWarehouseStockClient
             unitCost = r.UnitCost ?? CostOf(r.ProductId);
             Adjust(r.ProductId, r.LotId, r.Quantity);
         }
+        else if (r.MovementType == "ProductionReceipt")
+        {
+            unitCost = r.UnitCost ?? CostOf(r.ProductId);
+            if (!string.IsNullOrWhiteSpace(r.LotNumber))
+            {
+                createdLot = Guid.NewGuid();
+                Add(r.ProductId, new StockBalanceInfo(r.WarehouseId, "WH", createdLot, r.LotNumber, r.InitialLotStatus ?? "Available", r.ExpiryDate, r.Quantity, 0, 0, r.Quantity));
+            }
+            else Add(r.ProductId, new StockBalanceInfo(r.WarehouseId, "WH", null, null, null, null, r.Quantity, 0, 0, r.Quantity));
+        }
+        else if (r.MovementType == "ProductionScrap")
+        {
+            unitCost = CostOf(r.ProductId);
+            var rows = Balances.GetValueOrDefault(r.ProductId) ?? [];
+            var index = rows.FindIndex(b => b.LotId == r.LotId && (r.LotId != null || b.WarehouseId == r.WarehouseId));
+            if (index < 0 || rows[index].Quantity < r.Quantity) throw new BusinessRuleException("WH_INSUFFICIENT_STOCK", "Not enough to scrap.");
+            Adjust(r.ProductId, r.LotId, -r.Quantity);
+        }
+        else if (r.MovementType == "SubcontractTransfer")
+        {
+            unitCost = CostOf(r.ProductId);
+            var rows = Balances.GetValueOrDefault(r.ProductId) ?? [];
+            var index = rows.FindIndex(b => b.LotId == r.LotId);
+            if (r.LotId is null || index < 0) throw new BusinessRuleException("WH_LOT_NOT_FOUND", "No such lot.");
+            if (rows[index].Quantity != r.Quantity) throw new BusinessRuleException("WH_PARTIAL_LOT_MOVE", "A lot moves as a whole.");
+            rows[index] = rows[index] with { WarehouseId = r.ToWarehouseId };
+        }
+        else if (r.MovementType == "QcRelease")
+        {
+            var rows = Balances.GetValueOrDefault(r.ProductId) ?? [];
+            var index = rows.FindIndex(b => b.LotId == r.LotId);
+            if (r.LotId is null || index < 0) throw new BusinessRuleException("WH_LOT_NOT_FOUND", "No such lot.");
+            if (rows[index].LotStatus == "Available") throw new BusinessRuleException("WH_LOT_NOT_ON_HOLD", "Already available.");
+            rows[index] = rows[index] with { LotStatus = "Available" };
+            unitCost = CostOf(r.ProductId);
+        }
         else throw new BusinessRuleException("WH_MOVEMENT_TYPE", r.MovementType + " is not supported by the fake.");
 
-        var booked = new Booked(r.IdempotencyKey, r.MovementType, r.ProductId, r.Quantity, r.LotId, r.ReservationId, unitCost, Guid.NewGuid());
+        var lotBooked = createdLot ?? r.LotId;
+        var booked = new Booked(r.IdempotencyKey, r.MovementType, r.ProductId, r.Quantity, lotBooked, r.ReservationId, unitCost, Guid.NewGuid());
         Movements.Add(booked);
-        var sign = r.MovementType == "ProductionIssue" ? -1m : 1m;
-        return Task.FromResult(new StockMovementResult(booked.MovementId, r.MovementType, r.Quantity, DateTime.UtcNow, unitCost, sign * Math.Round(r.Quantity * unitCost, 2), r.WarehouseId, r.LotId, false));
+        var sign = r.MovementType is "ProductionIssue" or "ProductionScrap" ? -1m : r.MovementType is "SubcontractTransfer" or "QcRelease" ? 0m : 1m;
+        return Task.FromResult(new StockMovementResult(booked.MovementId, r.MovementType, r.Quantity, DateTime.UtcNow, unitCost, sign * Math.Round(r.Quantity * unitCost, 2), r.WarehouseId, lotBooked, false));
     }
 
     public Task<LotStatusResult> SetLotStatusAsync(Guid lotId, string status, CancellationToken ct = default) => throw new NotSupportedException();
@@ -173,9 +240,17 @@ internal sealed class SettingsFake : IProductionSettingProvider
     public bool BlockReleaseOnShortage;
     public bool Sequential = true;
     public decimal OverIssueTolerancePct = 3m;
+    public decimal OverProductionTolerancePct = 5m;
+    public decimal UnderCompletionTolerancePct = 2m;
+    public bool AutoCompleteOnFullReceipt = true;
+    public bool AllowNegativeStockOnBackflush;
 
     public Task<ProductionSettingValues> GetAsync(Guid plantId, CancellationToken ct = default)
-        => Task.FromResult(ProductionSettingValues.Defaults with { BlockReleaseOnShortage = BlockReleaseOnShortage, RequireSequentialOperations = Sequential, OverIssueTolerancePct = OverIssueTolerancePct });
+        => Task.FromResult(ProductionSettingValues.Defaults with
+        {
+            BlockReleaseOnShortage = BlockReleaseOnShortage, RequireSequentialOperations = Sequential, OverIssueTolerancePct = OverIssueTolerancePct,
+            OverProductionTolerancePct = OverProductionTolerancePct, UnderCompletionTolerancePct = UnderCompletionTolerancePct, AutoCompleteOnFullReceipt = AutoCompleteOnFullReceipt, AllowNegativeStockOnBackflush = AllowNegativeStockOnBackflush,
+        });
 
     public void Invalidate(Guid plantId) { }
 }
@@ -198,6 +273,8 @@ internal class ReleaseCtx : OrderCtx
     }
 
     public StockDocRepoFake Documents { get; } = new();
+    public TimeLogRepoFake TimeLogs { get; } = new();
+    public ReportRepoFake Reports { get; } = new();
 
     public IOrderAvailability Availability => new OrderAvailabilityService(Stock, PlantTime);
     public OrderReservationSync Sync => new(Stock, Availability, F.Uow, PlantTime);
@@ -220,7 +297,7 @@ internal class ReleaseCtx : OrderCtx
         => new CancelOrderHandler(Access, Repo, F.ReasonRepo, new OrderTransactionGuard(Documents), Sync, User, F.Uow).Handle(new CancelOrderCommand(id, reason, "note"), default);
 
     public Task<OrderActionResultDto> HoldAsync(Guid id, Guid? reason)
-        => new HoldOrderHandler(Access, Repo, F.ReasonRepo, User, F.Uow).Handle(new HoldOrderCommand(id, reason, null), default);
+        => new HoldOrderHandler(Access, Repo, F.ReasonRepo, TimeLogs, PlantTime, User, F.Uow).Handle(new HoldOrderCommand(id, reason, null), default);
 
     public Task<OrderActionResultDto> ResumeAsync(Guid id)
         => new ResumeOrderHandler(Access, Repo, User, F.Uow).Handle(new ResumeOrderCommand(id), default);

@@ -35,6 +35,10 @@ public class InternalProductionMovementCommand : IRequest<RecordStockMovementRes
     public Guid? SourceLineId { get; set; }
     public bool RequiresLot { get; set; }
     public bool RequiresSerial { get; set; }
+
+    /// <summary>ProductionReceipt of an item the Warehouse has never held: the record is created with this name and SKU.</summary>
+    public string? ProductName { get; set; }
+    public string? ProductSku { get; set; }
 }
 
 public class InternalProductionMovementCommandHandler(IMediator mediator) : IRequestHandler<InternalProductionMovementCommand, RecordStockMovementResponse>
@@ -71,7 +75,9 @@ public class InternalProductionMovementCommandHandler(IMediator mediator) : IReq
             ReservationId = r.ReservationId,
             SourceLineId = r.SourceLineId,
             RequiresLot = r.RequiresLot,
-            RequiresSerial = r.RequiresSerial
+            RequiresSerial = r.RequiresSerial,
+            ProductName = r.ProductName,
+            ProductSku = r.ProductSku
         }, ct);
     }
 }
