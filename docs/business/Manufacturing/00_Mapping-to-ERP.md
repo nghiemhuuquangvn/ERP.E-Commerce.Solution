@@ -46,4 +46,11 @@ so the specs stay readable as they are. Decision record: `docs/architecture/adr-
 | Reservation made in the same transaction as the release (NFR-05) | Order saved with a sync flag, then the Warehouse reservation is brought in line (reconciler + `ReservationSyncJob`); the answer says `reservationPending` when it is not yet done (P3-2) |
 | Reserved quantity per material = min(required, available) (BR-PO-08) | min(still needed, allocatable) where allocatable counts lot-less stock and Available, unexpired lots of the material's warehouse (capped by the item's available quantity) |
 | Change of quantity keeps the reservation | Release + reserve again (the Warehouse has no "adjust") |
-| T3.1 / T3.2 / T3.3 / T3.11 | P3-1 (done); T3.4 / T3.9 P3-2 (done, 2026-11-10); T3.4 / T3.9 P3-2; T3.5 / T3.6 P3-3; T3.7 + T4.1 backflush P3-4; T3.8 / T3.10 P3-5; T3.12 P3-6; T3.14 P3-7 |
+| Issue / return atomic with the inventory transaction in one DB transaction (BR-MAT-06, NFR-05, T3.5.3) | Pending-document engine: stored first, one Warehouse movement per line under `<DocNo>#<n>`, effect on the order only when all lines are Posted, reversal on refusal, retry job; 201 Posted / 202 Pending (P3-3) |
+| Document numbers MI / MR per plant and month (BR-GEN-04) | Per **tenant** and month: the number is the Warehouse key |
+| `ProductionOrderMaterial.RegisterIssue` checks BR-MAT-02 (T3.5.1) | The check is in the handler (`MaterialLimits`) before the document is stored; pending quantities count; the order only registers posted quantities |
+| Serial numbers on issue lines (MaterialTransactionSerial, TC-MAT-007 serial variant) | Serial-controlled items are refused (`MFG_MAT_011`); no serial table |
+| Return lot limit "<= quantity issued from that lot" (BR-MAT-05) | As specified when the lot of the issue is known; issues drawn by the reservation from several lots have no recorded lot, so they widen every lot's limit |
+| Posting date chosen by the user, open cost period (BR-GEN-08) | Always plant today; no period lock until Phase 6 |
+| New codes | `MFG_MAT_012` (reservation being updated), `MFG_GEN_007` (Idempotency-Key reused for another request) |
+| T3.1 / T3.2 / T3.3 / T3.11 | P3-1 (done); T3.4 / T3.9 P3-2 (done); T3.5 / T3.6 P3-3 (done, 2026-11-10); T3.7 + T4.1 backflush P3-4; T3.8 / T3.10 P3-5; T3.12 P3-6; T3.14 P3-7 |

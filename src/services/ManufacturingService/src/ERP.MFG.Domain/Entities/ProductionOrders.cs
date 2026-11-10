@@ -62,6 +62,8 @@ public class ProductionOrderMaterial : BaseEntity
     /// <summary>What the order still needs from the Warehouse: required minus what is out on the shop floor minus what backflush has consumed (never negative).</summary>
     public decimal OpenNeed => ReservationPlanner.OpenNeed(RequiredQty, IssuedQty, ReturnedQty, ConsumedQty);
 
+    internal void RegisterIssued(decimal qty) { IssuedQty += qty; UpdatedAt = DateTime.UtcNow; }
+    internal void RegisterReturned(decimal qty) { ReturnedQty += qty; UpdatedAt = DateTime.UtcNow; }
     internal void SetRequired(decimal required) { RequiredQty = required; UpdatedAt = DateTime.UtcNow; }
     internal void SetReserved(decimal reserved) { ReservedQty = reserved; UpdatedAt = DateTime.UtcNow; }
 
@@ -447,6 +449,25 @@ public class ProductionOrder : BaseEntity
         Touch(by);
         MarkReservationSync();
         AddDomainEvent(new ProductionOrderQuantityChangedEvent { OrderId = Id, OrderNo = OrderNo, ItemId = ItemId, OldQuantity = old, NewQuantity = newQuantity, ChangedBy = by });
+    }
+
+    /// <summary>
+    /// A stock document is Posted in the Warehouse: its quantities enter the materials (issued / returned), the first issue starts the order (BR-PO-10) and the
+    /// reservation is flagged to follow (the Warehouse consumed part of it). The caller saves the order together with the document.
+    /// </summary>
+    public void ApplyPostedDocument(MaterialTransaction document, string by)
+    {
+        foreach (var group in document.PostedLines.GroupBy(l => l.OrderMaterialId))
+        {
+            var material = _materials.FirstOrDefault(m => m.Id == group.Key && !m.IsDeleted)
+                ?? throw MfgRules.Invalid($"The material line of {document.DocNo} no longer exists on order {OrderNo}.");
+            var qty = group.Sum(l => l.Qty);
+            if (document.Type == StockDocumentType.Issue) material.RegisterIssued(qty); else material.RegisterReturned(qty);
+        }
+        if (document.Type == StockDocumentType.Issue && Status == OrderStatus.Released)
+            TransitionTo(OrderStatus.InProgress, by, null, $"First material issue {document.DocNo}");
+        MarkReservationSync();
+        Touch(by);
     }
 
     /// <summary>The Warehouse reservation now matches the order: store its id and what each line holds, clear the flag.</summary>

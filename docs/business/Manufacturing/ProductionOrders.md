@@ -1,6 +1,6 @@
 # Manufacturing - production orders (Phase 3: P3-1 creation, snapshot, schedule; P3-2 release, reservation, unrelease, cancel, hold, change of quantity)
 
-Added 2026-11-10. Source: `docs/business/M/01_PRODUCTION_BA_SPEC.md` §4.2-4.3, §5.10 (BR-PO-01..06, BR-PO-19 data), §7.3; tasks T3.1, T3.2, T3.3, T3.11; tests TC-PO-001..010, 039..042, TC-SCH-001..005. Decision record: `docs/architecture/adr-manufacturing-phase3.md`. Release, reservation, unrelease, cancel, hold / resume and change of quantity (P3-2) are in part 2 at the end of this file (sections 12-22); material, operations, receipts and closing follow in P3-3..P3-5 and are documented here as they arrive.
+Added 2026-11-10. Source: `docs/business/M/01_PRODUCTION_BA_SPEC.md` §4.2-4.3, §5.10 (BR-PO-01..06, BR-PO-19 data), §7.3; tasks T3.1, T3.2, T3.3, T3.11; tests TC-PO-001..010, 039..042, TC-SCH-001..005. Decision record: `docs/architecture/adr-manufacturing-phase3.md`. Release, reservation, unrelease, cancel, hold / resume and change of quantity (P3-2) are in part 2 at the end of this file (sections 12-22); material issue and return (P3-3) are in `MaterialIssueReturn.md`; operations, receipts and closing follow in P3-4..P3-5 and are documented here as they arrive.
 
 ## 1. Purpose and actors
 A production order says *what to make, how many, by when* and freezes the recipe (BOM) and the route (routing) it will follow, so that later engineering changes do not move work already planned. In P3-1 an order can be created, adjusted while it is a Draft, scheduled and looked up; it does not touch stock yet.

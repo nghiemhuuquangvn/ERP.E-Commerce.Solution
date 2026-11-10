@@ -16,6 +16,7 @@ public static class MfgErrors
     public const string Gen004 = "MFG_GEN_004";
     public const string Gen005 = "MFG_GEN_005";
     public const string Gen006 = "MFG_GEN_006";
+    public const string Gen007 = "MFG_GEN_007"; // not in the spec: an Idempotency-Key was reused for a different request
     public const string Set001 = "MFG_SET_001";
     public const string Itm001 = "MFG_ITM_001";
     public const string Itm002 = "MFG_ITM_002";
@@ -68,6 +69,7 @@ public static class MfgErrors
     public const string Mat008 = "MFG_MAT_008";
     public const string Mat009 = "MFG_MAT_009";
     public const string Mat010 = "MFG_MAT_010";
+    public const string Mat012 = "MFG_MAT_012"; // not in the spec: the Warehouse reservation of the order is being updated (P3-3)
     public const string Mat011 = "MFG_MAT_011"; // not in the spec: serial-controlled items cannot be produced yet (Warehouse refuses them, R206)
     public const string Op001 = "MFG_OP_001";
     public const string Op002 = "MFG_OP_002";
@@ -106,6 +108,7 @@ public static class MfgErrors
         [Gen004] = "Ngày chứng từ không được lớn hơn ngày hiện tại.",
         [Gen005] = "Không thể xóa vì dữ liệu đang được sử dụng. Vui lòng chuyển sang ngừng hoạt động.",
         [Gen006] = "Mã {code} đã tồn tại.",
+        [Gen007] = "Khóa Idempotency-Key này đã được dùng cho một yêu cầu khác.",
         [Set001] = "Không thể đổi phương pháp tính giá thành khi còn lệnh sản xuất chưa đóng.",
         [Itm001] = "Mặt hàng {item} không phải loại sản xuất (Make).",
         [Itm002] = "Tham số chính sách lô không hợp lệ.",
@@ -154,6 +157,7 @@ public static class MfgErrors
         [Mat007] = "Số lượng serial không khớp số lượng.",
         [Mat008] = "Không đủ tồn để trừ tự động vật tư {item} (thiếu {shortage}).",
         [Mat009] = "Vật tư thay thế không thuộc nhóm thay thế của định mức.",
+        [Mat012] = "Giữ chỗ kho của lệnh đang được cập nhật, vui lòng thử lại sau ít phút.",
         [Mat011] = "Mặt hàng {item} quản lý theo số serial, chưa hỗ trợ sản xuất/tiêu hao theo serial.",
         [Mat010] = "Số lượng yêu cầu vượt số lượng còn được cấp ({remaining}).",
         [Op001] = "Công đoạn chưa sẵn sàng hoặc lệnh đang tạm dừng.",

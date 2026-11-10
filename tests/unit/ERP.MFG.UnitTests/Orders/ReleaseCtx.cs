@@ -18,8 +18,12 @@ internal sealed class FakeStock : IWarehouseStockClient
 
     public void Stock(Guid product, Guid warehouse, decimal quantity) => Add(product, new StockBalanceInfo(warehouse, "WH", null, null, null, null, quantity, 0, 0, quantity));
 
-    public void Lot(Guid product, Guid warehouse, string number, decimal quantity, string status = "Available", DateTime? expiry = null)
-        => Add(product, new StockBalanceInfo(warehouse, "WH", Guid.NewGuid(), number, status, expiry, quantity, 0, 0, quantity));
+    public Guid Lot(Guid product, Guid warehouse, string number, decimal quantity, string status = "Available", DateTime? expiry = null)
+    {
+        var id = Guid.NewGuid();
+        Add(product, new StockBalanceInfo(warehouse, "WH", id, number, status, expiry, quantity, 0, 0, quantity));
+        return id;
+    }
 
     private void Add(Guid product, StockBalanceInfo balance)
     {
@@ -72,8 +76,92 @@ internal sealed class FakeStock : IWarehouseStockClient
         return Task.FromResult(new ReservationReleased(reservationId, "Released", DateTime.UtcNow));
     }
 
-    public Task<StockMovementResult> RecordMovementAsync(StockMovementRequest request, CancellationToken ct = default) => throw new NotSupportedException();
+    // ── Movements (P3-3): keys deduplicate like the real Warehouse, issues against a reservation consume it, a hook injects outages and refusals ──────────
+    public sealed record Booked(string Key, string Type, Guid ProductId, decimal Quantity, Guid? LotId, Guid? ReservationId, decimal UnitCost, Guid MovementId);
+
+    public readonly List<Booked> Movements = [];
+    public readonly List<StockMovementRequest> Requests = [];
+    public readonly Dictionary<Guid, decimal> Costs = [];
+    public Func<StockMovementRequest, int, Exception?>? Intercept;
+    public int MovementCalls;
+
+    public decimal CostOf(Guid product) => Costs.GetValueOrDefault(product, 2m);
+
+    public Task<StockMovementResult> RecordMovementAsync(StockMovementRequest r, CancellationToken ct = default)
+    {
+        MovementCalls++;
+        Requests.Add(r);
+        if (Intercept?.Invoke(r, MovementCalls) is { } failure) throw failure;
+        if (Down) throw MfgRules.Fail(MfgErrors.Int001);
+
+        var existing = Movements.FirstOrDefault(m => m.Key == r.IdempotencyKey && m.ProductId == r.ProductId && m.Type == r.MovementType);
+        if (existing != null)
+        {
+            if (existing.Quantity != r.Quantity) throw new ConcurrencyException("WH_IDEMPOTENCY_CONFLICT", "same key, other quantity");
+            return Task.FromResult(new StockMovementResult(existing.MovementId, existing.Type, existing.Quantity, DateTime.UtcNow, existing.UnitCost, Math.Round(existing.Quantity * existing.UnitCost, 2), r.WarehouseId, existing.LotId, true));
+        }
+
+        decimal unitCost;
+        if (r.MovementType == "ProductionIssue")
+        {
+            unitCost = CostOf(r.ProductId);
+            if (r.ReservationId is { } reservationId)
+            {
+                var pair = Reservations.FirstOrDefault(x => x.Value.ReservationId == reservationId);
+                if (pair.Value is null || pair.Value.Status != "Reserved") throw new BusinessRuleException("WH_RESERVATION_NOT_OPEN", "The reservation is not open.");
+                var index = pair.Value.Lines.FindIndex(l => l.ProductId == r.ProductId && (r.SourceLineId == null || l.SourceLineId == r.SourceLineId));
+                if (index < 0) throw new BusinessRuleException("WH_RESERVATION_LINE", "No such line.");
+                var line = pair.Value.Lines[index];
+                if (line.Remaining < r.Quantity) throw new BusinessRuleException("WH_RESERVATION_EXCEEDED", "More than reserved.");
+                var lines = pair.Value.Lines.ToList();
+                lines[index] = line with { Consumed = line.Consumed + r.Quantity, Remaining = line.Remaining - r.Quantity };
+                Reservations[pair.Key] = pair.Value with { Lines = lines, Status = lines.All(l => l.Remaining == 0) ? "Fulfilled" : "Reserved" };
+            }
+            else
+            {
+                var held = Reservations.Values.Where(x => x.Status == "Reserved").SelectMany(x => x.Lines).Where(l => l.ProductId == r.ProductId).Sum(l => l.Remaining);
+                var rows = Balances.GetValueOrDefault(r.ProductId) ?? [];
+                if (r.LotId is { } lotId)
+                {
+                    var row = rows.FirstOrDefault(b => b.LotId == lotId) ?? throw new BusinessRuleException("WH_LOT_NOT_FOUND", "No such lot.");
+                    if (row.LotStatus != "Available") throw new BusinessRuleException("WH_LOT_NOT_USABLE", "Lot on hold.");
+                    if (row.ExpiryDate is { } expiry && expiry <= DateTime.UtcNow) throw new BusinessRuleException("WH_LOT_EXPIRED", "Lot expired.");
+                    if (row.Quantity < r.Quantity) throw new BusinessRuleException("WH_INSUFFICIENT_STOCK", "Not enough in the lot.");
+                }
+                if (rows.Sum(b => b.Quantity) - held < r.Quantity) throw new BusinessRuleException("WH_INSUFFICIENT_STOCK", "Not enough free stock.");
+            }
+            Adjust(r.ProductId, r.LotId, -r.Quantity);
+        }
+        else if (r.MovementType == "ProductionReturn")
+        {
+            unitCost = r.UnitCost ?? CostOf(r.ProductId);
+            Adjust(r.ProductId, r.LotId, r.Quantity);
+        }
+        else throw new BusinessRuleException("WH_MOVEMENT_TYPE", r.MovementType + " is not supported by the fake.");
+
+        var booked = new Booked(r.IdempotencyKey, r.MovementType, r.ProductId, r.Quantity, r.LotId, r.ReservationId, unitCost, Guid.NewGuid());
+        Movements.Add(booked);
+        var sign = r.MovementType == "ProductionIssue" ? -1m : 1m;
+        return Task.FromResult(new StockMovementResult(booked.MovementId, r.MovementType, r.Quantity, DateTime.UtcNow, unitCost, sign * Math.Round(r.Quantity * unitCost, 2), r.WarehouseId, r.LotId, false));
+    }
+
     public Task<LotStatusResult> SetLotStatusAsync(Guid lotId, string status, CancellationToken ct = default) => throw new NotSupportedException();
+
+    /// <summary>Changes the quantity of one balance row (the lot's, else the lot-less one; a missing row is created).</summary>
+    public void Adjust(Guid product, Guid? lot, decimal delta)
+    {
+        if (!Balances.TryGetValue(product, out var rows)) Balances[product] = rows = [];
+        var index = rows.FindIndex(b => b.LotId == lot);
+        if (index < 0)
+        {
+            rows.Add(new StockBalanceInfo(rows.FirstOrDefault()?.WarehouseId, "WH", lot, null, lot is null ? null : "Available", null, delta, 0, 0, delta));
+            return;
+        }
+        var row = rows[index];
+        rows[index] = row with { Quantity = row.Quantity + delta, AvailableQuantity = row.AvailableQuantity + delta };
+    }
+
+    public decimal Total(Guid product) => (Balances.GetValueOrDefault(product) ?? []).Sum(b => b.Quantity);
 
     /// <summary>What the order holds now, by component id.</summary>
     public decimal HeldFor(Guid orderId, Guid product)
@@ -84,15 +172,16 @@ internal sealed class SettingsFake : IProductionSettingProvider
 {
     public bool BlockReleaseOnShortage;
     public bool Sequential = true;
+    public decimal OverIssueTolerancePct = 3m;
 
     public Task<ProductionSettingValues> GetAsync(Guid plantId, CancellationToken ct = default)
-        => Task.FromResult(ProductionSettingValues.Defaults with { BlockReleaseOnShortage = BlockReleaseOnShortage, RequireSequentialOperations = Sequential });
+        => Task.FromResult(ProductionSettingValues.Defaults with { BlockReleaseOnShortage = BlockReleaseOnShortage, RequireSequentialOperations = Sequential, OverIssueTolerancePct = OverIssueTolerancePct });
 
     public void Invalidate(Guid plantId) { }
 }
 
 /// <summary>DS-01 orders plus a fake Warehouse and the P3-2 handlers (test cases TC-PO-011..028).</summary>
-internal sealed class ReleaseCtx : OrderCtx
+internal class ReleaseCtx : OrderCtx
 {
     public FakeStock Stock { get; } = new();
     public SettingsFake PlantSettings { get; } = new();
@@ -107,6 +196,8 @@ internal sealed class ReleaseCtx : OrderCtx
         F.Reasons.Add(HoldReason);
         F.Reasons.Add(CancelReason);
     }
+
+    public StockDocRepoFake Documents { get; } = new();
 
     public IOrderAvailability Availability => new OrderAvailabilityService(Stock, PlantTime);
     public OrderReservationSync Sync => new(Stock, Availability, F.Uow, PlantTime);
@@ -123,10 +214,10 @@ internal sealed class ReleaseCtx : OrderCtx
         => new ReleaseOrderHandler(Access, Repo, F.ProductClient, F.Catalog, PlantSettings, Availability, Sync, User, F.Uow).Handle(new ReleaseOrderCommand(id), default);
 
     public Task<OrderActionResultDto> UnreleaseAsync(Guid id)
-        => new UnreleaseOrderHandler(Access, Repo, new OrderTransactionGuard(), Sync, User, F.Uow).Handle(new UnreleaseOrderCommand(id), default);
+        => new UnreleaseOrderHandler(Access, Repo, new OrderTransactionGuard(Documents), Sync, User, F.Uow).Handle(new UnreleaseOrderCommand(id), default);
 
     public Task<OrderActionResultDto> CancelAsync(Guid id, Guid? reason)
-        => new CancelOrderHandler(Access, Repo, F.ReasonRepo, new OrderTransactionGuard(), Sync, User, F.Uow).Handle(new CancelOrderCommand(id, reason, "note"), default);
+        => new CancelOrderHandler(Access, Repo, F.ReasonRepo, new OrderTransactionGuard(Documents), Sync, User, F.Uow).Handle(new CancelOrderCommand(id, reason, "note"), default);
 
     public Task<OrderActionResultDto> HoldAsync(Guid id, Guid? reason)
         => new HoldOrderHandler(Access, Repo, F.ReasonRepo, User, F.Uow).Handle(new HoldOrderCommand(id, reason, null), default);

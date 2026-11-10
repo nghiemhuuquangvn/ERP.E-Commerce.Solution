@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using ERP.MFG.Application.Features.Orders;
+using ERP.MFG.Application.Features.StockDocuments;
 using ERP.MFG.Domain.Common;
 using ERP.Shared.Authorization;
 using MediatR;
@@ -19,6 +20,7 @@ public class OrdersController(IMediator mediator) : ControllerBase
     public sealed record CreateBody(Guid PlantId, Guid ItemId, decimal Quantity, DateOnly DueDate, int? Priority, Guid? BomId, Guid? RoutingId, Guid? OutputWarehouseId, string? Notes);
     public sealed record ReasonBody(Guid? ReasonCodeId, string? Note);
     public sealed record QuantityBody(decimal Quantity, string? Note);
+    public sealed record MaterialBody(IReadOnlyList<MaterialLineBody> Lines, Guid? ReasonCodeId, string? Note);
     public sealed record UpdateBody(decimal Quantity, DateOnly DueDate, int? Priority, Guid? BomId, Guid? RoutingId, Guid? OutputWarehouseId, string? Notes);
 
     [HttpGet]
@@ -75,6 +77,33 @@ public class OrdersController(IMediator mediator) : ControllerBase
     [HttpPost("{id:guid}/change-quantity")]
     [AuthorizePermission(PermissionConstants.Manufacturing_OrderChangeQty)]
     public async Task<IActionResult> ChangeQuantity(Guid id, [FromBody] QuantityBody b, CancellationToken ct) => Ok(await mediator.Send(new ChangeOrderQuantityCommand(id, b.Quantity, b.Note), ct));
+
+    // ── Material issue and return (P3-3) ────────────────────────────────────────────────────────────────────
+
+    /// <summary>Issues material to the order (document MI). 201 when every line is in the Warehouse, 202 when the document is stored and the Warehouse is told again later. An optional Idempotency-Key repeats safely.</summary>
+    [HttpPost("{id:guid}/material-issues")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_MaterialIssue)]
+    public async Task<IActionResult> IssueMaterial(Guid id, [FromBody] MaterialBody b, [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey, CancellationToken ct)
+        => Answer(await mediator.Send(new IssueMaterialCommand(id, b.Lines, b.ReasonCodeId, b.Note, idempotencyKey), ct));
+
+    /// <summary>Returns issued material from the shop floor to the warehouse (document MR), at the cost it was issued.</summary>
+    [HttpPost("{id:guid}/material-returns")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_MaterialReturn)]
+    public async Task<IActionResult> ReturnMaterial(Guid id, [FromBody] MaterialBody b, [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey, CancellationToken ct)
+        => Answer(await mediator.Send(new ReturnMaterialCommand(id, b.Lines, b.ReasonCodeId, b.Note, idempotencyKey), ct));
+
+    /// <summary>First-expiry-first lots for a material line, and the lots the order's reservation already holds for it.</summary>
+    [HttpGet("{id:guid}/material-issues/suggest-lots")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_MaterialIssue)]
+    public async Task<IActionResult> SuggestLots(Guid id, [FromQuery] int lineNo, [FromQuery] decimal quantity, CancellationToken ct)
+        => Ok(await mediator.Send(new SuggestMaterialLotsQuery(id, lineNo, quantity), ct));
+
+    /// <summary>Every stock document of the order (issues and returns), oldest first.</summary>
+    [HttpGet("{id:guid}/stock-documents")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_OrderView)]
+    public async Task<IActionResult> StockDocuments(Guid id, CancellationToken ct) => Ok(await mediator.Send(new GetOrderStockDocumentsQuery(id), ct));
+
+    private IActionResult Answer(StockDocumentResultDto result) => StatusCode(result.IsPending ? StatusCodes.Status202Accepted : StatusCodes.Status201Created, result.Document);
 
     /// <summary>Changes a Draft: quantity, BOM or routing give it a fresh snapshot (BR-PO-05); a new due date reschedules it.</summary>
     [HttpPut("{id:guid}")]

@@ -33,6 +33,17 @@ public enum DowntimeCategory : short { Planned = 1, Unplanned = 2 }
 
 public enum OrderType : short { Standard = 1, Rework = 2, Subcontract = 3 }
 
+/// <summary>Stock documents (P3-3): a material issue or return; backflush and receipts join in P3-4 / P3-5.</summary>
+public enum StockDocumentType : short { Issue = 1, Return = 2 }
+
+/// <summary>Pending = not (fully) in the Warehouse yet; Posted = every line is in the Warehouse and the order shows it; Failed = refused or abandoned, nothing left in the Warehouse.</summary>
+public enum StockDocumentStatus : short { Pending = 1, Posted = 2, Failed = 3 }
+
+/// <summary>Forward = sending the lines; Rollback = reversing the lines already posted after a refusal or an abandon.</summary>
+public enum StockDocumentMode : short { Forward = 1, Rollback = 2 }
+
+public enum StockLineStatus : short { Pending = 1, Posted = 2, Refused = 3, Compensated = 4 }
+
 public enum OrderSourceType : short { Manual = 1, SalesOrder = 2, Mrp = 3, Ncr = 4, ParentOrder = 5 }
 
 /// <summary>BA spec 01 §4.2. Closed and Cancelled are final.</summary>

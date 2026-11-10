@@ -49,6 +49,8 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
     public DbSet<ProductionOrderOperation> ProductionOrderOperations => Set<ProductionOrderOperation>();
     public DbSet<ProductionOrderOutput> ProductionOrderOutputs => Set<ProductionOrderOutput>();
     public DbSet<ProductionOrderStatusHistory> ProductionOrderStatusHistories => Set<ProductionOrderStatusHistory>();
+    public DbSet<MaterialTransaction> MaterialTransactions => Set<MaterialTransaction>();
+    public DbSet<MaterialTransactionLine> MaterialTransactionLines => Set<MaterialTransactionLine>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -366,6 +368,50 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.Note).HasMaxLength(500);
             e.Property(x => x.ChangedBy).HasMaxLength(200).IsRequired();
             e.HasIndex(x => new { x.TenantId, x.OrderId, x.ChangedAt });
+        });
+
+        modelBuilder.Entity<MaterialTransaction>(e =>
+        {
+            e.ToTable("MaterialTransactions");
+            e.Property(x => x.DocNo).HasMaxLength(30).IsRequired();
+            e.Property(x => x.OrderNo).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Type).HasConversion<short>();
+            e.Property(x => x.Status).HasConversion<short>();
+            e.Property(x => x.Mode).HasConversion<short>();
+            e.Property(x => x.Note).HasMaxLength(500);
+            e.Property(x => x.IdempotencyKey).HasMaxLength(100);
+            e.Property(x => x.RequestHash).HasMaxLength(64);
+            e.Property(x => x.LastError).HasMaxLength(500);
+            e.Property(x => x.LastErrorCode).HasMaxLength(60);
+            e.Ignore(x => x.Lines);
+            e.Ignore(x => x.PendingLines);
+            e.Ignore(x => x.PostedLines);
+            e.Ignore(x => x.AllLinesPosted);
+            e.Ignore(x => x.RollbackComplete);
+            e.Ignore(x => x.IsIssue);
+            e.HasIndex(x => new { x.TenantId, x.DocNo }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
+            e.HasIndex(x => new { x.TenantId, x.OrderId });
+            e.HasIndex(x => new { x.TenantId, x.NextAttemptAt }).HasFilter("\"Status\" = 1");
+            e.HasIndex(x => new { x.TenantId, x.PlantId, x.Status, x.CreatedAt });
+            e.HasMany(x => x.AllLines).WithOne().HasForeignKey(l => l.TransactionId);
+            e.Navigation(x => x.AllLines).HasField("_lines").UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<MaterialTransactionLine>(e =>
+        {
+            e.ToTable("MaterialTransactionLines");
+            e.Property(x => x.ItemCode).HasMaxLength(100).IsRequired();
+            e.Property(x => x.MovementKey).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Status).HasConversion<short>();
+            e.Property(x => x.Qty).HasPrecision(18, 6);
+            e.Property(x => x.UnitCost).HasPrecision(18, 6);
+            e.Property(x => x.Amount).HasPrecision(18, 4);
+            e.Property(x => x.Error).HasMaxLength(500);
+            e.Ignore(x => x.CompensationKey);
+            e.HasIndex(x => new { x.TenantId, x.TransactionId, x.LineNo }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.MovementKey }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.OrderMaterialId });
         });
 
         // The outbox is not tenant-owned: the tenant travels inside every event (EventTenant).
