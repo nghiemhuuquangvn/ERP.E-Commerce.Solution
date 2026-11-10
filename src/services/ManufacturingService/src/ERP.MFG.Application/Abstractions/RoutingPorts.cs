@@ -27,6 +27,9 @@ public interface IRoutingResolver
     Task<Routing?> GetEffectiveRoutingAsync(Guid itemId, Guid plantId, DateOnly date, CancellationToken ct = default);
 }
 
+/// <summary>The times of one operation: what a routing operation or an operation of an order carries.</summary>
+public sealed record OperationTimingSource(int OperationSeq, string Name, Guid WorkCenterId, decimal SetupTimeMinutes, decimal RunTimeMinutes, RunTimeBasis RunTimeBasis, decimal? BatchSize, int QueueTimeMinutes, int MoveTimeMinutes);
+
 public interface IOperationTimeService
 {
     /// <summary>BR-RT-04 / -05: the lead time of a routing for a quantity, scheduled backwards from the end of <paramref name="endDate"/>'s work.</summary>
@@ -37,4 +40,7 @@ public interface IOperationTimeService
     /// scheduling of a production order). <c>MFG_RT_003</c> when a work center no longer exists.
     /// </summary>
     Task<IReadOnlyList<ScheduledOperationInput>> BuildInputsAsync(Routing routing, decimal quantity, CancellationToken ct = default);
+
+    /// <summary>The same for operations of a production order (their own stored times), e.g. when the quantity of a released order changes.</summary>
+    Task<IReadOnlyList<ScheduledOperationInput>> BuildInputsAsync(IReadOnlyList<OperationTimingSource> operations, decimal quantity, CancellationToken ct = default);
 }

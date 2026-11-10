@@ -291,6 +291,8 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.SourceType).HasConversion<short>();
             e.Property(x => x.Priority).HasConversion<short>();
             e.Property(x => x.Notes).HasMaxLength(1000);
+            e.Property(x => x.ReservationSyncError).HasMaxLength(500);
+            e.Ignore(x => x.IsUntouched);
             e.Ignore(x => x.Materials);
             e.Ignore(x => x.Operations);
             e.Ignore(x => x.Outputs);
@@ -298,6 +300,7 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.HasIndex(x => new { x.TenantId, x.OrderNo }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.PlantId, x.Status, x.DueDate });
             e.HasIndex(x => new { x.TenantId, x.ItemId, x.Status });
+            e.HasIndex(x => new { x.TenantId, x.ReservationNextAttemptAt }).HasFilter("\"ReservationSyncPending\" = true");
             e.HasMany(x => x.AllMaterials).WithOne().HasForeignKey(m => m.OrderId);
             e.Navigation(x => x.AllMaterials).HasField("_materials").UsePropertyAccessMode(PropertyAccessMode.Field);
             e.HasMany(x => x.AllOperations).WithOne().HasForeignKey(o => o.OrderId);
@@ -320,6 +323,7 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.IssueMethod).HasConversion<short>();
             e.Property(x => x.AlternativeGroup).HasMaxLength(20);
             e.Ignore(x => x.NetIssuedQty);
+            e.Ignore(x => x.OpenNeed);
             e.HasIndex(x => new { x.TenantId, x.OrderId, x.LineNo }).IsUnique().HasFilter("\"IsDeleted\" = false");
             e.HasIndex(x => new { x.TenantId, x.ComponentItemId });
         });
@@ -335,6 +339,7 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.BatchSize).HasPrecision(18, 6);
             e.Property(x => x.RunTimeBasis).HasConversion<short>();
             e.Property(x => x.Status).HasConversion<short>();
+            e.Ignore(x => x.HasWork);
             foreach (var q in new[] { nameof(ProductionOrderOperation.GoodQty), nameof(ProductionOrderOperation.ScrapQty), nameof(ProductionOrderOperation.ReworkQty), nameof(ProductionOrderOperation.IpqcPassedQty) })
                 e.Property(q).HasPrecision(18, 6);
             e.HasIndex(x => new { x.TenantId, x.OrderId, x.OperationSeq }).IsUnique().HasFilter("\"IsDeleted\" = false");

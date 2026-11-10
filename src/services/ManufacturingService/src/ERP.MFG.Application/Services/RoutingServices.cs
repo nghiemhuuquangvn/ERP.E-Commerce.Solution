@@ -28,7 +28,12 @@ public sealed class OperationTimeService(IPlantCatalog catalog, IWorkingTimeServ
     {
         var operations = routing.Operations.ToList();
         if (operations.Count == 0) throw MfgRules.Invalid("The routing has no operations.");
+        return await BuildInputsAsync(operations.Select(o => new OperationTimingSource(o.OperationSeq, o.Name, o.WorkCenterId, o.SetupTimeMinutes, o.RunTimeMinutes, o.RunTimeBasis,
+            o.BatchSize, o.QueueTimeMinutes, o.MoveTimeMinutes)).ToList(), quantity, ct);
+    }
 
+    public async Task<IReadOnlyList<ScheduledOperationInput>> BuildInputsAsync(IReadOnlyList<OperationTimingSource> operations, decimal quantity, CancellationToken ct = default)
+    {
         var centers = (await catalog.GetManyAsync<WorkCenter>(operations.Select(o => o.WorkCenterId).Distinct().ToList(), ct)).ToDictionary(c => c.Id);
         var calendars = new Dictionary<Guid, WorkingTimeCalculator>();
         var inputs = new List<ScheduledOperationInput>();
@@ -37,7 +42,8 @@ public sealed class OperationTimeService(IPlantCatalog catalog, IWorkingTimeServ
             if (!centers.TryGetValue(op.WorkCenterId, out var center)) throw MfgRules.Fail(MfgErrors.Rt003);
             if (!calendars.TryGetValue(center.CalendarId, out var calendar))
                 calendars[center.CalendarId] = calendar = await workingTime.ForCalendarAsync(center.CalendarId, ct);
-            inputs.Add(new ScheduledOperationInput(op.OperationSeq, op.Name, center.Code, OperationTimeCalculator.StandardMinutes(op, quantity), center.EfficiencyPct,
+            inputs.Add(new ScheduledOperationInput(op.OperationSeq, op.Name, center.Code,
+                OperationTimeCalculator.StandardMinutes(op.SetupTimeMinutes, op.RunTimeMinutes, op.RunTimeBasis, op.BatchSize, quantity), center.EfficiencyPct,
                 op.QueueTimeMinutes, op.MoveTimeMinutes, center.CalendarId, calendar));
         }
         return inputs;

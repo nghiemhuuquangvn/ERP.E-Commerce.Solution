@@ -1512,4 +1512,9 @@ Kafka topic `manufacturing-topic` (key = order id), written to the service's out
 |---|---|---|
 | `ProductionOrderCreatedEvent` | an order is created | `OrderId`, `OrderNo`, `PlantId`, `ItemId`, `ItemCode`, `Quantity` (decimal), `DueDate`, `SourceType` |
 | `ProductionOrderStatusChangedEvent` | any status change (Release, Hold, Complete ...) | `OrderId`, `OrderNo`, `PlantId`, `ItemId`, `Quantity`, `FromStatus`, `ToStatus`, `ReasonCodeId`, `Note`, `ChangedBy` |
-The later Phase 3 events (`ProductionOrderReleased/Completed/Closed`, `MaterialIssued/Returned/Backflushed`, `OperationReported`, `FinishedGoodsReceived`) are added with their milestones.
+P3-2 (2026-11-10) adds two events on the same topic (both `ITenantEvent`):
+| Event | Raised when | Payload |
+|---|---|---|
+| `ProductionOrderReleasedEvent` | a Draft is released | `OrderId`, `OrderNo`, `PlantId`, `ItemId`, `Quantity`, `DueDate` |
+| `ProductionOrderQuantityChangedEvent` | the quantity of a released order is changed | `OrderId`, `OrderNo`, `ItemId`, `OldQuantity`, `NewQuantity`, `ChangedBy` |
+The later Phase 3 events (`ProductionOrderCompleted/Closed`, `MaterialIssued/Returned/Backflushed`, `OperationReported`, `FinishedGoodsReceived`) are added with their milestones.

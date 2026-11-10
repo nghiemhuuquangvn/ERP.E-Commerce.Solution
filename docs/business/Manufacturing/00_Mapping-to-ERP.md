@@ -43,4 +43,7 @@ so the specs stay readable as they are. Decision record: `docs/architecture/adr-
 | Serial-controlled items (BR-MAT-04, BR-FG-03) | Refused with new code `MFG_MAT_011` until the Warehouse supports serials in production (R206) |
 | `IOpenOrderGuard` stub (M1/M2) | `OrderBackedOpenOrderGuard`: Released, InProgress, OnHold, Completed count as open |
 | Domain events "handled in the same transaction" | Outbox in the same transaction, Kafka topic `manufacturing-topic` |
-| T3.1 / T3.2 / T3.3 / T3.11 | P3-1 (this milestone); T3.4 / T3.9 P3-2; T3.5 / T3.6 P3-3; T3.7 + T4.1 backflush P3-4; T3.8 / T3.10 P3-5; T3.12 P3-6; T3.14 P3-7 |
+| Reservation made in the same transaction as the release (NFR-05) | Order saved with a sync flag, then the Warehouse reservation is brought in line (reconciler + `ReservationSyncJob`); the answer says `reservationPending` when it is not yet done (P3-2) |
+| Reserved quantity per material = min(required, available) (BR-PO-08) | min(still needed, allocatable) where allocatable counts lot-less stock and Available, unexpired lots of the material's warehouse (capped by the item's available quantity) |
+| Change of quantity keeps the reservation | Release + reserve again (the Warehouse has no "adjust") |
+| T3.1 / T3.2 / T3.3 / T3.11 | P3-1 (done); T3.4 / T3.9 P3-2 (done, 2026-11-10); T3.4 / T3.9 P3-2; T3.5 / T3.6 P3-3; T3.7 + T4.1 backflush P3-4; T3.8 / T3.10 P3-5; T3.12 P3-6; T3.14 P3-7 |

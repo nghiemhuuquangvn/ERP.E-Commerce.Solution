@@ -17,6 +17,8 @@ namespace ERP.MFG.API.Controllers;
 public class OrdersController(IMediator mediator) : ControllerBase
 {
     public sealed record CreateBody(Guid PlantId, Guid ItemId, decimal Quantity, DateOnly DueDate, int? Priority, Guid? BomId, Guid? RoutingId, Guid? OutputWarehouseId, string? Notes);
+    public sealed record ReasonBody(Guid? ReasonCodeId, string? Note);
+    public sealed record QuantityBody(decimal Quantity, string? Note);
     public sealed record UpdateBody(decimal Quantity, DateOnly DueDate, int? Priority, Guid? BomId, Guid? RoutingId, Guid? OutputWarehouseId, string? Notes);
 
     [HttpGet]
@@ -38,6 +40,41 @@ public class OrdersController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateBody b, CancellationToken ct)
         => StatusCode(StatusCodes.Status201Created,
             await mediator.Send(new CreateOrderCommand(b.PlantId, b.ItemId, b.Quantity, b.DueDate, b.Priority, b.BomId, b.RoutingId, b.OutputWarehouseId, b.Notes), ct));
+
+    /// <summary>What the Warehouse can give for each material of the order (BR-PO-07): required, still needed, allocatable, shortage.</summary>
+    [HttpGet("{id:guid}/availability")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_OrderView)]
+    public async Task<IActionResult> Availability(Guid id, CancellationToken ct) => Ok(await mediator.Send(new GetOrderAvailabilityQuery(id), ct));
+
+    /// <summary>Draft -> Released: checks the item, components and work centers, reserves the materials (min of need and available) and makes the first operation ready.</summary>
+    [HttpPost("{id:guid}/release")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_OrderRelease)]
+    public async Task<IActionResult> Release(Guid id, CancellationToken ct) => Ok(await mediator.Send(new ReleaseOrderCommand(id), ct));
+
+    /// <summary>Released -> Draft, only before any transaction; the reservation is released.</summary>
+    [HttpPost("{id:guid}/unrelease")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_OrderRelease)]
+    public async Task<IActionResult> Unrelease(Guid id, CancellationToken ct) => Ok(await mediator.Send(new UnreleaseOrderCommand(id), ct));
+
+    /// <summary>Draft or untouched Released order -> Cancelled, with a reason of type Cancel; the reservation is released.</summary>
+    [HttpPost("{id:guid}/cancel")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_OrderCancel)]
+    public async Task<IActionResult> Cancel(Guid id, [FromBody] ReasonBody b, CancellationToken ct) => Ok(await mediator.Send(new CancelOrderCommand(id, b.ReasonCodeId, b.Note), ct));
+
+    /// <summary>Released or InProgress -> OnHold, with a reason of type Hold.</summary>
+    [HttpPost("{id:guid}/hold")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_OrderHold)]
+    public async Task<IActionResult> Hold(Guid id, [FromBody] ReasonBody b, CancellationToken ct) => Ok(await mediator.Send(new HoldOrderCommand(id, b.ReasonCodeId, b.Note), ct));
+
+    /// <summary>OnHold -> the status the order was held from.</summary>
+    [HttpPost("{id:guid}/resume")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_OrderHold)]
+    public async Task<IActionResult> Resume(Guid id, CancellationToken ct) => Ok(await mediator.Send(new ResumeOrderCommand(id), ct));
+
+    /// <summary>A new quantity for a released order (never below what is completed): required quantities, operation minutes, schedule and reservation follow.</summary>
+    [HttpPost("{id:guid}/change-quantity")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_OrderChangeQty)]
+    public async Task<IActionResult> ChangeQuantity(Guid id, [FromBody] QuantityBody b, CancellationToken ct) => Ok(await mediator.Send(new ChangeOrderQuantityCommand(id, b.Quantity, b.Note), ct));
 
     /// <summary>Changes a Draft: quantity, BOM or routing give it a fresh snapshot (BR-PO-05); a new due date reschedules it.</summary>
     [HttpPut("{id:guid}")]

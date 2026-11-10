@@ -16,6 +16,11 @@ public sealed record OrderBuildResult(
 /// BR-PO-03 / -04 / -05 / -06: checks the item, picks the BOM and routing, explodes the BOM one level into materials and outputs, copies the routing into
 /// operations and schedules the order. It reads other services (item, unit) and the engineering data, and writes nothing.
 /// </summary>
+/// <summary>The lines of a released order for a new quantity (see <see cref="OrderSnapshotBuilder.RecomputeForQuantityAsync"/>).</summary>
+public sealed record QuantityRecompute(
+    IReadOnlyDictionary<int, decimal> RequiredByLine, IReadOnlyDictionary<int, decimal> PlannedByOutputLine,
+    IReadOnlyDictionary<int, (decimal Standard, int Calendar)> MinutesBySeq, OrderScheduleValues Schedule);
+
 public sealed class OrderSnapshotBuilder(
     IProductLookupClient products,
     IUnitOfMeasureClient units,
@@ -110,14 +115,63 @@ public sealed class OrderSnapshotBuilder(
             }
         }
 
-        var calendarId = plant.DefaultCalendarId ?? (inputs.Count > 0 ? inputs[0].CalendarId : throw MfgRules.Invalid("The plant has no default calendar: set one before creating orders without a routing."));
-        var plantCalendar = inputs.FirstOrDefault(i => i.CalendarId == calendarId)?.Calendar ?? await workingTime.ForCalendarAsync(calendarId, ct);
-        var local = OrderScheduleCalculator.Calculate(inputs, r.DueDate, clock.LocalNow(plant), profile?.FixedLeadTimeDays ?? 0, plantCalendar);
-        var schedule = new OrderScheduleValues(
-            clock.ToUtc(plant, local.Start), clock.ToUtc(plant, local.End), local.IsLate,
-            local.Operations.ToDictionary(k => k.Key, k => (clock.ToUtc(plant, k.Value.Start), clock.ToUtc(plant, k.Value.End))));
+        var schedule = await ScheduleAsync(plant, inputs, r.DueDate, profile?.FixedLeadTimeDays ?? 0, ct);
 
         return new OrderBuildResult(item, uomId, bom.Id, routing?.Id, outputWarehouse, new OrderSnapshot(materials, operations, outputs), schedule, warnings);
+    }
+
+    /// <summary>BR-PO-06: the schedule of an order (UTC) from the operations' inputs, the due date and the item's fixed lead time.</summary>
+    private async Task<OrderScheduleValues> ScheduleAsync(Plant plant, IReadOnlyList<ScheduledOperationInput> inputs, DateOnly dueDate, int fixedLeadTimeDays, CancellationToken ct)
+    {
+        var calendarId = plant.DefaultCalendarId ?? (inputs.Count > 0 ? inputs[0].CalendarId : throw MfgRules.Invalid("The plant has no default calendar: set one before creating orders without a routing."));
+        var plantCalendar = inputs.FirstOrDefault(i => i.CalendarId == calendarId)?.Calendar ?? await workingTime.ForCalendarAsync(calendarId, ct);
+        var local = OrderScheduleCalculator.Calculate(inputs, dueDate, clock.LocalNow(plant), fixedLeadTimeDays, plantCalendar);
+        return new OrderScheduleValues(
+            clock.ToUtc(plant, local.Start), clock.ToUtc(plant, local.End), local.IsLate,
+            local.Operations.ToDictionary(k => k.Key, k => (clock.ToUtc(plant, k.Value.Start), clock.ToUtc(plant, k.Value.End))));
+    }
+
+    /// <summary>
+    /// BR-PO-12: the lines of a released order for a new quantity, from the SAME BOM it was created with. Required quantities by material line (matched by
+    /// component), planned quantities of the outputs, standard / calendar minutes of every operation from its own stored times, and the new schedule.
+    /// </summary>
+    public async Task<QuantityRecompute> RecomputeForQuantityAsync(Plant plant, ProductionOrder order, decimal newQuantity, CancellationToken ct = default)
+    {
+        MfgRules.ThrowIf(newQuantity <= 0, MfgErrors.Po001);
+        var unit = (await units.LookupAsync([order.UomId], ct)).FirstOrDefault() ?? throw MfgRules.Invalid("The unit of measure of the order does not exist.");
+        if (Math.Round(newQuantity, unit.DecimalPlaces) != newQuantity)
+            throw MfgRules.Invalid($"The quantity of item {order.ItemCode} can have at most {unit.DecimalPlaces} decimal places ({unit.Code}).");
+
+        var exploded = await explosion.ExplodeAsync(plant.Id, order.ItemId, order.BomId, newQuantity, clock.Today(plant), ct);
+
+        var required = new Dictionary<int, decimal>();
+        var pool = exploded.Requirements.ToList();
+        foreach (var material in order.Materials.Where(m => !m.IsSubstitute && !m.IsUnplanned))
+        {
+            var match = pool.FirstOrDefault(x => x.ComponentItemId == material.ComponentItemId);
+            if (match is null) continue;
+            pool.Remove(match);
+            required[material.LineNo] = match.Quantity;
+        }
+
+        var planned = new Dictionary<int, decimal>();
+        var outputs = exploded.Outputs.ToList();
+        foreach (var output in order.Outputs)
+        {
+            var match = outputs.FirstOrDefault(x => x.ItemId == output.ItemId && x.LineType == output.LineType);
+            if (match is null) continue;
+            outputs.Remove(match);
+            planned[output.LineNo] = match.PlannedQuantity;
+        }
+
+        var sources = order.Operations.Select(o => new OperationTimingSource(o.OperationSeq, o.Name, o.WorkCenterId, o.SetupTimeMinutes, o.RunTimeMinutes, o.RunTimeBasis, o.BatchSize,
+            o.QueueTimeMinutes, o.MoveTimeMinutes)).ToList();
+        IReadOnlyList<ScheduledOperationInput> inputs = sources.Count > 0 ? await operationTime.BuildInputsAsync(sources, newQuantity, ct) : [];
+        var minutes = inputs.ToDictionary(i => i.OperationSeq, i => (i.StandardMinutes, OperationTimeCalculator.CalendarMinutes(i.StandardMinutes, i.EfficiencyPct)));
+
+        var profile = await profiles.GetAsync(order.ItemId, plant.Id, ct);
+        var schedule = await ScheduleAsync(plant, inputs, order.DueDate, profile?.FixedLeadTimeDays ?? 0, ct);
+        return new QuantityRecompute(required, planned, minutes, schedule);
     }
 
     private async Task<Bom> PickBomAsync(OrderBuildRequest r, CancellationToken ct)

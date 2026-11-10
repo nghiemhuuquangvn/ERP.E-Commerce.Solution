@@ -46,6 +46,7 @@ public static class DependencyInjection
         services.AddSingleton<Confluent.Kafka.IProducer<string, string>>(new Confluent.Kafka.ProducerBuilder<string, string>(new Confluent.Kafka.ProducerConfig { BootstrapServers = kafkaServers, AllowAutoCreateTopics = true }).Build());
         services.AddScoped<ERP.Shared.Messaging.IMessageBus, MessageBus.KafkaMessageBus>();
         services.AddHostedService<BackgroundJobs.OutboxProcessor>();
+        services.AddHostedService<BackgroundJobs.ReservationSyncJob>();
         services.AddMemoryCache();
 
         // Other services, read through internal endpoints with this service's own token (fail closed, 60 s cache).
