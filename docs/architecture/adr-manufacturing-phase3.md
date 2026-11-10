@@ -27,8 +27,18 @@ Phase 0-2 gave Manufacturing its master data, bills of materials and routings. P
 7. **Open order (BR-SET-03 / BR-WC-03):** Released, InProgress, OnHold (it was released) and Completed count; Draft, Closed and Cancelled do not. The guard is a real query now (`OrderBackedOpenOrderGuard`); the work-center and reason reference checks include orders.
 8. **Warehouses of an order** default to the plant's raw-material (materials) and finished-goods (output) warehouses; an override must be one of the plant's own.
 
+## Decisions taken while planning P3-2 (2026-11-10)
+1. **Reservations are kept in line by a reconciler, not by "call first, then commit"** (this refines decision 4). The order commits its new state together with `ReservationSyncPending = true`; then `IOrderReservationSync` brings the Warehouse in line and clears the flag. Why: no orphan reservation after a failed local save; a Warehouse failure is a visible, retryable state (`reservationPending`), not a 5xx for something that was saved; release, unrelease, cancel and change of quantity use one idempotent routine. Reading availability to decide a **release** still needs the Warehouse: unreachable = `MFG_INT_001`, nothing changes (fail closed).
+2. **The routine converges:** desired reservation = while Released / InProgress / OnHold, per material min(still needed, allocatable + what the order already holds), otherwise none. If the Warehouse already holds exactly that, adopt it; otherwise release it and reserve again (`SourceLineId` = the material line id). Warehouse refusal or outage records the error and a back-off (15 s doubling to 5 min); a hosted `ReservationSyncJob` (every 15 s, cross-tenant, one tenant scope per order) retries forever.
+3. **Allocatable** = lot-less stock + lots with status Available and not expired in the material's warehouse, capped by the item's available quantity (the Warehouse's `LotPicker` rule, repeated on this side).
+4. **Release** is allowed only for a Draft, checks plant / item / components / work centers active and no serial items, and honours `BlockReleaseOnShortage`; the first operation is Ready (all Ready if sequential execution is off).
+5. **Unrelease and cancel** only while the order is untouched (`IOrderTransactionGuard`: state based now, pending stock documents added in P3-3); cancel needs a Cancel reason, hold a Hold reason (`MFG_PO_009`).
+6. **Change of quantity** recomputes from the stored BOM (`OrderSnapshotBuilder.RecomputeForQuantityAsync`: required matched by component, outputs by item and type, operation minutes from the operation's own stored times via `IOperationTimeService.BuildInputsAsync(sources)`, new schedule) and keeps issued quantities.
+7. **Plant deactivation is not guarded by open orders** (the specification guards only the costing method and work centers); recorded as a risk, not changed here.
+
 ## Consequences
 - Manufacturing and the Warehouse are never one transaction: a `Pending` window exists in which a document is not yet in the order's figures; the UI says so (P3-6).
 - Every Warehouse call of Phase 3 is safe to repeat; the cost is the engine (P3-3) and a background job in a service that had none.
 - P3-1 adds the first Manufacturing outbox, the first hosted service and the first Kafka producer of the service; the topic has no consumer yet.
+- P3-2 adds the second hosted service (`ReservationSyncJob`) and the first Manufacturing -> Warehouse calls in production use; a Released order may be briefly not fully reserved (flag), which P3-3 must respect when issuing.
 - Behaviour that differs from the spec is listed in `docs/business/Manufacturing/00_Mapping-to-ERP.md`.

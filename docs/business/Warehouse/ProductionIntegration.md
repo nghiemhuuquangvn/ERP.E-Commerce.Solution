@@ -1,6 +1,6 @@
 # Warehouse - internal stock API for Manufacturing (W5 of the Warehouse upgrade)
 
-Added 2026-11-10. Decision record: `docs/architecture/adr-warehouse-upgrade.md`. Follows `ReservationsBySource.md` (W4) and `ProductionMovements.md` (W3). Manufacturing's own use of this API (production orders) arrives in its Phase 3; W5 delivers and proves the Warehouse side.
+Added 2026-11-10. Decision record: `docs/architecture/adr-warehouse-upgrade.md`. Follows `ReservationsBySource.md` (W4) and `ProductionMovements.md` (W3). Manufacturing's own use of this API (production orders) arrives in its Phase 3; W5 delivers and proves the Warehouse side. **First real caller (2026-11-10, P3-2):** releasing, unreleasing, cancelling and resizing a production order read availability and make / read / release the production reservation through this API (`docs/business/Manufacturing/ProductionOrders.md` part 2).
 
 ## 1. Purpose and actors
 Until W5 the production movements and the production reservation could only be reached through user endpoints, which a service cannot call. W5 gives ManufacturingService a service-to-service door - `internal/v1/stock/*` - that is safe to retry, honours the item's lot / serial rules and never lets one document line move stock twice.

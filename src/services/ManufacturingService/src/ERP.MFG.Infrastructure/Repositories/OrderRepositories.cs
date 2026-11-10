@@ -39,6 +39,16 @@ public sealed class ProductionOrderRepository(MfgDbContext db) : IProductionOrde
     }
 
     public void Add(ProductionOrder order) => db.ProductionOrders.Add(order);
+
+    // across tenants on purpose (no user, no tenant scope): only ids leave this method, each order is then processed inside its own tenant scope
+    public async Task<List<(Guid TenantId, Guid OrderId)>> ListPendingReservationSyncAsync(DateTime nowUtc, int take, CancellationToken ct = default)
+    {
+        var rows = await db.ProductionOrders.IgnoreQueryFilters().AsNoTracking()
+            .Where(o => !o.IsDeleted && o.ReservationSyncPending && (o.ReservationNextAttemptAt == null || o.ReservationNextAttemptAt <= nowUtc))
+            .OrderBy(o => o.ReservationNextAttemptAt).Take(take)
+            .Select(o => new { o.TenantId, o.Id }).ToListAsync(ct);
+        return rows.Select(r => (r.TenantId, r.Id)).ToList();
+    }
 }
 
 /// <summary>

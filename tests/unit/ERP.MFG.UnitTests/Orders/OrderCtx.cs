@@ -32,6 +32,9 @@ internal sealed class OrderRepoFake : IProductionOrderRepository
     }
 
     public void Add(ProductionOrder order) => Orders.Add(order);
+
+    public Task<List<(Guid TenantId, Guid OrderId)>> ListPendingReservationSyncAsync(DateTime nowUtc, int take, CancellationToken ct = default)
+        => Task.FromResult(Orders.Where(o => !o.IsDeleted && o.ReservationSyncPending && (o.ReservationNextAttemptAt == null || o.ReservationNextAttemptAt <= nowUtc)).Take(take).Select(o => (o.TenantId, o.Id)).ToList());
 }
 
 /// <summary>Hands out MO-yyMM-00001 ... per document type, plant and month like the database counter.</summary>

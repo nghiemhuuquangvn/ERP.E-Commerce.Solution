@@ -23,6 +23,9 @@ public static class DependencyInjection
         services.AddScoped<IBomSnapshotFactory, BomSnapshotFactory>();
         services.AddScoped<IBomExplosionService, BomExplosionService>();
         services.AddScoped<OrderSnapshotBuilder>();
+        services.AddScoped<IOrderAvailability, OrderAvailabilityService>();
+        services.AddScoped<IOrderReservationSync, OrderReservationSync>();
+        services.AddScoped<IOrderTransactionGuard, OrderTransactionGuard>();
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IPlantClock, PlantClock>();
         return services;

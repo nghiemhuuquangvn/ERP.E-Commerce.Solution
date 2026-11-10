@@ -34,12 +34,12 @@ public sealed record OrderDto(
     Guid Id, string OrderNo, Guid PlantId, OrderType OrderType, Guid ItemId, string ItemCode, string ItemName, decimal Quantity, Guid UomId, Guid BomId, Guid? RoutingId,
     OrderStatus Status, OrderStatus? StatusBeforeHold, int Priority, DateOnly DueDate, DateTime PlannedStart, DateTime PlannedEnd, DateTime? ActualStart, DateTime? ActualEnd,
     bool IsLate, Guid OutputWarehouseId, OrderSourceType SourceType, Guid? SourceRefId, Guid? ParentOrderId, decimal CompletedQty, decimal ScrappedQty, bool IsRework, string? Notes,
-    Guid? ReservationId, IReadOnlyList<OrderMaterialDto> Materials, IReadOnlyList<OrderOperationDto> Operations, IReadOnlyList<OrderOutputDto> Outputs, IReadOnlyList<string> Warnings)
+    Guid? ReservationId, bool ReservationSyncPending, string? ReservationSyncError, IReadOnlyList<OrderMaterialDto> Materials, IReadOnlyList<OrderOperationDto> Operations, IReadOnlyList<OrderOutputDto> Outputs, IReadOnlyList<string> Warnings)
 {
     public static OrderDto From(ProductionOrder o, IReadOnlyList<string>? warnings = null) => new(
         o.Id, o.OrderNo, o.PlantId, o.OrderType, o.ItemId, o.ItemCode, o.ItemName, o.Quantity, o.UomId, o.BomId, o.RoutingId, o.Status, o.StatusBeforeHold, o.Priority, o.DueDate,
         o.PlannedStart, o.PlannedEnd, o.ActualStart, o.ActualEnd, o.IsLate, o.OutputWarehouseId, o.SourceType, o.SourceRefId, o.ParentOrderId, o.CompletedQty, o.ScrappedQty,
-        o.IsRework, o.Notes, o.ReservationId, o.Materials.Select(OrderMaterialDto.From).ToList(), o.Operations.Select(OrderOperationDto.From).ToList(),
+        o.IsRework, o.Notes, o.ReservationId, o.ReservationSyncPending, o.ReservationSyncError, o.Materials.Select(OrderMaterialDto.From).ToList(), o.Operations.Select(OrderOperationDto.From).ToList(),
         o.Outputs.Select(OrderOutputDto.From).ToList(), warnings ?? []);
 }
 

@@ -59,6 +59,12 @@ public class ProductionOrderMaterial : BaseEntity
     /// <summary>Net quantity still out on the shop floor: issued minus returned (BR-MAT-02).</summary>
     public decimal NetIssuedQty => IssuedQty - ReturnedQty;
 
+    /// <summary>What the order still needs from the Warehouse: required minus what is out on the shop floor minus what backflush has consumed (never negative).</summary>
+    public decimal OpenNeed => ReservationPlanner.OpenNeed(RequiredQty, IssuedQty, ReturnedQty, ConsumedQty);
+
+    internal void SetRequired(decimal required) { RequiredQty = required; UpdatedAt = DateTime.UtcNow; }
+    internal void SetReserved(decimal reserved) { ReservedQty = reserved; UpdatedAt = DateTime.UtcNow; }
+
     internal static ProductionOrderMaterial Create(Guid orderId, OrderMaterialValues v) => new()
     {
         Id = Guid.NewGuid(), OrderId = orderId, LineNo = v.LineNo, ComponentItemId = v.ComponentItemId, ComponentCode = v.ComponentCode,
@@ -109,6 +115,14 @@ public class ProductionOrderOperation : BaseEntity
 
     internal void SetPlan(DateTime start, DateTime end) { PlannedStart = start; PlannedEnd = end; UpdatedAt = DateTime.UtcNow; }
 
+    internal void SetTimes(decimal standardMinutes, int calendarMinutes) { StandardMinutes = standardMinutes; CalendarMinutes = calendarMinutes; UpdatedAt = DateTime.UtcNow; }
+
+    /// <summary>Unrelease: the order goes back to Draft, so its operations go back to Pending (not a move of the operation diagram - it only happens before any work).</summary>
+    internal void ResetToPending() { Status = OperationStatus.Pending; UpdatedAt = DateTime.UtcNow; }
+
+    /// <summary>True once any work was reported on the operation.</summary>
+    public bool HasWork => Status is OperationStatus.Running or OperationStatus.Paused or OperationStatus.Completed || GoodQty != 0 || ScrapQty != 0 || ReworkQty != 0 || ActualStart != null;
+
     /// <summary>Changes the state through the machine of BA spec 01 §4.3.</summary>
     public void TransitionTo(OperationStatus target)
     {
@@ -141,6 +155,8 @@ public class ProductionOrderOutput : BaseEntity
         Id = Guid.NewGuid(), OrderId = orderId, LineNo = v.LineNo, LineType = v.LineType, ItemId = v.ItemId, ItemCode = v.ItemCode, ItemName = v.ItemName,
         UomId = v.UomId, PlannedQty = v.PlannedQty, CostAllocationPct = v.CostAllocationPct,
     };
+
+    internal void SetPlanned(decimal planned) { PlannedQty = planned; UpdatedAt = DateTime.UtcNow; }
 
     internal void MarkDeleted() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 }
@@ -204,7 +220,15 @@ public class ProductionOrder : BaseEntity
 
     /// <summary>The Warehouse reservation holding the materials (set when the order is released, P3-2).</summary>
     public Guid? ReservationId { get; private set; }
-    public bool ReservationReleasePending { get; private set; }
+
+    /// <summary>
+    /// True while the Warehouse reservation does not yet match the order (it was just released, unreleased, cancelled or its quantity changed, or the Warehouse
+    /// could not be reached). <c>IOrderReservationSync</c> brings it in line and clears the flag; the sync job retries with back-off (<see cref="ReservationNextAttemptAt"/>).
+    /// </summary>
+    public bool ReservationSyncPending { get; private set; }
+    public int ReservationSyncAttempts { get; private set; }
+    public string? ReservationSyncError { get; private set; }
+    public DateTime? ReservationNextAttemptAt { get; private set; }
 
     public IReadOnlyCollection<ProductionOrderMaterial> Materials => _materials.Where(m => !m.IsDeleted).OrderBy(m => m.LineNo).ToList();
     public IReadOnlyCollection<ProductionOrderOperation> Operations => _operations.Where(o => !o.IsDeleted).OrderBy(o => o.OperationSeq).ToList();
@@ -334,6 +358,124 @@ public class ProductionOrder : BaseEntity
             OrderId = Id, OrderNo = OrderNo, PlantId = PlantId, ItemId = ItemId, Quantity = Quantity, FromStatus = from, ToStatus = target,
             ReasonCodeId = reasonCodeId, Note = note, ChangedBy = changedBy,
         });
+    }
+
+    // ── Release, unrelease, cancel, hold, resume, change of quantity (P3-2) ───────────────────────────────
+
+    /// <summary>
+    /// BR-PO-08: Draft -> Released. The first operation (lowest sequence) becomes Ready and the others stay Pending, or all become Ready when the plant does not
+    /// require sequential operations. The reservation follows through the sync.
+    /// </summary>
+    public void Release(bool sequentialOperations, string releasedBy)
+    {
+        TransitionTo(OrderStatus.Released, releasedBy);
+        var ops = _operations.Where(o => !o.IsDeleted).OrderBy(o => o.OperationSeq).ToList();
+        for (var i = 0; i < ops.Count; i++)
+            if (!sequentialOperations || i == 0) ops[i].TransitionTo(OperationStatus.Ready);
+        MarkReservationSync();
+        AddDomainEvent(new ProductionOrderReleasedEvent { OrderId = Id, OrderNo = OrderNo, PlantId = PlantId, ItemId = ItemId, Quantity = Quantity, DueDate = DueDate });
+    }
+
+    /// <summary>True while nothing has happened on the shop floor: no issue, return, consumption, work or completed quantity (the P3-2 part of BR-PO-09 / BR-PO-13).</summary>
+    public bool IsUntouched =>
+        _materials.Where(m => !m.IsDeleted).All(m => m.IssuedQty == 0 && m.ReturnedQty == 0 && m.ConsumedQty == 0)
+        && _operations.Where(o => !o.IsDeleted).All(o => !o.HasWork)
+        && CompletedQty == 0 && ScrappedQty == 0;
+
+    /// <summary>BR-PO-09: Released -> Draft, only before any transaction (<c>MFG_PO_008</c>). Operations go back to Pending; the reservation is released by the sync.</summary>
+    public void Unrelease(string by)
+    {
+        EnsureEditable();
+        MfgRules.ThrowIf(Status == OrderStatus.Released && !IsUntouched, MfgErrors.Po008);
+        TransitionTo(OrderStatus.Draft, by);
+        foreach (var op in _operations.Where(o => !o.IsDeleted)) op.ResetToPending();
+        MarkReservationSync();
+    }
+
+    /// <summary>BR-PO-13: Draft or Released-without-transactions -> Cancelled, with a reason of type Cancel (<c>MFG_PO_009</c>); the reservation is released by the sync.</summary>
+    public void Cancel(Guid? reasonCodeId, string? note, string by)
+    {
+        EnsureEditable();
+        MfgRules.ThrowIf(reasonCodeId is null || reasonCodeId == Guid.Empty, MfgErrors.Po009);
+        MfgRules.ThrowIf(Status == OrderStatus.Released && !IsUntouched, MfgErrors.Po008);
+        var held = Status != OrderStatus.Draft || ReservationId != null;
+        TransitionTo(OrderStatus.Cancelled, by, reasonCodeId, note);
+        if (held) MarkReservationSync();
+    }
+
+    /// <summary>BR-PO-11: Released or InProgress -> OnHold with a reason of type Hold (<c>MFG_PO_009</c>). The reservation stays.</summary>
+    public void Hold(Guid? reasonCodeId, string? note, string by)
+    {
+        EnsureEditable();
+        MfgRules.ThrowIf(reasonCodeId is null || reasonCodeId == Guid.Empty, MfgErrors.Po009);
+        TransitionTo(OrderStatus.OnHold, by, reasonCodeId, note);
+    }
+
+    /// <summary>BR-PO-11: back to the status the order was held from.</summary>
+    public void Resume(string by)
+    {
+        EnsureEditable();
+        MfgRules.ThrowIf(Status != OrderStatus.OnHold || StatusBeforeHold is null, MfgErrors.Po002, ("from", Status), ("to", OrderStatus.Released));
+        TransitionTo(StatusBeforeHold!.Value, by);
+    }
+
+    /// <summary>
+    /// BR-PO-12: a released order gets a new quantity (Released, InProgress or OnHold; a Draft is changed with <see cref="Regenerate"/>). It cannot go below what is
+    /// completed (<c>MFG_PO_010</c>). The caller recomputes the lines from the same BOM: required quantities (issued quantities stay), planned outputs, operation
+    /// minutes and the schedule. The change is written to the history and the reservation is brought in line by the sync.
+    /// </summary>
+    public void ChangeQuantity(decimal newQuantity, IReadOnlyDictionary<int, decimal> requiredByLine, IReadOnlyDictionary<int, decimal> plannedByOutputLine,
+        IReadOnlyDictionary<int, (decimal Standard, int Calendar)> minutesBySeq, OrderScheduleValues schedule, string? note, string by)
+    {
+        EnsureEditable();
+        if (Status == OrderStatus.Draft) throw MfgRules.Invalid("The quantity of a Draft is changed with the edit of the Draft.");
+        MfgRules.ThrowIf(Status is OrderStatus.Completed, MfgErrors.Po002, ("from", Status), ("to", Status));
+        MfgRules.ThrowIf(newQuantity <= 0 || !HasAtMostDecimals(newQuantity, 6), MfgErrors.Po001);
+        MfgRules.ThrowIf(newQuantity < CompletedQty, MfgErrors.Po010, ("completed", CompletedQty));
+
+        var old = Quantity;
+        Quantity = newQuantity;
+        foreach (var m in _materials.Where(x => !x.IsDeleted))
+            if (requiredByLine.TryGetValue(m.LineNo, out var required)) m.SetRequired(required);
+        foreach (var o in _outputs.Where(x => !x.IsDeleted))
+            if (plannedByOutputLine.TryGetValue(o.LineNo, out var planned)) o.SetPlanned(planned);
+        foreach (var op in _operations.Where(x => !x.IsDeleted))
+            if (minutesBySeq.TryGetValue(op.OperationSeq, out var minutes)) op.SetTimes(minutes.Standard, minutes.Calendar);
+        ApplySchedule(schedule);
+
+        _history.Add(ProductionOrderStatusHistory.Create(Id, Status, Status, null, string.IsNullOrWhiteSpace(note) ? $"Quantity {old} -> {newQuantity}" : $"Quantity {old} -> {newQuantity}: {note.Trim()}", by));
+        Touch(by);
+        MarkReservationSync();
+        AddDomainEvent(new ProductionOrderQuantityChangedEvent { OrderId = Id, OrderNo = OrderNo, ItemId = ItemId, OldQuantity = old, NewQuantity = newQuantity, ChangedBy = by });
+    }
+
+    /// <summary>The Warehouse reservation now matches the order: store its id and what each line holds, clear the flag.</summary>
+    public void ApplyReservation(Guid? reservationId, IReadOnlyDictionary<int, decimal> reservedByLine)
+    {
+        ReservationId = reservationId;
+        foreach (var m in _materials.Where(x => !x.IsDeleted)) m.SetReserved(reservedByLine.GetValueOrDefault(m.LineNo));
+        ReservationSyncPending = false;
+        ReservationSyncAttempts = 0;
+        ReservationSyncError = null;
+        ReservationNextAttemptAt = null;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void MarkReservationSync()
+    {
+        ReservationSyncPending = true;
+        ReservationSyncAttempts = 0;
+        ReservationSyncError = null;
+        ReservationNextAttemptAt = null;
+    }
+
+    /// <summary>The sync could not finish (Warehouse unreachable or refused): keep the flag, remember why, try again at <paramref name="nextAttempt"/>.</summary>
+    public void RecordReservationSyncFailure(string error, DateTime nextAttempt)
+    {
+        ReservationSyncAttempts++;
+        ReservationSyncError = error.Length > 500 ? error[..500] : error;
+        ReservationNextAttemptAt = nextAttempt;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     private void Touch(string changedBy)

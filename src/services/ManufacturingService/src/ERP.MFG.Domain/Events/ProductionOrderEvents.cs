@@ -34,3 +34,25 @@ public class ProductionOrderStatusChangedEvent : IntegrationEventBase, ITenantEv
     public string? Note { get; set; }
     public string? ChangedBy { get; set; }
 }
+
+public class ProductionOrderReleasedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public Guid ItemId { get; set; }
+    public decimal Quantity { get; set; }
+    public DateOnly DueDate { get; set; }
+}
+
+public class ProductionOrderQuantityChangedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid ItemId { get; set; }
+    public decimal OldQuantity { get; set; }
+    public decimal NewQuantity { get; set; }
+    public string? ChangedBy { get; set; }
+}
