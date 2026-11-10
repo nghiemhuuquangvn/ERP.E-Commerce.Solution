@@ -6,9 +6,11 @@ using ERP.Shared.Infrastructure.Exceptions;
 
 namespace ERP.MFG.Application.Services;
 
-public sealed class OrderTransactionGuard : IOrderTransactionGuard
+/// <summary>Has anything happened on the order (BR-PO-09 / BR-PO-13)? Its own figures, and since P3-3 also a stock document that is still on its way to the Warehouse.</summary>
+public sealed class OrderTransactionGuard(IStockDocumentRepository documents) : IOrderTransactionGuard
 {
-    public Task<bool> HasTransactionsAsync(ProductionOrder order, CancellationToken ct = default) => Task.FromResult(!order.IsUntouched);
+    public async Task<bool> HasTransactionsAsync(ProductionOrder order, CancellationToken ct = default)
+        => !order.IsUntouched || await documents.CountPendingAsync(order.Id, ct) > 0;
 }
 
 /// <summary>Reads the Warehouse for the materials of an order. It has no user (the sync job calls it), so it does not look at plant visibility: callers do.</summary>

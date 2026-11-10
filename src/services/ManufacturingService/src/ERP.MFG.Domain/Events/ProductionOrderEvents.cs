@@ -56,3 +56,41 @@ public class ProductionOrderQuantityChangedEvent : IntegrationEventBase, ITenant
     public decimal NewQuantity { get; set; }
     public string? ChangedBy { get; set; }
 }
+
+/// <summary>One line of a posted stock document: the item, the lot, how much and at what cost.</summary>
+public class StockMovementLine
+{
+    public Guid ItemId { get; set; }
+    public string ItemCode { get; set; } = string.Empty;
+    public Guid WarehouseId { get; set; }
+    public Guid? LotId { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal? UnitCost { get; set; }
+    public decimal? Amount { get; set; }
+}
+
+public class MaterialIssuedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid DocumentId { get; set; }
+    public string DocNo { get; set; } = string.Empty;
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public DateOnly PostingDate { get; set; }
+    public Guid? ReasonCodeId { get; set; }
+    public List<StockMovementLine> Lines { get; set; } = [];
+}
+
+public class MaterialReturnedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid DocumentId { get; set; }
+    public string DocNo { get; set; } = string.Empty;
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public DateOnly PostingDate { get; set; }
+    public Guid? ReasonCodeId { get; set; }
+    public List<StockMovementLine> Lines { get; set; } = [];
+}

@@ -1517,4 +1517,9 @@ P3-2 (2026-11-10) adds two events on the same topic (both `ITenantEvent`):
 |---|---|---|
 | `ProductionOrderReleasedEvent` | a Draft is released | `OrderId`, `OrderNo`, `PlantId`, `ItemId`, `Quantity`, `DueDate` |
 | `ProductionOrderQuantityChangedEvent` | the quantity of a released order is changed | `OrderId`, `OrderNo`, `ItemId`, `OldQuantity`, `NewQuantity`, `ChangedBy` |
+P3-3 (2026-11-10) adds the stock-document events (both `ITenantEvent`, raised when the document becomes Posted):
+| Event | Raised when | Payload |
+|---|---|---|
+| `MaterialIssuedEvent` | a material issue document is Posted | `DocumentId`, `DocNo`, `OrderId`, `OrderNo`, `PlantId`, `PostingDate`, `ReasonCodeId`, `Lines[]` (`ItemId`, `ItemCode`, `WarehouseId`, `LotId`, `Quantity`, `UnitCost`, `Amount`) |
+| `MaterialReturnedEvent` | a material return document is Posted | same shape |
 The later Phase 3 events (`ProductionOrderCompleted/Closed`, `MaterialIssued/Returned/Backflushed`, `OperationReported`, `FinishedGoodsReceived`) are added with their milestones.

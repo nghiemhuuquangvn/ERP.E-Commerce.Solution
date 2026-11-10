@@ -407,7 +407,7 @@ Critical Path: POS → Product, Payment, Promotion = 1 hop each (parallel)
 | manufacturing | masterdata | `internal/v1/units-of-measure/by-code` | units of a BOM CSV file by code (M4) |
 
 ### Manufacturing -> Warehouse stock calls (2026-11-10, Warehouse upgrade W5)
-ManufacturingService calls WareHouseService `internal/v1/stock/*` (availability, suggest-lots, production reservation, production movements, lot status) with its service token (`IWarehouseStockClient`, no cache, idempotency key `<doc>#<line>`). Warehouse trusts caller `manufacturing` (already configured). Since P3-2 (2026-11-10) production orders use availability, the production reservation (reserve / read / release) and `ReservationSyncJob` calls them per tenant; the issue / receipt movements follow in P3-3 and P3-5.
+ManufacturingService calls WareHouseService `internal/v1/stock/*` (availability, suggest-lots, production reservation, production movements, lot status) with its service token (`IWarehouseStockClient`, no cache, idempotency key `<doc>#<line>`). Warehouse trusts caller `manufacturing` (already configured). Since P3-2 (2026-11-10) production orders use availability, the production reservation (reserve / read / release) and `ReservationSyncJob` calls them per tenant; since P3-3 the issue / return movements (`ProductionIssue` with the order reservation, `ProductionReturn` with lot and cost) are booked per document line by the pending-document engine and `StockPostingRetryJob`; the receipt movements follow in P3-5.
 
 ### Manufacturing -> Kafka (2026-11-10, Phase 3 P3-1)
 ManufacturingService produces to `manufacturing-topic` (`ProductionOrderCreated`, `ProductionOrderStatusChanged`) via its outbox. Consumers: none yet.

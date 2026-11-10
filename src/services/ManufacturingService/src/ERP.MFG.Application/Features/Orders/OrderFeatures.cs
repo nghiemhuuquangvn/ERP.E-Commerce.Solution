@@ -34,7 +34,7 @@ public sealed record OrderDto(
     Guid Id, string OrderNo, Guid PlantId, OrderType OrderType, Guid ItemId, string ItemCode, string ItemName, decimal Quantity, Guid UomId, Guid BomId, Guid? RoutingId,
     OrderStatus Status, OrderStatus? StatusBeforeHold, int Priority, DateOnly DueDate, DateTime PlannedStart, DateTime PlannedEnd, DateTime? ActualStart, DateTime? ActualEnd,
     bool IsLate, Guid OutputWarehouseId, OrderSourceType SourceType, Guid? SourceRefId, Guid? ParentOrderId, decimal CompletedQty, decimal ScrappedQty, bool IsRework, string? Notes,
-    Guid? ReservationId, bool ReservationSyncPending, string? ReservationSyncError, IReadOnlyList<OrderMaterialDto> Materials, IReadOnlyList<OrderOperationDto> Operations, IReadOnlyList<OrderOutputDto> Outputs, IReadOnlyList<string> Warnings)
+    Guid? ReservationId, bool ReservationSyncPending, string? ReservationSyncError, IReadOnlyList<OrderMaterialDto> Materials, IReadOnlyList<OrderOperationDto> Operations, IReadOnlyList<OrderOutputDto> Outputs, IReadOnlyList<string> Warnings, int PendingStockDocuments = 0)
 {
     public static OrderDto From(ProductionOrder o, IReadOnlyList<string>? warnings = null) => new(
         o.Id, o.OrderNo, o.PlantId, o.OrderType, o.ItemId, o.ItemCode, o.ItemName, o.Quantity, o.UomId, o.BomId, o.RoutingId, o.Status, o.StatusBeforeHold, o.Priority, o.DueDate,
@@ -143,9 +143,14 @@ public sealed class GetOrdersHandler(IPlantAccessService access, IProductionOrde
 
 public sealed record GetOrderQuery(Guid Id) : IRequest<OrderDto>;
 
-public sealed class GetOrderHandler(IPlantAccessService access, IProductionOrderRepository orders) : IRequestHandler<GetOrderQuery, OrderDto>
+public sealed class GetOrderHandler(IPlantAccessService access, IProductionOrderRepository orders, IStockDocumentRepository? documents = null) : IRequestHandler<GetOrderQuery, OrderDto>
 {
-    public async Task<OrderDto> Handle(GetOrderQuery r, CancellationToken ct) => OrderDto.From(await OrderScope.LoadAsync(orders, access, r.Id, ct));
+    public async Task<OrderDto> Handle(GetOrderQuery r, CancellationToken ct)
+    {
+        var order = await OrderScope.LoadAsync(orders, access, r.Id, ct);
+        var dto = OrderDto.From(order);
+        return documents is null ? dto : dto with { PendingStockDocuments = await documents.CountPendingAsync(order.Id, ct) };
+    }
 }
 
 public sealed record GetOrderHistoryQuery(Guid Id) : IRequest<IReadOnlyList<OrderHistoryDto>>;
