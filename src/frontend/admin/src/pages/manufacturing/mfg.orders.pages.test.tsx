@@ -265,6 +265,18 @@ describe('Materials tab and the issue / return dialog (S18)', () => {
     expect(calls(post, 'material-issues')).toHaveLength(0)
   })
 
+  it('R234: a backflush material is not offered for a manual issue and has no Issue-the-rest button', async () => {
+    openOrder(order('Released', { materials: [mat(1, 'NVL-KEO01'), mat(2, 'NVL-VIT01', { issueMethod: 'Backflush', requiredQty: 1600 })] }), ALL, [])
+    await userEvent.click(await screen.findByRole('tab', { name: 'Materials' }))
+    expect(await screen.findAllByRole('button', { name: 'Issue the rest' })).toHaveLength(1)        // only KEO01
+    await userEvent.click(screen.getByRole('button', { name: 'Issue material' }))
+    const dialog = await screen.findByRole('dialog', { name: /Issue material to MO-2611-00001/ })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Add a line' }))
+    const options = within(within(dialog).getByLabelText('Material')).getAllByRole('option').map((o) => o.textContent)
+    expect(options.join(' ')).toContain('NVL-KEO01')
+    expect(options.join(' ')).not.toContain('NVL-VIT01')
+  })
+
   it('a typed lot the system does not know blocks the submit with a message', async () => {
     const { dialog } = await openIssue()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Add a line' }))

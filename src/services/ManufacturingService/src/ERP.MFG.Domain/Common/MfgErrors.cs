@@ -17,6 +17,7 @@ public static class MfgErrors
     public const string Gen005 = "MFG_GEN_005";
     public const string Gen006 = "MFG_GEN_006";
     public const string Gen007 = "MFG_GEN_007"; // not in the spec: an Idempotency-Key was reused for a different request
+    public const string Plt001 = "MFG_PLT_001"; // not in the spec: a plant with unfinished orders cannot be deactivated (R219, owner decision 2026-11-10)
     public const string Set001 = "MFG_SET_001";
     public const string Itm001 = "MFG_ITM_001";
     public const string Itm002 = "MFG_ITM_002";
@@ -69,6 +70,7 @@ public static class MfgErrors
     public const string Mat008 = "MFG_MAT_008";
     public const string Mat009 = "MFG_MAT_009";
     public const string Mat010 = "MFG_MAT_010";
+    public const string Mat013 = "MFG_MAT_013"; // not in the spec: a material booked by backflush cannot be issued by hand (R234, owner decision 2026-11-10)
     public const string Mat012 = "MFG_MAT_012"; // not in the spec: the Warehouse reservation of the order is being updated (P3-3)
     public const string Mat011 = "MFG_MAT_011"; // not in the spec: serial-controlled items cannot be produced yet (Warehouse refuses them, R206)
     public const string Op001 = "MFG_OP_001";
@@ -112,6 +114,7 @@ public static class MfgErrors
         [Gen007] = "Khóa Idempotency-Key này đã được dùng cho một yêu cầu khác.",
         [Set001] = "Không thể đổi phương pháp tính giá thành khi còn lệnh sản xuất chưa đóng.",
         [Itm001] = "Mặt hàng {item} không phải loại sản xuất (Make).",
+        [Plt001] = "Không thể ngừng hoạt động nhà máy: còn {count} lệnh sản xuất chưa đóng hoặc chưa hủy (ví dụ {order}). Hãy đóng hoặc hủy các lệnh đó trước.",
         [Itm002] = "Tham số chính sách lô không hợp lệ.",
         [Cal001] = "Thời lượng ca làm việc không hợp lệ.",
         [Cal002] = "Ca {shift} bị chồng lấn thời gian với ca {other}.",
@@ -158,6 +161,7 @@ public static class MfgErrors
         [Mat007] = "Số lượng serial không khớp số lượng.",
         [Mat008] = "Không đủ tồn để trừ tự động vật tư {item} (thiếu {shortage}).",
         [Mat009] = "Vật tư thay thế không thuộc nhóm thay thế của định mức.",
+        [Mat013] = "Vật tư {item} được trừ tự động theo báo cáo công đoạn hoặc nhập kho (backflush), không xuất tay.",
         [Mat012] = "Giữ chỗ kho của lệnh đang được cập nhật, vui lòng thử lại sau ít phút.",
         [Mat011] = "Mặt hàng {item} quản lý theo số serial, chưa hỗ trợ sản xuất/tiêu hao theo serial.",
         [Mat010] = "Số lượng yêu cầu vượt số lượng còn được cấp ({remaining}).",

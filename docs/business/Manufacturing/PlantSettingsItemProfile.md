@@ -94,3 +94,8 @@ Open issues are recorded in `docs/DEFERRED-ISSUES.md` R154-R161 (Warehouse has n
 ## Screens (M5)
 Guide: `docs/frontend/manufacturing-admin-guide.md`. **Plants** (`/manufacturing/plants`): list, add / edit (warehouses chosen from the warehouse list, default calendar), activate / deactivate with confirmation, and the tab **Who may work here** (grant / revoke users; only holders of the settings permission). **Production settings** (`/manufacturing/settings`): the tolerances, behaviour switches, issue and costing method, planning horizon, maximum BOM levels and lot-number format of the selected plant, saved with one button (disabled until something changed), the change history beside it; a refusal (costing method while orders are open) appears in a red box; without the settings permission the form is read-only. **Item profiles** (`/manufacturing/item-profiles`): searchable list with the low-level code, add an item through the product picker, edit dialog whose fields follow the lot-sizing policy (fixed quantity, minimum and multiple, days per period).
 UAT: create a plant with the three warehouses (a refused warehouse is named); change the over-production tolerance and see "0 -> 5" in the history; choose *Fixed quantity* for an item and see the quantity field appear.
+
+---
+
+## Addendum P3-7 (2026-11-10): deactivating a plant (R219)
+A plant cannot be deactivated while it has orders that are not Closed or Cancelled (`MFG_PLT_001`, Draft included); activating is always allowed. Rule BR-PLT-04, acceptance and use case in `ProductionOrders.md` part 3.

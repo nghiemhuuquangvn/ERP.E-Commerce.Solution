@@ -427,7 +427,7 @@ public class OperationExecutionTests
     }
 
     [Fact]
-    public async Task Reporting_on_a_pending_operation_or_an_order_on_hold_is_refused()
+    public async Task Reporting_on_a_pending_operation_or_an_order_on_hold_is_refused() // TC-OP-002, TC-OP-018
     {
         var c = new OpsCtx();
         var order = await c.ReleasedAsync();

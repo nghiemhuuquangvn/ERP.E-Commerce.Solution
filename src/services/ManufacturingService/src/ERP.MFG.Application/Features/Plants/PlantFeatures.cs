@@ -83,11 +83,17 @@ public sealed class UpdatePlantHandler(IPlantAccessService access, IWarehouseLoo
 
 public sealed record SetPlantActiveCommand(Guid Id, bool Active) : IRequest<PlantDto>;
 
-public sealed class SetPlantActiveHandler(IPlantAccessService access, IMfgUnitOfWork uow) : IRequestHandler<SetPlantActiveCommand, PlantDto>
+public sealed class SetPlantActiveHandler(IPlantAccessService access, IOpenOrderGuard orders, IMfgUnitOfWork uow) : IRequestHandler<SetPlantActiveCommand, PlantDto>
 {
     public async Task<PlantDto> Handle(SetPlantActiveCommand r, CancellationToken ct)
     {
         var plant = await access.GetVisiblePlantAsync(r.Id, ct);
+        if (!r.Active)
+        {
+            // R219: an inactive plant hides its orders (404), so none may be left unfinished
+            var (count, example) = await orders.GetUnfinishedOrdersAsync(plant.Id, ct);
+            MfgRules.ThrowIf(count > 0, MfgErrors.Plt001, ("count", count), ("order", example ?? ""));
+        }
         plant.SetActive(r.Active);
         await uow.SaveChangesAsync(ct);
         return PlantDto.From(plant);

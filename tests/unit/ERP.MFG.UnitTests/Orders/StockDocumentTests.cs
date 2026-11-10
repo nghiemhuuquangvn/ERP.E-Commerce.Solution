@@ -105,6 +105,24 @@ public class MaterialIssueTests
         c.Documents.Docs.Single().DomainEvents.OfType<MaterialIssuedEvent>().Should().ContainSingle(e => e.Lines.Single().Quantity == 10m);
     }
 
+    [Fact] // R234
+    public async Task A_material_booked_by_backflush_cannot_be_issued_by_hand_and_nothing_is_stored_or_sent()
+    {
+        var c = new StockCtx();
+        var order = await c.ReleasedAsync();
+
+        var vitOnly = () => c.IssueAsync(order, [c.Line(order, "NVL-VIT01", 100)]);
+        var refusal = (await vitOnly.Should().ThrowAsync<BusinessRuleException>()).Which;
+        refusal.RuleName.Should().Be(MfgErrors.Mat013);
+        refusal.Message.Should().Contain("NVL-VIT01");
+
+        var mixed = () => c.IssueAsync(order, [c.Line(order, "NVL-KEO01", 1), c.Line(order, "NVL-VIT01", 100)]);   // the whole request is refused
+        (await mixed.Should().ThrowAsync<BusinessRuleException>()).Which.RuleName.Should().Be(MfgErrors.Mat013);
+        c.Documents.Docs.Should().BeEmpty();
+        c.Stock.Movements.Should().BeEmpty();
+        c.Mat(order, "NVL-KEO01").IssuedQty.Should().Be(0m);
+    }
+
     [Fact] // TC-MAT-002 / 003 / PO-020
     public async Task Only_a_released_or_running_order_takes_material()
     {

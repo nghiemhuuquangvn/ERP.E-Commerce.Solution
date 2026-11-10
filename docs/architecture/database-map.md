@@ -720,6 +720,30 @@ INDEX IX_Invoices_Status (Status)
 
 ---
 
+## ManufacturingDB (PostgreSQL, ManufacturingService, added 2026-11-10)
+
+The one database on **PostgreSQL** (host server; schema = idempotent scripts `src/Database/Manufacturing/001..010` applied by the compose job `pg-migrate`; EF never creates it; optimistic locking by the system column `xmin`). 31 tables, every one with `TenantId`; business numbers unique per `(TenantId, ...)`. The scripts are checked against the EF model by `PostgreSqlSchemaDriftTests`.
+
+| Script | Tables |
+|---|---|
+| 001 | `DocumentSequences` |
+| 002 | `Plants`, `ProductionSettings`, `ProductionSettingAudits`, `ItemManufacturingProfiles`, `PlantUserAccesses` |
+| 003 | `Shifts`, `WorkCalendars`, `WorkCalendarPatterns`, `WorkCalendarExceptions`, `WorkCalendarExceptionShifts`, `WorkCenters`, `Machines`, `StandardOperations`, `ReasonCodes`, `Crews`, `CrewMembers` |
+| 004, 005 | `Boms`, `BomLines`, `Routings`, `RoutingOperations` |
+| 006, 007 | `ProductionOrders`, `ProductionOrderMaterials`, `ProductionOrderOperations`, `ProductionOrderOutputs`, `ProductionOrderStatusHistories`, `OutboxMessages` (+ reservation-sync columns) |
+| 008, 010 | `MaterialTransactions`, `MaterialTransactionLines` (issue, return, backflush, receipt; receipt columns lot / expiry / hold) |
+| 009 | `OperationReports`, `LaborTimeLogs` |
+
+```
+ProductionOrders 1-* ProductionOrderMaterials / ProductionOrderOperations / ProductionOrderOutputs / ProductionOrderStatusHistories
+ProductionOrders 1-* MaterialTransactions 1-* MaterialTransactionLines     (document <-> Warehouse movement, one per line)
+ProductionOrders 1-* OperationReports -- 0..1 MaterialTransactions (the backflush document)
+ProductionOrderOperations 1-* LaborTimeLogs
+Plants 1-* (Boms, Routings, WorkCenters, ProductionOrders ...)
+```
+
+---
+
 **Created:** 2026-06-13  
 **Database Count:** 14  
 **Total Estimated Tables:** 70+  

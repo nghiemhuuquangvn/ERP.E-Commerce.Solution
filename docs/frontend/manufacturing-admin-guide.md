@@ -44,7 +44,7 @@ Patterns:
 - **Bulk action:** the list releases the selected Draft orders one by one and shows a result per order.
 - **Headings:** page title h1, section headings h2 (a table under an h2 uses `headingLevel={3}`), so axe's heading-order rule stays green.
 
-API contract: `scripts/mfg-p36-contract-check.js` reads the interfaces of `mfg.api.ts` and checks every key against the real answers on both tenants - run it after changing a type or a DTO.
+API contract: `scripts/manufacturing-live/mfg-p36-contract-check.js` reads the interfaces of `mfg.api.ts` and checks every key against the real answers on both tenants - run it after changing a type or a DTO.
 
 Tests: `orderActions.test.ts`, `pages/manufacturing/mfg.orders.pages.test.tsx` (list, detail, dialogs, documents, operations, history; faked HTTP client of `testKit.tsx`; axe on pages and dialogs).
 

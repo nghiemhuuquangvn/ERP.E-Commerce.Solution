@@ -1,6 +1,6 @@
 # ADR - Manufacturing Phase 3: production orders on the pending-document pattern
 
-**Status:** accepted by the owner (2026-11-10); P3-1 (order core) implemented 2026-11-10. Follows `adr-manufacturing-service.md` (decision 5) and `adr-warehouse-upgrade.md` (W0-W6, the internal stock API this phase calls). Business detail: `docs/business/Manufacturing/ProductionOrders.md`.
+**Status:** accepted by the owner (2026-11-10); P3-1 .. P3-7 implemented 2026-11-10 (Phase 3 complete). Follows `adr-manufacturing-service.md` (decision 5) and `adr-warehouse-upgrade.md` (W0-W6, the internal stock API this phase calls). Business detail: `docs/business/Manufacturing/ProductionOrders.md`.
 
 ## Context
 Phase 0-2 gave Manufacturing its master data, bills of materials and routings. Phase 3 turns them into execution: a production order is created with a snapshot of the BOM and routing, scheduled, released (stock reserved), fed with material, reported by operation, receives finished goods and is completed and closed (spec `docs/business/M/02_PRODUCTION_DEV_TASKS.md` T3.1-T3.14). The spec assumed one database transaction with Inventory (BR-MAT-06, NFR-05); the Warehouse is another service with another database, so every stock effect is a call that can fail, time out or be repeated.
@@ -71,6 +71,31 @@ Phase 0-2 gave Manufacturing its master data, bills of materials and routings. P
 8. **Close checklist** is data (`CloseCondition`): material requests (not built) and costing (Phase 6) are always met; open time logs, lots still on hold, issued material not settled and pending documents are real. `ProductionOrderMaterial.SettledIssueQty` records how much of the net issue was carried to consumption at close, so settled quantity is never confused with backflush consumption.
 9. **Returns are accepted on a Completed order** (deviation from BR-MAT-01): unused material is given back before the close (TC-E2E-001 step 11).
 10. **Interim quality release** (`qc:disposition`; Phase 4 replaces it): `SubcontractTransfer` of the lot from the quarantine warehouse to the output warehouse, then `QcRelease`; two idempotent calls per line, keys `<line key>Q1` / `Q2`; the release time is stored on the line. Not a pending document - the user repeats a half-done release.
+
+## Decisions taken while planning P3-7 (2026-11-10)
+1. **Owner decisions:** R219 - a plant with orders that are not Closed or Cancelled cannot be deactivated (`MFG_PLT_001`; new guard method `IOpenOrderGuard.GetUnfinishedOrdersAsync`, Draft included); R234 - a Backflush material cannot be issued by hand (`MFG_MAT_013`, checked before any Warehouse read); R245 - a return on a Completed order is accepted (the specification's own E2E needs it); ZZ-* test data is kept and listed.
+2. **The end-to-end proof is API level** (`scripts/manufacturing-live/mfg-p37-e2e.js`), on a fresh DS-01 set per scenario, asserting the Warehouse side as well; browser automation is not available (R251).
+3. **PostgreSQL schema drift is a unit test** (`PostgreSqlSchemaDriftTests`, opt-in `ERP_DRIFT_PG`): scratch database, scripts applied twice, information_schema against the `MfgDbContext` model.
+4. **Live scripts live in the repo** (`scripts/manufacturing-live/`) with a runner and a traceability tool.
+
+## Phase 3 as built - what changed from the plan
+| Plan (master decisions) | As built |
+|---|---|
+| 1 Pending-document engine | As planned; header + lines, key `<DocNo>#<n>` (`F` free stock, `R` reversal, `Q1/Q2` quality release); effect on the order when every line is Posted |
+| 2 Retry job with `FOR UPDATE SKIP LOCKED` | Claim by the row version (`xmin`) pushing `NextAttemptAt`; a transient failure never turns into Failed by counting attempts |
+| 3 Effect applied only when Posted | As planned; an operation report with backflush counts when its `BF` document is Posted |
+| 4 Reservation: call first, then commit | **Reconciler**: save with `ReservationSyncPending`, then `IOrderReservationSync` and `ReservationSyncJob` |
+| 5 Outbox -> `manufacturing-topic` | As planned (eleven events; no consumer yet) |
+| 6 `Idempotency-Key` | As planned; stored with a hash of the request; another body -> 409 `MFG_GEN_007` |
+| 7 Scheduling | Backward, forward (late), fixed lead time without routing |
+| 8 Backflush in Phase 3 | Operation trigger (P3-4) and receipt trigger for unbound materials (P3-5); rework is not output |
+| 9 Serial items refused | `MFG_MAT_011` |
+| 10 Interim quality release | `qc:disposition`: transfer + `QcRelease` with keys `Q1/Q2`; whole lots only |
+| Document numbers per plant | Per tenant (they are the Warehouse key); `OR` per plant with a unique index per plant |
+| Receipt and backflush separate documents | One `FR` document with receipt lines and the backflush lines (P3-5) |
+| Warehouse unchanged | Two additions: lot list endpoint, inventory record created on the first receipt (deploy the Warehouse first) |
+| Return only on Released / InProgress | Also on Completed (R245) |
+| Plant deactivation free | Blocked while orders are unfinished (R219); Backflush materials not issuable by hand (R234) |
 
 ## Consequences
 - Manufacturing and the Warehouse are never one transaction: a `Pending` window exists in which a document is not yet in the order's figures; the UI says so (P3-6).
