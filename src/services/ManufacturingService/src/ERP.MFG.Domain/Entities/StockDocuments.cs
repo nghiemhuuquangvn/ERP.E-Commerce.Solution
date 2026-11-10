@@ -5,7 +5,7 @@ using ERP.Shared.Core.Domain;
 namespace ERP.MFG.Domain.Entities;
 
 /// <summary>A line to store: ONE Warehouse movement of one material of the order.</summary>
-public sealed record NewStockLine(Guid OrderMaterialId, int MaterialLineNo, Guid ItemId, string ItemCode, Guid WarehouseId, Guid? LotId, decimal Qty, bool IsFromReservation, decimal? UnitCost);
+public sealed record NewStockLine(Guid OrderMaterialId, int MaterialLineNo, Guid ItemId, string ItemCode, Guid WarehouseId, Guid? LotId, decimal Qty, bool IsFromReservation, decimal? UnitCost, bool IsNegativeStock = false);
 
 /// <summary>
 /// One line of a stock document = one movement in the Warehouse. Its key (<c>&lt;DocNo&gt;#&lt;n&gt;</c>; a free-stock issue ends with <c>F</c>, the reversal of
@@ -28,6 +28,9 @@ public class MaterialTransactionLine : BaseEntity
     /// <summary>An issue taken from the order's Warehouse reservation (consumes it) rather than from free stock.</summary>
     public bool IsFromReservation { get; private set; }
 
+    /// <summary>A backflush line that takes stock below zero (allowed by <c>AllowNegativeStockOnBackflush</c>, BR-MAT-08): sent with <c>AllowNegative</c>.</summary>
+    public bool IsNegativeStock { get; private set; }
+
     public string MovementKey { get; private set; } = string.Empty;
     public StockLineStatus Status { get; private set; } = StockLineStatus.Pending;
     public Guid? WhMovementId { get; private set; }
@@ -46,8 +49,8 @@ public class MaterialTransactionLine : BaseEntity
     internal static MaterialTransactionLine Create(Guid transactionId, string docNo, StockDocumentType type, int lineNo, NewStockLine v) => new()
     {
         Id = Guid.NewGuid(), TransactionId = transactionId, LineNo = lineNo, OrderMaterialId = v.OrderMaterialId, MaterialLineNo = v.MaterialLineNo, ItemId = v.ItemId, ItemCode = v.ItemCode,
-        WarehouseId = v.WarehouseId, LotId = v.LotId, Qty = v.Qty, IsFromReservation = v.IsFromReservation, UnitCost = v.UnitCost,
-        MovementKey = KeyFor(docNo, lineNo, type == StockDocumentType.Issue && !v.IsFromReservation),
+        WarehouseId = v.WarehouseId, LotId = v.LotId, Qty = v.Qty, IsFromReservation = v.IsFromReservation, UnitCost = v.UnitCost, IsNegativeStock = v.IsNegativeStock,
+        MovementKey = KeyFor(docNo, lineNo, type is StockDocumentType.Issue or StockDocumentType.Backflush && !v.IsFromReservation),
     };
 
     internal static string KeyFor(string docNo, int lineNo, bool free) => $"{docNo}#{lineNo}{(free ? "F" : "")}";
@@ -116,6 +119,9 @@ public class MaterialTransaction : BaseEntity
     public DateTime? PostedAt { get; private set; }
     public Guid? ReversalOfId { get; private set; }
 
+    /// <summary>For a backflush: the operation report whose output it consumes for (applied together with it).</summary>
+    public Guid? SourceOperationReportId { get; private set; }
+
     public IReadOnlyList<MaterialTransactionLine> Lines => _lines.Where(l => !l.IsDeleted).OrderBy(l => l.LineNo).ToList();
 
     /// <summary>Persistence access to the loaded lines (EF fills the field).</summary>
@@ -123,15 +129,18 @@ public class MaterialTransaction : BaseEntity
 
     public bool IsIssue => Type == StockDocumentType.Issue;
 
+    /// <summary>Stock leaves the warehouse: an issue or a backflush (a return brings it back).</summary>
+    public bool IsConsumption => Type is StockDocumentType.Issue or StockDocumentType.Backflush;
+
     public static MaterialTransaction Create(string docNo, StockDocumentType type, Guid plantId, Guid orderId, string orderNo, DateOnly postingDate, Guid? reasonCodeId, string? note,
-        string? idempotencyKey, string? requestHash, IReadOnlyList<NewStockLine> lines, string createdBy)
+        string? idempotencyKey, string? requestHash, IReadOnlyList<NewStockLine> lines, string createdBy, Guid? sourceOperationReportId = null)
     {
         MfgRules.ThrowIf(string.IsNullOrWhiteSpace(docNo), MfgErrors.Gen002);
         MfgRules.ThrowIf(lines.Count == 0 || lines.Any(l => l.Qty <= 0), MfgErrors.Mat001);
         var doc = new MaterialTransaction
         {
             Id = Guid.NewGuid(), DocNo = docNo, Type = type, PlantId = plantId, OrderId = orderId, OrderNo = orderNo, PostingDate = postingDate, ReasonCodeId = reasonCodeId,
-            Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(), IdempotencyKey = idempotencyKey, RequestHash = requestHash, CreatedBy = createdBy, UpdatedBy = createdBy,
+            Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(), IdempotencyKey = idempotencyKey, RequestHash = requestHash, SourceOperationReportId = sourceOperationReportId, CreatedBy = createdBy, UpdatedBy = createdBy,
         };
         var no = 0;
         foreach (var line in lines) doc._lines.Add(MaterialTransactionLine.Create(doc.Id, docNo, type, ++no, line));
@@ -214,7 +223,9 @@ public class MaterialTransaction : BaseEntity
         {
             ItemId = l.ItemId, ItemCode = l.ItemCode, WarehouseId = l.WarehouseId, LotId = l.PostedLotId ?? l.LotId, Quantity = l.Qty, UnitCost = l.UnitCost, Amount = l.Amount,
         }).ToList();
-        if (IsIssue)
+        if (Type == StockDocumentType.Backflush)
+            AddDomainEvent(new MaterialBackflushedEvent { DocumentId = Id, DocNo = DocNo, OrderId = OrderId, OrderNo = OrderNo, PlantId = PlantId, PostingDate = PostingDate, SourceOperationReportId = SourceOperationReportId, Lines = lines });
+        else if (IsIssue)
             AddDomainEvent(new MaterialIssuedEvent { DocumentId = Id, DocNo = DocNo, OrderId = OrderId, OrderNo = OrderNo, PlantId = PlantId, PostingDate = PostingDate, ReasonCodeId = ReasonCodeId, Lines = lines });
         else
             AddDomainEvent(new MaterialReturnedEvent { DocumentId = Id, DocNo = DocNo, OrderId = OrderId, OrderNo = OrderNo, PlantId = PlantId, PostingDate = PostingDate, ReasonCodeId = ReasonCodeId, Lines = lines });

@@ -11,6 +11,9 @@ public static class DocumentTypes
     public const string MaterialReturn = "MR";
     public const string MaterialRequest = "MQ";
     public const string OperationReport = "OR";
+
+    /// <summary>Backflush consumption document (P3-4). Not in the spec's list; it needs its own number because the number is the key the Warehouse deduplicates on.</summary>
+    public const string Backflush = "BF";
     public const string FinishedGoodsReceipt = "FR";
     public const string Inspection = "QI";
     public const string Ncr = "NCR";
@@ -19,7 +22,7 @@ public static class DocumentTypes
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>
     {
-        ProductionOrder, MaterialIssue, MaterialReturn, MaterialRequest, OperationReport,
+        ProductionOrder, MaterialIssue, MaterialReturn, MaterialRequest, OperationReport, Backflush,
         FinishedGoodsReceipt, Inspection, Ncr, PlannedOrder, MrpRun,
     };
 

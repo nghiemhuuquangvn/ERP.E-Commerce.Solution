@@ -45,7 +45,24 @@ internal sealed class FakeStock : IWarehouseStockClient
         return Task.FromResult(new StockAvailability(productId, total, held, 0, Math.Max(total - held, 0), 0m, rows));
     }
 
-    public Task<LotSuggestion> SuggestLotsAsync(Guid productId, decimal quantity, Guid? warehouseId, CancellationToken ct = default) => throw new NotSupportedException();
+    /// <summary>First-expiry-first over the usable lots (a lot without expiry comes last), like the Warehouse's <c>LotPicker</c>.</summary>
+    public Task<LotSuggestion> SuggestLotsAsync(Guid productId, decimal quantity, Guid? warehouseId, CancellationToken ct = default)
+    {
+        Check();
+        var rows = (Balances.GetValueOrDefault(productId) ?? [])
+            .Where(b => b.LotId != null && b.LotStatus == "Available" && (b.ExpiryDate is null || b.ExpiryDate > DateTime.UtcNow) && b.AvailableQuantity > 0)
+            .OrderBy(b => b.ExpiryDate ?? DateTime.MaxValue).ToList();
+        var left = quantity;
+        var lots = new List<SuggestedLotInfo>();
+        foreach (var row in rows)
+        {
+            if (left <= 0) break;
+            var take = Math.Min(row.AvailableQuantity, left);
+            lots.Add(new SuggestedLotInfo(row.LotId!.Value, row.LotNumber ?? "", row.WarehouseId, row.ExpiryDate, row.AvailableQuantity, take));
+            left -= take;
+        }
+        return Task.FromResult(new LotSuggestion(productId, warehouseId, quantity, lots, left, 0m));
+    }
 
     public Task<StockReservation> ReserveAsync(Guid productionOrderId, string? orderNumber, Guid? warehouseId, IReadOnlyList<StockReservationLine> lines, CancellationToken ct = default)
     {
@@ -128,7 +145,7 @@ internal sealed class FakeStock : IWarehouseStockClient
                     if (row.ExpiryDate is { } expiry && expiry <= DateTime.UtcNow) throw new BusinessRuleException("WH_LOT_EXPIRED", "Lot expired.");
                     if (row.Quantity < r.Quantity) throw new BusinessRuleException("WH_INSUFFICIENT_STOCK", "Not enough in the lot.");
                 }
-                if (rows.Sum(b => b.Quantity) - held < r.Quantity) throw new BusinessRuleException("WH_INSUFFICIENT_STOCK", "Not enough free stock.");
+                if (!r.AllowNegative && rows.Sum(b => b.Quantity) - held < r.Quantity) throw new BusinessRuleException("WH_INSUFFICIENT_STOCK", "Not enough free stock.");
             }
             Adjust(r.ProductId, r.LotId, -r.Quantity);
         }
@@ -173,9 +190,15 @@ internal sealed class SettingsFake : IProductionSettingProvider
     public bool BlockReleaseOnShortage;
     public bool Sequential = true;
     public decimal OverIssueTolerancePct = 3m;
+    public decimal OverProductionTolerancePct = 5m;
+    public bool AllowNegativeStockOnBackflush;
 
     public Task<ProductionSettingValues> GetAsync(Guid plantId, CancellationToken ct = default)
-        => Task.FromResult(ProductionSettingValues.Defaults with { BlockReleaseOnShortage = BlockReleaseOnShortage, RequireSequentialOperations = Sequential, OverIssueTolerancePct = OverIssueTolerancePct });
+        => Task.FromResult(ProductionSettingValues.Defaults with
+        {
+            BlockReleaseOnShortage = BlockReleaseOnShortage, RequireSequentialOperations = Sequential, OverIssueTolerancePct = OverIssueTolerancePct,
+            OverProductionTolerancePct = OverProductionTolerancePct, AllowNegativeStockOnBackflush = AllowNegativeStockOnBackflush,
+        });
 
     public void Invalidate(Guid plantId) { }
 }
@@ -198,6 +221,8 @@ internal class ReleaseCtx : OrderCtx
     }
 
     public StockDocRepoFake Documents { get; } = new();
+    public TimeLogRepoFake TimeLogs { get; } = new();
+    public ReportRepoFake Reports { get; } = new();
 
     public IOrderAvailability Availability => new OrderAvailabilityService(Stock, PlantTime);
     public OrderReservationSync Sync => new(Stock, Availability, F.Uow, PlantTime);
@@ -220,7 +245,7 @@ internal class ReleaseCtx : OrderCtx
         => new CancelOrderHandler(Access, Repo, F.ReasonRepo, new OrderTransactionGuard(Documents), Sync, User, F.Uow).Handle(new CancelOrderCommand(id, reason, "note"), default);
 
     public Task<OrderActionResultDto> HoldAsync(Guid id, Guid? reason)
-        => new HoldOrderHandler(Access, Repo, F.ReasonRepo, User, F.Uow).Handle(new HoldOrderCommand(id, reason, null), default);
+        => new HoldOrderHandler(Access, Repo, F.ReasonRepo, TimeLogs, PlantTime, User, F.Uow).Handle(new HoldOrderCommand(id, reason, null), default);
 
     public Task<OrderActionResultDto> ResumeAsync(Guid id)
         => new ResumeOrderHandler(Access, Repo, User, F.Uow).Handle(new ResumeOrderCommand(id), default);

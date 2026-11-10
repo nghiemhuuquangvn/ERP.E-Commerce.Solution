@@ -94,3 +94,35 @@ public class MaterialReturnedEvent : IntegrationEventBase, ITenantEvent
     public Guid? ReasonCodeId { get; set; }
     public List<StockMovementLine> Lines { get; set; } = [];
 }
+
+public class MaterialBackflushedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid DocumentId { get; set; }
+    public string DocNo { get; set; } = string.Empty;
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public DateOnly PostingDate { get; set; }
+    public Guid? SourceOperationReportId { get; set; }
+    public List<StockMovementLine> Lines { get; set; } = [];
+}
+
+/// <summary>An operation report is applied to the order (BA spec 01 §8.1): the figures of one report, after its backflush (if any) reached the Warehouse.</summary>
+public class OperationReportedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid ReportId { get; set; }
+    public string DocNo { get; set; } = string.Empty;
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public int OperationSeq { get; set; }
+    public decimal GoodQty { get; set; }
+    public decimal ScrapQty { get; set; }
+    public decimal ReworkQty { get; set; }
+    public Guid? ScrapReasonId { get; set; }
+    public Guid? ReworkReasonId { get; set; }
+    public Guid? MachineId { get; set; }
+    public string? ReportedBy { get; set; }
+}

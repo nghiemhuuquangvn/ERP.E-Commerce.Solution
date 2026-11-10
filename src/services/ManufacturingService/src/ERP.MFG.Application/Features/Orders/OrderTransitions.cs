@@ -126,14 +126,16 @@ public sealed class CancelOrderHandler(
 
 public sealed record HoldOrderCommand(Guid Id, Guid? ReasonCodeId, string? Note) : IRequest<OrderActionResultDto>;
 
-public sealed class HoldOrderHandler(IPlantAccessService access, IProductionOrderRepository orders, IReasonCodeRepository reasons, IUserContextService user, IMfgUnitOfWork uow)
-    : IRequestHandler<HoldOrderCommand, OrderActionResultDto>
+public sealed class HoldOrderHandler(IPlantAccessService access, IProductionOrderRepository orders, IReasonCodeRepository reasons, ITimeLogRepository logs, IPlantClock clock,
+    IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<HoldOrderCommand, OrderActionResultDto>
 {
     public async Task<OrderActionResultDto> Handle(HoldOrderCommand r, CancellationToken ct)
     {
         var order = await OrderScope.LoadAsync(orders, access, r.Id, ct);
         await OrderTransitions.EnsureReasonAsync(reasons, r.ReasonCodeId, ReasonType.Hold, ct);
-        order.Hold(r.ReasonCodeId, r.Note, user.GetUserId());
+        order.Hold(r.ReasonCodeId, r.Note, user.GetUserId());             // running operations pause here ...
+        var now = clock.UtcNow;
+        foreach (var log in (await logs.ListOpenForOrderAsync(order.Id, ct)).Where(l => l.IsRunning)) log.Pause(now);   // ... and so do their time logs (BR-PO-11)
         await uow.SaveChangesAsync(ct);                                  // the reservation stays: nothing to sync
         return new OrderActionResultDto(OrderDto.From(order), [], order.ReservationSyncPending);
     }

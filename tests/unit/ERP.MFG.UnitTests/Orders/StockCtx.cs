@@ -38,10 +38,10 @@ internal sealed class StockDocRepoFake : IStockDocumentRepository
 }
 
 /// <summary>DS-01, a released order, a fake Warehouse that books movements, and the P3-3 handlers (test cases TC-MAT-*, TC-GEN-010).</summary>
-internal sealed class StockCtx : ReleaseCtx
+internal class StockCtx : ReleaseCtx
 {
     public ReasonCode OverIssueReason { get; }
-    public StockPostingService Posting => new(Stock, F.ProductClient, Repo, F.Uow, PlantTime, Sync, NullLogger<StockPostingService>.Instance);
+    public StockPostingService Posting => new(Stock, F.ProductClient, Repo, F.Uow, PlantTime, Sync, Reports, new OperationLogCloser(TimeLogs, PlantTime), NullLogger<StockPostingService>.Instance);
 
     public StockCtx()
     {

@@ -1522,4 +1522,9 @@ P3-3 (2026-11-10) adds the stock-document events (both `ITenantEvent`, raised wh
 |---|---|---|
 | `MaterialIssuedEvent` | a material issue document is Posted | `DocumentId`, `DocNo`, `OrderId`, `OrderNo`, `PlantId`, `PostingDate`, `ReasonCodeId`, `Lines[]` (`ItemId`, `ItemCode`, `WarehouseId`, `LotId`, `Quantity`, `UnitCost`, `Amount`) |
 | `MaterialReturnedEvent` | a material return document is Posted | same shape |
-The later Phase 3 events (`ProductionOrderCompleted/Closed`, `MaterialIssued/Returned/Backflushed`, `OperationReported`, `FinishedGoodsReceived`) are added with their milestones.
+P3-4 (2026-11-10) adds the operation and backflush events (both `ITenantEvent`, raised when the report / document is applied to the order):
+| Event | Raised when | Payload |
+|---|---|---|
+| `OperationReportedEvent` | an operation report is applied (its backflush, if any, is Posted) | `ReportId`, `DocNo`, `OrderId`, `OrderNo`, `PlantId`, `OperationSeq`, `GoodQty`, `ScrapQty`, `ReworkQty`, `ScrapReasonId`, `ReworkReasonId`, `MachineId`, `ReportedBy` |
+| `MaterialBackflushedEvent` | a backflush document is Posted | `DocumentId`, `DocNo` (BF-...), `OrderId`, `OrderNo`, `PlantId`, `PostingDate`, `SourceOperationReportId`, `Lines[]` (as `MaterialIssuedEvent`) |
+The later Phase 3 events (`ProductionOrderCompleted/Closed`, `FinishedGoodsReceived`) are added with their milestones.

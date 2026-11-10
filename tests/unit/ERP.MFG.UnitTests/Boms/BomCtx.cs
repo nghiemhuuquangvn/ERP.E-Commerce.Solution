@@ -106,7 +106,7 @@ internal class BomCtx
     }
 
     /// <summary>The approved BOMs of DS-01 §1.5 (effective 2026-01-01 without end). Returns the BOM ids by item code.</summary>
-    public async Task<Dictionary<string, Guid>> SeedBomsAsync()
+    public async Task<Dictionary<string, Guid>> SeedBomsAsync(bool sonBackflush = false)
     {
         SeedItems();
         var ids = new Dictionary<string, Guid>();
@@ -132,7 +132,7 @@ internal class BomCtx
         await AddAsync(top.Id, "BTP-MAT01", 1, Piece, op: 10);
         await AddAsync(top.Id, "BTP-CHAN01", 4, Piece, op: 10);
         await AddAsync(top.Id, "NVL-VIT01", 16, Piece, op: 10, issue: IssueMethod.Backflush);
-        await AddAsync(top.Id, "NVL-SON01", 0.5m, Litre, scrap: 5, op: 20);
+        await AddAsync(top.Id, "NVL-SON01", 0.5m, Litre, scrap: 5, op: 20, issue: sonBackflush ? IssueMethod.Backflush : IssueMethod.Manual);   // the "variant" of TC-BF-004 / 008
         await AddAsync(top.Id, "NVL-KEO01", 0.1m, Kg, op: 10, group: "G1", priority: 1);
         await AddAsync(top.Id, "NVL-KEO02", 0.12m, Kg, op: 10, group: "G1", priority: 2);
         await AddAsync(top.Id, "KIT-PKG01", 1, Set, op: 30, phantom: true);

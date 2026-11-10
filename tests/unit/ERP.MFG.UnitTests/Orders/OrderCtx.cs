@@ -59,6 +59,9 @@ internal class OrderCtx : RoutingCtx
     public DocNumberFake Numbers { get; } = new();
     public Dictionary<string, Guid> BomIds { get; private set; } = [];
 
+    /// <summary>The variant of the test-case book: the paint (SON) is consumed by backflush on operation 20.</summary>
+    public bool SonBackflush { get; set; }
+
     public OrderCtx()
     {
         PlantTime = new PlantClock(Clock);
@@ -68,7 +71,7 @@ internal class OrderCtx : RoutingCtx
     /// <summary>The engineering data of DS-01: items, approved BOMs, and the approved routing of TP-BAN01 (10 Assembly, 20 Painting, 30 Packing).</summary>
     public async Task SeedAllAsync()
     {
-        BomIds = await SeedBomsAsync();
+        BomIds = await SeedBomsAsync(SonBackflush);
         await SeedTopRoutingAsync();
     }
 

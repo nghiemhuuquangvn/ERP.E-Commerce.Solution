@@ -18,9 +18,9 @@ public static class StockCodeMapper
     public static bool IsUnavailable(string code) => code is MfgErrors.Int001 or "WH_CONFLICT";
 
     /// <summary>The code shown to the user for a Warehouse refusal (BR-MAT-03/04/05); other codes pass through unchanged.</summary>
-    public static string ToMfg(string warehouseCode) => warehouseCode switch
+    public static string ToMfg(string warehouseCode, StockDocumentType type = StockDocumentType.Issue) => warehouseCode switch
     {
-        "WH_INSUFFICIENT_STOCK" or "WH_INSUFFICIENT_IN_WAREHOUSE" => MfgErrors.Mat003,
+        "WH_INSUFFICIENT_STOCK" or "WH_INSUFFICIENT_IN_WAREHOUSE" => type == StockDocumentType.Backflush ? MfgErrors.Mat008 : MfgErrors.Mat003,
         "WH_LOT_EXPIRED" or "WH_LOT_NOT_USABLE" or "WH_LOT_NOT_AVAILABLE" => MfgErrors.Mat005,
         "WH_LOT_REQUIRED" => MfgErrors.Mat004,
         "WH_SERIAL_NOT_SUPPORTED" => MfgErrors.Mat011,
@@ -31,7 +31,7 @@ public static class StockCodeMapper
 /// <summary>See <see cref="IStockPostingService"/>.</summary>
 public sealed class StockPostingService(
     IWarehouseStockClient stock, IProductLookupClient products, IProductionOrderRepository orders, IMfgUnitOfWork uow, IPlantClock clock,
-    IOrderReservationSync reservationSync, ILogger<StockPostingService> logger) : IStockPostingService
+    IOrderReservationSync reservationSync, IOperationReportRepository reports, OperationLogCloser logCloser, ILogger<StockPostingService> logger) : IStockPostingService
 {
     public async Task<StockPostingResult> PostAsync(MaterialTransaction document, string by, CancellationToken ct = default)
     {
@@ -96,7 +96,7 @@ public sealed class StockPostingService(
                 }
                 catch (BusinessRuleException ex)
                 {
-                    return await RefuseAsync(document, line, StockCodeMapper.ToMfg(ex.RuleName), ex.Message, by, ct);
+                    return await RefuseAsync(document, line, StockCodeMapper.ToMfg(ex.RuleName, document.Type), ex.Message, by, ct);
                 }
             }
         }
@@ -110,8 +110,20 @@ public sealed class StockPostingService(
     /// </summary>
     private async Task<StockPostingResult> CompleteAsync(MaterialTransaction document, ProductionOrder order, string by, CancellationToken ct)
     {
+        var now = clock.UtcNow;
         order.ApplyPostedDocument(document, by);
-        document.MarkPosted(by, clock.UtcNow);
+        if (document.Type == StockDocumentType.Backflush && document.SourceOperationReportId is { } reportId)
+        {
+            // the report counts only now that its materials are out of the Warehouse (ADR Phase 3, decision 3): both are applied in the same save
+            var report = await reports.GetAsync(reportId, ct) ?? throw new EntityNotFoundException(nameof(OperationReport), reportId);
+            if (report.Status == OperationReportStatus.Pending)
+            {
+                order.ApplyOperationReport(report, by, now);
+                report.MarkPosted(now, by);
+                await logCloser.CloseForCompletedAsync(order, ct);
+            }
+        }
+        document.MarkPosted(by, now);
         await uow.SaveChangesAsync(ct);
 
         await reservationSync.SyncAsync(order, ct);                                   // best effort: the flag stays set for the job if the Warehouse is not reachable
@@ -156,6 +168,13 @@ public sealed class StockPostingService(
         }
 
         document.MarkFailed(by);
+        if (document.Type == StockDocumentType.Backflush && document.SourceOperationReportId is { } reportId)
+        {
+            // nothing was applied: the report is kept for audit with the reason (a refused or abandoned backflush)
+            var report = await reports.GetAsync(reportId, ct);
+            if (report is { Status: OperationReportStatus.Pending })
+                report.MarkFailed(document.LastErrorCode ?? "FAILED", document.LastError ?? "The backflush document failed.", by);
+        }
         await uow.SaveChangesAsync(ct);
         return Result(document);
     }
@@ -164,13 +183,14 @@ public sealed class StockPostingService(
 
     private static StockMovementRequest BuildRequest(MaterialTransaction document, MaterialTransactionLine line, ProductionOrder order, ProductInfo item)
     {
-        if (document.IsIssue)
+        if (document.IsConsumption)
         {
             // A reserved line names the open reservation (or, when none is open, the last one the order knew: a booking that was made before a lost answer is
             // found by its key first, so the id only matters for a first attempt; a stale one makes the Warehouse refuse and the line is taken from free stock).
             var reservationId = line.IsFromReservation ? order.ReservationId ?? Guid.NewGuid() : (Guid?)null;
             return new("ProductionIssue", line.ItemId, line.Qty, line.MovementKey, WarehouseId: line.WarehouseId, LotId: line.LotId, ReservationId: reservationId,
-                SourceOrderId: order.Id, SourceLineId: line.IsFromReservation ? line.OrderMaterialId : null, RequiresLot: item.IsLotControlled, RequiresSerial: item.IsSerialControlled);
+                SourceOrderId: order.Id, SourceLineId: line.IsFromReservation ? line.OrderMaterialId : null, RequiresLot: item.IsLotControlled, RequiresSerial: item.IsSerialControlled,
+                AllowNegative: line.IsNegativeStock);
         }
 
         return new("ProductionReturn", line.ItemId, line.Qty, line.MovementKey, WarehouseId: line.WarehouseId, LotId: line.LotId, UnitCost: line.UnitCost,
@@ -182,7 +202,7 @@ public sealed class StockPostingService(
     {
         var lot = line.PostedLotId ?? line.LotId;
         var reason = $"Reversal of {line.MovementKey}";
-        return document.IsIssue
+        return document.IsConsumption
             ? new("ProductionReturn", line.ItemId, line.Qty, line.CompensationKey, WarehouseId: line.WarehouseId, LotId: lot, UnitCost: line.UnitCost, SourceOrderId: order.Id,
                 Reason: reason, RequiresLot: item.IsLotControlled, RequiresSerial: item.IsSerialControlled)
             : new("ProductionIssue", line.ItemId, line.Qty, line.CompensationKey, WarehouseId: line.WarehouseId, LotId: lot, SourceOrderId: order.Id,
