@@ -99,3 +99,6 @@ UAT: create a plant with the three warehouses (a refused warehouse is named); ch
 
 ## Addendum P3-7 (2026-11-10): deactivating a plant (R219)
 A plant cannot be deactivated while it has orders that are not Closed or Cancelled (`MFG_PLT_001`, Draft included); activating is always allowed. Rule BR-PLT-04, acceptance and use case in `ProductionOrders.md` part 3.
+
+## Addendum P4-3 (2026-11-11): the final inspection plan of an item
+`RequiresFqc` with a plan: the profile points at an FQC plan **series** of the same item and plant (`FqcInspectionPlanId` = the id of any version; the version in force on the day of the receipt is used). A plan of another item, plant or type is refused. Without a plan the item is still received on hold, no inspection document is created and the interim release applies (the Admin warns). A plan that a profile points at cannot be deleted (`MFG_GEN_005`). Rules and acceptance in `Quality.md`.

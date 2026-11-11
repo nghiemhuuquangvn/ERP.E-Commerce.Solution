@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { mfgApi, type Order, type OperationReport, type OrderOperation, type OrderMaterial, type StockDocument, type TimeLog } from '@/api/manufacturing/mfg.api'
+import { mfgApi, type Order, type OperationReport, type OrderOperation, type OrderMaterial, type StockDocument, type TimeLog, type InspectionListItem } from '@/api/manufacturing/mfg.api'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { ReasonDialog } from '@/components/shared/ReasonDialog'
 import { Alert, Badge, Button, Progress, Skeleton, useToast } from '@/components/ui'
@@ -248,7 +249,7 @@ function TimeLogsTable({ logs, canWork, busy, onAction }: { logs: TimeLog[]; can
 
 // ── Receipts ─────────────────────────────────────────────────────────────────────────────────────────────
 
-export function ReceiptsTab({ order, can, documents, onReceive, reload }: { order: Order; can: OrderActions; documents: StockDocument[]; onReceive: () => void; reload: () => void }) {
+export function ReceiptsTab({ order, can, documents, inspections = [], onReceive, reload }: { order: Order; can: OrderActions; documents: StockDocument[]; inspections?: InspectionListItem[]; onReceive: () => void; reload: () => void }) {
   const { t } = useTranslation()
   const receiptIds = new Set(documents.filter((d) => d.type === 'Receipt').map((d) => d.id))
   const receipts = documents.filter((d) => d.type === 'Receipt' || (d.type === 'Reversal' && d.reversalOfId != null && receiptIds.has(d.reversalOfId)))   // a reversal of a receipt sits with it
@@ -270,7 +271,7 @@ export function ReceiptsTab({ order, can, documents, onReceive, reload }: { orde
         </tbody>
       </TableBox>
       <h2 className="text-sm font-semibold text-ink">{t('mfg.receipt.documents')}</h2>
-      <StockDocumentsTable headingLevel={3} documents={receipts} canRetry={can.retryDocuments} canQcRelease={can.qcRelease} canReverse={can.reverseReceipt} onChanged={reload} />
+      <StockDocumentsTable headingLevel={3} documents={receipts} inspections={inspections} canRetry={can.retryDocuments} canQcRelease={can.qcRelease} canReverse={can.reverseReceipt} onChanged={reload} />
     </div>
   )
 }
@@ -305,5 +306,39 @@ export function HistoryTab({ order }: { order: Order }) {
         ))}
       </tbody>
     </TableBox>
+  )
+}
+
+// ── Quality (P4-3) ───────────────────────────────────────────────────────────────────────────────────────
+
+const inspectionVariant = { Pending: 'warning', Passed: 'success', Failed: 'danger', Cancelled: 'muted' } as const
+
+/** The IPQC / FQC inspections of the order: what waits for a result, what passed and what failed (a failed one keeps its lot on hold or its output out of the next operation). */
+export function QualityTab({ inspections }: { inspections: InspectionListItem[] }) {
+  const { t } = useTranslation()
+  const open = inspections.filter((i) => i.status === 'Pending' || (i.status === 'Failed' && !i.reinspectedById)).length
+  if (inspections.length === 0) return <p className="text-sm text-ink-secondary">{t('mfg.qc.insp.noneForOrder')}</p>
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-ink-secondary" role="status">{t('mfg.qc.insp.openCount', { count: open })}</p>
+      <TableBox caption={t('mfg.qc.insp.forOrder')}>
+        <thead className="bg-surface-muted"><tr>
+          <th scope="col" className={th}>{t('mfg.qc.insp.docNo')}</th><th scope="col" className={th}>{t('mfg.qc.plan.type')}</th><th scope="col" className={th}>{t('mfg.qc.insp.lotOrOperation')}</th>
+          <th scope="col" className={`${th} text-right`}>{t('mfg.qc.insp.lotQty')}</th><th scope="col" className={`${th} text-right`}>{t('mfg.qc.insp.sampleQty')}</th><th scope="col" className={th}>{t('common.status')}</th>
+        </tr></thead>
+        <tbody className="divide-y divide-line">
+          {inspections.map((i) => (
+            <tr key={i.id}>
+              <td className={td}><Link className="font-mono text-xs text-brand-action hover:underline" to={`/manufacturing/inspections/${i.id}`}>{i.docNo}</Link></td>
+              <td className={td}>{t(`mfg.qc.type.${i.type}`)}</td>
+              <td className={td}><span className="font-mono text-xs">{i.lotNumber ?? (i.operationSeq != null ? t('mfg.qc.insp.operation', { seq: i.operationSeq }) : '')}</span></td>
+              <td className={num}>{fmtQty(i.lotQty)}</td>
+              <td className={num}>{fmtQty(i.sampleQty)}</td>
+              <td className={td}><span className="flex items-center gap-2"><Badge variant={inspectionVariant[i.status]}>{t(`mfg.qc.insp.status.${i.status}`)}</Badge>{i.ncrRequired && <Badge variant="danger">{t('mfg.qc.insp.ncr')}</Badge>}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </TableBox>
+    </div>
   )
 }

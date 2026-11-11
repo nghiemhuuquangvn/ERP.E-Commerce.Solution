@@ -40,4 +40,14 @@ describe('Manufacturing menu', () => {
     show('/manufacturing/inspection-plans')
     expect(screen.getByRole('link', { name: 'Inspection plans' })).toHaveAttribute('href', '/manufacturing/inspection-plans')
   })
+
+  it('shows Inspections only to a holder of the qc view permission (P4-3)', () => {
+    as(['manufacturing:bom:view'])
+    show()
+    expect(screen.queryByRole('link', { name: 'Inspections' })).toBeNull()
+
+    as(['manufacturing:qc:view'])
+    show('/manufacturing/inspections')
+    expect(screen.getByRole('link', { name: 'Inspections' })).toHaveAttribute('href', '/manufacturing/inspections')
+  })
 })

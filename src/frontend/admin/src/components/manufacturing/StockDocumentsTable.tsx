@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { mfgApi, type StockDocument, type StockDocumentLine } from '@/api/manufacturing/mfg.api'
+import { mfgApi, type InspectionListItem, type StockDocument, type StockDocumentLine } from '@/api/manufacturing/mfg.api'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { ReasonDialog } from '@/components/shared/ReasonDialog'
 import { Alert, Badge, Button, useToast } from '@/components/ui'
@@ -10,7 +10,13 @@ import { serverMessage } from '@/lib/serverMessage'
 import { DocStatusBadge, DocTypeLabel } from './OrderBadges'
 import { fmtDate, fmtDateTime, fmtQty, useIdempotencyKey } from './shared'
 
-function LineTable({ doc }: { doc: StockDocument }) {
+/** The newest inspection of a receipt line, found by the lot it inspects (a cancelled one is not an inspection any more). */
+export function inspectionOf(doc: StockDocument, line: StockDocumentLine, inspections: InspectionListItem[]) {
+  if (line.kind !== 'Receipt') return undefined
+  return inspections.filter((i) => i.receiptDocumentId === doc.id && i.lotNumber === line.lotNumber && i.status !== 'Cancelled').sort((a, b) => a.createdAt.localeCompare(b.createdAt)).pop()
+}
+
+function LineTable({ doc, inspections }: { doc: StockDocument; inspections: InspectionListItem[] }) {
   const { t } = useTranslation()
   return (
     <div className="overflow-x-auto">
@@ -43,6 +49,11 @@ function LineTable({ doc }: { doc: StockDocument }) {
                 {l.isQcHold && <Badge variant="warning" className="ml-1">{t('mfg.doc.onHold')}</Badge>}
                 {l.qcReleasedAt && <Badge variant="success" className="ml-1">{t('mfg.doc.released')}</Badge>}
                 {l.isNegativeStock && <Badge variant="danger" className="ml-1">{t('mfg.doc.negative')}</Badge>}
+                {(() => {
+                  const i = inspectionOf(doc, l, inspections)
+                  return i ? <Link className="ml-1 text-brand-action hover:underline" to={`/manufacturing/inspections/${i.id}`}>{i.docNo} · {t(`mfg.qc.insp.status.${i.status}`)}</Link> : null
+                })()}
+                {l.isQcHold && !l.qcReleasedAt && !inspectionOf(doc, l, inspections) && <span className="ml-1 text-ink-secondary">{t('mfg.qc.insp.noInspection')}</span>}
               </td>
               <td className="py-1 pr-3">{fmtDate(l.expiryDate)}</td>
               <td className="py-1 pr-3 text-right tabular-nums">{l.unitCost != null ? fmtQty(l.unitCost, 4) : ''}</td>
@@ -61,6 +72,8 @@ interface StockDocumentsTableProps {
   canRetry: boolean
   /** Shows the order number as a link (the plant-wide list); on the order's own tab it is redundant. */
   showOrder?: boolean
+  /** The inspections of the order (P4-3): a receipt line that has one is released through it and the interim release button is hidden. */
+  inspections?: InspectionListItem[]
   /** The quality-release button of a posted receipt that still has held lots (needs `qc:disposition`). */
   canQcRelease?: boolean
   /** The reverse button of a posted receipt (needs `receipt:reverse`; hidden once a lot was released from quality hold or the receipt is already reversed). */
@@ -71,7 +84,7 @@ interface StockDocumentsTableProps {
 }
 
 /** Stock documents with their lines. A Pending document is still on its way to the Warehouse (not an error); a Failed one shows why. */
-export function StockDocumentsTable({ documents, canRetry, showOrder = false, canQcRelease = false, canReverse = false, headingLevel = 2, onChanged }: StockDocumentsTableProps) {
+export function StockDocumentsTable({ documents, canRetry, showOrder = false, canQcRelease = false, canReverse = false, headingLevel = 2, inspections = [], onChanged }: StockDocumentsTableProps) {
   const Heading = `h${headingLevel}` as 'h2' | 'h3'
   const { t } = useTranslation()
   const toast = useToast()
@@ -108,7 +121,7 @@ export function StockDocumentsTable({ documents, canRetry, showOrder = false, ca
   return (
     <div className="space-y-4">
       {documents.map((d) => {
-        const heldLines = d.type === 'Receipt' && d.status === 'Posted' && d.lines.some((l) => l.kind === 'Receipt' && l.isQcHold && !l.qcReleasedAt)
+        const heldLines = d.type === 'Receipt' && d.status === 'Posted' && d.lines.some((l) => l.kind === 'Receipt' && l.isQcHold && !l.qcReleasedAt && !inspectionOf(d, l, inspections))
         return (
           <section key={d.id} aria-label={d.docNo} className="rounded-lg border border-line bg-surface p-3">
             <div className="mb-2 flex flex-wrap items-center gap-3">
@@ -139,7 +152,7 @@ export function StockDocumentsTable({ documents, canRetry, showOrder = false, ca
               </Alert>
             )}
             {d.status === 'Failed' && <Alert variant="danger" className="mb-2">{d.lastErrorCode ? `${d.lastErrorCode}: ` : ''}{d.lastError ?? t('mfg.doc.failed')}</Alert>}
-            <LineTable doc={d} />
+            <LineTable doc={d} inspections={inspections} />
           </section>
         )
       })}

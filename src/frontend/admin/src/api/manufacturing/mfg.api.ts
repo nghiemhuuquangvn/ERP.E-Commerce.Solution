@@ -130,6 +130,20 @@ export interface InspectionPlanListItem {
   samplingMethod: SamplingMethod; sampleValue?: number | null; effectiveFrom: string; effectiveTo?: string | null; characteristicCount: number
 }
 export interface InspectionCharacteristicBody { seq?: number | null; name: string; kind: CharacteristicKind; minValue?: number | null; maxValue?: number | null; unit?: string | null; isCritical: boolean }
+export type InspectionStatus = 'Pending' | 'Passed' | 'Failed' | 'Cancelled'
+export interface InspectionListItem {
+  id: string; docNo: string; type: InspectionType; status: InspectionStatus; orderId: string; orderNo: string; operationSeq?: number | null; itemId: string; itemCode: string; itemName: string
+  lotId?: string | null; lotNumber?: string | null; lotQty: number; sampleQty: number; planCode: string; planVersion: number; receiptDocumentId?: string | null; receiptLineId?: string | null
+  operationReportId?: string | null; inspectedBy?: string | null; inspectedAt?: string | null; ncrRequired: boolean; reinspectionOfId?: string | null; reinspectedById?: string | null
+  releasedAt?: string | null; createdAt: string
+}
+export interface PagedInspections { items: InspectionListItem[]; total: number; page: number; pageSize: number }
+export interface InspectionResult { characteristicId: string; sampleNo: number; measuredValue?: number | null; attributePassed?: boolean | null; isPassed: boolean; note?: string | null }
+export interface Inspection {
+  inspection: InspectionListItem; samplingMethod: SamplingMethod; sampleValue?: number | null; allowedMinorDefects: number; units: number
+  characteristics: InspectionCharacteristic[]; results: InspectionResult[]
+}
+export interface InspectionResultBody { characteristicId: string; sampleNo: number; value?: number | null; passed?: boolean | null; note?: string | null }
 export interface InspectionPlanHeaderBody { samplingMethod: SamplingMethod; sampleValue?: number | null; allowedMinorDefects: number; effectiveFrom: string; effectiveTo?: string | null; description?: string | null }
 export interface WorkPoint { date: string; workingMinute: number }
 export interface ScheduledOperation { operationSeq: number; name: string; workCenterCode: string; standardMinutes: number; calendarMinutes: number; queueMinutes: number; moveMinutes: number; start: WorkPoint; end: WorkPoint; startTime: string; endTime: string }
@@ -157,6 +171,7 @@ export interface OrderOperation {
   operationSeq: number; name: string; workCenterId: string; workCenterCode: string; setupTimeMinutes: number; runTimeMinutes: number; runTimeBasis: RunTimeBasis
   batchSize?: number | null; queueTimeMinutes: number; moveTimeMinutes: number; isSubcontract: boolean; status: OperationStatus; standardMinutes: number; calendarMinutes: number
   plannedStart?: string | null; plannedEnd?: string | null; actualStart?: string | null; actualEnd?: string | null; goodQty: number; scrapQty: number; reworkQty: number
+  ipqcInspectionPlanId?: string | null; ipqcHeldQty: number; ipqcPassedQty: number
 }
 export interface OrderOutput { lineNo: number; lineType: BomLineType; itemId: string; itemCode: string; itemName: string; uomId: string; plannedQty: number; receivedQty: number; costAllocationPct?: number | null }
 export interface Order {
@@ -387,6 +402,13 @@ export const mfgApi = {
   suggestLots: (id: string, lineNo: number, quantity: number) => get<MaterialLotSuggestion>(`/orders/${id}/material-issues/suggest-lots`, { lineNo, quantity }),
   receiveGoods: (id: string, body: { lines: ReceiptLineBody[]; note?: string | null }, key?: string) => postDocument(`/orders/${id}/receipts`, body, key),
   orderDocuments: (id: string) => get<StockDocument[]>(`/orders/${id}/stock-documents`),
+  // inspections (P4-3)
+  orderInspections: (id: string) => get<InspectionListItem[]>(`/orders/${id}/inspections`),
+  listInspections: (plantId: string, params: { type?: InspectionType; status?: InspectionStatus; orderId?: string; itemId?: string; search?: string; page?: number; pageSize?: number } = {}) => get<PagedInspections>('/inspections', { plantId, ...params }),
+  getInspection: (id: string) => get<Inspection>(`/inspections/${id}`),
+  saveInspectionResults: (id: string, results: InspectionResultBody[], sampleQty?: number | null) => put<Inspection>(`/inspections/${id}/results`, { sampleQty: sampleQty ?? null, results }),
+  submitInspection: (id: string, results: InspectionResultBody[], sampleQty?: number | null) => post<Inspection>(`/inspections/${id}/submit`, { sampleQty: sampleQty ?? null, results }),
+  reinspect: (id: string) => post<Inspection>(`/inspections/${id}/reinspect`),
   listDocuments: (f: StockDocumentFilter) => get<StockDocumentPage>('/stock-documents', f),
   retryDocument: (id: string) => postDocument(`/stock-documents/${id}/retry`),
   abandonDocument: (id: string) => postDocument(`/stock-documents/${id}/abandon`),

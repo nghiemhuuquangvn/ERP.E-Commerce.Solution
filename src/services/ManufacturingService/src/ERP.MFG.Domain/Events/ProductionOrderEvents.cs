@@ -207,3 +207,26 @@ public class FinishedGoodsReceiptReversedEvent : IntegrationEventBase, ITenantEv
     public DateOnly PostingDate { get; set; }
     public List<ReceiptMovementLine> Lines { get; set; } = [];
 }
+
+/// <summary>An inspection was submitted (P4-3): Passed or Failed. A Failed one has <see cref="NcrRequired"/>; no consumer yet (NCR = P4-4).</summary>
+public class InspectionCompletedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid InspectionId { get; set; }
+    public string DocNo { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public Guid ItemId { get; set; }
+    public string ItemCode { get; set; } = string.Empty;
+    public Guid? LotId { get; set; }
+    public string? LotNumber { get; set; }
+    public decimal LotQty { get; set; }
+    public decimal SampleQty { get; set; }
+    public bool NcrRequired { get; set; }
+    public string? InspectedBy { get; set; }
+    public int? OperationSeq { get; set; }
+    public Guid? ReinspectionOfId { get; set; }
+}

@@ -55,7 +55,9 @@ internal sealed class StockDocRepoFake : IStockDocumentRepository
 internal class StockCtx : ReleaseCtx
 {
     public ReasonCode OverIssueReason { get; }
-    public StockPostingService Posting => new(Stock, F.ProductClient, Repo, F.Uow, PlantTime, Sync, Reports, Documents, new OperationLogCloser(TimeLogs, PlantTime), PlantSettings, NullLogger<StockPostingService>.Instance);
+    public StockPostingService Posting => new(Stock, F.ProductClient, Repo, F.Uow, PlantTime, Sync, Reports, Documents, new OperationLogCloser(TimeLogs, PlantTime), PlantSettings, Quality, NullLogger<StockPostingService>.Instance);
+    public QualityInspectionCreator Quality => new(F.PlantRepo, PlantTime, Resolver, F.ProfileRepo, F.InspectionRepo, Numbers);
+    public QuarantineRelease Quarantine => new(Stock);
 
     public StockCtx()
     {

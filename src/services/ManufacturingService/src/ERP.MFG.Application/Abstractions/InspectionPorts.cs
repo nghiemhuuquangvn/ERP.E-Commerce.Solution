@@ -27,3 +27,28 @@ public interface IInspectionPlanResolver
 {
     Task<InspectionPlan?> ResolveAsync(Guid? planId, DateOnly date, CancellationToken ct = default);
 }
+
+/// <summary>The filters of the inspection list (S22). The plant is always given.</summary>
+public sealed record InspectionFilter(Guid PlantId, InspectionType? Type, InspectionStatus? Status, Guid? OrderId, Guid? ItemId, string? Search);
+
+public interface IInspectionRepository
+{
+    /// <summary>An inspection with its results, tracked.</summary>
+    Task<Inspection?> GetAsync(Guid id, CancellationToken ct = default);
+
+    Task<(List<Inspection> Items, int Total)> ListAsync(InspectionFilter filter, int page, int pageSize, CancellationToken ct = default);
+
+    /// <summary>Every inspection of an order (no results), newest first.</summary>
+    Task<List<Inspection>> ListForOrderAsync(Guid orderId, CancellationToken ct = default);
+
+    /// <summary>The inspections (first ones and re-inspections) of these receipt lines, tracked.</summary>
+    Task<List<Inspection>> ListForReceiptLinesAsync(IReadOnlyCollection<Guid> lineIds, CancellationToken ct = default);
+
+    /// <summary>The inspections (first one and re-inspections) of an operation report, tracked.</summary>
+    Task<List<Inspection>> ListForReportAsync(Guid reportId, CancellationToken ct = default);
+
+    /// <summary>Inspections of the order that still decide something: Pending, or Failed and not re-inspected.</summary>
+    Task<int> CountOpenAsync(Guid orderId, CancellationToken ct = default);
+
+    void Add(Inspection inspection);
+}

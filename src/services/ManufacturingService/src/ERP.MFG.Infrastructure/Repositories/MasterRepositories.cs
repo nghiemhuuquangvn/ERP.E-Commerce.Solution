@@ -120,6 +120,39 @@ public sealed class InspectionPlanRepository(MfgDbContext db) : IInspectionPlanR
     public void Add(InspectionPlan plan) => db.InspectionPlans.Add(plan);
 }
 
+public sealed class InspectionRepository(MfgDbContext db) : IInspectionRepository
+{
+    public Task<Inspection?> GetAsync(Guid id, CancellationToken ct = default) => db.Inspections.Include(i => i.AllResults).FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted, ct);
+
+    public async Task<(List<Inspection> Items, int Total)> ListAsync(InspectionFilter f, int page, int pageSize, CancellationToken ct = default)
+    {
+        var q = db.Inspections.Where(i => !i.IsDeleted && i.PlantId == f.PlantId
+            && (f.Type == null || i.Type == f.Type) && (f.Status == null || i.Status == f.Status) && (f.OrderId == null || i.OrderId == f.OrderId) && (f.ItemId == null || i.ItemId == f.ItemId));
+        if (!string.IsNullOrWhiteSpace(f.Search))
+        {
+            var term = f.Search.Trim().ToLower();
+            q = q.Where(i => i.DocNo.ToLower().Contains(term) || i.OrderNo.ToLower().Contains(term) || i.ItemCode.ToLower().Contains(term) || (i.LotNumber != null && i.LotNumber.ToLower().Contains(term)));
+        }
+        var total = await q.CountAsync(ct);
+        var items = await q.OrderByDescending(i => i.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        return (items, total);
+    }
+
+    public Task<List<Inspection>> ListForOrderAsync(Guid orderId, CancellationToken ct = default)
+        => db.Inspections.Where(i => !i.IsDeleted && i.OrderId == orderId).OrderByDescending(i => i.CreatedAt).ToListAsync(ct);
+
+    public Task<List<Inspection>> ListForReceiptLinesAsync(IReadOnlyCollection<Guid> lineIds, CancellationToken ct = default)
+        => db.Inspections.Where(i => !i.IsDeleted && i.ReceiptLineId != null && lineIds.Contains(i.ReceiptLineId.Value)).OrderBy(i => i.CreatedAt).ToListAsync(ct);
+
+    public Task<List<Inspection>> ListForReportAsync(Guid reportId, CancellationToken ct = default)
+        => db.Inspections.Where(i => !i.IsDeleted && i.OperationReportId == reportId).OrderBy(i => i.CreatedAt).ToListAsync(ct);
+
+    public Task<int> CountOpenAsync(Guid orderId, CancellationToken ct = default)
+        => db.Inspections.CountAsync(i => !i.IsDeleted && i.OrderId == orderId && (i.Status == InspectionStatus.Pending || (i.Status == InspectionStatus.Failed && i.ReinspectedById == null)), ct);
+
+    public void Add(Inspection inspection) => db.Inspections.Add(inspection);
+}
+
 public sealed class BomRepository(MfgDbContext db) : IBomRepository
 {
     private IQueryable<Bom> Full => db.Boms.Include(b => b.AllLines).Where(b => !b.IsDeleted);

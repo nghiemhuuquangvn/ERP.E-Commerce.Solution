@@ -11,54 +11,16 @@ using FluentAssertions;
 
 namespace ERP.MFG.UnitTests.Quality;
 
-/// <summary>The data set of the quality tests: the DS-01 items and routing on real handlers, plus the inspection-plan handlers over in-memory stores.</summary>
+/// <summary>The DS-01 items and routing on real handlers, for the tests of the inspection plans (the plan helpers are extension methods of <see cref="BomCtx"/>, see PlanHelpers).</summary>
 internal class PlanCtx : RoutingCtx
 {
     public static readonly DateOnly Today = new(2026, 11, 4);
 
     public PlanCtx() { SeedItems(); }
 
-    public Task<InspectionPlanDto> CreatePlanAsync(string item, string code, InspectionType type = InspectionType.Fqc, SamplingMethod sampling = SamplingMethod.Fixed,
-        decimal? sample = 5, int minorAllowed = 1, DateOnly? from = null, DateOnly? to = null)
-        => new CreateInspectionPlanHandler(Access, F.PlanRepo, F.ProductClient, F.Uow)
-            .Handle(new CreateInspectionPlanCommand(Plant.Id, Items[item].Id, code, type, sampling, sample, minorAllowed, from ?? Jan1, to, null), default);
+    public static InspectionCharacteristicBody Measure(string name, decimal? min, decimal? max, bool critical = false, int? seq = null) => PlanHelpers.Measure(name, min, max, critical, seq);
 
-    public static InspectionCharacteristicBody Measure(string name, decimal? min, decimal? max, bool critical = false, int? seq = null)
-        => new(seq, name, CharacteristicKind.Measurement, min, max, "mm", critical);
-
-    public static InspectionCharacteristicBody Attribute(string name, bool critical = false, int? seq = null)
-        => new(seq, name, CharacteristicKind.Attribute, null, null, null, critical);
-
-    public Task<InspectionPlanDto> AddCharAsync(Guid planId, InspectionCharacteristicBody body)
-        => new AddInspectionCharacteristicHandler(Access, F.PlanRepo, F.Uow).Handle(new AddInspectionCharacteristicCommand(planId, body), default);
-
-    public Task<InspectionPlanDto> ApprovePlanAsync(Guid planId)
-        => new ApproveInspectionPlanHandler(Access, F.PlanRepo, User, F.Uow).Handle(new ApproveInspectionPlanCommand(planId), default);
-
-    public Task<InspectionPlanDto> ObsoletePlanAsync(Guid planId, DateOnly? to = null)
-        => new ObsoleteInspectionPlanHandler(Access, F.PlanRepo, F.Uow).Handle(new ObsoleteInspectionPlanCommand(planId, to), default);
-
-    public Task<InspectionPlanDto> CopyPlanAsync(Guid planId, DateOnly from)
-        => new CopyInspectionPlanHandler(Access, F.PlanRepo, F.Uow).Handle(new CopyInspectionPlanCommand(planId, from), default);
-
-    public Task DeletePlanAsync(Guid planId)
-        => new DeleteInspectionPlanHandler(Access, F.PlanRepo, F.References, F.Uow).Handle(new DeleteInspectionPlanCommand(planId), default);
-
-    /// <summary>The FQC plan of the DS-01 top item as in TC-QC-007: C1 749..752 critical, C2 critical attribute, C3 and C4 minor, one minor defect tolerated, sample 5.</summary>
-    public async Task<InspectionPlanDto> SeedFqcPlanAsync(string code = "FQC-BAN01", bool approve = true)
-    {
-        var plan = await CreatePlanAsync("TP-BAN01", code);
-        await AddCharAsync(plan.Id, Measure("Length", 748, 752, critical: true));
-        await AddCharAsync(plan.Id, Attribute("Colour", critical: true));
-        await AddCharAsync(plan.Id, Attribute("Scratches"));
-        await AddCharAsync(plan.Id, Attribute("Label"));
-        return approve ? await ApprovePlanAsync(plan.Id) : plan;
-    }
-
-    public InspectionPlanResolver Resolver => new(F.PlanRepo);
-
-    public Task<ItemProfileDto> SaveProfileAsync(string item, ItemProfileValues values)
-        => new UpsertItemProfileHandler(Access, F.ProfileRepo, F.ProductClient, F.PlanRepo, F.Uow).Handle(new UpsertItemProfileCommand(Items[item].Id, Plant.Id, values), default);
+    public static InspectionCharacteristicBody Attribute(string name, bool critical = false, int? seq = null) => PlanHelpers.Attribute(name, critical, seq);
 }
 
 public class InspectionPlanTests

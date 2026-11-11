@@ -40,6 +40,7 @@ public sealed class Fakes
     public readonly List<Bom> Boms = [];
     public readonly List<Routing> Routings = [];
     public readonly List<InspectionPlan> InspectionPlans = [];
+    public readonly List<Inspection> Inspections = [];
     public readonly Dictionary<Guid, UnitInfo> Units = [];
     public readonly List<ProductConversionFacts> ProductConversions = [];
     public bool OpenOrders;
@@ -55,6 +56,7 @@ public sealed class Fakes
     public IBomRepository BomRepo => new BomFake(this);
     public IRoutingRepository RoutingRepo => new RoutingFake(this);
     public IInspectionPlanRepository PlanRepo => new InspectionPlanFake(this);
+    public IInspectionRepository InspectionRepo => new InspectionFake(this);
     public IUnitOfMeasureClient UnitClient => new UnitFake(this);
     public IProductUomConversionClient ConversionClient => new ConversionFake(this);
     public IWarehouseLookupClient WarehouseClient => new WarehouseClient(this);

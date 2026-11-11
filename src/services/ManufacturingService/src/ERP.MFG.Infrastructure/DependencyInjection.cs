@@ -38,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<IBomRepository, BomRepository>();
         services.AddScoped<IRoutingRepository, RoutingRepository>();
         services.AddScoped<IInspectionPlanRepository, InspectionPlanRepository>();
+        services.AddScoped<IInspectionRepository, InspectionRepository>();
         services.AddScoped<IProductionSettingProvider, ProductionSettingProvider>();
         services.AddScoped<IOpenOrderGuard, OrderBackedOpenOrderGuard>();
         services.AddScoped<IProductionOrderRepository, ProductionOrderRepository>();

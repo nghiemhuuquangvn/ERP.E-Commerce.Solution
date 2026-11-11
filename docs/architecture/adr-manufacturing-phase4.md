@@ -25,7 +25,7 @@ Phase 3 delivered the happy path of a production order (create, release, issue, 
 |---|---|---|
 | P4-1 | Warehouse W7: lot split, per-lot breakdown, held-lot issue | **built 2026-11-11** |
 | P4-2 | Reversal of operation reports and receipts (closes R246) | **built 2026-11-11** |
-| P4-3 | Inspection plans, IPQC / FQC inspections (replace the interim release) | planned |
+| P4-3 | Inspection plans, IPQC / FQC inspections (replace the interim release) | **built 2026-11-11** |
 | P4-4 | NCR, disposition, rework orders | planned |
 | P4-5 | Genealogy and tracing | planned |
 | P4-6 | Material requests, substitutes, unplanned material | planned |
@@ -67,3 +67,21 @@ Phase 3 delivered the happy path of a production order (create, release, issue, 
 **Deployment order.** `pg-migrate` (SQL 011), `db-migrate` (Identity 035), ManufacturingService, Admin. No Warehouse change.
 
 **Verification.** Manufacturing unit tests 654 -> 690, Architecture 89 (PostgreSQL drift clean: 11 scripts applied twice, 32 tables / 618 columns), Admin 424 -> 438; `mfg-p42.js` ALL OK on glcheck and SYSTEM (TC-REV-001..007 live, exactly-once after a Warehouse outage, 403 matrix, reconciliation clean); contract check extended.
+
+## 6. P4-3 as built (inspection plans and IPQC / FQC inspections)
+**Problem.** The interim release left no record of a quality decision (R244) and an operation never looked at quality.
+
+**Decisions.**
+- *A plan is a series, versioned like a BOM.* (plant + `Code`) with `Type` and item fixed on the series; `DocumentVersioning` runs over the versions of one code only, so two plans of one item (IPQC at two operations) never clash. The pointers on a profile / routing operation / order operation name the series by the id of any of its versions and `IInspectionPlanResolver` returns the Approved version in force on the day; no resolution = no inspection (owner decision 3 of Phase 4).
+- *Inspections are created inside the save that applies their source* (`StockPostingService.CompleteAsync` for a Posted receipt, the report handler / `CompleteAsync` for a Good report): an inspection exists exactly when its source counts; a partial unique index per receipt line / report makes creation idempotent when the retry job applies a document again.
+- *Results per sample unit* (`InspectionResults.SampleNo`): TC-QC-007 lists five values for one characteristic; `QualityRules` (pure) computes the sample size and the verdict.
+- *FQC Pass releases before it saves.* Evaluate (pure) -> the two idempotent Warehouse calls (the same keys as the interim release, extracted into `IQuarantineRelease`) -> save status, release time and the line's `QcReleasedAt` in one save. A Warehouse outage leaves the inspection Pending with its draft; submitting again finishes it. No pending-document state is needed.
+- *IPQC holds quantity, not status.* `IpqcHeldQty` per operation; **net output** = Good - held replaces Good as the input of the next operation in every place (limit, readiness, completion, reversal checks). Reports without an inspection are never held, so a plan approved late cannot freeze old output. While output of an operation is still held the next operation is not auto-completed.
+- *Reversal rules*: a decided inspection blocks the reversal of its receipt line / report (`MFG_FG_004` / `MFG_REV_003`), a Pending one is cancelled with it.
+- *Re-inspection only of a Failed inspection* (owner answer): a Passed lot has left quarantine and may be sold. A Failed lot waits for P4-4.
+
+**Found while building.** The inspection number was first unique per tenant while its counter is per plant (like the operation reports): the second plant's first inspection hit the unique index inside the receipt's save, which the engine reports as a concurrent change and leaves the receipt Pending. Caught by the live run on a second plant; the index is now per plant. (Lesson: a counter per plant needs an index per plant.)
+
+**Deployment order.** `pg-migrate` (SQL 012, 013), `db-migrate` (Identity 036), ManufacturingService, Admin. No Warehouse change.
+
+**Verification.** Manufacturing unit tests 690 -> 760, Architecture 91 (PostgreSQL drift clean: 12 / 13 applied twice), Admin 438 -> 459; `mfg-p43.js` ALL OK on glcheck and SYSTEM; contract check extended.

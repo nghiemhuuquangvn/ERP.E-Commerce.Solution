@@ -76,7 +76,7 @@ internal class OpsCtx : StockCtx
 
     public Task<OperationReportResultDto> ReportAsync(ProductionOrder order, int seq, decimal good, decimal scrap = 0, decimal rework = 0, string? key = null,
         IStockPostingService? posting = null, Guid? machine = null, bool omitReasons = false)
-        => new ReportOperationHandler(Access, Repo, Reports, Documents, PlantSettings, F.ReasonRepo, F.UnitClient, F.Catalog, Planner, Closer, Numbers, PlantTime, posting ?? Posting, User, F.Uow)
+        => new ReportOperationHandler(Access, Repo, Reports, Documents, PlantSettings, F.ReasonRepo, F.UnitClient, F.Catalog, Planner, Closer, Numbers, Quality, PlantTime, posting ?? Posting, User, F.Uow)
             .Handle(new ReportOperationCommand(order.Id, seq, good, scrap, rework, scrap > 0 && !omitReasons ? ScrapReason.Id : null, rework > 0 && !omitReasons ? ReworkReason.Id : null, machine, null, key), default);
 
     public Task<OrderOperationDto> CompleteOperationAsync(ProductionOrder order, int seq)
@@ -108,18 +108,18 @@ internal class OpsCtx : StockCtx
         => new CloseOrderHandler(Access, Repo, TimeLogs, Documents, Reports, User, F.Uow).Handle(new CloseOrderCommand(order.Id, confirm), default);
 
     public Task<StockDocumentDto> QcReleaseAsync(Guid documentId)
-        => new QcReleaseReceiptHandler(Access, Documents, Repo, Stock, PlantTime, F.Uow).Handle(new QcReleaseReceiptCommand(documentId), default);
+        => new QcReleaseReceiptHandler(Access, Documents, Repo, F.InspectionRepo, Quarantine, PlantTime, F.Uow).Handle(new QcReleaseReceiptCommand(documentId), default);
 
     public ReasonCode ShortCloseReason { get; set; } = null!;
 
     // ── Reversal (P4-2) ─────────────────────────────────────────────────────────────────────────────────────
 
     public Task<OperationReportResultDto> ReverseReportAsync(ProductionOrder order, Guid reportId, string? note = "wrong quantity", string? key = null, IStockPostingService? posting = null)
-        => new ERP.MFG.Application.Features.Reversals.ReverseOperationReportHandler(Access, Repo, Reports, Documents, PlantSettings, Numbers, PlantTime, posting ?? Posting, User, F.Uow)
+        => new ERP.MFG.Application.Features.Reversals.ReverseOperationReportHandler(Access, Repo, Reports, Documents, PlantSettings, Quality, Numbers, PlantTime, posting ?? Posting, User, F.Uow)
             .Handle(new ERP.MFG.Application.Features.Reversals.ReverseOperationReportCommand(order.Id, reportId, note, key), default);
 
     public Task<StockDocumentResultDto> ReverseReceiptAsync(ProductionOrder order, Guid documentId, string? note = "wrong receipt", string? key = null, IStockPostingService? posting = null)
-        => new ERP.MFG.Application.Features.Reversals.ReverseReceiptHandler(Access, Repo, Documents, Reports, Stock, Numbers, PlantTime, posting ?? Posting, User, F.Uow)
+        => new ERP.MFG.Application.Features.Reversals.ReverseReceiptHandler(Access, Repo, Documents, Reports, Stock, Quality, Numbers, PlantTime, posting ?? Posting, User, F.Uow)
             .Handle(new ERP.MFG.Application.Features.Reversals.ReverseReceiptCommand(order.Id, documentId, note, key), default);
 
     /// <summary>Makes TP-BAN01 a lot-controlled finished good that may need final inspection, with a shelf life.</summary>

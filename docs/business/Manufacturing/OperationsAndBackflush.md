@@ -52,7 +52,7 @@ An order that is Released is worked on **operation by operation**. People start 
 | BR-OP-01 | The next operation becomes Ready when the one before it has good output (all operations are Ready at release if the plant does not require sequence). | - |
 | BR-OP-02 | Start: Ready / Paused / Running operation of an open order; several workers. | `MFG_OP_001` |
 | BR-OP-03 | Report quantities and reasons (OPR-7). | `MFG_OP_002`, `MFG_OP_003` |
-| BR-OP-04 | Input limit (OPR-8); the "only what passed IPQC" refinement waits for Phase 4. | `MFG_OP_004` |
+| BR-OP-04 | Input limit (OPR-8). Since P4-3 the previous operation hands over its **net output** (Good minus the quantity an in-process inspection still holds, `Quality.md`); reports of an operation that has a plan are not counted while they wait for the Warehouse. | `MFG_OP_004` |
 | BR-OP-05 | Time log: End > Start, Start <= now, no overlap per employee. | `MFG_OP_005`, `MFG_OP_006` |
 | BR-OP-06 | Completion (OPR-11); a completed operation takes no more reports. | `MFG_OP_009` |
 | BR-OP-09 | The good output of the last operation is the ceiling for finished-goods receipts - enforced with the receipts in P3-5. | - |
@@ -106,7 +106,7 @@ None new. The stock-document list shows Pending / Failed backflush documents; th
 - The employee is named by the caller; Manufacturing has no link from a user to an employee.
 - Time zone: "Start <= now" compares instants (UTC).
 - A report or document stuck Pending blocks unrelease and cancel of its order (retry / abandon as in P3-3).
-- Reversal of a report is done (P4-2, see `Reversals.md`); downtime, IPQC and the finished-goods trigger of backflush come later.
+- Reversal of a report is done (P4-2, see `Reversals.md`); in-process inspections are done (P4-3, see `Quality.md`): an operation with a plan holds each Good report until its IPQC passes, the next operation becomes Ready on the passed quantity, and while output of an operation is still held the next one is not completed. Downtime comes later.
 
 ## 12. UAT
 1. MO-A released. Start operation 20: `MFG_OP_001`. Start operation 10 as NV001: Running, the order is InProgress. NV002 joins. NV001 again: `MFG_OP_006`.

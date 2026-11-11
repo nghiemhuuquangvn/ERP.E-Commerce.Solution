@@ -56,6 +56,32 @@ internal sealed class InspectionPlanFake(Fakes f) : IInspectionPlanRepository
     public void Add(InspectionPlan plan) => f.InspectionPlans.Add(plan);
 }
 
+internal sealed class InspectionFake(Fakes f) : IInspectionRepository
+{
+    public Task<Inspection?> GetAsync(Guid id, CancellationToken ct = default) => Task.FromResult(f.Inspections.FirstOrDefault(i => i.Id == id && !i.IsDeleted));
+
+    public Task<(List<Inspection> Items, int Total)> ListAsync(InspectionFilter filter, int page, int pageSize, CancellationToken ct = default)
+    {
+        var q = f.Inspections.Where(i => !i.IsDeleted && i.PlantId == filter.PlantId && (filter.Type == null || i.Type == filter.Type) && (filter.Status == null || i.Status == filter.Status)
+            && (filter.OrderId == null || i.OrderId == filter.OrderId) && (filter.ItemId == null || i.ItemId == filter.ItemId)).OrderByDescending(i => i.CreatedAt).ToList();
+        return Task.FromResult((q.Skip((page - 1) * pageSize).Take(pageSize).ToList(), q.Count));
+    }
+
+    public Task<List<Inspection>> ListForOrderAsync(Guid orderId, CancellationToken ct = default)
+        => Task.FromResult(f.Inspections.Where(i => !i.IsDeleted && i.OrderId == orderId).OrderByDescending(i => i.CreatedAt).ToList());
+
+    public Task<List<Inspection>> ListForReceiptLinesAsync(IReadOnlyCollection<Guid> lineIds, CancellationToken ct = default)
+        => Task.FromResult(f.Inspections.Where(i => !i.IsDeleted && i.ReceiptLineId != null && lineIds.Contains(i.ReceiptLineId.Value)).OrderBy(i => i.CreatedAt).ToList());
+
+    public Task<List<Inspection>> ListForReportAsync(Guid reportId, CancellationToken ct = default)
+        => Task.FromResult(f.Inspections.Where(i => !i.IsDeleted && i.OperationReportId == reportId).OrderBy(i => i.CreatedAt).ToList());
+
+    public Task<int> CountOpenAsync(Guid orderId, CancellationToken ct = default)
+        => Task.FromResult(f.Inspections.Count(i => !i.IsDeleted && i.OrderId == orderId && (i.Status == InspectionStatus.Pending || (i.Status == InspectionStatus.Failed && i.ReinspectedById == null))));
+
+    public void Add(Inspection inspection) => f.Inspections.Add(inspection);
+}
+
 internal sealed class UnitFake(Fakes f) : IUnitOfMeasureClient
 {
     public Task<IReadOnlyList<UnitInfo>> LookupAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default)

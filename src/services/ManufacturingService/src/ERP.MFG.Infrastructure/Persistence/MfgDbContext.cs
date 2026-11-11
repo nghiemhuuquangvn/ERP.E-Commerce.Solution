@@ -46,6 +46,8 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
     public DbSet<RoutingOperation> RoutingOperations => Set<RoutingOperation>();
     public DbSet<InspectionPlan> InspectionPlans => Set<InspectionPlan>();
     public DbSet<InspectionCharacteristic> InspectionCharacteristics => Set<InspectionCharacteristic>();
+    public DbSet<Inspection> Inspections => Set<Inspection>();
+    public DbSet<InspectionResult> InspectionResults => Set<InspectionResult>();
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<ProductionOrderMaterial> ProductionOrderMaterials => Set<ProductionOrderMaterial>();
     public DbSet<ProductionOrderOperation> ProductionOrderOperations => Set<ProductionOrderOperation>();
@@ -311,6 +313,41 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.MaxValue).HasPrecision(18, 6);
             e.Property(x => x.Unit).HasMaxLength(20);
             e.HasIndex(x => new { x.TenantId, x.PlanId, x.Seq }).IsUnique().HasFilter("\"IsDeleted\" = false");
+        });
+
+        modelBuilder.Entity<Inspection>(e =>
+        {
+            e.ToTable("Inspections");
+            e.Property(x => x.DocNo).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Type).HasConversion<short>();
+            e.Property(x => x.PlanCode).HasMaxLength(20).IsRequired();
+            e.Property(x => x.OrderNo).HasMaxLength(30).IsRequired();
+            e.Property(x => x.ItemCode).HasMaxLength(100).IsRequired();
+            e.Property(x => x.ItemName).HasMaxLength(255).IsRequired();
+            e.Property(x => x.LotNumber).HasMaxLength(100);
+            e.Property(x => x.LotQty).HasPrecision(18, 6);
+            e.Property(x => x.SampleQty).HasPrecision(18, 6);
+            e.Property(x => x.Status).HasConversion<short>();
+            e.Property(x => x.InspectedBy).HasMaxLength(200);
+            e.Ignore(x => x.Results);
+            e.Ignore(x => x.IsFqc);
+            e.Ignore(x => x.HasResult);
+            e.HasIndex(x => new { x.TenantId, x.PlantId, x.DocNo }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.ReceiptLineId }).IsUnique().HasFilter("\"ReceiptLineId\" IS NOT NULL AND \"ReinspectionOfId\" IS NULL");
+            e.HasIndex(x => new { x.TenantId, x.OperationReportId }).IsUnique().HasFilter("\"OperationReportId\" IS NOT NULL AND \"ReinspectionOfId\" IS NULL");
+            e.HasIndex(x => new { x.TenantId, x.PlantId, x.Status, x.Type });
+            e.HasIndex(x => new { x.TenantId, x.OrderId });
+            e.HasIndex(x => new { x.TenantId, x.LotId });
+            e.HasMany(x => x.AllResults).WithOne().HasForeignKey(r => r.InspectionId);
+            e.Navigation(x => x.AllResults).UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<InspectionResult>(e =>
+        {
+            e.ToTable("InspectionResults");
+            e.Property(x => x.MeasuredValue).HasPrecision(18, 6);
+            e.Property(x => x.Note).HasMaxLength(500);
+            e.HasIndex(x => new { x.TenantId, x.InspectionId, x.CharacteristicId, x.SampleNo }).IsUnique();
         });
 
         modelBuilder.Entity<ProductionOrder>(e =>
