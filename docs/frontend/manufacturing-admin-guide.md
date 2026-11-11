@@ -56,6 +56,9 @@ Tests: `orderActions.test.ts`, `pages/manufacturing/mfg.orders.pages.test.tsx` (
 - **Charts:** recharts with `colors` from `styles/tokens.ts`, plus a visually hidden table with the same numbers for screen readers.
 - **Read-only users:** edit controls are hidden, not disabled; the settings form shows an info Alert.
 
+## Reversals (P4-2)
+`OrderTabs.tsx` (Operations tab: *Reverse report*; Finished goods tab) and `StockDocumentsTable.tsx` (*Reverse receipt*) use the shared `ReasonDialog` (free-text reason) and `useIdempotencyKey`; `orderActions` gained `reverseReport` / `reverseReceipt` (permissions `manufacturing:operation:reverse` / `receipt:reverse`). `mfgApi.reverseOperationReport` / `reverseReceipt`; types `ReversalAction`, `StockLineLot`, `reversalOfId`, `isReversed`. i18n `mfg.rev.*`, `mfg.docType.Reversal`.
+
 ## i18n
 `nav.manufacturing`, `mfg.*` in `en.json` and `vi.json` (`mfg.order`, `mfg.opx`, `mfg.doc`, `mfg.receipt`, `mfg.close`, `mfg.issue` (also the Manual / Backflush labels), `mfg.orderStatus`, `mfg.opStatus`, `mfg.docStatus`, `mfg.docType`, `mfg.reasonDialog`, `mfg.nav`, `mfg.plants`, `mfg.settings`, `mfg.profiles`, `mfg.calendars`, `mfg.wc`, `mfg.catalogs`, `mfg.bom`, `mfg.routing`, `mfg.import`, status / day / exception / reason name maps).
 

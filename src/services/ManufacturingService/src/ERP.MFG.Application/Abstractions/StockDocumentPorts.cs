@@ -40,6 +40,12 @@ public interface IStockDocumentRepository
     /// <summary>How many documents of the order are Pending (still to reach the Warehouse, or being reversed).</summary>
     Task<int> CountPendingAsync(Guid orderId, CancellationToken ct = default);
 
+    /// <summary>Reversal documents of the order that are Pending (P4-2): while one exists new reports, receipts and reversals of the order wait (<c>MFG_REV_002</c>).</summary>
+    Task<int> CountPendingReversalsAsync(Guid orderId, CancellationToken ct = default);
+
+    /// <summary>The reversal document of this document that is Pending or Posted (a Failed one does not count), tracked with its lines; null when none.</summary>
+    Task<MaterialTransaction?> FindReversalOfAsync(Guid originalDocumentId, CancellationToken ct = default);
+
     /// <summary>
     /// Pending documents whose next attempt is due, across all tenants (no user, no tenant scope): only ids leave this method; the caller processes each
     /// inside <c>TenantScope.Begin(tenantId)</c>.

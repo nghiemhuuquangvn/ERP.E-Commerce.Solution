@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using ERP.MFG.Application.Features.Operations;
+using ERP.MFG.Application.Features.Reversals;
 using ERP.Shared.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +18,7 @@ public class OperationsController(IMediator mediator) : ControllerBase
 {
     public sealed record StartBody(Guid EmployeeId, Guid? MachineId);
     public sealed record ManualTimeBody(Guid EmployeeId, Guid? MachineId, DateTime StartAt, DateTime EndAt);
+    public sealed record ReverseBody(string? Note);
     public sealed record ReportBody(decimal GoodQty, decimal ScrapQty, decimal ReworkQty, Guid? ScrapReasonId, Guid? ReworkReasonId, Guid? MachineId, string? Note);
 
     /// <summary>The operations of the order with their time logs.</summary>
@@ -69,6 +71,18 @@ public class OperationsController(IMediator mediator) : ControllerBase
     [HttpPost("operations/{seq:int}/reopen")]
     [AuthorizePermission(PermissionConstants.Manufacturing_OperationCompleteManual)]
     public async Task<IActionResult> Reopen(Guid orderId, int seq, CancellationToken ct) => Ok(await mediator.Send(new ReopenOperationCommand(orderId, seq), ct));
+
+    /// <summary>
+    /// Reverses a Posted operation report (P4-2, BR-OP-07) with a counter-report: its quantities leave the operation and the order, the material its backflush consumed goes back to the Warehouse.
+    /// Refused when the output was already used downstream (<c>MFG_OP_007</c>) or the report is already reversed (<c>MFG_REV_001</c>). 201 when it counts, 202 while the material is on its way back.
+    /// </summary>
+    [HttpPost("operation-reports/{reportId:guid}/reverse")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_OperationReverse)]
+    public async Task<IActionResult> ReverseReport(Guid orderId, Guid reportId, [FromBody] ReverseBody b, [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey, CancellationToken ct)
+    {
+        var result = await mediator.Send(new ReverseOperationReportCommand(orderId, reportId, b.Note, idempotencyKey), ct);
+        return StatusCode(result.IsPending ? StatusCodes.Status202Accepted : StatusCodes.Status201Created, result);
+    }
 
     /// <summary>The operation reports of the order, oldest first.</summary>
     [HttpGet("operation-reports")]

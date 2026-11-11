@@ -249,6 +249,38 @@ const member = (label, unionName, value) => check(`${label} "${value}" is a memb
   check('qc-release answers the document with the release time', r.status === 200 && r.json().lines.some((l) => l.kind === 'Receipt' && !!l.qcReleasedAt), `${r.status} ${r.text.slice(0, 300)}`)
   shape('qc-release document', 'StockDocument', r.json())
 
+  // ── reversal (P4-2): the counter-report and the Reversal document the Admin buttons send and show
+  {
+    const x = await create('TP-BAN01', 10)
+    await m('POST', `/orders/${x.id}/release`)
+    r = await m('POST', `/orders/${x.id}/operations/10/report`, { goodQty: 5, scrapQty: 0, reworkQty: 0, scrapReasonId: null, reworkReasonId: null, machineId: null, note: null })
+    const rep = r.json()?.report
+    r = await m('POST', `/orders/${x.id}/operation-reports/${rep?.id}/reverse`, { note: 'contract check' })
+    check('reversing a report answers 201', r.status === 201 && r.json().isPending === false, `${r.status} ${r.text.slice(0, 300)}`)
+    shape('report reversal answer', 'OperationReportAnswer', r.json())
+    shape('report reversal answer.report', 'OperationReport', r.json().report)
+    if (r.json().backflush) {
+      shape('report reversal answer.backflush', 'StockDocument', r.json().backflush)
+      shapes('reversal lines', 'StockDocumentLine', r.json().backflush.lines)
+      member('reversal document type', 'StockDocumentType', r.json().backflush.type)
+      member('reversal line action', 'ReversalAction', r.json().backflush.lines[0].reversalAction)
+    }
+    for (const seq of [10, 20, 30]) await m('POST', `/orders/${x.id}/operations/${seq}/report`, { goodQty: 10, scrapQty: 0, reworkQty: 0, scrapReasonId: null, reworkReasonId: null, machineId: null, note: null })
+    const frx = (await m('POST', `/orders/${x.id}/receipts`, { lines: [{ outputLineNo: null, quantity: 4, lotNumber: null }], note: null })).json()
+    r = await m('POST', `/orders/${x.id}/receipts/${frx.id}/reverse`, { note: 'contract check' })
+    check('reversing a receipt answers 201', r.status === 201, `${r.status} ${r.text.slice(0, 300)}`)
+    shape('receipt reversal document', 'StockDocument', r.json())
+    shapes('receipt reversal lines', 'StockDocumentLine', r.json().lines)
+    check('the reversal line carries its reversal action', r.json().lines.some((l) => l.reversalAction === 'Scrap'), JSON.stringify(r.json().lines[0]))
+    const xdocs = (await m('GET', `/orders/${x.id}/stock-documents`)).json()
+    check('the reversed receipt reads isReversed in the order document list', xdocs.find((d) => d.id === frx.id)?.isReversed === true)
+    shapes('order documents with reversal', 'StockDocument', xdocs)
+    const lotLine = xdocs.find((d) => d.id === frx.id)?.lines.find((l) => l.kind === 'Receipt')
+    if (lotLine?.lots?.length) shapes('line lots', 'StockLineLot', lotLine.lots)
+    const xreps = (await m('GET', `/orders/${x.id}/operation-reports`)).json()
+    check('the report list shows the original reversed and the reversal with its link', xreps.some((q) => q.isReversed === true) && xreps.some((q) => q.reversalOfId === rep.id), JSON.stringify(xreps.map((q) => [q.docNo, q.isReversed, q.reversalOfId])))
+  }
+
   // ── close
   let cl = await m('GET', `/orders/${a.id}/close-checklist?confirmConsumeRemaining=false`)
   shape('close-checklist', 'CloseChecklist', cl.json())

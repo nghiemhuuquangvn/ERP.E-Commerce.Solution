@@ -15,6 +15,9 @@ public static class DocumentTypes
     /// <summary>Backflush consumption document (P3-4). Not in the spec's list; it needs its own number because the number is the key the Warehouse deduplicates on.</summary>
     public const string Backflush = "BF";
     public const string FinishedGoodsReceipt = "FR";
+
+    /// <summary>Reversal of an operation report's backflush or of a receipt (P4-2). Per tenant and month: the number is the Warehouse key.</summary>
+    public const string Reversal = "RV";
     public const string Inspection = "QI";
     public const string Ncr = "NCR";
     public const string PlannedOrder = "PLO";
@@ -23,7 +26,7 @@ public static class DocumentTypes
     public static readonly IReadOnlySet<string> All = new HashSet<string>
     {
         ProductionOrder, MaterialIssue, MaterialReturn, MaterialRequest, OperationReport, Backflush,
-        FinishedGoodsReceipt, Inspection, Ncr, PlannedOrder, MrpRun,
+        FinishedGoodsReceipt, Reversal, Inspection, Ncr, PlannedOrder, MrpRun,
     };
 
     /// <summary>The number text for a sequence value: <c>MO-2611-00001</c>.</summary>

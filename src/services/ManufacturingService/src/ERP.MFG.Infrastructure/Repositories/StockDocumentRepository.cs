@@ -8,7 +8,7 @@ namespace ERP.MFG.Infrastructure.Repositories;
 
 public sealed class StockDocumentRepository(MfgDbContext db) : IStockDocumentRepository
 {
-    private IQueryable<MaterialTransaction> WithLines => db.MaterialTransactions.Include(d => d.AllLines.Where(l => !l.IsDeleted)).AsSplitQuery();
+    private IQueryable<MaterialTransaction> WithLines => db.MaterialTransactions.Include(d => d.AllLines.Where(l => !l.IsDeleted)).ThenInclude(l => l.AllLots.Where(x => !x.IsDeleted)).AsSplitQuery();
 
     public Task<MaterialTransaction?> GetAsync(Guid id, CancellationToken ct = default)
         => WithLines.FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted, ct);
@@ -29,14 +29,14 @@ public sealed class StockDocumentRepository(MfgDbContext db) : IStockDocumentRep
         }
 
         var total = await query.CountAsync(ct);
-        var items = await query.Include(d => d.AllLines.Where(l => !l.IsDeleted)).AsSplitQuery()
+        var items = await query.Include(d => d.AllLines.Where(l => !l.IsDeleted)).ThenInclude(l => l.AllLots.Where(x => !x.IsDeleted)).AsSplitQuery()
             .OrderByDescending(d => d.CreatedAt).ThenBy(d => d.DocNo).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
         return (items, total);
     }
 
     public Task<List<MaterialTransaction>> ListForOrderAsync(Guid orderId, CancellationToken ct = default)
         => db.MaterialTransactions.AsNoTracking().Where(d => d.OrderId == orderId && !d.IsDeleted)
-            .Include(d => d.AllLines.Where(l => !l.IsDeleted)).AsSplitQuery().OrderBy(d => d.CreatedAt).ThenBy(d => d.DocNo).ToListAsync(ct);
+            .Include(d => d.AllLines.Where(l => !l.IsDeleted)).ThenInclude(l => l.AllLots.Where(x => !x.IsDeleted)).AsSplitQuery().OrderBy(d => d.CreatedAt).ThenBy(d => d.DocNo).ToListAsync(ct);
 
     public async Task<List<StockFlowLine>> FlowsAsync(Guid orderId, CancellationToken ct = default)
     {
@@ -54,11 +54,17 @@ public sealed class StockDocumentRepository(MfgDbContext db) : IStockDocumentRep
                 && (l.Status == StockLineStatus.Pending || l.Status == StockLineStatus.Posted)).Select(l => l.LotNumber!)).ToListAsync(ct);
 
     public Task<int> CountHeldLotsAsync(Guid orderId, CancellationToken ct = default)
-        => db.MaterialTransactions.Where(d => d.OrderId == orderId && !d.IsDeleted && d.Status == StockDocumentStatus.Posted)
+        => db.MaterialTransactions.Where(d => d.OrderId == orderId && !d.IsDeleted && d.Status == StockDocumentStatus.Posted && !d.IsReversed)
             .SelectMany(d => d.AllLines.Where(l => !l.IsDeleted && l.Kind == StockLineKind.Receipt && l.IsQcHold && l.QcReleasedAt == null && l.Status == StockLineStatus.Posted)).CountAsync(ct);
 
     public Task<int> CountPendingAsync(Guid orderId, CancellationToken ct = default)
         => db.MaterialTransactions.CountAsync(d => d.OrderId == orderId && !d.IsDeleted && d.Status == StockDocumentStatus.Pending, ct);
+
+    public Task<int> CountPendingReversalsAsync(Guid orderId, CancellationToken ct = default)
+        => db.MaterialTransactions.CountAsync(d => d.OrderId == orderId && !d.IsDeleted && d.Type == StockDocumentType.Reversal && d.Status == StockDocumentStatus.Pending, ct);
+
+    public Task<MaterialTransaction?> FindReversalOfAsync(Guid originalDocumentId, CancellationToken ct = default)
+        => WithLines.FirstOrDefaultAsync(d => d.ReversalOfId == originalDocumentId && d.Type == StockDocumentType.Reversal && !d.IsDeleted && d.Status != StockDocumentStatus.Failed, ct);
 
     // across tenants on purpose (no user, no tenant scope): only ids leave this method, each document is then processed inside its own tenant scope
     public async Task<List<(Guid TenantId, Guid DocumentId)>> ListDueAsync(DateTime nowUtc, int take, CancellationToken ct = default)

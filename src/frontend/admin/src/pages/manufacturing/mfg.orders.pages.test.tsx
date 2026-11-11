@@ -17,7 +17,7 @@ import { BASE, PLANT, answer, get, post, refusal, renderAt, setup } from './test
 const ALL = [
   'manufacturing:order:view', 'manufacturing:order:create', 'manufacturing:order:release', 'manufacturing:order:cancel', 'manufacturing:order:hold', 'manufacturing:order:change-qty',
   'manufacturing:order:short-close', 'manufacturing:order:reopen', 'manufacturing:order:close', 'manufacturing:material:issue', 'manufacturing:material:return', 'manufacturing:receipt:post',
-  'manufacturing:operation:execute', 'manufacturing:operation:complete-manual', 'manufacturing:qc:disposition', 'manufacturing:stock-document:retry', 'manufacturing:masterdata:view',
+  'manufacturing:operation:execute', 'manufacturing:operation:complete-manual', 'manufacturing:qc:disposition', 'manufacturing:stock-document:retry', 'manufacturing:masterdata:view', 'manufacturing:operation:reverse', 'manufacturing:receipt:reverse',
 ]
 
 // ── fixtures ────────────────────────────────────────────────────────────────────────────────────────────
@@ -384,6 +384,136 @@ describe('Receipts tab and the receipt dialog (S19)', () => {
     await userEvent.click(await screen.findByRole('tab', { name: 'Finished goods' }))
     await screen.findByText('L1')
     expect(screen.queryByRole('button', { name: 'Release from quality hold' })).toBeNull()
+  })
+})
+
+const report = (extra: Record<string, unknown> = {}) => ({
+  id: 'r1', docNo: 'OR-2611-00001', plantId: 'p1', orderId: 'o1', orderNo: 'MO-2611-00001', operationSeq: 10, reportedAt: '2026-11-11T02:00:00Z', postingDate: '2026-11-11', goodQty: 60, scrapQty: 2, reworkQty: 0,
+  scrapReasonId: 'rx', reworkReasonId: null, machineId: null, reportedBy: 'admin', status: 'Posted', backflushDocumentId: 'bf1', failureCode: null, failureMessage: null, note: null, postedAt: '2026-11-11T02:00:00Z',
+  reversalOfId: null, isReversed: false, ...extra,
+})
+
+describe('Reversal of reports and receipts (P4-2)', () => {
+  const receipt = (extra: Record<string, unknown> = {}, line: Record<string, unknown> = {}) =>
+    doc({ id: 'd9', docNo: 'FR-2611-00001', type: 'Receipt', isReversed: false, reversalOfId: null, ...extra }, [dline({ kind: 'Receipt', lotNumber: 'TP-BAN01-261104-01', isQcHold: true, qty: 40, ...line })])
+  const openReceipts = async (docs: unknown[], status = 'InProgress', perms = ALL) => {
+    openOrder(order(status, { completedQty: 40 }), perms, docs)
+    await userEvent.click(await screen.findByRole('tab', { name: 'Finished goods' }))
+    await screen.findAllByText('TP-BAN01-261104-01')
+  }
+  const openReports = async (reports: unknown[], status = 'InProgress', perms = ALL) => {
+    setup(perms)
+    api({ order: order(status), extra: [[`${BASE}/orders/o1/operation-reports`, reports]] })
+    renderAt(<ProductionOrderDetailPage />, '/manufacturing/orders/o1', '/manufacturing/orders/:id')
+    await userEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+    await screen.findByText('OR-2611-00001')
+  }
+
+  it('reverses a receipt with a written reason and one Idempotency-Key', async () => {
+    await openReceipts([receipt()])
+    await userEvent.click(screen.getByRole('button', { name: 'Reverse receipt' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Reverse receipt FR-2611-00001' })
+    expect(within(dialog).getByText(/NVL-KEO01 40/)).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Reverse receipt' })).toBeDisabled()
+    await userEvent.type(within(dialog).getByRole('textbox'), 'Wrong quantity')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reverse receipt' }))
+    await waitFor(() => expect(calls(post, '/orders/o1/receipts/d9/reverse')).toHaveLength(1))
+    const [, body, config] = calls(post, '/orders/o1/receipts/d9/reverse')[0]
+    expect(body).toEqual({ note: 'Wrong quantity' })
+    expect((config as { headers: Record<string, string> }).headers['Idempotency-Key']).toMatch(/\S+/)
+    expect(await screen.findByText('The receipt was reversed.')).toBeInTheDocument()
+  })
+
+  it('tells the person that a 202 answer is saved and waiting', async () => {
+    await openReceipts([receipt()])
+    post.mockResolvedValueOnce({ data: receipt({ type: 'Reversal', status: 'Pending' }), status: 202 })
+    await userEvent.click(screen.getByRole('button', { name: 'Reverse receipt' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Reverse receipt FR-2611-00001' })
+    await userEvent.type(within(dialog).getByRole('textbox'), 'Wrong item')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reverse receipt' }))
+    expect(await screen.findByText(/Saved and waiting/)).toBeInTheDocument()
+  })
+
+  it('shows the refusal of the server inside the dialog and keeps it open', async () => {
+    await openReceipts([receipt()])
+    post.mockRejectedValue(refusal('Cannot reverse the receipt: lot TP-BAN01-261104-01 holds only 30 of 40.', 'MFG_FG_004'))
+    await userEvent.click(screen.getByRole('button', { name: 'Reverse receipt' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Reverse receipt FR-2611-00001' })
+    await userEvent.type(within(dialog).getByRole('textbox'), 'Wrong item')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reverse receipt' }))
+    expect(await within(dialog).findByText(/holds only 30 of 40/)).toBeInTheDocument()
+  })
+
+  it('offers the receipt reversal on a Completed order too, but not without the permission, after a quality release or once reversed', async () => {
+    await openReceipts([receipt()], 'Completed')
+    expect(screen.getByRole('button', { name: 'Reverse receipt' })).toBeInTheDocument()
+  })
+
+  it('hides the receipt reversal without the permission', async () => {
+    await openReceipts([receipt()], 'InProgress', ALL.filter((x) => x !== 'manufacturing:receipt:reverse'))
+    expect(screen.queryByRole('button', { name: 'Reverse receipt' })).toBeNull()
+  })
+
+  it('hides the receipt reversal once a lot was released from quality hold', async () => {
+    await openReceipts([receipt({}, { qcReleasedAt: '2026-11-11T03:00:00Z' })])
+    expect(screen.queryByRole('button', { name: 'Reverse receipt' })).toBeNull()
+  })
+
+  it('shows a reversed receipt as Reversed and the reversal document with its link', async () => {
+    const reversal = doc({ id: 'd10', docNo: 'RV-2611-00001', type: 'Reversal', reversalOfId: 'd9', isReversed: false }, [dline({ kind: 'Receipt', lotNumber: 'TP-BAN01-261104-01', qty: 40, reversalAction: 'Scrap', movementKey: 'RV#1' })])
+    await openReceipts([receipt({ isReversed: true })].concat([reversal]) as never[])
+    expect(screen.getAllByText('Reversed').length).toBeGreaterThan(0)
+    expect(screen.getByText('reversal of FR-2611-00001')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reverse receipt' })).toBeNull()
+  })
+
+  it('reverses an operation report from the Operations tab', async () => {
+    await openReports([report()])
+    await userEvent.click(screen.getByRole('button', { name: 'Reverse report' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Reverse report OR-2611-00001' })
+    expect(within(dialog).getByText(/good 60, scrap 2, rework 0/)).toBeInTheDocument()
+    await userEvent.type(within(dialog).getByRole('textbox'), 'Counted twice')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reverse report' }))
+    await waitFor(() => expect(calls(post, '/orders/o1/operation-reports/r1/reverse')).toHaveLength(1))
+    expect(calls(post, '/orders/o1/operation-reports/r1/reverse')[0][1]).toEqual({ note: 'Counted twice' })
+    expect(await screen.findByText('The report was reversed.')).toBeInTheDocument()
+  })
+
+  it('shows the downstream refusal inside the report dialog', async () => {
+    await openReports([report()])
+    post.mockRejectedValue(refusal('Cannot reverse: the output was already used. Left 10, used 50.', 'MFG_OP_007'))
+    await userEvent.click(screen.getByRole('button', { name: 'Reverse report' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Reverse report OR-2611-00001' })
+    await userEvent.type(within(dialog).getByRole('textbox'), 'Counted twice')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reverse report' }))
+    expect(await within(dialog).findByText(/Left 10, used 50/)).toBeInTheDocument()
+  })
+
+  it('marks reversed reports and reversal rows and offers the button only on a live original', async () => {
+    const original = report({ isReversed: true })
+    const reversal = report({ id: 'r2', docNo: 'OR-2611-00002', reversalOfId: 'r1' })
+    const live = report({ id: 'r3', docNo: 'OR-2611-00003' })
+    await openReports([original, reversal, live])
+    expect(screen.getByText('Reversed')).toBeInTheDocument()
+    expect(screen.getByText('reversal of OR-2611-00001')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Reverse report' })).toHaveLength(1)
+  })
+
+  it('does not offer the report reversal on a Completed order or without the permission, and axe finds nothing', async () => {
+    await openReports([report()], 'Completed')
+    expect(screen.queryByRole('button', { name: 'Reverse report' })).toBeNull()
+  })
+
+  it('hides the report reversal without the permission', async () => {
+    await openReports([report()], 'InProgress', ALL.filter((x) => x !== 'manufacturing:operation:reverse'))
+    expect(screen.queryByRole('button', { name: 'Reverse report' })).toBeNull()
+  })
+
+  it('has no accessibility violations with the reversal dialog open', async () => {
+    await openReports([report()])
+    await userEvent.click(screen.getByRole('button', { name: 'Reverse report' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Reverse report OR-2611-00001' })
+    expect(await axe(dialog)).toHaveNoViolations()
   })
 })
 

@@ -74,6 +74,9 @@ public class ProductionOrderMaterial : BaseEntity
     /// <summary>Backflush took this much out of the stock for the output reported so far (BR-MAT-08).</summary>
     internal void RegisterConsumed(decimal qty) { ConsumedQty += qty; UpdatedAt = DateTime.UtcNow; }
 
+    /// <summary>A reversal gave consumed material back (P4-2): never below zero.</summary>
+    internal void UnregisterConsumed(decimal qty) { ConsumedQty = Math.Max(0m, ConsumedQty - qty); UpdatedAt = DateTime.UtcNow; }
+
     /// <summary>Close with "carry the rest to consumption": what is still out becomes consumed.</summary>
     internal void Settle()
     {
@@ -169,6 +172,15 @@ public class ProductionOrderOperation : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>A reversal took the quantities of a report off the operation (P4-2, BR-OP-07): never below zero.</summary>
+    internal void UnregisterReport(decimal good, decimal scrap, decimal rework)
+    {
+        GoodQty = Math.Max(0m, GoodQty - good);
+        ScrapQty = Math.Max(0m, ScrapQty - scrap);
+        ReworkQty = Math.Max(0m, ReworkQty - rework);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     internal void MarkCompleted(DateTime now)
     {
         TransitionTo(OperationStatus.Completed);
@@ -238,6 +250,9 @@ public class ProductionOrderOutput : BaseEntity
     internal void SetPlanned(decimal planned) { PlannedQty = planned; UpdatedAt = DateTime.UtcNow; }
 
     internal void RegisterReceived(decimal qty) { ReceivedQty += qty; UpdatedAt = DateTime.UtcNow; }
+
+    /// <summary>A reversal took received goods out of stock again (P4-2): never below zero.</summary>
+    internal void UnregisterReceived(decimal qty) { ReceivedQty = Math.Max(0m, ReceivedQty - qty); UpdatedAt = DateTime.UtcNow; }
 
     internal void MarkDeleted() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 }
@@ -537,6 +552,23 @@ public class ProductionOrder : BaseEntity
     /// </summary>
     public void ApplyPostedDocument(MaterialTransaction document, string by)
     {
+        if (document.Type == StockDocumentType.Reversal)
+        {
+            // P4-2: the reversal gives back what the original consumed and takes the received goods off the order; nothing starts the order and nothing completes it
+            foreach (var group in document.PostedLines.Where(l => l.Kind == StockLineKind.Material).GroupBy(l => l.OrderMaterialId))
+                (_materials.FirstOrDefault(m => m.Id == group.Key && !m.IsDeleted)
+                    ?? throw MfgRules.Invalid($"The material line of {document.DocNo} no longer exists on order {OrderNo}.")).UnregisterConsumed(group.Sum(l => l.Qty));
+            foreach (var line in document.PostedLines.Where(l => l.Kind == StockLineKind.Receipt))
+            {
+                if (line.OrderOutputId is null) CompletedQty = Math.Max(0m, CompletedQty - line.Qty);
+                else (_outputs.FirstOrDefault(o => o.Id == line.OrderOutputId && !o.IsDeleted)
+                    ?? throw MfgRules.Invalid($"The output line of {document.DocNo} no longer exists on order {OrderNo}.")).UnregisterReceived(line.Qty);
+            }
+            MarkReservationSync();
+            Touch(by);
+            return;
+        }
+
         foreach (var group in document.PostedLines.Where(l => l.Kind == StockLineKind.Material).GroupBy(l => l.OrderMaterialId))
         {
             var material = _materials.FirstOrDefault(m => m.Id == group.Key && !m.IsDeleted)
@@ -718,6 +750,44 @@ public class ProductionOrder : BaseEntity
         Touch(by);
     }
 
+    /// <summary>
+    /// A reversal of <paramref name="original"/> is Posted (its backflush, if any, is back in the Warehouse): the quantities leave the operation and the order again (BR-OP-07).
+    /// The reversed operation goes back from Completed to Ready when it no longer has all its input taken (BR-OP-06); the next operation goes back from Ready to Pending when this one
+    /// has no good output left, nothing was done there and the plant is sequential (BR-OP-01). Operations after that keep their status.
+    /// </summary>
+    public void ApplyOperationReportReversal(OperationReport original, OperationReport reversal, bool sequentialOperations, string by, DateTime now)
+    {
+        EnsureEditable();
+        var ops = Operations.ToList();
+        var index = ops.FindIndex(o => o.OperationSeq == original.OperationSeq);
+        var op = index >= 0 ? ops[index] : throw MfgRules.Invalid($"Order {OrderNo} has no operation {original.OperationSeq}.");
+        op.UnregisterReport(original.GoodQty, original.ScrapQty, original.ReworkQty);
+        ScrappedQty = Math.Max(0m, ScrappedQty - original.ScrapQty);
+
+        var previous = index == 0 ? null : ops[index - 1];
+        if (op.Status == OperationStatus.Completed
+            && !OperationInput.IsComplete(index == 0, previous?.Status == OperationStatus.Completed, Quantity, previous?.GoodQty ?? 0m, op.TakenQty))
+            op.MarkReopened();
+
+        var next = index + 1 < ops.Count ? ops[index + 1] : null;
+        if (sequentialOperations && next is { Status: OperationStatus.Ready, HasWork: false } && op.GoodQty == 0m) next.ResetToPending();   // BR-OP-01 the other way round
+
+        AddDomainEvent(reversal.ToReversedEvent(original));
+        Touch(by);
+    }
+
+    /// <summary>
+    /// BR-FG-07: a receipt was reversed and the order is Completed: when the completed quantity no longer meets <c>Quantity x (1 - under-completion tolerance)</c> the order goes back to InProgress.
+    /// Returns true when it was reopened.
+    /// </summary>
+    public bool ReopenAfterReceiptReversal(string reversalDocNo, string by, decimal underCompletionPct)
+    {
+        if (Status != OrderStatus.Completed || OrderCompletion.MeetsThreshold(CompletedQty, Quantity, underCompletionPct)) return false;
+        TransitionTo(OrderStatus.InProgress, by, null, $"Reopened: receipt reversed by {reversalDocNo}");
+        MarkReservationSync();
+        return true;
+    }
+
     /// <summary>BR-OP-06: walks the route and completes every open operation whose input is all taken, so finishing one can finish the next.</summary>
     private void CompleteSatisfiedOperations(DateTime now)
     {
@@ -757,7 +827,7 @@ public class ProductionOrder : BaseEntity
         var op = OperationOf(operationSeq);
         MfgRules.ThrowIf(op.Status != OperationStatus.Completed, MfgErrors.Po002, ("from", op.Status), ("to", OperationStatus.Ready));
         var next = Operations.FirstOrDefault(o => o.OperationSeq > operationSeq);
-        MfgRules.ThrowIf(next is { HasWork: true }, MfgErrors.Op007);
+        MfgRules.ThrowIf(next is { HasWork: true }, MfgErrors.Op007, ("detail", ""));
         op.MarkReopened();
         Touch(by);
     }

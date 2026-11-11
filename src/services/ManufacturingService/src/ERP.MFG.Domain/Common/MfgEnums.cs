@@ -34,7 +34,10 @@ public enum DowntimeCategory : short { Planned = 1, Unplanned = 2 }
 public enum OrderType : short { Standard = 1, Rework = 2, Subcontract = 3 }
 
 /// <summary>Stock documents: a material issue or return (P3-3), a backflush consumption triggered by an operation report (P3-4); receipts join in P3-5.</summary>
-public enum StockDocumentType : short { Issue = 1, Return = 2, Backflush = 3, Receipt = 4 }
+public enum StockDocumentType : short { Issue = 1, Return = 2, Backflush = 3, Receipt = 4, Reversal = 5 }
+
+/// <summary>What a line of a Reversal document does in the Warehouse (P4-2): stock comes back (Return), a lot the receipt created leaves (Scrap), or lot-less received stock leaves (Issue).</summary>
+public enum ReversalAction : short { Return = 1, Scrap = 2, Issue = 3 }
 
 /// <summary>A line of a stock document moves a material of the order (issue, return, backflush) or brings a finished / co / by-product into stock (receipt, P3-5).</summary>
 public enum StockLineKind : short { Material = 1, Receipt = 2 }

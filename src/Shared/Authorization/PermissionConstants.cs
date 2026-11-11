@@ -36,6 +36,8 @@ public static class PermissionConstants
     public const string Manufacturing_ReceiptPost = "manufacturing:receipt:post";
     public const string Manufacturing_QcDisposition = "manufacturing:qc:disposition";
     public const string Manufacturing_StockDocumentRetry = "manufacturing:stock-document:retry";
+    public const string Manufacturing_OperationReverse = "manufacturing:operation:reverse";
+    public const string Manufacturing_ReceiptReverse = "manufacturing:receipt:reverse";
 
     // Purchase Order Permissions
     public const string PurchaseOrder_Create = "purchase_order:create";
@@ -431,7 +433,7 @@ public static class PermissionConstants
         Manufacturing_MasterDataView, Manufacturing_MasterDataManage, Manufacturing_SettingsManage, Manufacturing_ItemProfileManage,
         Manufacturing_BomView, Manufacturing_BomManage, Manufacturing_BomApprove,
         Manufacturing_RoutingView, Manufacturing_RoutingManage, Manufacturing_RoutingApprove,
-        Manufacturing_OrderView, Manufacturing_OrderCreate, Manufacturing_OrderRelease, Manufacturing_OrderCancel, Manufacturing_OrderHold, Manufacturing_OrderChangeQty, Manufacturing_OrderShortClose, Manufacturing_OrderReopen, Manufacturing_OrderClose, Manufacturing_MaterialIssue, Manufacturing_MaterialReturn, Manufacturing_MaterialOverIssue, Manufacturing_OperationExecute, Manufacturing_OperationCompleteManual, Manufacturing_ReceiptPost, Manufacturing_QcDisposition, Manufacturing_StockDocumentRetry,
+        Manufacturing_OrderView, Manufacturing_OrderCreate, Manufacturing_OrderRelease, Manufacturing_OrderCancel, Manufacturing_OrderHold, Manufacturing_OrderChangeQty, Manufacturing_OrderShortClose, Manufacturing_OrderReopen, Manufacturing_OrderClose, Manufacturing_MaterialIssue, Manufacturing_MaterialReturn, Manufacturing_MaterialOverIssue, Manufacturing_OperationExecute, Manufacturing_OperationCompleteManual, Manufacturing_ReceiptPost, Manufacturing_QcDisposition, Manufacturing_StockDocumentRetry, Manufacturing_OperationReverse, Manufacturing_ReceiptReverse,
         PurchaseOrder_Create, PurchaseOrder_Read, PurchaseOrder_Update, PurchaseOrder_Delete,
         PurchaseOrder_Approve, PurchaseOrder_FinanceApprove, PurchaseOrder_Cancel, PurchaseOrder_AddItem, PurchaseOrder_RemoveItem,
         PurchaseOrder_Receive,

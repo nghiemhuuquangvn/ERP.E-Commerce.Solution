@@ -87,6 +87,8 @@ public static class MfgErrors
     public const string Fg002 = "MFG_FG_002";
     public const string Fg003 = "MFG_FG_003";
     public const string Fg004 = "MFG_FG_004";
+    public const string Rev001 = "MFG_REV_001"; // not in the spec (P4-2): the document is not Posted, is itself a reversal, or is already reversed / being reversed
+    public const string Rev002 = "MFG_REV_002"; // not in the spec (P4-2): a reversal of this order is waiting for the Warehouse; reports, receipts and reversals wait for it
     public const string Fg005 = "MFG_FG_005"; // not in the spec: finished goods are received only on a Released or InProgress order (P3-5)
     public const string Qc001 = "MFG_QC_001";
     public const string Qc002 = "MFG_QC_002";
@@ -171,7 +173,9 @@ public static class MfgErrors
         [Op004] = "Vượt số lượng đầu vào khả dụng của công đoạn ({available}).",
         [Op005] = "Thời gian không hợp lệ.",
         [Op006] = "Nhân viên {employee} đang có phiên làm việc trùng thời gian.",
-        [Op007] = "Không thể đảo: sản lượng đã được công đoạn sau hoặc nhập kho sử dụng.",
+        [Op007] = "Không thể đảo: sản lượng đã được công đoạn sau hoặc nhập kho sử dụng {detail}",
+        [Rev001] = "Chứng từ {document} không thể đảo: {reason}.",
+        [Rev002] = "Lệnh đang có một chứng từ đảo chờ xử lý tại kho. Vui lòng thử lại sau ít phút.",
         [Op008] = "Thời gian dừng máy bị chồng lấn.",
         [Op009] = "Công đoạn đã hoàn thành.",
         [Op010] = "Máy {machine} đã ngừng sử dụng.",

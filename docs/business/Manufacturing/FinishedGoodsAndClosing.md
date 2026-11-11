@@ -97,7 +97,7 @@ None new. The receipt list (Pending / Failed) and the close checklist are the co
 - The Warehouse does not refuse a duplicate lot number; Manufacturing checks against the Warehouse's list, so two simultaneous receipts with the same typed number can still collide.
 - `CompletedQty` counts received quantity even while its lot is on hold.
 - A return is accepted on a Completed order - a deviation from BR-MAT-01 as written, needed for the settlement before close (TC-E2E-001 step 11).
-- Reversal of a receipt, final inspection documents, rework orders and child orders come later.
+- Reversal of a receipt is done (P4-2, see `Reversals.md`); final inspection documents, rework orders and child orders come later.
 - The ceiling uses the applied good output of the last operation (reports waiting for the Warehouse are not counted).
 - A by-product item without a Manufacturing profile is treated as needing no final inspection.
 - A receipt on a Pending state blocks completion and close until the document is posted or abandoned.

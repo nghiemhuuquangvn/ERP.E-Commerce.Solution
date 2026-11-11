@@ -18,7 +18,13 @@ public sealed class OperationReportRepository(MfgDbContext db) : IOperationRepor
         => db.OperationReports.AsNoTracking().Where(r => r.OrderId == orderId && !r.IsDeleted).OrderBy(r => r.ReportedAt).ThenBy(r => r.DocNo).ToListAsync(ct);
 
     public Task<List<OperationReport>> ListPendingForOrderAsync(Guid orderId, CancellationToken ct = default)
-        => db.OperationReports.Where(r => r.OrderId == orderId && !r.IsDeleted && r.Status == OperationReportStatus.Pending).ToListAsync(ct);
+        => db.OperationReports.Where(r => r.OrderId == orderId && !r.IsDeleted && r.Status == OperationReportStatus.Pending && r.ReversalOfId == null).ToListAsync(ct);
+
+    public Task<List<OperationReport>> ListPendingReversalsForOrderAsync(Guid orderId, CancellationToken ct = default)
+        => db.OperationReports.Where(r => r.OrderId == orderId && !r.IsDeleted && r.Status == OperationReportStatus.Pending && r.ReversalOfId != null).ToListAsync(ct);
+
+    public Task<OperationReport?> FindReversalOfAsync(Guid originalReportId, CancellationToken ct = default)
+        => db.OperationReports.FirstOrDefaultAsync(r => r.ReversalOfId == originalReportId && !r.IsDeleted && r.Status != OperationReportStatus.Failed, ct);
 
     public void Add(OperationReport report) => db.OperationReports.Add(report);
 }

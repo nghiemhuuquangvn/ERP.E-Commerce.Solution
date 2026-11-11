@@ -12,8 +12,14 @@ public interface IOperationReportRepository
 
     Task<List<OperationReport>> ListForOrderAsync(Guid orderId, CancellationToken ct = default);
 
-    /// <summary>Reports of the order that are still waiting for their backflush document: their quantities already count toward the limits of the next report.</summary>
+    /// <summary>Reports of the order that are still waiting for their backflush document: their quantities already count toward the limits of the next report. Reversal reports are not among them (see <see cref="ListPendingReversalsForOrderAsync"/>).</summary>
     Task<List<OperationReport>> ListPendingForOrderAsync(Guid orderId, CancellationToken ct = default);
+
+    /// <summary>Reversal reports of the order that wait for the Warehouse to take the consumed material back (P4-2): their quantities are about to leave the operations.</summary>
+    Task<List<OperationReport>> ListPendingReversalsForOrderAsync(Guid orderId, CancellationToken ct = default);
+
+    /// <summary>The reversal of this report that is Pending or Posted (a Failed one does not count), tracked; null when none.</summary>
+    Task<OperationReport?> FindReversalOfAsync(Guid originalReportId, CancellationToken ct = default);
 
     void Add(OperationReport report);
 }

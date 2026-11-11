@@ -3789,7 +3789,21 @@
       "Issue": "Xuất vật tư",
       "Return": "Trả vật tư",
       "Backflush": "Backflush",
-      "Receipt": "Nhập kho thành phẩm"
+      "Receipt": "Nhập kho thành phẩm",
+      "Reversal": "Phiếu đảo"
+    },
+    "rev": {
+      "reversed": "Đã đảo",
+      "reversalOf": "đảo của {{doc}}",
+      "reverseReport": "Đảo báo cáo",
+      "reverseReceipt": "Đảo phiếu nhập",
+      "reportTitle": "Đảo báo cáo {{doc}}",
+      "reportMessage": "Báo cáo {{doc}} của công đoạn {{seq}} (đạt {{good}}, phế {{scrap}}, làm lại {{rework}}) được trừ khỏi công đoạn và lệnh, vật tư đã trừ tự động được trả lại kho. Hệ thống tạo một báo cáo đối ứng, báo cáo gốc vẫn còn trong danh sách. Không đảo được nếu công đoạn sau hoặc nhập kho đã dùng sản lượng này.",
+      "receiptTitle": "Đảo phiếu nhập {{doc}}",
+      "receiptMessage": "Phiếu nhập {{doc}} ({{lines}}) được lấy ra khỏi kho, vật tư trừ tự động kèm theo được trả lại, số lượng hoàn thành của lệnh giảm; lệnh đã hoàn thành mà dưới ngưỡng sẽ được mở lại. Không đảo được nếu lô đã được giải phóng khỏi kho chờ kiểm hoặc đã sử dụng.",
+      "pending": "Đã lưu và đang chờ: kho sẽ được báo lại; lệnh hiển thị kết quả khi kho ghi nhận.",
+      "reportReversed": "Đã đảo báo cáo.",
+      "receiptReversed": "Đã đảo phiếu nhập."
     },
     "reasonDialog": {
       "reason": "Lý do",

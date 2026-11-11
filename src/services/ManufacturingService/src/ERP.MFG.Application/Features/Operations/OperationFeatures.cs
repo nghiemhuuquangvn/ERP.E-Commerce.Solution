@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using ERP.MFG.Application.Abstractions;
 using ERP.MFG.Application.Features.Orders;
+using ERP.MFG.Application.Features.Reversals;
 using ERP.MFG.Application.Features.StockDocuments;
 using ERP.MFG.Application.Services;
 using ERP.MFG.Domain.Common;
@@ -26,10 +27,10 @@ public sealed record LaborTimeLogDto(
 public sealed record OperationReportDto(
     Guid Id, string DocNo, Guid PlantId, Guid OrderId, string OrderNo, int OperationSeq, DateTime ReportedAt, DateOnly PostingDate, decimal GoodQty, decimal ScrapQty, decimal ReworkQty,
     Guid? ScrapReasonId, Guid? ReworkReasonId, Guid? MachineId, string ReportedBy, OperationReportStatus Status, Guid? BackflushDocumentId, string? FailureCode, string? FailureMessage,
-    string? Note, DateTime? PostedAt)
+    string? Note, DateTime? PostedAt, Guid? ReversalOfId = null, bool IsReversed = false)
 {
     public static OperationReportDto From(OperationReport r) => new(r.Id, r.DocNo, r.PlantId, r.OrderId, r.OrderNo, r.OperationSeq, r.ReportedAt, r.PostingDate, r.GoodQty, r.ScrapQty,
-        r.ReworkQty, r.ScrapReasonId, r.ReworkReasonId, r.MachineId, r.ReportedBy, r.Status, r.BackflushDocumentId, r.FailureCode, r.FailureMessage, r.Note, r.PostedAt);
+        r.ReworkQty, r.ScrapReasonId, r.ReworkReasonId, r.MachineId, r.ReportedBy, r.Status, r.BackflushDocumentId, r.FailureCode, r.FailureMessage, r.Note, r.PostedAt, r.ReversalOfId, r.IsReversed);
 }
 
 /// <summary>The answer of a report: 201 when it counts, 202 when it waits for its backflush document to reach the Warehouse.</summary>
@@ -201,6 +202,7 @@ public sealed class ReportOperationHandler(
         if (repeat is not null) return await AnswerAsync(repeat, ct);
 
         order.EnsureOpenForWork();                                                 // order open (OnHold: MFG_PO_011, other: MFG_OP_001)
+        await ReversalGuards.EnsureNoPendingReversalAsync(documents, reports, order.Id, ct);   // P4-2: a reversal of this order is waiting for the Warehouse (MFG_REV_002)
         var plant = await access.GetVisiblePlantAsync(order.PlantId, ct);
         var op = order.OperationOf(r.OperationSeq);
         MfgRules.ThrowIf(op.Status == OperationStatus.Pending, MfgErrors.Op001);

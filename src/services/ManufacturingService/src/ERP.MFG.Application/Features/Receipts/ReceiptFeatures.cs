@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using ERP.MFG.Application.Abstractions;
 using ERP.MFG.Application.Features.Orders;
+using ERP.MFG.Application.Features.Reversals;
 using ERP.MFG.Application.Features.StockDocuments;
 using ERP.MFG.Application.Services;
 using ERP.MFG.Domain.Common;
@@ -21,7 +22,7 @@ public sealed record ReceiptLineBody(int? OutputLineNo, decimal Quantity, string
 public sealed record ReceiveFinishedGoodsCommand(Guid OrderId, IReadOnlyList<ReceiptLineBody> Lines, string? Note, string? IdempotencyKey) : IRequest<StockDocumentResultDto>;
 
 public sealed class ReceiveFinishedGoodsHandler(
-    IPlantAccessService access, IProductionOrderRepository orders, IStockDocumentRepository documents, IWarehouseStockClient stock, IProductLookupClient products,
+    IPlantAccessService access, IProductionOrderRepository orders, IStockDocumentRepository documents, IOperationReportRepository reports, IWarehouseStockClient stock, IProductLookupClient products,
     IUnitOfMeasureClient units, IItemProfileRepository profiles, IProductionSettingProvider settings, BackflushPlanner planner, IDocumentNumberService numbers, IPlantClock clock,
     IStockPostingService posting, IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<ReceiveFinishedGoodsCommand, StockDocumentResultDto>
 {
@@ -37,6 +38,7 @@ public sealed class ReceiveFinishedGoodsHandler(
         order.EnsureEditable();
         MfgRules.ThrowIf(order.Status == OrderStatus.OnHold, MfgErrors.Po011);
         MfgRules.ThrowIf(order.Status is not (OrderStatus.Released or OrderStatus.InProgress), MfgErrors.Fg005);
+        await ReversalGuards.EnsureNoPendingReversalAsync(documents, reports, order.Id, ct);   // P4-2: a reversal of this order is waiting for the Warehouse (MFG_REV_002)
         var plant = await access.GetVisiblePlantAsync(order.PlantId, ct);
         var setting = await settings.GetAsync(plant.Id, ct);
         var by = user.GetUserId();
