@@ -24,7 +24,7 @@ Phase 3 delivered the happy path of a production order (create, release, issue, 
 | # | Scope | Status |
 |---|---|---|
 | P4-1 | Warehouse W7: lot split, per-lot breakdown, held-lot issue | **built 2026-11-11** |
-| P4-2 | Reversal of operation reports and receipts (closes R246) | planned |
+| P4-2 | Reversal of operation reports and receipts (closes R246) | **built 2026-11-11** |
 | P4-3 | Inspection plans, IPQC / FQC inspections (replace the interim release) | planned |
 | P4-4 | NCR, disposition, rework orders | planned |
 | P4-5 | Genealogy and tracing | planned |
@@ -49,3 +49,21 @@ Phase 3 delivered the happy path of a production order (create, release, issue, 
 **Deployment order.** SQL `Warehouse/014`, Warehouse, ManufacturingService (the JSON additions are backward compatible in both directions).
 
 **Verification.** Warehouse unit tests 134 -> 159, Manufacturing 648 -> 654, Architecture 87 -> 89; `LiveSchemaDriftTests` clean with 014; `wh-w7.js` ALL OK on glcheck and SYSTEM; regression of `wh-w3`, `wh-w5`, `wh-w6`, `mfg-p35`, `mfg-p37-e2e`.
+
+## 5. P4-2 as built (reversal of operation reports and receipts)
+**Problem.** A wrong report or receipt could only be fixed by hand in the Warehouse (R246, `MFG_FG_004` unused).
+
+**Decisions.**
+- *A reversal is a stock document of its own type.* `StockDocumentType.Reversal` (prefix `RV`, per tenant and month = the Warehouse key) with `ReversalOfId`; each line carries a `ReversalAction` (Return / Scrap / Issue) so the engine builds the opposite movement without new branches by document type; the inverse of a reversal line is the rollback. Rejected: negative quantities on the original lines (the engine and the Warehouse work with positive quantities and a direction) and editing the original in place (BR-GEN-01).
+- *The report reversal is a second report row* (`ReversalOfId`), Pending while its RV document waits for the Warehouse, applied in the same save as the document is Posted; with nothing consumed it needs no Warehouse at all.
+- *Validate first.* Downstream use (`MFG_OP_007`), lot whole in the Warehouse (`MFG_FG_004`), released lot, already reversed (`MFG_REV_001`), a reversal waiting (`MFG_REV_002`) are all checked before anything is stored; only a refusal by the Warehouse itself produces a Failed document.
+- *The lots of a line are kept.* `MaterialTransactionLineLots` stores the Warehouse W7 `lots[]`; the reversal gives each lot its own quantity and cost back. This moved forward from P4-5 because a correct reversal of a multi-lot reserved line needs it; genealogy (P4-5) reads the same table.
+- *One reversal in flight per order.* While an RV document is Pending, new reports, receipts and reversals of the order are refused (`MFG_REV_002`): their backflush quantities are computed from the consumption the reversal is about to change. The window is a Warehouse outage. (Subtracting pending reversals from the limits was considered and rejected as more complex for the same effect.)
+- *Interim release = inspected.* A receipt line released by `qc:disposition` blocks the reversal until P4-3 swaps the check for the FQC result (owner answer 2026-11-11); a report on a Completed order needs the order reopened (owner answer).
+- *Effects on operations* (reversed operation back to Ready, next operation back to Pending, later operations unchanged) are pure methods of the aggregate (`ApplyOperationReportReversal`, `ReopenAfterReceiptReversal`).
+
+**Found while building.** A reversal line for a receipt must not copy `IsQcHold`: a Posted Receipt-kind line on hold counts as a lot waiting for inspection in the close checklist, so the reversal itself would have blocked the close (caught by a unit test). The lot-less return of a lot-controlled item is refused by the Warehouse on purpose (`RequiresLot`) rather than silently losing the lot.
+
+**Deployment order.** `pg-migrate` (SQL 011), `db-migrate` (Identity 035), ManufacturingService, Admin. No Warehouse change.
+
+**Verification.** Manufacturing unit tests 654 -> 690, Architecture 89 (PostgreSQL drift clean: 11 scripts applied twice, 32 tables / 618 columns), Admin 424 -> 438; `mfg-p42.js` ALL OK on glcheck and SYSTEM (TC-REV-001..007 live, exactly-once after a Warehouse outage, 403 matrix, reconciliation clean); contract check extended.

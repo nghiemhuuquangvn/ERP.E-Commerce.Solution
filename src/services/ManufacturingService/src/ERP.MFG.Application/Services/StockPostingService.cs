@@ -20,7 +20,12 @@ public static class StockCodeMapper
     /// <summary>The code shown to the user for a Warehouse refusal (BR-MAT-03/04/05); other codes pass through unchanged.</summary>
     public static string ToMfg(string warehouseCode, StockDocumentType type = StockDocumentType.Issue) => warehouseCode switch
     {
-        "WH_INSUFFICIENT_STOCK" or "WH_INSUFFICIENT_IN_WAREHOUSE" => type is StockDocumentType.Backflush or StockDocumentType.Receipt ? MfgErrors.Mat008 : MfgErrors.Mat003,
+        "WH_INSUFFICIENT_STOCK" or "WH_INSUFFICIENT_IN_WAREHOUSE" => type switch
+        {
+            StockDocumentType.Reversal => MfgErrors.Fg004,                                       // the lot being taken out is not whole any more (P4-2)
+            StockDocumentType.Backflush or StockDocumentType.Receipt => MfgErrors.Mat008,
+            _ => MfgErrors.Mat003,
+        },
         "WH_LOT_EXPIRED" or "WH_LOT_NOT_USABLE" or "WH_LOT_NOT_AVAILABLE" => MfgErrors.Mat005,
         "WH_LOT_REQUIRED" => MfgErrors.Mat004,
         "WH_SERIAL_NOT_SUPPORTED" => MfgErrors.Mat011,
@@ -31,7 +36,7 @@ public static class StockCodeMapper
 /// <summary>See <see cref="IStockPostingService"/>.</summary>
 public sealed class StockPostingService(
     IWarehouseStockClient stock, IProductLookupClient products, IProductionOrderRepository orders, IMfgUnitOfWork uow, IPlantClock clock,
-    IOrderReservationSync reservationSync, IOperationReportRepository reports, OperationLogCloser logCloser, IProductionSettingProvider settings, ILogger<StockPostingService> logger) : IStockPostingService
+    IOrderReservationSync reservationSync, IOperationReportRepository reports, IStockDocumentRepository documents, OperationLogCloser logCloser, IProductionSettingProvider settings, ILogger<StockPostingService> logger) : IStockPostingService
 {
     public async Task<StockPostingResult> PostAsync(MaterialTransaction document, string by, CancellationToken ct = default)
     {
@@ -70,7 +75,8 @@ public sealed class StockPostingService(
                 {
                     var request = BuildRequest(document, line, order, flags[line.ItemId]);
                     var result = await stock.RecordMovementAsync(request, ct);
-                    document.RecordLinePosted(line, result.MovementId, result.UnitCost, result.ValueDelta, result.LotId);
+                    document.RecordLinePosted(line, result.MovementId, result.UnitCost, result.ValueDelta, result.LotId,
+                        result.Lots?.Select(l => new LineLot(l.LotId, l.LotNumber, l.Quantity, l.UnitCost, l.WarehouseId, l.ParentLotId)).ToList());
                     await uow.SaveChangesAsync(ct);                                  // progress is durable: a later retry replays instead of re-sending
                     break;
                 }
@@ -112,7 +118,11 @@ public sealed class StockPostingService(
     {
         var now = clock.UtcNow;
         order.ApplyPostedDocument(document, by);
-        if (document.Type == StockDocumentType.Backflush && document.SourceOperationReportId is { } reportId)
+        if (document.IsReversal)
+        {
+            await CompleteReversalAsync(document, order, by, now, ct);
+        }
+        else if (document.Type == StockDocumentType.Backflush && document.SourceOperationReportId is { } reportId)
         {
             // the report counts only now that its materials are out of the Warehouse (ADR Phase 3, decision 3): both are applied in the same save
             var report = await reports.GetAsync(reportId, ct) ?? throw new EntityNotFoundException(nameof(OperationReport), reportId);
@@ -134,6 +144,34 @@ public sealed class StockPostingService(
 
         await reservationSync.SyncAsync(order, ct);                                   // best effort: the flag stays set for the job if the Warehouse is not reachable
         return Result(document);
+    }
+
+    /// <summary>
+    /// A reversal document is Posted (P4-2): what it undid leaves the order in the same save. A report reversal takes the report off its operation and marks both reports and the backflush
+    /// document reversed; a receipt reversal marks the receipt reversed and reopens a Completed order that fell below the completion threshold (BR-FG-07).
+    /// </summary>
+    private async Task CompleteReversalAsync(MaterialTransaction document, ProductionOrder order, string by, DateTime now, CancellationToken ct)
+    {
+        var originalId = document.ReversalOfId ?? throw MfgRules.Invalid($"The reversal {document.DocNo} does not name the document it undoes.");
+        var original = await documents.GetAsync(originalId, ct) ?? throw new EntityNotFoundException(nameof(MaterialTransaction), originalId);
+        original.MarkReversed(by);
+
+        var setting = await settings.GetAsync(order.PlantId, ct);
+        if (document.SourceOperationReportId is { } reversalReportId)
+        {
+            var reversal = await reports.GetAsync(reversalReportId, ct) ?? throw new EntityNotFoundException(nameof(OperationReport), reversalReportId);
+            var originalReport = await reports.GetAsync(reversal.ReversalOfId ?? Guid.Empty, ct) ?? throw new EntityNotFoundException(nameof(OperationReport), reversal.ReversalOfId ?? Guid.Empty);
+            if (reversal.Status == OperationReportStatus.Pending)
+            {
+                order.ApplyOperationReportReversal(originalReport, reversal, setting.RequireSequentialOperations, by, now);
+                originalReport.MarkReversed(by);
+                reversal.MarkPosted(now, by);
+            }
+        }
+        else
+        {
+            order.ReopenAfterReceiptReversal(document.DocNo, by, setting.UnderCompletionTolerancePct);
+        }
     }
 
     private async Task<StockPostingResult> PendAsync(MaterialTransaction document, string error, CancellationToken ct)
@@ -174,9 +212,9 @@ public sealed class StockPostingService(
         }
 
         document.MarkFailed(by);
-        if (document.Type == StockDocumentType.Backflush && document.SourceOperationReportId is { } reportId)
+        if (document.Type is StockDocumentType.Backflush or StockDocumentType.Reversal && document.SourceOperationReportId is { } reportId)
         {
-            // nothing was applied: the report is kept for audit with the reason (a refused or abandoned backflush)
+            // nothing was applied: the report is kept for audit with the reason (a refused or abandoned backflush, or a reversal that could not be completed)
             var report = await reports.GetAsync(reportId, ct);
             if (report is { Status: OperationReportStatus.Pending })
                 report.MarkFailed(document.LastErrorCode ?? "FAILED", document.LastError ?? "The backflush document failed.", by);
@@ -189,6 +227,20 @@ public sealed class StockPostingService(
 
     private static StockMovementRequest BuildRequest(MaterialTransaction document, MaterialTransactionLine line, ProductionOrder order, ProductInfo item)
     {
+        if (document.IsReversal)
+        {
+            // P4-2: the line says what it does. Stock comes back into the lot it left (at the cost it left with), a received lot is scrapped, lot-less received stock is issued.
+            var why = $"Reversal {document.DocNo}";
+            return line.ReversalAction switch
+            {
+                ReversalAction.Return => new("ProductionReturn", line.ItemId, line.Qty, line.MovementKey, WarehouseId: line.WarehouseId, LotId: line.LotId, UnitCost: line.UnitCost, SourceOrderId: order.Id,
+                    Reason: why, RequiresLot: item.IsLotControlled, RequiresSerial: item.IsSerialControlled),
+                ReversalAction.Scrap => new("ProductionScrap", line.ItemId, line.Qty, line.MovementKey, WarehouseId: line.WarehouseId, LotId: line.LotId, SourceOrderId: order.Id,
+                    Reason: why, RequiresLot: item.IsLotControlled, RequiresSerial: item.IsSerialControlled),
+                _ => new("ProductionIssue", line.ItemId, line.Qty, line.MovementKey, WarehouseId: line.WarehouseId, SourceOrderId: order.Id, Reason: why, RequiresSerial: item.IsSerialControlled),
+            };
+        }
+
         if (line.Kind == StockLineKind.Receipt)
         {
             // the Warehouse creates the lot from its number (starting on quality hold when the item needs final inspection) and values the stock at the item cost
@@ -216,6 +268,16 @@ public sealed class StockPostingService(
     {
         var lot = line.PostedLotId ?? line.LotId;
         var reason = $"Reversal of {line.MovementKey}";
+        if (document.IsReversal)
+        {
+            // undoing a reversal line: what came back leaves again, what left comes back (into the lot it left, at the cost it left with)
+            return document.TakesStockOut(line)
+                ? new("ProductionReturn", line.ItemId, line.Qty, line.CompensationKey, WarehouseId: line.WarehouseId, LotId: lot, UnitCost: line.UnitCost, SourceOrderId: order.Id, Reason: reason,
+                    RequiresLot: item.IsLotControlled, RequiresSerial: item.IsSerialControlled)
+                : new("ProductionIssue", line.ItemId, line.Qty, line.CompensationKey, WarehouseId: line.WarehouseId, LotId: lot, SourceOrderId: order.Id, Reason: reason,
+                    RequiresLot: item.IsLotControlled, RequiresSerial: item.IsSerialControlled);
+        }
+
         if (line.Kind == StockLineKind.Receipt)
         {
             // the lot the receipt created leaves again: scrap is allowed on a lot on quality hold, an issue is not; a line without a lot leaves the warehouse pool

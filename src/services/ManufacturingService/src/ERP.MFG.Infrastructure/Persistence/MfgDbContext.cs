@@ -51,6 +51,7 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
     public DbSet<ProductionOrderStatusHistory> ProductionOrderStatusHistories => Set<ProductionOrderStatusHistory>();
     public DbSet<MaterialTransaction> MaterialTransactions => Set<MaterialTransaction>();
     public DbSet<MaterialTransactionLine> MaterialTransactionLines => Set<MaterialTransactionLine>();
+    public DbSet<MaterialTransactionLineLot> MaterialTransactionLineLots => Set<MaterialTransactionLineLot>();
     public DbSet<OperationReport> OperationReports => Set<OperationReport>();
     public DbSet<LaborTimeLog> LaborTimeLogs => Set<LaborTimeLog>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
@@ -396,6 +397,8 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Ignore(x => x.IsConsumption);
             e.Ignore(x => x.ReceiptLines);
             e.Ignore(x => x.MaterialLines);
+            e.Ignore(x => x.IsReversal);
+            e.HasIndex(x => new { x.TenantId, x.ReversalOfId }).HasFilter("\"ReversalOfId\" IS NOT NULL");
             e.HasIndex(x => new { x.TenantId, x.SourceOperationReportId }).HasFilter("\"SourceOperationReportId\" IS NOT NULL");
             e.HasIndex(x => new { x.TenantId, x.DocNo }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
@@ -419,10 +422,25 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.Kind).HasConversion<short>();
             e.Property(x => x.LotNumber).HasMaxLength(100);
             e.HasIndex(x => new { x.TenantId, x.LotNumber }).HasFilter("\"LotNumber\" IS NOT NULL");
+            e.Property(x => x.ReversalAction).HasConversion<short?>();
             e.Ignore(x => x.CompensationKey);
+            e.Ignore(x => x.Lots);
+            e.HasMany(x => x.AllLots).WithOne().HasForeignKey(l => l.LineId);
+            e.Navigation(x => x.AllLots).HasField("_lots").UsePropertyAccessMode(PropertyAccessMode.Field);
             e.HasIndex(x => new { x.TenantId, x.TransactionId, x.LineNo }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.MovementKey }).IsUnique();
             e.HasIndex(x => new { x.TenantId, x.OrderMaterialId });
+        });
+
+        // the lots the Warehouse really used for a line (P4-2, SQL 011): kept so that a reversal can name them and genealogy (P4-5) can read them
+        modelBuilder.Entity<MaterialTransactionLineLot>(e =>
+        {
+            e.ToTable("MaterialTransactionLineLots");
+            e.Property(x => x.LotNumber).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Qty).HasPrecision(18, 6);
+            e.Property(x => x.UnitCost).HasPrecision(18, 6);
+            e.HasIndex(x => new { x.TenantId, x.LineId });
+            e.HasIndex(x => new { x.TenantId, x.LotId });
         });
 
         modelBuilder.Entity<OperationReport>(e =>
@@ -442,6 +460,8 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.Note).HasMaxLength(500);
             e.Ignore(x => x.OutputQty);
             e.Ignore(x => x.TotalQty);
+            e.Ignore(x => x.IsReversal);
+            e.HasIndex(x => new { x.TenantId, x.ReversalOfId }).HasFilter("\"ReversalOfId\" IS NOT NULL");
             e.HasIndex(x => new { x.TenantId, x.PlantId, x.DocNo }).IsUnique();   // numbered per plant and month (BR-GEN-04)
             e.HasIndex(x => new { x.TenantId, x.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
             e.HasIndex(x => new { x.TenantId, x.OrderId });

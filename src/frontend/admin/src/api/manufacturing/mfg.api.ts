@@ -119,7 +119,9 @@ export interface RoutingLeadTime { operations: ScheduledOperation[]; totalMinute
 // ── Production orders (P3-1..P3-5) ───────────────────────────────────────────────────────────────────────
 export type OrderStatus = 'Draft' | 'Released' | 'InProgress' | 'OnHold' | 'Completed' | 'Closed' | 'Cancelled'
 export type OperationStatus = 'Pending' | 'Ready' | 'Running' | 'Paused' | 'Completed'
-export type StockDocumentType = 'Issue' | 'Return' | 'Backflush' | 'Receipt'
+export type StockDocumentType = 'Issue' | 'Return' | 'Backflush' | 'Receipt' | 'Reversal'
+/** What a line of a Reversal document does in the Warehouse (P4-2): stock comes back, a received lot is scrapped, lot-less received stock is issued. */
+export type ReversalAction = 'Return' | 'Scrap' | 'Issue'
 export type StockDocumentStatus = 'Pending' | 'Posted' | 'Failed'
 export type StockLineStatus = 'Pending' | 'Posted' | 'Refused' | 'Compensated'
 export type StockLineKind = 'Material' | 'Receipt'
@@ -165,11 +167,19 @@ export interface StockDocumentLine {
   isFromReservation: boolean; movementKey: string; status: StockLineStatus; unitCost?: number | null; amount?: number | null; postedLotId?: string | null; error?: string | null
   kind: StockLineKind; outputLineNo?: number | null; lotNumber?: string | null; expiryDate?: string | null; isQcHold: boolean; qcReleasedAt?: string | null
   isNegativeStock: boolean; manufactureDate?: string | null
+  reversalAction?: ReversalAction | null
+  /** The lots the Warehouse really used for the line (kept since P4-2). */
+  lots?: StockLineLot[] | null
 }
+export interface StockLineLot { lotId: string; lotNumber: string; qty: number; unitCost?: number | null; warehouseId?: string | null; parentLotId?: string | null }
 export interface StockDocument {
   id: string; docNo: string; plantId: string; orderId: string; orderNo: string; type: StockDocumentType; status: StockDocumentStatus; mode: 'Forward' | 'Rollback'; postingDate: string
   reasonCodeId?: string | null; note?: string | null; attempts: number; nextAttemptAt?: string | null; lastError?: string | null; lastErrorCode?: string | null; postedAt?: string | null
   createdAt: string; createdBy?: string | null; lines: StockDocumentLine[]
+  /** A Reversal document: the document it undoes. */
+  reversalOfId?: string | null
+  /** The document has been undone by a Posted reversal. */
+  isReversed: boolean
 }
 export interface StockDocumentPage { items: StockDocument[]; total: number; page: number; pageSize: number }
 export interface StockDocumentFilter { plantId: string; status?: StockDocumentStatus; type?: StockDocumentType; orderId?: string; search?: string; page: number; pageSize: number }
@@ -197,6 +207,10 @@ export interface OperationReport {
   id: string; docNo: string; plantId: string; orderId: string; orderNo: string; operationSeq: number; reportedAt: string; postingDate: string; goodQty: number; scrapQty: number; reworkQty: number
   scrapReasonId?: string | null; reworkReasonId?: string | null; machineId?: string | null; reportedBy: string; status: OperationReportStatus; backflushDocumentId?: string | null
   failureCode?: string | null; failureMessage?: string | null; note?: string | null; postedAt?: string | null
+  /** A reversal report: the report it undoes (P4-2). */
+  reversalOfId?: string | null
+  /** The report has been undone by a Posted reversal. */
+  isReversed: boolean
 }
 /** 201 when the report counts, 202 (`isPending`) while its backflush document is on its way to the Warehouse. */
 export interface OperationReportAnswer { report: OperationReport; isPending: boolean; backflush?: StockDocument | null }
@@ -356,6 +370,11 @@ export const mfgApi = {
   stopLog: (id: string, seq: number, logId: string) => post<TimeLog>(`/orders/${id}/operations/${seq}/time-logs/${logId}/stop`),
   reportOperation: (id: string, seq: number, body: OperationReportBody, key?: string) =>
     client.post<OperationReportAnswer>(`${BASE}/orders/${id}/operations/${seq}/report`, body, idem(key)).then((r) => r.data),
+  /** Reverses a Posted operation report with a counter-report (BR-OP-07): 201 when it counts, 202 (`isPending`) while the material is on its way back to the Warehouse. */
+  reverseOperationReport: (orderId: string, reportId: string, note: string, key?: string) =>
+    client.post<OperationReportAnswer>(`${BASE}/orders/${orderId}/operation-reports/${reportId}/reverse`, { note }, idem(key)).then((r) => r.data),
+  /** Reverses a Posted finished-goods receipt (BR-FG-07): 201 Posted, 202 still Pending. */
+  reverseReceipt: (orderId: string, documentId: string, note: string, key?: string) => postDocument(`/orders/${orderId}/receipts/${documentId}/reverse`, { note }, key),
   completeOperation: (id: string, seq: number) => post<OrderOperation>(`/orders/${id}/operations/${seq}/complete`),
   reopenOperation: (id: string, seq: number) => post<OrderOperation>(`/orders/${id}/operations/${seq}/reopen`),
 }

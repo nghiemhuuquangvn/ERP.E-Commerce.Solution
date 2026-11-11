@@ -3789,7 +3789,21 @@
       "Issue": "Material issue",
       "Return": "Material return",
       "Backflush": "Backflush",
-      "Receipt": "Finished goods receipt"
+      "Receipt": "Finished goods receipt",
+      "Reversal": "Reversal"
+    },
+    "rev": {
+      "reversed": "Reversed",
+      "reversalOf": "reversal of {{doc}}",
+      "reverseReport": "Reverse report",
+      "reverseReceipt": "Reverse receipt",
+      "reportTitle": "Reverse report {{doc}}",
+      "reportMessage": "The report {{doc}} of operation {{seq}} (good {{good}}, scrap {{scrap}}, rework {{rework}}) is taken off the operation and the order, and the material it consumed is returned to the Warehouse. A counter-report is created; the original stays in the list. It cannot be reversed if the next operation or a receipt already used its output.",
+      "receiptTitle": "Reverse receipt {{doc}}",
+      "receiptMessage": "The receipt {{doc}} ({{lines}}) is taken out of the Warehouse again, what its backflush consumed is returned, and the completed quantity of the order goes down; a completed order below its threshold is reopened. It cannot be reversed if a lot was released from quality hold or used.",
+      "pending": "Saved and waiting: the Warehouse will be told again; the order shows the effect when it is booked.",
+      "reportReversed": "The report was reversed.",
+      "receiptReversed": "The receipt was reversed."
     },
     "reasonDialog": {
       "reason": "Reason",

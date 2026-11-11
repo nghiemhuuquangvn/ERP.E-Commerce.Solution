@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { mfgApi, type Order, type OrderOperation, type OrderMaterial, type StockDocument, type TimeLog } from '@/api/manufacturing/mfg.api'
+import { mfgApi, type Order, type OperationReport, type OrderOperation, type OrderMaterial, type StockDocument, type TimeLog } from '@/api/manufacturing/mfg.api'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { ReasonDialog } from '@/components/shared/ReasonDialog'
 import { Alert, Badge, Button, Progress, Skeleton, useToast } from '@/components/ui'
 import { serverMessage } from '@/lib/serverMessage'
 import { ManualTimeDialog, ReportOperationDialog, StartOperationDialog } from './OperationDialogs'
 import { DocStatusBadge, OperationStatusBadge } from './OrderBadges'
 import { StockDocumentsTable } from './StockDocumentsTable'
 import type { OrderActions } from './orderActions'
-import { fmtDateTime, fmtQty } from './shared'
+import { fmtDateTime, fmtQty, useIdempotencyKey } from './shared'
 
 const th = 'px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-ink-secondary'
 const td = 'px-3 py-2 align-top'
@@ -102,6 +103,9 @@ export function OperationsTab({ order, can, reload }: { order: Order; can: Order
   const queryClient = useQueryClient()
   const [dialog, setDialog] = useState<Dialog>(null)
   const [confirm, setConfirm] = useState<{ kind: 'complete' | 'reopen'; op: OrderOperation } | null>(null)
+  const [reversing, setReversing] = useState<OperationReport | null>(null)
+  const [reverseError, setReverseError] = useState<string | null>(null)
+  const reverseKey = useIdempotencyKey()
   const details = useQuery({ queryKey: ['mfg', 'order', order.id, 'operations'], queryFn: () => mfgApi.orderOperations(order.id) })
   const reports = useQuery({ queryKey: ['mfg', 'order', order.id, 'reports'], queryFn: () => mfgApi.operationReports(order.id) })
   const refresh = () => { queryClient.invalidateQueries({ queryKey: ['mfg', 'order', order.id] }); queryClient.invalidateQueries({ queryKey: ['mfg', 'orders'] }); reload() }
@@ -111,6 +115,11 @@ export function OperationsTab({ order, can, reload }: { order: Order; can: Order
       action === 'pause' ? mfgApi.pauseLog(order.id, op, id) : action === 'resume' ? mfgApi.resumeLog(order.id, op, id) : mfgApi.stopLog(order.id, op, id),
     onSuccess: refresh,
     onError: (e) => toast.error(serverMessage(e, t('common.failedToSave'))),
+  })
+  const reverse = useMutation({
+    mutationFn: ({ report, note }: { report: OperationReport; note: string }) => mfgApi.reverseOperationReport(order.id, report.id, note, reverseKey({ report: report.id, note })),
+    onSuccess: (r) => { setReversing(null); setReverseError(null); refresh(); r.isPending ? toast.info(t('mfg.rev.pending')) : toast.success(t('mfg.rev.reportReversed')) },
+    onError: (e) => setReverseError(serverMessage(e, t('common.failedToSave'))),
   })
   const manual = useMutation({
     mutationFn: ({ kind, op }: { kind: 'complete' | 'reopen'; op: OrderOperation }) => (kind === 'complete' ? mfgApi.completeOperation(order.id, op.operationSeq) : mfgApi.reopenOperation(order.id, op.operationSeq)),
@@ -162,12 +171,22 @@ export function OperationsTab({ order, can, reload }: { order: Order; can: Order
               <th scope="col" className={th}>{t('mfg.doc.number')}</th><th scope="col" className={th}>{t('mfg.order.op')}</th><th scope="col" className={`${th} text-right`}>{t('mfg.opx.good')}</th>
               <th scope="col" className={`${th} text-right`}>{t('mfg.opx.scrap')}</th><th scope="col" className={`${th} text-right`}>{t('mfg.opx.rework')}</th><th scope="col" className={th}>{t('common.status')}</th>
               <th scope="col" className={th}>{t('mfg.opx.reportedAt')}</th><th scope="col" className={th}>{t('mfg.doc.problem')}</th>
+              <th scope="col" className={th}><span className="sr-only">{t('common.actions')}</span></th>
             </tr></thead>
             <tbody className="divide-y divide-line">
               {(reports.data ?? []).map((r) => (
                 <tr key={r.id}>
-                  <td className={`${td} font-mono text-xs`}>{r.docNo}</td><td className={td}>{r.operationSeq}</td><td className={num}>{fmtQty(r.goodQty)}</td><td className={num}>{fmtQty(r.scrapQty)}</td><td className={num}>{fmtQty(r.reworkQty)}</td>
+                  <td className={`${td} font-mono text-xs`}>
+                    {r.docNo}
+                    {r.reversalOfId && <span className="ml-2 font-sans text-ink-secondary">{t('mfg.rev.reversalOf', { doc: (reports.data ?? []).find((x) => x.id === r.reversalOfId)?.docNo ?? '' })}</span>}
+                    {r.isReversed && <Badge variant="muted" className="ml-2">{t('mfg.rev.reversed')}</Badge>}
+                  </td><td className={td}>{r.operationSeq}</td><td className={num}>{fmtQty(r.goodQty)}</td><td className={num}>{fmtQty(r.scrapQty)}</td><td className={num}>{fmtQty(r.reworkQty)}</td>
                   <td className={td}><DocStatusBadge status={r.status} /></td><td className={td}>{fmtDateTime(r.reportedAt)}</td><td className={`${td} text-danger-soft-text`}>{r.failureMessage ?? ''}</td>
+                  <td className={td}>
+                    {can.reverseReport && r.status === 'Posted' && !r.reversalOfId && !r.isReversed && (
+                      <Button size="sm" variant="outline" onClick={() => { setReverseError(null); setReversing(r) }}>{t('mfg.rev.reverseReport')}</Button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -178,6 +197,17 @@ export function OperationsTab({ order, can, reload }: { order: Order; can: Order
       {dialog?.kind === 'start' && <StartOperationDialog order={order} op={dialog.op} onClose={() => setDialog(null)} onDone={() => { setDialog(null); refresh() }} />}
       {dialog?.kind === 'manual' && <ManualTimeDialog order={order} op={dialog.op} onClose={() => setDialog(null)} onDone={() => { setDialog(null); refresh() }} />}
       {dialog?.kind === 'report' && <ReportOperationDialog order={order} op={dialog.op} onClose={() => setDialog(null)} onDone={() => { setDialog(null); refresh() }} />}
+      <ReasonDialog
+        open={!!reversing}
+        danger
+        title={t('mfg.rev.reportTitle', { doc: reversing?.docNo ?? '' })}
+        message={reversing ? t('mfg.rev.reportMessage', { doc: reversing.docNo, seq: reversing.operationSeq, good: fmtQty(reversing.goodQty), scrap: fmtQty(reversing.scrapQty), rework: fmtQty(reversing.reworkQty) }) : ''}
+        confirmLabel={t('mfg.rev.reverseReport')}
+        busy={reverse.isPending}
+        error={reverseError}
+        onCancel={() => { setReversing(null); setReverseError(null) }}
+        onConfirm={(note) => reversing && reverse.mutate({ report: reversing, note })}
+      />
       <ConfirmDialog
         open={!!confirm}
         title={confirm?.kind === 'complete' ? t('mfg.opx.completeTitle') : t('mfg.opx.reopenTitle')}
@@ -220,7 +250,8 @@ function TimeLogsTable({ logs, canWork, busy, onAction }: { logs: TimeLog[]; can
 
 export function ReceiptsTab({ order, can, documents, onReceive, reload }: { order: Order; can: OrderActions; documents: StockDocument[]; onReceive: () => void; reload: () => void }) {
   const { t } = useTranslation()
-  const receipts = documents.filter((d) => d.type === 'Receipt')
+  const receiptIds = new Set(documents.filter((d) => d.type === 'Receipt').map((d) => d.id))
+  const receipts = documents.filter((d) => d.type === 'Receipt' || (d.type === 'Reversal' && d.reversalOfId != null && receiptIds.has(d.reversalOfId)))   // a reversal of a receipt sits with it
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -239,7 +270,7 @@ export function ReceiptsTab({ order, can, documents, onReceive, reload }: { orde
         </tbody>
       </TableBox>
       <h2 className="text-sm font-semibold text-ink">{t('mfg.receipt.documents')}</h2>
-      <StockDocumentsTable headingLevel={3} documents={receipts} canRetry={can.retryDocuments} canQcRelease={can.qcRelease} onChanged={reload} />
+      <StockDocumentsTable headingLevel={3} documents={receipts} canRetry={can.retryDocuments} canQcRelease={can.qcRelease} canReverse={can.reverseReceipt} onChanged={reload} />
     </div>
   )
 }
@@ -247,7 +278,7 @@ export function ReceiptsTab({ order, can, documents, onReceive, reload }: { orde
 // ── Documents ────────────────────────────────────────────────────────────────────────────────────────────
 
 export function DocumentsTab({ documents, can, reload }: { documents: StockDocument[]; can: OrderActions; reload: () => void }) {
-  return <StockDocumentsTable documents={documents} canRetry={can.retryDocuments} canQcRelease={can.qcRelease} onChanged={reload} />
+  return <StockDocumentsTable documents={documents} canRetry={can.retryDocuments} canQcRelease={can.qcRelease} canReverse={can.reverseReceipt} onChanged={reload} />
 }
 
 // ── History ──────────────────────────────────────────────────────────────────────────────────────────────

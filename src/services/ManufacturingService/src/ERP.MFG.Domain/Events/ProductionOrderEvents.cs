@@ -174,3 +174,36 @@ public class ProductionOrderClosedEvent : IntegrationEventBase, ITenantEvent
     public bool UnsettledMaterialCarriedToConsumption { get; set; }
     public string? ClosedBy { get; set; }
 }
+
+/// <summary>A reversal of an operation report is applied to the order (P4-2, BR-OP-07): the figures of the original report leave the operation and the order again.</summary>
+public class OperationReportReversedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid ReversalReportId { get; set; }
+    public Guid OriginalReportId { get; set; }
+    public string DocNo { get; set; } = string.Empty;
+    public string OriginalDocNo { get; set; } = string.Empty;
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public int OperationSeq { get; set; }
+    public decimal GoodQty { get; set; }
+    public decimal ScrapQty { get; set; }
+    public decimal ReworkQty { get; set; }
+    public string? ReversedBy { get; set; }
+    public string? Note { get; set; }
+}
+
+/// <summary>A reversal of a finished-goods receipt is Posted (P4-2, BR-FG-07): the lots it received left stock again and the completed quantity of the order went down.</summary>
+public class FinishedGoodsReceiptReversedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid DocumentId { get; set; }
+    public string DocNo { get; set; } = string.Empty;
+    public Guid ReversalOfId { get; set; }
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public DateOnly PostingDate { get; set; }
+    public List<ReceiptMovementLine> Lines { get; set; } = [];
+}

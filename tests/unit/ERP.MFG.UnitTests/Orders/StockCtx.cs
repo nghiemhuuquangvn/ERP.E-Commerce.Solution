@@ -31,12 +31,18 @@ internal sealed class StockDocRepoFake : IStockDocumentRepository
 
     public Task<int> CountPendingAsync(Guid orderId, CancellationToken ct = default) => Task.FromResult(Docs.Count(d => d.OrderId == orderId && d.Status == StockDocumentStatus.Pending));
 
+    public Task<int> CountPendingReversalsAsync(Guid orderId, CancellationToken ct = default)
+        => Task.FromResult(Docs.Count(d => d.OrderId == orderId && d.Type == StockDocumentType.Reversal && d.Status == StockDocumentStatus.Pending));
+
+    public Task<MaterialTransaction?> FindReversalOfAsync(Guid originalDocumentId, CancellationToken ct = default)
+        => Task.FromResult(Docs.FirstOrDefault(d => d.ReversalOfId == originalDocumentId && d.Type == StockDocumentType.Reversal && d.Status != StockDocumentStatus.Failed));
+
     public Task<List<string>> LotNumbersInUseAsync(Guid itemId, CancellationToken ct = default)
         => Task.FromResult(Docs.Where(d => d.Status is StockDocumentStatus.Pending or StockDocumentStatus.Posted)
             .SelectMany(d => d.Lines.Where(l => l.Kind == StockLineKind.Receipt && l.ItemId == itemId && l.LotNumber != null && l.Status is StockLineStatus.Pending or StockLineStatus.Posted).Select(l => l.LotNumber!)).ToList());
 
     public Task<int> CountHeldLotsAsync(Guid orderId, CancellationToken ct = default)
-        => Task.FromResult(Docs.Where(d => d.OrderId == orderId && d.Status == StockDocumentStatus.Posted)
+        => Task.FromResult(Docs.Where(d => d.OrderId == orderId && d.Status == StockDocumentStatus.Posted && !d.IsReversed)
             .SelectMany(d => d.Lines).Count(l => l.Kind == StockLineKind.Receipt && l.IsQcHold && l.QcReleasedAt == null && l.Status == StockLineStatus.Posted));
 
     public Task<List<(Guid TenantId, Guid DocumentId)>> ListDueAsync(DateTime nowUtc, int take, CancellationToken ct = default)
@@ -49,7 +55,7 @@ internal sealed class StockDocRepoFake : IStockDocumentRepository
 internal class StockCtx : ReleaseCtx
 {
     public ReasonCode OverIssueReason { get; }
-    public StockPostingService Posting => new(Stock, F.ProductClient, Repo, F.Uow, PlantTime, Sync, Reports, new OperationLogCloser(TimeLogs, PlantTime), PlantSettings, NullLogger<StockPostingService>.Instance);
+    public StockPostingService Posting => new(Stock, F.ProductClient, Repo, F.Uow, PlantTime, Sync, Reports, Documents, new OperationLogCloser(TimeLogs, PlantTime), PlantSettings, NullLogger<StockPostingService>.Instance);
 
     public StockCtx()
     {

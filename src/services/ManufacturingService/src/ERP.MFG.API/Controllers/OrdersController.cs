@@ -1,6 +1,7 @@
 using Asp.Versioning;
 using ERP.MFG.Application.Features.Orders;
 using ERP.MFG.Application.Features.Receipts;
+using ERP.MFG.Application.Features.Reversals;
 using ERP.MFG.Application.Features.StockDocuments;
 using ERP.MFG.Domain.Common;
 using ERP.Shared.Authorization;
@@ -23,6 +24,7 @@ public class OrdersController(IMediator mediator) : ControllerBase
     public sealed record QuantityBody(decimal Quantity, string? Note);
     public sealed record MaterialBody(IReadOnlyList<MaterialLineBody> Lines, Guid? ReasonCodeId, string? Note);
     public sealed record ReceiptBody(IReadOnlyList<ReceiptLineBody> Lines, string? Note);
+    public sealed record ReverseReceiptBody(string? Note);
     public sealed record CompleteBody(Guid? ReasonCodeId, string? Note);
     public sealed record CloseBody(bool ConfirmConsumeRemaining);
     public sealed record UpdateBody(decimal Quantity, DateOnly DueDate, int? Priority, Guid? BomId, Guid? RoutingId, Guid? OutputWarehouseId, string? Notes);
@@ -117,6 +119,15 @@ public class OrdersController(IMediator mediator) : ControllerBase
     [AuthorizePermission(PermissionConstants.Manufacturing_ReceiptPost)]
     public async Task<IActionResult> Receive(Guid id, [FromBody] ReceiptBody b, [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey, CancellationToken ct)
         => Answer(await mediator.Send(new ReceiveFinishedGoodsCommand(id, b.Lines, b.Note, idempotencyKey), ct));
+
+    /// <summary>
+    /// Reverses a Posted receipt (P4-2, BR-FG-07; document RV): the finished goods leave stock again, what its backflush consumed comes back, <c>CompletedQty</c> goes down and a Completed order below the
+    /// completion threshold is reopened. Refused when the lot was released from quality hold or used (<c>MFG_FG_004</c>). 201 when Posted, 202 while the Warehouse is told again later.
+    /// </summary>
+    [HttpPost("{id:guid}/receipts/{documentId:guid}/reverse")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_ReceiptReverse)]
+    public async Task<IActionResult> ReverseReceipt(Guid id, Guid documentId, [FromBody] ReverseReceiptBody b, [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey, CancellationToken ct)
+        => Answer(await mediator.Send(new ReverseReceiptCommand(id, documentId, b.Note, idempotencyKey), ct));
 
     /// <summary>InProgress -> Completed by hand. At or above the under-completion tolerance no reason is needed; below it a short-close needs <c>order:short-close</c> and a ShortClose reason.</summary>
     [HttpPost("{id:guid}/complete")]

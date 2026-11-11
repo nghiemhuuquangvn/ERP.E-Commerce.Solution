@@ -131,10 +131,13 @@ public class OperationReport : BaseEntity
     public string? IdempotencyKey { get; private set; }
     public string? RequestHash { get; private set; }
 
-    /// <summary>For the reversal of a report (T4.2): kept in the schema, not used yet.</summary>
+    /// <summary>For the reversal of a report (P4-2, BR-OP-07): the report this one undoes. The quantities of a reversal are stored positive; this link says they leave the operation.</summary>
     public Guid? ReversalOfId { get; private set; }
 
+    /// <summary>The report has been undone by a Posted reversal.</summary>
     public bool IsReversed { get; private set; }
+
+    public bool IsReversal => ReversalOfId is not null;
     public string? Note { get; private set; }
     public DateTime? PostedAt { get; private set; }
 
@@ -157,6 +160,32 @@ public class OperationReport : BaseEntity
             ReworkReasonId = rework > 0 ? reworkReasonId : null, MachineId = machineId, ReportedBy = by, Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(),
             IdempotencyKey = idempotencyKey, RequestHash = requestHash, CreatedBy = by, UpdatedBy = by,
         };
+    }
+
+    /// <summary>
+    /// The counter-record that undoes <paramref name="original"/> (P4-2, BR-OP-07): same operation and quantities (positive), linked by <c>ReversalOfId</c>, Pending until the reversal
+    /// document that gives the backflush back has reached the Warehouse (or stored already Posted when nothing was consumed). The note is the reason.
+    /// </summary>
+    public static OperationReport CreateReversal(OperationReport original, string docNo, DateOnly postingDate, string note, string? idempotencyKey, string? requestHash, DateTime now, string by)
+    {
+        MfgRules.ThrowIf(string.IsNullOrWhiteSpace(docNo), MfgErrors.Gen002);
+        MfgRules.ThrowIf(original.Status != OperationReportStatus.Posted || original.IsReversal || original.IsReversed, MfgErrors.Rev001, ("document", original.DocNo), ("reason", "chỉ đảo được báo cáo đã ghi nhận và chưa bị đảo"));
+        return new OperationReport
+        {
+            Id = Guid.NewGuid(), DocNo = docNo, PlantId = original.PlantId, OrderId = original.OrderId, OrderNo = original.OrderNo, OrderOperationId = original.OrderOperationId, OperationSeq = original.OperationSeq,
+            ReportedAt = now, PostingDate = postingDate, GoodQty = original.GoodQty, ScrapQty = original.ScrapQty, ReworkQty = original.ReworkQty, ScrapReasonId = original.ScrapReasonId,
+            ReworkReasonId = original.ReworkReasonId, MachineId = original.MachineId, ReportedBy = by, Note = note.Trim(), ReversalOfId = original.Id, IdempotencyKey = idempotencyKey, RequestHash = requestHash,
+            CreatedBy = by, UpdatedBy = by,
+        };
+    }
+
+    /// <summary>A Posted reversal has undone this report (the caller applies the reversal to the order in the same save).</summary>
+    public void MarkReversed(string by)
+    {
+        MfgRules.ThrowIf(Status != OperationReportStatus.Posted || IsReversal || IsReversed, MfgErrors.Rev001, ("document", DocNo), ("reason", "báo cáo đã bị đảo"));
+        IsReversed = true;
+        UpdatedBy = by;
+        Touch();
     }
 
     /// <summary>The report waits for this backflush document.</summary>
@@ -188,6 +217,13 @@ public class OperationReport : BaseEntity
         UpdatedBy = by;
         Touch();
     }
+
+    /// <summary>The event that tells the world a reversal report undid <paramref name="original"/>.</summary>
+    internal OperationReportReversedEvent ToReversedEvent(OperationReport original) => new()
+    {
+        ReversalReportId = Id, OriginalReportId = original.Id, DocNo = DocNo, OriginalDocNo = original.DocNo, OrderId = OrderId, OrderNo = OrderNo, PlantId = PlantId, OperationSeq = OperationSeq,
+        GoodQty = GoodQty, ScrapQty = ScrapQty, ReworkQty = ReworkQty, ReversedBy = ReportedBy, Note = Note,
+    };
 
     /// <summary>The event that tells the world the report counts. Raised by the order when it applies the report.</summary>
     internal OperationReportedEvent ToEvent() => new()

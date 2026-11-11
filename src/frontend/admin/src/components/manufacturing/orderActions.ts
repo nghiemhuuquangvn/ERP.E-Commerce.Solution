@@ -21,6 +21,10 @@ export interface OrderActions {
   operationManual: boolean
   qcRelease: boolean
   retryDocuments: boolean
+  /** Reverse an operation report (P4-2): the order must be open for work; a Completed order is reopened first. */
+  reverseReport: boolean
+  /** Reverse a finished-goods receipt (P4-2): also on a Completed order (it reopens by itself when it falls below the threshold). */
+  reverseReceipt: boolean
 }
 
 export const ORDER_PERMISSION = {
@@ -40,11 +44,13 @@ export const ORDER_PERMISSION = {
   completeManual: 'manufacturing:operation:complete-manual',
   qc: 'manufacturing:qc:disposition',
   retry: 'manufacturing:stock-document:retry',
+  reverseReport: 'manufacturing:operation:reverse',
+  reverseReceipt: 'manufacturing:receipt:reverse',
 } as const
 
 const NONE: OrderActions = {
   edit: false, release: false, unrelease: false, cancel: false, hold: false, resume: false, changeQuantity: false, issue: false, returnMaterial: false, receive: false,
-  complete: false, reopen: false, close: false, work: false, operationManual: false, qcRelease: false, retryDocuments: false,
+  complete: false, reopen: false, close: false, work: false, operationManual: false, qcRelease: false, retryDocuments: false, reverseReport: false, reverseReceipt: false,
 }
 
 export function orderActions(status: OrderStatus, has: (permission: string) => boolean): OrderActions {
@@ -70,6 +76,8 @@ export function orderActions(status: OrderStatus, has: (permission: string) => b
     // the interim quality release and the document retry do not depend on the order's status
     qcRelease: status !== 'Draft' && status !== 'Cancelled' && has(p.qc),
     retryDocuments: has(p.retry),
+    reverseReport: open && has(p.reverseReport),
+    reverseReceipt: (open || status === 'Completed') && has(p.reverseReceipt),
   }
 }
 

@@ -12,10 +12,10 @@ const names = (a: OrderActions) => (Object.keys(a) as (keyof OrderActions)[]).fi
 describe('orderActions (TC-UI-001): the buttons follow the status, then the permissions', () => {
   const expected: Record<OrderStatus, (keyof OrderActions)[]> = {
     Draft: ['cancel', 'edit', 'release', 'retryDocuments'],
-    Released: ['cancel', 'changeQuantity', 'hold', 'issue', 'operationManual', 'qcRelease', 'receive', 'retryDocuments', 'returnMaterial', 'unrelease', 'work'],
-    InProgress: ['changeQuantity', 'complete', 'hold', 'issue', 'operationManual', 'qcRelease', 'receive', 'retryDocuments', 'returnMaterial', 'work'],
+    Released: ['cancel', 'changeQuantity', 'hold', 'issue', 'operationManual', 'qcRelease', 'receive', 'retryDocuments', 'returnMaterial', 'reverseReceipt', 'reverseReport', 'unrelease', 'work'],
+    InProgress: ['changeQuantity', 'complete', 'hold', 'issue', 'operationManual', 'qcRelease', 'receive', 'retryDocuments', 'returnMaterial', 'reverseReceipt', 'reverseReport', 'work'],
     OnHold: ['qcRelease', 'resume', 'retryDocuments'],
-    Completed: ['close', 'qcRelease', 'reopen', 'retryDocuments', 'returnMaterial'],
+    Completed: ['close', 'qcRelease', 'reopen', 'retryDocuments', 'returnMaterial', 'reverseReceipt'],
     Closed: ['qcRelease', 'retryDocuments'],
     Cancelled: ['retryDocuments'],
   }
@@ -39,6 +39,13 @@ describe('orderActions (TC-UI-001): the buttons follow the status, then the perm
     const a = orderActions('Completed', everyone)
     expect(a.returnMaterial).toBe(true)
     expect(a.issue).toBe(false)
+  })
+
+  it('a report is reversed only while the order is open for work, a receipt also on a Completed order (it reopens by itself)', () => {
+    expect(orderActions('Completed', everyone).reverseReport).toBe(false)
+    expect(orderActions('Completed', everyone).reverseReceipt).toBe(true)
+    expect(orderActions('InProgress', (p) => p === ORDER_PERMISSION.reverseReport).reverseReceipt).toBe(false)
+    expect(orderActions('InProgress', (p) => p === ORDER_PERMISSION.reverseReceipt).reverseReport).toBe(false)
   })
 
   it('completing needs the manual-complete or the short-close permission', () => {

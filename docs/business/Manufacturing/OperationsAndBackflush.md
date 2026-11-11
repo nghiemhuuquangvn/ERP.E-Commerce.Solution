@@ -106,7 +106,7 @@ None new. The stock-document list shows Pending / Failed backflush documents; th
 - The employee is named by the caller; Manufacturing has no link from a user to an employee.
 - Time zone: "Start <= now" compares instants (UTC).
 - A report or document stuck Pending blocks unrelease and cancel of its order (retry / abandon as in P3-3).
-- Reversal of a report (T4.2), downtime, IPQC and the finished-goods trigger of backflush come later.
+- Reversal of a report is done (P4-2, see `Reversals.md`); downtime, IPQC and the finished-goods trigger of backflush come later.
 
 ## 12. UAT
 1. MO-A released. Start operation 20: `MFG_OP_001`. Start operation 10 as NV001: Running, the order is InProgress. NV002 joins. NV001 again: `MFG_OP_006`.

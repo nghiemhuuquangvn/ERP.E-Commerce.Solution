@@ -62,6 +62,8 @@ A user sees only the plants granted to them (the plant selector lists those); an
 
 Quality release (`qc:disposition`) shows on a receipt with a held lot in any status except Draft and Cancelled. A viewer sees no button at all.
 
+**Reversals (P4-2, `Reversals.md`):** *Reverse report* (Operations tab, per Posted live report; `operation:reverse`; Released / InProgress only) and *Reverse receipt* (Finished goods and Stock documents tabs, per Posted receipt without a released lot; `receipt:reverse`; Released / InProgress / Completed). Both open a reason dialog (confirm first, shows what will be undone), send one `Idempotency-Key`, treat a 202 as "saved and waiting", show the server's refusal (`MFG_OP_007`, `MFG_FG_004`, `MFG_REV_001/002`) inside the dialog. Reversed reports / receipts show a **Reversed** badge; reversal rows show "reversal of ...".
+
 ## 5. Screens and fields
 **S15 list.** Columns: *Order* (link), *Item* (code + name), *Progress* (completed / quantity, bar), *Status*, *Priority*, *Due date* (+ Late), *Planned* (start -> end). Selection column for users with `order:release`. Empty state: "No production orders match."
 

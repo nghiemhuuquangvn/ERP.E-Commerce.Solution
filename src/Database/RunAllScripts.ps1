@@ -53,6 +53,7 @@ $DatabaseScripts = @(
     "Identity\032_SeedPriceOverridePermission.sql",
     "Identity\033_AddManufacturingModule.sql",
     "Identity\034_SeedManufacturingOrderPermissions.sql",
+    "Identity\035_SeedManufacturingReversalPermissions.sql",
 
     # Cross-cutting master data (Department/Position/Employee/UoM/Geography/Language —
     # seed before HRM, which now references Employees/Departments here instead of owning them)

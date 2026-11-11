@@ -4,10 +4,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { mfgApi, type StockDocument, type StockDocumentLine } from '@/api/manufacturing/mfg.api'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { ReasonDialog } from '@/components/shared/ReasonDialog'
 import { Alert, Badge, Button, useToast } from '@/components/ui'
 import { serverMessage } from '@/lib/serverMessage'
 import { DocStatusBadge, DocTypeLabel } from './OrderBadges'
-import { fmtDate, fmtDateTime, fmtQty } from './shared'
+import { fmtDate, fmtDateTime, fmtQty, useIdempotencyKey } from './shared'
 
 function LineTable({ doc }: { doc: StockDocument }) {
   const { t } = useTranslation()
@@ -38,6 +39,7 @@ function LineTable({ doc }: { doc: StockDocument }) {
               <td className="py-1 pr-3 text-right tabular-nums">{fmtQty(l.qty)}</td>
               <td className="py-1 pr-3 font-mono">
                 {l.lotNumber ?? ''}
+                {!l.lotNumber && (l.lots ?? []).length > 0 && <span>{(l.lots ?? []).map((x) => `${x.lotNumber} × ${fmtQty(x.qty)}`).join(', ')}</span>}
                 {l.isQcHold && <Badge variant="warning" className="ml-1">{t('mfg.doc.onHold')}</Badge>}
                 {l.qcReleasedAt && <Badge variant="success" className="ml-1">{t('mfg.doc.released')}</Badge>}
                 {l.isNegativeStock && <Badge variant="danger" className="ml-1">{t('mfg.doc.negative')}</Badge>}
@@ -61,19 +63,24 @@ interface StockDocumentsTableProps {
   showOrder?: boolean
   /** The quality-release button of a posted receipt that still has held lots (needs `qc:disposition`). */
   canQcRelease?: boolean
+  /** The reverse button of a posted receipt (needs `receipt:reverse`; hidden once a lot was released from quality hold or the receipt is already reversed). */
+  canReverse?: boolean
   /** Level of each document heading (2 under the page title; 3 when the table sits under a section heading). */
   headingLevel?: 2 | 3
   onChanged?: () => void
 }
 
 /** Stock documents with their lines. A Pending document is still on its way to the Warehouse (not an error); a Failed one shows why. */
-export function StockDocumentsTable({ documents, canRetry, showOrder = false, canQcRelease = false, headingLevel = 2, onChanged }: StockDocumentsTableProps) {
+export function StockDocumentsTable({ documents, canRetry, showOrder = false, canQcRelease = false, canReverse = false, headingLevel = 2, onChanged }: StockDocumentsTableProps) {
   const Heading = `h${headingLevel}` as 'h2' | 'h3'
   const { t } = useTranslation()
   const toast = useToast()
   const queryClient = useQueryClient()
   const [abandon, setAbandon] = useState<StockDocument | null>(null)
   const [release, setRelease] = useState<StockDocument | null>(null)
+  const [reversing, setReversing] = useState<StockDocument | null>(null)
+  const [reverseError, setReverseError] = useState<string | null>(null)
+  const reverseKey = useIdempotencyKey()
   const refresh = () => { queryClient.invalidateQueries({ queryKey: ['mfg', 'order'] }); queryClient.invalidateQueries({ queryKey: ['mfg', 'documents'] }); onChanged?.() }
   const retry = useMutation({
     mutationFn: (id: string) => mfgApi.retryDocument(id),
@@ -91,6 +98,12 @@ export function StockDocumentsTable({ documents, canRetry, showOrder = false, ca
     onError: (e) => { setRelease(null); toast.error(serverMessage(e, t('mfg.doc.retryFailed'))) },
   })
 
+  const reverse = useMutation({
+    mutationFn: ({ doc, note }: { doc: StockDocument; note: string }) => mfgApi.reverseReceipt(doc.orderId, doc.id, note, reverseKey({ doc: doc.id, note })),
+    onSuccess: (r) => { setReversing(null); setReverseError(null); refresh(); r.pending ? toast.info(t('mfg.rev.pending')) : toast.success(t('mfg.rev.receiptReversed')) },
+    onError: (e) => setReverseError(serverMessage(e, t('common.failedToSave'))),
+  })
+
   if (documents.length === 0) return <p className="text-sm text-ink-secondary">{t('mfg.doc.empty')}</p>
   return (
     <div className="space-y-4">
@@ -103,6 +116,8 @@ export function StockDocumentsTable({ documents, canRetry, showOrder = false, ca
               <DocTypeLabel type={d.type} />
               <DocStatusBadge status={d.status} />
               {d.mode === 'Rollback' && <Badge variant="warning">{t('mfg.doc.rollback')}</Badge>}
+              {d.isReversed && <Badge variant="muted">{t('mfg.rev.reversed')}</Badge>}
+              {d.reversalOfId && <span className="text-xs text-ink-secondary">{t('mfg.rev.reversalOf', { doc: documents.find((x) => x.id === d.reversalOfId)?.docNo ?? '' })}</span>}
               {showOrder && <Link className="text-sm text-brand-action hover:underline" to={`/manufacturing/orders/${d.orderId}`}>{d.orderNo}</Link>}
               <span className="text-xs text-ink-secondary">{fmtDateTime(d.postedAt ?? d.createdAt)}{d.createdBy ? ` · ${d.createdBy}` : ''}</span>
               <div className="ml-auto flex flex-wrap gap-2">
@@ -113,6 +128,9 @@ export function StockDocumentsTable({ documents, canRetry, showOrder = false, ca
                   </>
                 )}
                 {heldLines && canQcRelease && <Button size="sm" variant="secondary" onClick={() => setRelease(d)}>{t('mfg.doc.qcRelease')}</Button>}
+                {canReverse && d.type === 'Receipt' && d.status === 'Posted' && !d.isReversed && !d.lines.some((l) => l.qcReleasedAt) && (
+                  <Button size="sm" variant="outline" onClick={() => { setReverseError(null); setReversing(d) }}>{t('mfg.rev.reverseReceipt')}</Button>
+                )}
               </div>
             </div>
             {d.status === 'Pending' && (
@@ -125,6 +143,17 @@ export function StockDocumentsTable({ documents, canRetry, showOrder = false, ca
           </section>
         )
       })}
+      <ReasonDialog
+        open={!!reversing}
+        danger
+        title={t('mfg.rev.receiptTitle', { doc: reversing?.docNo ?? '' })}
+        message={reversing ? t('mfg.rev.receiptMessage', { doc: reversing.docNo, lines: reversing.lines.filter((l) => l.kind === 'Receipt').map((l) => `${l.itemCode} ${fmtQty(l.qty)}${l.lotNumber ? ` (${l.lotNumber})` : ''}`).join(', ') }) : ''}
+        confirmLabel={t('mfg.rev.reverseReceipt')}
+        busy={reverse.isPending}
+        error={reverseError}
+        onCancel={() => { setReversing(null); setReverseError(null) }}
+        onConfirm={(note) => reversing && reverse.mutate({ doc: reversing, note })}
+      />
       <ConfirmDialog open={!!abandon} danger title={t('mfg.doc.abandonTitle')} message={t('mfg.doc.abandonMessage', { doc: abandon?.docNo ?? '' })} confirmLabel={t('mfg.doc.abandon')} onCancel={() => setAbandon(null)} onConfirm={() => abandon && abandonIt.mutate(abandon.id)} />
       <ConfirmDialog open={!!release} title={t('mfg.doc.qcReleaseTitle')} message={t('mfg.doc.qcReleaseMessage', { doc: release?.docNo ?? '' })} confirmLabel={t('mfg.doc.qcRelease')} onCancel={() => setRelease(null)} onConfirm={() => release && qc.mutate(release.id)} />
     </div>

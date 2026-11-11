@@ -6,11 +6,35 @@ namespace ERP.MFG.Domain.Entities;
 
 /// <summary>A line to store: ONE Warehouse movement of one material of the order.</summary>
 public sealed record NewStockLine(Guid? OrderMaterialId, int? MaterialLineNo, Guid ItemId, string ItemCode, Guid WarehouseId, Guid? LotId, decimal Qty, bool IsFromReservation, decimal? UnitCost, bool IsNegativeStock = false,
-    StockLineKind Kind = StockLineKind.Material, Guid? OrderOutputId = null, int? OutputLineNo = null, string? LotNumber = null, DateTime? ExpiryDate = null, DateTime? ManufactureDate = null, bool IsQcHold = false)
+    StockLineKind Kind = StockLineKind.Material, Guid? OrderOutputId = null, int? OutputLineNo = null, string? LotNumber = null, DateTime? ExpiryDate = null, DateTime? ManufactureDate = null, bool IsQcHold = false,
+    ReversalAction? Action = null, Guid? ReversesLineId = null)
 {
     /// <summary>A line that brings the main product (<paramref name="outputId"/> null) or a co- / by-product into stock (P3-5). The lot is created by the Warehouse from <paramref name="lotNumber"/>.</summary>
     public static NewStockLine Receipt(Guid itemId, string itemCode, Guid warehouseId, decimal qty, Guid? outputId, int? outputLineNo, string? lotNumber, DateTime? expiry, DateTime? manufactured, bool qcHold)
         => new(null, null, itemId, itemCode, warehouseId, null, qty, false, null, false, StockLineKind.Receipt, outputId, outputLineNo, lotNumber, expiry, manufactured, qcHold);
+}
+
+/// <summary>One lot a Warehouse movement really used (Warehouse W7 <c>lots[]</c>), kept on the line so a reversal can name the lot(s) it gives back.</summary>
+public sealed record LineLot(Guid LotId, string LotNumber, decimal Qty, decimal UnitCost, Guid? WarehouseId, Guid? ParentLotId);
+
+/// <summary>A stored <see cref="LineLot"/> row of a line (P4-2): the per-lot breakdown of the movement, in the order the Warehouse answered it.</summary>
+public class MaterialTransactionLineLot : BaseEntity
+{
+    private MaterialTransactionLineLot() { }
+
+    public Guid LineId { get; private set; }
+    public int Position { get; private set; }
+    public Guid LotId { get; private set; }
+    public string LotNumber { get; private set; } = string.Empty;
+    public decimal Qty { get; private set; }
+    public decimal? UnitCost { get; private set; }
+    public Guid? WarehouseId { get; private set; }
+    public Guid? ParentLotId { get; private set; }
+
+    internal static MaterialTransactionLineLot Create(Guid lineId, int position, LineLot v) => new()
+    {
+        Id = Guid.NewGuid(), LineId = lineId, Position = position, LotId = v.LotId, LotNumber = v.LotNumber, Qty = v.Qty, UnitCost = v.UnitCost, WarehouseId = v.WarehouseId, ParentLotId = v.ParentLotId,
+    };
 }
 
 /// <summary>
@@ -40,6 +64,18 @@ public class MaterialTransactionLine : BaseEntity
 
     /// <summary>When the interim quality release moved the held lot to the finished-goods warehouse and made it Available.</summary>
     public DateTime? QcReleasedAt { get; private set; }
+
+    /// <summary>Reversal documents only (P4-2): what this line does in the Warehouse, and the line of the original document it undoes.</summary>
+    public ReversalAction? ReversalAction { get; private set; }
+
+    public Guid? ReversesLineId { get; private set; }
+
+    private readonly List<MaterialTransactionLineLot> _lots = [];
+
+    /// <summary>The lots the Warehouse really used for this line (W7), in answer order; empty for a line posted before they were stored or a lot-less line.</summary>
+    public IReadOnlyList<MaterialTransactionLineLot> Lots => _lots.Where(l => !l.IsDeleted).OrderBy(l => l.Position).ToList();
+
+    public IReadOnlyList<MaterialTransactionLineLot> AllLots => _lots;
 
     public Guid ItemId { get; private set; }
     public string ItemCode { get; private set; } = string.Empty;
@@ -72,14 +108,16 @@ public class MaterialTransactionLine : BaseEntity
     {
         Id = Guid.NewGuid(), TransactionId = transactionId, LineNo = lineNo, OrderMaterialId = v.OrderMaterialId, MaterialLineNo = v.MaterialLineNo, ItemId = v.ItemId, ItemCode = v.ItemCode,
         WarehouseId = v.WarehouseId, LotId = v.LotId, Qty = v.Qty, IsFromReservation = v.IsFromReservation, UnitCost = v.UnitCost, IsNegativeStock = v.IsNegativeStock,
-        Kind = v.Kind, OrderOutputId = v.OrderOutputId, OutputLineNo = v.OutputLineNo, LotNumber = v.LotNumber, ExpiryDate = v.ExpiryDate, ManufactureDate = v.ManufactureDate, IsQcHold = v.IsQcHold,
-        MovementKey = KeyFor(docNo, lineNo, v.Kind == StockLineKind.Material && type != StockDocumentType.Return && !v.IsFromReservation),
+        Kind = v.Kind, OrderOutputId = v.OrderOutputId, OutputLineNo = v.OutputLineNo, LotNumber = v.LotNumber, ExpiryDate = v.ExpiryDate, ManufactureDate = v.ManufactureDate, IsQcHold = v.IsQcHold, ReversalAction = v.Action, ReversesLineId = v.ReversesLineId,
+        MovementKey = KeyFor(docNo, lineNo, v.Kind == StockLineKind.Material && type is not (StockDocumentType.Return or StockDocumentType.Reversal) && !v.IsFromReservation),
     };
 
     internal static string KeyFor(string docNo, int lineNo, bool free) => $"{docNo}#{lineNo}{(free ? "F" : "")}";
 
-    internal void MarkPosted(Guid movementId, decimal? unitCost, decimal? valueDelta, Guid? lotId)
+    internal void MarkPosted(Guid movementId, decimal? unitCost, decimal? valueDelta, Guid? lotId, IReadOnlyList<LineLot>? lots = null)
     {
+        if (lots is { Count: > 0 } && _lots.Count == 0)
+            for (var i = 0; i < lots.Count; i++) _lots.Add(MaterialTransactionLineLot.Create(Id, i, lots[i]));
         Status = StockLineStatus.Posted;
         WhMovementId = movementId;
         UnitCost = unitCost ?? UnitCost;
@@ -148,6 +186,9 @@ public class MaterialTransaction : BaseEntity
     public DateTime? PostedAt { get; private set; }
     public Guid? ReversalOfId { get; private set; }
 
+    /// <summary>The document has been undone by a Posted reversal (P4-2): its figures are no longer in the order, its stock is no longer in the Warehouse.</summary>
+    public bool IsReversed { get; private set; }
+
     /// <summary>For a backflush: the operation report whose output it consumes for (applied together with it).</summary>
     public Guid? SourceOperationReportId { get; private set; }
 
@@ -162,8 +203,11 @@ public class MaterialTransaction : BaseEntity
     /// <summary>The material lines: what an issue, a return or a backflush moves, and the backflush part of a receipt.</summary>
     public IEnumerable<MaterialTransactionLine> MaterialLines => Lines.Where(l => l.Kind == StockLineKind.Material);
 
-    /// <summary>True when the line takes stock out (an issue, a backflush, or the backflush part of a receipt) rather than bringing it in (a return, a receipt line).</summary>
-    public bool TakesStockOut(MaterialTransactionLine line) => line.Kind == StockLineKind.Material && Type != StockDocumentType.Return;
+    /// <summary>True when the line takes stock out (an issue, a backflush, or the backflush part of a receipt; on a reversal: a lot leaving stock) rather than bringing it in (a return, a receipt line, a reversal giving stock back).</summary>
+    public bool TakesStockOut(MaterialTransactionLine line)
+        => Type == StockDocumentType.Reversal ? line.ReversalAction is ReversalAction.Scrap or ReversalAction.Issue : line.Kind == StockLineKind.Material && Type != StockDocumentType.Return;
+
+    public bool IsReversal => Type == StockDocumentType.Reversal;
 
     public bool IsIssue => Type == StockDocumentType.Issue;
 
@@ -171,14 +215,14 @@ public class MaterialTransaction : BaseEntity
     public bool IsConsumption => Type is StockDocumentType.Issue or StockDocumentType.Backflush;
 
     public static MaterialTransaction Create(string docNo, StockDocumentType type, Guid plantId, Guid orderId, string orderNo, DateOnly postingDate, Guid? reasonCodeId, string? note,
-        string? idempotencyKey, string? requestHash, IReadOnlyList<NewStockLine> lines, string createdBy, Guid? sourceOperationReportId = null)
+        string? idempotencyKey, string? requestHash, IReadOnlyList<NewStockLine> lines, string createdBy, Guid? sourceOperationReportId = null, Guid? reversalOfId = null)
     {
         MfgRules.ThrowIf(string.IsNullOrWhiteSpace(docNo), MfgErrors.Gen002);
         MfgRules.ThrowIf(lines.Count == 0 || lines.Any(l => l.Qty <= 0), MfgErrors.Mat001);
         var doc = new MaterialTransaction
         {
             Id = Guid.NewGuid(), DocNo = docNo, Type = type, PlantId = plantId, OrderId = orderId, OrderNo = orderNo, PostingDate = postingDate, ReasonCodeId = reasonCodeId,
-            Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(), IdempotencyKey = idempotencyKey, RequestHash = requestHash, SourceOperationReportId = sourceOperationReportId, CreatedBy = createdBy, UpdatedBy = createdBy,
+            Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(), IdempotencyKey = idempotencyKey, RequestHash = requestHash, SourceOperationReportId = sourceOperationReportId, ReversalOfId = reversalOfId, CreatedBy = createdBy, UpdatedBy = createdBy,
         };
         var no = 0;
         foreach (var line in lines) doc._lines.Add(MaterialTransactionLine.Create(doc.Id, docNo, type, ++no, line));
@@ -194,9 +238,9 @@ public class MaterialTransaction : BaseEntity
     /// <summary>Nothing booked in the Warehouse is left to reverse.</summary>
     public bool RollbackComplete => Lines.All(l => l.Status != StockLineStatus.Posted);
 
-    public void RecordLinePosted(MaterialTransactionLine line, Guid movementId, decimal? unitCost, decimal? valueDelta, Guid? lotId)
+    public void RecordLinePosted(MaterialTransactionLine line, Guid movementId, decimal? unitCost, decimal? valueDelta, Guid? lotId, IReadOnlyList<LineLot>? lots = null)
     {
-        line.MarkPosted(movementId, unitCost, valueDelta, lotId);
+        line.MarkPosted(movementId, unitCost, valueDelta, lotId, lots);
         Attempts = 0;
         LastError = null;
         UpdatedAt = DateTime.UtcNow;
@@ -268,7 +312,28 @@ public class MaterialTransaction : BaseEntity
         {
             ItemId = l.ItemId, ItemCode = l.ItemCode, WarehouseId = l.WarehouseId, LotId = l.PostedLotId ?? l.LotId, Quantity = l.Qty, UnitCost = l.UnitCost, Amount = l.Amount,
         }).ToList();
-        if (Type == StockDocumentType.Receipt)
+        if (Type == StockDocumentType.Reversal)
+        {
+            var receipt = ReceiptLines.Where(l => l.Status == StockLineStatus.Posted).ToList();
+            if (receipt.Count > 0)
+                AddDomainEvent(new FinishedGoodsReceiptReversedEvent
+                {
+                    DocumentId = Id, DocNo = DocNo, ReversalOfId = ReversalOfId ?? Guid.Empty, OrderId = OrderId, OrderNo = OrderNo, PlantId = PlantId, PostingDate = PostingDate,
+                    Lines = receipt.Select(l => new ReceiptMovementLine
+                    {
+                        ItemId = l.ItemId, ItemCode = l.ItemCode, WarehouseId = l.WarehouseId, LotId = l.PostedLotId ?? l.LotId, Quantity = l.Qty, UnitCost = l.UnitCost, Amount = l.Amount,
+                        OutputLineNo = l.OutputLineNo, LotNumber = l.LotNumber, ExpiryDate = l.ExpiryDate, IsQcHold = l.IsQcHold,
+                    }).ToList(),
+                });
+            var returned = MaterialLines.Where(l => l.Status == StockLineStatus.Posted).ToList();
+            if (returned.Count > 0)
+                AddDomainEvent(new MaterialReturnedEvent
+                {
+                    DocumentId = Id, DocNo = DocNo, OrderId = OrderId, OrderNo = OrderNo, PlantId = PlantId, PostingDate = PostingDate, ReasonCodeId = null,
+                    Lines = returned.Select(l => new StockMovementLine { ItemId = l.ItemId, ItemCode = l.ItemCode, WarehouseId = l.WarehouseId, LotId = l.PostedLotId ?? l.LotId, Quantity = l.Qty, UnitCost = l.UnitCost, Amount = l.Amount }).ToList(),
+                });
+        }
+        else if (Type == StockDocumentType.Receipt)
         {
             AddDomainEvent(new FinishedGoodsReceivedEvent
             {
@@ -293,6 +358,14 @@ public class MaterialTransaction : BaseEntity
             AddDomainEvent(new MaterialIssuedEvent { DocumentId = Id, DocNo = DocNo, OrderId = OrderId, OrderNo = OrderNo, PlantId = PlantId, PostingDate = PostingDate, ReasonCodeId = ReasonCodeId, Lines = lines });
         else
             AddDomainEvent(new MaterialReturnedEvent { DocumentId = Id, DocNo = DocNo, OrderId = OrderId, OrderNo = OrderNo, PlantId = PlantId, PostingDate = PostingDate, ReasonCodeId = ReasonCodeId, Lines = lines });
+    }
+
+    /// <summary>A Posted reversal has undone this document (the caller applies the reversal to the order in the same save).</summary>
+    public void MarkReversed(string by)
+    {
+        MfgRules.ThrowIf(Status != StockDocumentStatus.Posted || IsReversal, MfgErrors.Gen001);
+        IsReversed = true;
+        Touch(by);
     }
 
     /// <summary>The user gives the document up: what is posted is reversed, then the document is Failed (<c>abandoned</c>).</summary>

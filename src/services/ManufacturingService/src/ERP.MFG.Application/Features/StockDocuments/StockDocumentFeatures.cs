@@ -17,19 +17,24 @@ namespace ERP.MFG.Application.Features.StockDocuments;
 public sealed record StockDocumentLineDto(
     int LineNo, Guid? OrderMaterialId, int? MaterialLineNo, Guid ItemId, string ItemCode, Guid WarehouseId, Guid? LotId, decimal Qty, bool IsFromReservation, string MovementKey,
     StockLineStatus Status, decimal? UnitCost, decimal? Amount, Guid? PostedLotId, string? Error, StockLineKind Kind = StockLineKind.Material, int? OutputLineNo = null, string? LotNumber = null,
-    DateTime? ExpiryDate = null, bool IsQcHold = false, DateTime? QcReleasedAt = null, bool IsNegativeStock = false, DateTime? ManufactureDate = null)
+    DateTime? ExpiryDate = null, bool IsQcHold = false, DateTime? QcReleasedAt = null, bool IsNegativeStock = false, DateTime? ManufactureDate = null, ReversalAction? ReversalAction = null,
+    IReadOnlyList<StockLineLotDto>? Lots = null)
 {
     public static StockDocumentLineDto From(MaterialTransactionLine l) => new(l.LineNo, l.OrderMaterialId, l.MaterialLineNo, l.ItemId, l.ItemCode, l.WarehouseId, l.LotId, l.Qty,
         l.IsFromReservation, l.MovementKey, l.Status, l.UnitCost, l.Amount, l.PostedLotId, l.Error, l.Kind, l.OutputLineNo, l.LotNumber, l.ExpiryDate, l.IsQcHold, l.QcReleasedAt, l.IsNegativeStock,
-        l.ManufactureDate);
+        l.ManufactureDate, l.ReversalAction, l.Lots.Select(x => new StockLineLotDto(x.LotId, x.LotNumber, x.Qty, x.UnitCost, x.WarehouseId, x.ParentLotId)).ToList());
 }
+
+/// <summary>One lot the Warehouse really used for a line (W7 breakdown, kept since P4-2).</summary>
+public sealed record StockLineLotDto(Guid LotId, string LotNumber, decimal Qty, decimal? UnitCost, Guid? WarehouseId, Guid? ParentLotId);
 
 public sealed record StockDocumentDto(
     Guid Id, string DocNo, Guid PlantId, Guid OrderId, string OrderNo, StockDocumentType Type, StockDocumentStatus Status, StockDocumentMode Mode, DateOnly PostingDate, Guid? ReasonCodeId,
-    string? Note, int Attempts, DateTime? NextAttemptAt, string? LastError, string? LastErrorCode, DateTime? PostedAt, DateTime CreatedAt, string? CreatedBy, IReadOnlyList<StockDocumentLineDto> Lines)
+    string? Note, int Attempts, DateTime? NextAttemptAt, string? LastError, string? LastErrorCode, DateTime? PostedAt, DateTime CreatedAt, string? CreatedBy, IReadOnlyList<StockDocumentLineDto> Lines,
+    Guid? ReversalOfId = null, bool IsReversed = false)
 {
     public static StockDocumentDto From(MaterialTransaction d) => new(d.Id, d.DocNo, d.PlantId, d.OrderId, d.OrderNo, d.Type, d.Status, d.Mode, d.PostingDate, d.ReasonCodeId, d.Note,
-        d.Attempts, d.NextAttemptAt, d.LastError, d.LastErrorCode, d.PostedAt, d.CreatedAt, d.CreatedBy, d.Lines.Select(StockDocumentLineDto.From).ToList());
+        d.Attempts, d.NextAttemptAt, d.LastError, d.LastErrorCode, d.PostedAt, d.CreatedAt, d.CreatedBy, d.Lines.Select(StockDocumentLineDto.From).ToList(), d.ReversalOfId, d.IsReversed);
 }
 
 /// <summary>The answer of a posting call: 201 when the document is Posted, 202 when it is still Pending (the Warehouse will be told again).</summary>

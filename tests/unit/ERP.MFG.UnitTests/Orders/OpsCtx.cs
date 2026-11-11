@@ -18,7 +18,11 @@ internal sealed class ReportRepoFake : IOperationReportRepository
     public Task<OperationReport?> FindByKeyAsync(string key, CancellationToken ct = default) => Task.FromResult(Items.FirstOrDefault(r => r.IdempotencyKey == key));
     public Task<List<OperationReport>> ListForOrderAsync(Guid orderId, CancellationToken ct = default) => Task.FromResult(Items.Where(r => r.OrderId == orderId).OrderBy(r => r.ReportedAt).ToList());
     public Task<List<OperationReport>> ListPendingForOrderAsync(Guid orderId, CancellationToken ct = default)
-        => Task.FromResult(Items.Where(r => r.OrderId == orderId && r.Status == OperationReportStatus.Pending).ToList());
+        => Task.FromResult(Items.Where(r => r.OrderId == orderId && r.Status == OperationReportStatus.Pending && r.ReversalOfId == null).ToList());
+    public Task<List<OperationReport>> ListPendingReversalsForOrderAsync(Guid orderId, CancellationToken ct = default)
+        => Task.FromResult(Items.Where(r => r.OrderId == orderId && r.Status == OperationReportStatus.Pending && r.ReversalOfId != null).ToList());
+    public Task<OperationReport?> FindReversalOfAsync(Guid originalReportId, CancellationToken ct = default)
+        => Task.FromResult(Items.FirstOrDefault(r => r.ReversalOfId == originalReportId && r.Status != OperationReportStatus.Failed));
     public void Add(OperationReport report) => Items.Add(report);
 }
 
@@ -84,7 +88,7 @@ internal class OpsCtx : StockCtx
     // ── Finished goods, complete, reopen, close (P3-5) ──────────────────────────────────────────────────────
 
     public Task<StockDocumentResultDto> ReceiveAsync(ProductionOrder order, IReadOnlyList<ReceiptLineBody> lines, string? key = null, IStockPostingService? posting = null)
-        => new ReceiveFinishedGoodsHandler(Access, Repo, Documents, Stock, F.ProductClient, F.UnitClient, F.ProfileRepo, PlantSettings, Planner, Numbers, PlantTime, posting ?? Posting, User, F.Uow)
+        => new ReceiveFinishedGoodsHandler(Access, Repo, Documents, Reports, Stock, F.ProductClient, F.UnitClient, F.ProfileRepo, PlantSettings, Planner, Numbers, PlantTime, posting ?? Posting, User, F.Uow)
             .Handle(new ReceiveFinishedGoodsCommand(order.Id, lines, null, key), default);
 
     public Task<StockDocumentResultDto> ReceiveMainAsync(ProductionOrder order, decimal quantity, string? lot = null, string? key = null)
@@ -107,6 +111,16 @@ internal class OpsCtx : StockCtx
         => new QcReleaseReceiptHandler(Access, Documents, Repo, Stock, PlantTime, F.Uow).Handle(new QcReleaseReceiptCommand(documentId), default);
 
     public ReasonCode ShortCloseReason { get; set; } = null!;
+
+    // ── Reversal (P4-2) ─────────────────────────────────────────────────────────────────────────────────────
+
+    public Task<OperationReportResultDto> ReverseReportAsync(ProductionOrder order, Guid reportId, string? note = "wrong quantity", string? key = null, IStockPostingService? posting = null)
+        => new ERP.MFG.Application.Features.Reversals.ReverseOperationReportHandler(Access, Repo, Reports, Documents, PlantSettings, Numbers, PlantTime, posting ?? Posting, User, F.Uow)
+            .Handle(new ERP.MFG.Application.Features.Reversals.ReverseOperationReportCommand(order.Id, reportId, note, key), default);
+
+    public Task<StockDocumentResultDto> ReverseReceiptAsync(ProductionOrder order, Guid documentId, string? note = "wrong receipt", string? key = null, IStockPostingService? posting = null)
+        => new ERP.MFG.Application.Features.Reversals.ReverseReceiptHandler(Access, Repo, Documents, Reports, Stock, Numbers, PlantTime, posting ?? Posting, User, F.Uow)
+            .Handle(new ERP.MFG.Application.Features.Reversals.ReverseReceiptCommand(order.Id, documentId, note, key), default);
 
     /// <summary>Makes TP-BAN01 a lot-controlled finished good that may need final inspection, with a shelf life.</summary>
     public void FinishedGoodIs(bool lotControlled, bool fqc, int shelfLifeDays = 0, string code = "TP-BAN01")
