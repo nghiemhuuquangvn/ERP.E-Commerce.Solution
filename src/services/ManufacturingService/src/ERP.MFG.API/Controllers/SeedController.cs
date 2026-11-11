@@ -35,4 +35,16 @@ public class SeedController(IMediator mediator, IConfiguration configuration) : 
         if (!configuration.GetValue<bool>("Manufacturing:EnableDemoSeed")) return NotFound();
         return Ok(await mediator.Send(new RunStockCycleCommand(body), ct));
     }
+
+    /// <summary>
+    /// Warehouse W7 check through the real internal stock API: a held lot is split by a partial move, the sub-lot is released alone, the held rest is issued
+    /// for rework (only with the flag) and a multi-lot reservation issue answers its lots. Changes stock of the products named, writes nothing in Manufacturing. Same switch as DS-01.
+    /// </summary>
+    [HttpPost("lot-cycle")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_SettingsManage)]
+    public async Task<IActionResult> LotCycle([FromBody] LotCycleRequest body, CancellationToken ct)
+    {
+        if (!configuration.GetValue<bool>("Manufacturing:EnableDemoSeed")) return NotFound();
+        return Ok(await mediator.Send(new RunLotCycleCommand(body), ct));
+    }
 }

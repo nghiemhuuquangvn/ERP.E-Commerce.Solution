@@ -59,6 +59,20 @@ public class StockMovement : ITenantOwned
     /// <summary>Signed effect on the per-item total (Quantity has no consistent sign for the older types).</summary>
     public decimal? StockDelta { get; private set; }
 
+    /// <summary>
+    /// The lot(s) the movement acted on (W7). <see cref="LotId"/> stays the lot named in the request (and null for an issue that drew from several
+    /// lots); these rows say which lots were really used: one per lot taken by a reservation issue, the lot of a free issue / scrap / return /
+    /// quality release / receipt, the new sub-lot of a split transfer. A lot-less remainder is not a row. Movements booked before W7 have no rows.
+    /// </summary>
+    public List<StockMovementLot> Lots { get; private set; } = [];
+
+    /// <summary>Records one lot the movement acted on.</summary>
+    public StockMovement AddLot(Guid lotId, string lotNumber, decimal quantity, decimal unitCost, Guid? warehouseId, Guid? parentLotId = null)
+    {
+        Lots.Add(new StockMovementLot(MovementId, Lots.Count, lotId, lotNumber, quantity, unitCost, warehouseId, parentLotId));
+        return this;
+    }
+
     /// <summary>Where, in which lot, at what cost and with what effect the movement happened.</summary>
     public StockMovement Describe(Guid? warehouseId, Guid? lotId, decimal unitCost, decimal valueDelta, decimal stockDelta)
     {
@@ -92,5 +106,40 @@ public class StockMovement : ITenantOwned
         Reason = reason;
         SourceOrderId = sourceOrderId;
         RecordedAt = DateTime.UtcNow;
+    }
+}
+
+/// <summary>One lot a stock movement acted on (W7): the per-lot split of a production movement, kept so that traceability can read it later.</summary>
+public class StockMovementLot : ITenantOwned
+{
+    public Guid LotRowId { get; private set; }
+    /// <summary>Owning tenant - stamped by WarehouseDbContext on insert (EnforceTenantOnSave).</summary>
+    public Guid TenantId { get; private set; }
+    public Guid MovementId { get; private set; }
+    /// <summary>Order of the rows in the movement's answer (0, 1, ...): a replay must list the lots in the same order as the first answer.</summary>
+    public int Position { get; private set; }
+    public Guid LotId { get; private set; }
+    /// <summary>The lot number at the time (a snapshot: the answer of a replay must not change if the lot is renamed).</summary>
+    public string LotNumber { get; private set; } = null!;
+    public decimal Quantity { get; private set; }
+    /// <summary>The cost used for this lot's share of the movement value.</summary>
+    public decimal? UnitCost { get; private set; }
+    public Guid? WarehouseId { get; private set; }
+    /// <summary>Set when the lot is a sub-lot created by this movement: the lot it was split off from.</summary>
+    public Guid? ParentLotId { get; private set; }
+
+    private StockMovementLot() { }
+
+    public StockMovementLot(Guid movementId, int position, Guid lotId, string lotNumber, decimal quantity, decimal? unitCost, Guid? warehouseId, Guid? parentLotId)
+    {
+        LotRowId = Guid.NewGuid();
+        MovementId = movementId;
+        Position = position;
+        LotId = lotId;
+        LotNumber = lotNumber;
+        Quantity = quantity;
+        UnitCost = unitCost;
+        WarehouseId = warehouseId;
+        ParentLotId = parentLotId;
     }
 }

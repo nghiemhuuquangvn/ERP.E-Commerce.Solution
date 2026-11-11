@@ -29,7 +29,7 @@ public class StockMovementRepository : IStockMovementRepository
         DateTime? endDate,
         CancellationToken cancellationToken)
     {
-        var query = _context.StockMovements.Where(m => m.ProductId == productId);
+        var query = _context.StockMovements.Include(m => m.Lots).Where(m => m.ProductId == productId);
 
         if (startDate.HasValue)
             query = query.Where(m => m.RecordedAt >= startDate);
@@ -42,7 +42,7 @@ public class StockMovementRepository : IStockMovementRepository
 
     public async Task<StockMovement?> FindByKeyAsync(Guid productId, string reference, MovementType movementType, CancellationToken cancellationToken)
     {
-        return await _context.StockMovements.FirstOrDefaultAsync(
+        return await _context.StockMovements.Include(m => m.Lots).FirstOrDefaultAsync(
             m => m.ProductId == productId && m.Reference == reference && m.MovementType == movementType,
             cancellationToken);
     }

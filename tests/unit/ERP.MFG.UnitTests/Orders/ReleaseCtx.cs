@@ -48,11 +48,14 @@ internal sealed class FakeStock : IWarehouseStockClient
     /// <summary>Lots that were used up (not in the balances any more) but still exist in the Warehouse: their numbers stay taken.</summary>
     public readonly Dictionary<Guid, List<string>> DepletedLotNumbers = [];
 
+    /// <summary>Sub-lot -> the lot it was split off from (Warehouse W7).</summary>
+    public readonly Dictionary<Guid, Guid> ParentOf = [];
+
     public Task<IReadOnlyList<StockLotInfo>> ListLotsAsync(Guid productId, CancellationToken ct = default)
     {
         Check();
         var lots = (Balances.GetValueOrDefault(productId) ?? []).Where(b => b.LotId != null)
-            .Select(b => new StockLotInfo(b.LotId!.Value, b.LotNumber ?? "", b.WarehouseId, b.LotStatus ?? "Available", b.Quantity, b.ExpiryDate, null)).ToList();
+            .Select(b => new StockLotInfo(b.LotId!.Value, b.LotNumber ?? "", b.WarehouseId, b.LotStatus ?? "Available", b.Quantity, b.ExpiryDate, null, ParentOf.TryGetValue(b.LotId!.Value, out var parent) ? parent : null)).ToList();
         lots.AddRange((DepletedLotNumbers.GetValueOrDefault(productId) ?? []).Select(n => new StockLotInfo(Guid.NewGuid(), n, null, "Available", 0m, null, null)));
         return Task.FromResult<IReadOnlyList<StockLotInfo>>(lots);
     }
@@ -106,7 +109,7 @@ internal sealed class FakeStock : IWarehouseStockClient
     }
 
     // ── Movements (P3-3): keys deduplicate like the real Warehouse, issues against a reservation consume it, a hook injects outages and refusals ──────────
-    public sealed record Booked(string Key, string Type, Guid ProductId, decimal Quantity, Guid? LotId, Guid? ReservationId, decimal UnitCost, Guid MovementId);
+    public sealed record Booked(string Key, string Type, Guid ProductId, decimal Quantity, Guid? LotId, Guid? ReservationId, decimal UnitCost, Guid MovementId, List<StockMovementLotInfo>? Lots = null);
 
     public readonly List<Booked> Movements = [];
     public readonly List<StockMovementRequest> Requests = [];
@@ -127,14 +130,16 @@ internal sealed class FakeStock : IWarehouseStockClient
         if (existing != null)
         {
             if (existing.Quantity != r.Quantity) throw new ConcurrencyException("WH_IDEMPOTENCY_CONFLICT", "same key, other quantity");
-            return Task.FromResult(new StockMovementResult(existing.MovementId, existing.Type, existing.Quantity, DateTime.UtcNow, existing.UnitCost, Math.Round(existing.Quantity * existing.UnitCost, 2), r.WarehouseId, existing.LotId, true));
+            return Task.FromResult(new StockMovementResult(existing.MovementId, existing.Type, existing.Quantity, DateTime.UtcNow, existing.UnitCost, Math.Round(existing.Quantity * existing.UnitCost, 2), r.WarehouseId, existing.LotId, true, existing.Lots));
         }
 
         decimal unitCost;
         Guid? createdLot = null;
+        StockMovementLotInfo? subLot = null;
         if (r.MovementType == "ProductionIssue")
         {
             unitCost = CostOf(r.ProductId);
+            if (r.AllowHeldLot && string.IsNullOrWhiteSpace(r.Reason)) throw new BusinessRuleException("WH_REASON_REQUIRED", "A held lot is issued with a reason.");
             if (r.ReservationId is { } reservationId)
             {
                 var pair = Reservations.FirstOrDefault(x => x.Value.ReservationId == reservationId);
@@ -154,7 +159,7 @@ internal sealed class FakeStock : IWarehouseStockClient
                 if (r.LotId is { } lotId)
                 {
                     var row = rows.FirstOrDefault(b => b.LotId == lotId) ?? throw new BusinessRuleException("WH_LOT_NOT_FOUND", "No such lot.");
-                    if (row.LotStatus != "Available") throw new BusinessRuleException("WH_LOT_NOT_USABLE", "Lot on hold.");
+                    if (row.LotStatus != "Available" && !(r.AllowHeldLot && row.LotStatus == "QcHold")) throw new BusinessRuleException("WH_LOT_NOT_USABLE", "Lot on hold.");
                     if (row.ExpiryDate is { } expiry && expiry <= DateTime.UtcNow) throw new BusinessRuleException("WH_LOT_EXPIRED", "Lot expired.");
                     if (row.Quantity < r.Quantity) throw new BusinessRuleException("WH_INSUFFICIENT_STOCK", "Not enough in the lot.");
                 }
@@ -191,8 +196,20 @@ internal sealed class FakeStock : IWarehouseStockClient
             var rows = Balances.GetValueOrDefault(r.ProductId) ?? [];
             var index = rows.FindIndex(b => b.LotId == r.LotId);
             if (r.LotId is null || index < 0) throw new BusinessRuleException("WH_LOT_NOT_FOUND", "No such lot.");
-            if (rows[index].Quantity != r.Quantity) throw new BusinessRuleException("WH_PARTIAL_LOT_MOVE", "A lot moves as a whole.");
-            rows[index] = rows[index] with { WarehouseId = r.ToWarehouseId };
+            if (rows[index].Quantity < r.Quantity) throw new BusinessRuleException("WH_LOT_QUANTITY", "More than the lot holds.");
+            if (rows[index].Quantity == r.Quantity) rows[index] = rows[index] with { WarehouseId = r.ToWarehouseId };
+            else
+            {
+                // Warehouse W7: a part of a lot leaves as a new sub-lot in the target warehouse (same status, same expiry)
+                var source = rows[index];
+                var subId = Guid.NewGuid();
+                var subNumber = (source.LotNumber ?? "LOT") + "-S" + (rows.Count(b => (b.LotNumber ?? "").StartsWith((source.LotNumber ?? "LOT") + "-S")) + 1);
+                rows[index] = source with { Quantity = source.Quantity - r.Quantity, AvailableQuantity = source.AvailableQuantity - r.Quantity };
+                rows.Add(new StockBalanceInfo(r.ToWarehouseId, "WH", subId, subNumber, source.LotStatus, source.ExpiryDate, r.Quantity, 0, 0, r.Quantity));
+                createdLot = subId;
+                ParentOf[subId] = r.LotId.Value;
+                subLot = new StockMovementLotInfo(subId, subNumber, r.Quantity, unitCost, r.ToWarehouseId, r.LotId);
+            }
         }
         else if (r.MovementType == "QcRelease")
         {
@@ -205,11 +222,15 @@ internal sealed class FakeStock : IWarehouseStockClient
         }
         else throw new BusinessRuleException("WH_MOVEMENT_TYPE", r.MovementType + " is not supported by the fake.");
 
-        var lotBooked = createdLot ?? r.LotId;
-        var booked = new Booked(r.IdempotencyKey, r.MovementType, r.ProductId, r.Quantity, lotBooked, r.ReservationId, unitCost, Guid.NewGuid());
+        // a split transfer keeps the requested lot on the movement; the new sub-lot is its breakdown row
+        var lotBooked = subLot != null ? r.LotId : createdLot ?? r.LotId;
+        var breakdown = subLot != null ? new List<StockMovementLotInfo> { subLot }
+            : lotBooked is { } booked1 ? (Balances.GetValueOrDefault(r.ProductId) ?? []).Where(b => b.LotId == booked1).Select(b => new StockMovementLotInfo(booked1, b.LotNumber ?? "", r.Quantity, unitCost, b.WarehouseId, null)).ToList()
+            : [];
+        var booked = new Booked(r.IdempotencyKey, r.MovementType, r.ProductId, r.Quantity, lotBooked, r.ReservationId, unitCost, Guid.NewGuid(), breakdown);
         Movements.Add(booked);
         var sign = r.MovementType is "ProductionIssue" or "ProductionScrap" ? -1m : r.MovementType is "SubcontractTransfer" or "QcRelease" ? 0m : 1m;
-        return Task.FromResult(new StockMovementResult(booked.MovementId, r.MovementType, r.Quantity, DateTime.UtcNow, unitCost, sign * Math.Round(r.Quantity * unitCost, 2), r.WarehouseId, lotBooked, false));
+        return Task.FromResult(new StockMovementResult(booked.MovementId, r.MovementType, r.Quantity, DateTime.UtcNow, unitCost, sign * Math.Round(r.Quantity * unitCost, 2), r.WarehouseId, lotBooked, false, breakdown));
     }
 
     public Task<LotStatusResult> SetLotStatusAsync(Guid lotId, string status, CancellationToken ct = default) => throw new NotSupportedException();

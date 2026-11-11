@@ -400,7 +400,13 @@ both stale — neither matches what's actually consumed today.
 
 **InventoryLots** — LotId (PK), ProductId, LotNumber, ReceivedQuantity, RemainingQuantity,
 `ReservedQuantity` (soft hold — added this pass; `AvailableQuantity` = RemainingQuantity −
-ReservedQuantity), UnitCost, ReceivedDate, ExpiryDate, PurchaseOrderId
+ReservedQuantity), UnitCost, ReceivedDate, ExpiryDate, PurchaseOrderId, and (W7) `ParentLotId`: a
+partial move of a lot to another warehouse splits it - the part that leaves is a new sub-lot
+`<root>-S<n>` (same cost, expiry, status; the parent's remaining and received quantity fall)
+
+**StockMovementLots** (W7) — LotRowId (PK), MovementId (FK), Position, LotId, LotNumber (as it was),
+Quantity, UnitCost, WarehouseId, ParentLotId — the lot(s) a production movement really used (the
+answer's `lots[]`; `StockMovement.LotId` stays the lot named in the request)
 
 **CostConsumptionLogs** — Id (PK), ProductId, LotId (nullable), Quantity, UnitCost, TotalCost, SourceOrderId, ConsumedAt — append-only, one row per lot consumed per shipment
 

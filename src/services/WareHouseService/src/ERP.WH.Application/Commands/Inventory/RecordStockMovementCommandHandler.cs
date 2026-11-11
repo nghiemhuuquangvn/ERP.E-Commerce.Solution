@@ -152,7 +152,7 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
         var result = await _production.RecordAsync(new ProductionMovementRequest(
             movementType, request.ProductId, request.Quantity, request.Reference ?? string.Empty,
             request.WarehouseId, request.ToWarehouseId, request.LotId, request.LotNumber, request.ExpiryDate, request.ManufactureDate,
-            request.UnitCost, initial, request.AllowNegative, request.Reason, request.SourceOrderId, request.ReservationId, request.SourceLineId, request.RequiresLot, request.RequiresSerial, request.ProductName, request.ProductSku), ct);
+            request.UnitCost, initial, request.AllowNegative, request.Reason, request.SourceOrderId, request.ReservationId, request.SourceLineId, request.RequiresLot, request.RequiresSerial, request.ProductName, request.ProductSku, request.AllowHeldLot), ct);
 
         var movement = result.Movement;
         if (!result.Replayed)
@@ -205,6 +205,10 @@ public class RecordStockMovementCommandHandler : IRequestHandler<RecordStockMove
             ValueDelta = result.ValueDelta,
             WarehouseId = result.WarehouseId,
             LotId = result.LotId,
+            Lots = result.Lots.Select(l => new MovementLotDto
+            {
+                LotId = l.LotId, LotNumber = l.LotNumber, Quantity = l.Quantity, UnitCost = l.UnitCost, WarehouseId = l.WarehouseId, ParentLotId = l.ParentLotId
+            }).ToList(),
             Replayed = result.Replayed
         };
     }

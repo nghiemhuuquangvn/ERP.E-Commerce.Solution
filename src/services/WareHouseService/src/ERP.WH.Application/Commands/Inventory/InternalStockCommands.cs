@@ -39,6 +39,9 @@ public class InternalProductionMovementCommand : IRequest<RecordStockMovementRes
     /// <summary>ProductionReceipt of an item the Warehouse has never held: the record is created with this name and SKU.</summary>
     public string? ProductName { get; set; }
     public string? ProductSku { get; set; }
+
+    /// <summary>ProductionIssue of a lot on quality hold (a rework order consumes the lot it reworks). Needs the lot and a reason; Blocked / expired lots stay refused.</summary>
+    public bool AllowHeldLot { get; set; }
 }
 
 public class InternalProductionMovementCommandHandler(IMediator mediator) : IRequestHandler<InternalProductionMovementCommand, RecordStockMovementResponse>
@@ -77,7 +80,8 @@ public class InternalProductionMovementCommandHandler(IMediator mediator) : IReq
             RequiresLot = r.RequiresLot,
             RequiresSerial = r.RequiresSerial,
             ProductName = r.ProductName,
-            ProductSku = r.ProductSku
+            ProductSku = r.ProductSku,
+            AllowHeldLot = r.AllowHeldLot
         }, ct);
     }
 }

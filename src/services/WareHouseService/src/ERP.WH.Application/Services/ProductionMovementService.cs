@@ -27,9 +27,13 @@ public sealed record ProductionMovementRequest(
     bool RequiresLot = false,
     bool RequiresSerial = false,
     string? ProductName = null,
-    string? ProductSku = null);
+    string? ProductSku = null,
+    bool AllowHeldLot = false);
 
-/// <summary>What happened. <c>Replayed</c> = the same reference had been booked before, so nothing was changed.</summary>
+/// <summary>One lot a movement acted on (W7). <c>ParentLotId</c> is set for the sub-lot a split transfer created.</summary>
+public sealed record MovementLot(Guid LotId, string LotNumber, decimal Quantity, decimal UnitCost, Guid? WarehouseId, Guid? ParentLotId = null);
+
+/// <summary>What happened. <c>Replayed</c> = the same reference had been booked before, so nothing was changed. <c>Lots</c> = the lots really used (W7).</summary>
 public sealed record ProductionMovementResult(
     StockMovement Movement,
     bool Replayed,
@@ -39,7 +43,8 @@ public sealed record ProductionMovementResult(
     decimal ValueDelta,
     decimal StockDelta,
     Guid? WarehouseId,
-    Guid? LotId);
+    Guid? LotId,
+    IReadOnlyList<MovementLot> Lots);
 
 public interface IProductionMovementService
 {
@@ -66,6 +71,17 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
         if (r.RequiresSerial && r.Type != MovementType.QcRelease)
             throw new BusinessRuleException("WH_SERIAL_NOT_SUPPORTED", "Serial-controlled items cannot be moved by production movements yet.");
 
+        // The issue of a lot on quality hold (a rework order consumes the lot it reworks) is a privilege: it names the lot and says why.
+        if (r.AllowHeldLot)
+        {
+            if (r.Type != MovementType.ProductionIssue)
+                throw new BusinessRuleException("WH_MOVEMENT_FLAG", "AllowHeldLot only applies to a production issue.");
+            if (!r.LotId.HasValue)
+                throw new BusinessRuleException("WH_LOT_REQUIRED", "Issuing a lot on quality hold names the lot.");
+            if (string.IsNullOrWhiteSpace(r.Reason))
+                throw new BusinessRuleException("WH_REASON_REQUIRED", "Issuing a lot on quality hold needs a reason (it is kept on the movement).");
+        }
+
         // Replay: the same document line was booked before - answer with the first result and touch nothing.
         var reference = r.Reference.Trim();
         var existing = await uow.StockMovements.FindByKeyAsync(r.ProductId, reference, r.Type, ct);
@@ -81,7 +97,8 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
             var inv = await uow.Inventories.GetByProductIdAsync(r.ProductId, ct);
             var now = inv?.TotalQuantity ?? 0;
             return new ProductionMovementResult(existing, true, now, now, existing.UnitCost ?? 0, existing.ValueDelta ?? 0,
-                existing.StockDelta ?? 0, existing.WarehouseId, existing.LotId);
+                existing.StockDelta ?? 0, existing.WarehouseId, existing.LotId,
+                existing.Lots.OrderBy(l => l.Position).Select(l => new MovementLot(l.LotId, l.LotNumber, l.Quantity, l.UnitCost ?? 0, l.WarehouseId, l.ParentLotId)).ToList());
         }
 
         var inventory = await uow.Inventories.GetByProductIdAsync(r.ProductId, ct);
@@ -112,6 +129,7 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
         decimal unitCost, valueDelta, stockDelta;
         Guid? lotId = lot?.LotId;
         Guid? warehouseId = target.WarehouseId;
+        var lots = new List<MovementLot>();   // the lots the movement really acted on (W7); a lot-less remainder is not a row
 
         switch (r.Type)
         {
@@ -133,7 +151,9 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
                 await AssertNoExpiredLotAsync(item, quantity, r.LotId, ct);
 
                 var taken = await ledger.ConsumeAsync(inventory, item, quantity, r.LotId, ct);
-                var lotValue = taken.Sum(t => t.Quantity * (inventory.ValuationMethod != ValuationMethod.Average && t.Lot.UnitCost > 0 ? t.Lot.UnitCost : inventory.Cost));
+                // one cost per lot taken: it values the lot's share AND is the cost of its row in the breakdown, so the two cannot disagree
+                lots.AddRange(taken.Select(t => new MovementLot(t.Lot.LotId, t.Lot.LotNumber, t.Quantity, IssueCost(inventory, t.Lot), t.Lot.WarehouseId)));
+                var lotValue = lots.Sum(l => l.Quantity * l.UnitCost);
                 var fromPool = quantity - taken.Sum(t => t.Quantity);
                 var total = lotValue + fromPool * inventory.Cost;
                 unitCost = quantity > 0 ? Math.Round(total / quantity, 6) : 0;
@@ -148,13 +168,15 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
 
             case MovementType.ProductionIssue:
             case MovementType.ProductionScrap:
-                if (lot != null && r.Type == MovementType.ProductionIssue && !lot.IsUsable())
+                // only a QcHold lot may be issued on request (rework); a Blocked lot is withdrawn and an expired one never leaves by issue
+                if (lot != null && r.Type == MovementType.ProductionIssue && !lot.IsUsable() && !(r.AllowHeldLot && lot.Status == LotStatus.QcHold))
                     throw new BusinessRuleException("WH_LOT_NOT_USABLE", $"Lot {lot.LotNumber} is on {lot.Status}: it cannot be issued.");
                 if (lot != null && r.Type == MovementType.ProductionIssue && lot.IsExpired())
                     throw ExpiredLot(lot);
                 unitCost = IssueCost(inventory, lot);
                 if (lot != null) await ledger.IssueFromLotAsync(inventory, lot, quantity, policy, ct);
                 else await ledger.IssueAsync(inventory, quantity, target, policy, LotDepletion.None, ct);
+                if (lot != null) lots.Add(new MovementLot(lot.LotId, lot.LotNumber, quantity, unitCost, lot.WarehouseId));
                 valueDelta = -Math.Round(quantity * unitCost, 2);
                 stockDelta = -quantity;
                 break;
@@ -163,6 +185,7 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
                 unitCost = r.UnitCost ?? inventory.Cost;
                 if (lot != null) await ledger.ReturnToLotAsync(inventory, lot, quantity, unitCost, ct);
                 else await ledger.ReceiveAsync(inventory, quantity, unitCost, target, null, ct);
+                if (lot != null) lots.Add(new MovementLot(lot.LotId, lot.LotNumber, quantity, unitCost, lot.WarehouseId));
                 valueDelta = Math.Round(quantity * unitCost, 2);
                 stockDelta = quantity;
                 break;
@@ -176,6 +199,7 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
                 {
                     if (r.InitialLotStatus is { } status && status != LotStatus.Available) await ledger.SetLotStatusAsync(created, status, ct);
                     lotId = created.LotId;
+                    lots.Add(new MovementLot(created.LotId, created.LotNumber, quantity, unitCost, created.WarehouseId));
                 }
                 valueDelta = Math.Round(quantity * unitCost, 2);
                 stockDelta = quantity;
@@ -189,6 +213,7 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
                 quantity = lot.RemainingQuantity;
                 warehouseId = lot.WarehouseId;
                 unitCost = lot.UnitCost;
+                lots.Add(new MovementLot(lot.LotId, lot.LotNumber, quantity, unitCost, lot.WarehouseId));
                 valueDelta = 0;
                 stockDelta = 0;
                 break;
@@ -198,7 +223,11 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
                     throw new BusinessRuleException("WH_WAREHOUSE_REQUIRED", "A subcontract transfer names the receiving warehouse.");
                 if (target.WarehouseId == r.ToWarehouseId)
                     throw new BusinessRuleException("WH_WAREHOUSE_SAME", "The sending and the receiving warehouse are the same.");
-                await ledger.MoveBetweenWarehousesAsync(r.ProductId, target.WarehouseId, r.ToWarehouseId, quantity, lot, ct);
+                var move = await ledger.MoveBetweenWarehousesAsync(r.ProductId, target.WarehouseId, r.ToWarehouseId, quantity, lot, ct);
+                // the movement keeps the lot named in the request (so a replay compares equal); the lot that now sits in the target warehouse
+                // (the same one, or the new sub-lot of a split) is the row
+                if (move != null)
+                    lots.Add(new MovementLot(move.Moved.LotId, move.Moved.LotNumber, quantity, move.Moved.UnitCost, move.Moved.WarehouseId, move.SplitFrom?.LotId));
                 unitCost = inventory.Cost;
                 valueDelta = 0;
                 stockDelta = 0;
@@ -212,9 +241,10 @@ public sealed class ProductionMovementService(IWarehouseUnitOfWork uow, IStockLe
 
         var movement = new StockMovement(Guid.Empty, r.ProductId, quantity, r.Type, null, null, reference, r.Reason, r.SourceOrderId)
             .Describe(warehouseId, lotId, unitCost, valueDelta, stockDelta);
+        foreach (var l in lots) movement.AddLot(l.LotId, l.LotNumber, l.Quantity, l.UnitCost, l.WarehouseId, l.ParentLotId);
         await uow.StockMovements.AddAsync(movement, ct);
 
-        return new ProductionMovementResult(movement, false, previous, inventory.TotalQuantity, unitCost, valueDelta, stockDelta, warehouseId, lotId);
+        return new ProductionMovementResult(movement, false, previous, inventory.TotalQuantity, unitCost, valueDelta, stockDelta, warehouseId, lotId, lots);
     }
 
     private static BusinessRuleException ExpiredLot(InventoryLot lot)

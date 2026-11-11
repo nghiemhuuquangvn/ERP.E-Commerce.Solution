@@ -72,3 +72,15 @@ No new event: the payloads of W1 are unchanged. `internal/v1/product-lookup` ret
 4. Release the reservation: no reserved quantity remains anywhere.
 5. Open `inventory/reconciliation`: empty for quantities and lots.
 6. Edit a product, tick *Tracked by lot*, save, reopen: still ticked.
+
+## Addendum W7 (2026-11-11, Manufacturing Phase 4 P4-1): sub-lots
+A lot still sits in exactly one warehouse, but a **part** of it can now move to another warehouse: the part becomes a **sub-lot** (WB-R9..WB-R12). The rules are specified with the production movements in `ProductionIntegration.md` (PI-R11, PI-R12); this section is the stock-model view.
+
+| ID | Rule |
+|---|---|
+| WB-R9 | A partial move creates a new lot in the target warehouse (`InventoryLots.ParentLotId` = the lot it came from). The parent's `RemainingQuantity` **and** `ReceivedQuantity` fall by the quantity, so the sum over a lot and its sub-lots is the original receipt and "consumed = received - remaining" does not change. |
+| WB-R10 | The sub-lot copies unit cost, expiry, manufacture date, source, purchase order, **status** and received date of its parent. A held lot's part stays on hold (it is released on its own; the rest stays held); first-expiry-first treats a sub-lot like any other lot. |
+| WB-R11 | The part that is reserved never leaves: the move is limited to `RemainingQuantity - ReservedQuantity` (`WH_LOT_RESERVED`). Moving the whole lot still carries its reserved quantity to the new warehouse (unchanged). |
+| WB-R12 | Number `<root>-S<n>` (root = topmost ancestor, n = smallest unused among all lots of the item, used-up ones included, at most 100 characters). The item total and the sum of the balances do not change; the balance of the parent falls and a balance (target warehouse, sub-lot) is created, so the reconciliation still has no quantity or lot line. |
+
+*Data:* `Warehouse/014_LotSplitAndMovementLots.sql`. *Screens:* the public lot list and `GET inventory/{id}/balances` show the sub-lot like any lot (the lot list DTO has `parentLotId`); no Admin change in W7. *UAT:* ProductionIntegration.md item 10.
