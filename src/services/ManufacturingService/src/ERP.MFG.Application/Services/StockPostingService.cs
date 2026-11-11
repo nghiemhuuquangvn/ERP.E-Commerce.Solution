@@ -36,7 +36,8 @@ public static class StockCodeMapper
 /// <summary>See <see cref="IStockPostingService"/>.</summary>
 public sealed class StockPostingService(
     IWarehouseStockClient stock, IProductLookupClient products, IProductionOrderRepository orders, IMfgUnitOfWork uow, IPlantClock clock,
-    IOrderReservationSync reservationSync, IOperationReportRepository reports, IStockDocumentRepository documents, OperationLogCloser logCloser, IProductionSettingProvider settings, ILogger<StockPostingService> logger) : IStockPostingService
+    IOrderReservationSync reservationSync, IOperationReportRepository reports, IStockDocumentRepository documents, OperationLogCloser logCloser, IProductionSettingProvider settings,
+    IQualityInspectionCreator quality, ILogger<StockPostingService> logger) : IStockPostingService
 {
     public async Task<StockPostingResult> PostAsync(MaterialTransaction document, string by, CancellationToken ct = default)
     {
@@ -128,7 +129,10 @@ public sealed class StockPostingService(
             var report = await reports.GetAsync(reportId, ct) ?? throw new EntityNotFoundException(nameof(OperationReport), reportId);
             if (report.Status == OperationReportStatus.Pending)
             {
-                order.ApplyOperationReport(report, by, now);
+                var op = order.OperationOf(report.OperationSeq);
+                var ipqc = await quality.ResolveIpqcAsync(order, op, ct);
+                order.ApplyOperationReport(report, by, now, holdForInspection: ipqc is not null);
+                if (ipqc is not null) await quality.CreateIpqcAsync(order, op, report, ipqc, ct);
                 report.MarkPosted(now, by);
                 await logCloser.CloseForCompletedAsync(order, ct);
             }
@@ -138,6 +142,7 @@ public sealed class StockPostingService(
             // BR-PO-14a: receiving all of the quantity completes the order by itself; the operations still open are completed and their logs closed
             var setting = await settings.GetAsync(order.PlantId, ct);
             if (order.TryAutoComplete(setting.AutoCompleteOnFullReceipt, by, now)) await logCloser.CloseForCompletedAsync(order, ct);
+            if (!document.IsReversal) await quality.CreateFqcAsync(order, document, ct);   // P4-3, BR-QC-02: the final inspection exists exactly when the receipt counts
         }
         document.MarkPosted(by, now);
         await uow.SaveChangesAsync(ct);
@@ -163,13 +168,15 @@ public sealed class StockPostingService(
             var originalReport = await reports.GetAsync(reversal.ReversalOfId ?? Guid.Empty, ct) ?? throw new EntityNotFoundException(nameof(OperationReport), reversal.ReversalOfId ?? Guid.Empty);
             if (reversal.Status == OperationReportStatus.Pending)
             {
-                order.ApplyOperationReportReversal(originalReport, reversal, setting.RequireSequentialOperations, by, now);
+                var cancelledHold = await quality.CancelPendingForReportAsync(originalReport.Id, ct);   // P4-3: a Pending in-process inspection goes with its report
+                order.ApplyOperationReportReversal(originalReport, reversal, setting.RequireSequentialOperations, by, now, cancelledHold);
                 originalReport.MarkReversed(by);
                 reversal.MarkPosted(now, by);
             }
         }
         else
         {
+            await quality.CancelPendingForReceiptAsync(original, ct);                              // P4-3: a Pending final inspection goes with its receipt
             order.ReopenAfterReceiptReversal(document.DocNo, by, setting.UnderCompletionTolerancePct);
         }
     }

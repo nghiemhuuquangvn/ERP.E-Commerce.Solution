@@ -19,6 +19,9 @@ public static class DependencyInjection
         services.AddScoped<ILaborRateResolver, LaborRateResolver>();
         services.AddScoped<IBomResolver, BomResolver>();
         services.AddScoped<IRoutingResolver, RoutingResolver>();
+        services.AddScoped<IInspectionPlanResolver, InspectionPlanResolver>();
+        services.AddScoped<IQualityInspectionCreator, QualityInspectionCreator>();
+        services.AddScoped<IQuarantineRelease, QuarantineRelease>();
         services.AddScoped<IOperationTimeService, OperationTimeService>();
         services.AddScoped<IBomSnapshotFactory, BomSnapshotFactory>();
         services.AddScoped<IBomExplosionService, BomExplosionService>();

@@ -192,7 +192,7 @@ public sealed record ReportOperationCommand(
 public sealed class ReportOperationHandler(
     IPlantAccessService access, IProductionOrderRepository orders, IOperationReportRepository reports, IStockDocumentRepository documents, IProductionSettingProvider settings,
     IReasonCodeRepository reasons, IUnitOfMeasureClient units, IPlantCatalog catalog, BackflushPlanner planner, OperationLogCloser logCloser, IDocumentNumberService numbers,
-    IPlantClock clock, IStockPostingService posting, IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<ReportOperationCommand, OperationReportResultDto>
+    IQualityInspectionCreator quality, IPlantClock clock, IStockPostingService posting, IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<ReportOperationCommand, OperationReportResultDto>
 {
     public async Task<OperationReportResultDto> Handle(ReportOperationCommand r, CancellationToken ct)
     {
@@ -223,7 +223,9 @@ public sealed class ReportOperationHandler(
         var setting = await settings.GetAsync(plant.Id, ct);
         var pending = await reports.ListPendingForOrderAsync(order.Id, ct);
         var previous = order.PreviousOperation(op.OperationSeq);
-        var previousGood = previous is null ? 0m : previous.GoodQty + pending.Where(p => p.OperationSeq == previous.OperationSeq).Sum(p => p.GoodQty);
+        // P4-3: the previous operation hands over its net output (Good minus what an in-process inspection still holds); reports of it that wait for the Warehouse count only when it has no inspection plan
+        var previousGood = previous is null ? 0m
+            : previous.NetOutputQty + (previous.IpqcInspectionPlanId is null ? pending.Where(p => p.OperationSeq == previous.OperationSeq).Sum(p => p.GoodQty) : 0m);
         var available = OperationInput.Available(previous is null, order.Quantity, setting.OverProductionTolerancePct, previousGood);
         var taken = op.TakenQty + pending.Where(p => p.OperationSeq == op.OperationSeq).Sum(p => p.TotalQty);
         var remaining = available - taken;
@@ -246,7 +248,9 @@ public sealed class ReportOperationHandler(
         if (lines.Count == 0)
         {
             // nothing to take out of the Warehouse: the report counts at once, in the same save that stores it
-            order.ApplyOperationReport(report, by, now);
+            var ipqc = await quality.ResolveIpqcAsync(order, op, ct);
+            order.ApplyOperationReport(report, by, now, holdForInspection: ipqc is not null);
+            if (ipqc is not null) await quality.CreateIpqcAsync(order, op, report, ipqc, ct);
             report.MarkPosted(now, by);
             await logCloser.CloseForCompletedAsync(order, ct);
             reports.Add(report);

@@ -38,6 +38,12 @@ public static class PermissionConstants
     public const string Manufacturing_StockDocumentRetry = "manufacturing:stock-document:retry";
     public const string Manufacturing_OperationReverse = "manufacturing:operation:reverse";
     public const string Manufacturing_ReceiptReverse = "manufacturing:receipt:reverse";
+    public const string Manufacturing_QcPlanView = "manufacturing:qc:plan-view";
+    public const string Manufacturing_QcPlanManage = "manufacturing:qc:plan-manage";
+    public const string Manufacturing_QcPlanApprove = "manufacturing:qc:plan-approve";
+    public const string Manufacturing_QcView = "manufacturing:qc:view";
+    public const string Manufacturing_QcInspect = "manufacturing:qc:inspect";
+    public const string Manufacturing_QcReinspect = "manufacturing:qc:reinspect";
 
     // Purchase Order Permissions
     public const string PurchaseOrder_Create = "purchase_order:create";
@@ -433,7 +439,7 @@ public static class PermissionConstants
         Manufacturing_MasterDataView, Manufacturing_MasterDataManage, Manufacturing_SettingsManage, Manufacturing_ItemProfileManage,
         Manufacturing_BomView, Manufacturing_BomManage, Manufacturing_BomApprove,
         Manufacturing_RoutingView, Manufacturing_RoutingManage, Manufacturing_RoutingApprove,
-        Manufacturing_OrderView, Manufacturing_OrderCreate, Manufacturing_OrderRelease, Manufacturing_OrderCancel, Manufacturing_OrderHold, Manufacturing_OrderChangeQty, Manufacturing_OrderShortClose, Manufacturing_OrderReopen, Manufacturing_OrderClose, Manufacturing_MaterialIssue, Manufacturing_MaterialReturn, Manufacturing_MaterialOverIssue, Manufacturing_OperationExecute, Manufacturing_OperationCompleteManual, Manufacturing_ReceiptPost, Manufacturing_QcDisposition, Manufacturing_StockDocumentRetry, Manufacturing_OperationReverse, Manufacturing_ReceiptReverse,
+        Manufacturing_OrderView, Manufacturing_OrderCreate, Manufacturing_OrderRelease, Manufacturing_OrderCancel, Manufacturing_OrderHold, Manufacturing_OrderChangeQty, Manufacturing_OrderShortClose, Manufacturing_OrderReopen, Manufacturing_OrderClose, Manufacturing_MaterialIssue, Manufacturing_MaterialReturn, Manufacturing_MaterialOverIssue, Manufacturing_OperationExecute, Manufacturing_OperationCompleteManual, Manufacturing_ReceiptPost, Manufacturing_QcDisposition, Manufacturing_StockDocumentRetry, Manufacturing_OperationReverse, Manufacturing_ReceiptReverse, Manufacturing_QcPlanView, Manufacturing_QcPlanManage, Manufacturing_QcPlanApprove, Manufacturing_QcView, Manufacturing_QcInspect, Manufacturing_QcReinspect,
         PurchaseOrder_Create, PurchaseOrder_Read, PurchaseOrder_Update, PurchaseOrder_Delete,
         PurchaseOrder_Approve, PurchaseOrder_FinanceApprove, PurchaseOrder_Cancel, PurchaseOrder_AddItem, PurchaseOrder_RemoveItem,
         PurchaseOrder_Receive,

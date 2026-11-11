@@ -51,6 +51,8 @@ import { WorkCentersPage } from '@/pages/manufacturing/WorkCentersPage'
 import { CatalogsPage } from '@/pages/manufacturing/CatalogsPage'
 import { BomListPage, BomEditorPage, WhereUsedPage } from '@/pages/manufacturing/BomPages'
 import { RoutingListPage, RoutingEditorPage } from '@/pages/manufacturing/RoutingPages'
+import { InspectionPlanListPage, InspectionPlanEditorPage } from '@/pages/manufacturing/InspectionPlanPages'
+import { InspectionListPage, InspectionPage } from '@/pages/manufacturing/InspectionPages'
 import { ProductionOrderListPage } from '@/pages/manufacturing/OrderListPage'
 import { ProductionOrderDetailPage } from '@/pages/manufacturing/OrderDetailPage'
 import { StockDocumentsPage } from '@/pages/manufacturing/StockDocumentsPage'
@@ -218,6 +220,10 @@ export const router = createBrowserRouter([
       { path: 'manufacturing/where-used', element: <WhereUsedPage /> },
       { path: 'manufacturing/routings', element: <RoutingListPage /> },
       { path: 'manufacturing/routings/:id', element: <RoutingEditorPage /> },
+      { path: 'manufacturing/inspection-plans', element: <InspectionPlanListPage /> },
+      { path: 'manufacturing/inspection-plans/:id', element: <InspectionPlanEditorPage /> },
+      { path: 'manufacturing/inspections', element: <InspectionListPage /> },
+      { path: 'manufacturing/inspections/:id', element: <InspectionPage /> },
       { path: 'settings/notification-webhooks', element: <NotificationWebhooksPage /> },
       { path: 'promotion/promotions', element: <PromotionsPage /> },
       { path: 'promotion/flash-sales', element: <FlashSalesPage /> },

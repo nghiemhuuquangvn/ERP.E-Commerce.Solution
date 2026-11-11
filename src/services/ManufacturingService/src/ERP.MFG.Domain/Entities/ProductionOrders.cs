@@ -22,7 +22,7 @@ public sealed record OrderMaterialValues(
 
 public sealed record OrderOperationValues(
     int OperationSeq, string Name, Guid WorkCenterId, string WorkCenterCode, decimal SetupTimeMinutes, decimal RunTimeMinutes, RunTimeBasis RunTimeBasis,
-    decimal? BatchSize, int QueueTimeMinutes, int MoveTimeMinutes, bool IsSubcontract, decimal StandardMinutes, int CalendarMinutes);
+    decimal? BatchSize, int QueueTimeMinutes, int MoveTimeMinutes, bool IsSubcontract, decimal StandardMinutes, int CalendarMinutes, Guid? IpqcInspectionPlanId = null);
 
 public sealed record OrderOutputValues(int LineNo, BomLineType LineType, Guid ItemId, string ItemCode, string ItemName, Guid UomId, decimal PlannedQty, decimal? CostAllocationPct);
 
@@ -128,12 +128,18 @@ public class ProductionOrderOperation : BaseEntity
     public decimal ReworkQty { get; private set; }
     public decimal IpqcPassedQty { get; private set; }
 
+    /// <summary>Good output that still waits for its in-process inspection or failed it (P4-3). It does not count as input of the next operation.</summary>
+    public decimal IpqcHeldQty { get; private set; }
+
+    /// <summary>What the next operation may take from this one: the good output that is not held by an in-process inspection (P4-3, BR-QC-05).</summary>
+    public decimal NetOutputQty => Math.Max(0m, GoodQty - IpqcHeldQty);
+
     internal static ProductionOrderOperation Create(Guid orderId, OrderOperationValues v) => new()
     {
         Id = Guid.NewGuid(), OrderId = orderId, OperationSeq = v.OperationSeq, Name = v.Name, WorkCenterId = v.WorkCenterId, WorkCenterCode = v.WorkCenterCode,
         SetupTimeMinutes = v.SetupTimeMinutes, RunTimeMinutes = v.RunTimeMinutes, RunTimeBasis = v.RunTimeBasis, BatchSize = v.BatchSize,
         QueueTimeMinutes = v.QueueTimeMinutes, MoveTimeMinutes = v.MoveTimeMinutes, IsSubcontract = v.IsSubcontract,
-        StandardMinutes = v.StandardMinutes, CalendarMinutes = v.CalendarMinutes,
+        StandardMinutes = v.StandardMinutes, CalendarMinutes = v.CalendarMinutes, IpqcInspectionPlanId = v.IpqcInspectionPlanId,
     };
 
     internal void SetPlan(DateTime start, DateTime end) { PlannedStart = start; PlannedEnd = end; UpdatedAt = DateTime.UtcNow; }
@@ -180,6 +186,13 @@ public class ProductionOrderOperation : BaseEntity
         ReworkQty = Math.Max(0m, ReworkQty - rework);
         UpdatedAt = DateTime.UtcNow;
     }
+
+    internal void HoldForInspection(decimal qty) { IpqcHeldQty += qty; UpdatedAt = DateTime.UtcNow; }
+
+    /// <summary>The inspection of a report is cancelled (its report was reversed) or passed: the quantity stops being held.</summary>
+    internal void ReleaseHold(decimal qty) { IpqcHeldQty = Math.Max(0m, IpqcHeldQty - qty); UpdatedAt = DateTime.UtcNow; }
+
+    internal void PassHeld(decimal qty) { ReleaseHold(qty); IpqcPassedQty += qty; }
 
     internal void MarkCompleted(DateTime now)
     {
@@ -735,16 +748,17 @@ public class ProductionOrder : BaseEntity
     /// operation becomes Ready (BR-OP-01), operations that now have taken all their input complete (cascading down the route), the first transaction starts the
     /// order (BR-PO-10) and the event leaves with the same save.
     /// </summary>
-    public void ApplyOperationReport(OperationReport report, string by, DateTime now)
+    public void ApplyOperationReport(OperationReport report, string by, DateTime now, bool holdForInspection = false)
     {
         EnsureEditable();
         var op = OperationOf(report.OperationSeq);
         op.RegisterReport(report.GoodQty, report.ScrapQty, report.ReworkQty, now);
+        if (holdForInspection && report.GoodQty > 0) op.HoldForInspection(report.GoodQty);   // P4-3: the Good output waits for its IPQC before the next operation may take it
         ScrappedQty += report.ScrapQty;
         BeginExecution(by, $"First operation report {report.DocNo}");
 
         var next = Operations.FirstOrDefault(o => o.OperationSeq > op.OperationSeq);
-        if (next is { Status: OperationStatus.Pending } && op.GoodQty > 0) next.TransitionTo(OperationStatus.Ready);   // BR-OP-01
+        if (next is { Status: OperationStatus.Pending } && op.NetOutputQty > 0) next.TransitionTo(OperationStatus.Ready);   // BR-OP-01
         CompleteSatisfiedOperations(now);
         AddDomainEvent(report.ToEvent());
         Touch(by);
@@ -755,22 +769,23 @@ public class ProductionOrder : BaseEntity
     /// The reversed operation goes back from Completed to Ready when it no longer has all its input taken (BR-OP-06); the next operation goes back from Ready to Pending when this one
     /// has no good output left, nothing was done there and the plant is sequential (BR-OP-01). Operations after that keep their status.
     /// </summary>
-    public void ApplyOperationReportReversal(OperationReport original, OperationReport reversal, bool sequentialOperations, string by, DateTime now)
+    public void ApplyOperationReportReversal(OperationReport original, OperationReport reversal, bool sequentialOperations, string by, DateTime now, decimal cancelledInspectionHold = 0m)
     {
         EnsureEditable();
         var ops = Operations.ToList();
         var index = ops.FindIndex(o => o.OperationSeq == original.OperationSeq);
         var op = index >= 0 ? ops[index] : throw MfgRules.Invalid($"Order {OrderNo} has no operation {original.OperationSeq}.");
+        op.ReleaseHold(cancelledInspectionHold);   // P4-3: a Pending in-process inspection of the report is cancelled with it
         op.UnregisterReport(original.GoodQty, original.ScrapQty, original.ReworkQty);
         ScrappedQty = Math.Max(0m, ScrappedQty - original.ScrapQty);
 
         var previous = index == 0 ? null : ops[index - 1];
         if (op.Status == OperationStatus.Completed
-            && !OperationInput.IsComplete(index == 0, previous?.Status == OperationStatus.Completed, Quantity, previous?.GoodQty ?? 0m, op.TakenQty))
+            && !OperationInput.IsComplete(index == 0, previous?.Status == OperationStatus.Completed && previous.IpqcHeldQty == 0m, Quantity, previous?.NetOutputQty ?? 0m, op.TakenQty))
             op.MarkReopened();
 
         var next = index + 1 < ops.Count ? ops[index + 1] : null;
-        if (sequentialOperations && next is { Status: OperationStatus.Ready, HasWork: false } && op.GoodQty == 0m) next.ResetToPending();   // BR-OP-01 the other way round
+        if (sequentialOperations && next is { Status: OperationStatus.Ready, HasWork: false } && op.NetOutputQty == 0m) next.ResetToPending();   // BR-OP-01 the other way round
 
         AddDomainEvent(reversal.ToReversedEvent(original));
         Touch(by);
@@ -797,10 +812,28 @@ public class ProductionOrder : BaseEntity
             var op = ops[i];
             if (op.Status is not (OperationStatus.Ready or OperationStatus.Running)) continue;
             var previous = i == 0 ? null : ops[i - 1];
-            if (OperationInput.IsComplete(i == 0, previous?.Status == OperationStatus.Completed, Quantity, previous?.GoodQty ?? 0m, op.TakenQty))
+            if (OperationInput.IsComplete(i == 0, previous?.Status == OperationStatus.Completed && previous.IpqcHeldQty == 0m, Quantity, previous?.NetOutputQty ?? 0m, op.TakenQty))   // P4-3: while an in-process inspection still holds output of the operation before, this one is not done
                 op.MarkCompleted(now);
         }
     }
+
+    /// <summary>
+    /// An in-process inspection passed (P4-3, BR-QC-05): its Good quantity is no longer held, so the next operation may take it - it becomes Ready and operations that now
+    /// have all their input complete. Needs an order that is not Closed or Cancelled.
+    /// </summary>
+    public void ApplyInspectionPassed(int operationSeq, decimal lotQty, string by, DateTime now)
+    {
+        EnsureEditable();
+        var op = OperationOf(operationSeq);
+        op.PassHeld(lotQty);
+        var next = Operations.FirstOrDefault(o => o.OperationSeq > op.OperationSeq);
+        if (next is { Status: OperationStatus.Pending } && op.NetOutputQty > 0) next.TransitionTo(OperationStatus.Ready);
+        CompleteSatisfiedOperations(now);
+        Touch(by);
+    }
+
+    /// <summary>The in-process inspection of an operation was cancelled while Pending (its report was reversed). Not used by Fail: a failed inspection keeps the hold.</summary>
+    public void CancelInspectionHold(int operationSeq, decimal lotQty) => OperationOf(operationSeq).ReleaseHold(lotQty);
 
     /// <summary>The operations that finished: the caller closes their open time logs.</summary>
     public IEnumerable<ProductionOrderOperation> CompletedOperations => Operations.Where(o => o.Status == OperationStatus.Completed);

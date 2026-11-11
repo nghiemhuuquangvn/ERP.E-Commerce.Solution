@@ -73,6 +73,8 @@ internal class BomCtx
     public BomSnapshotFactory Snapshots => new(F.ProductClient, F.UnitClient, F.ConversionClient);
     public BomExplosionService Explosion => new(F.BomRepo, Snapshots, Settings);
 
+    public InspectionPlanResolver Resolver => new(F.PlanRepo);
+
     public Task<BomDto> CreateAsync(string item, DateOnly? from = null, DateOnly? to = null, decimal? baseQty = null, decimal? yield = null)
         => new CreateBomHandler(Access, F.BomRepo, F.ProfileRepo, F.ProductClient, F.Uow)
             .Handle(new CreateBomCommand(Plant.Id, Items[item].Id, baseQty, yield, from ?? Jan1, to, null), default);

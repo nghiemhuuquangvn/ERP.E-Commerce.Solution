@@ -726,7 +726,7 @@ INDEX IX_Invoices_Status (Status)
 
 ## ManufacturingDB (PostgreSQL, ManufacturingService, added 2026-11-10)
 
-The one database on **PostgreSQL** (host server; schema = idempotent scripts `src/Database/Manufacturing/001..011` applied by the compose job `pg-migrate`; EF never creates it; optimistic locking by the system column `xmin`). 32 tables, every one with `TenantId`; business numbers unique per `(TenantId, ...)`. The scripts are checked against the EF model by `PostgreSqlSchemaDriftTests`.
+The one database on **PostgreSQL** (host server; schema = idempotent scripts `src/Database/Manufacturing/001..013` applied by the compose job `pg-migrate`; EF never creates it; optimistic locking by the system column `xmin`). 36 tables, every one with `TenantId`; business numbers unique per `(TenantId, ...)`. The scripts are checked against the EF model by `PostgreSqlSchemaDriftTests`.
 
 | Script | Tables |
 |---|---|
@@ -738,6 +738,8 @@ The one database on **PostgreSQL** (host server; schema = idempotent scripts `sr
 | 008, 010 | `MaterialTransactions`, `MaterialTransactionLines` (issue, return, backflush, receipt; receipt columns lot / expiry / hold) |
 | 009 | `OperationReports`, `LaborTimeLogs` |
 | 011 (P4-2) | `MaterialTransactionLineLots` (the lots the Warehouse really used for a document line: position, lot id / number, quantity, unit cost, warehouse, parent lot); columns `MaterialTransactions.IsReversed`, `MaterialTransactionLines.ReversalAction` / `ReversesLineId`; document type 5 = Reversal (`ReversalOfId` names the document it undoes) |
+| 012 (P4-3) | `InspectionPlans` (series = plant + `Code`, `Type`, item, `Version`, status, sampling, `SampleValue`, `AllowedMinorDefects`, validity), `InspectionCharacteristics` (`Seq`, kind, `MinValue` / `MaxValue`, `IsCritical`); the three plan pointers get their foreign keys (`ItemManufacturingProfiles.FqcInspectionPlanId`, `RoutingOperations.IpqcInspectionPlanId`, `ProductionOrderOperations.IpqcInspectionPlanId`) |
+| 013 (P4-3) | `Inspections` (document `QI` unique per plant, plan version used, source = receipt line or operation report, lot, `LotQty`, `SampleQty`, status, `ReinspectionOfId`, `NcrRequired`, `ReleasedAt`; one first inspection per receipt line / report by partial unique indexes), `InspectionResults` (per characteristic and `SampleNo`); column `ProductionOrderOperations.IpqcHeldQty` |
 
 ```
 ProductionOrders 1-* ProductionOrderMaterials / ProductionOrderOperations / ProductionOrderOutputs / ProductionOrderStatusHistories

@@ -11,13 +11,13 @@ const names = (a: OrderActions) => (Object.keys(a) as (keyof OrderActions)[]).fi
 
 describe('orderActions (TC-UI-001): the buttons follow the status, then the permissions', () => {
   const expected: Record<OrderStatus, (keyof OrderActions)[]> = {
-    Draft: ['cancel', 'edit', 'release', 'retryDocuments'],
-    Released: ['cancel', 'changeQuantity', 'hold', 'issue', 'operationManual', 'qcRelease', 'receive', 'retryDocuments', 'returnMaterial', 'reverseReceipt', 'reverseReport', 'unrelease', 'work'],
-    InProgress: ['changeQuantity', 'complete', 'hold', 'issue', 'operationManual', 'qcRelease', 'receive', 'retryDocuments', 'returnMaterial', 'reverseReceipt', 'reverseReport', 'work'],
-    OnHold: ['qcRelease', 'resume', 'retryDocuments'],
-    Completed: ['close', 'qcRelease', 'reopen', 'retryDocuments', 'returnMaterial', 'reverseReceipt'],
-    Closed: ['qcRelease', 'retryDocuments'],
-    Cancelled: ['retryDocuments'],
+    Draft: ['cancel', 'edit', 'release', 'retryDocuments', 'viewQuality'],
+    Released: ['cancel', 'changeQuantity', 'hold', 'issue', 'operationManual', 'qcRelease', 'receive', 'retryDocuments', 'returnMaterial', 'reverseReceipt', 'reverseReport', 'unrelease', 'viewQuality', 'work'],
+    InProgress: ['changeQuantity', 'complete', 'hold', 'issue', 'operationManual', 'qcRelease', 'receive', 'retryDocuments', 'returnMaterial', 'reverseReceipt', 'reverseReport', 'viewQuality', 'work'],
+    OnHold: ['qcRelease', 'resume', 'retryDocuments', 'viewQuality'],
+    Completed: ['close', 'qcRelease', 'reopen', 'retryDocuments', 'returnMaterial', 'reverseReceipt', 'viewQuality'],
+    Closed: ['qcRelease', 'retryDocuments', 'viewQuality'],
+    Cancelled: ['retryDocuments', 'viewQuality'],
   }
 
   for (const status of Object.keys(expected) as OrderStatus[]) {

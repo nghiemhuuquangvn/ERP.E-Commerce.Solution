@@ -53,6 +53,17 @@ public enum StockDocumentMode : short { Forward = 1, Rollback = 2 }
 
 public enum StockLineStatus : short { Pending = 1, Posted = 2, Refused = 3, Compensated = 4 }
 
+/// <summary>Quality (P4-3): IPQC = in-process, at an operation; FQC = final, on a received lot.</summary>
+public enum InspectionType : short { Ipqc = 1, Fqc = 2 }
+
+/// <summary>BR-QC-03: Fixed = n units, Percent = p % of the lot (rounded up), Full = every unit.</summary>
+public enum SamplingMethod : short { Fixed = 1, Percent = 2, Full = 3 }
+
+public enum CharacteristicKind : short { Measurement = 1, Attribute = 2 }
+
+/// <summary>Pending -> Passed | Failed once submitted (then immutable, BR-QC-06); Cancelled = the receipt / report it inspected was reversed while it was still Pending.</summary>
+public enum InspectionStatus : short { Pending = 1, Passed = 2, Failed = 3, Cancelled = 4 }
+
 public enum OrderSourceType : short { Manual = 1, SalesOrder = 2, Mrp = 3, Ncr = 4, ParentOrder = 5 }
 
 /// <summary>BA spec 01 §4.2. Closed and Cancelled are final.</summary>

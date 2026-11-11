@@ -62,6 +62,8 @@ A user sees only the plants granted to them (the plant selector lists those); an
 
 Quality release (`qc:disposition`) shows on a receipt with a held lot in any status except Draft and Cancelled. A viewer sees no button at all.
 
+**Quality (P4-3, `Quality.md`):** a **Quality** tab (`qc:view`) lists the inspections of the order with their status and an *NCR required* flag; on the *Finished goods* tab a receipt line that has an inspection shows its link instead of the interim *Release from quality hold* button (which stays, with the hint *No inspection plan: release by hand*, for a held line without one). Screens S21 / S22: `/manufacturing/inspection-plans`, `/manufacturing/inspections`.
+
 **Reversals (P4-2, `Reversals.md`):** *Reverse report* (Operations tab, per Posted live report; `operation:reverse`; Released / InProgress only) and *Reverse receipt* (Finished goods and Stock documents tabs, per Posted receipt without a released lot; `receipt:reverse`; Released / InProgress / Completed). Both open a reason dialog (confirm first, shows what will be undone), send one `Idempotency-Key`, treat a 202 as "saved and waiting", show the server's refusal (`MFG_OP_007`, `MFG_FG_004`, `MFG_REV_001/002`) inside the dialog. Reversed reports / receipts show a **Reversed** badge; reversal rows show "reversal of ...".
 
 ## 5. Screens and fields

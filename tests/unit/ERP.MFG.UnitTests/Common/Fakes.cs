@@ -39,6 +39,8 @@ public sealed class Fakes
     public readonly Dictionary<Guid, ProductInfo> Products = [];
     public readonly List<Bom> Boms = [];
     public readonly List<Routing> Routings = [];
+    public readonly List<InspectionPlan> InspectionPlans = [];
+    public readonly List<Inspection> Inspections = [];
     public readonly Dictionary<Guid, UnitInfo> Units = [];
     public readonly List<ProductConversionFacts> ProductConversions = [];
     public bool OpenOrders;
@@ -53,6 +55,8 @@ public sealed class Fakes
     public IMfgUnitOfWork Uow => new Uow(this);
     public IBomRepository BomRepo => new BomFake(this);
     public IRoutingRepository RoutingRepo => new RoutingFake(this);
+    public IInspectionPlanRepository PlanRepo => new InspectionPlanFake(this);
+    public IInspectionRepository InspectionRepo => new InspectionFake(this);
     public IUnitOfMeasureClient UnitClient => new UnitFake(this);
     public IProductUomConversionClient ConversionClient => new ConversionFake(this);
     public IWarehouseLookupClient WarehouseClient => new WarehouseClient(this);
@@ -230,6 +234,8 @@ internal sealed class ReferenceFake(Fakes f) : IReferenceChecker
     public Task<bool> StandardOperationIsUsedAsync(Guid id, CancellationToken ct = default) => Task.FromResult(false);
     public Task<bool> ReasonIsUsedAsync(Guid id, CancellationToken ct = default) => Task.FromResult(false);
     public Task<bool> CrewIsUsedAsync(Guid id, CancellationToken ct = default) => Task.FromResult(false);
+    public Task<bool> InspectionPlanIsUsedAsync(Guid id, CancellationToken ct = default)
+        => Task.FromResult(f.Profiles.Any(p => p.FqcInspectionPlanId == id && !p.IsDeleted) || f.Routings.Any(r => !r.IsDeleted && r.Operations.Any(o => o.IpqcInspectionPlanId == id)));
 }
 
 internal sealed class EmployeeFake(Fakes f) : IEmployeeLookupClient

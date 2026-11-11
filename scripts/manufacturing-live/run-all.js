@@ -18,7 +18,7 @@ const t = TENANTS[tenant]
 if (!t) { console.error(`unknown tenant ${tenant}; use glcheck or system`); process.exit(2) }
 
 // order: engineering and settings first, then the order cycle P3-1 .. P3-7, then the Warehouse integration checks
-const SCRIPTS = ['mfg-m4', 'mfg-m5', 'mfg-m6', 'mfg-p31', 'mfg-p32', 'mfg-p33', 'mfg-p34', 'mfg-p35', 'mfg-p36-contract-check', 'mfg-p37-e2e', 'mfg-p42', 'wh-w3', 'wh-w5', 'wh-w6', 'wh-w7']
+const SCRIPTS = ['mfg-m4', 'mfg-m5', 'mfg-m6', 'mfg-p31', 'mfg-p32', 'mfg-p33', 'mfg-p34', 'mfg-p35', 'mfg-p36-contract-check', 'mfg-p37-e2e', 'mfg-p42', 'mfg-p43', 'wh-w3', 'wh-w5', 'wh-w6', 'wh-w7']
 // these two need warehouses named ZZ-MFG-WH* that only glcheck has
 const GLCHECK_ONLY = ['mfg-m4', 'mfg-m6']
 const selected = SCRIPTS.filter((s) => (!only?.length || only.includes(s)) && !(tenant !== 'glcheck' && GLCHECK_ONLY.includes(s)))

@@ -111,7 +111,7 @@ public sealed class OrderSnapshotBuilder(
             {
                 var input = inputs.First(i => i.OperationSeq == op.OperationSeq);
                 operations.Add(new OrderOperationValues(op.OperationSeq, op.Name, op.WorkCenterId, op.WorkCenterCode, op.SetupTimeMinutes, op.RunTimeMinutes, op.RunTimeBasis,
-                    op.BatchSize, op.QueueTimeMinutes, op.MoveTimeMinutes, op.IsSubcontract, input.StandardMinutes, OperationTimeCalculator.CalendarMinutes(input.StandardMinutes, input.EfficiencyPct)));
+                    op.BatchSize, op.QueueTimeMinutes, op.MoveTimeMinutes, op.IsSubcontract, input.StandardMinutes, OperationTimeCalculator.CalendarMinutes(input.StandardMinutes, input.EfficiencyPct), op.IpqcInspectionPlanId));
             }
         }
 

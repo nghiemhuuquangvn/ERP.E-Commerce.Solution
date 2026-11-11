@@ -109,6 +109,11 @@ public class OrdersController(IMediator mediator) : ControllerBase
     [AuthorizePermission(PermissionConstants.Manufacturing_OrderView)]
     public async Task<IActionResult> StockDocuments(Guid id, CancellationToken ct) => Ok(await mediator.Send(new GetOrderStockDocumentsQuery(id), ct));
 
+    /// <summary>The IPQC / FQC inspections of the order, newest first (P4-3).</summary>
+    [HttpGet("{id:guid}/inspections")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_QcView)]
+    public async Task<IActionResult> Inspections(Guid id, CancellationToken ct) => Ok(await mediator.Send(new ERP.MFG.Application.Features.Inspections.GetOrderInspectionsQuery(id), ct));
+
     // ── Finished goods, complete, reopen, close (P3-5) ───────────────────────────────────────────────────────
 
     /// <summary>

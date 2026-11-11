@@ -44,7 +44,7 @@ public class Ds01SeederTests
         services.AddMemoryCache();
         services.AddSingleton<IUserContextService>(user);
         services.AddSingleton(_f.PlantRepo); services.AddSingleton(_f.SettingRepo); services.AddSingleton(_f.ProfileRepo); services.AddSingleton(_f.AccessRepo);
-        services.AddSingleton(_f.Uow); services.AddSingleton(_f.BomRepo); services.AddSingleton(_f.RoutingRepo); services.AddSingleton(_f.UnitClient); services.AddSingleton(_f.ConversionClient);
+        services.AddSingleton(_f.Uow); services.AddSingleton(_f.BomRepo); services.AddSingleton(_f.RoutingRepo); services.AddSingleton(_f.PlanRepo); services.AddSingleton(_f.UnitClient); services.AddSingleton(_f.ConversionClient);
         services.AddSingleton(_f.WarehouseClient); services.AddSingleton(_f.ProductClient); services.AddSingleton(_f.Guard); services.AddSingleton(_f.Catalog); services.AddSingleton(_f.CalendarRepo);
         services.AddSingleton(_f.CrewRepo); services.AddSingleton(_f.ReasonRepo); services.AddSingleton(_f.References); services.AddSingleton(_f.EmployeeClient);
         services.AddSingleton<IWorkingTimeService>(_f.WorkingTime);

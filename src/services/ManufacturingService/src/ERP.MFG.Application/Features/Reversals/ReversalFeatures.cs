@@ -4,6 +4,7 @@ using ERP.MFG.Application.Abstractions;
 using ERP.MFG.Application.Features.Operations;
 using ERP.MFG.Application.Features.Orders;
 using ERP.MFG.Application.Features.StockDocuments;
+using ERP.MFG.Application.Services;
 using ERP.MFG.Domain.Common;
 using ERP.MFG.Domain.Engineering;
 using ERP.MFG.Domain.Entities;
@@ -46,7 +47,7 @@ public sealed record ReverseOperationReportCommand(Guid OrderId, Guid ReportId, 
 
 public sealed class ReverseOperationReportHandler(
     IPlantAccessService access, IProductionOrderRepository orders, IOperationReportRepository reports, IStockDocumentRepository documents, IProductionSettingProvider settings,
-    IDocumentNumberService numbers, IPlantClock clock, IStockPostingService posting, IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<ReverseOperationReportCommand, OperationReportResultDto>
+    IQualityInspectionCreator quality, IDocumentNumberService numbers, IPlantClock clock, IStockPostingService posting, IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<ReverseOperationReportCommand, OperationReportResultDto>
 {
     public async Task<OperationReportResultDto> Handle(ReverseOperationReportCommand r, CancellationToken ct)
     {
@@ -64,6 +65,7 @@ public sealed class ReverseOperationReportHandler(
         var earlier = await reports.FindReversalOfAsync(original.Id, ct);
         MfgRules.ThrowIf(earlier is not null, MfgErrors.Rev001, ("document", original.DocNo), ("reason", $"đã có phiếu đảo {earlier?.DocNo}"));
         await ReversalGuards.EnsureNoPendingReversalAsync(documents, reports, order.Id, ct);
+        var inspectionHold = await quality.CheckReportReversibleAsync(original.Id, ct);   // P4-3: an in-process inspection with a result blocks the reversal (MFG_REV_003); a Pending one goes with it
 
         // BR-OP-07: what is left on the operation must still cover what the next operation (or the receipts) took from it
         var op = order.OperationOf(original.OperationSeq);
@@ -79,7 +81,7 @@ public sealed class ReverseOperationReportHandler(
                 used = order.CompletedQty + flows.Where(f => f.Kind == StockLineKind.Receipt && f.OrderOutputId == null && f.Type == StockDocumentType.Receipt
                     && f.DocumentStatus == StockDocumentStatus.Pending && f.DocumentMode == StockDocumentMode.Forward).Sum(f => f.Qty);
             }
-            var (covered, remaining, taken) = ReversalChecks.ReportCovered(op.GoodQty, original.GoodQty, used);
+            var (covered, remaining, taken) = ReversalChecks.ReportCovered(op.NetOutputQty + inspectionHold, original.GoodQty, used);   // net of what inspections hold, apart from this report's own pending hold
             MfgRules.ThrowIf(!covered, MfgErrors.Op007, ("detail", $" Còn lại {remaining:0.######}, đã dùng {taken:0.######}."));
         }
 
@@ -103,7 +105,8 @@ public sealed class ReverseOperationReportHandler(
         {
             // nothing was consumed: nothing to give back, the reversal counts at once in the same save that stores it
             var setting = await settings.GetAsync(plant.Id, ct);
-            order.ApplyOperationReportReversal(original, reversal, setting.RequireSequentialOperations, by, now);
+            var cancelledHold = await quality.CancelPendingForReportAsync(original.Id, ct);
+            order.ApplyOperationReportReversal(original, reversal, setting.RequireSequentialOperations, by, now, cancelledHold);
             original.MarkReversed(by);
             reversal.MarkPosted(now, by);
             reports.Add(reversal);
@@ -164,7 +167,7 @@ public sealed record ReverseReceiptCommand(Guid OrderId, Guid DocumentId, string
 
 public sealed class ReverseReceiptHandler(
     IPlantAccessService access, IProductionOrderRepository orders, IStockDocumentRepository documents, IOperationReportRepository reports, IWarehouseStockClient stock,
-    IDocumentNumberService numbers, IPlantClock clock, IStockPostingService posting, IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<ReverseReceiptCommand, StockDocumentResultDto>
+    IQualityInspectionCreator quality, IDocumentNumberService numbers, IPlantClock clock, IStockPostingService posting, IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<ReverseReceiptCommand, StockDocumentResultDto>
 {
     public async Task<StockDocumentResultDto> Handle(ReverseReceiptCommand r, CancellationToken ct)
     {
@@ -185,7 +188,9 @@ public sealed class ReverseReceiptHandler(
         MfgRules.ThrowIf(earlier is not null, MfgErrors.Rev001, ("document", original.DocNo), ("reason", $"đã có phiếu đảo {earlier?.DocNo}"));
         await ReversalGuards.EnsureNoPendingReversalAsync(documents, reports, order.Id, ct);
 
-        // BR-FG-07: a lot released from quality hold counts as inspected (until the FQC result of P4-3 replaces this check) ...
+        // BR-FG-07: a final inspection that has a result blocks the reversal (P4-3) ...
+        await quality.CheckReceiptReversibleAsync(original, ct);
+        // ... and so does a lot released from quality hold by the interim release (an item with no plan counts it as inspected) ...
         var received = original.ReceiptLines.Where(l => l.Status == StockLineStatus.Posted).ToList();
         foreach (var line in received.Where(l => l.QcReleasedAt is not null))
             throw MfgRules.Fail(MfgErrors.Fg004, ("reason", $"lô {line.LotNumber ?? line.ItemCode} đã được giải phóng khỏi kho chờ kiểm"));

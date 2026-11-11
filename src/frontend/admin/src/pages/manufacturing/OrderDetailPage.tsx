@@ -12,13 +12,13 @@ import { CloseOrderDialog } from '@/components/manufacturing/CloseOrderDialog'
 import { IssueReturnDialog } from '@/components/manufacturing/IssueReturnDialog'
 import { LateFlag, OrderStatusBadge } from '@/components/manufacturing/OrderBadges'
 import { OrderFormModal } from '@/components/manufacturing/OrderFormModal'
-import { DocumentsTab, HistoryTab, MaterialsTab, OperationsTab, ReceiptsTab } from '@/components/manufacturing/OrderTabs'
+import { DocumentsTab, HistoryTab, MaterialsTab, OperationsTab, QualityTab, ReceiptsTab } from '@/components/manufacturing/OrderTabs'
 import { ReasonCodeDialog } from '@/components/manufacturing/ReasonCodeDialog'
 import { ReceiptDialog } from '@/components/manufacturing/ReceiptDialog'
 import { SHORT_CLOSE_REFUSAL, errorCodeOf, orderActions } from '@/components/manufacturing/orderActions'
 import { PageHeader, fmtDate, fmtDateTime, fmtQty, usePlantContext } from '@/components/manufacturing/shared'
 
-type TabKey = 'overview' | 'materials' | 'operations' | 'receipts' | 'documents' | 'history'
+type TabKey = 'overview' | 'materials' | 'operations' | 'receipts' | 'quality' | 'documents' | 'history'
 type Dialog =
   | { kind: 'issue' | 'return'; lineNo?: number }
   | { kind: 'receive' | 'edit' | 'close' | 'quantity' | 'unrelease' | 'resume' | 'reopen' | 'cancel' | 'hold' | 'shortClose' }
@@ -51,6 +51,9 @@ export function ProductionOrderDetailPage() {
     queryFn: () => mfgApi.orderDocuments(id),
     refetchInterval: () => (order.data && order.data.pendingStockDocuments > 0 ? 5000 : false),
   })
+
+  // P4-3: the inspections of the order (the Quality tab, and the receipt lines that have one)
+  const inspections = useQuery({ queryKey: ['mfg', 'order', id, 'inspections'], queryFn: () => mfgApi.orderInspections(id), enabled: hasPermission('manufacturing:qc:view') })
 
   const reload = () => {
     queryClient.invalidateQueries({ queryKey: ['mfg', 'order', id] })
@@ -93,7 +96,8 @@ export function ProductionOrderDetailPage() {
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'overview', label: t('mfg.order.tabs.overview') }, { key: 'materials', label: t('mfg.order.tabs.materials') }, { key: 'operations', label: t('mfg.order.tabs.operations') },
-    { key: 'receipts', label: t('mfg.order.tabs.receipts') }, { key: 'documents', label: t('mfg.order.tabs.documents') }, { key: 'history', label: t('mfg.order.tabs.history') },
+    { key: 'receipts', label: t('mfg.order.tabs.receipts') }, ...(can.viewQuality ? [{ key: 'quality' as const, label: t('mfg.order.tabs.quality') }] : []),
+    { key: 'documents', label: t('mfg.order.tabs.documents') }, { key: 'history', label: t('mfg.order.tabs.history') },
   ]
 
   const actions = (
@@ -150,7 +154,8 @@ export function ProductionOrderDetailPage() {
         {tab === 'overview' && <Overview order={o} />}
         {tab === 'materials' && <MaterialsTab order={o} can={can} onIssue={(lineNo) => setDialog({ kind: 'issue', lineNo })} onReturn={(lineNo) => setDialog({ kind: 'return', lineNo })} />}
         {tab === 'operations' && <OperationsTab order={o} can={can} reload={reload} />}
-        {tab === 'receipts' && <ReceiptsTab order={o} can={can} documents={docs} onReceive={() => setDialog({ kind: 'receive' })} reload={reload} />}
+        {tab === 'receipts' && <ReceiptsTab order={o} can={can} documents={docs} inspections={inspections.data ?? []} onReceive={() => setDialog({ kind: 'receive' })} reload={reload} />}
+        {tab === 'quality' && <QualityTab inspections={inspections.data ?? []} />}
         {tab === 'documents' && <DocumentsTab documents={docs} can={can} reload={reload} />}
         {tab === 'history' && <HistoryTab order={o} />}
       </div>

@@ -211,6 +211,20 @@ public class TenantIsolationBehaviorTests
             ERP.MFG.Domain.Entities.Routing.Create(Guid.NewGuid(), Guid.NewGuid(), "TP-BAN01", "Table", 1, new DateOnly(2026, 1, 1), null, null), e => e.TenantId);
 
     [Fact]
+    public void Manufacturing_InspectionPlans() =>
+        AssertIsolated<ERP.MFG.Infrastructure.Persistence.MfgDbContext, ERP.MFG.Domain.Entities.InspectionPlan>(
+            ERP.MFG.Domain.Entities.InspectionPlan.Create(Guid.NewGuid(), Guid.NewGuid(), "TP-BAN01", "Table", "FQC-BAN01", ERP.MFG.Domain.Common.InspectionType.Fqc, 1,
+                ERP.MFG.Domain.Common.SamplingMethod.Fixed, 5, 1, new DateOnly(2026, 1, 1), null, null), e => e.TenantId);
+
+    [Fact]
+    public void Manufacturing_Inspections() =>
+        AssertIsolated<ERP.MFG.Infrastructure.Persistence.MfgDbContext, ERP.MFG.Domain.Entities.Inspection>(
+            ERP.MFG.Domain.Entities.Inspection.CreateIpqc("QI-2611-00001",
+                ERP.MFG.Domain.Entities.InspectionPlan.Create(Guid.NewGuid(), Guid.NewGuid(), "TP-BAN01", "Table", "IPQC-X", ERP.MFG.Domain.Common.InspectionType.Ipqc, 1,
+                    ERP.MFG.Domain.Common.SamplingMethod.Full, null, 0, new DateOnly(2026, 1, 1), null, null),
+                Guid.NewGuid(), "MO-2611-00001", Guid.NewGuid(), 10, Guid.NewGuid(), Guid.NewGuid(), "TP-BAN01", "Table", 10m), e => e.TenantId);
+
+    [Fact]
     public void Manufacturing_Boms() =>
         AssertIsolated<ERP.MFG.Infrastructure.Persistence.MfgDbContext, ERP.MFG.Domain.Entities.Bom>(
             ERP.MFG.Domain.Entities.Bom.Create(Guid.NewGuid(), Guid.NewGuid(), "TP-BAN01", "Table", 1, 1m, 100m, new DateOnly(2026, 1, 1), null, null), e => e.TenantId);

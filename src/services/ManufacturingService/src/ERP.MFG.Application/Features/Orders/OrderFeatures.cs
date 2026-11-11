@@ -18,11 +18,12 @@ public sealed record OrderMaterialDto(int LineNo, Guid ComponentItemId, string C
 
 public sealed record OrderOperationDto(int OperationSeq, string Name, Guid WorkCenterId, string WorkCenterCode, decimal SetupTimeMinutes, decimal RunTimeMinutes,
     RunTimeBasis RunTimeBasis, decimal? BatchSize, int QueueTimeMinutes, int MoveTimeMinutes, bool IsSubcontract, OperationStatus Status, decimal StandardMinutes,
-    int CalendarMinutes, DateTime? PlannedStart, DateTime? PlannedEnd, DateTime? ActualStart, DateTime? ActualEnd, decimal GoodQty, decimal ScrapQty, decimal ReworkQty)
+    int CalendarMinutes, DateTime? PlannedStart, DateTime? PlannedEnd, DateTime? ActualStart, DateTime? ActualEnd, decimal GoodQty, decimal ScrapQty, decimal ReworkQty,
+    Guid? IpqcInspectionPlanId = null, decimal IpqcHeldQty = 0m, decimal IpqcPassedQty = 0m)
 {
     public static OrderOperationDto From(ProductionOrderOperation o) => new(o.OperationSeq, o.Name, o.WorkCenterId, o.WorkCenterCode, o.SetupTimeMinutes, o.RunTimeMinutes,
         o.RunTimeBasis, o.BatchSize, o.QueueTimeMinutes, o.MoveTimeMinutes, o.IsSubcontract, o.Status, o.StandardMinutes, o.CalendarMinutes, o.PlannedStart, o.PlannedEnd,
-        o.ActualStart, o.ActualEnd, o.GoodQty, o.ScrapQty, o.ReworkQty);
+        o.ActualStart, o.ActualEnd, o.GoodQty, o.ScrapQty, o.ReworkQty, o.IpqcInspectionPlanId, o.IpqcHeldQty, o.IpqcPassedQty);
 }
 
 public sealed record OrderOutputDto(int LineNo, BomLineType LineType, Guid ItemId, string ItemCode, string ItemName, Guid UomId, decimal PlannedQty, decimal ReceivedQty, decimal? CostAllocationPct)

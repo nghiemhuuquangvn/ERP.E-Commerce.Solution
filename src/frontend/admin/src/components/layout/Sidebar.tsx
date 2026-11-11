@@ -476,6 +476,8 @@ const MANUFACTURING_CHILDREN: NavItem[] = [
   { labelKey: 'mfg.nav.stockDocuments', path: '/manufacturing/stock-documents', permission: 'manufacturing:order:view', icon: FileText },
   { labelKey: 'mfg.nav.boms', path: '/manufacturing/boms', permission: 'manufacturing:bom:view', icon: FolderTree },
   { labelKey: 'mfg.nav.routings', path: '/manufacturing/routings', permission: 'manufacturing:routing:view', icon: Workflow },
+  { labelKey: 'mfg.nav.inspectionPlans', path: '/manufacturing/inspection-plans', permission: 'manufacturing:qc:plan-view', icon: ClipboardCheck },
+  { labelKey: 'mfg.nav.inspections', path: '/manufacturing/inspections', permission: 'manufacturing:qc:view', icon: FlaskConical },
   { labelKey: 'mfg.nav.whereUsed', path: '/manufacturing/where-used', permission: 'manufacturing:bom:view', icon: Link },
   { labelKey: 'mfg.nav.itemProfiles', path: '/manufacturing/item-profiles', permission: 'manufacturing:masterdata:view', icon: ClipboardList },
   { labelKey: 'mfg.nav.workCenters', path: '/manufacturing/work-centers', permission: 'manufacturing:masterdata:view', icon: Factory },

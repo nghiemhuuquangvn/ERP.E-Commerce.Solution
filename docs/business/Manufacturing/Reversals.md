@@ -75,3 +75,8 @@ Order screen: reports list (original, reversed badge, reversal row with link), s
 5. Receive 8 + 12 (the order completes), reverse the 8: order InProgress, completed 12; receive 8 again: Completed.
 6. Stop the Warehouse; reverse a report with backflush: 202; a new report on that order is refused; start the Warehouse: within a minute the reversal is Posted and the stock back once.
 7. A user without the permissions gets 403 on both endpoints.
+
+## Addendum P4-3: inspections (see `Quality.md`)
+* A receipt line whose newest inspection has a **result** (Passed or Failed) cannot be reversed (`MFG_FG_004`, the message names the inspection); the earlier rule "a lot released by the interim button counts as inspected" stays for items without a plan. A **Pending** inspection is cancelled in the same save in which the reversal document is Posted.
+* A report whose in-process inspection has a result cannot be reversed (`MFG_REV_003`); a Pending one is cancelled with the report and the Good quantity it held is no longer held. The downstream check of BR-OP-07 counts the **net** output of the operation (Good minus held), apart from the hold of the report being reversed.
+* A lot with a Failed FQC can be neither reversed nor released by hand until P4-4 gives the non-conformance report its dispositions (owner decision, R279).

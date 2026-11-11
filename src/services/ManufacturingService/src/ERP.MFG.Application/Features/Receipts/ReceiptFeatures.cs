@@ -163,7 +163,7 @@ public sealed class ReceiveFinishedGoodsHandler(
 public sealed record QcReleaseReceiptCommand(Guid DocumentId) : IRequest<StockDocumentDto>;
 
 public sealed class QcReleaseReceiptHandler(
-    IPlantAccessService access, IStockDocumentRepository documents, IProductionOrderRepository orders, IWarehouseStockClient stock, IPlantClock clock, IMfgUnitOfWork uow)
+    IPlantAccessService access, IStockDocumentRepository documents, IProductionOrderRepository orders, IInspectionRepository inspections, IQuarantineRelease release, IPlantClock clock, IMfgUnitOfWork uow)
     : IRequestHandler<QcReleaseReceiptCommand, StockDocumentDto>
 {
     public async Task<StockDocumentDto> Handle(QcReleaseReceiptCommand r, CancellationToken ct)
@@ -173,14 +173,14 @@ public sealed class QcReleaseReceiptHandler(
             throw MfgRules.Invalid("Only a posted finished-goods receipt can be released from quality hold.");
         var order = await orders.GetAsync(document.OrderId, ct) ?? throw new EntityNotFoundException(nameof(ProductionOrder), document.OrderId);
 
-        foreach (var line in document.ReceiptLines.Where(l => l.Status == StockLineStatus.Posted && l.IsQcHold && l.QcReleasedAt is null).ToList())
+        var held = document.ReceiptLines.Where(l => l.Status == StockLineStatus.Posted && l.IsQcHold && l.QcReleasedAt is null).ToList();
+        // P4-3: a line that has an inspection is released through it, never by hand (a cancelled inspection does not count)
+        var inspected = (await inspections.ListForReceiptLinesAsync(held.Select(l => l.Id).ToList(), ct)).FirstOrDefault(i => i.Status != InspectionStatus.Cancelled);
+        MfgRules.ThrowIf(inspected is not null, MfgErrors.Qc004, ("inspection", inspected?.DocNo));
+
+        foreach (var line in held)
         {
-            var lot = line.PostedLotId ?? throw MfgRules.Invalid($"Line {line.LineNo} of {document.DocNo} has no lot to release.");
-            if (line.WarehouseId != order.OutputWarehouseId)
-                await stock.RecordMovementAsync(new("SubcontractTransfer", line.ItemId, line.Qty, line.MovementKey + "Q1", WarehouseId: line.WarehouseId, ToWarehouseId: order.OutputWarehouseId,
-                    LotId: lot, Reason: $"Quality release of {line.MovementKey}", SourceOrderId: order.Id), ct);
-            await stock.RecordMovementAsync(new("QcRelease", line.ItemId, line.Qty, line.MovementKey + "Q2", WarehouseId: order.OutputWarehouseId, LotId: lot,
-                Reason: $"Quality release of {line.MovementKey}", SourceOrderId: order.Id), ct);
+            await release.ReleaseAsync(order, line, $"Quality release of {line.MovementKey}", ct);
             document.RecordQcReleased(line, clock.UtcNow);
             await uow.SaveChangesAsync(ct);                                              // progress is durable
         }

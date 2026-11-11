@@ -304,7 +304,7 @@ public class OperationExecutionTests
         var c = new OpsCtx();
         var order = await c.ReleasedAsync();
         var act = () => new ERP.MFG.Application.Features.Operations.ReportOperationHandler(c.Access, c.Repo, c.Reports, c.Documents, c.PlantSettings, c.F.ReasonRepo, c.F.UnitClient, c.F.Catalog,
-                c.Planner, c.Closer, c.Numbers, c.PlantTime, c.Posting, c.User, c.F.Uow)
+                c.Planner, c.Closer, c.Numbers, c.Quality, c.PlantTime, c.Posting, c.User, c.F.Uow)
             .Handle(new ERP.MFG.Application.Features.Operations.ReportOperationCommand(order.Id, 10, 10, 2, 0, c.ReworkReason.Id, null, null, null, null), default);
 
         (await Refused(act)).RuleName.Should().Be(MfgErrors.Op003);
