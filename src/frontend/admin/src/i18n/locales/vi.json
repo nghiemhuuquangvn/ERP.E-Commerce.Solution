@@ -3349,7 +3349,8 @@
       "plants": "Nhà máy",
       "settings": "Tham số sản xuất",
       "orders": "Lệnh sản xuất",
-      "stockDocuments": "Chứng từ kho"
+      "stockDocuments": "Chứng từ kho",
+      "inspectionPlans": "Kế hoạch kiểm tra"
     },
     "status": {
       "Draft": "Nháp",
@@ -3791,6 +3792,64 @@
       "Backflush": "Backflush",
       "Receipt": "Nhập kho thành phẩm",
       "Reversal": "Phiếu đảo"
+    },
+    "qc": {
+      "type": { "Fqc": "Thành phẩm (FQC)", "Ipqc": "Trong quá trình (IPQC)" },
+      "kind": { "Measurement": "Đo kích thước", "Attribute": "Đạt / không đạt" },
+      "sampling": { "Fixed": "Số lượng cố định", "Percent": "Phần trăm của lô", "Full": "Kiểm tra toàn bộ" },
+      "sample": { "units": "{{count}} sản phẩm", "Full": "Toàn bộ" },
+      "passFail": "Đạt / không đạt",
+      "plan": {
+        "hint": "Kiểm tra cái gì, lấy mẫu bao nhiêu và chấp nhận bao nhiêu lỗi nhẹ. Kế hoạch là một dãy phiên bản theo mã; chỉ phiên bản đã duyệt được dùng.",
+        "new": "Kế hoạch kiểm tra mới",
+        "item": "Mặt hàng",
+        "noItem": "Chưa chọn mặt hàng",
+        "code": "Mã kế hoạch",
+        "codeHint": "Đặt tên cho dãy phiên bản (2-20 ký tự A-Z, 0-9, '-').",
+        "type": "Loại",
+        "sampling": "Cách lấy mẫu",
+        "sample": "Cỡ mẫu",
+        "percent": "Phần trăm",
+        "units": "Số sản phẩm",
+        "allowedMinor": "Số lỗi nhẹ cho phép",
+        "allowedMinorHint": "Lô đạt khi không có tiêu chí quan trọng nào hỏng và số tiêu chí khác hỏng không quá số này.",
+        "characteristics": "Tiêu chí",
+        "addCharacteristic": "Thêm tiêu chí",
+        "editCharacteristic": "Tiêu chí {{no}}",
+        "noCharacteristics": "Chưa có tiêu chí.",
+        "kind": "Loại tiêu chí",
+        "min": "Giá trị nhỏ nhất",
+        "max": "Giá trị lớn nhất",
+        "unit": "Đơn vị",
+        "range": "Khoảng cho phép",
+        "rangeHint": "Để trống cận không giới hạn. Giá trị nhỏ nhất không được lớn hơn giá trị lớn nhất.",
+        "critical": "Quan trọng",
+        "minor": "Lỗi nhẹ",
+        "empty": "Chưa có kế hoạch kiểm tra.",
+        "backToList": "Về danh sách",
+        "header": "Thông tin kế hoạch kiểm tra",
+        "immutable": "Kế hoạch đã duyệt hoặc hết hiệu lực không sửa được. Hãy tạo phiên bản mới từ bản sao.",
+        "sampleSummary": "Cỡ mẫu: {{sample}}. Số lỗi nhẹ cho phép: {{minor}}.",
+        "approve": "Phê duyệt",
+        "obsolete": "Ngừng hiệu lực",
+        "copy": "Phiên bản mới",
+        "delete": "Xóa",
+        "copied": "Đã tạo phiên bản {{version}} ở trạng thái nháp.",
+        "approveAsk": "Phê duyệt kế hoạch {{code}} phiên bản {{version}}? Sau đó không sửa được và được dùng cho các phiếu kiểm tra mới.",
+        "obsoleteAsk": "Ngừng hiệu lực kế hoạch {{code}} phiên bản {{version}}? Phiếu nhập và báo cáo mới sẽ không còn được kiểm tra theo kế hoạch này.",
+        "copyAsk": "Tạo phiên bản nháp mới của kế hoạch {{code}}?",
+        "deleteAsk": "Xóa bản nháp của kế hoạch {{code}} phiên bản {{version}}?"
+      },
+      "profile": {
+        "fqcPlan": "Kế hoạch kiểm tra thành phẩm",
+        "fqcPlanHint": "Các kế hoạch FQC đã duyệt của mặt hàng. Dùng phiên bản đang hiệu lực vào ngày nhập kho.",
+        "noPlanWarning": "Chưa gắn kế hoạch: lô của mặt hàng này vẫn nhập vào kho chờ kiểm nhưng không có phiếu kiểm tra, phải giải phóng thủ công."
+      },
+      "routing": {
+        "ipqcPlan": "Kế hoạch kiểm tra trong quá trình",
+        "ipqcPlanHint": "Mỗi báo cáo Good của công đoạn này có một phiếu kiểm tra; công đoạn sau chỉ nhận phần đã đạt.",
+        "currentPlan": "Kế hoạch hiện tại"
+      }
     },
     "rev": {
       "reversed": "Đã đảo",

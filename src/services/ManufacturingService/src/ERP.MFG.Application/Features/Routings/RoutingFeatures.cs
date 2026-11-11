@@ -1,4 +1,5 @@
 using ERP.MFG.Application.Abstractions;
+using ERP.MFG.Application.Services;
 using ERP.MFG.Domain.Common;
 using ERP.MFG.Domain.Engineering;
 using ERP.MFG.Domain.Entities;
@@ -9,10 +10,10 @@ using MediatR;
 namespace ERP.MFG.Application.Features.Routings;
 
 public sealed record RoutingOperationDto(int OperationSeq, Guid? StandardOperationId, string Name, Guid WorkCenterId, string WorkCenterCode, decimal SetupTimeMinutes,
-    decimal RunTimeMinutes, RunTimeBasis RunTimeBasis, decimal? BatchSize, int QueueTimeMinutes, int MoveTimeMinutes, bool IsSubcontract, string? Instructions)
+    decimal RunTimeMinutes, RunTimeBasis RunTimeBasis, decimal? BatchSize, int QueueTimeMinutes, int MoveTimeMinutes, bool IsSubcontract, string? Instructions, Guid? IpqcInspectionPlanId = null)
 {
     public static RoutingOperationDto From(RoutingOperation o) => new(o.OperationSeq, o.StandardOperationId, o.Name, o.WorkCenterId, o.WorkCenterCode, o.SetupTimeMinutes,
-        o.RunTimeMinutes, o.RunTimeBasis, o.BatchSize, o.QueueTimeMinutes, o.MoveTimeMinutes, o.IsSubcontract, o.Instructions);
+        o.RunTimeMinutes, o.RunTimeBasis, o.BatchSize, o.QueueTimeMinutes, o.MoveTimeMinutes, o.IsSubcontract, o.Instructions, o.IpqcInspectionPlanId);
 }
 
 public sealed record RoutingDto(Guid Id, Guid PlantId, Guid ItemId, string ItemCode, string ItemName, int Version, VersionStatus Status, DateOnly EffectiveFrom, DateOnly? EffectiveTo,
@@ -54,13 +55,13 @@ internal static class RoutingScope
             b.OperationSeq ?? routing.NextSeq(), standard?.Id, string.IsNullOrWhiteSpace(b.Name) ? standard?.Name ?? $"Operation {b.OperationSeq ?? routing.NextSeq()}" : b.Name.Trim(), center.Id, center.Code,
             b.SetupTimeMinutes ?? standard?.SetupTimeMinutes ?? 0m, b.RunTimeMinutes ?? standard?.RunTimeMinutes ?? 0m, basis,
             basis == RunTimeBasis.PerBatch ? b.BatchSize ?? standard?.BatchSize : null, b.QueueTimeMinutes ?? center.QueueTimeMinutes, b.MoveTimeMinutes ?? center.MoveTimeMinutes,
-            b.IsSubcontract, string.IsNullOrWhiteSpace(b.Instructions) ? standard?.Instructions : b.Instructions.Trim());
+            b.IsSubcontract, string.IsNullOrWhiteSpace(b.Instructions) ? standard?.Instructions : b.Instructions.Trim(), b.IpqcInspectionPlanId);
     }
 }
 
 /// <summary>An operation as a client sends it. With a standard operation, the fields left empty are copied from it; queue and move default to the work center's.</summary>
 public sealed record RoutingOperationBody(int? OperationSeq, Guid? StandardOperationId, string? Name, Guid? WorkCenterId, decimal? SetupTimeMinutes, decimal? RunTimeMinutes,
-    RunTimeBasis? RunTimeBasis, decimal? BatchSize, int? QueueTimeMinutes, int? MoveTimeMinutes, bool IsSubcontract, string? Instructions);
+    RunTimeBasis? RunTimeBasis, decimal? BatchSize, int? QueueTimeMinutes, int? MoveTimeMinutes, bool IsSubcontract, string? Instructions, Guid? IpqcInspectionPlanId = null);
 
 // ── Draft ────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -110,13 +111,15 @@ public sealed class DeleteRoutingHandler(IPlantAccessService access, IRoutingRep
 
 public sealed record AddRoutingOperationCommand(Guid RoutingId, RoutingOperationBody Body) : IRequest<RoutingDto>;
 
-public sealed class AddRoutingOperationHandler(IPlantAccessService access, IRoutingRepository routings, IPlantCatalog catalog, IMfgUnitOfWork uow) : IRequestHandler<AddRoutingOperationCommand, RoutingDto>
+public sealed class AddRoutingOperationHandler(IPlantAccessService access, IRoutingRepository routings, IPlantCatalog catalog, IInspectionPlanRepository plans, IMfgUnitOfWork uow) : IRequestHandler<AddRoutingOperationCommand, RoutingDto>
 {
     public async Task<RoutingDto> Handle(AddRoutingOperationCommand r, CancellationToken ct)
     {
         var routing = await RoutingScope.LoadAsync(routings, access, r.RoutingId, ct);
         routing.EnsureDraft();
-        routing.AddOperation(await RoutingScope.BuildAsync(r.Body, routing, catalog, ct));
+        var values = await RoutingScope.BuildAsync(r.Body, routing, catalog, ct);
+        await InspectionPlanPointer.CheckAsync(plans, values.IpqcInspectionPlanId, routing.PlantId, routing.ItemId, InspectionType.Ipqc, ct);
+        routing.AddOperation(values);
         await uow.SaveChangesAsync(ct);
         return RoutingDto.From(routing);
     }
@@ -124,14 +127,16 @@ public sealed class AddRoutingOperationHandler(IPlantAccessService access, IRout
 
 public sealed record UpdateRoutingOperationCommand(Guid RoutingId, int OperationSeq, RoutingOperationBody Body) : IRequest<RoutingDto>;
 
-public sealed class UpdateRoutingOperationHandler(IPlantAccessService access, IRoutingRepository routings, IPlantCatalog catalog, IMfgUnitOfWork uow) : IRequestHandler<UpdateRoutingOperationCommand, RoutingDto>
+public sealed class UpdateRoutingOperationHandler(IPlantAccessService access, IRoutingRepository routings, IPlantCatalog catalog, IInspectionPlanRepository plans, IMfgUnitOfWork uow) : IRequestHandler<UpdateRoutingOperationCommand, RoutingDto>
 {
     public async Task<RoutingDto> Handle(UpdateRoutingOperationCommand r, CancellationToken ct)
     {
         var routing = await RoutingScope.LoadAsync(routings, access, r.RoutingId, ct);
         routing.EnsureDraft();
         var body = r.Body with { OperationSeq = r.Body.OperationSeq ?? r.OperationSeq };
-        routing.UpdateOperation(r.OperationSeq, await RoutingScope.BuildAsync(body, routing, catalog, ct));
+        var values = await RoutingScope.BuildAsync(body, routing, catalog, ct);
+        await InspectionPlanPointer.CheckAsync(plans, values.IpqcInspectionPlanId, routing.PlantId, routing.ItemId, InspectionType.Ipqc, ct);
+        routing.UpdateOperation(r.OperationSeq, values);
         await uow.SaveChangesAsync(ct);
         return RoutingDto.From(routing);
     }

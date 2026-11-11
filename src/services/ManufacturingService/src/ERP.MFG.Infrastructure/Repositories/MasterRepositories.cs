@@ -95,6 +95,29 @@ public sealed class ReferenceChecker(MfgDbContext db) : IReferenceChecker
     public Task<bool> ReasonIsUsedAsync(Guid reasonId, CancellationToken ct = default)                                    // order history (reports: Phase 3 P3-4)
         => db.ProductionOrderStatusHistories.AnyAsync(h => h.ReasonCodeId == reasonId, ct);
     public Task<bool> CrewIsUsedAsync(Guid crewId, CancellationToken ct = default) => Task.FromResult(false);
+
+    public async Task<bool> InspectionPlanIsUsedAsync(Guid planId, CancellationToken ct = default)
+        => await db.ItemProfiles.AnyAsync(p => p.FqcInspectionPlanId == planId && !p.IsDeleted, ct)
+           || await db.RoutingOperations.AnyAsync(o => o.IpqcInspectionPlanId == planId && !o.IsDeleted, ct)
+           || await db.ProductionOrderOperations.AnyAsync(o => o.IpqcInspectionPlanId == planId && !o.IsDeleted, ct);
+}
+
+public sealed class InspectionPlanRepository(MfgDbContext db) : IInspectionPlanRepository
+{
+    private IQueryable<InspectionPlan> Full => db.InspectionPlans.Include(p => p.AllCharacteristics).Where(p => !p.IsDeleted);
+
+    public Task<InspectionPlan?> GetAsync(Guid id, CancellationToken ct = default) => Full.FirstOrDefaultAsync(p => p.Id == id, ct);
+
+    public Task<List<InspectionPlan>> ListAsync(Guid plantId, InspectionType? type, Guid? itemId, VersionStatus? status, CancellationToken ct = default)
+        => Full.Where(p => p.PlantId == plantId && (type == null || p.Type == type) && (itemId == null || p.ItemId == itemId) && (status == null || p.Status == status)).ToListAsync(ct);
+
+    public Task<List<InspectionPlan>> ListSeriesAsync(Guid plantId, string code, CancellationToken ct = default)
+        => Full.Where(p => p.PlantId == plantId && p.Code == code).ToListAsync(ct);
+
+    public async Task<int> MaxVersionAsync(Guid plantId, string code, CancellationToken ct = default)
+        => await db.InspectionPlans.Where(p => p.PlantId == plantId && p.Code == code).Select(p => (int?)p.Version).MaxAsync(ct) ?? 0; // deleted drafts keep their number
+
+    public void Add(InspectionPlan plan) => db.InspectionPlans.Add(plan);
 }
 
 public sealed class BomRepository(MfgDbContext db) : IBomRepository

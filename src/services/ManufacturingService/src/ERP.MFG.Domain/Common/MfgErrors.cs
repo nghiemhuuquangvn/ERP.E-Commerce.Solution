@@ -93,6 +93,8 @@ public static class MfgErrors
     public const string Qc001 = "MFG_QC_001";
     public const string Qc002 = "MFG_QC_002";
     public const string Qc003 = "MFG_QC_003";
+    public const string Qc004 = "MFG_QC_004"; // not in the spec (P4-3): the receipt line has an inspection - release it through the inspection, not by hand
+    public const string Rev003 = "MFG_REV_003"; // not in the spec (P4-3): the in-process inspection of the report already has a result
     public const string Ncr001 = "MFG_NCR_001";
     public const string Ncr002 = "MFG_NCR_002";
     public const string Mrp001 = "MFG_MRP_001";
@@ -187,6 +189,8 @@ public static class MfgErrors
         [Qc001] = "Cỡ mẫu không đúng kế hoạch kiểm tra (yêu cầu {sample}).",
         [Qc002] = "Phiếu kiểm tra đã hoàn tất, không thể chỉnh sửa.",
         [Qc003] = "Chưa nhập đủ kết quả cho các tiêu chí kiểm tra.",
+        [Qc004] = "Dòng nhập kho đã có phiếu kiểm tra {inspection}: hãy giải phóng lô bằng kết quả của phiếu đó.",
+        [Rev003] = "Không thể đảo báo cáo: phiếu kiểm tra {inspection} của báo cáo đã có kết quả.",
         [Ncr001] = "Tổng số lượng xử lý phải bằng số lượng không phù hợp ({qty}).",
         [Ncr002] = "Cần quyền phê duyệt sử dụng có điều kiện (Use-As-Is).",
         [Mrp001] = "MRP của nhà máy đang chạy, vui lòng đợi hoàn tất.",

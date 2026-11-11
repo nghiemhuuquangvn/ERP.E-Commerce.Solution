@@ -23,13 +23,15 @@ function ProfileModal({ plantId, itemId, onClose }: { plantId: string; itemId: s
   const { register, handleSubmit, watch, formState: { errors } } = useForm<ItemProfileValues>({ values: data?.values })
   const policy = watch('lotSizingPolicy')
   const fqc = watch('requiresFqc')
+  // P4-3: the FQC plans (Approved) of this item; the profile points at the series
+  const { data: fqcPlans = [] } = useQuery({ queryKey: ['mfg', 'inspection-plans', plantId, 'Fqc', itemId], queryFn: () => mfgApi.listInspectionPlans(plantId, { type: 'Fqc', itemId, status: 'Approved' }), enabled: !!fqc })
 
   const save = useMutation({
     mutationFn: (v: ItemProfileValues) => mfgApi.saveProfile(itemId, plantId, {
       ...v,
       fixedLeadTimeDays: Number(v.fixedLeadTimeDays), purchaseLeadTimeDays: Number(v.purchaseLeadTimeDays), safetyStockQty: Number(v.safetyStockQty), standardLotSize: Number(v.standardLotSize), shelfLifeDays: Number(v.shelfLifeDays),
       fixedLotQty: num(v.fixedLotQty), minOrderQty: num(v.minOrderQty), orderMultiple: num(v.orderMultiple), periodDays: num(v.periodDays),
-      defaultIssueMethod: v.defaultIssueMethod || null, fqcInspectionPlanId: null,
+      defaultIssueMethod: v.defaultIssueMethod || null, fqcInspectionPlanId: v.requiresFqc ? v.fqcInspectionPlanId || null : null,
     }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['mfg', 'profiles'] }); toast.success(t('common.saved')); onClose() },
     onError: (e) => setError(serverMessage(e, t('common.failedToSave'))),
@@ -78,7 +80,16 @@ function ProfileModal({ plantId, itemId, onClose }: { plantId: string; itemId: s
             </FormField>
             <div className="flex items-end"><Checkbox label={t('mfg.profiles.requiresFqc')} {...register('requiresFqc')} /></div>
           </div>
-          {fqc && <Alert variant="info">{t('mfg.profiles.fqcHint')}</Alert>}
+          {fqc && (
+            <FormField label={t('mfg.qc.profile.fqcPlan')} hint={t('mfg.qc.profile.fqcPlanHint')}>
+              <Select {...register('fqcInspectionPlanId')}>
+                <option value="">{t('common.none')}</option>
+                {data?.values.fqcInspectionPlanId && !fqcPlans.some((p) => p.id === data.values.fqcInspectionPlanId) && <option value={data.values.fqcInspectionPlanId}>{t('mfg.qc.routing.currentPlan')}</option>}
+                {fqcPlans.map((p) => <option key={p.id} value={p.id}>{p.code} (v{p.version})</option>)}
+              </Select>
+            </FormField>
+          )}
+          {fqc && !watch('fqcInspectionPlanId') && <Alert variant="warning">{t('mfg.qc.profile.noPlanWarning')}</Alert>}
           <dl className="grid grid-cols-2 gap-2 rounded-md bg-surface-muted p-3 text-sm">
             <dt className="text-ink-secondary">{t('mfg.profiles.lowLevelCode')}</dt><dd className="font-mono">{data.lowLevelCode}</dd>
             <dt className="text-ink-secondary">{t('mfg.profiles.standardCost')}</dt><dd className="font-mono">{data.standardCost}</dd>

@@ -56,6 +56,9 @@ public interface IReferenceChecker
     Task<bool> StandardOperationIsUsedAsync(Guid standardOperationId, CancellationToken ct = default);
     Task<bool> ReasonIsUsedAsync(Guid reasonId, CancellationToken ct = default);
     Task<bool> CrewIsUsedAsync(Guid crewId, CancellationToken ct = default);
+
+    /// <summary>Is an inspection plan (any version of its series) pointed at by an item profile, a routing operation, an order operation or an inspection (P4-3)?</summary>
+    Task<bool> InspectionPlanIsUsedAsync(Guid planId, CancellationToken ct = default);
 }
 
 /// <summary>The working-time arithmetic of one calendar (BR-CAL-05); calendars are cached for 60 s per tenant and dropped when changed.</summary>

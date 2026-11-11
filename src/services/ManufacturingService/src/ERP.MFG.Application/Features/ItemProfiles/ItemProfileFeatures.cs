@@ -1,4 +1,5 @@
 using ERP.MFG.Application.Abstractions;
+using ERP.MFG.Application.Services;
 using ERP.MFG.Domain.Common;
 using ERP.MFG.Domain.Entities;
 using MediatR;
@@ -16,7 +17,7 @@ public sealed record PagedProfiles(List<ItemProfileListItemDto> Items, int Total
 
 public sealed record UpsertItemProfileCommand(Guid ItemId, Guid PlantId, ItemProfileValues Values) : IRequest<ItemProfileDto>;
 
-public sealed class UpsertItemProfileHandler(IPlantAccessService access, IItemProfileRepository repo, IProductLookupClient products, IMfgUnitOfWork uow)
+public sealed class UpsertItemProfileHandler(IPlantAccessService access, IItemProfileRepository repo, IProductLookupClient products, IInspectionPlanRepository plans, IMfgUnitOfWork uow)
     : IRequestHandler<UpsertItemProfileCommand, ItemProfileDto>
 {
     public async Task<ItemProfileDto> Handle(UpsertItemProfileCommand r, CancellationToken ct)
@@ -29,6 +30,9 @@ public sealed class UpsertItemProfileHandler(IPlantAccessService access, IItemPr
                    ?? throw MfgRules.Invalid($"Item {r.ItemId} does not exist.");
         if (!item.IsActive) throw MfgRules.Invalid($"Item {item.Sku} is not active.");
         if (item.BaseUomId is null) throw MfgRules.Invalid($"Item {item.Sku} has no base unit of measure.");
+
+        // P4-3: the final inspection plan must be an FQC plan of this item in this plant
+        await InspectionPlanPointer.CheckAsync(plans, r.Values.RequiresFqc ? r.Values.FqcInspectionPlanId : null, plant.Id, r.ItemId, InspectionType.Fqc, ct);
 
         var profile = await repo.GetAsync(r.ItemId, plant.Id, ct);
         if (profile is null)

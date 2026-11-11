@@ -18,7 +18,8 @@ public sealed record RoutingOperationValues(
     int QueueTimeMinutes,
     int MoveTimeMinutes,
     bool IsSubcontract,
-    string? Instructions);
+    string? Instructions,
+    Guid? IpqcInspectionPlanId = null);
 
 /// <summary>One step of a routing: where it is done and how long it takes.</summary>
 public class RoutingOperation : BaseEntity
@@ -39,6 +40,9 @@ public class RoutingOperation : BaseEntity
     public int MoveTimeMinutes { get; private set; }
     public bool IsSubcontract { get; private set; }
     public string? Instructions { get; private set; }
+
+    /// <summary>The in-process inspection plan (series) that checks the Good output of this operation (P4-3); null = no IPQC.</summary>
+    public Guid? IpqcInspectionPlanId { get; private set; }
 
     internal static RoutingOperation Create(Guid routingId, RoutingOperationValues values)
     {
@@ -62,6 +66,7 @@ public class RoutingOperation : BaseEntity
         MoveTimeMinutes = v.MoveTimeMinutes;
         IsSubcontract = v.IsSubcontract;
         Instructions = v.Instructions;
+        IpqcInspectionPlanId = v.IpqcInspectionPlanId;
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -69,7 +74,7 @@ public class RoutingOperation : BaseEntity
     internal void MarkDeleted() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 
     public RoutingOperationValues ToValues() => new(OperationSeq, StandardOperationId, Name, WorkCenterId, WorkCenterCode, SetupTimeMinutes, RunTimeMinutes,
-        RunTimeBasis, BatchSize, QueueTimeMinutes, MoveTimeMinutes, IsSubcontract, Instructions);
+        RunTimeBasis, BatchSize, QueueTimeMinutes, MoveTimeMinutes, IsSubcontract, Instructions, IpqcInspectionPlanId);
 }
 
 /// <summary>

@@ -72,7 +72,7 @@ export function RoutingListPage() {
 // ── Operation modal ───────────────────────────────────────────────────────────────────────────────────────
 interface OpForm {
   standardOperationId: string; operationSeq: string; name: string; workCenterId: string; setupTimeMinutes: string; runTimeMinutes: string; runTimeBasis: RunTimeBasis
-  batchSize: string; queueTimeMinutes: string; moveTimeMinutes: string; isSubcontract: boolean; instructions: string
+  batchSize: string; queueTimeMinutes: string; moveTimeMinutes: string; isSubcontract: boolean; instructions: string; ipqcInspectionPlanId: string
 }
 const num = (v: string) => (v === '' ? null : Number(v))
 
@@ -83,11 +83,13 @@ function OperationModal({ routing, op, onClose }: { routing: Routing; op: Routin
   const [error, setError] = useState<string | null>(null)
   const { data: centers = [] } = useQuery({ queryKey: ['mfg', 'work-centers', routing.plantId], queryFn: () => mfgApi.listWorkCenters(routing.plantId) })
   const { data: standards = [] } = useQuery({ queryKey: ['mfg', 'std-ops', routing.plantId], queryFn: () => mfgApi.listStandardOperations(routing.plantId) })
+  // P4-3: the IPQC plans (Approved) of the item of this routing
+  const { data: ipqcPlans = [] } = useQuery({ queryKey: ['mfg', 'inspection-plans', routing.plantId, 'Ipqc', routing.itemId], queryFn: () => mfgApi.listInspectionPlans(routing.plantId, { type: 'Ipqc', itemId: routing.itemId, status: 'Approved' }) })
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<OpForm>({
     defaultValues: {
       standardOperationId: op?.standardOperationId ?? '', operationSeq: op ? String(op.operationSeq) : '', name: op?.name ?? '', workCenterId: op?.workCenterId ?? '', setupTimeMinutes: String(op?.setupTimeMinutes ?? 0),
       runTimeMinutes: op ? String(op.runTimeMinutes) : '', runTimeBasis: op?.runTimeBasis ?? 'PerUnit', batchSize: op?.batchSize != null ? String(op.batchSize) : '', queueTimeMinutes: String(op?.queueTimeMinutes ?? 0),
-      moveTimeMinutes: String(op?.moveTimeMinutes ?? 0), isSubcontract: op?.isSubcontract ?? false, instructions: op?.instructions ?? '',
+      moveTimeMinutes: String(op?.moveTimeMinutes ?? 0), isSubcontract: op?.isSubcontract ?? false, instructions: op?.instructions ?? '', ipqcInspectionPlanId: op?.ipqcInspectionPlanId ?? '',
     },
   })
   const basis = watch('runTimeBasis')
@@ -102,7 +104,7 @@ function OperationModal({ routing, op, onClose }: { routing: Routing; op: Routin
       const body: RoutingOperationBody = {
         operationSeq: num(f.operationSeq), standardOperationId: f.standardOperationId || null, name: f.name, workCenterId: f.workCenterId, setupTimeMinutes: Number(f.setupTimeMinutes || 0), runTimeMinutes: Number(f.runTimeMinutes),
         runTimeBasis: f.runTimeBasis, batchSize: f.runTimeBasis === 'PerBatch' ? num(f.batchSize) : null, queueTimeMinutes: Number(f.queueTimeMinutes || 0), moveTimeMinutes: Number(f.moveTimeMinutes || 0),
-        isSubcontract: f.isSubcontract, instructions: f.instructions || null,
+        isSubcontract: f.isSubcontract, instructions: f.instructions || null, ipqcInspectionPlanId: f.ipqcInspectionPlanId || null,
       }
       return op ? mfgApi.updateOperation(routing.id, op.operationSeq, body) : mfgApi.addOperation(routing.id, body)
     },
@@ -130,6 +132,13 @@ function OperationModal({ routing, op, onClose }: { routing: Routing; op: Routin
           <FormField label={t('mfg.routing.run')} required error={errors.runTimeMinutes ? t('common.required') : undefined}><Input type="number" step="any" min={0.0001} {...register('runTimeMinutes', { required: true })} /></FormField>
           <FormField label={t('mfg.routing.basis')}><Select {...register('runTimeBasis')}><option value="PerUnit">{t('mfg.routing.PerUnit')}</option><option value="PerBatch">{t('mfg.routing.PerBatch')}</option></Select></FormField>
           {basis === 'PerBatch' && <FormField label={t('mfg.routing.batchSize')} required error={errors.batchSize ? t('common.required') : undefined}><Input type="number" step="any" min={0.000001} {...register('batchSize', { required: true })} /></FormField>}
+          <FormField label={t('mfg.qc.routing.ipqcPlan')} hint={t('mfg.qc.routing.ipqcPlanHint')} className="sm:col-span-4">
+            <Select {...register('ipqcInspectionPlanId')}>
+              <option value="">{t('common.none')}</option>
+              {op?.ipqcInspectionPlanId && !ipqcPlans.some((p) => p.id === op.ipqcInspectionPlanId) && <option value={op.ipqcInspectionPlanId}>{t('mfg.qc.routing.currentPlan')}</option>}
+              {ipqcPlans.map((p) => <option key={p.id} value={p.id}>{p.code} (v{p.version})</option>)}
+            </Select>
+          </FormField>
           <FormField label={t('mfg.routing.queue')}><Input type="number" min={0} {...register('queueTimeMinutes')} /></FormField>
           <FormField label={t('mfg.routing.move')}><Input type="number" min={0} {...register('moveTimeMinutes')} /></FormField>
         </div>

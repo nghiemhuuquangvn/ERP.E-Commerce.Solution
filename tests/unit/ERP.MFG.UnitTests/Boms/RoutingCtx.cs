@@ -53,7 +53,7 @@ internal class RoutingCtx : BomCtx
         => new(seq, null, name, center, setup, run, basis, batch, queue, move, subcontract, null);
 
     public Task<RoutingDto> AddOpAsync(Guid routingId, RoutingOperationBody body)
-        => new AddRoutingOperationHandler(Access, F.RoutingRepo, F.Catalog, F.Uow).Handle(new AddRoutingOperationCommand(routingId, body), default);
+        => new AddRoutingOperationHandler(Access, F.RoutingRepo, F.Catalog, F.PlanRepo, F.Uow).Handle(new AddRoutingOperationCommand(routingId, body), default);
 
     public Task<RoutingDto> AddOpAsync(Guid routingId, int seq, string name, string center, decimal setup, decimal run, RunTimeBasis basis = RunTimeBasis.PerUnit, decimal? batch = null,
         int queue = 0, int move = 0)

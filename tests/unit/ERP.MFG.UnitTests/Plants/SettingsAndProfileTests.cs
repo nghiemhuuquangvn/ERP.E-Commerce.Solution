@@ -270,7 +270,7 @@ public class ItemProfileTests
     {
         var plant = f.AddPlant();
         var access = new PlantAccessService(f.PlantRepo, f.AccessRepo, new FakeUser(Guid.NewGuid(), PermissionConstants.Manufacturing_SettingsManage));
-        return (new UpsertItemProfileHandler(access, f.ProfileRepo, f.ProductClient, f.Uow), plant);
+        return (new UpsertItemProfileHandler(access, f.ProfileRepo, f.ProductClient, f.PlanRepo, f.Uow), plant);
     }
 
     [Fact]

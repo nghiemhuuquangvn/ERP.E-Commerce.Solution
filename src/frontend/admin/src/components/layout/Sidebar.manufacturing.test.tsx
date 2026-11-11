@@ -30,4 +30,14 @@ describe('Manufacturing menu', () => {
     show('/manufacturing/plants')
     for (const name of ['Routings', 'Work centers', 'Shifts and calendars', 'Plants', 'Production settings', 'Item profiles']) expect(screen.getByRole('link', { name })).toBeInTheDocument()
   })
+
+  it('shows Inspection plans only to a holder of the plan view permission (P4-3)', () => {
+    as(['manufacturing:bom:view'])
+    show()
+    expect(screen.queryByRole('link', { name: 'Inspection plans' })).toBeNull()
+
+    as(['manufacturing:qc:plan-view'])
+    show('/manufacturing/inspection-plans')
+    expect(screen.getByRole('link', { name: 'Inspection plans' })).toHaveAttribute('href', '/manufacturing/inspection-plans')
+  })
 })

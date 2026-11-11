@@ -109,7 +109,7 @@ public class RoutingTests
         var (c, r) = await WithDraft();
         var standard = c.Standard("PNT-STD", "WC-PNT", 30, 6);
 
-        var added = await new AddRoutingOperationHandler(c.Access, c.F.RoutingRepo, c.F.Catalog, c.F.Uow)
+        var added = await new AddRoutingOperationHandler(c.Access, c.F.RoutingRepo, c.F.Catalog, c.F.PlanRepo, c.F.Uow)
             .Handle(new AddRoutingOperationCommand(r.Id, new RoutingOperationBody(null, standard.Id, null, null, null, null, null, null, null, null, false, null)), default);
 
         var op = added.Operations.Single();
@@ -122,7 +122,7 @@ public class RoutingTests
     {
         var (c, r) = await WithDraft();
         var standard = c.Standard("PNT-STD", "WC-PNT", 30, 6);
-        await new AddRoutingOperationHandler(c.Access, c.F.RoutingRepo, c.F.Catalog, c.F.Uow)
+        await new AddRoutingOperationHandler(c.Access, c.F.RoutingRepo, c.F.Catalog, c.F.PlanRepo, c.F.Uow)
             .Handle(new AddRoutingOperationCommand(r.Id, new RoutingOperationBody(null, standard.Id, null, null, null, null, null, null, null, null, false, null)), default);
 
         standard.Update("Changed", standard.DefaultWorkCenterId, 99, 99, RunTimeBasis.PerUnit, null, null);

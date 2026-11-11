@@ -40,6 +40,22 @@ internal sealed class RoutingFake(Fakes f) : IRoutingRepository
     public void Add(Routing routing) => f.Routings.Add(routing);
 }
 
+internal sealed class InspectionPlanFake(Fakes f) : IInspectionPlanRepository
+{
+    public Task<InspectionPlan?> GetAsync(Guid id, CancellationToken ct = default) => Task.FromResult(f.InspectionPlans.FirstOrDefault(p => p.Id == id && !p.IsDeleted));
+
+    public Task<List<InspectionPlan>> ListAsync(Guid plantId, InspectionType? type, Guid? itemId, VersionStatus? status, CancellationToken ct = default)
+        => Task.FromResult(f.InspectionPlans.Where(p => !p.IsDeleted && p.PlantId == plantId && (type == null || p.Type == type) && (itemId == null || p.ItemId == itemId) && (status == null || p.Status == status)).ToList());
+
+    public Task<List<InspectionPlan>> ListSeriesAsync(Guid plantId, string code, CancellationToken ct = default)
+        => Task.FromResult(f.InspectionPlans.Where(p => !p.IsDeleted && p.PlantId == plantId && p.Code == code).ToList());
+
+    public Task<int> MaxVersionAsync(Guid plantId, string code, CancellationToken ct = default)
+        => Task.FromResult(f.InspectionPlans.Where(p => p.PlantId == plantId && p.Code == code).Select(p => p.Version).DefaultIfEmpty(0).Max());
+
+    public void Add(InspectionPlan plan) => f.InspectionPlans.Add(plan);
+}
+
 internal sealed class UnitFake(Fakes f) : IUnitOfMeasureClient
 {
     public Task<IReadOnlyList<UnitInfo>> LookupAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default)

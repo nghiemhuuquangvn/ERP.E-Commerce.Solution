@@ -211,6 +211,12 @@ public class TenantIsolationBehaviorTests
             ERP.MFG.Domain.Entities.Routing.Create(Guid.NewGuid(), Guid.NewGuid(), "TP-BAN01", "Table", 1, new DateOnly(2026, 1, 1), null, null), e => e.TenantId);
 
     [Fact]
+    public void Manufacturing_InspectionPlans() =>
+        AssertIsolated<ERP.MFG.Infrastructure.Persistence.MfgDbContext, ERP.MFG.Domain.Entities.InspectionPlan>(
+            ERP.MFG.Domain.Entities.InspectionPlan.Create(Guid.NewGuid(), Guid.NewGuid(), "TP-BAN01", "Table", "FQC-BAN01", ERP.MFG.Domain.Common.InspectionType.Fqc, 1,
+                ERP.MFG.Domain.Common.SamplingMethod.Fixed, 5, 1, new DateOnly(2026, 1, 1), null, null), e => e.TenantId);
+
+    [Fact]
     public void Manufacturing_Boms() =>
         AssertIsolated<ERP.MFG.Infrastructure.Persistence.MfgDbContext, ERP.MFG.Domain.Entities.Bom>(
             ERP.MFG.Domain.Entities.Bom.Create(Guid.NewGuid(), Guid.NewGuid(), "TP-BAN01", "Table", 1, 1m, 100m, new DateOnly(2026, 1, 1), null, null), e => e.TenantId);
