@@ -51,13 +51,18 @@ public sealed record StockMovementRequest(
     bool RequiresLot = false,
     bool RequiresSerial = false,
     string? ProductName = null,
-    string? ProductSku = null);
+    string? ProductSku = null,
+    bool AllowHeldLot = false);
 
+/// <summary>One lot a movement acted on (Warehouse W7): the per-lot split of a multi-lot issue, the lot of a single-lot movement, the NEW sub-lot of a split transfer (<c>ParentLotId</c> set).</summary>
+public sealed record StockMovementLotInfo(Guid LotId, string LotNumber, decimal Quantity, decimal UnitCost, Guid? WarehouseId, Guid? ParentLotId);
+
+/// <summary><c>LotId</c> is the lot named in the request (null for an issue that drew from several lots); <c>Lots</c> are the lots really used (empty for lot-less stock and for movements booked before W7).</summary>
 public sealed record StockMovementResult(Guid MovementId, string MovementType, decimal Quantity, DateTime RecordedAt, decimal? UnitCost, decimal? ValueDelta,
-    Guid? WarehouseId, Guid? LotId, bool Replayed);
+    Guid? WarehouseId, Guid? LotId, bool Replayed, List<StockMovementLotInfo>? Lots = null);
 
 /// <summary>A lot of an item as the Warehouse lists it (depleted lots included): used to keep lot numbers of finished goods unique (BR-FG-02).</summary>
-public sealed record StockLotInfo(Guid LotId, string LotNumber, Guid? WarehouseId, string Status, decimal RemainingQuantity, DateTime? ExpiryDate, DateTime? ManufactureDate);
+public sealed record StockLotInfo(Guid LotId, string LotNumber, Guid? WarehouseId, string Status, decimal RemainingQuantity, DateTime? ExpiryDate, DateTime? ManufactureDate, Guid? ParentLotId = null);
 
 public sealed record LotStatusResult(Guid LotId, string LotNumber, string Status, bool Unchanged);
 

@@ -332,6 +332,10 @@ reservations, stock adjustment/stocktake approval, warehouse sites, barcode reso
 - **StockMovements** (012): + `WarehouseId`, `LotId`, `UnitCost`, `ValueDelta`, `StockDelta` (all nullable: older rows stay NULL); `MovementType` 7-12 = ProductionIssue / ProductionReturn / ProductionReceipt / ProductionScrap / QcRelease / SubcontractTransfer; filtered unique index `UX_StockMovements_Idempotency (TenantId, ProductId, Reference, MovementType) WHERE Reference IS NOT NULL AND MovementType >= 7` (reference `<doc>#<line>`).
 - **Reservations** (013): + `SourceType` (0 SalesOrder / 1 ProductionOrder), `SourceReference`; `Reservation_ReservedItems` + `SourceLineId`, `WarehouseId`, `ConsumedQuantity`; the lot split JSON carries `Consumed`; index `IX_Reservations_Source (TenantId, SourceType, OrderId)`.
 
+**Warehouse W7 (2026-11-11, SQL `Warehouse/014`; docs/business/Warehouse/ProductionIntegration.md):**
+- **InventoryLots** (014): + `ParentLotId` (NULL = a lot that came from a receipt; set on the sub-lot a partial move to another warehouse creates; self FK `FK_InventoryLots_ParentLot`, filtered index `IX_InventoryLots_Parent`).
+- **StockMovementLots** (014, new): `LotRowId` (PK), `TenantId`, `MovementId` (FK to StockMovements, cascade), `Position`, `LotId` (FK to InventoryLots), `LotNumber` (as it was), `Quantity` decimal(18,6), `UnitCost` decimal(18,6) NULL, `WarehouseId` NULL, `ParentLotId` NULL; indexes `(MovementId)`, `(TenantId, LotId)`. The lots a production movement really used (a reservation issue over several lots, the new sub-lot of a split transfer ...); movements booked before W7 have no rows.
+
 **Critical Tables:**
 
 ```

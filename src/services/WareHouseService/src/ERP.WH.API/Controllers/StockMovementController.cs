@@ -32,6 +32,9 @@ public class StockMovementController : ControllerBase
         if (!_userContextService.HasPermission("inventory:manage"))
             return Forbid();
 
+        // Issuing a lot on quality hold is a privilege of the internal service API (rework orders): a request body can never set it (W7).
+        command.AllowHeldLot = false;
+
         try
         {
             var result = await _mediator.Send(command);

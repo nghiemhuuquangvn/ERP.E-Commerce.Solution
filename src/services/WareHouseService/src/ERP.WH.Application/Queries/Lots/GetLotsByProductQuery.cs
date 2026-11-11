@@ -20,6 +20,8 @@ public class LotDto
     public Guid? WarehouseId { get; set; }
     public DateTime? ManufactureDate { get; set; }
     public string Source { get; set; } = "Receipt";
+    /// <summary>The lot this one was split off from by a partial move to another warehouse (W7), else null.</summary>
+    public Guid? ParentLotId { get; set; }
 }
 
 public class GetLotsByProductQuery : IRequest<List<LotDto>>
@@ -59,7 +61,8 @@ public class GetLotsByProductQueryHandler : IRequestHandler<GetLotsByProductQuer
                 Status = l.Status.ToString(),
                 WarehouseId = l.WarehouseId,
                 ManufactureDate = l.ManufactureDate,
-                Source = l.Source.ToString()
+                Source = l.Source.ToString(),
+                ParentLotId = l.ParentLotId
             }).ToList();
     }
 }
@@ -101,7 +104,8 @@ public class GetExpiringLotsQueryHandler : IRequestHandler<GetExpiringLotsQuery,
                 Status = l.Status.ToString(),
                 WarehouseId = l.WarehouseId,
                 ManufactureDate = l.ManufactureDate,
-                Source = l.Source.ToString()
+                Source = l.Source.ToString(),
+                ParentLotId = l.ParentLotId
             }).ToList();
     }
 }

@@ -16,6 +16,7 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
     public DbSet<Reservation> Reservations { get; set; }
     public DbSet<WarehouseLocation> WarehouseLocations { get; set; }
     public DbSet<InventoryLot> InventoryLots { get; set; }
+    public DbSet<StockMovementLot> StockMovementLots { get; set; }
     public DbSet<InventorySerial> InventorySerials { get; set; }
     public DbSet<TransferOrder> TransferOrders { get; set; }
     public DbSet<Stocktake> Stocktakes { get; set; }
@@ -92,6 +93,19 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
 
             entity.HasIndex(e => new { e.ProductId, e.RemainingQuantity });
             entity.HasIndex(e => e.ExpiryDate);
+            // W7 sub-lots (SQL 014); a plain column - lots are never deleted, so no navigation is needed
+            entity.HasIndex(e => e.ParentLotId).HasDatabaseName("IX_InventoryLots_Parent").HasFilter("[ParentLotId] IS NOT NULL");
+        });
+
+        // The lots a movement acted on (W7, SQL 014)
+        modelBuilder.Entity<StockMovementLot>(entity =>
+        {
+            entity.ToTable("StockMovementLots");
+            entity.HasKey(e => e.LotRowId);
+            entity.Property(e => e.LotNumber).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.UnitCost).HasPrecision(18, 6);
+            entity.HasIndex(e => e.MovementId);
+            entity.HasIndex(e => new { e.TenantId, e.LotId });
         });
 
         modelBuilder.Entity<InventorySerial>(entity =>
@@ -125,6 +139,9 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
             entity.Property(e => e.UnitCost).HasPrecision(18, 6);
             entity.Property(e => e.ValueDelta).HasPrecision(18, 2);
             entity.Property(e => e.StockDelta).HasPrecision(18, 6);
+
+            // the lots the movement acted on (W7); they are written with it and never change
+            entity.HasMany(e => e.Lots).WithOne().HasForeignKey(l => l.MovementId).OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => e.ProductId);
             entity.HasIndex(e => e.RecordedAt);
@@ -400,6 +417,7 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
         Set<InventoryLocationStock>(e => e.Quantity, e => e.ReservedQuantity, e => e.LockedQuantity);
         Set<StockBalance>(e => e.Quantity, e => e.ReservedQuantity, e => e.LockedQuantity);
         Set<StockMovement>(e => e.Quantity);
+        Set<StockMovementLot>(e => e.Quantity);
         Set<StockAdjustment>(e => e.QuantityDelta);
         Set<CostConsumptionLog>(e => e.Quantity);
         Set<InventoryValuationSnapshotLine>(e => e.Quantity);
@@ -444,10 +462,14 @@ public class WarehouseDbContext : DbContext, ITenantScopedDbContext
         }
     }
 
-    /// <summary>The same production movement arrived twice at once and the unique index let only one through: the caller retries and gets the first result.</summary>
+    /// <summary>
+    /// The same production movement arrived twice at once and the unique index let only one through, or two splits of one product picked the same
+    /// sub-lot number (W7) and the lot-number index let only one through: the caller retries and reads the new state.
+    /// </summary>
     private static bool IsIdempotencyViolation(DbUpdateException ex)
         => ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 } sql
-           && sql.Message.Contains("UX_StockMovements_Idempotency", StringComparison.OrdinalIgnoreCase);
+           && (sql.Message.Contains("UX_StockMovements_Idempotency", StringComparison.OrdinalIgnoreCase)
+               || sql.Message.Contains("UX_InventoryLots_Tenant_Product_Lot", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Stock rows carry a RowVersion: someone else changed the same row first, so the caller must read again and retry (HTTP 409).</summary>
     private static ERP.Shared.Infrastructure.Exceptions.ConcurrencyException Conflict(DbUpdateException ex)

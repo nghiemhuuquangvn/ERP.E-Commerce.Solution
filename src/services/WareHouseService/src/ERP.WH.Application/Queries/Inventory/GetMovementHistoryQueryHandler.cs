@@ -40,7 +40,11 @@ public class GetMovementHistoryQueryHandler : IRequestHandler<GetMovementHistory
                 LotId = m.LotId,
                 UnitCost = m.UnitCost,
                 ValueDelta = m.ValueDelta,
-                StockDelta = m.StockDelta
+                StockDelta = m.StockDelta,
+                Lots = m.Lots.OrderBy(l => l.Position).Select(l => new MovementLotDto
+                {
+                    LotId = l.LotId, LotNumber = l.LotNumber, Quantity = l.Quantity, UnitCost = l.UnitCost ?? 0, WarehouseId = l.WarehouseId, ParentLotId = l.ParentLotId
+                }).ToList()
             })
             .ToList();
 

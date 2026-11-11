@@ -81,5 +81,8 @@ Unchanged: the production types use the permission of `POST movements`. W5 adds 
 7. `SubcontractTransfer` 1 kg of a lot-less item from warehouse A to B: A 2, B 1, total 3.
 8. Open `inventory/reconciliation`: no quantity or lot line. Check the journal: no entry for the production movements.
 
+## Addendum W7 (2026-11-11): the lots of a movement
+A production movement used to answer one `LotId` (null when an issue drew from several lots) and stored nothing more, so which lots a reservation issue consumed was lost. Since W7 the movement keeps **rows** (`StockMovementLots`: lot, lot number as it was, quantity, unit cost, warehouse, parent lot, position) and answers them as `lots[]`; `LotId` keeps its meaning (the lot named in the request). Rows per type: reservation issue = one per lot taken; issue / scrap / return / quality release = the lot; receipt = the created lot; split transfer = the new sub-lot; lot-less = none. The unit cost of a row is the cost that values its share, so `valueDelta` of a reservation issue equals the sum of row quantity x row cost plus the lot-less remainder at the item cost. The same movement key answers the same rows in the same order. Details and acceptance criteria: ProductionIntegration.md (PI-13..PI-15, PI-R11..PI-R14).
+
 ## Addendum W6 (2026-11-10): expired lots
 A `ProductionIssue` from an expired lot is refused `WH_LOT_EXPIRED` (TC-MAT-009 of the Manufacturing test book); `ProductionScrap`, `ProductionReturn`, `SubcontractTransfer` and `QcRelease` of an expired lot are still allowed. See ProductionIntegration.md (PI-R10).

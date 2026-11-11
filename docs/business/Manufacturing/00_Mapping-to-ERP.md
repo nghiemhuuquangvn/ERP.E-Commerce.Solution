@@ -88,3 +88,11 @@ so the specs stay readable as they are. Decision record: `docs/architecture/adr-
 | Plant deactivation (BR-PLT silent about orders) | Refused `MFG_PLT_001` while any order is not Closed / Cancelled (new, R219, owner decision 2026-11-10) |
 | TC-GEN-008 future-dated posting | No request carries a posting date (it is the plant's today), proven by `ManufacturingApiRulesTests`; a back-dated document waits for the period lock of Phase 6 |
 | T3.1 / T3.2 / T3.3 / T3.11 | P3-1 (done); T3.4 / T3.9 P3-2 (done); T3.5 / T3.6 P3-3 (done, 2026-11-10); T3.7 + T4.1 (operation trigger) P3-4 (done, 2026-11-10); T3.8 / T3.10 + the receipt trigger of backflush P3-5 (done, 2026-11-10); T3.12 P3-6 (done, 2026-11-10); T3.14 P3-7 (done, 2026-11-10) |
+
+## Phase 4 (execution and quality) - mapping and deviations
+Plan: `docs/architecture/adr-manufacturing-phase4.md`. Subcontracting (T4.14) is out of Phase 4 (owner, 2026-11-11); the terminal (S20, T4.13) is a responsive Admin page, not an Expo screen; backflush (T4.1) and co- / by-products (T4.5) were delivered in Phase 3.
+
+| Specification | Here |
+|---|---|
+| T4.7 genealogy needs the lots each issue used (BR-TR-01); T4.10 / T4.11 NCR dispositions split a lot (Rework 10 + Scrap 5 + UseAsIs 85); rework consumes the held lot (BR-RW-02) | **P4-1, Warehouse W7 (done, 2026-11-11):** the Warehouse splits a lot on a partial move (sub-lot `<lot>-S<n>`), answers and stores `lots[]` per production movement, and issues a QcHold lot on request (`allowHeldLot`, internal API only, reason required). The specification assumed these existed in Inventory; the Warehouse upgrade epic (W0-W6) had made a lot sit in one warehouse, answer one lot and refuse held lots. Details: `docs/business/Warehouse/ProductionIntegration.md` (PI-R11..PI-R14) |
+| T4.2 reversal; T4.8 / T4.9 inspections; T4.10 / T4.11 NCR and rework; T4.7 genealogy; T4.3 / T4.4 material requests, substitutes, unplanned material; T4.6 / T4.12 downtime and child orders; T4.13 terminal | P4-2 .. P4-8 (planned); T4.14 not in Phase 4 |

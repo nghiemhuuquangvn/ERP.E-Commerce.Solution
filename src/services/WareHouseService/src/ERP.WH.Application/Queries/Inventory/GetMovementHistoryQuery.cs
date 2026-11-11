@@ -35,4 +35,7 @@ public class StockMovementDto
     public decimal? UnitCost { get; set; }
     public decimal? ValueDelta { get; set; }
     public decimal? StockDelta { get; set; }
+
+    /// <summary>The lots the movement acted on (W7); empty for lot-less stock and for movements booked before W7.</summary>
+    public List<ERP.WH.Application.Commands.Inventory.MovementLotDto> Lots { get; set; } = [];
 }

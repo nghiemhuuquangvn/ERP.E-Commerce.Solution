@@ -20,7 +20,7 @@ public class NoStockMutationOutsideTheLedgerTests
 
     // The quantity mutators of Inventory, InventoryLot and InventoryLocationStock. Policy setters (SetStockPolicy, SetReorderLevels, AssignLocation) are not stock changes.
     private static readonly Regex Mutator = new(
-        @"\.(ReceiveStock|SellStock|AdjustStock|ReserveStock|ReleaseReservation|RecordPointOfSaleSale|Deplete|Replenish|TransferOut|TransferIn)\(",
+        @"\.(ReceiveStock|SellStock|AdjustStock|ReserveStock|ReleaseReservation|RecordPointOfSaleSale|Deplete|Replenish|SplitOff|TransferOut|TransferIn)\(",
         RegexOptions.Compiled);
 
     // Receive / Reserve / Consume are common words: only flag them on the bin and lot types we know are named like this in the Warehouse code.

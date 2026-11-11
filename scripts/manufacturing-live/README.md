@@ -12,7 +12,7 @@ Scripts that drive the **running stack** (Gateway on 127.0.0.1:5000, the real Wa
 | `mfg-p35.js` | finished-goods receipt, lots, complete / short-close / reopen / close, Warehouse stopped (P3-5) |
 | `mfg-p36-contract-check.js` | every key of the Admin's TypeScript types (`mfg.api.ts`) against the real JSON (P3-6) |
 | `mfg-p37-e2e.js` | TC-E2E-001, TC-E2E-005, TC-GEN-006 (50 parallel numbers), R219, R234, 403 checks (P3-7) |
-| `wh-w3.js`, `wh-w5.js`, `wh-w6.js` | Warehouse side: lots / balances, internal stock API, DS-01 stock |
+| `wh-w3.js`, `wh-w5.js`, `wh-w6.js`, `wh-w7.js` | Warehouse side: lots / balances, internal stock API, DS-01 stock, lot split / per-lot breakdown / held-lot rework issue (W7) |
 | `run-all.js` | runs all of the above for one tenant and prints a table |
 | `tc-trace.js` | which test case of `docs/business/M/03_PRODUCTION_TEST_CASES.md` is cited by which test (traceability matrix) |
 

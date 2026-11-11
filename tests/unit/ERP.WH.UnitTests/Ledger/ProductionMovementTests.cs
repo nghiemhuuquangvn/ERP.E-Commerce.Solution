@@ -266,15 +266,15 @@ public class ProductionMovementTests
     }
 
     [Fact]
-    public async Task A_lot_moves_to_another_warehouse_only_as_a_whole()
+    public async Task A_whole_lot_moves_to_another_warehouse_as_the_same_lot()
     {
+        // since W7 a PART of a lot is split into a sub-lot (LotSplitTests); moving all of it still moves the lot itself
         var (product, lotId) = await SeedItemAsync();
 
-        var partial = () => Open().Production.RecordAsync(new(MovementType.SubcontractTransfer, product, 4m, "SC-2#1", WarehouseId: _main, ToWarehouseId: _north, LotId: lotId), default);
-        await partial.Should().ThrowAsync<BusinessRuleException>();
-
         await RunAsync(Open(), new(MovementType.SubcontractTransfer, product, 10m, "SC-2#2", WarehouseId: _main, ToWarehouseId: _north, LotId: lotId));
-        (await Open().Db.InventoryLots.SingleAsync()).WarehouseId.Should().Be(_north);
+        var lot = await Open().Db.InventoryLots.SingleAsync();
+        lot.WarehouseId.Should().Be(_north);
+        lot.ParentLotId.Should().BeNull("a whole move creates no sub-lot");
         await AssertParityAsync(product);
     }
 

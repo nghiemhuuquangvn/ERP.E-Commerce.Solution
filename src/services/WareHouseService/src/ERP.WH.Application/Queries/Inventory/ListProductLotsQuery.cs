@@ -13,6 +13,8 @@ public class ProductLotDto
     public decimal RemainingQuantity { get; set; }
     public DateTime? ExpiryDate { get; set; }
     public DateTime? ManufactureDate { get; set; }
+    /// <summary>The lot this one was split off from (W7), else null.</summary>
+    public Guid? ParentLotId { get; set; }
 }
 
 /// <summary>All lots of an item, depleted ones included (service-to-service, read only): the check "does this lot number exist?" must also see lots that are used up.</summary>
@@ -29,7 +31,7 @@ public class ListProductLotsQueryHandler(IWarehouseUnitOfWork uow) : IRequestHan
         return lots.OrderBy(l => l.ReceivedDate).Select(l => new ProductLotDto
         {
             LotId = l.LotId, LotNumber = l.LotNumber, WarehouseId = l.WarehouseId, Status = l.Status.ToString(), RemainingQuantity = l.RemainingQuantity,
-            ExpiryDate = l.ExpiryDate, ManufactureDate = l.ManufactureDate,
+            ExpiryDate = l.ExpiryDate, ManufactureDate = l.ManufactureDate, ParentLotId = l.ParentLotId,
         }).ToList();
     }
 }

@@ -21,6 +21,8 @@ public class InventoryLot : ITenantOwned
     public LotStatus Status { get; private set; } = LotStatus.Available;
     public DateTime? ManufactureDate { get; private set; }
     public LotSource Source { get; private set; } = LotSource.Receipt;
+    /// <summary>The lot this one was split off from (W7: a partial move to another warehouse creates a sub-lot); null for a lot that came from a receipt.</summary>
+    public Guid? ParentLotId { get; private set; }
     /// <summary>Optimistic concurrency token (SQL ROWVERSION): a conflicting write answers HTTP 409.</summary>
     public byte[] RowVersion { get; private set; } = [];
 
@@ -67,6 +69,26 @@ public class InventoryLot : ITenantOwned
     public void SetStatus(LotStatus status) => Status = status;
 
     public void AssignWarehouse(Guid? warehouseId) => WarehouseId = warehouseId;
+
+    /// <summary>
+    /// W7 lot split: takes <paramref name="quantity"/> out of this lot into a NEW lot that sits in <paramref name="warehouseId"/>. The new lot keeps the
+    /// product, unit cost, expiry, manufacture date, purchase order, source, status (a held lot's piece stays held) and received date, and points back
+    /// here through <see cref="ParentLotId"/>. This lot loses the quantity from both Remaining and Received, so the tree still adds up to the original
+    /// receipt. The caller (<c>StockLedger</c>, the only code that changes stock) has checked 0 &lt; quantity &lt;= available quantity: nothing is refused here.
+    /// </summary>
+    public InventoryLot SplitOff(decimal quantity, Guid? warehouseId, string number)
+    {
+        RemainingQuantity -= quantity;
+        ReceivedQuantity -= quantity;
+
+        var sub = new InventoryLot(ProductId, number, quantity, UnitCost, ExpiryDate, PurchaseOrderId, warehouseId, ManufactureDate, Source)
+        {
+            ParentLotId = LotId,
+            Status = Status,
+            ReceivedDate = ReceivedDate
+        };
+        return sub;
+    }
 
     /// <summary>
     /// Direct, destructive depletion — used only by the manual "Sold" stock-movement

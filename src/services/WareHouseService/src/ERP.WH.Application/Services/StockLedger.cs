@@ -81,9 +81,19 @@ public interface IStockLedger
     /// <summary>Changes the status of a lot (hold, release, block). The only place a lot status is written.</summary>
     Task SetLotStatusAsync(InventoryLot lot, LotStatus status, CancellationToken ct);
 
-    /// <summary>Moves lot-less stock, or a whole lot, from one warehouse to another; the item total does not change.</summary>
-    Task MoveBetweenWarehousesAsync(Guid productId, Guid? fromWarehouseId, Guid? toWarehouseId, decimal quantity, InventoryLot? lot, CancellationToken ct);
+    /// <summary>
+    /// Moves lot-less stock, or (part of) a lot, from one warehouse to another; the item total does not change. The whole lot moves as it is; a part of
+    /// it (W7) is split off into a new sub-lot that sits in the target warehouse - only the part that is not reserved can leave. Returns the lot move
+    /// (null for lot-less stock or when the warehouses are the same).
+    /// </summary>
+    Task<LotMove?> MoveBetweenWarehousesAsync(Guid productId, Guid? fromWarehouseId, Guid? toWarehouseId, decimal quantity, InventoryLot? lot, CancellationToken ct);
 }
+
+/// <summary>
+/// What a lot move did: <c>Moved</c> is the lot that now sits in the target warehouse (the same lot for a whole move, the NEW sub-lot for a split);
+/// <c>SplitFrom</c> is the lot it was split off from (null for a whole move).
+/// </summary>
+public sealed record LotMove(InventoryLot Moved, InventoryLot? SplitFrom);
 
 public sealed class StockLedger(IWarehouseUnitOfWork uow, IWarehouseResolver warehouses) : IStockLedger
 {
@@ -396,21 +406,45 @@ public sealed class StockLedger(IWarehouseUnitOfWork uow, IWarehouseResolver war
         return Task.CompletedTask;
     }
 
-    public async Task MoveBetweenWarehousesAsync(Guid productId, Guid? fromWarehouseId, Guid? toWarehouseId, decimal quantity, InventoryLot? lot, CancellationToken ct)
+    public const int MaxLotNumberLength = 100;
+
+    public async Task<LotMove?> MoveBetweenWarehousesAsync(Guid productId, Guid? fromWarehouseId, Guid? toWarehouseId, decimal quantity, InventoryLot? lot, CancellationToken ct)
     {
-        if (fromWarehouseId == toWarehouseId) return;
+        if (fromWarehouseId == toWarehouseId) return null;
 
         if (lot == null)
         {
             await TakeFromPoolAsync(productId, fromWarehouseId, quantity, ct);
             await AddToPoolAsync(productId, toWarehouseId, quantity, ct);
-            return;
+            return null;
         }
 
-        // a lot sits in exactly one warehouse, so only the whole lot can move
-        if (quantity != lot.RemainingQuantity)
-            throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("WH_PARTIAL_LOT_MOVE", "A lot moves to another warehouse as a whole: the quantity must equal what is left in the lot.");
+        if (quantity > lot.RemainingQuantity)
+            throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("WH_LOT_QUANTITY",
+                $"Lot {lot.LotNumber} holds {lot.RemainingQuantity}: {quantity} cannot be moved.");
 
+        // a lot sits in exactly one warehouse: a part of it leaves as a NEW lot (sub-lot) that sits in the target warehouse
+        if (quantity < lot.RemainingQuantity)
+        {
+            if (quantity > lot.AvailableQuantity)
+                throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("WH_LOT_RESERVED",
+                    $"Lot {lot.LotNumber} has {lot.ReservedQuantity} held by reservations: only {lot.AvailableQuantity} can be moved ({quantity} was asked).");
+
+            var number = NextSubLotNumber(await uow.InventoryLots.GetByProductIdAsync(productId, includeDepleted: true, ct), lot);
+            if (number.Length > MaxLotNumberLength)
+                throw new ERP.Shared.Infrastructure.Exceptions.BusinessRuleException("WH_LOT_NUMBER_LENGTH",
+                    $"The number of the new sub-lot ({number}) is longer than {MaxLotNumberLength} characters.");
+
+            var source = await BalanceAsync(productId, lot.WarehouseId, lot.LotId, ct);
+            var sub = lot.SplitOff(quantity, toWarehouseId, number);
+            await uow.InventoryLots.UpdateAsync(lot, ct);
+            await uow.InventoryLots.AddAsync(sub, ct);
+            source.Add(-quantity);
+            (await BalanceAsync(productId, toWarehouseId, sub.LotId, ct)).Add(quantity);
+            return new LotMove(sub, lot);
+        }
+
+        // the whole lot moves as it is, with the quantity reserved on it
         var from = await BalanceAsync(productId, lot.WarehouseId, lot.LotId, ct);
         var reserved = from.ReservedQuantity;
         from.Add(-quantity);
@@ -420,6 +454,24 @@ public sealed class StockLedger(IWarehouseUnitOfWork uow, IWarehouseResolver war
         var to = await BalanceAsync(productId, toWarehouseId, lot.LotId, ct);
         to.Add(quantity);
         to.AddReserved(reserved);
+        return new LotMove(lot, null);
+    }
+
+    /// <summary>
+    /// The number of the next sub-lot of <paramref name="source"/>: "&lt;root&gt;-S&lt;n&gt;", the root being the topmost ancestor (a sub-lot of a sub-lot is
+    /// named from the same root) and n the smallest positive integer not used by ANY lot of the product, used-up ones included, so a number is never reused.
+    /// </summary>
+    public static string NextSubLotNumber(IEnumerable<InventoryLot> productLots, InventoryLot source)
+    {
+        var all = productLots.ToList();
+        var byId = all.GroupBy(l => l.LotId).ToDictionary(g => g.Key, g => g.First());
+        var root = source;
+        for (var depth = 0; root.ParentLotId is { } parentId && byId.TryGetValue(parentId, out var parent) && depth < 100; depth++) root = parent;
+
+        var used = new HashSet<string>(all.Select(l => l.LotNumber), StringComparer.OrdinalIgnoreCase);
+        var n = 1;
+        while (used.Contains($"{root.LotNumber}-S{n}")) n++;
+        return $"{root.LotNumber}-S{n}";
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────────────────────────────────────

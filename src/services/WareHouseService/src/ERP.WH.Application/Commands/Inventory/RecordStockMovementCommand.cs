@@ -39,6 +39,23 @@ public class RecordStockMovementCommand : IRequest<RecordStockMovementResponse>
     /// <summary>ProductionReceipt of an item the Warehouse has never held: the inventory record is created with this name and SKU.</summary>
     public string? ProductName { get; set; }
     public string? ProductSku { get; set; }
+
+    /// <summary>
+    /// ProductionIssue only (W7, rework): the named lot may be on quality hold. A privilege of the internal service API: the user endpoint resets it to
+    /// false before the command is sent, so a request body can never set it.
+    /// </summary>
+    public bool AllowHeldLot { get; set; }
+}
+
+/// <summary>One lot a production movement acted on (W7); <c>ParentLotId</c> is set for the sub-lot a split transfer created.</summary>
+public class MovementLotDto
+{
+    public Guid LotId { get; set; }
+    public string LotNumber { get; set; } = string.Empty;
+    public decimal Quantity { get; set; }
+    public decimal UnitCost { get; set; }
+    public Guid? WarehouseId { get; set; }
+    public Guid? ParentLotId { get; set; }
 }
 
 public class RecordStockMovementResponse
@@ -53,6 +70,11 @@ public class RecordStockMovementResponse
     public decimal? ValueDelta { get; set; }
     public Guid? WarehouseId { get; set; }
     public Guid? LotId { get; set; }
+    /// <summary>
+    /// The lots the movement really used (W7): one per lot taken by a reservation issue (<c>LotId</c> is null when there were several), the lot of
+    /// a single-lot movement, the new sub-lot of a split transfer. Empty for lot-less stock and for movements booked before W7.
+    /// </summary>
+    public List<MovementLotDto> Lots { get; set; } = [];
     /// <summary>True when the same reference had been booked before: this is the first result, nothing changed.</summary>
     public bool Replayed { get; set; }
 }
