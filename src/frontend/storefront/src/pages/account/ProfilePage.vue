@@ -25,8 +25,8 @@ const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 
-function signOut() {
-  authStore.logout()
+async function signOut() {
+  await authStore.signOut()
   router.push('/')
 }
 </script>

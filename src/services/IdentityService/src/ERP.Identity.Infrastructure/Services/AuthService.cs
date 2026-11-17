@@ -589,10 +589,23 @@ namespace ERP.Identity.Infrastructure.Services
                     throw new UnauthorizedAccessException(
                         "An account with this email already exists. Sign in with your password to continue.");
 
-                // Same verified mailbox -> same person. The account's own status (active, locked, tenant) is checked
-                // by IssueTokensOrChallengeAsync like for any other sign-in, and 2FA still applies.
+                // SEC-H1 (security review 2026-11): an account whose address was never confirmed proves nothing about who
+                // created it - anyone can self-register with someone else's e-mail. Linking it would hand the real owner an
+                // account whose password (and sessions) the squatter still holds. The owner proves the mailbox through
+                // "forgot password" instead: the reset confirms the address and ends every other session, after which this
+                // sign-in links.
                 if (existing.IsEmailConfirmed != true)
-                    existing.ConfirmEmail();
+                {
+                    await _securityAuditService.LogAsync("ExternalLoginLinkRefused", false, tenant.Id, existing.Id, normalizedEmail,
+                        errorReason: "Existing account e-mail not confirmed", ct: ct);
+                    await _unitOfWork.SaveChangesAsync(ct);
+                    throw new UnauthorizedAccessException(
+                        "An account with this email already exists but its address is not confirmed. "
+                        + "Reset the password through \"Forgot password\" (this confirms the address), then sign in again.");
+                }
+
+                // Same verified mailbox, confirmed on both sides -> same person. The account's own status (active,
+                // locked, tenant) is checked by IssueTokensOrChallengeAsync like for any other sign-in, and 2FA still applies.
                 await _unitOfWork.ExternalLogins.AddAsync(
                     ExternalLogin.Create(existing.Id, tenant.Id, provider, providerKey, normalizedEmail), ct);
                 return existing;
@@ -949,6 +962,10 @@ namespace ERP.Identity.Infrastructure.Services
             var newPasswordHash = _passwordHasher.HashPassword(request.NewPassword);
             user.ChangePassword(newPasswordHash);
             resetToken.MarkUsed();
+            // The reset link was delivered to the account's mailbox: using it proves the address, like a confirmation
+            // link does (SEC-H1 - the owner of a squatted account confirms it this way and can then link Google).
+            if (user.IsEmailConfirmed != true)
+                user.ConfirmEmail();
 
             await _passwordPolicyService.RecordPasswordHistoryAsync(user.Id, previousHash, ct);
             await _unitOfWork.Users.UpdateAsync(user, ct);

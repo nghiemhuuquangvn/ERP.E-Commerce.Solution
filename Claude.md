@@ -161,6 +161,11 @@ Published Events:
 Security invariants (2026-10-19 review — docs/business/Identity/SecurityReview-2026-10.md):
 - Anonymous account creation (register, external-login auto-provisioning) is ALWAYS
   Customer — never trust a client-supplied UserType/role.
+- An external login links to an existing account only when the provider verified the e-mail AND the account
+  confirmed it; otherwise refuse (the owner resets the password, which confirms the e-mail) — SEC-H1, BR-EXT-05.
+- `Tenancy:FallbackTenantCode` (unknown host = that tenant) is local only: Identity refuses to start with it outside
+  Development unless `Tenancy:AllowFallbackTenantOutsideDevelopment=true`, and no `deployment/` manifest may set
+  either (`NoTenantFallbackInDeploymentTests`) — SEC-H2.
 - Secrets/tokens (reset, confirm, OTP) only leave the service via NotificationService
   events — never in an HTTP response (dev-only flag excepted, blocked outside Development).
 - Every token-issuing path goes through `EnsureAccountCanAuthenticateAsync`

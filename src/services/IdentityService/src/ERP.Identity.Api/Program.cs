@@ -69,6 +69,9 @@ if (!builder.Environment.IsDevelopment()
         "Auth:ExposeTokensInResponseForTesting must not be enabled outside the Development environment.");
 }
 
+// An unknown host must never become a tenant (least of all the platform) outside local development (SEC-H2).
+ERP.Identity.Infrastructure.Services.TenancyConfigurationGuard.EnsureSafe(builder.Configuration, builder.Environment.IsDevelopment());
+
 // Client IP for rate limiting / brute-force counters / audit: X-Forwarded-For is only
 // honored when the immediate sender is a trusted proxy (nginx → Gateway on the private
 // Docker network). ForwardedHeaders:TrustedHops is the number of proxy hops that append to the header in front of

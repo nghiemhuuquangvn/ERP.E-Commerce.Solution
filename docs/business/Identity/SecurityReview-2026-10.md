@@ -5,6 +5,9 @@ JWT validation it relies on. Method: source review + unit tests
 (`tests/unit/ERP.Identity.UnitTests/Application/Services/AuthServiceTests.cs`,
 `.../Security/SecurityHardeningTests.cs`). No live penetration test was run.
 
+> **Superseded for open items by [SecurityReview-2026-11.md](SecurityReview-2026-11.md) (2026-11-17)** — its §8
+> reconciles this document (M5 closed, M6 → SEC-M13, S11 → SEC-M12, the "port 5001 published" note is stale).
+
 ## Required operator action
 
 The values below were committed to git and remain in its history. **Treat them as
@@ -213,6 +216,9 @@ user context) is correct in every service. Authorization and isolation were not.
 - If the provider asserts a **verified** email and a user with that email exists in the tenant, the external account is
   **linked** to that user (the same mailbox is the same person); 2FA and the account-status checks still apply.
 - If the email is **not verified** the sign-in is refused instead of taking the existing account over.
+- **Since 2026-11-17 (SEC-H1):** the existing account must also have **confirmed** its own address; otherwise the
+  sign-in is refused and the person resets the password first (which confirms the address). See
+  `ExternalAuthAndTwoFactor.md` BR-EXT-05 / 06.
 - Google reports `email_verified`. Facebook (Graph API has no such flag) and Microsoft (`preferred_username` is a
   mutable sign-in name; the `email` claim is not guaranteed verified - "nOAuth") report `EmailVerified = false`, so they
   never link by email. Twitter/X never links.

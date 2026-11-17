@@ -51,13 +51,35 @@ export const useAuthStore = defineStore(
       user.value = data.user ?? null
     }
 
+    /** Forgets the session on this device only (used when the server already refused the token). */
     function logout() {
       user.value = null
       accessToken.value = null
       refreshToken.value = null
     }
 
-    return { user, accessToken, refreshToken, isAuthenticated, fullName, login, register, logout }
+    /**
+     * The customer signs out: forget the session here first (the page must never stay signed in because the network
+     * failed), then ask the server to revoke the refresh token and the access token, so a copy of them (another tab,
+     * a stolen localStorage) stops working too. SEC-H3 / S1 (docs/business/Identity/SecurityReview-2026-11.md).
+     */
+    async function signOut() {
+      const access = accessToken.value
+      const refresh = refreshToken.value
+      logout()
+      if (!access || !refresh) return
+      try {
+        await apiClient.post(
+          '/v1/auth/logout',
+          { refreshToken: refresh },
+          { headers: { Authorization: `Bearer ${access}` } },
+        )
+      } catch {
+        // Best effort: an expired access token cannot be revoked any more and the refresh token then expires on its own.
+      }
+    }
+
+    return { user, accessToken, refreshToken, isAuthenticated, fullName, login, register, logout, signOut }
   },
   { persist: true },
 )
