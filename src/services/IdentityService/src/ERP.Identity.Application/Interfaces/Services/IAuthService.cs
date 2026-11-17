@@ -26,7 +26,7 @@ namespace ERP.Identity.Application.Interfaces.Services
 
         Task<RefreshTokenResponse> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default);
 
-        Task LogoutAsync(Guid userId, string refreshToken, string? jti, DateTime? tokenExpiresAt, string? ipAddress, CancellationToken ct = default);
+        Task LogoutAsync(Guid userId, string? refreshToken, string? jti, DateTime? tokenExpiresAt, string? ipAddress, CancellationToken ct = default);
 
         Task<ForgotPasswordResponse> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct);
 

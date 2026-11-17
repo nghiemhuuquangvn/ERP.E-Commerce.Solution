@@ -23,6 +23,8 @@ namespace ERP.Identity.Application.DTOs.Auth
             Guid? ChallengeId = null,
             string? TwoFactorMethod = null,
             int? ExpiresInSeconds = null,
-            UserSummaryDto? User = null);
+            UserSummaryDto? User = null,
+            // When the refresh token stops working (idle window or the session's absolute end); the cookie transport uses it.
+            DateTime? RefreshTokenExpiresAt = null);
     }
 }

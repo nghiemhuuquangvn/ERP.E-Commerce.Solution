@@ -15,12 +15,20 @@ export interface User {
 
 interface AuthState {
   user: User | null
+  /**
+   * In memory only (SEC-H3, docs/business/Identity/Sessions.md): never written to localStorage. The refresh token is an
+   * HttpOnly cookie this page cannot read; after a reload the first 401 refreshes through that cookie.
+   */
   accessToken: string | null
-  refreshToken: string | null
   isAuthenticated: boolean
+  /** Set when the server ended the session (idle timeout / absolute limit / revoked); the login page explains it. */
+  sessionExpired: boolean
   setUser: (user: User) => void
-  setTokens: (accessToken: string, refreshToken: string) => void
+  setAccessToken: (accessToken: string) => void
   logout: () => void
+  /** The session ended on the server: sign out here and remember why. */
+  expire: () => void
+  clearSessionExpired: () => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -28,23 +36,24 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       accessToken: null,
-      refreshToken: null,
       isAuthenticated: false,
+      sessionExpired: false,
 
-      setUser: (user) => set({ user, isAuthenticated: true }),
+      setUser: (user) => set({ user, isAuthenticated: true, sessionExpired: false }),
 
-      setTokens: (accessToken, refreshToken) =>
-        set({ accessToken, refreshToken }),
+      setAccessToken: (accessToken) => set({ accessToken }),
 
-      logout: () =>
-        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
+      logout: () => set({ user: null, accessToken: null, isAuthenticated: false }),
+
+      expire: () => set({ user: null, accessToken: null, isAuthenticated: false, sessionExpired: true }),
+
+      clearSessionExpired: () => set({ sessionExpired: false }),
     }),
     {
       name: 'erp-auth',
+      // Only what the page needs to render before the first call - never a token.
       partialize: (s) => ({
         user: s.user,
-        accessToken: s.accessToken,
-        refreshToken: s.refreshToken,
         isAuthenticated: s.isAuthenticated,
       }),
     },

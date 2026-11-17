@@ -26,7 +26,7 @@ namespace ERP.Identity.Infrastructure.Services
             _signing = signing;
             _refreshTokenRepository = refreshTokenRepository;
         }
-        public Task<string> GenerateAccessToken(User user, AuthTenant tenant, IEnumerable<string> roles, IEnumerable<string> permissions, IEnumerable<string> licensedModules)
+        public Task<string> GenerateAccessToken(User user, AuthTenant tenant, IEnumerable<string> roles, IEnumerable<string> permissions, IEnumerable<string> licensedModules, TimeSpan? lifetime = null)
         {
             var claims = new List<Claim>
             {
@@ -53,13 +53,15 @@ namespace ERP.Identity.Infrastructure.Services
             // validates with its public key from the JWKS.
             var creds = _signing.Credentials;
 
+            // Jwt:Expired is the ceiling; the session policy passes a shorter lifetime (a third of the idle timeout).
+            var maximum = TimeSpan.FromMinutes(int.Parse(expirationString));
+            var effective = lifetime is { } requested && requested < maximum && requested > TimeSpan.Zero ? requested : maximum;
+
             var token = new JwtSecurityToken(
                 issuer: issuer,
                 audience: audience,
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(
-                    int.Parse(expirationString)
-                ),
+                expires: DateTime.UtcNow.Add(effective),
                 signingCredentials: creds
             );
 

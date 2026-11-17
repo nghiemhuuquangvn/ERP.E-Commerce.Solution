@@ -1,8 +1,12 @@
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { Outlet } from 'react-router-dom'
+import { useSessionKeepAlive } from '@/hooks/useSessionKeepAlive'
 
 export function PageLayout() {
+  // Idle = no input from the person (BR-SES-01): refresh ahead while they work.
+  useSessionKeepAlive()
+
   return (
     <div className="flex h-screen overflow-hidden bg-surface-muted">
       <Sidebar />

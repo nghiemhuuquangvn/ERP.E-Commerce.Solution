@@ -26,7 +26,7 @@ export default function RegisterScreen() {
     setOffline(false)
     try {
       const { data } = await apiClient.post('/v1/auth/register', { firstName, lastName, email, password })
-      setAuth(data.user, data.accessToken)
+      setAuth(data.user, data.accessToken, data.refreshToken)
     } catch (e) {
       setOffline(isNetworkError(e))
       setFailed(true)

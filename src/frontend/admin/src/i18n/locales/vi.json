@@ -169,6 +169,7 @@
     "tenantCode": "Mã đơn vị",
     "signIn": "Đăng nhập",
     "signingIn": "Đang đăng nhập…",
+    "sessionExpired": "Phiên làm việc đã kết thúc do không hoạt động. Vui lòng đăng nhập lại.",
     "twoFactor": {
       "title": "Xác thực hai lớp",
       "subtitleSms": "Nhập mã 6 chữ số chúng tôi đã gửi đến điện thoại của bạn.",
@@ -2007,7 +2008,10 @@
       "requireSymbol": "Yêu cầu ký tự đặc biệt",
       "maxLoginAttempts": "Số lần đăng nhập sai tối đa trước khi khóa",
       "lockoutDurationMinutes": "Thời gian khóa tài khoản (phút)",
-      "sessionTimeoutMinutes": "Thời gian hết phiên đăng nhập (phút)",
+      "sessionTimeoutMinutes": "Hết phiên khi không hoạt động - quản trị (phút)",
+      "sessionAbsoluteHours": "Thời gian tối đa của phiên - quản trị (giờ)",
+      "customerSessionTimeoutMinutes": "Hết phiên khi không hoạt động - khách hàng (phút)",
+      "customerSessionAbsoluteDays": "Thời gian tối đa của phiên - khách hàng (ngày)",
       "noTenant": "Không tìm thấy đơn vị cho người dùng hiện tại.",
       "failedToSave": "Lưu cài đặt thất bại. Vui lòng thử lại."
     },

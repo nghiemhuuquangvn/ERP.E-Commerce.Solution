@@ -14,5 +14,6 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         Task RevokeAsync(string token, CancellationToken cancellationToken = default);
         Task<bool> ExistsAsync(string token, CancellationToken cancellationToken = default);
         Task RevokeAllByUserIdAsync(Guid userId, CancellationToken ct);
+        Task RevokeAllByDeviceSessionAsync(Guid deviceSessionId, CancellationToken ct);
     }
 }

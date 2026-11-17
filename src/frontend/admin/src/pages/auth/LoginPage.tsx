@@ -6,6 +6,7 @@ import { GoogleOAuthProvider, GoogleLogin, type CredentialResponse } from '@reac
 import { jwtDecode } from 'jwt-decode'
 import { useLogin, useCompleteLogin } from '@/hooks/useAuth'
 import { authApi, ADMIN_USER_TYPE } from '@/api/auth.api'
+import { useAuthStore } from '@/stores/auth.store'
 import { getMsalInstance } from '@/lib/msalConfig'
 import { loadFacebookSdk } from '@/lib/facebookSdk'
 
@@ -153,6 +154,8 @@ function LoginForm() {
   const [password, setPassword] = useState('')
   const [ssoError, setSsoError] = useState<string | null>(null)
   const login = useLogin()
+  // The server ended the session (idle timeout, absolute limit, revoked device): say so instead of a bare form.
+  const sessionExpired = useAuthStore((s) => s.sessionExpired)
 
   const loginOptions = useQuery({
     queryKey: ['auth', 'login-options'],
@@ -180,6 +183,9 @@ function LoginForm() {
           <p className="mt-1 text-sm text-ink-muted">{t('auth.subtitle')}</p>
         </div>
 
+        {sessionExpired && !login.error && (
+          <Alert variant="warning" className="mb-4">{t('auth.sessionExpired')}</Alert>
+        )}
         {login.error && <Alert variant="danger" className="mb-4">{t('auth.invalidCredentials')}</Alert>}
         {ssoError && <Alert variant="danger" className="mb-4">{ssoError}</Alert>}
 

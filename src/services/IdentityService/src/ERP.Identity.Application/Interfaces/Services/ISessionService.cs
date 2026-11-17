@@ -10,12 +10,21 @@ namespace ERP.Identity.Application.Interfaces.Services
     /// </summary>
     public interface ISessionService
     {
-        Task RegisterSessionAsync(
+        /// <summary>Creates or reactivates the user's row for this device; returns its id (the refresh tokens carry it).</summary>
+        Task<Guid> RegisterSessionAsync(
             Guid userId, Guid tenantId, string? deviceId, string? deviceName,
             string? deviceType, string? platform, string? ipAddress, string? userAgent, CancellationToken ct);
 
+        /// <summary>
+        /// Marks the device session as used now (a refresh). False when it no longer exists or was revoked - the
+        /// refresh must then be refused (SEC-M4).
+        /// </summary>
+        Task<bool> TouchSessionAsync(Guid deviceSessionId, string? ipAddress, CancellationToken ct);
+
         Task<IReadOnlyList<DeviceSessionDto>> ListActiveSessionsAsync(Guid userId, CancellationToken ct);
 
+        /// <summary>Ends one device session and every refresh token issued for it (SEC-M4). The one method here that
+        /// commits (SaveChangesAsync) itself: it is a stand-alone user action.</summary>
         Task RevokeSessionAsync(Guid userId, Guid sessionId, CancellationToken ct);
 
         /// <summary>

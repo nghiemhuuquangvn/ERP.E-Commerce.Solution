@@ -2,6 +2,7 @@ import axios, { AxiosError } from 'axios'
 import { useAuthStore } from '@/stores/auth.store'
 import { useUiStore } from '@/stores/ui.store'
 import { logger } from '@/utils/logger'
+import { isUserIdle } from '@/lib/sessionActivity'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -9,9 +10,13 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 // codes (see e.g. ProductService/appsettings.json's Localization:SupportedCultures).
 const ACCEPT_LANGUAGE_MAP: Record<string, string> = { en: 'en-US', vi: 'vi-VN' }
 
+// SEC-H3 (docs/business/Identity/Sessions.md): Identity keeps this page's refresh token in an HttpOnly cookie
+// (path /api/v1/auth) and only reads it when this header is present - a header another site cannot add.
+export const AUTH_TRANSPORT_HEADERS = { 'X-Auth-Transport': 'cookie' }
+
 export const apiClient = axios.create({
   baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', ...AUTH_TRANSPORT_HEADERS },
 })
 
 // Gateway routes (tenants/users/roles/permissions/settings/masterdata/hrm/crm/acc/wh/po/so/
@@ -66,22 +71,30 @@ export function refreshAccessToken(): Promise<string> {
     })
   }
 
-  const refreshToken = useAuthStore.getState().refreshToken
-  if (!refreshToken) {
-    useAuthStore.getState().logout()
-    return Promise.reject(new Error('No refresh token available.'))
+  // Nobody signed in on this page: nothing to refresh (the cookie, if any, is left to expire).
+  if (!useAuthStore.getState().isAuthenticated) {
+    return Promise.reject(new Error('Not signed in.'))
+  }
+
+  // Background calls (notification polling, hubs) must not keep an abandoned session alive: when the person did
+  // nothing for the whole idle window, the session ends here exactly as the server would end it (BR-SES-01).
+  if (isUserIdle(useAuthStore.getState().accessToken)) {
+    useAuthStore.getState().expire()
+    return Promise.reject(new Error('Session ended after inactivity.'))
   }
 
   isRefreshing = true
   return axios
-    .post(`${BASE_URL}/v1/auth/refresh`, { refreshToken })
+    // The refresh token travels as the HttpOnly cookie (same origin); the body stays empty.
+    .post(`${BASE_URL}/v1/auth/refresh`, {}, { headers: AUTH_TRANSPORT_HEADERS })
     .then(({ data }) => {
-      useAuthStore.getState().setTokens(data.accessToken, data.refreshToken)
+      useAuthStore.getState().setAccessToken(data.accessToken)
       settleQueue({ token: data.accessToken })
       return data.accessToken as string
     })
     .catch((refreshError) => {
-      useAuthStore.getState().logout()
+      // Idle timeout, absolute limit, revoked device or account change: the session is over.
+      useAuthStore.getState().expire()
       settleQueue({ error: refreshError })
       throw refreshError
     })

@@ -42,6 +42,10 @@ namespace ERP.Identity.Infrastructure.Services
             settings.Update(request.GoogleEnabled, request.MicrosoftEnabled, request.FacebookEnabled, request.TwitterEnabled, request.TwoFactorEnabled,
                 request.MinPasswordLength, request.RequireUppercase, request.RequireLowercase, request.RequireDigit, request.RequireSymbol,
                 request.MaxLoginAttempts, request.LockoutDurationMinutes, request.SessionTimeoutMinutes);
+            ValidateSessionPolicy(request.SessionTimeoutMinutes, request.SessionAbsoluteHours,
+                request.CustomerSessionTimeoutMinutes, request.CustomerSessionAbsoluteDays);
+            settings.UpdateSessionPolicy(request.SessionTimeoutMinutes, request.SessionAbsoluteHours,
+                request.CustomerSessionTimeoutMinutes, request.CustomerSessionAbsoluteDays);
             await _unitOfWork.SystemAuthSettings.UpdateAsync(settings, ct);
             await AddSettingsChangedOutboxMessageAsync("System", null, ct);
             await _unitOfWork.SaveChangesAsync(ct);
@@ -68,6 +72,8 @@ namespace ERP.Identity.Infrastructure.Services
             settings.Update(request.GoogleEnabled, request.MicrosoftEnabled, request.FacebookEnabled, request.TwitterEnabled, request.TwoFactorEnabled, request.TwoFactorRequired,
                 request.MinPasswordLength, request.RequireUppercase, request.RequireLowercase, request.RequireDigit, request.RequireSymbol,
                 request.MaxLoginAttempts, request.LockoutDurationMinutes, request.SessionTimeoutMinutes);
+            settings.UpdateSessionPolicy(request.SessionTimeoutMinutes, request.SessionAbsoluteHours,
+                request.CustomerSessionTimeoutMinutes, request.CustomerSessionAbsoluteDays);
             await _unitOfWork.TenantAuthSettings.UpdateAsync(settings, ct);
             await AddSettingsChangedOutboxMessageAsync("Tenant", tenantId, ct);
             await _unitOfWork.SaveChangesAsync(ct);
@@ -114,6 +120,37 @@ namespace ERP.Identity.Infrastructure.Services
                 throw new BusinessRuleException(
                     "TenantSessionPolicyWeakerThanSystem",
                     $"Tenant's session timeout ({request.SessionTimeoutMinutes} min) cannot exceed the platform baseline ({systemSettings.SessionTimeoutMinutes} min).");
+
+            // Session policy (SEC-M3, BR-SES-05): every value within range and at most the platform's.
+            ValidateSessionPolicy(request.SessionTimeoutMinutes, request.SessionAbsoluteHours,
+                request.CustomerSessionTimeoutMinutes, request.CustomerSessionAbsoluteDays);
+            if (request.SessionAbsoluteHours > systemSettings.SessionAbsoluteHours)
+                throw new BusinessRuleException("TenantSessionPolicyWeakerThanSystem",
+                    $"Tenant's session limit ({request.SessionAbsoluteHours} h) cannot exceed the platform baseline ({systemSettings.SessionAbsoluteHours} h).");
+            if (request.CustomerSessionTimeoutMinutes > systemSettings.CustomerSessionTimeoutMinutes)
+                throw new BusinessRuleException("TenantSessionPolicyWeakerThanSystem",
+                    $"Tenant's customer session timeout ({request.CustomerSessionTimeoutMinutes} min) cannot exceed the platform baseline ({systemSettings.CustomerSessionTimeoutMinutes} min).");
+            if (request.CustomerSessionAbsoluteDays > systemSettings.CustomerSessionAbsoluteDays)
+                throw new BusinessRuleException("TenantSessionPolicyWeakerThanSystem",
+                    $"Tenant's customer session limit ({request.CustomerSessionAbsoluteDays} days) cannot exceed the platform baseline ({systemSettings.CustomerSessionAbsoluteDays} days).");
+        }
+
+        /// <summary>
+        /// BR-SES-05: an idle timeout of at least 5 minutes (the access token lives a third of it), an absolute limit
+        /// of at least an hour / a day, and the idle timeout never longer than the absolute limit.
+        /// </summary>
+        private static void ValidateSessionPolicy(int idleMinutes, int absoluteHours, int customerIdleMinutes, int customerAbsoluteDays)
+        {
+            if (idleMinutes < 5 || customerIdleMinutes < 5)
+                throw new BusinessRuleException("SessionPolicyOutOfRange", "A session idle timeout must be at least 5 minutes.");
+            if (absoluteHours < 1 || absoluteHours > 24 * 30)
+                throw new BusinessRuleException("SessionPolicyOutOfRange", "The back-office session limit must be between 1 hour and 30 days.");
+            if (customerAbsoluteDays < 1 || customerAbsoluteDays > 365)
+                throw new BusinessRuleException("SessionPolicyOutOfRange", "The customer session limit must be between 1 and 365 days.");
+            if (idleMinutes > absoluteHours * 60)
+                throw new BusinessRuleException("SessionPolicyOutOfRange", "The back-office idle timeout cannot be longer than the session limit.");
+            if (customerIdleMinutes > customerAbsoluteDays * 24 * 60)
+                throw new BusinessRuleException("SessionPolicyOutOfRange", "The customer idle timeout cannot be longer than the customer session limit.");
         }
 
         public async Task<PublicAuthOptionsDto> GetPublicOptionsAsync(string tenantCode, CancellationToken ct)
@@ -183,12 +220,14 @@ namespace ERP.Identity.Infrastructure.Services
         private static SystemAuthSettingsDto ToDto(SystemAuthSettings s) =>
             new(s.GoogleEnabled, s.MicrosoftEnabled, s.FacebookEnabled, s.TwitterEnabled, s.TwoFactorEnabled,
                 s.MinPasswordLength, s.RequireUppercase, s.RequireLowercase, s.RequireDigit, s.RequireSymbol,
-                s.MaxLoginAttempts, s.LockoutDurationMinutes, s.SessionTimeoutMinutes);
+                s.MaxLoginAttempts, s.LockoutDurationMinutes, s.SessionTimeoutMinutes,
+                s.SessionAbsoluteHours, s.CustomerSessionTimeoutMinutes, s.CustomerSessionAbsoluteDays);
 
         private static TenantAuthSettingsDto ToDto(TenantAuthSettings s) =>
             new(s.TenantId, s.GoogleEnabled, s.MicrosoftEnabled, s.FacebookEnabled, s.TwitterEnabled, s.TwoFactorEnabled, s.TwoFactorRequired,
                 s.MinPasswordLength, s.RequireUppercase, s.RequireLowercase, s.RequireDigit, s.RequireSymbol,
-                s.MaxLoginAttempts, s.LockoutDurationMinutes, s.SessionTimeoutMinutes);
+                s.MaxLoginAttempts, s.LockoutDurationMinutes, s.SessionTimeoutMinutes,
+                s.SessionAbsoluteHours, s.CustomerSessionTimeoutMinutes, s.CustomerSessionAbsoluteDays);
 
         private async Task AddSettingsChangedOutboxMessageAsync(string scope, Guid? tenantId, CancellationToken ct)
         {

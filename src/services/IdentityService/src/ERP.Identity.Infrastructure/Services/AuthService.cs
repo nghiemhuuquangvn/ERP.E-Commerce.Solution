@@ -18,6 +18,7 @@ using ERP.Identity.Application.Interfaces.Mapping;
 using ERP.Shared.Authorization;
 using ERP.Shared.Infrastructure.Exceptions;
 using ERP.Identity.Infrastructure.Security;
+using ERP.Identity.Domain.Security;
 
 namespace ERP.Identity.Infrastructure.Services
 {
@@ -73,10 +74,13 @@ namespace ERP.Identity.Infrastructure.Services
         /// a device session, build response. Does NOT call SaveChangesAsync — callers
         /// control the transaction boundary.
         /// </summary>
+        /// <param name="continuation">A refresh continues the session it rotates: same start (absolute limit) and device
+        /// session. Null = a new sign-in, which starts a session now.</param>
         private async Task<LoginResponse> IssueTokensAsync(
             User user, AuthTenant tenant, CancellationToken ct,
             string? deviceId = null, string? deviceName = null, string? deviceType = null,
-            string? platform = null, string? ipAddress = null, string? userAgent = null)
+            string? platform = null, string? ipAddress = null, string? userAgent = null,
+            SessionContinuation? continuation = null)
         {
             var roles = await _unitOfWork.Roles.GetRolesAsync(user.Id, tenant.Id, ct);
 
@@ -101,8 +105,27 @@ namespace ERP.Identity.Infrastructure.Services
             // GetEffectiveModulesAsync. Returns [] if the tenant has no valid license.
             var licensedModules = await _licenseService.GetEffectiveModulesAsync(tenant.Id, ct);
 
-            var accessToken = await _jwtService.GenerateAccessToken(user, tenant, roles, permissionSet, licensedModules);
+            // Session policy (SEC-M3, docs/business/Identity/Sessions.md): idle timeout + absolute limit per tenant, back
+            // office vs customer. The access token lives a third of the idle time so an active client refreshes in time.
+            var now = DateTime.UtcNow;
+            var sessionStartedAt = continuation?.StartedAt ?? now;
+            var policy = SessionPolicy.For(SessionPolicy.IsCustomer(user),
+                await _settingsService.GetOrCreateTenantSettingsEntityAsync(tenant.Id, ct));
+            var accessLifetime = policy.AccessTokenLifetime(
+                TimeSpan.FromMinutes(GetConfigInt("Jwt:Expired", 60)), now, sessionStartedAt);
+
+            var accessToken = await _jwtService.GenerateAccessToken(user, tenant, roles, permissionSet, licensedModules, accessLifetime);
             var refreshToken = await _jwtService.GenerateRefreshToken(user.Id, tenant.Id);
+
+            // A refresh keeps its device session (touched by RefreshTokenAsync); a sign-in - or an old token that never
+            // had one - registers this device.
+            var deviceSessionId = continuation?.DeviceSessionId
+                ?? await _sessionService.RegisterSessionAsync(user.Id, tenant.Id, deviceId, deviceName, deviceType, platform, ipAddress, userAgent, ct);
+
+            var refreshExpiresAt = policy.RefreshExpiresAt(now, sessionStartedAt);
+            var configuredCeiling = now.AddDays(GetConfigInt("Jwt:RefreshTokenExpirationDays", 30));
+            if (configuredCeiling < refreshExpiresAt)
+                refreshExpiresAt = configuredCeiling;
 
             // Only the hash is persisted — same "opaque high-entropy token, hashed at
             // rest" pattern as PasswordResetToken — so DB read access alone doesn't
@@ -112,17 +135,22 @@ namespace ERP.Identity.Infrastructure.Services
                 userId: user.Id,
                 tenantId: tenant.Id,
                 token: OpaqueTokenHasher.Hash(refreshToken),
-                expiredAt: DateTime.UtcNow.AddDays(GetConfigInt("Jwt:RefreshTokenExpirationDays", 7)),
-                createdByIp: ipAddress
+                expiredAt: refreshExpiresAt,
+                createdByIp: ipAddress,
+                sessionStartedAt: sessionStartedAt,
+                deviceSessionId: deviceSessionId
             );
 
             await _unitOfWork.RefreshTokens.AddAsync(refreshTokenEntity, ct);
-            await _sessionService.RegisterSessionAsync(user.Id, tenant.Id, deviceId, deviceName, deviceType, platform, ipAddress, userAgent, ct);
 
             var userSummary = new UserSummaryDto(user.Id, user.Email, user.FullName, roles, permissionSet);
 
-            return new LoginResponse(accessToken, refreshToken, Succeeded: true, User: userSummary);
+            return new LoginResponse(accessToken, refreshToken, Succeeded: true, User: userSummary,
+                RefreshTokenExpiresAt: refreshExpiresAt);
         }
+
+        /// <summary>What a refresh carries over from the token it rotates.</summary>
+        private sealed record SessionContinuation(DateTime StartedAt, Guid? DeviceSessionId);
 
         public async Task<LoginResponse> LoginAsync(LoginRequest request, string tenantCode, string? ipAddress, string? userAgent, CancellationToken ct)
         {
@@ -672,9 +700,10 @@ namespace ERP.Identity.Infrastructure.Services
             return response;
         }
 
-        public async Task LogoutAsync(Guid userId, string refreshToken, string? jti, DateTime? tokenExpiresAt, string? ipAddress, CancellationToken ct = default)
+        public async Task LogoutAsync(Guid userId, string? refreshToken, string? jti, DateTime? tokenExpiresAt, string? ipAddress, CancellationToken ct = default)
         {
-            await _unitOfWork.RefreshTokens.RevokeAsync(OpaqueTokenHasher.Hash(refreshToken), ct);
+            if (!string.IsNullOrEmpty(refreshToken))
+                await _unitOfWork.RefreshTokens.RevokeAsync(OpaqueTokenHasher.Hash(refreshToken), ct);
 
             if (!string.IsNullOrWhiteSpace(jti) && tokenExpiresAt.HasValue)
                 await _sessionService.BlacklistTokenAsync(jti, userId, tokenExpiresAt.Value, revokedBy: userId.ToString(), ct);
@@ -720,9 +749,11 @@ namespace ERP.Identity.Infrastructure.Services
                     await _securityAuditService.LogAsync("RefreshTokenReuseDetected", false, session.TenantId, session.UserId,
                         errorReason: "Revoked refresh token was presented again — possible token theft; all sessions revoked", ct: ct);
                     await _unitOfWork.SaveChangesAsync(ct);
+                    throw new UnauthorizedAccessException("Invalid refresh token");
                 }
 
-                throw new UnauthorizedAccessException("Invalid refresh token");
+                // Not revoked, only past its expiry = the idle window or the session's absolute end (SEC-M3).
+                throw new UnauthorizedAccessException(SessionExpiredMessage);
             }
 
             // 2) Load context
@@ -736,17 +767,43 @@ namespace ERP.Identity.Infrastructure.Services
             // token issued before the deactivation.
             await EnsureAccountCanAuthenticateAsync(user, tenant, "RefreshToken", request.IpAddress, null, ct);
 
+            // The session's absolute limit, by the tenant's CURRENT policy (a lowered limit applies to running sessions too;
+            // tokens from before 2026-11-17 count from their creation).
+            var policy = SessionPolicy.For(SessionPolicy.IsCustomer(user),
+                await _settingsService.GetOrCreateTenantSettingsEntityAsync(tenant.Id, ct));
+            if (DateTime.UtcNow >= policy.EndsAt(session.SessionStart))
+            {
+                session.Revoke();
+                await _securityAuditService.LogAsync("SessionExpired", false, tenant.Id, user.Id, user.Email, request.IpAddress,
+                    errorReason: "Absolute session lifetime reached", ct: ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+                throw new UnauthorizedAccessException(SessionExpiredMessage);
+            }
+
+            // "Sign out this device" ends the session even if this token escaped the bulk revoke (SEC-M4).
+            if (session.DeviceSessionId is { } deviceSessionId
+                && !await _sessionService.TouchSessionAsync(deviceSessionId, request.IpAddress, ct))
+            {
+                session.Revoke();
+                await _unitOfWork.SaveChangesAsync(ct);
+                throw new UnauthorizedAccessException(SessionExpiredMessage);
+            }
+
             // 3) Rotate token (revoke old)
             session.Revoke();
 
-            // 4) Issue new tokens (roles/permissions + access/refresh token + persist)
-            var issued = await IssueTokensAsync(user, tenant, ct);
+            // 4) Issue new tokens for the SAME session: its start and device carry over
+            var issued = await IssueTokensAsync(user, tenant, ct, ipAddress: request.IpAddress,
+                continuation: new SessionContinuation(session.SessionStart, session.DeviceSessionId));
 
             // 5) Commit
             await _unitOfWork.SaveChangesAsync(ct);
 
-            return new RefreshTokenResponse(issued.AccessToken!, issued.RefreshToken!);
+            return new RefreshTokenResponse(issued.AccessToken!, issued.RefreshToken!, RefreshTokenExpiresAt: issued.RefreshTokenExpiresAt);
         }
+
+        /// <summary>The message a client shows as "your session has ended, sign in again" (the Admin matches on it).</summary>
+        public const string SessionExpiredMessage = "Session expired";
 
         public async Task<LoginResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
         {

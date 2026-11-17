@@ -169,6 +169,7 @@
     "tenantCode": "Tenant Code",
     "signIn": "Sign in",
     "signingIn": "Signing in…",
+    "sessionExpired": "Your session ended after a period without activity. Please sign in again.",
     "twoFactor": {
       "title": "Two-Factor Verification",
       "subtitleSms": "Enter the 6-digit code we sent to your phone.",
@@ -2007,7 +2008,10 @@
       "requireSymbol": "Require symbol",
       "maxLoginAttempts": "Max login attempts before lockout",
       "lockoutDurationMinutes": "Lockout duration (minutes)",
-      "sessionTimeoutMinutes": "Session timeout (minutes)",
+      "sessionTimeoutMinutes": "Back-office idle timeout (minutes)",
+      "sessionAbsoluteHours": "Back-office session limit (hours)",
+      "customerSessionTimeoutMinutes": "Customer idle timeout (minutes)",
+      "customerSessionAbsoluteDays": "Customer session limit (days)",
       "noTenant": "No tenant found for the current user.",
       "failedToSave": "Failed to save settings. Please try again."
     },

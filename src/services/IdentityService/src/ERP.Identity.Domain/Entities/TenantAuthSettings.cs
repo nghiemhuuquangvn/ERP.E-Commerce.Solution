@@ -25,7 +25,13 @@ namespace ERP.Identity.Domain.Entities
         public bool RequireSymbol { get; private set; } = true;
         public int MaxLoginAttempts { get; private set; } = 5;
         public int LockoutDurationMinutes { get; private set; } = 15;
-        public int SessionTimeoutMinutes { get; private set; } = 60;
+        public int SessionTimeoutMinutes { get; private set; } = 15;
+
+        // Session policy (security review 2026-11, SEC-M3; docs/business/Identity/Sessions.md): back-office idle timeout above,
+        // absolute limit and the customer pair below; each value at most the platform's (SystemAuthSettings).
+        public int SessionAbsoluteHours { get; private set; } = 12;
+        public int CustomerSessionTimeoutMinutes { get; private set; } = 10080;
+        public int CustomerSessionAbsoluteDays { get; private set; } = 30;
 
         protected TenantAuthSettings() { }
 
@@ -51,7 +57,10 @@ namespace ERP.Identity.Domain.Entities
                 RequireSymbol = true,
                 MaxLoginAttempts = 5,
                 LockoutDurationMinutes = 15,
-                SessionTimeoutMinutes = 60,
+                SessionTimeoutMinutes = 15,
+                SessionAbsoluteHours = 12,
+                CustomerSessionTimeoutMinutes = 10080,
+                CustomerSessionAbsoluteDays = 30,
                 CreatedBy = "System",
                 CreatedAt = DateTime.UtcNow
             };
@@ -75,6 +84,14 @@ namespace ERP.Identity.Domain.Entities
             MaxLoginAttempts = maxLoginAttempts;
             LockoutDurationMinutes = lockoutDurationMinutes;
             SessionTimeoutMinutes = sessionTimeoutMinutes;
+        }
+
+        public void UpdateSessionPolicy(int sessionTimeoutMinutes, int sessionAbsoluteHours, int customerSessionTimeoutMinutes, int customerSessionAbsoluteDays)
+        {
+            SessionTimeoutMinutes = sessionTimeoutMinutes;
+            SessionAbsoluteHours = sessionAbsoluteHours;
+            CustomerSessionTimeoutMinutes = customerSessionTimeoutMinutes;
+            CustomerSessionAbsoluteDays = customerSessionAbsoluteDays;
         }
     }
 }

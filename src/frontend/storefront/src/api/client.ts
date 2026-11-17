@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLocaleStore } from '@/stores/locale.store'
+import { AUTH_TRANSPORT_HEADERS, refreshSession } from '@/api/session'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -17,7 +18,7 @@ const ACCEPT_LANGUAGE_MAP: Record<string, string> = {
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', ...AUTH_TRANSPORT_HEADERS },
 })
 
 apiClient.interceptors.request.use((config) => {
@@ -34,9 +35,25 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (r) => r,
   async (error) => {
-    if (error.response?.status === 401) {
-      useAuthStore().logout()
+    const original = error.config as (typeof error.config & { _retry?: boolean }) | undefined
+    const isAuthCall = String(original?.url ?? '').includes('/v1/auth/')
+    if (error.response?.status !== 401 || !original || original._retry || isAuthCall) {
+      return Promise.reject(error)
     }
-    return Promise.reject(error)
+
+    // An expired access token (it lives a few minutes, in memory only): refresh once through the HttpOnly cookie and
+    // replay the call. A refused refresh means the session is over and signs the customer out (SEC-H3 / SEC-M3).
+    if (!useAuthStore().signedIn) {
+      useAuthStore().logout()
+      return Promise.reject(error)
+    }
+    original._retry = true
+    try {
+      const token = await refreshSession()
+      original.headers = { ...(original.headers ?? {}), Authorization: `Bearer ${token}` }
+      return apiClient(original)
+    } catch {
+      return Promise.reject(error)
+    }
   },
 )

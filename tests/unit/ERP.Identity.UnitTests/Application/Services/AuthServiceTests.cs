@@ -69,7 +69,7 @@ public class AuthServiceTests
             .ReturnsAsync(new List<string>());
 
         _tokenService.Setup(t => t.GenerateAccessToken(It.IsAny<User>(), It.IsAny<AuthTenant>(),
-                It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>()))
+                It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync("access-token");
         _tokenService.Setup(t => t.GenerateRefreshToken(It.IsAny<Guid>(), It.IsAny<Guid>())).ReturnsAsync("refresh-token");
 
@@ -299,7 +299,7 @@ public class AuthServiceTests
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
         _tokenService.Verify(t => t.GenerateAccessToken(It.IsAny<User>(), It.IsAny<AuthTenant>(),
-            It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>()), Times.Never);
+            It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(), It.IsAny<TimeSpan?>()), Times.Never);
     }
 
     [Fact]
@@ -325,6 +325,99 @@ public class AuthServiceTests
         var act = () => CreateService().RefreshTokenAsync(new RefreshTokenDto.RefreshTokenRequest(rawRefresh, _tenant.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        _tokenService.Verify(t => t.GenerateRefreshToken(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Never);
+    }
+
+    // ---- S2 / SEC-M3, SEC-M4: session policy (idle 15', absolute 12 h for the back office) ----
+
+    private (User User, RefreshToken Session, string Raw) StaffSession(TimeSpan startedAgo, Guid? deviceSessionId = null, DateTime? expiresAt = null)
+    {
+        var user = ExistingUser(); // an Admin = back-office policy
+        const string raw = "session-refresh-token";
+        var session = RefreshToken.Create(user.Id, _tenant.Id, OpaqueTokenHasher.Hash(raw), expiresAt ?? DateTime.UtcNow.AddMinutes(10),
+            sessionStartedAt: DateTime.UtcNow - startedAgo, deviceSessionId: deviceSessionId);
+        _refreshTokens.Setup(r => r.GetByTokenAsync(OpaqueTokenHasher.Hash(raw), It.IsAny<CancellationToken>())).ReturnsAsync(session);
+        return (user, session, raw);
+    }
+
+    [Fact]
+    public async Task LoginAsync_BackOfficeUser_GetsAFifteenMinuteRefreshWindow_AndAFiveMinuteAccessToken()
+    {
+        var user = ExistingUser();
+        RefreshToken? added = null;
+        _refreshTokens.Setup(r => r.AddAsync(It.IsAny<RefreshToken>(), It.IsAny<CancellationToken>()))
+            .Callback<RefreshToken, CancellationToken>((t, _) => added = t);
+        var deviceSession = Guid.NewGuid();
+        _sessions.Setup(s => s.RegisterSessionAsync(user.Id, _tenant.Id, It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>())).ReturnsAsync(deviceSession);
+
+        var response = await CreateService().LoginAsync(new LoginDto.LoginRequest(user.Email, "Correct-Password-1", UserType.Admin), TenantCode, "1.2.3.4", "ua", CancellationToken.None);
+
+        response.Succeeded.Should().BeTrue();
+        added!.ExpiredAt.Should().BeCloseTo(DateTime.UtcNow.AddMinutes(15), TimeSpan.FromSeconds(30));
+        added.SessionStartedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(30));
+        added.DeviceSessionId.Should().Be(deviceSession);
+        response.RefreshTokenExpiresAt.Should().Be(added.ExpiredAt);
+        _tokenService.Verify(t => t.GenerateAccessToken(user, _tenant, It.IsAny<IEnumerable<string>>(), It.IsAny<IEnumerable<string>>(),
+            It.IsAny<IEnumerable<string>>(), TimeSpan.FromMinutes(5)), Times.Once);
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_ContinuesTheSameSession_KeepsItsStartAndDevice()
+    {
+        var device = Guid.NewGuid();
+        var (_, session, raw) = StaffSession(TimeSpan.FromHours(2), device);
+        _sessions.Setup(s => s.TouchSessionAsync(device, It.IsAny<string?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        RefreshToken? added = null;
+        _refreshTokens.Setup(r => r.AddAsync(It.IsAny<RefreshToken>(), It.IsAny<CancellationToken>()))
+            .Callback<RefreshToken, CancellationToken>((t, _) => added = t);
+
+        await CreateService().RefreshTokenAsync(new RefreshTokenDto.RefreshTokenRequest(raw, _tenant.Id), CancellationToken.None);
+
+        session.RevokedAt.Should().NotBeNull("rotation");
+        added!.SessionStartedAt.Should().Be(session.SessionStartedAt, "the absolute limit counts from the sign-in, not the refresh");
+        added.DeviceSessionId.Should().Be(device);
+        added.ExpiredAt.Should().BeCloseTo(DateTime.UtcNow.AddMinutes(15), TimeSpan.FromSeconds(30));
+        _sessions.Verify(s => s.RegisterSessionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never, "no 'unknown device' row per refresh");
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_PastTheAbsoluteLimit_IsRefused_AndAudited()
+    {
+        var (user, session, raw) = StaffSession(TimeSpan.FromHours(13)); // limit 12 h
+
+        var act = () => CreateService().RefreshTokenAsync(new RefreshTokenDto.RefreshTokenRequest(raw, _tenant.Id), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<UnauthorizedAccessException>()).Which.Message.Should().Be(AuthService.SessionExpiredMessage);
+        session.RevokedAt.Should().NotBeNull();
+        _tokenService.Verify(t => t.GenerateRefreshToken(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Never);
+        _audit.Verify(a => a.LogAsync("SessionExpired", false, _tenant.Id, user.Id, user.Email, It.IsAny<string?>(), It.IsAny<string?>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_AfterTheIdleWindow_IsRefused_WithoutTreatingItAsTheft()
+    {
+        var (user, _, raw) = StaffSession(TimeSpan.FromMinutes(30), expiresAt: DateTime.UtcNow.AddMinutes(-1));
+
+        var act = () => CreateService().RefreshTokenAsync(new RefreshTokenDto.RefreshTokenRequest(raw, _tenant.Id), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<UnauthorizedAccessException>()).Which.Message.Should().Be(AuthService.SessionExpiredMessage);
+        _sessions.Verify(s => s.RevokeAllForUserAsync(user.Id, It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_OfARevokedDeviceSession_IsRefused()
+    {
+        var device = Guid.NewGuid();
+        var (_, session, raw) = StaffSession(TimeSpan.FromMinutes(5), device);
+        _sessions.Setup(s => s.TouchSessionAsync(device, It.IsAny<string?>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        var act = () => CreateService().RefreshTokenAsync(new RefreshTokenDto.RefreshTokenRequest(raw, _tenant.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        session.RevokedAt.Should().NotBeNull();
         _tokenService.Verify(t => t.GenerateRefreshToken(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Never);
     }
 

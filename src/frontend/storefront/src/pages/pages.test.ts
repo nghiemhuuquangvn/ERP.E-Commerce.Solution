@@ -43,6 +43,7 @@ async function mountPage(component: object, url = '/', options: { auth?: boolean
   if (options.auth) {
     const auth = useAuthStore()
     auth.accessToken = 'token'
+    auth.signedIn = true
     auth.user = { id: 'u1', email: 'a@b.c', fullName: 'Ann Lee' }
   }
   if (options.cart) {
