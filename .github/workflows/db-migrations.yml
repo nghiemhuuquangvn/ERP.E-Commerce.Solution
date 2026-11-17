@@ -1,0 +1,174 @@
+# ════════════════════════════════════════════════════════════════════════════════
+# Database migrations (src/Database). Schema changes are a separate, ordered step of a
+# release — a service image never migrates its own database at start-up.
+#
+#   images ─► migrate-staging   (push to master touching src/Database, when K8S_DEPLOY_ENABLED)
+#          └► migrate-production (only from release.yml: tag v*, approval, BEFORE any service)
+#
+# Each migrate job runs the SQL Server Job (16 databases) then the PostgreSQL Job (Manufacturing).
+# Scripts are append-only and idempotent; demo-data files (*SeedDemo*) are never applied here.
+# The drift check of these scripts against the EF models runs in ci-platform.yml (drift-sql / drift-pg).
+# ════════════════════════════════════════════════════════════════════════════════
+name: db · migrations
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/Database/**
+      - deployment/sql/**
+      - deployment/docker/run-migrations.sh
+      - deployment/docker/run-pg-migrations.sh
+      - deployment/docker/Dockerfile.migrations*
+      - deployment/k8s/jobs/**
+      - .github/workflows/db-migrations.yml
+  pull_request:
+    branches: [master]
+    paths:
+      - src/Database/**
+      - deployment/sql/**
+      - deployment/docker/run-migrations.sh
+      - deployment/docker/run-pg-migrations.sh
+      - deployment/docker/Dockerfile.migrations*
+      - deployment/k8s/jobs/**
+      - .github/workflows/db-migrations.yml
+  workflow_dispatch:
+  workflow_call:          # release.yml: first wave of a release
+    inputs:
+      production:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: db-migrations-${{ github.ref }}
+  cancel-in-progress: false   # never cancel a migration half-way
+
+jobs:
+  images:
+    name: Migration images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      sql: ${{ steps.out.outputs.sql }}
+      pg: ${{ steps.out.outputs.pg }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Variables
+        id: vars
+        run: |
+          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          echo "sql=ghcr.io/${owner}/erp-db-migrations" >> "$GITHUB_OUTPUT"
+          echo "pg=ghcr.io/${owner}/erp-pg-migrations" >> "$GITHUB_OUTPUT"
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then echo "push=true" >> "$GITHUB_OUTPUT"; else echo "push=false" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        if: steps.vars.outputs.push == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta-sql
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.vars.outputs.sql }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - id: meta-pg
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.vars.outputs.pg }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: SQL Server migrations image
+        id: sql
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deployment/docker/Dockerfile.migrations
+          target: sqlserver
+          push: ${{ steps.vars.outputs.push == 'true' }}
+          tags: ${{ steps.meta-sql.outputs.tags }}
+          labels: ${{ steps.meta-sql.outputs.labels }}
+          cache-from: type=gha,scope=db-migrations
+          cache-to: type=gha,scope=db-migrations,mode=max
+
+      - name: PostgreSQL migrations image
+        id: pg
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deployment/docker/Dockerfile.migrations
+          target: postgres
+          push: ${{ steps.vars.outputs.push == 'true' }}
+          tags: ${{ steps.meta-pg.outputs.tags }}
+          labels: ${{ steps.meta-pg.outputs.labels }}
+          cache-from: type=gha,scope=pg-migrations
+          cache-to: type=gha,scope=pg-migrations,mode=max
+
+      - id: out
+        if: steps.vars.outputs.push == 'true'
+        run: |
+          echo "sql=${{ steps.vars.outputs.sql }}@${{ steps.sql.outputs.digest }}" >> "$GITHUB_OUTPUT"
+          echo "pg=${{ steps.vars.outputs.pg }}@${{ steps.pg.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+  migrate-staging:
+    name: Migrate staging
+    needs: images
+    if: >
+      github.event_name == 'push' && github.ref == 'refs/heads/master'
+      && vars.K8S_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: staging
+    concurrency:
+      group: migrate-staging
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: deployment/k8s/jobs
+      - uses: azure/setup-kubectl@v4
+      - name: Run migration Jobs
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_STAGING }}
+          SQL_IMAGE: ${{ needs.images.outputs.sql }}
+          PG_IMAGE: ${{ needs.images.outputs.pg }}
+        run: bash deployment/k8s/jobs/run-migration-jobs.sh
+
+  migrate-production:
+    name: Migrate production
+    needs: images
+    if: inputs.production && startsWith(github.ref, 'refs/tags/v') && vars.K8S_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: production
+    concurrency:
+      group: migrate-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: deployment/k8s/jobs
+      - uses: azure/setup-kubectl@v4
+      - name: Run migration Jobs
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+          SQL_IMAGE: ${{ needs.images.outputs.sql }}
+          PG_IMAGE: ${{ needs.images.outputs.pg }}
+        run: bash deployment/k8s/jobs/run-migration-jobs.sh

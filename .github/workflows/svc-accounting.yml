@@ -1,0 +1,50 @@
+# AccountingService (5005, ACC) — build, test, scan, push ghcr.io/<owner>/erp-accounting, deploy to K8s.
+# Logic lives in _dotnet-service.yml; this file only says WHAT to build and WHEN.
+# Values match docker-compose.yml (build args) and deployment/k8s/deployments (names).
+name: svc · accounting
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/services/AccountingService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.ACC.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-accounting.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  pull_request:
+    branches: [master]
+    paths:
+      - src/services/AccountingService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.ACC.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-accounting.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: svc-accounting-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_dotnet-service.yml
+    secrets: inherit
+    with:
+      service: accounting
+      service-path: src/services/AccountingService/src/ERP.ACC.API
+      project-file: ERP.ACC.API.csproj
+      assembly-name: ERP.ACC.API
+      unit-test-project: tests/unit/ERP.ACC.UnitTests/ERP.ACC.UnitTests.csproj
+      k8s-deployment: accounting-service
+      k8s-container: accounting-service

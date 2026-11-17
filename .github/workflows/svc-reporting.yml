@@ -1,0 +1,50 @@
+# ReportingService (5014, RPT) — build, test, scan, push ghcr.io/<owner>/erp-reporting, deploy to K8s.
+# Logic lives in _dotnet-service.yml; this file only says WHAT to build and WHEN.
+# Values match docker-compose.yml (build args) and deployment/k8s/deployments (names).
+name: svc · reporting
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/services/ReportingService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.RPT.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-reporting.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  pull_request:
+    branches: [master]
+    paths:
+      - src/services/ReportingService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.RPT.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-reporting.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: svc-reporting-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_dotnet-service.yml
+    secrets: inherit
+    with:
+      service: reporting
+      service-path: src/services/ReportingService/src/ERP.RPT.API
+      project-file: ERP.RPT.API.csproj
+      assembly-name: ERP.RPT.API
+      unit-test-project: tests/unit/ERP.RPT.UnitTests/ERP.RPT.UnitTests.csproj
+      k8s-deployment: reporting-service
+      k8s-container: reporting-service

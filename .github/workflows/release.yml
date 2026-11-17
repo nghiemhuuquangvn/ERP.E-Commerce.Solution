@@ -1,0 +1,157 @@
+# ════════════════════════════════════════════════════════════════════════════════
+# Production release — push a tag vX.Y.Z on master:   git tag v1.4.0 && git push origin v1.4.0
+#
+# One approval (environment "release-approval"), then waves - each waits for the previous one.
+# The order is the deploy order CLAUDE.md requires:
+#
+#   1. migrations      db-migrations.yml   SQL Server (16 DB, incl. Identity permission scripts) + PostgreSQL (MFG)
+#   2. backend         every service except Warehouse / Manufacturing — event CONSUMERS go before
+#                      the Warehouse (decimal quantities: consumers deploy before the publisher)
+#   3. warehouse       WareHouseService
+#   4. manufacturing   ManufacturingService (needs the Warehouse API + Identity scripts)
+#   5. web             admin, storefront (screens last, after the APIs they call)
+#
+# Each service image is PROMOTED: the image master built for this commit gets the version tag
+# (same digest), it is rebuilt only if master never built it. Service list: .github/services.json.
+# ════════════════════════════════════════════════════════════════════════════════
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Release plan
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.m.outputs.backend }}
+      warehouse: ${{ steps.m.outputs.warehouse }}
+      manufacturing: ${{ steps.m.outputs.manufacturing }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: The tag must point at a commit on master
+        run: |
+          git fetch origin master --quiet
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "::error::$GITHUB_REF_NAME is not on master - release refused"; exit 1
+          fi
+      - name: Matrices from .github/services.json
+        id: m
+        run: |
+          {
+            echo "backend=$(jq -c '[.[] | select(.service != "warehouse" and .service != "manufacturing")]' .github/services.json)"
+            echo "warehouse=$(jq -c '[.[] | select(.service == "warehouse")]' .github/services.json)"
+            echo "manufacturing=$(jq -c '[.[] | select(.service == "manufacturing")]' .github/services.json)"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "## Release $GITHUB_REF_NAME ($GITHUB_SHA)"
+            echo "1. migrations  2. $(jq -r '[.[] | select(.service != "warehouse" and .service != "manufacturing") | .service] | join(", ")' .github/services.json)"
+            echo "3. warehouse  4. manufacturing  5. admin, storefront"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ONE human approval for the whole release (environment "release-approval" has the required
+  # reviewers). The "production" environment itself has no reviewers - only a deployment rule
+  # "tags v*" and the KUBE_CONFIG_PRODUCTION secret - so the waves below run without asking again.
+  approve:
+    name: Approve release
+    needs: plan
+    runs-on: ubuntu-latest
+    environment:
+      name: release-approval
+    steps:
+      - run: echo "Release $GITHUB_REF_NAME approved by $GITHUB_ACTOR"
+
+  migrations:
+    needs: approve
+    uses: ./.github/workflows/db-migrations.yml
+    secrets: inherit
+    with:
+      production: true
+
+  backend:
+    needs: [plan, migrations]
+    strategy:
+      fail-fast: true
+      max-parallel: 6
+      matrix:
+        svc: ${{ fromJSON(needs.plan.outputs.backend) }}
+    uses: ./.github/workflows/_dotnet-service.yml
+    secrets: inherit
+    with:
+      service: ${{ matrix.svc.service }}
+      service-path: ${{ matrix.svc['service-path'] }}
+      project-file: ${{ matrix.svc['project-file'] }}
+      assembly-name: ${{ matrix.svc['assembly-name'] }}
+      unit-test-project: ${{ matrix.svc['unit-test-project'] }}
+      k8s-deployment: ${{ matrix.svc['k8s-deployment'] }}
+      k8s-container: ${{ matrix.svc['k8s-container'] }}
+      deploy-production: true
+
+  warehouse:
+    needs: [plan, backend]
+    strategy:
+      matrix:
+        svc: ${{ fromJSON(needs.plan.outputs.warehouse) }}
+    uses: ./.github/workflows/_dotnet-service.yml
+    secrets: inherit
+    with:
+      service: ${{ matrix.svc.service }}
+      service-path: ${{ matrix.svc['service-path'] }}
+      project-file: ${{ matrix.svc['project-file'] }}
+      assembly-name: ${{ matrix.svc['assembly-name'] }}
+      unit-test-project: ${{ matrix.svc['unit-test-project'] }}
+      k8s-deployment: ${{ matrix.svc['k8s-deployment'] }}
+      k8s-container: ${{ matrix.svc['k8s-container'] }}
+      deploy-production: true
+
+  manufacturing:
+    needs: [plan, warehouse]
+    strategy:
+      matrix:
+        svc: ${{ fromJSON(needs.plan.outputs.manufacturing) }}
+    uses: ./.github/workflows/_dotnet-service.yml
+    secrets: inherit
+    with:
+      service: ${{ matrix.svc.service }}
+      service-path: ${{ matrix.svc['service-path'] }}
+      project-file: ${{ matrix.svc['project-file'] }}
+      assembly-name: ${{ matrix.svc['assembly-name'] }}
+      unit-test-project: ${{ matrix.svc['unit-test-project'] }}
+      k8s-deployment: ${{ matrix.svc['k8s-deployment'] }}
+      k8s-container: ${{ matrix.svc['k8s-container'] }}
+      deploy-production: true
+
+  web-admin:
+    needs: manufacturing
+    uses: ./.github/workflows/_frontend-web.yml
+    secrets: inherit
+    with:
+      app: admin
+      install-command: npm ci
+      run-lint: false   # admin has no eslint.config.js yet (ESLint 9) - DEFERRED-ISSUES §6; switch on once it exists
+      k8s-deployment: admin
+      k8s-container: admin
+      deploy-production: true
+
+  web-storefront:
+    needs: manufacturing
+    uses: ./.github/workflows/_frontend-web.yml
+    secrets: inherit
+    with:
+      app: storefront
+      install-command: npm ci --legacy-peer-deps
+      run-lint: false
+      k8s-deployment: storefront
+      k8s-container: storefront
+      deploy-production: true

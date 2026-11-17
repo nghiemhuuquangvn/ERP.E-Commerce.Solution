@@ -1,0 +1,50 @@
+# ShippingService (5010, SHP) — build, test, scan, push ghcr.io/<owner>/erp-shipping, deploy to K8s.
+# Logic lives in _dotnet-service.yml; this file only says WHAT to build and WHEN.
+# Values match docker-compose.yml (build args) and deployment/k8s/deployments (names).
+name: svc · shipping
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/services/ShippingService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.SHP.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-shipping.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  pull_request:
+    branches: [master]
+    paths:
+      - src/services/ShippingService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.SHP.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-shipping.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: svc-shipping-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_dotnet-service.yml
+    secrets: inherit
+    with:
+      service: shipping
+      service-path: src/services/ShippingService/src/ERP.SHP.API
+      project-file: ERP.SHP.API.csproj
+      assembly-name: ERP.SHP.API
+      unit-test-project: tests/unit/ERP.SHP.UnitTests/ERP.SHP.UnitTests.csproj
+      k8s-deployment: shipping-service
+      k8s-container: shipping-service

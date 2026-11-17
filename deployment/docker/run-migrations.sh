@@ -35,7 +35,19 @@ echo "== deployment/sql/init-databases.sql =="
 
 for dir in /migrations/database/*/; do
     service=$(basename "$dir")
+    # ManufacturingService is on PostgreSQL: its scripts are applied by run-pg-migrations.sh
+    # (compose "pg-migrate", k8s Job pg-migrate), never by sqlcmd.
+    if [ "$service" = "Manufacturing" ]; then
+        echo; echo "== Manufacturing: PostgreSQL - skipped here (pg-migrate) =="
+        continue
+    fi
     files=$(find "$dir" -maxdepth 1 -iname "*.sql" | sort)
+    # SKIP_DEMO_SEED=true (CI and the k8s migration Job): leave out the demo data files
+    # (*SeedDemo*: demo users sharing one known password, demo orders ...). Permission / role /
+    # template seeds are NOT demo data and always run. Unset = the local stack, unchanged.
+    if [ "${SKIP_DEMO_SEED:-false}" = "true" ]; then
+        files=$(printf '%s\n' "$files" | grep -viE '/[^/]*SeedDemo[^/]*\.sql$' || true)
+    fi
     if [ -z "$files" ]; then
         continue
     fi

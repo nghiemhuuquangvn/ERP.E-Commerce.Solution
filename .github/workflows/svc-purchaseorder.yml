@@ -1,0 +1,50 @@
+# PurchaseOrderService (5003) — build, test, scan, push ghcr.io/<owner>/erp-purchaseorder, deploy to K8s.
+# Logic lives in _dotnet-service.yml; this file only says WHAT to build and WHEN.
+# Values match docker-compose.yml (build args) and deployment/k8s/deployments (names).
+name: svc · purchaseorder
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/services/PurchaseOrderService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.PO.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-purchaseorder.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  pull_request:
+    branches: [master]
+    paths:
+      - src/services/PurchaseOrderService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.PO.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-purchaseorder.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: svc-purchaseorder-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_dotnet-service.yml
+    secrets: inherit
+    with:
+      service: purchaseorder
+      service-path: src/services/PurchaseOrderService/src/ERP.PO.Api
+      project-file: ERP.PO.Api.csproj
+      assembly-name: ERP.PO.Api
+      unit-test-project: tests/unit/ERP.PO.UnitTests/ERP.PO.UnitTests.csproj
+      k8s-deployment: purchaseorder-service
+      k8s-container: purchaseorder-service

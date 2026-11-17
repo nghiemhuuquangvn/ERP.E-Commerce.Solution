@@ -1,0 +1,58 @@
+# Points one Deployment at a new image (by digest), waits for the rollout and rolls back on failure.
+# Used by _dotnet-service.yml and _frontend-web.yml. See docs/deployment/ci-cd.md §6.
+name: k8s-rollout
+description: kubectl set image + rollout status, automatic rollout undo when the new pods never become Ready
+inputs:
+  kubeconfig:
+    description: Full kubeconfig content (an environment secret)
+    required: true
+  namespace:
+    description: Kubernetes namespace
+    default: erp
+  deployment:
+    description: Deployment name
+    required: true
+  container:
+    description: Container name inside the Deployment
+    required: true
+  image:
+    description: Image reference, preferably <repo>@sha256:<digest>
+    required: true
+  change-cause:
+    description: Text kept in the rollout history (kubectl rollout history)
+    required: true
+  timeout:
+    description: How long the new pods may take to become Ready (readinessProbe /health)
+    default: 180s
+runs:
+  using: composite
+  steps:
+    - uses: azure/setup-kubectl@v4
+    - shell: bash
+      env:
+        KUBE_CONFIG: ${{ inputs.kubeconfig }}
+        NS: ${{ inputs.namespace }}
+        DEP: ${{ inputs.deployment }}
+        CONTAINER: ${{ inputs.container }}
+        IMAGE: ${{ inputs.image }}
+        CAUSE: ${{ inputs.change-cause }}
+        TIMEOUT: ${{ inputs.timeout }}
+      run: |
+        set -euo pipefail
+        if [[ -z "$KUBE_CONFIG" ]]; then echo "::error::kubeconfig secret is empty for this environment"; exit 1; fi
+        export KUBECONFIG="$RUNNER_TEMP/kubeconfig-$DEP"
+        printf '%s' "$KUBE_CONFIG" > "$KUBECONFIG"; chmod 600 "$KUBECONFIG"
+        trap 'rm -f "$KUBECONFIG"' EXIT
+
+        echo "Deploying $IMAGE to $NS/$DEP ($CONTAINER)"
+        kubectl -n "$NS" set image "deployment/$DEP" "$CONTAINER=$IMAGE"
+        kubectl -n "$NS" annotate "deployment/$DEP" kubernetes.io/change-cause="$CAUSE" --overwrite
+
+        if ! kubectl -n "$NS" rollout status "deployment/$DEP" --timeout="$TIMEOUT"; then
+          echo "::error::Rollout of $DEP failed - rolling back to the previous ReplicaSet"
+          kubectl -n "$NS" get pods -l "app=$DEP" -o wide || true
+          kubectl -n "$NS" rollout undo "deployment/$DEP"
+          kubectl -n "$NS" rollout status "deployment/$DEP" --timeout="$TIMEOUT" || true
+          exit 1
+        fi
+        echo "- \`$DEP\` → \`$IMAGE\`" >> "$GITHUB_STEP_SUMMARY"

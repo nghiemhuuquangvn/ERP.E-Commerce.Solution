@@ -1,0 +1,26 @@
+# ════════════════════════════════════════════════════════════════════════════════
+# Database migration images, built by .github/workflows/db-migrations.yml and run as
+# Kubernetes Jobs (deployment/k8s/jobs/). Same scripts as the docker-compose jobs
+# "db-migrate" / "pg-migrate", baked into an image instead of bind-mounted.
+# Build context = repo root:
+#   docker build -f deployment/docker/Dockerfile.migrations --target sqlserver  -t erp-db-migrations .
+#   docker build -f deployment/docker/Dockerfile.migrations --target postgres   -t erp-pg-migrations .
+# Every migration file is idempotent (IF NOT EXISTS / CREATE ... IF NOT EXISTS), so a Job may
+# run again at any time.
+# ════════════════════════════════════════════════════════════════════════════════
+
+# SQL Server: 16 databases. The mssql/server image ships sqlcmd (/opt/mssql-tools18), which
+# run-migrations.sh expects; the server itself is never started (the entrypoint is replaced).
+FROM mcr.microsoft.com/mssql/server:2022-latest AS sqlserver
+COPY deployment/sql/init-databases.sql   /migrations/init/init-databases.sql
+COPY src/Database/                       /migrations/database/
+COPY deployment/docker/run-migrations.sh /migrations/run-migrations.sh
+# Never apply demo data (shared known password, demo orders) to a cluster; a Job must not override it.
+ENV SKIP_DEMO_SEED=true
+ENTRYPOINT ["/bin/bash", "/migrations/run-migrations.sh"]
+
+# PostgreSQL: ManufacturingDB (src/Database/Manufacturing).
+FROM postgres:16-alpine AS postgres
+COPY src/Database/Manufacturing/            /migrations/database/Manufacturing/
+COPY deployment/docker/run-pg-migrations.sh /migrations/run-pg-migrations.sh
+ENTRYPOINT ["/bin/sh", "/migrations/run-pg-migrations.sh"]

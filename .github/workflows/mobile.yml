@@ -1,0 +1,100 @@
+# ════════════════════════════════════════════════════════════════════════════════
+# Mobile apps (Expo / React Native): src/frontend/mobile/{admin,customer,staff}.
+# CI = tokens + Jest (incl. the components/ui parity test). Mobile apps are not deployed
+# to Kubernetes; a store/preview build is started by hand with EAS (job "eas-build").
+# ════════════════════════════════════════════════════════════════════════════════
+name: mobile
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/frontend/mobile/**
+      - docs/frontend/design-system/**
+      - .github/workflows/mobile.yml
+  pull_request:
+    branches: [master]
+    paths:
+      - src/frontend/mobile/**
+      - docs/frontend/design-system/**
+      - .github/workflows/mobile.yml
+  workflow_dispatch:
+    inputs:
+      app:
+        description: App to build with EAS (leave "none" to only run the tests)
+        type: choice
+        options: [none, admin, customer, staff]
+        default: none
+      tenant_code:
+        description: Tenant code for the ERP Admin app (one APK per tenant; SYSTEM = platform)
+        type: string
+        default: SYSTEM
+      api_url:
+        description: EXPO_PUBLIC_API_URL baked into the build (the tenant's own host)
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Test (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [admin, customer, staff]
+    defaults:
+      run:
+        working-directory: src/frontend/mobile/${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: src/frontend/mobile/${{ matrix.app }}/package-lock.json
+      - run: npm ci
+      - name: Design tokens are up to date
+        run: npm run check:tokens
+      - name: Jest (components, parity of components/ui, module registry)
+        run: npm test -- --ci
+
+  eas-build:
+    name: EAS build (${{ inputs.app }})
+    needs: test
+    if: github.event_name == 'workflow_dispatch' && inputs.app != 'none'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: src/frontend/mobile/${{ inputs.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: src/frontend/mobile/${{ inputs.app }}/package-lock.json
+      - run: npm ci
+      - name: Start the build on Expo (EAS)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          TENANT_CODE: ${{ inputs.tenant_code }}
+          EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
+        run: |
+          if [[ -z "$EXPO_TOKEN" ]]; then echo "::error::Repository secret EXPO_TOKEN is not set"; exit 1; fi
+          # eas.json's preview profile pins TENANT_CODE / EXPO_PUBLIC_API_URL and wins over the shell
+          # environment on the build worker, so the inputs are written into this checkout's eas.json.
+          jq --arg t "$TENANT_CODE" --arg u "$EXPO_PUBLIC_API_URL" \
+            '.build.preview.env.TENANT_CODE = $t
+             | if $u != "" then .build.preview.env.EXPO_PUBLIC_API_URL = $u else . end' \
+            eas.json > eas.tmp.json && mv eas.tmp.json eas.json
+          jq .build.preview.env eas.json
+          npx eas-cli build --platform android --profile preview --non-interactive --no-wait
