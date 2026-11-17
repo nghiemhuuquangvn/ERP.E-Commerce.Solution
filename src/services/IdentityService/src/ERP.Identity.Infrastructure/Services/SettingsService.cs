@@ -38,14 +38,17 @@ namespace ERP.Identity.Infrastructure.Services
 
         public async Task<SystemAuthSettingsDto> UpdateSystemSettingsAsync(UpdateSystemAuthSettingsRequest request, CancellationToken ct)
         {
+            ValidateSessionPolicy(request.SessionTimeoutMinutes, request.SessionAbsoluteHours,
+                request.CustomerSessionTimeoutMinutes, request.CustomerSessionAbsoluteDays);
+            ValidateAccountLockPolicy(request.MaxLoginAttempts, request.AccountLockThreshold, request.AccountLockWindowMinutes);
+
             var settings = await GetOrCreateSystemSettingsEntityAsync(ct);
             settings.Update(request.GoogleEnabled, request.MicrosoftEnabled, request.FacebookEnabled, request.TwitterEnabled, request.TwoFactorEnabled,
                 request.MinPasswordLength, request.RequireUppercase, request.RequireLowercase, request.RequireDigit, request.RequireSymbol,
                 request.MaxLoginAttempts, request.LockoutDurationMinutes, request.SessionTimeoutMinutes);
-            ValidateSessionPolicy(request.SessionTimeoutMinutes, request.SessionAbsoluteHours,
-                request.CustomerSessionTimeoutMinutes, request.CustomerSessionAbsoluteDays);
             settings.UpdateSessionPolicy(request.SessionTimeoutMinutes, request.SessionAbsoluteHours,
                 request.CustomerSessionTimeoutMinutes, request.CustomerSessionAbsoluteDays);
+            settings.UpdateAccountLockPolicy(request.AccountLockThreshold, request.AccountLockWindowMinutes);
             await _unitOfWork.SystemAuthSettings.UpdateAsync(settings, ct);
             await AddSettingsChangedOutboxMessageAsync("System", null, ct);
             await _unitOfWork.SaveChangesAsync(ct);
@@ -74,6 +77,7 @@ namespace ERP.Identity.Infrastructure.Services
                 request.MaxLoginAttempts, request.LockoutDurationMinutes, request.SessionTimeoutMinutes);
             settings.UpdateSessionPolicy(request.SessionTimeoutMinutes, request.SessionAbsoluteHours,
                 request.CustomerSessionTimeoutMinutes, request.CustomerSessionAbsoluteDays);
+            settings.UpdateAccountLockPolicy(request.AccountLockThreshold, request.AccountLockWindowMinutes);
             await _unitOfWork.TenantAuthSettings.UpdateAsync(settings, ct);
             await AddSettingsChangedOutboxMessageAsync("Tenant", tenantId, ct);
             await _unitOfWork.SaveChangesAsync(ct);
@@ -133,6 +137,28 @@ namespace ERP.Identity.Infrastructure.Services
             if (request.CustomerSessionAbsoluteDays > systemSettings.CustomerSessionAbsoluteDays)
                 throw new BusinessRuleException("TenantSessionPolicyWeakerThanSystem",
                     $"Tenant's customer session limit ({request.CustomerSessionAbsoluteDays} days) cannot exceed the platform baseline ({systemSettings.CustomerSessionAbsoluteDays} days).");
+
+            // Brute-force protection (S3, BR-BF-06): a shop may lock sooner and for longer, never later or shorter.
+            ValidateAccountLockPolicy(request.MaxLoginAttempts, request.AccountLockThreshold, request.AccountLockWindowMinutes);
+            if (request.AccountLockThreshold > systemSettings.AccountLockThreshold)
+                throw new BusinessRuleException("TenantLockoutPolicyWeakerThanSystem",
+                    $"Tenant's account lock threshold ({request.AccountLockThreshold}) cannot exceed the platform baseline ({systemSettings.AccountLockThreshold}).");
+            if (request.AccountLockWindowMinutes < systemSettings.AccountLockWindowMinutes)
+                throw new BusinessRuleException("TenantLockoutPolicyWeakerThanSystem",
+                    $"Tenant's account lock window ({request.AccountLockWindowMinutes} min) cannot be shorter than the platform baseline ({systemSettings.AccountLockWindowMinutes} min).");
+        }
+
+        /// <summary>BR-BF-06: per-IP limit 3..20; the account threshold above the per-IP limit (else one IP locks the
+        /// account) and at most 1000; window 5 minutes .. 1 day.</summary>
+        private static void ValidateAccountLockPolicy(int maxLoginAttempts, int accountLockThreshold, int accountLockWindowMinutes)
+        {
+            if (maxLoginAttempts < 3 || maxLoginAttempts > 20)
+                throw new BusinessRuleException("LockoutPolicyOutOfRange", "Failed attempts per device must be between 3 and 20.");
+            if (accountLockThreshold <= maxLoginAttempts || accountLockThreshold > 1000)
+                throw new BusinessRuleException("LockoutPolicyOutOfRange",
+                    "The account lock threshold must be higher than the per-device limit (one device must not lock the account) and at most 1000.");
+            if (accountLockWindowMinutes < 5 || accountLockWindowMinutes > 1440)
+                throw new BusinessRuleException("LockoutPolicyOutOfRange", "The account lock window must be between 5 minutes and 1 day.");
         }
 
         /// <summary>
@@ -190,9 +216,10 @@ namespace ERP.Identity.Infrastructure.Services
 
         public bool IsTwoFactorRequiredForUser(Domain.Entities.User user, SystemAuthSettings systemSettings, TenantAuthSettings tenantSettings)
         {
+            // SEC-M6 (BR-BF-08): a shop may REQUIRE 2FA but never switch off the 2FA a person turned on for themselves;
+            // only the platform master switch (an emergency off) does that.
             return systemSettings.TwoFactorEnabled
-                && tenantSettings.TwoFactorEnabled
-                && (tenantSettings.TwoFactorRequired || user.TwoFactorEnabled);
+                && (user.TwoFactorEnabled || (tenantSettings.TwoFactorEnabled && tenantSettings.TwoFactorRequired));
         }
 
         public async Task<SystemAuthSettings> GetOrCreateSystemSettingsEntityAsync(CancellationToken ct)
@@ -221,13 +248,15 @@ namespace ERP.Identity.Infrastructure.Services
             new(s.GoogleEnabled, s.MicrosoftEnabled, s.FacebookEnabled, s.TwitterEnabled, s.TwoFactorEnabled,
                 s.MinPasswordLength, s.RequireUppercase, s.RequireLowercase, s.RequireDigit, s.RequireSymbol,
                 s.MaxLoginAttempts, s.LockoutDurationMinutes, s.SessionTimeoutMinutes,
-                s.SessionAbsoluteHours, s.CustomerSessionTimeoutMinutes, s.CustomerSessionAbsoluteDays);
+                s.SessionAbsoluteHours, s.CustomerSessionTimeoutMinutes, s.CustomerSessionAbsoluteDays,
+                s.AccountLockThreshold, s.AccountLockWindowMinutes);
 
         private static TenantAuthSettingsDto ToDto(TenantAuthSettings s) =>
             new(s.TenantId, s.GoogleEnabled, s.MicrosoftEnabled, s.FacebookEnabled, s.TwitterEnabled, s.TwoFactorEnabled, s.TwoFactorRequired,
                 s.MinPasswordLength, s.RequireUppercase, s.RequireLowercase, s.RequireDigit, s.RequireSymbol,
                 s.MaxLoginAttempts, s.LockoutDurationMinutes, s.SessionTimeoutMinutes,
-                s.SessionAbsoluteHours, s.CustomerSessionTimeoutMinutes, s.CustomerSessionAbsoluteDays);
+                s.SessionAbsoluteHours, s.CustomerSessionTimeoutMinutes, s.CustomerSessionAbsoluteDays,
+                s.AccountLockThreshold, s.AccountLockWindowMinutes);
 
         private async Task AddSettingsChangedOutboxMessageAsync(string scope, Guid? tenantId, CancellationToken ct)
         {

@@ -44,5 +44,30 @@ namespace ERP.Identity.Infrastructure.Repositories
 
             return await query.CountAsync(ct);
         }
+
+        public Task<int> CountRecentFailedForUserFromIpAsync(Guid userId, string ipAddress, TimeSpan window, CancellationToken ct) =>
+            CountFailuresSinceLastSuccessAsync(userId, ipAddress, window, ct);
+
+        public Task<int> CountRecentFailedForUserAsync(Guid userId, TimeSpan window, CancellationToken ct) =>
+            CountFailuresSinceLastSuccessAsync(userId, null, window, ct);
+
+        /// <summary>
+        /// Failures of one account (password and 2FA alike) inside the window and after its last full sign-in -
+        /// from one IP, or from every IP when <paramref name="ipAddress"/> is null (BR-BF-01 / BR-BF-02).
+        /// </summary>
+        private async Task<int> CountFailuresSinceLastSuccessAsync(Guid userId, string? ipAddress, TimeSpan window, CancellationToken ct)
+        {
+            var from = DateTime.UtcNow - window;
+            var rows = _dbContext.Set<LoginAttempt>().AsNoTracking().Where(l => l.UserId == userId);
+            if (ipAddress is not null)
+                rows = rows.Where(l => l.IpAddress == ipAddress);
+
+            var lastSuccess = await rows.Where(l => l.IsSuccessful && l.AttemptedAt >= from)
+                .MaxAsync(l => (DateTime?)l.AttemptedAt, ct);
+            if (lastSuccess is { } success && success > from)
+                from = success;
+
+            return await rows.CountAsync(l => !l.IsSuccessful && l.AttemptedAt > from, ct);
+        }
     }
 }

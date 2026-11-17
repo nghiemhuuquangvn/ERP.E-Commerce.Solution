@@ -26,6 +26,14 @@ public interface IUserService
     Task EnableTwoFactorAsync(Guid id, string method, string? phoneNumber, string? currentPassword, DateTimeOffset? tokenIssuedAt, CancellationToken ct);
     Task DisableTwoFactorAsync(Guid id, string? currentPassword, DateTimeOffset? tokenIssuedAt, CancellationToken ct);
 
+    /// <summary>
+    /// Re-confirms the signed-in person before a sensitive change: their current password, or - for an account that
+    /// only signs in externally - a token issued within the last few minutes. Refusals are business-rule 400
+    /// (CurrentPasswordIncorrect / ReauthenticationRequired) and are audited. Used by 2FA changes and, since S3
+    /// (SEC-M6), by authentication-settings changes.
+    /// </summary>
+    Task ConfirmCallerAsync(Guid userId, string auditEvent, string? currentPassword, DateTimeOffset? tokenIssuedAt, CancellationToken ct);
+
     /// <summary>Attaches an already-existing account (by email) to callerTenantId as a
     /// new AuthUserTenant membership — does not create new accounts. Idempotent:
     /// returns AlreadyMember=true, no-op, if the membership already exists.</summary>

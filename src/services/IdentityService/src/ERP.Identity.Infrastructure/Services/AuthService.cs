@@ -152,6 +152,39 @@ namespace ERP.Identity.Infrastructure.Services
         /// <summary>What a refresh carries over from the token it rotates.</summary>
         private sealed record SessionContinuation(DateTime StartedAt, Guid? DeviceSessionId);
 
+        public const string TooManyAttemptsMessage = "Too many failed attempts from this device. Please try again later.";
+
+        /// <summary>BR-BF-01: this device (client IP) failed for this account MaxLoginAttempts times inside the window
+        /// (LockoutDurationMinutes) since its last sign-in from there.</summary>
+        private async Task<bool> IsDeviceBlockedForAsync(User user, TenantAuthSettings settings, string? ipAddress, CancellationToken ct) =>
+            await _unitOfWork.LoginAttempts.CountRecentFailedForUserFromIpAsync(
+                user.Id, ipAddress ?? "unknown", TimeSpan.FromMinutes(settings.LockoutDurationMinutes), ct) >= settings.MaxLoginAttempts;
+
+        /// <summary>
+        /// Records one failed password / 2FA attempt of an account and applies BR-BF-02: when the failures from every
+        /// device together reach the shop's threshold inside its window, the account is locked for that window
+        /// (temporary - running sessions stay). Returns true when this attempt locked the account. No SaveChanges.
+        /// </summary>
+        private async Task<bool> RecordGuessFailureAsync(User user, Guid tenantId, TenantAuthSettings settings, string? ipAddress, string reason, CancellationToken ct)
+        {
+            await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", false, user.Email, user.Id, reason, ct);
+            user.CountFailedLogin();
+
+            // + 1: this attempt is not saved yet.
+            var total = await _unitOfWork.LoginAttempts.CountRecentFailedForUserAsync(
+                user.Id, TimeSpan.FromMinutes(settings.AccountLockWindowMinutes), ct) + 1;
+            var locks = total >= settings.AccountLockThreshold && !user.IsLocked;
+            if (locks)
+            {
+                user.LockFor(settings.AccountLockWindowMinutes);
+                await _securityAuditService.LogAsync("AccountLocked", false, tenantId, user.Id, user.Email, ipAddress,
+                    errorReason: $"{total} failed attempts in {settings.AccountLockWindowMinutes} min from all devices", ct: ct);
+            }
+
+            await _unitOfWork.Users.UpdateAsync(user, ct);
+            return locks;
+        }
+
         public async Task<LoginResponse> LoginAsync(LoginRequest request, string tenantCode, string? ipAddress, string? userAgent, CancellationToken ct)
         {
             // Brute-force guard — checked before any tenant/user lookup so a flood of
@@ -198,17 +231,23 @@ namespace ERP.Identity.Infrastructure.Services
                 throw new UnauthorizedAccessException("Account is locked. Please try again later or contact an administrator.");
             }
 
+            // Brute-force protection (S3, docs/business/Identity/BruteForceProtection.md), the shop's own values:
+            // BR-BF-01 a device (client IP) that failed too often for THIS account is refused before the password is
+            // even compared - the owner on another device is not affected (SEC-M1).
+            var tenantAuthSettings = await _settingsService.GetOrCreateTenantSettingsEntityAsync(tenant.Id, ct);
+            if (await IsDeviceBlockedForAsync(user, tenantAuthSettings, ipAddress, ct))
+            {
+                await _securityAuditService.LogAsync("Login", false, tenant.Id, user.Id, request.Email, ipAddress, userAgent,
+                    errorReason: "Too many failed attempts from this device", ct: ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+                throw new UnauthorizedAccessException(TooManyAttemptsMessage);
+            }
+
             if (!_passwordHasher.VerifyPassword(user.PasswordHash, request.Password))
             {
-                // Tenant's own configured threshold/duration, falling back to the tenant's
-                // defaults (TenantAuthSettings is always created with SystemAuthSettings'
-                // values, see CreateDefault) — never the previous hardcoded "5".
-                var tenantAuthSettings = await _settingsService.GetOrCreateTenantSettingsEntityAsync(tenant.Id, ct);
-                user.RecordLoginFail(tenantAuthSettings.MaxLoginAttempts, tenantAuthSettings.LockoutDurationMinutes);
-                await _unitOfWork.Users.UpdateAsync(user, ct);
-                await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", false, request.Email, user.Id, "Invalid credentials", ct);
+                var locked = await RecordGuessFailureAsync(user, tenant.Id, tenantAuthSettings, ipAddress, "Invalid credentials", ct);
                 await _securityAuditService.LogAsync("Login", false, tenant.Id, user.Id, request.Email, ipAddress, userAgent,
-                    errorReason: user.IsLocked ? "Invalid credentials — account just locked" : "Invalid credentials", ct: ct);
+                    errorReason: locked ? "Invalid credentials — account just locked" : "Invalid credentials", ct: ct);
                 await _unitOfWork.SaveChangesAsync(ct);
                 throw new UnauthorizedAccessException("Invalid credentials");
             }
@@ -242,9 +281,14 @@ namespace ERP.Identity.Infrastructure.Services
 
             if (_settingsService.IsTwoFactorRequiredForUser(user, systemSettings, tenantSettings))
             {
+                // BR-BF-03: a device already over its limit (wrong codes count too) gets no new code.
+                if (await IsDeviceBlockedForAsync(user, tenantSettings, ipAddress, ct))
+                    throw new UnauthorizedAccessException(TooManyAttemptsMessage);
+
                 var (challenge, expiryMinutes) = await CreateTwoFactorChallengeAsync(user, tenant.Id, ct);
 
-                await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", true, user.Email, user.Id, ct: ct);
+                // Deliberately NO successful login-attempt row here: the sign-in is not complete, and a success would reset
+                // the failure counters - an attacker who knows the password could then guess codes for ever (SEC-M5).
                 await _securityAuditService.LogAsync(auditEventName, true, tenant.Id, user.Id, user.Email, ipAddress, userAgent, details: "Password verified, awaiting 2FA", ct: ct);
 
                 return new LoginResponse(
@@ -273,28 +317,43 @@ namespace ERP.Identity.Infrastructure.Services
             if (challenge == null)
                 throw new UnauthorizedAccessException("Two-factor challenge not found");
 
-            var isValid = challenge.VerifyCode(_passwordHasher.VerifyPassword, request.Code);
-            await _unitOfWork.TwoFactorChallenges.UpdateAsync(challenge, ct);
+            var user = await _unitOfWork.Users.GetByIdAsync(challenge.UserId, ct)
+                ?? throw new UnauthorizedAccessException("User not found");
+            var tenant = await _unitOfWork.Tenants.GetByIdAsync(challenge.TenantId, ct)
+                ?? throw new UnauthorizedAccessException("Tenant not found");
+            var tenantAuthSettings = await _settingsService.GetOrCreateTenantSettingsEntityAsync(tenant.Id, ct);
+
+            // BR-BF-03: wrong codes count like wrong passwords - a device over its limit, or a locked account, gets no
+            // more guesses, whatever challenge it presents (SEC-M5).
+            if (user.IsCurrentlyLocked || await IsDeviceBlockedForAsync(user, tenantAuthSettings, ipAddress, ct))
+            {
+                await _securityAuditService.LogAsync("Login", false, tenant.Id, user.Id, user.Email, ipAddress, userAgent,
+                    errorReason: "2FA refused: too many failed attempts / account locked", ct: ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+                throw new UnauthorizedAccessException(TooManyAttemptsMessage);
+            }
+
+            // SEC-M2: the attempt is taken by one atomic UPDATE before the code is compared, so parallel requests cannot
+            // get more than MaxAttempts guesses; a verified / expired / used-up challenge yields no attempt at all.
+            var now = DateTime.UtcNow;
+            var gotAttempt = await _unitOfWork.TwoFactorChallenges.TryConsumeAttemptAsync(challenge.Id, now, ct);
+            var isValid = gotAttempt && challenge.MatchesCode(_passwordHasher.VerifyPassword, request.Code)
+                && await _unitOfWork.TwoFactorChallenges.TryMarkVerifiedAsync(challenge.Id, now, ct);
 
             if (!isValid)
             {
+                if (gotAttempt)
+                    await RecordGuessFailureAsync(user, tenant.Id, tenantAuthSettings, ipAddress, "Invalid 2FA code", ct);
                 await _securityAuditService.LogAsync("Login", false, challenge.TenantId, challenge.UserId, ipAddress: ipAddress, userAgent: userAgent, errorReason: "Invalid 2FA code", ct: ct);
                 await _unitOfWork.SaveChangesAsync(ct);
-                var remaining = Math.Max(0, challenge.MaxAttempts - challenge.AttemptCount);
+                // AttemptCount on the loaded entity is from before this request's attempt.
+                var remaining = gotAttempt ? Math.Max(0, challenge.MaxAttempts - challenge.AttemptCount - 1) : 0;
                 return new LoginResponse(
                     AccessToken: null,
                     RefreshToken: null,
                     Succeeded: false,
                     Errors: new[] { $"Invalid or expired code. {remaining} attempt(s) remaining." });
             }
-
-            challenge.MarkVerified();
-            await _unitOfWork.TwoFactorChallenges.UpdateAsync(challenge, ct);
-
-            var user = await _unitOfWork.Users.GetByIdAsync(challenge.UserId, ct)
-                ?? throw new UnauthorizedAccessException("User not found");
-            var tenant = await _unitOfWork.Tenants.GetByIdAsync(challenge.TenantId, ct)
-                ?? throw new UnauthorizedAccessException("Tenant not found");
 
             await EnsureAccountCanAuthenticateAsync(user, tenant, "Login", ipAddress, userAgent, ct);
 
@@ -304,6 +363,8 @@ namespace ERP.Identity.Infrastructure.Services
             var response = await IssueTokensAsync(user, tenant, ct,
                 request.DeviceId, request.DeviceName, request.DeviceType, request.Platform, ipAddress, userAgent);
 
+            // The sign-in is complete only now: this success row ends the failure count of this device (BR-BF-01).
+            await _securityAuditService.RecordLoginAttemptAsync(ipAddress ?? "unknown", true, user.Email, user.Id, ct: ct);
             await _securityAuditService.LogAsync("Login", true, tenant.Id, user.Id, user.Email, ipAddress, userAgent, details: "2FA verified", ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
             return response;
@@ -316,6 +377,13 @@ namespace ERP.Identity.Infrastructure.Services
                 throw new UnauthorizedAccessException("Two-factor challenge not found");
             // A challenge that already signed someone in is finished: it cannot be used to mint more codes.
             if (existing.IsVerified)
+                throw new UnauthorizedAccessException("Two-factor challenge not found");
+
+            // BR-BF-05: only the user's NEWEST live challenge may ask for a new code - holding an old id must not let
+            // anyone keep sending SMS / e-mails (SEC-M5).
+            var live = await _unitOfWork.TwoFactorChallenges.GetActiveForUserAsync(existing.UserId, existing.TenantId, ct);
+            var newest = live.OrderByDescending(c => c.CreatedAt).FirstOrDefault();
+            if (newest is null || newest.Id != existing.Id)
                 throw new UnauthorizedAccessException("Two-factor challenge not found");
 
             var cooldownSeconds = GetConfigInt("TwoFactorAuthentication:ResendCooldownSeconds", 60);
@@ -351,6 +419,13 @@ namespace ERP.Identity.Infrastructure.Services
         private async Task<(TwoFactorChallenge Challenge, int ExpiryMinutes)> CreateTwoFactorChallengeAsync(
             User user, Guid tenantId, CancellationToken ct, string? method = null)
         {
+            // BR-BF-04 (owner 2026-11-17): at most N codes per account per hour (default 5), whatever asked for them
+            // (sign-in, external sign-in, resend) - stops SMS bombing / cost and endless fresh attempts (SEC-M5).
+            var maxCodesPerHour = GetConfigInt("TwoFactorAuthentication:MaxCodesPerHour", 5);
+            if (await _unitOfWork.TwoFactorChallenges.CountCreatedSinceAsync(user.Id, DateTime.UtcNow.AddHours(-1), ct) >= maxCodesPerHour)
+                throw new BusinessRuleException("TwoFactorTooManyCodes",
+                    "Too many verification codes were sent to this account. Please try again later.");
+
             var codeLength = GetConfigInt("TwoFactorAuthentication:CodeLength", 6);
             var expiryMinutes = GetConfigInt("TwoFactorAuthentication:ExpiryMinutes", 5);
             var maxAttempts = GetConfigInt("TwoFactorAuthentication:MaxAttempts", 3);
@@ -420,15 +495,9 @@ namespace ERP.Identity.Infrastructure.Services
                 return candidate.Id;
             }
 
-            // Count the failure against every matching account so the per-account lockout
-            // applies here too (it previously didn't, making this form an unlimited oracle).
-            foreach (var candidate in candidates)
-            {
-                var tenantAuthSettings = await _settingsService.GetOrCreateTenantSettingsEntityAsync(candidate.TenantId, ct);
-                candidate.RecordLoginFail(tenantAuthSettings.MaxLoginAttempts, tenantAuthSettings.LockoutDurationMinutes);
-                await _unitOfWork.Users.UpdateAsync(candidate, ct);
-            }
-
+            // BR-BF-07 (SEC-M1): this form has no tenant, so a failure here must never lock an account - it used to count
+            // against the same e-mail in EVERY tenant, letting one stranger lock a person out of all their shops. The
+            // row below (by e-mail, no account) feeds the per-(IP, e-mail) guard at the top of this method only.
             await _securityAuditService.RecordLoginAttemptAsync(ip, false, email, null, "Invalid credentials", ct);
             await _securityAuditService.LogAsync("OidcLogin", false, null, null, email, ipAddress, userAgent, errorReason: "Invalid credentials", ct: ct);
             await _unitOfWork.SaveChangesAsync(ct);
@@ -734,7 +803,13 @@ namespace ERP.Identity.Infrastructure.Services
             if (request.TenantId == Guid.Empty || session.TenantId != request.TenantId)
                 throw new UnauthorizedAccessException("Invalid refresh token");
 
-            if (!session.IsTokenValid)
+            // SEC-M2 (BR-BF-09): a token ROTATED a few seconds ago is the normal race of two tabs / a retried request, not
+            // theft. Within the grace window it gets a sibling pair of the same session; after it, reuse detection.
+            var now = DateTime.UtcNow;
+            var graceSeconds = GetConfigInt("Jwt:RefreshReuseGraceSeconds", 10);
+            var isSibling = JustRotated(session, now, graceSeconds);
+
+            if (!session.IsTokenValid && !isSibling)
             {
                 // A caller presenting an already-revoked (not merely naturally-expired)
                 // refresh token is the classic stolen-refresh-token signal — rotation
@@ -789,8 +864,14 @@ namespace ERP.Identity.Infrastructure.Services
                 throw new UnauthorizedAccessException(SessionExpiredMessage);
             }
 
-            // 3) Rotate token (revoke old)
-            session.Revoke();
+            // 3) Rotate the token with ONE atomic UPDATE (SEC-M2): of several parallel refreshes only one rotates it; a
+            // request that lost the race continues as a sibling (the token was rotated a moment ago by its twin).
+            // Never via the tracked entity here: saving it would overwrite the reason written by the UPDATE.
+            if (!isSibling && !await _unitOfWork.RefreshTokens.TryRotateAsync(session.Id, now, ct))
+            {
+                await _securityAuditService.LogAsync("RefreshTokenRace", true, tenant.Id, user.Id, user.Email, request.IpAddress,
+                    details: "Parallel refresh of one token: issued a sibling pair of the same session", ct: ct);
+            }
 
             // 4) Issue new tokens for the SAME session: its start and device carry over
             var issued = await IssueTokensAsync(user, tenant, ct, ipAddress: request.IpAddress,
@@ -801,6 +882,13 @@ namespace ERP.Identity.Infrastructure.Services
 
             return new RefreshTokenResponse(issued.AccessToken!, issued.RefreshToken!, RefreshTokenExpiresAt: issued.RefreshTokenExpiresAt);
         }
+
+        /// <summary>BR-BF-09: rotated (not revoked) within the grace window - a twin request, not a replayed stolen token.</summary>
+        private static bool JustRotated(RefreshToken token, DateTime now, int graceSeconds) =>
+            token.RevokedReason == RefreshTokenRevokedReason.Rotated
+            && token.RevokedAt is { } at
+            && now - at <= TimeSpan.FromSeconds(Math.Max(0, graceSeconds))
+            && now < token.ExpiredAt;
 
         /// <summary>The message a client shows as "your session has ended, sign in again" (the Admin matches on it).</summary>
         public const string SessionExpiredMessage = "Session expired";

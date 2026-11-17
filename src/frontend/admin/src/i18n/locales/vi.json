@@ -2012,6 +2012,11 @@
       "sessionAbsoluteHours": "Thời gian tối đa của phiên - quản trị (giờ)",
       "customerSessionTimeoutMinutes": "Hết phiên khi không hoạt động - khách hàng (phút)",
       "customerSessionAbsoluteDays": "Thời gian tối đa của phiên - khách hàng (ngày)",
+      "accountLockThreshold": "Khoá tài khoản sau số lần sai từ mọi thiết bị",
+      "accountLockWindowMinutes": "Khoảng thời gian đếm và thời gian khoá tài khoản (phút)",
+      "accountLockHint": "Giới hạn theo thiết bị ở trên chỉ chặn một thiết bị; ngưỡng tổng này khoá cả tài khoản.",
+      "confirmTitle": "Xác nhận mật khẩu",
+      "confirmHint": "Cài đặt xác thực bảo vệ mọi tài khoản của cửa hàng. Nhập mật khẩu hiện tại để lưu (tài khoản đăng nhập bằng Google... hãy đăng nhập lại trước).",
       "noTenant": "Không tìm thấy đơn vị cho người dùng hiện tại.",
       "failedToSave": "Lưu cài đặt thất bại. Vui lòng thử lại."
     },

@@ -15,5 +15,9 @@ namespace ERP.Identity.Application.Interfaces.Repositories
         Task<bool> ExistsAsync(string token, CancellationToken cancellationToken = default);
         Task RevokeAllByUserIdAsync(Guid userId, CancellationToken ct);
         Task RevokeAllByDeviceSessionAsync(Guid deviceSessionId, CancellationToken ct);
+
+        /// <summary>Atomically marks the token rotated (RevokedAt / RevokedReason = Rotated) if nobody did yet; false when a
+        /// parallel refresh won (SEC-M2).</summary>
+        Task<bool> TryRotateAsync(Guid refreshTokenId, DateTime now, CancellationToken ct);
     }
 }

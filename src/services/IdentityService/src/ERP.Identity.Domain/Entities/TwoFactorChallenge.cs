@@ -84,6 +84,14 @@ namespace ERP.Identity.Domain.Entities
             return isMatch;
         }
 
+        /// <summary>
+        /// Pure comparison of a code with <see cref="CodeHash"/> - no state change. The attempt is counted BEFORE this
+        /// by an atomic database update (ITwoFactorChallengeRepository.TryConsumeAttemptAsync, SEC-M2), so parallel
+        /// requests cannot get more guesses than <see cref="MaxAttempts"/>.
+        /// </summary>
+        public bool MatchesCode(Func<string, string, bool> verifyHash, string code) =>
+            !string.IsNullOrEmpty(code) && verifyHash(CodeHash, code);
+
         public void MarkVerified()
         {
             VerifiedAt = DateTime.UtcNow;

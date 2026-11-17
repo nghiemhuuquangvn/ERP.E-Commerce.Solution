@@ -206,6 +206,23 @@ namespace ERP.Identity.Domain.Entities
             IsActive = true;
         }
 
+        /// <summary>
+        /// Temporary lock after a distributed guessing attack (BR-BF-02: failures from every IP reached the tenant's
+        /// threshold). It ends by itself after <paramref name="minutes"/> and is NOT administrative, so the person's
+        /// running sessions stay alive - an attacker must not be able to sign someone out by guessing.
+        /// </summary>
+        /// <summary>Counts a failed password / 2FA attempt for display only; the lock decision is BR-BF-01 / 02 (login history).</summary>
+        public void CountFailedLogin()
+        {
+            AccessFailedCount++;
+        }
+
+        public void LockFor(int minutes)
+        {
+            IsLocked = true;
+            LockedUntil = DateTime.UtcNow.AddMinutes(Math.Max(1, minutes));
+        }
+
         /// <summary>Administrative lock: indefinite (no LockedUntil) until <see cref="Unlock"/>.</summary>
         public void Lock()
         {

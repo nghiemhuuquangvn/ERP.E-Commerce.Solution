@@ -33,6 +33,12 @@ namespace ERP.Identity.Domain.Entities
         public int CustomerSessionTimeoutMinutes { get; private set; } = 10080;
         public int CustomerSessionAbsoluteDays { get; private set; } = 30;
 
+        // Brute-force protection (security review 2026-11, S3; docs/business/Identity/BruteForceProtection.md): MaxLoginAttempts /
+        // LockoutDurationMinutes now refuse ONE client IP for one account; these two lock the whole account when failures
+        // from every IP together reach the threshold inside the window (and the lock lasts the window).
+        public int AccountLockThreshold { get; private set; } = 20;
+        public int AccountLockWindowMinutes { get; private set; } = 60;
+
         protected TenantAuthSettings() { }
 
         public static TenantAuthSettings CreateDefault(Guid tenantId)
@@ -61,6 +67,8 @@ namespace ERP.Identity.Domain.Entities
                 SessionAbsoluteHours = 12,
                 CustomerSessionTimeoutMinutes = 10080,
                 CustomerSessionAbsoluteDays = 30,
+                AccountLockThreshold = 20,
+                AccountLockWindowMinutes = 60,
                 CreatedBy = "System",
                 CreatedAt = DateTime.UtcNow
             };
@@ -84,6 +92,12 @@ namespace ERP.Identity.Domain.Entities
             MaxLoginAttempts = maxLoginAttempts;
             LockoutDurationMinutes = lockoutDurationMinutes;
             SessionTimeoutMinutes = sessionTimeoutMinutes;
+        }
+
+        public void UpdateAccountLockPolicy(int accountLockThreshold, int accountLockWindowMinutes)
+        {
+            AccountLockThreshold = accountLockThreshold;
+            AccountLockWindowMinutes = accountLockWindowMinutes;
         }
 
         public void UpdateSessionPolicy(int sessionTimeoutMinutes, int sessionAbsoluteHours, int customerSessionTimeoutMinutes, int customerSessionAbsoluteDays)

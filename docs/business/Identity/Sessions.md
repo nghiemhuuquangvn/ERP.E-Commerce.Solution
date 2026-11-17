@@ -2,6 +2,7 @@
 
 Owner decision 2026-11-17: **a back-office session ends after 15 minutes without activity**. The values are tenant settings.
 Security review: [SecurityReview-2026-11.md](SecurityReview-2026-11.md) wave S2 (SEC-H3, SEC-M3, SEC-M4, SEC-M15).
+Brute-force rules and the parallel-refresh twin window: [BruteForceProtection.md](BruteForceProtection.md).
 Code: `SessionPolicy` (Identity Domain), `AuthService.IssueTokensAsync` / `RefreshTokenAsync`, `RefreshTokenCookie` (Identity API).
 SQL: `Identity/038_SessionPolicy.sql`.
 

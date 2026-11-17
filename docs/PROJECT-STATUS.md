@@ -40,6 +40,29 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-17 - Security wave S3: brute force, per-tenant lockout, refresh race, user 2FA kept (`fix/security-s3`, from `fix/security-s2`)
+- **What (owner decisions):**
+  - **Lockout:**
+    - 5 failures / 15 min from one IP refuse only that IP for that account;
+    - 20 failures / 60 min from all IPs lock the account for 60 min (temporary, sessions kept, audited);
+    - wrong 2FA codes count as wrong passwords; a pending-2FA sign-in no longer resets the counts;
+    - the OIDC form never locks.
+  - **Two-factor codes:** at most 5 per account per hour; a resend only for the newest challenge.
+  - **Parallel refresh:** refresh rotation and 2FA attempts are atomic UPDATEs. A twin refresh within 10 s gets a sibling pair of the same session; later = theft.
+  - **User 2FA kept:** a shop cannot switch off a user's own 2FA; saving auth settings re-asks the password (Admin dialog).
+  - **Data:** migration Identity 039. Rules BR-BF-01..10 in `docs/business/Identity/BruteForceProtection.md`.
+- **Proof:** Identity 342 tests (+21), Architecture 93, Admin 479 tests, tsc clean.
+- **Live check (compose stack, client IPs simulated with X-Forwarded-For):**
+  - 5 failures from one IP refuse that IP even with the right password, while another IP signs in;
+  - 20 failures from 5 IPs lock the account ("Account is locked");
+  - two parallel refreshes both 200, a replay within 10 s is 200, after the window 401 and the siblings die;
+  - saving tenant auth settings without a password is 400 `ReauthenticationRequired`, with the password 200;
+  - the 2FA code cap was tested by unit tests only (no 2FA test mailbox).
+  - The live run found that `RefreshTokens.RevokedReason` already existed as NVARCHAR(200) since 001: it is now mapped as the enum name.
+  - Test accounts `s3-check-*@example.com` (customers, SYSTEM tenant) were left behind, one locked.
+- **Deploy:** `db-migrate` (Identity 039), identityservice, admin.
+- **Risks:** R321-R324. **Next:** wave S4 (infrastructure: Redis / Elasticsearch / Kafka auth, per-service SQL logins, nginx headers).
+
 ### 2026-11-17 - Security wave S2: sessions (`fix/security-s2`, from `fix/security-s1`)
 - **What** (owner: a back-office session ends after 15 minutes without activity; values per tenant):
   - **Session policy:** `SessionPolicy`: idle timeout + absolute limit, back office 15 min / 12 h, customer 7 d / 30 d. Tenant ≤ platform, in Admin → Settings → Authentication. The access token lives idle / 3 (5 min).
