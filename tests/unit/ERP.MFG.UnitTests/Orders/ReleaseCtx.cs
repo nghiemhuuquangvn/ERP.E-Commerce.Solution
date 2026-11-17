@@ -315,7 +315,7 @@ internal class ReleaseCtx : OrderCtx
         => new UnreleaseOrderHandler(Access, Repo, new OrderTransactionGuard(Documents), Sync, User, F.Uow).Handle(new UnreleaseOrderCommand(id), default);
 
     public Task<OrderActionResultDto> CancelAsync(Guid id, Guid? reason)
-        => new CancelOrderHandler(Access, Repo, F.ReasonRepo, new OrderTransactionGuard(Documents), Sync, User, F.Uow).Handle(new CancelOrderCommand(id, reason, "note"), default);
+        => new CancelOrderHandler(Access, Repo, F.ReasonRepo, new OrderTransactionGuard(Documents), Sync, new NcrProgress(F.NcrRepo, F.PlantRepo, PlantTime, Numbers, Documents), User, F.Uow).Handle(new CancelOrderCommand(id, reason, "note"), default);
 
     public Task<OrderActionResultDto> HoldAsync(Guid id, Guid? reason)
         => new HoldOrderHandler(Access, Repo, F.ReasonRepo, TimeLogs, PlantTime, User, F.Uow).Handle(new HoldOrderCommand(id, reason, null), default);

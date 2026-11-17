@@ -225,6 +225,14 @@ public class TenantIsolationBehaviorTests
                 Guid.NewGuid(), "MO-2611-00001", Guid.NewGuid(), 10, Guid.NewGuid(), Guid.NewGuid(), "TP-BAN01", "Table", 10m), e => e.TenantId);
 
     [Fact]
+    public void Manufacturing_NonConformances() =>
+        AssertIsolated<ERP.MFG.Infrastructure.Persistence.MfgDbContext, ERP.MFG.Domain.Entities.NonConformance>(
+            ERP.MFG.Domain.Entities.NonConformance.CreateManual("NCR-2611-00001",
+                ERP.MFG.Domain.Entities.OperationReport.Create("OR-2611-00001", Guid.NewGuid(), Guid.NewGuid(), "MO-2611-00001", Guid.NewGuid(), 10, new DateOnly(2026, 11, 1), 10m, 0m, 0m,
+                    null, null, null, null, null, null, DateTime.UtcNow, "tester"),
+                "MO-2611-00001", Guid.NewGuid(), "TP-BAN01", "Table", 2m, "Scratched", "tester"), e => e.TenantId);
+
+    [Fact]
     public void Manufacturing_Boms() =>
         AssertIsolated<ERP.MFG.Infrastructure.Persistence.MfgDbContext, ERP.MFG.Domain.Entities.Bom>(
             ERP.MFG.Domain.Entities.Bom.Create(Guid.NewGuid(), Guid.NewGuid(), "TP-BAN01", "Table", 1, 1m, 100m, new DateOnly(2026, 1, 1), null, null), e => e.TenantId);

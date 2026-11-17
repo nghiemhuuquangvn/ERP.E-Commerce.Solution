@@ -97,6 +97,9 @@ public static class MfgErrors
     public const string Rev003 = "MFG_REV_003"; // not in the spec (P4-3): the in-process inspection of the report already has a result
     public const string Ncr001 = "MFG_NCR_001";
     public const string Ncr002 = "MFG_NCR_002";
+    public const string Ncr003 = "MFG_NCR_003"; // not in the spec (P4-4): output of an operation that failed its in-process inspection cannot be reworked, only scrapped or accepted as is
+    public const string Ncr004 = "MFG_NCR_004"; // not in the spec (P4-4): a disposition line already started / the NCR is not open
+    public const string Ncr005 = "MFG_NCR_005"; // not in the spec (P4-4): the lot no longer holds the quantity of the disposition line
     public const string Mrp001 = "MFG_MRP_001";
     public const string Mrp002 = "MFG_MRP_002";
     public const string Cst002 = "MFG_CST_002";
@@ -193,6 +196,9 @@ public static class MfgErrors
         [Rev003] = "Không thể đảo báo cáo: phiếu kiểm tra {inspection} của báo cáo đã có kết quả.",
         [Ncr001] = "Tổng số lượng xử lý phải bằng số lượng không phù hợp ({qty}).",
         [Ncr002] = "Cần quyền phê duyệt sử dụng có điều kiện (Use-As-Is).",
+        [Ncr003] = "Sản lượng công đoạn không đạt kiểm tra trong quá trình chưa hỗ trợ làm lại: chỉ có thể hủy phế hoặc chấp nhận sử dụng.",
+        [Ncr004] = "Phiếu không phù hợp {ncr} {reason}.",
+        [Ncr005] = "Lô {lot} không còn đủ số lượng cho dòng xử lý (cần {qty}, còn {remaining}).",
         [Mrp001] = "MRP của nhà máy đang chạy, vui lòng đợi hoàn tất.",
         [Mrp002] = "Khoảng hoạch định phải từ 7 đến 365 ngày.",
         [Cst002] = "Phiên bản giá chuẩn đã phê duyệt không được chỉnh sửa.",

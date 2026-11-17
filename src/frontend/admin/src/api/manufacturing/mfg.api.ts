@@ -136,6 +136,8 @@ export interface InspectionListItem {
   lotId?: string | null; lotNumber?: string | null; lotQty: number; sampleQty: number; planCode: string; planVersion: number; receiptDocumentId?: string | null; receiptLineId?: string | null
   operationReportId?: string | null; inspectedBy?: string | null; inspectedAt?: string | null; ncrRequired: boolean; reinspectionOfId?: string | null; reinspectedById?: string | null
   releasedAt?: string | null; createdAt: string
+  /** P4-4: the non-conformance report a failed inspection created. */
+  ncrId?: string | null; ncrNo?: string | null; ncrStatus?: NcrStatus | null
 }
 export interface PagedInspections { items: InspectionListItem[]; total: number; page: number; pageSize: number }
 export interface InspectionResult { characteristicId: string; sampleNo: number; measuredValue?: number | null; attributePassed?: boolean | null; isPassed: boolean; note?: string | null }
@@ -144,6 +146,25 @@ export interface Inspection {
   characteristics: InspectionCharacteristic[]; results: InspectionResult[]
 }
 export interface InspectionResultBody { characteristicId: string; sampleNo: number; value?: number | null; passed?: boolean | null; note?: string | null }
+// ── Non-conformance reports and rework (P4-4) ─────────────────────────────────────────────────────────────
+export type NcrStatus = 'Open' | 'InDisposition' | 'Closed' | 'Cancelled'
+export type NcrSourceType = 'Inspection' | 'OperationReport'
+export type DispositionType = 'Rework' | 'Scrap' | 'UseAsIs'
+export interface NcrDisposition {
+  lineNo: number; type: DispositionType; qty: number; reasonCodeId?: string | null; note?: string | null; approvedBy?: string | null; approvedAt?: string | null
+  reworkOrderId?: string | null; reworkOrderNo?: string | null; reworkOrderStatus?: OrderStatus | null; movementKey?: string | null; resultLotId?: string | null; resultLotNumber?: string | null
+  isExecuted: boolean; isStarted: boolean; executedAt?: string | null; executedBy?: string | null
+}
+export interface NcrListItem {
+  id: string; ncrNo: string; plantId: string; sourceType: NcrSourceType; inspectionId?: string | null; operationReportId?: string | null; orderId: string; orderNo: string
+  operationSeq?: number | null; itemId: string; itemCode: string; itemName: string; lotId?: string | null; lotNumber?: string | null; nonconformingQty: number; description?: string | null
+  status: NcrStatus; isInProcess: boolean; isRecordOnly: boolean; createdAt: string; createdBy?: string | null; closedAt?: string | null
+}
+export interface Ncr { ncr: NcrListItem; dispositions: NcrDisposition[] }
+export interface PagedNcrs { items: NcrListItem[]; total: number; page: number; pageSize: number }
+export interface DispositionBody { type: DispositionType; qty: number; reasonCodeId?: string | null; note?: string | null }
+export interface ExecuteDispositionBody { routingId?: string | null; dueDate?: string | null; priority?: number | null; note?: string | null }
+export interface NcrExecuteResult { ncr: Ncr; reworkOrderId?: string | null; reworkOrderNo?: string | null }
 export interface InspectionPlanHeaderBody { samplingMethod: SamplingMethod; sampleValue?: number | null; allowedMinorDefects: number; effectiveFrom: string; effectiveTo?: string | null; description?: string | null }
 export interface WorkPoint { date: string; workingMinute: number }
 export interface ScheduledOperation { operationSeq: number; name: string; workCenterCode: string; standardMinutes: number; calendarMinutes: number; queueMinutes: number; moveMinutes: number; start: WorkPoint; end: WorkPoint; startTime: string; endTime: string }
@@ -166,6 +187,8 @@ export interface OrderMaterial {
   lineNo: number; componentItemId: string; componentCode: string; componentName: string; uomId: string; operationSeq?: number | null; requiredQty: number
   issuedQty: number; returnedQty: number; consumedQty: number; reservedQty: number; scrapPct: number; issueMethod: IssueMethod; warehouseId: string
   isSubstitute: boolean; alternativeGroup?: string | null; isUnplanned: boolean
+  /** P4-4: the material of a rework order is this lot (on quality hold); it is issued from it only and never reserved. */
+  sourceLotId?: string | null; sourceLotNumber?: string | null
 }
 export interface OrderOperation {
   operationSeq: number; name: string; workCenterId: string; workCenterCode: string; setupTimeMinutes: number; runTimeMinutes: number; runTimeBasis: RunTimeBasis
@@ -175,7 +198,7 @@ export interface OrderOperation {
 }
 export interface OrderOutput { lineNo: number; lineType: BomLineType; itemId: string; itemCode: string; itemName: string; uomId: string; plannedQty: number; receivedQty: number; costAllocationPct?: number | null }
 export interface Order {
-  id: string; orderNo: string; plantId: string; orderType: string; itemId: string; itemCode: string; itemName: string; quantity: number; uomId: string; bomId: string; routingId?: string | null
+  id: string; orderNo: string; plantId: string; orderType: string; itemId: string; itemCode: string; itemName: string; quantity: number; uomId: string; bomId?: string | null; routingId?: string | null
   status: OrderStatus; statusBeforeHold?: OrderStatus | null; priority: number; dueDate: string; plannedStart: string; plannedEnd: string; actualStart?: string | null; actualEnd?: string | null
   isLate: boolean; outputWarehouseId: string; sourceType: string; sourceRefId?: string | null; parentOrderId?: string | null; completedQty: number; scrappedQty: number; isRework: boolean
   notes?: string | null; reservationId?: string | null; reservationSyncPending: boolean; reservationSyncError?: string | null
@@ -409,6 +432,13 @@ export const mfgApi = {
   saveInspectionResults: (id: string, results: InspectionResultBody[], sampleQty?: number | null) => put<Inspection>(`/inspections/${id}/results`, { sampleQty: sampleQty ?? null, results }),
   submitInspection: (id: string, results: InspectionResultBody[], sampleQty?: number | null) => post<Inspection>(`/inspections/${id}/submit`, { sampleQty: sampleQty ?? null, results }),
   reinspect: (id: string) => post<Inspection>(`/inspections/${id}/reinspect`),
+  // non-conformance reports (P4-4)
+  orderNcrs: (id: string) => get<NcrListItem[]>(`/orders/${id}/ncrs`),
+  listNcrs: (plantId: string, params: { status?: NcrStatus; source?: NcrSourceType; orderId?: string; search?: string; openOnly?: boolean; page?: number; pageSize?: number } = {}) => get<PagedNcrs>('/ncrs', { plantId, ...params }),
+  getNcr: (id: string) => get<Ncr>(`/ncrs/${id}`),
+  createNcr: (body: { orderId: string; reportId: string; quantity: number; description: string }) => post<Ncr>('/ncrs', body),
+  saveNcrDispositions: (id: string, lines: DispositionBody[]) => put<Ncr>(`/ncrs/${id}/dispositions`, { lines }),
+  executeDisposition: (id: string, lineNo: number, body: ExecuteDispositionBody = {}) => post<NcrExecuteResult>(`/ncrs/${id}/dispositions/${lineNo}/execute`, body),
   listDocuments: (f: StockDocumentFilter) => get<StockDocumentPage>('/stock-documents', f),
   retryDocument: (id: string) => postDocument(`/stock-documents/${id}/retry`),
   abandonDocument: (id: string) => postDocument(`/stock-documents/${id}/abandon`),

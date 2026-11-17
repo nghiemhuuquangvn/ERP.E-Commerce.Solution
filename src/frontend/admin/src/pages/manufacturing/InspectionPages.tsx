@@ -158,7 +158,8 @@ export function InspectionPage() {
       {error && <Alert variant="danger" onClose={() => setError(null)}>{error}</Alert>}
       {i.status === 'Failed' && (
         <Alert variant="danger" title={t('mfg.qc.insp.failedTitle')}>
-          {i.ncrRequired ? t('mfg.qc.insp.failedNcr') : ''} {i.reinspectedById ? t('mfg.qc.insp.reinspected') : t('mfg.qc.insp.failedStays')}
+          {i.ncrRequired ? t('mfg.qc.insp.failedNcr') : ''} {i.reinspectedById ? t('mfg.qc.insp.reinspected') : t('mfg.qc.insp.failedStays')}{' '}
+          {i.ncrId && <Link className="underline" to={`/manufacturing/ncrs/${i.ncrId}`}>{t('mfg.qc.insp.openNcr', { ncr: i.ncrNo })}</Link>}
         </Alert>
       )}
       {i.status === 'Passed' && <Alert variant="success">{i.type === 'Fqc' ? t('mfg.qc.insp.passedFqc') : t('mfg.qc.insp.passedIpqc', { qty: fmtQty(i.lotQty) })}</Alert>}

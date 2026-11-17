@@ -230,3 +230,40 @@ public class InspectionCompletedEvent : IntegrationEventBase, ITenantEvent
     public int? OperationSeq { get; set; }
     public Guid? ReinspectionOfId { get; set; }
 }
+
+/// <summary>A non-conformance report was created (P4-4): by a Failed inspection or by hand from an operation report.</summary>
+public class NcrCreatedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid NcrId { get; set; }
+    public string NcrNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public string SourceType { get; set; } = string.Empty;
+    public Guid? InspectionId { get; set; }
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid ItemId { get; set; }
+    public string ItemCode { get; set; } = string.Empty;
+    public Guid? LotId { get; set; }
+    public string? LotNumber { get; set; }
+    public decimal NonconformingQty { get; set; }
+    public string? CreatedBy { get; set; }
+}
+
+/// <summary>Every disposition line of a non-conformance report is executed (P4-4, BR-NCR-04).</summary>
+public class NcrClosedEvent : IntegrationEventBase, ITenantEvent
+{
+    public Guid TenantId { get; set; }
+    public Guid NcrId { get; set; }
+    public string NcrNo { get; set; } = string.Empty;
+    public Guid PlantId { get; set; }
+    public Guid OrderId { get; set; }
+    public string OrderNo { get; set; } = string.Empty;
+    public Guid ItemId { get; set; }
+    public string ItemCode { get; set; } = string.Empty;
+    public decimal NonconformingQty { get; set; }
+    public decimal ReworkQty { get; set; }
+    public decimal ScrapQty { get; set; }
+    public decimal UseAsIsQty { get; set; }
+    public string? ClosedBy { get; set; }
+}

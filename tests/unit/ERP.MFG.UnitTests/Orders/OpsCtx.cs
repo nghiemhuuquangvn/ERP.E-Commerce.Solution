@@ -95,17 +95,17 @@ internal class OpsCtx : StockCtx
         => ReceiveAsync(order, [new ReceiptLineBody(null, quantity, lot)], key);
 
     public Task<OrderActionResultDto> CompleteOrderAsync(ProductionOrder order, Guid? reason = null, params string[] permissions)
-        => new CompleteOrderHandler(Access, Repo, Documents, Reports, F.ReasonRepo, PlantSettings, Closer, Sync, PlantTime, permissions.Length == 0 ? User : UserWith(permissions), F.Uow)
+        => new CompleteOrderHandler(Access, Repo, Documents, Reports, F.ReasonRepo, PlantSettings, Closer, Ncr, Sync, PlantTime, permissions.Length == 0 ? User : UserWith(permissions), F.Uow)
             .Handle(new CompleteOrderCommand(order.Id, reason, "done"), default);
 
     public Task<OrderActionResultDto> ReopenOrderAsync(ProductionOrder order)
         => new ReopenOrderHandler(Access, Repo, Sync, User, F.Uow).Handle(new ReopenOrderCommand(order.Id), default);
 
     public Task<CloseChecklistDto> ChecklistAsync(ProductionOrder order, bool confirm = false)
-        => new GetCloseChecklistHandler(Access, Repo, TimeLogs, Documents, Reports).Handle(new GetCloseChecklistQuery(order.Id, confirm), default);
+        => new GetCloseChecklistHandler(Access, Repo, TimeLogs, Documents, Reports, F.NcrRepo).Handle(new GetCloseChecklistQuery(order.Id, confirm), default);
 
     public Task<OrderDto> CloseOrderAsync(ProductionOrder order, bool confirm = false)
-        => new CloseOrderHandler(Access, Repo, TimeLogs, Documents, Reports, User, F.Uow).Handle(new CloseOrderCommand(order.Id, confirm), default);
+        => new CloseOrderHandler(Access, Repo, TimeLogs, Documents, Reports, F.NcrRepo, User, F.Uow).Handle(new CloseOrderCommand(order.Id, confirm), default);
 
     public Task<StockDocumentDto> QcReleaseAsync(Guid documentId)
         => new QcReleaseReceiptHandler(Access, Documents, Repo, F.InspectionRepo, Quarantine, PlantTime, F.Uow).Handle(new QcReleaseReceiptCommand(documentId), default);

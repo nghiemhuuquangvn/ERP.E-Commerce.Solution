@@ -113,3 +113,8 @@ None new. The receipt list (Pending / Failed) and the close checklist are the co
 8. A user without the permissions gets 403 on every endpoint above.
 
 **Screens (P3-6):** the receipt dialog S19, the interim quality release, the complete / short-close / reopen buttons and the close checklist dialog are described in `ProductionOrderScreens.md`.
+
+## Addendum P4-4: rework receipts and the close checklist (see `NonConformanceAndRework.md`)
+* A receipt on a **rework order** (order type Rework) gets its lot number from the lot it reworks: `<root lot>-R<n>` (the smallest free n; `X-R1` is reworked into `X-R2`); a typed number is refused. The goods **always** go to the plant's quarantine warehouse on hold, whatever the item profile says, and the final inspection is created when the item's FQC plan applies. An item without an approved plan stays held and is freed by the interim release (the one exception to "always through FQC", owner decision 3 of Phase 4).
+* The close condition *quality hold* is met only when no receipt lot is held **and** no NCR of the order is Open or InDisposition. Executing the last line of an NCR *settles* the lot of its receipt line (`QcReleasedAt` is set), so a scrapped or reworked lot no longer blocks the close.
+* A rework order completes by the usual rule (all of the quantity received, or a short-close); its completion executes its NCR line.

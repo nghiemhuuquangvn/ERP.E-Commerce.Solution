@@ -14,17 +14,17 @@ namespace ERP.MFG.UnitTests.Quality;
 internal static class InspectionHelpers
 {
     public static Task<InspectionDto> GetInspectionAsync(this OpsCtx c, Guid id)
-        => new GetInspectionHandler(c.Access, c.F.InspectionRepo, c.F.PlanRepo).Handle(new GetInspectionQuery(id), default);
+        => new GetInspectionHandler(c.Access, c.F.InspectionRepo, c.F.PlanRepo, c.F.NcrRepo).Handle(new GetInspectionQuery(id), default);
 
     public static Task<InspectionDto> SubmitAsync(this OpsCtx c, Guid id, IEnumerable<InspectionResultBody>? results = null, decimal? sample = null)
-        => new SubmitInspectionHandler(c.Access, c.F.InspectionRepo, c.F.PlanRepo, c.Repo, c.Documents, c.Quarantine, c.Closer, c.PlantTime, c.User, c.F.Uow)
+        => new SubmitInspectionHandler(c.Access, c.F.InspectionRepo, c.F.PlanRepo, c.Repo, c.Documents, c.Quarantine, c.Closer, c.Ncr, c.F.NcrRepo, c.PlantTime, c.User, c.F.Uow)
             .Handle(new SubmitInspectionCommand(id, sample, results?.ToList()), default);
 
     public static Task<InspectionDto> SaveResultsAsync(this OpsCtx c, Guid id, IEnumerable<InspectionResultBody> results, decimal? sample = null)
         => new SaveInspectionResultsHandler(c.Access, c.F.InspectionRepo, c.F.PlanRepo, c.F.Uow).Handle(new SaveInspectionResultsCommand(id, sample, results.ToList()), default);
 
     public static Task<InspectionDto> ReinspectAsync(this OpsCtx c, Guid id)
-        => new ReinspectHandler(c.Access, c.F.InspectionRepo, c.F.PlanRepo, c.Numbers, c.PlantTime, c.F.Uow).Handle(new ReinspectCommand(id), default);
+        => new ReinspectHandler(c.Access, c.F.InspectionRepo, c.F.PlanRepo, c.Ncr, c.Numbers, c.PlantTime, c.User, c.F.Uow).Handle(new ReinspectCommand(id), default);
 
     /// <summary>Values for every characteristic of the inspection: a measurement gets <paramref name="length"/> on every sample unit, an attribute passes unless its name is in <paramref name="failing"/>.</summary>
     public static List<InspectionResultBody> Values(InspectionDto d, decimal length = 750m, params string[] failing)

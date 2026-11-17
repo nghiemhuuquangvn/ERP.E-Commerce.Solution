@@ -444,6 +444,45 @@ const member = (label, unionName, value) => check(`${label} "${value}" is a memb
     check('order operations carry ipqcHeldQty / ipqcPassedQty', od.operations.every((o) => 'ipqcHeldQty' in o && 'ipqcPassedQty' in o), JSON.stringify(od.operations[0]))
     const rs = (await wh('GET', `/inventory/reservations/source/ProductionOrder/${x.id}`)).json()
     if (rs?.reservationId && rs.status === 'Reserved') await wh('POST', '/inventory/release', { reservationId: rs.reservationId, reason: 'zz p36 cleanup' })
+
+    // ── non-conformance reports (P4-4): the NCR of a failed inspection, its dispositions, the rework order it makes
+    {
+      const y = await create('TP-BAN01', 5)
+      await m('POST', `/orders/${y.id}/release`)
+      for (const seq of [10, 20, 30]) await m('POST', `/orders/${y.id}/operations/${seq}/report`, { goodQty: 5, scrapQty: 0, reworkQty: 0, scrapReasonId: null, reworkReasonId: null, machineId: null, note: null })
+      await m('POST', `/orders/${y.id}/receipts`, { lines: [{ outputLineNo: null, quantity: 5, lotNumber: null }], note: null })
+      const insY = (await m('GET', `/orders/${y.id}/inspections`)).json()[0]
+      const dY = (await m('GET', `/inspections/${insY.id}`)).json()
+      const bad = dY.characteristics.flatMap((c) => (c.kind === 'Measurement' ? [1, 2, 3].map((no) => ({ characteristicId: c.id, sampleNo: no, value: 753 })) : [{ characteristicId: c.id, sampleNo: 1, passed: true }]))
+      let r = await m('POST', `/inspections/${insY.id}/submit`, { sampleQty: 3, results: bad })
+      shape('failed inspection document', 'Inspection', r.json())
+      check('a failed inspection answers the NCR it created (ncrId, ncrNo, ncrStatus)', r.status === 200 && !!r.json().inspection.ncrId && /^NCR-/.test(r.json().inspection.ncrNo ?? '') && r.json().inspection.ncrStatus === 'Open', `${r.status} ${r.text.slice(0, 300)}`)
+      const ncrId = r.json().inspection.ncrId
+      member('inspection ncr status', 'NcrStatus', r.json().inspection.ncrStatus)
+      r = await m('GET', `/ncrs/${ncrId}`)
+      shape('ncr document', 'Ncr', r.json())
+      shape('ncr header', 'NcrListItem', r.json().ncr)
+      member('ncr status', 'NcrStatus', r.json().ncr.status)
+      member('ncr source', 'NcrSourceType', r.json().ncr.sourceType)
+      shapes('ncrs of the order', 'NcrListItem', (await m('GET', `/orders/${y.id}/ncrs`)).json())
+      const lst = (await m('GET', `/ncrs?plantId=${plant}&openOnly=true&page=1&pageSize=25`)).json()
+      check('ncr list: envelope items / total / page / pageSize', Array.isArray(lst.items) && ['total', 'page', 'pageSize'].every((k) => k in lst), JSON.stringify(lst).slice(0, 200))
+      shape('ncr list envelope', 'PagedNcrs', lst)
+      shapes('ncr list items', 'NcrListItem', lst.items)
+      const scrapReason = (await m('GET', '/reason-codes')).json().find((x) => x.type === 'Scrap' && x.isActive)?.id
+      r = await m('PUT', `/ncrs/${ncrId}/dispositions`, { lines: [{ type: 'Rework', qty: 2 }, { type: 'Scrap', qty: 1, reasonCodeId: scrapReason }, { type: 'UseAsIs', qty: 2 }] })
+      check('three disposition lines are saved', r.status === 200 && r.json().dispositions.length === 3, `${r.status} ${r.text.slice(0, 300)}`)
+      shape('ncr with dispositions', 'Ncr', r.json())
+      shapes('dispositions', 'NcrDisposition', r.json().dispositions)
+      member('disposition type', 'DispositionType', r.json().dispositions[0].type)
+      r = await m('POST', `/ncrs/${ncrId}/dispositions/1/execute`, {})
+      check('executing the rework line answers the rework order', r.status === 200 && !!r.json().reworkOrderId, `${r.status} ${r.text.slice(0, 300)}`)
+      shape('execute result', 'NcrExecuteResult', r.json())
+      const rw = (await m('GET', `/orders/${r.json().reworkOrderId}`)).json()
+      shape('rework order', 'Order', rw)
+      shapes('rework order materials', 'OrderMaterial', rw.materials)
+      check('the rework order has no BOM and a fixed source lot', rw.bomId == null && rw.isRework === true && !!rw.materials[0].sourceLotId && !!rw.materials[0].sourceLotNumber, JSON.stringify(rw.materials[0]))
+    }
   }
 
   // ── clean up what open orders still hold in the Warehouse

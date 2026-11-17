@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { mfgApi, type Order, type OperationReport, type OrderOperation, type OrderMaterial, type StockDocument, type TimeLog, type InspectionListItem } from '@/api/manufacturing/mfg.api'
+import { mfgApi, type Order, type OperationReport, type OrderOperation, type OrderMaterial, type StockDocument, type TimeLog, type InspectionListItem, type NcrListItem, type NcrStatus } from '@/api/manufacturing/mfg.api'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { ReasonDialog } from '@/components/shared/ReasonDialog'
 import { Alert, Badge, Button, Progress, Skeleton, useToast } from '@/components/ui'
 import { serverMessage } from '@/lib/serverMessage'
 import { ManualTimeDialog, ReportOperationDialog, StartOperationDialog } from './OperationDialogs'
+import { RaiseNcrDialog } from './RaiseNcrDialog'
 import { DocStatusBadge, OperationStatusBadge } from './OrderBadges'
 import { StockDocumentsTable } from './StockDocumentsTable'
 import type { OrderActions } from './orderActions'
@@ -106,6 +107,7 @@ export function OperationsTab({ order, can, reload }: { order: Order; can: Order
   const [confirm, setConfirm] = useState<{ kind: 'complete' | 'reopen'; op: OrderOperation } | null>(null)
   const [reversing, setReversing] = useState<OperationReport | null>(null)
   const [reverseError, setReverseError] = useState<string | null>(null)
+  const [raising, setRaising] = useState<OperationReport | null>(null)
   const reverseKey = useIdempotencyKey()
   const details = useQuery({ queryKey: ['mfg', 'order', order.id, 'operations'], queryFn: () => mfgApi.orderOperations(order.id) })
   const reports = useQuery({ queryKey: ['mfg', 'order', order.id, 'reports'], queryFn: () => mfgApi.operationReports(order.id) })
@@ -187,6 +189,9 @@ export function OperationsTab({ order, can, reload }: { order: Order; can: Order
                     {can.reverseReport && r.status === 'Posted' && !r.reversalOfId && !r.isReversed && (
                       <Button size="sm" variant="outline" onClick={() => { setReverseError(null); setReversing(r) }}>{t('mfg.rev.reverseReport')}</Button>
                     )}
+                    {can.raiseNcr && r.status === 'Posted' && !r.reversalOfId && !r.isReversed && (
+                      <Button size="sm" variant="outline" className="ml-2" onClick={() => setRaising(r)}>{t('mfg.ncr.raise')}</Button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -195,6 +200,7 @@ export function OperationsTab({ order, can, reload }: { order: Order; can: Order
         )}
       </div>
 
+      {raising && <RaiseNcrDialog orderId={order.id} report={raising} onClose={() => setRaising(null)} onDone={() => { setRaising(null); refresh(); queryClient.invalidateQueries({ queryKey: ['mfg', 'order', order.id, 'ncrs'] }) }} />}
       {dialog?.kind === 'start' && <StartOperationDialog order={order} op={dialog.op} onClose={() => setDialog(null)} onDone={() => { setDialog(null); refresh() }} />}
       {dialog?.kind === 'manual' && <ManualTimeDialog order={order} op={dialog.op} onClose={() => setDialog(null)} onDone={() => { setDialog(null); refresh() }} />}
       {dialog?.kind === 'report' && <ReportOperationDialog order={order} op={dialog.op} onClose={() => setDialog(null)} onDone={() => { setDialog(null); refresh() }} />}
@@ -312,12 +318,13 @@ export function HistoryTab({ order }: { order: Order }) {
 // ── Quality (P4-3) ───────────────────────────────────────────────────────────────────────────────────────
 
 const inspectionVariant = { Pending: 'warning', Passed: 'success', Failed: 'danger', Cancelled: 'muted' } as const
+const ncrVariant: Record<NcrStatus, 'warning' | 'info' | 'success' | 'muted'> = { Open: 'warning', InDisposition: 'info', Closed: 'success', Cancelled: 'muted' }
 
 /** The IPQC / FQC inspections of the order: what waits for a result, what passed and what failed (a failed one keeps its lot on hold or its output out of the next operation). */
-export function QualityTab({ inspections }: { inspections: InspectionListItem[] }) {
+export function QualityTab({ inspections, ncrs = [] }: { inspections: InspectionListItem[]; ncrs?: NcrListItem[] }) {
   const { t } = useTranslation()
   const open = inspections.filter((i) => i.status === 'Pending' || (i.status === 'Failed' && !i.reinspectedById)).length
-  if (inspections.length === 0) return <p className="text-sm text-ink-secondary">{t('mfg.qc.insp.noneForOrder')}</p>
+  if (inspections.length === 0 && ncrs.length === 0) return <p className="text-sm text-ink-secondary">{t('mfg.qc.insp.noneForOrder')}</p>
   return (
     <div className="space-y-3">
       <p className="text-sm text-ink-secondary" role="status">{t('mfg.qc.insp.openCount', { count: open })}</p>
@@ -334,11 +341,30 @@ export function QualityTab({ inspections }: { inspections: InspectionListItem[] 
               <td className={td}><span className="font-mono text-xs">{i.lotNumber ?? (i.operationSeq != null ? t('mfg.qc.insp.operation', { seq: i.operationSeq }) : '')}</span></td>
               <td className={num}>{fmtQty(i.lotQty)}</td>
               <td className={num}>{fmtQty(i.sampleQty)}</td>
-              <td className={td}><span className="flex items-center gap-2"><Badge variant={inspectionVariant[i.status]}>{t(`mfg.qc.insp.status.${i.status}`)}</Badge>{i.ncrRequired && <Badge variant="danger">{t('mfg.qc.insp.ncr')}</Badge>}</span></td>
+              <td className={td}><span className="flex items-center gap-2"><Badge variant={inspectionVariant[i.status]}>{t(`mfg.qc.insp.status.${i.status}`)}</Badge>{i.ncrRequired && (i.ncrId ? <Link className="text-brand-action hover:underline" to={`/manufacturing/ncrs/${i.ncrId}`}>{i.ncrNo}</Link> : <Badge variant="danger">{t('mfg.qc.insp.ncr')}</Badge>)}</span></td>
             </tr>
           ))}
         </tbody>
       </TableBox>
+      {ncrs.length > 0 && (
+        <TableBox caption={t('mfg.ncr.forOrder')}>
+          <thead className="bg-surface-muted"><tr>
+            <th scope="col" className={th}>{t('mfg.ncr.ncrNo')}</th><th scope="col" className={th}>{t('mfg.ncr.source')}</th><th scope="col" className={th}>{t('mfg.qc.insp.lotOrOperation')}</th>
+            <th scope="col" className={`${th} text-right`}>{t('mfg.ncr.qty')}</th><th scope="col" className={th}>{t('common.status')}</th>
+          </tr></thead>
+          <tbody className="divide-y divide-line">
+            {ncrs.map((n) => (
+              <tr key={n.id}>
+                <td className={td}><Link className="font-mono text-xs text-brand-action hover:underline" to={`/manufacturing/ncrs/${n.id}`}>{n.ncrNo}</Link></td>
+                <td className={td}>{t(`mfg.ncr.sourceType.${n.sourceType}`)}</td>
+                <td className={td}><span className="font-mono text-xs">{n.lotNumber ?? (n.operationSeq != null ? t('mfg.qc.insp.operation', { seq: n.operationSeq }) : '')}</span></td>
+                <td className={num}>{fmtQty(n.nonconformingQty)}</td>
+                <td className={td}><Badge variant={ncrVariant[n.status]}>{t(`mfg.ncr.status.${n.status}`)}</Badge></td>
+              </tr>
+            ))}
+          </tbody>
+        </TableBox>
+      )}
     </div>
   )
 }

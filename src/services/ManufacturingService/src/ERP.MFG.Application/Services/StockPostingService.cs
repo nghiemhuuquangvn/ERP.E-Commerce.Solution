@@ -37,7 +37,7 @@ public static class StockCodeMapper
 public sealed class StockPostingService(
     IWarehouseStockClient stock, IProductLookupClient products, IProductionOrderRepository orders, IMfgUnitOfWork uow, IPlantClock clock,
     IOrderReservationSync reservationSync, IOperationReportRepository reports, IStockDocumentRepository documents, OperationLogCloser logCloser, IProductionSettingProvider settings,
-    IQualityInspectionCreator quality, ILogger<StockPostingService> logger) : IStockPostingService
+    IQualityInspectionCreator quality, INcrProgress ncrProgress, ILogger<StockPostingService> logger) : IStockPostingService
 {
     public async Task<StockPostingResult> PostAsync(MaterialTransaction document, string by, CancellationToken ct = default)
     {
@@ -141,7 +141,11 @@ public sealed class StockPostingService(
         {
             // BR-PO-14a: receiving all of the quantity completes the order by itself; the operations still open are completed and their logs closed
             var setting = await settings.GetAsync(order.PlantId, ct);
-            if (order.TryAutoComplete(setting.AutoCompleteOnFullReceipt, by, now)) await logCloser.CloseForCompletedAsync(order, ct);
+            if (order.TryAutoComplete(setting.AutoCompleteOnFullReceipt, by, now))
+            {
+                await logCloser.CloseForCompletedAsync(order, ct);
+                await ncrProgress.OnReworkOrderCompletedAsync(order, by, now, ct);   // P4-4: a rework order that completes executes its disposition line (and may close the NCR)
+            }
             if (!document.IsReversal) await quality.CreateFqcAsync(order, document, ct);   // P4-3, BR-QC-02: the final inspection exists exactly when the receipt counts
         }
         document.MarkPosted(by, now);
@@ -263,7 +267,7 @@ public sealed class StockPostingService(
             var reservationId = line.IsFromReservation ? order.ReservationId ?? Guid.NewGuid() : (Guid?)null;
             return new("ProductionIssue", line.ItemId, line.Qty, line.MovementKey, WarehouseId: line.WarehouseId, LotId: line.LotId, ReservationId: reservationId,
                 SourceOrderId: order.Id, SourceLineId: line.IsFromReservation ? line.OrderMaterialId : null, RequiresLot: item.IsLotControlled, RequiresSerial: item.IsSerialControlled,
-                AllowNegative: line.IsNegativeStock);
+                AllowNegative: line.IsNegativeStock, Reason: line.MovementReason, AllowHeldLot: line.AllowHeldLot);
         }
 
         return new("ProductionReturn", line.ItemId, line.Qty, line.MovementKey, WarehouseId: line.WarehouseId, LotId: line.LotId, UnitCost: line.UnitCost,

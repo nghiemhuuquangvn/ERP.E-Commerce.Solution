@@ -29,6 +29,7 @@ const inspDoc = (status: string, extra: Record<string, unknown> = {}, results: u
 function inspApi(status = 'Pending', extra: Record<string, unknown> = {}, results: unknown[] = []) {
   answer([
     [`${BASE}/inspections/i1`, inspDoc(status, extra, results)],
+    [`${BASE}/inspections/i3`, inspDoc('Pending', { id: 'i3', docNo: 'QI-2611-00003', reinspectionOfId: 'i1' })],
     [`${BASE}/inspections`, { items: [insp('Pending'), insp('Failed', { id: 'i2', docNo: 'QI-2611-00002', ncrRequired: true })], total: 2, page: 1, pageSize: 25 }],
     [`${BASE}/plants`, [PLANT]],
   ])

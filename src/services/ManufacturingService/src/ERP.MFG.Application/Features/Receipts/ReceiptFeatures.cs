@@ -101,7 +101,8 @@ public sealed class ReceiveFinishedGoodsHandler(
             var itemId = output?.ItemId ?? order.ItemId;
             var item = known[itemId];
             var profile = await profiles.GetAsync(itemId, plant.Id, ct);
-            var fqc = profile?.RequiresFqc == true;
+            var reworkSource = order.IsRework && output is null ? order.Materials.FirstOrDefault(m => m.IsReworkSource) : null;   // P4-4, BR-RW-02
+            var fqc = profile?.RequiresFqc == true || reworkSource is not null;                                                     // reworked goods always go back through quality
             var needsLot = item.IsLotControlled || fqc;
 
             string? lotNumber = null;
@@ -115,7 +116,12 @@ public sealed class ReceiveFinishedGoodsHandler(
                     foreach (var number in await documents.LotNumbersInUseAsync(itemId, ct)) used.Add(number);
                     taken[itemId] = used;
                 }
-                if (w.Given is not null)
+                if (reworkSource is not null)
+                {
+                    if (w.Given is not null) throw MfgRules.Invalid("The lot number of reworked goods is the lot it reworks plus -R<n>; it cannot be typed.");
+                    lotNumber = NcrRules.ReworkLotNumber(reworkSource.SourceLotNumber ?? reworkSource.ComponentCode, used);
+                }
+                else if (w.Given is not null)
                 {
                     MfgRules.ThrowIf(used.Contains(w.Given), MfgErrors.Fg002, ("lot", w.Given));
                     lotNumber = w.Given;
@@ -194,7 +200,7 @@ public sealed record CompleteOrderCommand(Guid Id, Guid? ReasonCodeId, string? N
 
 public sealed class CompleteOrderHandler(
     IPlantAccessService access, IProductionOrderRepository orders, IStockDocumentRepository documents, IOperationReportRepository reports, IReasonCodeRepository reasons,
-    IProductionSettingProvider settings, OperationLogCloser logCloser, IOrderReservationSync sync, IPlantClock clock, IUserContextService user, IMfgUnitOfWork uow)
+    IProductionSettingProvider settings, OperationLogCloser logCloser, INcrProgress ncrProgress, IOrderReservationSync sync, IPlantClock clock, IUserContextService user, IMfgUnitOfWork uow)
     : IRequestHandler<CompleteOrderCommand, OrderActionResultDto>
 {
     public async Task<OrderActionResultDto> Handle(CompleteOrderCommand r, CancellationToken ct)
@@ -208,6 +214,7 @@ public sealed class CompleteOrderHandler(
         order.Complete(user.GetUserId(), clock.UtcNow, setting.UnderCompletionTolerancePct, user.HasPermission(PermissionConstants.Manufacturing_OrderShortClose), isShortClose,
             r.ReasonCodeId, r.Note, pending);
         await logCloser.CloseForCompletedAsync(order, ct);
+        await ncrProgress.OnReworkOrderCompletedAsync(order, user.GetUserId(), clock.UtcNow, ct);   // P4-4: completing a rework order executes its disposition line
         return await OrderTransitions.SaveAndSyncAsync(order, uow, sync, null, ct);
     }
 }
@@ -232,24 +239,24 @@ public sealed record CloseChecklistDto(Guid OrderId, string OrderNo, OrderStatus
 internal static class CloseChecks
 {
     public static async Task<IReadOnlyList<CloseCondition>> ConditionsAsync(ProductionOrder order, ITimeLogRepository logs, IStockDocumentRepository documents, IOperationReportRepository reports,
-        bool confirmConsumeRemaining, CancellationToken ct)
+        INcrRepository ncrs, bool confirmConsumeRemaining, CancellationToken ct)
     {
         var openLogs = (await logs.ListOpenForOrderAsync(order.Id, ct)).Count(l => l.IsOpen);
         var held = await documents.CountHeldLotsAsync(order.Id, ct);
         var pending = await documents.CountPendingAsync(order.Id, ct) + (await reports.ListPendingForOrderAsync(order.Id, ct)).Count;
-        return order.CloseConditions(openLogs, held, pending, confirmConsumeRemaining);
+        return order.CloseConditions(openLogs, held, pending, confirmConsumeRemaining, await ncrs.CountOpenForOrderAsync(order.Id, ct));
     }
 }
 
 public sealed record GetCloseChecklistQuery(Guid Id, bool ConfirmConsumeRemaining = false) : IRequest<CloseChecklistDto>;
 
-public sealed class GetCloseChecklistHandler(IPlantAccessService access, IProductionOrderRepository orders, ITimeLogRepository logs, IStockDocumentRepository documents, IOperationReportRepository reports)
+public sealed class GetCloseChecklistHandler(IPlantAccessService access, IProductionOrderRepository orders, ITimeLogRepository logs, IStockDocumentRepository documents, IOperationReportRepository reports, INcrRepository ncrs)
     : IRequestHandler<GetCloseChecklistQuery, CloseChecklistDto>
 {
     public async Task<CloseChecklistDto> Handle(GetCloseChecklistQuery r, CancellationToken ct)
     {
         var order = await OrderScope.LoadAsync(orders, access, r.Id, ct);
-        var conditions = await CloseChecks.ConditionsAsync(order, logs, documents, reports, r.ConfirmConsumeRemaining, ct);
+        var conditions = await CloseChecks.ConditionsAsync(order, logs, documents, reports, ncrs, r.ConfirmConsumeRemaining, ct);
         return new CloseChecklistDto(order.Id, order.OrderNo, order.Status, order.Status == OrderStatus.Completed && conditions.All(c => c.Met), conditions.Select(c => new CloseConditionDto(c.Code, c.Met, c.Message)).ToList());
     }
 }
@@ -257,7 +264,7 @@ public sealed class GetCloseChecklistHandler(IPlantAccessService access, IProduc
 public sealed record CloseOrderCommand(Guid Id, bool ConfirmConsumeRemaining) : IRequest<OrderDto>;
 
 public sealed class CloseOrderHandler(IPlantAccessService access, IProductionOrderRepository orders, ITimeLogRepository logs, IStockDocumentRepository documents, IOperationReportRepository reports,
-    IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<CloseOrderCommand, OrderDto>
+    INcrRepository ncrs, IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<CloseOrderCommand, OrderDto>
 {
     public async Task<OrderDto> Handle(CloseOrderCommand r, CancellationToken ct)
     {
@@ -266,7 +273,7 @@ public sealed class CloseOrderHandler(IPlantAccessService access, IProductionOrd
         var openLogs = (await logs.ListOpenForOrderAsync(order.Id, ct)).Count(l => l.IsOpen);
         var held = await documents.CountHeldLotsAsync(order.Id, ct);
         var pending = await documents.CountPendingAsync(order.Id, ct) + (await reports.ListPendingForOrderAsync(order.Id, ct)).Count;
-        order.Close(user.GetUserId(), openLogs, held, pending, r.ConfirmConsumeRemaining);
+        order.Close(user.GetUserId(), openLogs, held, pending, r.ConfirmConsumeRemaining, await ncrs.CountOpenForOrderAsync(order.Id, ct));
         await uow.SaveChangesAsync(ct);
         return OrderDto.From(order);
     }

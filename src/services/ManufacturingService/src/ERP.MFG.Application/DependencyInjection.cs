@@ -22,6 +22,8 @@ public static class DependencyInjection
         services.AddScoped<IInspectionPlanResolver, InspectionPlanResolver>();
         services.AddScoped<IQualityInspectionCreator, QualityInspectionCreator>();
         services.AddScoped<IQuarantineRelease, QuarantineRelease>();
+        services.AddScoped<INcrProgress, NcrProgress>();
+        services.AddScoped<ReworkOrderFactory>();
         services.AddScoped<IOperationTimeService, OperationTimeService>();
         services.AddScoped<IBomSnapshotFactory, BomSnapshotFactory>();
         services.AddScoped<IBomExplosionService, BomExplosionService>();

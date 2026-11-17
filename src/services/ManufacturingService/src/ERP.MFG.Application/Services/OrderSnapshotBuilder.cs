@@ -9,8 +9,12 @@ namespace ERP.MFG.Application.Services;
 /// <summary>What an order is built from. <c>AsOf</c> is the date the default BOM and routing are taken on (plant today for a new order, BR-PO-04).</summary>
 public sealed record OrderBuildRequest(Plant Plant, Guid ItemId, decimal Quantity, DateOnly DueDate, Guid? BomId, Guid? RoutingId, Guid? OutputWarehouseId, DateOnly AsOf);
 
+/// <summary>What a rework order is built from (P4-4): the item, quantity and fixed lot of the NCR line; an optional routing; the plant's output warehouse of the original order.</summary>
+public sealed record ReworkBuildRequest(
+    Plant Plant, Guid ItemId, decimal Quantity, DateOnly? DueDate, Guid? RoutingId, Guid OutputWarehouseId, Guid LotId, string LotNumber, Guid LotWarehouseId, DateOnly AsOf);
+
 public sealed record OrderBuildResult(
-    ProductInfo Item, Guid UomId, Guid BomId, Guid? RoutingId, Guid OutputWarehouseId, OrderSnapshot Snapshot, OrderScheduleValues Schedule, IReadOnlyList<string> Warnings);
+    ProductInfo Item, Guid UomId, Guid? BomId, Guid? RoutingId, Guid OutputWarehouseId, OrderSnapshot Snapshot, OrderScheduleValues Schedule, IReadOnlyList<string> Warnings, DateOnly? DueDate = null);
 
 /// <summary>
 /// BR-PO-03 / -04 / -05 / -06: checks the item, picks the BOM and routing, explodes the BOM one level into materials and outputs, copies the routing into
@@ -102,11 +106,20 @@ public sealed class OrderSnapshotBuilder(
         }
 
         // ── operations and the schedule (BR-PO-06)
+        var (operations, inputs) = await OperationsOfAsync(routing, r.Quantity, ct);
+        var schedule = await ScheduleAsync(plant, inputs, r.DueDate, profile?.FixedLeadTimeDays ?? 0, ct);
+
+        return new OrderBuildResult(item, uomId, bom.Id, routing?.Id, outputWarehouse, new OrderSnapshot(materials, operations, outputs), schedule, warnings);
+    }
+
+    /// <summary>The operations of a chosen routing for a quantity, with the inputs the schedule needs (none without a routing).</summary>
+    private async Task<(List<OrderOperationValues> Operations, IReadOnlyList<ScheduledOperationInput> Inputs)> OperationsOfAsync(Routing? routing, decimal quantity, CancellationToken ct)
+    {
         var operations = new List<OrderOperationValues>();
         IReadOnlyList<ScheduledOperationInput> inputs = [];
         if (routing is { Operations.Count: > 0 })
         {
-            inputs = await operationTime.BuildInputsAsync(routing, r.Quantity, ct);
+            inputs = await operationTime.BuildInputsAsync(routing, quantity, ct);
             foreach (var op in routing.Operations)
             {
                 var input = inputs.First(i => i.OperationSeq == op.OperationSeq);
@@ -114,10 +127,44 @@ public sealed class OrderSnapshotBuilder(
                     op.BatchSize, op.QueueTimeMinutes, op.MoveTimeMinutes, op.IsSubcontract, input.StandardMinutes, OperationTimeCalculator.CalendarMinutes(input.StandardMinutes, input.EfficiencyPct), op.IpqcInspectionPlanId));
             }
         }
+        return (operations, inputs);
+    }
 
-        var schedule = await ScheduleAsync(plant, inputs, r.DueDate, profile?.FixedLeadTimeDays ?? 0, ct);
+    /// <summary>
+    /// BR-RW-01 / 02 (P4-4): the snapshot of a rework order. There is no BOM and no explosion: the one material is the non-conforming lot itself (fixed lot, the warehouse it sits in, Manual
+    /// issue, required = the quantity). A routing is optional and only taken when the user names one; without it the order has no operations and is scheduled by the item's fixed lead time.
+    /// </summary>
+    public async Task<OrderBuildResult> BuildReworkAsync(ReworkBuildRequest r, CancellationToken ct = default)
+    {
+        var plant = r.Plant;
+        MfgRules.ThrowIf(r.Quantity <= 0, MfgErrors.Po001);
 
-        return new OrderBuildResult(item, uomId, bom.Id, routing?.Id, outputWarehouse, new OrderSnapshot(materials, operations, outputs), schedule, warnings);
+        var item = (await products.LookupAsync([r.ItemId], ct)).FirstOrDefault() ?? throw MfgRules.Invalid($"Item {r.ItemId} does not exist.");
+        MfgRules.ThrowIf(!item.IsActive, MfgErrors.Po006, ("code", item.Sku));
+        MfgRules.ThrowIf(item.IsSerialControlled, MfgErrors.Mat011, ("item", item.Sku));
+        var profile = await profiles.GetAsync(r.ItemId, plant.Id, ct);
+        var due = r.DueDate ?? clock.Today(plant).AddDays(profile?.FixedLeadTimeDays ?? 0);   // no date given: today plus the item's fixed lead time
+        MfgRules.ThrowIf(due < clock.Today(plant), MfgErrors.Po003);
+        var uomId = item.BaseUomId ?? throw MfgRules.Invalid($"Item {item.Sku} has no base unit of measure.");
+        var unit = (await units.LookupAsync([uomId], ct)).FirstOrDefault() ?? throw MfgRules.Invalid($"The unit of measure of item {item.Sku} does not exist.");
+        if (Math.Round(r.Quantity, unit.DecimalPlaces) != r.Quantity)
+            throw MfgRules.Invalid($"The quantity of item {item.Sku} can have at most {unit.DecimalPlaces} decimal places ({unit.Code}).");
+
+        Routing? routing = null;
+        if (r.RoutingId is { } routingId)
+        {
+            routing = await routings.GetAsync(routingId, ct);
+            if (routing is null || routing.PlantId != plant.Id || routing.ItemId != r.ItemId) throw new EntityNotFoundException(nameof(Routing), routingId);
+            MfgRules.ThrowIf(routing.Status != VersionStatus.Approved || !routing.IsEffectiveOn(r.AsOf), MfgErrors.Po005);
+        }
+
+        var materials = new List<OrderMaterialValues>
+        {
+            new(10, item.Id, item.Sku, item.Name, uomId, null, r.Quantity, 0m, IssueMethod.Manual, r.LotWarehouseId, null, r.LotId, r.LotNumber),
+        };
+        var (operations, inputs) = await OperationsOfAsync(routing, r.Quantity, ct);
+        var schedule = await ScheduleAsync(plant, inputs, due, profile?.FixedLeadTimeDays ?? 0, ct);
+        return new OrderBuildResult(item, uomId, null, routing?.Id, r.OutputWarehouseId, new OrderSnapshot(materials, operations, []), schedule, [], due);
     }
 
     /// <summary>BR-PO-06: the schedule of an order (UTC) from the operations' inputs, the due date and the item's fixed lead time.</summary>
@@ -138,11 +185,12 @@ public sealed class OrderSnapshotBuilder(
     public async Task<QuantityRecompute> RecomputeForQuantityAsync(Plant plant, ProductionOrder order, decimal newQuantity, CancellationToken ct = default)
     {
         MfgRules.ThrowIf(newQuantity <= 0, MfgErrors.Po001);
+        if (order.BomId is not { } bomId) throw MfgRules.Invalid("The quantity of a rework order is fixed by the disposition line of its non-conformance report.");
         var unit = (await units.LookupAsync([order.UomId], ct)).FirstOrDefault() ?? throw MfgRules.Invalid("The unit of measure of the order does not exist.");
         if (Math.Round(newQuantity, unit.DecimalPlaces) != newQuantity)
             throw MfgRules.Invalid($"The quantity of item {order.ItemCode} can have at most {unit.DecimalPlaces} decimal places ({unit.Code}).");
 
-        var exploded = await explosion.ExplodeAsync(plant.Id, order.ItemId, order.BomId, newQuantity, clock.Today(plant), ct);
+        var exploded = await explosion.ExplodeAsync(plant.Id, order.ItemId, bomId, newQuantity, clock.Today(plant), ct);
 
         var required = new Dictionary<int, decimal>();
         var pool = exploded.Requirements.ToList();

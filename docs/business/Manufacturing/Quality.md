@@ -1,7 +1,7 @@
 # Manufacturing - quality: inspection plans and IPQC / FQC inspections (Phase 4, P4-3)
 
 Specification: `docs/business/M/01_PRODUCTION_BA_SPEC.md` §5.15 (BR-QC-01..06), §7.4, screens S21 / S22; tasks T4.8 and T4.9; test cases TC-QC-001..015 and the creation part of TC-NCR-001.
-Built 2026-11-11 on branch `feat/manufacturing-p4-3` (two commits: plans, then inspections). Non-conformance reports and rework orders are P4-4.
+Built 2026-11-11 on branch `feat/manufacturing-p4-3` (two commits: plans, then inspections). Non-conformance reports and rework orders are P4-4 (built 2026-11-17, `NonConformanceAndRework.md`).
 
 ## 1. Purpose and scope
 Before P4-3 a finished-goods lot of a `RequiresFqc` item sat on quality hold until somebody pressed the interim *Release from quality hold* button, which left no record of what was checked, and an operation never looked at quality. P4-3 adds:
@@ -11,7 +11,7 @@ Before P4-3 a finished-goods lot of a `RequiresFqc` item sat on quality hold unt
 * **In-process inspections (IPQC)**: one document per Good report of an operation that has a plan; the Good quantity reaches the next operation only when it passed.
 * The screens S22 (worklist and document), the Quality tab of the order and the plan pickers on the item profile and the routing operation.
 
-Out of scope (later milestones): the NCR itself and its dispositions (P4-4), genealogy (P4-5), the tablet grid for entering values (P4-8), sampling by AQL tables.
+Out of scope (later milestones): the NCR itself and its dispositions (done in P4-4, `NonConformanceAndRework.md`), genealogy (P4-5), the tablet grid for entering values (P4-8), sampling by AQL tables.
 
 ## 2. Actors and permissions
 | Actor | What they do | Permission (`manufacturing:...`) |
@@ -58,12 +58,12 @@ S21 `/manufacturing/inspection-plans` (list with type / status filters; editor w
 
 ## 8. Use cases
 **UC-QC-1 Final inspection, pass (main).** Receipt of 10 -> FQC Pending (sample 5) -> inspector types five lengths and the attribute results -> Submit -> Passed, lot Available in the finished-goods warehouse. *Alternative:* values saved as a draft first. *Exception:* wrong sample size (`MFG_QC_001`), a value missing (`MFG_QC_003`), Warehouse down (`MFG_INT_001`, submit again).
-**UC-QC-2 Final inspection, fail.** A value out of range -> Failed, *NCR required*, lot stays on hold; the interim release and the receipt reversal are refused; the inspector or the manager re-inspects.
+**UC-QC-2 Final inspection, fail.** A value out of range -> Failed, the NCR is created in the same save (P4-4), lot stays on hold; the interim release and the receipt reversal are refused; the manager decides Rework / Scrap / Use as is on the NCR, or the inspector re-inspects while no line of the NCR has started (the NCR is then cancelled).
 **UC-QC-3 In-process.** Good 60 at operation 10 -> IPQC Pending, operation 20 has no input; the first 50 pass -> operation 20 can take 50 (51 is `MFG_OP_004`).
 **UC-QC-4 Plan-less item.** No plan resolves: the lot is received on hold with a hint *No inspection plan: release by hand* and the supervisor uses the interim release.
 
 ## 9. Assumptions and open issues
-Decisions of the owner (2026-11-11): only a Failed inspection is re-inspected; a lot with a Failed FQC stays on hold until P4-4 (no reversal, no interim release). A plan approved **after** a receipt does not inspect that receipt (no back-fill); IPQC holds only reports created after the plan was approved. Risks are recorded as R279-R285 in `docs/DEFERRED-ISSUES.md`.
+Decisions of the owner (2026-11-11): only a Failed inspection is re-inspected; a lot with a Failed FQC stays on hold until its NCR is closed (P4-4: no reversal, no interim release; R279 is closed). A plan approved **after** a receipt does not inspect that receipt (no back-fill); IPQC holds only reports created after the plan was approved. Risks are recorded as R279-R285 in `docs/DEFERRED-ISSUES.md`.
 
 ## 10. UAT scenarios
 1. Create plan FQC-BAN01 (Fixed 5, one minor defect tolerated; C1 length 748-752 critical; C2 colour critical attribute; C3, C4 minor), approve it, link it on the TP-BAN01 profile.

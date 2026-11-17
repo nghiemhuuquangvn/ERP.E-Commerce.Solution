@@ -110,7 +110,7 @@ public sealed record CancelOrderCommand(Guid Id, Guid? ReasonCodeId, string? Not
 
 public sealed class CancelOrderHandler(
     IPlantAccessService access, IProductionOrderRepository orders, IReasonCodeRepository reasons, IOrderTransactionGuard transactions, IOrderReservationSync sync,
-    IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<CancelOrderCommand, OrderActionResultDto>
+    INcrProgress ncrProgress, IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<CancelOrderCommand, OrderActionResultDto>
 {
     public async Task<OrderActionResultDto> Handle(CancelOrderCommand r, CancellationToken ct)
     {
@@ -118,6 +118,7 @@ public sealed class CancelOrderHandler(
         await OrderTransitions.EnsureReasonAsync(reasons, r.ReasonCodeId, ReasonType.Cancel, ct);
         MfgRules.ThrowIf(order.Status == OrderStatus.Released && await transactions.HasTransactionsAsync(order, ct), MfgErrors.Po008);
         order.Cancel(r.ReasonCodeId, r.Note, user.GetUserId());
+        await ncrProgress.OnReworkOrderCancelledAsync(order, user.GetUserId(), ct);       // P4-4: the disposition line of a cancelled rework order can be executed again
         return await OrderTransitions.SaveAndSyncAsync(order, uow, sync, null, ct);
     }
 }
