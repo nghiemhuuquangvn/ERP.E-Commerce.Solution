@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useUiStore } from '@/stores/ui.store'
 import { usePermission } from '@/hooks/usePermission'
-import { Activity, AlarmClock, ArrowLeftRight, BadgeDollarSign, BadgePercent, Banknote, BarChart3, Bell, BookOpen, BookText, Bot, Building, Building2, Calculator, Calendar, CalendarDays, ClipboardCheck, ClipboardList, Clock, Coins, Compass, CreditCard, Database, Factory, FileBarChart, FileSearch, FileText, Flag, FlaskConical, FolderTree, Gift, Globe, HandCoins, HardDrive, KeyRound, Landmark, Languages, LayoutDashboard, Link, Lock, Mail, Map, MapPin, MonitorSmartphone, Package, Percent, Puzzle, Receipt, Ruler, Scale, ScanBarcode, ScrollText, Send, Settings, Settings2, ShieldCheck, ShoppingBag, ShoppingCart, SlidersHorizontal, Smartphone, Star, Store, Tag, Timer, TrendingUp, Truck, Umbrella, Undo2, User, UserCog, Users, UsersRound, Wallet, Warehouse, Webhook, Workflow, Zap, FileUp, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
+import { Activity, AlarmClock, ArrowLeftRight, BadgeDollarSign, BadgePercent, Banknote, BarChart3, Bell, BookOpen, BookText, Bot, Building, Building2, Calculator, Calendar, CalendarDays, ClipboardCheck, ClipboardList, Clock, Coins, Compass, CreditCard, Database, Factory, FileBarChart, FileSearch, FileText, Flag, FlaskConical, FolderTree, Gift, Globe, HandCoins, HardDrive, KeyRound, Landmark, Languages, LayoutDashboard, Link, Lock, Mail, Map, MapPin, MonitorSmartphone, Package, Percent, Puzzle, Receipt, Ruler, Scale, ScanBarcode, ScrollText, Send, Settings, Settings2, ShieldCheck, ShoppingBag, ShoppingCart, SlidersHorizontal, Smartphone, Star, Store, Tag, Timer, TrendingUp, Truck, Umbrella, Undo2, User, UserCog, Users, UsersRound, Wallet, AlertTriangle, Warehouse, Webhook, Workflow, Zap, FileUp, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
 
 interface NavItem {
   labelKey: string
@@ -478,6 +478,7 @@ const MANUFACTURING_CHILDREN: NavItem[] = [
   { labelKey: 'mfg.nav.routings', path: '/manufacturing/routings', permission: 'manufacturing:routing:view', icon: Workflow },
   { labelKey: 'mfg.nav.inspectionPlans', path: '/manufacturing/inspection-plans', permission: 'manufacturing:qc:plan-view', icon: ClipboardCheck },
   { labelKey: 'mfg.nav.inspections', path: '/manufacturing/inspections', permission: 'manufacturing:qc:view', icon: FlaskConical },
+  { labelKey: 'mfg.nav.ncrs', path: '/manufacturing/ncrs', permission: 'manufacturing:qc:view', icon: AlertTriangle },
   { labelKey: 'mfg.nav.whereUsed', path: '/manufacturing/where-used', permission: 'manufacturing:bom:view', icon: Link },
   { labelKey: 'mfg.nav.itemProfiles', path: '/manufacturing/item-profiles', permission: 'manufacturing:masterdata:view', icon: ClipboardList },
   { labelKey: 'mfg.nav.workCenters', path: '/manufacturing/work-centers', permission: 'manufacturing:masterdata:view', icon: Factory },

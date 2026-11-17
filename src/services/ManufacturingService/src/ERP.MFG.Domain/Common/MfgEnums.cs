@@ -64,6 +64,15 @@ public enum CharacteristicKind : short { Measurement = 1, Attribute = 2 }
 /// <summary>Pending -> Passed | Failed once submitted (then immutable, BR-QC-06); Cancelled = the receipt / report it inspected was reversed while it was still Pending.</summary>
 public enum InspectionStatus : short { Pending = 1, Passed = 2, Failed = 3, Cancelled = 4 }
 
+/// <summary>Where a non-conformance report comes from (P4-4): a failed inspection, or a person who raises it from an operation report (record only).</summary>
+public enum NcrSourceType : short { Inspection = 1, OperationReport = 2 }
+
+/// <summary>Open -> InDisposition (dispositions saved) -> Closed (every line executed); Cancelled = superseded by a re-inspection before any line started.</summary>
+public enum NcrStatus : short { Open = 1, InDisposition = 2, Closed = 3, Cancelled = 4 }
+
+/// <summary>BR-NCR-02: what is done with the non-conforming quantity.</summary>
+public enum DispositionType : short { Rework = 1, Scrap = 2, UseAsIs = 3 }
+
 public enum OrderSourceType : short { Manual = 1, SalesOrder = 2, Mrp = 3, Ncr = 4, ParentOrder = 5 }
 
 /// <summary>BA spec 01 §4.2. Closed and Cancelled are final.</summary>

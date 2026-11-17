@@ -122,7 +122,16 @@ public sealed class QualityInspectionCreator(
 public interface IQuarantineRelease
 {
     Task ReleaseAsync(ProductionOrder order, MaterialTransactionLine line, string reason, CancellationToken ct = default);
+
+    /// <summary>
+    /// P4-4, UseAsIs of a non-conformance report: moves <paramref name="quantity"/> of the held lot from its warehouse to the order's finished-goods warehouse (a part of the lot becomes a sub-lot) and releases
+    /// the lot the move acted on. Two idempotent calls (keys <c>&lt;key&gt;Q1 / Q2</c>); the answer names the released lot.
+    /// </summary>
+    Task<ReleasedLot> ReleaseQuantityAsync(ProductionOrder order, Guid itemId, Guid lotId, Guid fromWarehouseId, decimal quantity, string key, string reason, CancellationToken ct = default);
 }
+
+/// <summary>The lot a UseAsIs release made Available: the lot itself (the whole remaining quantity moved) or the sub-lot a partial move created.</summary>
+public sealed record ReleasedLot(Guid LotId, string LotNumber);
 
 public sealed class QuarantineRelease(IWarehouseStockClient stock) : IQuarantineRelease
 {
@@ -133,5 +142,15 @@ public sealed class QuarantineRelease(IWarehouseStockClient stock) : IQuarantine
             await stock.RecordMovementAsync(new("SubcontractTransfer", line.ItemId, line.Qty, line.MovementKey + "Q1", WarehouseId: line.WarehouseId, ToWarehouseId: order.OutputWarehouseId,
                 LotId: lot, Reason: reason, SourceOrderId: order.Id), ct);
         await stock.RecordMovementAsync(new("QcRelease", line.ItemId, line.Qty, line.MovementKey + "Q2", WarehouseId: order.OutputWarehouseId, LotId: lot, Reason: reason, SourceOrderId: order.Id), ct);
+    }
+
+    public async Task<ReleasedLot> ReleaseQuantityAsync(ProductionOrder order, Guid itemId, Guid lotId, Guid fromWarehouseId, decimal quantity, string key, string reason, CancellationToken ct = default)
+    {
+        var moved = await stock.RecordMovementAsync(new("SubcontractTransfer", itemId, quantity, key + "Q1", WarehouseId: fromWarehouseId, ToWarehouseId: order.OutputWarehouseId, LotId: lotId, Reason: reason,
+            SourceOrderId: order.Id), ct);
+        var target = moved.Lots?.FirstOrDefault();                              // a partial move answers the new sub-lot, a whole one the lot itself
+        var released = new ReleasedLot(target?.LotId ?? lotId, target?.LotNumber ?? string.Empty);
+        await stock.RecordMovementAsync(new("QcRelease", itemId, quantity, key + "Q2", WarehouseId: order.OutputWarehouseId, LotId: released.LotId, Reason: reason, SourceOrderId: order.Id), ct);
+        return released;
     }
 }

@@ -26,7 +26,7 @@ Phase 3 delivered the happy path of a production order (create, release, issue, 
 | P4-1 | Warehouse W7: lot split, per-lot breakdown, held-lot issue | **built 2026-11-11** |
 | P4-2 | Reversal of operation reports and receipts (closes R246) | **built 2026-11-11** |
 | P4-3 | Inspection plans, IPQC / FQC inspections (replace the interim release) | **built 2026-11-11** |
-| P4-4 | NCR, disposition, rework orders | planned |
+| P4-4 | NCR, disposition, rework orders | **built 2026-11-17** |
 | P4-5 | Genealogy and tracing | planned |
 | P4-6 | Material requests, substitutes, unplanned material | planned |
 | P4-7 | Downtime and child orders | planned |
@@ -85,3 +85,22 @@ Phase 3 delivered the happy path of a production order (create, release, issue, 
 **Deployment order.** `pg-migrate` (SQL 012, 013), `db-migrate` (Identity 036), ManufacturingService, Admin. No Warehouse change.
 
 **Verification.** Manufacturing unit tests 690 -> 760, Architecture 91 (PostgreSQL drift clean: 12 / 13 applied twice), Admin 438 -> 459; `mfg-p43.js` ALL OK on glcheck and SYSTEM; contract check extended.
+
+## 7. P4-4 as built (non-conformance reports and rework orders)
+**Problem.** A lot with a Failed FQC stayed in quarantine for good (R279) and a failed in-process inspection only kept its quantity held.
+
+**Decisions.**
+- *The NCR is created in the save that records the failed result* (`INcrProgress.CreateForFailedInspectionAsync`), once per inspection (unique index), for the **whole inspected lot**: an FQC result decides the whole lot (decision 3). Its number is per **tenant** because it is also the idempotency key of the Warehouse movements (`<NCR>#<line>`, `...Q1` / `...Q2`).
+- *Execution = Warehouse first, then mark* (the FQC-pass pattern, R281): idempotent calls with fixed keys, an outage is `MFG_INT_001` and the person executes again; no new pending-document type.
+- *Use as is is a partial move + release*: `IQuarantineRelease.ReleaseQuantityAsync` moves the quantity (a part of a lot becomes a sub-lot, W7) and releases **the lot the move answered**, so the release never touches more than the line.
+- *Rework orders have no BOM.* `ProductionOrders.BomId` became optional (SQL 014) and `OrderSnapshotBuilder.BuildReworkAsync` builds one fixed-lot material (`SourceLotId`); availability treats it as covered by the lot, the reservation planner skips it, and the issue branch asks the Warehouse for a held-lot issue with the order in the reason (R267). A rework order cannot be edited or re-quantified.
+- *A Rework line is executed when its order is Completed* (hook in `StockPostingService.CompleteAsync` and the manual complete), so the NCR closes after the re-received lot is in (TC-E2E-002). Cancelling the rework order frees the line.
+- *Closing the NCR settles the receipt line* (`QcReleasedAt`), which clears the *quality hold* close condition and keeps the receipt non-reversible; an open NCR is part of that condition.
+- *Re-inspection vs NCR:* a re-inspection cancels an NCR with no started line (TC-QC-013 keeps working) and is refused once a line started (`MFG_NCR_004`).
+- *Owner answer:* IPQC failures offer Scrap and Use as is only (no WIP rework); a manual NCR from an operation report is a record.
+
+**Found while building.** The NCR number is a Warehouse key, so it must be unique per tenant (a per-plant counter would repeat the key across plants - the inspection-number lesson in reverse). `CreateReinspection` mutated the failed inspection before the NCR check could refuse it; the check now runs first.
+
+**Deployment order.** `pg-migrate` (SQL 014), `db-migrate` (Identity 037), ManufacturingService, Admin. No Warehouse change.
+
+**Verification.** Manufacturing unit tests 760 -> 793, Architecture 92 (PostgreSQL drift clean: 014 applied twice), Admin 459 -> 472; `mfg-p44.js` and the extended contract check ALL OK on glcheck and SYSTEM.

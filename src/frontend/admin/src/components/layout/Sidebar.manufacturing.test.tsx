@@ -50,4 +50,14 @@ describe('Manufacturing menu', () => {
     show('/manufacturing/inspections')
     expect(screen.getByRole('link', { name: 'Inspections' })).toHaveAttribute('href', '/manufacturing/inspections')
   })
+
+  it('shows Non-conformances only to a holder of the qc view permission (P4-4)', () => {
+    as(['manufacturing:bom:view'])
+    show()
+    expect(screen.queryByRole('link', { name: 'Non-conformances' })).toBeNull()
+
+    as(['manufacturing:qc:view'])
+    show('/manufacturing/ncrs')
+    expect(screen.getByRole('link', { name: 'Non-conformances' })).toHaveAttribute('href', '/manufacturing/ncrs')
+  })
 })

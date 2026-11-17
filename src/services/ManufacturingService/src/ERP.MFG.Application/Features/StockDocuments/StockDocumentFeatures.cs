@@ -193,6 +193,11 @@ public sealed class IssueMaterialHandler(
         {
             var item = items[material.ComponentItemId];
             var availability = await stock.GetAvailabilityAsync(material.ComponentItemId, material.WarehouseId, ct);
+            if (material.IsReworkSource)
+            {
+                lines.Add(ReworkLine(order, material, lotId, qty, availability));          // P4-4, BR-RW-02: the held lot of the non-conformance report, never from a reservation
+                continue;
+            }
             var held = open?.Lines.Where(l => l.ProductId == material.ComponentItemId && l.SourceLineId == material.Id).ToList() ?? [];
             var split = Plan(material, item, lotId, qty, availability, held, now);
             if (split.Reserved > 0) lines.Add(new NewStockLine(material.Id, material.LineNo, material.ComponentItemId, material.ComponentCode, material.WarehouseId, lotId, split.Reserved, true, null));
@@ -215,6 +220,22 @@ public sealed class IssueMaterialHandler(
         if (id is null || id == Guid.Empty) return false;
         var reason = await reasons.GetAsync(id.Value, ct);
         return reason is { IsActive: true, Type: ReasonType.OverIssue };
+    }
+
+    /// <summary>
+    /// The material of a rework order is ONE lot that is on quality hold (BR-RW-02): the caller may only name that lot (or none), it must still hold the quantity in the warehouse it sits in, and the line asks the
+    /// Warehouse to issue a held lot (<c>AllowHeldLot</c>) with the rework order named in the reason (R267). It is a free line: nothing is reserved for it.
+    /// </summary>
+    internal static NewStockLine ReworkLine(ProductionOrder order, ProductionOrderMaterial material, Guid? requestedLot, decimal qty, StockAvailability availability)
+    {
+        var lot = material.SourceLotId!.Value;
+        MfgRules.ThrowIf(requestedLot is { } named && named != lot, MfgErrors.Mat005, ("lot", material.SourceLotNumber ?? lot.ToString()));
+        var row = availability.Balances.FirstOrDefault(b => b.LotId == lot && b.WarehouseId == material.WarehouseId)
+                  ?? throw MfgRules.Fail(MfgErrors.Mat005, ("lot", material.SourceLotNumber ?? lot.ToString()));
+        MfgRules.ThrowIf(qty > Math.Max(row.Quantity, 0m), MfgErrors.Mat003, ("available", Math.Max(row.Quantity, 0m)));
+        var why = $"Rework order {order.OrderNo}" + (string.IsNullOrWhiteSpace(order.Notes) ? "" : $": {order.Notes}");
+        return new NewStockLine(material.Id, material.LineNo, material.ComponentItemId, material.ComponentCode, material.WarehouseId, lot, qty, false, null,
+            AllowHeldLot: true, MovementReason: why.Length > 200 ? why[..200] : why);
     }
 
     private static decimal PendingQty(IReadOnlyList<StockFlowLine> flows, Guid materialId, StockDocumentType type)

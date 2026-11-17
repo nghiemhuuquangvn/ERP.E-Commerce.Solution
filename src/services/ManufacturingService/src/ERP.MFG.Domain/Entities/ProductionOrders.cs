@@ -10,15 +10,15 @@ namespace ERP.MFG.Domain.Entities;
 
 /// <summary>The header facts of a new order. <c>Quantity</c> is in the item's base unit <c>UomId</c>.</summary>
 public sealed record OrderHeaderValues(
-    Guid PlantId, Guid ItemId, string ItemCode, string ItemName, decimal Quantity, Guid UomId, Guid BomId, Guid? RoutingId, int Priority, DateOnly DueDate,
+    Guid PlantId, Guid ItemId, string ItemCode, string ItemName, decimal Quantity, Guid UomId, Guid? BomId, Guid? RoutingId, int Priority, DateOnly DueDate,
     Guid OutputWarehouseId, OrderType OrderType, OrderSourceType SourceType, Guid? SourceRefId, Guid? ParentOrderId, string? Notes);
 
 /// <summary>What a Draft may be changed to (BR-PO-05): the item itself never changes.</summary>
-public sealed record OrderDraftChanges(decimal Quantity, DateOnly DueDate, int Priority, Guid BomId, Guid? RoutingId, Guid OutputWarehouseId, string? Notes);
+public sealed record OrderDraftChanges(decimal Quantity, DateOnly DueDate, int Priority, Guid? BomId, Guid? RoutingId, Guid OutputWarehouseId, string? Notes);
 
 public sealed record OrderMaterialValues(
     int LineNo, Guid ComponentItemId, string ComponentCode, string ComponentName, Guid UomId, int? OperationSeq, decimal RequiredQty, decimal ScrapPct,
-    IssueMethod IssueMethod, Guid WarehouseId, string? AlternativeGroup);
+    IssueMethod IssueMethod, Guid WarehouseId, string? AlternativeGroup, Guid? SourceLotId = null, string? SourceLotNumber = null);
 
 public sealed record OrderOperationValues(
     int OperationSeq, string Name, Guid WorkCenterId, string WorkCenterCode, decimal SetupTimeMinutes, decimal RunTimeMinutes, RunTimeBasis RunTimeBasis,
@@ -56,6 +56,11 @@ public class ProductionOrderMaterial : BaseEntity
     public string? AlternativeGroup { get; private set; }
     public bool IsUnplanned { get; private set; }
 
+    /// <summary>P4-4, BR-RW-02: the material of a rework order is this lot (non-conforming goods held in the quarantine warehouse). It is issued from that lot only and never reserved.</summary>
+    public Guid? SourceLotId { get; private set; }
+    public string? SourceLotNumber { get; private set; }
+    public bool IsReworkSource => SourceLotId is not null;
+
     /// <summary>How much of the net issued quantity was carried to consumption when the order was closed (BR-PO-16, condition 4).</summary>
     public decimal SettledIssueQty { get; private set; }
 
@@ -92,7 +97,7 @@ public class ProductionOrderMaterial : BaseEntity
     {
         Id = Guid.NewGuid(), OrderId = orderId, LineNo = v.LineNo, ComponentItemId = v.ComponentItemId, ComponentCode = v.ComponentCode,
         ComponentName = v.ComponentName, UomId = v.UomId, OperationSeq = v.OperationSeq, RequiredQty = v.RequiredQty, ScrapPct = v.ScrapPct,
-        IssueMethod = v.IssueMethod, WarehouseId = v.WarehouseId, AlternativeGroup = v.AlternativeGroup,
+        IssueMethod = v.IssueMethod, WarehouseId = v.WarehouseId, AlternativeGroup = v.AlternativeGroup, SourceLotId = v.SourceLotId, SourceLotNumber = v.SourceLotNumber,
     };
 
     internal void MarkDeleted() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
@@ -193,6 +198,16 @@ public class ProductionOrderOperation : BaseEntity
     internal void ReleaseHold(decimal qty) { IpqcHeldQty = Math.Max(0m, IpqcHeldQty - qty); UpdatedAt = DateTime.UtcNow; }
 
     internal void PassHeld(decimal qty) { ReleaseHold(qty); IpqcPassedQty += qty; }
+
+    /// <summary>P4-4: held good output of a failed in-process inspection is scrapped - it stops being Good and becomes Scrap (Good + Scrap + Rework is unchanged).</summary>
+    internal void ScrapHeld(decimal qty)
+    {
+        MfgRules.ThrowIf(qty <= 0 || qty > IpqcHeldQty || qty > GoodQty, MfgErrors.Ncr005, ("lot", $"công đoạn {OperationSeq}"), ("qty", qty), ("remaining", IpqcHeldQty));
+        IpqcHeldQty -= qty;
+        GoodQty -= qty;
+        ScrapQty += qty;
+        UpdatedAt = DateTime.UtcNow;
+    }
 
     internal void MarkCompleted(DateTime now)
     {
@@ -307,7 +322,8 @@ public class ProductionOrder : BaseEntity
     public string ItemName { get; private set; } = string.Empty;
     public decimal Quantity { get; private set; }
     public Guid UomId { get; private set; }
-    public Guid BomId { get; private set; }
+    /// <summary>The BOM the snapshot was taken from; null for a rework order (P4-4), whose only material is the non-conforming lot.</summary>
+    public Guid? BomId { get; private set; }
     public Guid? RoutingId { get; private set; }
     public OrderStatus Status { get; private set; } = OrderStatus.Draft;
     public OrderStatus? StatusBeforeHold { get; private set; }
@@ -669,7 +685,7 @@ public class ProductionOrder : BaseEntity
     /// The conditions of BR-PO-16 for the close checklist. (1) open material requests and (5) costing belong to later phases and are met; (4) is met when nothing issued is
     /// left unsettled or the user confirms that the rest is carried to consumption.
     /// </summary>
-    public IReadOnlyList<CloseCondition> CloseConditions(int openTimeLogs, int heldLots, int pendingDocuments, bool confirmConsumeRemaining)
+    public IReadOnlyList<CloseCondition> CloseConditions(int openTimeLogs, int heldLots, int pendingDocuments, bool confirmConsumeRemaining, int openNcrs = 0)
     {
         var unsettled = _materials.Where(m => !m.IsDeleted && m.UnsettledIssue > 0).ToList();
         var detail = string.Join(", ", unsettled.Select(m => $"{m.ComponentCode} {m.UnsettledIssue:0.######}"));
@@ -677,7 +693,7 @@ public class ProductionOrder : BaseEntity
         [
             new("OPEN_MATERIAL_REQUESTS", true, "Không còn yêu cầu cấp vật tư đang mở."),
             new("OPEN_TIME_LOGS", openTimeLogs == 0, openTimeLogs == 0 ? "Không còn phiên làm việc đang mở." : $"Còn {openTimeLogs} phiên làm việc đang mở."),
-            new("QUALITY_HOLD", heldLots == 0, heldLots == 0 ? "Không còn lô thành phẩm chờ kiểm." : $"Còn {heldLots} lô thành phẩm đang chờ kiểm."),
+            new("QUALITY_HOLD", heldLots == 0 && openNcrs == 0, heldLots == 0 && openNcrs == 0 ? "Không còn lô thành phẩm chờ kiểm." : $"Còn {heldLots} lô thành phẩm đang chờ kiểm và {openNcrs} phiếu không phù hợp chưa đóng."),
             new("UNSETTLED_MATERIAL", unsettled.Count == 0 || confirmConsumeRemaining,
                 unsettled.Count == 0 ? "Vật tư đã xuất đã được quyết toán." : confirmConsumeRemaining ? $"Phần còn lại sẽ kết chuyển tiêu hao: {detail}." : $"Vật tư đã xuất chưa quyết toán: {detail}."),
             new("COSTING", true, "Giá thành chưa áp dụng (Giai đoạn 6)."),
@@ -686,11 +702,11 @@ public class ProductionOrder : BaseEntity
     }
 
     /// <summary>BR-PO-16: Completed -> Closed when every condition is met; with <paramref name="confirmConsumeRemaining"/> the unsettled issued material is carried to consumption.</summary>
-    public void Close(string by, int openTimeLogs, int heldLots, int pendingDocuments, bool confirmConsumeRemaining)
+    public void Close(string by, int openTimeLogs, int heldLots, int pendingDocuments, bool confirmConsumeRemaining, int openNcrs = 0)
     {
         EnsureEditable();
         OrderStateMachine.EnsureTransition(Status, OrderStatus.Closed);
-        var unmet = CloseConditions(openTimeLogs, heldLots, pendingDocuments, confirmConsumeRemaining).Where(c => !c.Met).Select(c => c.Message).ToList();
+        var unmet = CloseConditions(openTimeLogs, heldLots, pendingDocuments, confirmConsumeRemaining, openNcrs).Where(c => !c.Met).Select(c => c.Message).ToList();
         MfgRules.ThrowIf(unmet.Count > 0, MfgErrors.Po013, ("conditions", string.Join("; ", unmet)));
 
         var carried = confirmConsumeRemaining && _materials.Any(m => !m.IsDeleted && m.UnsettledIssue > 0);
@@ -828,6 +844,20 @@ public class ProductionOrder : BaseEntity
         op.PassHeld(lotQty);
         var next = Operations.FirstOrDefault(o => o.OperationSeq > op.OperationSeq);
         if (next is { Status: OperationStatus.Pending } && op.NetOutputQty > 0) next.TransitionTo(OperationStatus.Ready);
+        CompleteSatisfiedOperations(now);
+        Touch(by);
+    }
+
+    /// <summary>
+    /// P4-4, BR-NCR-03: the held output of a failed in-process inspection is scrapped (a Scrap line of its NCR). No stock moves - the output is work in process; the operation
+    /// counts the units as Scrap instead of Good, and the order's scrapped quantity grows. The next operation's input is unchanged (net output = Good - held).
+    /// </summary>
+    public void ApplyIpqcScrap(int operationSeq, decimal qty, string by, DateTime now)
+    {
+        EnsureEditable();
+        var op = OperationOf(operationSeq);
+        op.ScrapHeld(qty);
+        ScrappedQty += qty;
         CompleteSatisfiedOperations(now);
         Touch(by);
     }

@@ -53,6 +53,7 @@ import { BomListPage, BomEditorPage, WhereUsedPage } from '@/pages/manufacturing
 import { RoutingListPage, RoutingEditorPage } from '@/pages/manufacturing/RoutingPages'
 import { InspectionPlanListPage, InspectionPlanEditorPage } from '@/pages/manufacturing/InspectionPlanPages'
 import { InspectionListPage, InspectionPage } from '@/pages/manufacturing/InspectionPages'
+import { NcrListPage, NcrPage } from '@/pages/manufacturing/NcrPages'
 import { ProductionOrderListPage } from '@/pages/manufacturing/OrderListPage'
 import { ProductionOrderDetailPage } from '@/pages/manufacturing/OrderDetailPage'
 import { StockDocumentsPage } from '@/pages/manufacturing/StockDocumentsPage'
@@ -224,6 +225,8 @@ export const router = createBrowserRouter([
       { path: 'manufacturing/inspection-plans/:id', element: <InspectionPlanEditorPage /> },
       { path: 'manufacturing/inspections', element: <InspectionListPage /> },
       { path: 'manufacturing/inspections/:id', element: <InspectionPage /> },
+      { path: 'manufacturing/ncrs', element: <NcrListPage /> },
+      { path: 'manufacturing/ncrs/:id', element: <NcrPage /> },
       { path: 'settings/notification-webhooks', element: <NotificationWebhooksPage /> },
       { path: 'promotion/promotions', element: <PromotionsPage /> },
       { path: 'promotion/flash-sales', element: <FlashSalesPage /> },

@@ -19,8 +19,12 @@ public sealed record InspectionResultDto(Guid CharacteristicId, int SampleNo, de
 
 public sealed record InspectionListItemDto(Guid Id, string DocNo, InspectionType Type, InspectionStatus Status, Guid OrderId, string OrderNo, int? OperationSeq, Guid ItemId, string ItemCode,
     string ItemName, Guid? LotId, string? LotNumber, decimal LotQty, decimal SampleQty, string PlanCode, int PlanVersion, Guid? ReceiptDocumentId, Guid? ReceiptLineId, Guid? OperationReportId,
-    string? InspectedBy, DateTime? InspectedAt, bool NcrRequired, Guid? ReinspectionOfId, Guid? ReinspectedById, DateTime? ReleasedAt, DateTime CreatedAt)
+    string? InspectedBy, DateTime? InspectedAt, bool NcrRequired, Guid? ReinspectionOfId, Guid? ReinspectedById, DateTime? ReleasedAt, DateTime CreatedAt,
+    Guid? NcrId = null, string? NcrNo = null, NcrStatus? NcrStatus = null)
 {
+    /// <summary>P4-4: the non-conformance report this inspection created (null when it did not fail).</summary>
+    public InspectionListItemDto WithNcr(NonConformance? ncr) => ncr is null ? this : this with { NcrId = ncr.Id, NcrNo = ncr.NcrNo, NcrStatus = ncr.Status };
+
     public static InspectionListItemDto From(Inspection i) => new(i.Id, i.DocNo, i.Type, i.Status, i.OrderId, i.OrderNo, i.OperationSeq, i.ItemId, i.ItemCode, i.ItemName, i.LotId, i.LotNumber,
         i.LotQty, i.SampleQty, i.PlanCode, i.PlanVersion, i.ReceiptDocumentId, i.ReceiptLineId, i.OperationReportId, i.InspectedBy, i.InspectedAt, i.NcrRequired, i.ReinspectionOfId,
         i.ReinspectedById, i.ReleasedAt, i.CreatedAt);
@@ -32,6 +36,8 @@ public sealed record PagedInspections(List<InspectionListItemDto> Items, int Tot
 public sealed record InspectionDto(InspectionListItemDto Inspection, SamplingMethod SamplingMethod, decimal? SampleValue, int AllowedMinorDefects, int Units,
     IReadOnlyList<InspectionCharacteristicDto> Characteristics, IReadOnlyList<InspectionResultDto> Results)
 {
+    public InspectionDto WithNcr(NonConformance? ncr) => this with { Inspection = Inspection.WithNcr(ncr) };
+
     public static InspectionDto From(Inspection i, InspectionPlan plan) => new(InspectionListItemDto.From(i), plan.SamplingMethod, plan.SampleValue, plan.AllowedMinorDefects,
         QualityRules.Units(i.SampleQty), plan.Characteristics.Select(InspectionCharacteristicDto.From).ToList(), i.Results.Select(InspectionResultDto.From).ToList());
 }
@@ -59,7 +65,7 @@ internal static class InspectionScope
 
 public sealed record GetInspectionsQuery(Guid PlantId, InspectionType? Type, InspectionStatus? Status, Guid? OrderId, Guid? ItemId, string? Search, int Page = 1, int PageSize = 50) : IRequest<PagedInspections>;
 
-public sealed class GetInspectionsHandler(IPlantAccessService access, IInspectionRepository inspections) : IRequestHandler<GetInspectionsQuery, PagedInspections>
+public sealed class GetInspectionsHandler(IPlantAccessService access, IInspectionRepository inspections, INcrRepository ncrs) : IRequestHandler<GetInspectionsQuery, PagedInspections>
 {
     public async Task<PagedInspections> Handle(GetInspectionsQuery r, CancellationToken ct)
     {
@@ -67,29 +73,32 @@ public sealed class GetInspectionsHandler(IPlantAccessService access, IInspectio
         var page = Math.Max(1, r.Page);
         var size = Math.Clamp(r.PageSize, 1, 200);
         var (items, total) = await inspections.ListAsync(new InspectionFilter(plant.Id, r.Type, r.Status, r.OrderId, r.ItemId, r.Search), page, size, ct);
-        return new PagedInspections(items.Select(InspectionListItemDto.From).ToList(), total, page, size);
+        var links = (await ncrs.ListByInspectionsAsync(items.Select(i => i.Id).ToList(), ct)).Where(n => n.InspectionId is not null).GroupBy(n => n.InspectionId!.Value).ToDictionary(g => g.Key, g => g.Last());
+        return new PagedInspections(items.Select(i => InspectionListItemDto.From(i).WithNcr(links.GetValueOrDefault(i.Id))).ToList(), total, page, size);
     }
 }
 
 public sealed record GetInspectionQuery(Guid Id) : IRequest<InspectionDto>;
 
-public sealed class GetInspectionHandler(IPlantAccessService access, IInspectionRepository inspections, IInspectionPlanRepository plans) : IRequestHandler<GetInspectionQuery, InspectionDto>
+public sealed class GetInspectionHandler(IPlantAccessService access, IInspectionRepository inspections, IInspectionPlanRepository plans, INcrRepository ncrs) : IRequestHandler<GetInspectionQuery, InspectionDto>
 {
     public async Task<InspectionDto> Handle(GetInspectionQuery r, CancellationToken ct)
     {
         var inspection = await InspectionScope.LoadAsync(inspections, access, r.Id, ct);
-        return InspectionDto.From(inspection, await InspectionScope.PlanOfAsync(plans, inspection, ct));
+        return InspectionDto.From(inspection, await InspectionScope.PlanOfAsync(plans, inspection, ct)).WithNcr(await ncrs.GetByInspectionAsync(inspection.Id, ct));
     }
 }
 
 public sealed record GetOrderInspectionsQuery(Guid OrderId) : IRequest<List<InspectionListItemDto>>;
 
-public sealed class GetOrderInspectionsHandler(IPlantAccessService access, IProductionOrderRepository orders, IInspectionRepository inspections) : IRequestHandler<GetOrderInspectionsQuery, List<InspectionListItemDto>>
+public sealed class GetOrderInspectionsHandler(IPlantAccessService access, IProductionOrderRepository orders, IInspectionRepository inspections, INcrRepository ncrs) : IRequestHandler<GetOrderInspectionsQuery, List<InspectionListItemDto>>
 {
     public async Task<List<InspectionListItemDto>> Handle(GetOrderInspectionsQuery r, CancellationToken ct)
     {
         var order = await OrderScope.LoadAsync(orders, access, r.OrderId, ct);
-        return (await inspections.ListForOrderAsync(order.Id, ct)).Select(InspectionListItemDto.From).ToList();
+        var list = await inspections.ListForOrderAsync(order.Id, ct);
+        var links = (await ncrs.ListByInspectionsAsync(list.Select(i => i.Id).ToList(), ct)).Where(n => n.InspectionId is not null).GroupBy(n => n.InspectionId!.Value).ToDictionary(g => g.Key, g => g.Last());
+        return list.Select(i => InspectionListItemDto.From(i).WithNcr(links.GetValueOrDefault(i.Id))).ToList();
     }
 }
 
@@ -122,7 +131,7 @@ public sealed record SubmitInspectionCommand(Guid Id, decimal? SampleQty, IReadO
 
 public sealed class SubmitInspectionHandler(
     IPlantAccessService access, IInspectionRepository inspections, IInspectionPlanRepository plans, IProductionOrderRepository orders, IStockDocumentRepository documents,
-    IQuarantineRelease release, OperationLogCloser logCloser, IPlantClock clock, IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<SubmitInspectionCommand, InspectionDto>
+    IQuarantineRelease release, OperationLogCloser logCloser, INcrProgress ncrProgress, INcrRepository ncrs, IPlantClock clock, IUserContextService user, IMfgUnitOfWork uow) : IRequestHandler<SubmitInspectionCommand, InspectionDto>
 {
     public async Task<InspectionDto> Handle(SubmitInspectionCommand r, CancellationToken ct)
     {
@@ -155,8 +164,9 @@ public sealed class SubmitInspectionHandler(
         }
 
         inspection.Complete(outcome, by, now);
+        if (!outcome.Passed) await ncrProgress.CreateForFailedInspectionAsync(inspection, by, ct);   // P4-4, T4.10.1: the NCR is made in the same save as the failed result
         await uow.SaveChangesAsync(ct);
-        return InspectionDto.From(inspection, plan);
+        return InspectionDto.From(inspection, plan).WithNcr(outcome.Passed ? null : await ncrs.GetByInspectionAsync(inspection.Id, ct));
     }
 }
 
@@ -164,7 +174,7 @@ public sealed class SubmitInspectionHandler(
 public sealed record ReinspectCommand(Guid Id) : IRequest<InspectionDto>;
 
 public sealed class ReinspectHandler(
-    IPlantAccessService access, IInspectionRepository inspections, IInspectionPlanRepository plans, IDocumentNumberService numbers, IPlantClock clock, IMfgUnitOfWork uow)
+    IPlantAccessService access, IInspectionRepository inspections, IInspectionPlanRepository plans, INcrProgress ncrProgress, IDocumentNumberService numbers, IPlantClock clock, IUserContextService user, IMfgUnitOfWork uow)
     : IRequestHandler<ReinspectCommand, InspectionDto>
 {
     public async Task<InspectionDto> Handle(ReinspectCommand r, CancellationToken ct)
@@ -172,6 +182,7 @@ public sealed class ReinspectHandler(
         var failed = await InspectionScope.LoadAsync(inspections, access, r.Id, ct);
         var plant = await access.GetVisiblePlantAsync(failed.PlantId, ct);
         var docNo = await numbers.NextAsync(DocumentTypes.Inspection, plant.Id, clock.Today(plant).ToDateTime(TimeOnly.MinValue), ct);
+        await ncrProgress.CancelForReinspectionAsync(failed, user.GetUserId(), ct);   // P4-4: the re-inspection replaces the NCR while no line started (MFG_NCR_004 otherwise), checked before anything changes
         var again = failed.CreateReinspection(docNo);
         inspections.Add(again);
         await uow.SaveChangesAsync(ct);

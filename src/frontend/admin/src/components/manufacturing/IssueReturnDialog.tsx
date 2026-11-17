@@ -36,7 +36,7 @@ export function IssueReturnDialog({ order, mode, initialLineNo, onClose, onDone 
   const candidates = order.materials.filter((m) => (mode === 'issue' ? m.issueMethod !== 'Backflush' : netIssued(m) > 0))
   const first = candidates.find((m) => m.lineNo === initialLineNo)
   const [nextId, setNextId] = useState(2)
-  const [entries, setEntries] = useState<Entry[]>(first ? [{ id: 1, lineNo: first.lineNo, quantity: defaultQuantity(first, mode), lotText: '', lotId: null }] : [])
+  const [entries, setEntries] = useState<Entry[]>(first ? [{ id: 1, lineNo: first.lineNo, quantity: defaultQuantity(first, mode), lotText: fixedLot(first, mode).text, lotId: fixedLot(first, mode).id }] : [])
   const [note, setNote] = useState('')
   const [overReasonId, setOverReasonId] = useState('')
   const [needOverReason, setNeedOverReason] = useState(false)
@@ -144,7 +144,7 @@ export function IssueReturnDialog({ order, mode, initialLineNo, onClose, onDone 
               <li key={e.id} className="rounded-lg border border-line p-3">
                 <div className="grid gap-3 sm:grid-cols-[2fr_1fr_1.5fr_auto] sm:items-end">
                   <FormField label={t('mfg.issue.material')}>
-                    <Select value={e.lineNo} onChange={(ev) => { const line = Number(ev.target.value); const mat = order.materials.find((x) => x.lineNo === line); patch(e.id, { lineNo: line || '', quantity: mat ? defaultQuantity(mat, mode) : e.quantity, lotText: '', lotId: null }) }}>
+                    <Select value={e.lineNo} onChange={(ev) => { const line = Number(ev.target.value); const mat = order.materials.find((x) => x.lineNo === line); const fixed = mat ? fixedLot(mat, mode) : { text: '', id: null }; patch(e.id, { lineNo: line || '', quantity: mat ? defaultQuantity(mat, mode) : e.quantity, lotText: fixed.text, lotId: fixed.id }) }}>
                       <option value="">{t('common.select')}</option>
                       {candidates.map((c) => <option key={c.lineNo} value={c.lineNo}>{c.componentCode} - {c.componentName}</option>)}
                     </Select>
@@ -152,10 +152,11 @@ export function IssueReturnDialog({ order, mode, initialLineNo, onClose, onDone 
                   <FormField label={t('mfg.issue.quantity')}>
                     <Input type="number" step="any" min="0" value={e.quantity} onChange={(ev) => patch(e.id, { quantity: ev.target.value })} />
                   </FormField>
-                  <FormField label={t('mfg.issue.lot')} error={lotErrors[e.id] || undefined} hint={e.lotId ? t('mfg.issue.lotFound') : t('mfg.issue.lotHint')}>
+                  <FormField label={t('mfg.issue.lot')} error={lotErrors[e.id] || undefined} hint={m?.sourceLotId && mode === 'issue' ? t('mfg.ncr.fixedLot') : e.lotId ? t('mfg.issue.lotFound') : t('mfg.issue.lotHint')}>
                     <Input
                       list={listId}
                       value={e.lotText}
+                      readOnly={!!m?.sourceLotId && mode === 'issue'}
                       autoComplete="off"
                       onChange={(ev) => patch(e.id, { lotText: ev.target.value, lotId: null })}
                       onBlur={() => e.lotText.trim() && !e.lotId && resolveLot(e)}
@@ -164,7 +165,7 @@ export function IssueReturnDialog({ order, mode, initialLineNo, onClose, onDone 
                     <datalist id={listId}>{lotsOf(e).filter((l) => mode === 'return' || l.status === undefined || l.status === 'Available').map((l) => <option key={l.lotId} value={l.lotNumber}>{fmtQty(l.remainingQuantity)}</option>)}</datalist>
                   </FormField>
                   <div className="flex gap-2">
-                    {mode === 'issue' && (
+                    {mode === 'issue' && !m?.sourceLotId && (
                       <Button type="button" size="sm" variant="secondary" disabled={e.lineNo === '' || !(toNumber(e.quantity) > 0)} loading={suggest.isPending && suggest.variables?.id === e.id} onClick={() => suggest.mutate(e)}>{t('mfg.issue.suggest')}</Button>
                     )}
                     <Button type="button" size="sm" variant="ghost" iconOnly aria-label={t('mfg.issue.removeLine', { n: i + 1 })} onClick={() => setEntries((rows) => rows.filter((r) => r.id !== e.id))}><Trash2 size={16} aria-hidden="true" /></Button>
@@ -185,6 +186,11 @@ export function IssueReturnDialog({ order, mode, initialLineNo, onClose, onDone 
       </form>
     </Modal>
   )
+}
+
+/** P4-4: the lot a rework order consumes is fixed by its non-conformance report; nothing else can be issued to it. */
+function fixedLot(m: OrderMaterial, mode: 'issue' | 'return'): { text: string; id: string | null } {
+  return m.sourceLotId && mode === 'issue' ? { text: m.sourceLotNumber ?? '', id: m.sourceLotId } : { text: '', id: null }
 }
 
 /** What is still to issue (required less net issued) or to return (net issued). */

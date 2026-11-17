@@ -82,6 +82,33 @@ internal sealed class InspectionFake(Fakes f) : IInspectionRepository
     public void Add(Inspection inspection) => f.Inspections.Add(inspection);
 }
 
+internal sealed class NcrFake(Fakes f) : INcrRepository
+{
+    public Task<NonConformance?> GetAsync(Guid id, CancellationToken ct = default) => Task.FromResult(f.Ncrs.FirstOrDefault(n => n.Id == id && !n.IsDeleted));
+
+    public Task<NonConformance?> GetByInspectionAsync(Guid inspectionId, CancellationToken ct = default) => Task.FromResult(f.Ncrs.FirstOrDefault(n => !n.IsDeleted && n.InspectionId == inspectionId));
+
+    public Task<NonConformance?> GetByReworkOrderAsync(Guid orderId, CancellationToken ct = default)
+        => Task.FromResult(f.Ncrs.FirstOrDefault(n => !n.IsDeleted && n.AllDispositions.Any(d => !d.IsDeleted && d.ReworkOrderId == orderId)));
+
+    public Task<List<NonConformance>> ListByInspectionsAsync(IReadOnlyCollection<Guid> inspectionIds, CancellationToken ct = default)
+        => Task.FromResult(f.Ncrs.Where(n => !n.IsDeleted && n.InspectionId != null && inspectionIds.Contains(n.InspectionId.Value)).ToList());
+
+    public Task<(List<NonConformance> Items, int Total)> ListAsync(NcrFilter filter, int page, int pageSize, CancellationToken ct = default)
+    {
+        var q = f.Ncrs.Where(n => !n.IsDeleted && n.PlantId == filter.PlantId && (filter.Status == null || n.Status == filter.Status) && (filter.Source == null || n.SourceType == filter.Source)
+            && (filter.OrderId == null || n.OrderId == filter.OrderId) && (!filter.OpenOnly || n.IsOpen)).OrderByDescending(n => n.CreatedAt).ToList();
+        return Task.FromResult((q.Skip((page - 1) * pageSize).Take(pageSize).ToList(), q.Count));
+    }
+
+    public Task<List<NonConformance>> ListForOrderAsync(Guid orderId, CancellationToken ct = default)
+        => Task.FromResult(f.Ncrs.Where(n => !n.IsDeleted && n.OrderId == orderId).OrderByDescending(n => n.CreatedAt).ToList());
+
+    public Task<int> CountOpenForOrderAsync(Guid orderId, CancellationToken ct = default) => Task.FromResult(f.Ncrs.Count(n => !n.IsDeleted && n.OrderId == orderId && n.IsOpen));
+
+    public void Add(NonConformance ncr) => f.Ncrs.Add(ncr);
+}
+
 internal sealed class UnitFake(Fakes f) : IUnitOfMeasureClient
 {
     public Task<IReadOnlyList<UnitInfo>> LookupAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default)

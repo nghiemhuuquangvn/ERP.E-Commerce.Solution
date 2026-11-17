@@ -22,6 +22,8 @@ export interface OrderActions {
   qcRelease: boolean
   /** The Quality tab (inspections of the order): needs manufacturing:qc:view. */
   viewQuality: boolean
+  /** Raise a non-conformance report from an operation report (P4-4, record only): needs manufacturing:qc:inspect. */
+  raiseNcr: boolean
   retryDocuments: boolean
   /** Reverse an operation report (P4-2): the order must be open for work; a Completed order is reopened first. */
   reverseReport: boolean
@@ -46,6 +48,7 @@ export const ORDER_PERMISSION = {
   completeManual: 'manufacturing:operation:complete-manual',
   qc: 'manufacturing:qc:disposition',
   qcView: 'manufacturing:qc:view',
+  qcInspect: 'manufacturing:qc:inspect',
   retry: 'manufacturing:stock-document:retry',
   reverseReport: 'manufacturing:operation:reverse',
   reverseReceipt: 'manufacturing:receipt:reverse',
@@ -53,7 +56,7 @@ export const ORDER_PERMISSION = {
 
 const NONE: OrderActions = {
   edit: false, release: false, unrelease: false, cancel: false, hold: false, resume: false, changeQuantity: false, issue: false, returnMaterial: false, receive: false,
-  complete: false, reopen: false, close: false, work: false, operationManual: false, qcRelease: false, viewQuality: false, retryDocuments: false, reverseReport: false, reverseReceipt: false,
+  complete: false, reopen: false, close: false, work: false, operationManual: false, qcRelease: false, viewQuality: false, raiseNcr: false, retryDocuments: false, reverseReport: false, reverseReceipt: false,
 }
 
 export function orderActions(status: OrderStatus, has: (permission: string) => boolean): OrderActions {
@@ -79,6 +82,7 @@ export function orderActions(status: OrderStatus, has: (permission: string) => b
     // the interim quality release and the document retry do not depend on the order's status
     qcRelease: status !== 'Draft' && status !== 'Cancelled' && has(p.qc),
     viewQuality: has(p.qcView),
+    raiseNcr: status !== 'Draft' && status !== 'Cancelled' && has(p.qcInspect),
     retryDocuments: has(p.retry),
     reverseReport: open && has(p.reverseReport),
     reverseReceipt: (open || status === 'Completed') && has(p.reverseReceipt),

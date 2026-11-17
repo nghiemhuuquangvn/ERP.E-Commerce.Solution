@@ -25,6 +25,12 @@ public sealed class OrderAvailabilityService(IWarehouseStockClient stock, IPlant
         var result = new Dictionary<int, decimal>();
         for (var i = 0; i < materials.Count; i++)
         {
+            if (materials[i].SourceLotId is { } sourceLot)
+            {
+                // P4-4, BR-RW-02: a rework order consumes one named lot that sits on quality hold - it is covered by that lot, not by Available stock, and is never reserved
+                result[materials[i].LineNo] = answers[i].Balances.Where(b => b.LotId == sourceLot).Sum(b => Math.Max(b.Quantity, 0m));
+                continue;
+            }
             var warehouse = materials[i].WarehouseId;
             var inWarehouse = answers[i].Balances
                 .Where(b => b.WarehouseId == warehouse && (b.LotId == null || (b.LotStatus == "Available" && (b.ExpiryDate is null || b.ExpiryDate > now))))
@@ -101,7 +107,7 @@ public sealed class OrderReservationSync(IWarehouseStockClient stock, IOrderAvai
         var allocatable = await availability.AllocatableAsync(order, ct);
         var wanted = order.Materials
             .Select(m => (Material: m, Plan: ReservationPlanner.Plan(new ReservationNeed(m.LineNo, m.ComponentItemId, m.ComponentCode, m.OpenNeed, allocatable.GetValueOrDefault(m.LineNo), ownHeld.GetValueOrDefault(m.Id)))))
-            .Where(x => x.Plan.Target > 0)
+            .Where(x => x.Plan.Target > 0 && !x.Material.IsReworkSource)   // the lot of a rework order is never reserved (P4-4)
             .ToList();
 
         if (open != null && Matches(open, wanted))

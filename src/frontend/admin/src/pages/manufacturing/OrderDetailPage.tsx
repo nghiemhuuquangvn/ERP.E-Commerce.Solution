@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { mfgApi, type MaterialAvailability, type Order, type OrderActionResult } from '@/api/manufacturing/mfg.api'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { TabList } from '@/components/shared/PageTabs'
-import { Alert, Button, FormField, Input, Modal, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Alert, Badge, Button, FormField, Input, Modal, Skeleton, Textarea, useToast } from '@/components/ui'
 import { usePermission } from '@/hooks/usePermission'
 import { serverMessage } from '@/lib/serverMessage'
 import { CloseOrderDialog } from '@/components/manufacturing/CloseOrderDialog'
@@ -54,6 +54,9 @@ export function ProductionOrderDetailPage() {
 
   // P4-3: the inspections of the order (the Quality tab, and the receipt lines that have one)
   const inspections = useQuery({ queryKey: ['mfg', 'order', id, 'inspections'], queryFn: () => mfgApi.orderInspections(id), enabled: hasPermission('manufacturing:qc:view') })
+
+  // P4-4: the non-conformance reports of the order (listed in the Quality tab)
+  const ncrs = useQuery({ queryKey: ['mfg', 'order', id, 'ncrs'], queryFn: () => mfgApi.orderNcrs(id), enabled: hasPermission('manufacturing:qc:view') })
 
   const reload = () => {
     queryClient.invalidateQueries({ queryKey: ['mfg', 'order', id] })
@@ -132,12 +135,18 @@ export function ProductionOrderDetailPage() {
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <OrderStatusBadge status={o.status} />
+        {o.isRework && <Badge variant="warning">{t('mfg.ncr.reworkBadge')}</Badge>}
         {o.status === 'OnHold' && o.statusBeforeHold && <span className="text-xs text-ink-secondary">{t('mfg.order.heldFrom', { status: t(`mfg.orderStatus.${o.statusBeforeHold}`) })}</span>}
         <LateFlag late={o.isLate} />
         <div className="ml-auto flex flex-wrap gap-2">{actions}</div>
       </div>
 
       <div className="mb-4 space-y-2">
+        {o.sourceType === 'Ncr' && o.sourceRefId && (
+          <Alert variant="info" title={t('mfg.ncr.reworkOf')}>
+            {t('mfg.ncr.reworkOfHint')} {can.viewQuality && <Link className="underline" to={`/manufacturing/ncrs/${o.sourceRefId}`}>{t('mfg.ncr.openNcr')}</Link>}
+          </Alert>
+        )}
         {o.pendingStockDocuments > 0 && <Alert variant="info">{t('mfg.order.pendingDocs', { count: o.pendingStockDocuments })}</Alert>}
         {o.reservationSyncPending && <Alert variant="info">{t('mfg.order.syncPending')}</Alert>}
         {o.reservationSyncError && <Alert variant="warning">{t('mfg.order.syncError', { error: o.reservationSyncError })}</Alert>}
@@ -155,7 +164,7 @@ export function ProductionOrderDetailPage() {
         {tab === 'materials' && <MaterialsTab order={o} can={can} onIssue={(lineNo) => setDialog({ kind: 'issue', lineNo })} onReturn={(lineNo) => setDialog({ kind: 'return', lineNo })} />}
         {tab === 'operations' && <OperationsTab order={o} can={can} reload={reload} />}
         {tab === 'receipts' && <ReceiptsTab order={o} can={can} documents={docs} inspections={inspections.data ?? []} onReceive={() => setDialog({ kind: 'receive' })} reload={reload} />}
-        {tab === 'quality' && <QualityTab inspections={inspections.data ?? []} />}
+        {tab === 'quality' && <QualityTab inspections={inspections.data ?? []} ncrs={ncrs.data ?? []} />}
         {tab === 'documents' && <DocumentsTab documents={docs} can={can} reload={reload} />}
         {tab === 'history' && <HistoryTab order={o} />}
       </div>

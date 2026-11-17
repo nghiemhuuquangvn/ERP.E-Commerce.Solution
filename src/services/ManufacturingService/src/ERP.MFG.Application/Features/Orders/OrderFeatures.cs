@@ -10,10 +10,10 @@ namespace ERP.MFG.Application.Features.Orders;
 
 public sealed record OrderMaterialDto(int LineNo, Guid ComponentItemId, string ComponentCode, string ComponentName, Guid UomId, int? OperationSeq, decimal RequiredQty,
     decimal IssuedQty, decimal ReturnedQty, decimal ConsumedQty, decimal ReservedQty, decimal ScrapPct, IssueMethod IssueMethod, Guid WarehouseId, bool IsSubstitute,
-    string? AlternativeGroup, bool IsUnplanned)
+    string? AlternativeGroup, bool IsUnplanned, Guid? SourceLotId = null, string? SourceLotNumber = null)
 {
     public static OrderMaterialDto From(ProductionOrderMaterial m) => new(m.LineNo, m.ComponentItemId, m.ComponentCode, m.ComponentName, m.UomId, m.OperationSeq, m.RequiredQty,
-        m.IssuedQty, m.ReturnedQty, m.ConsumedQty, m.ReservedQty, m.ScrapPct, m.IssueMethod, m.WarehouseId, m.IsSubstitute, m.AlternativeGroup, m.IsUnplanned);
+        m.IssuedQty, m.ReturnedQty, m.ConsumedQty, m.ReservedQty, m.ScrapPct, m.IssueMethod, m.WarehouseId, m.IsSubstitute, m.AlternativeGroup, m.IsUnplanned, m.SourceLotId, m.SourceLotNumber);
 }
 
 public sealed record OrderOperationDto(int OperationSeq, string Name, Guid WorkCenterId, string WorkCenterCode, decimal SetupTimeMinutes, decimal RunTimeMinutes,
@@ -32,7 +32,7 @@ public sealed record OrderOutputDto(int LineNo, BomLineType LineType, Guid ItemI
 }
 
 public sealed record OrderDto(
-    Guid Id, string OrderNo, Guid PlantId, OrderType OrderType, Guid ItemId, string ItemCode, string ItemName, decimal Quantity, Guid UomId, Guid BomId, Guid? RoutingId,
+    Guid Id, string OrderNo, Guid PlantId, OrderType OrderType, Guid ItemId, string ItemCode, string ItemName, decimal Quantity, Guid UomId, Guid? BomId, Guid? RoutingId,
     OrderStatus Status, OrderStatus? StatusBeforeHold, int Priority, DateOnly DueDate, DateTime PlannedStart, DateTime PlannedEnd, DateTime? ActualStart, DateTime? ActualEnd,
     bool IsLate, Guid OutputWarehouseId, OrderSourceType SourceType, Guid? SourceRefId, Guid? ParentOrderId, decimal CompletedQty, decimal ScrappedQty, bool IsRework, string? Notes,
     Guid? ReservationId, bool ReservationSyncPending, string? ReservationSyncError, IReadOnlyList<OrderMaterialDto> Materials, IReadOnlyList<OrderOperationDto> Operations, IReadOnlyList<OrderOutputDto> Outputs, IReadOnlyList<string> Warnings, int PendingStockDocuments = 0)
@@ -108,6 +108,7 @@ public sealed class UpdateOrderHandler(
     {
         var order = await OrderScope.LoadAsync(orders, access, r.Id, ct);
         order.EnsureDraft();
+        if (order.IsRework) throw MfgRules.Invalid("A rework order is built from the disposition line of its non-conformance report and cannot be edited.");
         var plant = await access.GetVisiblePlantAsync(order.PlantId, ct);
 
         // the version used so far stays unless the caller names another one (Regenerate keeps the plan-start date of the old schedule as the reference day)

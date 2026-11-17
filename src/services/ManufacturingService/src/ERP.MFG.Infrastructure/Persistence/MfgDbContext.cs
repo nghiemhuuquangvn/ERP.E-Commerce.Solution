@@ -48,6 +48,8 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
     public DbSet<InspectionCharacteristic> InspectionCharacteristics => Set<InspectionCharacteristic>();
     public DbSet<Inspection> Inspections => Set<Inspection>();
     public DbSet<InspectionResult> InspectionResults => Set<InspectionResult>();
+    public DbSet<NonConformance> NonConformances => Set<NonConformance>();
+    public DbSet<NcrDisposition> NcrDispositions => Set<NcrDisposition>();
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<ProductionOrderMaterial> ProductionOrderMaterials => Set<ProductionOrderMaterial>();
     public DbSet<ProductionOrderOperation> ProductionOrderOperations => Set<ProductionOrderOperation>();
@@ -350,6 +352,46 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.HasIndex(x => new { x.TenantId, x.InspectionId, x.CharacteristicId, x.SampleNo }).IsUnique();
         });
 
+        modelBuilder.Entity<NonConformance>(e =>
+        {
+            e.ToTable("NonConformances");
+            e.Property(x => x.NcrNo).HasMaxLength(30).IsRequired();
+            e.Property(x => x.SourceType).HasConversion<short>();
+            e.Property(x => x.Status).HasConversion<short>();
+            e.Property(x => x.OrderNo).HasMaxLength(30).IsRequired();
+            e.Property(x => x.ItemCode).HasMaxLength(100).IsRequired();
+            e.Property(x => x.ItemName).HasMaxLength(255).IsRequired();
+            e.Property(x => x.LotNumber).HasMaxLength(100);
+            e.Property(x => x.NonconformingQty).HasPrecision(18, 6);
+            e.Property(x => x.ClosedBy).HasMaxLength(200);
+            e.Ignore(x => x.Dispositions);
+            e.Ignore(x => x.IsOpen);
+            e.Ignore(x => x.IsInProcess);
+            e.Ignore(x => x.IsRecordOnly);
+            e.Ignore(x => x.HasStarted);
+            e.HasIndex(x => new { x.TenantId, x.NcrNo }).IsUnique();                       // the number is a Warehouse key, so it is unique per tenant
+            e.HasIndex(x => new { x.TenantId, x.InspectionId }).IsUnique().HasFilter("\"InspectionId\" IS NOT NULL");
+            e.HasIndex(x => new { x.TenantId, x.PlantId, x.Status });
+            e.HasIndex(x => new { x.TenantId, x.OrderId });
+            e.HasMany(x => x.AllDispositions).WithOne().HasForeignKey(d => d.NcrId);
+            e.Navigation(x => x.AllDispositions).HasField("_dispositions").UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<NcrDisposition>(e =>
+        {
+            e.ToTable("NcrDispositions");
+            e.Property(x => x.Type).HasConversion<short>();
+            e.Property(x => x.Qty).HasPrecision(18, 6);
+            e.Property(x => x.Note).HasMaxLength(500);
+            e.Property(x => x.ApprovedBy).HasMaxLength(200);
+            e.Property(x => x.MovementKey).HasMaxLength(60);
+            e.Property(x => x.ResultLotNumber).HasMaxLength(100);
+            e.Property(x => x.ExecutedBy).HasMaxLength(200);
+            e.Ignore(x => x.IsStarted);
+            e.HasIndex(x => new { x.TenantId, x.NcrId, x.LineNo }).IsUnique().HasFilter("\"IsDeleted\" = false");
+            e.HasIndex(x => new { x.TenantId, x.ReworkOrderId });
+        });
+
         modelBuilder.Entity<ProductionOrder>(e =>
         {
             e.ToTable("ProductionOrders");
@@ -397,6 +439,8 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.ScrapPct).HasPrecision(5, 2);
             e.Property(x => x.IssueMethod).HasConversion<short>();
             e.Property(x => x.AlternativeGroup).HasMaxLength(20);
+            e.Property(x => x.SourceLotNumber).HasMaxLength(100);
+            e.Ignore(x => x.IsReworkSource);
             e.Ignore(x => x.NetIssuedQty);
             e.Ignore(x => x.UnsettledIssue);
             e.Ignore(x => x.OpenNeed);
@@ -488,6 +532,7 @@ public class MfgDbContext : DbContext, ITenantScopedDbContext
             e.Property(x => x.UnitCost).HasPrecision(18, 6);
             e.Property(x => x.Amount).HasPrecision(18, 4);
             e.Property(x => x.Error).HasMaxLength(500);
+            e.Property(x => x.MovementReason).HasMaxLength(200);
             e.Property(x => x.Kind).HasConversion<short>();
             e.Property(x => x.LotNumber).HasMaxLength(100);
             e.HasIndex(x => new { x.TenantId, x.LotNumber }).HasFilter("\"LotNumber\" IS NOT NULL");

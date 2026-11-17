@@ -114,6 +114,11 @@ public class OrdersController(IMediator mediator) : ControllerBase
     [AuthorizePermission(PermissionConstants.Manufacturing_QcView)]
     public async Task<IActionResult> Inspections(Guid id, CancellationToken ct) => Ok(await mediator.Send(new ERP.MFG.Application.Features.Inspections.GetOrderInspectionsQuery(id), ct));
 
+    /// <summary>The non-conformance reports of the order, newest first (P4-4).</summary>
+    [HttpGet("{id:guid}/ncrs")]
+    [AuthorizePermission(PermissionConstants.Manufacturing_QcView)]
+    public async Task<IActionResult> Ncrs(Guid id, CancellationToken ct) => Ok(await mediator.Send(new ERP.MFG.Application.Features.Ncr.GetOrderNcrsQuery(id), ct));
+
     // ── Finished goods, complete, reopen, close (P3-5) ───────────────────────────────────────────────────────
 
     /// <summary>

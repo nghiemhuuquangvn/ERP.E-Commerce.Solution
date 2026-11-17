@@ -7,7 +7,7 @@ namespace ERP.MFG.Domain.Entities;
 /// <summary>A line to store: ONE Warehouse movement of one material of the order.</summary>
 public sealed record NewStockLine(Guid? OrderMaterialId, int? MaterialLineNo, Guid ItemId, string ItemCode, Guid WarehouseId, Guid? LotId, decimal Qty, bool IsFromReservation, decimal? UnitCost, bool IsNegativeStock = false,
     StockLineKind Kind = StockLineKind.Material, Guid? OrderOutputId = null, int? OutputLineNo = null, string? LotNumber = null, DateTime? ExpiryDate = null, DateTime? ManufactureDate = null, bool IsQcHold = false,
-    ReversalAction? Action = null, Guid? ReversesLineId = null)
+    ReversalAction? Action = null, Guid? ReversesLineId = null, bool AllowHeldLot = false, string? MovementReason = null)
 {
     /// <summary>A line that brings the main product (<paramref name="outputId"/> null) or a co- / by-product into stock (P3-5). The lot is created by the Warehouse from <paramref name="lotNumber"/>.</summary>
     public static NewStockLine Receipt(Guid itemId, string itemCode, Guid warehouseId, decimal qty, Guid? outputId, int? outputLineNo, string? lotNumber, DateTime? expiry, DateTime? manufactured, bool qcHold)
@@ -70,6 +70,12 @@ public class MaterialTransactionLine : BaseEntity
 
     public Guid? ReversesLineId { get; private set; }
 
+    /// <summary>P4-4, BR-RW-02: the issue of a rework order takes the non-conforming lot although it is on quality hold. Only the rework branch of the issue sets it; the Warehouse demands the reason.</summary>
+    public bool AllowHeldLot { get; private set; }
+
+    /// <summary>The reason sent with the movement (a held-lot issue names the rework order and its NCR).</summary>
+    public string? MovementReason { get; private set; }
+
     private readonly List<MaterialTransactionLineLot> _lots = [];
 
     /// <summary>The lots the Warehouse really used for this line (W7), in answer order; empty for a line posted before they were stored or a lot-less line.</summary>
@@ -108,7 +114,7 @@ public class MaterialTransactionLine : BaseEntity
     {
         Id = Guid.NewGuid(), TransactionId = transactionId, LineNo = lineNo, OrderMaterialId = v.OrderMaterialId, MaterialLineNo = v.MaterialLineNo, ItemId = v.ItemId, ItemCode = v.ItemCode,
         WarehouseId = v.WarehouseId, LotId = v.LotId, Qty = v.Qty, IsFromReservation = v.IsFromReservation, UnitCost = v.UnitCost, IsNegativeStock = v.IsNegativeStock,
-        Kind = v.Kind, OrderOutputId = v.OrderOutputId, OutputLineNo = v.OutputLineNo, LotNumber = v.LotNumber, ExpiryDate = v.ExpiryDate, ManufactureDate = v.ManufactureDate, IsQcHold = v.IsQcHold, ReversalAction = v.Action, ReversesLineId = v.ReversesLineId,
+        Kind = v.Kind, OrderOutputId = v.OrderOutputId, OutputLineNo = v.OutputLineNo, LotNumber = v.LotNumber, ExpiryDate = v.ExpiryDate, ManufactureDate = v.ManufactureDate, IsQcHold = v.IsQcHold, ReversalAction = v.Action, ReversesLineId = v.ReversesLineId, AllowHeldLot = v.AllowHeldLot, MovementReason = v.MovementReason,
         MovementKey = KeyFor(docNo, lineNo, v.Kind == StockLineKind.Material && type is not (StockDocumentType.Return or StockDocumentType.Reversal) && !v.IsFromReservation),
     };
 
