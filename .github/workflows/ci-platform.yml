@@ -1,0 +1,165 @@
+# ════════════════════════════════════════════════════════════════════════════════
+# Platform-wide quality gate — the rules of CLAUDE.md that span every service.
+# Runs on every PR / master push that touches code, tests, database scripts or manifests,
+# and should be a REQUIRED status check of the master branch protection.
+#
+#   workflows     actionlint + .github/check-services.js (release table == per-service workflows)
+#   architecture  ERP.Architecture.Tests (tenant isolation, endpoint authorization, internal
+#                 routes, no shared token key, no tenant fallback in deployment/, refusal baseline,
+#                 stock ledger, ...) + ERP.Shared.UnitTests (outbox / EventJson / revocation rules)
+#   drift-sql     applies src/Database (SQL Server) to an empty server, then LiveSchemaDriftTests
+#                 compares every EF model with it (a missing column fails the build)
+#   drift-pg      PostgreSqlSchemaDriftTests: Manufacturing scripts applied twice (idempotent) vs MfgDbContext
+# ════════════════════════════════════════════════════════════════════════════════
+name: ci · platform
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/**
+      - tests/**
+      - deployment/**
+      - Dockerfile
+      - .github/**
+  pull_request:
+    branches: [master]
+    paths:
+      - src/**
+      - tests/**
+      - deployment/**
+      - Dockerfile
+      - .github/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-platform-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  # Throw-away password of the CI-only SQL Server container (never reachable from outside the runner).
+  CI_SA_PASSWORD: ${{ secrets.CI_SA_PASSWORD || 'Ci_Only_Pa55word!' }}
+
+jobs:
+  workflows:
+    name: Workflows & service table
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      # Syntax, expressions, needs/outputs, shellcheck of every run: block.
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7 -color
+      # .github/services.json (release) == svc-*.yml == docker-compose.yml == k8s Deployments
+      - name: Service table consistency
+        run: node .github/check-services.js
+
+  architecture:
+    name: Architecture & shared rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/Directory.*.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+      - name: ERP.Architecture.Tests
+        run: >
+          dotnet test tests/unit/ERP.Architecture.Tests -c Release
+          --logger "trx;LogFileName=architecture.trx" --results-directory TestResults
+      - name: ERP.Shared.UnitTests
+        run: >
+          dotnet test tests/unit/ERP.Shared.UnitTests -c Release
+          --logger "trx;LogFileName=shared.trx" --results-directory TestResults
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-platform
+          path: TestResults
+          retention-days: 14
+
+  drift-sql:
+    name: Schema drift (SQL Server)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_PID: Developer
+          MSSQL_SA_PASSWORD: ${{ secrets.CI_SA_PASSWORD || 'Ci_Only_Pa55word!' }}
+        ports:
+          - 1433:1433
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/Directory.*.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+      # Same script and same image as the docker-compose "db-migrate" job: what CI checks is
+      # exactly what a cluster gets (SKIP_DEMO_SEED=true, like the k8s migration Job).
+      # The script waits until the server accepts logins.
+      - name: Apply every SQL migration (deployment/docker/run-migrations.sh)
+        run: |
+          docker run --rm --network host \
+            -e SA_PASSWORD="$CI_SA_PASSWORD" -e SQL_HOST=localhost -e SKIP_DEMO_SEED=true \
+            -v "$PWD/deployment/sql:/migrations/init:ro" \
+            -v "$PWD/src/Database:/migrations/database:ro" \
+            -v "$PWD/deployment/docker/run-migrations.sh:/migrations/run-migrations.sh:ro" \
+            --entrypoint /bin/bash \
+            mcr.microsoft.com/mssql/server:2022-latest /migrations/run-migrations.sh
+      - name: LiveSchemaDriftTests
+        env:
+          ERP_DRIFT_SQL: Server=localhost,1433;User Id=sa;Password=${{ env.CI_SA_PASSWORD }};TrustServerCertificate=True;Encrypt=False
+        run: >
+          dotnet test tests/unit/ERP.Architecture.Tests -c Release
+          --filter "FullyQualifiedName~LiveSchemaDriftTests"
+          --logger "console;verbosity=detailed"
+
+  drift-pg:
+    name: Schema drift (PostgreSQL / Manufacturing)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: ci_only_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/Directory.*.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+      - name: PostgreSqlSchemaDriftTests
+        env:
+          ERP_DRIFT_PG: Host=localhost;Port=5432;Username=postgres;Password=ci_only_password
+        run: >
+          dotnet test tests/unit/ERP.Architecture.Tests -c Release
+          --filter "FullyQualifiedName~PostgreSqlSchemaDriftTests"
+          --logger "console;verbosity=detailed"

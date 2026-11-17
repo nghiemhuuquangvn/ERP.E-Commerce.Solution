@@ -1,0 +1,50 @@
+# ManufacturingService (5018, MFG, PostgreSQL) — build, test, scan, push ghcr.io/<owner>/erp-manufacturing, deploy to K8s.
+# Logic lives in _dotnet-service.yml; this file only says WHAT to build and WHEN.
+# Values match docker-compose.yml (build args) and deployment/k8s/deployments (names).
+name: svc · manufacturing
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/services/ManufacturingService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.MFG.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-manufacturing.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  pull_request:
+    branches: [master]
+    paths:
+      - src/services/ManufacturingService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.MFG.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-manufacturing.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: svc-manufacturing-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_dotnet-service.yml
+    secrets: inherit
+    with:
+      service: manufacturing
+      service-path: src/services/ManufacturingService/src/ERP.MFG.API
+      project-file: ERP.MFG.API.csproj
+      assembly-name: ERP.MFG.API
+      unit-test-project: tests/unit/ERP.MFG.UnitTests/ERP.MFG.UnitTests.csproj
+      k8s-deployment: manufacturing-service
+      k8s-container: manufacturing-service

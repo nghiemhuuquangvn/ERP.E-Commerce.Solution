@@ -1,0 +1,41 @@
+# Vue 3.5 customer storefront — tokens, tests, build, image ghcr.io/<owner>/erp-storefront, deploy to K8s.
+# Logic lives in _frontend-web.yml.
+name: web · storefront
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/frontend/storefront/**
+      - docs/frontend/design-system/**   # check:tokens reads tokens.json from here
+      - .github/workflows/web-storefront.yml
+      - .github/workflows/_frontend-web.yml
+      - .github/actions/k8s-rollout/**
+  pull_request:
+    branches: [master]
+    paths:
+      - src/frontend/storefront/**
+      - docs/frontend/design-system/**   # check:tokens reads tokens.json from here
+      - .github/workflows/web-storefront.yml
+      - .github/workflows/_frontend-web.yml
+      - .github/actions/k8s-rollout/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: web-storefront-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_frontend-web.yml
+    secrets: inherit
+    with:
+      app: storefront
+      install-command: npm ci --legacy-peer-deps
+      run-lint: false
+      k8s-deployment: storefront
+      k8s-container: storefront

@@ -1,0 +1,47 @@
+# ChatBotService (5017, CHB) — build, test, scan, push ghcr.io/<owner>/erp-chatbot, deploy to K8s.
+# Logic lives in _dotnet-service.yml; this file only says WHAT to build and WHEN.
+# Values match docker-compose.yml (build args) and deployment/k8s/deployments (names).
+name: svc · chatbot
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/services/ChatBotService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-chatbot.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  pull_request:
+    branches: [master]
+    paths:
+      - src/services/ChatBotService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-chatbot.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: svc-chatbot-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_dotnet-service.yml
+    secrets: inherit
+    with:
+      service: chatbot
+      service-path: src/services/ChatBotService/src/ERP.CHB.API
+      project-file: ERP.CHB.API.csproj
+      assembly-name: ERP.CHB.API
+      k8s-deployment: chatbot-service
+      k8s-container: chatbot-service

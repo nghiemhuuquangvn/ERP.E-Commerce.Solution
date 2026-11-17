@@ -1,0 +1,50 @@
+# ProductService (5008, PRD) — build, test, scan, push ghcr.io/<owner>/erp-product, deploy to K8s.
+# Logic lives in _dotnet-service.yml; this file only says WHAT to build and WHEN.
+# Values match docker-compose.yml (build args) and deployment/k8s/deployments (names).
+name: svc · product
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/services/ProductService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.PRD.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-product.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  pull_request:
+    branches: [master]
+    paths:
+      - src/services/ProductService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.PRD.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-product.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: svc-product-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_dotnet-service.yml
+    secrets: inherit
+    with:
+      service: product
+      service-path: src/services/ProductService/src/ERP.PRD.API
+      project-file: ERP.PRD.API.csproj
+      assembly-name: ERP.PRD.API
+      unit-test-project: tests/unit/ERP.PRD.UnitTests/ERP.PRD.UnitTests.csproj
+      k8s-deployment: product-service
+      k8s-container: product-service

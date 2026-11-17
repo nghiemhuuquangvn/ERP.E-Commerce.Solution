@@ -1,0 +1,7 @@
+# Build context of Dockerfile.migrations (BuildKit uses this file instead of the root .dockerignore,
+# which excludes deployment/). Only the SQL scripts and the two runner scripts are sent.
+*
+!deployment/sql/init-databases.sql
+!deployment/docker/run-migrations.sh
+!deployment/docker/run-pg-migrations.sh
+!src/Database/**/*.sql

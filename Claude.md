@@ -105,7 +105,9 @@ deployment/
         README.md                      (How to run the whole platform via Docker —
                                          no host-installed SQL Server needed)
         run-migrations.sh              (Applies every service's SQL migration against
-                                         the "sqlserver" container; used by db-migrate)
+                                         the "sqlserver" container; used by db-migrate; skips the
+                                         PostgreSQL Manufacturing folder; SKIP_DEMO_SEED=true drops *SeedDemo*)
+        Dockerfile.migrations          (CD migration images, targets sqlserver / postgres)
 
     (docker-compose.yml and the shared Dockerfile actually live at the repo root,
     not under deployment/docker/ — their build contexts are relative to repo root)
@@ -114,6 +116,15 @@ deployment/
         configmap.yaml
         secrets.yaml
         deployments/                   (Deployment manifests: 17 services + gateway + frontend)
+        jobs/                          (migration Jobs run by CI/CD: db-migrate, pg-migrate)
+
+.github/                               (CI/CD, docs/deployment/ci-cd.md: svc-<service>.yml per backend
+                                        service -> _dotnet-service.yml; web-admin / web-storefront ->
+                                        _frontend-web.yml; mobile.yml; ci-platform.yml = architecture tests +
+                                        schema drift SQL/PG on every PR; db-migrations.yml; release.yml = tag v*
+                                        -> one approval -> migrations, backend, Warehouse, Manufacturing, web.
+                                        Images ghcr.io/<owner>/erp-<svc>, deployed by digest. A new service needs
+                                        its svc-*.yml AND a row in .github/services.json - check-services.js)
         services/                      (Kubernetes service definitions)
         statefulsets/                  (For stateful services)
 

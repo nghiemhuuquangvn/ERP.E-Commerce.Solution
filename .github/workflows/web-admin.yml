@@ -1,0 +1,41 @@
+# React 18 admin back office — tokens, tests, build, image ghcr.io/<owner>/erp-admin, deploy to K8s.
+# Logic lives in _frontend-web.yml.
+name: web · admin
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/frontend/admin/**
+      - docs/frontend/design-system/**   # check:tokens reads tokens.json from here
+      - .github/workflows/web-admin.yml
+      - .github/workflows/_frontend-web.yml
+      - .github/actions/k8s-rollout/**
+  pull_request:
+    branches: [master]
+    paths:
+      - src/frontend/admin/**
+      - docs/frontend/design-system/**   # check:tokens reads tokens.json from here
+      - .github/workflows/web-admin.yml
+      - .github/workflows/_frontend-web.yml
+      - .github/actions/k8s-rollout/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: web-admin-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_frontend-web.yml
+    secrets: inherit
+    with:
+      app: admin
+      install-command: npm ci
+      run-lint: false   # admin has no eslint.config.js yet (ESLint 9) - DEFERRED-ISSUES §6; switch on once it exists
+      k8s-deployment: admin
+      k8s-container: admin

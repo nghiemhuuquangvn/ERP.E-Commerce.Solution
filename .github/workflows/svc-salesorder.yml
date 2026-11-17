@@ -1,0 +1,50 @@
+# SaleOrderService (5002) — build, test, scan, push ghcr.io/<owner>/erp-salesorder, deploy to K8s.
+# Logic lives in _dotnet-service.yml; this file only says WHAT to build and WHEN.
+# Values match docker-compose.yml (build args) and deployment/k8s/deployments (names).
+name: svc · salesorder
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/services/SaleOrderService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.SO.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-salesorder.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  pull_request:
+    branches: [master]
+    paths:
+      - src/services/SaleOrderService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.SO.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-salesorder.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: svc-salesorder-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_dotnet-service.yml
+    secrets: inherit
+    with:
+      service: salesorder
+      service-path: src/services/SaleOrderService/src/ERP.SO.Api
+      project-file: ERP.SO.Api.csproj
+      assembly-name: ERP.SO.Api
+      unit-test-project: tests/unit/ERP.SO.UnitTests/ERP.SO.UnitTests.csproj
+      k8s-deployment: salesorder-service
+      k8s-container: salesorder-service

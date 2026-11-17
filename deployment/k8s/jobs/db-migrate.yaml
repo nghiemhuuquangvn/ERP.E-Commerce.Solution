@@ -1,0 +1,45 @@
+# One-shot SQL Server migration Job (16 databases). Run by .github/workflows/db-migrations.yml:
+# the workflow replaces __IMAGE__ with ghcr.io/<owner>/erp-db-migrations@sha256:<digest> and
+# __RUN__ with the run id, applies this file and waits for "complete".
+# By hand: sed the two placeholders, kubectl apply -f, kubectl -n erp logs job/db-migrate-<run>.
+# Needs erp-secrets keys sql-host and sql-sa-password (secrets.yaml.example).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate-__RUN__
+  namespace: erp
+  labels:
+    app: db-migrate
+spec:
+  backoffLimit: 0                 # a failed migration is investigated, never retried blindly
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 604800 # keep the pod log for 7 days
+  template:
+    metadata:
+      labels:
+        app: db-migrate
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: ghcr-pull
+      containers:
+      - name: db-migrate
+        image: __IMAGE__
+        env:
+        - name: SQL_HOST
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: sql-host
+        - name: SA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: sql-sa-password
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

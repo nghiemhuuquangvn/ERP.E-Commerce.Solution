@@ -1,0 +1,50 @@
+# PromotionService (5012, PRM) — build, test, scan, push ghcr.io/<owner>/erp-promotion, deploy to K8s.
+# Logic lives in _dotnet-service.yml; this file only says WHAT to build and WHEN.
+# Values match docker-compose.yml (build args) and deployment/k8s/deployments (names).
+name: svc · promotion
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/services/PromotionService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.PRM.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-promotion.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  pull_request:
+    branches: [master]
+    paths:
+      - src/services/PromotionService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.PRM.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-promotion.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: svc-promotion-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_dotnet-service.yml
+    secrets: inherit
+    with:
+      service: promotion
+      service-path: src/services/PromotionService/src/ERP.PRM.API
+      project-file: ERP.PRM.API.csproj
+      assembly-name: ERP.PRM.API
+      unit-test-project: tests/unit/ERP.PRM.UnitTests/ERP.PRM.UnitTests.csproj
+      k8s-deployment: promotion-service
+      k8s-container: promotion-service

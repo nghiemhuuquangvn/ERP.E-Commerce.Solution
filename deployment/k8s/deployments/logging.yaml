@@ -13,6 +13,10 @@ spec:
       labels:
         app: logging-service
     spec:
+      # Private images on ghcr.io (CI/CD): kubectl -n erp create secret docker-registry ghcr-pull ...
+      # A missing secret is harmless for the local erp/*:latest images (pulled IfNotPresent).
+      imagePullSecrets:
+      - name: ghcr-pull
       containers:
       - name: logging-service
         image: erp/logging-service:latest

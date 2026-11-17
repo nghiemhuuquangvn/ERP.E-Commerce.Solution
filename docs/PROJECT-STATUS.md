@@ -40,6 +40,13 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-17 - CI/CD: GitHub Actions per service + web + mobile, GHCR, K8s staging / production (`ci/github-actions`, from master after S3 merged)
+- **What:** one pipeline per backend service (19 `svc-*.yml` calling `_dotnet-service.yml`: build, unit tests, image with the root `Dockerfile`, Trivy, SBOM / provenance, push `ghcr.io/<owner>/erp-<svc>:sha-<commit>`, staging rollout by digest with automatic `rollout undo`), web (`web-admin` / `web-storefront` via `_frontend-web.yml`: tokens, Vitest + axe, build, image), `mobile.yml` (tokens + Jest; EAS build by hand per tenant), `ci-platform.yml` (actionlint, service-table check, Architecture + Shared tests, schema drift SQL Server and PostgreSQL on real containers), `db-migrations.yml` (migration images + K8s Jobs) and `release.yml` (tag `v*`: one approval, then migrations -> backend -> Warehouse -> Manufacturing -> web, images promoted by digest). The broken `docker-cicd.yml` is gone.
+- **Script fixes:** `run-migrations.sh` no longer runs the PostgreSQL `Manufacturing` folder against SQL Server and skips `*SeedDemo*` files when `SKIP_DEMO_SEED=true` (CI and the migration image; the local compose stack is unchanged). Manifests got `imagePullSecrets: ghcr-pull`; `secrets.yaml.example` got `sql-host` / `sql-sa-password`.
+- **Verified locally:** actionlint clean, kubeconform 49/49, migration image on an empty SQL Server = 16 DB with 0 SQL errors, both drift tests Passed, Architecture 93, Shared 151, Gateway 44, Identity 342, admin 479 / storefront 51 / mobile 248+76+68 tests and builds. **Not yet run on GitHub or against a real cluster.**
+- **Owner set-up before deploys happen:** environments `staging`, `production`, `release-approval`, variable `K8S_DEPLOY_ENABLED=true`, `ghcr-pull` + `sql-host` / `sql-sa-password` in the cluster, a least-privilege CI ServiceAccount, branch protection (docs/deployment/ci-cd.md §10). Risks R325-R330 (admin has no ESLint config, SuperAdmin default password from Identity/001, ChatBot / Logging without tests, no integration tests in CI, Dockerfile restore cache, `apply-all.ps1` resets images).
+- **Docs:** `docs/deployment/ci-cd.md` (process, rules, BA requirements CICD-01..12, UAT, runbook).
+
 ### 2026-11-17 - Security wave S3: brute force, per-tenant lockout, refresh race, user 2FA kept (`fix/security-s3`, from `fix/security-s2`)
 - **What (owner decisions):**
   - **Lockout:**

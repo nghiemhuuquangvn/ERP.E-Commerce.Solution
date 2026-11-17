@@ -17,6 +17,10 @@ spec:
         azure.workload.identity/use: "true"
     spec:
       serviceAccountName: gateway
+      # Private images on ghcr.io (CI/CD): kubectl -n erp create secret docker-registry ghcr-pull ...
+      # A missing secret is harmless for the local erp/*:latest images (pulled IfNotPresent).
+      imagePullSecrets:
+      - name: ghcr-pull
       containers:
       - name: gateway
         image: erp/gateway:latest

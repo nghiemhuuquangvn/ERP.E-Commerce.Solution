@@ -1,0 +1,265 @@
+# ════════════════════════════════════════════════════════════════════════════════
+# Reusable pipeline for ONE .NET backend service (or the Ocelot Gateway).
+# Called by .github/workflows/svc-<service>.yml — never triggered on its own.
+#
+#   build-test ──► image ──► deploy-staging     (push to master, when K8S_DEPLOY_ENABLED)
+#                       └──► deploy-production  (only from release.yml: tag v*, approval, release order)
+#
+# Explained in docs/deployment/ci-cd.md.
+# ════════════════════════════════════════════════════════════════════════════════
+name: _dotnet-service
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: Short name, used in the image name ghcr.io/<owner>/erp-<service>
+        type: string
+        required: true
+      service-path:
+        description: Folder of the API project (Dockerfile build-arg SERVICE_PATH, same as docker-compose.yml)
+        type: string
+        required: true
+      project-file:
+        description: API .csproj file name (build-arg PROJECT_FILE)
+        type: string
+        required: true
+      assembly-name:
+        description: Entry assembly without .dll (build-arg ASSEMBLY_NAME)
+        type: string
+        required: true
+      unit-test-project:
+        description: Path of the service's unit-test .csproj; empty = the service has no unit tests yet
+        type: string
+        default: ''
+      k8s-deployment:
+        description: Deployment name in deployment/k8s/deployments/*.yaml
+        type: string
+        required: true
+      k8s-container:
+        description: Container name inside that Deployment
+        type: string
+        required: true
+      deploy-production:
+        description: Roll out to the production environment (set only by release.yml, on a v* tag, in release order)
+        type: boolean
+        default: false
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  K8S_NAMESPACE: erp
+
+jobs:
+  # ── 1. Compile + unit tests (gate: nothing is packaged when a test fails) ────────
+  build-test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # No packages.lock.json in the repo, so cache the NuGet folder by the hash of every .csproj.
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/Directory.*.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Build API (Release)
+        run: dotnet build "${{ inputs.service-path }}/${{ inputs.project-file }}" -c Release
+
+      - name: Unit tests
+        if: inputs.unit-test-project != ''
+        run: >
+          dotnet test "${{ inputs.unit-test-project }}" -c Release
+          --logger "trx;LogFileName=${{ inputs.service }}.trx"
+          --results-directory TestResults
+          --collect "XPlat Code Coverage"
+
+      - name: Upload test results
+        if: always() && inputs.unit-test-project != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ inputs.service }}
+          path: TestResults
+          retention-days: 14
+
+  # ── 2. Container image: build, scan, push (push only on master / tag) ────────────
+  image:
+    name: Image
+    needs: build-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.vars.outputs.image }}
+      digest: ${{ steps.result.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Variables
+        id: vars
+        run: |
+          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          echo "image=ghcr.io/${owner}/erp-${{ inputs.service }}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then echo "push=true" >> "$GITHUB_OUTPUT"; else echo "push=false" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: steps.vars.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Release tag: if master already built THIS commit, promote that exact image (same digest)
+      # instead of building again — what was tested on staging is what reaches production.
+      - name: Reuse the image built for this commit (release tag only)
+        id: promote
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          src="${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.sha_tag }}"
+          if docker buildx imagetools inspect "$src" > /dev/null 2>&1; then
+            docker buildx imagetools create -t "${{ steps.vars.outputs.image }}:${GITHUB_REF_NAME}" "$src"
+            digest="$(docker buildx imagetools inspect "$src" --format '{{json .Manifest}}' | jq -r .digest)"
+            echo "digest=$digest" >> "$GITHUB_OUTPUT"
+            echo "promoted=true" >> "$GITHUB_OUTPUT"
+            echo "Promoted $src -> ${GITHUB_REF_NAME} ($digest)"
+          else
+            echo "No image for ${{ steps.vars.outputs.sha_tag }} yet - building it."
+          fi
+
+      - name: Tags and labels
+        if: steps.promote.outputs.promoted != 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.vars.outputs.image }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # Build once into the local Docker engine so Trivy can scan it before anything is pushed.
+      - name: Build (local, for the scan)
+        if: steps.promote.outputs.promoted != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          build-args: |
+            SERVICE_PATH=${{ inputs.service-path }}
+            PROJECT_FILE=${{ inputs.project-file }}
+            ASSEMBLY_NAME=${{ inputs.assembly-name }}
+          load: true
+          push: false
+          tags: scan/erp-${{ inputs.service }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ inputs.service }}
+          cache-to: type=gha,scope=${{ inputs.service }},mode=max
+
+      - name: Vulnerability scan (Trivy)
+        if: steps.promote.outputs.promoted != 'true'
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: scan/erp-${{ inputs.service }}:${{ github.sha }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+
+      # Second build is a full cache hit; it adds the SBOM + provenance attestations and pushes.
+      - name: Push
+        id: push
+        if: steps.promote.outputs.promoted != 'true' && steps.vars.outputs.push == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          build-args: |
+            SERVICE_PATH=${{ inputs.service-path }}
+            PROJECT_FILE=${{ inputs.project-file }}
+            ASSEMBLY_NAME=${{ inputs.assembly-name }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: true
+          sbom: true
+          cache-from: type=gha,scope=${{ inputs.service }}
+
+      - name: Result
+        id: result
+        run: |
+          digest="${{ steps.promote.outputs.digest || steps.push.outputs.digest }}"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "### ${{ inputs.service }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Image: \`${{ steps.vars.outputs.image }}@${digest:-'(not pushed)'}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── 3. Staging: every push to master (opt-in via repository variable) ───────────
+  deploy-staging:
+    name: Deploy staging
+    needs: image
+    if: >
+      github.event_name == 'push' && github.ref == 'refs/heads/master'
+      && vars.K8S_DEPLOY_ENABLED == 'true' && needs.image.outputs.digest != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: staging
+    concurrency:
+      group: deploy-staging-${{ inputs.service }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+      - uses: ./.github/actions/k8s-rollout
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_STAGING }}
+          namespace: ${{ env.K8S_NAMESPACE }}
+          deployment: ${{ inputs.k8s-deployment }}
+          container: ${{ inputs.k8s-container }}
+          image: ${{ needs.image.outputs.image }}@${{ needs.image.outputs.digest }}
+          change-cause: ci ${{ github.sha }} run ${{ github.run_id }}
+          timeout: 180s
+
+  # ── 4. Production: only when release.yml calls with deploy-production (tag v*, approval) ──
+  deploy-production:
+    name: Deploy production
+    needs: image
+    if: >
+      inputs.deploy-production && startsWith(github.ref, 'refs/tags/v')
+      && vars.K8S_DEPLOY_ENABLED == 'true' && needs.image.outputs.digest != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+    concurrency:
+      group: deploy-production-${{ inputs.service }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions
+      - uses: ./.github/actions/k8s-rollout
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+          namespace: ${{ env.K8S_NAMESPACE }}
+          deployment: ${{ inputs.k8s-deployment }}
+          container: ${{ inputs.k8s-container }}
+          image: ${{ needs.image.outputs.image }}@${{ needs.image.outputs.digest }}
+          change-cause: release ${{ github.ref_name }} (${{ github.sha }})
+          timeout: 300s

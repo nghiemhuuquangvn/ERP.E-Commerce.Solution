@@ -1,0 +1,50 @@
+# HRMService (5007, HRM) — build, test, scan, push ghcr.io/<owner>/erp-hrm, deploy to K8s.
+# Logic lives in _dotnet-service.yml; this file only says WHAT to build and WHEN.
+# Values match docker-compose.yml (build args) and deployment/k8s/deployments (names).
+name: svc · hrm
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - src/services/HRMService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.HRM.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-hrm.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  pull_request:
+    branches: [master]
+    paths:
+      - src/services/HRMService/**
+      - src/Shared/**   # every service references ERP.Shared.* -> a Shared change re-tests all services
+      - tests/unit/ERP.HRM.UnitTests/**
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/svc-hrm.yml
+      - .github/workflows/_dotnet-service.yml
+      - .github/actions/k8s-rollout/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: svc-hrm-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_dotnet-service.yml
+    secrets: inherit
+    with:
+      service: hrm
+      service-path: src/services/HRMService/src/ERP.HRM.API
+      project-file: ERP.HRM.API.csproj
+      assembly-name: ERP.HRM.API
+      unit-test-project: tests/unit/ERP.HRM.UnitTests/ERP.HRM.UnitTests.csproj
+      k8s-deployment: hrm-service
+      k8s-container: hrm-service
