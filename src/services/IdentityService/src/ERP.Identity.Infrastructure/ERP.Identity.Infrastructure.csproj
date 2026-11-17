@@ -22,7 +22,7 @@
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
-    <PackageReference Include="Confluent.Kafka" Version="2.13.1" />
+    <PackageReference Include="Confluent.Kafka" Version="2.16.0" />
     <PackageReference Include="Google.Apis.Auth" Version="1.73.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="9.0.13" />
     <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.9" />
