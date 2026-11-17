@@ -317,6 +317,13 @@ namespace ERP.Identity.Infrastructure.Services
         /// ever signed in through an external provider has no password of its own, so it may instead present a token
         /// issued within the last few minutes.
         /// </summary>
+        public async Task ConfirmCallerAsync(Guid userId, string auditEvent, string? currentPassword, DateTimeOffset? tokenIssuedAt, CancellationToken ct)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(userId, ct)
+                ?? throw new BusinessRuleException("ReauthenticationRequired", "Sign in again, then retry.");
+            await ConfirmCallerAsync(user, auditEvent, currentPassword, tokenIssuedAt, ct);
+        }
+
         private async Task ConfirmCallerAsync(User user, string auditEvent, string? currentPassword, DateTimeOffset? tokenIssuedAt, CancellationToken ct)
         {
             if (!string.IsNullOrEmpty(currentPassword))

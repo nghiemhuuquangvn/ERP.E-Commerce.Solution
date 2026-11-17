@@ -53,6 +53,15 @@ namespace ERP.Identity.Infrastructure.Repositories
             }
         }
 
+        // SEC-M2: only one of several parallel refreshes with the same token can rotate it - the row decides.
+        public async Task<bool> TryRotateAsync(Guid refreshTokenId, DateTime now, CancellationToken ct) =>
+            await _dbContext.RefreshTokens
+                .Where(rt => rt.Id == refreshTokenId && rt.RevokedAt == null)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(rt => rt.RevokedAt, (DateTime?)now)
+                    .SetProperty(rt => rt.IsActive, false)
+                    .SetProperty(rt => rt.RevokedReason, (RefreshTokenRevokedReason?)RefreshTokenRevokedReason.Rotated), ct) == 1;
+
         public async Task RevokeAllByDeviceSessionAsync(Guid deviceSessionId, CancellationToken ct)
         {
             var tokens = await _dbContext.RefreshTokens

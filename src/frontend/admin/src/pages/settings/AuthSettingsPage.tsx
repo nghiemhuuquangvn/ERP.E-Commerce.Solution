@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Alert, Button, Checkbox, FormField, Input, useToast } from '@/components/ui'
+import { Alert, Button, Checkbox, FormField, Input, Modal, useToast } from '@/components/ui'
 import {
   settingsApi,
   type SystemAuthSettings,
@@ -14,6 +14,46 @@ import { serverMessage } from '@/lib/serverMessage'
 import { useAuthStore } from '@/stores/auth.store'
 
 type Tab = 'system' | 'tenant'
+
+/**
+ * SEC-M6 (docs/business/Identity/BruteForceProtection.md BR-BF-08): authentication settings decide 2FA, lockout and
+ * sessions for a whole shop, so saving them re-asks the password. An account that only signs in externally leaves it
+ * empty and must have signed in within the last few minutes (the server decides).
+ */
+function ConfirmPasswordDialog({ open, saving, error, onCancel, onConfirm }: {
+  open: boolean
+  saving: boolean
+  error: unknown
+  onCancel: () => void
+  onConfirm: (currentPassword: string) => void
+}) {
+  const { t } = useTranslation()
+  const [password, setPassword] = useState('')
+  useEffect(() => {
+    if (!open) setPassword('')
+  }, [open])
+
+  return (
+    <Modal
+      open={open}
+      title={t('settings.auth.confirmTitle')}
+      onClose={onCancel}
+      closeOnEsc={!saving}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onCancel} disabled={saving}>{t('common.cancel')}</Button>
+          <Button onClick={() => onConfirm(password)} loading={saving}>{t('common.save')}</Button>
+        </>
+      }
+    >
+      <p className="mb-3 text-sm text-ink-secondary">{t('settings.auth.confirmHint')}</p>
+      {error ? <Alert variant="danger" className="mb-3">{serverMessage(error, t('settings.auth.failedToSave'))}</Alert> : null}
+      <FormField label={t('auth.password')}>
+        <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      </FormField>
+    </Modal>
+  )
+}
 
 interface SystemFormValues {
   googleEnabled: boolean
@@ -32,6 +72,8 @@ interface SystemFormValues {
   sessionAbsoluteHours: number
   customerSessionTimeoutMinutes: number
   customerSessionAbsoluteDays: number
+  accountLockThreshold: number
+  accountLockWindowMinutes: number
 }
 
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
@@ -63,6 +105,8 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
       sessionAbsoluteHours: 12,
       customerSessionTimeoutMinutes: 10080,
       customerSessionAbsoluteDays: 30,
+      accountLockThreshold: 20,
+      accountLockWindowMinutes: 60,
     },
   })
 
@@ -70,10 +114,13 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
     if (data) reset(data)
   }, [data, reset])
 
+  // SEC-M6: the values wait here until the person re-confirms with their password.
+  const [pending, setPending] = useState<SystemFormValues | null>(null)
   const mutation = useMutation({
-    mutationFn: (values: SystemFormValues) => settingsApi.updateSystemSettings(values),
+    mutationFn: (body: SystemFormValues & { currentPassword?: string }) => settingsApi.updateSystemSettings(body),
     onSuccess: (result: SystemAuthSettings) => {
       queryClient.setQueryData(['settings', 'system'], result)
+      setPending(null)
       toast.success(t('common.saved'))
     },
   })
@@ -81,7 +128,7 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
   if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
-    <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
+    <form onSubmit={handleSubmit((v) => { mutation.reset(); setPending(v) })} className="max-w-md space-y-4">
       <Checkbox disabled={!canManage} {...register('googleEnabled')} label={t('settings.auth.googleEnabled')} />
       <Checkbox disabled={!canManage} {...register('microsoftEnabled')} label={t('settings.auth.microsoftEnabled')} />
       <Checkbox disabled={!canManage} {...register('facebookEnabled')} label={t('settings.auth.facebookEnabled')} />
@@ -142,8 +189,28 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
           {...register('customerSessionAbsoluteDays', { valueAsNumber: true })}
         />
       </FormField>
+      <FormField label={t('settings.auth.accountLockThreshold')} hint={t('settings.auth.accountLockHint')}>
+        <Input
+          type="number"
+          disabled={!canManage}
+          {...register('accountLockThreshold', { valueAsNumber: true })}
+        />
+      </FormField>
+      <FormField label={t('settings.auth.accountLockWindowMinutes')}>
+        <Input
+          type="number"
+          disabled={!canManage}
+          {...register('accountLockWindowMinutes', { valueAsNumber: true })}
+        />
+      </FormField>
 
-      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.auth.failedToSave'))}</Alert>}
+      <ConfirmPasswordDialog
+        open={pending !== null}
+        saving={mutation.isPending}
+        error={mutation.error}
+        onCancel={() => setPending(null)}
+        onConfirm={(currentPassword) => pending && mutation.mutate({ ...pending, currentPassword })}
+      />
 
       {canManage && (
         <div className="pt-2">
@@ -172,6 +239,8 @@ interface TenantFormValues {
   sessionAbsoluteHours: number
   customerSessionTimeoutMinutes: number
   customerSessionAbsoluteDays: number
+  accountLockThreshold: number
+  accountLockWindowMinutes: number
 }
 
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
@@ -205,6 +274,8 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       sessionAbsoluteHours: 12,
       customerSessionTimeoutMinutes: 10080,
       customerSessionAbsoluteDays: 30,
+      accountLockThreshold: 20,
+      accountLockWindowMinutes: 60,
     },
   })
 
@@ -212,10 +283,13 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
     if (data) reset(data)
   }, [data, reset])
 
+  // SEC-M6: the values wait here until the person re-confirms with their password.
+  const [pending, setPending] = useState<TenantFormValues | null>(null)
   const mutation = useMutation({
-    mutationFn: (values: TenantFormValues) => settingsApi.updateTenantSettings(tenantId, values),
+    mutationFn: (body: TenantFormValues & { currentPassword?: string }) => settingsApi.updateTenantSettings(tenantId, body),
     onSuccess: (result: TenantAuthSettings) => {
       queryClient.setQueryData(['settings', 'tenant', tenantId], result)
+      setPending(null)
       toast.success(t('common.saved'))
     },
   })
@@ -224,7 +298,7 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
   if (isLoading) return <p className="text-sm text-ink-muted">{t('common.loading')}</p>
 
   return (
-    <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="max-w-md space-y-4">
+    <form onSubmit={handleSubmit((v) => { mutation.reset(); setPending(v) })} className="max-w-md space-y-4">
       <Checkbox disabled={!canManage} {...register('googleEnabled')} label={t('settings.auth.googleEnabled')} />
       <Checkbox disabled={!canManage} {...register('microsoftEnabled')} label={t('settings.auth.microsoftEnabled')} />
       <Checkbox disabled={!canManage} {...register('facebookEnabled')} label={t('settings.auth.facebookEnabled')} />
@@ -286,8 +360,28 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
           {...register('customerSessionAbsoluteDays', { valueAsNumber: true })}
         />
       </FormField>
+      <FormField label={t('settings.auth.accountLockThreshold')} hint={t('settings.auth.accountLockHint')}>
+        <Input
+          type="number"
+          disabled={!canManage}
+          {...register('accountLockThreshold', { valueAsNumber: true })}
+        />
+      </FormField>
+      <FormField label={t('settings.auth.accountLockWindowMinutes')}>
+        <Input
+          type="number"
+          disabled={!canManage}
+          {...register('accountLockWindowMinutes', { valueAsNumber: true })}
+        />
+      </FormField>
 
-      {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.auth.failedToSave'))}</Alert>}
+      <ConfirmPasswordDialog
+        open={pending !== null}
+        saving={mutation.isPending}
+        error={mutation.error}
+        onCancel={() => setPending(null)}
+        onConfirm={(currentPassword) => pending && mutation.mutate({ ...pending, currentPassword })}
+      />
 
       {canManage && (
         <div className="pt-2">

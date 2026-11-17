@@ -2012,6 +2012,11 @@
       "sessionAbsoluteHours": "Back-office session limit (hours)",
       "customerSessionTimeoutMinutes": "Customer idle timeout (minutes)",
       "customerSessionAbsoluteDays": "Customer session limit (days)",
+      "accountLockThreshold": "Lock the account after failures from all devices",
+      "accountLockWindowMinutes": "Account lock window and duration (minutes)",
+      "accountLockHint": "The per-device limit above refuses one device only; this total locks the whole account.",
+      "confirmTitle": "Confirm your password",
+      "confirmHint": "Authentication settings protect every account of the shop. Enter your current password to save (accounts that sign in with Google and others: sign in again first).",
       "noTenant": "No tenant found for the current user.",
       "failedToSave": "Failed to save settings. Please try again."
     },

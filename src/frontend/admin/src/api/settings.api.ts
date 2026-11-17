@@ -23,9 +23,12 @@ export interface SystemAuthSettings {
   sessionAbsoluteHours: number
   customerSessionTimeoutMinutes: number
   customerSessionAbsoluteDays: number
+  accountLockThreshold: number
+  accountLockWindowMinutes: number
 }
 
-export type UpdateSystemAuthSettingsRequest = SystemAuthSettings
+// SEC-M6: saving re-asks the password (or a fresh external sign-in).
+export type UpdateSystemAuthSettingsRequest = SystemAuthSettings & { currentPassword?: string }
 
 export interface TenantAuthSettings {
   tenantId: string
@@ -46,9 +49,11 @@ export interface TenantAuthSettings {
   sessionAbsoluteHours: number
   customerSessionTimeoutMinutes: number
   customerSessionAbsoluteDays: number
+  accountLockThreshold: number
+  accountLockWindowMinutes: number
 }
 
-export type UpdateTenantAuthSettingsRequest = Omit<TenantAuthSettings, 'tenantId'>
+export type UpdateTenantAuthSettingsRequest = Omit<TenantAuthSettings, 'tenantId'> & { currentPassword?: string }
 
 export const settingsApi = {
   getSystemSettings: () =>

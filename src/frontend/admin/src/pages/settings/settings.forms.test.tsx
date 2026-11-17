@@ -56,6 +56,14 @@ beforeEach(() => {
 const saveButtons = () => screen.queryAllByRole('button', { name: /^save$/i })
 const writeCalls = () => writes.flatMap((w) => w.mock.calls)
 
+// Pages that re-ask the password before saving (Authentication settings, SEC-M6) open a dialog: type it and confirm.
+async function confirmIfAsked() {
+  const dialog = screen.queryByRole("dialog")
+  if (!dialog) return
+  await userEvent.type(within(dialog).getByLabelText(/password/i), "Current-Password-1")
+  await userEvent.click(within(dialog).getByRole("button", { name: /^save$/i }))
+}
+
 describe('Settings pages', () => {
   it('finds the pages and their permissions', () => {
     expect(pages.length).toBeGreaterThanOrEqual(24)
@@ -91,17 +99,33 @@ describe('Settings pages', () => {
         tested++
         for (const w of writes) w.mockClear()
         await userEvent.click(save)
+        await confirmIfAsked()
         await waitFor(() => expect(writeCalls().length).toBeGreaterThan(0))
         expect(writeCalls()).toHaveLength(1)
         expect((await screen.findAllByText('Saved.')).length).toBeGreaterThan(0)
 
         writes.forEach((w) => w.mockImplementationOnce((() => refusal('The server said no.')) as never))
-        await userEvent.click(saveButtons()[0])
+        if (!screen.queryByRole("dialog")) await userEvent.click(saveButtons()[0])
+        await confirmIfAsked()
         expect((await screen.findAllByText('The server said no.')).length).toBeGreaterThan(0)
       }
       // pages without a plain Save button (toggle tables, licence panels) are covered by the load / axe test above
       expect(tested).toBeGreaterThanOrEqual(0)
     })
+  })
+
+  it('Authentication settings are saved only after the password is re-confirmed, and send it (SEC-M6)', async () => {
+    const auth = pages.find((p) => p.name === 'AuthSettingsPage')!
+    renderPage(auth.Page)
+    await waitFor(() => expect(screen.queryByText(/^Loading/)).toBeNull(), { timeout: 3000 })
+    for (const w of writes) w.mockClear()
+
+    await userEvent.click(saveButtons()[0])
+    expect(writeCalls()).toHaveLength(0) // the dialog asks first
+    await confirmIfAsked()
+
+    await waitFor(() => expect(writeCalls()).toHaveLength(1))
+    expect(writeCalls()[0][1]).toMatchObject({ currentPassword: 'Current-Password-1', accountLockThreshold: expect.any(Number) })
   })
 
   it('a read-only user sees disabled controls and no Save', async () => {

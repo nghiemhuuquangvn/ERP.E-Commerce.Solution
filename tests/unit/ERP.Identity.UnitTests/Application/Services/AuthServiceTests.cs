@@ -368,13 +368,14 @@ public class AuthServiceTests
         var device = Guid.NewGuid();
         var (_, session, raw) = StaffSession(TimeSpan.FromHours(2), device);
         _sessions.Setup(s => s.TouchSessionAsync(device, It.IsAny<string?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _refreshTokens.Setup(r => r.TryRotateAsync(session.Id, It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
         RefreshToken? added = null;
         _refreshTokens.Setup(r => r.AddAsync(It.IsAny<RefreshToken>(), It.IsAny<CancellationToken>()))
             .Callback<RefreshToken, CancellationToken>((t, _) => added = t);
 
         await CreateService().RefreshTokenAsync(new RefreshTokenDto.RefreshTokenRequest(raw, _tenant.Id), CancellationToken.None);
 
-        session.RevokedAt.Should().NotBeNull("rotation");
+        _refreshTokens.Verify(r => r.TryRotateAsync(session.Id, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Once, "rotation is one atomic UPDATE (SEC-M2)");
         added!.SessionStartedAt.Should().Be(session.SessionStartedAt, "the absolute limit counts from the sign-in, not the refresh");
         added.DeviceSessionId.Should().Be(device);
         added.ExpiredAt.Should().BeCloseTo(DateTime.UtcNow.AddMinutes(15), TimeSpan.FromSeconds(30));
@@ -424,7 +425,7 @@ public class AuthServiceTests
     // ---- H2: interactive OIDC login uses the same protections ----
 
     [Fact]
-    public async Task VerifyInteractiveCredentialsAsync_WrongPassword_CountsFailureAgainstAccount()
+    public async Task VerifyInteractiveCredentialsAsync_WrongPassword_IsRecordedByEmail_ButLocksNoAccount()
     {
         var user = ExistingUser();
         _users.Setup(u => u.FindAllByEmailGloballyAsync(user.Email, It.IsAny<CancellationToken>())).ReturnsAsync(new List<User> { user });
@@ -432,7 +433,10 @@ public class AuthServiceTests
         var result = await CreateService().VerifyInteractiveCredentialsAsync(user.Email, "wrong", "1.2.3.4", "ua", CancellationToken.None);
 
         result.Should().BeNull();
-        user.AccessFailedCount.Should().Be(1);
+        // BR-BF-07 (SEC-M1): this form has no tenant - a failure never counts against an account (it used to lock the
+        // same e-mail in every tenant); the (IP, e-mail) row still feeds the guard of this form.
+        user.AccessFailedCount.Should().Be(0);
+        user.IsLocked.Should().BeFalse();
         _audit.Verify(a => a.RecordLoginAttemptAsync("1.2.3.4", false, user.Email, null, "Invalid credentials", It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -762,4 +766,203 @@ public class AuthServiceTests
         _twoFactorChallenges.Verify(c => c.AddAsync(It.IsAny<TwoFactorChallenge>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    // ---- S3: brute force (BR-BF-01..05, 09) ----
+
+    private void DeviceFailures(User user, string ip, int count) =>
+        _loginAttempts.Setup(l => l.CountRecentFailedForUserFromIpAsync(user.Id, ip, It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>())).ReturnsAsync(count);
+
+    private static LoginDto.LoginRequest Login(User user, string password) => new(user.Email, password, UserType.Admin);
+
+    [Fact]
+    public async Task Login_FromADeviceOverItsLimit_IsRefusedBeforeThePasswordIsCompared_AndLocksNothing()
+    {
+        var user = ExistingUser();
+        DeviceFailures(user, "6.6.6.6", 5); // tenant default: 5 per device
+
+        var act = () => CreateService().LoginAsync(Login(user, "Correct-Password-1"), TenantCode, "6.6.6.6", "ua", CancellationToken.None);
+
+        (await act.Should().ThrowAsync<UnauthorizedAccessException>()).Which.Message.Should().Be(AuthService.TooManyAttemptsMessage);
+        _passwordHasher.Verify(h => h.VerifyPassword(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        user.IsLocked.Should().BeFalse("a device of a stranger must not lock the owner out");
+    }
+
+    [Fact]
+    public async Task Login_TheOwnerOnAnotherDevice_IsNotAffectedByTheFailuresOfAStranger()
+    {
+        var user = ExistingUser();
+        DeviceFailures(user, "6.6.6.6", 5);
+
+        var response = await CreateService().LoginAsync(Login(user, "Correct-Password-1"), TenantCode, "1.2.3.4", "ua", CancellationToken.None);
+
+        response.Succeeded.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Login_FailuresFromEveryDeviceReachingTheThreshold_LockTheAccountTemporarily()
+    {
+        var user = ExistingUser();
+        _loginAttempts.Setup(l => l.CountRecentFailedForUserAsync(user.Id, TimeSpan.FromMinutes(60), It.IsAny<CancellationToken>())).ReturnsAsync(19);
+
+        var act = () => CreateService().LoginAsync(Login(user, "wrong"), TenantCode, "7.7.7.7", "ua", CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        user.IsLocked.Should().BeTrue();
+        user.LockedUntil.Should().BeCloseTo(DateTime.UtcNow.AddMinutes(60), TimeSpan.FromSeconds(30));
+        user.IsAdministrativelyLocked.Should().BeFalse("guessing must never end the running sessions of the owner");
+        _audit.Verify(a => a.RecordLoginAttemptAsync("7.7.7.7", false, user.Email, user.Id, "Invalid credentials", It.IsAny<CancellationToken>()), Times.Once);
+        _audit.Verify(a => a.LogAsync("AccountLocked", false, _tenant.Id, user.Id, user.Email, "7.7.7.7", It.IsAny<string?>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Login_PasswordOkButTwoFactorPending_DoesNotCountAsASuccess()
+    {
+        var user = ExistingUser();
+        user.EnableTwoFactor("Email");
+        RequireTwoFactor(_settings, user);
+
+        var response = await CreateService().LoginAsync(Login(user, "Correct-Password-1"), TenantCode, "1.2.3.4", "ua", CancellationToken.None);
+
+        response.RequiresTwoFactor.Should().BeTrue();
+        // a success row would reset the failure count - an attacker with the password could guess codes for ever
+        _audit.Verify(a => a.RecordLoginAttemptAsync(It.IsAny<string>(), true, It.IsAny<string?>(), It.IsAny<Guid?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Login_TheSixthCodeInAnHour_IsRefused()
+    {
+        var user = ExistingUser();
+        user.EnableTwoFactor("Email");
+        RequireTwoFactor(_settings, user);
+        _twoFactorChallenges.Setup(c => c.CountCreatedSinceAsync(user.Id, It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(5);
+
+        var act = () => CreateService().LoginAsync(Login(user, "Correct-Password-1"), TenantCode, "1.2.3.4", "ua", CancellationToken.None);
+
+        await act.Should().ThrowAsync<BusinessRuleException>().Where(e => e.RuleName == "TwoFactorTooManyCodes");
+        _twoFactorChallenges.Verify(c => c.AddAsync(It.IsAny<TwoFactorChallenge>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    private TwoFactorChallenge ChallengeFor(User user, string code = "123456")
+    {
+        var challenge = OpenChallenge(user, _tenant.Id, code);
+        _twoFactorChallenges.Setup(c => c.GetByIdAsync(challenge.Id, It.IsAny<CancellationToken>())).ReturnsAsync(challenge);
+        return challenge;
+    }
+
+    [Fact]
+    public async Task VerifyTwoFactor_AWrongCode_CountsLikeAWrongPassword()
+    {
+        var user = ExistingUser();
+        var challenge = ChallengeFor(user);
+        _twoFactorChallenges.Setup(c => c.TryConsumeAttemptAsync(challenge.Id, It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var response = await CreateService().VerifyTwoFactorAsync(new VerifyTwoFactorRequest(challenge.Id, "000000"), "1.2.3.4", "ua", CancellationToken.None);
+
+        response.Succeeded.Should().BeFalse();
+        _audit.Verify(a => a.RecordLoginAttemptAsync("1.2.3.4", false, user.Email, user.Id, "Invalid 2FA code", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task VerifyTwoFactor_WithNoAttemptLeft_NeverComparesTheCode()
+    {
+        var user = ExistingUser();
+        var challenge = ChallengeFor(user);
+        _twoFactorChallenges.Setup(c => c.TryConsumeAttemptAsync(challenge.Id, It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        var response = await CreateService().VerifyTwoFactorAsync(new VerifyTwoFactorRequest(challenge.Id, "123456"), "1.2.3.4", "ua", CancellationToken.None);
+
+        response.Succeeded.Should().BeFalse("the right code is useless once the attempts are used up (parallel requests included)");
+        _passwordHasher.Verify(h => h.VerifyPassword(challenge.CodeHash, It.IsAny<string>()), Times.Never);
+        _tokenService.Verify(t => t.GenerateRefreshToken(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task VerifyTwoFactor_FromABlockedDevice_IsRefusedWithoutUsingAnAttempt()
+    {
+        var user = ExistingUser();
+        var challenge = ChallengeFor(user);
+        DeviceFailures(user, "6.6.6.6", 5);
+
+        var act = () => CreateService().VerifyTwoFactorAsync(new VerifyTwoFactorRequest(challenge.Id, "123456"), "6.6.6.6", "ua", CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        _twoFactorChallenges.Verify(c => c.TryConsumeAttemptAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task VerifyTwoFactor_TheRightCode_SignsInOnce_AndEndsTheFailureCountOfTheDevice()
+    {
+        var user = ExistingUser();
+        var challenge = ChallengeFor(user);
+        _twoFactorChallenges.Setup(c => c.TryConsumeAttemptAsync(challenge.Id, It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _twoFactorChallenges.Setup(c => c.TryMarkVerifiedAsync(challenge.Id, It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var response = await CreateService().VerifyTwoFactorAsync(new VerifyTwoFactorRequest(challenge.Id, "123456"), "1.2.3.4", "ua", CancellationToken.None);
+
+        response.Succeeded.Should().BeTrue();
+        _audit.Verify(a => a.RecordLoginAttemptAsync("1.2.3.4", true, user.Email, user.Id, It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ResendTwoFactor_ForAnOlderChallenge_IsRefused()
+    {
+        var user = ExistingUser();
+        var older = OpenChallenge(user, _tenant.Id, "111111");
+        var newer = OpenChallenge(user, _tenant.Id, "222222");
+        typeof(TwoFactorChallenge).GetProperty(nameof(TwoFactorChallenge.CreatedAt))!.SetValue(older, DateTime.UtcNow.AddMinutes(-2));
+        _twoFactorChallenges.Setup(c => c.GetByIdAsync(older.Id, It.IsAny<CancellationToken>())).ReturnsAsync(older);
+        _twoFactorChallenges.Setup(c => c.GetActiveForUserAsync(user.Id, _tenant.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<TwoFactorChallenge> { older, newer });
+
+        var act = () => CreateService(NoCooldown).ResendTwoFactorAsync(new ResendTwoFactorRequest(older.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        _twoFactorChallenges.Verify(c => c.AddAsync(It.IsAny<TwoFactorChallenge>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // ---- S3 / SEC-M2: parallel refresh (BR-BF-09) ----
+
+    [Fact]
+    public async Task Refresh_LosingTheRaceToATwin_StillGetsASiblingOfTheSameSession_NotATheftAlarm()
+    {
+        var (user, session, raw) = StaffSession(TimeSpan.FromMinutes(10));
+        _refreshTokens.Setup(r => r.TryRotateAsync(session.Id, It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        RefreshToken? added = null;
+        _refreshTokens.Setup(r => r.AddAsync(It.IsAny<RefreshToken>(), It.IsAny<CancellationToken>()))
+            .Callback<RefreshToken, CancellationToken>((t, _) => added = t);
+
+        var response = await CreateService().RefreshTokenAsync(new RefreshTokenDto.RefreshTokenRequest(raw, _tenant.Id), CancellationToken.None);
+
+        response.AccessToken.Should().NotBeNullOrEmpty();
+        added!.SessionStartedAt.Should().Be(session.SessionStartedAt);
+        _sessions.Verify(s => s.RevokeAllForUserAsync(user.Id, It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Refresh_OfATokenRotatedSecondsAgo_IsATwin_ButAfterTheGraceWindowItIsTheft()
+    {
+        var (user, session, raw) = StaffSession(TimeSpan.FromMinutes(10));
+        session.Revoke(RefreshTokenRevokedReason.Rotated); // rotated just now by the twin
+
+        var twin = await CreateService().RefreshTokenAsync(new RefreshTokenDto.RefreshTokenRequest(raw, _tenant.Id), CancellationToken.None);
+        twin.AccessToken.Should().NotBeNullOrEmpty();
+        _sessions.Verify(s => s.RevokeAllForUserAsync(user.Id, It.IsAny<CancellationToken>()), Times.Never);
+
+        session.RevokedAt = DateTime.UtcNow.AddSeconds(-30); // replayed later = a copied token
+        var act = () => CreateService().RefreshTokenAsync(new RefreshTokenDto.RefreshTokenRequest(raw, _tenant.Id), CancellationToken.None);
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        _sessions.Verify(s => s.RevokeAllForUserAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Refresh_OfATokenRevokedOnPurpose_IsNeverATwin()
+    {
+        var (user, session, raw) = StaffSession(TimeSpan.FromMinutes(10));
+        session.Revoke(); // sign-out / device revoke, a second ago
+
+        var act = () => CreateService().RefreshTokenAsync(new RefreshTokenDto.RefreshTokenRequest(raw, _tenant.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        _sessions.Verify(s => s.RevokeAllForUserAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

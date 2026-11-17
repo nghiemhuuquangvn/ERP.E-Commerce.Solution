@@ -130,3 +130,7 @@ route `{id}` must match the caller's own JWT `sub` claim, same check as the exis
   `TwoFactorChallenges`/`OAuthStates` table shapes
 - `src/services/IdentityService/README.md` — full endpoint list
 - `docs/frontend/README.md` — Admin app's login page / 2FA screen / Auth Settings page
+
+## Brute-force protection (2026-11-17)
+
+Lockout per device and per account, wrong 2FA codes counting as wrong passwords, at most 5 codes per hour, resend of the newest challenge only, and "a shop may require 2FA but never remove a user's own": see [BruteForceProtection.md](BruteForceProtection.md) (BR-BF-01..10).

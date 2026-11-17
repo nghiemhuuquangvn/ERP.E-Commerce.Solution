@@ -49,13 +49,29 @@ namespace ERP.Identity.Domain.Entities
             return refreshToken;
         }
 
-        public void Revoke()
+        /// <summary>Why the token stopped: a rotation (a successor exists) or a revoke (sign-out, device, account change).
+        /// Only a token that was ROTATED moments ago may be presented again without counting as theft (SEC-M2).</summary>
+        public RefreshTokenRevokedReason? RevokedReason { get; set; }
+
+        public void Revoke(RefreshTokenRevokedReason reason = RefreshTokenRevokedReason.Revoked)
         {
             RevokedAt = DateTime.UtcNow;
             IsActive = false;
+            RevokedReason = reason;
         }
 
         public bool IsTokenValid => RevokedAt == null && DateTime.UtcNow < ExpiredAt;
             
+    }
+}
+
+namespace ERP.Identity.Domain.Entities
+{
+    public enum RefreshTokenRevokedReason : byte
+    {
+        /// <summary>Replaced by its successor in a refresh.</summary>
+        Rotated = 1,
+        /// <summary>Ended on purpose: sign-out, device revoke, account / session change, expired session.</summary>
+        Revoked = 2,
     }
 }

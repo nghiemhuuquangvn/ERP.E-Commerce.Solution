@@ -171,6 +171,12 @@ Security invariants (2026-10-19 review — docs/business/Identity/SecurityReview
   and `DeviceSessionId` through rotation (never restart a session on refresh); the access token lives idle / 3. Web apps
   get the refresh token only as the HttpOnly cookie `erp_rt` (`X-Auth-Transport: cookie`, `RefreshTokenCookie`) and
   never persist a token; mobile apps keep it in expo-secure-store, never AsyncStorage.
+- Brute force (S3, docs/business/Identity/BruteForceProtection.md): a failed password or 2FA code of a known account is a
+  `LoginAttempts` row with `UserId`; the per-device refusal (MaxLoginAttempts per IP) and the account threshold
+  (`AccountLockThreshold` / window, temporary `User.LockFor`, never ends sessions) are computed from that history. A
+  password-OK-2FA-pending sign-in is NOT a success row. At most 5 codes per account per hour. Refresh rotation and 2FA
+  attempts are single atomic UPDATEs (`TryRotateAsync`, `TryConsumeAttemptAsync`) - never a tracked read-modify-write.
+  A shop may require 2FA but never remove a user's own; saving auth settings re-asks the password (`ConfirmCallerAsync`).
 - Secrets/tokens (reset, confirm, OTP) only leave the service via NotificationService
   events — never in an HTTP response (dev-only flag excepted, blocked outside Development).
 - Every token-issuing path goes through `EnsureAccountCanAuthenticateAsync`

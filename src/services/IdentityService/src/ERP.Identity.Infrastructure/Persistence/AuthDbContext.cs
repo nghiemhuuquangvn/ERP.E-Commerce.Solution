@@ -378,6 +378,8 @@ namespace ERP.Identity.Infrastructure.Persistence
                 entity.HasIndex(rt => rt.Token).IsUnique();
                 entity.HasIndex(rt => rt.DeviceSessionId);
                 entity.Ignore(rt => rt.SessionStart);
+                // The column exists since 001 as NVARCHAR(200) (never used before S3): the reason is stored as its name.
+                entity.Property(rt => rt.RevokedReason).HasConversion<string>().HasMaxLength(200);
             });
 
             modelBuilder.Entity<ExternalLogin>(entity =>
