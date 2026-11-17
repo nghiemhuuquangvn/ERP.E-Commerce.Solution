@@ -40,6 +40,20 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-17 - Security wave S1 (SEC-H1, SEC-H2, Storefront sign-out of SEC-H3; uncommitted, on `feat/manufacturing-p4-4`)
+- **What:**
+  - **H1:** an external sign-in no longer links to an account whose e-mail was never confirmed (401 + audit `ExternalLoginLinkRefused`), and a password reset confirms the e-mail (BR-EXT-01..06 in `docs/business/Identity/ExternalAuthAndTwoFactor.md`).
+  - **H2:** IdentityService refuses to start outside Development with `Tenancy:FallbackTenantCode` unless `Tenancy:AllowFallbackTenantOutsideDevelopment=true` (`TenancyConfigurationGuard`; docker-compose sets the opt-in).
+  - **H3 (part):** Storefront sign-out calls `/auth/logout`.
+- **Proof:** Identity unit tests 298 green (new guard + linking + reset tests), Architecture 93 (new `NoTenantFallbackInDeploymentTests`), Storefront Vitest 49 + `vue-tsc` clean; IdentityService started in Production with a fallback and no opt-in stops with the message.
+- **Behaviour change:** a customer who registered with a password, never confirmed the e-mail, and now signs in with Google must reset the password once.
+- **Deploy:** rebuild `identityservice` (compose file changed: new env line) and the storefront image. **Next:** wave S2 (sessions), after the owner's decisions on the absolute session lifetime.
+
+### 2026-11-17 - Security architecture review 2026-11 (docs only, on `feat/manufacturing-p4-4`)
+- **What:** a fresh review of authentication, authorization, roles / permissions, tenant isolation, service-to-service calls, the web SPAs and the mobile apps, per tenant and per user: `docs/business/Identity/SecurityReview-2026-11.md` (actors, architecture, findings SEC-H1..H3 / M1..M16 / L1..L16 with evidence and acceptance criteria, risk matrix, UAT-SEC-01..14, reconciliation with the 2026-10 review). No Critical finding. **High:** H1 account pre-hijack through Google linking, H2 unknown host = SYSTEM in the compose stack, H3 tokens in `localStorage` + Storefront logout without server call.
+- **Risk register:** R297-R316 in DEFERRED-ISSUES §6.
+- **Next (owner approves each wave):** S1 (H2, H1, Storefront logout) -> S2 sessions (cookie refresh token, absolute lifetime, session-bound tokens) -> S3 brute force -> S4 infrastructure (Redis / ES / Kafka auth, per-service SQL logins, nginx headers, mobile SecureStore) -> S5 structure (allowlist, ticket-only hubs, API keys, custom domains, token size). Owner decisions open: absolute session lifetime, mandatory e-mail confirmation, may a tenant lower the password policy.
+
 ### 2026-11-17 - Manufacturing Phase 4 P4-4: non-conformance reports, dispositions and rework orders (`feat/manufacturing-p4-4`, from master)
 - **What:** BR-NCR-01..04, BR-RW-01..03 (T4.10, T4.11, TC-NCR-001..007, TC-RW-001..004, closes R279): a failed inspection creates its NCR in the same save; the quality manager splits the quantity into Rework / Scrap / Use as is lines (sum = the lot, use as is needs `qc:approve-deviation`) and executes them (Scrap = scrap of the held lot, Use as is = a part moves to finished goods as a sub-lot and is released, Rework = a **rework order** with no BOM whose one material is the held lot, received as `<lot>-R<n>` on hold with a new FQC); the NCR closes with its last line and settles the lot; in-process failures offer Scrap / Use as is; a manual NCR from a report is a record; a re-inspection cancels an untouched NCR. Admin S23, Quality tab, *Raise NCR*, the fixed lot in the issue dialog. Identity 037, SQL 014.
 - **Owner answers:** FQC full, IPQC only Scrap + Use as is, a manual NCR is record only.

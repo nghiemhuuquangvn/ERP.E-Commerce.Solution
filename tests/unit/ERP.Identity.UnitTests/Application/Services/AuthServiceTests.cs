@@ -481,6 +481,7 @@ public class AuthServiceTests
     public async Task ExternalLoginAsync_VerifiedEmailOfAnExistingAccount_LinksIt_InsteadOfCreatingADuplicate()
     {
         var existing = ExistingUser(); // victim@acme.test, signs in with a password today
+        existing.ConfirmEmail();       // ... and confirmed the address
         GoogleReturns(existing.Email, emailVerified: true);
         ExternalLogin? link = null;
         _externalLogins.Setup(l => l.AddAsync(It.IsAny<ExternalLogin>(), It.IsAny<CancellationToken>()))
@@ -494,6 +495,37 @@ public class AuthServiceTests
         link!.UserId.Should().Be(existing.Id);
         link.TenantId.Should().Be(_tenant.Id);
         existing.IsEmailConfirmed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExternalLoginAsync_VerifiedEmailOfAnUnconfirmedAccount_IsRefused_SoASquatterKeepsNoAccess()
+    {
+        // SEC-H1: someone registered victim@acme.test with their own password and never confirmed it. When the real
+        // owner signs in with Google, the account must not be confirmed and linked (the squatter's password and sessions
+        // would keep working); the owner proves the mailbox through "forgot password" first.
+        var squatted = ExistingUser();
+        GoogleReturns(squatted.Email, emailVerified: true);
+
+        var act = () => CreateService().ExternalLoginAsync(GoogleRequest(), TenantCode, CancellationToken.None);
+
+        (await act.Should().ThrowAsync<UnauthorizedAccessException>()).Which.Message.Should().Contain("Forgot password");
+        squatted.IsEmailConfirmed.Should().NotBe(true);
+        _externalLogins.Verify(l => l.AddAsync(It.IsAny<ExternalLogin>(), It.IsAny<CancellationToken>()), Times.Never);
+        _users.Verify(u => u.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+        _tokenService.Verify(t => t.GenerateRefreshToken(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ResetPasswordAsync_ConfirmsTheEmail_BecauseTheLinkWasDeliveredToTheMailbox()
+    {
+        var user = ExistingUser();
+        const string rawToken = "raw-reset-token";
+        var stored = PasswordResetToken.Create(user.Id, OpaqueTokenHasher.Hash(rawToken), DateTime.UtcNow.AddMinutes(30));
+        _resetTokens.Setup(r => r.GetByTokenAsync(OpaqueTokenHasher.Hash(rawToken), It.IsAny<CancellationToken>())).ReturnsAsync(stored);
+
+        await CreateService().ResetPasswordAsync(new ResetPasswordRequest(rawToken, "Brand-New-Pass-1"), CancellationToken.None);
+
+        user.IsEmailConfirmed.Should().BeTrue();
     }
 
     [Fact]

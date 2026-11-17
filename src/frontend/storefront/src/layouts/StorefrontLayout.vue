@@ -130,9 +130,9 @@ watch(
   },
 )
 
-function handleLogout() {
+async function handleLogout() {
   menuOpen.value = false
-  authStore.logout()
+  await authStore.signOut()
   router.push('/')
 }
 

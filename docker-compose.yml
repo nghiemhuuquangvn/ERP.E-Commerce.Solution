@@ -275,11 +275,14 @@ services:
       ForwardedHeaders__TrustedHops: "2"
       # Tenant = request host. Local stack is reached via http://localhost (no tenant
       # host), so fall back to SYSTEM. NEVER set FallbackTenantCode in a real multi-tenant
-      # deployment — every unknown host would become that tenant.
+      # deployment — every unknown host would become that tenant. IdentityService refuses to
+      # start with a fallback outside Development unless the next flag opts in (SEC-H2): this
+      # file is for ONE local machine; never copy these two lines to a shared environment.
       Tenancy__BaseDomain: "erp.local"
       Tenancy__StorefrontBaseDomain: "shop.erp.local"
       Tenancy__PlatformHost: "admin.erp.local"
       Tenancy__FallbackTenantCode: "SYSTEM"
+      Tenancy__AllowFallbackTenantOutsideDevelopment: "true"
     depends_on:
       db-migrate:
         condition: service_completed_successfully

@@ -58,6 +58,32 @@ until then, `ExternalLoginAsync`/`TwitterCallbackAsync` called `IssueTokensAsync
 directly with no 2FA check at all, so a 2FA-enabled user could bypass 2FA entirely by
 signing in via an external provider instead of `/auth/login`.
 
+### Linking an external sign-in to an existing account (rules, 2026-11-17, SEC-H1)
+
+Actors: the person signing in with a provider; possibly an earlier self-registrant who used the same e-mail.
+
+| Rule | Statement |
+|---|---|
+| BR-EXT-01 | An external identity already linked in the tenant `(provider, providerKey, tenant)` signs in as that user. |
+| BR-EXT-02 | No account with the e-mail in the tenant → a new **Customer** is created (client `UserType` ignored); its e-mail is confirmed only when the provider verified it (Google). |
+| BR-EXT-03 | An account with the e-mail exists and the provider did **not** verify the e-mail (Facebook, Microsoft, Twitter) → refused (401). |
+| BR-EXT-04 | An account with the e-mail exists, the provider verified it, **and the account's e-mail is confirmed** → the identity is linked to that account; account status and 2FA apply as for a password sign-in. |
+| BR-EXT-05 | An account with the e-mail exists, the provider verified it, but **the account's e-mail was never confirmed** → refused (401, "reset the password through *Forgot password*, then sign in again"), nothing is linked or confirmed, a `ExternalLoginLinkRefused` audit row is written. Reason: anyone can self-register with another person's address; confirming and linking that account would leave the registrant's password and sessions working (account pre-hijack). |
+| BR-EXT-06 | A successful **password reset confirms the e-mail** (the link was delivered to the mailbox) and ends every session of the account. |
+
+Use case UC-EXT-L1 "Owner of a squatted address signs in with Google":
+- **Main flow:** Google sign-in → refused per BR-EXT-05.
+  1. The person uses *Forgot password* and opens the mail.
+  2. They set a new password. The account is confirmed and every other session ends (BR-EXT-06).
+  3. They sign in with Google again, and it links (BR-EXT-04).
+- **Alternative:** the person simply signs in with the password they set themselves; nothing is linked.
+- **Exception:** the reset link expired (60 min) → request a new one.
+
+UAT:
+- **UAT-EXT-01:** register `x@test` without confirming, then Google sign-in with `x@test`. Expect 401 with the *Forgot password* hint. No link row; the account is still unconfirmed.
+- **UAT-EXT-02:** continue with a password reset, then Google sign-in. Expect the sign-in to succeed and the account to be linked. The old password and the old refresh token are refused.
+- **UAT-EXT-03:** Google sign-in for an account that confirmed its address. Expect the account to be linked as before.
+
 Adding a 5th provider (e.g. GitHub, LinkedIn): if it offers a client-side SDK with a
 directly verifiable token (like Google/Microsoft/Facebook), implement
 `IExternalAuthProvider` and register it in `DependencyInjection.cs` — no controller or
