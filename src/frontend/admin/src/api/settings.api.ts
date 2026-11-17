@@ -20,6 +20,9 @@ export interface SystemAuthSettings {
   maxLoginAttempts: number
   lockoutDurationMinutes: number
   sessionTimeoutMinutes: number
+  sessionAbsoluteHours: number
+  customerSessionTimeoutMinutes: number
+  customerSessionAbsoluteDays: number
 }
 
 export type UpdateSystemAuthSettingsRequest = SystemAuthSettings
@@ -40,6 +43,9 @@ export interface TenantAuthSettings {
   maxLoginAttempts: number
   lockoutDurationMinutes: number
   sessionTimeoutMinutes: number
+  sessionAbsoluteHours: number
+  customerSessionTimeoutMinutes: number
+  customerSessionAbsoluteDays: number
 }
 
 export type UpdateTenantAuthSettingsRequest = Omit<TenantAuthSettings, 'tenantId'>

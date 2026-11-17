@@ -376,6 +376,8 @@ namespace ERP.Identity.Infrastructure.Persistence
                 entity.ToTable("RefreshTokens");
                 entity.HasKey(rt => rt.Id);
                 entity.HasIndex(rt => rt.Token).IsUnique();
+                entity.HasIndex(rt => rt.DeviceSessionId);
+                entity.Ignore(rt => rt.SessionStart);
             });
 
             modelBuilder.Entity<ExternalLogin>(entity =>

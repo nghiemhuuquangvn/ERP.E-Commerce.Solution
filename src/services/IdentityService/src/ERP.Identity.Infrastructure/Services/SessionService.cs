@@ -16,7 +16,7 @@ namespace ERP.Identity.Infrastructure.Services
             _unitOfWork = unitOfWork;
         }
 
-        public async Task RegisterSessionAsync(
+        public async Task<Guid> RegisterSessionAsync(
             Guid userId, Guid tenantId, string? deviceId, string? deviceName,
             string? deviceType, string? platform, string? ipAddress, string? userAgent, CancellationToken ct)
         {
@@ -32,11 +32,23 @@ namespace ERP.Identity.Infrastructure.Services
             {
                 existing.Touch(ipAddress);
                 await _unitOfWork.DeviceSessions.UpdateAsync(existing, ct);
-                return;
+                return existing.Id;
             }
 
             var session = DeviceSession.Create(userId, tenantId, effectiveDeviceId, deviceName, deviceType, platform, ipAddress);
             await _unitOfWork.DeviceSessions.AddAsync(session, ct);
+            return session.Id;
+        }
+
+        public async Task<bool> TouchSessionAsync(Guid deviceSessionId, string? ipAddress, CancellationToken ct)
+        {
+            var session = await _unitOfWork.DeviceSessions.GetByIdAsync(deviceSessionId, ct);
+            if (session == null || !session.IsActive)
+                return false;
+
+            session.Touch(ipAddress);
+            await _unitOfWork.DeviceSessions.UpdateAsync(session, ct);
+            return true;
         }
 
         public async Task<IReadOnlyList<DeviceSessionDto>> ListActiveSessionsAsync(Guid userId, CancellationToken ct)
@@ -54,6 +66,14 @@ namespace ERP.Identity.Infrastructure.Services
 
             session.Revoke();
             await _unitOfWork.DeviceSessions.UpdateAsync(session, ct);
+
+            // "Sign out this device" must end it: its refresh tokens stop now; its last access token lives at most one
+            // access lifetime (a third of the idle timeout, SessionPolicy).
+            await _unitOfWork.RefreshTokens.RevokeAllByDeviceSessionAsync(sessionId, ct);
+
+            // A stand-alone user action (Users -> sessions -> revoke): unlike the other methods here it commits itself.
+            // Before S2 nothing saved it, so a revoked device was never revoked (SEC-M4).
+            await _unitOfWork.SaveChangesAsync(ct);
         }
 
         public async Task RevokeAllForUserAsync(Guid userId, CancellationToken ct)

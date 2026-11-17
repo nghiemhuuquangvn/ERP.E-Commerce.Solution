@@ -40,6 +40,28 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-17 - Security wave S2: sessions (`fix/security-s2`, from `fix/security-s1`)
+- **What** (owner: a back-office session ends after 15 minutes without activity; values per tenant):
+  - **Session policy:** `SessionPolicy`: idle timeout + absolute limit, back office 15 min / 12 h, customer 7 d / 30 d. Tenant ≤ platform, in Admin → Settings → Authentication. The access token lives idle / 3 (5 min).
+  - **Session-bound tokens:** refresh tokens carry the session start and the device session through rotation (SEC-M3); revoking a device ends it (SEC-M4).
+  - **Web apps:** the refresh token is the HttpOnly cookie `erp_rt` (SEC-H3), the access token lives in memory. Idle in the Admin = no input, so background polling cannot keep a session alive; the login page explains an ended session.
+  - **Mobile staff / customer apps:** expo-secure-store and refresh on 401 (SEC-M15).
+  - Migration Identity 038. Rules BR-SES-01..12 in `docs/business/Identity/Sessions.md`.
+- **Proof:**
+  - Identity 321 tests, Architecture 93;
+  - Admin 478 tests (+6), tsc clean;
+  - Storefront 51 tests, vue-tsc clean;
+  - Staff 68 tests, Customer 76 tests.
+  - Live check (compose stack):
+    - cookie set HttpOnly / SameSite=Strict, body token null, refresh window 15 min, access 300 s;
+    - refresh without the header refused (CSRF), rotation and reuse detection OK, mobile body mode unchanged;
+    - device revoke ends the device. It found that the revoke was never saved before (`RevokeSessionAsync` now commits, test `DeviceSessionRevokeTests`).
+- **Deploy order:**
+  1. `db-migrate` (Identity 038);
+  2. identityservice (compose adds `Auth__RefreshCookie__AllowInsecure` for the local http stack only);
+  3. admin, storefront and mobile builds together: old SPA builds expect a refresh token in the body.
+- **Risks:** R317-R320. **Next:** wave S3 (brute force: M1, M2, M5, M6).
+
 ### 2026-11-17 - Security wave S1 (SEC-H1, SEC-H2, Storefront sign-out of SEC-H3; uncommitted, on `feat/manufacturing-p4-4`)
 - **What:**
   - **H1:** an external sign-in no longer links to an account whose e-mail was never confirmed (401 + audit `ExternalLoginLinkRefused`), and a password reset confirms the e-mail (BR-EXT-01..06 in `docs/business/Identity/ExternalAuthAndTwoFactor.md`).

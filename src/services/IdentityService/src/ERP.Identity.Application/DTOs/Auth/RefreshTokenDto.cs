@@ -8,7 +8,8 @@ namespace ERP.Identity.Application.DTOs.Auth
 {
     public class RefreshTokenDto
     {
-        public record RefreshTokenRequest(string RefreshToken, Guid TenantId = default, string? IpAddress = null);
-        public record RefreshTokenResponse(string AccessToken, string RefreshToken, bool Succeeded = true, IEnumerable<string>? Errors = null);
+        // RefreshToken may be absent: web apps send it as the HttpOnly cookie (X-Auth-Transport: cookie, SEC-H3).
+        public record RefreshTokenRequest(string? RefreshToken, Guid TenantId = default, string? IpAddress = null);
+        public record RefreshTokenResponse(string AccessToken, string? RefreshToken, bool Succeeded = true, IEnumerable<string>? Errors = null, DateTime? RefreshTokenExpiresAt = null);
     }
 }

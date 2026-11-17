@@ -15,6 +15,8 @@ public class NoTenantFallbackInDeploymentTests
     [
         "FallbackTenantCode:", "FallbackTenantCode=", "FallbackTenantCode\":",
         "AllowFallbackTenantOutsideDevelopment",
+        // SEC-H3 / S2: a refresh-token cookie without Secure is for the plain-http local stack only.
+        "RefreshCookie__AllowInsecure", "RefreshCookie:AllowInsecure",
     ];
 
     private static string RepositoryRoot()

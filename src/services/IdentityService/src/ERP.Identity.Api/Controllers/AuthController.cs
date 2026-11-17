@@ -42,7 +42,7 @@ namespace ERP.Identity.Api.Controllers
             if (!TryGetTenantCode(out var tenantCode, out var error)) return error!;
             var result = await _authService.RegisterAsync(request with { TenantCode = tenantCode! }, cancellationToken);
             if (!result.Succeeded) return BadRequest(result.Errors);
-            return Ok(result); // LoginResponse: { accessToken, refreshToken, user, succeeded }
+            return Ok(WithRefreshCookie(result)); // LoginResponse: { accessToken, refreshToken, user, succeeded }
         }
 
         /// <summary>
@@ -66,7 +66,7 @@ namespace ERP.Identity.Api.Controllers
 
             var result = await _authService.SignupTenantAsync(request, cancellationToken);
             if (!result.Succeeded) return BadRequest(result.Errors);
-            return Ok(result); // LoginResponse: { accessToken, refreshToken, user, succeeded }
+            return Ok(WithRefreshCookie(result)); // LoginResponse: { accessToken, refreshToken, user, succeeded }
         }
 
         [HttpPost("login")]
@@ -77,7 +77,7 @@ namespace ERP.Identity.Api.Controllers
             if (!TryGetTenantCode(out var tenantCode, out var error)) return error!;
             var result = await _authService.LoginAsync(request, tenantCode!, GetClientIp(), Request.Headers.UserAgent.ToString(), cancellationToken);
             if (!result.Succeeded) return Unauthorized(result.Errors);
-            return Ok(result);
+            return Ok(WithRefreshCookie(result));
         }
 
         /// <summary>
@@ -115,11 +115,12 @@ namespace ERP.Identity.Api.Controllers
             // domain (AuthService rejects the mismatch). Ignores any client-supplied TenantId.
             if (!Guid.TryParse(Request.Headers["X-Tenant-Id"].ToString(), out var hostTenantId))
                 return BadRequest(new { message = "Unable to resolve tenant from request host." });
-            var refreshTokenRequest = new RefreshTokenRequest(request.RefreshToken, hostTenantId, GetClientIp());
+            var refreshTokenRequest = new RefreshTokenRequest(
+                RefreshTokenCookie.Read(Request, request?.RefreshToken), hostTenantId, GetClientIp());
 
             var result = await _authService.RefreshTokenAsync(refreshTokenRequest, cancellationToken);
             if (!result.Succeeded) return BadRequest(result.Errors);
-            return Ok(result);
+            return Ok(result with { RefreshToken = RefreshTokenCookie.Write(HttpContext, result.RefreshToken, result.RefreshTokenExpiresAt) });
         }
 
         [HttpPost("logout")]
@@ -135,9 +136,14 @@ namespace ERP.Identity.Api.Controllers
                 ? DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime
                 : null;
 
-            await _authService.LogoutAsync(callerUserId.Value, request.RefreshToken, jti, tokenExpiresAt, GetClientIp(), cancellationToken);
+            await _authService.LogoutAsync(callerUserId.Value, RefreshTokenCookie.Read(Request, request?.RefreshToken), jti, tokenExpiresAt, GetClientIp(), cancellationToken);
+            RefreshTokenCookie.Delete(HttpContext);
             return Ok(new { message = "Logged out successfully" });
         }
+
+        /// <summary>Cookie transport for web apps (SEC-H3): the refresh token goes into the HttpOnly cookie, not the body.</summary>
+        private LoginDto.LoginResponse WithRefreshCookie(LoginDto.LoginResponse response) =>
+            response with { RefreshToken = RefreshTokenCookie.Write(HttpContext, response.RefreshToken, response.RefreshTokenExpiresAt) };
 
         [HttpPost("forgot-password")]
         [AllowAnonymous]
@@ -174,7 +180,7 @@ namespace ERP.Identity.Api.Controllers
             if (!TryGetTenantCode(out var tenantCode, out var error)) return error!;
             var result = await _authService.ExternalLoginAsync(request, tenantCode!, cancellationToken);
             if (!result.Succeeded) return Unauthorized(result.Errors);
-            return Ok(result);
+            return Ok(WithRefreshCookie(result));
         }
 
         [HttpGet("external-login/twitter/authorize-url")]
@@ -193,7 +199,7 @@ namespace ERP.Identity.Api.Controllers
         {
             var result = await _authService.TwitterCallbackAsync(request, cancellationToken);
             if (!result.Succeeded) return Unauthorized(result.Errors);
-            return Ok(result);
+            return Ok(WithRefreshCookie(result));
         }
 
         [HttpPost("2fa/verify")]
@@ -203,7 +209,7 @@ namespace ERP.Identity.Api.Controllers
         {
             var result = await _authService.VerifyTwoFactorAsync(request, GetClientIp(), Request.Headers.UserAgent.ToString(), cancellationToken);
             if (!result.Succeeded) return BadRequest(result.Errors);
-            return Ok(result);
+            return Ok(WithRefreshCookie(result));
         }
 
         [HttpPost("2fa/resend")]

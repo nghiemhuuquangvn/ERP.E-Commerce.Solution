@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiClient } from '@/api/client'
+import { refreshSession } from '@/api/session'
 
 interface User {
   id: string
@@ -10,22 +11,33 @@ interface User {
 
 interface AuthResponse {
   accessToken: string | null
+  /** Null for this app: Identity keeps the refresh token in an HttpOnly cookie (X-Auth-Transport: cookie, SEC-H3). */
   refreshToken: string | null
   succeeded: boolean
   errors?: string[]
   user?: User | null
 }
 
-
+/**
+ * Session of a signed-in customer (docs/business/Identity/Sessions.md). The access token lives in memory only; the
+ * refresh token is an HttpOnly cookie the page cannot read. Only `user` and the "signed in" flag are kept in
+ * localStorage, so a reload shows the customer's name and the first call refreshes through the cookie.
+ */
 export const useAuthStore = defineStore(
   'auth',
   () => {
     const user = ref<User | null>(null)
     const accessToken = ref<string | null>(null)
-    const refreshToken = ref<string | null>(null)
+    const signedIn = ref(false)
 
-    const isAuthenticated = computed(() => !!accessToken.value)
+    const isAuthenticated = computed(() => signedIn.value)
     const fullName = computed(() => user.value?.fullName ?? '')
+
+    function accept(data: AuthResponse) {
+      accessToken.value = data.accessToken
+      user.value = data.user ?? null
+      signedIn.value = !!data.accessToken
+    }
 
     async function login(email: string, password: string) {
       // Tenant comes from the host (resolved by the Gateway), never from the client.
@@ -34,9 +46,7 @@ export const useAuthStore = defineStore(
         password,
         userType: 0, // Customer
       })
-      accessToken.value = data.accessToken
-      refreshToken.value = data.refreshToken
-      user.value = data.user ?? null
+      accept(data)
     }
 
     async function register(firstName: string, lastName: string, email: string, password: string) {
@@ -46,40 +56,41 @@ export const useAuthStore = defineStore(
         userName: `${firstName} ${lastName}`.trim(),
         userType: 0, // Customer — returns LoginResponse with tokens
       })
-      accessToken.value = data.accessToken
-      refreshToken.value = data.refreshToken
-      user.value = data.user ?? null
+      accept(data)
     }
 
-    /** Forgets the session on this device only (used when the server already refused the token). */
+    function setAccessToken(token: string) {
+      accessToken.value = token
+    }
+
+    /** Forgets the session on this device only (the server already refused it). */
     function logout() {
       user.value = null
       accessToken.value = null
-      refreshToken.value = null
+      signedIn.value = false
     }
 
     /**
-     * The customer signs out: forget the session here first (the page must never stay signed in because the network
-     * failed), then ask the server to revoke the refresh token and the access token, so a copy of them (another tab,
-     * a stolen localStorage) stops working too. SEC-H3 / S1 (docs/business/Identity/SecurityReview-2026-11.md).
+     * The customer signs out: the server revokes the session (refresh cookie + access token) and deletes the cookie,
+     * then the page forgets it - also when the server cannot be reached. After a reload there is no access token yet,
+     * so one refresh through the cookie gets the token the logout call needs.
      */
     async function signOut() {
-      const access = accessToken.value
-      const refresh = refreshToken.value
+      let access = accessToken.value
+      if (!access && signedIn.value) {
+        access = await refreshSession().catch(() => null)
+      }
       logout()
-      if (!access || !refresh) return
+      if (!access) return
       try {
-        await apiClient.post(
-          '/v1/auth/logout',
-          { refreshToken: refresh },
-          { headers: { Authorization: `Bearer ${access}` } },
-        )
+        await apiClient.post('/v1/auth/logout', {}, { headers: { Authorization: `Bearer ${access}` } })
       } catch {
-        // Best effort: an expired access token cannot be revoked any more and the refresh token then expires on its own.
+        // Best effort: the session then ends by itself after the idle timeout.
       }
     }
 
-    return { user, accessToken, refreshToken, isAuthenticated, fullName, login, register, logout, signOut }
+    return { user, accessToken, signedIn, isAuthenticated, fullName, login, register, setAccessToken, logout, signOut }
   },
-  { persist: true },
+  // Never a token in localStorage (SEC-H3).
+  { persist: { paths: ['user', 'signedIn'] } },
 )

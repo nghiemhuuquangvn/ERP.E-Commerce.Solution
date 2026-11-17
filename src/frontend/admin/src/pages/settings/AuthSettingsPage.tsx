@@ -29,6 +29,9 @@ interface SystemFormValues {
   maxLoginAttempts: number
   lockoutDurationMinutes: number
   sessionTimeoutMinutes: number
+  sessionAbsoluteHours: number
+  customerSessionTimeoutMinutes: number
+  customerSessionAbsoluteDays: number
 }
 
 function SystemSettingsForm({ canManage }: { canManage: boolean }) {
@@ -56,7 +59,10 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
       requireSymbol: true,
       maxLoginAttempts: 5,
       lockoutDurationMinutes: 15,
-      sessionTimeoutMinutes: 60,
+      sessionTimeoutMinutes: 15,
+      sessionAbsoluteHours: 12,
+      customerSessionTimeoutMinutes: 10080,
+      customerSessionAbsoluteDays: 30,
     },
   })
 
@@ -115,6 +121,27 @@ function SystemSettingsForm({ canManage }: { canManage: boolean }) {
           {...register('sessionTimeoutMinutes', { valueAsNumber: true })}
  />
       </FormField>
+      <FormField label={t('settings.auth.sessionAbsoluteHours')}>
+        <Input
+          type="number"
+          disabled={!canManage}
+          {...register('sessionAbsoluteHours', { valueAsNumber: true })}
+        />
+      </FormField>
+      <FormField label={t('settings.auth.customerSessionTimeoutMinutes')}>
+        <Input
+          type="number"
+          disabled={!canManage}
+          {...register('customerSessionTimeoutMinutes', { valueAsNumber: true })}
+        />
+      </FormField>
+      <FormField label={t('settings.auth.customerSessionAbsoluteDays')}>
+        <Input
+          type="number"
+          disabled={!canManage}
+          {...register('customerSessionAbsoluteDays', { valueAsNumber: true })}
+        />
+      </FormField>
 
       {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.auth.failedToSave'))}</Alert>}
 
@@ -142,6 +169,9 @@ interface TenantFormValues {
   maxLoginAttempts: number
   lockoutDurationMinutes: number
   sessionTimeoutMinutes: number
+  sessionAbsoluteHours: number
+  customerSessionTimeoutMinutes: number
+  customerSessionAbsoluteDays: number
 }
 
 function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenantId: string }) {
@@ -171,7 +201,10 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
       requireSymbol: true,
       maxLoginAttempts: 5,
       lockoutDurationMinutes: 15,
-      sessionTimeoutMinutes: 60,
+      sessionTimeoutMinutes: 15,
+      sessionAbsoluteHours: 12,
+      customerSessionTimeoutMinutes: 10080,
+      customerSessionAbsoluteDays: 30,
     },
   })
 
@@ -231,6 +264,27 @@ function TenantSettingsForm({ canManage, tenantId }: { canManage: boolean; tenan
           disabled={!canManage}
           {...register('sessionTimeoutMinutes', { valueAsNumber: true })}
  />
+      </FormField>
+      <FormField label={t('settings.auth.sessionAbsoluteHours')}>
+        <Input
+          type="number"
+          disabled={!canManage}
+          {...register('sessionAbsoluteHours', { valueAsNumber: true })}
+        />
+      </FormField>
+      <FormField label={t('settings.auth.customerSessionTimeoutMinutes')}>
+        <Input
+          type="number"
+          disabled={!canManage}
+          {...register('customerSessionTimeoutMinutes', { valueAsNumber: true })}
+        />
+      </FormField>
+      <FormField label={t('settings.auth.customerSessionAbsoluteDays')}>
+        <Input
+          type="number"
+          disabled={!canManage}
+          {...register('customerSessionAbsoluteDays', { valueAsNumber: true })}
+        />
       </FormField>
 
       {mutation.isError && <Alert variant="danger">{serverMessage(mutation.error, t('settings.auth.failedToSave'))}</Alert>}

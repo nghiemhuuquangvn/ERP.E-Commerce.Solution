@@ -69,8 +69,9 @@ export const authApi = {
   login: (body: LoginRequest) =>
     apiClient.post<LoginResponse>('/v1/auth/login', body).then((r) => r.data),
 
-  logout: (refreshToken: string) =>
-    apiClient.post('/v1/auth/logout', { refreshToken }),
+  // The refresh token to revoke is the HttpOnly cookie (X-Auth-Transport: cookie on apiClient); the server deletes it.
+  logout: () =>
+    apiClient.post('/v1/auth/logout', {}),
 
   me: () =>
     apiClient.get<LoginUser>('/v1/auth/me').then((r) => r.data),

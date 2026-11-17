@@ -1,6 +1,7 @@
 import * as signalR from '@microsoft/signalr'
 import { useAuthStore } from '@/stores/auth.store'
 import { chatbotApi } from '@/api/chatbot.api'
+import { refreshSession } from '@/api/session'
 
 export interface ChatSignalRCallbacks {
   onTextDelta: (delta: string) => void
@@ -22,6 +23,8 @@ function buildConnection(): signalR.HubConnection {
       // Minted fresh per call since SignalR invokes this on every (re)connect and a
       // ticket is single-use/short-lived. Guests have no JWT to exchange.
       accessTokenFactory: async () => {
+        // After a reload the access token is not in memory yet (SEC-H3): get one through the refresh cookie first.
+        if (!useAuthStore().accessToken && useAuthStore().signedIn) await refreshSession().catch(() => undefined)
         if (!useAuthStore().accessToken) return ''
         try {
           return await chatbotApi.getHubTicket()

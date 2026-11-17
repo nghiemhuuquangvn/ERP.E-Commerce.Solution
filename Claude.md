@@ -166,6 +166,11 @@ Security invariants (2026-10-19 review — docs/business/Identity/SecurityReview
 - `Tenancy:FallbackTenantCode` (unknown host = that tenant) is local only: Identity refuses to start with it outside
   Development unless `Tenancy:AllowFallbackTenantOutsideDevelopment=true`, and no `deployment/` manifest may set
   either (`NoTenantFallbackInDeploymentTests`) — SEC-H2.
+- Sessions (S2, docs/business/Identity/Sessions.md): `SessionPolicy` decides idle timeout + absolute limit per tenant
+  (back office 15 min / 12 h, customer 7 d / 30 d; tenant ≤ platform); every refresh token carries `SessionStartedAt`
+  and `DeviceSessionId` through rotation (never restart a session on refresh); the access token lives idle / 3. Web apps
+  get the refresh token only as the HttpOnly cookie `erp_rt` (`X-Auth-Transport: cookie`, `RefreshTokenCookie`) and
+  never persist a token; mobile apps keep it in expo-secure-store, never AsyncStorage.
 - Secrets/tokens (reset, confirm, OTP) only leave the service via NotificationService
   events — never in an HTTP response (dev-only flag excepted, blocked outside Development).
 - Every token-issuing path goes through `EnsureAccountCanAuthenticateAsync`

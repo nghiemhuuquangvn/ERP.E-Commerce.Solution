@@ -283,6 +283,9 @@ services:
       Tenancy__PlatformHost: "admin.erp.local"
       Tenancy__FallbackTenantCode: "SYSTEM"
       Tenancy__AllowFallbackTenantOutsideDevelopment: "true"
+      # The local stack is plain http: the refresh-token cookie cannot be Secure here (SEC-H3).
+      # Never in a shared deployment (NoTenantFallbackInDeploymentTests checks deployment/).
+      Auth__RefreshCookie__AllowInsecure: "true"
     depends_on:
       db-migrate:
         condition: service_completed_successfully

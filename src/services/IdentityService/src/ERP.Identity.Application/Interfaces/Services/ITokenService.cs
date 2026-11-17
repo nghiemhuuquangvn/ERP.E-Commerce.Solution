@@ -9,7 +9,8 @@ namespace ERP.Identity.Application.Interfaces.Services
 {
     public interface ITokenService
     {
-        Task<string> GenerateAccessToken(User user, AuthTenant tenant, IEnumerable<string> roles, IEnumerable<string> permissions, IEnumerable<string> licensedModules);
+        /// <param name="lifetime">How long the token lives (the session policy decides; never above Jwt:Expired). Null = Jwt:Expired.</param>
+        Task<string> GenerateAccessToken(User user, AuthTenant tenant, IEnumerable<string> roles, IEnumerable<string> permissions, IEnumerable<string> licensedModules, TimeSpan? lifetime = null);
         Task<string> GenerateRefreshToken(Guid userId, Guid tenantId);
     }
 }

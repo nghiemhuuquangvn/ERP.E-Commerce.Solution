@@ -35,6 +35,7 @@ async function mountPage(component: object, url: string, options: { auth?: boole
   if (options.auth) {
     const auth = useAuthStore()
     auth.accessToken = 'token'
+    auth.signedIn = true
     auth.user = { id: 'u1', email: 'a@b.c', fullName: 'Ann Lee' }
   }
   if (options.cartPrice !== undefined) useCartStore().addItem({ productId: 'p1', productName: 'Blue shirt', unitPrice: options.cartPrice }, 2)

@@ -31,11 +31,12 @@ function decodeTenantId(accessToken: string): string {
  */
 export function useCompleteLogin() {
   const navigate = useNavigate()
-  const { setUser, setTokens } = useAuthStore()
+  const { setUser, setAccessToken } = useAuthStore()
 
   return (data: LoginResponse) => {
-    if (!data.accessToken || !data.refreshToken || !data.user) return
-    setTokens(data.accessToken, data.refreshToken)
+    // The refresh token is not in the body any more: Identity set it as an HttpOnly cookie (SEC-H3).
+    if (!data.accessToken || !data.user) return
+    setAccessToken(data.accessToken)
     setUser({
       id: data.user.id,
       email: data.user.email,
@@ -88,10 +89,12 @@ export function useResendTwoFactor() {
 
 export function useLogout() {
   const navigate = useNavigate()
-  const { logout, refreshToken } = useAuthStore()
+  const { logout } = useAuthStore()
 
-  return () => {
-    if (refreshToken) authApi.logout(refreshToken).catch(() => undefined)
+  // Revoke on the server first (the request needs the access token; a 401 refreshes once through the cookie), then
+  // forget the session here - also when the server cannot be reached.
+  return async () => {
+    await authApi.logout().catch(() => undefined)
     logout()
     navigate('/login')
   }

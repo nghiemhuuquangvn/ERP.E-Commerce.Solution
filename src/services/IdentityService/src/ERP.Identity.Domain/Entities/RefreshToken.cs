@@ -17,12 +17,23 @@ namespace ERP.Identity.Domain.Entities
         public string? CreatedByIp { get; set; }
         public bool IsActive { get; set; }
 
+        /// <summary>When the sign-in that started this session happened; carried through every rotation so the
+        /// session's absolute limit holds (SEC-M3). Null on rows from before 2026-11-17: use <see cref="SessionStart"/>.</summary>
+        public DateTime? SessionStartedAt { get; set; }
+
+        /// <summary>The device session this token belongs to; revoking that device session ends it (SEC-M4).</summary>
+        public Guid? DeviceSessionId { get; set; }
+
+        // A row with neither date cannot prove when its session began: treat it as long over.
+        public DateTime SessionStart => SessionStartedAt ?? CreatedAt ?? DateTime.MinValue;
+
         public RefreshToken()
         {
             IsActive = true;
         }
 
-        public static RefreshToken Create(Guid userId, Guid tenantId, string token, DateTime expiredAt, string? createdByIp = null)
+        public static RefreshToken Create(Guid userId, Guid tenantId, string token, DateTime expiredAt, string? createdByIp = null,
+            DateTime? sessionStartedAt = null, Guid? deviceSessionId = null)
         {
             var refreshToken = new RefreshToken
             {
@@ -31,7 +42,9 @@ namespace ERP.Identity.Domain.Entities
                 Token = token,
                 ExpiredAt = expiredAt,
                 CreatedByIp = createdByIp,
-                IsActive = true
+                IsActive = true,
+                SessionStartedAt = sessionStartedAt,
+                DeviceSessionId = deviceSessionId
             };
             return refreshToken;
         }

@@ -52,5 +52,17 @@ namespace ERP.Identity.Infrastructure.Repositories
                 token.Revoke();
             }
         }
+
+        public async Task RevokeAllByDeviceSessionAsync(Guid deviceSessionId, CancellationToken ct)
+        {
+            var tokens = await _dbContext.RefreshTokens
+                .Where(rt => rt.DeviceSessionId == deviceSessionId && !rt.RevokedAt.HasValue)
+                .ToListAsync(ct);
+
+            foreach (var token in tokens)
+            {
+                token.Revoke();
+            }
+        }
     }
 }
