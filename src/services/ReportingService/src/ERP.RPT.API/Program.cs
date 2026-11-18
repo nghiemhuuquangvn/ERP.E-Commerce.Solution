@@ -69,8 +69,8 @@ builder.Services.AddErpApiVersioning();
 builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddCors(options =>
-    options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+// S4a (SEC-M14): no open CORS - only Cors:AllowedOrigins (none by default; the SPAs call their own host).
+builder.Services.AddErpCors(builder.Configuration);
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ReportingDbContext>("reporting-db");
@@ -88,7 +88,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseSharedLocalization();
-app.UseCors("AllowAll");
+app.UseErpCors();
 app.UseAuthentication();
 app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
 app.UseMiddleware<LicenseEnforcementMiddleware>();

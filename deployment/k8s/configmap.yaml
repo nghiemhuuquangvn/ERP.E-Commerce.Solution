@@ -7,7 +7,7 @@ data:
   ASPNETCORE_ENVIRONMENT: "Production"
   KafkaSettings__BootstrapServers: "kafka:9092"
   Cache__Type: "Redis"
-  ConnectionStrings__Redis: "redis:6379"
+  # ConnectionStrings__Redis comes from erp-secrets (redis-connection): it carries the Redis password (S4a).
   RabbitMQ__HostName: "rabbitmq"
   RabbitMQ__Port: "5672"
   RabbitMQ__UserName: "admin"

@@ -47,18 +47,31 @@ public sealed class RedisTokenRevocationStore : ITokenRevocationStore
         await (await DbAsync()).StringSetAsync(TokenRevocationKeys.RevokedJti(jti), "1", ttl);
     }
 
-    public async Task MarkUsersChangedAsync(IEnumerable<Guid> userIds, CancellationToken ct = default)
+    // Sets the marker to ARGV[1] unless it already holds a later time - a late retry of an older change must never weaken a
+    // newer one (S4a, revocation outbox). The TTL is refreshed either way.
+    private const string RaiseMarkerScript = @"
+local current = redis.call('GET', KEYS[1])
+if (not current) or (tonumber(current) == nil) or (tonumber(current) < tonumber(ARGV[1])) then
+  redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])
+else
+  redis.call('EXPIRE', KEYS[1], ARGV[2])
+end
+return 1";
+
+    private Task RaiseMarkerAsync(IDatabase db, string key, long changedAtUnix) =>
+        db.ScriptEvaluateAsync(RaiseMarkerScript, [key], [changedAtUnix, (long)_markerTtl.TotalSeconds]);
+
+    public async Task MarkUsersChangedAsync(IEnumerable<Guid> userIds, CancellationToken ct = default, long? changedAtUnix = null)
     {
         var db = await DbAsync();
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-        await Task.WhenAll(userIds.Distinct().Select(id =>
-            db.StringSetAsync(TokenRevocationKeys.UserChangedAt(id.ToString()), now, _markerTtl)));
+        var at = changedAtUnix ?? DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        await Task.WhenAll(userIds.Distinct().Select(id => RaiseMarkerAsync(db, TokenRevocationKeys.UserChangedAt(id.ToString()), at)));
     }
 
-    public async Task MarkTenantChangedAsync(Guid tenantId, CancellationToken ct = default)
+    public async Task MarkTenantChangedAsync(Guid tenantId, CancellationToken ct = default, long? changedAtUnix = null)
     {
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-        await (await DbAsync()).StringSetAsync(TokenRevocationKeys.TenantChangedAt(tenantId.ToString()), now, _markerTtl);
+        var at = changedAtUnix ?? DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        await RaiseMarkerAsync(await DbAsync(), TokenRevocationKeys.TenantChangedAt(tenantId.ToString()), at);
     }
 }
 
@@ -99,16 +112,23 @@ public sealed class InMemoryTokenRevocationStore : ITokenRevocationStore
         return Task.CompletedTask;
     }
 
-    public Task MarkUsersChangedAsync(IEnumerable<Guid> userIds, CancellationToken ct = default)
+    private void RaiseMarker(string key, long at)
+    {
+        var current = long.TryParse(Get(key), out var c) ? c : (long?)null;
+        var value = current is { } existing && existing > at ? existing : at;
+        _entries[key] = (value.ToString(), DateTime.UtcNow + _markerTtl);
+    }
+
+    public Task MarkUsersChangedAsync(IEnumerable<Guid> userIds, CancellationToken ct = default, long? changedAtUnix = null)
     {
         foreach (var id in userIds.Distinct())
-            _entries[TokenRevocationKeys.UserChangedAt(id.ToString())] = (Clock().ToString(), DateTime.UtcNow + _markerTtl);
+            RaiseMarker(TokenRevocationKeys.UserChangedAt(id.ToString()), changedAtUnix ?? Clock());
         return Task.CompletedTask;
     }
 
-    public Task MarkTenantChangedAsync(Guid tenantId, CancellationToken ct = default)
+    public Task MarkTenantChangedAsync(Guid tenantId, CancellationToken ct = default, long? changedAtUnix = null)
     {
-        _entries[TokenRevocationKeys.TenantChangedAt(tenantId.ToString())] = (Clock().ToString(), DateTime.UtcNow + _markerTtl);
+        RaiseMarker(TokenRevocationKeys.TenantChangedAt(tenantId.ToString()), changedAtUnix ?? Clock());
         return Task.CompletedTask;
     }
 }

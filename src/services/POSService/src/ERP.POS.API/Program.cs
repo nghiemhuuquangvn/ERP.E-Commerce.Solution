@@ -73,8 +73,8 @@ builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "POS Service API", Version = "v1" }));
-builder.Services.AddCors(options =>
-    options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+// S4a (SEC-M14): no open CORS - only Cors:AllowedOrigins (none by default; the SPAs call their own host).
+builder.Services.AddErpCors(builder.Configuration);
 
 var app = builder.Build();
 
@@ -92,7 +92,7 @@ app.UseSharedLocalization();
 app.UseAuthentication();
 app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
 app.UseMiddleware<LicenseEnforcementMiddleware>();
-app.UseCors("AllowAll");
+app.UseErpCors();
 app.UseAuthorization();
 app.MapHealthChecks("/health").AllowAnonymous();
 app.MapControllers();

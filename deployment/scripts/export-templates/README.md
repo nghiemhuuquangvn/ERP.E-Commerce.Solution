@@ -24,7 +24,7 @@ is self-contained.
 
 ```bash
 cp .env.example .env
-# edit .env: set a real SA_PASSWORD (no JWT secret — see "Signing keys")
+# edit .env: set a real SA_PASSWORD and REDIS_PASSWORD (no JWT secret — see "Signing keys")
 
 docker compose up --build -d
 curl http://localhost:5001/health

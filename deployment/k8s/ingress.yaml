@@ -11,6 +11,10 @@
 #   chat./notifications.     — hubs are same-origin now;
 #   rabbit./kafka.erp.local  — broker admin UIs must not be public (kubectl port-forward).
 # No rewrite-target: paths are forwarded unchanged.
+# HSTS (S4a, SEC-M14, docs/architecture/browser-security.md): add a `tls:` section with the certificate of every host;
+# ingress-nginx then sends Strict-Transport-Security itself (controller default hsts=true) and redirects http to https.
+# The SPA nginx never sets HSTS - it also serves the plain-http local stack. The other security headers come from the SPA
+# nginx (nginx.security-headers.conf).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

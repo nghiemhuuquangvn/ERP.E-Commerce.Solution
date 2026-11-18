@@ -1,4 +1,5 @@
 using ERP.Identity.Application.Interfaces.Services;
+using ERP.Identity.Domain.Entities;
 using ERP.Shared.Authorization.TokenRevocation;
 using Microsoft.Extensions.Logging;
 
@@ -37,35 +38,51 @@ namespace ERP.Identity.Infrastructure.Security
                 _tenants.Add(tenantId);
         }
 
-        public async Task FlushAsync(CancellationToken ct)
+        public IReadOnlyList<RevocationOutboxMessage> Stage()
         {
             if (_tokens.Count == 0 && _users.Count == 0 && _tenants.Count == 0)
-                return;
+                return [];
 
-            var tokens = _tokens.ToList();
-            var users = _users.ToList();
-            var tenants = _tenants.ToList();
+            var now = DateTime.UtcNow;
+            var rows = new List<RevocationOutboxMessage>();
+            rows.AddRange(_tokens.Select(t => RevocationOutboxMessage.ForToken(t.Jti, t.ExpiresAt, now)));
+            rows.AddRange(_users.Select(u => RevocationOutboxMessage.ForUser(u, now)));
+            rows.AddRange(_tenants.Select(t => RevocationOutboxMessage.ForTenant(t, now)));
             Clear();
+            return rows;
+        }
 
-            try
+        public async Task PublishAsync(IReadOnlyList<RevocationOutboxMessage> rows, CancellationToken ct)
+        {
+            foreach (var row in rows.Where(r => !r.IsPublished))
             {
-                foreach (var (jti, expiresAt) in tokens)
-                    await _store.RevokeTokenAsync(jti, expiresAt, ct);
-                if (users.Count > 0)
-                    await _store.MarkUsersChangedAsync(users, ct);
-                foreach (var tenant in tenants)
-                    await _store.MarkTenantChangedAsync(tenant, ct);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                // The change is committed; other services keep accepting the old tokens until
-                // they expire. Loud on purpose — this is a security-relevant failure.
-                _logger.LogError(ex,
-                    "Publishing token revocations failed ({Tokens} tokens, {Users} users, {Tenants} tenants) — " +
-                    "other services will accept the affected tokens until they expire",
-                    tokens.Count, users.Count, tenants.Count);
+                try
+                {
+                    await PublishOneAsync(_store, row, ct);
+                    row.MarkPublished(DateTime.UtcNow);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // Kept in the outbox: the RevocationOutboxPublisher retries until it reaches the store (S4a).
+                    row.MarkFailed(ex.Message);
+                    var level = row.Attempts >= 3 ? LogLevel.Error : LogLevel.Warning;
+                    _logger.Log(level, ex,
+                        "Publishing a token revocation ({Kind} {Subject}) failed (attempt {Attempts}); it stays in the outbox and is retried",
+                        row.Kind, row.Subject, row.Attempts);
+                }
             }
         }
+
+        /// <summary>Writes one outbox row to the shared store; throws when the store is unreachable.</summary>
+        public static Task PublishOneAsync(ITokenRevocationStore store, RevocationOutboxMessage row, CancellationToken ct) => row.Kind switch
+        {
+            RevocationKind.Token => store.RevokeTokenAsync(row.Subject, row.ExpiresAt ?? DateTime.UtcNow, ct),
+            RevocationKind.Users => store.MarkUsersChangedAsync([Guid.Parse(row.Subject)], ct, row.ChangedAtUnix),
+            RevocationKind.Tenant => store.MarkTenantChangedAsync(Guid.Parse(row.Subject), ct, row.ChangedAtUnix),
+            _ => Task.CompletedTask,
+        };
+
+        public Task FlushAsync(CancellationToken ct) => PublishAsync(Stage(), ct);
 
         public void Clear()
         {

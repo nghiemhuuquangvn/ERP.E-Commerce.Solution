@@ -195,8 +195,12 @@ builder.Services.AddSwaggerGen(c =>
 });
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+    // S4a (SEC-M14): the API policy is the shared allow-list (Cors:AllowedOrigins, none by default).
+    options.AddPolicy(ERP.Shared.Extensions.CorsExtensions.PolicyName, policy =>
+    {
+        var origins = builder.Configuration.GetSection(ERP.Shared.Extensions.CorsExtensions.AllowedOriginsKey).Get<string[]>() ?? [];
+        if (origins.Length > 0) policy.WithOrigins(origins).AllowAnyMethod().AllowAnyHeader();
+    });
 
     // The SignalR hub needs AllowCredentials (browser WS/SSE transports require it),
     // which can't be combined with AllowAnyOrigin — so this is a second, separate
@@ -243,7 +247,7 @@ app.UseSharedLocalization();
 app.UseAuthentication();
 app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
 app.UseMiddleware<LicenseEnforcementMiddleware>();
-app.UseCors("AllowAll");
+app.UseCors(ERP.Shared.Extensions.CorsExtensions.PolicyName);
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications").RequireCors("NotificationHubCors");

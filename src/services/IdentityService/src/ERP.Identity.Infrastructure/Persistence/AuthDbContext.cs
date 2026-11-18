@@ -24,6 +24,7 @@ namespace ERP.Identity.Infrastructure.Persistence
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
         public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
         public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+        public DbSet<RevocationOutboxMessage> RevocationOutbox => Set<RevocationOutboxMessage>();
         public DbSet<AuthTenant> Tenants => Set<AuthTenant>();
         public DbSet<EmailConfirmToken> EmailConfirmTokens => Set<EmailConfirmToken>();
         public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
@@ -407,6 +408,18 @@ namespace ERP.Identity.Infrastructure.Persistence
                 entity.Property(prt => prt.Token).IsRequired().HasMaxLength(500);
                 entity.Property(prt => prt.ExpiredAt).IsRequired();
                 entity.Property(prt => prt.UsedAt).IsRequired(false);
+            });
+
+            // S4a (SEC-M8): token revocations wait here until the shared store has them (TokenRevocation.md).
+            modelBuilder.Entity<RevocationOutboxMessage>(entity =>
+            {
+                entity.ToTable("RevocationOutbox");
+                entity.HasKey(r => r.Id);
+                entity.Property(r => r.Kind).HasConversion<byte>();
+                entity.Property(r => r.Subject).IsRequired().HasMaxLength(200);
+                entity.Property(r => r.LastError).HasMaxLength(1000);
+                entity.Ignore(r => r.IsPublished);
+                entity.HasIndex(r => r.CreatedAt).HasFilter("[PublishedAt] IS NULL");
             });
 
             modelBuilder.Entity<OutboxMessage>(entity =>
