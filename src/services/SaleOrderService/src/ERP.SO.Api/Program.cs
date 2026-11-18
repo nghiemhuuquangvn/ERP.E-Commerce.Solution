@@ -166,8 +166,8 @@ builder.Services.AddSharedLocalization(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
-builder.Services.AddCors(options =>
-    options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+// S4a (SEC-M14): no open CORS - only Cors:AllowedOrigins (none by default; the SPAs call their own host).
+builder.Services.AddErpCors(builder.Configuration);
 
 var app = builder.Build();
 
@@ -185,7 +185,7 @@ app.UseAuthentication();
 app.UseUserContextHeaderMiddleware();
 app.UseMiddleware<LicenseEnforcementMiddleware>();
 app.UseSharedLocalization();
-app.UseCors("AllowAll");
+app.UseErpCors();
 app.UseAuthorization();
 app.MapControllers();
 // Public keys of this service's service-to-service tokens (Warehouse/Promotion verify them).

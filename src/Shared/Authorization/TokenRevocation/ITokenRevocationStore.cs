@@ -26,10 +26,12 @@ public interface ITokenRevocationStore
     Task RevokeTokenAsync(string jti, DateTime expiresAtUtc, CancellationToken ct = default);
 
     /// <summary>Invalidates every token the users hold now (they must refresh or sign in again).</summary>
-    Task MarkUsersChangedAsync(IEnumerable<Guid> userIds, CancellationToken ct = default);
+    /// <param name="changedAtUnix">When the change happened (unix seconds); null = now. A marker is never LOWERED, so a late
+    /// retry of an older change (revocation outbox, S4a) cannot weaken a newer one, nor revoke tokens issued after the change.</param>
+    Task MarkUsersChangedAsync(IEnumerable<Guid> userIds, CancellationToken ct = default, long? changedAtUnix = null);
 
     /// <summary>Invalidates every token of a tenant (license or tenant status changed).</summary>
-    Task MarkTenantChangedAsync(Guid tenantId, CancellationToken ct = default);
+    Task MarkTenantChangedAsync(Guid tenantId, CancellationToken ct = default, long? changedAtUnix = null);
 }
 
 public static class TokenRevocationKeys

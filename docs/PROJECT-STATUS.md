@@ -40,6 +40,29 @@ Verify the baseline first (§5) — everything below was green on 2026-10-20.
 
 ## 2. Completed work (newest first)
 
+### 2026-11-18 - Security wave S4a: revocation outbox, Redis password, CORS, browser headers (`fix/security-s4a`, from master)
+- **What (owner: S4 split into S4a / S4b, CSP Report-Only first):**
+  - **Revocation outbox (SEC-M8):** token revocations are written to `RevocationOutbox` in the same commit as the change, published right after it and retried every 5 s by `RevocationOutboxPublisher` until Redis has them. Markers carry the change time and are never lowered. Outside Development no service starts without the shared store.
+  - **Redis (SEC-M9, Redis part):** Redis requires a password (`REDIS_PASSWORD` in `.env`; k8s secret `redis-password` / `redis-connection`, moved out of the config map).
+  - **CORS:** one shared policy `AddErpCors` (`Cors:AllowedOrigins`, none by default) replaces "allow any origin" in 14 services.
+  - **Headers (SEC-M14):** both SPAs send nosniff / DENY / Referrer / Permissions / COOP and a Report-Only CSP; HSTS is documented for the TLS ingress.
+  - **Data:** migration Identity 040. Docs: `docs/business/Identity/TokenRevocation.md`, `docs/architecture/browser-security.md`.
+- **Build repair:** master did not build. Dependabot had raised the Shared packages and the .NET images to 11.0 while the services kept older pins / net10.0. S4a aligned every Microsoft.* / System.* package to 10.0.15, Confluent.Kafka to 2.16.0, OpenApi to 2.13.0, IdentityModel to 8.23.0 and Newtonsoft to 13.0.4; it put CsvHelper back to 33.0.1 and the images back to 10.0. Dependabot now ignores .NET major images (R331).
+- **Proof:**
+  - **Unit suites:** all 19 projects green (Architecture 96, Identity 346, Shared 156).
+  - **Live check 2026-11-18** (compose plus host SQL, tenant glcheck, all backend images rebuilt):
+    - `redis-cli` without a password answers `NOAUTH`, and all 19 services start without Redis or configuration errors.
+    - UAT-REV-01: after sign-out, the old token gets 401 from Sales once the 5 s local cache expires (BR-REV-08). The outbox row was published 87 ms after the commit.
+    - UAT-REV-02: Redis was stopped and the user changed their password. The request succeeded and the row stayed pending (attempts 3, error logged). About 12 s after Redis returned, the row was published and the old token got 401.
+    - CORS: a preflight from `https://evil.example` to Sales, Product and Accounting gets no `Access-Control-Allow-Origin`.
+    - Headers: Admin and Storefront send every header and `Server: nginx` without a version. This was checked by loading the snippet into the running containers, because the SPA images cannot be rebuilt (R335).
+- **Open:** frontend npm majors break the SPA image build (R335, owner decision); local parallel image build breaks BuildKit (R336).
+- **Deploy:**
+  1. Set `REDIS_PASSWORD` (compose) / the two Redis secret keys (k8s) **before** starting the new images: services refuse to start without Redis outside Development.
+  2. `db-migrate` (Identity 040).
+  3. All backend images (Shared changed), admin and storefront.
+- **Risks:** R331-R334. **Next:** S4b (Kafka SASL, Elasticsearch security, per-service SQL logins, NetworkPolicy).
+
 ### 2026-11-17 - CI/CD: GitHub Actions per service + web + mobile, GHCR, K8s staging / production (`ci/github-actions`, from master after S3 merged)
 - **What:** one pipeline per backend service (19 `svc-*.yml` calling `_dotnet-service.yml`: build, unit tests, image with the root `Dockerfile`, Trivy, SBOM / provenance, push `ghcr.io/<owner>/erp-<svc>:sha-<commit>`, staging rollout by digest with automatic `rollout undo`), web (`web-admin` / `web-storefront` via `_frontend-web.yml`: tokens, Vitest + axe, build, image), `mobile.yml` (tokens + Jest; EAS build by hand per tenant), `ci-platform.yml` (actionlint, service-table check, Architecture + Shared tests, schema drift SQL Server and PostgreSQL on real containers), `db-migrations.yml` (migration images + K8s Jobs) and `release.yml` (tag `v*`: one approval, then migrations -> backend -> Warehouse -> Manufacturing -> web, images promoted by digest). The broken `docker-cicd.yml` is gone.
 - **Script fixes:** `run-migrations.sh` no longer runs the PostgreSQL `Manufacturing` folder against SQL Server and skips `*SeedDemo*` files when `SKIP_DEMO_SEED=true` (CI and the migration image; the local compose stack is unchanged). Manifests got `imagePullSecrets: ghcr-pull`; `secrets.yaml.example` got `sql-host` / `sql-sa-password`.

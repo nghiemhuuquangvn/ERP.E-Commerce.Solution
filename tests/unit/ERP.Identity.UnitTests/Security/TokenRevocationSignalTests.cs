@@ -113,8 +113,10 @@ public class TokenRevocationSignalTests
 
         queue.UsersChanged(user);
         (await store.GetStateAsync(null, user.ToString(), null)).UserChangedAt.Should().BeNull("nothing before the commit");
-        await queue.FlushAsync(CancellationToken.None);
-        (await store.GetStateAsync(null, user.ToString(), null)).UserChangedAt.Should().Be(100);
+        var rows = queue.Stage();
+        await queue.PublishAsync(rows, CancellationToken.None);
+        (await store.GetStateAsync(null, user.ToString(), null)).UserChangedAt.Should().Be(rows.Single().ChangedAtUnix, "the marker carries the change time");
+        rows.Single().IsPublished.Should().BeTrue();
 
         var other = Guid.NewGuid();
         queue.UsersChanged(other);
@@ -123,12 +125,17 @@ public class TokenRevocationSignalTests
         (await store.GetStateAsync(null, other.ToString(), null)).UserChangedAt.Should().BeNull("rolled back");
 
         var failing = new Mock<ITokenRevocationStore>();
-        failing.Setup(s => s.MarkUsersChangedAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+        failing.Setup(s => s.MarkUsersChangedAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>(), It.IsAny<long?>()))
             .ThrowsAsync(new TimeoutException());
         var failingQueue = new TokenRevocationQueue(failing.Object, NullLogger<TokenRevocationQueue>.Instance);
         failingQueue.UsersChanged(user);
-        var act = () => failingQueue.FlushAsync(CancellationToken.None);
+        var failingRows = failingQueue.Stage();
+        var act = () => failingQueue.PublishAsync(failingRows, CancellationToken.None);
         await act.Should().NotThrowAsync("the database change is already committed");
+        // S4a (SEC-M8): kept for the RevocationOutboxPublisher instead of being dropped
+        failingRows.Single().IsPublished.Should().BeFalse();
+        failingRows.Single().Attempts.Should().Be(1);
+        failingRows.Single().LastError.Should().NotBeNullOrEmpty();
     }
 
     [Fact]

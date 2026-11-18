@@ -163,13 +163,62 @@ namespace ERP.Identity.Infrastructure.Persistence
         public IWebhookEndpointRepository WebhookEndpoints { get; }
         public ERP.Identity.Application.Interfaces.Services.ITokenRevocationQueue Revocations { get; }
 
+        // S4a (SEC-M8, TokenRevocation.md): revocations of this unit of work, saved in the same commit, published after it.
+        private readonly List<ERP.Identity.Domain.Entities.RevocationOutboxMessage> _committedRevocations = [];
+
         public async Task<int> SaveChangesAsync(CancellationToken ct)
         {
-            var result = await _dbContext.SaveChangesAsync(ct);
+            StageRevocations();
+            int result;
+            try
+            {
+                result = await _dbContext.SaveChangesAsync(ct);
+            }
+            catch when (_currentTrans == null)
+            {
+                // Nothing was committed: forget the rows so a later save of this scope cannot commit them alone.
+                foreach (var row in _committedRevocations)
+                    _dbContext.Entry(row).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+                _committedRevocations.Clear();
+                throw;
+            }
             // Outside a transaction the change is committed now; inside one, wait for Commit.
             if (_currentTrans == null)
-                await Revocations.FlushAsync(ct);
+                await PublishCommittedRevocationsAsync(ct);
             return result;
+        }
+
+        /// <summary>The pending revocations become outbox rows of THIS save: they commit (or roll back) with the change.</summary>
+        private void StageRevocations()
+        {
+            var rows = Revocations.Stage();
+            if (rows.Count == 0)
+                return;
+            _dbContext.RevocationOutbox.AddRange(rows);
+            _committedRevocations.AddRange(rows);
+        }
+
+        /// <summary>
+        /// Fast path after the commit: publish the rows and record the result. Never throws - the change is committed, and a row
+        /// that is not marked published (store or database down) is picked up by the RevocationOutboxPublisher.
+        /// </summary>
+        private async Task PublishCommittedRevocationsAsync(CancellationToken ct)
+        {
+            if (_committedRevocations.Count == 0)
+                return;
+            var rows = _committedRevocations.ToList();
+            _committedRevocations.Clear();
+
+            await Revocations.PublishAsync(rows, ct);
+            try
+            {
+                await _dbContext.SaveChangesAsync(ct);
+            }
+            catch (Exception) when (!ct.IsCancellationRequested)
+            {
+                // The publish state is only bookkeeping: an unrecorded success is published again (idempotent), an unrecorded
+                // failure is retried. Nothing to undo.
+            }
         }
         public async Task BeginTransactionAsync(CancellationToken ct)
         {
@@ -180,11 +229,12 @@ namespace ERP.Identity.Infrastructure.Persistence
         {
             try
             {
+                StageRevocations();
                 await _dbContext.SaveChangesAsync(ct);
                 if (_currentTrans != null) await _currentTrans.CommitAsync(ct);
                 _currentTrans?.Dispose();
                 _currentTrans = null;
-                await Revocations.FlushAsync(ct);
+                await PublishCommittedRevocationsAsync(ct);
             }
             catch
             {
@@ -204,6 +254,10 @@ namespace ERP.Identity.Infrastructure.Persistence
         public async Task RollbackTransactionAsync(CancellationToken ct)
         {
             Revocations.Clear();
+            // Their rows roll back with the transaction; never publish them.
+            foreach (var row in _committedRevocations)
+                _dbContext.Entry(row).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+            _committedRevocations.Clear();
             if (_currentTrans != null)
             {
                 await _currentTrans.RollbackAsync(ct);

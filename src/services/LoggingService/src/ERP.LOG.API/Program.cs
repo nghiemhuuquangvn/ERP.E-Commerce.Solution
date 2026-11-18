@@ -39,15 +39,8 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddControllers();
 builder.Services.AddErpApiVersioning();
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.WithOrigins("*")
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
+// S4a (SEC-M14): no open CORS - only Cors:AllowedOrigins (none by default; the SPAs call their own host).
+builder.Services.AddErpCors(builder.Configuration);
 
 builder.Services.AddHealthChecks();
 
@@ -67,7 +60,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseMiddleware<ERP.Shared.Authorization.UserContextHeaderMiddleware>();
-app.UseCors();
+app.UseErpCors();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health").AllowAnonymous();

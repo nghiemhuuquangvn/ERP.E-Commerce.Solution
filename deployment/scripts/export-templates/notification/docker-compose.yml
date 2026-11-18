@@ -58,6 +58,8 @@ services:
 
   redis:
     image: redis:7.4-alpine
+    # S4a (SEC-M9): Redis always requires a password.
+    command: redis-server --requirepass ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
     container_name: notification-redis
     restart: unless-stopped
     networks: [notification-network]
@@ -89,7 +91,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__NotificationDb: "Server=sqlserver,1433;Database=NotificationDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
-      ConnectionStrings__Redis: "redis:6379"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD},abortConnect=false"
       Cache__Type: "Redis"
       Cache__InstanceName: "ntf"
       KafkaSettings__BootstrapServers: kafka:9092
