@@ -13,7 +13,7 @@
     <PackageReference Include="MediatR" Version="12.2.0" />
     <!-- NU1903 AutoMapper advisory intentionally not fixed — see ERP.PO.Application.csproj for rationale. -->
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
-    <PackageReference Include="FluentValidation" Version="11.8.1" />
+    <PackageReference Include="FluentValidation" Version="12.2.0" />
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.15" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.23.0" />
