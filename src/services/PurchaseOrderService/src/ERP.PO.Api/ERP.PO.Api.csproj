@@ -9,7 +9,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.15" />
     <!-- Pinned above the vulnerable transitive version pulled in by Swashbuckle/Microsoft.AspNetCore.OpenApi (NU1903 GHSA-v5pm-xwqc-g5wc). -->
-    <PackageReference Include="Microsoft.OpenApi" Version="2.13.1" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.13.0" />
     <PackageReference Include="MediatR" Version="12.2.0" />
     <!-- NU1903 AutoMapper advisory intentionally not fixed — see ERP.PO.Application.csproj for rationale. -->
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />

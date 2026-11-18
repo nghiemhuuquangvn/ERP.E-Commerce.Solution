@@ -131,6 +131,7 @@ public static class TokenRevocationServiceCollectionExtensions
         services.AddMemoryCache();
 
         var redis = configuration.GetConnectionString("Redis");
+        EnsureSharedStoreOutsideDevelopment(configuration, redis);
         if (!string.IsNullOrWhiteSpace(redis))
             services.TryAddSingleton<ITokenRevocationStore>(_ => new RedisTokenRevocationStore(redis, options));
         else
@@ -144,5 +145,28 @@ public static class TokenRevocationServiceCollectionExtensions
         services.TryAddSingleton<TokenRevocationValidator>();
         services.TryAddScoped<RevocationHubFilter>();
         return services;
+    }
+
+    public const string AllowInMemoryKey = "TokenRevocation:AllowInMemory";
+
+    /// <summary>
+    /// SEC-M8 (S4a): without the shared store a logout, lock or role change in IdentityService never reaches this
+    /// service - it silently keeps accepting the old tokens. Outside Development (the environment is named and is not
+    /// Development) a missing <c>ConnectionStrings:Redis</c> stops the service, unless <c>TokenRevocation:AllowInMemory=true</c>
+    /// states the single-process case on purpose.
+    /// </summary>
+    public static void EnsureSharedStoreOutsideDevelopment(IConfiguration configuration, string? redisConnectionString)
+    {
+        if (!string.IsNullOrWhiteSpace(redisConnectionString))
+            return;
+        var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? configuration["DOTNET_ENVIRONMENT"];
+        if (string.IsNullOrWhiteSpace(environment) || string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase))
+            return;
+        if (bool.TryParse(configuration[AllowInMemoryKey], out var allowed) && allowed)
+            return;
+
+        throw new ERP.Shared.Infrastructure.Exceptions.ServiceMisconfiguredException(
+            $"ConnectionStrings:Redis is not set in the '{environment}' environment: token revocations from IdentityService would "
+            + $"never reach this service. Configure Redis, or set {AllowInMemoryKey}=true for a single-process setup only.");
     }
 }

@@ -31,6 +31,12 @@ spec:
         - configMapRef:
             name: erp-config
         env:
+        # S4a (SEC-M9): Redis needs a password, so its connection string is a secret (not in erp-config).
+        - name: ConnectionStrings__Redis
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: redis-connection
         # Service-to-service tokens signed with this service's own Key Vault certificate
         # (several replicas share it — never Ephemeral here).
         - name: ServiceAuth__Name

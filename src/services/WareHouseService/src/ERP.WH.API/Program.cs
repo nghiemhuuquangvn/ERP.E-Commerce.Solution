@@ -30,8 +30,8 @@ try
         .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning)
         .MinimumLevel.Override("Microsoft", LogEventLevel.Warning));
 
-    builder.Services.AddCors(options =>
-        options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+    // S4a (SEC-M14): no open CORS - only Cors:AllowedOrigins (none by default; the SPAs call their own host).
+    builder.Services.AddErpCors(builder.Configuration);
 
     builder.Services.AddHealthChecks();
     builder.Services.AddControllers();
@@ -78,7 +78,7 @@ try
     }
 
     app.UseSharedLocalization();
-    app.UseCors("AllowAll");
+    app.UseErpCors();
     app.UseAuthentication();
     app.UseMiddleware<UserContextHeaderMiddleware>();
     app.UseMiddleware<LicenseEnforcementMiddleware>();

@@ -187,6 +187,8 @@ namespace ERP.Identity.Infrastructure
 
             services.AddHostedService<OutboxProcessor>();
             services.AddHostedService<WebhookSecretEncryptionJob>();
+            // S4a (SEC-M8): revocations the fast path could not publish reach the shared store later, never dropped.
+            services.AddHostedService<RevocationOutboxPublisher>();
 
             return services;
         }

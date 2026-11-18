@@ -23,8 +23,17 @@ namespace ERP.Identity.Application.Interfaces.Services
         /// <summary>Every token of the tenant becomes invalid (license / tenant status).</summary>
         void TenantChanged(Guid tenantId);
 
-        /// <summary>Publishes and clears the pending revocations. Never throws: a store failure is
-        /// logged — the database change already happened.</summary>
+        /// <summary>
+        /// S4a (SEC-M8, docs/business/Identity/TokenRevocation.md): turns the pending revocations into outbox rows (stamped
+        /// with the change time) and clears them. The unit of work saves the rows in the SAME commit as the change.
+        /// </summary>
+        IReadOnlyList<Domain.Entities.RevocationOutboxMessage> Stage();
+
+        /// <summary>Publishes the rows to the shared store and marks them published; a failing row is marked failed and stays
+        /// in the outbox for the RevocationOutboxPublisher. Never throws (the change is already committed).</summary>
+        Task PublishAsync(IReadOnlyList<Domain.Entities.RevocationOutboxMessage> rows, CancellationToken ct);
+
+        /// <summary>Stage + publish without storing - for code paths without a unit of work (and tests). Never throws.</summary>
         Task FlushAsync(CancellationToken ct);
 
         /// <summary>Drops pending revocations (rollback).</summary>

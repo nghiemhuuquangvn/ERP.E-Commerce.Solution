@@ -27,6 +27,12 @@ spec:
         - configMapRef:
             name: erp-config
         env:
+        # S4a (SEC-M9): Redis needs a password, so its connection string is a secret (not in erp-config).
+        - name: ConnectionStrings__Redis
+          valueFrom:
+            secretKeyRef:
+              name: erp-secrets
+              key: redis-connection
         - name: ASPNETCORE_URLS
           value: "http://+:5006"
         - name: Cache__InstanceName

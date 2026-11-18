@@ -188,6 +188,13 @@ Security invariants (2026-10-19 review — docs/business/Identity/SecurityReview
   password-OK-2FA-pending sign-in is NOT a success row. At most 5 codes per account per hour. Refresh rotation and 2FA
   attempts are single atomic UPDATEs (`TryRotateAsync`, `TryConsumeAttemptAsync`) - never a tracked read-modify-write.
   A shop may require 2FA but never remove a user's own; saving auth settings re-asks the password (`ConfirmCallerAsync`).
+- Revocations (S4a, docs/business/Identity/TokenRevocation.md): `IUnitOfWork.Revocations` is staged into `RevocationOutbox` in the
+  SAME commit as the change and published after it; `RevocationOutboxPublisher` retries until the store has it (never dropped);
+  markers carry the change time and are never lowered. Outside Development no service starts without `ConnectionStrings:Redis`
+  (`TokenRevocation:AllowInMemory=true` only for a single process), and Redis always has a password (`InfrastructureSecurityTests`).
+- Browser security (S4a, docs/architecture/browser-security.md): CORS only through `AddErpCors` (`Cors:AllowedOrigins`, none by
+  default - never `AllowAnyOrigin` / `WithOrigins("*")`); both SPA nginx include `nginx.security-headers.conf` (CSP Report-Only
+  until enforced; HSTS on the TLS ingress only).
 - Secrets/tokens (reset, confirm, OTP) only leave the service via NotificationService
   events — never in an HTTP response (dev-only flag excepted, blocked outside Development).
 - Every token-issuing path goes through `EnsureAccountCanAuthenticateAsync`

@@ -23,6 +23,13 @@ updates:
   - package-ecosystem: docker
     directory: /
     schedule: { interval: weekly, day: monday }
+    # Every project targets net10.0: a new .NET MAJOR image (aspnet:11.0 cannot run a net10.0 app) is an upgrade done by
+    # hand together with the TargetFramework, never a bot PR (it broke every image on 2026-11-17).
+    ignore:
+      - dependency-name: "dotnet/sdk"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "dotnet/aspnet"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /src/frontend/admin
