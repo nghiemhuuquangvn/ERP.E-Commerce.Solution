@@ -534,8 +534,8 @@ function TenantLicensePanel({ tenantId, canIssue }: { tenantId: string; canIssue
           <div>
             <p className="mb-1 text-sm font-medium text-ink-secondary">{t('license.plans.modules')}</p>
             <div className="flex flex-wrap gap-1">
-              {license.moduleCodes.length === 0 && <span className="text-xs text-ink-muted">—</span>}
-              {license.moduleCodes.map((code) => (
+              {(license.moduleCodes ?? []).length === 0 && <span className="text-xs text-ink-muted">—</span>}
+              {(license.moduleCodes ?? []).map((code) => (
                 <span key={code} className="badge bg-surface-muted text-ink-secondary">
                   {code}
                 </span>

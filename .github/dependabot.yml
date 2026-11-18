@@ -1,5 +1,9 @@
-# Weekly dependency update PRs. Each PR runs the normal pipelines (svc-*, web-*, mobile, ci-platform),
-# so an update is merged only when the tests of what it touches pass. See docs/deployment/ci-cd.md §10.
+# Weekly dependency update PRs: MINOR and PATCH only. Each PR runs the normal pipelines (svc-*, web-*, mobile,
+# ci-platform); merge it only when every check is green (branch protection, docs/deployment/ci-cd.md §10).
+#
+# Major versions are never proposed (owner decision 2026-11-18, after the Dependabot batch #112-#136 broke master:
+# Vite 8 plugin on Vite 5, Tailwind 4, TypeScript 7, .NET 11 images for net10.0 projects, FluentAssertions 8 licence).
+# A major upgrade is a planned task with its own branch and tests (docs/deployment/ci-cd.md §10a).
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -8,33 +12,37 @@ updates:
     groups:
       actions: { patterns: ['*'] }
 
-  # One .sln at the root: Dependabot walks every .csproj it references.
+  # Every project, not the root .sln: the .sln lists only 19 of the ~107 .csproj, so "directory: /" updated
+  # ERP.Shared alone and every service failed restore with NU1605 (package downgrade). One group = one PR that
+  # moves a package in ALL projects at once.
   - package-ecosystem: nuget
-    directory: /
+    directories: ['/src/**/*', '/tests/**/*']
     schedule: { interval: weekly, day: monday }
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     groups:
-      microsoft:
-        patterns: ['Microsoft.*', 'System.*']
+      nuget-minor-and-patch:
+        patterns: ['*']
         update-types: [minor, patch]
-      tests:
-        patterns: ['xunit*', 'Moq', 'FluentAssertions', 'coverlet*', 'Microsoft.NET.Test.Sdk']
+    ignore:
+      - dependency-name: '*'
+        update-types: [version-update:semver-major]
 
+  # Base images: dotnet/sdk + aspnet must stay on the projects' TargetFramework (net10.0); node / nginx majors by hand.
   - package-ecosystem: docker
-    directory: /
+    directories: ['/', '/src/frontend/admin', '/src/frontend/storefront']
     schedule: { interval: weekly, day: monday }
+    ignore:
+      - dependency-name: '*'
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: npm
-    directory: /src/frontend/admin
+    directories: [/src/frontend/admin, /src/frontend/storefront]
     schedule: { interval: weekly, day: monday }
     groups:
       minor-and-patch: { update-types: [minor, patch] }
-
-  - package-ecosystem: npm
-    directory: /src/frontend/storefront
-    schedule: { interval: weekly, day: monday }
-    groups:
-      minor-and-patch: { update-types: [minor, patch] }
+    ignore:
+      - dependency-name: '*'
+        update-types: [version-update:semver-major]
 
   # Expo pins React Native and native modules to its SDK: only patches here, SDK upgrades by hand (npx expo install --fix).
   - package-ecosystem: npm

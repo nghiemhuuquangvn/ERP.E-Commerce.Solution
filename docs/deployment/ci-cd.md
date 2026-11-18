@@ -220,6 +220,30 @@ rules:
 ```
 (+ `RoleBinding` cho ServiceAccount `ci-deployer`.) Không cấp quyền đọc `secrets`: CI không cần và không được thấy secret ứng dụng.
 
+## 10a. Cập nhật thư viện (Dependabot) — quy tắc sau sự cố 2026-11-18
+
+**Sự cố:** lô PR Dependabot #112–#136 được merge vào `master` khi CI chưa xanh (chưa bật branch protection). Kết quả:
+| Hỏng | Nguyên nhân |
+|---|---|
+| Admin `npm ci` lỗi `ERESOLVE` | `@vitejs/plugin-react` 6 (cần Vite 8) trên Vite 5; kèm Vitest 5, Tailwind 4, lucide-react 1.x |
+| Storefront chỉ cài được nhờ `--legacy-peer-deps` | Vite 8 + plugin-vue 6 + TypeScript 7 trong khi Vitest 2 chỉ hỗ trợ Vite 5 |
+| **Mọi image backend không khởi động** | `Dockerfile` lên `dotnet/sdk|aspnet:11.0` nhưng 88 project là `net10.0` (runtime không roll-forward qua major) |
+| Mọi service lỗi restore `NU1605` (package downgrade = lỗi) | NuGet `directory: /` chỉ thấy 19/107 `.csproj` trong `.sln` → nâng `ERP.Shared` (Confluent.Kafka 2.16, JwtBearer 10.0.15…) mà không nâng service |
+| Thêm giấy phép | FluentAssertions 8 cần license trả phí cho dùng thương mại |
+
+**Đã sửa (nhánh `fix/dependabot-majors`):** major trả về bản cũ (Vite 5, plugin-react 4, plugin-vue 5, Vitest 2, Tailwind 3, TS 5, lucide 0.468,
+Asp.Versioning 8.1, CsvHelper 33, FluentAssertions 6, FluentValidation 11, xunit.runner 2.5.6, image .NET 10.0); minor/patch **giữ** và
+**đồng bộ cho mọi project** (Microsoft.* 10.0.15, Jwt 8.23, Confluent.Kafka 2.16, Moq 4.21, xunit 2.9.3…).
+
+**Quy tắc từ nay (BR-CICD-06..08):**
+- BR-CICD-06 Dependabot chỉ mở PR **minor / patch** (npm, NuGet, Docker); **major là một task có kế hoạch** (nhánh riêng, sửa code/config, test).
+- BR-CICD-07 NuGet quét **mọi project** (`/src/**/*`, `/tests/**/*`) và gom vào **một** PR — một package luôn cùng version ở mọi project.
+- BR-CICD-08 Chỉ merge PR (kể cả Dependabot) khi **mọi check xanh** → bắt buộc bật branch protection (§10 bước 9).
+- Base image `dotnet/sdk` / `aspnet` phải cùng major với `<TargetFramework>`; nâng .NET = đổi cả hai trong một PR.
+
+Việc nâng major còn chờ (R338): Vite 8 + plugin-react 6 / plugin-vue 6 + Vitest 5, Tailwind 4 (đổi cấu hình), TypeScript 7, lucide-react 1.x,
+FluentValidation 12, CsvHelper 34, Asp.Versioning 10, .NET 11 (khi ra LTS/được duyệt). FluentAssertions 8: cân nhắc license trước.
+
 ## 11. Thêm một service mới
 1. Thêm service vào `docker-compose.yml` và `deployment/k8s/deployments/<x>.yaml` như thường lệ.
 2. Copy một `svc-*.yml`, sửa tên, path filter, 7 giá trị `with:`.
